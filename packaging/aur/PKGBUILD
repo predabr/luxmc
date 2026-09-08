@@ -1,0 +1,17 @@
+# Maintainer: Pedro <suporte@luxmc.com>
+pkgname=luxmc-bin
+pkgver=0.2.0
+pkgrel=1
+pkgdesc="Luxmc - Linux-first Minecraft Launcher"
+arch=('x86_64')
+url="https://luxmc.com"
+license=('GPL3')
+depends=('webkit2gtk-4.1' 'gtk3' 'cairo' 'pango' 'glib2' 'openssl' 'flite')
+provides=('luxmc')
+conflicts=('luxmc')
+source=("https://github.com/SEU_USUARIO/luxmc/releases/download/v${pkgver}/luxmc_${pkgver}_amd64.deb")
+sha256sums=('SKIP') # Quando compilar o .deb oficial, rode 'sha256sum luxmc_0.2.0_amd64.deb' e coloque aqui
+
+package() {
+    tar -xf data.tar.gz -C "${pkgdir}"
+}

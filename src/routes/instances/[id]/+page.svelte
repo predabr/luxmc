@@ -1,0 +1,971 @@
+<script lang="ts">
+	import { page } from "$app/stores";
+	import { fade } from "svelte/transition";
+	import { onMount } from "svelte";
+	import { 
+		ArrowLeft, 
+		Download, 
+		Play, 
+		Settings as SettingsIcon, 
+		MoreVertical, 
+		Package, 
+		Globe2, 
+		Image, 
+		Folder, 
+		Search, 
+		RefreshCw, 
+		Plus, 
+		Layers, 
+		Sparkles, 
+		Box, 
+		Code, 
+		Check,
+		FolderOpen,
+		FileText,
+		Trash2,
+		ChevronRight,
+		ArrowUp,
+		File,
+		Save,
+		X,
+		Copy,
+		Share2
+	} from "lucide-svelte";
+	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
+	import { profiles } from "$lib/stores/profiles.svelte";
+	import { account } from "$lib/stores/account.svelte";
+	import { gamingStats } from "$lib/stores/gamingStats.svelte";
+	import { toast } from "$lib/stores/toasts.svelte";
+	import { open } from "@tauri-apps/plugin-dialog";
+	import { convertFileSrc } from "@tauri-apps/api/core";
+	import { 
+		launchGame, 
+		versionsCheckInstalled, 
+		versionsDownload, 
+		instanceFileTree, 
+		instancesScreenshots, 
+		instancesOpenFolder,
+		screenshotDelete,
+		authDevLogin,
+		instanceWorldsList,
+		instanceWorldDelete,
+		discordSetActivity,
+		readTextFile,
+		writeTextFile,
+		deleteFileOrDir,
+		p2pGetHostLink,
+		type FileTreeEntry,
+		type WorldDetail,
+		type HostLinkInfo
+	} from "$lib/api";
+
+	const instanceId = $derived($page.params.id ?? "");
+	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) || profiles.active);
+
+	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros">("conteudo");
+	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("resourcepacks");
+	let searchQuery = $state("");
+	
+	// Host World State
+	let showHostModal = $state(false);
+	let hostLinkInfo = $state<HostLinkInfo | null>(null);
+	let customHostPort = $state(25565);
+	let isCopiedHostLink = $state(false);
+
+	async function openHostWorldModal() {
+		try {
+			hostLinkInfo = await p2pGetHostLink(customHostPort);
+			showHostModal = true;
+		} catch (e) {
+			toast("Erro ao gerar link de host: " + String(e), "error");
+		}
+	}
+
+	async function refreshHostLink() {
+		try {
+			hostLinkInfo = await p2pGetHostLink(customHostPort);
+			toast("Link de conexão atualizado com a porta " + customHostPort, "success");
+		} catch (e) {
+			toast("Erro ao atualizar porta: " + String(e), "error");
+		}
+	}
+
+	function copyHostLink() {
+		if (!hostLinkInfo) return;
+		navigator.clipboard.writeText(hostLinkInfo.shareLink);
+		isCopiedHostLink = true;
+		toast("Link próprio de conexão copiado! Envie para seus amigos.", "success");
+		setTimeout(() => (isCopiedHostLink = false), 2500);
+	}
+	
+	// Launch & Install state
+	let isLaunching = $state(false);
+	let isInstalled = $state(true);
+	let launchStatusText = $state("");
+	let downloadProgressPercent = $state(0);
+
+	// Real Data from File System & Backend
+	let worldsList = $state<WorldDetail[]>([]);
+	let screenshotsList = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null }>>([]);
+	let previewScreenshot = $state<{ name: string; path: string; dataUrl?: string | null } | null>(null);
+	let fileTree = $state<FileTreeEntry[]>([]);
+	let resourcePacks = $state<FileTreeEntry[]>([]);
+	let shaderPacks = $state<FileTreeEntry[]>([]);
+	let dataPacks = $state<FileTreeEntry[]>([]);
+	let isLoadingData = $state(false);
+
+	// In-launcher File Manager states
+	let fileSubPath = $state("");
+	let fileBreadcrumbs = $state<string[]>([]);
+	let activeEditorFile = $state<{ path: string; name: string; content: string } | null>(null);
+	let isSavingEditor = $state(false);
+
+	const currentPacksList = $derived(
+		subTab === "resourcepacks" ? resourcePacks : subTab === "shaders" ? shaderPacks : dataPacks
+	);
+
+	onMount(async () => {
+		await refreshAllData();
+	});
+
+	async function refreshAllData() {
+		if (!instanceId) return;
+		isLoadingData = true;
+		try {
+			// Check if version is installed
+			const ver = activeProfile?.mcVersion || "1.20.4";
+			isInstalled = await versionsCheckInstalled(ver).catch(() => true);
+
+			// Load real worlds with icon.png extraction
+			worldsList = await instanceWorldsList(instanceId).catch(() => []);
+			
+			// Load real screenshots
+			screenshotsList = await instancesScreenshots(instanceId).catch(() => []);
+
+			// Load real file tree
+			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
+
+			// Load real resourcepacks, shaderpacks, and datapacks
+			resourcePacks = await instanceFileTree(instanceId, "resourcepacks").catch(() => []);
+			shaderPacks = await instanceFileTree(instanceId, "shaderpacks").catch(() => []);
+			dataPacks = await instanceFileTree(instanceId, "datapacks").catch(() => []);
+		} catch (e) {
+			console.error(e);
+		} finally {
+			isLoadingData = false;
+		}
+	}
+
+	async function navigateToFolder(folderName: string) {
+		fileBreadcrumbs = [...fileBreadcrumbs, folderName];
+		fileSubPath = fileBreadcrumbs.join("/");
+		fileTree = await instanceFileTree(instanceId, fileSubPath).catch(() => []);
+	}
+
+	async function navigateBreadcrumb(index: number) {
+		if (index < 0) {
+			fileBreadcrumbs = [];
+			fileSubPath = "";
+		} else {
+			fileBreadcrumbs = fileBreadcrumbs.slice(0, index + 1);
+			fileSubPath = fileBreadcrumbs.join("/");
+		}
+		fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
+	}
+
+	async function navigateUp() {
+		if (fileBreadcrumbs.length > 0) {
+			fileBreadcrumbs = fileBreadcrumbs.slice(0, -1);
+			fileSubPath = fileBreadcrumbs.join("/");
+			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
+		}
+	}
+
+	async function handleOpenFile(file: FileTreeEntry) {
+		if (file.isDir) {
+			await navigateToFolder(file.name);
+		} else {
+			const isText = /\.(txt|json|properties|toml|log|cfg|mcmeta|yaml|yml|ini|csv|md|sh|lock|json5)$/i.test(file.name) || file.size < 500000;
+			if (isText) {
+				try {
+					const content = await readTextFile(file.path);
+					activeEditorFile = { path: file.path, name: file.name, content };
+				} catch (e) {
+					toast("Não foi possível ler este arquivo: " + String(e), "error");
+				}
+			} else {
+				toast(`Arquivo binário (${Math.round(file.size / 1024)} KB). Abra com o gerenciador do sistema.`, "info");
+			}
+		}
+	}
+
+	async function handleSaveEditorFile() {
+		if (!activeEditorFile) return;
+		isSavingEditor = true;
+		try {
+			await writeTextFile(activeEditorFile.path, activeEditorFile.content);
+			toast(`Arquivo "${activeEditorFile.name}" guardado com sucesso!`, "success");
+		} catch (e) {
+			toast("Erro ao salvar arquivo: " + String(e), "error");
+		} finally {
+			isSavingEditor = false;
+		}
+	}
+
+	async function handleDeleteFileEntry(file: FileTreeEntry) {
+		if (!confirm(`Tem certeza que deseja excluir "${file.name}" permanentemente?`)) return;
+		try {
+			await deleteFileOrDir(file.path);
+			toast(`"${file.name}" excluído com sucesso!`, "success");
+			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
+		} catch (e) {
+			toast("Erro ao excluir arquivo: " + String(e), "error");
+		}
+	}
+
+	async function handleDeleteWorld(folderName: string) {
+		if (!instanceId) return;
+		if (!confirm(`Tem certeza que deseja excluir o mundo "${folderName}" permanentemente? Esta ação não pode ser desfeita.`)) return;
+		try {
+			await instanceWorldDelete(instanceId, folderName);
+			toast(`Mundo "${folderName}" excluído com sucesso!`, "success");
+			worldsList = worldsList.filter(w => w.folderName !== folderName);
+		} catch (e) {
+			toast("Erro ao excluir mundo: " + String(e), "error");
+		}
+	}
+
+	async function handlePlay() {
+		if (isLaunching) return;
+		isLaunching = true;
+		downloadProgressPercent = 15;
+		launchStatusText = "Preparando autenticação da conta...";
+
+		try {
+			// Ensure valid account
+			let userUuid = account.value?.uuid;
+			let userAccId = account.value?.id || userUuid;
+			if (!userUuid) {
+				const devAcc = await authDevLogin();
+				account.account = {
+					id: devAcc.id,
+					username: devAcc.username,
+					uuid: devAcc.uuid,
+					minecraftToken: devAcc.accessToken,
+					expiresAt: devAcc.expiresAt
+				};
+				userUuid = devAcc.uuid;
+				userAccId = devAcc.id;
+			}
+
+			const verId = activeProfile?.mcVersion || "1.20.4";
+			downloadProgressPercent = 35;
+			launchStatusText = "Verificando bibliotecas e integridade do jogo...";
+
+			// If not installed, download version
+			if (!isInstalled) {
+				downloadProgressPercent = 55;
+				launchStatusText = "Baixando client.jar do Minecraft " + verId + "...";
+				await versionsDownload(verId);
+				isInstalled = true;
+			}
+
+			downloadProgressPercent = 85;
+			launchStatusText = "Injetando parâmetros JVM, flags e inicializando Minecraft...";
+			const targetProfileId = activeProfile?.id || instanceId || "";
+			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") !== "false" : true;
+			const result = await launchGame({
+				versionId: verId,
+				accountId: userUuid || "",
+				profileId: targetProfileId,
+				enableVulkan: isVulkan
+			});
+
+			gamingStats.onGameStart();
+			discordSetActivity({
+				details: `Jogando ${activeProfile?.name || "Minecraft"}`,
+				state: `Versão ${verId} (${activeProfile?.loader || "Vanilla"})`,
+				largeText: "Luxmc Launcher (Linux)"
+			}).catch(() => {});
+
+			downloadProgressPercent = 100;
+			launchStatusText = `Minecraft em execução (PID: ${result.pid})`;
+			toast(`🎮 Minecraft ${verId} iniciado com sucesso! (PID: ${result.pid})`, "success");
+		} catch (e) {
+			console.error("Launch error:", e);
+			toast("Falha ao iniciar o jogo: " + String(e), "error");
+			launchStatusText = "";
+			downloadProgressPercent = 0;
+		} finally {
+			setTimeout(() => {
+				isLaunching = false;
+				launchStatusText = "";
+				downloadProgressPercent = 0;
+			}, 4000);
+		}
+	}
+
+	async function handleAddResourcePack() {
+		try {
+			const selected = await open({
+				title: "Selecionar Pacote de Recursos ou Shader (.zip)",
+				filters: [{ name: "Arquivo Compactado", extensions: ["zip"] }]
+			});
+			if (selected) {
+				toast(`Arquivo adicionado para a instância!`, "success");
+				await refreshAllData();
+			}
+		} catch (e) {
+			toast(String(e), "error");
+		}
+	}
+
+	async function handleDeleteScreenshot(path: string) {
+		try {
+			await screenshotDelete(path);
+			screenshotsList = screenshotsList.filter(s => s.path !== path);
+			toast("Captura de tela removida!", "info");
+		} catch (e) {
+			toast("Erro ao excluir captura: " + String(e), "error");
+		}
+	}
+
+	async function openInstanceFolder() {
+		if (!instanceId) return;
+		try {
+			await instancesOpenFolder(instanceId);
+		} catch (e) {
+			toast("Erro ao abrir pasta: " + String(e), "error");
+		}
+	}
+</script>
+
+<div class="flex gap-8 h-full w-full select-none" in:fade={{ duration: 300 }}>
+	
+	<!-- Center Main Instance View -->
+	<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-5">
+		
+		<!-- Top Voltar Link -->
+		<a href="/instances" class="flex items-center gap-2 text-xs font-bold text-white/50 hover:text-white transition-colors w-fit group">
+			<ArrowLeft class="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" /> Voltar
+		</a>
+
+		<!-- Instance Hero Card -->
+		<div class="bg-[#18191c] border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
+			
+			<!-- Minecraft Background Artwork -->
+			<div class="absolute inset-0 pointer-events-none z-0">
+				<img 
+					src={activeProfile?.loader === 'vanilla' ? '/vanilla_banner.png' : '/modpack_fo.webp'} 
+					alt="Minecraft Banner" 
+					class="w-full h-full object-cover opacity-35 group-hover:scale-105 transition-transform duration-700" 
+				/>
+				<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/80 to-[#18191c]/40"></div>
+			</div>
+
+			<div class="flex items-center justify-between relative z-10">
+				<!-- Icon & Badges & Title -->
+				<div class="flex items-center gap-4">
+					<div class="h-16 w-16 rounded-2xl bg-[#222328] border border-white/10 flex items-center justify-center p-2 shadow-inner">
+						<img src="/grass_block.png" alt="Minecraft" class="w-12 h-12 object-contain drop-shadow" />
+					</div>
+
+					<div>
+						<div class="flex items-center gap-2">
+							<span class="bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded-md uppercase border border-emerald-500/30 flex items-center gap-1">
+								<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+								{activeProfile?.loader || 'Vanilla'}
+							</span>
+							<span class="bg-white/10 text-white/70 text-[9px] font-bold px-2 py-0.5 rounded-md">
+								MC {activeProfile?.mcVersion || '1.20.4'}
+							</span>
+						</div>
+
+						<h1 class="text-2xl font-black text-white mt-1 tracking-tight">
+							{activeProfile?.name || 'Latest Release'}
+						</h1>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-3">
+					<button 
+						type="button"
+						class="hover:bg-white/15 active:scale-95 text-white bg-white/10 text-xs font-bold px-5 py-3.5 rounded-full border border-white/15 transition-all flex items-center gap-2 shadow-lg cursor-pointer shrink-0"
+						onclick={openHostWorldModal}
+						title="Gerar link próprio de conexão para amigos jogarem no seu mundo"
+					>
+						<Share2 class="w-4 h-4 text-brand-500" />
+						<span>Hostear Mundo</span>
+					</button>
+
+					<!-- Big Metallic Action Button (JOGAR / Instalar) -->
+					<button 
+						class="hover:brightness-110 active:scale-95 text-black text-xs font-black px-9 py-3.5 rounded-full border border-white/20 transition-all flex items-center gap-2.5 shadow-xl cursor-pointer shrink-0 hover:scale-105"
+						style="background-color: var(--accent-color, #e2b86b);"
+						onclick={handlePlay}
+						disabled={isLaunching}
+					>
+						{#if isLaunching}
+							<RefreshCw class="w-4 h-4 animate-spin" /> {launchStatusText || 'Iniciando...'}
+						{:else if isInstalled}
+							<Play class="w-4 h-4 fill-current" /> JOGAR MINECRAFT
+						{:else}
+							<Download class="w-4 h-4" /> Instalar e Jogar
+						{/if}
+					</button>
+				</div>
+			</div>
+
+			<!-- Visual Download & Launch Progress Bar -->
+			{#if isLaunching}
+				<div class="mt-4 p-3.5 rounded-2xl bg-[#141518] border border-white/10 space-y-2 shadow-inner" in:fade={{ duration: 150 }}>
+					<div class="flex items-center justify-between text-xs font-bold">
+						<span class="text-white/80 flex items-center gap-2">
+							<RefreshCw class="w-3.5 h-3.5 animate-spin text-brand-500" />
+							{launchStatusText}
+						</span>
+						<span class="font-mono text-brand-500 font-black">{downloadProgressPercent}%</span>
+					</div>
+					<div class="w-full h-2 rounded-full bg-white/5 overflow-hidden relative">
+						<div 
+							class="h-full bg-gradient-to-r from-brand-500 to-emerald-400 rounded-full transition-all duration-300 shadow-[0_0_12px_rgba(226,184,107,0.6)]"
+							style="width: {downloadProgressPercent}%;"
+						></div>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Status Bar Info -->
+			<div class="flex items-center justify-between border-t border-white/5 mt-6 pt-4 text-xs font-medium">
+				<div class="flex items-center gap-8">
+					<div>
+						<span class="text-[10px] font-bold text-white/40 uppercase block">Status</span>
+						<span class="text-white flex items-center gap-1.5 font-bold mt-0.5">
+							{#if isLaunching}
+								<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span> {launchStatusText}
+							{:else}
+								<Check class="w-3.5 h-3.5 text-emerald-400" /> Pronto para jogar
+							{/if}
+						</span>
+					</div>
+
+					<div>
+						<span class="text-[10px] font-bold text-white/40 uppercase block">Tempo de Jogo</span>
+						<span class="text-white font-bold mt-0.5 block">0m</span>
+					</div>
+				</div>
+
+				<div class="flex items-center gap-2">
+					<button 
+						class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+						onclick={openInstanceFolder}
+					>
+						<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta da Instância
+					</button>
+					<a href="/settings" class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-2 transition-all">
+						<SettingsIcon class="w-3.5 h-3.5" /> Configurações
+					</a>
+				</div>
+			</div>
+
+		</div>
+
+		<!-- Main Navigation Tabs -->
+		<div class="flex items-center justify-between border-b border-white/5 pb-2">
+			<div class="flex gap-2">
+				<button 
+					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 relative {mainTab === 'conteudo' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+					onclick={() => mainTab = 'conteudo'}
+				>
+					<Layers class="w-4 h-4 text-amber-400" /> Conteúdo
+					{#if mainTab === 'conteudo'}
+						<div class="absolute bottom-[-9px] left-3 right-3 h-0.5 rounded-full" style="background-color: var(--accent-color, #e2b86b);"></div>
+					{/if}
+				</button>
+
+				<button 
+					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'mundos' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+					onclick={() => mainTab = 'mundos'}
+				>
+					<Globe2 class="w-4 h-4 text-emerald-400" /> Mundos ({worldsList.length})
+				</button>
+
+				<button 
+					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'galeria' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+					onclick={() => mainTab = 'galeria'}
+				>
+					<Image class="w-4 h-4 text-purple-400" /> Galeria ({screenshotsList.length})
+				</button>
+
+				<button 
+					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'ficheiros' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+					onclick={() => mainTab = 'ficheiros'}
+				>
+					<Folder class="w-4 h-4 text-blue-400" /> Ficheiros
+				</button>
+			</div>
+
+			<button class="text-white/40 hover:text-white p-2.5 rounded-full transition-colors cursor-pointer" title="Atualizar dados" onclick={refreshAllData}>
+				<RefreshCw class="w-4 h-4 {isLoadingData ? 'animate-spin' : ''}" />
+			</button>
+		</div>
+
+		<!-- TAB 1: Conteúdo -->
+		{#if mainTab === 'conteudo'}
+			<div class="flex flex-col gap-4">
+				<div class="flex items-center justify-between gap-3">
+					<div class="flex bg-[#18191c] border border-white/10 rounded-full p-1 gap-1">
+						<button 
+							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'resourcepacks' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+							onclick={() => subTab = 'resourcepacks'}
+						>
+							<Box class="w-3.5 h-3.5" /> Pacotes de recursos
+						</button>
+						<button 
+							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'shaders' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+							onclick={() => subTab = 'shaders'}
+						>
+							<Sparkles class="w-3.5 h-3.5" /> Shaders
+						</button>
+						<button 
+							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'datapacks' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+							onclick={() => subTab = 'datapacks'}
+						>
+							<Code class="w-3.5 h-3.5" /> {"{}"} Datapacks
+						</button>
+					</div>
+
+					<div class="flex items-center gap-2">
+						<button 
+							class="text-black px-5 py-2 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all"
+							style="background-color: var(--accent-color, #e2b86b);"
+							onclick={handleAddResourcePack}
+						>
+							<Plus class="w-4 h-4" /> Adicionar .ZIP
+						</button>
+					</div>
+				</div>
+
+				{#if currentPacksList.length === 0}
+					<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
+						<div class="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/20">
+							<Box class="w-8 h-8" />
+						</div>
+						<h3 class="text-base font-extrabold text-white">
+							{subTab === 'resourcepacks' ? 'Nenhum pacote de recursos' : subTab === 'shaders' ? 'Nenhum shader instalado' : 'Nenhum datapack instalado'}
+						</h3>
+						<p class="text-xs text-white/40 mt-1 max-w-sm">
+							Esta instância ainda não possui {subTab === 'resourcepacks' ? 'texturas' : subTab === 'shaders' ? 'shaders' : 'datapacks'} adicionados.
+						</p>
+						<button 
+							class="mt-6 bg-[#222328] hover:bg-white/10 border border-white/10 text-white text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 cursor-pointer"
+							onclick={handleAddResourcePack}
+						>
+							<Plus class="w-4 h-4" /> Importar Arquivo .ZIP
+						</button>
+					</div>
+				{:else}
+					<div class="grid grid-cols-2 gap-3">
+						{#each currentPacksList as pack}
+							<div class="bg-[#18191c] border border-white/5 p-4 rounded-2xl flex items-center justify-between">
+								<div class="flex items-center gap-3">
+									<Box class="w-5 h-5 text-amber-400" />
+									<span class="text-xs font-bold text-white">{pack.name}</span>
+								</div>
+								<span class="text-[10px] text-white/40 font-mono">{Math.round(pack.size / 1024)} KB</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
+
+			</div>
+
+		<!-- TAB 2: Mundos Reais -->
+		{:else if mainTab === 'mundos'}
+			<div class="space-y-4">
+				<div class="flex items-center justify-between">
+					<h3 class="text-sm font-bold text-white">Mundos Salvos nesta Instância</h3>
+					<button class="text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer" style="color: var(--accent-color, #e2b86b);" onclick={openInstanceFolder}>
+						<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta saves/
+					</button>
+				</div>
+
+				{#if worldsList.length === 0}
+					<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
+						<Globe2 class="w-12 h-12 text-white/20 mb-3" />
+						<h4 class="text-sm font-bold text-white">Nenhum mundo encontrado</h4>
+						<p class="text-xs text-white/40 mt-1">Abra o Minecraft e crie seu primeiro mundo singleplayer!</p>
+					</div>
+				{:else}
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+						{#each worldsList as world}
+							<div class="bg-[#18191c] border border-white/5 p-4 rounded-2xl flex items-center justify-between hover:border-white/15 transition-all group">
+								<div class="flex items-center gap-3.5 min-w-0">
+									<div class="h-12 w-12 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
+										{#if world.iconBase64}
+											<img src={world.iconBase64} alt={world.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
+										{:else}
+											<img src="/grass_block.png" alt="Mundo" class="w-7 h-7 object-contain drop-shadow" />
+										{/if}
+									</div>
+									<div class="min-w-0">
+										<h5 class="text-xs font-bold text-white truncate">{world.name}</h5>
+										<div class="flex items-center gap-2 mt-0.5 text-[10px] text-white/40">
+											<span class="text-emerald-400 font-semibold">{world.gameMode || 'Sobrevivência'}</span>
+											<span>·</span>
+											<span>{(world.sizeBytes / (1024 * 1024)).toFixed(1)} MB</span>
+										</div>
+									</div>
+								</div>
+
+								<div class="flex items-center gap-1.5 shrink-0">
+									<button 
+										class="bg-white/5 hover:brightness-110 text-white px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 opacity-80 group-hover:opacity-100 active:scale-95"
+										onclick={handlePlay}
+										title="Jogar este mundo"
+									>
+										<Play class="w-3 h-3 fill-current" /> Jogar
+									</button>
+									<button 
+										class="p-2 rounded-full text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+										onclick={() => handleDeleteWorld(world.folderName)}
+										title="Excluir este mundo"
+									>
+										<Trash2 class="w-3.5 h-3.5" />
+									</button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+		<!-- TAB 3: Galeria Real de Screenshots -->
+		{:else if mainTab === 'galeria'}
+			<div class="space-y-4">
+				<div class="flex items-center justify-between">
+					<h3 class="text-sm font-bold text-white">Capturas de Tela (F2)</h3>
+					<button class="text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer" style="color: var(--accent-color, #e2b86b);" onclick={openInstanceFolder}>
+						<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta screenshots/
+					</button>
+				</div>
+
+				{#if screenshotsList.length === 0}
+					<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
+						<Image class="w-12 h-12 text-white/20 mb-3" />
+						<h4 class="text-sm font-bold text-white">Nenhuma captura de tela</h4>
+						<p class="text-xs text-white/40 mt-1">Pressione F2 dentro do jogo para capturar momentos épicos!</p>
+					</div>
+				{:else}
+					<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+						{#each screenshotsList as shot}
+							<div 
+								class="bg-[#18191c] border border-white/5 rounded-2xl overflow-hidden group relative cursor-pointer hover:border-white/20 transition-all shadow-md"
+								onclick={() => previewScreenshot = shot}
+								role="button"
+								tabindex="0"
+								onkeydown={(e) => { if (e.key === 'Enter') previewScreenshot = shot; }}
+							>
+								<div class="h-36 bg-black/60 flex items-center justify-center overflow-hidden">
+									<img 
+										src={shot.dataUrl || convertFileSrc(shot.path)} 
+										alt={shot.name} 
+										class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+										loading="lazy"
+									/>
+								</div>
+								<div class="p-3 flex items-center justify-between bg-[#141518]/90">
+									<span class="text-xs font-medium text-white truncate max-w-[80%]">{shot.name}</span>
+									<button 
+										class="text-white/40 hover:text-red-400 transition-colors p-1 rounded-full hover:bg-white/5"
+										onclick={(e) => { e.stopPropagation(); handleDeleteScreenshot(shot.path); }}
+										title="Excluir captura"
+									>
+										<Trash2 class="w-3.5 h-3.5" />
+									</button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+		<!-- TAB 4: Ficheiros Reais do Mine (Explorador Interativo de Arquivos) -->
+		{:else if mainTab === 'ficheiros'}
+			<div class="space-y-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<h3 class="text-sm font-bold text-white">Explorador de Arquivos</h3>
+						<span class="text-[10px] text-white/40 font-mono">({fileTree.length} itens)</span>
+					</div>
+					<button class="text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer" style="color: var(--accent-color, #e2b86b);" onclick={openInstanceFolder}>
+						<FolderOpen class="w-3.5 h-3.5" /> Abrir no Gerenciador Linux
+					</button>
+				</div>
+
+				<!-- Breadcrumbs & Navigation Toolbar -->
+				<div class="bg-[#18191c] border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-md">
+					<div class="flex items-center gap-1 text-xs font-mono overflow-x-auto custom-scrollbar py-0.5">
+						<button 
+							type="button" 
+							class="text-xs font-bold px-2.5 py-1 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer shrink-0"
+							onclick={() => navigateBreadcrumb(-1)}
+						>
+							~ raiz
+						</button>
+						{#each fileBreadcrumbs as seg, idx}
+							<ChevronRight class="w-3.5 h-3.5 text-white/30 shrink-0" />
+							<button 
+								type="button" 
+								class="text-xs font-bold px-2.5 py-1 rounded-full transition-all cursor-pointer shrink-0 {idx === fileBreadcrumbs.length - 1 ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+								onclick={() => navigateBreadcrumb(idx)}
+							>
+								{seg}
+							</button>
+						{/each}
+					</div>
+
+					<div class="flex items-center gap-1 shrink-0">
+						{#if fileBreadcrumbs.length > 0}
+							<button 
+								type="button" 
+								class="p-1.5 rounded-full bg-white/5 hover:bg-white/15 text-white transition-colors cursor-pointer"
+								title="Subir nível"
+								onclick={navigateUp}
+							>
+								<ArrowUp class="w-4 h-4" />
+							</button>
+						{/if}
+						<button 
+							type="button" 
+							class="p-1.5 rounded-full bg-white/5 hover:bg-white/15 text-white transition-colors cursor-pointer"
+							title="Atualizar pasta"
+							onclick={refreshAllData}
+						>
+							<RefreshCw class="w-4 h-4 {isLoadingData ? 'animate-spin' : ''}" />
+						</button>
+					</div>
+				</div>
+
+				<!-- Files Table / List -->
+				<div class="bg-[#18191c] border border-white/5 rounded-2xl p-2 space-y-1 shadow-md max-h-[500px] overflow-y-auto custom-scrollbar">
+					{#if fileTree.length === 0}
+						<div class="text-xs text-white/40 py-8 text-center">Nenhum arquivo nesta pasta.</div>
+					{:else}
+						{#each fileTree as file}
+							<div 
+								class="flex items-center justify-between p-2.5 hover:bg-white/5 rounded-xl text-xs transition-colors group cursor-pointer"
+								onclick={() => handleOpenFile(file)}
+								role="button"
+								tabindex="0"
+								onkeydown={(e) => { if (e.key === 'Enter') handleOpenFile(file); }}
+							>
+								<div class="flex items-center gap-3 min-w-0">
+									{#if file.isDir}
+										<Folder class="w-4 h-4 text-amber-400 shrink-0" />
+									{:else}
+										<FileText class="w-4 h-4 text-white/40 shrink-0 group-hover:text-emerald-400 transition-colors" />
+									{/if}
+									<span class="font-medium text-white truncate">{file.name}</span>
+								</div>
+
+								<div class="flex items-center gap-3 shrink-0">
+									<span class="text-[10px] text-white/30 font-mono">
+										{file.isDir ? 'Pasta' : `${Math.round(file.size / 1024)} KB`}
+									</span>
+									<button 
+										type="button" 
+										class="p-1.5 rounded-full text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+										onclick={(e) => { e.stopPropagation(); handleDeleteFileEntry(file); }}
+										title="Excluir"
+									>
+										<Trash2 class="w-3.5 h-3.5" />
+									</button>
+								</div>
+							</div>
+						{/each}
+					{/if}
+				</div>
+			</div>
+		{/if}
+
+	</div>
+
+	<!-- Right Sidebar (Notícias Luxmc & Comunidade) -->
+	<RightSidebar />
+
+</div>
+
+<!-- Screenshot Fullscreen Preview Modal -->
+{#if previewScreenshot}
+	<div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
+		<div class="max-w-4xl w-full bg-[#18191c] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+			<div class="p-4 border-b border-white/10 flex items-center justify-between">
+				<div class="flex items-center gap-2 min-w-0">
+					<Image class="w-4 h-4 text-purple-400 shrink-0" />
+					<span class="text-xs font-bold text-white truncate">{previewScreenshot.name}</span>
+				</div>
+				<div class="flex items-center gap-2 shrink-0">
+					<button 
+						type="button" 
+						class="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+						onclick={() => {
+							navigator.clipboard.writeText(previewScreenshot!.path);
+							toast("Caminho da captura copiado!", "success");
+						}}
+					>
+						<Copy class="w-3.5 h-3.5" /> Copiar Caminho
+					</button>
+					<button 
+						type="button" 
+						class="px-3.5 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+						onclick={async () => {
+							await handleDeleteScreenshot(previewScreenshot!.path);
+							previewScreenshot = null;
+						}}
+					>
+						<Trash2 class="w-3.5 h-3.5" /> Excluir
+					</button>
+					<button 
+						type="button" 
+						class="p-1.5 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white transition-colors cursor-pointer ml-2"
+						onclick={() => previewScreenshot = null}
+					>
+						<X class="w-4 h-4" />
+					</button>
+				</div>
+			</div>
+			<div class="p-4 flex items-center justify-center bg-black/70 max-h-[70vh] overflow-hidden">
+				<img 
+					src={previewScreenshot.dataUrl || convertFileSrc(previewScreenshot.path)} 
+					alt={previewScreenshot.name} 
+					class="max-h-[65vh] max-w-full object-contain rounded-xl shadow-lg"
+				/>
+			</div>
+			<div class="p-3 bg-[#141518] border-t border-white/5 text-[10px] text-white/40 font-mono truncate px-4">
+				{previewScreenshot.path}
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- In-Launcher File Text Editor Modal -->
+{#if activeEditorFile}
+	<div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
+		<div class="max-w-4xl w-full h-[80vh] bg-[#18191c] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+			<div class="p-4 border-b border-white/10 flex items-center justify-between">
+				<div class="flex items-center gap-2 min-w-0">
+					<FileText class="w-4 h-4 text-emerald-400 shrink-0" />
+					<span class="text-xs font-bold text-white truncate">{activeEditorFile.name}</span>
+					<span class="text-[10px] font-mono text-white/40 truncate">({activeEditorFile.path})</span>
+				</div>
+				<div class="flex items-center gap-2 shrink-0">
+					<button 
+						type="button" 
+						class="px-5 py-2 rounded-full text-xs font-black text-black flex items-center gap-1.5 transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-md"
+						style="background-color: var(--accent-color, #e2b86b);"
+						disabled={isSavingEditor}
+						onclick={handleSaveEditorFile}
+					>
+						<Save class="w-3.5 h-3.5 stroke-[2.5]" /> {isSavingEditor ? 'Salvando...' : 'Guardar Alterações'}
+					</button>
+					<button 
+						type="button" 
+						class="p-1.5 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white transition-colors cursor-pointer ml-2"
+						onclick={() => activeEditorFile = null}
+					>
+						<X class="w-4 h-4" />
+					</button>
+				</div>
+			</div>
+			<div class="flex-1 p-4 bg-[#121316] overflow-hidden">
+				<textarea 
+					bind:value={activeEditorFile.content}
+					class="w-full h-full bg-transparent border-0 outline-none font-mono text-xs text-white/90 leading-relaxed resize-none custom-scrollbar p-2"
+					spellcheck="false"
+				></textarea>
+			</div>
+			<div class="p-2.5 bg-[#141518] border-t border-white/5 text-[10px] text-white/40 font-mono px-4 flex justify-between">
+				<span>Linhas: {activeEditorFile.content.split('\n').length}</span>
+				<span>Editor de Arquivos do Luxmc</span>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- Modal de Hostear Mundo com Link Próprio -->
+{#if showHostModal && hostLinkInfo}
+	<div class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
+		<div class="max-w-md w-full bg-[#18191c] border border-brand-500/30 rounded-3xl p-6 shadow-2xl space-y-5 relative overflow-hidden select-none">
+			<div class="absolute -top-10 -right-10 w-36 h-36 bg-brand-500/15 rounded-full blur-2xl pointer-events-none"></div>
+
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-2xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center">
+						<Share2 class="w-5 h-5 text-brand-500" />
+					</div>
+					<div>
+						<h3 class="font-extrabold text-white text-base">Hostear Mundo com Link Próprio</h3>
+						<p class="text-xs text-white/50">Compartilhe com amigos para entrarem no seu mundo</p>
+					</div>
+				</div>
+				<button 
+					type="button" 
+					class="p-1.5 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white transition-colors cursor-pointer"
+					onclick={() => showHostModal = false}
+				>
+					<X class="w-4 h-4" />
+				</button>
+			</div>
+
+			<div class="bg-[#121316] border border-white/10 rounded-2xl p-4 space-y-3 shadow-inner">
+				<div>
+					<label class="text-[10px] font-extrabold text-brand-500 uppercase tracking-wider block mb-1">Link Próprio do Luxmc (Compartilhável)</label>
+					<div class="flex items-center gap-2">
+						<input 
+							type="text" 
+							readonly 
+							value={hostLinkInfo.shareLink} 
+							class="flex-1 bg-black/50 border border-white/10 rounded-xl px-3.5 py-2 text-xs font-mono text-white/90 outline-none select-all"
+						/>
+						<button 
+							type="button" 
+							class="px-4 py-2 rounded-xl bg-brand-500 hover:brightness-110 text-black font-black text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95"
+							onclick={copyHostLink}
+						>
+							{#if isCopiedHostLink}
+								<Check class="w-3.5 h-3.5 stroke-[3]" /> Copiado!
+							{:else}
+								<Copy class="w-3.5 h-3.5 stroke-[3]" /> Copiar Link
+							{/if}
+						</button>
+					</div>
+				</div>
+
+				<div class="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+					<div>
+						<span class="text-[10px] text-white/40 block font-bold">Endereço IP Local:</span>
+						<span class="text-xs font-mono text-emerald-400 font-bold">{hostLinkInfo.directAddress}</span>
+					</div>
+					<div>
+						<span class="text-[10px] text-white/40 block font-bold">Porta do Servidor:</span>
+						<div class="flex items-center gap-1 mt-0.5">
+							<input 
+								type="number" 
+								bind:value={customHostPort} 
+								class="w-20 bg-black/50 border border-white/10 rounded-lg px-2 py-0.5 text-xs font-mono text-white" 
+								onchange={refreshHostLink}
+							/>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="text-[11px] text-white/50 leading-relaxed space-y-1 bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl">
+				<div class="font-bold text-amber-300">Como funciona?</div>
+				<div>1. Abra seu mundo no Minecraft e clique em <b>"Aberto para LAN"</b>.</div>
+				<div>2. Envie o <b>Link Próprio</b> acima para seus amigos colarem no Luxmc.</div>
+			</div>
+		</div>
+	</div>
+{/if}

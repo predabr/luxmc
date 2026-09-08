@@ -1,0 +1,905 @@
+<script lang="ts">
+	import { Play, Gamepad2, Loader2, ChevronDown, X, AlertTriangle, CheckCircle2, Box, Download, Cog, Star, Clock, HardDrive, LogIn, Newspaper, WifiOff, Newspaper as ModIcon, Activity, Pencil, Sparkles } from "lucide-svelte";
+	import Button from "$lib/components/ui/Button.svelte";
+	import Badge from "$lib/components/ui/Badge.svelte";
+	import Logo from "$lib/components/ui/Logo.svelte";
+	import Modal from "$lib/components/ui/Modal.svelte";
+	import FilterableVersionSelect from "$lib/components/ui/FilterableVersionSelect.svelte";
+	import ResourceMonitor from "$lib/components/ui/ResourceMonitor.svelte";
+	import SkinViewer3D from "$lib/components/ui/SkinViewer3D.svelte";
+	import { account } from "$lib/stores/account.svelte";
+	import { profiles } from "$lib/stores/profiles.svelte";
+	import { appState, gameLogs } from "$lib/stores/app.svelte";
+	import { toast } from "$lib/stores/toasts.svelte";
+	import {
+		api,
+		authDevLogin, authLogin, authOfflineLogin, versionsDownload, versionsCheckInstalled, launchGame,
+		versionsList,
+		listenDownloadProgress, listenGameLog, listenGameExit, listenLauncherLog,
+		crashSummary,
+		type DownloadProgress, type GameExitEvent
+	} from "$lib/api";
+	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
+	import { getLocale } from "$lib/i18n";
+	import { onMount, onDestroy } from "svelte";
+
+	const { t } = useTranslation();
+
+	let logging = $state(false);
+	let launching = $state(false);
+	let loginInProgress = $state(false);
+	let offlineUsername = $state("");
+	let downloadProgress = $state<DownloadProgress | null>(null);
+	let lastError = $state<string | null>(null);
+	let gameExitInfo = $state<GameExitEvent | null>(null);
+	let showInstanceDropdown = $state(false);
+	let autoLogin = $state(false);
+	let newsItems = $state<Array<{ title: string; link: string; pubDate: string }>>([]);
+	let newsLoading = $state(false);
+	let gamePid = $state<number | null>(null);
+	let crashCategory = $state<{ category: string; hint: string } | null>(null);
+
+	let availableVersions = $state<Array<{ id: string; versionType: string; releaseTime: string }>>([]);
+	let versionsLoading = $state(false);
+	let latestRelease = $state("");
+	let latestSnapshot = $state("");
+	let showVersionModal = $state(false);
+	let selectedVersionToApply = $state("");
+	let applyingVersion = $state(false);
+
+	const canPlay = $derived(!!account.value && !!profiles.active && !launching && !downloadProgress);
+	const currentLaunchCount = $derived(profiles.active?.launchCount ?? 0);
+	const estimatedPlayTime = $derived(Math.floor(currentLaunchCount * 45));
+	const welcomeMessage = $derived(account.value ? t("home.welcomeBack", { name: account.value.username }) : "");
+	const currentDateTime = $derived(new Date().toLocaleDateString(getLocale() === "en" ? "en-US" : "pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric" }));
+
+	const recentlyPlayed = $derived(
+		[...profiles.list]
+			.filter((p) => p.lastPlayed)
+			.sort((a, b) => (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0))
+			.slice(0, 3)
+	);
+
+	function formatSpeed(bytesPerSec: number): string {
+		if (bytesPerSec <= 0) return "";
+		if (bytesPerSec < 1024) return `${bytesPerSec} B/s`;
+		if (bytesPerSec < 1024 * 1024) return `${(bytesPerSec / 1024).toFixed(1)} KB/s`;
+		return `${(bytesPerSec / (1024 * 1024)).toFixed(1)} MB/s`;
+	}
+
+	function formatEta(seconds: number): string {
+		if (seconds <= 0 || !isFinite(seconds)) return "";
+		if (seconds < 60) return `${Math.round(seconds)}s`;
+		if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+		return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+	}
+
+	function formatPhase(phase: string): string {
+		switch (phase) {
+			case "client": return t("home.downloadingClient");
+			case "asset_index": return t("home.downloadingAssetIndex");
+			case "assets": return t("home.downloadingAssets");
+			case "libraries": return t("home.downloadingLibraries");
+			case "done": return t("home.downloadComplete");
+			default: return phase;
+		}
+	}
+
+	function getRamRecommendation(modCount: number, mcVersion: string): number {
+		const isModern = mcVersion >= "1.18";
+		if (modCount === 0) return isModern ? 2048 : 1024;
+		if (modCount <= 10) return isModern ? 3072 : 2048;
+		if (modCount <= 30) return isModern ? 4096 : 3072;
+		if (modCount <= 60) return isModern ? 6144 : 4096;
+		return isModern ? 8192 : 6144;
+	}
+
+	async function microsoftLogin() {
+		loginInProgress = true;
+		lastError = null;
+		try {
+			const a = await authLogin();
+			account.account = {
+				id: a.id,
+				username: a.username,
+				uuid: a.uuid,
+				minecraftToken: a.accessToken,
+				expiresAt: a.expiresAt * 1000,
+			};
+			if (autoLogin) localStorage.setItem("luxmc.autoLogin", "microsoft");
+		} catch (e) {
+			const msg = String(e);
+			if (msg.includes("Failed to open browser")) lastError = t("home.browserError");
+			else if (msg.includes("timed out")) lastError = t("home.loginTimeout");
+			else lastError = t("home.loginError", { message: msg });
+		} finally {
+			loginInProgress = false;
+		}
+	}
+
+	async function offlineLogin() {
+		if (!offlineUsername.trim() || offlineUsername.trim().length < 3) {
+			lastError = t("home.usernameError");
+			return;
+		}
+		logging = true;
+		lastError = null;
+		try {
+			const a = await authOfflineLogin(offlineUsername.trim());
+			account.account = {
+				id: a.id,
+				username: a.username,
+				uuid: a.uuid,
+				minecraftToken: a.accessToken,
+				expiresAt: a.expiresAt * 1000,
+			};
+			if (autoLogin) {
+				localStorage.setItem("luxmc.autoLogin", "offline");
+				localStorage.setItem("luxmc.offlineUsername", offlineUsername.trim());
+			}
+		} catch (e) {
+			lastError = t("home.offlineLoginError", { message: String(e) });
+		} finally {
+			logging = false;
+		}
+	}
+
+	async function devLogin() {
+		logging = true;
+		lastError = null;
+		try {
+			const a = await authDevLogin();
+			account.account = {
+				id: a.id,
+				username: a.username,
+				uuid: a.uuid,
+				minecraftToken: a.accessToken,
+				expiresAt: a.expiresAt * 1000,
+			};
+		} catch (e) {
+			lastError = t("home.devLoginError", { message: String(e) });
+		} finally {
+			logging = false;
+		}
+	}
+
+	let gameStartTime = 0;
+
+	async function play() {
+		const acc = account.value;
+		const prof = profiles.active;
+		if (!acc || !prof) return;
+
+		launching = true;
+		downloadProgress = null;
+		lastError = null;
+		gameExitInfo = null;
+		gameStartTime = Date.now();
+
+		const newLaunchCount = (prof.launchCount ?? 0) + 1;
+		profiles.update(prof.id, { launchCount: newLaunchCount });
+		try {
+			await api.invoke("profiles_update", { input: { id: prof.id, launchCount: newLaunchCount } });
+		} catch (_) {}
+
+		const gameListeners: (() => void)[] = [];
+
+		try {
+			try { await api.invoke("versions_list"); } catch (_) {}
+
+			const unlistenDownload = await listenDownloadProgress((p) => { downloadProgress = p; });
+
+			gameListeners.push(await listenGameLog((entry) => {
+				gameLogs.add(entry.stream as "stdout" | "stderr", entry.message);
+			}));
+
+			gameListeners.push(await listenGameExit((event) => {
+				gameExitInfo = event;
+				gamePid = null;
+				if (gameStartTime > 0) {
+					gameLogs.add("system", event.success
+						? t("home.gameExited", { code: event.code })
+						: t("home.gameCrashed", { code: event.code })
+					);
+				}
+				profiles.setLastPlayed(prof.id);
+				const nowIso = new Date().toISOString();
+				api.invoke("profiles_update", { input: { id: prof.id, lastPlayed: nowIso } }).catch(() => {});
+				// Classify the crash using the most recent log lines.
+				if (!event.success) {
+					const recent = gameLogs.entries.slice(-100).map((e) => e.message);
+					crashSummary(recent)
+						.then((summary) => {
+							crashCategory = summary;
+							toast(t("home.crashDetected", { category: summary.category, hint: summary.hint }), "error");
+						})
+						.catch(() => {
+							crashCategory = null;
+						});
+				} else {
+					crashCategory = null;
+				}
+			}));
+
+			gameListeners.push(await listenLauncherLog((msg) => { gameLogs.add("system", msg); }));
+
+			try {
+				const installed = await versionsCheckInstalled(prof.mcVersion);
+				if (!installed) {
+					downloadProgress = { phase: "client", total: 1, completed: 0, currentFile: prof.mcVersion, bytesDownloaded: 0, totalBytes: 0, speed: null };
+					await versionsDownload(prof.mcVersion);
+				}
+			} catch (e) {
+				const msg = String(e);
+				if (msg.includes("No Java")) lastError = t("home.javaNotFound");
+				else if (msg.includes("unzip")) lastError = t("home.unzipNotFound");
+				else lastError = t("home.downloadError", { message: msg });
+				unlistenDownload();
+				gameListeners.forEach((u) => u());
+				launching = false;
+				downloadProgress = null;
+				return;
+			}
+
+			unlistenDownload();
+			downloadProgress = null;
+
+			const result = await launchGame({
+				versionId: prof.mcVersion,
+				accountId: acc.uuid,
+				profileId: prof.id,
+			});
+			console.log("[luxmc] game launched, pid =", result.pid);
+			gamePid = result.pid;
+			toast(t("home.minecraftLaunched", { pid: result.pid }), "success");
+		} catch (e) {
+			lastError = t("home.launchError", { message: String(e) });
+			gameListeners.forEach((u) => u());
+		} finally {
+			launching = false;
+			downloadProgress = null;
+		}
+	}
+
+	function selectProfile(id: string) {
+		profiles.activeId = id;
+		showInstanceDropdown = false;
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.ctrlKey && e.key >= "1" && e.key <= "9") {
+			e.preventDefault();
+			const idx = parseInt(e.key) - 1;
+			if (idx < profiles.list.length) profiles.activeId = profiles.list[idx].id;
+		}
+		if (e.key === "Enter" && canPlay) play();
+	}
+
+	async function fetchNews() {
+		newsLoading = true;
+		try {
+			const resp = await fetch("https://www.minecraft.net/en-us/rss/community");
+			const text = await resp.text();
+			const parser = new DOMParser();
+			const doc = parser.parseFromString(text, "text/xml");
+			const items = doc.querySelectorAll("item");
+			newsItems = Array.from(items).slice(0, 3).map((item) => ({
+				title: item.querySelector("title")?.textContent ?? "",
+				link: item.querySelector("link")?.textContent ?? "",
+				pubDate: item.querySelector("pubDate")?.textContent ?? "",
+			}));
+		} catch { newsItems = []; } finally { newsLoading = false; }
+	}
+
+	async function loadHomeVersions() {
+		versionsLoading = true;
+		try {
+			const res = await versionsList();
+			availableVersions = res.versions;
+			latestRelease = res.latestRelease;
+			latestSnapshot = res.latestSnapshot;
+		} catch (_) {
+		} finally {
+			versionsLoading = false;
+		}
+	}
+
+	function openVersionModal() {
+		if (!profiles.active) return;
+		selectedVersionToApply = profiles.active.mcVersion;
+		showVersionModal = true;
+	}
+
+	async function applyVersionChange() {
+		if (!profiles.active || !selectedVersionToApply) return;
+		applyingVersion = true;
+		try {
+			await api.invoke("profiles_update", {
+				input: {
+					id: profiles.active.id,
+					mcVersion: selectedVersionToApply
+				}
+			});
+			profiles.update(profiles.active.id, {
+				mcVersion: selectedVersionToApply
+			});
+			toast(t("home.versionChanged", { version: selectedVersionToApply }), "success");
+			showVersionModal = false;
+		} catch (e) {
+			lastError = "Could not update version: " + String(e);
+		} finally {
+			applyingVersion = false;
+		}
+	}
+
+	onMount(() => {
+		window.addEventListener("keydown", handleKeydown);
+		fetchNews();
+		void loadHomeVersions();
+		const saved = localStorage.getItem("luxmc.autoLogin");
+		if (saved) autoLogin = true;
+	});
+
+	onDestroy(() => { window.removeEventListener("keydown", handleKeydown); });
+</script>
+
+{#if !account.value}
+	<div class="flex h-full w-full items-center justify-center px-4">
+		<div class="w-full max-w-[520px]">
+			<div class="mb-10 flex flex-col items-center gap-5">
+				<div class="relative">
+					<Logo size={72} />
+					<div class="absolute inset-0" style="background: radial-gradient(circle, rgba(45, 212, 191, 0.12) 0%, transparent 70%); filter: blur(20px);"></div>
+				</div>
+				<div class="text-center">
+					<h1 class="text-5xl font-extrabold tracking-tight luxmc-gradient-text">Luxmc</h1>
+					<p class="mt-2 text-sm font-medium" style="color: rgb(var(--fg-subtle));">{t("app.tagline")}</p>
+				</div>
+			</div>
+
+			<div class="space-y-3">
+				<button
+					class="group w-full rounded-2xl p-5 text-left transition-all duration-200"
+					style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg-elevated));"
+					onmouseenter={(e) => {
+						(e.currentTarget as HTMLElement).style.borderColor = "rgba(45, 212, 191, 0.25)";
+						(e.currentTarget as HTMLElement).style.boxShadow = "0 8px 32px -8px rgba(45, 212, 191, 0.1)";
+					}}
+					onmouseleave={(e) => {
+						(e.currentTarget as HTMLElement).style.borderColor = "";
+						(e.currentTarget as HTMLElement).style.boxShadow = "";
+					}}
+					onclick={microsoftLogin}
+				>
+					<div class="flex items-center gap-4">
+						<div
+							class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-colors"
+							style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.04));"
+						>
+							<svg class="h-6 w-6" viewBox="0 0 24 24" fill="none">
+								<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
+								<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
+								<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
+								<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
+							</svg>
+						</div>
+						<div class="flex-1">
+							<div class="text-sm font-semibold" style="color: rgb(var(--fg));">{t("home.microsoftTitle")}</div>
+							<div class="mt-0.5 text-xs" style="color: rgb(var(--fg-subtle));">{t("home.microsoftDesc")}</div>
+						</div>
+						{#if loginInProgress}
+							<Loader2 class="h-5 w-5 animate-spin" style="color: rgb(var(--brand-400));" />
+						{:else}
+							<LogIn class="h-5 w-5 transition-transform group-hover:translate-x-0.5" style="color: rgb(var(--fg-subtle));" />
+						{/if}
+					</div>
+				</button>
+
+				{#if appState.devMode}
+					<button
+						class="w-full rounded-2xl p-4 text-left transition-all duration-200"
+						style="border: 1px solid rgba(234, 179, 8, 0.2); background: rgba(234, 179, 8, 0.04);"
+						onclick={devLogin}
+					>
+						<div class="flex items-center gap-3">
+							<span class="text-xs font-medium" style="color: rgb(234, 179, 8);">{t("home.devLoginShort")}</span>
+							<span class="text-xs" style="color: rgb(var(--fg-subtle));">{t("home.devLogin")}</span>
+						</div>
+					</button>
+				{/if}
+
+				<div
+					class="rounded-2xl p-5 transition-all duration-200"
+					style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg-elevated));"
+				>
+					<div class="mb-3 flex items-center gap-2">
+						<div
+							class="flex h-8 w-8 items-center justify-center rounded-lg"
+							style="background: rgba(45, 212, 191, 0.08);"
+						>
+							<WifiOff class="h-4 w-4" style="color: rgb(var(--brand-400));" />
+						</div>
+						<span class="text-sm font-semibold" style="color: rgb(var(--fg));">{t("home.offlineTitle")}</span>
+					</div>
+					<input
+						type="text"
+						class="mb-3 w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all duration-150 focus:ring-1"
+						style="border-color: rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg)); --tw-ring-color: rgba(45, 212, 191, 0.3);"
+						placeholder={t("home.usernameMin")}
+						aria-label={t("home.usernameMin")}
+						bind:value={offlineUsername}
+						onkeydown={(e) => { if (e.key === 'Enter') offlineLogin(); }}
+					/>
+					<button
+						class="flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-all duration-200"
+						style="background: linear-gradient(135deg, rgb(20, 184, 166), rgb(13, 148, 136)); color: white; box-shadow: 0 4px 15px -3px rgba(20, 184, 166, 0.3);"
+						onclick={offlineLogin}
+						onmouseenter={(e) => {
+							(e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px -3px rgba(20, 184, 166, 0.4)";
+							(e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+						}}
+						onmouseleave={(e) => {
+							(e.currentTarget as HTMLElement).style.boxShadow = "";
+							(e.currentTarget as HTMLElement).style.transform = "";
+						}}
+					>
+						{#if logging}
+							<Loader2 class="h-4 w-4 animate-spin" />
+						{:else}
+							<Play class="h-4 w-4" />
+						{/if}
+						{t("home.offlineCta")}
+					</button>
+					<p class="mt-2 text-center text-[11px]" style="color: rgb(var(--fg-subtle));">{t("home.offlineDesc")}</p>
+				</div>
+			</div>
+
+			<div class="mt-5 flex items-center justify-center gap-3">
+				<button
+					class="flex items-center gap-2 text-xs transition-colors"
+					style="color: {autoLogin ? 'rgb(45, 212, 191)' : 'rgb(var(--fg-subtle))'};"
+					onclick={() => (autoLogin = !autoLogin)}
+					role="switch"
+					aria-checked={autoLogin}
+				>
+					<div
+						class="relative h-[18px] w-8 rounded-full transition-colors duration-200"
+						style="background: {autoLogin ? 'rgb(20, 184, 166)' : 'rgb(var(--border))'};"
+					>
+						<div
+							class="absolute top-[3px] h-[12px] w-[12px] rounded-full bg-white transition-transform duration-200"
+							style="transform: translateX({autoLogin ? '16px' : '3px'});"
+						></div>
+					</div>
+					{t("home.rememberLogin")}
+				</button>
+			</div>
+
+			{#if lastError}
+				<div class="mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm" style="border-color: rgba(239, 68, 68, 0.25); background: rgba(239, 68, 68, 0.06); color: rgb(248, 113, 113);">
+					<AlertTriangle class="h-4 w-4 shrink-0" />
+					<span class="flex-1">{lastError}</span>
+					<button onclick={() => lastError = null} class="shrink-0 grid h-5 w-5 place-items-center rounded transition-colors" style="color: rgb(var(--fg-subtle));" aria-label={t("common.close")}>
+						<X class="h-3 w-3" />
+					</button>
+				</div>
+			{/if}
+
+			<p class="mt-8 text-center text-[11px]" style="color: rgb(var(--fg-subtle)); opacity: 0.5;">
+				Luxmc {t("app.version")} &mdash; {t("app.pressForShortcuts", { key: "?" })}
+			</p>
+		</div>
+	</div>
+{:else}
+	<div class="flex h-full flex-col gap-5 overflow-y-auto">
+		{#if profiles.list.length === 0}
+			<section
+				class="relative overflow-hidden rounded-2xl p-8"
+				style="border: 1px solid rgba(45, 212, 191, 0.08); background: linear-gradient(135deg, rgba(20, 184, 166, 0.06) 0%, rgba(13, 14, 18, 0) 60%);"
+			>
+				<div class="absolute inset-0 overflow-hidden opacity-[0.04]">
+					<div class="absolute inset-0 mc-grass-top"></div>
+					<div class="absolute bottom-0 left-0 right-0 h-1/2 mc-dirt-bg"></div>
+				</div>
+				<div class="relative flex items-center justify-between gap-6">
+					<div>
+						<h1 class="text-2xl font-bold tracking-tight" style="color: rgb(var(--fg));">{welcomeMessage}</h1>
+						<p class="mt-1 text-xs" style="color: rgb(var(--fg-subtle));">{currentDateTime}</p>
+						<p class="mt-3 text-sm" style="color: rgb(var(--fg-muted));">{t("home.createFirstInstance")}</p>
+					</div>
+					<Button href="/instances" variant="solid" size="lg">
+						<Box class="h-4 w-4" />
+						{t("home.createInstance")}
+					</Button>
+				</div>
+			</section>
+		{:else}
+			<section
+				class="relative overflow-hidden rounded-2xl"
+				style="border: 1px solid rgb(var(--border)); background: linear-gradient(135deg, rgba(20, 184, 166, 0.05) 0%, rgb(var(--bg-elevated)) 50%);"
+			>
+				<div class="absolute inset-0 overflow-hidden opacity-[0.03]">
+					<div class="absolute inset-0 mc-grass-top"></div>
+					<div class="absolute bottom-0 left-0 right-0 h-1/2 mc-dirt-bg"></div>
+				</div>
+				<div class="relative flex items-start gap-8 p-8">
+					{#if account.value?.uuid}
+						<div class="hidden shrink-0 md:block">
+							<SkinViewer3D uuid={account.value.uuid} size={180} />
+						</div>
+					{/if}
+					<div class="flex-1 min-w-0">
+						<h1 class="text-2xl font-bold tracking-tight" style="color: rgb(var(--fg));">{welcomeMessage}</h1>
+						<p class="mt-1 text-xs" style="color: rgb(var(--fg-subtle));">{currentDateTime}</p>
+
+						<div class="mt-4 flex flex-wrap items-center gap-2">
+							{#if profiles.list.length === 1}
+								<div class="flex items-center gap-2 rounded-lg px-3 py-1.5" style="background: rgba(45, 212, 191, 0.06); border: 1px solid rgba(45, 212, 191, 0.1);">
+									<Box class="h-3.5 w-3.5" style="color: rgb(var(--brand-400));" />
+									<span class="text-xs font-semibold" style="color: rgb(var(--fg));">{profiles.active?.name ?? profiles.list[0].name}</span>
+								</div>
+							{:else}
+								<div class="relative">
+									<button
+										class="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-medium transition-all duration-150"
+										style="border-color: rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));"
+										onclick={() => (showInstanceDropdown = !showInstanceDropdown)}
+									>
+										<Box class="h-3.5 w-3.5" style="color: rgb(var(--brand-400));" />
+										{profiles.active?.name ?? t("home.selectInstance")}
+										<ChevronDown class="h-3 w-3 transition-transform {showInstanceDropdown ? 'rotate-180' : ''}" style="color: rgb(var(--fg-subtle));" />
+									</button>
+									{#if showInstanceDropdown}
+										<div class="absolute left-0 top-full z-30 mt-1 w-72 overflow-hidden rounded-xl shadow-2xl" style="border: 1px solid rgb(var(--border-strong)); background: rgb(var(--bg-subtle));">
+											{#each profiles.list as p, idx (p.id)}
+												<button
+													class="flex w-full items-center gap-3 px-4 py-3 text-left text-xs transition-colors"
+													style={p.id === profiles.active?.id ? "background: rgba(45, 212, 191, 0.08);" : ""}
+													onclick={() => selectProfile(p.id)}
+												>
+													<Box class="h-3.5 w-3.5" style="color: {p.id === profiles.active?.id ? 'rgb(45, 212, 191)' : 'rgb(var(--fg-subtle))'};" />
+													<div class="min-w-0 flex-1">
+														<div class="truncate font-medium" style="color: rgb(var(--fg));">{p.name}</div>
+														<div class="mt-0.5 text-[11px]" style="color: rgb(var(--fg-subtle));">MC {p.mcVersion} &middot; {p.loader}</div>
+													</div>
+													{#if idx < 9}
+														<span class="font-mono text-[10px]" style="color: rgb(var(--fg-subtle)); opacity: 0.5;">Ctrl+{idx + 1}</span>
+													{/if}
+													{#if p.id === profiles.active?.id}
+														<Badge>{t("home.active")}</Badge>
+													{/if}
+												</button>
+											{/each}
+										</div>
+									{/if}
+								</div>
+							{/if}
+							{#if profiles.active}
+								<button
+									type="button"
+									class="flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-150 hover:scale-105 active:scale-95"
+									style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.08); color: rgb(52, 211, 153);"
+									onclick={openVersionModal}
+									title={t("home.versionClickHint")}
+								>
+									<span class="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+									<span>MC {profiles.active.mcVersion}</span>
+									<Pencil class="h-3 w-3 opacity-80" />
+								</button>
+								<Badge>{profiles.active.loader}</Badge>
+								{#if profiles.active.favorite}
+									<Star class="h-3.5 w-3.5 fill-current" style="color: rgb(250, 204, 21);" />
+								{/if}
+							{/if}
+						</div>
+
+						{#if downloadProgress}
+							{@const pct = downloadProgress.total > 0 ? Math.round((downloadProgress.completed / downloadProgress.total) * 100) : 0}
+							{@const speed = downloadProgress.speed?.bytesPerSecond ?? 0}
+							{@const remaining = speed > 0 && downloadProgress.totalBytes > downloadProgress.bytesDownloaded
+								? (downloadProgress.totalBytes - downloadProgress.bytesDownloaded) / speed
+								: 0}
+							<div class="mt-5 w-full max-w-md space-y-2">
+								<div class="flex items-center gap-2 text-xs" style="color: rgb(var(--fg-muted));">
+									<Loader2 class="h-3.5 w-3.5 animate-spin" style="color: rgb(var(--brand-400));" />
+									{formatPhase(downloadProgress.phase)} ({downloadProgress.completed}/{downloadProgress.total})
+								</div>
+								<div class="h-2 overflow-hidden rounded-full" style="background: rgb(var(--bg));">
+									<div class="h-full rounded-full transition-all duration-300" style="width: {pct}%; background: linear-gradient(90deg, rgb(20, 184, 166), rgb(45, 212, 191));"></div>
+								</div>
+								<div class="flex items-center justify-between text-[11px]" style="color: rgb(var(--fg-subtle));">
+									{#if downloadProgress.currentFile}
+										<span class="truncate">{downloadProgress.currentFile}</span>
+									{/if}
+									<div class="flex shrink-0 items-center gap-3">
+										{#if speed > 0}<span class="font-mono">{formatSpeed(speed)}</span>{/if}
+										{#if remaining > 0}<span style="opacity: 0.5;">ETA {formatEta(remaining)}</span>{/if}
+									</div>
+								</div>
+							</div>
+						{/if}
+
+						{#if lastError}
+							<div class="mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs" style="border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.06); color: rgb(248, 113, 113);">
+								<AlertTriangle class="h-3.5 w-3.5 shrink-0" />
+								{lastError}
+							</div>
+						{/if}
+
+						{#if gameExitInfo && !launching}
+							<div class="mt-4 flex items-center justify-between rounded-xl border px-4 py-3" style="border-color: {gameExitInfo.success ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}; background: {gameExitInfo.success ? 'rgba(34, 197, 94, 0.06)' : 'rgba(239, 68, 68, 0.06)'};">
+								<div class="flex items-center gap-2 text-xs" style="color: {gameExitInfo.success ? 'rgb(74, 222, 128)' : 'rgb(248, 113, 113)'};">
+									<CheckCircle2 class="h-3.5 w-3.5" />
+									{gameExitInfo.success ? t("home.gameExited", { code: gameExitInfo.code }) : t("home.gameCrashed", { code: gameExitInfo.code })}
+								</div>
+								<button class="grid h-5 w-5 place-items-center rounded transition-colors" style="color: rgb(var(--fg-subtle));" onclick={() => (gameExitInfo = null)} aria-label={t("common.close")}>
+									<X class="h-3 w-3" />
+								</button>
+							</div>
+						{/if}
+
+						{#if crashCategory}
+							<div
+								class="mt-3 rounded-xl border p-3 text-xs"
+								style="border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.06); color: rgb(252, 165, 165);"
+							>
+								<p class="font-semibold uppercase tracking-wide">{t("home.crashClassified", { category: crashCategory.category })}</p>
+								<p class="mt-1 text-[11px]">{crashCategory.hint}</p>
+							</div>
+						{/if}
+
+						{#if gamePid}
+							<div class="mt-3">
+								<ResourceMonitor pid={gamePid} running={true} />
+							</div>
+						{/if}
+					</div>
+
+					<div class="flex flex-col items-end justify-center gap-3 pt-2">
+						<button
+							class="group relative flex h-16 min-w-[240px] items-center justify-center gap-3.5 rounded-2xl px-8 text-white transition-all duration-200 select-none hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+							style="background: linear-gradient(135deg, #10b981 0%, #0d9488 50%, #059669 100%); box-shadow: 0 10px 30px rgba(16, 185, 129, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.35); border-top: 2px solid rgba(255, 255, 255, 0.4); border-bottom: 2px solid rgba(4, 120, 87, 0.7);"
+							disabled={!canPlay}
+							onclick={play}
+						>
+							{#if launching}
+								<Loader2 class="h-7 w-7 animate-spin" />
+								<div class="text-left">
+									<div class="text-lg font-black tracking-wider uppercase drop-shadow-sm">{t("home.launching")}</div>
+									<div class="text-[11px] font-medium text-emerald-100 opacity-90">{t("home.loadingMinecraft")}</div>
+								</div>
+							{:else if downloadProgress}
+								<Download class="h-7 w-7 animate-pulse" />
+								<div class="text-left">
+									<div class="text-lg font-black tracking-wider uppercase drop-shadow-sm">{t("home.downloading")}</div>
+									<div class="text-[11px] font-medium text-emerald-100 opacity-90">{downloadProgress.total > 0 ? Math.round((downloadProgress.completed / downloadProgress.total) * 100) : 0}%</div>
+								</div>
+							{:else}
+								<div class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 shadow-inner group-hover:scale-110 transition-transform">
+									<Play class="ml-0.5 h-6 w-6 fill-current text-white drop-shadow-md" />
+								</div>
+								<div class="text-left">
+									<div class="text-xl font-black tracking-wider uppercase drop-shadow-sm">{t("home.play")}</div>
+									<div class="text-[11px] font-semibold text-emerald-100 opacity-90">Minecraft {profiles.active?.mcVersion ?? ''}</div>
+								</div>
+							{/if}
+						</button>
+						<div class="flex items-center gap-2 text-[11px] font-medium" style="color: rgb(var(--fg-subtle));">
+							<span class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+							<span>{t("home.ready")}</span>
+						</div>
+					</div>
+				</div>
+			</section>
+		{/if}
+
+		{#if profiles.list.length > 0}
+			<section class="grid grid-cols-5 gap-3">
+				{#each [
+					{ icon: Box, label: t("home.instances"), value: String(profiles.list.length), color: "rgb(var(--brand-400))" },
+					{ icon: Download, label: t("home.versionInfo", { version: "" }).replace(": ", ""), value: profiles.active?.mcVersion ?? "—", color: "rgb(var(--brand-400))" },
+					{ icon: Clock, label: t("home.launches"), value: String(currentLaunchCount), color: "rgb(var(--brand-400))" },
+					{ icon: Clock, label: t("home.estPlayTime"), value: `${estimatedPlayTime}m`, color: "rgb(var(--brand-400))" },
+					{ icon: Gamepad2, label: t("home.account"), value: account.value.username, color: "rgb(var(--brand-400))" }
+				] as stat}
+					<div
+						class="flex items-center gap-3 rounded-xl border p-3.5 transition-all duration-150"
+						style="border-color: rgb(var(--border)); background: rgb(var(--bg-elevated));"
+					>
+						<div class="flex h-9 w-9 items-center justify-center rounded-lg" style="background: rgba(45, 212, 191, 0.06);">
+							<stat.icon class="h-4 w-4" style="color: {stat.color};" />
+						</div>
+						<div class="min-w-0">
+							<div class="text-[10px] font-medium uppercase tracking-wider" style="color: rgb(var(--fg-subtle));">{stat.label}</div>
+							<div class="mt-0.5 truncate text-xs font-bold" style="color: rgb(var(--fg));">{stat.value}</div>
+						</div>
+					</div>
+				{/each}
+			</section>
+		{/if}
+
+		{#if recentlyPlayed.length > 0}
+			<section>
+				<div class="mb-2.5 flex items-center gap-2">
+					<div class="h-1 w-4 rounded-full" style="background: rgb(var(--brand-400));"></div>
+					<h2 class="text-xs font-semibold uppercase tracking-wider" style="color: rgb(var(--fg-subtle));">{t("home.recentActivity")}</h2>
+				</div>
+				<div class="grid grid-cols-3 gap-2.5">
+					{#each recentlyPlayed as p (p.id)}
+						<button
+							class="group flex items-center gap-3 rounded-xl border p-3.5 text-left transition-all duration-150"
+							style="border-color: rgb(var(--border)); background: rgb(var(--bg-elevated));"
+							onmouseenter={(e) => {
+								(e.currentTarget as HTMLElement).style.borderColor = "rgba(45, 212, 191, 0.2)";
+								(e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px -4px rgba(0, 0, 0, 0.3)";
+							}}
+							onmouseleave={(e) => {
+								(e.currentTarget as HTMLElement).style.borderColor = "";
+								(e.currentTarget as HTMLElement).style.boxShadow = "";
+							}}
+							onclick={() => { profiles.activeId = p.id; play(); }}
+						>
+							<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg mc-creeper-face">
+								<Box class="h-5 w-5 relative z-10" style="color: rgb(var(--fg));" />
+							</div>
+							<div class="min-w-0 flex-1">
+								<p class="truncate text-xs font-semibold" style="color: rgb(var(--fg));">{p.name}</p>
+								<p class="mt-0.5 text-[11px]" style="color: rgb(var(--fg-subtle));">MC {p.mcVersion} &middot; {p.lastPlayed ? new Date(p.lastPlayed).toLocaleDateString() : t("home.never")}</p>
+							</div>
+							<Play class="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" style="color: rgb(var(--brand-400));" />
+						</button>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		{#if profiles.active}
+			<section class="grid grid-cols-3 gap-3">
+				<div
+					class="flex items-center gap-3 rounded-xl border p-3.5"
+					style="border-color: rgb(var(--border)); background: rgb(var(--bg-elevated));"
+				>
+					<div class="flex h-9 w-9 items-center justify-center rounded-lg" style="background: rgba(45, 212, 191, 0.06);">
+						<Box class="h-4 w-4" style="color: rgb(var(--brand-400));" />
+					</div>
+					<div>
+						<div class="text-[10px] font-medium uppercase tracking-wider" style="color: rgb(var(--fg-subtle));">{t("home.loader")}</div>
+						<div class="mt-0.5 text-xs font-bold capitalize" style="color: rgb(var(--fg));">{profiles.active.loader}</div>
+					</div>
+				</div>
+				<div
+					class="flex items-center gap-3 rounded-xl border p-3.5"
+					style="border-color: rgb(var(--border)); background: rgb(var(--bg-elevated));"
+				>
+					<div class="flex h-9 w-9 items-center justify-center rounded-lg" style="background: rgba(45, 212, 191, 0.06);">
+						<HardDrive class="h-4 w-4" style="color: rgb(var(--brand-400));" />
+					</div>
+					<div>
+						<div class="text-[10px] font-medium uppercase tracking-wider" style="color: rgb(var(--fg-subtle));">{t("home.recommendedRam")}</div>
+						<div class="mt-0.5 text-xs font-bold" style="color: rgb(var(--fg));">{getRamRecommendation(profiles.active.modCount ?? 0, profiles.active.mcVersion) / 1024} GB</div>
+					</div>
+				</div>
+				<div
+					class="flex items-center gap-3 rounded-xl border p-3.5"
+					style="border-color: rgb(var(--border)); background: rgb(var(--bg-elevated));"
+				>
+					<div class="flex h-9 w-9 items-center justify-center rounded-lg" style="background: rgba(45, 212, 191, 0.06);">
+						<Clock class="h-4 w-4" style="color: rgb(var(--brand-400));" />
+					</div>
+					<div>
+						<div class="text-[10px] font-medium uppercase tracking-wider" style="color: rgb(var(--fg-subtle));">{t("home.lastPlayed")}</div>
+						<div class="mt-0.5 text-xs font-bold" style="color: rgb(var(--fg));">
+							{profiles.active.lastPlayed ? new Date(profiles.active.lastPlayed).toLocaleDateString() : t("home.never")}
+						</div>
+					</div>
+				</div>
+			</section>
+		{/if}
+
+		{#if newsItems.length > 0}
+			<section>
+				<div class="mb-2.5 flex items-center gap-2">
+					<div class="h-1 w-4 rounded-full" style="background: rgb(var(--brand-400));"></div>
+					<h2 class="text-xs font-semibold uppercase tracking-wider" style="color: rgb(var(--fg-subtle));">{t("home.minecraftNews")}</h2>
+				</div>
+				<div class="space-y-1.5">
+					{#each newsItems as news}
+						<a
+							href={news.link}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="group flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-150"
+							style="border-color: rgb(var(--border)); background: rgb(var(--bg-elevated));"
+							onmouseenter={(e) => {
+								(e.currentTarget as HTMLElement).style.borderColor = "rgba(45, 212, 191, 0.15)";
+							}}
+							onmouseleave={(e) => {
+								(e.currentTarget as HTMLElement).style.borderColor = "";
+							}}
+						>
+							<div class="min-w-0 flex-1">
+								<p class="truncate text-xs font-semibold" style="color: rgb(var(--fg));">{news.title}</p>
+								{#if news.pubDate}
+									<p class="mt-0.5 text-[11px]" style="color: rgb(var(--fg-subtle));">
+										{new Date(news.pubDate).toLocaleDateString()}
+									</p>
+								{/if}
+							</div>
+							<svg class="h-3.5 w-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" style="color: rgb(var(--fg-subtle));" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
+						</a>
+					{/each}
+				</div>
+			</section>
+		{/if}
+
+		<div class="flex gap-2">
+			<Button href="/instances" variant="secondary" size="sm">
+				<Box class="h-3.5 w-3.5" />
+				{t("nav.instances")}
+			</Button>
+			<Button href="/mods" variant="secondary" size="sm">
+				<Download class="h-3.5 w-3.5" />
+				{t("nav.mods")}
+			</Button>
+			<Button href="/settings" variant="secondary" size="sm">
+				<Cog class="h-3.5 w-3.5" />
+				{t("nav.settings")}
+			</Button>
+		</div>
+	</div>
+
+	<Modal
+		isOpen={showVersionModal}
+		onClose={() => (showVersionModal = false)}
+		title={t("instances.selectVersionTitle")}
+		maxWidth="max-w-lg"
+	>
+		<div class="flex flex-col gap-4">
+			<p class="text-xs" style="color: rgb(var(--fg-muted));">
+				{t("home.selectVersionDescription", { name: profiles.active?.name })}
+			</p>
+
+			{#if latestRelease || latestSnapshot}
+				<div class="flex flex-wrap gap-2">
+					{#if latestRelease}
+						<button
+							type="button"
+							class="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all hover:scale-105"
+							style="border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1); color: rgb(52, 211, 153);"
+							onclick={() => (selectedVersionToApply = latestRelease)}
+						>
+							<Sparkles class="h-3.5 w-3.5" />
+							<span>{t("home.latestRelease", { version: latestRelease })}</span>
+						</button>
+					{/if}
+					{#if latestSnapshot}
+						<button
+							type="button"
+							class="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all hover:scale-105"
+							style="border-color: rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.1); color: rgb(250, 204, 21);"
+							onclick={() => (selectedVersionToApply = latestSnapshot)}
+						>
+							<span>{t("home.latestSnapshot", { version: latestSnapshot })}</span>
+						</button>
+					{/if}
+				</div>
+			{/if}
+
+			<FilterableVersionSelect
+				versions={availableVersions}
+				bind:value={selectedVersionToApply}
+				loading={versionsLoading}
+			/>
+
+			<div class="flex justify-end gap-2 border-t pt-4" style="border-color: rgb(var(--border));">
+				<Button variant="secondary" onclick={() => (showVersionModal = false)}>
+					{t("common.cancel")}
+				</Button>
+				<Button variant="solid" onclick={applyVersionChange} loading={applyingVersion} disabled={!selectedVersionToApply}>
+					<CheckCircle2 class="h-4 w-4" />
+					{t("home.applyVersion")}
+				</Button>
+			</div>
+		</div>
+	</Modal>
+{/if}

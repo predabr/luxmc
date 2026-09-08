@@ -1,0 +1,814 @@
+use serde::{Deserialize, Serialize};
+use tauri::State;
+use uuid::Uuid;
+
+use crate::db::models::ProfileRow;
+use crate::error::AppResult;
+use crate::state::AppState;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HealthCheckResult {
+	pub client_jar: bool,
+	pub natives: bool,
+	pub mods_ok: bool,
+	pub issues: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileTreeEntry {
+	pub name: String,
+	pub path: String,
+	pub is_dir: bool,
+	pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScreenshotEntry {
+	pub name: String,
+	pub path: String,
+	pub modified: String,
+	pub data_url: Option<String>,
+}
+
+#[tauri::command]
+pub async fn instances_list(_state: State<'_, AppState>) -> AppResult<Vec<ProfileRow>> {
+	let db = crate::db::shared_db().await?;
+	crate::db::schema::profiles::list(&db).await
+}
+
+#[tauri::command]
+pub async fn instances_duplicate(
+	_state: State<'_, AppState>,
+	id: String,
+) -> AppResult<ProfileRow> {
+	let db = crate::db::shared_db().await?;
+	let existing =
+		sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+			.bind(&id)
+			.fetch_optional(db.pool())
+			.await?
+			.ok_or_else(|| {
+				crate::error::AppError::NotFound(format!("profile {id} not found"))
+			})?;
+
+	let now = chrono::Utc::now();
+	let row = ProfileRow {
+		id: Uuid::new_v4().to_string(),
+		name: format!("{} (copy)", existing.name),
+		icon: existing.icon,
+		mc_version: existing.mc_version,
+		loader: existing.loader,
+		loader_version: existing.loader_version,
+		java_path: existing.java_path,
+		jvm_args: existing.jvm_args,
+		resolution_w: existing.resolution_w,
+		resolution_h: existing.resolution_h,
+		fullscreen: existing.fullscreen,
+		game_dir: existing.game_dir,
+		created_at: now,
+		updated_at: now,
+		favorite: false,
+		notes: None,
+		last_played: None,
+		launch_count: 0,
+		mod_count: existing.mod_count,
+		disk_usage: existing.disk_usage,
+		ram_mb: existing.ram_mb,
+		instance_group: existing.instance_group,
+	};
+	crate::db::schema::profiles::upsert(&db, &row).await?;
+	Ok(row)
+}
+
+#[tauri::command]
+pub async fn instances_open_folder(
+	_state: State<'_, AppState>,
+	id: String,
+) -> AppResult<()> {
+	let db = crate::db::shared_db().await?;
+	let row =
+		sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+			.bind(&id)
+			.fetch_optional(db.pool())
+			.await?
+			.ok_or_else(|| {
+				crate::error::AppError::NotFound(format!("profile {id} not found"))
+			})?;
+
+	open::that(&row.game_dir)?;
+	Ok(())
+}
+
+#[tauri::command]
+pub async fn instances_screenshots(
+	_state: State<'_, AppState>,
+	id: String,
+) -> AppResult<Vec<ScreenshotEntry>> {
+	let db = crate::db::shared_db().await?;
+	let row =
+		sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+			.bind(&id)
+			.fetch_optional(db.pool())
+			.await?
+			.ok_or_else(|| {
+				crate::error::AppError::NotFound(format!("profile {id} not found"))
+			})?;
+
+	let dir = std::path::Path::new(&row.game_dir).join("screenshots");
+	let mut entries = Vec::new();
+
+	if dir.is_dir() {
+		for entry in std::fs::read_dir(&dir)? {
+			let entry = entry?;
+			let path = entry.path();
+
+			let is_image = path
+				.extension()
+				.and_then(|e| e.to_str())
+				.map(|e| matches!(e.to_lowercase().as_str(), "png" | "jpg" | "jpeg"))
+				.unwrap_or(false);
+
+			if !is_image {
+				continue;
+			}
+
+			let metadata = entry.metadata()?;
+			let modified = metadata
+				.modified()
+				.ok()
+				.and_then(|t| {
+					let dt: chrono::DateTime<chrono::Utc> = t.into();
+					Some(dt.to_rfc3339())
+				})
+				.unwrap_or_default();
+
+				let data_url = if let Ok(bytes) = std::fs::read(&path) {
+					use base64::Engine;
+					let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+					let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("png").to_lowercase();
+					let mime = if ext == "jpg" || ext == "jpeg" { "image/jpeg" } else { "image/png" };
+					Some(format!("data:{};base64,{}", mime, b64))
+				} else {
+					None
+				};
+
+			entries.push(ScreenshotEntry {
+				name: path
+					.file_name()
+					.and_then(|n| n.to_str())
+					.unwrap_or("")
+					.to_string(),
+				path: path.to_string_lossy().to_string(),
+				modified,
+				data_url,
+			});
+		}
+	}
+
+	Ok(entries)
+}
+
+/// Delete a screenshot file by its absolute path.
+/// Only files inside a `screenshots/` sub-directory are accepted to prevent
+/// path-traversal attacks.
+#[tauri::command]
+pub async fn screenshot_delete(path: String) -> AppResult<()> {
+	let p = std::path::Path::new(&path);
+	// Safety: only allow deletion of files that live inside a `screenshots/` dir.
+	let parent = p
+		.parent()
+		.and_then(|par| par.file_name())
+		.and_then(|n| n.to_str())
+		.unwrap_or("");
+	if parent != "screenshots" {
+		return Err(crate::error::AppError::Internal(
+			"Path must be inside a screenshots directory".to_string(),
+		));
+	}
+	tokio::fs::remove_file(p).await?;
+	Ok(())
+}
+
+/// Open the screenshots folder in the system file manager.
+#[tauri::command]
+pub async fn screenshots_open_folder(
+	app: tauri::AppHandle,
+	profile_id: String,
+) -> AppResult<()> {
+	use tauri_plugin_opener::OpenerExt;
+	let db = crate::db::shared_db().await?;
+	let row = sqlx::query_as::<_, crate::db::models::ProfileRow>(
+		"SELECT * FROM profiles WHERE id = ?",
+	)
+	.bind(&profile_id)
+	.fetch_optional(db.pool())
+	.await?
+	.ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profile_id} not found")))?;
+
+	let dir = std::path::Path::new(&row.game_dir).join("screenshots");
+	if !dir.exists() {
+		tokio::fs::create_dir_all(&dir).await?;
+	}
+	app.opener()
+		.open_path(dir.to_string_lossy().as_ref(), None::<&str>)
+		.map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
+	Ok(())
+}
+
+
+#[derive(Debug, Deserialize)]
+struct CfManifest {
+	minecraft: CfMinecraft,
+	files: Vec<CfFile>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfMinecraft {
+	#[allow(dead_code)]
+	version: String,
+	mod_loaders: Vec<CfModLoader>,
+}
+
+#[derive(Debug, Deserialize)]
+struct CfModLoader {
+	id: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CfFile {
+	project_id: u64,
+	file_id: u64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct MrpackManifest {
+	#[serde(default)]
+	format_version: u32,
+	game: MrpackGame,
+	#[serde(default)]
+	mods: Vec<MrpackMod>,
+	#[serde(default)]
+	dependencies: std::collections::HashMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct MrpackGame {
+	id: String,
+	#[serde(default)]
+	version: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct MrpackMod {
+	project_id: Option<String>,
+	version_id: Option<String>,
+	file_name: Option<String>,
+	path: Option<String>,
+	#[serde(default)]
+	env: std::collections::HashMap<String, serde_json::Value>,
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_import_modpack(
+	state: State<'_, AppState>,
+	file_path: String,
+	profile_name: String,
+	mc_version: String,
+	loader: String,
+) -> AppResult<ProfileRow> {
+	let data = tokio::fs::read(&file_path).await?;
+	let cursor = std::io::Cursor::new(data);
+	let mut archive = zip::ZipArchive::new(cursor)
+		.map_err(|e| crate::error::AppError::InvalidState(format!("invalid zip: {e}")))?;
+
+	let manifest_entry = archive.by_name("manifest.json")
+		.map_err(|e| crate::error::AppError::NotFound(format!("manifest.json not found in zip: {e}")))?;
+
+	let manifest: CfManifest = serde_json::from_reader(manifest_entry)
+		.map_err(|e| crate::error::AppError::InvalidState(format!("invalid manifest: {e}")))?;
+
+	let loader_version = manifest.minecraft.mod_loaders.first()
+		.map(|ml| {
+			let parts: Vec<&str> = ml.id.split('-').collect();
+			if parts.len() > 1 { parts[1].to_string() } else { ml.id.clone() }
+		})
+		.unwrap_or_default();
+
+	let profile_id = Uuid::new_v4().to_string();
+	let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+		.ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
+	let mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
+	tokio::fs::create_dir_all(&mods_dir).await?;
+
+	let curseforge_key = std::env::var("CURSEFORGE_API_KEY").ok().filter(|k| !k.is_empty());
+
+	for cf_file in &manifest.files {
+		let project_id_str = cf_file.project_id.to_string();
+		let file_id_str = cf_file.file_id.to_string();
+
+		if let Some(ref key) = curseforge_key {
+			let url = format!(
+				"https://api.curseforge.com/v1/mods/{}/files/{}/download-url",
+				project_id_str, file_id_str,
+			);
+			let resp: serde_json::Value = state.http
+				.get(&url)
+				.header("x-api-key", key)
+				.send()
+				.await?
+				.error_for_status()?
+				.json()
+				.await?;
+
+			if let Some(download_url) = resp.get("data").and_then(|d| d.as_str()) {
+				if !download_url.is_empty() {
+					let file_resp = state.http.get(download_url).send().await?.error_for_status()?;
+					let bytes = file_resp.bytes().await?;
+
+					let filename = format!("{}_{}.jar", project_id_str, file_id_str);
+					let file_path = mods_dir.join(&filename);
+					tokio::fs::write(&file_path, &bytes).await?;
+
+					let db = crate::db::shared_db().await?;
+					let mod_row = crate::db::schema::mods::ModRow {
+						profile_id: profile_id.clone(),
+						project_id: project_id_str,
+						version_id: file_id_str,
+						file_name: filename,
+						sha1: String::new(),
+						source: "curseforge".into(),
+						installed_at: String::new(),
+					};
+					let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+				}
+			}
+		}
+	}
+
+	let now = chrono::Utc::now();
+	let profile_row = ProfileRow {
+		id: profile_id,
+		name: profile_name,
+		icon: "default".into(),
+		mc_version,
+		loader,
+		loader_version: Some(loader_version),
+		java_path: None,
+		jvm_args: None,
+		resolution_w: None,
+		resolution_h: None,
+		fullscreen: false,
+		game_dir: mods_dir.to_string_lossy().to_string(),
+		created_at: now,
+		updated_at: now,
+		favorite: false,
+		notes: None,
+		last_played: None,
+		launch_count: 0,
+		mod_count: 0,
+		disk_usage: 0,
+		ram_mb: None,
+		instance_group: None,
+	};
+
+	let db = crate::db::shared_db().await?;
+	crate::db::schema::profiles::upsert(&db, &profile_row).await?;
+	Ok(profile_row)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_health_check(
+	_state: State<'_, AppState>,
+	profileId: String,
+) -> AppResult<HealthCheckResult> {
+	let db = crate::db::shared_db().await?;
+	let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+		.bind(&profileId)
+		.fetch_optional(db.pool())
+		.await?
+		.ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+	let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+		.ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
+	let data_dir = base_dir.data_dir();
+
+	let client_jar = data_dir
+		.join("versions")
+		.join(&row.mc_version)
+		.join(format!("{}.jar", row.mc_version));
+	let client_jar_ok = client_jar.exists();
+
+	let natives_dir = data_dir
+		.join("versions")
+		.join(&row.mc_version)
+		.join("natives");
+	let natives_ok = natives_dir.exists() || {
+		let libs_dir = data_dir.join("libraries");
+		if let Ok(entries) = std::fs::read_dir(&libs_dir) {
+			let has_natives = entries
+				.filter_map(|e| e.ok())
+				.any(|e| {
+					let name = e.file_name().to_string_lossy().to_lowercase();
+					name.contains("natives") && name.contains(&row.mc_version)
+				});
+			has_natives
+		} else {
+			false
+		}
+	};
+
+	let mods_dir = data_dir.join("mods").join(&profileId);
+	let mods_ok = if mods_dir.exists() {
+		let mod_count = std::fs::read_dir(&mods_dir)
+			.map(|entries| {
+				entries
+					.filter_map(|e| e.ok())
+					.filter(|e| {
+						e.path().extension()
+							.and_then(|ext| ext.to_str())
+							.map(|ext| ext == "jar")
+							.unwrap_or(false)
+					})
+					.count()
+			})
+			.unwrap_or(0);
+		let db_mod_count = crate::db::schema::mods::list_by_profile(&db, &profileId)
+			.await
+			.map(|m| m.len())
+			.unwrap_or(0);
+		mod_count == db_mod_count
+	} else {
+		true
+	};
+
+	let mut issues = Vec::new();
+	if !client_jar_ok {
+		issues.push(format!("Client JAR missing for {}", row.mc_version));
+	}
+	if !natives_ok {
+		issues.push(format!("Natives not extracted for {}", row.mc_version));
+	}
+	if !mods_ok {
+		issues.push("Mods directory out of sync with database".into());
+	}
+
+	Ok(HealthCheckResult {
+		client_jar: client_jar_ok,
+		natives: natives_ok,
+		mods_ok,
+		issues,
+	})
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_file_tree(
+	_state: State<'_, AppState>,
+	profileId: String,
+	subPath: Option<String>,
+) -> AppResult<Vec<FileTreeEntry>> {
+	let db = crate::db::shared_db().await?;
+	let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+		.bind(&profileId)
+		.fetch_optional(db.pool())
+		.await?
+		.ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+	let base = if let Some(ref sub) = subPath {
+		std::path::PathBuf::from(&row.game_dir).join(sub)
+	} else {
+		std::path::PathBuf::from(&row.game_dir)
+	};
+
+	let mut entries = Vec::new();
+
+	if base.is_dir() {
+		for entry in std::fs::read_dir(&base)? {
+			let entry = entry?;
+			let path = entry.path();
+			let metadata = entry.metadata()?;
+			let is_dir = metadata.is_dir();
+			let size = if is_dir { 0 } else { metadata.len() };
+
+			entries.push(FileTreeEntry {
+				name: path.file_name()
+					.map(|n| n.to_string_lossy().to_string())
+					.unwrap_or_default(),
+				path: path.to_string_lossy().to_string(),
+				is_dir,
+				size,
+			});
+		}
+	}
+
+	entries.sort_by(|a, b| {
+		if a.is_dir == b.is_dir {
+			a.name.to_lowercase().cmp(&b.name.to_lowercase())
+		} else if a.is_dir {
+			std::cmp::Ordering::Less
+		} else {
+			std::cmp::Ordering::Greater
+		}
+	});
+
+	Ok(entries)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_import_mrpack(
+	state: State<'_, AppState>,
+	file_path: String,
+	profile_name: String,
+) -> AppResult<ProfileRow> {
+	let data = tokio::fs::read(&file_path).await?;
+	let cursor = std::io::Cursor::new(data);
+	let mut archive = zip::ZipArchive::new(cursor)
+		.map_err(|e| crate::error::AppError::InvalidState(format!("invalid zip: {e}")))?;
+
+	let manifest_entry = archive.by_name("modrinth.index.json")
+		.map_err(|e| crate::error::AppError::NotFound(format!("modrinth.index.json not found: {e}")))?;
+
+	let manifest: MrpackManifest = serde_json::from_reader(manifest_entry)
+		.map_err(|e| crate::error::AppError::InvalidState(format!("invalid mrpack manifest: {e}")))?;
+
+	let mc_version = manifest.game.version.clone();
+	let profile_id = Uuid::new_v4().to_string();
+
+	let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+		.ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
+	let mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
+	tokio::fs::create_dir_all(&mods_dir).await?;
+
+	let client = crate::core::mods::ModrinthClient::new(state.http.clone());
+	let db = crate::db::shared_db().await?;
+
+	for mrpack_mod in &manifest.mods {
+		if let (Some(project_id), Some(version_id)) = (&mrpack_mod.project_id, &mrpack_mod.version_id) {
+			let version_detail = client.get_version_detail(project_id, version_id, &mc_version).await;
+			if let Ok(version) = version_detail {
+				if let Some(file) = version.files.first() {
+					let resp = state.http.get(&file.url).send().await?.error_for_status()?;
+					let bytes = resp.bytes().await?;
+					let filename = mrpack_mod.file_name.as_deref().unwrap_or(&file.filename);
+					let file_path = mods_dir.join(filename);
+					tokio::fs::write(&file_path, &bytes).await?;
+
+					let mod_row = crate::db::schema::mods::ModRow {
+						profile_id: profile_id.clone(),
+						project_id: project_id.clone(),
+						version_id: version_id.clone(),
+						file_name: filename.to_string(),
+						sha1: file.sha1.clone(),
+						source: "modrinth".into(),
+						installed_at: String::new(),
+					};
+					let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+				}
+			}
+		}
+	}
+
+	let loader = if manifest.dependencies.contains_key("fabric-loader") {
+		"fabric"
+	} else if manifest.dependencies.contains_key("forge") {
+		"forge"
+	} else if manifest.dependencies.contains_key("neoforge") {
+		"neoforge"
+	} else if manifest.dependencies.contains_key("quilt-loader") {
+		"quilt"
+	} else {
+		"vanilla"
+	};
+
+	let loader_version = manifest.dependencies.values()
+		.find_map(|v| v.as_str().map(|s| s.to_string()))
+		.unwrap_or_default();
+
+	let now = chrono::Utc::now();
+	let profile_row = ProfileRow {
+		id: profile_id,
+		name: profile_name,
+		icon: "default".into(),
+		mc_version,
+		loader: loader.into(),
+		loader_version: Some(loader_version),
+		java_path: None,
+		jvm_args: None,
+		resolution_w: None,
+		resolution_h: None,
+		fullscreen: false,
+		game_dir: mods_dir.to_string_lossy().to_string(),
+		created_at: now,
+		updated_at: now,
+		favorite: false,
+		notes: None,
+		last_played: None,
+		launch_count: 0,
+		mod_count: 0,
+		disk_usage: 0,
+		ram_mb: None,
+		instance_group: None,
+	};
+
+	crate::db::schema::profiles::upsert(&db, &profile_row).await?;
+	Ok(profile_row)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_export(
+	_state: State<'_, AppState>,
+	profileId: String,
+	destPath: String,
+) -> AppResult<String> {
+	let db = crate::db::shared_db().await?;
+	let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+		.bind(&profileId)
+		.fetch_optional(db.pool())
+		.await?
+		.ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+	let mods_db = crate::db::schema::mods::list_by_profile(&db, &profileId).await?;
+
+	let manifest = serde_json::json!({
+		"name": row.name,
+		"mcVersion": row.mc_version,
+		"loader": row.loader,
+		"loaderVersion": row.loader_version,
+		"mods": mods_db.iter().map(|m| serde_json::json!({
+			"projectId": m.project_id,
+			"versionId": m.version_id,
+			"fileName": m.file_name,
+			"source": m.source,
+		})).collect::<Vec<_>>(),
+		"exportedAt": chrono::Utc::now().to_rfc3339(),
+		"launcher": "Luxmc",
+	});
+
+	let file = std::fs::File::create(&destPath)
+		.map_err(|e| crate::error::AppError::InvalidState(format!("cannot create export file: {e}")))?;
+	let writer = std::io::BufWriter::new(file);
+	serde_json::to_writer_pretty(writer, &manifest)
+		.map_err(|e| crate::error::AppError::InvalidState(format!("serialize error: {e}")))?;
+
+	Ok(destPath)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_set_notes(
+	_state: State<'_, AppState>,
+	profileId: String,
+	notes: Option<String>,
+) -> AppResult<()> {
+	let db = crate::db::shared_db().await?;
+	let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+		.bind(&profileId)
+		.fetch_optional(db.pool())
+		.await?
+		.ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+	let now = chrono::Utc::now();
+	let updated = ProfileRow { notes, updated_at: now, ..row };
+	crate::db::schema::profiles::upsert(&db, &updated).await?;
+	Ok(())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_set_favorite(
+	_state: State<'_, AppState>,
+	profileId: String,
+	favorite: bool,
+) -> AppResult<()> {
+	let db = crate::db::shared_db().await?;
+	let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+		.bind(&profileId)
+		.fetch_optional(db.pool())
+		.await?
+		.ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+	let now = chrono::Utc::now();
+	let updated = ProfileRow { favorite, updated_at: now, ..row };
+	crate::db::schema::profiles::upsert(&db, &updated).await?;
+	Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldDetail {
+	pub name: String,
+	pub folder_name: String,
+	pub icon_base64: Option<String>,
+	pub last_played: Option<i64>,
+	pub game_mode: Option<String>,
+	pub size_bytes: u64,
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_worlds_list(
+	_state: State<'_, AppState>,
+	profileId: String,
+) -> AppResult<Vec<WorldDetail>> {
+	let db = crate::db::shared_db().await?;
+	let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+		.bind(&profileId)
+		.fetch_optional(db.pool())
+		.await?
+		.ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+	let saves_dir = std::path::PathBuf::from(&row.game_dir).join("saves");
+	let mut list = Vec::new();
+
+	if saves_dir.is_dir() {
+		if let Ok(entries) = std::fs::read_dir(&saves_dir) {
+			for entry in entries.flatten() {
+				let path = entry.path();
+				if path.is_dir() {
+					let folder_name = path.file_name()
+						.map(|n| n.to_string_lossy().to_string())
+						.unwrap_or_default();
+					let world_name = folder_name.clone();
+
+					let icon_path = path.join("icon.png");
+					let icon_base64 = if icon_path.exists() {
+						if let Ok(bytes) = std::fs::read(&icon_path) {
+							use base64::Engine;
+							Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(&bytes)))
+						} else {
+							None
+						}
+					} else {
+						None
+					};
+
+					let mut total_size = 0u64;
+					if let Ok(sub_entries) = std::fs::read_dir(&path) {
+						for sub in sub_entries.flatten() {
+							if let Ok(meta) = sub.metadata() {
+								total_size += meta.len();
+							}
+						}
+					}
+
+					let last_played = entry.metadata().ok()
+						.and_then(|m| m.modified().ok())
+						.and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+						.map(|d| d.as_secs() as i64);
+
+					list.push(WorldDetail {
+						name: world_name,
+						folder_name,
+						icon_base64,
+						last_played,
+						game_mode: Some("Sobrevivência".to_string()),
+						size_bytes: total_size,
+					});
+				}
+			}
+		}
+	}
+
+	Ok(list)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_world_delete(
+	_state: State<'_, AppState>,
+	profileId: String,
+	folderName: String,
+) -> AppResult<()> {
+	if folderName.is_empty() || folderName.contains("..") || folderName.contains('/') || folderName.contains('\\') {
+		return Err(crate::error::AppError::InvalidInput("Invalid folder name".into()));
+	}
+
+	let db = crate::db::shared_db().await?;
+	let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+		.bind(&profileId)
+		.fetch_optional(db.pool())
+		.await?
+		.ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+	let world_path = std::path::PathBuf::from(&row.game_dir).join("saves").join(folderName);
+	if world_path.is_dir() {
+		std::fs::remove_dir_all(&world_path)?;
+	}
+
+	Ok(())
+}
+
