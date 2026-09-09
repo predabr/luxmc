@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, elasticOut } from "svelte/easing";
 	import { fade } from "svelte/transition";
 	import { onMount } from "svelte";
 	import { 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fade } from "svelte/transition";
+	import {  fade } from "svelte/transition";
 	import { onMount, onDestroy } from "svelte";
 	import { 
 		Settings as SettingsIcon, 
@@ -12,7 +12,7 @@
 		Bell, 
 		Info, 
 		Check, 
-		FolderOpen, 
+		FolderOpen, Network, 
 		Globe, 
 		RefreshCw,
 		Sparkles,

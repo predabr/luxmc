@@ -9,6 +9,7 @@
 		Plus,
 		Users,
 		Settings as SettingsIcon,
+		Compass,
 	} from "lucide-svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";

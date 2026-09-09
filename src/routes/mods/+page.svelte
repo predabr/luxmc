@@ -1,205 +1,94 @@
 <script lang="ts">
-	import { fade } from "svelte/transition";
-	import { 
-		Search, 
-		Package, 
-		Layers, 
-		Sparkles, 
-		Box, 
-		Code, 
-		Filter, 
-		Check, 
-		ArrowRight, 
-		Clock, 
-		Flame, 
-		Cpu, 
-		ExternalLink,
-		Sliders,
-		AlertCircle
-	} from "lucide-svelte";
-	import { toast } from "$lib/stores/toasts.svelte";
-
-	let search = $state("");
-	let source = $state<"modrinth" | "curseforge">("modrinth");
-	let contentType = $state<"modpack" | "mod" | "resourcepack" | "shader">("modpack");
-	let selectedLoader = $state<"all" | "fabric" | "forge" | "neoforge" | "quilt">("all");
-	let selectedVersion = $state("1.20.4");
-	let notifyOnLaunch = $state(false);
-
-	const plannedCategories = [
-		{ name: "Otimização & FPS", count: "Sodium, Lithium, Iris", icon: Cpu },
-		{ name: "Aventura & Exploração", count: "Biomes O' Plenty, Alex's Mobs", icon: Sparkles },
-		{ name: "Tecnologia & Automação", count: "Create, Applied Energistics", icon: Sliders },
-		{ name: "Shaders & Gráficos", count: "Complementary, BSL, Kappa", icon: Layers }
+	import { Search, Filter, Download, Star, ArrowLeft, ArrowRight, Zap, Boxes, Compass } from "lucide-svelte";
+	import { fly, fade, slide } from "svelte/transition";
+	import { backOut } from "svelte/easing";
+	
+	let searchQuery = $state("");
+	let selectedCategory = $state("Todos");
+	
+	const categories = ["Todos", "Otimização", "Aventura", "RPG", "Tecnologia", "Magia", "Hardcore"];
+	
+	const modpacks = [
+		{ id: 1, name: "Fabulously Optimized", author: "robotkoer", img: "https://images.unsplash.com/photo-1627856013091-fed6e4e30025?w=500", desc: "Alta fidelidade e extremo FPS.", downloads: "12M", rating: "4.9", loader: "Fabric" },
+		{ id: 2, name: "Cobblemon Official", author: "Cobblemon", img: "https://images.unsplash.com/photo-1613336026275-d6d473084e85?w=500", desc: "O melhor modpack de Pokémon.", downloads: "8M", rating: "4.8", loader: "Fabric" },
+		{ id: 3, name: "Better MC [FORGE]", author: "SHXRKIE", img: "https://images.unsplash.com/photo-1605806616949-1e87b487cb2a?w=500", desc: "A experiência definitiva do Minecraft.", downloads: "15M", rating: "4.7", loader: "Forge" },
+		{ id: 4, name: "All the Mods 9", author: "ATMTeam", img: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=500", desc: "Tudo o que você pode imaginar.", downloads: "5M", rating: "4.9", loader: "Forge" },
+		{ id: 5, name: "RLCraft", author: "Shivaxi", img: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=500", desc: "O modpack mais difícil do mundo.", downloads: "20M", rating: "4.6", loader: "Forge" },
+		{ id: 6, name: "Vault Hunters", author: "Iskall85", img: "https://images.unsplash.com/photo-1511512578047-dfb367046420?w=500", desc: "Incursões roguelike em cofres.", downloads: "3M", rating: "4.8", loader: "Forge" },
 	];
 </script>
 
-<div class="flex gap-6 h-full w-full select-none" in:fade={{ duration: 250 }}>
-	
-	<!-- Main Center Area: Architecture Ready for Mod Ecosystem -->
-	<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-6">
+<div class="h-full flex flex-col pt-4">
+	<!-- Top Header -->
+	<header class="flex items-center justify-between mb-8" in:fly={{ y: -20, duration: 500, easing: backOut }}>
+		<div>
+			<h1 class="text-2xl font-black text-white flex items-center gap-3">
+				<Compass class="w-7 h-7 text-brand-500" /> Explorar Modpacks
+			</h1>
+			<p class="text-sm text-white/50 mt-1">Descubra milhares de modpacks e instale com 1 clique.</p>
+		</div>
 		
-		<!-- Header -->
-		<div class="flex items-center justify-between mt-1">
-			<div>
-				<div class="flex items-center gap-3">
-					<h1 class="text-3xl font-extrabold text-white tracking-tight">Central de Conteúdo</h1>
-					<span class="bg-brand-500/15 text-brand-500 text-[10px] font-bold px-2.5 py-0.5 rounded-lg border border-brand-500/30">
-						Em Breve
-					</span>
-				</div>
-				<p class="text-white/50 text-xs mt-1">Navegue e instale mods, shaders e pacotes direto no Luxmc</p>
-			</div>
-
-			<!-- Source Switcher -->
-			<div class="flex bg-[#18191c] border border-white/10 p-1 rounded-2xl">
-				<button 
-					class="px-4 py-1.5 rounded-xl text-xs font-bold transition-all {source === 'modrinth' ? 'bg-[#1bd96a]/20 text-[#1bd96a] border border-[#1bd96a]/30 shadow-sm' : 'text-white/40 hover:text-white'}"
-					onclick={() => source = 'modrinth'}
-				>
-					Modrinth
-				</button>
-				<button 
-					class="px-4 py-1.5 rounded-xl text-xs font-bold transition-all {source === 'curseforge' ? 'bg-[#f16436]/20 text-[#f16436] border border-[#f16436]/30 shadow-sm' : 'text-white/40 hover:text-white'}"
-					onclick={() => source = 'curseforge'}
-				>
-					CurseForge
-				</button>
-			</div>
+		<!-- Search Bar -->
+		<div class="relative w-72">
+			<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+			<input 
+				type="text" 
+				bind:value={searchQuery}
+				placeholder="Buscar modpacks..."
+				class="w-full bg-[#18191c]/80 border border-white/10 rounded-full py-2.5 pl-10 pr-4 text-sm text-white placeholder-white/30 focus:outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/50 transition-all shadow-inner"
+			/>
 		</div>
+	</header>
 
-		<!-- Search & Type Filter Bar -->
-		<div class="flex flex-col sm:flex-row items-center gap-3">
-			<div class="relative flex-1 w-full">
-				<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-				<input 
-					type="text" 
-					placeholder="Pesquisar pacotes de mods, shaders e pacotes de recursos..." 
-					bind:value={search}
-					class="w-full bg-[#18191c] border border-white/10 rounded-2xl py-3 pl-10 pr-4 text-xs text-white placeholder-white/40 focus:border-brand-500 focus:outline-none transition-all shadow-inner"
-				/>
-			</div>
-
-			<div class="flex bg-[#18191c] border border-white/10 rounded-2xl p-1 gap-1 w-full sm:w-auto overflow-x-auto">
-				<button 
-					class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 {contentType === 'modpack' ? 'bg-[#25262c] text-brand-500 border border-brand-500/30' : 'text-white/40 hover:text-white'}"
-					onclick={() => contentType = 'modpack'}
-				>
-					<Layers class="w-3.5 h-3.5" /> Modpacks
-				</button>
-				<button 
-					class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 {contentType === 'mod' ? 'bg-[#25262c] text-brand-500 border border-brand-500/30' : 'text-white/40 hover:text-white'}"
-					onclick={() => contentType = 'mod'}
-				>
-					<Package class="w-3.5 h-3.5" /> Mods
-				</button>
-				<button 
-					class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 {contentType === 'shader' ? 'bg-[#25262c] text-brand-500 border border-brand-500/30' : 'text-white/40 hover:text-white'}"
-					onclick={() => contentType = 'shader'}
-				>
-					<Sparkles class="w-3.5 h-3.5" /> Shaders
-				</button>
-				<button 
-					class="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 {contentType === 'resourcepack' ? 'bg-[#25262c] text-brand-500 border border-brand-500/30' : 'text-white/40 hover:text-white'}"
-					onclick={() => contentType = 'resourcepack'}
-				>
-					<Box class="w-3.5 h-3.5" /> Recursos
-				</button>
-			</div>
-		</div>
-
-		<!-- Elegant Prepared State: Architecture Ready for Mod Support -->
-		<div class="bg-gradient-to-b from-[#18191c] to-[#121316] border border-white/10 rounded-3xl p-10 flex flex-col items-center justify-center text-center shadow-xl relative overflow-hidden">
-			
-			<div class="h-20 w-20 rounded-3xl bg-brand-500/10 border border-brand-500/30 flex items-center justify-center mb-5 text-brand-500 shadow-[0_0_30px_rgba(226,184,107,0.15)]">
-				<Package class="w-10 h-10 animate-bounce" />
-			</div>
-
-			<h2 class="text-2xl font-black text-white tracking-tight">Suporte a Mods & Modpacks em Construção</h2>
-			<p class="text-white/60 text-xs max-w-lg mt-2 leading-relaxed">
-				Toda a arquitetura de busca e integração com a API do <strong>Modrinth</strong> e <strong>CurseForge</strong> já está estruturada no Luxmc. No momento atual o launcher suporta Vanilla com foco em estabilidade e na próxima atualização o instalador automático em 1-clique estará liberado!
-			</p>
-
-			<!-- Category Preview Badges -->
-			<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-8 w-full max-w-2xl text-left">
-				{#each plannedCategories as cat}
-					<div class="bg-[#1e1f24] border border-white/5 p-4 rounded-2xl flex items-center gap-4">
-						<div class="h-11 w-11 rounded-xl bg-white/5 flex items-center justify-center text-brand-500">
-							<cat.icon class="w-5 h-5" />
-						</div>
-						<div>
-							<h4 class="text-xs font-bold text-white">{cat.name}</h4>
-							<p class="text-[11px] text-white/40 mt-0.5">{cat.count}</p>
-						</div>
-					</div>
-				{/each}
-			</div>
-
-			<!-- Action notification button -->
+	<!-- Categories Pill Menu -->
+	<div class="flex items-center gap-2 mb-8 overflow-x-auto custom-scrollbar pb-2" in:fade={{ duration: 400, delay: 100 }}>
+		{#each categories as cat}
 			<button 
-				class="mt-8 bg-brand-500 hover:bg-[#ebd095] text-black font-black text-xs px-7 py-3 rounded-2xl transition-all shadow-lg flex items-center gap-2 cursor-pointer active:scale-95"
-				onclick={() => {
-					notifyOnLaunch = !notifyOnLaunch;
-					toast(notifyOnLaunch ? "Você será notificado assim que o instalador de mods for ativado!" : "Notificação desativada", "info");
-				}}
+				class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all duration-300 active:scale-95 {selectedCategory === cat ? 'bg-brand-500 text-black shadow-[0_0_15px_rgba(226,184,107,0.4)]' : 'bg-[#18191c] text-white/60 border border-white/5 hover:border-white/20 hover:text-white'}"
+				onclick={() => selectedCategory = cat}
 			>
-				{#if notifyOnLaunch}
-					<Check class="w-4 h-4 stroke-[3]" /> Notificação Ativada
-				{:else}
-					<Sparkles class="w-4 h-4" /> Ativar Alerta de Lançamento da API
-				{/if}
+				{cat}
 			</button>
-
-		</div>
-
+		{/each}
 	</div>
 
-	<!-- Right Filters Sidebar -->
-	<aside class="w-[260px] shrink-0 h-full flex flex-col gap-5 overflow-y-auto custom-scrollbar pb-2 select-none border-l border-white/5 pl-4">
-		<div>
-			<h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Versão do Jogo</h3>
-			<select 
-				bind:value={selectedVersion} 
-				class="w-full bg-[#18191c] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none font-bold"
+	<!-- Modpack Grid -->
+	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-10">
+		{#each modpacks.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase())) as pack, i}
+			<div 
+				in:fly={{ y: 30, duration: 500, delay: i * 50, easing: backOut }}
+				class="group relative bg-[#18191c]/80 backdrop-blur-md rounded-3xl border border-white/5 overflow-hidden hover:border-brand-500/30 transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-15px_rgba(226,184,107,0.2)] flex flex-col h-72 cursor-pointer"
 			>
-				<option value="1.20.4">Minecraft 1.20.4 (Recomendado)</option>
-				<option value="1.20.2">Minecraft 1.20.2</option>
-				<option value="1.20.1">Minecraft 1.20.1</option>
-				<option value="1.19.4">Minecraft 1.19.4</option>
-				<option value="1.18.2">Minecraft 1.18.2</option>
-				<option value="1.16.5">Minecraft 1.16.5</option>
-				<option value="1.12.2">Minecraft 1.12.2</option>
-				<option value="1.8.9">Minecraft 1.8.9</option>
-			</select>
-		</div>
-
-		<div>
-			<h3 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Mod Loader</h3>
-			<div class="flex flex-col gap-1.5">
-				{#each [
-					{ id: 'all', name: 'Todos os Loaders' },
-					{ id: 'fabric', name: 'Fabric Loader' },
-					{ id: 'neoforge', name: 'NeoForge' },
-					{ id: 'forge', name: 'Forge clássico' },
-					{ id: 'quilt', name: 'Quilt' }
-				] as l}
-					<button 
-						class="w-full p-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition-all {selectedLoader === l.id ? 'bg-[#222328] text-brand-500 border border-white/10' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-						onclick={() => selectedLoader = l.id as any}
-					>
-						<span>{l.name}</span>
-						{#if selectedLoader === l.id}
-							<Check class="w-3.5 h-3.5 text-brand-500" />
-						{/if}
-					</button>
-				{/each}
+				<!-- Banner Image -->
+				<div class="h-32 w-full relative overflow-hidden">
+					<img src={pack.img} alt={pack.name} class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-70 group-hover:opacity-100" />
+					<div class="absolute inset-0 bg-gradient-to-t from-[#18191c]/90 to-transparent"></div>
+					<!-- Loader Badge -->
+					<div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md border border-white/10 px-2.5 py-1 rounded-full text-[9px] font-black uppercase text-white/80 tracking-wider">
+						{pack.loader}
+					</div>
+				</div>
+				
+				<!-- Content -->
+				<div class="p-4 flex-1 flex flex-col">
+					<h3 class="font-extrabold text-white text-lg leading-tight group-hover:text-brand-500 transition-colors">{pack.name}</h3>
+					<p class="text-[10px] text-brand-500/80 font-bold uppercase tracking-widest mt-1">Por {pack.author}</p>
+					
+					<p class="text-xs text-white/50 mt-3 line-clamp-2 leading-relaxed">{pack.desc}</p>
+					
+					<div class="mt-auto pt-4 flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<span class="text-[10px] font-bold text-white/40 flex items-center gap-1.5"><Download class="w-3.5 h-3.5 text-white/60" /> {pack.downloads}</span>
+							<span class="text-[10px] font-bold text-amber-400 flex items-center gap-1.5"><Star class="w-3.5 h-3.5" fill="currentColor" /> {pack.rating}</span>
+						</div>
+						
+						<!-- One-Click Install Button -->
+						<button class="bg-brand-500 hover:bg-brand-400 text-black p-2 rounded-xl transition-all duration-300 active:scale-90 hover:shadow-[0_0_15px_rgba(226,184,107,0.5)]">
+							<Download class="w-4 h-4" />
+						</button>
+					</div>
+				</div>
 			</div>
-		</div>
-
-		<div class="mt-auto bg-[#18191c] border border-white/5 p-3 rounded-2xl text-[10px] text-white/40">
-			<div class="font-bold text-white mb-1">API Integrada</div>
-			Conexão direta com Modrinth v2 REST API e CurseForge GraphQL.
-		</div>
-	</aside>
-
+		{/each}
+	</div>
 </div>
