@@ -611,7 +611,7 @@
 						<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/50 to-transparent"></div>
 						<div class="absolute bottom-4 left-5 right-5">
 							<span class="text-[10px] font-bold text-brand-500 uppercase tracking-widest">LANÇAMENTO OFICIAL</span>
-							<h3 class="text-base font-extrabold text-white mt-1">Luxmc v0.6.0-BETA: Pipeline Vulkan & Alta Performance Linux</h3>
+							<h3 class="text-base font-extrabold text-white mt-1">Luxmc v0.7.0-BETA: Pipeline Vulkan & Alta Performance Linux</h3>
 							<p class="text-xs text-white/60 mt-1 line-clamp-1">Suporte nativo a Vulkan (Mesa Zink), autenticação rápida, integração NameMC e mais de 100 servidores.</p>
 						</div>
 					</div>

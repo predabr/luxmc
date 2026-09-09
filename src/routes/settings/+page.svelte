@@ -183,7 +183,7 @@
 		kernelVersion: "Linux",
 		arch: "x86_64",
 		totalRamMb: 16384,
-		launcherVersion: "0.6.0-BETA"
+		launcherVersion: "0.7.0-BETA"
 	});
 
 	onMount(() => {
@@ -195,7 +195,7 @@
 					kernelVersion: String(specs.kernelVersion),
 					arch: specs.arch,
 					totalRamMb: specs.totalRamMb,
-					launcherVersion: specs.launcherVersion || "0.6.0-BETA"
+					launcherVersion: specs.launcherVersion || "0.7.0-BETA"
 				};
 			}
 		}).catch(err => console.error(err));
@@ -398,7 +398,7 @@
 
 		<!-- Bottom Brand Details (Cleaned of SKlauncher) -->
 		<div class="px-3 pt-3 text-[10px] text-white/30 font-medium leading-relaxed border-t border-white/5">
-			<div class="text-white/60 font-bold">Luxmc v0.6.0 Beta</div>
+			<div class="text-white/60 font-bold">Luxmc v0.7.0 Beta</div>
 			<div>Linux x86_64 · Wayland/X11</div>
 		</div>
 	</div>

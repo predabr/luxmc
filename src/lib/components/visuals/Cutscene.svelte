@@ -280,7 +280,7 @@
 			LUXMC
 		</h1>
 		<p class="text-xs font-mono tracking-[0.4em] text-brand-500 uppercase font-bold">
-			v0.6.0-BETA · MINECRAFT LAUNCHER
+			v0.7.0-BETA · MINECRAFT LAUNCHER
 		</p>
 	</div>
 </div>

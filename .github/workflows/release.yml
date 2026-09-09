@@ -65,10 +65,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v0.6.0-beta
-          releaseName: 'Luxmc Launcher v0.6.0-BETA'
+          tagName: v0.7.0-beta
+          releaseName: 'Luxmc Launcher v0.7.0-BETA'
           releaseBody: |
-            ## 🚀 Luxmc Launcher v0.6.0-BETA — Official Release
+            ## 🚀 Luxmc Launcher v0.7.0-BETA — Official Release
             
             - ⚡ **Cutscene 360° Split & Snap**: Quadrantes girando por 2s, pausa dramática e reagrupamento limpo.
             - 🎵 **Áudio & Efeitos Visuais**: Efeito sonoro sintetizado em tempo real + partículas douradas no canvas.
