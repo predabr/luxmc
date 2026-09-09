@@ -22,13 +22,31 @@
 	}
 
 	onMount(() => {
-		const ctx = canvas.getContext("2d");
-		if (!ctx) return;
+		const ctx = canvas?.getContext("2d");
+		if (!ctx) {
+			onComplete();
+			return;
+		}
+
+		// Safeguard: Ensure splash/cutscene never blocks app startup indefinitely
+		const fallbackTimer = setTimeout(() => {
+			onComplete();
+		}, 4200);
 
 		const img = new Image();
 		img.src = "/logo.png";
 		img.onload = () => {
 			runCutscene(img, ctx);
+		};
+		img.onerror = () => {
+			clearTimeout(fallbackTimer);
+			onComplete();
+		};
+
+		return () => {
+			clearTimeout(fallbackTimer);
+			if (animId) cancelAnimationFrame(animId);
+			if (tl) tl.kill();
 		};
 	});
 

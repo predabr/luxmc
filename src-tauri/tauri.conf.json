@@ -13,7 +13,7 @@
     "windows": [
       {
         "title": "Luxmc",
-        "url": "index.html",
+        "url": "/",
         "width": 1180,
         "height": 760,
         "minWidth": 960,

@@ -32,7 +32,11 @@
 	onMount(() => {
 		themeStore.init();
 		void bootstrapSettings();
+		const initTimer = setTimeout(() => {
+			initialized = true;
+		}, 2500);
 		appInit().then((init) => {
+			clearTimeout(initTimer);
 			appState.devMode = init.devMode;
 			if (init.account) {
 				account.account = {
@@ -84,6 +88,7 @@
 				}).catch(() => {});
 			}
 		}).catch((e) => {
+			clearTimeout(initTimer);
 			toast(t("app.initFailed", { error: String(e) }), "error");
 			initialized = true;
 		});
