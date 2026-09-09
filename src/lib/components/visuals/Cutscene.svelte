@@ -266,11 +266,11 @@
 			const frontMat = new THREE.MeshStandardMaterial({
 				map: tex,
 				color: 0xffffff,
-				roughness: 0.12,
-				metalness: 0.35,
+				roughness: 0.3,
+				metalness: 0.2,
 				emissive: 0xffffff,
 				emissiveMap: tex,
-				emissiveIntensity: 0.5,
+				emissiveIntensity: 0.15,
 				side: THREE.DoubleSide,
 				transparent: true,
 				alphaTest: 0.02
@@ -293,11 +293,11 @@
 			const intactMat = new THREE.MeshStandardMaterial({
 				map: tex,
 				transparent: true,
-				roughness: 0.1,
+				roughness: 0.3,
 				metalness: 0.2,
-				emissive: 0xffffff,
+				emissive: 0x333333,
 				emissiveMap: tex,
-				emissiveIntensity: 0.5,
+				emissiveIntensity: 0.1,
 				side: THREE.DoubleSide,
 				alphaTest: 0.01
 			});
@@ -629,8 +629,8 @@
 
 			// Phase 2: Stress & Charge-Up (0.8s - 1.25s)
 			tl.call(() => playChargeSound(), undefined, 0.85);
-			tl.to(corePointLight, { intensity: 10, duration: 0.4, ease: "power2.in" }, 0.85);
-			tl.to(logoGroup.position, { x: "+=0.08", yoyo: true, repeat: 10, duration: 0.035 }, 0.85);
+			tl.to(corePointLight, { intensity: 1.5, duration: 0.4, ease: "power2.in" }, 0.85);
+			tl.to(logoGroup.position, { x: "+=0.04", yoyo: true, repeat: 8, duration: 0.04 }, 0.85);
 
 			// Phase 3: FLUID ULTRA-SMOOTH SHATTER (1.25s - 2.5s)
 			tl.call(() => {
@@ -646,7 +646,7 @@
 					const stagger = (s.dist / 3.5) * 0.12;
 
 					gsap.to(s.mesh.position, {
-						y: s.explodedPos.y - 4.5,
+						y: s.explodedPos.y - 3.0,
 						duration: 1.45,
 						delay: stagger,
 						ease: "power2.in"
@@ -661,9 +661,9 @@
 					});
 
 					gsap.to(s.mesh.rotation, {
-						x: s.explodedRot.x * 1.5,
-						y: s.explodedRot.y * 1.5,
-						z: s.explodedRot.z * 1.5,
+						x: s.explodedRot.x * 1.2,
+						y: s.explodedRot.y * 1.2,
+						z: s.explodedRot.z * 1.2,
 						duration: 1.45,
 						delay: stagger,
 						ease: "power2.out"
@@ -671,9 +671,7 @@
 				});
 			}, undefined, 1.25);
 
-			tl.to(flashOverlay, { opacity: 0.9, duration: 0.08, ease: "power4.out" }, 1.25)
-			  .to(flashOverlay, { opacity: 0, duration: 0.45, ease: "power2.out" }, 1.33)
-			  .to(shockwave1, { scale: 5.5, opacity: 0.85, duration: 0.75, ease: "power2.out" }, 1.25)
+			tl.to(shockwave1, { scale: 4.5, opacity: 0.4, duration: 0.75, ease: "power2.out" }, 1.25)
 			  .to(shockwave1, { opacity: 0, duration: 0.35 }, 1.65);
 
 			// Phase 4: Zero-G Cosmic Drift & Dynamic 3D Plasma Beams (2.5s - 3.1s)
@@ -682,7 +680,7 @@
 			}, undefined, 2.5);
 
 			tl.to({ val: 0 }, {
-				val: 0.85,
+				val: 0.5,
 				duration: 0.4,
 				onUpdate: function() { beamGlobalOpacity = this.targets()[0].val; }
 			}, 2.5);
@@ -701,7 +699,7 @@
 						z: s.originPos.z,
 						duration: 1.15,
 						delay: stagger,
-						ease: "expo.inOut"
+						ease: "power3.inOut"
 					});
 
 					gsap.to(s.mesh.rotation, {
@@ -710,14 +708,14 @@
 						z: 0,
 						duration: 1.1,
 						delay: stagger,
-						ease: "expo.inOut"
+						ease: "power3.inOut"
 					});
 				});
 			}, undefined, 3.1);
 
-			tl.to(shockwave2, { scale: 0.1, opacity: 0.9, duration: 1.1, ease: "power3.in" }, 3.1);
+			tl.to(shockwave2, { scale: 0.1, opacity: 0.4, duration: 1.1, ease: "power3.in" }, 3.1);
 
-			tl.to({ val: 0.85 }, {
+			tl.to({ val: 0.5 }, {
 				val: 0,
 				duration: 0.45,
 				onUpdate: function() { beamGlobalOpacity = this.targets()[0].val; }
@@ -731,15 +729,13 @@
 				shards.forEach((s) => { s.mesh.visible = false; });
 			}, undefined, 4.2);
 
-			tl.to(flashOverlay, { opacity: 0.75, duration: 0.07 }, 4.2)
-			  .to(flashOverlay, { opacity: 0, duration: 0.35 }, 4.27)
-			  .to(logoGroup.scale, { x: 1.14, y: 1.14, z: 1.14, duration: 0.1, ease: "power4.out" }, 4.2)
+			tl.to(logoGroup.scale, { x: 1.08, y: 1.08, z: 1.08, duration: 0.1, ease: "power4.out" }, 4.2)
 			  .to(logoGroup.scale, { x: 1.0, y: 1.0, z: 1.0, duration: 0.4, ease: "elastic.out(1, 0.4)" }, 4.3)
-			  .to(corePointLight, { intensity: 0, duration: 0.4 }, 4.25);
+			  .to(corePointLight, { intensity: 0.5, duration: 0.4 }, 4.25);
 
-			tl.fromTo(chromeGleam, { x: "-120%", opacity: 0.85 }, { x: "220%", opacity: 0, duration: 0.75, ease: "power2.inOut" }, 4.22);
+			tl.fromTo(chromeGleam, { x: "-120%", opacity: 0.3 }, { x: "220%", opacity: 0, duration: 0.75, ease: "power2.inOut" }, 4.22);
 
-			tl.to(titleText, { opacity: 1, y: 0, duration: 0.6, ease: "back.out(2)" }, 4.25)
+			tl.to(titleText, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 4.25)
 			  .to(subtitleText, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 4.4)
 			  .to(techBadges, { opacity: 1, y: 0, duration: 0.5, stagger: 0.1, ease: "power2.out" }, 4.5);
 
@@ -846,7 +842,7 @@
 			LUXMC
 		</h1>
 		<p bind:this={subtitleText} class="text-xs md:text-sm font-mono tracking-[0.45em] text-brand-500 uppercase font-bold drop-shadow-[0_0_15px_rgba(226,184,107,0.5)]">
-			MINECRAFT LAUNCHER • NEXT GEN V0.2.0
+			MINECRAFT LAUNCHER • NEXT GEN V0.5.0 BETA
 		</p>
 
 		<!-- Badges -->

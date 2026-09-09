@@ -827,18 +827,20 @@ export async function instanceWorldDelete(profileId: string, folderName: string)
 // --- Discord RPC Native Integration ---
 
 export async function discordSetActivity(
-	detailsOrOptions?: string | { details?: string; state?: string; largeText?: string },
+	detailsOrOptions?: string | { details?: string; state?: string; largeText?: string; largeImage?: string },
 	state?: string,
-	largeText?: string
+	largeText?: string,
+	largeImage?: string
 ): Promise<boolean> {
 	if (typeof detailsOrOptions === "object" && detailsOrOptions !== null) {
 		return api.invoke<boolean>("discord_set_activity", {
 			details: detailsOrOptions.details,
 			state: detailsOrOptions.state,
-			largeText: detailsOrOptions.largeText
+			largeText: detailsOrOptions.largeText,
+			largeImage: detailsOrOptions.largeImage
 		});
 	}
-	return api.invoke<boolean>("discord_set_activity", { details: detailsOrOptions, state, largeText });
+	return api.invoke<boolean>("discord_set_activity", { details: detailsOrOptions, state, largeText, largeImage });
 }
 
 export async function discordClearActivity(): Promise<void> {

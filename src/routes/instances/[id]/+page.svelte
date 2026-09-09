@@ -283,9 +283,10 @@
 
 			gamingStats.onGameStart();
 			discordSetActivity({
-				details: `Jogando ${activeProfile?.name || "Minecraft"}`,
-				state: `Versão ${verId} (${activeProfile?.loader || "Vanilla"})`,
-				largeText: "Luxmc Launcher (Linux)"
+				details: "Jogando Minecraft pelo Luxmc Launcher",
+				state: `Instância: ${activeProfile?.name || "Minecraft"} (${verId})`,
+				largeText: "Luxmc Launcher (Linux)",
+				largeImage: "minecraft"
 			}).catch(() => {});
 
 			downloadProgressPercent = 100;

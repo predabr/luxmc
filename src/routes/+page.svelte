@@ -394,7 +394,7 @@
 {:else}
 
 	<!-- MAIN DASHBOARD -->
-	<div class="flex gap-8 h-full w-full select-none" in:fade={{ duration: 300 }}>
+	<div class="flex gap-8 h-full w-full select-none" in:fade={{ duration: 100 }}>
 		
 		<!-- MAIN CONTENT AREA -->
 		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-7">

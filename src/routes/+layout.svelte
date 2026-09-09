@@ -77,9 +77,10 @@
 			initialized = true;
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
-					details: "No Menu Principal",
-					state: "Pronto para Jogar",
-					largeText: "Luxmc Launcher (Linux)"
+					details: "Luxmc Launcher",
+					state: "No Menu Principal",
+					largeText: "Luxmc Launcher (Linux)",
+					largeImage: "luxmc"
 				}).catch(() => {});
 			}
 		}).catch((e) => {
@@ -92,9 +93,10 @@
 			gamingStats.onGameExit();
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
-					details: "No Menu Principal",
-					state: "Navegando no Launcher",
-					largeText: "Luxmc Launcher (Linux)"
+					details: "Luxmc Launcher",
+					state: "No Menu Principal",
+					largeText: "Luxmc Launcher (Linux)",
+					largeImage: "luxmc"
 				}).catch(() => {});
 			}
 		}).catch(() => {});
@@ -158,7 +160,7 @@
 		{@render children?.()}
 	</div>
 {:else}
-	<div class="flex h-full w-full overflow-hidden" in:fade={{ duration: 500 }}>
+	<div class="flex h-full w-full overflow-hidden" in:fade={{ duration: 100 }}>
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-w-0 flex-1 flex-col relative z-10">
 			<!-- Removed Topbar to make it seamless like a native app -->

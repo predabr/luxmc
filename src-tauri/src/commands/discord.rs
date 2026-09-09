@@ -59,6 +59,7 @@ pub async fn discord_set_activity(
     details: Option<String>,
     state: Option<String>,
     largeText: Option<String>,
+    largeImage: Option<String>,
 ) -> AppResult<bool> {
     #[cfg(unix)]
     {
@@ -93,19 +94,20 @@ pub async fn discord_set_activity(
 
         if let Some(ref mut stream) = *guard {
             let now = chrono::Utc::now().timestamp();
+            let img = largeImage.unwrap_or_else(|| "luxmc".to_string());
             let act = serde_json::json!({
 				"cmd": "SET_ACTIVITY",
 				"args": {
 					"pid": std::process::id(),
 					"activity": {
 						"state": state.unwrap_or_else(|| "No Menu Principal".to_string()),
-						"details": details.unwrap_or_else(|| "Luxmc Launcher (Linux)".to_string()),
+						"details": details.unwrap_or_else(|| "Luxmc Launcher".to_string()),
 						"timestamps": {
 							"start": now
 						},
 						"assets": {
-							"large_image": "minecraft",
-							"large_text": largeText.unwrap_or_else(|| "Luxmc - Alta Performance".to_string())
+							"large_image": img,
+							"large_text": largeText.unwrap_or_else(|| "Luxmc Launcher (Linux)".to_string())
 						}
 					}
 				},

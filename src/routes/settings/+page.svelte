@@ -182,8 +182,12 @@
 
 		// Connect Discord RPC if enabled
 		if (discordRpc) {
-			discordSetActivity("No Menu Principal", "Configurações do Luxmc", "Luxmc Launcher (Linux)")
-				.catch((err) => console.error("Discord RPC init err:", err));
+			discordSetActivity({
+				details: "Luxmc Launcher",
+				state: "Configurações do Launcher",
+				largeText: "Luxmc Launcher (Linux)",
+				largeImage: "luxmc"
+			}).catch((err) => console.error("Discord RPC init err:", err));
 		}
 	});
 
@@ -202,7 +206,12 @@
 	async function toggleDiscordRpc() {
 		discordRpc = !discordRpc;
 		if (discordRpc) {
-			const ok = await discordSetActivity("No Menu Principal", "Configurações do Luxmc", "Luxmc Launcher (Linux)");
+			const ok = await discordSetActivity({
+				details: "Luxmc Launcher",
+				state: "Configurações do Launcher",
+				largeText: "Luxmc Launcher (Linux)",
+				largeImage: "luxmc"
+			});
 			if (ok) {
 				toast("Discord Rich Presence conectado com sucesso!", "success");
 			} else {
@@ -598,9 +607,10 @@
 						onclick={async () => {
 							try {
 								await discordSetActivity({
-									details: "Testando Rich Presence",
-									state: "Luxmc Launcher (Linux)",
-									largeText: "Luxmc - 100% Conectado"
+									details: "Luxmc Launcher",
+									state: "Testando Rich Presence",
+									largeText: "Luxmc Launcher (Linux)",
+									largeImage: "luxmc"
 								});
 								toast("Conexão com Discord Rich Presence verificada com sucesso!", "success");
 							} catch (e) {
