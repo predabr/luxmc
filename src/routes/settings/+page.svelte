@@ -371,7 +371,7 @@
 
 		<!-- Bottom Brand Details (Cleaned of SKlauncher) -->
 		<div class="px-3 pt-3 text-[10px] text-white/30 font-medium leading-relaxed border-t border-white/5">
-			<div class="text-white/60 font-bold">Luxmc v0.2.0 Beta</div>
+			<div class="text-white/60 font-bold">Luxmc v0.5.0 Beta</div>
 			<div>Linux x86_64 · Wayland/X11</div>
 		</div>
 	</div>

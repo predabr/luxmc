@@ -22,19 +22,23 @@ pub struct DiscordActivityArgs {
 #[cfg(unix)]
 fn get_socket_path() -> Option<std::path::PathBuf> {
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+    let home_dir = std::env::var("HOME").unwrap_or_default();
 
-    for i in 0..10 {
-        let p = std::path::PathBuf::from(&runtime_dir).join(format!("discord-ipc-{}", i));
-        if p.exists() {
-            return Some(p);
-        }
-    }
+    let candidates = vec![
+        std::path::PathBuf::from(&runtime_dir),
+        std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.Discord"),
+        std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.DiscordCanary"),
+        std::path::PathBuf::from("/tmp"),
+        std::path::PathBuf::from("/tmp/app/com.discordapp.Discord"),
+        std::path::PathBuf::from(&home_dir).join(".var/app/com.discordapp.Discord/config"),
+    ];
 
-    let tmp = std::path::PathBuf::from("/tmp");
-    for i in 0..10 {
-        let p = tmp.join(format!("discord-ipc-{}", i));
-        if p.exists() {
-            return Some(p);
+    for base in candidates {
+        for i in 0..10 {
+            let p = base.join(format!("discord-ipc-{}", i));
+            if p.exists() {
+                return Some(p);
+            }
         }
     }
 

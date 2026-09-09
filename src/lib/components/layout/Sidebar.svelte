@@ -97,13 +97,12 @@
 						
 						<a
 							href={`/instances/${prof.id}`}
-							class="relative h-10 w-10 rounded-full overflow-hidden flex items-center justify-center transition-all duration-300 ease-out hover:scale-110 active:scale-95 border {active ? 'bg-white/10 shadow-md ring-2 ring-white/20' : 'border-white/10 bg-[#1c1d22] hover:border-white/30'}"
-							style={active ? 'border-color: var(--accent-color, #e2b86b);' : ''}
+							class="relative h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 border {active ? 'bg-white/10 shadow-lg ring-2 ring-brand-500/50 border-brand-500' : 'border-white/10 bg-[#1c1d22] hover:border-white/30'}"
 						>
 							{#if prof.icon && (prof.icon.startsWith("http") || prof.icon.startsWith("/") || prof.icon.startsWith("data:"))}
 								<img src={prof.icon} alt={prof.name} class="w-full h-full object-cover" />
 							{:else}
-								<img src="/grass_block.png" alt={prof.name} class="w-6 h-6 object-contain" />
+								<img src="/grass_block.png" alt={prof.name} class="w-7 h-7 object-contain [image-rendering:pixelated]" />
 							{/if}
 						</a>
 

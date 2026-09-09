@@ -1002,16 +1002,16 @@
 					{/if}
 					<Card interactive onclick={() => selectInstance(p.id)}>
 						<!-- Top Minecraft Artwork Banner -->
-						<div class="h-28 -mx-4 -mt-4 mb-3 rounded-t-xl overflow-hidden relative bg-[#1c1d22]">
+						<div class="h-32 -mx-4 -mt-4 mb-3 rounded-t-xl overflow-hidden relative bg-[#1c1d22]">
 							<img 
-								src={p.loader === 'vanilla' ? '/vanilla_banner.png' : '/modpack_fo.webp'} 
-								alt="Minecraft" 
-								class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" 
+								src={p.loader === 'fabric' ? '/modpack_fo.webp' : p.loader === 'forge' ? '/modpack_better_mc.webp' : p.loader === 'neoforge' ? '/modpack_cobblemon.webp' : '/vanilla_banner.png'} 
+								alt="Minecraft Artwork" 
+								class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-500" 
 							/>
-							<div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
-							<div class="absolute bottom-2 left-3 flex items-center gap-2">
-								<img src="/grass_block.png" alt="Minecraft" class="w-4 h-4 object-contain drop-shadow" />
-								<span class="bg-black/70 text-brand-500 text-[9px] font-bold px-2 py-0.5 rounded-md border border-brand-500/30">
+							<div class="absolute inset-0 bg-gradient-to-t from-[#141518] via-transparent to-transparent"></div>
+							<div class="absolute bottom-2.5 left-3 flex items-center gap-2">
+								<img src="/grass_block.png" alt="Minecraft" class="w-5 h-5 object-contain [image-rendering:pixelated] drop-shadow-md" />
+								<span class="bg-black/80 backdrop-blur-md text-brand-500 text-[9px] font-black uppercase px-2 py-0.5 rounded-md border border-brand-500/30 shadow-md">
 									{p.loader.toUpperCase()} · MC {p.mcVersion}
 								</span>
 							</div>
