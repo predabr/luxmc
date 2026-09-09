@@ -4,10 +4,11 @@
 fn main() {
     #[cfg(target_os = "linux")]
     {
-        if std::env::var("WEBKIT_DISABLE_COMPOSITING_MODE").is_err()
-            && (std::env::var("WAYLAND_DISPLAY").is_ok() || std::env::var("GDK_BACKEND").map(|v| v == "wayland").unwrap_or(false))
-        {
+        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+        if std::env::var("WEBKIT_DISABLE_COMPOSITING_MODE").is_err() {
+            std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
         }
     }
 

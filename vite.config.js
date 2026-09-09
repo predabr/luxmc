@@ -14,6 +14,11 @@ export default defineConfig(() => ({
   },
 
   clearScreen: false,
+  build: {
+    target: ["es2021", "chrome100", "safari14"],
+    minify: !process.env.TAURI_ENV_DEBUG,
+    sourcemap: !!process.env.TAURI_ENV_DEBUG,
+  },
   server: {
     port: 1420,
     strictPort: true,
