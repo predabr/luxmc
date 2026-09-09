@@ -102,11 +102,11 @@
 		}).catch(() => {});
 
 		const stop = startAutoPersist();
-		$effect(() => {
-			JSON.stringify(settings.value);
-			schedulePersist();
-		});
 		return stop;
+	});
+	$effect(() => {
+		JSON.stringify(settings.value);
+		schedulePersist();
 	});
 	// Easter Egg (Konami Code)
 	$effect(() => {
