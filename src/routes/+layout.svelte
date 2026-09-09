@@ -8,6 +8,7 @@
 	import Toasts from "$lib/components/ui/Toasts.svelte";
 	import StatusBanner from "$lib/components/ui/StatusBanner.svelte";
 	import Background3D from "$lib/components/visuals/Background3D.svelte";
+	import UpdateModal from "$lib/components/ui/UpdateModal.svelte";
 	import Cutscene from "$lib/components/visuals/Cutscene.svelte";
 	import { bootstrapSettings, schedulePersist, startAutoPersist } from "$lib/stores/persistence.svelte";
 	import { setToastInstance } from "$lib/stores/toasts.svelte";
@@ -169,3 +170,4 @@
 		</div>
 	</div>
 {/if}
+<UpdateModal />

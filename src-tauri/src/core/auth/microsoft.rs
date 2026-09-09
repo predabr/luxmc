@@ -15,39 +15,39 @@ const SCOPES: &str = "offline_access XBoxLive.signin";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PendingAuth {
-	pub state: String,
-	pub verifier: String,
-	pub url: String,
+    pub state: String,
+    pub verifier: String,
+    pub url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MicrosoftTokenResponse {
-	pub token_type: String,
-	pub scope: String,
-	pub expires_in: i64,
-	pub ext_expires_in: i64,
-	pub access_token: String,
-	pub refresh_token: String,
+    pub token_type: String,
+    pub scope: String,
+    pub expires_in: i64,
+    pub ext_expires_in: i64,
+    pub access_token: String,
+    pub refresh_token: String,
 }
 
 pub struct MicrosoftOAuth {
-	pub client_id: String,
-	pub http: reqwest::Client,
+    pub client_id: String,
+    pub http: reqwest::Client,
 }
 
 impl MicrosoftOAuth {
-	pub fn new(http: reqwest::Client) -> Self {
-		Self {
-			client_id: default_client_id(),
-			http,
-		}
-	}
+    pub fn new(http: reqwest::Client) -> Self {
+        Self {
+            client_id: default_client_id(),
+            http,
+        }
+    }
 
-	pub fn begin(&self) -> PendingAuth {
-		let verifier = pkce_verifier();
-		let challenge = pkce_challenge(&verifier);
-		let state = random_state();
-		let url = format!(
+    pub fn begin(&self) -> PendingAuth {
+        let verifier = pkce_verifier();
+        let challenge = pkce_challenge(&verifier);
+        let state = random_state();
+        let url = format!(
 			"{AUTH_URL}?client_id={cid}&response_type=code&redirect_uri={ru}&response_mode=query&scope={scopes}&state={state}&code_challenge={challenge}&code_challenge_method=S256",
 			cid = urlencoding(&self.client_id),
 			ru = urlencoding(REDIRECT_URI),
@@ -55,118 +55,117 @@ impl MicrosoftOAuth {
 			state = state,
 			challenge = challenge,
 		);
-		PendingAuth {
-			state,
-			verifier,
-			url
-		}
-	}
+        PendingAuth {
+            state,
+            verifier,
+            url,
+        }
+    }
 
-	pub async fn exchange_code(&self, code: &str, verifier: &str) -> AppResult<MicrosoftTokens> {
-		let form = [
-			("client_id", self.client_id.as_str()),
-			("code", code),
-			("code_verifier", verifier),
-			("grant_type", "authorization_code"),
-			("redirect_uri", REDIRECT_URI),
-		];
-		let resp = self
-			.http
-			.post(TOKEN_URL)
-			.form(&form)
-			.send()
-			.await?
-			.error_for_status()?;
-		let body: MicrosoftTokenResponse = resp.json().await?;
-		Ok(MicrosoftTokens {
-			access_token: body.access_token,
-			refresh_token: body.refresh_token,
-			expires_in: body.expires_in,
-		})
-	}
+    pub async fn exchange_code(&self, code: &str, verifier: &str) -> AppResult<MicrosoftTokens> {
+        let form = [
+            ("client_id", self.client_id.as_str()),
+            ("code", code),
+            ("code_verifier", verifier),
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", REDIRECT_URI),
+        ];
+        let resp = self
+            .http
+            .post(TOKEN_URL)
+            .form(&form)
+            .send()
+            .await?
+            .error_for_status()?;
+        let body: MicrosoftTokenResponse = resp.json().await?;
+        Ok(MicrosoftTokens {
+            access_token: body.access_token,
+            refresh_token: body.refresh_token,
+            expires_in: body.expires_in,
+        })
+    }
 }
 
 fn random_state() -> String {
-	let mut buf = [0u8; 24];
-	rand::thread_rng().fill_bytes(&mut buf);
-	base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(buf)
+    let mut buf = [0u8; 24];
+    rand::thread_rng().fill_bytes(&mut buf);
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(buf)
 }
 
 fn urlencoding(s: &str) -> String {
-	s.chars()
-		.flat_map(|c| {
-			if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '~') {
-				vec![c]
-			} else {
-				let mut out = vec![];
-				let mut buf = [0u8; 4];
-				let s = c.encode_utf8(&mut buf);
-				for b in s.bytes() {
-					out.push('%');
-					out.push(nibble((b >> 4) & 0xF) as char);
-					out.push(nibble(b & 0xF) as char);
-				}
-				out
-			}
-		})
-		.collect()
+    s.chars()
+        .flat_map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '~') {
+                vec![c]
+            } else {
+                let mut out = vec![];
+                let mut buf = [0u8; 4];
+                let s = c.encode_utf8(&mut buf);
+                for b in s.bytes() {
+                    out.push('%');
+                    out.push(nibble((b >> 4) & 0xF) as char);
+                    out.push(nibble(b & 0xF) as char);
+                }
+                out
+            }
+        })
+        .collect()
 }
 
 fn nibble(b: u8) -> u8 {
-	match b {
-		0..=9 => b'0' + b,
-		10..=15 => b'A' + (b - 10),
-		_ => b'0',
-	}
+    match b {
+        0..=9 => b'0' + b,
+        10..=15 => b'A' + (b - 10),
+        _ => b'0',
+    }
 }
 
 #[async_trait]
 impl AuthProvider for MicrosoftOAuth {
-	async fn login(&self) -> AppResult<super::AuthAccount> {
-		Err(AppError::NotImplemented(
-			"login flow must go through begin + exchange_code (UI-driven)",
-		))
-	}
+    async fn login(&self) -> AppResult<super::AuthAccount> {
+        Err(AppError::NotImplemented(
+            "login flow must go through begin + exchange_code (UI-driven)",
+        ))
+    }
 
-	async fn refresh(&self, refresh_token: &str) -> AppResult<MicrosoftTokens> {
-		let form = [
-			("client_id", self.client_id.as_str()),
-			("refresh_token", refresh_token),
-			("grant_type", "refresh_token"),
-			("redirect_uri", REDIRECT_URI),
-		];
-		let resp = self
-			.http
-			.post(TOKEN_URL)
-			.form(&form)
-			.send()
-			.await?
-			.error_for_status()?;
-		let body: MicrosoftTokenResponse = resp.json().await?;
-		Ok(MicrosoftTokens {
-			access_token: body.access_token,
-			refresh_token: body.refresh_token,
-			expires_in: body.expires_in,
-		})
-	}
+    async fn refresh(&self, refresh_token: &str) -> AppResult<MicrosoftTokens> {
+        let form = [
+            ("client_id", self.client_id.as_str()),
+            ("refresh_token", refresh_token),
+            ("grant_type", "refresh_token"),
+            ("redirect_uri", REDIRECT_URI),
+        ];
+        let resp = self
+            .http
+            .post(TOKEN_URL)
+            .form(&form)
+            .send()
+            .await?
+            .error_for_status()?;
+        let body: MicrosoftTokenResponse = resp.json().await?;
+        Ok(MicrosoftTokens {
+            access_token: body.access_token,
+            refresh_token: body.refresh_token,
+            expires_in: body.expires_in,
+        })
+    }
 
-	async fn xbox_token(&self, _ms_access_token: &str) -> AppResult<super::XboxTokenSet> {
-		Err(AppError::NotImplemented("use XboxClient directly"))
-	}
+    async fn xbox_token(&self, _ms_access_token: &str) -> AppResult<super::XboxTokenSet> {
+        Err(AppError::NotImplemented("use XboxClient directly"))
+    }
 
-	async fn minecraft_token(
-		&self,
-		_user_hash: &str,
-		_xsts_token: &str,
-	) -> AppResult<String> {
-		Err(AppError::NotImplemented("use MinecraftClient directly"))
-	}
+    async fn minecraft_token(&self, _user_hash: &str, _xsts_token: &str) -> AppResult<String> {
+        Err(AppError::NotImplemented("use MinecraftClient directly"))
+    }
 
-	async fn check_entitlements(&self, _mc_access_token: &str) -> AppResult<Vec<super::Entitlement>> {
-		Err(AppError::NotImplemented("use MinecraftClient directly"))
-	}
+    async fn check_entitlements(
+        &self,
+        _mc_access_token: &str,
+    ) -> AppResult<Vec<super::Entitlement>> {
+        Err(AppError::NotImplemented("use MinecraftClient directly"))
+    }
 
-	async fn profile(&self, _mc_access_token: &str) -> AppResult<super::MinecraftProfile> {
-		Err(AppError::NotImplemented("use MinecraftClient directly"))
-	}
+    async fn profile(&self, _mc_access_token: &str) -> AppResult<super::MinecraftProfile> {
+        Err(AppError::NotImplemented("use MinecraftClient directly"))
+    }
 }

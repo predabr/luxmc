@@ -5,15 +5,15 @@ use crate::error::AppResult;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ChangelogEntry {
-	pub version: String,
-	pub date: String,
-	pub title: String,
-	pub highlights: Vec<String>,
+    pub version: String,
+    pub date: String,
+    pub title: String,
+    pub highlights: Vec<String>,
 }
 
 #[tauri::command]
 pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
-	Ok(vec![
+    Ok(vec![
 		ChangelogEntry {
 			version: "0.2.0".into(),
 			date: "14 Oct 2024".into(),

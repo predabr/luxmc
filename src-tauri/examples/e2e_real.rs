@@ -1,5 +1,5 @@
-use luxmc_lib::core::minecraft::{self, lib_url_from_name};
 use luxmc_lib::core::launcher::{self, lib_path_from_name};
+use luxmc_lib::core::minecraft::{self, lib_url_from_name};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -64,23 +64,37 @@ async fn main() {
 
     println!("\n{}", "=".repeat(70));
     println!("  END-TO-END INTEGRATION TEST");
-    println!("  Version: 1.21.4 | Date: {}", chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC"));
+    println!(
+        "  Version: 1.21.4 | Date: {}",
+        chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
+    );
     println!("{}", "=".repeat(70));
 
     // ===== STEP 1: Fetch version manifest =====
     println!("\n--- Step 1: Fetch version manifest ---");
-    let manifest = minecraft::fetch_version_manifest(&client).await.expect("manifest fetch failed");
+    let manifest = minecraft::fetch_version_manifest(&client)
+        .await
+        .expect("manifest fetch failed");
     println!("  Versions available: {}", manifest.versions.len());
     println!("  Latest release: {}", manifest.latest.release);
     println!("  Latest snapshot: {}", manifest.latest.snapshot);
 
     // ===== STEP 2: Fetch version detail =====
     println!("\n--- Step 2: Fetch version detail for 1.21.4 ---");
-    let entry = manifest.versions.iter().find(|v| v.id == "1.21.4").expect("1.21.4 not found");
-    let detail = minecraft::fetch_version_detail(&client, &entry.url).await.expect("detail fetch failed");
+    let entry = manifest
+        .versions
+        .iter()
+        .find(|v| v.id == "1.21.4")
+        .expect("1.21.4 not found");
+    let detail = minecraft::fetch_version_detail(&client, &entry.url)
+        .await
+        .expect("detail fetch failed");
     println!("  ID: {}", detail.id);
     println!("  Type: {}", detail.version_type);
-    println!("  Main class: {}", detail.main_class.as_deref().unwrap_or("none"));
+    println!(
+        "  Main class: {}",
+        detail.main_class.as_deref().unwrap_or("none")
+    );
     println!("  Java major: {}", detail.java_major_version());
     println!("  Libraries: {}", detail.libraries.len());
     println!("  Has downloads: {}", detail.downloads.is_some());
@@ -93,17 +107,29 @@ async fn main() {
         tokio::fs::create_dir_all(&version_dir).await.unwrap();
         let client_path = version_dir.join(format!("{}.jar", detail.id));
 
-        let bytes = download_with_retry(&client, &downloads.client.url, &client_path, "client jar").await.expect("client jar download failed");
+        let bytes = download_with_retry(&client, &downloads.client.url, &client_path, "client jar")
+            .await
+            .expect("client jar download failed");
         let size = downloads.client.size;
         let actual = tokio::fs::read(&client_path).await.unwrap().len() as u64;
         total_bytes.fetch_add(actual, Ordering::Relaxed);
-        println!("  URL: {}", &downloads.client.url[..80.min(downloads.client.url.len())]);
+        println!(
+            "  URL: {}",
+            &downloads.client.url[..80.min(downloads.client.url.len())]
+        );
         println!("  Expected size: {} bytes", size);
         println!("  Actual size: {} bytes", actual);
         println!("  SHA1 expected: {}", &downloads.client.sha1);
-        println!("  SHA1 match: {}", sha1_hex(&client_path) == downloads.client.sha1);
+        println!(
+            "  SHA1 match: {}",
+            sha1_hex(&client_path) == downloads.client.sha1
+        );
         assert_eq!(actual, size, "client jar size mismatch");
-        assert_eq!(sha1_hex(&client_path), downloads.client.sha1, "client jar sha1 mismatch");
+        assert_eq!(
+            sha1_hex(&client_path),
+            downloads.client.sha1,
+            "client jar sha1 mismatch"
+        );
         println!("  ✓ Client jar downloaded and verified");
     }
 
@@ -114,7 +140,9 @@ async fn main() {
         tokio::fs::create_dir_all(&indexes_dir).await.unwrap();
         let index_path = indexes_dir.join(format!("{}.json", asset_index.id));
 
-        let bytes = download_with_retry(&client, &asset_index.url, &index_path, "asset index").await.expect("asset index download failed");
+        let bytes = download_with_retry(&client, &asset_index.url, &index_path, "asset index")
+            .await
+            .expect("asset index download failed");
         let actual = tokio::fs::read(&index_path).await.unwrap().len() as u64;
         total_bytes.fetch_add(actual, Ordering::Relaxed);
         println!("  Index ID: {}", asset_index.id);
@@ -204,10 +232,16 @@ async fn main() {
     tokio::fs::create_dir_all(&java_dir).await.unwrap();
 
     let manifest_url = JAVA_RUNTIME_MANIFEST_URL;
-    let runtime_manifest: RuntimeManifest = client.get(manifest_url)
-        .send().await.unwrap()
-        .error_for_status().unwrap()
-        .json().await.unwrap();
+    let runtime_manifest: RuntimeManifest = client
+        .get(manifest_url)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
 
     let linux = runtime_manifest.linux.expect("no linux runtimes");
 
@@ -217,7 +251,10 @@ async fn main() {
         for entry in entries {
             if let Some(ref version) = entry.version {
                 if let Some(ref name_str) = version.name {
-                    let major = name_str.split('.').next().and_then(|s| s.parse::<u32>().ok());
+                    let major = name_str
+                        .split('.')
+                        .next()
+                        .and_then(|s| s.parse::<u32>().ok());
                     if major == Some(21) {
                         if let Some(ref manifest_ref) = entry.manifest {
                             if let Some(ref url) = manifest_ref.url {
@@ -233,12 +270,21 @@ async fn main() {
 
     let component_url = component_url.expect("no Java 21 runtime found");
     println!("  Component: {}", component_name);
-    println!("  Manifest URL: {}...", &component_url[..60.min(component_url.len())]);
+    println!(
+        "  Manifest URL: {}...",
+        &component_url[..60.min(component_url.len())]
+    );
 
-    let component_manifest: ComponentManifest = client.get(&component_url)
-        .send().await.unwrap()
-        .error_for_status().unwrap()
-        .json().await.unwrap();
+    let component_manifest: ComponentManifest = client
+        .get(&component_url)
+        .send()
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
 
     let files = component_manifest.files.expect("no files in java manifest");
     let total_java_files = files.len();
@@ -285,8 +331,11 @@ async fn main() {
                     #[cfg(unix)]
                     {
                         use std::os::unix::fs::PermissionsExt;
-                        let _ = tokio::fs::set_permissions(&file_path,
-                            std::fs::Permissions::from_mode(0o755)).await;
+                        let _ = tokio::fs::set_permissions(
+                            &file_path,
+                            std::fs::Permissions::from_mode(0o755),
+                        )
+                        .await;
                     }
                 }
             }
@@ -307,7 +356,10 @@ async fn main() {
     let mut validation_ok = true;
 
     if let Some(ref downloads) = detail.downloads {
-        let client_path = base_dir.join("versions").join(&detail.id).join(format!("{}.jar", detail.id));
+        let client_path = base_dir
+            .join("versions")
+            .join(&detail.id)
+            .join(format!("{}.jar", detail.id));
         if !client_path.exists() {
             println!("  ✗ Client jar missing");
             validation_ok = false;
@@ -331,7 +383,10 @@ async fn main() {
     }
 
     if let Some(ref asset_index) = detail.asset_index {
-        let index_path = base_dir.join("assets").join("indexes").join(format!("{}.json", asset_index.id));
+        let index_path = base_dir
+            .join("assets")
+            .join("indexes")
+            .join(format!("{}.json", asset_index.id));
         if !index_path.exists() {
             println!("  ✗ Asset index missing");
             validation_ok = false;
@@ -355,12 +410,22 @@ async fn main() {
     let game_args = detail.effective_game_args();
     let jvm_args_raw = detail.effective_jvm_args();
     println!("  Game args: {}", game_args.len());
-    println!("  JVM args: {}", jvm_args_raw.as_ref().map(|a| a.len()).unwrap_or(0));
+    println!(
+        "  JVM args: {}",
+        jvm_args_raw.as_ref().map(|a| a.len()).unwrap_or(0)
+    );
 
-    let main_class = detail.main_class.as_deref().unwrap_or("net.minecraft.client.Minecraft");
+    let main_class = detail
+        .main_class
+        .as_deref()
+        .unwrap_or("net.minecraft.client.Minecraft");
     println!("  Main class: {}", main_class);
 
-    let cp_str = classpath.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<_>>().join(":");
+    let cp_str = classpath
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect::<Vec<_>>()
+        .join(":");
 
     let mut full_args: Vec<String> = Vec::new();
     if let Some(ref jvm_args) = jvm_args_raw {
@@ -377,7 +442,11 @@ async fn main() {
     }
 
     let assets_dir = base_dir.join("assets");
-    let asset_index_id = detail.asset_index.as_ref().map(|ai| ai.id.as_str()).unwrap_or("legacy");
+    let asset_index_id = detail
+        .asset_index
+        .as_ref()
+        .map(|ai| ai.id.as_str())
+        .unwrap_or("legacy");
     for arg in &game_args {
         let resolved = arg
             .replace("${auth_player_name}", "TestPlayer")
@@ -457,12 +526,38 @@ async fn main() {
     println!("\n{}", "=".repeat(70));
     println!("  FINAL REPORT");
     println!("{}", "=".repeat(70));
-    println!("  Total bytes downloaded: {} ({:.1} MB)", total, total as f64 / 1024.0 / 1024.0);
-    println!("  Client jar: {}", if detail.downloads.is_some() { "OK" } else { "N/A" });
-    println!("  Libraries: {} allowed, {} downloaded", allowed_libs.len(), downloaded_count);
-    println!("  Asset index: {}", detail.asset_index.as_ref().map(|a| a.id.as_str()).unwrap_or("N/A"));
-    println!("  Java binary: {}", if java_bin.exists() { "OK" } else { "MISSING" });
-    println!("  Environment: unzip={}, java={}",
+    println!(
+        "  Total bytes downloaded: {} ({:.1} MB)",
+        total,
+        total as f64 / 1024.0 / 1024.0
+    );
+    println!(
+        "  Client jar: {}",
+        if detail.downloads.is_some() {
+            "OK"
+        } else {
+            "N/A"
+        }
+    );
+    println!(
+        "  Libraries: {} allowed, {} downloaded",
+        allowed_libs.len(),
+        downloaded_count
+    );
+    println!(
+        "  Asset index: {}",
+        detail
+            .asset_index
+            .as_ref()
+            .map(|a| a.id.as_str())
+            .unwrap_or("N/A")
+    );
+    println!(
+        "  Java binary: {}",
+        if java_bin.exists() { "OK" } else { "MISSING" }
+    );
+    println!(
+        "  Environment: unzip={}, java={}",
         which_exists("unzip"),
         which_exists("java"),
     );
@@ -505,33 +600,43 @@ async fn download_with_retry(
     let mut last_err = None;
     for attempt in 1..=3u32 {
         match client.get(url).send().await {
-            Ok(resp) => {
-                match resp.error_for_status() {
-                    Ok(validated) => {
-                        match validated.bytes().await {
-                            Ok(bytes) => {
-                                let len = bytes.len() as u64;
-                                tokio::fs::write(path, &bytes).await.map_err(|e| e.to_string())?;
-                                if attempt > 1 {
-                                    println!("  [retry {}/3] OK: {}", attempt, label);
-                                }
-                                return Ok(len);
-                            }
-                            Err(e) => { last_err = Some(format!("bytes: {}", e)); }
+            Ok(resp) => match resp.error_for_status() {
+                Ok(validated) => match validated.bytes().await {
+                    Ok(bytes) => {
+                        let len = bytes.len() as u64;
+                        tokio::fs::write(path, &bytes)
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        if attempt > 1 {
+                            println!("  [retry {}/3] OK: {}", attempt, label);
                         }
+                        return Ok(len);
                     }
-                    Err(e) => { last_err = Some(format!("http {}: {}", e.status().unwrap_or_default(), e)); }
+                    Err(e) => {
+                        last_err = Some(format!("bytes: {}", e));
+                    }
+                },
+                Err(e) => {
+                    last_err = Some(format!("http {}: {}", e.status().unwrap_or_default(), e));
                 }
+            },
+            Err(e) => {
+                last_err = Some(format!("send: {}", e));
             }
-            Err(e) => { last_err = Some(format!("send: {}", e)); }
         }
         if attempt < 3 {
             let delay = 1000 * 2u64.pow(attempt - 1);
-            println!("  [retry {}/3] Waiting {} ms before retry for {}...", attempt, delay, label);
+            println!(
+                "  [retry {}/3] Waiting {} ms before retry for {}...",
+                attempt, delay, label
+            );
             tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
         }
     }
-    Err(format!("Download failed after 3 attempts for {}: {:?}", label, last_err))
+    Err(format!(
+        "Download failed after 3 attempts for {}: {:?}",
+        label, last_err
+    ))
 }
 
 fn sha1_hex(path: &PathBuf) -> String {

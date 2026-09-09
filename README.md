@@ -7,11 +7,13 @@
 ## 🚀 O que é o Luxmc?
 O Luxmc é um launcher moderno construído com **Rust (Tauri)** e **SvelteKit**. Ele foi desenhado para extrair o máximo de performance no Linux, com integração nativa ao sistema, baixo uso de RAM e um visual de cair o queixo.
 
-- ⚡ **Extremamente Leve:** Backend nativo em Rust.
+- ⚡ **Extremamente Leve:** Backend nativo em Rust (baixo uso de recursos).
+- 🧠 **Smart RAM & Otimização:** Calcula automaticamente 50% da sua memória RAM e injeta as melhores flags JVM de performance (estilo Aikar's) para o Minecraft rodar liso, sem você precisar configurar nada!
 - 🐧 **Linux-first:** Sem bugs estranhos, feito para rodar liso no seu pinguim (com suporte inteligente a Vulkan).
 - 🎨 **Customizável:** Cores de destaque dinâmicas, temas e uma cutscene de abertura 3D com físicas reais.
 - 🌐 **Host de Mundo:** Jogue com amigos abrindo seu mundo pra LAN/Internet direto pelo launcher!
 - 🗂 **Modpacks & Instâncias:** Gerenciador completo de instâncias.
+- 📥 **Update Checker:** O launcher avisa de forma inteligente (com uma UI super bonita) quando há uma nova atualização disponível!
 
 ---
 
