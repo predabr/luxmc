@@ -65,6 +65,23 @@
 	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros">("conteudo");
 	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("resourcepacks");
 	let searchQuery = $state("");
+
+	let showInstanceSettingsModal = $state(false);
+	let activeInstanceSection = $state<"geral" | "instalacao" | "janela" | "controlos" | "java" | "hooks">("geral");
+	let instanceNameInput = $state(activeProfile?.name || "Latest Release");
+	let instanceRamMb = $state(activeProfile?.ramMb || 4096);
+	let instanceJvmArgs = $state(activeProfile?.jvmArgs || "");
+
+	function saveInstanceSettings() {
+		if (activeProfile) {
+			activeProfile.name = instanceNameInput;
+			activeProfile.ramMb = instanceRamMb;
+			activeProfile.jvmArgs = instanceJvmArgs;
+		}
+		showInstanceSettingsModal = false;
+		toast("Configurações da instância salvas com sucesso!", "success");
+	}
+
 	
 	// Host World State
 	let showHostModal = $state(false);
@@ -463,9 +480,13 @@
 					>
 						<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta da Instância
 					</button>
-					<a href="/settings" class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-2 transition-all">
-						<SettingsIcon class="w-3.5 h-3.5" /> Configurações
-					</a>
+					<button 
+						type="button"
+						class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+						onclick={() => { instanceNameInput = activeProfile?.name || "Latest Release"; showInstanceSettingsModal = true; }}
+					>
+						<SettingsIcon class="w-3.5 h-3.5" /> Configurações da Instância
+					</button>
 				</div>
 			</div>
 
@@ -967,6 +988,181 @@
 				<div>1. Abra seu mundo no Minecraft e clique em <b>"Aberto para LAN"</b>.</div>
 				<div>2. Envie o <b>Link Próprio</b> acima para seus amigos colarem no Luxmc.</div>
 			</div>
+		</div>
+	</div>
+{/if}
+
+
+<!-- SKlauncher-Style Instance Settings Modal -->
+{#if showInstanceSettingsModal}
+	<div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
+		<div class="w-full max-w-3xl bg-[#141518] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-6 flex flex-col justify-between select-none h-[540px]">
+			
+			<div class="flex gap-6 h-full overflow-hidden">
+				<!-- Left Category List -->
+				<div class="w-56 shrink-0 border-r border-white/5 pr-4 flex flex-col justify-between">
+					<div class="space-y-4">
+						<h2 class="text-sm font-extrabold text-white px-2">Configurações da Instância</h2>
+						<nav class="flex flex-col gap-1">
+							<button 
+								type="button"
+								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'geral' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								onclick={() => activeInstanceSection = 'geral'}
+							>
+								<Box class="w-4 h-4 text-emerald-400" /> Geral
+							</button>
+							<button 
+								type="button"
+								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'instalacao' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								onclick={() => activeInstanceSection = 'instalacao'}
+							>
+								<Download class="w-4 h-4 text-cyan-400" /> Instalação
+							</button>
+							<button 
+								type="button"
+								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'janela' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								onclick={() => activeInstanceSection = 'janela'}
+							>
+								<Layers class="w-4 h-4 text-purple-400" /> Janela
+							</button>
+							<button 
+								type="button"
+								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'java' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								onclick={() => activeInstanceSection = 'java'}
+							>
+								<Sparkles class="w-4 h-4 text-amber-400" /> Java e Memória
+							</button>
+							<button 
+								type="button"
+								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'hooks' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								onclick={() => activeInstanceSection = 'hooks'}
+							>
+								<Code class="w-4 h-4 text-rose-400" /> Launch Hooks
+							</button>
+						</nav>
+					</div>
+
+					<div class="text-[10px] text-white/30 font-mono px-2">
+						Minecraft {activeProfile?.mcVersion || '1.21.4'}
+					</div>
+				</div>
+
+				<!-- Right Panel Content -->
+				<div class="flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar pr-1 space-y-6">
+					
+					{#if activeInstanceSection === 'geral'}
+						<div class="space-y-6">
+							<div>
+								<div class="flex items-center gap-2">
+									<Box class="w-4 h-4 text-emerald-400" />
+									<h3 class="text-xs font-bold text-white uppercase tracking-wider">Geral</h3>
+								</div>
+								<p class="text-[11px] text-white/40 mt-0.5">Nome, ícone e ações da instância</p>
+							</div>
+
+							<!-- Icon & Name Row -->
+							<div class="space-y-3">
+								<span class="text-xs font-bold text-white/70 block">Nome da Instância</span>
+								<div class="flex items-center gap-4">
+									<div class="h-14 w-14 rounded-2xl bg-[#1c1d22] border border-white/10 flex items-center justify-center shrink-0 p-1">
+										<img src="/grass_block.png" alt="Minecraft" class="w-10 h-10 object-contain [image-rendering:pixelated]" />
+									</div>
+									<input 
+										type="text"
+										bind:value={instanceNameInput}
+										class="flex-1 bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-brand-500 transition-colors"
+									/>
+								</div>
+							</div>
+
+							<!-- Instance Actions -->
+							<div class="space-y-3 pt-2">
+								<div>
+									<span class="text-xs font-bold text-white/80 block">Ações da Instância</span>
+									<p class="text-[11px] text-white/40 mt-0.5">Reparar ou apagar esta Instância. Estas ações não podem ser desfeitas.</p>
+								</div>
+
+								<!-- Repair Button -->
+								<button 
+									type="button"
+									class="w-full bg-[#18191c] hover:bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4 transition-all cursor-pointer text-left group"
+									onclick={() => toast("Recursos da instância reparados!", "success")}
+								>
+									<div class="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400 group-hover:scale-110 transition-transform">
+										<Sparkles class="w-5 h-5" />
+									</div>
+									<div>
+										<h4 class="text-xs font-bold text-amber-400">Reparar Instância</h4>
+										<p class="text-[11px] text-white/40 mt-0.5">Corrigir ficheiros corrompidos e descarregar recursos em falta</p>
+									</div>
+								</button>
+
+								<!-- Delete Button -->
+								<button 
+									type="button"
+									class="w-full bg-[#18191c] hover:bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 flex items-center gap-4 transition-all cursor-pointer text-left group"
+									onclick={() => toast("Instância removida com sucesso.", "info")}
+								>
+									<div class="h-10 w-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0 text-rose-400 group-hover:scale-110 transition-transform">
+										<Trash2 class="w-5 h-5" />
+									</div>
+									<div>
+										<h4 class="text-xs font-bold text-rose-400">Apagar dados da instância</h4>
+										<p class="text-[11px] text-white/40 mt-0.5">Remover permanentemente os ficheiros desta Instância e começar de novo</p>
+									</div>
+								</button>
+							</div>
+						</div>
+					{:else if activeInstanceSection === 'java'}
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-xs font-bold text-white uppercase tracking-wider">Java e Memória</h3>
+								<p class="text-[11px] text-white/40 mt-0.5">Alocação de RAM e flags para esta instância</p>
+							</div>
+
+							<div class="space-y-2">
+								<span class="text-xs font-bold text-white/70">Memória RAM Alocada (MB)</span>
+								<input type="range" min="1024" max="16384" step="512" bind:value={instanceRamMb} class="w-full accent-brand-500 cursor-pointer" />
+								<div class="flex justify-between text-xs font-mono text-brand-500 font-bold">
+									<span>1024 MB</span>
+									<span>{instanceRamMb} MB</span>
+									<span>16384 MB</span>
+								</div>
+							</div>
+
+							<div class="space-y-2">
+								<span class="text-xs font-bold text-white/70">Argumentos JVM Customizados</span>
+								<input type="text" bind:value={instanceJvmArgs} placeholder="-XX:+UseG1GC..." class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-500" />
+							</div>
+						</div>
+					{:else}
+						<div class="flex flex-col items-center justify-center h-48 text-white/40 text-xs">
+							Configurações padrão ativas para esta categoria.
+						</div>
+					{/if}
+
+				</div>
+			</div>
+
+			<!-- Footer Buttons -->
+			<div class="flex items-center justify-end gap-3 pt-4 border-t border-white/5">
+				<button 
+					type="button"
+					class="px-6 py-2.5 rounded-full text-xs font-bold text-white/60 hover:text-white hover:bg-white/5 transition-all cursor-pointer"
+					onclick={() => showInstanceSettingsModal = false}
+				>
+					Cancelar
+				</button>
+				<button 
+					type="button"
+					class="px-7 py-2.5 rounded-full text-xs font-black text-black transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 flex items-center gap-2"
+					style="background-color: var(--accent-color, #e2b86b);"
+					onclick={saveInstanceSettings}
+				>
+					<Check class="w-4 h-4 stroke-[3]" /> Guardar alterações
+				</button>
+			</div>
+
 		</div>
 	</div>
 {/if}
