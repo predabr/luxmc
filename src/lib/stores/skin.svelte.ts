@@ -21,7 +21,16 @@ const defaultSkin: SkinData = {
 };
 
 function createSkinStore() {
-	let current = $state<SkinData>({ ...defaultSkin });
+	let initial = { ...defaultSkin };
+	if (typeof window !== "undefined") {
+		const saved = localStorage.getItem("luxmc_active_skin_data");
+		if (saved) {
+			try {
+				initial = { ...defaultSkin, ...JSON.parse(saved) };
+			} catch {}
+		}
+	}
+	let current = $state<SkinData>(initial);
 
 	return {
 		get current() {
@@ -29,10 +38,16 @@ function createSkinStore() {
 		},
 		setSkin(skin: Partial<SkinData>) {
 			current = { ...current, ...skin };
+			if (typeof window !== "undefined") {
+				localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current));
+			}
 		},
 		setCape(capeType: "mojang" | "optifine" | "migrator" | "none") {
 			current.capeType = capeType;
 			current.hasCape = capeType !== "none";
+			if (typeof window !== "undefined") {
+				localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current));
+			}
 		}
 	};
 }

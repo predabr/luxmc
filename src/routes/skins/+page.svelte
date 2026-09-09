@@ -369,8 +369,12 @@
 						{#each ["none", "migrator", "optifine", "mojang"] as cape}
 							<button 
 								type="button" 
-								class="px-3 py-1 rounded-full text-[10px] font-bold capitalize transition-all cursor-pointer {selectedCape === cape ? 'bg-white/20 text-white font-extrabold shadow-sm' : 'text-white/40 hover:text-white'}"
-								onclick={() => selectedCape = cape as any}
+								class="px-3 py-1 rounded-full text-[10px] font-bold capitalize transition-all cursor-pointer {selectedCape === cape ? 'bg-brand-500 text-black font-extrabold shadow-md' : 'bg-[#1c1d22] text-white/50 border border-white/5 hover:text-white'}"
+								onclick={() => {
+									selectedCape = cape as any;
+									activeSkinStore.setCape(cape as any);
+									toast(`Capa 3D "${cape === 'none' ? 'Sem capa' : cape}" selecionada!`, "success");
+								}}
 							>
 								{cape === 'none' ? 'Sem capa' : cape}
 							</button>

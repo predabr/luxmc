@@ -392,18 +392,21 @@
 	});
 
 	$effect(() => {
-		if (skinUrl && solidMaterial) {
-			loadSkin(skinUrl);
+		const url = skinUrl;
+		if (url && solidMaterial) {
+			loadSkin(url);
 		}
 	});
 
 	$effect(() => {
+		const isSlim = slim;
 		if (playerGroup) {
-			buildMinecraftModel(slim);
+			buildMinecraftModel(isSlim);
 		}
 	});
 
 	$effect(() => {
+		const c = cape;
 		if (playerGroup) {
 			updateCape();
 		}
