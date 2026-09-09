@@ -48,7 +48,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: luxmc-v__VERSION__
+          tagName: v__VERSION__
           releaseName: 'Luxmc Launcher v__VERSION__'
           releaseBody: 'Uma nova versão cheia de otimizações do Luxmc chegou!'
           releaseDraft: false
