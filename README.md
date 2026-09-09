@@ -1,11 +1,6 @@
 <div align="center">
-  <img src="static/logo.png" alt="Luxmc Logo" width="250" />
   <h1>Luxmc Launcher</h1>
   <p><strong>Um launcher de Minecraft focado em performance, feito de Linux para Linux.</strong></p>
-</div>
-
-<div align="center">
-  <img src="static/screenshot.png" alt="Luxmc UI" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
 </div>
 
 ## 🚀 O que é o Luxmc?
