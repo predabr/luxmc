@@ -42,6 +42,7 @@
 		storageBreakdown, 
 		discordSetActivity, 
 		discordClearActivity,
+		getSystemSpecs,
 		type StorageBreakdown 
 	} from "$lib/api";
 
@@ -171,8 +172,34 @@
 		}
 	}
 
+	let systemSpecs = $state<{
+		osDistro: string;
+		kernelVersion: string;
+		arch: string;
+		totalRamMb: number;
+		launcherVersion: string;
+	}>({
+		osDistro: "Linux Nativo",
+		kernelVersion: "Linux",
+		arch: "x86_64",
+		totalRamMb: 16384,
+		launcherVersion: "0.6.0-BETA"
+	});
+
 	onMount(() => {
 		loadStorageMetrics();
+		getSystemSpecs().then(specs => {
+			if (specs) {
+				systemSpecs = {
+					osDistro: specs.osDistro,
+					kernelVersion: String(specs.kernelVersion),
+					arch: specs.arch,
+					totalRamMb: specs.totalRamMb,
+					launcherVersion: specs.launcherVersion || "0.6.0-BETA"
+				};
+			}
+		}).catch(err => console.error(err));
+
 		const savedVulkan = localStorage.getItem("luxmc_enable_vulkan");
 		if (savedVulkan !== null) {
 			enableVulkan = savedVulkan === "true";
@@ -371,7 +398,7 @@
 
 		<!-- Bottom Brand Details (Cleaned of SKlauncher) -->
 		<div class="px-3 pt-3 text-[10px] text-white/30 font-medium leading-relaxed border-t border-white/5">
-			<div class="text-white/60 font-bold">Luxmc v0.5.0 Beta</div>
+			<div class="text-white/60 font-bold">Luxmc v0.6.0 Beta</div>
 			<div>Linux x86_64 · Wayland/X11</div>
 		</div>
 	</div>
@@ -392,7 +419,7 @@
 
 				<div class="space-y-3">
 					<div>
-						<label class="text-xs font-bold text-white block mb-1.5">Idioma do Launcher</label>
+						<span class="text-xs font-bold text-white block mb-1.5">Idioma do Launcher</span>
 						<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3.5 flex items-center justify-between">
 							<div class="flex items-center gap-3">
 								<Globe class="w-4 h-4 text-white/40" />
@@ -431,6 +458,7 @@
 								</div>
 								<button 
 									type="button"
+									aria-label={opt.title}
 									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
 									onclick={opt.toggle}
 								>
@@ -478,7 +506,7 @@
 					{/if}
 
 					<div>
-						<label class="text-xs font-bold text-white block mb-2">Tema Visual do Launcher (Preto ou Branco)</label>
+						<span class="text-xs font-bold text-white block mb-2">Tema Visual do Launcher (Preto ou Branco)</span>
 						<div class="grid grid-cols-2 gap-3">
 							{#each Object.values(THEMES) as th}
 								<button 
@@ -653,7 +681,7 @@
 					</div>
 
 					<div>
-						<label class="text-xs font-bold text-white block mb-1.5">Executável Java do Sistema</label>
+						<span class="text-xs font-bold text-white block mb-1.5">Executável Java do Sistema</span>
 						<div class="flex gap-2">
 							<input type="text" bind:value={javaPath} class="flex-1 bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white focus:border-brand-500 focus:outline-none font-mono" />
 							<button class="bg-[#24252a] hover:bg-white/10 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-1.5 cursor-pointer" onclick={browseJava}>
@@ -687,7 +715,7 @@
 					</div>
 
 					<div>
-						<label class="text-xs font-bold text-white block mb-1.5">Argumentos JVM Customizados (Flags)</label>
+						<span class="text-xs font-bold text-white block mb-1.5">Argumentos JVM Customizados (Flags)</span>
 						<input type="text" bind:value={jvmArgs} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono focus:border-brand-500 focus:outline-none" />
 					</div>
 
@@ -747,6 +775,7 @@
 							</div>
 							<button 
 								type="button"
+								aria-label={opt.title}
 								class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
 								onclick={opt.toggle}
 							>
@@ -794,11 +823,11 @@
 
 					<div class="grid grid-cols-2 gap-3">
 						<div>
-							<label class="text-xs font-bold text-white block mb-1.5">Largura da Janela (px)</label>
+							<span class="text-xs font-bold text-white block mb-1.5">Largura da Janela (px)</span>
 							<input type="number" bind:value={defaultResWidth} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2 text-xs text-white focus:outline-none" />
 						</div>
 						<div>
-							<label class="text-xs font-bold text-white block mb-1.5">Altura da Janela (px)</label>
+							<span class="text-xs font-bold text-white block mb-1.5">Altura da Janela (px)</span>
 							<input type="number" bind:value={defaultResHeight} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2 text-xs text-white focus:outline-none" />
 						</div>
 					</div>
@@ -924,6 +953,7 @@
 							</div>
 							<button 
 								type="button"
+								aria-label={opt.title}
 								class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
 								onclick={opt.toggle}
 							>
@@ -957,6 +987,7 @@
 							</div>
 							<button 
 								type="button"
+								aria-label={opt.title}
 								class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
 								onclick={opt.toggle}
 							>
@@ -992,51 +1023,43 @@
 						<div class="relative z-10">
 							<div class="flex items-center gap-2.5">
 								<h4 class="text-xl font-black text-white tracking-tight">Luxmc Launcher</h4>
-								<span class="bg-brand-500/20 text-brand-500 text-[10px] font-black px-3 py-0.5 rounded-full border border-brand-500/30 shadow-sm">v0.2.0 Beta</span>
+								<span class="bg-brand-500/20 text-brand-500 text-[10px] font-black px-3 py-0.5 rounded-full border border-brand-500/30 shadow-sm">{systemSpecs.launcherVersion}</span>
 							</div>
-							<p class="text-xs text-white/60 mt-1">O launcher de Minecraft pioneiro e de ultra-baixa latência projetado para Linux.</p>
+							<p class="text-xs text-white/60 mt-1">Launcher moderno de alta performance projetado para Linux com Vulkan Zero-Lag.</p>
 							<div class="flex flex-wrap items-center gap-2 mt-3">
-								<span class="bg-emerald-500/15 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full border border-emerald-500/30">Linux Nativo (Wayland & X11)</span>
+								<span class="bg-emerald-500/15 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full border border-emerald-500/30">{systemSpecs.osDistro}</span>
 								<span class="bg-blue-500/15 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-500/30">Motor Tokio Rust</span>
-								<span class="bg-brand-500/15 text-brand-500 text-[10px] font-bold px-3 py-1 rounded-full border border-brand-500/30">Pipeline Vulkan Zink</span>
+								<span class="bg-brand-500/15 text-brand-500 text-[10px] font-bold px-3 py-1 rounded-full border border-brand-500/30">Otimização Vulkan</span>
 								<span class="bg-white/5 text-white/60 text-[10px] font-bold px-3 py-1 rounded-full border border-white/10">Licença MIT</span>
 							</div>
 						</div>
 					</div>
 
 					<div class="bg-[#1c1d22] border border-white/5 rounded-3xl p-5 space-y-2.5 text-xs shadow-md">
-						<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">Diagnóstico de Plataforma & Arquitetura</div>
+						<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">Especificações do Sistema & Launcher</div>
 						<div class="flex justify-between py-1.5 border-b border-white/5">
-							<span class="text-white/60">Sistema Operacional & Kernel:</span>
-							<span class="text-white font-mono font-bold">Linux (x86_64) · Native Syscalls</span>
+							<span class="text-white/60">Distribuição Linux:</span>
+							<span class="text-brand-500 font-mono font-bold">{systemSpecs.osDistro}</span>
 						</div>
 						<div class="flex justify-between py-1.5 border-b border-white/5">
-							<span class="text-white/60">Servidor Gráfico:</span>
-							<span class="text-white font-mono font-bold">Wayland Nativo / X11 Direct DirectFB</span>
+							<span class="text-white/60">Kernel Linux & Arquitetura:</span>
+							<span class="text-white font-mono font-bold">{systemSpecs.kernelVersion} ({systemSpecs.arch})</span>
+						</div>
+						<div class="flex justify-between py-1.5 border-b border-white/5">
+							<span class="text-white/60">Memória RAM do Sistema:</span>
+							<span class="text-white font-mono font-bold">{Math.round(systemSpecs.totalRamMb / 1024)} GB RAM</span>
+						</div>
+						<div class="flex justify-between py-1.5 border-b border-white/5">
+							<span class="text-white/60">Versão do Launcher:</span>
+							<span class="text-white font-mono font-bold">{systemSpecs.launcherVersion}</span>
 						</div>
 						<div class="flex justify-between py-1.5 border-b border-white/5">
 							<span class="text-white/60">Motor do Backend:</span>
-							<span class="text-white font-mono font-bold">Tauri 2.0 + Tokio 1.43 Multi-Threaded Rust</span>
-						</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
-							<span class="text-white/60">Interface Gráfica (Frontend):</span>
-							<span class="text-white font-mono font-bold">SvelteKit (Svelte 5 Runes) + Tailwind CSS</span>
-						</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
-							<span class="text-white/60">Visualizador de Skins:</span>
-							<span class="text-white font-mono font-bold">Three.js WebGL 3D Hardware Accelerated</span>
-						</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
-							<span class="text-white/60">Discord Rich Presence (RPC):</span>
-							<span class="text-white font-mono font-bold">Unix Domain Socket (/run/user/1000/discord-ipc-0)</span>
-						</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
-							<span class="text-white/60">Diretório de Dados (XDG):</span>
-							<span class="text-white font-mono font-bold">~/.local/share/luxmc/</span>
+							<span class="text-white font-mono font-bold">Tauri 2 + Tokio Rust Engine</span>
 						</div>
 						<div class="flex justify-between py-1.5">
 							<span class="text-white/60">Desenvolvido por:</span>
-							<span class="text-brand-500 font-bold">Equipe Luxmc (Luxmc Team)</span>
+							<span class="text-brand-500 font-bold">Equipe Luxmc</span>
 						</div>
 					</div>
 

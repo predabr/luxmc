@@ -28,16 +28,23 @@ fn get_socket_path() -> Option<std::path::PathBuf> {
         std::path::PathBuf::from(&runtime_dir),
         std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.Discord"),
         std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.DiscordCanary"),
+        std::path::PathBuf::from(&runtime_dir).join("app/de.vencord.Vesktop"),
         std::path::PathBuf::from("/tmp"),
         std::path::PathBuf::from("/tmp/app/com.discordapp.Discord"),
         std::path::PathBuf::from(&home_dir).join(".var/app/com.discordapp.Discord/config"),
+        std::path::PathBuf::from(&home_dir).join(".var/app/de.vencord.Vesktop/config"),
+        std::path::PathBuf::from(&home_dir).join(".config/discord"),
     ];
 
+    let prefixes = vec!["discord-ipc-", "ipc-"];
+
     for base in candidates {
-        for i in 0..10 {
-            let p = base.join(format!("discord-ipc-{}", i));
-            if p.exists() {
-                return Some(p);
+        for prefix in &prefixes {
+            for i in 0..10 {
+                let p = base.join(format!("{}{}", prefix, i));
+                if p.exists() {
+                    return Some(p);
+                }
             }
         }
     }
@@ -73,7 +80,9 @@ pub async fn discord_set_activity(
         if needs_connect {
             if let Some(path) = get_socket_path() {
                 if let Ok(mut stream) = UnixStream::connect(path) {
-                    // Send handshake
+                    stream
+                        .set_read_timeout(Some(std::time::Duration::from_millis(200)))
+                        .ok();
                     let handshake = serde_json::json!({
                         "v": 1,
                         "client_id": "1219293400582553650"
@@ -81,7 +90,6 @@ pub async fn discord_set_activity(
                     .to_string();
 
                     if send_frame(&mut stream, 0, &handshake).is_ok() {
-                        // Read response
                         let mut header = [0u8; 8];
                         if stream.read_exact(&mut header).is_ok() {
                             let resp_len =
@@ -97,26 +105,32 @@ pub async fn discord_set_activity(
         }
 
         if let Some(ref mut stream) = *guard {
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_millis(200)))
+                .ok();
             let now = chrono::Utc::now().timestamp();
-            let img = largeImage.unwrap_or_else(|| "luxmc".to_string());
+            let img = largeImage.unwrap_or_else(|| {
+                "https://raw.githubusercontent.com/luxmc/luxmc/main/static/icon.png".to_string()
+            });
             let act = serde_json::json!({
-				"cmd": "SET_ACTIVITY",
-				"args": {
-					"pid": std::process::id(),
-					"activity": {
-						"state": state.unwrap_or_else(|| "No Menu Principal".to_string()),
-						"details": details.unwrap_or_else(|| "Luxmc Launcher".to_string()),
-						"timestamps": {
-							"start": now
-						},
-						"assets": {
-							"large_image": img,
-							"large_text": largeText.unwrap_or_else(|| "Luxmc Launcher (Linux)".to_string())
-						}
-					}
-				},
-				"nonce": "1"
-			}).to_string();
+                "cmd": "SET_ACTIVITY",
+                "args": {
+                    "pid": std::process::id(),
+                    "activity": {
+                        "state": state.unwrap_or_else(|| "No Menu Principal".to_string()),
+                        "details": details.unwrap_or_else(|| "Luxmc Launcher v0.6.0-BETA".to_string()),
+                        "timestamps": {
+                            "start": now
+                        },
+                        "assets": {
+                            "large_image": img,
+                            "large_text": largeText.unwrap_or_else(|| "Luxmc Launcher (Linux)".to_string())
+                        }
+                    }
+                },
+                "nonce": "luxmc-rpc-1"
+            })
+            .to_string();
 
             if send_frame(stream, 1, &act).is_ok() {
                 let mut header = [0u8; 8];

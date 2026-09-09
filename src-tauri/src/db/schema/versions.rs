@@ -34,6 +34,7 @@ pub async fn get(db: &Db, id: &str) -> AppResult<Option<VersionRow>> {
     Ok(row)
 }
 
+#[allow(dead_code)]
 pub async fn upsert(db: &Db, v: &VersionRow) -> AppResult<()> {
     let now = Utc::now().to_rfc3339();
     sqlx::query(

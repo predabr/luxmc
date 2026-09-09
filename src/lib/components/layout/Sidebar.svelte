@@ -63,16 +63,14 @@
 			<div class="relative group w-full flex justify-center">
 				<!-- Animated Pill Indicator -->
 				<div 
-					class="absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ease-out {active ? 'h-7 shadow-sm' : 'h-0 bg-transparent'}"
-					style={active ? 'background-color: var(--accent-color, #e2b86b);' : ''}
+					class="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 rounded-r-full transition-all duration-300 ease-out {active ? 'h-7 bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.8)]' : 'h-0 bg-transparent'}"
 				></div>
 				
 				<a
 					href={item.href}
-					class="relative h-11 w-11 rounded-full flex items-center justify-center transition-all duration-300 ease-out hover:scale-110 active:scale-95 {active ? 'bg-white/10 shadow-inner' : 'text-white/40 hover:text-white hover:bg-white/5'}"
-					style={active ? 'color: var(--accent-color, #e2b86b);' : ''}
+					class="relative h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 {active ? 'bg-brand-500/15 border border-brand-500/30 text-brand-500 shadow-[0_0_15px_rgba(226,184,107,0.25)] font-bold' : 'text-white/40 hover:text-white hover:bg-white/5 border border-transparent'}"
 				>
-					<item.icon class="h-5 w-5 transition-transform duration-300 group-hover:rotate-3" />
+					<item.icon class="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
 				</a>
 
 				<!-- Smooth Tooltip -->

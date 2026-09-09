@@ -11,9 +11,9 @@ function getTodayKey(): string {
 	return `${year}-${month}-${day}`;
 }
 
-let totalMinutes = $state(20);
-let lastSessionMinutes = $state(20);
-let totalLaunches = $state(4);
+let totalMinutes = $state(0);
+let lastSessionMinutes = $state(0);
+let totalLaunches = $state(0);
 let dailyMinutesMap = $state<Record<string, number>>({});
 let activeGameStartTime = $state<number | null>(null);
 let activeSessionMinutes = $state(0);
@@ -37,7 +37,7 @@ function init() {
 			dailyMinutesMap = {};
 		}
 	} else {
-		dailyMinutesMap = { [getTodayKey()]: 20 };
+		dailyMinutesMap = {};
 	}
 }
 

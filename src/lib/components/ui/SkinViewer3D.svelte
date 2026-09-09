@@ -37,7 +37,7 @@
 	let prevMouseY = 0;
 	let yaw = 25 * (Math.PI / 180);
 	let pitch = 10 * (Math.PI / 180);
-	let zoom = 48;
+	let zoom = 58;
 
 	// Minecraft skin UV helper
 	function setBoxUV(geometry: THREE.BoxGeometry, x: number, y: number, w: number, h: number, d: number, tw = 64, th = 64) {
@@ -421,6 +421,7 @@
 
 <svelte:window onmousemove={onPointerMove} onmouseup={onPointerUp} />
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div 
 	bind:this={containerEl}
 	class="relative w-full h-full cursor-grab active:cursor-grabbing select-none {className}"

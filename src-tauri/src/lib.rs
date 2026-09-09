@@ -3,8 +3,8 @@ pub mod core;
 mod db;
 mod error;
 mod state;
-
 use state::AppState;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
@@ -21,7 +21,19 @@ pub async fn run() {
     }
 
     tauri::Builder::default()
-        
+        .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(dyn_img) = image::load_from_memory(include_bytes!("../icons/icon.png")) {
+                    let rgba = dyn_img.to_rgba8();
+                    let (w, h) = rgba.dimensions();
+                    let icon = tauri::image::Image::new_owned(rgba.into_raw(), w, h);
+                    let _ = window.set_icon(icon);
+                } else if let Some(icon) = app.default_window_icon() {
+                    let _ = window.set_icon(icon.clone());
+                }
+            }
+            Ok(())
+        })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -32,6 +44,7 @@ pub async fn run() {
             commands::system::ping,
             commands::system::app_info,
             commands::system::app_init,
+            commands::system::get_system_specs,
             commands::env::env_check,
             commands::settings::settings_get,
             commands::settings::settings_set,

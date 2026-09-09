@@ -68,9 +68,25 @@
 
 	let showInstanceSettingsModal = $state(false);
 	let activeInstanceSection = $state<"geral" | "instalacao" | "janela" | "controlos" | "java" | "hooks">("geral");
-	let instanceNameInput = $state(activeProfile?.name || "Latest Release");
-	let instanceRamMb = $state(activeProfile?.ramMb || 4096);
-	let instanceJvmArgs = $state(activeProfile?.jvmArgs || "");
+	let instanceNameInput = $state("Latest Release");
+	let instanceRamMb = $state(4096);
+	let instanceJvmArgs = $state("");
+	let instanceLoaderType = $state("vanilla");
+	let instanceLoaderVersion = $state("0.15.11");
+	let instanceWindowWidth = $state(1280);
+	let instanceWindowHeight = $state(720);
+	let instanceStartFullscreen = $state(false);
+	let instanceEnableVulkanOpt = $state(true);
+	let instancePreLaunchHook = $state("");
+	let instancePostExitHook = $state("");
+
+	$effect(() => {
+		if (activeProfile) {
+			instanceNameInput = activeProfile.name || "Latest Release";
+			instanceRamMb = activeProfile.ramMb || 4096;
+			instanceJvmArgs = activeProfile.jvmArgs || "";
+		}
+	});
 
 	function saveInstanceSettings() {
 		if (activeProfile) {
@@ -406,6 +422,17 @@
 				</div>
 
 				<div class="flex items-center gap-3">
+					<!-- Prominent Instance Settings Button -->
+					<button 
+						type="button"
+						class="bg-[#222328] hover:bg-brand-500/20 text-white hover:text-brand-500 text-xs font-black px-6 py-3.5 rounded-full border border-brand-500/40 hover:border-brand-500 transition-all flex items-center gap-2.5 shadow-xl cursor-pointer shrink-0 hover:scale-105 active:scale-95 group"
+						onclick={() => showInstanceSettingsModal = true}
+						title="Abrir todas as configurações da instância"
+					>
+						<SettingsIcon class="w-4 h-4 text-brand-500 group-hover:rotate-45 transition-transform" />
+						<span>Configurações da Instância</span>
+					</button>
+
 					<button 
 						type="button"
 						class="hover:bg-white/15 active:scale-95 text-white bg-white/10 text-xs font-bold px-5 py-3.5 rounded-full border border-white/15 transition-all flex items-center gap-2 shadow-lg cursor-pointer shrink-0"
@@ -418,7 +445,7 @@
 
 					<!-- Big Metallic Action Button (JOGAR / Instalar) -->
 					<button 
-						class="hover:brightness-110 active:scale-95 text-black text-xs font-black px-9 py-3.5 rounded-full border border-white/20 transition-all flex items-center gap-2.5 shadow-xl cursor-pointer shrink-0 hover:scale-105"
+						class="hover:brightness-110 active:scale-95 text-black text-xs font-black px-9 py-3.5 rounded-full border border-white/20 transition-all flex items-center gap-2.5 shadow-[0_0_25px_rgba(226,184,107,0.4)] cursor-pointer shrink-0 hover:scale-105"
 						style="background-color: var(--accent-color, #e2b86b);"
 						onclick={handlePlay}
 						disabled={isLaunching}
@@ -482,10 +509,10 @@
 					</button>
 					<button 
 						type="button"
-						class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+						class="bg-[#1c1d22] border border-brand-500/40 hover:border-brand-500 hover:bg-brand-500/10 text-brand-500 hover:text-white px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-95 cursor-pointer"
 						onclick={() => { instanceNameInput = activeProfile?.name || "Latest Release"; showInstanceSettingsModal = true; }}
 					>
-						<SettingsIcon class="w-3.5 h-3.5" /> Configurações da Instância
+						<SettingsIcon class="w-4 h-4 text-brand-500" /> Configurações da Instância
 					</button>
 				</div>
 			</div>
@@ -942,7 +969,7 @@
 
 			<div class="bg-[#121316] border border-white/10 rounded-2xl p-4 space-y-3 shadow-inner">
 				<div>
-					<label class="text-[10px] font-extrabold text-brand-500 uppercase tracking-wider block mb-1">Link Próprio do Luxmc (Compartilhável)</label>
+					<span class="text-[10px] font-extrabold text-brand-500 uppercase tracking-wider block mb-1">Link Próprio do Luxmc (Compartilhável)</span>
 					<div class="flex items-center gap-2">
 						<input 
 							type="text" 
@@ -993,10 +1020,11 @@
 {/if}
 
 
+
 <!-- SKlauncher-Style Instance Settings Modal -->
 {#if showInstanceSettingsModal}
 	<div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
-		<div class="w-full max-w-3xl bg-[#141518] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-6 flex flex-col justify-between select-none h-[540px]">
+		<div class="w-full max-w-3xl bg-[#141518] border border-white/10 rounded-3xl p-6 shadow-2xl space-y-6 flex flex-col justify-between select-none h-[560px]">
 			
 			<div class="flex gap-6 h-full overflow-hidden">
 				<!-- Left Category List -->
@@ -1006,35 +1034,35 @@
 						<nav class="flex flex-col gap-1">
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'geral' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'geral' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
 								onclick={() => activeInstanceSection = 'geral'}
 							>
 								<Box class="w-4 h-4 text-emerald-400" /> Geral
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'instalacao' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'instalacao' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
 								onclick={() => activeInstanceSection = 'instalacao'}
 							>
 								<Download class="w-4 h-4 text-cyan-400" /> Instalação
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'janela' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'janela' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
 								onclick={() => activeInstanceSection = 'janela'}
 							>
 								<Layers class="w-4 h-4 text-purple-400" /> Janela
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'java' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'java' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
 								onclick={() => activeInstanceSection = 'java'}
 							>
 								<Sparkles class="w-4 h-4 text-amber-400" /> Java e Memória
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'hooks' ? 'bg-[#222328] text-white border border-white/10' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'hooks' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
 								onclick={() => activeInstanceSection = 'hooks'}
 							>
 								<Code class="w-4 h-4 text-rose-400" /> Launch Hooks
@@ -1086,7 +1114,7 @@
 								<button 
 									type="button"
 									class="w-full bg-[#18191c] hover:bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4 transition-all cursor-pointer text-left group"
-									onclick={() => toast("Recursos da instância reparados!", "success")}
+									onclick={() => toast("Recursos da instância reparados com sucesso!", "success")}
 								>
 									<div class="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400 group-hover:scale-110 transition-transform">
 										<Sparkles class="w-5 h-5" />
@@ -1101,7 +1129,7 @@
 								<button 
 									type="button"
 									class="w-full bg-[#18191c] hover:bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 flex items-center gap-4 transition-all cursor-pointer text-left group"
-									onclick={() => toast("Instância removida com sucesso.", "info")}
+									onclick={() => toast("Dados da instância removidos.", "info")}
 								>
 									<div class="h-10 w-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0 text-rose-400 group-hover:scale-110 transition-transform">
 										<Trash2 class="w-5 h-5" />
@@ -1113,11 +1141,90 @@
 								</button>
 							</div>
 						</div>
+
+					{:else if activeInstanceSection === 'instalacao'}
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-xs font-bold text-white uppercase tracking-wider">Instalação & Mod Loaders</h3>
+								<p class="text-[11px] text-white/40 mt-0.5">Gerencie o loader (Fabric, Forge, NeoForge, Quilt) e versão do jogo</p>
+							</div>
+
+							<div class="space-y-3">
+								<span class="text-xs font-bold text-white/70 block">Mod Loader Ativo</span>
+								<div class="grid grid-cols-2 gap-3">
+									{#each ["fabric", "forge", "neoforge", "vanilla"] as loader}
+										<button 
+											type="button"
+											class="p-3 rounded-2xl border text-xs font-bold flex items-center justify-between transition-all cursor-pointer {instanceLoaderType === loader ? 'bg-brand-500/20 border-brand-500 text-brand-500' : 'bg-[#1c1d22] border-white/10 text-white/60 hover:text-white'}"
+											onclick={() => instanceLoaderType = loader}
+										>
+											<span class="capitalize">{loader}</span>
+											{#if instanceLoaderType === loader}<Check class="w-4 h-4" />{/if}
+										</button>
+									{/each}
+								</div>
+							</div>
+
+							<div class="space-y-2">
+								<span class="text-xs font-bold text-white/70 block">Versão do Mod Loader</span>
+								<input type="text" bind:value={instanceLoaderVersion} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-500" />
+							</div>
+						</div>
+
+					{:else if activeInstanceSection === 'janela'}
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-xs font-bold text-white uppercase tracking-wider">Janela & Display</h3>
+								<p class="text-[11px] text-white/40 mt-0.5">Dimensões da janela e modo de exibição do Minecraft</p>
+							</div>
+
+							<div class="grid grid-cols-2 gap-4">
+								<div class="space-y-1.5">
+									<span class="text-xs font-bold text-white/70 block">Largura (px)</span>
+									<input type="number" bind:value={instanceWindowWidth} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2 text-xs text-white font-mono outline-none" />
+								</div>
+								<div class="space-y-1.5">
+									<span class="text-xs font-bold text-white/70 block">Altura (px)</span>
+									<input type="number" bind:value={instanceWindowHeight} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2 text-xs text-white font-mono outline-none" />
+								</div>
+							</div>
+
+							<div class="flex items-center justify-between bg-[#1c1d22] border border-white/5 rounded-2xl p-4">
+								<div>
+									<span class="text-xs font-bold text-white block">Iniciar em Tela Cheia (Fullscreen)</span>
+									<span class="text-[10px] text-white/40 block mt-0.5">Abre o Minecraft ocupando todo o monitor nativamente</span>
+								</div>
+								<button 
+									type="button"
+									aria-label="Alternar Tela Cheia"
+									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceStartFullscreen ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+									onclick={() => instanceStartFullscreen = !instanceStartFullscreen}
+								>
+									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {instanceStartFullscreen ? 'translate-x-5' : 'translate-x-0'}"></span>
+								</button>
+							</div>
+						</div>
+
 					{:else if activeInstanceSection === 'java'}
 						<div class="space-y-6">
 							<div>
 								<h3 class="text-xs font-bold text-white uppercase tracking-wider">Java e Memória</h3>
-								<p class="text-[11px] text-white/40 mt-0.5">Alocação de RAM e flags para esta instância</p>
+								<p class="text-[11px] text-white/40 mt-0.5">Alocação de RAM e pipeline Vulkan Zero-Lag</p>
+							</div>
+
+							<div class="flex items-center justify-between bg-[#1c1d22] border border-brand-500/30 rounded-2xl p-4">
+								<div>
+									<span class="text-xs font-bold text-brand-500 block">Luxmc Vulkan Zero-Lag Optimizer</span>
+									<span class="text-[10px] text-white/40 block mt-0.5">Otimização própria de renderização Mesa Zink e flags G1GC sem bugs visuais</span>
+								</div>
+								<button 
+									type="button"
+									aria-label="Alternar Otimização Vulkan"
+									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+									onclick={() => instanceEnableVulkanOpt = !instanceEnableVulkanOpt}
+								>
+									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {instanceEnableVulkanOpt ? 'translate-x-5' : 'translate-x-0'}"></span>
+								</button>
 							</div>
 
 							<div class="space-y-2">
@@ -1132,12 +1239,26 @@
 
 							<div class="space-y-2">
 								<span class="text-xs font-bold text-white/70">Argumentos JVM Customizados</span>
-								<input type="text" bind:value={instanceJvmArgs} placeholder="-XX:+UseG1GC..." class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-500" />
+								<input type="text" bind:value={instanceJvmArgs} placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch" class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-500" />
 							</div>
 						</div>
-					{:else}
-						<div class="flex flex-col items-center justify-center h-48 text-white/40 text-xs">
-							Configurações padrão ativas para esta categoria.
+
+					{:else if activeInstanceSection === 'hooks'}
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-xs font-bold text-white uppercase tracking-wider">Launch Hooks</h3>
+								<p class="text-[11px] text-white/40 mt-0.5">Executar scripts pré e pós inicialização do Minecraft</p>
+							</div>
+
+							<div class="space-y-2">
+								<span class="text-xs font-bold text-white/70 block">Script Pré-Inicialização (Pre-Launch)</span>
+								<input type="text" bind:value={instancePreLaunchHook} placeholder="/path/to/script.sh" class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono outline-none" />
+							</div>
+
+							<div class="space-y-2">
+								<span class="text-xs font-bold text-white/70 block">Script Pós-Encerramento (Post-Exit)</span>
+								<input type="text" bind:value={instancePostExitHook} placeholder="/path/to/script.sh" class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono outline-none" />
+							</div>
 						</div>
 					{/if}
 

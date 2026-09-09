@@ -181,6 +181,8 @@ import { fade } from "svelte/transition";
 	{:else}
 		<div class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
 			{#each screenshots as s}
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div class="group relative overflow-hidden rounded-[20px] luxmc-glass border border-white/5 cursor-zoom-in break-inside-avoid" onclick={() => selectedImage = s}>
 					<img src={'http://localhost:1420/_tauri_asset/' + encodeURIComponent(s.path)} alt={s.name} class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 					<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex flex-col justify-end p-4">
@@ -197,10 +199,13 @@ import { fade } from "svelte/transition";
 </div>
 
 {#if selectedImage}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-8" onclick={() => selectedImage = null} transition:fade={{duration: 200}}>
-		<button class="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+		<button type="button" aria-label="Fechar visualização" class="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors" onclick={() => selectedImage = null}>
 			<X class="h-6 w-6" />
 		</button>
+		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 		<img src={'http://localhost:1420/_tauri_asset/' + encodeURIComponent(selectedImage.path)} alt={selectedImage.name} class="max-w-full max-h-full object-contain rounded-[24px] shadow-2xl" onclick={(e) => e.stopPropagation()} />
 		<div class="absolute bottom-8 flex gap-4" onclick={(e) => e.stopPropagation()}>
 			<Button variant="secondary" onclick={() => copyToClipboard(selectedImage!.path)}>

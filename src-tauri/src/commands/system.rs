@@ -69,3 +69,63 @@ pub async fn app_init() -> Result<AppInitState, crate::error::AppError> {
         active_profile_id,
     })
 }
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SystemSpecs {
+    pub os_distro: String,
+    pub kernel_version: String,
+    pub arch: String,
+    pub total_ram_mb: u64,
+    pub launcher_version: String,
+}
+
+#[tauri::command]
+pub fn get_system_specs() -> SystemSpecs {
+    let mut os_distro = "Linux Generic".to_string();
+    if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
+        for line in content.lines() {
+            if line.starts_with("PRETTY_NAME=") {
+                os_distro = line
+                    .trim_start_matches("PRETTY_NAME=")
+                    .trim_matches('"')
+                    .to_string();
+                break;
+            } else if line.starts_with("NAME=") && os_distro == "Linux Generic" {
+                os_distro = line
+                    .trim_start_matches("NAME=")
+                    .trim_matches('"')
+                    .to_string();
+            }
+        }
+    }
+
+    let kernel_version = std::process::Command::new("uname")
+        .arg("-r")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "Linux Kernel".to_string());
+
+    let mut total_ram_mb = 8192;
+    if let Ok(mem_info) = std::fs::read_to_string("/proc/meminfo") {
+        for line in mem_info.lines() {
+            if line.starts_with("MemTotal:") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    if let Ok(kb) = parts[1].parse::<u64>() {
+                        total_ram_mb = kb / 1024;
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    SystemSpecs {
+        os_distro,
+        kernel_version,
+        arch: std::env::consts::ARCH.to_string(),
+        total_ram_mb,
+        launcher_version: "0.6.0-BETA".to_string(),
+    }
+}

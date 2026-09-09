@@ -846,3 +846,13 @@ export async function discordSetActivity(
 export async function discordClearActivity(): Promise<void> {
 	return api.invoke("discord_clear_activity");
 }
+
+export async function getSystemSpecs(): Promise<{
+	osDistro: string;
+	kernelVersion: String;
+	arch: string;
+	totalRamMb: number;
+	launcherVersion: string;
+}> {
+	return api.invoke("get_system_specs");
+}

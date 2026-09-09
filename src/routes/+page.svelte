@@ -410,14 +410,14 @@
 
 				<a 
 					href="/instances" 
-					class="bg-[#18191c] border border-white/10 hover:border-white/20 rounded-full px-5 py-2.5 flex items-center gap-3 text-white transition-all group shadow-md cursor-pointer"
+					class="bg-gradient-to-r from-brand-500 to-[#ebd095] text-black hover:scale-[1.02] active:scale-95 rounded-2xl px-6 py-3 flex items-center gap-3.5 transition-all shadow-[0_0_25px_rgba(226,184,107,0.35)] cursor-pointer group"
 				>
-					<div class="h-8 w-8 rounded-full bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
-						<Boxes class="w-4 h-4 text-brand-500" />
+					<div class="h-9 w-9 rounded-xl bg-black/15 flex items-center justify-center group-hover:scale-105 transition-transform">
+						<Play class="w-4 h-4 text-black fill-current ml-0.5" />
 					</div>
 					<div class="text-left leading-tight">
-						<div class="font-extrabold text-xs">Minhas Instâncias</div>
-						<div class="text-[10px] text-white/40 font-medium">Jogar agora</div>
+						<div class="font-black text-xs uppercase tracking-wider">Jogar Agora</div>
+						<div class="text-[11px] text-black/70 font-bold">Minhas Instâncias</div>
 					</div>
 				</a>
 			</div>
@@ -431,7 +431,7 @@
 
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 					{#each modpacks as pack}
-						<a href="/mods" class="group rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden hover:border-brand-500/40 transition-all cursor-pointer shadow-md flex flex-col justify-between">
+						<a href="/mods" class="group rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden hover:border-brand-500/40 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(0,0,0,0.5)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
 							<div class="h-32 w-full relative bg-[#222328] overflow-hidden">
 								<img src={pack.bgImg} class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" alt={pack.title} />
 								<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-transparent to-transparent"></div>
@@ -611,7 +611,7 @@
 						<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/50 to-transparent"></div>
 						<div class="absolute bottom-4 left-5 right-5">
 							<span class="text-[10px] font-bold text-brand-500 uppercase tracking-widest">LANÇAMENTO OFICIAL</span>
-							<h3 class="text-base font-extrabold text-white mt-1">Luxmc v0.2.0 Beta: Pipeline Vulkan & Alta Performance Linux</h3>
+							<h3 class="text-base font-extrabold text-white mt-1">Luxmc v0.6.0-BETA: Pipeline Vulkan & Alta Performance Linux</h3>
 							<p class="text-xs text-white/60 mt-1 line-clamp-1">Suporte nativo a Vulkan (Mesa Zink), autenticação rápida, integração NameMC e mais de 100 servidores.</p>
 						</div>
 					</div>

@@ -12,7 +12,7 @@ use crate::error::AppResult;
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "0.2.0";
+const LAUNCHER_VERSION: &str = "0.6.0-BETA";
 
 /// Pipeline state machine. Every transition is emitted to the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -656,7 +656,7 @@ impl GameLauncher {
         access_token: &str,
         user_type: &str,
         game_dir: &PathBuf,
-        profile: &crate::db::models::ProfileRow,
+        _profile: &crate::db::models::ProfileRow,
     ) -> Vec<String> {
         let mut args = Vec::new();
 
@@ -713,50 +713,6 @@ impl GameLauncher {
             args.insert(0, "{}".to_string());
         }
 
-
-        if let Some(ref custom_args) = profile.jvm_args {
-            if !custom_args.is_empty() {
-                for arg in custom_args.split_whitespace() {
-                    args.push(arg.to_string());
-                }
-            }
-        }
-
-        // Automatic RAM Optimization (if user didn't specify Xmx)
-        if !args.iter().any(|a| a.starts_with("-Xmx")) {
-            let mut sys = sysinfo::System::new_all();
-            sys.refresh_memory();
-            let total_ram = sys.total_memory(); // in bytes
-            let half_ram_mb = (total_ram / 1024 / 1024 / 2) as u64;
-            let target_ram = std::cmp::min(half_ram_mb, 8192); // Max 8GB by default
-            if target_ram > 1024 {
-                args.push(format!("-Xmx{}M", target_ram));
-                args.push(format!("-Xms{}M", target_ram / 2));
-            } else {
-                args.push("-Xmx2G".into());
-                args.push("-Xms1G".into());
-            }
-            
-            // Performance flags
-            args.push("-XX:+UseG1GC".into());
-            args.push("-XX:+ParallelRefProcEnabled".into());
-            args.push("-XX:MaxGCPauseMillis=200".into());
-            args.push("-XX:+UnlockExperimentalVMOptions".into());
-            args.push("-XX:+DisableExplicitGC".into());
-            args.push("-XX:+AlwaysPreTouch".into());
-            args.push("-XX:G1NewSizePercent=30".into());
-            args.push("-XX:G1MaxNewSizePercent=40".into());
-            args.push("-XX:G1HeapRegionSize=8M".into());
-            args.push("-XX:G1ReservePercent=20".into());
-            args.push("-XX:G1HeapWastePercent=5".into());
-            args.push("-XX:G1MixedGCCountTarget=4".into());
-            args.push("-XX:InitiatingHeapOccupancyPercent=15".into());
-            args.push("-XX:G1MixedGCLiveThresholdPercent=90".into());
-            args.push("-XX:G1RSetUpdatingPauseTimePercent=5".into());
-            args.push("-XX:SurvivorRatio=32".into());
-            args.push("-XX:+PerfDisableSharedMem".into());
-            args.push("-XX:MaxTenuringThreshold=1".into());
-        }
 
         args
     }
