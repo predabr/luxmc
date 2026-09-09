@@ -2,7 +2,15 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    let runtime = tokio::runtime::Builder::new_current_thread()
+    #[cfg(target_os = "linux")]
+    {
+        // Fix WebKitGTK DMABUF / Wayland / NVIDIA rendering crashes inside Linux AppImages
+        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        }
+    }
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .expect("failed to build tokio runtime");
