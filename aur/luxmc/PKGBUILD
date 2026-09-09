@@ -1,6 +1,6 @@
 # Maintainer: Luxmc contributors
 pkgname=luxmc
-pkgver=0.7.0.beta
+pkgver=0.8.0.beta
 pkgrel=1
 pkgdesc="Linux-first Minecraft launcher"
 arch=('x86_64')

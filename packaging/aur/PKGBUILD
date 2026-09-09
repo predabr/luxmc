@@ -1,6 +1,6 @@
 # Maintainer: Pedro <suporte@luxmc.com>
 pkgname=luxmc-bin
-pkgver=0.7.0
+pkgver=0.8.0
 pkgrel=1
 pkgdesc="Luxmc - Linux-first Minecraft Launcher"
 arch=('x86_64')
