@@ -51,8 +51,8 @@ sysinfo = "0.39.6"
 image = "0.25"
 
 [profile.release]
-codegen-units = 1
-lto = true
+codegen-units = 16
+lto = "thin"
 opt-level = 3
 panic = "abort"
 strip = true
