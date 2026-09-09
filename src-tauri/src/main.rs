@@ -4,6 +4,47 @@
 fn main() {
     #[cfg(target_os = "linux")]
     {
+        use std::os::unix::process::CommandExt;
+
+        // Fix for Linux Wayland EGL_BAD_PARAMETER crash in AppImages:
+        // Bundled libwayland-client (from Ubuntu 22.04 build environment) causes EGL initialization
+        // to abort with "Could not create default EGL display: EGL_BAD_PARAMETER" on modern Linux.
+        // Preloading the host system's native libwayland-client resolves the display conflict.
+        if std::env::var("LUXMC_WAYLAND_PRELOADED").is_err() {
+            let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
+                || std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland");
+
+            if is_wayland {
+                let candidates = [
+                    "/usr/lib/libwayland-client.so.0",
+                    "/usr/lib/libwayland-client.so",
+                    "/usr/lib64/libwayland-client.so.0",
+                    "/usr/lib64/libwayland-client.so",
+                    "/usr/lib/x86_64-linux-gnu/libwayland-client.so.0",
+                    "/usr/lib/x86_64-linux-gnu/libwayland-client.so",
+                ];
+
+                if let Some(host_wayland) = candidates.iter().find(|p| std::path::Path::new(p).exists()) {
+                    let current_preload = std::env::var("LD_PRELOAD").unwrap_or_default();
+                    if !current_preload.contains("libwayland-client") {
+                        if let Ok(exe) = std::env::current_exe() {
+                            let mut cmd = std::process::Command::new(exe);
+                            cmd.args(std::env::args().skip(1));
+
+                            let new_preload = if current_preload.trim().is_empty() {
+                                host_wayland.to_string()
+                            } else {
+                                format!("{}:{}", host_wayland, current_preload)
+                            };
+                            cmd.env("LD_PRELOAD", new_preload);
+                            cmd.env("LUXMC_WAYLAND_PRELOADED", "1");
+                            let _ = cmd.exec();
+                        }
+                    }
+                }
+            }
+        }
+
         // Fix for linuxdeploy relative WebKit subprocess path bug:
         // linuxdeploy patches libwebkit2gtk with relative paths (././/lib/x86_64-linux-gnu/webkit2gtk-4.1).
         // If the process working directory is not $APPDIR/usr, WebKitNetworkProcess and WebKitWebProcess fail to spawn:
