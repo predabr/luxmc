@@ -798,14 +798,22 @@ pub async fn instance_worlds_list(
                         None
                     };
 
-                    let mut total_size = 0u64;
-                    if let Ok(sub_entries) = std::fs::read_dir(&path) {
-                        for sub in sub_entries.flatten() {
-                            if let Ok(meta) = sub.metadata() {
-                                total_size += meta.len();
-                            }
-                        }
-                    }
+fn dir_size_recursive(p: &std::path::Path) -> u64 {
+    let mut total = 0u64;
+    if let Ok(entries) = std::fs::read_dir(p) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                total += dir_size_recursive(&path);
+            } else if let Ok(meta) = path.metadata() {
+                total += meta.len();
+            }
+        }
+    }
+    total
+}
+
+                    let total_size = dir_size_recursive(&path);
 
                     let last_played = entry
                         .metadata()

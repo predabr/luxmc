@@ -168,5 +168,15 @@ pub async fn profiles_update(
 #[tauri::command]
 pub async fn profiles_delete(_state: State<'_, AppState>, id: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
+    if let Ok(Some(row)) = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&id)
+        .fetch_optional(db.pool())
+        .await
+    {
+        let path = std::path::PathBuf::from(&row.game_dir);
+        if path.is_dir() {
+            let _ = tokio::fs::remove_dir_all(path).await;
+        }
+    }
     crate::db::schema::profiles::delete(&db, &id).await
 }
