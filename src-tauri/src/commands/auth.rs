@@ -8,9 +8,32 @@ use tauri::Emitter;
 use tauri::State;
 use uuid::Uuid;
 
+async fn get_configured_client_id() -> String {
+    if let Ok(conn) = crate::db::shared_db().await {
+        use sqlx::Row;
+        if let Ok(Some(row)) = sqlx::query("SELECT value FROM app_settings WHERE key = 'app'")
+            .fetch_optional(conn.pool())
+            .await
+        {
+            if let Ok(raw) = row.try_get::<String, _>("value") {
+                if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if let Some(cid) = val.get("customMicrosoftClientId").and_then(|v| v.as_str()) {
+                        let trimmed = cid.trim();
+                        if !trimmed.is_empty() {
+                            return trimmed.to_string();
+                        }
+                    }
+                }
+            }
+        }
+    }
+    crate::core::auth::default_client_id()
+}
+
 #[tauri::command]
 pub async fn auth_begin(state: State<'_, AppState>) -> AppResult<PendingAuth> {
-    Ok(state.auth.begin())
+    let client_id = get_configured_client_id().await;
+    Ok(state.auth.begin_with_client_id(Some(&client_id)))
 }
 
 #[tauri::command]
@@ -18,7 +41,8 @@ pub async fn auth_login(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
 ) -> AppResult<AuthAccount> {
-    let pending = state.auth.begin();
+    let client_id = get_configured_client_id().await;
+    let pending = state.auth.begin_with_client_id(Some(&client_id));
     let listener = oauth_server::start_callback_server().await.map_err(|e| {
         AppError::Internal(format!(
             "Failed to start callback server on port 8453: {}",
@@ -52,7 +76,7 @@ pub async fn auth_login(
     .ok();
     let account = state
         .auth
-        .login_with_code(&callback.code, &pending.verifier)
+        .login_with_code_and_client_id(&callback.code, &pending.verifier, Some(&client_id))
         .await?;
     save_account(&state, &account).await?;
     app.emit(
@@ -71,7 +95,11 @@ pub async fn auth_complete(
     verifier: String,
 ) -> AppResult<AuthAccount> {
     let _ = &state_token;
-    let account = state.auth.login_with_code(&code, &verifier).await?;
+    let client_id = get_configured_client_id().await;
+    let account = state
+        .auth
+        .login_with_code_and_client_id(&code, &verifier, Some(&client_id))
+        .await?;
     save_account(&state, &account).await?;
     Ok(account)
 }

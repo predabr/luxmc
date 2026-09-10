@@ -100,8 +100,21 @@ impl AuthService {
         self.microsoft.begin()
     }
 
+    pub fn begin_with_client_id(&self, client_id: Option<&str>) -> microsoft::PendingAuth {
+        self.microsoft.begin_with_client_id(client_id)
+    }
+
     pub async fn exchange_code(&self, code: &str, verifier: &str) -> AppResult<MicrosoftTokens> {
         self.microsoft.exchange_code(code, verifier).await
+    }
+
+    pub async fn exchange_code_with_client_id(
+        &self,
+        code: &str,
+        verifier: &str,
+        client_id: Option<&str>,
+    ) -> AppResult<MicrosoftTokens> {
+        self.microsoft.exchange_code_with_client_id(code, verifier, client_id).await
     }
 
     pub async fn refresh(&self, refresh_token: &str) -> AppResult<MicrosoftTokens> {
@@ -110,6 +123,16 @@ impl AuthService {
 
     pub async fn login_with_code(&self, code: &str, verifier: &str) -> AppResult<AuthAccount> {
         let ms_tokens = self.exchange_code(code, verifier).await?;
+        self.complete_login(ms_tokens).await
+    }
+
+    pub async fn login_with_code_and_client_id(
+        &self,
+        code: &str,
+        verifier: &str,
+        client_id: Option<&str>,
+    ) -> AppResult<AuthAccount> {
+        let ms_tokens = self.exchange_code_with_client_id(code, verifier, client_id).await?;
         self.complete_login(ms_tokens).await
     }
 

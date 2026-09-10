@@ -659,6 +659,26 @@ export async function instanceSetFavorite(profileId: string, favorite: boolean):
 	return api.invoke("instance_set_favorite", { profileId, favorite });
 }
 
+export async function instanceModToggle(profileId: string, fileName: string, enabled: boolean): Promise<string> {
+	return api.invoke<string>("instance_mod_toggle", { profileId, fileName, enabled });
+}
+
+export async function instanceModDelete(profileId: string, fileName: string): Promise<void> {
+	return api.invoke("instance_mod_delete", { profileId, fileName });
+}
+
+export async function instanceModAdd(profileId: string, sourcePath: string): Promise<string> {
+	return api.invoke<string>("instance_mod_add", { profileId, sourcePath });
+}
+
+export async function instanceModsOpenFolder(profileId: string): Promise<void> {
+	return api.invoke("instance_mods_open_folder", { profileId });
+}
+
+export async function shareLogMclogs(content: string): Promise<string> {
+	return api.invoke<string>("share_log_mclogs", { content });
+}
+
 // --- Launch logs / persistent session log ---
 
 export interface LaunchLogSummary {

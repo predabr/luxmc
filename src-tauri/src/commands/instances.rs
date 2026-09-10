@@ -873,3 +873,139 @@ pub async fn instance_world_delete(
 
     Ok(())
 }
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_mod_toggle(
+    _state: State<'_, AppState>,
+    profileId: String,
+    fileName: String,
+    enabled: bool,
+) -> AppResult<String> {
+    if fileName.is_empty() || fileName.contains("..") || fileName.contains('/') || fileName.contains('\\') {
+        return Err(crate::error::AppError::InvalidInput("Invalid file name".into()));
+    }
+
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
+    let current_path = mods_dir.join(&fileName);
+
+    let new_name = if enabled {
+        if fileName.ends_with(".jar.disabled") {
+            fileName.trim_end_matches(".disabled").to_string()
+        } else {
+            fileName.clone()
+        }
+    } else {
+        if fileName.ends_with(".jar") {
+            format!("{}.disabled", fileName)
+        } else {
+            fileName.clone()
+        }
+    };
+
+    let target_path = mods_dir.join(&new_name);
+    if current_path.exists() && current_path != target_path {
+        std::fs::rename(&current_path, &target_path)?;
+    }
+
+    Ok(new_name)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_mod_delete(
+    _state: State<'_, AppState>,
+    profileId: String,
+    fileName: String,
+) -> AppResult<()> {
+    if fileName.is_empty() || fileName.contains("..") || fileName.contains('/') || fileName.contains('\\') {
+        return Err(crate::error::AppError::InvalidInput("Invalid file name".into()));
+    }
+
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let mod_path = std::path::PathBuf::from(&row.game_dir).join("mods").join(&fileName);
+    if mod_path.exists() {
+        std::fs::remove_file(&mod_path)?;
+    }
+
+    // Also remove from data_dir/mods/{profileId} if present
+    if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+        let alt_path = base_dir.data_dir().join("mods").join(&profileId).join(&fileName);
+        if alt_path.exists() {
+            let _ = std::fs::remove_file(alt_path);
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_mod_add(
+    _state: State<'_, AppState>,
+    profileId: String,
+    sourcePath: String,
+) -> AppResult<String> {
+    let src = std::path::PathBuf::from(&sourcePath);
+    if !src.is_file() {
+        return Err(crate::error::AppError::NotFound("Source file does not exist".into()));
+    }
+
+    let file_name = src
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| crate::error::AppError::InvalidInput("Invalid source filename".into()))?
+        .to_string();
+
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
+    if !mods_dir.exists() {
+        std::fs::create_dir_all(&mods_dir)?;
+    }
+
+    let dest = mods_dir.join(&file_name);
+    std::fs::copy(&src, &dest)?;
+
+    Ok(file_name)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_mods_open_folder(
+    _state: State<'_, AppState>,
+    profileId: String,
+) -> AppResult<()> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
+    if !mods_dir.exists() {
+        std::fs::create_dir_all(&mods_dir)?;
+    }
+
+    open::that(&mods_dir)?;
+    Ok(())
+}

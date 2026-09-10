@@ -29,7 +29,10 @@
 		Save,
 		X,
 		Copy,
-		Share2
+		Share2,
+		Puzzle,
+		ToggleLeft,
+		ToggleRight
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -44,11 +47,15 @@
 		versionsDownload, 
 		instanceFileTree, 
 		instancesScreenshots, 
-		instancesOpenFolder,
+		instancesOpenFolder, 
 		screenshotDelete,
 		authDevLogin,
 		instanceWorldsList,
 		instanceWorldDelete,
+		instanceModToggle,
+		instanceModDelete,
+		instanceModAdd,
+		instanceModsOpenFolder,
 		discordSetActivity,
 		readTextFile,
 		writeTextFile,
@@ -63,7 +70,7 @@
 	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) || profiles.active);
 
 	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros">("conteudo");
-	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("resourcepacks");
+	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("mods");
 	let searchQuery = $state("");
 
 	let showInstanceSettingsModal = $state(false);
@@ -142,6 +149,7 @@
 	let screenshotsList = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null }>>([]);
 	let previewScreenshot = $state<{ name: string; path: string; dataUrl?: string | null } | null>(null);
 	let fileTree = $state<FileTreeEntry[]>([]);
+	let instanceMods = $state<FileTreeEntry[]>([]);
 	let resourcePacks = $state<FileTreeEntry[]>([]);
 	let shaderPacks = $state<FileTreeEntry[]>([]);
 	let dataPacks = $state<FileTreeEntry[]>([]);
@@ -178,7 +186,8 @@
 			// Load real file tree
 			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
 
-			// Load real resourcepacks, shaderpacks, and datapacks
+			// Load real mods, resourcepacks, shaderpacks, and datapacks
+			instanceMods = await instanceFileTree(instanceId, "mods").catch(() => []);
 			resourcePacks = await instanceFileTree(instanceId, "resourcepacks").catch(() => []);
 			shaderPacks = await instanceFileTree(instanceId, "shaderpacks").catch(() => []);
 			dataPacks = await instanceFileTree(instanceId, "datapacks").catch(() => []);
@@ -186,6 +195,54 @@
 			console.error(e);
 		} finally {
 			isLoadingData = false;
+		}
+	}
+
+	async function handleToggleMod(mod: FileTreeEntry) {
+		const isCurrentlyDisabled = mod.name.endsWith(".disabled");
+		try {
+			await instanceModToggle(instanceId, mod.name, isCurrentlyDisabled);
+			toast(isCurrentlyDisabled ? `Mod ativado!` : `Mod desativado!`, "success");
+			await refreshAllData();
+		} catch (e) {
+			toast("Erro ao alternar mod: " + String(e), "error");
+		}
+	}
+
+	async function handleDeleteMod(mod: FileTreeEntry) {
+		try {
+			await instanceModDelete(instanceId, mod.name);
+			toast(`Mod "${mod.name}" removido com sucesso!`, "success");
+			await refreshAllData();
+		} catch (e) {
+			toast("Erro ao remover mod: " + String(e), "error");
+		}
+	}
+
+	async function handleAddModFile() {
+		try {
+			const selected = await open({
+				title: "Selecione o arquivo .JAR do Mod",
+				multiple: true,
+				filters: [{ name: "Mod do Minecraft (.jar)", extensions: ["jar"] }]
+			});
+			if (!selected) return;
+			const paths = Array.isArray(selected) ? selected : [selected];
+			for (const p of paths) {
+				await instanceModAdd(instanceId, p);
+			}
+			toast(`${paths.length} mod(s) adicionado(s) com sucesso!`, "success");
+			await refreshAllData();
+		} catch (e) {
+			toast("Erro ao adicionar mod: " + String(e), "error");
+		}
+	}
+
+	async function handleOpenModsFolder() {
+		try {
+			await instanceModsOpenFolder(instanceId);
+		} catch (e) {
+			toast("Erro ao abrir pasta de mods: " + String(e), "error");
 		}
 	}
 
@@ -564,69 +621,177 @@
 		<!-- TAB 1: Conteúdo -->
 		{#if mainTab === 'conteudo'}
 			<div class="flex flex-col gap-4">
-				<div class="flex items-center justify-between gap-3">
+				<div class="flex flex-wrap items-center justify-between gap-3">
 					<div class="flex bg-[#18191c] border border-white/10 rounded-full p-1 gap-1">
+						<button 
+							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'mods' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+							onclick={() => subTab = 'mods'}
+						>
+							<Puzzle class="w-3.5 h-3.5 text-blue-400" /> Mods ({instanceMods.length})
+						</button>
 						<button 
 							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'resourcepacks' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
 							onclick={() => subTab = 'resourcepacks'}
 						>
-							<Box class="w-3.5 h-3.5" /> Pacotes de recursos
+							<Box class="w-3.5 h-3.5 text-amber-400" /> Pacotes de recursos ({resourcePacks.length})
 						</button>
 						<button 
 							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'shaders' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
 							onclick={() => subTab = 'shaders'}
 						>
-							<Sparkles class="w-3.5 h-3.5" /> Shaders
+							<Sparkles class="w-3.5 h-3.5 text-purple-400" /> Shaders ({shaderPacks.length})
 						</button>
 						<button 
 							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'datapacks' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
 							onclick={() => subTab = 'datapacks'}
 						>
-							<Code class="w-3.5 h-3.5" /> {"{}"} Datapacks
+							<Code class="w-3.5 h-3.5 text-emerald-400" /> {"{}"} Datapacks ({dataPacks.length})
 						</button>
 					</div>
 
 					<div class="flex items-center gap-2">
-						<button 
-							class="text-black px-5 py-2 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all"
-							style="background-color: var(--accent-color, #e2b86b);"
-							onclick={handleAddResourcePack}
-						>
-							<Plus class="w-4 h-4" /> Adicionar .ZIP
-						</button>
+						{#if subTab === 'mods'}
+							<button 
+								class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+								onclick={handleOpenModsFolder}
+							>
+								<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta mods/
+							</button>
+							<a 
+								href="/mods"
+								class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+							>
+								<Search class="w-3.5 h-3.5" /> Obter Mais Mods
+							</a>
+							<button 
+								class="text-black px-5 py-2 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all"
+								style="background-color: var(--accent-color, #e2b86b);"
+								onclick={handleAddModFile}
+							>
+								<Plus class="w-4 h-4 stroke-[3]" /> Adicionar .JAR
+							</button>
+						{:else}
+							<button 
+								class="text-black px-5 py-2 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all"
+								style="background-color: var(--accent-color, #e2b86b);"
+								onclick={handleAddResourcePack}
+							>
+								<Plus class="w-4 h-4" /> Adicionar .ZIP
+							</button>
+						{/if}
 					</div>
 				</div>
 
-				{#if currentPacksList.length === 0}
-					<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
-						<div class="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/20">
-							<Box class="w-8 h-8" />
-						</div>
-						<h3 class="text-base font-extrabold text-white">
-							{subTab === 'resourcepacks' ? 'Nenhum pacote de recursos' : subTab === 'shaders' ? 'Nenhum shader instalado' : 'Nenhum datapack instalado'}
-						</h3>
-						<p class="text-xs text-white/40 mt-1 max-w-sm">
-							Esta instância ainda não possui {subTab === 'resourcepacks' ? 'texturas' : subTab === 'shaders' ? 'shaders' : 'datapacks'} adicionados.
-						</p>
-						<button 
-							class="mt-6 bg-[#222328] hover:bg-white/10 border border-white/10 text-white text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 cursor-pointer"
-							onclick={handleAddResourcePack}
-						>
-							<Plus class="w-4 h-4" /> Importar Arquivo .ZIP
-						</button>
-					</div>
-				{:else}
-					<div class="grid grid-cols-2 gap-3">
-						{#each currentPacksList as pack}
-							<div class="bg-[#18191c] border border-white/5 p-4 rounded-2xl flex items-center justify-between">
-								<div class="flex items-center gap-3">
-									<Box class="w-5 h-5 text-amber-400" />
-									<span class="text-xs font-bold text-white">{pack.name}</span>
-								</div>
-								<span class="text-[10px] text-white/40 font-mono">{Math.round(pack.size / 1024)} KB</span>
+				{#if subTab === 'mods'}
+					{#if instanceMods.length === 0}
+						<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
+							<div class="h-16 w-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4 text-blue-400">
+								<Puzzle class="w-8 h-8" />
 							</div>
-						{/each}
-					</div>
+							<h3 class="text-base font-extrabold text-white">Nenhum mod instalado nesta instância</h3>
+							<p class="text-xs text-white/40 mt-1 max-w-md">
+								Você pode instalar mods incríveis diretamente pela Central de Conteúdo ou importar arquivos .jar do seu computador.
+							</p>
+							<div class="flex items-center gap-3 mt-6">
+								<a 
+									href="/mods"
+									class="text-black px-6 py-2.5 rounded-full text-xs font-black transition-all hover:scale-105 active:scale-95 shadow-md flex items-center gap-2"
+									style="background-color: var(--accent-color, #e2b86b);"
+								>
+									<Sparkles class="w-4 h-4" /> Baixar Mods na Central
+								</a>
+								<button 
+									class="bg-[#222328] hover:bg-white/10 border border-white/10 text-white text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 cursor-pointer"
+									onclick={handleAddModFile}
+								>
+									<Plus class="w-4 h-4" /> Importar .JAR Local
+								</button>
+							</div>
+						</div>
+					{:else}
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+							{#each instanceMods as mod}
+								{@const isDisabled = mod.name.endsWith('.disabled')}
+								{@const displayName = mod.name.replace('.disabled', '').replace('.jar', '')}
+								<div class="bg-[#18191c] border border-white/5 hover:border-white/15 p-4 rounded-2xl flex items-center justify-between transition-all group {isDisabled ? 'opacity-50' : ''}">
+									<div class="flex items-center gap-3.5 min-w-0">
+										<div class="w-10 h-10 rounded-xl {isDisabled ? 'bg-white/5 text-white/30' : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'} flex items-center justify-center shrink-0 shadow-sm">
+											<Puzzle class="w-5 h-5" />
+										</div>
+										<div class="min-w-0">
+											<div class="flex items-center gap-2">
+												<h5 class="text-xs font-bold text-white truncate max-w-[220px]" title={displayName}>{displayName}</h5>
+												<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full {isDisabled ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
+													{isDisabled ? 'Desativado' : 'Ativo'}
+												</span>
+											</div>
+											<div class="flex items-center gap-2 mt-1 text-[10px] text-white/40 font-mono">
+												<span>{mod.size > 1048576 ? (mod.size / (1024 * 1024)).toFixed(2) + ' MB' : Math.round(mod.size / 1024) + ' KB'}</span>
+												<span>·</span>
+												<span class="truncate max-w-[150px]">{mod.name}</span>
+											</div>
+										</div>
+									</div>
+
+									<div class="flex items-center gap-2 shrink-0">
+										<button 
+											type="button"
+											class="p-2 rounded-xl transition-all cursor-pointer {isDisabled ? 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'}"
+											onclick={() => handleToggleMod(mod)}
+											title={isDisabled ? 'Ativar mod' : 'Desativar mod'}
+										>
+											{#if isDisabled}
+												<ToggleLeft class="w-4 h-4" />
+											{:else}
+												<ToggleRight class="w-4 h-4" />
+											{/if}
+										</button>
+
+										<button 
+											type="button"
+											class="p-2 rounded-xl text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+											onclick={() => handleDeleteMod(mod)}
+											title="Excluir mod"
+										>
+											<Trash2 class="w-4 h-4" />
+										</button>
+									</div>
+								</div>
+							{/each}
+						</div>
+					{/if}
+				{:else}
+					{#if currentPacksList.length === 0}
+						<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
+							<div class="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/20">
+								<Box class="w-8 h-8" />
+							</div>
+							<h3 class="text-base font-extrabold text-white">
+								{subTab === 'resourcepacks' ? 'Nenhum pacote de recursos' : subTab === 'shaders' ? 'Nenhum shader instalado' : 'Nenhum datapack instalado'}
+							</h3>
+							<p class="text-xs text-white/40 mt-1 max-w-sm">
+								Esta instância ainda não possui {subTab === 'resourcepacks' ? 'texturas' : subTab === 'shaders' ? 'shaders' : 'datapacks'} adicionados.
+							</p>
+							<button 
+								class="mt-6 bg-[#222328] hover:bg-white/10 border border-white/10 text-white text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 cursor-pointer"
+								onclick={handleAddResourcePack}
+							>
+								<Plus class="w-4 h-4" /> Importar Arquivo .ZIP
+							</button>
+						</div>
+					{:else}
+						<div class="grid grid-cols-2 gap-3">
+							{#each currentPacksList as pack}
+								<div class="bg-[#18191c] border border-white/5 p-4 rounded-2xl flex items-center justify-between">
+									<div class="flex items-center gap-3">
+										<Box class="w-5 h-5 text-amber-400" />
+										<span class="text-xs font-bold text-white">{pack.name}</span>
+									</div>
+									<span class="text-[10px] text-white/40 font-mono">{Math.round(pack.size / 1024)} KB</span>
+								</div>
+							{/each}
+						</div>
+					{/if}
 				{/if}
 
 			</div>

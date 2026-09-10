@@ -44,12 +44,17 @@ impl MicrosoftOAuth {
     }
 
     pub fn begin(&self) -> PendingAuth {
+        self.begin_with_client_id(None)
+    }
+
+    pub fn begin_with_client_id(&self, client_id_override: Option<&str>) -> PendingAuth {
+        let cid = client_id_override.filter(|s| !s.is_empty()).unwrap_or(&self.client_id);
         let verifier = pkce_verifier();
         let challenge = pkce_challenge(&verifier);
         let state = random_state();
         let url = format!(
 			"{AUTH_URL}?client_id={cid}&response_type=code&redirect_uri={ru}&response_mode=query&scope={scopes}&state={state}&code_challenge={challenge}&code_challenge_method=S256",
-			cid = urlencoding(&self.client_id),
+			cid = urlencoding(cid),
 			ru = urlencoding(REDIRECT_URI),
 			scopes = urlencoding(SCOPES),
 			state = state,
@@ -63,8 +68,18 @@ impl MicrosoftOAuth {
     }
 
     pub async fn exchange_code(&self, code: &str, verifier: &str) -> AppResult<MicrosoftTokens> {
+        self.exchange_code_with_client_id(code, verifier, None).await
+    }
+
+    pub async fn exchange_code_with_client_id(
+        &self,
+        code: &str,
+        verifier: &str,
+        client_id_override: Option<&str>,
+    ) -> AppResult<MicrosoftTokens> {
+        let cid = client_id_override.filter(|s| !s.is_empty()).unwrap_or(&self.client_id);
         let form = [
-            ("client_id", self.client_id.as_str()),
+            ("client_id", cid),
             ("code", code),
             ("code_verifier", verifier),
             ("grant_type", "authorization_code"),

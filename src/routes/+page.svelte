@@ -28,7 +28,7 @@
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
-	import { authDevLogin, authOfflineLogin } from "$lib/api";
+	import { authDevLogin, authOfflineLogin, authLogin } from "$lib/api";
 
 	let offlineName = $state("");
 	let offlinePassword = $state("");
@@ -132,13 +132,8 @@
 	async function handleMicrosoftLogin() {
 		isLoggingIn = true;
 		try {
-			const acc = await authDevLogin().catch(() => ({
-				id: "ms_" + Date.now(),
-				username: "GamerPro",
-				uuid: "ms-uuid-" + Date.now(),
-				accessToken: "token_" + Date.now(),
-				expiresAt: Date.now() + 86400000
-			}));
+			toast("Iniciando autenticação Microsoft OAuth...", "info");
+			const acc = await authLogin();
 			const newAcc = {
 				id: acc.id,
 				username: acc.username,
@@ -147,11 +142,16 @@
 				expiresAt: acc.expiresAt
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
-			toast(`Conectado como ${acc.username}!`, "success");
+			toast(`Conectado com sucesso como ${acc.username}!`, "success");
 
 			account.account = newAcc;
 		} catch (e) {
-			toast("Erro no login Microsoft: " + String(e), "error");
+			const errStr = String(e);
+			if (errStr.includes("00000000-0000-0000-0000-000000000000") || errStr.includes("invalid_client") || errStr.includes("AADSTS700016")) {
+				toast("Aguardando aprovação da Microsoft! Você pode configurar seu Client ID em Configurações > Contas.", "info");
+			} else {
+				toast("Tentativa de login: " + errStr, "error");
+			}
 		} finally {
 			isLoggingIn = false;
 		}

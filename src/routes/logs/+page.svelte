@@ -4,10 +4,11 @@
 	import Card from "$lib/components/ui/Card.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Input from "$lib/components/ui/Input.svelte";
-	import { Trash2, Terminal, Search, Copy, Download, ArrowDown, Filter } from "lucide-svelte";
+	import { Trash2, Terminal, Search, Copy, Download, ArrowDown, Filter, Share2 } from "lucide-svelte";
 	import { gameLogs, type LogEntry } from "$lib/stores/app.svelte";
-	import { listenGameLog, listenGameExit, listenLauncherLog, type GameExitEvent } from "$lib/api";
+	import { listenGameLog, listenGameExit, listenLauncherLog, shareLogMclogs, type GameExitEvent } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
+	import { toast } from "$lib/stores/toasts.svelte";
 
 	const { t } = useTranslation();
 
@@ -17,6 +18,7 @@
 	let autoScroll = $state(true);
 	let exitInfo = $state<GameExitEvent | null>(null);
 	let searchQuery = $state("");
+	let isSharing = $state(false);
 	let lastUpdate = $state<Date | null>(null);
 	let logContainer = $state<HTMLDivElement | null>(null);
 
@@ -82,6 +84,26 @@
 		a.download = `luxmc-logs-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.txt`;
 		a.click();
 		URL.revokeObjectURL(url);
+	}
+
+	async function handleShareMclogs() {
+		const text = gameLogs.entries
+			.map((e) => `[${e.timestamp.toLocaleTimeString()}] [${e.stream}] ${e.message}`)
+			.join("\n");
+		if (!text.trim()) {
+			toast("Não há logs para compartilhar.", "error");
+			return;
+		}
+		isSharing = true;
+		try {
+			const url = await shareLogMclogs(text);
+			await navigator.clipboard.writeText(url);
+			toast(`Log publicado no mclo.gs! Link copiado: ${url}`, "success");
+		} catch (e) {
+			toast("Falha ao enviar log para mclo.gs: " + String(e), "error");
+		} finally {
+			isSharing = false;
+		}
 	}
 
 	function scrollToBottom() {
@@ -157,6 +179,10 @@
 				<Button variant="secondary" size="sm" onclick={exportLogs}>
 					<Download class="h-3.5 w-3.5" />
 					{t("logs.export")}
+				</Button>
+				<Button variant="solid" size="sm" onclick={handleShareMclogs} loading={isSharing} class="bg-brand-500 hover:bg-brand-400 text-black font-bold">
+					<Share2 class="h-3.5 w-3.5" />
+					Compartilhar (mclo.gs)
 				</Button>
 				<Button variant="secondary" size="sm" onclick={clearLogs}>
 					<Trash2 class="h-3.5 w-3.5" />

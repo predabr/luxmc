@@ -425,6 +425,41 @@ pub async fn version_repair(
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MclogsResponse {
+    pub success: bool,
+    pub id: Option<String>,
+    pub url: Option<String>,
+    pub error: Option<String>,
+}
+
+#[tauri::command]
+pub async fn share_log_mclogs(
+    state: State<'_, AppState>,
+    content: String,
+) -> AppResult<String> {
+    if content.trim().is_empty() {
+        return Err(AppError::InvalidInput("Log content cannot be empty".into()));
+    }
+    let form = [("content", content.as_str())];
+    let resp = state
+        .http
+        .post("https://api.mclo.gs/1/log")
+        .form(&form)
+        .send()
+        .await?
+        .error_for_status()?;
+    let data: MclogsResponse = resp.json().await?;
+    if data.success {
+        if let Some(url) = data.url {
+            return Ok(url);
+        }
+    }
+    Err(AppError::Internal(
+        data.error.unwrap_or_else(|| "Failed to upload log to mclo.gs".to_string()),
+    ))
+}
+
 use std::io::Write;
 
 #[cfg(test)]

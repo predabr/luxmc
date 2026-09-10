@@ -40,6 +40,7 @@
 		Play,
 		Pencil,
 		Sparkles,
+		Zap
 	} from "lucide-svelte";
 	import FilterableVersionSelect from "$lib/components/ui/FilterableVersionSelect.svelte";
 	import Modal from "$lib/components/ui/Modal.svelte";
@@ -711,6 +712,82 @@
 					Instância "{newName}" criada com sucesso! Redirecionando...
 				</div>
 			{:else}
+				<!-- Presets de 1-Clique -->
+				<div class="space-y-2.5 bg-[#18191c]/60 p-4 rounded-3xl border border-white/5">
+					<div class="flex items-center justify-between">
+						<span class="text-xs font-bold text-brand-500 uppercase tracking-wider flex items-center gap-1.5">
+							<Zap class="w-3.5 h-3.5 fill-current" /> Modelos Prontos (1-Clique)
+						</span>
+						<span class="text-[10px] text-white/40 font-medium">Configurações pré-otimizadas</span>
+					</div>
+
+					<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+						{#each [
+							{
+								title: 'Vanilla Otimizado',
+								version: '1.21.4',
+								loader: 'fabric',
+								ram: 4,
+								desc: 'Fabric + pronto para Sodium, Iris & Lithium.',
+								tag: 'Máximo FPS',
+								tagColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+							},
+							{
+								title: 'PvP Clássico 1.8.9',
+								version: '1.8.9',
+								loader: 'vanilla',
+								ram: 3,
+								desc: 'Otimizado para Hypixel, Mush e servidores de PvP.',
+								tag: 'Competitivo',
+								tagColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+							},
+							{
+								title: 'Survival 1.21.4',
+								version: '1.21.4',
+								loader: 'vanilla',
+								ram: 4,
+								desc: 'Última versão vanilla pura e estável da Mojang.',
+								tag: 'Exploração',
+								tagColor: 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+							},
+							{
+								title: 'Modded NeoForge',
+								version: '1.21.1',
+								loader: 'neoforge',
+								ram: 6,
+								desc: 'Perfil com 6 GB de RAM para modpacks pesados.',
+								tag: 'Heavy Mods',
+								tagColor: 'text-purple-400 bg-purple-500/10 border-purple-500/20'
+							}
+						] as preset}
+							<button
+								type="button"
+								class="p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between h-28 cursor-pointer bg-[#141518] border-white/5 hover:border-brand-500/50 hover:bg-[#1f2026] group relative overflow-hidden active:scale-98"
+								onclick={() => {
+									newLoader = preset.loader;
+									newVersion = preset.version;
+									newName = preset.title;
+									selectedRamGb = preset.ram;
+									toast(`Modelo "${preset.title}" aplicado com sucesso!`, "success");
+								}}
+							>
+								<div class="flex items-center justify-between w-full">
+									<span class="text-xs font-black text-white group-hover:text-brand-500 transition-colors truncate">{preset.title}</span>
+									<span class="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded border {preset.tagColor} shrink-0">{preset.tag}</span>
+								</div>
+								<p class="text-[10px] text-white/40 leading-snug">{preset.desc}</p>
+								<div class="flex items-center gap-2 text-[9px] font-mono text-white/30">
+									<span>{preset.version}</span>
+									<span>·</span>
+									<span class="capitalize">{preset.loader}</span>
+									<span>·</span>
+									<span>{preset.ram} GB</span>
+								</div>
+							</button>
+						{/each}
+					</div>
+				</div>
+
 				<!-- Step 1: Select Loader -->
 				<div class="space-y-2">
 					<span class="text-xs font-bold text-white/70 uppercase tracking-wider block">1. Selecione o Modloader</span>

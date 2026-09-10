@@ -27,6 +27,7 @@ export interface AppSettings {
 	autoBackup?: boolean;
 	streamerMode?: boolean;
 	sfxVolume?: number;
+	customMicrosoftClientId?: string;
 }
 
 const defaults: AppSettings = {

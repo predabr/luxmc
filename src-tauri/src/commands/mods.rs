@@ -214,8 +214,18 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     tokio::fs::write(&file_path, &bytes).await?;
 
     let db = crate::db::shared_db().await?;
+    let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&request.profile_id)
+        .fetch_optional(db.pool())
+        .await?;
+    if let Some(ref prof) = profile {
+        let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
+        let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
+        let _ = tokio::fs::write(prof_mods_dir.join(&file_name), &bytes).await;
+    }
+
     let mod_row = ModRow {
-        profile_id: request.profile_id,
+        profile_id: request.profile_id.clone(),
         project_id: request.project_id,
         version_id: request.version_id,
         file_name,
@@ -223,7 +233,20 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
         source: request.source,
         installed_at: String::new(),
     };
-    crate::db::schema::mods::upsert(&db, &mod_row).await
+    crate::db::schema::mods::upsert(&db, &mod_row).await?;
+
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
+        .bind(&request.profile_id)
+        .fetch_one(db.pool())
+        .await
+        .unwrap_or((0,));
+    let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
+        .bind(count.0)
+        .bind(&request.profile_id)
+        .execute(db.pool())
+        .await;
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -308,7 +331,43 @@ pub async fn mods_remove(
     projectId: String,
 ) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
-    crate::db::schema::mods::delete(&db, &profileId, &projectId).await
+    let old = sqlx::query_as::<_, crate::db::schema::mods::ModRow>(
+        "SELECT * FROM mods WHERE profile_id = ? AND project_id = ?",
+    )
+    .bind(&profileId)
+    .bind(&projectId)
+    .fetch_optional(db.pool())
+    .await?;
+
+    if let Some(m) = old {
+        if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+            let p = base_dir.data_dir().join("mods").join(&profileId).join(&m.file_name);
+            let _ = tokio::fs::remove_file(p).await;
+        }
+        let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+            .bind(&profileId)
+            .fetch_optional(db.pool())
+            .await?;
+        if let Some(prof) = profile {
+            let p = std::path::PathBuf::from(&prof.game_dir).join("mods").join(&m.file_name);
+            let _ = tokio::fs::remove_file(p).await;
+            let p_disabled = std::path::PathBuf::from(&prof.game_dir).join("mods").join(format!("{}.disabled", m.file_name));
+            let _ = tokio::fs::remove_file(p_disabled).await;
+        }
+    }
+
+    crate::db::schema::mods::delete(&db, &profileId, &projectId).await?;
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
+        .bind(&profileId)
+        .fetch_one(db.pool())
+        .await
+        .unwrap_or((0,));
+    let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
+        .bind(count.0)
+        .bind(&profileId)
+        .execute(db.pool())
+        .await;
+    Ok(())
 }
 
 #[tauri::command]
