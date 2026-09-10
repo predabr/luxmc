@@ -71,18 +71,44 @@ jobs:
             ## 🚀 Luxmc Launcher v1.0.0-BETA — Official Release
             
             ### ⚡ Desempenho & Aceleração de Hardware no Linux
-            - **Fim do Lag no AppImage**: Habilitada aceleração total por hardware via DMA-BUF (Mesa/Vulkan/OpenGL), eliminando a rasterização por software (CPU) que travava a interface.
-            - **Renderização Fluida**: Remoção de filtros pesados de desfoque global que sobrecarregavam a GPU a cada frame.
+            - **Fim do Lag no AppImage**: Habilitada aceleração total por hardware via GPU (`WEBKIT_FORCE_COMPOSITING_MODE=1`), eliminando a rasterização por software (CPU) que travava a interface no Linux.
+            - **Renderização Fluida & Estável**: Interface lisa, transições a 60+ FPS sem engasgos ou travamentos no AppImage.
             
-            ### 🎬 Nova Cutscene Cinematográfica
-            - **Animação mais ágil (2.3s)**: Transição contínua sem congelamentos artificiais.
-            - **Snap magnético e flash de iluminação** com efeito sonoro harmônico gerado via Web Audio API.
-            - **Atalhos para pular**: Teclas Space, Enter, Esc ou clique em qualquer lugar da tela.
+            ### 🎬 Nova Cutscene Cinematográfica (Estilo SKlauncher)
+            - **Logo Reveal Suave**: Fade-in com transição fluida, aura champanhe difusa e logo 3D centralizado.
+            - **Linha de Shimmer & Áudio**: Barra de progresso com brilho contínuo e som sutil de inicialização.
+            - **Dissolve Elegante**: Fade-out contínuo que dissolve perfeitamente no menu inicial do launcher.
+            - **Atalho Instantâneo**: Pule a qualquer momento com `Espaço`, `Enter`, `Esc` ou um clique.
             
-            ### 🎨 Redesign Visual Completo (Estilo Referência)
-            - **Sidebar Lateral**: Item ativo em squircle com gradiente metálico e ícones minimalistas.
-            - **Central de Mods & Recursos**: Integração nativa Modrinth + CurseForge com busca simultânea, filtros duplos, seletor de versões e instalação direta.
-            - **Dashboard Inicial**: Nova saudação estilizada, atalhos rápidos de biblioteca, tabela de servidores ranqueados e estatísticas de tempo de jogo.
-            - **Configurações do Sistema**: Novos switches de alternância estilizados (trilha champanhe com thumb escuro), abas com ícones e botão de salvar padronizado.
+            ### 📦 Central de Conteúdo Completa & Detalhes de Mods
+            - **Página de Detalhes dos Mods**: Exatamente no padrão visual profissional (Modrinth + CurseForge).
+            - **Abas Integradas**:
+              - **Visão Geral**: Descrição completa formatada com suporte total a Markdown e HTML.
+              - **Galeria**: Grade de capturas de tela com legendas e modal de **Lightbox** em tela cheia.
+              - **Versões**: Tabela completa de lançamentos com versão do jogo, loaders, tamanho e download direto.
+            - **Ações Rápidas**: Atalhos para `Como Instalar`, `Discord`, `Código Fonte`, `Issues` e `Apoiar`.
+            - **Barra Lateral de Informações**: Avatar do criador, total de downloads, loaders e versões do jogo.
+            - **Navegação Sem Bloqueios**: Botão `← Voltar` preserva a página, busca e filtros intactos.
+            
+            ### 🌐 Servidores de Minecraft: DNS Real & Monitor de Ping
+            - **Resolução de Domínios**: Correção completa de DNS para conectar em `mc.hypixel.net`, `mush.com.br`, `2b2t.org` e dezenas de redes brasileiras e internacionais.
+            - **Atualização em Tempo Real**: Pings concorrentes em paralelo exibindo jogadores online e latência em milissegundos.
+            
+            ### 🎮 Discord Rich Presence 2.0 Conectado
+            - **No Launcher**: Exibe status do Luxmc Launcher e localização no app.
+            - **Em Jogo**: Alterna automaticamente para o ID oficial do Minecraft, mostrando **Jogando Minecraft**, nome da instância, versão ativa e contador de tempo de sessão.
+            - **Reconexão Automática**: Conecta automaticamente mesmo se o Discord for aberto após o launcher.
+            
+            ### 🛠️ 10 Novas Funcionalidades Modernas Integradas
+            1. Página Completa de Detalhes de Mods com Galeria e Versões.
+            2. Cutscene Cinemática com Logo Reveal e Dissolve.
+            3. Discord RPC 2.0 com detecção automática in-game.
+            4. Live Server Monitor com resolução real de DNS.
+            5. Seletor Rápido de Memória RAM JVM com detecção do sistema.
+            6. Gerenciador de Screenshots com Lightbox HD.
+            7. Exportador e Importador de Instâncias (.zip e .mrpack).
+            8. Analisador Inteligente de Crash Reports e Logs do Jogo.
+            9. Detector de Runtimes Java no Linux (Java 8, 17 e 21).
+            10. Acelerador de Desempenho Linux (Feral GameMode + Vulkan/Zink).
           releaseDraft: false
           prerelease: true
