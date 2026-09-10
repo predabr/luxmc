@@ -17,6 +17,7 @@ pub struct AppInitState {
     pub account: Option<AccountRow>,
     pub profiles: Vec<ProfileRow>,
     pub active_profile_id: Option<String>,
+    pub stress_test: bool,
 }
 
 #[tauri::command]
@@ -36,6 +37,7 @@ pub fn app_info() -> AppInfo {
 #[tauri::command]
 pub async fn app_init() -> Result<AppInitState, crate::error::AppError> {
     let dev_mode = std::env::var("LUXMC_DEV_MODE").unwrap_or_default() == "1";
+    let stress_test = std::env::var("LUXMC_STRESS_TEST").unwrap_or_default() == "1";
     let db = crate::db::shared_db().await?;
 
     let accounts = crate::db::schema::accounts::list(&db).await?;
@@ -67,6 +69,7 @@ pub async fn app_init() -> Result<AppInitState, crate::error::AppError> {
         account,
         profiles,
         active_profile_id,
+        stress_test,
     })
 }
 

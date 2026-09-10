@@ -303,9 +303,22 @@ export async function modsSearch(
 	limit?: number,
 	offset?: number,
 	contentType?: string,
-	sortBy?: string
+	sortBy?: string,
+	loader?: string,
+	category?: string,
+	source?: string
 ): Promise<Array<ModSearchResultItem>> {
-	return api.invoke("mods_search", { query, mcVersion, limit, offset, contentType, sortBy });
+	return api.invoke("mods_search", {
+		query,
+		mcVersion,
+		limit,
+		offset,
+		contentType,
+		sortBy,
+		loader,
+		category,
+		source
+	});
 }
 
 export async function modsSearchTyped(
@@ -314,9 +327,22 @@ export async function modsSearchTyped(
 	contentType: string,
 	limit?: number,
 	offset?: number,
-	sortBy?: string
+	sortBy?: string,
+	loader?: string,
+	category?: string,
+	source?: string
 ): Promise<Array<ModSearchResultItem>> {
-	return api.invoke("mods_search_typed", { query, mcVersion, contentType, limit, offset, sortBy });
+	return api.invoke("mods_search_typed", {
+		query,
+		mcVersion,
+		contentType,
+		limit,
+		offset,
+		sortBy,
+		loader,
+		category,
+		source
+	});
 }
 
 export interface ModFile {
@@ -569,6 +595,7 @@ export async function appInit(): Promise<{
 		instanceGroup: string | null;
 	}>;
 	activeProfileId: string | null;
+	stressTest?: boolean;
 }> {
 	return api.invoke("app_init");
 }

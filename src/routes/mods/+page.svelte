@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { 
 		Search, 
 		Download, 
@@ -179,24 +180,11 @@
 				pageSize,
 				offset,
 				typeSlug,
-				selectedSort
+				selectedSort,
+				selectedLoader ?? undefined,
+				selectedCategory ?? undefined,
+				selectedSource
 			);
-
-			if (selectedSource !== "all") {
-				allResults = allResults.filter(r => r.source === selectedSource);
-			}
-
-			if (selectedLoader) {
-				allResults = allResults.filter(r => 
-					r.categories.some(c => c.toLowerCase() === selectedLoader!.toLowerCase())
-				);
-			}
-
-			if (selectedCategory) {
-				allResults = allResults.filter(r => 
-					r.categories.some(c => c.toLowerCase().includes(selectedCategory!.toLowerCase()))
-				);
-			}
 
 			results = allResults;
 		} catch (e) {
@@ -225,6 +213,51 @@
 		debounceTimer = setTimeout(() => {
 			doSearch(1);
 		}, 250);
+
+		return () => {
+			if (debounceTimer) clearTimeout(debounceTimer);
+		};
+	});
+
+	onMount(() => {
+		if (typeof window !== "undefined" && window.location.search.includes("test_leak=1")) {
+			const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+			void (async () => {
+				console.log("[LEAK_TEST_STEP] STARTING");
+				await delay(3000);
+
+				console.log("[LEAK_TEST_STEP] NAVIGATE_PAGE_2");
+				goToPage(2);
+				await delay(4000);
+
+				console.log("[LEAK_TEST_STEP] NAVIGATE_PAGE_3");
+				goToPage(3);
+				await delay(4000);
+
+				console.log("[LEAK_TEST_STEP] NAVIGATE_PAGE_4");
+				goToPage(4);
+				await delay(4000);
+
+				console.log("[LEAK_TEST_STEP] NAVIGATE_PAGE_5");
+				goToPage(5);
+				await delay(4000);
+
+				console.log("[LEAK_TEST_STEP] FILTER_1_MOD");
+				selectedType = "Mod";
+				await delay(4000);
+
+				console.log("[LEAK_TEST_STEP] FILTER_2_RESOURCEPACK");
+				selectedType = "Resource Pack";
+				await delay(4000);
+
+				console.log("[LEAK_TEST_STEP] FILTER_3_LOADER_FABRIC");
+				selectedType = "Mod";
+				selectedLoader = "Fabric";
+				await delay(4000);
+
+				console.log("[LEAK_TEST_STEP] COMPLETED_SUCCESSFULLY");
+			})();
+		}
 	});
 
 	async function openDetails(item: ModSearchResultItem) {
@@ -837,7 +870,7 @@
 							<!-- svelte-ignore a11y_click_events_have_key_events -->
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<div 
-								class="group bg-[#15161b] border border-white/[0.08] hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between shadow-lg cursor-pointer active:scale-[0.99]"
+								class="group bg-[#15161b] border border-white/[0.08] hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between shadow-lg cursor-pointer active:scale-[0.99] [content-visibility:auto] [contain-intrinsic-size:300px_280px]"
 								onclick={() => openDetails(item)}
 							>
 								

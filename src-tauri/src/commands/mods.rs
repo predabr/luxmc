@@ -54,6 +54,9 @@ pub async fn mods_search(
     offset: Option<u32>,
     contentType: Option<String>,
     sortBy: Option<String>,
+    loader: Option<String>,
+    category: Option<String>,
+    source: Option<String>,
 ) -> AppResult<Vec<ModSearchResult>> {
     let limit = limit.unwrap_or(21);
     let offset = offset.unwrap_or(0);
@@ -62,25 +65,49 @@ pub async fn mods_search(
 
     let modrinth_client = ModrinthClient::new(state.http.clone());
 
-    let (modrinth_results, curseforge_results) = tokio::join!(
-        async {
-            modrinth_client
-                .search_mods(&query, &mcVersion, &content_type, limit, offset, Some(sort))
+    let src = source.as_deref().unwrap_or("all").to_lowercase();
+    let (modrinth_results, curseforge_results) = match src.as_str() {
+        "modrinth" => {
+            let m = modrinth_client
+                .search_mods(&query, &mcVersion, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
                 .await
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "Modrinth search failed");
                     Vec::new()
-                })
-        },
-        async {
-            curseforge::search_mods(&state.http, &query, &mcVersion, &content_type, limit, offset, Some(sort))
+                });
+            (m, Vec::new())
+        }
+        "curseforge" => {
+            let c = curseforge::search_mods(&state.http, &query, &mcVersion, &content_type, loader.as_deref(), limit, offset, Some(sort))
                 .await
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "CurseForge search failed");
                     Vec::new()
-                })
+                });
+            (Vec::new(), c)
         }
-    );
+        _ => {
+            tokio::join!(
+                async {
+                    modrinth_client
+                        .search_mods(&query, &mcVersion, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
+                        .await
+                        .unwrap_or_else(|e| {
+                            tracing::warn!(error = %e, "Modrinth search failed");
+                            Vec::new()
+                        })
+                },
+                async {
+                    curseforge::search_mods(&state.http, &query, &mcVersion, &content_type, loader.as_deref(), limit, offset, Some(sort))
+                        .await
+                        .unwrap_or_else(|e| {
+                            tracing::warn!(error = %e, "CurseForge search failed");
+                            Vec::new()
+                        })
+                }
+            )
+        }
+    };
 
     tracing::info!(
         modrinth_count = modrinth_results.len(),
@@ -89,6 +116,7 @@ pub async fn mods_search(
         offset = %offset,
         content_type = %content_type,
         sort = %sort,
+        source = %src,
         "mods_search completed"
     );
 
@@ -112,8 +140,11 @@ pub async fn mods_search_typed(
     limit: Option<u32>,
     offset: Option<u32>,
     sortBy: Option<String>,
+    loader: Option<String>,
+    category: Option<String>,
+    source: Option<String>,
 ) -> AppResult<Vec<ModSearchResult>> {
-    mods_search(state, query, mcVersion, limit, offset, Some(contentType), sortBy).await
+    mods_search(state, query, mcVersion, limit, offset, Some(contentType), sortBy, loader, category, source).await
 }
 
 #[tauri::command]

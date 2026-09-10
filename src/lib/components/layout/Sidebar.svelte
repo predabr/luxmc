@@ -34,6 +34,23 @@
 
 	const friendsActive = $derived($page.url.pathname.startsWith("/friends"));
 	const settingsActive = $derived($page.url.pathname.startsWith("/settings"));
+
+	function getAccountStatus(acc: typeof account.value) {
+		if (!acc) return { type: "none", label: "Desconectado", dotColor: "bg-zinc-500" };
+		if (!acc.minecraftToken || acc.id.startsWith("offline_")) {
+			return { type: "offline", label: "Conta Offline", dotColor: "bg-sky-400" };
+		}
+		const nowSec = Date.now() / 1000;
+		if (acc.expiresAt > 0 && acc.expiresAt < nowSec) {
+			return { type: "expired", label: "Sessão Expirada", dotColor: "bg-rose-500" };
+		}
+		if (acc.expiresAt > 0 && (acc.expiresAt - nowSec) < 86400) {
+			return { type: "expiring", label: "Sessão Expirando", dotColor: "bg-amber-400" };
+		}
+		return { type: "online", label: "Microsoft Online", dotColor: "bg-emerald-400" };
+	}
+
+	const accountStatus = $derived(getAccountStatus(account.value));
 </script>
 
 <aside class="flex h-screen w-[70px] shrink-0 flex-col items-center py-4 bg-[#111215] border-r border-white/5 z-40 relative select-none shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
@@ -41,7 +58,7 @@
 	<!-- Profile Avatar / Brand at Top (Squircle Frame matching reference) -->
 	<button 
 		type="button"
-		title="Meu Perfil" 
+		title="Meu Perfil ({accountStatus.label})" 
 		class="relative mb-4 group transition-transform duration-200 active:scale-95 cursor-pointer"
 		onclick={() => showProfileModal = true}
 	>
@@ -53,9 +70,16 @@
 			/>
 		</div>
 
+		<!-- Status Indicator Dot -->
+		<span 
+			class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111215] {accountStatus.dotColor} shadow-sm"
+			title={accountStatus.label}
+		></span>
+
 		<!-- Hover Floating Tooltip -->
-		<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 shadow-2xl">
-			{account.value?.username || "Perfil de Jogador"}
+		<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl flex items-center gap-2">
+			<span>{account.value?.username || "Perfil de Jogador"}</span>
+			<span class="text-[10px] font-normal text-white/50">({accountStatus.label})</span>
 		</div>
 	</button>
 

@@ -39,7 +39,7 @@
 	import { account } from "$lib/stores/account.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
-	import { open } from "@tauri-apps/plugin-dialog";
+	import { open, save } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
 	import { 
 		launchGame, 
@@ -65,6 +65,12 @@
 		writeTextFile,
 		deleteFileOrDir,
 		p2pGetHostLink,
+		instanceRepair,
+		instanceExportZip,
+		instanceBackupSaves,
+		instanceRestoreSaves,
+		jvmArgsValidate,
+		type JvmValidationResult,
 		type FileTreeEntry,
 		type WorldDetail,
 		type HostLinkInfo
@@ -123,6 +129,86 @@
 			}
 		}
 		showInstanceSettingsModal = false;
+	}
+
+	let jvmValidation = $state<JvmValidationResult | null>(null);
+	let isRepairing = $state(false);
+	let isBackingUp = $state(false);
+	let isExporting = $state(false);
+
+	let jvmValidateTimer: ReturnType<typeof setTimeout> | null = null;
+	$effect(() => {
+		const args = instanceJvmArgs;
+		if (jvmValidateTimer) clearTimeout(jvmValidateTimer);
+		if (!args.trim()) {
+			jvmValidation = null;
+			return;
+		}
+		jvmValidateTimer = setTimeout(async () => {
+			try {
+				jvmValidation = await jvmArgsValidate(args);
+			} catch {}
+		}, 250);
+	});
+
+	async function handleRepairInstance() {
+		if (!activeProfile) return;
+		isRepairing = true;
+		try {
+			toast("Verificando integridade e reparando arquivos...", "info");
+			await instanceRepair(activeProfile.id);
+			toast("Instância e bibliotecas verificadas e reparadas com sucesso!", "success");
+		} catch (e) {
+			toast("Erro ao reparar instância: " + String(e), "error");
+		} finally {
+			isRepairing = false;
+		}
+	}
+
+	async function handleBackupSaves() {
+		if (!activeProfile) return;
+		isBackingUp = true;
+		try {
+			const safeName = activeProfile.name.toLowerCase().replace(/[^a-z0-9]/g, "_");
+			const path = await save({
+				defaultPath: `${safeName}_saves_backup.zip`,
+				filters: [{ name: "Arquivo ZIP", extensions: ["zip"] }]
+			});
+			if (!path) {
+				isBackingUp = false;
+				return;
+			}
+			toast("Criando backup dos mundos (saves)...", "info");
+			await instanceBackupSaves(activeProfile.id, path);
+			toast(`Backup salvo com sucesso em: ${path}`, "success");
+		} catch (e) {
+			toast("Erro ao criar backup: " + String(e), "error");
+		} finally {
+			isBackingUp = false;
+		}
+	}
+
+	async function handleExportZip() {
+		if (!activeProfile) return;
+		isExporting = true;
+		try {
+			const safeName = activeProfile.name.toLowerCase().replace(/[^a-z0-9]/g, "_");
+			const path = await save({
+				defaultPath: `${safeName}_export.zip`,
+				filters: [{ name: "Arquivo ZIP", extensions: ["zip"] }]
+			});
+			if (!path) {
+				isExporting = false;
+				return;
+			}
+			toast("Exportando instância completa...", "info");
+			await instanceExportZip(activeProfile.id, path);
+			toast(`Instância exportada com sucesso em: ${path}`, "success");
+		} catch (e) {
+			toast("Erro ao exportar instância: " + String(e), "error");
+		} finally {
+			isExporting = false;
+		}
 	}
 
 	
@@ -1440,37 +1526,182 @@
 						<div class="space-y-6">
 							<div>
 								<h3 class="text-xs font-bold text-white uppercase tracking-wider">Java e Memória</h3>
-								<p class="text-[11px] text-white/40 mt-0.5">Alocação de RAM e pipeline Vulkan Zero-Lag</p>
+								<p class="text-[11px] text-white/40 mt-0.5">Alocação de RAM, presets rápidos e validação de flags JVM</p>
 							</div>
 
-							<div class="flex items-center justify-between bg-[#1c1d22] border border-brand-500/30 rounded-2xl p-4">
+							<div class="flex items-center justify-between bg-[#1c1d22] border border-[#caa97c]/30 rounded-2xl p-4">
 								<div>
-									<span class="text-xs font-bold text-brand-500 block">Luxmc Vulkan Zero-Lag Optimizer</span>
+									<span class="text-xs font-bold text-[#caa97c] block">Luxmc Vulkan Zero-Lag Optimizer</span>
 									<span class="text-[10px] text-white/40 block mt-0.5">Otimização própria de renderização Mesa Zink e flags G1GC sem bugs visuais</span>
 								</div>
 								<button 
 									type="button"
 									aria-label="Alternar Otimização Vulkan"
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-[#caa97c] shadow-[0_0_10px_rgba(202,169,124,0.35)]' : 'bg-[#2d2e34]'}"
 									onclick={() => instanceEnableVulkanOpt = !instanceEnableVulkanOpt}
 								>
 									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {instanceEnableVulkanOpt ? 'translate-x-5' : 'translate-x-0'}"></span>
 								</button>
 							</div>
 
-							<div class="space-y-2">
-								<span class="text-xs font-bold text-white/70">Memória RAM Alocada (MB)</span>
-								<input type="range" min="1024" max="16384" step="512" bind:value={instanceRamMb} class="w-full accent-brand-500 cursor-pointer" />
-								<div class="flex justify-between text-xs font-mono text-brand-500 font-bold">
-									<span>1024 MB</span>
-									<span>{instanceRamMb} MB</span>
-									<span>16384 MB</span>
+							<!-- RAM Presets & Slider -->
+							<div class="space-y-3 bg-[#18191f] border border-white/5 rounded-2xl p-4">
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-bold text-white/80">Alocação de Memória RAM</span>
+									<span class="text-xs font-mono font-black text-[#caa97c] bg-[#caa97c]/10 px-2.5 py-0.5 rounded-lg border border-[#caa97c]/20">
+										{instanceRamMb} MB ({(instanceRamMb / 1024).toFixed(1)} GB)
+									</span>
+								</div>
+
+								<!-- Quick RAM Presets -->
+								<div class="grid grid-cols-5 gap-1.5 pt-1">
+									{#each [
+										{ mb: 2048, label: "2 GB", hint: "Vanilla" },
+										{ mb: 4096, label: "4 GB", hint: "Padrão" },
+										{ mb: 6144, label: "6 GB", hint: "Mods" },
+										{ mb: 8192, label: "8 GB", hint: "Pesado" },
+										{ mb: 12288, label: "12 GB", hint: "Extremo" }
+									] as preset}
+										<button 
+											type="button"
+											class="py-1.5 px-2 rounded-xl text-center border transition-all cursor-pointer {instanceRamMb === preset.mb ? 'bg-[#caa97c] text-black border-[#caa97c] font-black shadow-md' : 'bg-[#202128] text-white/70 border-white/5 hover:border-white/20 hover:text-white'}"
+											onclick={() => instanceRamMb = preset.mb}
+										>
+											<div class="text-[11px] font-bold leading-tight">{preset.label}</div>
+											<div class="text-[9px] opacity-60 leading-tight">{preset.hint}</div>
+										</button>
+									{/each}
+								</div>
+
+								<input 
+									type="range" 
+									min="1024" 
+									max="16384" 
+									step="512" 
+									bind:value={instanceRamMb} 
+									class="w-full accent-[#caa97c] cursor-pointer mt-2" 
+								/>
+								<div class="flex justify-between text-[10px] font-mono text-white/40">
+									<span>1024 MB (1 GB)</span>
+									<span>8192 MB (8 GB)</span>
+									<span>16384 MB (16 GB)</span>
 								</div>
 							</div>
 
-							<div class="space-y-2">
-								<span class="text-xs font-bold text-white/70">Argumentos JVM Customizados</span>
-								<input type="text" bind:value={instanceJvmArgs} placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch" class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-brand-500" />
+							<!-- Custom JVM Arguments with Live OS-Safe Validator -->
+							<div class="space-y-2 bg-[#18191f] border border-white/5 rounded-2xl p-4">
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-bold text-white/80">Argumentos JVM Customizados</span>
+									{#if jvmValidation}
+										{#if jvmValidation.valid}
+											<span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+												<Check class="w-3 h-3 text-emerald-400" /> Compatível com Linux
+											</span>
+										{:else}
+											<span class="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+												<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> {jvmValidation.rejected.length} flag(s) inseguras
+											</span>
+										{/if}
+									{/if}
+								</div>
+
+								<input 
+									type="text" 
+									bind:value={instanceJvmArgs} 
+									placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch" 
+									class="w-full bg-[#14151a] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-[#caa97c]" 
+								/>
+
+								{#if jvmValidation && !jvmValidation.valid}
+									<div class="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-2 mt-2">
+										<div class="text-[11px] font-bold text-amber-300">
+											Flags rejeitadas para Linux: {jvmValidation.rejected.join(", ")}
+										</div>
+										<ul class="text-[10px] text-white/70 space-y-1 list-disc pl-4">
+											{#each jvmValidation.suggestions as sug}
+												<li>{sug}</li>
+											{/each}
+										</ul>
+										<button 
+											type="button" 
+											class="text-[10px] font-bold text-black bg-[#caa97c] hover:bg-[#d8bc98] px-3 py-1 rounded-lg transition-all cursor-pointer mt-1"
+											onclick={() => {
+												if (jvmValidation) {
+													instanceJvmArgs = jvmValidation.normalized;
+												}
+											}}
+										>
+											Aplicar Sugestão e Limpar Incompatíveis
+										</button>
+									</div>
+								{/if}
+							</div>
+
+							<!-- Instance Maintenance & Backup Tools -->
+							<div class="space-y-3 bg-[#18191f] border border-white/5 rounded-2xl p-4">
+								<div>
+									<h4 class="text-xs font-bold text-white/80">Manutenção & Backup da Instância</h4>
+									<p class="text-[10px] text-white/40 mt-0.5">Verifique integridade de arquivos ou exporte backups com segurança</p>
+								</div>
+
+								<div class="grid grid-cols-3 gap-2 pt-1">
+									<!-- Repair Button -->
+									<button 
+										type="button"
+										class="p-3 rounded-xl bg-[#202128] hover:bg-[#282933] border border-white/5 hover:border-white/20 text-left transition-all cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleRepairInstance}
+										disabled={isRepairing}
+									>
+										<div class="flex items-center justify-between w-full">
+											<RefreshCw class="w-4 h-4 text-[#caa97c] {isRepairing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}" />
+											{#if isRepairing}
+												<span class="text-[9px] text-[#caa97c] font-bold">Reparando...</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-white">Reparar Instância</p>
+											<p class="text-[10px] text-white/40">Checar SHA1 e baixar arquivos faltantes</p>
+										</div>
+									</button>
+
+									<!-- Backup Saves -->
+									<button 
+										type="button"
+										class="p-3 rounded-xl bg-[#202128] hover:bg-[#282933] border border-white/5 hover:border-white/20 text-left transition-all cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleBackupSaves}
+										disabled={isBackingUp}
+									>
+										<div class="flex items-center justify-between w-full">
+											<Save class="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+											{#if isBackingUp}
+												<span class="text-[9px] text-emerald-400 font-bold">Gerando...</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-white">Backup dos Mundos</p>
+											<p class="text-[10px] text-white/40">Compactar saves em arquivo .zip</p>
+										</div>
+									</button>
+
+									<!-- Export Instance -->
+									<button 
+										type="button"
+										class="p-3 rounded-xl bg-[#202128] hover:bg-[#282933] border border-white/5 hover:border-white/20 text-left transition-all cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleExportZip}
+										disabled={isExporting}
+									>
+										<div class="flex items-center justify-between w-full">
+											<Share2 class="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
+											{#if isExporting}
+												<span class="text-[9px] text-purple-400 font-bold">Exportando...</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-white">Exportar Instância</p>
+											<p class="text-[10px] text-white/40">Criar pacote completo .zip</p>
+										</div>
+									</button>
+								</div>
 							</div>
 						</div>
 

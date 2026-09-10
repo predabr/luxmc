@@ -125,6 +125,8 @@ impl ModrinthClient {
         query: &str,
         mc_version: &str,
         content_type: &str,
+        loader: Option<&str>,
+        category: Option<&str>,
         limit: u32,
         offset: u32,
         sort_by: Option<&str>,
@@ -140,11 +142,25 @@ impl ModrinthClient {
         let mut facet_groups: Vec<String> = Vec::new();
         facet_groups.push(format!(r#"["project_type:{}"]"#, project_type));
 
-        if project_type == "mod" {
+        if let Some(l) = loader {
+            let l_clean = l.trim().to_lowercase();
+            if !l_clean.is_empty() && l_clean != "all" && l_clean != "qualquer" && l_clean != "qualquer loader" {
+                facet_groups.push(format!(r#"["categories:{}"]"#, l_clean));
+            } else if project_type == "mod" {
+                facet_groups.push(r#"["categories:fabric","categories:forge","categories:neoforge","categories:quilt"]"#.to_string());
+            }
+        } else if project_type == "mod" {
             facet_groups.push(r#"["categories:fabric","categories:forge","categories:neoforge","categories:quilt"]"#.to_string());
         }
 
-        if !mc_version.is_empty() && mc_version != "Qualquer Versão" {
+        if let Some(c) = category {
+            let c_clean = c.trim().to_lowercase();
+            if !c_clean.is_empty() && c_clean != "all" && c_clean != "qualquer" && c_clean != "todas as categorias" {
+                facet_groups.push(format!(r#"["categories:{}"]"#, c_clean));
+            }
+        }
+
+        if !mc_version.is_empty() && mc_version != "Qualquer Versão" && mc_version != "all" {
             facet_groups.push(format!(r#"["versions:{}"]"#, mc_version));
         }
 
@@ -258,7 +274,7 @@ impl ModrinthClient {
         content_type: &str,
         limit: u32,
     ) -> AppResult<Vec<ModSearchResult>> {
-        self.search_mods(query, mc_version, content_type, limit, 0, None).await
+        self.search_mods(query, mc_version, content_type, None, None, limit, 0, None).await
     }
 
     pub async fn get_mod_versions(

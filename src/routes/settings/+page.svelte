@@ -44,6 +44,8 @@
 		discordSetActivity, 
 		discordClearActivity,
 		getSystemSpecs,
+		changelogGet,
+		type ChangelogEntry,
 		type StorageBreakdown 
 	} from "$lib/api";
 
@@ -189,8 +191,13 @@
 		launcherVersion: "1.0.0-BETA"
 	});
 
+	let changelogList = $state<ChangelogEntry[]>([]);
+
 	onMount(() => {
 		loadStorageMetrics();
+		changelogGet().then(entries => {
+			changelogList = entries;
+		}).catch(() => {});
 		getSystemSpecs().then(specs => {
 			if (specs) {
 				systemSpecs = {
@@ -1211,6 +1218,38 @@
 						</div>
 						<span class="text-[10px] font-mono font-bold text-brand-500 bg-brand-500/10 px-4 py-2 rounded-full border border-brand-500/20 group-hover:bg-brand-500 group-hover:text-black transition-all">REPRODUZIR</span>
 					</button>
+
+					<!-- Changelog History -->
+					<div class="bg-[#1c1d22] border border-white/5 rounded-3xl p-5 space-y-4 text-xs shadow-md">
+						<div class="flex items-center justify-between pb-2 border-b border-white/5">
+							<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider flex items-center gap-2">
+								<Terminal class="w-3.5 h-3.5 text-brand-500" /> Histórico de Versões & Changelog
+							</div>
+							<span class="text-[10px] text-white/40 font-mono">{changelogList.length} versões registradas</span>
+						</div>
+
+						<div class="space-y-3">
+							{#each changelogList as entry}
+								<div class="p-3.5 rounded-2xl bg-[#141518] border border-white/5 space-y-2.5">
+									<div class="flex items-center justify-between">
+										<div class="flex items-center gap-2">
+											<span class="font-black text-xs text-white bg-brand-500/20 text-brand-500 px-2 py-0.5 rounded-md border border-brand-500/30 font-mono">v{entry.version}</span>
+											<span class="text-xs font-bold text-white/90">{entry.title}</span>
+										</div>
+										<span class="text-[10px] font-mono text-white/40">{entry.date}</span>
+									</div>
+									<ul class="space-y-1.5 pl-0.5">
+										{#each entry.highlights as highlight}
+											<li class="text-[11px] text-white/60 flex items-start gap-2 leading-relaxed">
+												<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+												<span>{highlight}</span>
+											</li>
+										{/each}
+									</ul>
+								</div>
+							{/each}
+						</div>
+					</div>
 				</div>
 			{/if}
 

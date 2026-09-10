@@ -1,6 +1,5 @@
-use luxmc_lib::core::launcher::{self, lib_path_from_name};
+use luxmc_lib::core::launcher;
 use luxmc_lib::core::minecraft::{self, lib_url_from_name};
-use std::path::PathBuf;
 
 async fn fetch_detail(http: &reqwest::Client, id: &str) -> minecraft::VersionDetail {
     let manifest = minecraft::fetch_version_manifest(http).await.unwrap();

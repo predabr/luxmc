@@ -9,6 +9,7 @@
 	import StatusBanner from "$lib/components/ui/StatusBanner.svelte";
 	import Background3D from "$lib/components/visuals/Background3D.svelte";
 	import UpdateModal from "$lib/components/ui/UpdateModal.svelte";
+	import DownloadProgressBar from "$lib/components/ui/DownloadProgressBar.svelte";
 	import Cutscene from "$lib/components/visuals/Cutscene.svelte";
 	import { bootstrapSettings, schedulePersist, startAutoPersist } from "$lib/stores/persistence.svelte";
 	import { setToastInstance } from "$lib/stores/toasts.svelte";
@@ -86,6 +87,11 @@
 					largeText: "Luxmc Launcher (Linux)",
 					largeImage: "luxmc"
 				}).catch(() => {});
+			}
+			if (typeof window !== "undefined" && (init.stressTest || window.location.search.includes("test_leak=1"))) {
+				showSplash = false;
+				appState.showCutscene = false;
+				import("$app/navigation").then(({ goto }) => goto("/mods?test_leak=1"));
 			}
 		}).catch((e) => {
 			clearTimeout(initTimer);
@@ -178,3 +184,4 @@
 	</div>
 {/if}
 <UpdateModal />
+<DownloadProgressBar />

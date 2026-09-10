@@ -35,6 +35,7 @@
 	let offlineConfirmPassword = $state("");
 	let showPassword = $state(false);
 	let isLoggingIn = $state(false);
+	let isLoggingInMicrosoft = $state(false);
 	let isEntering = $state(false);
 	let authTab = $state<"login" | "register">("login");
 	let savedAccounts = $state<string[]>([]);
@@ -130,9 +131,9 @@
 	}
 
 	async function handleMicrosoftLogin() {
-		isLoggingIn = true;
+		isLoggingInMicrosoft = true;
 		try {
-			toast("Iniciando autenticação Microsoft OAuth...", "info");
+			toast("Iniciando autenticação Microsoft OAuth... Verifique seu navegador.", "info");
 			const acc = await authLogin();
 			const newAcc = {
 				id: acc.id,
@@ -148,10 +149,31 @@
 		} catch (e) {
 			const errStr = String(e);
 			if (errStr.includes("00000000-0000-0000-0000-000000000000") || errStr.includes("invalid_client") || errStr.includes("AADSTS700016")) {
-				toast("Aguardando aprovação da Microsoft! Você pode configurar seu Client ID em Configurações > Contas.", "info");
+				toast("Aguardando aprovação da Microsoft! Você pode configurar seu Client ID em Configurações > Contas ou entrar no Modo Offline.", "info");
 			} else {
 				toast("Tentativa de login: " + errStr, "error");
 			}
+		} finally {
+			isLoggingInMicrosoft = false;
+		}
+	}
+
+	async function handleDevLogin() {
+		isLoggingIn = true;
+		try {
+			const acc = await authDevLogin();
+			const newAcc = {
+				id: acc.id,
+				username: acc.username,
+				uuid: acc.uuid,
+				minecraftToken: acc.accessToken,
+				expiresAt: acc.expiresAt
+			};
+			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
+			toast(`Conectado em modo de teste como ${acc.username}!`, "success");
+			account.account = newAcc;
+		} catch (e) {
+			toast("Erro no login de teste: " + String(e), "error");
 		} finally {
 			isLoggingIn = false;
 		}
@@ -265,19 +287,64 @@
 
 			<!-- Auth Options -->
 			<div class="w-full space-y-4">
+				<!-- PRIMARY: Microsoft Account Button -->
+				<div class="bg-[#18191c] border border-[#6c5ce7]/30 hover:border-[#6c5ce7]/60 rounded-3xl p-4 shadow-xl transition-all relative group overflow-hidden">
+					<div class="absolute -right-10 -bottom-10 w-28 h-28 bg-[#6c5ce7]/10 rounded-full blur-2xl pointer-events-none"></div>
+
+					<button 
+						type="button" 
+						class="w-full h-14 rounded-2xl bg-[#1e1f26] hover:bg-[#252732] border border-white/10 hover:border-white/20 text-white font-bold text-sm flex items-center justify-between px-4 transition-all active:scale-[0.98] cursor-pointer shadow-lg disabled:opacity-60"
+						onclick={handleMicrosoftLogin}
+						disabled={isLoggingIn || isLoggingInMicrosoft}
+					>
+						<div class="flex items-center gap-3">
+							<div class="h-9 w-9 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center p-2 shrink-0">
+								<svg class="h-full w-full" viewBox="0 0 24 24" fill="none">
+									<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
+									<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
+									<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
+									<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
+								</svg>
+							</div>
+							<div class="text-left">
+								<p class="font-extrabold text-white text-xs leading-tight">Entrar com Microsoft</p>
+								<p class="text-[10px] text-white/40 font-normal">Conta Oficial (Xbox & Mojang)</p>
+							</div>
+						</div>
+
+						{#if isLoggingInMicrosoft}
+							<div class="flex items-center gap-2 text-xs text-[#a29bfe] font-semibold">
+								<Loader2 class="w-4 h-4 animate-spin text-[#6c5ce7]" />
+								<span>Autenticando...</span>
+							</div>
+						{:else}
+							<div class="h-8 px-3 rounded-xl bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#6c5ce7]/20">
+								<span>Conectar</span>
+								<ArrowRight class="w-3.5 h-3.5" />
+							</div>
+						{/if}
+					</button>
+				</div>
+
+				<div class="flex items-center gap-3 py-0.5">
+					<div class="flex-1 h-[1px] bg-white/10"></div>
+					<span class="text-[10px] font-bold text-white/30 uppercase tracking-wider">ou acesse com conta offline</span>
+					<div class="flex-1 h-[1px] bg-white/10"></div>
+				</div>
+
 				<!-- Offline / Pirate Login & Register with Tabs -->
 				<div class="bg-[#18191c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-lg">
 					<div class="flex bg-[#121316] p-1 rounded-full border border-white/5">
 						<button 
 							type="button" 
-							class="flex-1 py-2 rounded-full text-xs font-bold transition-all {authTab === 'login' ? 'bg-[#25262c] text-brand-500 shadow-sm border border-brand-500/20' : 'text-white/40 hover:text-white'}"
+							class="flex-1 py-2 rounded-full text-xs font-bold transition-all {authTab === 'login' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20' : 'text-white/40 hover:text-white'}"
 							onclick={() => authTab = 'login'}
 						>
 							Entrar
 						</button>
 						<button 
 							type="button" 
-							class="flex-1 py-2 rounded-full text-xs font-bold transition-all {authTab === 'register' ? 'bg-[#25262c] text-brand-500 shadow-sm border border-brand-500/20' : 'text-white/40 hover:text-white'}"
+							class="flex-1 py-2 rounded-full text-xs font-bold transition-all {authTab === 'register' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20' : 'text-white/40 hover:text-white'}"
 							onclick={() => authTab = 'register'}
 						>
 							Criar Conta
@@ -290,7 +357,7 @@
 							{#each savedAccounts as accName}
 								<button 
 									type="button" 
-									class="text-[10px] font-bold px-3 py-1 rounded-full border transition-all cursor-pointer {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-brand-500 bg-brand-500/20 text-brand-500' : 'border-white/10 bg-white/5 text-white/60 hover:text-white'}"
+									class="text-[10px] font-bold px-3 py-1 rounded-full border transition-all cursor-pointer {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-[#caa97c] bg-[#caa97c]/20 text-[#caa97c]' : 'border-white/10 bg-white/5 text-white/60 hover:text-white'}"
 									onclick={() => { offlineName = accName; }}
 								>
 									{accName}
@@ -300,7 +367,7 @@
 					{/if}
 
 					<div class="flex items-center gap-2 text-xs font-bold text-white/80">
-						<Gamepad2 class="w-4 h-4 text-brand-500" />
+						<Gamepad2 class="w-4 h-4 text-[#caa97c]" />
 						<span>{authTab === 'login' ? 'Acessar Conta Offline / Pirata' : 'Registrar Nova Conta Offline'}</span>
 					</div>
 
@@ -309,7 +376,7 @@
 							type="text" 
 							placeholder="GamerTag (ex: Steve, Pedro, Gamer)..." 
 							bind:value={offlineName}
-							class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-brand-500 transition-colors"
+							class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] transition-colors"
 							maxlength="16"
 							onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 						/>
@@ -319,7 +386,7 @@
 								type={showPassword ? "text" : "password"} 
 								placeholder="Senha da conta..." 
 								bind:value={offlinePassword}
-								class="w-full bg-[#1e1f24] border border-white/10 rounded-full pl-5 pr-12 py-2.5 text-xs font-bold text-white outline-none focus:border-brand-500 transition-colors"
+								class="w-full bg-[#1e1f24] border border-white/10 rounded-full pl-5 pr-12 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] transition-colors"
 								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 							/>
 							<button
@@ -341,7 +408,7 @@
 								type={showPassword ? "text" : "password"} 
 								placeholder="Confirme a senha..." 
 								bind:value={offlineConfirmPassword}
-								class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-brand-500 transition-colors"
+								class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] transition-colors"
 								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 							/>
 						{/if}
@@ -352,7 +419,7 @@
 						class="w-full h-11 rounded-xl hover:brightness-105 active:scale-[0.98] text-[#15171c] font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
 						style="background-color: #caa97c;"
 						onclick={handleOfflineAuth}
-						disabled={isLoggingIn}
+						disabled={isLoggingIn || isLoggingInMicrosoft}
 					>
 						{#if isLoggingIn}
 							<Loader2 class="w-4 h-4 animate-spin" /> Processando...
@@ -362,27 +429,18 @@
 					</button>
 				</div>
 
-				<div class="flex items-center gap-3">
-					<div class="flex-1 h-[1px] bg-white/10"></div>
-					<span class="text-[10px] font-bold text-white/30 uppercase">ou</span>
-					<div class="flex-1 h-[1px] bg-white/10"></div>
+				<!-- Tertiary: Dev Login for local testing -->
+				<div class="flex items-center justify-center pt-1">
+					<button 
+						type="button" 
+						class="text-[11px] font-semibold text-white/40 hover:text-white/80 transition-colors flex items-center gap-1.5 cursor-pointer hover:underline"
+						onclick={handleDevLogin}
+						disabled={isLoggingIn || isLoggingInMicrosoft}
+					>
+						<ShieldCheck class="w-3.5 h-3.5 text-white/30" />
+						<span>Modo de Teste Local (Dev Login)</span>
+					</button>
 				</div>
-
-				<!-- Official Microsoft Login -->
-				<button 
-					type="button" 
-					class="w-full h-11 rounded-xl bg-[#1e1f24] hover:bg-[#282930] border border-white/10 hover:border-white/20 text-white font-semibold text-xs flex items-center justify-center gap-3 transition-all active:scale-[0.98] cursor-pointer shadow-sm"
-					onclick={handleMicrosoftLogin}
-					disabled={isLoggingIn}
-				>
-					<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
-						<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
-						<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
-						<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
-						<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
-					</svg>
-					<span>Entrar com Conta Oficial Microsoft</span>
-				</button>
 			</div>
 
 			<div class="text-[10px] text-white/30 text-center leading-relaxed">

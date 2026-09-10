@@ -2,7 +2,6 @@ use super::{ModAuthor, ModFile, ModGalleryImage, ModProjectDetails, ModSearchRes
 use crate::error::AppResult;
 
 const CURSEFORGE_API: &str = "https://api.curseforge.com/v1";
-const EMBEDDED_KEY: &str = "$2a$10$ZAl3a4/dJg9zsqJ2FJ.S/O0eEnOCDlPfAH81irnXt9GwXIsELgPuq";
 
 pub fn api_key() -> Option<String> {
     let from_env = std::env::var("CURSEFORGE_API_KEY")
@@ -17,12 +16,7 @@ pub fn api_key() -> Option<String> {
         return Some(k);
     }
 
-    if !EMBEDDED_KEY.is_empty() {
-        tracing::info!("CurseForge API key loaded from embedded default");
-        return Some(EMBEDDED_KEY.to_string());
-    }
-
-    tracing::warn!("CurseForge API key not available — CurseForge results will be omitted");
+    tracing::warn!("CurseForge API key not configured (set CURSEFORGE_API_KEY) — CurseForge results will be omitted");
     None
 }
 
@@ -31,6 +25,7 @@ pub async fn search_mods(
     query: &str,
     mc_version: &str,
     content_type: &str,
+    loader: Option<&str>,
     limit: u32,
     offset: u32,
     sort_by: Option<&str>,
@@ -56,6 +51,14 @@ pub async fn search_mods(
         format!("&gameVersion={}", urlencoding::encode(mc_version))
     };
 
+    let loader_param = match loader.map(|s| s.to_lowercase()).as_deref() {
+        Some("forge") => "&modLoaderType=1",
+        Some("fabric") => "&modLoaderType=4",
+        Some("quilt") => "&modLoaderType=5",
+        Some("neoforge") => "&modLoaderType=6",
+        _ => "",
+    };
+
     let sort_field = match sort_by.unwrap_or("downloads") {
         "relevance" => 1,
         "updated" => 3,
@@ -65,12 +68,13 @@ pub async fn search_mods(
     let sort_param = format!("&sortField={}&sortOrder=desc", sort_field);
 
     let url = format!(
-        "{}/mods/search?gameId={}&classId={}&searchFilter={}{}&index={}&pageSize={}{}",
+        "{}/mods/search?gameId={}&classId={}&searchFilter={}{}{}&index={}&pageSize={}{}",
         CURSEFORGE_API,
         game_id,
         class_id,
         urlencoding::encode(query.trim()),
         version_filter,
+        loader_param,
         offset,
         limit,
         sort_param,
