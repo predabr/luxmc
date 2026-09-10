@@ -80,6 +80,8 @@ fn main() {
         // Native GPU DMA-BUF achieves 60-144 FPS smooth rendering on AMD, Intel, and modern Mesa.
         if std::env::var("LUXMC_SOFTWARE_RENDER").as_deref() == Ok("1") {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        } else if std::env::var("WEBKIT_FORCE_COMPOSITING_MODE").is_err() {
+            std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
         }
         if std::env::var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS").is_err() {
             std::env::set_var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS", "1");

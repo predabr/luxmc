@@ -8,6 +8,10 @@ use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 
 static DISCORD_STREAM: Mutex<Option<UnixStream>> = Mutex::new(None);
+static CURRENT_CLIENT_ID: Mutex<Option<String>> = Mutex::new(None);
+
+const LAUNCHER_CLIENT_ID: &str = "1219293400582553650";
+const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,7 +20,12 @@ pub struct DiscordActivityArgs {
     pub details: Option<String>,
     pub state: Option<String>,
     pub large_text: Option<String>,
+    pub large_image: Option<String>,
+    pub small_text: Option<String>,
+    pub small_image: Option<String>,
     pub start_time: Option<i64>,
+    pub in_game: Option<bool>,
+    pub client_id: Option<String>,
 }
 
 #[cfg(unix)]
@@ -71,13 +80,33 @@ pub async fn discord_set_activity(
     state: Option<String>,
     largeText: Option<String>,
     largeImage: Option<String>,
+    smallText: Option<String>,
+    smallImage: Option<String>,
+    startTime: Option<i64>,
+    inGame: Option<bool>,
+    clientId: Option<String>,
 ) -> AppResult<bool> {
     #[cfg(unix)]
     {
-        let mut guard = DISCORD_STREAM.lock().unwrap();
+        let is_game = inGame.unwrap_or(false);
+        let target_client_id = clientId.unwrap_or_else(|| {
+            if is_game {
+                MINECRAFT_CLIENT_ID.to_string()
+            } else {
+                LAUNCHER_CLIENT_ID.to_string()
+            }
+        });
 
-        let needs_connect = guard.is_none();
-        if needs_connect {
+        let mut stream_guard = DISCORD_STREAM.lock().unwrap();
+        let mut client_id_guard = CURRENT_CLIENT_ID.lock().unwrap();
+
+        let needs_new_connection = stream_guard.is_none()
+            || client_id_guard.as_deref() != Some(&target_client_id);
+
+        if needs_new_connection {
+            *stream_guard = None;
+            *client_id_guard = None;
+
             if let Some(path) = get_socket_path() {
                 if let Ok(mut stream) = UnixStream::connect(path) {
                     stream
@@ -85,7 +114,7 @@ pub async fn discord_set_activity(
                         .ok();
                     let handshake = serde_json::json!({
                         "v": 1,
-                        "client_id": "1219293400582553650"
+                        "client_id": target_client_id
                     })
                     .to_string();
 
@@ -97,38 +126,67 @@ pub async fn discord_set_activity(
                                     as usize;
                             let mut buf = vec![0u8; resp_len];
                             let _ = stream.read_exact(&mut buf);
-                            *guard = Some(stream);
+                            *stream_guard = Some(stream);
+                            *client_id_guard = Some(target_client_id);
                         }
                     }
                 }
             }
         }
 
-        if let Some(ref mut stream) = *guard {
+        if let Some(ref mut stream) = *stream_guard {
             stream
                 .set_read_timeout(Some(std::time::Duration::from_millis(200)))
                 .ok();
-            let now = chrono::Utc::now().timestamp();
-            let img = largeImage.unwrap_or_else(|| {
-                "https://raw.githubusercontent.com/luxmc/luxmc/main/static/icon.png".to_string()
+            let now = startTime.unwrap_or_else(|| chrono::Utc::now().timestamp());
+
+            let (def_img, def_text, def_details, def_state) = if is_game {
+                (
+                    "default".to_string(),
+                    "Minecraft".to_string(),
+                    "Jogando Minecraft".to_string(),
+                    "Luxmc Launcher".to_string(),
+                )
+            } else {
+                (
+                    "https://raw.githubusercontent.com/luxmc/luxmc/main/static/icon.png".to_string(),
+                    "Luxmc Launcher".to_string(),
+                    "Luxmc Launcher v1.0.0-BETA".to_string(),
+                    "No Menu Principal".to_string(),
+                )
+            };
+
+            let img = largeImage.unwrap_or(def_img);
+            let txt = largeText.unwrap_or(def_text);
+            let det = details.unwrap_or(def_details);
+            let st = state.unwrap_or(def_state);
+
+            let mut assets = serde_json::json!({
+                "large_image": img,
+                "large_text": txt,
             });
+
+            if let Some(s_img) = smallImage {
+                assets["small_image"] = serde_json::Value::String(s_img);
+                if let Some(s_txt) = smallText {
+                    assets["small_text"] = serde_json::Value::String(s_txt);
+                }
+            }
+
             let act = serde_json::json!({
                 "cmd": "SET_ACTIVITY",
                 "args": {
                     "pid": std::process::id(),
                     "activity": {
-                        "state": state.unwrap_or_else(|| "No Menu Principal".to_string()),
-                        "details": details.unwrap_or_else(|| "Luxmc Launcher v0.6.0-BETA".to_string()),
+                        "state": st,
+                        "details": det,
                         "timestamps": {
                             "start": now
                         },
-                        "assets": {
-                            "large_image": img,
-                            "large_text": largeText.unwrap_or_else(|| "Luxmc Launcher (Linux)".to_string())
-                        }
+                        "assets": assets
                     }
                 },
-                "nonce": "luxmc-rpc-1"
+                "nonce": format!("luxmc-rpc-{}", chrono::Utc::now().timestamp_millis())
             })
             .to_string();
 
@@ -137,7 +195,8 @@ pub async fn discord_set_activity(
                 let _ = stream.read_exact(&mut header);
                 return Ok(true);
             } else {
-                *guard = None;
+                *stream_guard = None;
+                *client_id_guard = None;
             }
         }
     }

@@ -91,76 +91,125 @@ fn read_packet(stream: &mut TcpStream) -> AppResult<(i32, Vec<u8>)> {
     Ok((packet_id, data[pos..].to_vec()))
 }
 
+use std::net::ToSocketAddrs;
+
 pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
-    let address = format!("{}:{}", host, port);
-    let mut stream = TcpStream::connect_timeout(
-        &address
-            .parse()
-            .map_err(|_| AppError::Internal(format!("invalid address: {}", address)))?,
-        Duration::from_secs(5),
-    )?;
-    stream.set_read_timeout(Some(Duration::from_secs(5)))?;
-    stream.set_write_timeout(Some(Duration::from_secs(5)))?;
+    let target = (host, port);
+    let addr = match target.to_socket_addrs() {
+        Ok(mut iter) => iter.next(),
+        Err(_) => None,
+    };
 
-    let mut handshake = Vec::new();
-    write_varint(&mut handshake, 0x00);
-    write_varint(&mut handshake, -1);
-    write_string(&mut handshake, host);
-    let mut port_buf = [0u8; 2];
-    port_buf.copy_from_slice(&port.to_be_bytes());
-    handshake.extend_from_slice(&port_buf);
-    write_varint(&mut handshake, 1);
+    if let Some(sock_addr) = addr {
+        if let Ok(mut stream) = TcpStream::connect_timeout(&sock_addr, Duration::from_secs(3)) {
+            stream.set_read_timeout(Some(Duration::from_secs(3))).ok();
+            stream.set_write_timeout(Some(Duration::from_secs(3))).ok();
 
-    let mut packet = Vec::new();
-    write_varint(&mut packet, handshake.len() as i32);
-    packet.extend_from_slice(&handshake);
-    stream.write_all(&packet)?;
+            let mut handshake = Vec::new();
+            write_varint(&mut handshake, 0x00);
+            write_varint(&mut handshake, -1);
+            write_string(&mut handshake, host);
+            let mut port_buf = [0u8; 2];
+            port_buf.copy_from_slice(&port.to_be_bytes());
+            handshake.extend_from_slice(&port_buf);
+            write_varint(&mut handshake, 1);
 
-    let mut status_req = Vec::new();
-    write_varint(&mut status_req, 0x00);
-    let mut status_packet = Vec::new();
-    write_varint(&mut status_packet, status_req.len() as i32);
-    status_packet.extend_from_slice(&status_req);
-    stream.write_all(&status_packet)?;
+            let mut packet = Vec::new();
+            write_varint(&mut packet, handshake.len() as i32);
+            packet.extend_from_slice(&handshake);
+            if stream.write_all(&packet).is_ok() {
+                let mut status_req = Vec::new();
+                write_varint(&mut status_req, 0x00);
+                let mut status_packet = Vec::new();
+                write_varint(&mut status_packet, status_req.len() as i32);
+                status_packet.extend_from_slice(&status_req);
+                if stream.write_all(&status_packet).is_ok() {
+                    if let Ok((_, payload)) = read_packet(&mut stream) {
+                        let mut pos = 0;
+                        if let Ok(_json_len) = read_varint(&payload, &mut pos) {
+                            if let Ok(json_str) = std::str::from_utf8(&payload[pos..]) {
+                                if let Ok(v) = serde_json::from_str::<serde_json::Value>(json_str) {
+                                    let version = v
+                                        .get("version")
+                                        .and_then(|v| v.get("name"))
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("1.21.4")
+                                        .to_string();
 
-    let (_, payload) = read_packet(&mut stream)?;
+                                    let players = v.get("players").cloned().unwrap_or_default();
+                                    let players_max = players.get("max").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                                    let players_online = players.get("online").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
-    let mut pos = 0;
-    let _json_len = read_varint(&payload, &mut pos)?;
-    let json_str = std::str::from_utf8(&payload[pos..])
-        .map_err(|e| AppError::Internal(format!("invalid utf8: {}", e)))?;
+                                    let motd = v
+                                        .get("description")
+                                        .map(|d| {
+                                            if let Some(text) = d.get("text").and_then(|t| t.as_str()) {
+                                                text.to_string()
+                                            } else if let Some(s) = d.as_str() {
+                                                s.to_string()
+                                            } else {
+                                                d.to_string()
+                                            }
+                                        })
+                                        .unwrap_or_default();
 
-    let v: serde_json::Value = serde_json::from_str(json_str)?;
+                                    let favicon = v
+                                        .get("favicon")
+                                        .and_then(|f| f.as_str())
+                                        .map(|s| s.to_string());
 
-    let version = v
-        .get("version")
-        .and_then(|v| v.get("name"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("unknown")
-        .to_string();
+                                    return Ok(ServerStatus {
+                                        online: true,
+                                        version,
+                                        players_max,
+                                        players_online,
+                                        motd,
+                                        favicon,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    let players = v.get("players").cloned().unwrap_or_default();
-    let players_max = players.get("max").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-    let players_online = players.get("online").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+    // HTTP Status Fallback (mcsrvstat.us)
+    if let Ok(resp) = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(4))
+        .build()
+        .and_then(|c| c.get(format!("https://api.mcsrvstat.us/3/{}", host)).send())
+    {
+        if resp.status().is_success() {
+            if let Ok(v) = resp.json::<serde_json::Value>() {
+                let online = v.get("online").and_then(|o| o.as_bool()).unwrap_or(false);
+                let version = v.get("version").and_then(|s| s.as_str()).unwrap_or("Online").to_string();
+                let players_online = v.get("players").and_then(|p| p.get("online")).and_then(|o| o.as_u64()).unwrap_or(0) as u32;
+                let players_max = v.get("players").and_then(|p| p.get("max")).and_then(|m| m.as_u64()).unwrap_or(1000) as u32;
+                let motd = v.get("motd").and_then(|m| m.get("clean")).and_then(|c| c.as_array())
+                    .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(" "))
+                    .unwrap_or_default();
+                let favicon = v.get("icon").and_then(|i| i.as_str()).map(|s| s.to_string());
 
-    let motd = v
-        .get("description")
-        .and_then(|d| d.get("text"))
-        .and_then(|t| t.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let favicon = v
-        .get("favicon")
-        .and_then(|f| f.as_str())
-        .map(|s| s.to_string());
+                return Ok(ServerStatus {
+                    online,
+                    version,
+                    players_max,
+                    players_online,
+                    motd,
+                    favicon,
+                });
+            }
+        }
+    }
 
     Ok(ServerStatus {
-        online: true,
-        version,
-        players_max,
-        players_online,
-        motd,
-        favicon,
+        online: false,
+        version: "Offline".to_string(),
+        players_max: 0,
+        players_online: 0,
+        motd: String::new(),
+        favicon: None,
     })
 }

@@ -83,6 +83,7 @@ pub async fn run() {
             commands::mods::mods_search,
             commands::mods::mods_search_typed,
             commands::mods::mods_versions,
+            commands::mods::mods_project_details,
             commands::mods::mods_list,
             commands::mods::mods_install,
             commands::mods::mods_install_with_deps,

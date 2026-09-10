@@ -58,6 +58,49 @@ pub struct ModUpdate {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ModGalleryImage {
+    pub url: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModAuthor {
+    pub name: String,
+    pub avatar_url: Option<String>,
+    pub role: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModProjectDetails {
+    pub id: String,
+    pub slug: String,
+    pub title: String,
+    pub description: String,
+    pub body: String,
+    pub body_type: String,
+    pub icon_url: Option<String>,
+    pub downloads: u64,
+    pub categories: Vec<String>,
+    pub loaders: Vec<String>,
+    pub game_versions: Vec<String>,
+    pub latest_version: Option<String>,
+    pub updated_at: Option<String>,
+    pub created_at: Option<String>,
+    pub source: String,
+    pub source_url: Option<String>,
+    pub issues_url: Option<String>,
+    pub discord_url: Option<String>,
+    pub wiki_url: Option<String>,
+    pub donation_url: Option<String>,
+    pub author: Option<ModAuthor>,
+    pub gallery: Vec<ModGalleryImage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ModVersionDetail {
     pub id: String,
     pub name: String,
@@ -391,5 +434,134 @@ impl ModrinthClient {
         Err(crate::error::AppError::NotFound(
             "mod version not found".into(),
         ))
+    }
+
+    pub async fn get_project_details(&self, id_or_slug: &str) -> AppResult<ModProjectDetails> {
+        let url = format!("{}/project/{}", MODRINTH_API, urlencoding::encode(id_or_slug));
+        let resp: serde_json::Value = self
+            .http
+            .get(&url)
+            .send()
+            .await?
+            .error_for_status()?
+            .json()
+            .await?;
+
+        let id = resp.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let slug = resp.get("slug").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let title = resp.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let description = resp.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let body = resp.get("body").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let icon_url = resp.get("icon_url").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let downloads = resp.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0);
+        let updated_at = resp.get("updated").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let created_at = resp.get("published").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let source_url = resp.get("source_url").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let issues_url = resp.get("issues_url").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let wiki_url = resp.get("wiki_url").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let discord_url = resp.get("discord_url").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let donation_url = resp
+            .get("donation_urls")
+            .and_then(|arr| arr.as_array())
+            .and_then(|a| a.first())
+            .and_then(|d| d.get("url"))
+            .and_then(|u| u.as_str())
+            .map(|s| s.to_string());
+
+        let categories: Vec<String> = resp
+            .get("categories")
+            .and_then(|c| c.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default();
+
+        let loaders: Vec<String> = resp
+            .get("loaders")
+            .and_then(|c| c.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default();
+
+        let game_versions: Vec<String> = resp
+            .get("game_versions")
+            .and_then(|c| c.as_array())
+            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default();
+
+        let gallery: Vec<ModGalleryImage> = resp
+            .get("gallery")
+            .and_then(|g| g.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|img| {
+                        let url = img.get("url")?.as_str()?.to_string();
+                        let title = img.get("title").and_then(|t| t.as_str()).map(|s| s.to_string());
+                        let description = img
+                            .get("description")
+                            .and_then(|d| d.as_str())
+                            .map(|s| s.to_string());
+                        Some(ModGalleryImage {
+                            url,
+                            title,
+                            description,
+                        })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let mut author = None;
+        let members_url = format!("{}/project/{}/members", MODRINTH_API, urlencoding::encode(&id));
+        if let Ok(m_resp) = self.http.get(&members_url).send().await {
+            if let Ok(m_arr) = m_resp.json::<Vec<serde_json::Value>>().await {
+                if let Some(first_member) = m_arr.first() {
+                    let role = first_member
+                        .get("role")
+                        .and_then(|r| r.as_str())
+                        .map(|s| s.to_string());
+                    if let Some(user_obj) = first_member.get("user") {
+                        let name = user_obj
+                            .get("username")
+                            .and_then(|u| u.as_str())
+                            .unwrap_or("Modder")
+                            .to_string();
+                        let avatar_url = user_obj
+                            .get("avatar_url")
+                            .and_then(|a| a.as_str())
+                            .map(|s| s.to_string());
+                        author = Some(ModAuthor {
+                            name,
+                            avatar_url,
+                            role,
+                        });
+                    }
+                }
+            }
+        }
+
+        let latest_version = game_versions.last().cloned();
+
+        Ok(ModProjectDetails {
+            id,
+            slug,
+            title,
+            description,
+            body,
+            body_type: "markdown".to_string(),
+            icon_url,
+            downloads,
+            categories,
+            loaders,
+            game_versions,
+            latest_version,
+            updated_at,
+            created_at,
+            source: "modrinth".to_string(),
+            source_url,
+            issues_url,
+            discord_url,
+            wiki_url,
+            donation_url,
+            author,
+            gallery,
+        })
     }
 }

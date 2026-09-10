@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::core::mods::{curseforge, ModSearchResult, ModUpdate, ModVersion, ModrinthClient};
+use crate::core::mods::{
+    curseforge, ModProjectDetails, ModSearchResult, ModUpdate, ModVersion, ModrinthClient,
+};
 use crate::db::schema::mods::ModRow;
 use crate::error::AppResult;
 use crate::state::AppState;
@@ -125,6 +127,22 @@ pub async fn mods_versions(
             let modrinth_client = ModrinthClient::new(state.http.clone());
             modrinth_client.get_mod_versions(&projectId, &mcVersion).await
         }
+    }
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn mods_project_details(
+    state: State<'_, AppState>,
+    projectId: String,
+    source: Option<String>,
+) -> AppResult<ModProjectDetails> {
+    let src = source.as_deref().unwrap_or("modrinth");
+    if src == "curseforge" {
+        curseforge::get_mod_details(&state.http, &projectId).await
+    } else {
+        let client = ModrinthClient::new(state.http.clone());
+        client.get_project_details(&projectId).await
     }
 }
 

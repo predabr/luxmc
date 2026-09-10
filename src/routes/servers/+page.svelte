@@ -1265,24 +1265,35 @@
 		toast(`IP ${ip} copiado para a área de transferência!`, "success");
 	}
 
-	onMount(() => {
-		// Ping top 4 servers
-		const pingTop = async () => {
-			for (const s of servers.slice(0, 5)) {
+	let isRefreshingPings = $state(false);
+
+	async function refreshPings() {
+		if (isRefreshingPings) return;
+		isRefreshingPings = true;
+		const targets = filteredServers.slice(0, 15);
+		await Promise.allSettled(
+			targets.map(async (s) => {
 				try {
 					const data = await serverPing(s.address, 25565);
-					liveServerData[s.id] = {
-						online: data.playersOnline,
-						max: data.playersMax,
-						ping: data.latencyMs ?? 24,
-					};
+					if (data) {
+						liveServerData[s.id] = {
+							online: data.playersOnline,
+							max: data.playersMax || 1000,
+							ping: data.latencyMs ?? 32,
+						};
+					}
 				} catch {
 					// Keep fallback
 				}
-			}
-		};
-		void pingTop();
-		pingInterval = setInterval(pingTop, 45000);
+			})
+		);
+		isRefreshingPings = false;
+		toast("Pings dos servidores atualizados com sucesso!", "success");
+	}
+
+	onMount(() => {
+		void refreshPings();
+		pingInterval = setInterval(refreshPings, 45000);
 	});
 
 	onDestroy(() => {
@@ -1310,10 +1321,11 @@
 			<Button 
 				variant="outline" 
 				class="border-white/10 bg-[#1e1f23] hover:bg-white/10 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer"
-				onclick={() => toast("Pings dos servidores atualizados!", "success")}
+				disabled={isRefreshingPings}
+				onclick={refreshPings}
 			>
-				<RefreshCw class="w-3.5 h-3.5" />
-				Atualizar Pings
+				<RefreshCw class="w-3.5 h-3.5 {isRefreshingPings ? 'animate-spin text-brand-500' : ''}" />
+				{isRefreshingPings ? "Atualizando..." : "Atualizar Pings"}
 			</Button>
 		</div>
 

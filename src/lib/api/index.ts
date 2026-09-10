@@ -322,18 +322,63 @@ export async function modsSearchTyped(
 	return api.invoke("mods_search_typed", { query, mcVersion, contentType, limit, offset });
 }
 
-export async function modsVersions(projectId: string, mcVersion: string, source?: string): Promise<Array<{
+export interface ModFile {
+	url: string;
+	filename: string;
+	size: number;
+	sha1: string;
+}
+
+export interface ModVersion {
 	id: string;
 	name: string;
 	versionNumber: string;
-	files: Array<{
-		url: string;
-		filename: string;
-		size: number;
-		sha1: string;
-	}>;
-}>> {
+	files: ModFile[];
+}
+
+export async function modsVersions(projectId: string, mcVersion: string, source?: string): Promise<ModVersion[]> {
 	return api.invoke("mods_versions", { projectId, mcVersion, source });
+}
+
+export interface ModGalleryImage {
+	url: string;
+	title?: string | null;
+	description?: string | null;
+}
+
+export interface ModAuthor {
+	name: string;
+	avatarUrl?: string | null;
+	role?: string | null;
+}
+
+export interface ModProjectDetails {
+	id: string;
+	slug: string;
+	title: string;
+	description: string;
+	body: string;
+	bodyType: "markdown" | "html";
+	iconUrl: string | null;
+	downloads: number;
+	categories: string[];
+	loaders: string[];
+	gameVersions: string[];
+	latestVersion?: string | null;
+	updatedAt?: string | null;
+	createdAt?: string | null;
+	source: string;
+	sourceUrl?: string | null;
+	issuesUrl?: string | null;
+	discordUrl?: string | null;
+	wikiUrl?: string | null;
+	donationUrl?: string | null;
+	author?: ModAuthor | null;
+	gallery: ModGalleryImage[];
+}
+
+export async function modsProjectDetails(projectId: string, source?: string): Promise<ModProjectDetails> {
+	return api.invoke("mods_project_details", { projectId, source });
 }
 
 export async function modsList(profileId: string): Promise<Array<{
@@ -839,10 +884,20 @@ export async function instanceWorldDelete(profileId: string, folderName: string)
 }
 
 
-// --- Discord RPC Native Integration ---
+export interface DiscordActivityOptions {
+	details?: string;
+	state?: string;
+	largeText?: string;
+	largeImage?: string;
+	smallText?: string;
+	smallImage?: string;
+	startTime?: number;
+	inGame?: boolean;
+	clientId?: string;
+}
 
 export async function discordSetActivity(
-	detailsOrOptions?: string | { details?: string; state?: string; largeText?: string; largeImage?: string },
+	detailsOrOptions?: string | DiscordActivityOptions,
 	state?: string,
 	largeText?: string,
 	largeImage?: string
@@ -852,7 +907,12 @@ export async function discordSetActivity(
 			details: detailsOrOptions.details,
 			state: detailsOrOptions.state,
 			largeText: detailsOrOptions.largeText,
-			largeImage: detailsOrOptions.largeImage
+			largeImage: detailsOrOptions.largeImage,
+			smallText: detailsOrOptions.smallText,
+			smallImage: detailsOrOptions.smallImage,
+			startTime: detailsOrOptions.startTime,
+			inGame: detailsOrOptions.inGame,
+			clientId: detailsOrOptions.clientId
 		});
 	}
 	return api.invoke<boolean>("discord_set_activity", { details: detailsOrOptions, state, largeText, largeImage });
