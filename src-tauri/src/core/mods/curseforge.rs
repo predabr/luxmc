@@ -33,6 +33,7 @@ pub async fn search_mods(
     content_type: &str,
     limit: u32,
     offset: u32,
+    sort_by: Option<&str>,
 ) -> AppResult<Vec<ModSearchResult>> {
     let key = match api_key() {
         Some(k) => k,
@@ -55,11 +56,13 @@ pub async fn search_mods(
         format!("&gameVersion={}", urlencoding::encode(mc_version))
     };
 
-    let sort_param = if query.trim().is_empty() {
-        "&sortField=2&sortOrder=desc"
-    } else {
-        "&sortField=1&sortOrder=desc"
+    let sort_field = match sort_by.unwrap_or("downloads") {
+        "relevance" => 1,
+        "updated" => 3,
+        "newest" => 4,
+        _ => 2,
     };
+    let sort_param = format!("&sortField={}&sortOrder=desc", sort_field);
 
     let url = format!(
         "{}/mods/search?gameId={}&classId={}&searchFilter={}{}&index={}&pageSize={}{}",
@@ -122,6 +125,22 @@ pub async fn search_mods(
                 .and_then(|u| u.as_str())
                 .map(|s| s.to_string());
 
+            let banner_url = m
+                .get("screenshots")
+                .and_then(|s| s.as_array())
+                .and_then(|arr| arr.first())
+                .and_then(|sc| sc.get("url"))
+                .and_then(|u| u.as_str())
+                .map(|s| s.to_string());
+
+            let author = m
+                .get("authors")
+                .and_then(|a| a.as_array())
+                .and_then(|arr| arr.first())
+                .and_then(|au| au.get("name"))
+                .and_then(|n| n.as_str())
+                .map(|s| s.to_string());
+
             let categories: Vec<String> = m
                 .get("categories")
                 .and_then(|c| c.as_array())
@@ -163,6 +182,8 @@ pub async fn search_mods(
                 description: summary,
                 downloads,
                 icon_url,
+                banner_url,
+                author,
                 categories,
                 versions,
                 source: "curseforge".into(),

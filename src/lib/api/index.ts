@@ -283,24 +283,29 @@ export async function loadersVersions(loader: string, mcVersion: string): Promis
 	return api.invoke("loaders_versions", { loader, mcVersion });
 }
 
-export async function modsSearch(
-	query: string,
-	mcVersion: string,
-	limit?: number,
-	offset?: number,
-	contentType?: string
-): Promise<Array<{
+export interface ModSearchResultItem {
 	slug: string;
 	title: string;
 	description: string;
 	downloads: number;
 	iconUrl: string | null;
+	bannerUrl: string | null;
+	author: string | null;
 	categories: string[];
 	versions: string[];
 	source: string;
 	sourceId: string;
-}>> {
-	return api.invoke("mods_search", { query, mcVersion, limit, offset, contentType });
+}
+
+export async function modsSearch(
+	query: string,
+	mcVersion: string,
+	limit?: number,
+	offset?: number,
+	contentType?: string,
+	sortBy?: string
+): Promise<Array<ModSearchResultItem>> {
+	return api.invoke("mods_search", { query, mcVersion, limit, offset, contentType, sortBy });
 }
 
 export async function modsSearchTyped(
@@ -308,19 +313,10 @@ export async function modsSearchTyped(
 	mcVersion: string,
 	contentType: string,
 	limit?: number,
-	offset?: number
-): Promise<Array<{
-	slug: string;
-	title: string;
-	description: string;
-	downloads: number;
-	iconUrl: string | null;
-	categories: string[];
-	versions: string[];
-	source: string;
-	sourceId: string;
-}>> {
-	return api.invoke("mods_search_typed", { query, mcVersion, contentType, limit, offset });
+	offset?: number,
+	sortBy?: string
+): Promise<Array<ModSearchResultItem>> {
+	return api.invoke("mods_search_typed", { query, mcVersion, contentType, limit, offset, sortBy });
 }
 
 export interface ModFile {

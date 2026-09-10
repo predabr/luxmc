@@ -14,6 +14,8 @@ pub struct ModSearchResult {
     pub description: String,
     pub downloads: u64,
     pub icon_url: Option<String>,
+    pub banner_url: Option<String>,
+    pub author: Option<String>,
     pub categories: Vec<String>,
     pub versions: Vec<String>,
     pub source: String,
@@ -92,8 +94,8 @@ pub struct ModProjectDetails {
     pub source: String,
     pub source_url: Option<String>,
     pub issues_url: Option<String>,
-    pub discord_url: Option<String>,
     pub wiki_url: Option<String>,
+    pub discord_url: Option<String>,
     pub donation_url: Option<String>,
     pub author: Option<ModAuthor>,
     pub gallery: Vec<ModGalleryImage>,
@@ -125,6 +127,7 @@ impl ModrinthClient {
         content_type: &str,
         limit: u32,
         offset: u32,
+        sort_by: Option<&str>,
     ) -> AppResult<Vec<ModSearchResult>> {
         let project_type = match content_type.to_lowercase().as_str() {
             "modpack" => "modpack",
@@ -146,7 +149,12 @@ impl ModrinthClient {
         }
 
         let facets = format!("[{}]", facet_groups.join(","));
-        let sort_index = if query.trim().is_empty() { "downloads" } else { "relevance" };
+        let sort_index = match sort_by.unwrap_or("downloads") {
+            "relevance" => "relevance",
+            "updated" => "updated",
+            "newest" => "newest",
+            _ => "downloads",
+        };
 
         let url = format!(
             "{}/search?query={}&limit={}&offset={}&index={}&facets={}",
@@ -174,6 +182,23 @@ impl ModrinthClient {
             .unwrap_or_default();
         let mut results = Vec::new();
         for hit in hits {
+            let banner_url = hit
+                .get("featured_gallery")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_string())
+                .or_else(|| {
+                    hit.get("gallery")
+                        .and_then(|g| g.as_array())
+                        .and_then(|arr| arr.first())
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                });
+
+            let author = hit
+                .get("author")
+                .and_then(|s| s.as_str())
+                .map(|s| s.to_string());
+
             results.push(ModSearchResult {
                 slug: hit
                     .get("slug")
@@ -195,6 +220,8 @@ impl ModrinthClient {
                     .get("icon_url")
                     .and_then(|s| s.as_str())
                     .map(|s| s.to_string()),
+                banner_url,
+                author,
                 categories: hit
                     .get("categories")
                     .and_then(|c| c.as_array())
@@ -231,7 +258,7 @@ impl ModrinthClient {
         content_type: &str,
         limit: u32,
     ) -> AppResult<Vec<ModSearchResult>> {
-        self.search_mods(query, mc_version, content_type, limit, 0).await
+        self.search_mods(query, mc_version, content_type, limit, 0, None).await
     }
 
     pub async fn get_mod_versions(

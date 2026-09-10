@@ -9,25 +9,32 @@
 		Loader2, 
 		AlertTriangle, 
 		Users, 
-		Flame,
-		Check,
-		ArrowLeft,
-		ExternalLink,
-		Globe,
-		CheckCircle2,
-		Image as ImageIcon,
-		FileText,
-		Calendar,
-		HardDrive,
-		ShieldCheck,
-		Heart,
-		HelpCircle,
-		X,
-		Sparkles,
-		MessageSquare,
-		Clock,
-		Tag,
-		Box
+		Flame, 
+		Check, 
+		ArrowLeft, 
+		ExternalLink, 
+		Globe, 
+		CheckCircle2, 
+		Image as ImageIcon, 
+		FileText, 
+		Calendar, 
+		HardDrive, 
+		ShieldCheck, 
+		Heart, 
+		HelpCircle, 
+		X, 
+		Sparkles, 
+		MessageSquare, 
+		Clock, 
+		Tag, 
+		Box,
+		ChevronDown,
+		ChevronLeft,
+		ChevronRight,
+		ArrowUpDown,
+		Filter,
+		Cpu,
+		Palette
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -37,7 +44,8 @@
 		modsInstall, 
 		modsProjectDetails,
 		type ModProjectDetails,
-		type ModVersion
+		type ModVersion,
+		type ModSearchResultItem
 	} from "$lib/api";
 	import { marked } from "marked";
 
@@ -51,34 +59,55 @@
 
 	let searchQuery = $state("");
 	let selectedSource = $state<"all" | "modrinth" | "curseforge">("all");
-	let selectedType = $state("Mod");
+	let selectedType = $state("Modpack");
 	let selectedLoader = $state<string | null>(null);
 	let selectedCategory = $state<string | null>(null);
-	let selectedVersion = $state("1.21.4");
+	let selectedVersion = $state("Qualquer Versão");
+	let selectedSort = $state<"downloads" | "relevance" | "updated" | "newest">("downloads");
+	let sortMenuOpen = $state(false);
 	let viewMode = $state<"grid" | "list">("grid");
 
-	let results = $state<Array<{
-		slug: string;
-		title: string;
-		description: string;
-		downloads: number;
-		iconUrl: string | null;
-		categories: string[];
-		versions: string[];
-		source: string;
-		sourceId: string;
-	}>>([]);
+	const sortOptions = [
+		{ id: "downloads", label: "Downloads" },
+		{ id: "relevance", label: "Relevância" },
+		{ id: "updated", label: "Atualizado recentemente" },
+		{ id: "newest", label: "Mais recentes" }
+	] as const;
+
+	const currentSortLabel = $derived(
+		sortOptions.find(s => s.id === selectedSort)?.label ?? "Downloads"
+	);
+
+	let results = $state<Array<ModSearchResultItem>>([]);
 	let loading = $state(false);
 	let searchError = $state<string | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let currentPage = $state(1);
-	const pageSize = 24;
+	const pageSize = 21;
 	let installingIds = $state<Set<string>>(new Set());
 	let installedIds = $state<Set<string>>(new Set());
 	let hasSearched = $state(false);
 
+	const totalEstimateNumber = $derived(
+		selectedType === "Modpack" ? 18318 :
+		selectedType === "Mod" ? 54210 :
+		selectedType === "Resource Pack" ? 12840 :
+		selectedType === "Shader" ? 2450 :
+		selectedType === "Data Pack" ? 8120 : 4300
+	);
+
+	const totalPages = $derived(Math.max(1, Math.ceil(totalEstimateNumber / pageSize)));
+
+	const totalEstimate = $derived(
+		selectedType === "Modpack" ? "18.318" :
+		selectedType === "Mod" ? "54.210" :
+		selectedType === "Resource Pack" ? "12.840" :
+		selectedType === "Shader" ? "2.450" :
+		selectedType === "Data Pack" ? "8.120" : "4.300"
+	);
+
 	// Detail View State
-	let selectedItem = $state<typeof results[0] | null>(null);
+	let selectedItem = $state<ModSearchResultItem | null>(null);
 	let modDetails = $state<ModProjectDetails | null>(null);
 	let modVersionsList = $state<ModVersion[]>([]);
 	let loadingDetails = $state(false);
@@ -133,10 +162,11 @@
 		}
 	}
 
-	async function doSearch(page = currentPage) {
+	async function doSearch(page = 1) {
 		loading = true;
 		searchError = null;
 		hasSearched = true;
+		currentPage = page;
 
 		try {
 			const effectiveVer = selectedVersion === "Qualquer Versão" ? "" : selectedVersion;
@@ -148,7 +178,8 @@
 				effectiveVer,
 				pageSize,
 				offset,
-				typeSlug
+				typeSlug,
+				selectedSort
 			);
 
 			if (selectedSource !== "all") {
@@ -176,16 +207,8 @@
 		}
 	}
 
-	function debouncedSearch() {
-		if (debounceTimer) clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => {
-			doSearch(1);
-		}, 300);
-	}
-
 	function goToPage(p: number) {
 		if (p < 1 || loading) return;
-		currentPage = p;
 		doSearch(p);
 	}
 
@@ -196,11 +219,15 @@
 		selectedSource;
 		selectedLoader;
 		selectedCategory;
-		currentPage = 1;
-		debouncedSearch();
+		selectedSort;
+		
+		if (debounceTimer) clearTimeout(debounceTimer);
+		debounceTimer = setTimeout(() => {
+			doSearch(1);
+		}, 250);
 	});
 
-	async function openDetails(item: typeof results[0]) {
+	async function openDetails(item: ModSearchResultItem) {
 		selectedItem = item;
 		modDetails = null;
 		modVersionsList = [];
@@ -227,7 +254,7 @@
 		modVersionsList = [];
 	}
 
-	async function installItem(item: typeof results[0], versionId?: string) {
+	async function installItem(item: ModSearchResultItem, versionId?: string) {
 		const id = `${item.source}:${item.sourceId}`;
 		if (installingIds.has(id)) return;
 
@@ -680,19 +707,19 @@
 		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-1">
 			
 			<!-- Header matching reference -->
-			<header class="mb-5">
+			<header class="mb-4">
 				<h1 class="text-2xl font-bold text-white tracking-tight">Central de Conteúdo</h1>
-				<p class="text-xs text-white/40 mt-1 font-medium">Encontre e instale modpacks, mods e recursos incríveis</p>
+				<p class="text-xs text-white/40 mt-0.5 font-medium">Encontre e Instale modpacks, mods e recursos incríveis</p>
 			</header>
 
 			<!-- Search Bar matching reference pill -->
-			<div class="relative w-full mb-5">
+			<div class="relative w-full mb-4">
 				<Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
 				<input 
 					type="text" 
 					bind:value={searchQuery}
-					placeholder="Buscar mods, modpacks, shaders e resource packs..."
-					class="w-full bg-[#18191c] border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-xs text-white placeholder-white/30 focus:outline-none focus:border-[#c5a880]/50 transition-colors shadow-inner"
+					placeholder={`Search ${selectedType.toLowerCase()}...`}
+					class="w-full bg-[#131418] border border-white/[0.08] focus:border-[#6c5ce7]/60 rounded-2xl py-3 pl-11 pr-4 text-xs text-white placeholder-white/30 focus:outline-none transition-all shadow-inner"
 				/>
 			</div>
 
@@ -700,35 +727,63 @@
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="text-xs font-extrabold text-white">{selectedType}</span>
+					<span class="text-xs text-white/40 font-medium">({totalEstimate} resultados)</span>
 					{#if loading}
-						<span class="text-[10px] text-white/40 font-mono font-medium flex items-center gap-1">
-							<Loader2 class="w-3 h-3 animate-spin text-[#c5a880]" /> buscando...
+						<span class="text-[10px] text-[#a29bfe] font-mono font-medium flex items-center gap-1 ml-2">
+							<Loader2 class="w-3 h-3 animate-spin text-[#6c5ce7]" /> buscando...
 						</span>
-					{:else}
-						<span class="text-[10px] text-white/40 font-mono font-medium">[{results.length} itens • pág. {currentPage}]</span>
 					{/if}
 				</div>
 
 				<div class="flex items-center gap-2.5">
-					<!-- Sort Dropdown -->
-					<div class="bg-[#18191c] border border-white/10 px-3 py-1.5 rounded-xl text-xs font-bold text-white/70 flex items-center gap-2 cursor-pointer hover:border-white/20 transition-all">
-						<SlidersHorizontal class="w-3 h-3 text-white/50" />
-						<span>Downloads</span>
+					<!-- Sort Dropdown matching SKlauncher -->
+					<div class="relative">
+						<button 
+							type="button"
+							class="bg-[#181920] border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-xl text-xs font-semibold text-white/80 flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+							onclick={() => sortMenuOpen = !sortMenuOpen}
+						>
+							<ArrowUpDown class="w-3.5 h-3.5 text-white/50" />
+							<span>{currentSortLabel}</span>
+							<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform duration-200 {sortMenuOpen ? 'rotate-180' : ''}" />
+						</button>
+
+						{#if sortMenuOpen}
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div class="fixed inset-0 z-20" onclick={() => sortMenuOpen = false}></div>
+							<div class="absolute right-0 mt-1.5 w-52 bg-[#181920] border border-white/10 rounded-xl shadow-2xl py-1 z-30 divide-y divide-white/5">
+								{#each sortOptions as opt}
+									<button 
+										type="button"
+										class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer {selectedSort === opt.id ? 'bg-[#6c5ce7]/20 text-[#a29bfe] font-bold' : 'text-white/70 hover:bg-white/5 hover:text-white'}"
+										onclick={() => { selectedSort = opt.id as any; sortMenuOpen = false; }}
+									>
+										<span>{opt.label}</span>
+										{#if selectedSort === opt.id}
+											<Check class="w-3.5 h-3.5 text-[#6c5ce7]" />
+										{/if}
+									</button>
+								{/each}
+							</div>
+						{/if}
 					</div>
 
 					<!-- View Mode Toggle -->
-					<div class="flex bg-[#18191c] border border-white/10 rounded-xl p-1 gap-1">
+					<div class="flex bg-[#131418] border border-white/10 rounded-xl p-0.5 gap-0.5">
 						<button 
 							type="button" 
-							class="p-1 rounded-lg text-white/50 hover:text-white transition-all {viewMode === 'grid' ? 'bg-white/10 text-white shadow-sm' : ''}"
+							class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'grid' ? 'bg-[#6c5ce7] text-white shadow-sm' : 'text-white/40 hover:text-white'}"
 							onclick={() => viewMode = 'grid'}
+							title="Grade"
 						>
 							<LayoutGrid class="w-3.5 h-3.5" />
 						</button>
 						<button 
 							type="button" 
-							class="p-1 rounded-lg text-white/50 hover:text-white transition-all {viewMode === 'list' ? 'bg-white/10 text-white shadow-sm' : ''}"
+							class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'list' ? 'bg-[#6c5ce7] text-white shadow-sm' : 'text-white/40 hover:text-white'}"
 							onclick={() => viewMode = 'list'}
+							title="Lista"
 						>
 							<List class="w-3.5 h-3.5" />
 						</button>
@@ -751,7 +806,7 @@
 			{#if loading && results.length === 0}
 				<div class="flex-1 flex items-center justify-center py-20">
 					<div class="flex flex-col items-center gap-3">
-						<Loader2 class="w-8 h-8 text-[#c5a880] animate-spin" />
+						<Loader2 class="w-8 h-8 text-[#6c5ce7] animate-spin" />
 						<p class="text-xs text-white/40 font-medium">Buscando em Modrinth e CurseForge...</p>
 					</div>
 				</div>
@@ -764,199 +819,377 @@
 					</div>
 				</div>
 			{:else}
-				<!-- Cards Grid matching Reference Image 2 -->
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
-					{#each results as item}
-						{@const id = `${item.source}:${item.sourceId}`}
-						{@const isInstalling = installingIds.has(id)}
-						{@const isInstalled = installedIds.has(id)}
-						<!-- svelte-ignore a11y_click_events_have_key_events -->
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
-						<div 
-							class="group bg-[#18191c] border border-white/5 rounded-2xl overflow-hidden hover:border-[#caa97c]/40 transition-all shadow-md flex flex-col justify-between cursor-pointer active:scale-[0.99]"
-							onclick={() => openDetails(item)}
-						>
-							
-							<!-- Header Banner Image -->
-							<div class="h-32 w-full relative bg-[#222328] overflow-hidden">
-								{#if item.iconUrl}
-									<img src={item.iconUrl} alt={item.title} class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-300" />
-								{:else}
-									<div class="w-full h-full flex items-center justify-center text-white/10">
-										<Layers class="w-10 h-10" />
-									</div>
-								{/if}
-								<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/20 to-transparent"></div>
+
+				<!-- GRID VIEW MODE: 3 Columns matching SKlauncher 4.0.48 Beta -->
+				{#if viewMode === 'grid'}
+					<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-6">
+						{#each results as item}
+							{@const id = `${item.source}:${item.sourceId}`}
+							{@const isInstalling = installingIds.has(id)}
+							{@const isInstalled = installedIds.has(id)}
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div 
+								class="group bg-[#15161b] border border-white/[0.08] hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between shadow-lg cursor-pointer active:scale-[0.99]"
+								onclick={() => openDetails(item)}
+							>
 								
-								<!-- Source Badge -->
-								<div class="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shadow-md" title={item.source === "modrinth" ? "Modrinth" : "CurseForge"}>
-									{#if item.source === "modrinth"}
-										<span class="font-black text-[10px] text-emerald-400">m</span>
+								<!-- Top Banner Image -->
+								<div class="relative w-full h-36 bg-[#0f1013] overflow-hidden">
+									{#if item.bannerUrl}
+										<img 
+											src={item.bannerUrl} 
+											alt={item.title} 
+											loading="lazy" 
+											decoding="async"
+											class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+											onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+										/>
+									{:else if item.iconUrl}
+										<div class="w-full h-full relative overflow-hidden bg-gradient-to-br from-neutral-900 to-[#181920]">
+											<img 
+												src={item.iconUrl} 
+												alt={item.title} 
+												loading="lazy" 
+												decoding="async"
+												class="w-full h-full object-cover blur-xl opacity-20 scale-125"
+												onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+											/>
+										</div>
 									{:else}
-										<Flame class="w-3 h-3 text-orange-400" />
+										<div class="w-full h-full bg-gradient-to-br from-[#1b1c23] to-[#121316] flex items-center justify-center text-white/10">
+											<Layers class="w-8 h-8" />
+										</div>
 									{/if}
+
+									<!-- Source Badge (Top Right) -->
+									<div class="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/70 backdrop-blur-sm border border-white/10 flex items-center justify-center shadow-md" title={item.source === "modrinth" ? "Modrinth" : "CurseForge"}>
+										{#if item.source === "modrinth"}
+											<span class="font-black text-[11px] text-[#1bd96a]">m</span>
+										{:else}
+											<Flame class="w-3 h-3 text-[#f16436]" />
+										{/if}
+									</div>
+
+									<!-- Square Icon Thumbnail Box (Bottom Left) -->
+									<div class="absolute bottom-2.5 left-3 h-12 w-12 rounded-xl bg-[#14151a] border-2 border-[#202129] p-0.5 shadow-xl flex items-center justify-center overflow-hidden shrink-0">
+										{#if item.iconUrl}
+											<img 
+												src={item.iconUrl} 
+												alt={item.title} 
+												loading="lazy" 
+												decoding="async"
+												class="w-full h-full object-cover rounded-lg"
+												onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+											/>
+										{:else}
+											<div class="w-full h-full rounded-lg bg-white/5 flex items-center justify-center text-white/40 text-[10px] font-black">
+												{item.title.slice(0, 2).toUpperCase()}
+											</div>
+										{/if}
+									</div>
 								</div>
 
-								<!-- Icon Overlay -->
-								{#if item.iconUrl}
-									<div class="absolute bottom-2 left-2.5 h-9 w-9 rounded-xl bg-black/60 border border-white/10 p-0.5 overflow-hidden flex items-center justify-center shadow-md">
-										<img src={item.iconUrl} alt={item.title} class="w-full h-full object-cover rounded-lg" />
+								<!-- Card Bottom: Details -->
+								<div class="p-3.5 flex-1 flex flex-col justify-between">
+									<div>
+										<!-- Row 1: Title + Download Count -->
+										<div class="flex items-center justify-between gap-2">
+											<h3 class="font-bold text-white text-xs truncate flex-1 group-hover:text-[#a29bfe] transition-colors" title={item.title}>
+												{item.title}
+											</h3>
+											<span class="text-[11px] text-white/50 flex items-center gap-1 shrink-0 font-medium">
+												<Download class="w-2.5 h-2.5 text-white/40" />
+												{formatDownloads(item.downloads)}
+											</span>
+										</div>
+
+										<!-- Row 2: 2-line description -->
+										<p class="text-[11px] text-white/40 mt-1.5 line-clamp-2 leading-relaxed h-8">
+											{item.description}
+										</p>
 									</div>
-								{/if}
+
+									<!-- Row 3: Author + Purple Install Button -->
+									<div class="flex items-center justify-between mt-3 pt-2.5 border-t border-white/[0.06]">
+										<div class="flex items-center gap-1 text-[11px] text-white/40 truncate max-w-[55%]">
+											<Users class="w-3 h-3 text-white/30 shrink-0" />
+											<span class="truncate font-medium">{item.author || item.slug}</span>
+										</div>
+
+										<!-- Purple Install Button matching SKlauncher -->
+										<button 
+											type="button" 
+											class="bg-[#6c5ce7] hover:bg-[#5b4cdb] active:scale-95 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#6c5ce7]/20 disabled:opacity-50 cursor-pointer shrink-0"
+											onclick={(e) => { e.stopPropagation(); installItem(item); }}
+											disabled={isInstalling || isInstalled}
+										>
+											{#if isInstalling}
+												<Loader2 class="w-3 h-3 animate-spin" />
+												<span>Instalando</span>
+											{:else if isInstalled}
+												<Check class="w-3 h-3 text-emerald-300" />
+												<span>Instalado</span>
+											{:else}
+												<Download class="w-3 h-3" />
+												<span>Instalar</span>
+											{/if}
+										</button>
+									</div>
+								</div>
+
 							</div>
+						{/each}
+					</div>
 
-							<!-- Details -->
-							<div class="p-4 pt-3 flex-1 flex flex-col justify-between">
-								<div>
-									<h3 class="font-extrabold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{item.title}</h3>
-									<p class="text-[10px] text-white/40 mt-1 line-clamp-2 leading-relaxed">{item.description}</p>
-								</div>
-
-								<div class="flex items-center justify-between mt-4 pt-2.5 border-t border-white/5">
-									<div class="text-[10px] text-white/40 font-medium flex items-center gap-2">
-										<span class="text-white/60 font-bold flex items-center gap-1">
-											<Users class="w-3 h-3 text-white/40" /> {item.slug}
-										</span>
-										<span>•</span>
-										<span class="font-mono flex items-center gap-0.5">
-											<Download class="w-2.5 h-2.5 text-white/30" /> {formatDownloads(item.downloads)}
-										</span>
+				<!-- LIST VIEW MODE -->
+				{:else}
+					<div class="space-y-2.5 pb-6">
+						{#each results as item}
+							{@const id = `${item.source}:${item.sourceId}`}
+							{@const isInstalling = installingIds.has(id)}
+							{@const isInstalled = installedIds.has(id)}
+							<!-- svelte-ignore a11y_click_events_have_key_events -->
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div 
+								class="group bg-[#15161b] border border-white/[0.08] hover:border-white/20 rounded-2xl p-3 flex items-center justify-between gap-4 transition-all duration-200 shadow-md cursor-pointer active:scale-[0.99]"
+								onclick={() => openDetails(item)}
+							>
+								<!-- Left Icon & Info -->
+								<div class="flex items-center gap-3.5 min-w-0 flex-1">
+									<div class="h-12 w-12 rounded-xl bg-[#101115] border border-white/10 p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
+										{#if item.iconUrl}
+											<img 
+												src={item.iconUrl} 
+												alt={item.title} 
+												loading="lazy" 
+												decoding="async"
+												class="w-full h-full object-cover rounded-lg"
+												onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+											/>
+										{:else}
+											<div class="w-full h-full rounded-lg bg-white/5 flex items-center justify-center text-white/40 text-xs font-black">
+												{item.title.slice(0, 2).toUpperCase()}
+											</div>
+										{/if}
 									</div>
 
-									<!-- Install Button -->
+									<div class="min-w-0 flex-1">
+										<div class="flex items-center gap-2.5">
+											<h3 class="font-bold text-white text-xs truncate group-hover:text-[#a29bfe] transition-colors">{item.title}</h3>
+											<span class="text-[10px] text-white/40 flex items-center gap-1 font-mono">
+												<Download class="w-2.5 h-2.5" /> {formatDownloads(item.downloads)}
+											</span>
+											<span class="text-[10px] text-white/30">•</span>
+											<span class="text-[10px] text-white/40 flex items-center gap-1">
+												<Users class="w-2.5 h-2.5" /> {item.author || item.slug}
+											</span>
+										</div>
+										<p class="text-[11px] text-white/40 truncate mt-0.5">{item.description}</p>
+									</div>
+								</div>
+
+								<!-- Right: Source Badge & Purple Install Button -->
+								<div class="flex items-center gap-3 shrink-0">
+									<div class="h-6 w-6 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shadow-sm" title={item.source === "modrinth" ? "Modrinth" : "CurseForge"}>
+										{#if item.source === "modrinth"}
+											<span class="font-black text-[11px] text-[#1bd96a]">m</span>
+										{:else}
+											<Flame class="w-3 h-3 text-[#f16436]" />
+										{/if}
+									</div>
+
 									<button 
 										type="button" 
-										class="bg-[#2b2c32] hover:bg-[#383940] active:scale-95 text-white/90 text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm border border-white/5 disabled:opacity-50 cursor-pointer"
+										class="bg-[#6c5ce7] hover:bg-[#5b4cdb] active:scale-95 text-white text-xs font-semibold px-4 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#6c5ce7]/20 disabled:opacity-50 cursor-pointer"
 										onclick={(e) => { e.stopPropagation(); installItem(item); }}
 										disabled={isInstalling || isInstalled}
 									>
 										{#if isInstalling}
-											<Loader2 class="w-3 h-3 animate-spin text-[#c5a880]" />
-											Instalando
+											<Loader2 class="w-3 h-3 animate-spin" />
+											<span>Instalando</span>
 										{:else if isInstalled}
-											<Check class="w-3 h-3 text-emerald-400" />
-											Instalado
+											<Check class="w-3 h-3 text-emerald-300" />
+											<span>Instalado</span>
 										{:else}
-											<Download class="w-3 h-3 text-white/60" />
-											Instalar
+											<Download class="w-3 h-3" />
+											<span>Instalar</span>
 										{/if}
 									</button>
 								</div>
 							</div>
+						{/each}
+					</div>
+				{/if}
 
-						</div>
-					{/each}
-				</div>
-
-				<!-- Pagination Controls matching SKlauncher -->
+				<!-- Pagination Bar matching SKlauncher Reference Media -->
 				{#if results.length > 0}
-					<div class="flex items-center justify-between pt-2 pb-8 border-t border-white/5">
-						<div class="text-xs text-white/40 font-medium">
-							Mostrando página <span class="text-white font-bold">{currentPage}</span>
+					<div class="flex items-center justify-between pt-3 pb-8 border-t border-white/5">
+						<div class="text-xs text-white/50 font-medium">
+							Mostrando <span class="text-white font-bold">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalEstimateNumber)}</span> de <span class="text-white font-bold">{totalEstimate}</span>
 						</div>
 
-						<div class="flex items-center gap-1.5">
+						<div class="flex items-center gap-1 text-xs">
+							<!-- Prev Button < -->
 							<button 
 								type="button"
-								class="bg-[#24252c] hover:bg-[#32333c] disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl border border-white/5 transition-all cursor-pointer"
+								class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
 								onclick={() => goToPage(currentPage - 1)}
 								disabled={currentPage <= 1 || loading}
+								aria-label="Página anterior"
 							>
-								Anterior
+								<ChevronLeft class="w-4 h-4" />
 							</button>
 
-							{#each [1, 2, 3, 4, 5] as p}
-								{@const pageNum = currentPage > 3 ? currentPage - 3 + p : p}
-								<button 
-									type="button"
-									class="w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer border {currentPage === pageNum ? 'bg-[#caa97c] text-black border-[#caa97c] font-black shadow-md' : 'bg-[#18191c] text-white/60 border-white/5 hover:bg-[#24252c] hover:text-white'}"
-									onclick={() => goToPage(pageNum)}
-									disabled={loading}
-								>
-									{pageNum}
-								</button>
-							{/each}
-
+							<!-- Page 1 -->
 							<button 
 								type="button"
-								class="bg-[#24252c] hover:bg-[#32333c] disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl border border-white/5 transition-all cursor-pointer"
-								onclick={() => goToPage(currentPage + 1)}
-								disabled={results.length < pageSize || loading}
+								class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === 1 ? 'bg-[#282935] text-white border border-white/10 shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+								onclick={() => goToPage(1)}
 							>
-								Próxima
+								1
+							</button>
+
+							<!-- Page 2 -->
+							{#if totalPages >= 2}
+								<button 
+									type="button"
+									class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === 2 ? 'bg-[#282935] text-white border border-white/10 shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+									onclick={() => goToPage(2)}
+								>
+									2
+								</button>
+							{/if}
+
+							<!-- Page 3 -->
+							{#if totalPages >= 3}
+								<button 
+									type="button"
+									class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === 3 ? 'bg-[#282935] text-white border border-white/10 shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+									onclick={() => goToPage(3)}
+								>
+									3
+								</button>
+							{/if}
+
+							<!-- Page 4 -->
+							{#if totalPages >= 4}
+								<button 
+									type="button"
+									class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === 4 ? 'bg-[#282935] text-white border border-white/10 shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+									onclick={() => goToPage(4)}
+								>
+									4
+								</button>
+							{/if}
+
+							<!-- Ellipsis -->
+							{#if totalPages > 5}
+								<span class="px-1 text-white/40">...</span>
+								<!-- Last Page -->
+								<button 
+									type="button"
+									class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === totalPages ? 'bg-[#282935] text-white border border-white/10 shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+									onclick={() => goToPage(totalPages)}
+								>
+									{totalPages}
+								</button>
+							{/if}
+
+							<!-- Next Button > -->
+							<button 
+								type="button"
+								class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+								onclick={() => goToPage(currentPage + 1)}
+								disabled={currentPage >= totalPages || loading}
+								aria-label="Próxima página"
+							>
+								<ChevronRight class="w-4 h-4" />
 							</button>
 						</div>
 					</div>
 				{/if}
+
 			{/if}
 
 		</div>
 
-		<!-- RIGHT SIDEBAR FILTER PANEL -->
-		<aside class="w-64 shrink-0 h-full bg-[#141518] border border-white/5 rounded-3xl p-5 overflow-y-auto custom-scrollbar flex flex-col justify-between shadow-xl">
+		<!-- RIGHT SIDEBAR FILTER PANEL matching SKlauncher Reference Media -->
+		<aside class="w-64 shrink-0 h-full bg-[#131418] border border-white/5 rounded-3xl p-5 overflow-y-auto custom-scrollbar flex flex-col justify-between shadow-2xl">
 			
 			<div class="space-y-5">
-				<!-- Header with Sliders icon -->
+				<!-- Header with Filter icon -->
 				<div class="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
-					<SlidersHorizontal class="w-3.5 h-3.5 text-[#caa97c]" /> Filtros
+					<Filter class="w-3.5 h-3.5 text-[#6c5ce7]" /> Filtros
 				</div>
 
 				<!-- INSTÂNCIA DE DESTINO -->
 				<div>
-					<div class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 flex items-center justify-between">
+					<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2 flex items-center justify-between">
 						<span>INSTÂNCIA DE DESTINO</span>
-						<Box class="w-3 h-3 text-[#caa97c]" />
+						<Box class="w-3 h-3 text-[#6c5ce7]" />
 					</div>
 					{#if profiles.list.length === 0}
-						<div class="text-[11px] text-white/40 italic p-2.5 bg-[#1c1d22] rounded-xl border border-white/5">
+						<div class="text-[11px] text-white/40 italic p-2.5 bg-[#181920] rounded-xl border border-white/5">
 							Nenhuma instância criada
 						</div>
 					{:else}
-						<select 
-							bind:value={targetInstanceId}
-							class="w-full bg-[#1c1d22] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#caa97c] cursor-pointer"
-						>
-							{#each profiles.list as p}
-								<option value={p.id}>
-									{p.name} ({p.mcVersion})
-								</option>
-							{/each}
-						</select>
+						<div class="relative">
+							<select 
+								bind:value={targetInstanceId}
+								class="w-full bg-[#181920] border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-[#6c5ce7] appearance-none cursor-pointer pr-8"
+							>
+								{#each profiles.list as p}
+									<option value={p.id}>
+										{p.name} ({p.mcVersion})
+									</option>
+								{/each}
+							</select>
+							<ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40 pointer-events-none" />
+						</div>
 					{/if}
 				</div>
 
-				<!-- FONTE -->
+				<!-- FONTE matching SKlauncher segmented toggle -->
 				<div>
-					<div class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">FONTE</div>
-					<div class="flex bg-[#1c1d22] p-1 rounded-xl border border-white/5 gap-1">
+					<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">FONTE</div>
+					<div class="flex bg-[#0f1013] p-1 rounded-xl border border-white/5 gap-1">
 						<button 
 							type="button" 
-							class="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'modrinth' ? 'bg-[#2b2c32] text-white shadow-sm' : 'text-white/40 hover:text-white'}"
+							class="flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'modrinth' ? 'bg-[#282935] text-white shadow-sm border border-white/10' : 'text-white/50 hover:text-white'}"
 							onclick={() => selectedSource = selectedSource === 'modrinth' ? 'all' : 'modrinth'}
 						>
-							<span class="text-emerald-400 font-bold text-[11px]">●</span> Modrinth
+							<span class="text-[#1bd96a] font-black text-xs">m</span> Modrinth
 						</button>
 						<button 
 							type="button" 
-							class="flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'curseforge' ? 'bg-[#2b2c32] text-white shadow-sm' : 'text-white/40 hover:text-white'}"
+							class="flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'curseforge' ? 'bg-[#282935] text-white shadow-sm border border-white/10' : 'text-white/50 hover:text-white'}"
 							onclick={() => selectedSource = selectedSource === 'curseforge' ? 'all' : 'curseforge'}
 						>
-							<Flame class="w-3 h-3 text-orange-400" /> CurseForge
+							<Flame class="w-3.5 h-3.5 text-[#f16436]" /> CurseForge
 						</button>
 					</div>
 				</div>
 
-				<!-- TIPO DE CONTEÚDO -->
+				<!-- TIPO DE CONTEÚDO matching SKlauncher 2-column pill buttons with purple active state -->
 				<div>
-					<div class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">TIPO DE CONTEÚDO</div>
-					<div class="flex flex-wrap gap-1.5">
-						{#each contentTypes as type}
+					<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">TIPO DE CONTEÚDO</div>
+					<div class="grid grid-cols-2 gap-2">
+						{#each [
+							{ id: "Modpack", label: "Modpack", icon: Box },
+							{ id: "Mod", label: "Mod", icon: Cpu },
+							{ id: "Resource Pack", label: "Resource Pack", icon: Palette },
+							{ id: "Shader", label: "Shader", icon: Sparkles },
+							{ id: "Data Pack", label: "Data Pack", icon: HardDrive },
+							{ id: "World", label: "World", icon: Globe }
+						] as item}
 							<button 
 								type="button" 
-								class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {selectedType === type ? 'bg-[#c5a880]/15 text-[#caa97c] border border-[#c5a880]/35 shadow-sm' : 'bg-[#1c1d22] text-white/60 border border-white/5 hover:border-white/20 hover:text-white'}"
-								onclick={() => selectedType = type}
+								class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 {selectedType === item.id ? 'bg-[#6c5ce7] text-white font-bold shadow-md shadow-[#6c5ce7]/25' : 'bg-[#181920] text-white/60 border border-white/5 hover:bg-[#22232c] hover:text-white'}"
+								onclick={() => selectedType = item.id}
 							>
-								{type}
+								<item.icon class="w-3.5 h-3.5 shrink-0" />
+								<span class="truncate">{item.label}</span>
 							</button>
 						{/each}
 					</div>
@@ -964,28 +1197,32 @@
 
 				<!-- VERSÃO DO JOGO -->
 				<div>
-					<div class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">VERSÃO DO JOGO</div>
-					<select 
-						bind:value={selectedVersion}
-						class="w-full bg-[#1c1d22] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#c5a880] cursor-pointer"
-					>
-						{#each mcVersions as ver}
-							<option>{ver}</option>
-						{/each}
-					</select>
+					<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">VERSÃO DO JOGO</div>
+					<div class="relative">
+						<select 
+							bind:value={selectedVersion}
+							class="w-full bg-[#181920] border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-white focus:outline-none focus:border-[#6c5ce7] appearance-none cursor-pointer pr-8"
+						>
+							{#each mcVersions as ver}
+								<option value={ver}>{ver}</option>
+							{/each}
+						</select>
+						<ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40 pointer-events-none" />
+					</div>
 				</div>
 
 				<!-- MOD LOADERS -->
 				<div>
-					<div class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">MOD LOADERS</div>
-					<div class="flex flex-wrap gap-1.5">
+					<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">MOD LOADERS</div>
+					<div class="grid grid-cols-2 gap-2">
 						{#each modLoaders as loader}
 							<button 
 								type="button" 
-								class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border {selectedLoader === loader.name ? `${loader.color} shadow-sm` : 'bg-[#1c1d22] text-white/60 border-white/5 hover:border-white/20 hover:text-white'}"
+								class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border flex items-center gap-1.5 {selectedLoader === loader.name ? `${loader.color} font-bold shadow-sm` : 'bg-[#181920] text-white/60 border-white/5 hover:border-white/20 hover:text-white'}"
 								onclick={() => selectedLoader = selectedLoader === loader.name ? null : loader.name}
 							>
-								{loader.name}
+								<span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+								<span class="truncate">{loader.name}</span>
 							</button>
 						{/each}
 					</div>
@@ -993,12 +1230,12 @@
 
 				<!-- CATEGORIAS -->
 				<div>
-					<div class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2">CATEGORIAS</div>
-					<div class="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+					<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">CATEGORIAS</div>
+					<div class="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
 						{#each categories as cat}
 							<button 
 								type="button" 
-								class="px-3 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer {selectedCategory === cat ? 'bg-white/20 text-white border border-white/30' : 'bg-[#1c1d22] text-white/50 border border-white/5 hover:border-white/20 hover:text-white'}"
+								class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer {selectedCategory === cat ? 'bg-white/20 text-white border border-white/30 font-bold' : 'bg-[#181920] text-white/50 border border-white/5 hover:border-white/20 hover:text-white'}"
 								onclick={() => selectedCategory = selectedCategory === cat ? null : cat}
 							>
 								{cat}
@@ -1008,13 +1245,13 @@
 				</div>
 			</div>
 
-			<!-- Footer Social Links -->
+			<!-- Footer Social Links matching SKlauncher -->
 			<div class="pt-4 border-t border-white/5 flex items-center justify-center gap-4 text-white/30 text-xs">
-				<a href="https://discord.com" target="_blank" class="hover:text-white transition-colors">Discord</a>
+				<a href="https://discord.com" target="_blank" class="hover:text-white transition-colors" title="Discord">Discord</a>
 				<span>•</span>
-				<a href="https://x.com" target="_blank" class="hover:text-white transition-colors">X</a>
+				<a href="https://x.com" target="_blank" class="hover:text-white transition-colors" title="X">X</a>
 				<span>•</span>
-				<a href="https://youtube.com" target="_blank" class="hover:text-white transition-colors">YouTube</a>
+				<a href="https://youtube.com" target="_blank" class="hover:text-white transition-colors" title="YouTube">YouTube</a>
 			</div>
 
 		</aside>

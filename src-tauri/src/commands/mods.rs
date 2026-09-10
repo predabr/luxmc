@@ -52,17 +52,19 @@ pub async fn mods_search(
     limit: Option<u32>,
     offset: Option<u32>,
     contentType: Option<String>,
+    sortBy: Option<String>,
 ) -> AppResult<Vec<ModSearchResult>> {
-    let limit = limit.unwrap_or(24);
+    let limit = limit.unwrap_or(21);
     let offset = offset.unwrap_or(0);
     let content_type = contentType.unwrap_or_else(|| "mod".to_string());
+    let sort = sortBy.as_deref().unwrap_or("downloads");
 
     let modrinth_client = ModrinthClient::new(state.http.clone());
 
     let (modrinth_results, curseforge_results) = tokio::join!(
         async {
             modrinth_client
-                .search_mods(&query, &mcVersion, &content_type, limit, offset)
+                .search_mods(&query, &mcVersion, &content_type, limit, offset, Some(sort))
                 .await
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "Modrinth search failed");
@@ -70,7 +72,7 @@ pub async fn mods_search(
                 })
         },
         async {
-            curseforge::search_mods(&state.http, &query, &mcVersion, &content_type, limit, offset)
+            curseforge::search_mods(&state.http, &query, &mcVersion, &content_type, limit, offset, Some(sort))
                 .await
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "CurseForge search failed");
@@ -85,13 +87,16 @@ pub async fn mods_search(
         query = %query,
         offset = %offset,
         content_type = %content_type,
+        sort = %sort,
         "mods_search completed"
     );
 
     let mut combined = modrinth_results;
     combined.extend(curseforge_results);
     let mut combined = dedup_results(combined);
-    combined.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+    if sort == "downloads" {
+        combined.sort_by(|a, b| b.downloads.cmp(&a.downloads));
+    }
     combined.truncate(limit as usize);
     Ok(combined)
 }
@@ -105,8 +110,9 @@ pub async fn mods_search_typed(
     contentType: String,
     limit: Option<u32>,
     offset: Option<u32>,
+    sortBy: Option<String>,
 ) -> AppResult<Vec<ModSearchResult>> {
-    mods_search(state, query, mcVersion, limit, offset, Some(contentType)).await
+    mods_search(state, query, mcVersion, limit, offset, Some(contentType), sortBy).await
 }
 
 #[tauri::command]
