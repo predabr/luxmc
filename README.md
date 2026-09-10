@@ -6,9 +6,10 @@
   <p>
     <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.0.0--BETA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
     <img src="https://img.shields.io/badge/platform-Linux-blue?style=for-the-badge&logo=linux" alt="Linux" />
+    <img src="https://img.shields.io/badge/Windows-Em%20Breve-0078D4?style=for-the-badge&logo=windows" alt="Windows Em Breve" />
     <img src="https://img.shields.io/badge/backend-Rust%20%2F%20Tauri%202-orange?style=for-the-badge&logo=rust" alt="Rust Tauri 2" />
     <img src="https://img.shields.io/badge/frontend-Svelte%205-red?style=for-the-badge&logo=svelte" alt="Svelte 5" />
-    <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-Luxmc%20License-purple?style=for-the-badge" alt="License" /></a>
   </p>
 </div>
 
@@ -78,6 +79,9 @@ yay -S luxmc-bin
 paru -S luxmc-bin
 ```
 
+### 🪟 Microsoft Windows (Em Breve)
+> 🚀 **Roadmap Ativo:** O suporte nativo ao **Windows** (instaladores oficiais `.msi` e `.exe`) está atualmente em fase de finalização e será disponibilizado nas próximas atualizações do Luxmc Launcher!
+
 ---
 
 ## 🛠️ Como Compilar do Código-Fonte
@@ -118,4 +122,5 @@ pnpm tauri build
 
 ## 📄 Licença
 
-Distribuído sob a licença **MIT**. Consulte o arquivo [LICENSE](LICENSE) para mais detalhes.
+Distribuído sob a **Licença Própria do Luxmc Launcher** (Copyright © 2026 Pedro & Time Luxmc). 
+O software é gratuito para uso pessoal e não comercial. É expressamente proibida a revenda, comercialização, empacotamento com anúncios (adware) ou rebranding não autorizado. Para ler todos os termos e condições, consulte o arquivo [LICENSE](LICENSE).

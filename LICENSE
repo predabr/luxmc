@@ -1,0 +1,72 @@
+# LUXMC LAUNCHER PUBLIC & USAGE LICENSE (LICENÇA DE USO LUXMC)
+Versão 1.0 — 2026
+
+Copyright (c) 2026 Pedro (predabr) & Desenvolvedores do Luxmc.
+Todos os direitos reservados.
+
+==============================================================================
+TERMOS E CONDIÇÕES DE USO, DISTRIBUIÇÃO E PROPRIEDADE INTELECTUAL
+==============================================================================
+
+Ao baixar, instalar, compilar, executar ou interagir com o software Luxmc Launcher 
+("Software"), você concorda expressamente com todos os termos e condições desta Licença.
+
+1. CONCESSÃO DE USO PESSOAL
+É concedida permissão a qualquer indivíduo para baixar, instalar e utilizar o 
+Software de forma gratuita, exclusiva para fins pessoais, recreativos e não 
+comerciais.
+
+2. PROPRIEDADE INTELECTUAL E MARCA REGISTRADA
+Todos os direitos autorais, propriedade intelectual, código-fonte, identidade 
+visual, logotipo oficial 3D, artes, paleta de cores, modelos, cutscenes, áudios 
+e o nome "Luxmc" pertencem exclusivamente aos autores originais.
+Nenhum direito de propriedade é transferido ao usuário final ou a desenvolvedores 
+terceiros através do acesso ao código-fonte público.
+
+3. RESTRIÇÕES EXPRESSAS (O QUE É PROIBIDO)
+Fica estritamente PROIBIDO, sem a autorização prévia e expressa por escrito dos 
+autores do Luxmc:
+
+a) USO COMERCIAL E MONETIZAÇÃO:
+   - Vender, revender, alugar, sublicenciar ou comercializar o Software, seus 
+     binários compilados ou qualquer parte de seu código-fonte.
+   - Cobrar de usuários finais por downloads, instalações, atualizações ou acessos 
+     ao Software.
+   - Empacotar o Software em instaladores de terceiros que contenham anúncios, 
+     softwares adicionais ("bundleware/adware") ou paywalls.
+
+b) REBRANDING E FORKS NÃO AUTORIZADOS:
+   - Redistribuir versões modificadas do Software utilizando o nome "Luxmc", a 
+     logomarca oficial ou elementos que induzam o público a acreditar que se trata 
+     de um produto ou lançamento oficial do time Luxmc.
+   - Qualquer versão derivada ("fork") deve remover compulsoriamente todo o 
+     branding, logotipos, links de releases e referências ao nome Luxmc, além 
+     de declarar expressamente que não possui ligação com os autores originais.
+
+c) ADULTERAÇÃO MALICIOSA E TELEMETRIA:
+   - Injetar malwares, mineradores de criptomoedas, maliciosos keyloggers, 
+     rastreadores não autorizados ou mecanismos para roubo de contas e credenciais 
+     de Minecraft/Microsoft.
+
+d) EXTRAÇÃO DE ATIVOS PROPRIETÁRIOS:
+   - É proibido copiar ou reutilizar as artes originais, sons, modelos 3D e o 
+     design exclusivo do Luxmc em outros projetos concorrentes sem autorização.
+
+4. CÓDIGO-FONTE E CONTRIBUIÇÕES DA COMUNIDADE
+O repositório oficial é disponibilizado publicamente para fins de auditoria, 
+estudo, transparência de segurança e colaboração. 
+Contribuições submetidas via Pull Request no repositório oficial, uma vez aceitas, 
+passam a integrar o projeto sob os termos desta mesma Licença.
+
+5. AVISO LEGAL DE TERCEIROS (MOJANG / MICROSOFT)
+O Luxmc Launcher é um software independente e NÃO É UM PRODUTO OFICIAL DE MINECRAFT.
+NÃO É APROVADO NEM ASSOCIADO À MOJANG STUDIOS OU À MICROSOFT.
+"Minecraft" é marca registrada da Mojang Synergies AB. Todos os nomes, marcas e 
+ativos relacionados ao jogo pertencem aos seus respectivos titulares.
+
+6. ISENÇÃO DE GARANTIA E LIMITAÇÃO DE RESPONSABILIDADE
+O SOFTWARE É FORNECIDO "NO ESTADO EM QUE SE ENCONTRA" ("AS IS"), SEM QUALQUER 
+TIPO DE GARANTIA, EXPRESSA OU IMPLÍCITA, INCLUINDO, MAS NÃO SE LIMITANDO A, 
+GARANTIAS DE COMERCIALIZAÇÃO, ADEQUAÇÃO A UMA FINALIDADE ESPECÍFICA OU NÃO 
+VIOLAÇÃO. EM NENHUMA HIPÓTESE OS AUTORES SERÃO RESPONSÁVEIS POR QUAISQUER DANOS, 
+RECLAMAÇÕES OU PERDAS DECORRENTES DO USO OU DA INCAPACIDADE DE USO DESTE SOFTWARE.
