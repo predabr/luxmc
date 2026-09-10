@@ -4,9 +4,21 @@ import { sveltekit } from "@sveltejs/kit/vite";
 import process from "node:process";
 const host = process.env.TAURI_DEV_HOST;
 
+/** @type {() => import('vite').Plugin} */
+const svelteCssGuard = () => ({
+  name: "svelte-virtual-css-guard",
+  enforce: "post",
+  load(id) {
+    if (id.includes(".svelte") && id.includes("type=style")) {
+      return { code: "", map: null };
+    }
+    return null;
+  },
+});
+
 // https://vite.dev/config/
 export default defineConfig(() => ({
-  plugins: [sveltekit()],
+  plugins: [sveltekit(), svelteCssGuard()],
 
   optimizeDeps: {
     include: [],
@@ -28,8 +40,11 @@ export default defineConfig(() => ({
           protocol: "ws",
           host,
           port: 1421,
+          overlay: false,
         }
-      : undefined,
+      : {
+          overlay: false,
+        },
     watch: {
       ignored: ["**/src-tauri/**"],
     },
