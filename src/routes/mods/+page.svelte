@@ -261,12 +261,16 @@
 		installingIds = new Set([...installingIds, id]);
 
 		try {
+			const effectiveProfileId = targetInstanceId || profiles.activeId || profiles.list[0]?.id || "default";
+			const targetProfile = profiles.list.find(p => p.id === effectiveProfileId);
+
 			let targetVerId = versionId;
 			if (!targetVerId) {
-				const effectiveVer = selectedVersion === "Qualquer Versão" ? "1.21.4" : selectedVersion;
-				let versions = await modsVersions(item.sourceId, effectiveVer, item.source);
-				if (versions.length === 0 && selectedVersion !== "Qualquer Versão") {
-					versions = await modsVersions(item.sourceId, "1.21.4", item.source);
+				const targetVer = targetProfile?.mcVersion || (selectedVersion === "Qualquer Versão" ? "1.21.4" : selectedVersion);
+				let versions = await modsVersions(item.sourceId, targetVer, item.source);
+				if (versions.length === 0) {
+					// Fallback to any version if specific version returned none
+					versions = await modsVersions(item.sourceId, "", item.source);
 				}
 				if (versions.length === 0) {
 					toast(`Nenhuma versão compatível encontrada para "${item.title}"`, "error");
@@ -275,18 +279,21 @@
 				targetVerId = versions[0].id;
 			}
 
-			const effectiveProfileId = targetInstanceId || profiles.activeId || profiles.list[0]?.id || "default";
 			await modsInstall({
 				profileId: effectiveProfileId,
 				projectId: item.sourceId,
 				versionId: targetVerId,
 				source: item.source,
+				contentType: selectedType.toLowerCase().replace(/\s+/g, ""),
 			});
 
 			if (effectiveProfileId && effectiveProfileId !== "default") {
 				const prof = profiles.list.find(p => p.id === effectiveProfileId);
 				if (prof) {
-					profiles.update(effectiveProfileId, { modCount: (prof.modCount ?? 0) + 1 });
+					profiles.update(effectiveProfileId, { 
+						modCount: (prof.modCount ?? 0) + 1,
+						loader: prof.loader === "vanilla" ? "fabric" : prof.loader
+					});
 				}
 			}
 
@@ -845,20 +852,10 @@
 											class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
 											onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
 										/>
-									{:else if item.iconUrl}
-										<div class="w-full h-full relative overflow-hidden bg-gradient-to-br from-neutral-900 to-[#181920]">
-											<img 
-												src={item.iconUrl} 
-												alt={item.title} 
-												loading="lazy" 
-												decoding="async"
-												class="w-full h-full object-cover blur-xl opacity-20 scale-125"
-												onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
-											/>
-										</div>
 									{:else}
-										<div class="w-full h-full bg-gradient-to-br from-[#1b1c23] to-[#121316] flex items-center justify-center text-white/10">
-											<Layers class="w-8 h-8" />
+										<div class="w-full h-full bg-[#181920] relative flex items-center justify-center overflow-hidden">
+											<div class="absolute inset-0 opacity-[0.04]" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 14px 14px;"></div>
+											<div class="absolute inset-0 bg-gradient-to-t from-[#15161b] via-transparent to-transparent"></div>
 										</div>
 									{/if}
 

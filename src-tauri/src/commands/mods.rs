@@ -18,6 +18,7 @@ pub struct ModInstallRequest {
     pub version_id: String,
     #[serde(default = "default_source")]
     pub source: String,
+    pub content_type: Option<String>,
 }
 
 fn default_source() -> String {
@@ -164,8 +165,15 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let mods_dir = base_dir.data_dir().join("mods").join(&request.profile_id);
-    tokio::fs::create_dir_all(&mods_dir).await?;
+
+    let target_subfolder = match request.content_type.as_deref().unwrap_or("mod").to_lowercase().as_str() {
+        "shader" | "shaders" => "shaderpacks",
+        "resourcepack" | "resource pack" | "resource_pack" => "resourcepacks",
+        _ => "mods",
+    };
+
+    let target_dir = base_dir.data_dir().join(target_subfolder).join(&request.profile_id);
+    tokio::fs::create_dir_all(&target_dir).await?;
 
     let (file_url, file_name, _file_size, file_sha1) = match request.source.as_str() {
         "curseforge" => {
@@ -210,13 +218,14 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     tracing::info!(
         source = %request.source,
         project_id = %request.project_id,
+        target_subfolder = %target_subfolder,
         file = %file_name,
-        "downloading mod"
+        "downloading item"
     );
 
     let resp = state.http.get(&file_url).send().await?.error_for_status()?;
     let bytes = resp.bytes().await?;
-    let file_path = mods_dir.join(&file_name);
+    let file_path = target_dir.join(&file_name);
     tokio::fs::write(&file_path, &bytes).await?;
 
     let db = crate::db::shared_db().await?;
@@ -233,16 +242,16 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     let resolved_profile_id = profile.as_ref().map(|p| p.id.clone()).unwrap_or_else(|| request.profile_id.clone());
 
     if let Some(ref prof) = profile {
-        let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
-        let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
-        let _ = tokio::fs::write(prof_mods_dir.join(&file_name), &bytes).await;
+        let prof_dest_dir = std::path::PathBuf::from(&prof.game_dir).join(target_subfolder);
+        let _ = tokio::fs::create_dir_all(&prof_dest_dir).await;
+        let _ = tokio::fs::write(prof_dest_dir.join(&file_name), &bytes).await;
     }
 
     let mod_row = ModRow {
         profile_id: resolved_profile_id.clone(),
         project_id: request.project_id,
         version_id: request.version_id,
-        file_name,
+        file_name: file_name.clone(),
         sha1: file_sha1,
         source: request.source,
         installed_at: String::new(),
@@ -259,6 +268,19 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
         .bind(&resolved_profile_id)
         .execute(db.pool())
         .await;
+
+    // Automatically promote profile loader to Fabric if installing a .jar mod onto a vanilla instance
+    if target_subfolder == "mods" && file_name.ends_with(".jar") {
+        if let Some(ref prof) = profile {
+            if prof.loader == "vanilla" || prof.loader.is_empty() {
+                tracing::info!(profile_id = %resolved_profile_id, "Promoting profile loader from vanilla to fabric");
+                let _ = sqlx::query("UPDATE profiles SET loader = 'fabric' WHERE id = ?")
+                    .bind(&resolved_profile_id)
+                    .execute(db.pool())
+                    .await;
+            }
+        }
+    }
 
     Ok(())
 }
@@ -362,6 +384,16 @@ pub async fn mods_install_with_deps(
         .bind(&resolved_profile_id)
         .execute(db.pool())
         .await;
+
+    if let Some(ref prof) = profile {
+        if prof.loader == "vanilla" || prof.loader.is_empty() {
+            tracing::info!(profile_id = %resolved_profile_id, "Promoting profile loader from vanilla to fabric");
+            let _ = sqlx::query("UPDATE profiles SET loader = 'fabric' WHERE id = ?")
+                .bind(&resolved_profile_id)
+                .execute(db.pool())
+                .await;
+        }
+    }
 
     Ok(installed.into_iter().collect())
 }

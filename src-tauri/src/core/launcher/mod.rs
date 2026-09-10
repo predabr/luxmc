@@ -160,7 +160,69 @@ impl GameLauncher {
         self.emit_log(&format!("Java binary: {}", java_path.display()));
 
         self.emit_stage(LaunchStage::ResolvingClasspath);
-        let classpath = self.build_classpath(detail);
+        let mut classpath = self.build_classpath(detail);
+
+        let mut main_class = detail
+            .main_class
+            .as_deref()
+            .unwrap_or("net.minecraft.client.main.Main")
+            .to_string();
+
+        let mut extra_jvm_args = Vec::new();
+
+        let mut loader = profile.loader.trim().to_lowercase();
+        if loader == "vanilla" || loader.is_empty() {
+            let mods_dir = game_dir.join("mods");
+            if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
+                let mut has_jars = false;
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    if let Some(ext) = entry.path().extension() {
+                        if ext == "jar" {
+                            has_jars = true;
+                            break;
+                        }
+                    }
+                }
+                if has_jars {
+                    self.emit_log("Detected mods in mods/ directory; automatically enabling Fabric loader for this session");
+                    loader = "fabric".to_string();
+                }
+            }
+        }
+
+        if loader == "fabric" || loader == "quilt" {
+            if loader == "fabric" {
+                let mods_dir = game_dir.join("mods");
+                let _ = crate::core::loaders::fabric::ensure_fabric_api(
+                    self.downloader.http(),
+                    &mods_dir,
+                    &profile.mc_version,
+                ).await;
+            }
+
+            self.emit_log(&format!("Resolving {} loader for Minecraft {}...", loader, profile.mc_version));
+            match crate::core::loaders::prepare_loader(
+                self.downloader.http(),
+                &self.downloader.libraries_dir(),
+                &loader,
+                &profile.mc_version,
+                profile.loader_version.as_deref(),
+            ).await {
+                Ok(prep) => {
+                    self.emit_log(&format!("{} loader ready: mainClass = {}", loader, prep.main_class));
+                    main_class = prep.main_class;
+                    // Prepend loader libraries to classpath
+                    let mut new_cp = prep.classpath_entries;
+                    new_cp.extend(classpath);
+                    classpath = new_cp;
+                    extra_jvm_args.extend(prep.jvm_args);
+                }
+                Err(e) => {
+                    self.emit_log(&format!("WARNING: Failed to prepare {} loader: {}. Falling back to standard launch.", loader, e));
+                }
+            }
+        }
+
         self.emit_log(&format!("Classpath entries: {}", classpath.len()));
 
         self.emit_stage(LaunchStage::ExtractingNatives);
@@ -168,14 +230,12 @@ impl GameLauncher {
         self.emit_log(&format!("Natives dir: {}", natives_dir.display()));
 
         self.emit_stage(LaunchStage::ResolvingArgs);
-        let jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
+        let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
+        jvm_args.extend(extra_jvm_args);
+
         let game_args =
             self.build_game_args(detail, username, uuid, access_token, user_type, game_dir, profile);
 
-        let main_class = detail
-            .main_class
-            .as_deref()
-            .unwrap_or("net.minecraft.client.Minecraft");
         self.emit_log(&format!("Main class: {}", main_class));
 
         // === FASE 1: FINAL VALIDATION GATE ===

@@ -87,6 +87,18 @@ fn main() {
         if std::env::var("__NV_DISABLE_EXPLICIT_SYNC").is_err() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
         }
+
+        // Memory management: prevent glibc multi-arena memory fragmentation
+        // and force WebKitGTK / Glib to aggressively collect and return RAM.
+        if std::env::var("MALLOC_ARENA_MAX").is_err() {
+            std::env::set_var("MALLOC_ARENA_MAX", "2");
+        }
+        if std::env::var("G_SLICE").is_err() {
+            std::env::set_var("G_SLICE", "always-malloc");
+        }
+        if std::env::var("WEBKIT_MEMORY_PRESSURE_HANDLER_LIMIT").is_err() {
+            std::env::set_var("WEBKIT_MEMORY_PRESSURE_HANDLER_LIMIT", "512");
+        }
     }
 
     let runtime = tokio::runtime::Builder::new_multi_thread()

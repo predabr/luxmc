@@ -395,6 +395,7 @@ export async function modsInstall(request: {
 	projectId: string;
 	versionId: string;
 	source: string;
+	contentType?: string;
 }): Promise<void> {
 	return api.invoke("mods_install", { request });
 }

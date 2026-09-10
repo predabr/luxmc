@@ -51,3 +51,24 @@ pub async fn fetch_loader_versions(
         LoaderKind::Vanilla => Ok(Vec::new()),
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct PreparedLoader {
+    pub main_class: String,
+    pub classpath_entries: Vec<std::path::PathBuf>,
+    pub jvm_args: Vec<String>,
+}
+
+pub async fn prepare_loader(
+    http: &reqwest::Client,
+    libraries_dir: &std::path::Path,
+    loader: &str,
+    mc_version: &str,
+    loader_version: Option<&str>,
+) -> AppResult<PreparedLoader> {
+    match LoaderKind::from_str(loader) {
+        LoaderKind::Fabric => fabric::prepare_fabric(http, libraries_dir, mc_version, loader_version).await,
+        LoaderKind::Quilt => quilt::prepare_quilt(http, libraries_dir, mc_version, loader_version).await,
+        _ => Err(crate::error::AppError::NotFound(format!("Loader '{}' not supported for auto-injection", loader))),
+    }
+}

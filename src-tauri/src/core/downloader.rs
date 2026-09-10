@@ -58,6 +58,10 @@ impl DownloadManager {
         self
     }
 
+    pub fn http(&self) -> &reqwest::Client {
+        &self.http
+    }
+
     pub fn libraries_dir(&self) -> PathBuf {
         self.base_dir.join("libraries")
     }

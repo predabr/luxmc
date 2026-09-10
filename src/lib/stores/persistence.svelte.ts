@@ -26,7 +26,9 @@ export async function bootstrapSettings() {
 export async function persistNow() {
 	if (!browser) return;
 	const s = getStore();
-	settings.value.activeProfileId = profiles.activeId;
+	if (settings.value.activeProfileId !== profiles.activeId) {
+		settings.value.activeProfileId = profiles.activeId;
+	}
 	await s.set(STORE_KEY, settings.value);
 	await s.save();
 }
