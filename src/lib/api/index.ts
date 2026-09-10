@@ -161,6 +161,9 @@ export async function profilesCreate(input: {
 	resolutionH?: number;
 	fullscreen?: boolean;
 	gameDir?: string;
+	ramMb?: number;
+	autoOptimize?: boolean;
+	useVulkan?: boolean;
 }): Promise<{
 	id: string;
 	name: string;
@@ -174,6 +177,9 @@ export async function profilesCreate(input: {
 	resolutionH: number | null;
 	fullscreen: boolean;
 	gameDir: string;
+	ramMb?: number | null;
+	autoOptimize: boolean;
+	useVulkan: boolean;
 	createdAt: string;
 	updatedAt: string;
 }> {
@@ -194,6 +200,8 @@ export async function profilesUpdate(input: {
 	fullscreen?: boolean;
 	gameDir?: string;
 	ramMb?: number;
+	autoOptimize?: boolean;
+	useVulkan?: boolean;
 }): Promise<{
 	id: string;
 	name: string;
@@ -207,6 +215,9 @@ export async function profilesUpdate(input: {
 	resolutionH: number | null;
 	fullscreen: boolean;
 	gameDir: string;
+	ramMb?: number | null;
+	autoOptimize: boolean;
+	useVulkan: boolean;
 	createdAt: string;
 	updatedAt: string;
 }> {
@@ -979,12 +990,52 @@ export async function discordClearActivity(): Promise<void> {
 	return api.invoke("discord_clear_activity");
 }
 
+export interface GpuInfo {
+	vendor: string;
+	renderer: string;
+	driver: string;
+	supportsZink: boolean;
+}
+
+export interface PerformanceModEntry {
+	slug: string;
+	title: string;
+	description: string;
+}
+
+export interface PerformancePackInfo {
+	available: boolean;
+	loader: string;
+	mcVersion: string;
+	reason?: string | null;
+	mods: PerformanceModEntry[];
+}
+
+export async function optimizerGetFlags(ramMb: number, autoOptimize: boolean): Promise<string[]> {
+	return api.invoke("optimizer_get_flags", { ramMb, autoOptimize });
+}
+
+export async function optimizerGetPerfPack(loader: string, mcVersion: string): Promise<PerformancePackInfo> {
+	return api.invoke("optimizer_get_perf_pack", { loader, mcVersion });
+}
+
+export async function optimizerInstallPerfPack(instanceId: string): Promise<string[]> {
+	return api.invoke("optimizer_install_perf_pack", { instanceId });
+}
+
+export async function optimizerDetectGpu(): Promise<GpuInfo> {
+	return api.invoke("optimizer_detect_gpu");
+}
+
 export async function getSystemSpecs(): Promise<{
 	osDistro: string;
-	kernelVersion: String;
+	kernelVersion: string;
 	arch: string;
 	totalRamMb: number;
 	launcherVersion: string;
+	gpuVendor: string;
+	gpuRenderer: string;
+	gpuSupportsZink: boolean;
 }> {
 	return api.invoke("get_system_specs");
 }

@@ -5,4 +5,5 @@ pub mod launcher;
 pub mod loaders;
 pub mod minecraft;
 pub mod mods;
+pub mod optimizer;
 pub mod server;

@@ -870,7 +870,7 @@
 							<!-- svelte-ignore a11y_click_events_have_key_events -->
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<div 
-								class="group bg-[#15161b] border border-white/[0.08] hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between shadow-lg cursor-pointer active:scale-[0.99] [content-visibility:auto] [contain-intrinsic-size:300px_280px]"
+								class="group bg-[#18191c] hover:bg-[#1e1f25] border border-white/5 hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-200 flex flex-col justify-between shadow-lg cursor-pointer active:scale-[0.99] [content-visibility:auto] [contain-intrinsic-size:300px_280px]"
 								onclick={() => openDetails(item)}
 							>
 								
@@ -982,7 +982,7 @@
 							<!-- svelte-ignore a11y_click_events_have_key_events -->
 							<!-- svelte-ignore a11y_no_static_element_interactions -->
 							<div 
-								class="group bg-[#15161b] border border-white/[0.08] hover:border-white/20 rounded-2xl p-3 flex items-center justify-between gap-4 transition-all duration-200 shadow-md cursor-pointer active:scale-[0.99]"
+								class="group bg-[#18191c] hover:bg-[#1e1f25] border border-white/5 hover:border-white/20 rounded-2xl p-3 flex items-center justify-between gap-4 transition-all duration-200 shadow-md cursor-pointer active:scale-[0.99]"
 								onclick={() => openDetails(item)}
 							>
 								<!-- Left Icon & Info -->

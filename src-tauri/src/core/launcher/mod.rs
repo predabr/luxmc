@@ -12,7 +12,7 @@ use crate::error::AppResult;
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "1.0.0-BETA";
+const LAUNCHER_VERSION: &str = "1.1.0-BETA";
 
 /// Pipeline state machine. Every transition is emitted to the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -316,11 +316,16 @@ impl GameLauncher {
 
         #[cfg(target_os = "linux")]
         {
-            if std::env::var("LUXMC_DISABLE_VULKAN").is_err() {
-                self.emit_log("Vulkan (Mesa Zink) hardware acceleration active");
+            if profile.use_vulkan {
+                self.emit_log("Mesa Zink (OpenGL sobre Vulkan) aceleração ativa");
+                cmd.env("MESA_LOADER_DRIVER_OVERRIDE", "zink");
+                cmd.env("GALLIUM_DRIVER", "zink");
                 cmd.env("MESA_SHADER_CACHE_MAX_SIZE", "100G");
                 cmd.env("RADV_PERFTEST", "aco");
                 cmd.env("vblank_mode", "0");
+                cmd.env("MESA_GL_THREAD", "true");
+            } else {
+                cmd.env("MESA_SHADER_CACHE_MAX_SIZE", "100G");
                 cmd.env("MESA_GL_THREAD", "true");
             }
         }
@@ -595,71 +600,46 @@ impl GameLauncher {
             args.push(cp_str.clone());
         }
 
-        if !args.iter().any(|a| a.starts_with("-Xms")) {
-            args.push("-Xms2G".to_string());
-        }
-        if !args.iter().any(|a| a.starts_with("-Xmx")) {
-            args.push("-Xmx4G".to_string());
-        }
-        let perf_flags = [
-            "-XX:+UseG1GC",
-            "-XX:+UnlockExperimentalVMOptions",
-            "-XX:G1NewSizePercent=20",
-            "-XX:G1ReservePercent=20",
-            "-XX:MaxGCPauseMillis=50",
-            "-XX:G1HeapRegionSize=32M",
-            "-XX:+DisableExplicitGC",
-            "-XX:+AlwaysPreTouch",
-        ];
-        for flag in perf_flags {
-            if !args.contains(&flag.to_string()) {
-                args.push(flag.to_string());
+        // Calculate RAM allocation from profile or dynamic system detection
+        let ram_mb = if let Some(allocated) = profile.ram_mb {
+            if allocated > 0 {
+                allocated as u64
+            } else {
+                4096
+            }
+        } else {
+            let mut sys = sysinfo::System::new_all();
+            sys.refresh_memory();
+            let total_ram_mb = sys.total_memory() / 1024 / 1024;
+            std::cmp::min(std::cmp::max(total_ram_mb / 2, 2048), 8192)
+        };
+
+        // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags
+        let generated_flags = if profile.auto_optimize {
+            crate::core::optimizer::generate_aikar_flags(ram_mb)
+        } else {
+            crate::core::optimizer::generate_standard_flags(ram_mb)
+        };
+
+        for flag in generated_flags {
+            if !args.iter().any(|a| a.starts_with(&flag.split('=').next().unwrap_or(&flag))) {
+                args.push(flag);
             }
         }
 
-
+        // Apply user-specified custom JVM arguments (take precedence)
         if let Some(ref custom_args) = profile.jvm_args {
             if !custom_args.is_empty() {
                 for arg in custom_args.split_whitespace() {
+                    // If user manually specifies -Xms or -Xmx, replace existing
+                    if arg.starts_with("-Xmx") {
+                        args.retain(|a| !a.starts_with("-Xmx"));
+                    } else if arg.starts_with("-Xms") {
+                        args.retain(|a| !a.starts_with("-Xms"));
+                    }
                     args.push(arg.to_string());
                 }
             }
-        }
-
-        // Automatic RAM Optimization (if user didn't specify Xmx)
-        if !args.iter().any(|a| a.starts_with("-Xmx")) {
-            let mut sys = sysinfo::System::new_all();
-            sys.refresh_memory();
-            let total_ram = sys.total_memory(); // in bytes
-            let half_ram_mb = (total_ram / 1024 / 1024 / 2) as u64;
-            let target_ram = std::cmp::min(half_ram_mb, 8192); // Max 8GB by default
-            if target_ram > 1024 {
-                args.push(format!("-Xmx{}M", target_ram));
-                args.push(format!("-Xms{}M", target_ram / 2));
-            } else {
-                args.push("-Xmx2G".into());
-                args.push("-Xms1G".into());
-            }
-            
-            // Performance flags
-            args.push("-XX:+UseG1GC".into());
-            args.push("-XX:+ParallelRefProcEnabled".into());
-            args.push("-XX:MaxGCPauseMillis=200".into());
-            args.push("-XX:+UnlockExperimentalVMOptions".into());
-            args.push("-XX:+DisableExplicitGC".into());
-            args.push("-XX:+AlwaysPreTouch".into());
-            args.push("-XX:G1NewSizePercent=30".into());
-            args.push("-XX:G1MaxNewSizePercent=40".into());
-            args.push("-XX:G1HeapRegionSize=8M".into());
-            args.push("-XX:G1ReservePercent=20".into());
-            args.push("-XX:G1HeapWastePercent=5".into());
-            args.push("-XX:G1MixedGCCountTarget=4".into());
-            args.push("-XX:InitiatingHeapOccupancyPercent=15".into());
-            args.push("-XX:G1MixedGCLiveThresholdPercent=90".into());
-            args.push("-XX:G1RSetUpdatingPauseTimePercent=5".into());
-            args.push("-XX:SurvivorRatio=32".into());
-            args.push("-XX:+PerfDisableSharedMem".into());
-            args.push("-XX:MaxTenuringThreshold=1".into());
         }
 
         args

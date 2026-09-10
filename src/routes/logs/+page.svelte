@@ -145,19 +145,23 @@
 		<Heading>{t("logs.title")}</Heading>
 		<div class="flex items-center gap-2">
 			{#if exitInfo}
-				<span class="text-xs" style="color: {exitInfo.success ? 'rgb(74, 222, 128)' : 'rgb(248, 113, 113)'};">
+				<span class="text-xs font-mono font-bold px-3 py-1 rounded-full border {exitInfo.success ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'}">
 					{t("logs.lastExit", { code: exitInfo.code })}
 				</span>
 			{/if}
 		</div>
 	</div>
 
-	<Card padding="lg" class="flex flex-1 flex-col overflow-hidden">
+	<div class="flex flex-1 flex-col overflow-hidden bg-[#141518] border border-white/5 rounded-3xl p-5 shadow-xl">
 		<div class="mb-3 flex flex-col gap-3">
-			<div class="flex items-center gap-2">
-				<Terminal class="h-4 w-4" style="color: rgb(45, 212, 191);" />
-				<span class="text-sm font-medium">{t("logs.gameOutput")}</span>
-				<span class="text-xs" style="color: rgb(var(--fg-subtle));">{t("logs.linesCount", { count: filteredEntries().length })}</span>
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<div class="w-7 h-7 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500">
+						<Terminal class="h-4 w-4" />
+					</div>
+					<span class="text-sm font-bold text-white/90">{t("logs.gameOutput")}</span>
+					<span class="text-xs font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{t("logs.linesCount", { count: filteredEntries().length })}</span>
+				</div>
 			</div>
 
 			<div class="flex items-center gap-2">
@@ -168,7 +172,7 @@
 						class="flex-1"
 					>
 						{#snippet leadingIcon()}
-							<Search class="h-3.5 w-3.5" />
+							<Search class="h-3.5 w-3.5 text-white/40" />
 						{/snippet}
 					</Input>
 				</div>
@@ -180,7 +184,7 @@
 					<Download class="h-3.5 w-3.5" />
 					{t("logs.export")}
 				</Button>
-				<Button variant="solid" size="sm" onclick={handleShareMclogs} loading={isSharing} class="bg-brand-500 hover:bg-brand-400 text-black font-bold">
+				<Button variant="solid" size="sm" onclick={handleShareMclogs} loading={isSharing} class="bg-brand-500 hover:bg-[#ebd095] text-black font-bold">
 					<Share2 class="h-3.5 w-3.5" />
 					Compartilhar (mclo.gs)
 				</Button>
@@ -193,8 +197,7 @@
 
 		<div
 			bind:this={logContainer}
-			class="flex-1 overflow-y-auto rounded-md p-3 font-mono text-xs leading-relaxed"
-			style="background: rgba(0, 0, 0, 0.5);"
+			class="flex-1 overflow-y-auto rounded-2xl p-4 font-mono text-xs leading-relaxed bg-[#0c0d0f] border border-white/5 custom-scrollbar select-text shadow-inner"
 			onscroll={(e) => {
 				const el = e.currentTarget;
 				const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
@@ -202,25 +205,25 @@
 			}}
 		>
 		{#each filteredEntries() as entry (entry.id)}
-			<div class="flex gap-2 {getLineClass(entry)}">
-				<span class="w-16 shrink-0 text-right" style="color: rgb(var(--fg-subtle)); font-size: 10px;">
+			<div class="flex gap-2 py-0.5 hover:bg-white/[0.02] rounded px-1 {getLineClass(entry)}">
+				<span class="w-16 shrink-0 text-right text-white/30 text-[10px]">
 					{getRelativeTime(entry.timestamp)}
 				</span>
-				<span class="w-14 shrink-0 text-right {getStreamTagClass(entry)}">
+				<span class="w-14 shrink-0 text-right font-bold text-[11px] {getStreamTagClass(entry)}">
 					[{entry.stream}]
 				</span>
-				<span class="break-all">{entry.message}</span>
+				<span class="break-all text-white/80">{entry.message}</span>
 			</div>
 			{:else}
-				<p class="p-4 text-center" style="color: rgb(var(--fg-subtle));">{t("logs.noLogs")}</p>
+				<p class="p-8 text-center text-white/30">{t("logs.noLogs")}</p>
 			{/each}
 		</div>
 
-		<div class="mt-2 flex items-center justify-between border-t pt-2 text-[11px]" style="border-color: rgb(var(--border)); color: rgb(var(--fg-subtle));">
+		<div class="mt-3 flex items-center justify-between border-t border-white/5 pt-3 text-[11px] text-white/40">
 			<div class="flex items-center gap-3">
 				<span>{t("logs.linesCountPlain", { count: filteredEntries().length })}</span>
 				{#if searchQuery.trim()}
-					<span class="flex items-center gap-1" style="color: rgb(45, 212, 191);">
+					<span class="flex items-center gap-1 text-brand-500 font-bold">
 						<Filter class="h-3 w-3" />
 						{t("logs.filterActive")}
 					</span>
@@ -231,8 +234,7 @@
 					<span>{t("logs.lastUpdate", { time: lastUpdate.toLocaleTimeString() })}</span>
 				{/if}
 				<button
-					class="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors"
-					style="color: {autoScroll ? 'rgb(45, 212, 191)' : 'rgb(var(--fg-subtle))'};"
+					class="flex items-center gap-1 rounded-lg px-2 py-1 transition-all cursor-pointer {autoScroll ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-white/40 hover:text-white hover:bg-white/5'}"
 					onclick={() => {
 						autoScroll = !autoScroll;
 						if (autoScroll) scrollToBottom();
@@ -243,5 +245,5 @@
 				</button>
 			</div>
 		</div>
-	</Card>
+	</div>
 </div>

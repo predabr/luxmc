@@ -4,19 +4,28 @@ use crate::error::AppResult;
 const CURSEFORGE_API: &str = "https://api.curseforge.com/v1";
 
 pub fn api_key() -> Option<String> {
-    let from_env = std::env::var("CURSEFORGE_API_KEY")
-        .ok()
-        .filter(|k| !k.is_empty());
-
-    if let Some(k) = from_env {
-        tracing::info!(
-            "CurseForge API key loaded from environment ({}…)",
-            &k[..k.len().min(8)]
-        );
-        return Some(k);
+    if let Ok(k) = std::env::var("CURSEFORGE_API_KEY") {
+        let trimmed = k.trim().to_string();
+        if !trimmed.is_empty() {
+            return Some(trimmed);
+        }
     }
 
-    tracing::warn!("CurseForge API key not configured (set CURSEFORGE_API_KEY) — CurseForge results will be omitted");
+    for path in &[".env", "../.env"] {
+        if let Ok(content) = std::fs::read_to_string(path) {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if let Some(val) = trimmed.strip_prefix("CURSEFORGE_API_KEY=") {
+                    let cleaned = val.trim().trim_matches('"').trim_matches('\'').to_string();
+                    if !cleaned.is_empty() {
+                        return Some(cleaned);
+                    }
+                }
+            }
+        }
+    }
+
+    tracing::warn!("CurseForge API key not configured (set CURSEFORGE_API_KEY in environment or .env) — CurseForge results will be omitted");
     None
 }
 

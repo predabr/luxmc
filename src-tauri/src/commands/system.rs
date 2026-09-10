@@ -81,6 +81,9 @@ pub struct SystemSpecs {
     pub arch: String,
     pub total_ram_mb: u64,
     pub launcher_version: String,
+    pub gpu_vendor: String,
+    pub gpu_renderer: String,
+    pub gpu_supports_zink: bool,
 }
 
 #[tauri::command]
@@ -124,11 +127,16 @@ pub fn get_system_specs() -> SystemSpecs {
         }
     }
 
+    let gpu = crate::core::optimizer::detect_gpu();
+
     SystemSpecs {
         os_distro,
         kernel_version,
         arch: std::env::consts::ARCH.to_string(),
         total_ram_mb,
-        launcher_version: "1.0.0-BETA".to_string(),
+        launcher_version: env!("CARGO_PKG_VERSION").to_string(),
+        gpu_vendor: gpu.vendor,
+        gpu_renderer: gpu.renderer,
+        gpu_supports_zink: gpu.supports_zink,
     }
 }

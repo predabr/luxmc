@@ -29,6 +29,10 @@ pub struct ProfileCreate {
     pub ram_mb: Option<i64>,
     #[serde(default)]
     pub instance_group: Option<String>,
+    #[serde(default)]
+    pub auto_optimize: Option<bool>,
+    #[serde(default)]
+    pub use_vulkan: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +58,8 @@ pub struct ProfileUpdate {
     pub disk_usage: Option<i64>,
     pub ram_mb: Option<Option<i64>>,
     pub instance_group: Option<Option<String>>,
+    pub auto_optimize: Option<bool>,
+    pub use_vulkan: Option<bool>,
 }
 
 #[tauri::command]
@@ -113,6 +119,8 @@ pub async fn profiles_create(
         disk_usage: 0,
         ram_mb: input.ram_mb,
         instance_group: input.instance_group,
+        auto_optimize: input.auto_optimize.unwrap_or(true),
+        use_vulkan: input.use_vulkan.unwrap_or(false),
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     Ok(row)
@@ -160,6 +168,8 @@ pub async fn profiles_update(
         disk_usage: input.disk_usage.unwrap_or(existing.disk_usage),
         ram_mb: input.ram_mb.unwrap_or(existing.ram_mb),
         instance_group: input.instance_group.unwrap_or(existing.instance_group),
+        auto_optimize: input.auto_optimize.unwrap_or(existing.auto_optimize),
+        use_vulkan: input.use_vulkan.unwrap_or(existing.use_vulkan),
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     Ok(row)

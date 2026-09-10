@@ -54,4 +54,12 @@ pub struct ProfileRow {
     pub ram_mb: Option<i64>,
     #[serde(default)]
     pub instance_group: Option<String>,
+    #[serde(default = "default_true")]
+    pub auto_optimize: bool,
+    #[serde(default)]
+    pub use_vulkan: bool,
+}
+
+fn default_true() -> bool {
+    true
 }

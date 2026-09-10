@@ -10,6 +10,7 @@ pub mod launch_log_session;
 pub mod launch_logs;
 pub mod loaders;
 pub mod mods;
+pub mod optimizer;
 pub mod p2p;
 pub mod profiles;
 pub mod servers;

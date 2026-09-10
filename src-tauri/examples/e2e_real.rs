@@ -107,7 +107,7 @@ async fn main() {
         tokio::fs::create_dir_all(&version_dir).await.unwrap();
         let client_path = version_dir.join(format!("{}.jar", detail.id));
 
-        let bytes = download_with_retry(&client, &downloads.client.url, &client_path, "client jar")
+        let _bytes = download_with_retry(&client, &downloads.client.url, &client_path, "client jar")
             .await
             .expect("client jar download failed");
         let size = downloads.client.size;
@@ -140,7 +140,7 @@ async fn main() {
         tokio::fs::create_dir_all(&indexes_dir).await.unwrap();
         let index_path = indexes_dir.join(format!("{}.json", asset_index.id));
 
-        let bytes = download_with_retry(&client, &asset_index.url, &index_path, "asset index")
+        let _bytes = download_with_retry(&client, &asset_index.url, &index_path, "asset index")
             .await
             .expect("asset index download failed");
         let actual = tokio::fs::read(&index_path).await.unwrap().len() as u64;
@@ -355,7 +355,7 @@ async fn main() {
     println!("\n--- Step 7: Validate all files ---");
     let mut validation_ok = true;
 
-    if let Some(ref downloads) = detail.downloads {
+    if let Some(ref _downloads) = detail.downloads {
         let client_path = base_dir
             .join("versions")
             .join(&detail.id)
@@ -401,6 +401,8 @@ async fn main() {
         println!("  ✗ Java 21 binary missing");
         validation_ok = false;
     }
+
+    assert!(validation_ok, "All downloaded files must be valid");
 
     // ===== STEP 8: Build launch command (dry run) =====
     println!("\n--- Step 8: Build launch command ---");

@@ -19,6 +19,8 @@ export interface Profile {
 	modCount?: number;
 	diskUsage?: number;
 	ramMb?: number;
+	autoOptimize?: boolean;
+	useVulkan?: boolean;
 }
 
 function createProfileStore() {

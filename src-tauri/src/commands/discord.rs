@@ -151,7 +151,7 @@ pub async fn discord_set_activity(
                 (
                     "https://raw.githubusercontent.com/luxmc/luxmc/main/static/icon.png".to_string(),
                     "Luxmc Launcher".to_string(),
-                    "Luxmc Launcher v1.0.0-BETA".to_string(),
+                    "Luxmc Launcher v1.1.0-BETA".to_string(),
                     "No Menu Principal".to_string(),
                 )
             };

@@ -64,6 +64,9 @@
 		instanceBackupSaves,
 		instanceRestoreSaves,
 		instanceRepair,
+		getSystemSpecs,
+		profilesCreate,
+		optimizerInstallPerfPack,
 		type HealthCheckResult,
 		type FileTreeEntry,
 	} from "$lib/api";
@@ -86,20 +89,99 @@
 	let newName = $state("My Instance");
 	let newVersion = $state("1.21.4");
 	let newLoader = $state("vanilla");
+	let newIcon = $state("grass_block");
 	let selectedRamGb = $state(4);
+	let newAutoOptimize = $state(true);
+	let newUseVulkan = $state(false);
+	let newInstallPerfPack = $state(true);
 	let creating = $state(false);
 	let lastError = $state<string | null>(null);
 	let createSuccess = $state(false);
 
-	let editingInstance = $state<{ id: string; name: string; mcVersion: string; loader: string } | null>(null);
+	let systemRamMb = $state(8192);
+
+	const ramPresets = $derived.by(() => {
+		const totalGb = Math.floor(systemRamMb / 1024);
+		if (totalGb <= 4) return [1, 2, 3];
+		if (totalGb <= 8) return [2, 4, 6];
+		if (totalGb <= 16) return [2, 4, 6, 8, 12];
+		if (totalGb <= 32) return [2, 4, 6, 8, 12, 16, 24];
+		return [2, 4, 6, 8, 12, 16, 24, 32];
+	});
+
+	const iconPresets = [
+		{ id: "grass_block", label: "Bloco de Grama", src: "/grass_block.png" },
+		{ id: "modpack_fo", label: "Fabulously Optimized", src: "/modpack_fo_icon.png" },
+		{ id: "modpack_better_mc", label: "Better MC", src: "/modpack_bmc_icon.webp" },
+		{ id: "modpack_cobblemon", label: "Cobblemon", src: "/modpack_cobblemon_icon.png" },
+		{ id: "logo", label: "Luxmc Logo", src: "/logo.png" },
+		{ id: "grass_head", label: "Steve", src: "/grass_head.png" }
+	];
+
+	function getIconSrc(iconStr?: string): string {
+		if (!iconStr || iconStr === "grass_block") return "/grass_block.png";
+		if (iconStr === "modpack_fo") return "/modpack_fo_icon.png";
+		if (iconStr === "modpack_better_mc") return "/modpack_bmc_icon.webp";
+		if (iconStr === "modpack_cobblemon") return "/modpack_cobblemon_icon.png";
+		if (iconStr === "logo") return "/logo.png";
+		if (iconStr === "grass_head") return "/grass_head.png";
+		if (iconStr.startsWith("/") || iconStr.startsWith("http") || iconStr.startsWith("data:")) return iconStr;
+		try {
+			return convertFileSrc(iconStr);
+		} catch {
+			return "/grass_block.png";
+		}
+	}
+
+	async function pickCustomIcon(isEdit: boolean = false) {
+		const file = await open({
+			title: "Selecionar Ícone da Instância",
+			filters: [{ name: "Imagens", extensions: ["png", "jpg", "jpeg", "webp", "svg"] }]
+		});
+		if (typeof file === "string") {
+			if (isEdit) {
+				editIcon = file;
+			} else {
+				newIcon = file;
+			}
+			toast("Ícone personalizado selecionado!", "success");
+		}
+	}
+
+	let editingInstance = $state<{
+		id: string;
+		name: string;
+		mcVersion: string;
+		loader: string;
+		icon: string;
+		ramMb: number;
+		jvmArgs: string;
+	} | null>(null);
 	let editName = $state("");
 	let editVersion = $state("");
+	let editIcon = $state("grass_block");
+	let editRamGb = $state(4);
+	let editJvmArgs = $state("");
 	let editSaving = $state(false);
 
+	let confirmDeleteInstance = $state<{ id: string; name: string; gameDir: string } | null>(null);
+	let deleting = $state(false);
+
 	function openEditInstance(p: typeof profiles.list[0]) {
-		editingInstance = { id: p.id, name: p.name, mcVersion: p.mcVersion, loader: p.loader };
+		editingInstance = {
+			id: p.id,
+			name: p.name,
+			mcVersion: p.mcVersion,
+			loader: p.loader,
+			icon: p.icon || "grass_block",
+			ramMb: p.ramMb || 4096,
+			jvmArgs: p.jvmArgs || ""
+		};
 		editName = p.name;
 		editVersion = p.mcVersion;
+		editIcon = p.icon || "grass_block";
+		editRamGb = Math.max(1, Math.round((p.ramMb || 4096) / 1024));
+		editJvmArgs = p.jvmArgs || "";
 	}
 
 	async function saveEditInstance() {
@@ -110,16 +192,23 @@
 				input: {
 					id: editingInstance.id,
 					name: editName.trim(),
-					mcVersion: editVersion
+					mcVersion: editVersion,
+					icon: editIcon,
+					ramMb: editRamGb * 1024,
+					jvmArgs: editJvmArgs
 				}
 			});
 			profiles.update(editingInstance.id, {
 				name: editName.trim(),
-				mcVersion: editVersion
+				mcVersion: editVersion,
+				icon: editIcon,
+				ramMb: editRamGb * 1024,
+				jvmArgs: editJvmArgs
 			});
+			toast("Instância atualizada com sucesso!", "success");
 			editingInstance = null;
 		} catch (e) {
-			lastError = "Failed to update instance: " + String(e);
+			lastError = "Falha ao atualizar instância: " + String(e);
 			toast(t("instances.failedUpdate", { error: String(e) }), "error");
 		} finally {
 			editSaving = false;
@@ -305,9 +394,22 @@
 	onMount(() => {
 		loadColors();
 		void loadVersions();
+		void loadSystemSpecs();
 		window.addEventListener("keydown", handleInstanceKeydown);
 		return () => window.removeEventListener("keydown", handleInstanceKeydown);
 	});
+
+	async function loadSystemSpecs() {
+		try {
+			const specs = await getSystemSpecs();
+			if (specs?.totalRamMb) {
+				systemRamMb = specs.totalRamMb;
+				if (systemRamMb >= 16384 && selectedRamGb === 4) {
+					selectedRamGb = 6;
+				}
+			}
+		} catch {}
+	}
 
 	async function loadVersions() {
 		try {
@@ -362,12 +464,25 @@
 					name: newName.trim(),
 					mcVersion: newVersion,
 					loader: newLoader,
+					icon: newIcon,
+					ramMb: selectedRamGb * 1024,
+					autoOptimize: newAutoOptimize,
+					useVulkan: newUseVulkan,
 				},
 			});
+
+			if (newInstallPerfPack && newLoader !== "vanilla") {
+				try {
+					await optimizerInstallPerfPack(p.id);
+				} catch (err) {
+					console.warn("Could not install perf pack:", err);
+				}
+			}
+
 			profiles.add({
 				id: p.id,
 				name: p.name,
-				icon: p.icon,
+				icon: p.icon || newIcon,
 				mcVersion: p.mcVersion,
 				loader: p.loader as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
 				loaderVersion: p.loaderVersion ?? undefined,
@@ -376,6 +491,8 @@
 				updatedAt: new Date(p.updatedAt).getTime(),
 				group: newLoader === "vanilla" ? "Vanilla" : "Modded",
 				ramMb: selectedRamGb * 1024,
+				autoOptimize: newAutoOptimize,
+				useVulkan: newUseVulkan,
 			});
 			profiles.activeId = p.id;
 			createSuccess = true;
@@ -384,6 +501,10 @@
 				showCreate = false;
 				createSuccess = false;
 				newName = "My Instance";
+				newIcon = "grass_block";
+				newAutoOptimize = true;
+				newUseVulkan = false;
+				newInstallPerfPack = true;
 			}, 1500);
 		} catch (e) {
 			lastError = "Failed to create instance: " + String(e);
@@ -831,48 +952,155 @@
 					/>
 				</div>
 
-				<!-- Step 3: Instance Name & RAM Allocation Selector -->
+				<!-- Step 3: Instance Name, Icon & RAM Allocation -->
 				<div class="space-y-4">
-					<div>
-						<label for="instance-name" class="mb-1.5 block text-xs font-bold text-white/70 uppercase tracking-wider">{t("instances.name")}</label>
-						<input
-							id="instance-name"
-							type="text"
-							class="h-11 w-full rounded-full px-5 text-xs font-bold text-white bg-[#18191c] border border-white/10 focus:border-brand-500 outline-none transition-all"
-							placeholder={t("instances.namePlaceholder")}
-							bind:value={newName}
-						/>
+					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+						<!-- Instance Name -->
+						<div class="md:col-span-2 space-y-1.5">
+							<label for="instance-name" class="block text-xs font-bold text-white/70 uppercase tracking-wider">{t("instances.name")}</label>
+							<div class="flex items-center gap-3">
+								<div class="h-11 w-11 rounded-2xl bg-[#18191c] border border-white/10 flex items-center justify-center shrink-0 p-1">
+									<img src={getIconSrc(newIcon)} alt="Ícone da Instância" class="w-8 h-8 object-contain [image-rendering:pixelated]" />
+								</div>
+								<input
+									id="instance-name"
+									type="text"
+									class="h-11 flex-1 rounded-2xl px-5 text-xs font-bold text-white bg-[#18191c] border border-white/10 focus:border-brand-500 outline-none transition-all"
+									placeholder={t("instances.namePlaceholder")}
+									bind:value={newName}
+								/>
+							</div>
+						</div>
+
+						<!-- Quick Icon Picker -->
+						<div class="space-y-1.5">
+							<span class="block text-xs font-bold text-white/70 uppercase tracking-wider">Ícone da Instância</span>
+							<div class="flex items-center gap-1.5 bg-[#18191c] p-1.5 rounded-2xl border border-white/10">
+								{#each iconPresets as ip}
+									<button
+										type="button"
+										class="w-8 h-8 rounded-xl p-1 transition-all cursor-pointer flex items-center justify-center {newIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-white/5 opacity-60 hover:opacity-100'}"
+										onclick={() => newIcon = ip.id}
+										title={ip.label}
+									>
+										<img src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
+									</button>
+								{/each}
+								<button
+									type="button"
+									class="h-8 px-2 rounded-xl text-[10px] font-bold text-brand-500 hover:bg-brand-500/10 border border-brand-500/30 transition-all cursor-pointer shrink-0 ml-auto"
+									onclick={() => pickCustomIcon(false)}
+									title="Carregar imagem do PC"
+								>
+									+ Imagem
+								</button>
+							</div>
+						</div>
 					</div>
 
 					<div class="bg-[#18191c] border border-white/5 rounded-3xl p-4 space-y-2.5">
 						<div class="flex items-center justify-between text-xs">
-							<span class="font-bold text-white/80">Alocação de Memória RAM</span>
+							<div class="flex items-center gap-2">
+								<span class="font-bold text-white/80">Alocação de Memória RAM</span>
+								<span class="text-[10px] text-white/40 font-mono bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+									Detectado no PC: {Math.round(systemRamMb / 1024)} GB
+								</span>
+							</div>
 							<span class="font-mono font-black text-brand-500 bg-brand-500/10 px-3 py-0.5 rounded-full border border-brand-500/20">
 								{selectedRamGb} GB ({selectedRamGb * 1024} MB)
 							</span>
 						</div>
+
+						<!-- Dynamic System RAM Presets -->
 						<div class="flex items-center gap-2">
-							{#each [2, 4, 6, 8, 12, 16] as ram}
+							{#each ramPresets as ram}
+								{@const isRecommended = (systemRamMb >= 12288 && ram === 6) || (systemRamMb < 12288 && ram === 4)}
 								<button
 									type="button"
-									class="flex-1 py-2 rounded-full text-xs font-black transition-all cursor-pointer {selectedRamGb === ram ? 'bg-brand-500 text-black shadow-md scale-[1.02]' : 'bg-[#222328] text-white/60 hover:text-white border border-white/5 hover:border-white/20'}"
+									class="flex-1 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer relative {selectedRamGb === ram ? 'bg-brand-500 text-black shadow-md scale-[1.02]' : 'bg-[#222328] text-white/60 hover:text-white border border-white/5 hover:border-white/20'}"
 									onclick={() => selectedRamGb = ram}
 								>
-									{ram} GB
+									<span>{ram} GB</span>
+									{#if isRecommended}
+										<span class="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] font-extrabold uppercase px-1 rounded bg-emerald-500 text-black shadow-xs">
+											Ideal
+										</span>
+									{/if}
 								</button>
 							{/each}
 						</div>
 						<p class="text-[10px] text-white/40">
-							{#if selectedRamGb === 2}
-								Ideal para versões antigas Vanilla e hardware mais básico.
+							{#if selectedRamGb <= 2}
+								Ideal para versões clássicas e hardware básico.
 							{:else if selectedRamGb === 4}
-								Recomendado para Minecraft moderno (1.20+) com ótimo equilíbrio.
+								Recomendado para Minecraft moderno (1.20+) Vanilla ou com poucos mods.
 							{:else if selectedRamGb === 6}
-								Ideal para shaders moderados e modpacks médios.
+								Excelente para modpacks médios (Fabulously Optimized, shaders moderados).
+							{:else if selectedRamGb === 8}
+								Configuração para modpacks pesados (Better MC, Cobblemon, All The Mods).
 							{:else}
-								Máxima performance para modpacks pesados (Cobblemon, Better MC, Shaders Ultra).
+								Alocação extrema para modpacks com centenas de mods e shaders ultra realistas.
 							{/if}
 						</p>
+					</div>
+
+					<!-- Luxmc Optimization Presets for New Instance -->
+					<div class="bg-[#18191c] border border-white/5 rounded-3xl p-4 space-y-3">
+						<div class="flex items-center justify-between">
+							<div class="flex items-center gap-2">
+								<Zap class="w-4 h-4 text-brand-500" />
+								<span class="text-xs font-bold text-white/90">Otimizações Nativas Luxmc</span>
+							</div>
+							<span class="text-[9px] font-bold uppercase tracking-wider text-brand-500 bg-brand-500/10 px-2 py-0.5 rounded-full border border-brand-500/20">
+								Auto Tuning
+							</span>
+						</div>
+
+						<div class="space-y-2">
+							<!-- Aikar Flags Toggle -->
+							<label class="flex items-start gap-3 p-2.5 rounded-2xl bg-[#222328]/60 hover:bg-[#222328] border border-white/5 cursor-pointer transition-colors">
+								<input type="checkbox" bind:checked={newAutoOptimize} class="mt-0.5 accent-brand-500 rounded" />
+								<div class="text-xs space-y-0.5">
+									<div class="font-bold text-white/90 flex items-center gap-1.5">
+										<span>Flags de GC Inteligentes (Aikar G1GC)</span>
+										<span class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">Recomendado</span>
+									</div>
+									<p class="text-[10px] text-white/50">
+										Ajusta dinamicamente as regiões de heap e threads do garbage collector da JVM para eliminar microtravamentos.
+									</p>
+								</div>
+							</label>
+
+							<!-- Performance Modpack Opt-in (if mod loader chosen) -->
+							{#if newLoader !== "vanilla"}
+								<label class="flex items-start gap-3 p-2.5 rounded-2xl bg-[#222328]/60 hover:bg-[#222328] border border-white/5 cursor-pointer transition-colors">
+									<input type="checkbox" bind:checked={newInstallPerfPack} class="mt-0.5 accent-brand-500 rounded" />
+									<div class="text-xs space-y-0.5">
+										<div class="font-bold text-white/90 flex items-center gap-1.5">
+											<Sparkles class="w-3.5 h-3.5 text-amber-400" />
+											<span>Pacote de Otimização Essencial</span>
+										</div>
+										<p class="text-[10px] text-white/50">
+											Baixa automaticamente Sodium, Lithium e FerriteCore oficiais compatíveis com a versão escolhida.
+										</p>
+									</div>
+								</label>
+							{/if}
+
+							<!-- Mesa Zink / Vulkan Toggle -->
+							<label class="flex items-start gap-3 p-2.5 rounded-2xl bg-[#222328]/60 hover:bg-[#222328] border border-white/5 cursor-pointer transition-colors">
+								<input type="checkbox" bind:checked={newUseVulkan} class="mt-0.5 accent-brand-500 rounded" />
+								<div class="text-xs space-y-0.5">
+									<div class="font-bold text-white/90 flex items-center gap-1.5">
+										<span>Aceleração Gráfica Mesa Zink / Vulkan (Linux)</span>
+										<span class="text-[9px] font-mono text-white/40 bg-white/5 px-1.5 py-0.5 rounded">Experimental</span>
+									</div>
+									<p class="text-[10px] text-white/50">
+										Redireciona o pipeline OpenGL para o driver Vulkan nativo da sua GPU via Gallium Zink.
+									</p>
+								</div>
+							</label>
+						</div>
 					</div>
 				</div>
 
@@ -1087,7 +1315,7 @@
 							/>
 							<div class="absolute inset-0 bg-gradient-to-t from-[#141518] via-transparent to-transparent"></div>
 							<div class="absolute bottom-2.5 left-3 flex items-center gap-2">
-								<img src="/grass_block.png" alt="Minecraft" class="w-5 h-5 object-contain [image-rendering:pixelated] drop-shadow-md" />
+								<img src={getIconSrc(p.icon)} alt="Minecraft" class="w-6 h-6 rounded-md object-contain [image-rendering:pixelated] drop-shadow-md bg-black/50 border border-white/10 p-0.5" />
 								<span class="bg-black/80 backdrop-blur-md text-brand-500 text-[9px] font-black uppercase px-2 py-0.5 rounded-md border border-brand-500/30 shadow-md">
 									{p.loader.toUpperCase()} · MC {p.mcVersion}
 								</span>
@@ -1101,7 +1329,7 @@
 							<div class="min-w-0 flex-1">
 								<div class="flex items-center gap-2">
 									<button
-										class="grid h-5 w-5 shrink-0 place-items-center rounded transition-colors"
+										class="grid h-5 w-5 shrink-0 place-items-center rounded transition-colors cursor-pointer"
 										style="color: {p.favorite ? 'rgb(250, 204, 21)' : 'rgb(var(--fg-subtle))'};"
 										onclick={(e) => {
 											e.stopPropagation();
@@ -1112,25 +1340,31 @@
 									>
 										<Star class="h-3.5 w-3.5 {p.favorite ? 'fill-current' : ''}" />
 									</button>
-									<p class="truncate font-medium">{p.name}</p>
+									<p class="truncate font-black text-white text-sm">{p.name}</p>
 									{#if isActive}
-										<Badge>{t("common.active")}</Badge>
+										<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase flex items-center gap-1">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Ativa
+										</span>
+									{:else}
+										<span class="px-2 py-0.5 rounded-full bg-white/5 text-white/50 text-[9px] font-bold">
+											Pronta
+										</span>
 									{/if}
 								</div>
-							<p class="mt-0.5 flex items-center gap-1.5 text-xs" style="color: rgb(var(--fg-subtle));">
-								<span class="inline-block mc-diamond-shape" style="width: 6px; height: 6px;"></span>
-								{p.mcVersion} · {p.loader}
-								{#if p.loaderVersion}{p.loaderVersion}{/if}
-							</p>
+								<p class="mt-0.5 flex items-center gap-1.5 text-xs text-white/50">
+									<span class="inline-block mc-diamond-shape" style="width: 6px; height: 6px;"></span>
+									{p.mcVersion} · {p.loader.toUpperCase()}
+									{#if p.loaderVersion}<span class="text-white/30">({p.loaderVersion})</span>{/if}
+								</p>
 							</div>
 							<button
-								class="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-all duration-150 hover:scale-110 active:scale-90"
-								style="color: rgb(var(--fg-subtle));"
+								class="grid h-7 w-7 shrink-0 place-items-center rounded-md transition-all duration-150 text-white/40 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
 								onclick={(e) => {
 									e.stopPropagation();
-									deleteInstance(p.id);
+									confirmDeleteInstance = { id: p.id, name: p.name, gameDir: p.gameDir };
 								}}
 								aria-label={t("common.delete")}
+								title="Excluir Instância"
 							>
 								<Trash2 class="h-3.5 w-3.5" />
 							</button>
@@ -1155,12 +1389,10 @@
 									{formatBytes(p.diskUsage)}
 								</span>
 							{/if}
-							{#if p.ramMb}
-								<span class="flex items-center gap-1">
-									<Download class="h-3 w-3" />
-									{t("instances.ramCount", { ram: p.ramMb / 1024 })}
-								</span>
-							{/if}
+							<span class="flex items-center gap-1">
+								<Download class="h-3 w-3" />
+								{t("instances.ramCount", { ram: (p.ramMb || 4096) / 1024 })}
+							</span>
 						</div>
 
 						{#if p.notes}
@@ -1174,17 +1406,9 @@
 									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
 									onclick={(e) => { e.stopPropagation(); openEditInstance(p); }}
 									aria-label={t("instances.edit")}
-									title={t("instances.editTooltip")}
+									title="Editar / Configurar Instância"
 								>
 									<Pencil class="h-3.5 w-3.5" />
-								</button>
-								<button
-									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-									onclick={(e) => { e.stopPropagation(); duplicateInstance(p.id); }}
-									aria-label={t("instances.duplicate")}
-									title="Duplicar Instância"
-								>
-									<Copy class="h-3.5 w-3.5" />
 								</button>
 								<button
 									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
@@ -1193,6 +1417,14 @@
 									title="Abrir Pasta"
 								>
 									<FolderOpen class="h-3.5 w-3.5" />
+								</button>
+								<button
+									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+									onclick={(e) => { e.stopPropagation(); duplicateInstance(p.id); }}
+									aria-label={t("instances.duplicate")}
+									title="Duplicar Instância"
+								>
+									<Copy class="h-3.5 w-3.5" />
 								</button>
 								<button
 									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
@@ -1242,14 +1474,24 @@
 										</div>
 									{/if}
 								</div>
+								<button
+									class="h-8 w-8 rounded-full flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/15 transition-all cursor-pointer"
+									onclick={(e) => {
+										e.stopPropagation();
+										confirmDeleteInstance = { id: p.id, name: p.name, gameDir: p.gameDir };
+									}}
+									aria-label={t("common.delete")}
+									title="Excluir Instância"
+								>
+									<Trash2 class="h-3.5 w-3.5" />
+								</button>
 							</div>
 
 							<button
-								class="flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-black text-black transition-all hover:brightness-110 active:scale-95 shadow-md cursor-pointer"
-								style="background-color: var(--accent-color, #e2b86b);"
+								class="flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-black text-black transition-all hover:brightness-110 active:scale-95 shadow-[0_0_15px_rgba(226,184,107,0.35)] cursor-pointer bg-gradient-to-r from-brand-500 to-[#cba358]"
 								onclick={(e) => { e.stopPropagation(); selectInstance(p.id); goto('/'); }}
 							>
-								<Play class="h-3.5 w-3.5 fill-current" /> {t("instances.play")}
+								<Play class="h-3.5 w-3.5 fill-current stroke-[3]" /> {t("instances.play")}
 							</button>
 						</div>
 					</Card>
@@ -1304,27 +1546,25 @@
 						</button>
 					{/if}
 					<div class="flex min-w-0 items-center gap-3">
-						{#if tagColor}
-							<span class="h-2.5 w-2.5 shrink-0 rounded-full" style="background: {colorOptions.find((c) => c.value === tagColor)?.color ?? 'rgb(45, 212, 191)'};"></span>
-						{:else if isActive}
-							<span class="h-2 w-2 shrink-0 rounded-full" style="background: rgb(45, 212, 191);"></span>
-						{:else}
-							<span class="h-2 w-2 shrink-0 rounded-full" style="background: rgb(var(--border));"></span>
-						{/if}
+						<img src={getIconSrc(p.icon)} alt="Minecraft" class="w-5 h-5 rounded object-contain [image-rendering:pixelated] drop-shadow-xs shrink-0 bg-black/40 border border-white/10" />
 						<span class="truncate text-sm font-medium">{p.name}</span>
+						{#if isActive}
+							<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase flex items-center gap-1">
+								<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Ativa
+							</span>
+						{/if}
 					</div>
 					<span class="flex items-center gap-1 truncate font-mono text-xs" style="color: rgb(var(--fg-muted));">
-					<span class="inline-block mc-diamond-shape" style="width: 5px; height: 5px;"></span>
-					{p.mcVersion}
-				</span>
-					<span class="truncate text-xs" style="color: rgb(var(--fg-muted));">{p.loader}</span>
+						<span class="inline-block mc-diamond-shape" style="width: 5px; height: 5px;"></span>
+						{p.mcVersion}
+					</span>
+					<span class="truncate text-xs font-bold uppercase" style="color: rgb(var(--fg-muted));">{p.loader}</span>
 					<div class="flex items-center justify-end gap-1.5">
 						<button
-							class="flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-black text-black transition-all hover:brightness-110 active:scale-95 shadow-sm"
-							style="background-color: var(--accent-color, #e2b86b);"
+							class="flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-black text-black transition-all hover:brightness-110 active:scale-95 shadow-sm cursor-pointer bg-gradient-to-r from-brand-500 to-[#cba358]"
 							onclick={(e) => { e.stopPropagation(); selectInstance(p.id); goto('/'); }}
 						>
-							<Play class="h-3 w-3 fill-current" /> {t("instances.play")}
+							<Play class="h-3 w-3 fill-current stroke-[2.5]" /> {t("instances.play")}
 						</button>
 						<button
 							class="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer"
@@ -1336,66 +1576,14 @@
 						</button>
 						<button
 							class="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer"
-							onclick={(e) => { e.stopPropagation(); duplicateInstance(p.id); }}
-							aria-label={t("instances.duplicate")}
-						>
-							<Copy class="h-3.5 w-3.5" />
-						</button>
-						<button
-							class="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer"
 							onclick={(e) => { e.stopPropagation(); openFolder(p.id); }}
 							aria-label={t("instances.openFolder")}
 						>
 							<FolderOpen class="h-3.5 w-3.5" />
 						</button>
 						<button
-							class="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer"
-							onclick={(e) => { e.stopPropagation(); openScreenshots(p.id); }}
-							aria-label={t("nav.screenshots")}
-						>
-							<Image class="h-3.5 w-3.5" />
-						</button>
-						<button
-							class="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer"
-							onclick={(e) => { e.stopPropagation(); openNotes(p.id); }}
-							aria-label={t("instances.notes")}
-						>
-							<StickyNote class="h-3.5 w-3.5" />
-						</button>
-						<div class="relative">
-							<button
-								class="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer"
-								style="color: {tagColor ? colorOptions.find((c) => c.value === tagColor)?.color ?? 'rgb(var(--fg-subtle))' : 'rgb(var(--fg-subtle))'};"
-								onclick={(e) => { e.stopPropagation(); colorPickerId = colorPickerId === p.id ? null : p.id; }}
-								aria-label={t("instances.colorTag")}
-							>
-								<Paintbrush class="h-3.5 w-3.5" />
-							</button>
-							{#if colorPickerId === p.id}
-								<div class="absolute bottom-full right-0 z-30 mb-1 flex gap-1 rounded-full p-1.5 bg-[#1e1f24] border border-white/10 shadow-xl">
-									{#each colorOptions as c}
-										<button
-											class="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
-											style="background: {c.color}; border-color: {tagColor === c.value ? 'white' : 'transparent'};"
-											onclick={(e) => { e.stopPropagation(); saveColor(p.id, c.value); colorPickerId = null; }}
-											aria-label={t("instances.setThemeColor", { color: c.value })}
-										></button>
-									{/each}
-									{#if tagColor}
-										<button
-											class="h-5 w-5 rounded-full border border-white/20 bg-white/5 hover:bg-white/15 flex items-center justify-center transition-transform hover:scale-110"
-											onclick={(e) => { e.stopPropagation(); removeColor(p.id); colorPickerId = null; }}
-											aria-label={t("instances.removeColor")}
-										>
-											<X class="h-3 w-3 text-white/60" />
-										</button>
-									{/if}
-								</div>
-							{/if}
-						</div>
-						<button
 							class="h-7 w-7 rounded-full flex items-center justify-center hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-all cursor-pointer"
-							onclick={(e) => { e.stopPropagation(); deleteInstance(p.id); }}
+							onclick={(e) => { e.stopPropagation(); confirmDeleteInstance = { id: p.id, name: p.name, gameDir: p.gameDir }; }}
 							aria-label={t("common.delete")}
 						>
 							<Trash2 class="h-3.5 w-3.5" />
@@ -1717,17 +1905,49 @@
 		isOpen={editingInstance !== null}
 		onClose={() => (editingInstance = null)}
 		title={t("instances.edit")}
-		maxWidth="max-w-lg"
+		maxWidth="max-w-xl"
 	>
 		{#if editingInstance}
-			<div class="flex flex-col gap-4">
-				<div>
-					<label for="edit-instance-name" class="mb-1.5 block text-xs font-medium" style="color: rgb(var(--fg-muted));">{t("instances.name")}</label>
-					<Input id="edit-instance-name" bind:value={editName} placeholder={t("instances.namePlaceholder")} />
+			<div class="flex flex-col gap-4 text-xs select-none">
+				<!-- Instance Name and Icon -->
+				<div class="space-y-1.5">
+					<label for="edit-instance-name" class="block text-xs font-bold text-white/70 uppercase tracking-wider">{t("instances.name")}</label>
+					<div class="flex items-center gap-3">
+						<div class="h-11 w-11 rounded-2xl bg-[#18191c] border border-white/10 flex items-center justify-center shrink-0 p-1">
+							<img src={getIconSrc(editIcon)} alt="Ícone da Instância" class="w-8 h-8 object-contain [image-rendering:pixelated]" />
+						</div>
+						<Input id="edit-instance-name" bind:value={editName} placeholder={t("instances.namePlaceholder")} />
+					</div>
 				</div>
 
-				<div>
-					<label for="edit-instance-version" class="mb-1.5 block text-xs font-medium" style="color: rgb(var(--fg-muted));">{t("instances.version")}</label>
+				<!-- Icon Selector -->
+				<div class="space-y-1.5">
+					<span class="block text-xs font-bold text-white/70 uppercase tracking-wider">Ícone da Instância</span>
+					<div class="flex items-center gap-1.5 bg-[#18191c] p-1.5 rounded-2xl border border-white/10">
+						{#each iconPresets as ip}
+							<button
+								type="button"
+								class="w-8 h-8 rounded-xl p-1 transition-all cursor-pointer flex items-center justify-center {editIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-white/5 opacity-60 hover:opacity-100'}"
+								onclick={() => editIcon = ip.id}
+								title={ip.label}
+							>
+								<img src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
+							</button>
+						{/each}
+						<button
+							type="button"
+							class="h-8 px-2.5 rounded-xl text-[10px] font-bold text-brand-500 hover:bg-brand-500/10 border border-brand-500/30 transition-all cursor-pointer shrink-0 ml-auto"
+							onclick={() => pickCustomIcon(true)}
+							title="Carregar imagem do PC"
+						>
+							+ Carregar Arquivo
+						</button>
+					</div>
+				</div>
+
+				<!-- Minecraft Version -->
+				<div class="space-y-1.5">
+					<span class="block text-xs font-bold text-white/70 uppercase tracking-wider">{t("instances.version")}</span>
 					<FilterableVersionSelect
 						versions={availableVersions}
 						bind:value={editVersion}
@@ -1735,6 +1955,53 @@
 					/>
 				</div>
 
+				<!-- RAM Allocation with System RAM Presets -->
+				<div class="bg-[#18191c] border border-white/5 rounded-2xl p-3.5 space-y-2">
+					<div class="flex items-center justify-between text-xs">
+						<div class="flex items-center gap-2">
+							<span class="font-bold text-white/80">Alocação de Memória RAM</span>
+							<span class="text-[10px] text-white/40 font-mono bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
+								Detectado no PC: {Math.round(systemRamMb / 1024)} GB
+							</span>
+						</div>
+						<span class="font-mono font-black text-brand-500 bg-brand-500/10 px-2.5 py-0.5 rounded-full border border-brand-500/20">
+							{editRamGb} GB ({editRamGb * 1024} MB)
+						</span>
+					</div>
+
+					<div class="flex items-center gap-1.5">
+						{#each ramPresets as ram}
+							{@const isRecommended = (systemRamMb >= 12288 && ram === 6) || (systemRamMb < 12288 && ram === 4)}
+							<button
+								type="button"
+								class="flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer relative {editRamGb === ram ? 'bg-brand-500 text-black shadow-md' : 'bg-[#222328] text-white/60 hover:text-white border border-white/5 hover:border-white/20'}"
+								onclick={() => editRamGb = ram}
+							>
+								<span>{ram} GB</span>
+								{#if isRecommended}
+									<span class="absolute -top-2 left-1/2 -translate-x-1/2 text-[7px] font-extrabold uppercase px-1 rounded bg-emerald-500 text-black">
+										Ideal
+									</span>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				<!-- JVM Arguments -->
+				<div class="space-y-1.5">
+					<label for="edit-jvm-args" class="block text-xs font-bold text-white/70 uppercase tracking-wider">Argumentos JVM Customizados</label>
+					<input
+						id="edit-jvm-args"
+						type="text"
+						bind:value={editJvmArgs}
+						placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch"
+						class="w-full bg-[#18191c] border border-white/10 focus:border-brand-500 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-colors"
+					/>
+					<p class="text-[10px] text-white/40">Parâmetros extras passados diretamente para a máquina virtual Java.</p>
+				</div>
+
+				<!-- Footer Buttons -->
 				<div class="flex justify-end gap-2 border-t pt-4" style="border-color: rgb(var(--border));">
 					<Button variant="secondary" onclick={() => (editingInstance = null)}>
 						{t("common.cancel")}
@@ -1747,4 +2014,58 @@
 			</div>
 		{/if}
 	</Modal>
+
+	<!-- Confirmation Modal for Deletion -->
+	{#if confirmDeleteInstance}
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4"
+			transition:fade={{ duration: 150 }}
+		>
+			<div class="w-full max-w-md bg-[#141518] border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4 select-none">
+				<div class="flex items-center gap-3">
+					<div class="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+						<Trash2 class="w-5 h-5" />
+					</div>
+					<div>
+						<h3 class="text-sm font-black text-white">Excluir Instância</h3>
+						<p class="text-[11px] text-white/50">Esta ação não poderá ser desfeita</p>
+					</div>
+				</div>
+
+				<div class="bg-[#18191c] p-3.5 rounded-2xl border border-white/5 text-xs text-white/70 space-y-1.5">
+					<p>Tem certeza que deseja apagar a instância <strong class="text-white">"{confirmDeleteInstance.name}"</strong>?</p>
+					<p class="text-[10px] text-white/40 font-mono break-all">Pasta: {confirmDeleteInstance.gameDir}</p>
+					<p class="text-[11px] text-red-400/90 font-medium">Todos os mundos, saves, mods e arquivos salvos serão removidos permanentemente do disco.</p>
+				</div>
+
+				<div class="flex justify-end gap-2.5 pt-2">
+					<button
+						type="button"
+						class="px-5 py-2.5 rounded-full text-xs font-bold text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+						onclick={() => (confirmDeleteInstance = null)}
+					>
+						Cancelar
+					</button>
+					<button
+						type="button"
+						class="px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-white font-black text-xs transition-all active:scale-95 shadow-md cursor-pointer flex items-center gap-2"
+						disabled={deleting}
+						onclick={async () => {
+							if (!confirmDeleteInstance) return;
+							deleting = true;
+							const id = confirmDeleteInstance.id;
+							const name = confirmDeleteInstance.name;
+							confirmDeleteInstance = null;
+							await deleteInstance(id);
+							deleting = false;
+							toast(`Instância "${name}" excluída com sucesso!`, "success");
+						}}
+					>
+						<Trash2 class="w-3.5 h-3.5" />
+						Excluir Definitivamente
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 </div>

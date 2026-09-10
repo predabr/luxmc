@@ -16,8 +16,9 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
 		INSERT INTO profiles
 			(id, name, icon, mc_version, loader, loader_version, java_path, jvm_args,
 			 resolution_w, resolution_h, fullscreen, game_dir, created_at, updated_at,
-			 favorite, notes, last_played, launch_count, mod_count, disk_usage, ram_mb, instance_group)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			 favorite, notes, last_played, launch_count, mod_count, disk_usage, ram_mb, instance_group,
+			 auto_optimize, use_vulkan)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET
 			name=excluded.name, icon=excluded.icon, mc_version=excluded.mc_version,
 			loader=excluded.loader, loader_version=excluded.loader_version,
@@ -28,7 +29,8 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
 			favorite=excluded.favorite, notes=excluded.notes,
 			last_played=excluded.last_played, launch_count=excluded.launch_count,
 			mod_count=excluded.mod_count, disk_usage=excluded.disk_usage,
-			ram_mb=excluded.ram_mb, instance_group=excluded.instance_group
+			ram_mb=excluded.ram_mb, instance_group=excluded.instance_group,
+			auto_optimize=excluded.auto_optimize, use_vulkan=excluded.use_vulkan
 		"#,
     )
     .bind(&p.id)
@@ -53,6 +55,8 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
     .bind(p.disk_usage)
     .bind(p.ram_mb)
     .bind(&p.instance_group)
+    .bind(p.auto_optimize)
+    .bind(p.use_vulkan)
     .execute(db.pool())
     .await
     .map_err(AppError::from)?;

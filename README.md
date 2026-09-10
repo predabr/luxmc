@@ -1,11 +1,11 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="180" />
-  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.0.0-BETA</span></h1>
+  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.1.0-BETA</span></h1>
   <p><strong>O Minecraft Launcher de alta performance projetado de Linux para Linux.</strong></p>
   <p><em>Rápido. Moderno. Poderoso. 100% gratuito.</em></p>
 
   <p>
-    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.0.0--BETA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
+    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.1.0--BETA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
     <img src="https://img.shields.io/badge/platform-Linux-blue?style=for-the-badge&logo=linux" alt="Linux" />
     <img src="https://img.shields.io/badge/Windows-Em%20Breve-0078D4?style=for-the-badge&logo=windows" alt="Windows Em Breve" />
     <img src="https://img.shields.io/badge/backend-Rust%20%2F%20Tauri%202-orange?style=for-the-badge&logo=rust" alt="Rust Tauri 2" />
@@ -53,26 +53,37 @@ O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (T
 
 ---
 
-## 🌟 Novidades na v1.0.0-BETA
+## 🌟 Novidades na v1.1.0-BETA
 
-- ⚡ **Zero-Lag & Aceleração GPU Total:** Pipeline DMA-BUF ativo no WebKitGTK para o Linux AppImage rodar a 60–144 FPS liso na sua GPU (Mesa / Vulkan / OpenGL).
-- 🧠 **Gerenciamento Inteligente de Memória:** Limitadores de memória integrados impedem vazamentos de RAM — o launcher opera de forma estável mesmo em sessões longas.
-- 📦 **Central de Mods com Visão Detalhada:** Navegue com descrição formatada, galeria de screenshots, changelogs e downloads de versões específicas direto do **Modrinth** e **CurseForge**.
-- 🧩 **Gerenciador Interno de Mods por Instância:** Ative/desative mods (`.jar` ↔ `.jar.disabled`), exclua, adicione arquivos locais ou abra a pasta nativa no seu gerenciador de arquivos com 1 clique.
-- 🚀 **Predefinições Rápidas em 1 Clique:** Comece a jogar em segundos com presets prontos de *Vanilla Otimizado (Fabric)*, *PvP Clássico (1.8.9)*, *Survival Moderno* e *Modded NeoForge*.
-- 🔧 **Editor de JVM por Instância:** Predefinições de RAM (2/4/6/8/12 GB) com validador de flags JVM em tempo real e Aikar's Flags automáticas.
-- 📋 **Logs & Crash Reports via `mclo.gs`:** Envie relatórios de erro sanitizados e obtenha links compartilháveis com cópia automática.
-- 🔑 **Suporte a Azure Client ID:** Configure seu Client ID de autenticação Microsoft direto nas Configurações sem recompilar.
-- 🎬 **Cutscene Cinematográfica:** Abertura rápida de 2.3s com anéis orbitais, snap magnético e efeito sonoro sintetizado (pule com `Espaço` ou clique).
-- 📊 **Barra de Progresso de Downloads:** Velocidade, ETA e animação em tempo real para instalação de mods e versões.
-- 🔄 **Reparo, Backup e Exportação de Instâncias:** Repare instâncias corrompidas, faça backup de saves e exporte instâncias como `.zip`.
-- 🎨 **Redesign Completo da Interface:**
-  - Login hierárquico: Microsoft primário, Offline secundário, Dev terciário.
-  - Cards de mods com imagem dual (banner + ícone) e badges de fonte.
-  - Sidebar em squircle com gradiente metálico refinado.
-  - Switches de alternância elegantes no estilo moderno.
-  - Indicador de status da conta (online/offline/expirado) na sidebar.
-  - Timeline de changelog na seção Sobre.
+- ⚡ **Sistema de Otimização Inteligente Luxmc (Aikar G1GC Tuning):** Gerador dinâmico de parâmetros de JVM baseado na especificação de Aikar para G1GC do Minecraft. Ajusta o tamanho das regiões de heap (`G1HeapRegionSize`), threads paralelas e threads de marcação concorrente proporcionalmente à RAM alocada:
+  - **Medição Real no Host (OpenJDK 26):** Inicialização padrão em 41ms vs. 289ms com flags inteligentes. Os ~248ms adicionais no boot são decorrentes de `-XX:+AlwaysPreTouch`, que pré-aloca e toca todas as páginas físicas de memória do SO durante a inicialização para **eliminar congelamentos e engasgos de GC durante a gameplay**.
+- 🚀 **Pacote de Performance Essencial em 1-Clique:**
+  - Instalação oficial automatizada para Fabric (*Sodium*, *Lithium*, *FerriteCore*) e Forge/NeoForge (*Embeddium*, *ModernFix*, *FerriteCore*).
+  - Resolução direta de versões compatíveis via Modrinth API com notificação clara para instâncias Vanilla.
+- 🎮 **Aceleração Gráfica Mesa Zink / Vulkan no Linux:**
+  - Redireciona o pipeline gráfico OpenGL diretamente para os drivers Vulkan nativos da GPU (RADV para AMD, ANV para Intel) via Gallium Zink.
+  - Ativação automática de `RADV_PERFTEST=aco` para compilação ultrarrápida de shaders em GPUs AMD.
+- 🔍 **Detecção de Hardware Nativa no Linux:**
+  - Leitura direta pelo subsistema DRM em `/sys/class/drm` e `lspci`, identificando fabricante da GPU, renderizador e suporte a Zink sem subprocessos desnecessários.
+- 🛠️ **Correção Crítica no Pipeline de Inicialização de JVM:**
+  - Remoção de flags hardcoded que bloqueavam a alocação de memória customizada em instâncias.
+- 💎 **Varredura Completa de Design & Zero Warnings:**
+  - Padronização no design system Luxury Dark (`#141518` / `#caa97c`) em todas as telas (Settings, Logs, Screenshots, Skins e Servidores).
+  - 100% de conformidade técnica: zero erros e zero warnings em `cargo check`, `cargo test`, `pnpm check` e `pnpm build`.
+
+<details>
+<summary><strong>📦 Histórico de Versões Anteriores (v1.0.0-BETA)</strong></summary>
+
+- ⚡ **Zero-Lag & Aceleração GPU Total:** Pipeline DMA-BUF ativo no WebKitGTK para o Linux AppImage rodar liso na sua GPU.
+- 🧠 **Gerenciamento Inteligente de Memória:** Limitadores de memória integrados impedem vazamentos de RAM.
+- 📦 **Central de Mods com Visão Detalhada:** Descrição formatada, galeria, changelogs e downloads direto do **Modrinth** e **CurseForge**.
+- 🧩 **Gerenciador Interno de Mods por Instância:** Ative/desative mods (`.jar` ↔ `.jar.disabled`), exclua ou abra a pasta nativa.
+- 📋 **Logs & Crash Reports via `mclo.gs`:** Envie relatórios de erro sanitizados com cópia automática de link.
+- 🔑 **Suporte a Azure Client ID:** Configure seu Client ID Microsoft direto nas Configurações.
+- 🎬 **Cutscene Cinematográfica:** Abertura rápida de 2.3s com anéis orbitais e snap magnético.
+- 🔄 **Reparo, Backup e Exportação de Instâncias:** Repare instâncias corrompidas e exporte instâncias como `.zip`.
+
+</details>
 
 ---
 
@@ -185,20 +196,20 @@ Funciona em **qualquer** distribuição Linux (Ubuntu, Debian, Fedora, Arch, Pop
 ```bash
 # 1. Baixe o AppImage da aba Releases
 # 2. Dê permissão de execução
-chmod +x luxmc-1.0.0-beta.AppImage
+chmod +x luxmc-1.1.0-beta.AppImage
 
 # 3. Execute
-./luxmc-1.0.0-beta.AppImage
+./luxmc-1.1.0-beta.AppImage
 ```
 
 ### 🔴 Debian / Ubuntu / Pop!_OS / Linux Mint (.deb)
 ```bash
-sudo apt install ./luxmc_1.0.0_amd64.deb
+sudo apt install ./luxmc_1.1.0_amd64.deb
 ```
 
 ### 🔵 Fedora / RHEL / openSUSE (.rpm)
 ```bash
-sudo dnf install ./luxmc-1.0.0.x86_64.rpm
+sudo dnf install ./luxmc-1.1.0.x86_64.rpm
 ```
 
 ### 🟣 Arch Linux / Manjaro (AUR)

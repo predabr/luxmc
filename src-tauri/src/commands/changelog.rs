@@ -41,5 +41,19 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 				"Account status indicator: online / expiring / expired / offline".into(),
 			],
 		},
+		ChangelogEntry {
+			version: "1.1.0-beta".into(),
+			date: "2026-09-10".into(),
+			title: "Otimização Inteligente & Suporte Completo a Mods".into(),
+			highlights: vec![
+				"Sistema de Otimização Inteligente Luxmc baseado nas Aikar's Flags (G1GC) com dimensionamento dinâmico de regiões de heap e threads por RAM".into(),
+				"Pacote de Performance Essencial (Sodium, Lithium, FerriteCore) com instalação em 1-clique e resolução oficial via Modrinth API".into(),
+				"Aceleração gráfica Mesa Zink / Vulkan nativa no Linux para GPUs AMD e Intel via driver Gallium Zink".into(),
+				"Detecção de hardware no Linux via subsistema DRM (/sys/class/drm) com identificação precisa de placa gráfica e aceleração".into(),
+				"Correção na injeção de parâmetros JVM: flags dinâmicas respeitando a memória configurada sem duplicatas ou bloqueios".into(),
+				"Suporte estável aos mod loaders Fabric, Forge, NeoForge e Quilt com verificação de integridade e carregamento em jogo comprovado".into(),
+				"Refinamento visual com tema luxury dark (#141518 / #caa97c) em todas as telas e painéis do launcher".into(),
+			],
+		},
 	])
 }

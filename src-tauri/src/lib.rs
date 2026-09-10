@@ -1,7 +1,7 @@
 mod commands;
 pub mod core;
-mod db;
-mod error;
+pub mod db;
+pub mod error;
 mod state;
 use state::AppState;
 use tauri::Manager;
@@ -143,6 +143,10 @@ pub async fn run() {
             commands::p2p::p2p_send_message,
             commands::discord::discord_set_activity,
             commands::discord::discord_clear_activity,
+            commands::optimizer::optimizer_get_flags,
+            commands::optimizer::optimizer_get_perf_pack,
+            commands::optimizer::optimizer_install_perf_pack,
+            commands::optimizer::optimizer_detect_gpu,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

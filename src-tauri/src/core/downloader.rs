@@ -162,12 +162,13 @@ impl DownloadManager {
         version_dir: &PathBuf,
     ) -> AppResult<()> {
         let client_path = version_dir.join(format!("{}.jar", version_id));
+        let client_filename = format!("{}.jar", version_id);
         let entry = DownloadEntry {
             url: downloads.client.url.clone(),
             size: downloads.client.size,
             sha1: downloads.client.sha1.clone(),
         };
-        download_file_retry(self, &entry, &client_path, "client jar").await
+        download_file_retry(self, &entry, &client_path, &client_filename).await
     }
 
     async fn download_assets(
@@ -202,7 +203,7 @@ impl DownloadManager {
                 size: asset_index.size,
                 sha1: String::new(),
             };
-            download_file_retry(self, &entry, &index_path, "asset index").await?;
+            download_file_retry(self, &entry, &index_path, &format!("{}.json", asset_index.id)).await?;
 
             Self::emit_progress(
                 self,
@@ -259,7 +260,23 @@ impl DownloadManager {
         let mgr = Arc::new(self.clone_for_parallel());
         let mut completed = 0u64;
         let mut bytes_so_far = 0u64;
+        let start_time = Instant::now();
         let mut join_set: JoinSet<(u64, Result<(), String>)> = JoinSet::new();
+
+        if total > 0 {
+            Self::emit_progress(
+                &mgr,
+                &DownloadProgress {
+                    phase: "assets".into(),
+                    total,
+                    completed: 0,
+                    current_file: "Iniciando download dos assets...".into(),
+                    bytes_downloaded: 0,
+                    total_bytes,
+                    speed: None,
+                },
+            );
+        }
 
         for (url, size, hash) in to_download {
             let permit = mgr.semaphore.clone().acquire_owned().await.unwrap();
@@ -281,45 +298,83 @@ impl DownloadManager {
                 }
             });
 
-            completed += 1;
-            Self::emit_progress(
-                &mgr,
-                &DownloadProgress {
-                    phase: "assets".into(),
-                    total,
-                    completed,
-                    current_file: hash,
-                    bytes_downloaded: bytes_so_far,
-                    total_bytes,
-                    speed: None,
-                },
-            );
+            while join_set.len() >= MAX_CONCURRENT_DOWNLOADS {
+                if let Some(result) = join_set.join_next().await {
+                    match result {
+                        Ok((dl_bytes, Ok(()))) => {
+                            completed += 1;
+                            bytes_so_far += dl_bytes;
+                            let elapsed = start_time.elapsed().as_millis() as u64;
+                            let bps = if elapsed > 0 {
+                                bytes_so_far * 1000 / elapsed
+                            } else {
+                                0
+                            };
+                            Self::emit_progress(
+                                &mgr,
+                                &DownloadProgress {
+                                    phase: "assets".into(),
+                                    total,
+                                    completed,
+                                    current_file: format!("asset {:04}/{}", completed, total),
+                                    bytes_downloaded: bytes_so_far,
+                                    total_bytes,
+                                    speed: Some(DownloadSpeed {
+                                        bytes_per_second: bps,
+                                        total_downloaded: bytes_so_far,
+                                        elapsed_ms: elapsed,
+                                    }),
+                                },
+                            );
+                        }
+                        Ok((_, Err(e))) => {
+                            join_set.abort_all();
+                            return Err(AppError::Internal(format!("asset download failed: {}", e)));
+                        }
+                        Err(e) => {
+                            join_set.abort_all();
+                            return Err(AppError::Internal(format!("asset task failed: {}", e)));
+                        }
+                    }
+                }
+            }
+        }
 
-            while let Some(result) = join_set.join_next().await {
-                match result {
-                    Ok((dl_bytes, Ok(()))) => {
-                        bytes_so_far += dl_bytes;
-                        Self::emit_progress(
-                            &mgr,
-                            &DownloadProgress {
-                                phase: "assets".into(),
-                                total,
-                                completed,
-                                current_file: String::new(),
-                                bytes_downloaded: bytes_so_far,
-                                total_bytes,
-                                speed: None,
-                            },
-                        );
-                    }
-                    Ok((_, Err(e))) => {
-                        join_set.abort_all();
-                        return Err(AppError::Internal(format!("asset download failed: {}", e)));
-                    }
-                    Err(e) => {
-                        join_set.abort_all();
-                        return Err(AppError::Internal(format!("asset task failed: {}", e)));
-                    }
+        while let Some(result) = join_set.join_next().await {
+            match result {
+                Ok((dl_bytes, Ok(()))) => {
+                    completed += 1;
+                    bytes_so_far += dl_bytes;
+                    let elapsed = start_time.elapsed().as_millis() as u64;
+                    let bps = if elapsed > 0 {
+                        bytes_so_far * 1000 / elapsed
+                    } else {
+                        0
+                    };
+                    Self::emit_progress(
+                        &mgr,
+                        &DownloadProgress {
+                            phase: "assets".into(),
+                            total,
+                            completed,
+                            current_file: format!("asset {:04}/{}", completed, total),
+                            bytes_downloaded: bytes_so_far,
+                            total_bytes,
+                            speed: Some(DownloadSpeed {
+                                bytes_per_second: bps,
+                                total_downloaded: bytes_so_far,
+                                elapsed_ms: elapsed,
+                            }),
+                        },
+                    );
+                }
+                Ok((_, Err(e))) => {
+                    join_set.abort_all();
+                    return Err(AppError::Internal(format!("asset download failed: {}", e)));
+                }
+                Err(e) => {
+                    join_set.abort_all();
+                    return Err(AppError::Internal(format!("asset task failed: {}", e)));
                 }
             }
         }
@@ -344,7 +399,7 @@ impl DownloadManager {
         let lib_dir = self.libraries_dir();
         tokio::fs::create_dir_all(&lib_dir).await?;
 
-        let mut to_download: Vec<(String, PathBuf, String, String)> = Vec::new();
+        let mut to_download: Vec<(String, PathBuf, String, String, u64)> = Vec::new();
 
         for lib in libraries {
             if !crate::core::launcher::is_library_allowed(lib) {
@@ -365,6 +420,7 @@ impl DownloadManager {
                         path.clone(),
                         artifact.sha1.clone(),
                         lib.name.clone(),
+                        artifact.size,
                     ));
                     continue;
                 }
@@ -375,22 +431,40 @@ impl DownloadManager {
                 if let Some(parent) = path.parent() {
                     tokio::fs::create_dir_all(parent).await?;
                 }
-                to_download.push((url, path, String::new(), lib.name.clone()));
+                to_download.push((url, path, String::new(), lib.name.clone(), 0));
             }
         }
 
         let total = to_download.len() as u64;
-        Self::emit_log(self, &format!("Downloading {} libraries", total));
+        let total_bytes: u64 = to_download.iter().map(|(_, _, _, _, s)| *s).sum();
+        Self::emit_log(self, &format!("Downloading {} libraries ({} bytes)", total, total_bytes));
 
         let mgr = Arc::new(self.clone_for_parallel());
         let mut completed = 0u64;
-        let mut join_set: JoinSet<Result<(), String>> = JoinSet::new();
+        let mut bytes_so_far = 0u64;
+        let start_time = Instant::now();
+        let mut join_set: JoinSet<(String, u64, Result<(), String>)> = JoinSet::new();
 
-        for (url, path, sha1, name) in &to_download {
+        if total > 0 {
+            Self::emit_progress(
+                &mgr,
+                &DownloadProgress {
+                    phase: "libraries".into(),
+                    total,
+                    completed: 0,
+                    current_file: "Verificando bibliotecas...".into(),
+                    bytes_downloaded: 0,
+                    total_bytes,
+                    speed: None,
+                },
+            );
+        }
+
+        for (url, path, sha1, name, size) in to_download {
             let permit = mgr.semaphore.clone().acquire_owned().await.unwrap();
             let entry = DownloadEntry {
                 url: url.clone(),
-                size: 0,
+                size,
                 sha1: sha1.clone(),
             };
             let path = path.clone();
@@ -401,30 +475,41 @@ impl DownloadManager {
                 let result = download_file_retry(&mgr_clone, &entry, &path, &label).await;
                 drop(permit);
                 match result {
-                    Ok(()) => Ok(()),
-                    Err(e) => Err(e.to_string()),
+                    Ok(()) => (label, size, Ok(())),
+                    Err(e) => (label, 0, Err(e.to_string())),
                 }
             });
-
-            completed += 1;
-            Self::emit_progress(
-                &mgr,
-                &DownloadProgress {
-                    phase: "libraries".into(),
-                    total,
-                    completed,
-                    current_file: name.clone(),
-                    bytes_downloaded: 0,
-                    total_bytes: 0,
-                    speed: None,
-                },
-            );
 
             while join_set.len() >= MAX_CONCURRENT_DOWNLOADS {
                 if let Some(result) = join_set.join_next().await {
                     match result {
-                        Ok(Ok(())) => {}
-                        Ok(Err(e)) => {
+                        Ok((lib_name, dl_bytes, Ok(()))) => {
+                            completed += 1;
+                            bytes_so_far += dl_bytes;
+                            let elapsed = start_time.elapsed().as_millis() as u64;
+                            let bps = if elapsed > 0 {
+                                bytes_so_far * 1000 / elapsed
+                            } else {
+                                0
+                            };
+                            Self::emit_progress(
+                                &mgr,
+                                &DownloadProgress {
+                                    phase: "libraries".into(),
+                                    total,
+                                    completed,
+                                    current_file: lib_name,
+                                    bytes_downloaded: bytes_so_far,
+                                    total_bytes,
+                                    speed: Some(DownloadSpeed {
+                                        bytes_per_second: bps,
+                                        total_downloaded: bytes_so_far,
+                                        elapsed_ms: elapsed,
+                                    }),
+                                },
+                            );
+                        }
+                        Ok((_, _, Err(e))) => {
                             join_set.abort_all();
                             return Err(AppError::Internal(format!(
                                 "library download failed: {}",
@@ -442,8 +527,33 @@ impl DownloadManager {
 
         while let Some(result) = join_set.join_next().await {
             match result {
-                Ok(Ok(())) => {}
-                Ok(Err(e)) => {
+                Ok((lib_name, dl_bytes, Ok(()))) => {
+                    completed += 1;
+                    bytes_so_far += dl_bytes;
+                    let elapsed = start_time.elapsed().as_millis() as u64;
+                    let bps = if elapsed > 0 {
+                        bytes_so_far * 1000 / elapsed
+                    } else {
+                        0
+                    };
+                    Self::emit_progress(
+                        &mgr,
+                        &DownloadProgress {
+                            phase: "libraries".into(),
+                            total,
+                            completed,
+                            current_file: lib_name,
+                            bytes_downloaded: bytes_so_far,
+                            total_bytes,
+                            speed: Some(DownloadSpeed {
+                                bytes_per_second: bps,
+                                total_downloaded: bytes_so_far,
+                                elapsed_ms: elapsed,
+                            }),
+                        },
+                    );
+                }
+                Ok((_, _, Err(e))) => {
                     join_set.abort_all();
                     return Err(AppError::Internal(format!(
                         "library download failed: {}",
@@ -464,8 +574,8 @@ impl DownloadManager {
                 total,
                 completed: total,
                 current_file: String::new(),
-                bytes_downloaded: 0,
-                total_bytes: 0,
+                bytes_downloaded: total_bytes,
+                total_bytes,
                 speed: None,
             },
         );

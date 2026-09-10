@@ -29,16 +29,47 @@
 		return `${Math.round(bps / 1024)} KB/s`;
 	});
 
-	const etaText = $derived.by(() => {
-		if (!progress?.speed?.bytesPerSecond || !progress.totalBytes || progress.totalBytes <= progress.bytesDownloaded) {
-			return null;
+	const phaseTitle = $derived.by(() => {
+		if (isComplete) return "Download concluído!";
+		if (!progress) return "Baixando arquivos...";
+		switch (progress.phase) {
+			case "client":
+			case "downloading":
+				return "Baixando Minecraft client.jar...";
+			case "libraries":
+				return "Baixando bibliotecas nativas...";
+			case "assets":
+				return "Baixando texturas e recursos (assets)...";
+			case "asset_index":
+				return "Indexando recursos do jogo...";
+			case "java":
+				return "Instalando Java Runtime...";
+			default:
+				return progress.phase || "Baixando arquivos...";
 		}
-		const remainingBytes = progress.totalBytes - progress.bytesDownloaded;
-		const remainingSecs = Math.round(remainingBytes / progress.speed.bytesPerSecond);
-		if (remainingSecs <= 0 || remainingSecs > 3600) return null;
-		const mins = Math.floor(remainingSecs / 60);
-		const secs = remainingSecs % 60;
-		return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+	});
+
+	const etaText = $derived.by(() => {
+		if (!progress?.speed?.bytesPerSecond) return null;
+		if (progress.totalBytes > 0 && progress.totalBytes > progress.bytesDownloaded) {
+			const remainingBytes = progress.totalBytes - progress.bytesDownloaded;
+			const remainingSecs = Math.round(remainingBytes / progress.speed.bytesPerSecond);
+			if (remainingSecs > 0 && remainingSecs <= 3600) {
+				const mins = Math.floor(remainingSecs / 60);
+				const secs = remainingSecs % 60;
+				return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+			}
+		} else if (progress.total > 0 && progress.total > progress.completed && progress.completed > 0 && progress.speed.elapsedMs > 0) {
+			const remainingItems = progress.total - progress.completed;
+			const msPerItem = progress.speed.elapsedMs / progress.completed;
+			const remainingSecs = Math.round((remainingItems * msPerItem) / 1000);
+			if (remainingSecs > 0 && remainingSecs <= 3600) {
+				const mins = Math.floor(remainingSecs / 60);
+				const secs = remainingSecs % 60;
+				return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+			}
+		}
+		return null;
 	});
 
 	const isComplete = $derived.by(() => {
@@ -91,14 +122,14 @@
 							<CheckCircle2 class="w-3.5 h-3.5" />
 						</div>
 					{:else}
-						<div class="h-6 w-6 rounded-full bg-[#6c5ce7]/20 text-[#a29bfe] flex items-center justify-center shrink-0">
+						<div class="h-6 w-6 rounded-full bg-brand-500/20 text-brand-500 flex items-center justify-center shrink-0">
 							<Download class="w-3.5 h-3.5 animate-bounce" />
 						</div>
 					{/if}
 
 					<div class="min-w-0">
 						<p class="font-bold text-white text-xs truncate">
-							{progress.phase || (isComplete ? "Download concluído!" : "Baixando arquivos...")}
+							{phaseTitle}
 						</p>
 						{#if progress.currentFile}
 							<p class="text-[10px] text-white/40 truncate font-mono">
@@ -110,8 +141,8 @@
 
 				<div class="flex items-center gap-3 shrink-0 text-[11px] text-white/60">
 					{#if speedText && !isComplete}
-						<span class="flex items-center gap-1 font-mono text-[#1bd96a]">
-							<Zap class="w-3 h-3 text-[#1bd96a]" />
+						<span class="flex items-center gap-1 font-mono text-brand-500 font-bold">
+							<Zap class="w-3 h-3 text-brand-500" />
 							{speedText}
 						</span>
 					{/if}
@@ -138,7 +169,7 @@
 			<!-- Smooth Progress Track -->
 			<div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden relative">
 				<div 
-					class="h-full bg-gradient-to-r from-[#6c5ce7] via-[#a29bfe] to-[#caa97c] rounded-full transition-all duration-300 ease-out relative"
+					class="h-full bg-gradient-to-r from-brand-500 via-[#ebd095] to-brand-500 rounded-full transition-all duration-300 ease-out relative"
 					style="width: {percent}%"
 				>
 					<div class="absolute inset-0 bg-white/20 animate-pulse"></div>

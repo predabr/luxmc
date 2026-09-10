@@ -72,6 +72,8 @@ pub async fn instances_duplicate(_state: State<'_, AppState>, id: String) -> App
         disk_usage: existing.disk_usage,
         ram_mb: existing.ram_mb,
         instance_group: existing.instance_group,
+        auto_optimize: existing.auto_optimize,
+        use_vulkan: existing.use_vulkan,
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     Ok(row)
@@ -387,6 +389,8 @@ pub async fn instance_import_modpack(
         disk_usage: 0,
         ram_mb: None,
         instance_group: None,
+        auto_optimize: true,
+        use_vulkan: false,
     };
 
     let db = crate::db::shared_db().await?;
@@ -642,6 +646,8 @@ pub async fn instance_import_mrpack(
         disk_usage: 0,
         ram_mb: None,
         instance_group: None,
+        auto_optimize: true,
+        use_vulkan: false,
     };
 
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;

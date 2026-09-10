@@ -282,10 +282,17 @@ impl ModrinthClient {
         project_id: &str,
         mc_version: &str,
     ) -> AppResult<Vec<ModVersion>> {
-        let url = format!(
-			"{}/project/{}/version?game_versions=[\"{}\"]&loaders=[\"fabric\",\"forge\",\"neoforge\",\"quilt\"]",
-			MODRINTH_API, project_id, mc_version
-		);
+        let url = if mc_version.trim().is_empty() || mc_version == "Qualquer Versão" {
+            format!(
+                "{}/project/{}/version?loaders=[\"fabric\",\"forge\",\"neoforge\",\"quilt\"]",
+                MODRINTH_API, project_id
+            )
+        } else {
+            format!(
+                "{}/project/{}/version?game_versions=[\"{}\"]&loaders=[\"fabric\",\"forge\",\"neoforge\",\"quilt\"]",
+                MODRINTH_API, project_id, mc_version
+            )
+        };
         let resp: Vec<serde_json::Value> = self
             .http
             .get(&url)

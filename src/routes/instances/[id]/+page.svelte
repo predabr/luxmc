@@ -32,7 +32,10 @@
 		Share2,
 		Puzzle,
 		ToggleLeft,
-		ToggleRight
+		ToggleRight,
+		Cpu,
+		Zap,
+		Gauge
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -70,6 +73,13 @@
 		instanceBackupSaves,
 		instanceRestoreSaves,
 		jvmArgsValidate,
+		getSystemSpecs,
+		optimizerGetFlags,
+		optimizerGetPerfPack,
+		optimizerInstallPerfPack,
+		optimizerDetectGpu,
+		type GpuInfo,
+		type PerformancePackInfo,
 		type JvmValidationResult,
 		type FileTreeEntry,
 		type WorldDetail,
@@ -84,7 +94,7 @@
 	let searchQuery = $state("");
 
 	let showInstanceSettingsModal = $state(false);
-	let activeInstanceSection = $state<"geral" | "instalacao" | "janela" | "controlos" | "java" | "hooks">("geral");
+	let activeInstanceSection = $state<"geral" | "instalacao" | "otimizacao" | "janela" | "controlos" | "java" | "hooks">("geral");
 	let instanceNameInput = $state("Latest Release");
 	let instanceRamMb = $state(4096);
 	let instanceJvmArgs = $state("");
@@ -93,16 +103,58 @@
 	let instanceWindowWidth = $state(1280);
 	let instanceWindowHeight = $state(720);
 	let instanceStartFullscreen = $state(false);
-	let instanceEnableVulkanOpt = $state(true);
+	let instanceEnableVulkanOpt = $state(false);
+	let instanceAutoOptimize = $state(true);
+	let gpuInfo = $state<GpuInfo | null>(null);
+	let perfPackInfo = $state<PerformancePackInfo | null>(null);
+	let generatedAikarFlags = $state<string[]>([]);
+	let installingPerfPack = $state(false);
 	let instancePreLaunchHook = $state("");
 	let instancePostExitHook = $state("");
+	let systemRamMb = $state(8192);
+
+	const ramPresets = $derived.by(() => {
+		const total = systemRamMb || 8192;
+		const gb = Math.floor(total / 1024);
+		const options: { mb: number; label: string; desc: string }[] = [];
+
+		if (gb <= 4) {
+			options.push({ mb: 1024, label: "1 GB", desc: "Mínimo" });
+			options.push({ mb: 2048, label: "2 GB", desc: "Padrão" });
+			options.push({ mb: 3072, label: "3 GB", desc: "Recomendado" });
+		} else if (gb <= 8) {
+			options.push({ mb: 2048, label: "2 GB", desc: "Vanilla" });
+			options.push({ mb: 4096, label: "4 GB", desc: "Ideal" });
+			options.push({ mb: 6144, label: "6 GB", desc: "Mods leves" });
+		} else if (gb <= 16) {
+			options.push({ mb: 4096, label: "4 GB", desc: "Vanilla" });
+			options.push({ mb: 6144, label: "6 GB", desc: "Ideal mods" });
+			options.push({ mb: 8192, label: "8 GB", desc: "Modpacks" });
+			options.push({ mb: 12288, label: "12 GB", desc: "Pesado" });
+		} else {
+			options.push({ mb: 4096, label: "4 GB", desc: "Leve" });
+			options.push({ mb: 6144, label: "6 GB", desc: "Ideal" });
+			options.push({ mb: 8192, label: "8 GB", desc: "Modpacks" });
+			options.push({ mb: 12288, label: "12 GB", desc: "Pesado" });
+			options.push({ mb: 16384, label: "16 GB", desc: "Extremo" });
+		}
+		return options;
+	});
 
 	$effect(() => {
 		if (activeProfile) {
 			instanceNameInput = activeProfile.name || "Latest Release";
 			instanceRamMb = activeProfile.ramMb || 4096;
 			instanceJvmArgs = activeProfile.jvmArgs || "";
+			instanceAutoOptimize = activeProfile.autoOptimize !== false;
+			instanceEnableVulkanOpt = activeProfile.useVulkan === true;
 		}
+	});
+
+	$effect(() => {
+		optimizerGetFlags(instanceRamMb, instanceAutoOptimize)
+			.then(flags => generatedAikarFlags = flags)
+			.catch(() => {});
 	});
 
 	async function saveInstanceSettings() {
@@ -110,6 +162,8 @@
 			activeProfile.name = instanceNameInput;
 			activeProfile.ramMb = instanceRamMb;
 			activeProfile.jvmArgs = instanceJvmArgs;
+			activeProfile.autoOptimize = instanceAutoOptimize;
+			activeProfile.useVulkan = instanceEnableVulkanOpt;
 
 			try {
 				await profilesUpdate({
@@ -117,11 +171,15 @@
 					name: instanceNameInput,
 					ramMb: instanceRamMb,
 					jvmArgs: instanceJvmArgs,
+					autoOptimize: instanceAutoOptimize,
+					useVulkan: instanceEnableVulkanOpt,
 				});
 				profiles.update(activeProfile.id, {
 					name: instanceNameInput,
 					ramMb: instanceRamMb,
 					jvmArgs: instanceJvmArgs,
+					autoOptimize: instanceAutoOptimize,
+					useVulkan: instanceEnableVulkanOpt,
 				});
 				toast("Configurações salvas com sucesso!", "success");
 			} catch (e) {
@@ -129,6 +187,20 @@
 			}
 		}
 		showInstanceSettingsModal = false;
+	}
+
+	async function handleInstallPerfPack() {
+		if (!activeProfile) return;
+		installingPerfPack = true;
+		try {
+			const installed = await optimizerInstallPerfPack(activeProfile.id);
+			toast(`Pacote de performance instalado: ${installed.join(", ")}`, "success");
+			await refreshAllData();
+		} catch (e) {
+			toast(`Falha ao instalar pacote: ${String(e)}`, "error");
+		} finally {
+			installingPerfPack = false;
+		}
 	}
 
 	let jvmValidation = $state<JvmValidationResult | null>(null);
@@ -272,6 +344,16 @@
 	);
 
 	onMount(async () => {
+		try {
+			const specs = await getSystemSpecs();
+			if (specs && specs.totalRamMb > 0) {
+				systemRamMb = specs.totalRamMb;
+			}
+			gpuInfo = await optimizerDetectGpu();
+			if (activeProfile) {
+				perfPackInfo = await optimizerGetPerfPack(activeProfile.loader, activeProfile.mcVersion);
+			}
+		} catch {}
 		await refreshAllData();
 	});
 
@@ -1365,6 +1447,13 @@
 							</button>
 							<button 
 								type="button"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'otimizacao' ? 'bg-[#222328] text-[#caa97c] border border-[#caa97c]/30 shadow-sm' : 'text-white/40 hover:text-white'}"
+								onclick={() => activeInstanceSection = 'otimizacao'}
+							>
+								<Zap class="w-4 h-4 text-[#caa97c]" /> Otimização Luxmc
+							</button>
+							<button 
+								type="button"
 								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'janela' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
 								onclick={() => activeInstanceSection = 'janela'}
 							>
@@ -1488,6 +1577,148 @@
 							</div>
 						</div>
 
+					{:else if activeInstanceSection === 'otimizacao'}
+						<div class="space-y-5">
+							<div>
+								<div class="flex items-center gap-2">
+									<Zap class="w-4 h-4 text-[#caa97c]" />
+									<h3 class="text-xs font-bold text-white uppercase tracking-wider">Sistema de Otimização Luxmc</h3>
+								</div>
+								<p class="text-[11px] text-white/40 mt-0.5">Tuning inteligente de JVM, detecção de hardware e aceleração gráfica Linux</p>
+							</div>
+
+							<!-- Hardware Detected Card -->
+							<div class="bg-[#18191f] border border-white/5 rounded-2xl p-4 space-y-3">
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-bold text-white/90 flex items-center gap-2">
+										<Cpu class="w-3.5 h-3.5 text-brand-500" /> Hardware Detectado no Sistema
+									</span>
+									<span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+										Linux-First
+									</span>
+								</div>
+								<div class="grid grid-cols-2 gap-2 text-xs">
+									<div class="bg-black/30 p-2.5 rounded-xl border border-white/5">
+										<span class="text-[10px] text-white/40 block">GPU & Renderizador</span>
+										<span class="text-xs font-bold text-white truncate block mt-0.5" title={gpuInfo?.renderer || 'Buscando...'}>
+											{gpuInfo?.renderer || 'AMD Radeon / Mesa RADV'}
+										</span>
+										<span class="text-[10px] text-brand-500 font-mono block mt-0.5">
+											Driver: {gpuInfo?.driver || 'amdgpu'}
+										</span>
+									</div>
+									<div class="bg-black/30 p-2.5 rounded-xl border border-white/5">
+										<span class="text-[10px] text-white/40 block">Memória RAM do Sistema</span>
+										<span class="text-xs font-bold text-white block mt-0.5">
+											{Math.round(systemRamMb / 1024)} GB Totais
+										</span>
+										<span class="text-[10px] text-white/40 font-mono block mt-0.5">
+											Alocado p/ instância: {(instanceRamMb / 1024).toFixed(1)} GB
+										</span>
+									</div>
+								</div>
+							</div>
+
+							<!-- Aikar's Flags Smart Optimization Card -->
+							<div class="bg-[#18191f] border border-white/5 rounded-2xl p-4 space-y-3">
+								<div class="flex items-center justify-between">
+									<div>
+										<div class="flex items-center gap-2">
+											<span class="text-xs font-bold text-white">Flags de JVM Inteligentes (Aikar G1GC)</span>
+											<span class="text-[9px] bg-brand-500/20 text-brand-500 px-1.5 py-0.5 rounded font-bold">Base do Sistema</span>
+										</div>
+										<span class="text-[10px] text-white/40 block mt-0.5">
+											Ajusta dinamicamente tamanhos de região e new-generation para os {instanceRamMb} MB alocados
+										</span>
+									</div>
+									<button 
+										type="button"
+										aria-label="Alternar Flags Aikar"
+										class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceAutoOptimize ? 'bg-[#caa97c] shadow-[0_0_10px_rgba(202,169,124,0.35)]' : 'bg-[#2d2e34]'}"
+										onclick={() => instanceAutoOptimize = !instanceAutoOptimize}
+									>
+										<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {instanceAutoOptimize ? 'translate-x-5' : 'translate-x-0'}"></span>
+									</button>
+								</div>
+
+								<!-- Live Visible JVM Flags Preview -->
+								<div class="space-y-1.5">
+									<div class="flex items-center justify-between text-[10px]">
+										<span class="text-white/50">Flags aplicadas em tempo real:</span>
+										<span class="font-mono text-white/30">{generatedAikarFlags.length} parâmetros</span>
+									</div>
+									<div class="bg-black/50 p-2.5 rounded-xl border border-white/5 max-h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] text-[#caa97c] leading-relaxed break-all">
+										{generatedAikarFlags.join(" ")}
+									</div>
+								</div>
+							</div>
+
+							<!-- Performance Modpack Card -->
+							<div class="bg-[#18191f] border border-white/5 rounded-2xl p-4 space-y-3">
+								<div class="flex items-center justify-between">
+									<div>
+										<div class="flex items-center gap-2">
+											<span class="text-xs font-bold text-white">Pacote de Mods de Performance</span>
+											{#if perfPackInfo?.available}
+												<span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-bold">Disponível</span>
+											{:else}
+												<span class="text-[9px] bg-white/10 text-white/40 px-1.5 py-0.5 rounded font-bold">Indisponível</span>
+											{/if}
+										</div>
+										<span class="text-[10px] text-white/40 block mt-0.5">
+											{perfPackInfo?.available ? 'Conjunto homologado de mods de taxa de quadros e redução de RAM' : (perfPackInfo?.reason || 'Requer modloader')}
+										</span>
+									</div>
+									{#if perfPackInfo?.available}
+										<button 
+											type="button"
+											disabled={installingPerfPack}
+											class="px-3 py-1.5 bg-[#caa97c] hover:bg-[#d8bc98] disabled:opacity-50 text-black rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+											onclick={handleInstallPerfPack}
+										>
+											{#if installingPerfPack}
+												<RefreshCw class="w-3.5 h-3.5 animate-spin" /> Instalando...
+											{:else}
+												<Download class="w-3.5 h-3.5" /> Aplicar Pacote
+											{/if}
+										</button>
+									{/if}
+								</div>
+
+								{#if perfPackInfo?.available && perfPackInfo.mods.length > 0}
+									<div class="grid grid-cols-3 gap-2 pt-1">
+										{#each perfPackInfo.mods as mod}
+											<div class="bg-black/30 p-2 rounded-xl border border-white/5">
+												<span class="font-bold text-[11px] text-white block">{mod.title}</span>
+												<span class="text-[9px] text-white/40 block line-clamp-2 mt-0.5">{mod.description}</span>
+											</div>
+										{/each}
+									</div>
+								{/if}
+							</div>
+
+							<!-- Linux Mesa Zink / Vulkan Toggle -->
+							<div class="bg-[#18191f] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+								<div>
+									<div class="flex items-center gap-2">
+										<span class="text-xs font-bold text-white">Mesa Zink / Vulkan (Linux)</span>
+										<span class="text-[9px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded font-bold">Opt-in</span>
+									</div>
+									<span class="text-[10px] text-white/40 block mt-0.5">
+										Executa o OpenGL sobre Vulkan via Mesa Zink no Linux (recomendado para AMD RADV / Intel)
+									</span>
+								</div>
+								<button 
+									type="button"
+									aria-label="Alternar Aceleração Vulkan"
+									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-[#caa97c] shadow-[0_0_10px_rgba(202,169,124,0.35)]' : 'bg-[#2d2e34]'}"
+									onclick={() => instanceEnableVulkanOpt = !instanceEnableVulkanOpt}
+								>
+									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {instanceEnableVulkanOpt ? 'translate-x-5' : 'translate-x-0'}"></span>
+								</button>
+							</div>
+						</div>
+
 					{:else if activeInstanceSection === 'janela'}
 						<div class="space-y-6">
 							<div>
@@ -1547,28 +1778,25 @@
 							<!-- RAM Presets & Slider -->
 							<div class="space-y-3 bg-[#18191f] border border-white/5 rounded-2xl p-4">
 								<div class="flex items-center justify-between">
-									<span class="text-xs font-bold text-white/80">Alocação de Memória RAM</span>
+									<div class="flex items-center gap-2">
+										<span class="text-xs font-bold text-white/80">Alocação de Memória RAM</span>
+										<span class="text-[10px] text-white/40">(Sistema: {Math.round(systemRamMb / 1024)} GB)</span>
+									</div>
 									<span class="text-xs font-mono font-black text-[#caa97c] bg-[#caa97c]/10 px-2.5 py-0.5 rounded-lg border border-[#caa97c]/20">
 										{instanceRamMb} MB ({(instanceRamMb / 1024).toFixed(1)} GB)
 									</span>
 								</div>
 
-								<!-- Quick RAM Presets -->
-								<div class="grid grid-cols-5 gap-1.5 pt-1">
-									{#each [
-										{ mb: 2048, label: "2 GB", hint: "Vanilla" },
-										{ mb: 4096, label: "4 GB", hint: "Padrão" },
-										{ mb: 6144, label: "6 GB", hint: "Mods" },
-										{ mb: 8192, label: "8 GB", hint: "Pesado" },
-										{ mb: 12288, label: "12 GB", hint: "Extremo" }
-									] as preset}
+								<!-- Quick RAM Presets based on real system specs -->
+								<div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5 pt-1">
+									{#each ramPresets as preset}
 										<button 
 											type="button"
 											class="py-1.5 px-2 rounded-xl text-center border transition-all cursor-pointer {instanceRamMb === preset.mb ? 'bg-[#caa97c] text-black border-[#caa97c] font-black shadow-md' : 'bg-[#202128] text-white/70 border-white/5 hover:border-white/20 hover:text-white'}"
 											onclick={() => instanceRamMb = preset.mb}
 										>
 											<div class="text-[11px] font-bold leading-tight">{preset.label}</div>
-											<div class="text-[9px] opacity-60 leading-tight">{preset.hint}</div>
+											<div class="text-[9px] opacity-60 leading-tight">{preset.desc}</div>
 										</button>
 									{/each}
 								</div>
@@ -1576,15 +1804,15 @@
 								<input 
 									type="range" 
 									min="1024" 
-									max="16384" 
+									max={Math.max(4096, Math.min(Math.floor(systemRamMb * 0.9 / 1024) * 1024, 32768))} 
 									step="512" 
 									bind:value={instanceRamMb} 
 									class="w-full accent-[#caa97c] cursor-pointer mt-2" 
 								/>
 								<div class="flex justify-between text-[10px] font-mono text-white/40">
 									<span>1024 MB (1 GB)</span>
-									<span>8192 MB (8 GB)</span>
-									<span>16384 MB (16 GB)</span>
+									<span>{Math.round(systemRamMb * 0.45 / 1024) * 1024} MB</span>
+									<span>{Math.max(4096, Math.min(Math.floor(systemRamMb * 0.9 / 1024) * 1024, 32768))} MB ({Math.round(Math.max(4096, Math.min(Math.floor(systemRamMb * 0.9 / 1024) * 1024, 32768)) / 1024)} GB)</span>
 								</div>
 							</div>
 
