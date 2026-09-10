@@ -56,6 +56,10 @@
 		instanceModDelete,
 		instanceModAdd,
 		instanceModsOpenFolder,
+		instancePackAdd,
+		instancePackDelete,
+		instancePackOpenFolder,
+		profilesUpdate,
 		discordSetActivity,
 		readTextFile,
 		writeTextFile,
@@ -95,14 +99,30 @@
 		}
 	});
 
-	function saveInstanceSettings() {
+	async function saveInstanceSettings() {
 		if (activeProfile) {
 			activeProfile.name = instanceNameInput;
 			activeProfile.ramMb = instanceRamMb;
 			activeProfile.jvmArgs = instanceJvmArgs;
+
+			try {
+				await profilesUpdate({
+					id: activeProfile.id,
+					name: instanceNameInput,
+					ramMb: instanceRamMb,
+					jvmArgs: instanceJvmArgs,
+				});
+				profiles.update(activeProfile.id, {
+					name: instanceNameInput,
+					ramMb: instanceRamMb,
+					jvmArgs: instanceJvmArgs,
+				});
+				toast("Configurações salvas com sucesso!", "success");
+			} catch (e) {
+				toast("Erro ao salvar no banco de dados: " + String(e), "error");
+			}
 		}
 		showInstanceSettingsModal = false;
-		toast("Configurações da instância salvas com sucesso!", "success");
 	}
 
 	
@@ -399,17 +419,43 @@
 	}
 
 	async function handleAddResourcePack() {
+		const packType = subTab === 'shaders' ? 'shaderpacks' : subTab === 'datapacks' ? 'datapacks' : 'resourcepacks';
+		const label = subTab === 'shaders' ? 'Shader' : subTab === 'datapacks' ? 'Datapack' : 'Pacote de Recursos';
 		try {
 			const selected = await open({
-				title: "Selecionar Pacote de Recursos ou Shader (.zip)",
-				filters: [{ name: "Arquivo Compactado", extensions: ["zip"] }]
+				title: `Selecionar ${label} (.zip)`,
+				multiple: true,
+				filters: [{ name: "Arquivo Compactado (.zip)", extensions: ["zip"] }]
 			});
-			if (selected) {
-				toast(`Arquivo adicionado para a instância!`, "success");
-				await refreshAllData();
+			if (!selected) return;
+			const paths = Array.isArray(selected) ? selected : [selected];
+			for (const p of paths) {
+				await instancePackAdd(instanceId, packType, p);
 			}
+			toast(`${paths.length} ${label.toLowerCase()}(s) adicionado(s) com sucesso!`, "success");
+			await refreshAllData();
 		} catch (e) {
-			toast(String(e), "error");
+			toast("Erro ao adicionar arquivo: " + String(e), "error");
+		}
+	}
+
+	async function handleDeletePack(fileName: string) {
+		const packType = subTab === 'shaders' ? 'shaderpacks' : subTab === 'datapacks' ? 'datapacks' : 'resourcepacks';
+		try {
+			await instancePackDelete(instanceId, packType, fileName);
+			toast("Item removido com sucesso!", "success");
+			await refreshAllData();
+		} catch (e) {
+			toast("Erro ao remover: " + String(e), "error");
+		}
+	}
+
+	async function handleOpenPackFolder() {
+		const packType = subTab === 'shaders' ? 'shaderpacks' : subTab === 'datapacks' ? 'datapacks' : 'resourcepacks';
+		try {
+			await instancePackOpenFolder(instanceId, packType);
+		} catch (e) {
+			toast("Erro ao abrir pasta: " + String(e), "error");
 		}
 	}
 
@@ -672,6 +718,12 @@
 							</button>
 						{:else}
 							<button 
+								class="bg-[#222328] hover:bg-white/10 text-white/70 hover:text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 border border-white/5 transition-all cursor-pointer"
+								onclick={handleOpenPackFolder}
+							>
+								<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta
+							</button>
+							<button 
 								class="text-black px-5 py-2 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-105 active:scale-95 transition-all"
 								style="background-color: var(--accent-color, #e2b86b);"
 								onclick={handleAddResourcePack}
@@ -780,14 +832,26 @@
 							</button>
 						</div>
 					{:else}
-						<div class="grid grid-cols-2 gap-3">
+						<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 							{#each currentPacksList as pack}
-								<div class="bg-[#18191c] border border-white/5 p-4 rounded-2xl flex items-center justify-between">
-									<div class="flex items-center gap-3">
-										<Box class="w-5 h-5 text-amber-400" />
-										<span class="text-xs font-bold text-white">{pack.name}</span>
+								<div class="bg-[#18191c] border border-white/5 hover:border-white/15 p-4 rounded-2xl flex items-center justify-between transition-all group">
+									<div class="flex items-center gap-3.5 min-w-0">
+										<div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-sm">
+											<Box class="w-5 h-5" />
+										</div>
+										<div class="min-w-0">
+											<span class="text-xs font-bold text-white truncate block max-w-[220px]" title={pack.name}>{pack.name}</span>
+											<span class="text-[10px] text-white/40 font-mono mt-0.5 block">{pack.size > 1048576 ? (pack.size / (1024 * 1024)).toFixed(2) + ' MB' : Math.round(pack.size / 1024) + ' KB'}</span>
+										</div>
 									</div>
-									<span class="text-[10px] text-white/40 font-mono">{Math.round(pack.size / 1024)} KB</span>
+									<button 
+										type="button" 
+										class="p-2 rounded-xl text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+										onclick={() => handleDeletePack(pack.name)}
+										title="Excluir arquivo"
+									>
+										<Trash2 class="w-4 h-4" />
+									</button>
 								</div>
 							{/each}
 						</div>

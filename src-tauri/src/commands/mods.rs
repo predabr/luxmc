@@ -214,10 +214,18 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     tokio::fs::write(&file_path, &bytes).await?;
 
     let db = crate::db::shared_db().await?;
-    let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+    let profile = if let Some(p) = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&request.profile_id)
         .fetch_optional(db.pool())
-        .await?;
+        .await? {
+        Some(p)
+    } else {
+        sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles ORDER BY last_played DESC LIMIT 1")
+            .fetch_optional(db.pool())
+            .await?
+    };
+    let resolved_profile_id = profile.as_ref().map(|p| p.id.clone()).unwrap_or_else(|| request.profile_id.clone());
+
     if let Some(ref prof) = profile {
         let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
         let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
@@ -225,7 +233,7 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     }
 
     let mod_row = ModRow {
-        profile_id: request.profile_id.clone(),
+        profile_id: resolved_profile_id.clone(),
         project_id: request.project_id,
         version_id: request.version_id,
         file_name,
@@ -236,13 +244,13 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     crate::db::schema::mods::upsert(&db, &mod_row).await?;
 
     let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
-        .bind(&request.profile_id)
+        .bind(&resolved_profile_id)
         .fetch_one(db.pool())
         .await
         .unwrap_or((0,));
     let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
         .bind(count.0)
-        .bind(&request.profile_id)
+        .bind(&resolved_profile_id)
         .execute(db.pool())
         .await;
 
@@ -260,13 +268,25 @@ pub async fn mods_install_with_deps(
     let mut to_install: Vec<(String, String)> =
         vec![(request.project_id.clone(), request.version_id.clone())];
 
+    let db = crate::db::shared_db().await?;
+    let profile = if let Some(p) = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&request.profile_id)
+        .fetch_optional(db.pool())
+        .await? {
+        Some(p)
+    } else {
+        sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles ORDER BY last_played DESC LIMIT 1")
+            .fetch_optional(db.pool())
+            .await?
+    };
+    let resolved_profile_id = profile.as_ref().map(|p| p.id.clone()).unwrap_or_else(|| request.profile_id.clone());
+
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let mods_dir = base_dir.data_dir().join("mods").join(&request.profile_id);
+    let mods_dir = base_dir.data_dir().join("mods").join(&resolved_profile_id);
     tokio::fs::create_dir_all(&mods_dir).await?;
 
-    let db = crate::db::shared_db().await?;
     let source = request.source.clone();
 
     let mut depth = 0;
@@ -293,8 +313,14 @@ pub async fn mods_install_with_deps(
                 let file_path = mods_dir.join(&file.filename);
                 tokio::fs::write(&file_path, &bytes).await?;
 
+                if let Some(ref prof) = profile {
+                    let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
+                    let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
+                    let _ = tokio::fs::write(prof_mods_dir.join(&file.filename), &bytes).await;
+                }
+
                 let mod_row = ModRow {
-                    profile_id: request.profile_id.clone(),
+                    profile_id: resolved_profile_id.clone(),
                     project_id: project_id.clone(),
                     version_id: version.id.clone(),
                     file_name: file.filename.clone(),
@@ -319,6 +345,17 @@ pub async fn mods_install_with_deps(
             }
         }
     }
+
+    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
+        .bind(&resolved_profile_id)
+        .fetch_one(db.pool())
+        .await
+        .unwrap_or((0,));
+    let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
+        .bind(count.0)
+        .bind(&resolved_profile_id)
+        .execute(db.pool())
+        .await;
 
     Ok(installed.into_iter().collect())
 }

@@ -26,9 +26,11 @@
 		Sparkles,
 		MessageSquare,
 		Clock,
-		Tag
+		Tag,
+		Box
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { profiles } from "$lib/stores/profiles.svelte";
 	import { 
 		modsSearch, 
 		modsVersions, 
@@ -38,6 +40,14 @@
 		type ModVersion
 	} from "$lib/api";
 	import { marked } from "marked";
+
+	let targetInstanceId = $state<string>(profiles.activeId ?? profiles.list[0]?.id ?? "default");
+
+	$effect(() => {
+		if ((!targetInstanceId || targetInstanceId === "default") && profiles.list.length > 0) {
+			targetInstanceId = profiles.activeId ?? profiles.list[0].id;
+		}
+	});
 
 	let searchQuery = $state("");
 	let selectedSource = $state<"all" | "modrinth" | "curseforge">("all");
@@ -145,6 +155,12 @@
 				allResults = allResults.filter(r => r.source === selectedSource);
 			}
 
+			if (selectedLoader) {
+				allResults = allResults.filter(r => 
+					r.categories.some(c => c.toLowerCase() === selectedLoader!.toLowerCase())
+				);
+			}
+
 			if (selectedCategory) {
 				allResults = allResults.filter(r => 
 					r.categories.some(c => c.toLowerCase().includes(selectedCategory!.toLowerCase()))
@@ -232,15 +248,29 @@
 				targetVerId = versions[0].id;
 			}
 
+			const effectiveProfileId = targetInstanceId || profiles.activeId || profiles.list[0]?.id || "default";
 			await modsInstall({
-				profileId: "default",
+				profileId: effectiveProfileId,
 				projectId: item.sourceId,
 				versionId: targetVerId,
 				source: item.source,
 			});
 
+			if (effectiveProfileId && effectiveProfileId !== "default") {
+				const prof = profiles.list.find(p => p.id === effectiveProfileId);
+				if (prof) {
+					profiles.update(effectiveProfileId, { modCount: (prof.modCount ?? 0) + 1 });
+				}
+			}
+
 			installedIds = new Set([...installedIds, id]);
-			toast(`"${item.title}" instalado com sucesso!`, "success");
+			const targetProfName = profiles.list.find(p => p.id === effectiveProfileId)?.name;
+			toast(
+				targetProfName 
+					? `"${item.title}" instalado em "${targetProfName}"!` 
+					: `"${item.title}" instalado com sucesso!`, 
+				"success"
+			);
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
 			toast(`Erro ao instalar "${item.title}": ${msg}`, "error");
@@ -869,6 +899,30 @@
 				<!-- Header with Sliders icon -->
 				<div class="flex items-center gap-2 text-xs font-bold text-white uppercase tracking-wider">
 					<SlidersHorizontal class="w-3.5 h-3.5 text-[#caa97c]" /> Filtros
+				</div>
+
+				<!-- INSTÂNCIA DE DESTINO -->
+				<div>
+					<div class="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 flex items-center justify-between">
+						<span>INSTÂNCIA DE DESTINO</span>
+						<Box class="w-3 h-3 text-[#caa97c]" />
+					</div>
+					{#if profiles.list.length === 0}
+						<div class="text-[11px] text-white/40 italic p-2.5 bg-[#1c1d22] rounded-xl border border-white/5">
+							Nenhuma instância criada
+						</div>
+					{:else}
+						<select 
+							bind:value={targetInstanceId}
+							class="w-full bg-[#1c1d22] border border-white/10 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-[#caa97c] cursor-pointer"
+						>
+							{#each profiles.list as p}
+								<option value={p.id}>
+									{p.name} ({p.mcVersion})
+								</option>
+							{/each}
+						</select>
+					{/if}
 				</div>
 
 				<!-- FONTE -->

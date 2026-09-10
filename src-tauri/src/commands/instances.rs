@@ -1009,3 +1009,104 @@ pub async fn instance_mods_open_folder(
     open::that(&mods_dir)?;
     Ok(())
 }
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_pack_add(
+    _state: State<'_, AppState>,
+    profileId: String,
+    packType: String,
+    sourcePath: String,
+) -> AppResult<String> {
+    let src = std::path::PathBuf::from(&sourcePath);
+    if !src.is_file() {
+        return Err(crate::error::AppError::NotFound("Source file does not exist".into()));
+    }
+
+    let file_name = src
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| crate::error::AppError::InvalidInput("Invalid source filename".into()))?
+        .to_string();
+
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let folder_name = match packType.as_str() {
+        "shaders" | "shaderpacks" => "shaderpacks",
+        "datapacks" => "datapacks",
+        _ => "resourcepacks",
+    };
+
+    let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
+    if !target_dir.exists() {
+        std::fs::create_dir_all(&target_dir)?;
+    }
+
+    let dest = target_dir.join(&file_name);
+    std::fs::copy(&src, &dest)?;
+
+    Ok(file_name)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_pack_delete(
+    _state: State<'_, AppState>,
+    profileId: String,
+    packType: String,
+    fileName: String,
+) -> AppResult<()> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let folder_name = match packType.as_str() {
+        "shaders" | "shaderpacks" => "shaderpacks",
+        "datapacks" => "datapacks",
+        _ => "resourcepacks",
+    };
+
+    let target_path = std::path::PathBuf::from(&row.game_dir).join(folder_name).join(&fileName);
+    if target_path.exists() {
+        std::fs::remove_file(&target_path)?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_pack_open_folder(
+    _state: State<'_, AppState>,
+    profileId: String,
+    packType: String,
+) -> AppResult<()> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let folder_name = match packType.as_str() {
+        "shaders" | "shaderpacks" => "shaderpacks",
+        "datapacks" => "datapacks",
+        _ => "resourcepacks",
+    };
+
+    let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
+    if !target_dir.exists() {
+        std::fs::create_dir_all(&target_dir)?;
+    }
+
+    open::that(&target_dir)?;
+    Ok(())
+}

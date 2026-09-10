@@ -193,6 +193,7 @@ export async function profilesUpdate(input: {
 	resolutionH?: number | null;
 	fullscreen?: boolean;
 	gameDir?: string;
+	ramMb?: number;
 }): Promise<{
 	id: string;
 	name: string;
@@ -673,6 +674,18 @@ export async function instanceModAdd(profileId: string, sourcePath: string): Pro
 
 export async function instanceModsOpenFolder(profileId: string): Promise<void> {
 	return api.invoke("instance_mods_open_folder", { profileId });
+}
+
+export async function instancePackAdd(profileId: string, packType: string, sourcePath: string): Promise<string> {
+	return api.invoke<string>("instance_pack_add", { profileId, packType, sourcePath });
+}
+
+export async function instancePackDelete(profileId: string, packType: string, fileName: string): Promise<void> {
+	return api.invoke("instance_pack_delete", { profileId, packType, fileName });
+}
+
+export async function instancePackOpenFolder(profileId: string, packType: string): Promise<void> {
+	return api.invoke("instance_pack_open_folder", { profileId, packType });
 }
 
 export async function shareLogMclogs(content: string): Promise<string> {
