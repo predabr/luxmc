@@ -79,19 +79,42 @@ impl ModrinthClient {
         &self,
         query: &str,
         mc_version: &str,
+        content_type: &str,
         limit: u32,
+        offset: u32,
     ) -> AppResult<Vec<ModSearchResult>> {
-        let facets = format!(
-            r#"[["categories:fabric","categories:forge","categories:neoforge","categories:quilt"],["versions:{}"]]"#,
-            mc_version
-        );
+        let project_type = match content_type.to_lowercase().as_str() {
+            "modpack" => "modpack",
+            "resource pack" | "resourcepack" => "resourcepack",
+            "shader" => "shader",
+            "data pack" | "datapack" => "datapack",
+            _ => "mod",
+        };
+
+        let mut facet_groups: Vec<String> = Vec::new();
+        facet_groups.push(format!(r#"["project_type:{}"]"#, project_type));
+
+        if project_type == "mod" {
+            facet_groups.push(r#"["categories:fabric","categories:forge","categories:neoforge","categories:quilt"]"#.to_string());
+        }
+
+        if !mc_version.is_empty() && mc_version != "Qualquer Versão" {
+            facet_groups.push(format!(r#"["versions:{}"]"#, mc_version));
+        }
+
+        let facets = format!("[{}]", facet_groups.join(","));
+        let sort_index = if query.trim().is_empty() { "downloads" } else { "relevance" };
+
         let url = format!(
-            "{}/search?query={}&limit={}&facets={}",
+            "{}/search?query={}&limit={}&offset={}&index={}&facets={}",
             MODRINTH_API,
-            urlencoding::encode(query),
+            urlencoding::encode(query.trim()),
             limit,
+            offset,
+            sort_index,
             urlencoding::encode(&facets)
         );
+
         let resp: serde_json::Value = self
             .http
             .get(&url)
@@ -165,83 +188,7 @@ impl ModrinthClient {
         content_type: &str,
         limit: u32,
     ) -> AppResult<Vec<ModSearchResult>> {
-        let category = match content_type {
-            "resourcepack" => "resourcepack",
-            "shader" => "shader",
-            _ => "mod",
-        };
-        let facets = format!(r#"[["categories:{}"],["versions:{}"]]"#, category, mc_version);
-        let url = format!(
-            "{}/search?query={}&limit={}&facets={}",
-            MODRINTH_API,
-            urlencoding::encode(query),
-            limit,
-            urlencoding::encode(&facets)
-        );
-        let resp: serde_json::Value = self
-            .http
-            .get(&url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
-
-        let hits = resp
-            .get("hits")
-            .and_then(|h| h.as_array())
-            .cloned()
-            .unwrap_or_default();
-        let mut results = Vec::new();
-        for hit in hits {
-            results.push(ModSearchResult {
-                slug: hit
-                    .get("slug")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                title: hit
-                    .get("title")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                description: hit
-                    .get("description")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-                downloads: hit.get("downloads").and_then(|d| d.as_u64()).unwrap_or(0),
-                icon_url: hit
-                    .get("icon_url")
-                    .and_then(|s| s.as_str())
-                    .map(|s| s.to_string()),
-                categories: hit
-                    .get("categories")
-                    .and_then(|c| c.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                versions: hit
-                    .get("versions")
-                    .and_then(|v| v.as_array())
-                    .map(|arr| {
-                        arr.iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                            .collect()
-                    })
-                    .unwrap_or_default(),
-                source: "modrinth".into(),
-                source_id: hit
-                    .get("project_id")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("")
-                    .to_string(),
-            });
-        }
-        Ok(results)
+        self.search_mods(query, mc_version, content_type, limit, 0).await
     }
 
     pub async fn get_mod_versions(

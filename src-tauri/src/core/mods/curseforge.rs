@@ -30,7 +30,9 @@ pub async fn search_mods(
     http: &reqwest::Client,
     query: &str,
     mc_version: &str,
+    content_type: &str,
     limit: u32,
+    offset: u32,
 ) -> AppResult<Vec<ModSearchResult>> {
     let key = match api_key() {
         Some(k) => k,
@@ -38,16 +40,37 @@ pub async fn search_mods(
     };
 
     let game_id = 432;
-    let class_id = 6;
+    let class_id = match content_type.to_lowercase().as_str() {
+        "modpack" => 4471,
+        "resource pack" | "resourcepack" => 12,
+        "shader" => 6552,
+        "data pack" | "datapack" => 6945,
+        "world" => 17,
+        _ => 6,
+    };
+
+    let version_filter = if mc_version.is_empty() || mc_version == "Qualquer Versão" {
+        "".to_string()
+    } else {
+        format!("&gameVersion={}", urlencoding::encode(mc_version))
+    };
+
+    let sort_param = if query.trim().is_empty() {
+        "&sortField=2&sortOrder=desc"
+    } else {
+        "&sortField=1&sortOrder=desc"
+    };
 
     let url = format!(
-        "{}/mods/search?gameId={}&classId={}&searchFilter={}&gameVersion={}&pageSize={}",
+        "{}/mods/search?gameId={}&classId={}&searchFilter={}{}&index={}&pageSize={}{}",
         CURSEFORGE_API,
         game_id,
         class_id,
-        urlencoding::encode(query),
-        urlencoding::encode(mc_version),
+        urlencoding::encode(query.trim()),
+        version_filter,
+        offset,
         limit,
+        sort_param,
     );
 
     let resp = http
@@ -118,10 +141,15 @@ pub async fn search_mods(
                 .and_then(|f| f.as_array())
                 .map(|arr| {
                     arr.iter()
-                        .filter_map(|f| {
-                            f.get("gameVersion")
-                                .and_then(|v| v.as_str())
-                                .map(|s| s.to_string())
+                        .flat_map(|f| {
+                            f.get("gameVersions")
+                                .and_then(|gv| gv.as_array())
+                                .map(|varr| {
+                                    varr.iter()
+                                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                        .collect::<Vec<_>>()
+                                })
+                                .unwrap_or_default()
                         })
                         .collect::<std::collections::HashSet<_>>()
                         .into_iter()

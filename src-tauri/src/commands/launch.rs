@@ -166,8 +166,30 @@ pub async fn launch_game(
     let (final_uuid, final_token, user_type) = if is_real_msa {
         (account.uuid.clone(), token_str.to_string(), "msa")
     } else {
-        let off_uuid = compute_offline_uuid(&account.username);
-        (off_uuid, "-".to_string(), "mojang")
+        let mojang_uuid = match state
+            .http
+            .get(format!(
+                "https://api.mojang.com/users/profiles/minecraft/{}",
+                account.username
+            ))
+            .timeout(std::time::Duration::from_millis(1500))
+            .send()
+            .await
+        {
+            Ok(resp) if resp.status().is_success() => {
+                if let Ok(json) = resp.json::<serde_json::Value>().await {
+                    json.get("id")
+                        .and_then(|i| i.as_str())
+                        .map(|s| s.to_string())
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        };
+
+        let resolved_uuid = mojang_uuid.unwrap_or_else(|| compute_offline_uuid(&account.username));
+        (resolved_uuid, "-".to_string(), "mojang")
     };
 
     app.emit(

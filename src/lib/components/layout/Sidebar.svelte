@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from "$app/stores";
+	import { goto } from "$app/navigation";
 	import {
 		LayoutGrid,
 		Package,
@@ -65,7 +66,11 @@
 			<div class="relative group w-full flex justify-center">
 				<a
 					href={item.href}
-					class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 {active ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
+					onclick={(e) => {
+						e.preventDefault();
+						goto(item.href);
+					}}
+					class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 cursor-pointer {active ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
 				>
 					<item.icon class="h-5 w-5 {active ? 'text-[#15171c]' : 'text-[#8a8d98] group-hover:text-white transition-colors'}" strokeWidth={active ? 2.2 : 1.8} />
 				</a>
@@ -87,7 +92,11 @@
 					<div class="relative group w-full flex justify-center">
 						<a
 							href={`/instances/${prof.id}`}
-							class="relative h-10 w-10 rounded-[14px] overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border {active ? 'ring-2 ring-[#d8bc98] border-transparent shadow-lg scale-105' : 'border-white/10 bg-[#1c1d22] hover:border-white/30'}"
+							onclick={(e) => {
+								e.preventDefault();
+								goto(`/instances/${prof.id}`);
+							}}
+							class="relative h-10 w-10 rounded-[14px] overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border cursor-pointer {active ? 'ring-2 ring-[#d8bc98] border-transparent shadow-lg scale-105' : 'border-white/10 bg-[#1c1d22] hover:border-white/30'}"
 						>
 							{#if prof.icon && (prof.icon.startsWith("http") || prof.icon.startsWith("/") || prof.icon.startsWith("data:"))}
 								<img src={prof.icon} alt={prof.name} class="w-full h-full object-cover" />
@@ -98,11 +107,8 @@
 
 						<!-- Instance Tooltip with Name, Version & Loader -->
 						<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/10 shadow-2xl flex flex-col gap-0.5">
-							<div class="flex items-center gap-1.5">
-								<span class="text-white font-extrabold">{prof.name}</span>
-								<span class="text-[9px] font-mono font-bold bg-white/10 text-white px-1.5 py-0.2 rounded uppercase border border-white/20">{prof.loader}</span>
-							</div>
-							<div class="text-[10px] text-white/50 font-mono">Minecraft {prof.mcVersion}</div>
+							<span class="text-white font-extrabold">{prof.name}</span>
+							<span class="text-[10px] text-white/50">{prof.mcVersion} • {prof.loader}</span>
 						</div>
 					</div>
 				{/each}
@@ -111,10 +117,14 @@
 		{/if}
 
 		<!-- Add Instance Button with Plus -->
-		<div class="relative group w-full flex justify-center">
+		<div class="relative group w-full flex justify-center mt-1">
 			<a
-				href="/instances"
-				class="h-10 w-10 rounded-[14px] flex items-center justify-center text-[#8a8d98] hover:text-white hover:bg-white/5 transition-all duration-200 border border-dashed border-white/10 hover:border-white/30 active:scale-95"
+				href="/instances?new=true"
+				onclick={(e) => {
+					e.preventDefault();
+					goto("/instances?new=true");
+				}}
+				class="h-10 w-10 rounded-[14px] bg-[#1a1b20] border border-white/10 hover:border-white/30 hover:bg-[#22242a] flex items-center justify-center text-[#8a8d98] hover:text-white transition-all duration-200 active:scale-95 shadow-md cursor-pointer"
 			>
 				<Plus class="h-4 w-4 transition-transform duration-200 group-hover:rotate-90 text-white/60 group-hover:text-white" />
 			</a>
@@ -125,17 +135,21 @@
 	</nav>
 
 	<!-- Bottom Section: Friends, Settings -->
-	<div class="mt-auto w-full flex flex-col items-center gap-2 pt-2">
+	<div class="mt-auto w-full flex flex-col items-center gap-2 pt-2 border-t border-white/5">
 		<!-- Friends Route with Tooltip -->
 		<div class="relative group w-full flex justify-center">
 			<a
 				href="/friends"
-				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 {friendsActive ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
+				onclick={(e) => {
+					e.preventDefault();
+					goto("/friends");
+				}}
+				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 cursor-pointer {friendsActive ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
 			>
 				<Users class="h-5 w-5 {friendsActive ? 'text-[#15171c]' : 'text-[#8a8d98] group-hover:text-white transition-colors'}" strokeWidth={friendsActive ? 2.2 : 1.8} />
 			</a>
 			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl">
-				Amigos & Chat
+				Amigos
 			</div>
 		</div>
 
@@ -143,7 +157,11 @@
 		<div class="relative group w-full flex justify-center">
 			<a
 				href="/settings"
-				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 {settingsActive ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
+				onclick={(e) => {
+					e.preventDefault();
+					goto("/settings");
+				}}
+				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 cursor-pointer {settingsActive ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
 			>
 				<SettingsIcon class="h-5 w-5 transition-transform duration-300 {settingsActive ? 'text-[#15171c] rotate-90' : 'text-[#8a8d98] group-hover:rotate-45 group-hover:text-white'}" strokeWidth={settingsActive ? 2.2 : 1.8} />
 			</a>

@@ -36,7 +36,9 @@
 	}>>([]);
 	let loading = $state(false);
 	let searchError = $state<string | null>(null);
-	let debounceTimer = $state<ReturnType<typeof setTimeout> | null>(null);
+	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	let currentPage = $state(1);
+	const pageSize = 24;
 	let installingIds = $state<Set<string>>(new Set());
 	let installedIds = $state<Set<string>>(new Set());
 	let hasSearched = $state(false);
@@ -61,26 +63,23 @@
 		return n.toString();
 	}
 
-	async function doSearch() {
+	async function doSearch(page = currentPage) {
 		loading = true;
 		searchError = null;
 		hasSearched = true;
 
 		try {
-			const effectiveVer = selectedVersion === "Qualquer Versão" ? "1.21.4" : selectedVersion;
-			const contentTypeMap: Record<string, 'mod' | 'resourcepack' | 'shader'> = {
-				"Resource Pack": "resourcepack",
-				"Shader": "shader",
-			};
+			const effectiveVer = selectedVersion === "Qualquer Versão" ? "" : selectedVersion;
+			const typeSlug = selectedType.toLowerCase().replace(/\s+/g, "");
+			const offset = (page - 1) * pageSize;
 
-			const mapped = contentTypeMap[selectedType];
-			let allResults;
-
-			if (mapped) {
-				allResults = await modsSearchTyped(searchQuery || "", effectiveVer, mapped, 40);
-			} else {
-				allResults = await modsSearch(searchQuery || "", effectiveVer, 40);
-			}
+			let allResults = await modsSearch(
+				searchQuery.trim(),
+				effectiveVer,
+				pageSize,
+				offset,
+				typeSlug
+			);
 
 			if (selectedSource !== "all") {
 				allResults = allResults.filter(r => r.source === selectedSource);
@@ -103,7 +102,15 @@
 
 	function debouncedSearch() {
 		if (debounceTimer) clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => doSearch(), 280);
+		debounceTimer = setTimeout(() => {
+			doSearch(1);
+		}, 300);
+	}
+
+	function goToPage(p: number) {
+		if (p < 1 || loading) return;
+		currentPage = p;
+		doSearch(p);
 	}
 
 	$effect(() => {
@@ -113,6 +120,7 @@
 		selectedSource;
 		selectedLoader;
 		selectedCategory;
+		currentPage = 1;
 		debouncedSearch();
 	});
 
@@ -124,9 +132,12 @@
 
 		try {
 			const effectiveVer = selectedVersion === "Qualquer Versão" ? "1.21.4" : selectedVersion;
-			const versions = await modsVersions(item.sourceId, effectiveVer, item.source);
+			let versions = await modsVersions(item.sourceId, effectiveVer, item.source);
+			if (versions.length === 0 && selectedVersion !== "Qualquer Versão") {
+				versions = await modsVersions(item.sourceId, "1.21.4", item.source);
+			}
 			if (versions.length === 0) {
-				toast(`Nenhuma versão encontrada para "${item.title}"`, "error");
+				toast(`Nenhuma versão compatível encontrada para "${item.title}"`, "error");
 				return;
 			}
 
@@ -182,7 +193,7 @@
 						<Loader2 class="w-3 h-3 animate-spin text-[#c5a880]" /> buscando...
 					</span>
 				{:else}
-					<span class="text-[10px] text-white/40 font-mono font-medium">[{results.length} resultados]</span>
+					<span class="text-[10px] text-white/40 font-mono font-medium">[{results.length} itens • pág. {currentPage}]</span>
 				{/if}
 			</div>
 
@@ -319,6 +330,47 @@
 					</div>
 				{/each}
 			</div>
+
+			<!-- Pagination Controls matching SKlauncher -->
+			{#if results.length > 0}
+				<div class="flex items-center justify-between pt-2 pb-8 border-t border-white/5">
+					<div class="text-xs text-white/40 font-medium">
+						Mostrando página <span class="text-white font-bold">{currentPage}</span>
+					</div>
+
+					<div class="flex items-center gap-1.5">
+						<button
+							type="button"
+							class="bg-[#24252c] hover:bg-[#32333c] disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl border border-white/5 transition-all cursor-pointer"
+							onclick={() => goToPage(currentPage - 1)}
+							disabled={currentPage <= 1 || loading}
+						>
+							Anterior
+						</button>
+
+						{#each [1, 2, 3, 4, 5] as p}
+							{@const pageNum = currentPage > 3 ? currentPage - 3 + p : p}
+							<button
+								type="button"
+								class="w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer border {currentPage === pageNum ? 'bg-[#caa97c] text-black border-[#caa97c] font-black shadow-md' : 'bg-[#18191c] text-white/60 border-white/5 hover:bg-[#24252c] hover:text-white'}"
+								onclick={() => goToPage(pageNum)}
+								disabled={loading}
+							>
+								{pageNum}
+							</button>
+						{/each}
+
+						<button
+							type="button"
+							class="bg-[#24252c] hover:bg-[#32333c] disabled:opacity-30 disabled:pointer-events-none text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl border border-white/5 transition-all cursor-pointer"
+							onclick={() => goToPage(currentPage + 1)}
+							disabled={results.length < pageSize || loading}
+						>
+							Próxima
+						</button>
+					</div>
+				</div>
+			{/if}
 		{/if}
 
 	</div>

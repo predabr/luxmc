@@ -48,15 +48,19 @@ pub async fn mods_search(
     query: String,
     mcVersion: String,
     limit: Option<u32>,
+    offset: Option<u32>,
+    contentType: Option<String>,
 ) -> AppResult<Vec<ModSearchResult>> {
-    let limit = limit.unwrap_or(20);
+    let limit = limit.unwrap_or(24);
+    let offset = offset.unwrap_or(0);
+    let content_type = contentType.unwrap_or_else(|| "mod".to_string());
 
     let modrinth_client = ModrinthClient::new(state.http.clone());
 
     let (modrinth_results, curseforge_results) = tokio::join!(
         async {
             modrinth_client
-                .search_mods(&query, &mcVersion, limit)
+                .search_mods(&query, &mcVersion, &content_type, limit, offset)
                 .await
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "Modrinth search failed");
@@ -64,7 +68,7 @@ pub async fn mods_search(
                 })
         },
         async {
-            curseforge::search_mods(&state.http, &query, &mcVersion, limit)
+            curseforge::search_mods(&state.http, &query, &mcVersion, &content_type, limit, offset)
                 .await
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "CurseForge search failed");
@@ -77,6 +81,8 @@ pub async fn mods_search(
         modrinth_count = modrinth_results.len(),
         curseforge_count = curseforge_results.len(),
         query = %query,
+        offset = %offset,
+        content_type = %content_type,
         "mods_search completed"
     );
 
@@ -96,49 +102,9 @@ pub async fn mods_search_typed(
     mcVersion: String,
     contentType: String,
     limit: Option<u32>,
+    offset: Option<u32>,
 ) -> AppResult<Vec<ModSearchResult>> {
-    let limit = limit.unwrap_or(20);
-
-    let modrinth_client = ModrinthClient::new(state.http.clone());
-
-    match contentType.as_str() {
-        "resourcepack" => {
-            let results = modrinth_client
-                .search_typed(&query, &mcVersion, "resourcepack", limit)
-                .await
-                .unwrap_or_default();
-            Ok(results)
-        }
-        "shader" => {
-            let results = modrinth_client
-                .search_typed(&query, &mcVersion, "shader", limit)
-                .await
-                .unwrap_or_default();
-            Ok(results)
-        }
-        _ => {
-            let (modrinth_results, curseforge_results) = tokio::join!(
-                async {
-                    modrinth_client
-                        .search_mods(&query, &mcVersion, limit)
-                        .await
-                        .unwrap_or_default()
-                },
-                async {
-                    curseforge::search_mods(&state.http, &query, &mcVersion, limit)
-                        .await
-                        .unwrap_or_default()
-                }
-            );
-
-            let mut combined = modrinth_results;
-            combined.extend(curseforge_results);
-            let mut combined = dedup_results(combined);
-            combined.sort_by(|a, b| b.downloads.cmp(&a.downloads));
-            combined.truncate(limit as usize);
-            Ok(combined)
-        }
-    }
+    mods_search(state, query, mcVersion, limit, offset, Some(contentType)).await
 }
 
 #[tauri::command]

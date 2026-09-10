@@ -10,14 +10,14 @@ export interface SkinData {
 }
 
 const defaultSkin: SkinData = {
-	id: "frog_hoodie",
-	name: "Frog Hoodie",
-	url: "https://mc-heads.net/body/Spect3rBW/300",
-	skinUrl: "https://minotar.net/skin/Spect3rBW",
-	avatarUrl: "https://mc-heads.net/avatar/Spect3rBW/100",
-	type: "alex",
-	hasCape: true,
-	capeType: "migrator"
+	id: "steve",
+	name: "Steve Padrão",
+	url: "https://mc-heads.net/body/Steve/300",
+	skinUrl: "https://minotar.net/skin/Steve",
+	avatarUrl: "https://mc-heads.net/avatar/Steve/100",
+	type: "steve",
+	hasCape: false,
+	capeType: "none"
 };
 
 function createSkinStore() {
@@ -26,7 +26,10 @@ function createSkinStore() {
 		const saved = localStorage.getItem("luxmc_active_skin_data");
 		if (saved) {
 			try {
-				initial = { ...defaultSkin, ...JSON.parse(saved) };
+				const parsed = JSON.parse(saved);
+				if (parsed.id !== "frog_hoodie") {
+					initial = { ...defaultSkin, ...parsed };
+				}
 			} catch {}
 		}
 	}

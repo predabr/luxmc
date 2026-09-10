@@ -282,7 +282,13 @@ export async function loadersVersions(loader: string, mcVersion: string): Promis
 	return api.invoke("loaders_versions", { loader, mcVersion });
 }
 
-export async function modsSearch(query: string, mcVersion: string, limit?: number): Promise<Array<{
+export async function modsSearch(
+	query: string,
+	mcVersion: string,
+	limit?: number,
+	offset?: number,
+	contentType?: string
+): Promise<Array<{
 	slug: string;
 	title: string;
 	description: string;
@@ -293,10 +299,16 @@ export async function modsSearch(query: string, mcVersion: string, limit?: numbe
 	source: string;
 	sourceId: string;
 }>> {
-	return api.invoke("mods_search", { query, mcVersion, limit });
+	return api.invoke("mods_search", { query, mcVersion, limit, offset, contentType });
 }
 
-export async function modsSearchTyped(query: string, mcVersion: string, contentType: 'mod' | 'resourcepack' | 'shader', limit?: number): Promise<Array<{
+export async function modsSearchTyped(
+	query: string,
+	mcVersion: string,
+	contentType: string,
+	limit?: number,
+	offset?: number
+): Promise<Array<{
 	slug: string;
 	title: string;
 	description: string;
@@ -307,7 +319,7 @@ export async function modsSearchTyped(query: string, mcVersion: string, contentT
 	source: string;
 	sourceId: string;
 }>> {
-	return api.invoke("mods_search_typed", { query, mcVersion, contentType, limit });
+	return api.invoke("mods_search_typed", { query, mcVersion, contentType, limit, offset });
 }
 
 export async function modsVersions(projectId: string, mcVersion: string, source?: string): Promise<Array<{

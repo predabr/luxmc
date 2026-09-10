@@ -349,8 +349,8 @@
 
 					<button 
 						type="button" 
-						class="w-full h-11 rounded-full hover:scale-[1.02] active:scale-95 text-black font-black text-xs flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer"
-						style="background-color: var(--accent-color, #e2b86b);"
+						class="w-full h-11 rounded-xl hover:brightness-105 active:scale-[0.98] text-[#15171c] font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer"
+						style="background-color: #caa97c;"
 						onclick={handleOfflineAuth}
 						disabled={isLoggingIn}
 					>
@@ -370,8 +370,8 @@
 
 				<!-- Official Microsoft Login -->
 				<button 
-					type="button"
-					class="w-full h-12 rounded-full bg-[#18191c] hover:bg-[#202127] border border-white/10 hover:border-white/20 text-white font-bold text-xs flex items-center justify-center gap-3 transition-all active:scale-98 cursor-pointer shadow-md"
+					type="button" 
+					class="w-full h-11 rounded-xl bg-[#1e1f24] hover:bg-[#282930] border border-white/10 hover:border-white/20 text-white font-semibold text-xs flex items-center justify-center gap-3 transition-all active:scale-[0.98] cursor-pointer shadow-sm"
 					onclick={handleMicrosoftLogin}
 					disabled={isLoggingIn}
 				>
@@ -404,7 +404,7 @@
 			<div class="flex items-center justify-between mt-1">
 				<div>
 					<h1 class="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-						Bora lá, {account.value?.username || 'Spect3rBW'}
+						Bora lá, {account.value?.username || 'Jogador'}
 					</h1>
 					<p class="text-white/40 text-xs mt-1 font-medium">Hora nobre, loot nobre.</p>
 				</div>

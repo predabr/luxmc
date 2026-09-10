@@ -59,40 +59,136 @@
 		uv.needsUpdate = true;
 	}
 
+	function setCapeUV(geometry: THREE.BoxGeometry) {
+		const uv = geometry.getAttribute("uv") as THREE.BufferAttribute;
+		const tw = 64;
+		const th = 32;
+
+		function setFace(faceIndex: number, u1: number, v1: number, u2: number, v2: number, flipX = false) {
+			const i = faceIndex * 4;
+			const leftU = flipX ? u2 : u1;
+			const rightU = flipX ? u1 : u2;
+			uv.setXY(i + 0, leftU / tw, 1 - v1 / th);
+			uv.setXY(i + 1, rightU / tw, 1 - v1 / th);
+			uv.setXY(i + 2, leftU / tw, 1 - v2 / th);
+			uv.setXY(i + 3, rightU / tw, 1 - v2 / th);
+		}
+
+		// Standard Minecraft cape box: width=10, height=16, depth=1
+		// 0: Right (+X): (0, 1) to (1, 17)
+		setFace(0, 0, 1, 1, 17);
+		// 1: Left (-X): (11, 1) to (12, 17)
+		setFace(1, 11, 1, 12, 17);
+		// 2: Top (+Y): (1, 0) to (11, 1)
+		setFace(2, 1, 0, 11, 1);
+		// 3: Bottom (-Y): (11, 0) to (21, 1)
+		setFace(3, 11, 0, 21, 1);
+		// 4: Front (+Z, inner face facing player): (1, 1) to (11, 17)
+		setFace(4, 1, 1, 11, 17);
+		// 5: Back (-Z, outer face facing viewer): (12, 1) to (22, 17) with flipX so text reads correctly
+		setFace(5, 12, 1, 22, 17, true);
+
+		uv.needsUpdate = true;
+	}
+
 	function createCapeTexture(type: string): THREE.CanvasTexture {
 		const canvas = document.createElement("canvas");
 		canvas.width = 64;
 		canvas.height = 32;
 		const ctx = canvas.getContext("2d")!;
+		ctx.imageSmoothingEnabled = false;
 
 		if (type === "migrator") {
-			// Red gradient with golden star
-			const grad = ctx.createLinearGradient(0, 0, 0, 32);
-			grad.addColorStop(0, "#881337");
-			grad.addColorStop(1, "#4c0519");
-			ctx.fillStyle = grad;
+			// Rich deep wine/burgundy base
+			ctx.fillStyle = "#5c0818";
 			ctx.fillRect(0, 0, 64, 32);
-			ctx.fillStyle = "#e2b86b";
-			ctx.fillRect(28, 12, 8, 8);
+
+			// Shading on inner face
+			ctx.fillStyle = "#40040f";
+			ctx.fillRect(1, 1, 10, 16);
+
+			// Back face outer: (12, 1) to (22, 17)
+			ctx.fillStyle = "#690a1c";
+			ctx.fillRect(12, 1, 10, 16);
+
+			// Golden Migrator Emblem:
+			const gold = "#d8a646";
+			const lightGold = "#fae596";
+			const darkGold = "#9d7426";
+
+			// Golden border trim on bottom
+			ctx.fillStyle = darkGold;
+			ctx.fillRect(12, 16, 10, 1);
+			ctx.fillStyle = gold;
+			ctx.fillRect(13, 15, 8, 1);
+
+			// Migrator Crest (Roman I / Pillar)
+			// Top crossbar
+			ctx.fillStyle = gold;
+			ctx.fillRect(14, 4, 6, 2);
+			ctx.fillStyle = lightGold;
+			ctx.fillRect(15, 4, 4, 1);
+
+			// Center pillar
+			ctx.fillStyle = gold;
+			ctx.fillRect(16, 6, 2, 6);
+			ctx.fillStyle = lightGold;
+			ctx.fillRect(16, 7, 1, 4);
+
+			// Bottom crossbar
+			ctx.fillStyle = gold;
+			ctx.fillRect(14, 12, 6, 2);
+			ctx.fillStyle = darkGold;
+			ctx.fillRect(14, 13, 6, 1);
 		} else if (type === "optifine") {
-			// Red with white OF
-			ctx.fillStyle = "#dc2626";
+			// Vivid OptiFine Red
+			ctx.fillStyle = "#b51a1a";
 			ctx.fillRect(0, 0, 64, 32);
+
+			// Inner face
+			ctx.fillStyle = "#8a1010";
+			ctx.fillRect(1, 1, 10, 16);
+
+			// Outer face
+			ctx.fillStyle = "#c92020";
+			ctx.fillRect(12, 1, 10, 16);
+
+			// White OF text
 			ctx.fillStyle = "#ffffff";
-			ctx.font = "bold 16px sans-serif";
-			ctx.textAlign = "center";
-			ctx.fillText("OF", 32, 22);
+			// Letter 'O' (14..16, 6..11)
+			ctx.fillRect(14, 6, 3, 6);
+			ctx.fillStyle = "#c92020";
+			ctx.fillRect(15, 7, 1, 4);
+
+			// Letter 'F' (18..20, 6..11)
+			ctx.fillStyle = "#ffffff";
+			ctx.fillRect(18, 6, 1, 6);
+			ctx.fillRect(18, 6, 3, 1);
+			ctx.fillRect(18, 8, 2, 1);
 		} else {
-			// Classic Mojang
-			ctx.fillStyle = "#991b1b";
+			// Classic Mojang Crimson
+			ctx.fillStyle = "#8b0e17";
 			ctx.fillRect(0, 0, 64, 32);
+
+			// Inner face
+			ctx.fillStyle = "#63070e";
+			ctx.fillRect(1, 1, 10, 16);
+
+			// Outer face
+			ctx.fillStyle = "#a8121d";
+			ctx.fillRect(12, 1, 10, 16);
+
+			// Mojang Studio white crest
 			ctx.fillStyle = "#ffffff";
-			ctx.fillRect(26, 10, 12, 12);
+			ctx.fillRect(15, 7, 4, 4);
+			ctx.fillStyle = "#a8121d";
+			ctx.fillRect(16, 8, 2, 2);
 		}
 
 		const tex = new THREE.CanvasTexture(canvas);
 		tex.magFilter = THREE.NearestFilter;
 		tex.minFilter = THREE.NearestFilter;
+		tex.generateMipmaps = false;
 		return tex;
 	}
 
@@ -204,16 +300,17 @@
 
 		if (cape !== "none") {
 			const capeGeom = new THREE.BoxGeometry(10, 16, 1);
+			setCapeUV(capeGeom);
+
 			const capeTex = createCapeTexture(cape);
 			const capeMat = new THREE.MeshStandardMaterial({
 				map: capeTex,
-				roughness: 0.8,
-				metalness: 0.1
+				roughness: 0.65,
+				metalness: 0.05
 			});
 			capeMesh = new THREE.Mesh(capeGeom, capeMat);
-			// Position on upper back with dynamic slight wind tilt
-			capeMesh.position.set(0, 8, -2.8);
-			capeMesh.rotation.x = -14 * (Math.PI / 180);
+			capeMesh.position.set(0, 8, -2.6);
+			capeMesh.rotation.x = -15 * (Math.PI / 180);
 			playerGroup.add(capeMesh);
 		}
 	}
@@ -306,32 +403,38 @@
 		camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
 		updateCamera();
 
-		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
 		renderer.setSize(width, height);
 		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+		renderer.toneMapping = THREE.ACESFilmicToneMapping;
+		renderer.toneMappingExposure = 1.15;
 		renderer.shadowMap.enabled = false;
 		containerEl.appendChild(renderer.domElement);
 
-		// Lights
-		const ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+		// Studio 3-point lighting setup
+		const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
 		scene.add(ambientLight);
 
-		const frontLight = new THREE.DirectionalLight(0xfff7ed, 1.1);
-		frontLight.position.set(20, 40, 30);
+		const frontLight = new THREE.DirectionalLight(0xfff7ed, 1.5);
+		frontLight.position.set(20, 35, 30);
 		scene.add(frontLight);
 
-		const backLight = new THREE.DirectionalLight(0x93c5fd, 0.6);
-		backLight.position.set(-20, -10, -30);
+		const fillLight = new THREE.DirectionalLight(0xe0e7ff, 0.8);
+		fillLight.position.set(-20, 15, 20);
+		scene.add(fillLight);
+
+		const backLight = new THREE.DirectionalLight(0xfef3c7, 1.2);
+		backLight.position.set(0, 25, -30);
 		scene.add(backLight);
 
 		// Materials
 		solidMaterial = new THREE.MeshStandardMaterial({
-			roughness: 0.85,
+			roughness: 0.65,
 			metalness: 0.05
 		});
 
 		overlayMaterial = new THREE.MeshStandardMaterial({
-			roughness: 0.85,
+			roughness: 0.65,
 			metalness: 0.05,
 			transparent: true,
 			opacity: 1,
@@ -348,14 +451,17 @@
 			animFrameId = requestAnimationFrame(animate);
 
 			if (autoRotate && !isDragging) {
-				yaw += 0.008;
+				yaw += 0.007;
 			}
 
-			// Gentle breathing idle motion
+			// Gentle breathing idle motion and cape flutter
 			idleTime += 0.03;
 			if (playerGroup) {
 				const breathe = Math.sin(idleTime) * 0.015;
 				playerGroup.position.y = breathe * 2;
+				if (capeMesh) {
+					capeMesh.rotation.x = (-15 + Math.sin(idleTime * 1.5) * 2.5) * (Math.PI / 180);
+				}
 			}
 
 			updateCamera();

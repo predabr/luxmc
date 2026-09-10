@@ -102,15 +102,6 @@
 
 	let savedSkins = $state<SkinItem[]>([
 		{
-			id: "frog_hoodie",
-			name: "Frog Hoodie",
-			url: "https://mc-heads.net/body/Spect3rBW/300",
-			skinUrl: "https://minotar.net/skin/Spect3rBW",
-			avatarUrl: "https://mc-heads.net/avatar/Spect3rBW/100",
-			type: "alex",
-			custom: true,
-		},
-		{
 			id: "cyber_steve",
 			name: "Cyber Neon Steve",
 			url: "https://mc-heads.net/body/MHF_Steve/300",
@@ -122,7 +113,7 @@
 	]);
 
 	let autoRotate = $state(true);
-	let selectedCape = $state<"none" | "migrator" | "optifine" | "mojang">("migrator");
+	let selectedCape = $state<"none" | "migrator" | "optifine" | "mojang">(activeSkinStore.current.capeType || "none");
 	let isSlimModel = $state(activeSkinStore.current.type === "alex");
 	let fileInputEl: HTMLInputElement;
 
@@ -272,7 +263,7 @@
 			<div class="flex items-center gap-2">
 				<Button 
 					variant="secondary" 
-					class="border-white/10 bg-[#1e1f23] hover:bg-white/10 text-white gap-2 rounded-full text-xs px-5 py-2 cursor-pointer"
+					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
 					onclick={() => fileInputEl.click()}
 				>
 					<Upload class="w-3.5 h-3.5 text-amber-400" />
@@ -281,7 +272,7 @@
 				
 				<Button 
 					variant="outline" 
-					class="border-white/10 bg-[#1e1f23] hover:bg-white/10 text-white gap-2 rounded-full text-xs px-5 py-2 cursor-pointer" 
+					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm" 
 					onclick={() => toast("Skins sincronizadas!", "success")}
 				>
 					<RefreshCw class="w-3.5 h-3.5" />
@@ -298,7 +289,7 @@
 				<!-- Top Bar inside Stage -->
 				<div class="w-full flex items-center justify-between gap-2 z-10">
 					<div class="flex items-center gap-2">
-						<span class="text-[11px] font-bold text-white/70 flex items-center gap-1.5 bg-black/40 px-3 py-1 rounded-full border border-white/5">
+						<span class="text-[11px] font-bold text-white/70 flex items-center gap-1.5 bg-black/40 px-3 py-1 rounded-xl border border-white/5">
 							<Layers class="w-3.5 h-3.5 text-amber-400" /> Three.js WebGL
 						</span>
 						<span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
@@ -308,7 +299,7 @@
 
 					<button 
 						type="button" 
-						class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all border cursor-pointer {autoRotate ? 'bg-white/10 text-white border-white/20 shadow-sm' : 'bg-[#222328] text-white/50 border-white/5 hover:text-white'}"
+						class="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold transition-colors border cursor-pointer {autoRotate ? 'bg-[#caa97c] text-black border-[#caa97c] font-bold shadow-sm' : 'bg-[#222328] text-white/50 border-white/5 hover:text-white'}"
 						onclick={() => autoRotate = !autoRotate}
 					>
 						<RotateCw class="w-3 h-3 {autoRotate ? 'animate-spin' : ''}" />
@@ -335,24 +326,24 @@
 				<!-- Quick Angle Controls & Model Type -->
 				<div class="w-full flex items-center justify-between gap-2 z-10 pt-2 border-t border-white/5">
 					<div class="flex items-center gap-1.5">
-						<button type="button" class="px-3 py-1 rounded-full bg-[#222328] hover:bg-white/10 text-[10px] font-bold text-white/60 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(0)}>Frente</button>
-						<button type="button" class="px-3 py-1 rounded-full bg-[#222328] hover:bg-white/10 text-[10px] font-bold text-white/60 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(90)}>Lado D</button>
-						<button type="button" class="px-3 py-1 rounded-full bg-[#222328] hover:bg-white/10 text-[10px] font-bold text-white/60 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(180)}>Costas</button>
-						<button type="button" class="px-3 py-1 rounded-full bg-[#222328] hover:bg-white/10 text-[10px] font-bold text-white/60 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(270)}>Lado E</button>
+						<button type="button" class="px-2.5 py-1 rounded-lg bg-[#222328] hover:bg-[#2e2f38] text-[10px] font-semibold text-white/70 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(0)}>Frente</button>
+						<button type="button" class="px-2.5 py-1 rounded-lg bg-[#222328] hover:bg-[#2e2f38] text-[10px] font-semibold text-white/70 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(90)}>Lado D</button>
+						<button type="button" class="px-2.5 py-1 rounded-lg bg-[#222328] hover:bg-[#2e2f38] text-[10px] font-semibold text-white/70 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(180)}>Costas</button>
+						<button type="button" class="px-2.5 py-1 rounded-lg bg-[#222328] hover:bg-[#2e2f38] text-[10px] font-semibold text-white/70 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(270)}>Lado E</button>
 					</div>
 
 					<!-- Steve (4px) vs Alex (3px) Toggle -->
-					<div class="flex items-center bg-[#141518] p-0.5 rounded-full border border-white/5">
+					<div class="flex items-center bg-[#141518] p-0.5 rounded-xl border border-white/5">
 						<button 
 							type="button" 
-							class="px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer {!isSlimModel ? 'bg-white/20 text-white font-extrabold' : 'text-white/40 hover:text-white'}"
+							class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {!isSlimModel ? 'bg-[#2e2f38] text-white font-bold shadow-sm' : 'text-white/40 hover:text-white'}"
 							onclick={() => { isSlimModel = false; activeSkinStore.setSkin({ type: 'steve' }); }}
 						>
 							Steve (4px)
 						</button>
 						<button 
 							type="button" 
-							class="px-3 py-1 rounded-full text-[10px] font-bold transition-all cursor-pointer {isSlimModel ? 'bg-white/20 text-white font-extrabold' : 'text-white/40 hover:text-white'}"
+							class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {isSlimModel ? 'bg-[#2e2f38] text-white font-bold shadow-sm' : 'text-white/40 hover:text-white'}"
 							onclick={() => { isSlimModel = true; activeSkinStore.setSkin({ type: 'alex' }); }}
 						>
 							Alex (3px)
@@ -369,7 +360,7 @@
 						{#each ["none", "migrator", "optifine", "mojang"] as cape}
 							<button 
 								type="button" 
-								class="px-3 py-1 rounded-full text-[10px] font-bold capitalize transition-all cursor-pointer {selectedCape === cape ? 'bg-brand-500 text-black font-extrabold shadow-md' : 'bg-[#1c1d22] text-white/50 border border-white/5 hover:text-white'}"
+								class="px-2.5 py-1 rounded-xl text-[10px] font-semibold capitalize transition-all cursor-pointer {selectedCape === cape ? 'bg-[#caa97c] text-black font-bold shadow-sm' : 'bg-[#1c1d22] text-white/50 border border-white/5 hover:text-white hover:bg-[#24252c]'}"
 								onclick={() => {
 									selectedCape = cape as any;
 									activeSkinStore.setCape(cape as any);
