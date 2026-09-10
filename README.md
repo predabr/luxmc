@@ -29,10 +29,14 @@
 ## 🌟 O que há de novo na v1.0.0-BETA?
 
 - ⚡ **Zero-Lag & Aceleração GPU Total:** Pipeline DMA-BUF ativo no WebKitGTK para o Linux AppImage rodar a 60–144 FPS liso na sua GPU (Mesa / Vulkan / OpenGL), sem software rasterization por CPU.
-- 📦 **Integração Dupla Modrinth + CurseForge:** Busque e instale mods, shaders e resource packs diretamente no launcher com resolução de dependências automática e suporte completo a ambas as plataformas.
+- 📦 **Central de Mods com Visão Detalhada, Galeria e Versões:** Navegue com descrição formatada, galeria de screenshots com lightbox, changelogs e downloads de versões específicas direto do Modrinth e CurseForge.
+- 🧩 **Gerenciador Interno de Mods por Instância:** Ative ou desative mods instantaneamente (`.jar` ↔ `.jar.disabled`), exclua, adicione arquivos locais `.jar` ou abra a pasta nativa no seu gerenciador de arquivos Linux com 1 clique.
+- 🚀 **Predefinições Rápidas de Instâncias em 1 Clique:** Comece a jogar em segundos com presets prontos de *Vanilla Otimizado (1.21.4 Fabric)*, *PvP Clássico (1.8.9 Vanilla)*, *Survival Moderno* e *Modded NeoForge*.
+- 📋 **Compartilhamento de Logs e Crash Reports via `mclo.gs`:** Envie relatórios de erro e logs do jogo com sanitização de dados sensíveis e obtenha links compartilháveis com cópia automática para a área de transferência.
+- 🔑 **Suporte Dinâmico a Microsoft Azure Client ID:** Configure seu próprio Client ID de autenticação Microsoft diretamente na tela de Configurações sem precisar recompilar.
 - 🎬 **Nova Cutscene Cinematográfica:** Abertura rápida de 2.3s com anéis orbitais, snap magnético e efeito sonoro sintetizado em tempo real (pule instantaneamente com `Espaço` ou clique).
 - 🎨 **Redesign Completo da Interface:**
-  - Sidebar em squircle com gradiente metálico refinado.
+  - Sidebar em squircle com gradiente metálico refinado e alternador rápido de contas no topo.
   - Switches de alternância elegantes no estilo das configurações modernas (trilha champanhe ativa e thumb de alto contraste).
   - Central de Mods com badges de fonte, nuvens de tags de categorias e pills de filtros.
   - Dashboard inicial com saudação, atalho para bibliotecas, lista dos servidores mais jogados e monitoramento do seu tempo de jogo semanal.

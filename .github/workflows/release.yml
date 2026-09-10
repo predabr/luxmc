@@ -99,16 +99,21 @@ jobs:
             - **Em Jogo**: Alterna automaticamente para o ID oficial do Minecraft, mostrando **Jogando Minecraft**, nome da instância, versão ativa e contador de tempo de sessão.
             - **Reconexão Automática**: Conecta automaticamente mesmo se o Discord for aberto após o launcher.
             
-            ### 🛠️ 10 Novas Funcionalidades Modernas Integradas
+            ### 🛠️ Novas Funcionalidades Modernas Integradas
             1. Página Completa de Detalhes de Mods com Galeria e Versões.
             2. Cutscene Cinemática com Logo Reveal e Dissolve.
             3. Discord RPC 2.0 com detecção automática in-game.
             4. Live Server Monitor com resolução real de DNS.
-            5. Seletor Rápido de Memória RAM JVM com detecção do sistema.
-            6. Gerenciador de Screenshots com Lightbox HD.
-            7. Exportador e Importador de Instâncias (.zip e .mrpack).
-            8. Analisador Inteligente de Crash Reports e Logs do Jogo.
-            9. Detector de Runtimes Java no Linux (Java 8, 17 e 21).
-            10. Acelerador de Desempenho Linux (Feral GameMode + Vulkan/Zink).
+            5. Gerenciador Interno de Mods por Instância (Ativar/Desativar `.jar`, Adicionar, Excluir e Abrir Pasta).
+            6. Presets Rápidos de Instâncias em 1 Clique (Vanilla Otimizado, PvP Clássico 1.8.9, Survival Moderno, Modded NeoForge).
+            7. Compartilhamento de Logs e Crash Reports via `mclo.gs` com cópia automática de link.
+            8. Suporte a Client ID Dinâmico do Azure Microsoft nas Configurações.
+            9. Seletor Rápido de Contas no Topbar com exibição de avatares.
+            10. Seletor de Memória RAM JVM com detecção do sistema.
+            11. Gerenciador de Screenshots com Lightbox HD.
+            12. Exportador e Importador de Instâncias (.zip e .mrpack).
+            13. Analisador Inteligente de Crash Reports e Logs do Jogo.
+            14. Detector de Runtimes Java no Linux (Java 8, 17 e 21).
+            15. Acelerador de Desempenho Linux (Feral GameMode + Vulkan/Zink).
           releaseDraft: false
           prerelease: true
