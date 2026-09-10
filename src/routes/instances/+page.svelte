@@ -40,13 +40,18 @@
 		Play,
 		Pencil,
 		Sparkles,
-		Zap
+		Zap,
+		Loader2,
+		MoreVertical
 	} from "lucide-svelte";
 	import FilterableVersionSelect from "$lib/components/ui/FilterableVersionSelect.svelte";
 	import Modal from "$lib/components/ui/Modal.svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
-	import { profiles } from "$lib/stores/profiles.svelte";
+	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
+	import { account } from "$lib/stores/account.svelte";
+	import { gamingStats } from "$lib/stores/gamingStats.svelte";
+	import { appState } from "$lib/stores/app.svelte";
 	import {
 		api,
 		fetchVersionsDirect,
@@ -67,6 +72,11 @@
 		getSystemSpecs,
 		profilesCreate,
 		optimizerInstallPerfPack,
+		launchGame,
+		versionsCheckInstalled,
+		versionsDownload,
+		authDevLogin,
+		discordSetActivity,
 		type HealthCheckResult,
 		type FileTreeEntry,
 	} from "$lib/api";
@@ -75,6 +85,7 @@
 
 	const { t } = useTranslation();
 
+	let openCardMenuId = $state<string | null>(null);
 	let showCreate = $state(false);
 	let showImport = $state(false);
 	let showImportMrpack = $state(false);
@@ -643,6 +654,53 @@
 		}
 		profiles.activeId = id;
 		goto("/instances/" + id);
+	}
+
+	let launchingInstanceId = $state<string | null>(null);
+
+	async function quickPlay(p: Profile) {
+		if (launchingInstanceId) return;
+		launchingInstanceId = p.id;
+		profiles.activeId = p.id;
+		try {
+			let accountId = account.value?.uuid;
+			if (!accountId) {
+				const dev = await authDevLogin();
+				accountId = dev.uuid;
+			}
+			const verId = p.mcVersion || "1.21.4";
+			const installed = await versionsCheckInstalled(verId).catch(() => false);
+			if (!installed) {
+				toast(`Baixando Minecraft ${verId}...`, "info");
+				await versionsDownload(verId);
+			}
+			const isVulkan = p.useVulkan === true;
+			const res = await launchGame({
+				versionId: verId,
+				accountId: accountId || "",
+				profileId: p.id,
+				enableVulkan: isVulkan
+			});
+			gamingStats.onGameStart();
+			appState.isGameRunning = true;
+			appState.activeGameDetails = { name: p.name, version: verId, loader: p.loader };
+			discordSetActivity({
+				inGame: true,
+				details: `Jogando ${p.name}`,
+				state: `Minecraft ${verId} · Luxmc`,
+				largeText: `Minecraft ${verId}`,
+				largeImage: "default",
+				startTime: Math.floor(Date.now() / 1000)
+			}).catch(() => {});
+			profiles.setLastPlayed(p.id);
+			toast(`🎮 Minecraft ${verId} (${p.name}) iniciado! (PID: ${res.pid})`, "success");
+		} catch (e) {
+			toast("Falha ao iniciar jogo: " + String(e), "error");
+		} finally {
+			setTimeout(() => {
+				launchingInstanceId = null;
+			}, 2500);
+		}
 	}
 
 	async function duplicateInstance(id: string) {
@@ -1307,18 +1365,23 @@
 					{/if}
 					<Card interactive onclick={() => selectInstance(p.id)}>
 						<!-- Top Minecraft Artwork Banner -->
-						<div class="h-32 -mx-4 -mt-4 mb-3 rounded-t-xl overflow-hidden relative bg-[#1c1d22]">
+						<div class="h-36 -mx-4 -mt-4 mb-3 rounded-t-2xl overflow-hidden relative bg-[#1c1d22]">
 							<img 
 								src={p.loader === 'fabric' ? '/modpack_fo.webp' : p.loader === 'forge' ? '/modpack_better_mc.webp' : p.loader === 'neoforge' ? '/modpack_cobblemon.webp' : '/vanilla_banner.png'} 
 								alt="Minecraft Artwork" 
 								class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-500" 
 							/>
 							<div class="absolute inset-0 bg-gradient-to-t from-[#141518] via-transparent to-transparent"></div>
-							<div class="absolute bottom-2.5 left-3 flex items-center gap-2">
-								<img src={getIconSrc(p.icon)} alt="Minecraft" class="w-6 h-6 rounded-md object-contain [image-rendering:pixelated] drop-shadow-md bg-black/50 border border-white/10 p-0.5" />
-								<span class="bg-black/80 backdrop-blur-md text-brand-500 text-[9px] font-black uppercase px-2 py-0.5 rounded-md border border-brand-500/30 shadow-md">
-									{p.loader.toUpperCase()} · MC {p.mcVersion}
-								</span>
+							
+							<!-- Top-Right Loader Pill -->
+							<div class="absolute top-2.5 right-2.5 bg-black/70 backdrop-blur-md text-[#caa97c] text-[10px] font-black uppercase px-2.5 py-1 rounded-full border border-white/10 shadow-lg flex items-center gap-1.5">
+								<span class="w-1.5 h-1.5 rounded-full bg-[#caa97c]"></span>
+								<span>{p.loader.toUpperCase()} · {p.mcVersion}</span>
+							</div>
+
+							<!-- Bottom-Left Instance Icon -->
+							<div class="absolute bottom-2.5 left-3 h-10 w-10 rounded-xl bg-[#14151a] border-2 border-white/15 p-0.5 shadow-xl flex items-center justify-center overflow-hidden">
+								<img src={getIconSrc(p.icon)} alt="Minecraft" class="w-full h-full object-cover rounded-lg [image-rendering:pixelated]" />
 							</div>
 						</div>
 
@@ -1399,99 +1462,111 @@
 							<p class="mt-1 text-[11px] italic line-clamp-2" style="color: rgb(var(--fg-subtle));">{p.notes}</p>
 						{/if}
 
-						<!-- Card Footer Actions (Sleek single row with pill buttons) -->
-						<div class="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
-							<div class="flex items-center gap-1">
+						<!-- Card Footer: Clean SKlauncher Layout -->
+						<div class="mt-4 flex items-center justify-between border-t border-white/5 pt-3 relative">
+							<!-- Left: Secondary Tools (Edit, Folder, More Options) -->
+							<div class="flex items-center gap-1.5">
 								<button
-									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+									type="button"
+									class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white bg-white/[0.03] hover:bg-white/10 border border-white/5 transition-all cursor-pointer shadow-sm active:scale-95"
 									onclick={(e) => { e.stopPropagation(); openEditInstance(p); }}
 									aria-label={t("instances.edit")}
-									title="Editar / Configurar Instância"
+									title="Configurar Instância"
 								>
 									<Pencil class="h-3.5 w-3.5" />
 								</button>
 								<button
-									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+									type="button"
+									class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white bg-white/[0.03] hover:bg-white/10 border border-white/5 transition-all cursor-pointer shadow-sm active:scale-95"
 									onclick={(e) => { e.stopPropagation(); openFolder(p.id); }}
 									aria-label={t("instances.openFolder")}
-									title="Abrir Pasta"
+									title="Abrir Pasta de Arquivos"
 								>
 									<FolderOpen class="h-3.5 w-3.5" />
 								</button>
-								<button
-									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-									onclick={(e) => { e.stopPropagation(); duplicateInstance(p.id); }}
-									aria-label={t("instances.duplicate")}
-									title="Duplicar Instância"
-								>
-									<Copy class="h-3.5 w-3.5" />
-								</button>
-								<button
-									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-									onclick={(e) => { e.stopPropagation(); openScreenshots(p.id); }}
-									aria-label={t("nav.screenshots")}
-									title="Capturas de Tela"
-								>
-									<Image class="h-3.5 w-3.5" />
-								</button>
-								<button
-									class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-									onclick={(e) => { e.stopPropagation(); openNotes(p.id); }}
-									aria-label={t("instances.notes")}
-									title="Anotações"
-								>
-									<StickyNote class="h-3.5 w-3.5" />
-								</button>
 								<div class="relative">
 									<button
-										class="h-8 w-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-										style="color: {tagColor ? colorOptions.find((c) => c.value === tagColor)?.color ?? 'rgba(255,255,255,0.7)' : ''};"
-										onclick={(e) => { e.stopPropagation(); colorPickerId = colorPickerId === p.id ? null : p.id; }}
-										aria-label={t("instances.colorTag")}
-										title="Cor da Tag"
+										type="button"
+										class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white bg-white/[0.03] hover:bg-white/10 border border-white/5 transition-all cursor-pointer shadow-sm active:scale-95 {openCardMenuId === p.id ? 'bg-[#caa97c]/20 text-[#caa97c] border-[#caa97c]/40' : ''}"
+										onclick={(e) => { e.stopPropagation(); openCardMenuId = openCardMenuId === p.id ? null : p.id; }}
+										title="Mais Opções"
 									>
-										<Paintbrush class="h-3.5 w-3.5" />
+										<MoreVertical class="h-3.5 w-3.5" />
 									</button>
-									{#if colorPickerId === p.id}
-										<div class="absolute bottom-full left-0 z-30 mb-1.5 flex gap-1 rounded-full p-1.5 bg-[#1e1f24] border border-white/10 shadow-xl">
-											{#each colorOptions as c}
-												<button
-													class="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
-													style="background: {c.color}; border-color: {tagColor === c.value ? 'white' : 'transparent'};"
-													onclick={(e) => { e.stopPropagation(); saveColor(p.id, c.value); colorPickerId = null; }}
-													aria-label={t("instances.setThemeColor", { color: c.value })}
-												></button>
-											{/each}
-											{#if tagColor}
-												<button
-													class="h-5 w-5 rounded-full border border-white/20 bg-white/5 hover:bg-white/15 flex items-center justify-center transition-transform hover:scale-110"
-													onclick={(e) => { e.stopPropagation(); removeColor(p.id); colorPickerId = null; }}
-													aria-label={t("instances.removeColor")}
-												>
-													<X class="h-3 w-3 text-white/60" />
-												</button>
-											{/if}
+
+									{#if openCardMenuId === p.id}
+										<!-- Backdrop click to dismiss -->
+										<!-- svelte-ignore a11y_click_events_have_key_events -->
+										<!-- svelte-ignore a11y_no_static_element_interactions -->
+										<div class="fixed inset-0 z-40" onclick={(e) => { e.stopPropagation(); openCardMenuId = null; }}></div>
+
+										<!-- Popover Dropdown Menu -->
+										<!-- svelte-ignore a11y_click_events_have_key_events -->
+										<!-- svelte-ignore a11y_no_static_element_interactions -->
+										<div 
+											class="absolute bottom-10 left-0 z-50 w-48 bg-[#181920] border border-white/10 rounded-2xl shadow-2xl p-1.5 space-y-0.5 text-xs font-semibold text-white/80"
+											onclick={(e) => e.stopPropagation()}
+										>
+											<button 
+												type="button" 
+												class="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-colors cursor-pointer text-left" 
+												onclick={() => { openCardMenuId = null; duplicateInstance(p.id); }}
+											>
+												<Copy class="w-3.5 h-3.5 text-[#caa97c]" />
+												<span>Duplicar Instância</span>
+											</button>
+											<button 
+												type="button" 
+												class="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-colors cursor-pointer text-left" 
+												onclick={() => { openCardMenuId = null; openScreenshots(p.id); }}
+											>
+												<Image class="w-3.5 h-3.5 text-sky-400" />
+												<span>Capturas de Tela</span>
+											</button>
+											<button 
+												type="button" 
+												class="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-colors cursor-pointer text-left" 
+												onclick={() => { openCardMenuId = null; openNotes(p.id); }}
+											>
+												<StickyNote class="w-3.5 h-3.5 text-amber-400" />
+												<span>Anotações</span>
+											</button>
+											<button 
+												type="button" 
+												class="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white transition-colors cursor-pointer text-left" 
+												onclick={() => { openCardMenuId = null; checkHealth(p.id); }}
+											>
+												<HeartPulse class="w-3.5 h-3.5 text-emerald-400" />
+												<span>Diagnóstico</span>
+											</button>
+											<div class="border-t border-white/5 my-1"></div>
+											<button 
+												type="button" 
+												class="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-red-500/15 text-red-400 hover:text-red-300 transition-colors cursor-pointer text-left" 
+												onclick={() => { openCardMenuId = null; confirmDeleteInstance = { id: p.id, name: p.name, gameDir: p.gameDir }; }}
+											>
+												<Trash2 class="w-3.5 h-3.5" />
+												<span>Excluir Instância</span>
+											</button>
 										</div>
 									{/if}
 								</div>
-								<button
-									class="h-8 w-8 rounded-full flex items-center justify-center text-white/40 hover:text-red-400 hover:bg-red-500/15 transition-all cursor-pointer"
-									onclick={(e) => {
-										e.stopPropagation();
-										confirmDeleteInstance = { id: p.id, name: p.name, gameDir: p.gameDir };
-									}}
-									aria-label={t("common.delete")}
-									title="Excluir Instância"
-								>
-									<Trash2 class="h-3.5 w-3.5" />
-								</button>
 							</div>
 
+							<!-- Right: Primary JOGAR Button (Hero champagne/gold pill) -->
 							<button
-								class="flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-black text-black transition-all hover:brightness-110 active:scale-95 shadow-[0_0_15px_rgba(226,184,107,0.35)] cursor-pointer bg-gradient-to-r from-brand-500 to-[#cba358]"
-								onclick={(e) => { e.stopPropagation(); selectInstance(p.id); goto('/'); }}
+								type="button"
+								class="flex items-center gap-2 rounded-xl px-6 py-2.5 text-xs font-black text-black transition-all hover:brightness-105 active:scale-95 shadow-[0_4px_20px_rgba(202,169,124,0.35)] cursor-pointer bg-gradient-to-r from-[#caa97c] via-[#ddbe93] to-[#ebd095] disabled:opacity-60"
+								onclick={(e) => { e.stopPropagation(); quickPlay(p); }}
+								disabled={launchingInstanceId === p.id}
 							>
-								<Play class="h-3.5 w-3.5 fill-current stroke-[3]" /> {t("instances.play")}
+								{#if launchingInstanceId === p.id}
+									<Loader2 class="h-4 w-4 animate-spin text-black" />
+									<span>Iniciando...</span>
+								{:else}
+									<Play class="h-4 w-4 fill-current stroke-[2.5]" />
+									<span class="tracking-wide uppercase">JOGAR</span>
+								{/if}
 							</button>
 						</div>
 					</Card>
@@ -1561,10 +1636,17 @@
 					<span class="truncate text-xs font-bold uppercase" style="color: rgb(var(--fg-muted));">{p.loader}</span>
 					<div class="flex items-center justify-end gap-1.5">
 						<button
-							class="flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-black text-black transition-all hover:brightness-110 active:scale-95 shadow-sm cursor-pointer bg-gradient-to-r from-brand-500 to-[#cba358]"
-							onclick={(e) => { e.stopPropagation(); selectInstance(p.id); goto('/'); }}
+							class="flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-xs font-black text-black transition-all hover:brightness-105 active:scale-95 shadow-[0_2px_10px_rgba(202,169,124,0.3)] cursor-pointer bg-gradient-to-r from-[#caa97c] via-[#ddbe93] to-[#ebd095] disabled:opacity-75"
+							onclick={(e) => { e.stopPropagation(); quickPlay(p); }}
+							disabled={launchingInstanceId === p.id}
 						>
-							<Play class="h-3 w-3 fill-current stroke-[2.5]" /> {t("instances.play")}
+							{#if launchingInstanceId === p.id}
+								<Loader2 class="h-3 w-3 animate-spin text-black" />
+								<span>Iniciando...</span>
+							{:else}
+								<Play class="h-3 w-3 fill-current stroke-[2.5]" />
+								<span class="tracking-wide uppercase">JOGAR</span>
+							{/if}
 						</button>
 						<button
 							class="h-7 w-7 rounded-full flex items-center justify-center hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer"

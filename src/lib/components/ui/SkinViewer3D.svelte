@@ -35,9 +35,9 @@
 	let isDragging = false;
 	let prevMouseX = 0;
 	let prevMouseY = 0;
-	let yaw = 25 * (Math.PI / 180);
-	let pitch = 10 * (Math.PI / 180);
-	let zoom = 58;
+	let yaw = 20 * (Math.PI / 180);
+	let pitch = 4 * (Math.PI / 180);
+	let zoom = 36;
 
 	// Minecraft skin UV helper
 	function setBoxUV(geometry: THREE.BoxGeometry, x: number, y: number, w: number, h: number, d: number, tw = 64, th = 64) {
@@ -192,8 +192,28 @@
 		return tex;
 	}
 
+	function disposePlayerGroup(group: THREE.Group) {
+		group.traverse((child) => {
+			if ((child as THREE.Mesh).isMesh) {
+				const mesh = child as THREE.Mesh;
+				if (mesh.geometry) {
+					mesh.geometry.dispose();
+				}
+				if (mesh === capeMesh) {
+					if (mesh.material) {
+						const mat = mesh.material as THREE.MeshStandardMaterial;
+						if (mat.map) mat.map.dispose();
+						mat.dispose();
+					}
+					capeMesh = null;
+				}
+			}
+		});
+	}
+
 	function buildMinecraftModel(isSlim: boolean) {
 		if (playerGroup) {
+			disposePlayerGroup(playerGroup);
 			scene.remove(playerGroup);
 		}
 		playerGroup = new THREE.Group();
@@ -293,8 +313,17 @@
 
 	function updateCape() {
 		if (capeMesh) {
-			playerGroup.remove(capeMesh);
-			capeMesh.geometry.dispose();
+			if (playerGroup) {
+				playerGroup.remove(capeMesh);
+			}
+			if (capeMesh.geometry) {
+				capeMesh.geometry.dispose();
+			}
+			if (capeMesh.material) {
+				const mat = capeMesh.material as THREE.MeshStandardMaterial;
+				if (mat.map) mat.map.dispose();
+				mat.dispose();
+			}
 			capeMesh = null;
 		}
 
@@ -322,11 +351,13 @@
 			const canvas = document.createElement("canvas");
 			canvas.width = 64;
 			canvas.height = 64;
-			const ctx = canvas.getContext("2d")!;
+			const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+			ctx.imageSmoothingEnabled = false;
 			ctx.drawImage(img, 0, 0);
 
 			// If it's an old 64x32 skin, duplicate limbs to 64x64 format
 			if (img.height === 32) {
+				ctx.imageSmoothingEnabled = false;
 				// Copy right arm to left arm
 				ctx.drawImage(canvas, 40, 16, 16, 16, 32, 48, 16, 16);
 				// Copy right leg to left leg
@@ -341,6 +372,7 @@
 			currentTexture.magFilter = THREE.NearestFilter;
 			currentTexture.minFilter = THREE.NearestFilter;
 			currentTexture.generateMipmaps = false;
+			currentTexture.colorSpace = THREE.SRGBColorSpace;
 
 			solidMaterial.map = currentTexture;
 			solidMaterial.needsUpdate = true;
@@ -381,7 +413,7 @@
 
 	function onWheel(e: WheelEvent) {
 		e.preventDefault();
-		zoom = Math.max(28, Math.min(75, zoom + e.deltaY * 0.04));
+		zoom = Math.max(20, Math.min(65, zoom + e.deltaY * 0.03));
 		updateCamera();
 	}
 
@@ -490,10 +522,38 @@
 	onDestroy(() => {
 		if (animFrameId !== null) {
 			cancelAnimationFrame(animFrameId);
+			animFrameId = null;
 		}
-		if (renderer && renderer.domElement) {
-			renderer.domElement.remove();
+		if (playerGroup) {
+			disposePlayerGroup(playerGroup);
+			if (scene) scene.remove(playerGroup);
+			playerGroup = null as unknown as THREE.Group;
+		}
+		if (capeMesh) {
+			if (capeMesh.geometry) capeMesh.geometry.dispose();
+			if (capeMesh.material) {
+				const mat = capeMesh.material as THREE.MeshStandardMaterial;
+				if (mat.map) mat.map.dispose();
+				mat.dispose();
+			}
+			capeMesh = null;
+		}
+		if (currentTexture) {
+			currentTexture.dispose();
+			currentTexture = null;
+		}
+		if (solidMaterial) {
+			solidMaterial.dispose();
+		}
+		if (overlayMaterial) {
+			overlayMaterial.dispose();
+		}
+		if (renderer) {
+			if (renderer.domElement && renderer.domElement.parentNode) {
+				renderer.domElement.parentNode.removeChild(renderer.domElement);
+			}
 			renderer.dispose();
+			renderer.forceContextLoss();
 		}
 	});
 
@@ -520,7 +580,24 @@
 
 	export function setAngle(deg: number) {
 		yaw = deg * (Math.PI / 180);
-		pitch = 0.05;
+		pitch = 4 * (Math.PI / 180);
+		updateCamera();
+	}
+
+	export function zoomIn() {
+		zoom = Math.max(20, zoom - 4);
+		updateCamera();
+	}
+
+	export function zoomOut() {
+		zoom = Math.min(65, zoom + 4);
+		updateCamera();
+	}
+
+	export function resetView() {
+		zoom = 36;
+		yaw = 20 * (Math.PI / 180);
+		pitch = 4 * (Math.PI / 180);
 		updateCamera();
 	}
 </script>

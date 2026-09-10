@@ -55,5 +55,19 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 				"Refinamento visual com tema luxury dark (#141518 / #caa97c) em todas as telas e painéis do launcher".into(),
 			],
 		},
+		ChangelogEntry {
+			version: "1.2.0-alpha".into(),
+			date: "2026-09-10".into(),
+			title: "Discord RPC Dinâmico, Otimização Extrema & Redesign SKlauncher".into(),
+			highlights: vec![
+				"Discord Rich Presence dinâmico no launcher acompanhando todas as telas (Início, Instâncias, Mods, Skins, Servidores) e exibição detalhada de jogo".into(),
+				"Correção de compatibilidade com arRPC e Vesktop no Linux eliminando erros 404 de Client ID".into(),
+				"Otimização profunda de consumo de memória: eliminação de passes secundários de renderização 3D no fundo e limites estritos de log e imagens".into(),
+				"Sistema de botões redesenhado no padrão SKlauncher com gradientes champagne, inner highlights e animações de spring nos cliques".into(),
+				"Personalizador de skins 3D ultra-nítido com NearestFilter, fim do blur de pixel art e controles de zoom direto na tela".into(),
+				"Barra de downloads flutuante em vidro fumê com indicador de velocidade real em MB/s e tempo restante estimado".into(),
+				"Segurança máxima: ofuscação de chaves CurseForge em tempo de compilação via script Rust sem segredos em texto claro no binário".into(),
+			],
+		},
 	])
 }

@@ -116,8 +116,12 @@
 	let selectedCape = $state<"none" | "migrator" | "optifine" | "mojang">(activeSkinStore.current.capeType || "none");
 	let isSlimModel = $state(activeSkinStore.current.type === "alex");
 	let fileInputEl: HTMLInputElement;
-
-	let skinViewerRef: { setAngle: (deg: number) => void } | null = $state(null);
+	let skinViewerRef: { 
+		setAngle: (deg: number) => void;
+		zoomIn?: () => void;
+		zoomOut?: () => void;
+		resetView?: () => void;
+	} | null = $state(null);
 
 	let nameMcQuery = $state("");
 	let isSearchingNameMc = $state(false);
@@ -144,7 +148,7 @@
 				custom: true
 			};
 
-			savedSkins = [newSkin, ...savedSkins];
+			savedSkins = [newSkin, ...savedSkins].slice(0, 25);
 			applySkin(newSkin);
 			toast(`Skin de "${nick}" importada do NameMC com sucesso!`, "success");
 			nameMcQuery = "";
@@ -220,7 +224,7 @@
 					custom: true
 				};
 
-				savedSkins = [newSkin, ...savedSkins];
+				savedSkins = [newSkin, ...savedSkins].slice(0, 25);
 				applySkin(newSkin);
 				toast(`Nova skin "${cleanName}" carregada e sincronizada com seu perfil!`, "success");
 			};
@@ -308,9 +312,9 @@
 				</div>
 
 				<!-- 3D Interactive WebGL Stage (Click & Drag 360°) -->
-				<div class="my-2 relative flex items-center justify-center select-none w-full h-[360px]">
+				<div class="my-2 relative flex items-center justify-center select-none w-full h-[460px]">
 					<!-- Radial Aura Backdrop -->
-					<div class="absolute inset-0 bg-radial from-brand-500/15 via-transparent to-transparent blur-3xl pointer-events-none"></div>
+					<div class="absolute inset-0 bg-radial from-[#caa97c]/15 via-transparent to-transparent blur-3xl pointer-events-none"></div>
 
 					<!-- Volumetric 3D Skin Viewer -->
 					<SkinViewer3D 
@@ -321,6 +325,34 @@
 						{autoRotate}
 						className="z-10"
 					/>
+
+					<!-- Floating Zoom & Reset Overlay Controls -->
+					<div class="absolute bottom-3 right-3 flex flex-col gap-1.5 z-20">
+						<button 
+							type="button" 
+							class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/10 flex items-center justify-center text-sm font-bold transition-all shadow-lg active:scale-95 cursor-pointer"
+							onclick={() => skinViewerRef?.zoomIn?.()}
+							title="Aproximar (Zoom +)"
+						>
+							+
+						</button>
+						<button 
+							type="button" 
+							class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/10 flex items-center justify-center text-sm font-bold transition-all shadow-lg active:scale-95 cursor-pointer"
+							onclick={() => skinViewerRef?.zoomOut?.()}
+							title="Afastar (Zoom -)"
+						>
+							-
+						</button>
+						<button 
+							type="button" 
+							class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/10 flex items-center justify-center text-xs font-bold transition-all shadow-lg active:scale-95 cursor-pointer"
+							onclick={() => skinViewerRef?.resetView?.()}
+							title="Restaurar Visão Padrão"
+						>
+							⟲
+						</button>
+					</div>
 				</div>
 
 				<!-- Quick Angle Controls & Model Type -->

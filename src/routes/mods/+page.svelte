@@ -35,8 +35,10 @@
 		ArrowUpDown,
 		Filter,
 		Cpu,
-		Palette
+		Palette,
+		PackagePlus
 	} from "lucide-svelte";
+	import { fade, fly, scale } from "svelte/transition";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { 
@@ -44,6 +46,10 @@
 		modsVersions, 
 		modsInstall, 
 		modsProjectDetails,
+		modsDownloadToTemp,
+		instanceImportMrpack,
+		instanceImportModpack,
+		curseforgeStatus,
 		type ModProjectDetails,
 		type ModVersion,
 		type ModSearchResultItem
@@ -57,6 +63,20 @@
 			targetInstanceId = profiles.activeId ?? profiles.list[0].id;
 		}
 	});
+
+	let showModpackInstallModal = $state(false);
+	let modpackToInstall = $state<ModSearchResultItem | null>(null);
+	let modpackInstanceName = $state("");
+	let modpackRamMb = $state(4096);
+	let isInstallingModpack = $state(false);
+	let modpackProgressText = $state("");
+
+	let showInstancePickerModal = $state(false);
+	let itemToInstall = $state<{ item: ModSearchResultItem; versionId?: string } | null>(null);
+	let chosenInstanceId = $state<string>(profiles.activeId ?? profiles.list[0]?.id ?? "");
+
+	let curseforgeActive = $state(true);
+	let showAllVersions = $state(false);
 
 	let searchQuery = $state("");
 	let selectedSource = $state<"all" | "modrinth" | "curseforge">("all");
@@ -220,45 +240,45 @@
 	});
 
 	onMount(() => {
-		if (typeof window !== "undefined" && window.location.search.includes("test_leak=1")) {
-			const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-			void (async () => {
-				console.log("[LEAK_TEST_STEP] STARTING");
-				await delay(3000);
-
-				console.log("[LEAK_TEST_STEP] NAVIGATE_PAGE_2");
-				goToPage(2);
-				await delay(4000);
-
-				console.log("[LEAK_TEST_STEP] NAVIGATE_PAGE_3");
-				goToPage(3);
-				await delay(4000);
-
-				console.log("[LEAK_TEST_STEP] NAVIGATE_PAGE_4");
-				goToPage(4);
-				await delay(4000);
-
-				console.log("[LEAK_TEST_STEP] NAVIGATE_PAGE_5");
-				goToPage(5);
-				await delay(4000);
-
-				console.log("[LEAK_TEST_STEP] FILTER_1_MOD");
-				selectedType = "Mod";
-				await delay(4000);
-
-				console.log("[LEAK_TEST_STEP] FILTER_2_RESOURCEPACK");
-				selectedType = "Resource Pack";
-				await delay(4000);
-
-				console.log("[LEAK_TEST_STEP] FILTER_3_LOADER_FABRIC");
-				selectedType = "Mod";
-				selectedLoader = "Fabric";
-				await delay(4000);
-
-				console.log("[LEAK_TEST_STEP] COMPLETED_SUCCESSFULLY");
-			})();
-		}
+		curseforgeStatus().then(status => {
+			curseforgeActive = status;
+		}).catch(() => {
+			curseforgeActive = true;
+		});
 	});
+
+	function processDescription(body: string, isHtml: boolean): string {
+		if (!body) return "";
+		let html = isHtml ? body : renderMarkdown(body);
+
+		// Transform YouTube iframes or watch links into responsive media cards
+		html = html.replace(
+			/<iframe[^>]*src=["'](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([\w-]+)[^"']*["'][^>]*>.*?<\/iframe>/gi,
+			(_match, videoId) => `
+				<div class="my-5 rounded-2xl overflow-hidden border border-white/10 bg-black/60 shadow-xl max-w-2xl">
+					<div class="relative aspect-video w-full group">
+						<img src="https://img.youtube.com/vi/${videoId}/hqdefault.jpg" class="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt="YouTube Preview" loading="lazy" />
+						<a href="https://www.youtube.com/watch?v=${videoId}" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/10 transition-colors">
+							<div class="w-16 h-12 rounded-2xl bg-red-600/90 text-white flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-red-600 transition-transform">
+								<svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+							</div>
+						</a>
+					</div>
+					<div class="p-3 bg-[#18191c] flex items-center justify-between text-xs text-white/70 font-medium">
+						<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Vídeo de Demonstração (YouTube)</span>
+						<a href="https://www.youtube.com/watch?v=${videoId}" target="_blank" rel="noopener" class="text-[#caa97c] hover:underline font-bold">Assistir no Navegador ↗</a>
+					</div>
+				</div>
+			`
+		);
+
+		html = html.replace(
+			/<video([^>]*)>([\s\S]*?)<\/video>/gi,
+			'<video$1 preload="metadata" controls playsinline class="rounded-xl max-w-full my-3 border border-white/10">$2</video>'
+		);
+
+		return html;
+	}
 
 	async function openDetails(item: ModSearchResultItem) {
 		selectedItem = item;
@@ -266,6 +286,7 @@
 		modVersionsList = [];
 		loadingDetails = true;
 		activeDetailTab = "overview";
+		showAllVersions = false;
 
 		try {
 			const [details, versions] = await Promise.all([
@@ -285,24 +306,119 @@
 		selectedItem = null;
 		modDetails = null;
 		modVersionsList = [];
+		showAllVersions = false;
 	}
 
-	async function installItem(item: ModSearchResultItem, versionId?: string) {
+	function promptInstall(item: ModSearchResultItem, versionId?: string) {
+		if (selectedType === "Modpack") {
+			openModpackInstall(item);
+			return;
+		}
+
+		if (profiles.list.length === 0) {
+			toast("Crie uma instância primeiro para instalar mods!", "error");
+			return;
+		}
+
+		itemToInstall = { item, versionId };
+		chosenInstanceId = targetInstanceId || profiles.activeId || profiles.list[0]?.id || "";
+		showInstancePickerModal = true;
+	}
+
+	function openModpackInstall(item: ModSearchResultItem) {
+		modpackToInstall = item;
+		modpackInstanceName = item.title;
+		modpackRamMb = 4096;
+		modpackProgressText = "";
+		isInstallingModpack = false;
+		showModpackInstallModal = true;
+	}
+
+	async function confirmModpackInstall() {
+		if (!modpackToInstall || isInstallingModpack) return;
+		const item = modpackToInstall;
+		const name = modpackInstanceName.trim() || item.title;
+		isInstallingModpack = true;
+		modpackProgressText = "Buscando arquivos do modpack...";
+
+		try {
+			let versions = await modsVersions(item.sourceId, "", item.source);
+			if (versions.length === 0) {
+				toast(`Nenhuma versão disponível para o modpack "${item.title}"`, "error");
+				isInstallingModpack = false;
+				return;
+			}
+			const targetVersion = versions[0];
+			const targetFile = targetVersion.files[0];
+			if (!targetFile || !targetFile.url) {
+				toast("Arquivo de download não disponível.", "error");
+				isInstallingModpack = false;
+				return;
+			}
+
+			modpackProgressText = `Baixando pacote (${targetFile.filename})...`;
+			const tempPath = await modsDownloadToTemp(targetFile.url, targetFile.filename);
+
+			modpackProgressText = "Configurando nova instância e extraindo mods...";
+			const iconUrl = item.iconUrl || "";
+
+			let createdProfile;
+			if (item.source === "curseforge") {
+				const mcVer = item.versions[0] || "1.20.1";
+				createdProfile = await instanceImportModpack(tempPath, name, mcVer, "fabric", iconUrl);
+			} else {
+				createdProfile = await instanceImportMrpack(tempPath, name, iconUrl);
+			}
+
+			profiles.add({
+				id: createdProfile.id,
+				name: createdProfile.name,
+				icon: iconUrl || "default",
+				mcVersion: createdProfile.mcVersion,
+				loader: (createdProfile.loader || "fabric") as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
+				gameDir: createdProfile.gameDir,
+				ramMb: modpackRamMb,
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
+			});
+			profiles.activeId = createdProfile.id;
+			targetInstanceId = createdProfile.id;
+
+			toast(`🎉 Instância "${name}" criada com sucesso a partir do modpack!`, "success");
+			showModpackInstallModal = false;
+			modpackToInstall = null;
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			toast(`Erro ao criar instância: ${msg}`, "error");
+		} finally {
+			isInstallingModpack = false;
+			modpackProgressText = "";
+		}
+	}
+
+	async function confirmInstanceInstall() {
+		if (!itemToInstall) return;
+		const { item, versionId } = itemToInstall;
+		showInstancePickerModal = false;
+		await executeInstallItem(item, chosenInstanceId, versionId);
+		itemToInstall = null;
+	}
+
+	async function executeInstallItem(item: ModSearchResultItem, profileId: string, versionId?: string) {
 		const id = `${item.source}:${item.sourceId}`;
 		if (installingIds.has(id)) return;
 
 		installingIds = new Set([...installingIds, id]);
 
 		try {
-			const effectiveProfileId = targetInstanceId || profiles.activeId || profiles.list[0]?.id || "default";
+			const effectiveProfileId = profileId || targetInstanceId || profiles.activeId || profiles.list[0]?.id || "default";
 			const targetProfile = profiles.list.find(p => p.id === effectiveProfileId);
 
 			let targetVerId = versionId;
 			if (!targetVerId) {
-				const targetVer = targetProfile?.mcVersion || (selectedVersion === "Qualquer Versão" ? "1.21.4" : selectedVersion);
+				const targetVer = targetProfile?.mcVersion || (selectedVersion === "Qualquer Versão" ? "" : selectedVersion);
 				let versions = await modsVersions(item.sourceId, targetVer, item.source);
 				if (versions.length === 0) {
-					// Fallback to any version if specific version returned none
 					versions = await modsVersions(item.sourceId, "", item.source);
 				}
 				if (versions.length === 0) {
@@ -312,17 +428,19 @@
 				targetVerId = versions[0].id;
 			}
 
+			const contentTypeSlug = selectedType.toLowerCase().replace(/\s+/g, "");
+
 			await modsInstall({
 				profileId: effectiveProfileId,
 				projectId: item.sourceId,
 				versionId: targetVerId,
 				source: item.source,
-				contentType: selectedType.toLowerCase().replace(/\s+/g, ""),
+				contentType: contentTypeSlug,
 			});
 
 			if (effectiveProfileId && effectiveProfileId !== "default") {
 				const prof = profiles.list.find(p => p.id === effectiveProfileId);
-				if (prof) {
+				if (prof && contentTypeSlug === "mod") {
 					profiles.update(effectiveProfileId, { 
 						modCount: (prof.modCount ?? 0) + 1,
 						loader: prof.loader === "vanilla" ? "fabric" : prof.loader
@@ -432,7 +550,7 @@
 						<button 
 							type="button"
 							class="w-full md:w-auto bg-gradient-to-r from-[#caa97c] to-[#e4c99c] hover:from-[#d5b588] hover:to-[#edd5ad] text-black font-extrabold text-xs px-6 py-3 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(202,169,124,0.35)] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
-							onclick={() => installItem(selectedItem!)}
+							onclick={() => selectedType === 'Modpack' ? openModpackInstall(selectedItem!) : promptInstall(selectedItem!)}
 							disabled={isInstalling || isInstalled}
 						>
 							{#if isInstalling}
@@ -441,9 +559,12 @@
 							{:else if isInstalled}
 								<Check class="w-4 h-4 text-emerald-950 font-black" />
 								<span>Instalado na Instância</span>
+							{:else if selectedType === 'Modpack'}
+								<PackagePlus class="w-4 h-4 text-black" />
+								<span>Criar Instância do Modpack</span>
 							{:else}
 								<Download class="w-4 h-4 text-black" />
-								<span>Instalar Agora</span>
+								<span>Instalar na Instância</span>
 							{/if}
 						</button>
 					</div>
@@ -545,15 +666,9 @@
 						<!-- TAB 1: VISÃO GERAL -->
 						{#if activeDetailTab === 'overview'}
 							<div class="bg-[#18191c] border border-white/5 rounded-3xl p-6 shadow-md overflow-hidden">
-								{#if modDetails.bodyType === 'html'}
-									<div class="prose prose-invert max-w-none text-xs text-white/80 leading-relaxed font-sans [&_a]:text-[#caa97c] [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_img]:rounded-xl [&_img]:max-w-full">
-										{@html modDetails.body}
-									</div>
-								{:else}
-									<div class="prose prose-invert max-w-none text-xs text-white/80 leading-relaxed font-sans [&_a]:text-[#caa97c] [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_img]:rounded-xl [&_img]:max-w-full">
-										{@html renderMarkdown(modDetails.body)}
-									</div>
-								{/if}
+								<div class="prose prose-invert max-w-none text-xs text-white/80 leading-relaxed font-sans [&_a]:text-[#caa97c] [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_img]:rounded-xl [&_img]:max-w-full">
+									{@html processDescription(modDetails.body, modDetails.bodyType === 'html')}
+								</div>
 							</div>
 
 						<!-- TAB 2: GALERIA -->
@@ -596,9 +711,10 @@
 									<p>Nenhuma versão listada para este projeto.</p>
 								</div>
 							{:else}
+								{@const displayedVersions = showAllVersions ? modVersionsList : modVersionsList.slice(0, 30)}
 								<div class="bg-[#18191c] border border-white/5 rounded-3xl overflow-hidden shadow-md">
 									<div class="divide-y divide-white/5">
-										{#each modVersionsList as ver}
+										{#each displayedVersions as ver}
 											{@const file = ver.files[0]}
 											<div class="p-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors gap-4">
 												<div class="min-w-0">
@@ -622,14 +738,30 @@
 												<button 
 													type="button"
 													class="shrink-0 bg-[#2b2c32] hover:bg-[#caa97c] hover:text-black text-white text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-													onclick={() => installItem(selectedItem!, ver.id)}
+													onclick={() => promptInstall(selectedItem!, ver.id)}
 												>
-													<Download class="w-3 h-3" />
-													<span>Instalar</span>
+													{#if selectedType === 'Modpack'}
+														<PackagePlus class="w-3 h-3" />
+														<span>Criar</span>
+													{:else}
+														<Download class="w-3 h-3" />
+														<span>Instalar</span>
+													{/if}
 												</button>
 											</div>
 										{/each}
 									</div>
+									{#if !showAllVersions && modVersionsList.length > 30}
+										<div class="p-3 text-center border-t border-white/5 bg-white/[0.01]">
+											<button 
+												type="button" 
+												class="text-xs text-[#caa97c] hover:underline font-bold cursor-pointer"
+												onclick={() => showAllVersions = true}
+											>
+												Mostrar todas as {modVersionsList.length} versões
+											</button>
+										</div>
+									{/if}
 								</div>
 							{/if}
 
@@ -831,6 +963,17 @@
 				</div>
 			</div>
 
+			<!-- CurseForge API Warning -->
+			{#if selectedSource === "curseforge" && !curseforgeActive}
+				<div class="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 mb-4">
+					<AlertTriangle class="w-5 h-5 text-amber-400 shrink-0" />
+					<div>
+						<p class="text-xs font-bold text-amber-400">CurseForge API não configurada</p>
+						<p class="text-[10px] text-amber-300/70 mt-0.5">Defina CURSEFORGE_API_KEY no arquivo .env para habilitar resultados do CurseForge.</p>
+					</div>
+				</div>
+			{/if}
+
 			<!-- Error State -->
 			{#if searchError}
 				<div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-2xl p-4 mb-4">
@@ -947,11 +1090,11 @@
 											<span class="truncate font-medium">{item.author || item.slug}</span>
 										</div>
 
-										<!-- Purple Install Button matching SKlauncher -->
+										<!-- Install / Modpack Button -->
 										<button 
 											type="button" 
-											class="bg-[#6c5ce7] hover:bg-[#5b4cdb] active:scale-95 text-white text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#6c5ce7]/20 disabled:opacity-50 cursor-pointer shrink-0"
-											onclick={(e) => { e.stopPropagation(); installItem(item); }}
+											class="{selectedType === 'Modpack' ? 'bg-[#caa97c] hover:bg-[#b89565] text-black shadow-[#caa97c]/20' : 'bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white shadow-[#6c5ce7]/20'} active:scale-95 text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 cursor-pointer shrink-0"
+											onclick={(e) => { e.stopPropagation(); promptInstall(item); }}
 											disabled={isInstalling || isInstalled}
 										>
 											{#if isInstalling}
@@ -960,6 +1103,9 @@
 											{:else if isInstalled}
 												<Check class="w-3 h-3 text-emerald-300" />
 												<span>Instalado</span>
+											{:else if selectedType === "Modpack"}
+												<PackagePlus class="w-3 h-3" />
+												<span>Criar</span>
 											{:else}
 												<Download class="w-3 h-3" />
 												<span>Instalar</span>
@@ -1031,8 +1177,8 @@
 
 									<button 
 										type="button" 
-										class="bg-[#6c5ce7] hover:bg-[#5b4cdb] active:scale-95 text-white text-xs font-semibold px-4 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-[#6c5ce7]/20 disabled:opacity-50 cursor-pointer"
-										onclick={(e) => { e.stopPropagation(); installItem(item); }}
+										class="{selectedType === 'Modpack' ? 'bg-[#caa97c] hover:bg-[#b89565] text-black shadow-[#caa97c]/20' : 'bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white shadow-[#6c5ce7]/20'} active:scale-95 text-xs font-semibold px-4 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 cursor-pointer"
+										onclick={(e) => { e.stopPropagation(); promptInstall(item); }}
 										disabled={isInstalling || isInstalled}
 									>
 										{#if isInstalling}
@@ -1041,6 +1187,9 @@
 										{:else if isInstalled}
 											<Check class="w-3 h-3 text-emerald-300" />
 											<span>Instalado</span>
+										{:else if selectedType === "Modpack"}
+											<PackagePlus class="w-3 h-3" />
+											<span>Criar Instância</span>
 										{:else}
 											<Download class="w-3 h-3" />
 											<span>Instalar</span>
@@ -1354,3 +1503,253 @@
 		</div>
 	</div>
 {/if}
+
+<!-- MODPACK CREATION MODAL -->
+{#if showModpackInstallModal && modpackToInstall}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div 
+		class="fixed inset-0 z-[999999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+		transition:fade={{ duration: 150 }}
+		onclick={() => { if (!isInstallingModpack) showModpackInstallModal = false; }}
+	>
+		<div 
+			class="bg-[#18191c] border border-white/10 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5"
+			transition:scale={{ start: 0.95, duration: 150 }}
+			onclick={(e) => e.stopPropagation()}
+		>
+			<!-- Header -->
+			<div class="flex items-center justify-between border-b border-white/5 pb-3">
+				<div class="flex items-center gap-2.5">
+					<div class="w-8 h-8 rounded-xl bg-[#caa97c]/10 text-[#caa97c] flex items-center justify-center">
+						<PackagePlus class="w-4 h-4" />
+					</div>
+					<div>
+						<h3 class="text-sm font-bold text-white">Criar Instância a partir do Modpack</h3>
+						<p class="text-[11px] text-white/40 font-medium">Configure a nova instância para este modpack</p>
+					</div>
+				</div>
+				{#if !isInstallingModpack}
+					<button 
+						type="button" 
+						class="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+						onclick={() => showModpackInstallModal = false}
+					>
+						<X class="w-4 h-4" />
+					</button>
+				{/if}
+			</div>
+
+			<!-- Modpack Preview Card -->
+			<div class="flex items-center gap-3 bg-[#131418] p-3 rounded-2xl border border-white/5">
+				<div class="w-12 h-12 rounded-xl bg-[#222328] border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+					{#if modpackToInstall.iconUrl}
+						<img src={modpackToInstall.iconUrl} alt={modpackToInstall.title} class="w-full h-full object-cover" />
+					{:else}
+						<Box class="w-6 h-6 text-[#caa97c]" />
+					{/if}
+				</div>
+				<div class="min-w-0 flex-1">
+					<h4 class="text-xs font-extrabold text-white truncate">{modpackToInstall.title}</h4>
+					<p class="text-[11px] text-white/40 truncate mt-0.5">{modpackToInstall.description}</p>
+					<div class="flex items-center gap-2 mt-1 text-[10px] text-white/50">
+						<span class="capitalize font-semibold text-white/70">{modpackToInstall.source}</span>
+						<span>•</span>
+						<span>{formatDownloads(modpackToInstall.downloads)} downloads</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Form Fields -->
+			<div class="space-y-4">
+				<!-- Instance Name -->
+				<div>
+					<label for="modpack-inst-name" class="block text-[11px] font-bold text-white/60 uppercase tracking-wider mb-1.5">
+						Nome da Instância
+					</label>
+					<input 
+						id="modpack-inst-name"
+						type="text" 
+						bind:value={modpackInstanceName}
+						placeholder="Ex: Better MC, All the Mods..."
+						disabled={isInstallingModpack}
+						class="w-full bg-[#131418] border border-white/10 focus:border-[#caa97c] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none transition-all disabled:opacity-50"
+					/>
+				</div>
+
+				<!-- RAM Allocation -->
+				<div>
+					<div class="flex items-center justify-between text-[11px] font-bold text-white/60 uppercase tracking-wider mb-1.5">
+						<span>Memória RAM Recomendada</span>
+						<span class="text-[#caa97c] font-mono text-xs">{(modpackRamMb / 1024).toFixed(1)} GB ({modpackRamMb} MB)</span>
+					</div>
+					<input 
+						type="range" 
+						min="2048" 
+						max="16384" 
+						step="512" 
+						bind:value={modpackRamMb}
+						disabled={isInstallingModpack}
+						class="w-full accent-[#caa97c] cursor-pointer disabled:opacity-50"
+					/>
+					<div class="flex justify-between text-[10px] text-white/30 font-mono mt-1">
+						<span>2 GB</span>
+						<span>4 GB</span>
+						<span>8 GB</span>
+						<span>12 GB</span>
+						<span>16 GB</span>
+					</div>
+				</div>
+			</div>
+
+			<!-- Progress Status during installation -->
+			{#if isInstallingModpack}
+				<div class="bg-[#131418] border border-[#caa97c]/20 rounded-2xl p-4 flex items-center gap-3 animate-pulse">
+					<Loader2 class="w-5 h-5 text-[#caa97c] animate-spin shrink-0" />
+					<div class="min-w-0 flex-1">
+						<p class="text-xs font-bold text-white">Instalando Modpack...</p>
+						<p class="text-[11px] text-white/60 truncate mt-0.5">{modpackProgressText || "Por favor, aguarde..."}</p>
+					</div>
+				</div>
+			{/if}
+
+			<!-- Actions -->
+			<div class="flex items-center justify-end gap-3 pt-2">
+				<button 
+					type="button" 
+					class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold transition-all cursor-pointer disabled:opacity-30"
+					disabled={isInstallingModpack}
+					onclick={() => showModpackInstallModal = false}
+				>
+					Cancelar
+				</button>
+				<button 
+					type="button" 
+					class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#caa97c] to-[#e4c99c] hover:from-[#d5b588] hover:to-[#edd5ad] text-black font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50 shadow-md shadow-[#caa97c]/20"
+					disabled={isInstallingModpack || !modpackInstanceName.trim()}
+					onclick={confirmModpackInstall}
+				>
+					{#if isInstallingModpack}
+						<Loader2 class="w-4 h-4 animate-spin text-black" />
+						<span>Instalando...</span>
+					{:else}
+						<PackagePlus class="w-4 h-4" />
+						<span>Criar e Baixar Instância</span>
+					{/if}
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+
+<!-- INSTANCE PICKER MODAL (PARA MODS, SHADERS, RESOURCEPACKS, DATAPACKS, WORLDS) -->
+{#if showInstancePickerModal && itemToInstall}
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div 
+		class="fixed inset-0 z-[999999] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+		transition:fade={{ duration: 150 }}
+		onclick={() => showInstancePickerModal = false}
+	>
+		<div 
+			class="bg-[#18191c] border border-white/10 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5"
+			transition:scale={{ start: 0.95, duration: 150 }}
+			onclick={(e) => e.stopPropagation()}
+		>
+			<!-- Header -->
+			<div class="flex items-center justify-between border-b border-white/5 pb-3">
+				<div class="flex items-center gap-2.5">
+					<div class="w-8 h-8 rounded-xl bg-[#6c5ce7]/10 text-[#a29bfe] flex items-center justify-center">
+						<Box class="w-4 h-4" />
+					</div>
+					<div>
+						<h3 class="text-sm font-bold text-white">Escolha a Instância</h3>
+						<p class="text-[11px] text-white/40 font-medium">Onde você deseja instalar este {selectedType}?</p>
+					</div>
+				</div>
+				<button 
+					type="button" 
+					class="text-white/40 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+					onclick={() => showInstancePickerModal = false}
+				>
+					<X class="w-4 h-4" />
+				</button>
+			</div>
+
+			<!-- Item being installed preview -->
+			<div class="flex items-center gap-3 bg-[#131418] p-3 rounded-2xl border border-white/5">
+				<div class="w-10 h-10 rounded-xl bg-[#222328] border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
+					{#if itemToInstall.item.iconUrl}
+						<img src={itemToInstall.item.iconUrl} alt={itemToInstall.item.title} class="w-full h-full object-cover" />
+					{:else}
+						<Cpu class="w-5 h-5 text-[#caa97c]" />
+					{/if}
+				</div>
+				<div class="min-w-0 flex-1">
+					<h4 class="text-xs font-extrabold text-white truncate">{itemToInstall.item.title}</h4>
+					<span class="text-[10px] text-white/40">{itemToInstall.item.author || "Autor"} • {selectedType}</span>
+				</div>
+			</div>
+
+			<!-- Instance List to Pick From -->
+			<div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+				{#each profiles.list as p}
+					<button
+						type="button"
+						class="w-full text-left p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 {chosenInstanceId === p.id ? 'bg-[#6c5ce7]/15 border-[#6c5ce7] shadow-sm' : 'bg-[#131418] border-white/5 hover:border-white/20'}"
+						onclick={() => chosenInstanceId = p.id}
+					>
+						<div class="flex items-center gap-3 min-w-0">
+							<div class="w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center overflow-hidden shrink-0">
+								{#if p.icon && p.icon !== "default" && (p.icon.startsWith("http") || p.icon.startsWith("data:"))}
+									<img src={p.icon} alt={p.name} class="w-full h-full object-cover" />
+								{:else}
+									<Box class="w-4 h-4 text-white/60" />
+								{/if}
+							</div>
+							<div class="min-w-0">
+								<h5 class="text-xs font-bold text-white truncate">{p.name}</h5>
+								<div class="flex items-center gap-2 text-[10px] text-white/40 mt-0.5">
+									<span class="font-mono">{p.mcVersion}</span>
+									<span>•</span>
+									<span class="uppercase font-semibold text-[#caa97c]">{p.loader}</span>
+									{#if p.modCount}
+										<span>•</span>
+										<span>{p.modCount} mods</span>
+									{/if}
+								</div>
+							</div>
+						</div>
+
+						<div class="w-5 h-5 rounded-full border flex items-center justify-center shrink-0 {chosenInstanceId === p.id ? 'border-[#6c5ce7] bg-[#6c5ce7] text-white' : 'border-white/20 bg-transparent'}">
+							{#if chosenInstanceId === p.id}
+								<Check class="w-3 h-3 stroke-[3]" />
+							{/if}
+						</div>
+					</button>
+				{/each}
+			</div>
+
+			<!-- Actions -->
+			<div class="flex items-center justify-end gap-3 pt-2">
+				<button 
+					type="button" 
+					class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+					onclick={() => showInstancePickerModal = false}
+				>
+					Cancelar
+				</button>
+				<button 
+					type="button" 
+					class="px-5 py-2.5 rounded-xl bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50 shadow-md shadow-[#6c5ce7]/20"
+					disabled={!chosenInstanceId}
+					onclick={confirmInstanceInstall}
+				>
+					<Download class="w-4 h-4" />
+					<span>Confirmar e Instalar</span>
+				</button>
+			</div>
+		</div>
+	</div>
+{/if}
+

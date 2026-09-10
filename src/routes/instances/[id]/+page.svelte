@@ -42,6 +42,7 @@
 	import { account } from "$lib/stores/account.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { appState } from "$lib/stores/app.svelte";
 	import { open, save } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
 	import { 
@@ -151,10 +152,19 @@
 		}
 	});
 
+	let aikarTimer: ReturnType<typeof setTimeout> | null = null;
 	$effect(() => {
-		optimizerGetFlags(instanceRamMb, instanceAutoOptimize)
-			.then(flags => generatedAikarFlags = flags)
-			.catch(() => {});
+		const ram = instanceRamMb;
+		const opt = instanceAutoOptimize;
+		if (aikarTimer) clearTimeout(aikarTimer);
+		aikarTimer = setTimeout(() => {
+			optimizerGetFlags(ram, opt)
+				.then(flags => generatedAikarFlags = flags)
+				.catch(() => {});
+		}, 300);
+		return () => {
+			if (aikarTimer) clearTimeout(aikarTimer);
+		};
 	});
 
 	async function saveInstanceSettings() {
@@ -221,6 +231,9 @@
 				jvmValidation = await jvmArgsValidate(args);
 			} catch {}
 		}, 250);
+		return () => {
+			if (jvmValidateTimer) clearTimeout(jvmValidateTimer);
+		};
 	});
 
 	async function handleRepairInstance() {
@@ -463,7 +476,11 @@
 		if (file.isDir) {
 			await navigateToFolder(file.name);
 		} else {
-			const isText = /\.(txt|json|properties|toml|log|cfg|mcmeta|yaml|yml|ini|csv|md|sh|lock|json5)$/i.test(file.name) || file.size < 500000;
+			if (file.size > 300000) {
+				toast(`Arquivo grande (${Math.round(file.size / 1024)} KB). Abra com o gerenciador do sistema para melhor performance.`, "info");
+				return;
+			}
+			const isText = /\.(txt|json|properties|toml|log|cfg|mcmeta|yaml|yml|ini|csv|md|sh|lock|json5)$/i.test(file.name);
 			if (isText) {
 				try {
 					const content = await readTextFile(file.path);
@@ -560,6 +577,8 @@
 			});
 
 			gamingStats.onGameStart();
+			appState.isGameRunning = true;
+			appState.activeGameDetails = { name: activeProfile?.name || "Minecraft", version: verId, loader: activeProfile?.loader || "vanilla" };
 			discordSetActivity({
 				inGame: true,
 				details: `Jogando ${activeProfile?.name || "Minecraft"}`,
@@ -1334,7 +1353,7 @@
 				></textarea>
 			</div>
 			<div class="p-2.5 bg-[#141518] border-t border-white/5 text-[10px] text-white/40 font-mono px-4 flex justify-between">
-				<span>Linhas: {activeEditorFile.content.split('\n').length}</span>
+				<span>Tamanho: {Math.round(activeEditorFile.content.length / 1024)} KB</span>
 				<span>Editor de Arquivos do Luxmc</span>
 			</div>
 		</div>

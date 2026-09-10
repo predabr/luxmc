@@ -4,18 +4,18 @@
 	import { onMount } from 'svelte';
 	import * as THREE from 'three';
 
-	// Constants for the voxels
-	const COUNT = 40;
+	// Constants for the voxels - 18 lightweight particles for ultra-fluid background
+	const COUNT = 18;
 	
 	// Create random data for each voxel
 	const voxels = Array.from({ length: COUNT }).map((_, i) => {
-		const scale = Math.random() * 0.8 + 0.2;
+		const scale = Math.random() * 0.7 + 0.25;
 		return {
 			id: i,
 			position: [
-				(Math.random() - 0.5) * 30, // x spread
-				(Math.random() - 0.5) * 30, // y spread
-				(Math.random() - 0.5) * 20 - 10, // z depth
+				(Math.random() - 0.5) * 28, // x spread
+				(Math.random() - 0.5) * 28, // y spread
+				(Math.random() - 0.5) * 18 - 8, // z depth
 			] as [number, number, number],
 			scale: [scale, scale, scale] as [number, number, number],
 			rotation: [
@@ -23,9 +23,9 @@
 				Math.random() * Math.PI,
 				Math.random() * Math.PI,
 			] as [number, number, number],
-			speed: Math.random() * 0.5 + 0.1,
-			color: Math.random() > 0.5 ? 0x2dd4bf : 0x14b8a6,
-			opacity: Math.random() * 0.4 + 0.1
+			speed: Math.random() * 0.4 + 0.1,
+			color: Math.random() > 0.5 ? 0xcaa97c : 0x14b8a6,
+			opacity: Math.random() * 0.35 + 0.1
 		};
 	});
 
@@ -63,29 +63,26 @@
 		groupRef.rotation.y = targetX * 0.5;
 		
 		// Slow constant rotation
-		groupRef.rotation.y += delta * 0.05;
+		groupRef.rotation.y += delta * 0.04;
 	});
 
 </script>
 
 <T.Group bind:ref={groupRef}>
 	{#each voxels as voxel (voxel.id)}
-		<Float speed={voxel.speed} floatIntensity={2} floatingRange={[-1, 1]}>
+		<Float speed={voxel.speed} floatIntensity={1.5} floatingRange={[-0.8, 0.8]}>
 			<T.Mesh
 				position={voxel.position}
 				rotation={voxel.rotation}
 				scale={voxel.scale}
 			>
 				<T.BoxGeometry args={[1, 1, 1]} />
-				<!-- Glowing glass-like material -->
-				<T.MeshPhysicalMaterial
+				<T.MeshStandardMaterial
 					color={voxel.color}
 					transparent={true}
 					opacity={voxel.opacity}
-					roughness={0.2}
-					metalness={0.1}
-					transmission={0.9}
-					thickness={0.5}
+					roughness={0.3}
+					metalness={0.15}
 					emissive={voxel.color}
 					emissiveIntensity={0.2}
 				/>

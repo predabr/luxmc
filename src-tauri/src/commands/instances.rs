@@ -278,6 +278,7 @@ pub async fn instance_import_modpack(
     profile_name: String,
     mc_version: String,
     loader: String,
+    icon: Option<String>,
 ) -> AppResult<ProfileRow> {
     let data = tokio::fs::read(&file_path).await?;
     let cursor = std::io::Cursor::new(data);
@@ -309,12 +310,36 @@ pub async fn instance_import_modpack(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
+    let instance_dir = base_dir.data_dir().join("instances").join(&profile_name);
+    let mods_dir = instance_dir.join("mods");
     tokio::fs::create_dir_all(&mods_dir).await?;
 
-    let curseforge_key = std::env::var("CURSEFORGE_API_KEY")
-        .ok()
-        .filter(|k| !k.is_empty());
+    let storage_mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
+    let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
+
+    // Extract overrides directory if present
+    for i in 0..archive.len() {
+        if let Ok(mut file) = archive.by_index(i) {
+            let name = file.name().to_string();
+            if let Some(rel_path) = name.strip_prefix("overrides/") {
+                if !rel_path.is_empty() {
+                    let outpath = instance_dir.join(rel_path);
+                    if file.is_dir() {
+                        let _ = std::fs::create_dir_all(&outpath);
+                    } else {
+                        if let Some(p) = outpath.parent() {
+                            let _ = std::fs::create_dir_all(p);
+                        }
+                        if let Ok(mut outfile) = std::fs::File::create(&outpath) {
+                            let _ = std::io::copy(&mut file, &mut outfile);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let curseforge_key = crate::core::mods::curseforge::api_key();
 
     for cf_file in &manifest.files {
         let project_id_str = cf_file.project_id.to_string();
@@ -348,6 +373,7 @@ pub async fn instance_import_modpack(
                     let filename = format!("{}_{}.jar", project_id_str, file_id_str);
                     let file_path = mods_dir.join(&filename);
                     tokio::fs::write(&file_path, &bytes).await?;
+                    let _ = tokio::fs::write(storage_mods_dir.join(&filename), &bytes).await;
 
                     let db = crate::db::shared_db().await?;
                     let mod_row = crate::db::schema::mods::ModRow {
@@ -369,7 +395,7 @@ pub async fn instance_import_modpack(
     let profile_row = ProfileRow {
         id: profile_id,
         name: profile_name,
-        icon: "default".into(),
+        icon: icon.unwrap_or_else(|| "default".into()),
         mc_version,
         loader,
         loader_version: Some(loader_version),
@@ -378,14 +404,14 @@ pub async fn instance_import_modpack(
         resolution_w: None,
         resolution_h: None,
         fullscreen: false,
-        game_dir: mods_dir.to_string_lossy().to_string(),
+        game_dir: instance_dir.to_string_lossy().to_string(),
         created_at: now,
         updated_at: now,
         favorite: false,
         notes: None,
         last_played: None,
         launch_count: 0,
-        mod_count: 0,
+        mod_count: manifest.files.len() as i64,
         disk_usage: 0,
         ram_mb: None,
         instance_group: None,
@@ -548,6 +574,7 @@ pub async fn instance_import_mrpack(
     state: State<'_, AppState>,
     file_path: String,
     profile_name: String,
+    icon: Option<String>,
 ) -> AppResult<ProfileRow> {
     let data = tokio::fs::read(&file_path).await?;
     let cursor = std::io::Cursor::new(data);
@@ -558,9 +585,8 @@ pub async fn instance_import_mrpack(
         crate::error::AppError::NotFound(format!("modrinth.index.json not found: {e}"))
     })?;
 
-    let manifest: MrpackManifest = serde_json::from_reader(manifest_entry).map_err(|e| {
-        crate::error::AppError::InvalidState(format!("invalid mrpack manifest: {e}"))
-    })?;
+    let manifest: MrpackManifest = serde_json::from_reader(manifest_entry)
+        .map_err(|e| crate::error::AppError::InvalidState(format!("invalid mrpack manifest: {e}")))?;
 
     let mc_version = manifest.game.version.clone();
     let profile_id = Uuid::new_v4().to_string();
@@ -568,8 +594,34 @@ pub async fn instance_import_mrpack(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
+    let instance_dir = base_dir.data_dir().join("instances").join(&profile_name);
+    let mods_dir = instance_dir.join("mods");
     tokio::fs::create_dir_all(&mods_dir).await?;
+
+    let storage_mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
+    let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
+
+    // Extract overrides directory if present in .mrpack
+    for i in 0..archive.len() {
+        if let Ok(mut file) = archive.by_index(i) {
+            let name = file.name().to_string();
+            if let Some(rel_path) = name.strip_prefix("overrides/") {
+                if !rel_path.is_empty() {
+                    let outpath = instance_dir.join(rel_path);
+                    if file.is_dir() {
+                        let _ = std::fs::create_dir_all(&outpath);
+                    } else {
+                        if let Some(p) = outpath.parent() {
+                            let _ = std::fs::create_dir_all(p);
+                        }
+                        if let Ok(mut outfile) = std::fs::File::create(&outpath) {
+                            let _ = std::io::copy(&mut file, &mut outfile);
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     let client = crate::core::mods::ModrinthClient::new(state.http.clone());
     let db = crate::db::shared_db().await?;
@@ -588,6 +640,7 @@ pub async fn instance_import_mrpack(
                     let filename = mrpack_mod.file_name.as_deref().unwrap_or(&file.filename);
                     let file_path = mods_dir.join(filename);
                     tokio::fs::write(&file_path, &bytes).await?;
+                    let _ = tokio::fs::write(storage_mods_dir.join(filename), &bytes).await;
 
                     let mod_row = crate::db::schema::mods::ModRow {
                         profile_id: profile_id.clone(),
@@ -626,7 +679,7 @@ pub async fn instance_import_mrpack(
     let profile_row = ProfileRow {
         id: profile_id,
         name: profile_name,
-        icon: "default".into(),
+        icon: icon.unwrap_or_else(|| "default".into()),
         mc_version,
         loader: loader.into(),
         loader_version: Some(loader_version),
@@ -635,14 +688,14 @@ pub async fn instance_import_mrpack(
         resolution_w: None,
         resolution_h: None,
         fullscreen: false,
-        game_dir: mods_dir.to_string_lossy().to_string(),
+        game_dir: instance_dir.to_string_lossy().to_string(),
         created_at: now,
         updated_at: now,
         favorite: false,
         notes: None,
         last_played: None,
         launch_count: 0,
-        mod_count: 0,
+        mod_count: manifest.mods.len() as i64,
         disk_usage: 0,
         ram_mb: None,
         instance_group: None,

@@ -456,21 +456,44 @@ export async function modsUpdate(projectId: string, versionId: string, profileId
 	return api.invoke("mods_update", { projectId, versionId, profileId });
 }
 
-export async function instanceImportModpack(filePath: string, profileName: string, mcVersion: string, loader: string): Promise<{
-	id: string;
-	name: string;
-}> {
-	return api.invoke("instance_import_modpack", { filePath, profileName, mcVersion, loader });
+export async function modsDownloadToTemp(url: string, fileName: string): Promise<string> {
+	return api.invoke("mods_download_to_temp", { url, fileName });
 }
 
-export async function instanceImportMrpack(filePath: string, profileName: string): Promise<{
+export async function curseforgeStatus(): Promise<boolean> {
+	return api.invoke("curseforge_status");
+}
+
+export async function instanceImportModpack(
+	filePath: string,
+	profileName: string,
+	mcVersion: string,
+	loader: string,
+	icon?: string
+): Promise<{
 	id: string;
 	name: string;
 	mcVersion: string;
 	loader: string;
 	gameDir: string;
+	icon?: string;
 }> {
-	return api.invoke("instance_import_mrpack", { filePath, profileName });
+	return api.invoke("instance_import_modpack", { filePath, profileName, mcVersion, loader, icon });
+}
+
+export async function instanceImportMrpack(
+	filePath: string,
+	profileName: string,
+	icon?: string
+): Promise<{
+	id: string;
+	name: string;
+	mcVersion: string;
+	loader: string;
+	gameDir: string;
+	icon?: string;
+}> {
+	return api.invoke("instance_import_mrpack", { filePath, profileName, icon });
 }
 
 export async function instancesList(): Promise<Array<{

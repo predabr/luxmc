@@ -33,20 +33,3 @@
 		{message}
 	</div>
 {/if}
-
-<style>
-	@keyframes slideIn {
-		from {
-			transform: translateX(400px);
-			opacity: 0;
-		}
-		to {
-			transform: translateX(0);
-			opacity: 1;
-		}
-	}
-
-	:global(.animate-slide-in) {
-		animation: slideIn 0.3s ease-out;
-	}
-</style>

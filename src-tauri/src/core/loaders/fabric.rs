@@ -210,7 +210,7 @@ pub async fn ensure_fabric_api(
 
     if let Ok(resp) = http
         .get(&url)
-        .header("User-Agent", "Luxmc/1.1.0-beta")
+        .header("User-Agent", "Luxmc/1.2.0-alpha")
         .send()
         .await
     {

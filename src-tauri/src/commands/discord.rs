@@ -10,7 +10,6 @@ use std::os::unix::net::UnixStream;
 static DISCORD_STREAM: Mutex<Option<UnixStream>> = Mutex::new(None);
 static CURRENT_CLIENT_ID: Mutex<Option<String>> = Mutex::new(None);
 
-const LAUNCHER_CLIENT_ID: &str = "1219293400582553650";
 const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,13 +88,14 @@ pub async fn discord_set_activity(
     #[cfg(unix)]
     {
         let is_game = inGame.unwrap_or(false);
-        let target_client_id = clientId.unwrap_or_else(|| {
-            if is_game {
-                MINECRAFT_CLIENT_ID.to_string()
-            } else {
-                LAUNCHER_CLIENT_ID.to_string()
-            }
-        });
+        let custom_id = std::env::var("LUXMC_DISCORD_CLIENT_ID")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
+
+        let target_client_id = clientId
+            .or(custom_id)
+            .unwrap_or_else(|| MINECRAFT_CLIENT_ID.to_string());
 
         let mut stream_guard = DISCORD_STREAM.lock().unwrap();
         let mut client_id_guard = CURRENT_CLIENT_ID.lock().unwrap();
@@ -143,15 +143,15 @@ pub async fn discord_set_activity(
             let (def_img, def_text, def_details, def_state) = if is_game {
                 (
                     "default".to_string(),
-                    "Minecraft".to_string(),
+                    "Minecraft (Luxmc)".to_string(),
                     "Jogando Minecraft".to_string(),
                     "Luxmc Launcher".to_string(),
                 )
             } else {
                 (
-                    "https://raw.githubusercontent.com/luxmc/luxmc/main/static/icon.png".to_string(),
+                    "default".to_string(),
                     "Luxmc Launcher".to_string(),
-                    "Luxmc Launcher v1.1.0-BETA".to_string(),
+                    "Luxmc Launcher v1.2.0-ALPHA".to_string(),
                     "No Menu Principal".to_string(),
                 )
             };
@@ -178,6 +178,7 @@ pub async fn discord_set_activity(
                 "args": {
                     "pid": std::process::id(),
                     "activity": {
+                        "name": "Luxmc Launcher",
                         "state": st,
                         "details": det,
                         "timestamps": {

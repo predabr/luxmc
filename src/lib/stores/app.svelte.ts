@@ -1,6 +1,8 @@
 let devMode = $state(false);
 let performanceMode = $state(false);
 let showCutscene = $state(false);
+let isGameRunning = $state(false);
+let activeGameDetails = $state<{ name: string; version: string; loader: string } | null>(null);
 
 export const appState = {
 	get performanceMode() { return performanceMode; },
@@ -9,6 +11,10 @@ export const appState = {
 	set devMode(v: boolean) { devMode = v; },
 	get showCutscene() { return showCutscene; },
 	set showCutscene(v: boolean) { showCutscene = v; },
+	get isGameRunning() { return isGameRunning; },
+	set isGameRunning(v: boolean) { isGameRunning = v; },
+	get activeGameDetails() { return activeGameDetails; },
+	set activeGameDetails(v: { name: string; version: string; loader: string } | null) { activeGameDetails = v; },
 	playCutscene() { showCutscene = true; },
 };
 
@@ -26,11 +32,16 @@ export const gameLogs = {
 	get entries() { return logEntries; },
 	clear() { logEntries = []; },
 	add(stream: "stdout" | "stderr" | "system", message: string) {
-		logEntries = [...logEntries, {
+		const newEntry: LogEntry = {
 			id: ++logIdCounter,
 			timestamp: new Date(),
 			stream,
 			message,
-		}].slice(-2000);
+		};
+		if (logEntries.length >= 800) {
+			logEntries = [...logEntries.slice(150), newEntry];
+		} else {
+			logEntries = [...logEntries, newEntry];
+		}
 	},
 };

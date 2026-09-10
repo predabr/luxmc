@@ -3,6 +3,7 @@
 	import { Toaster } from "svelte-sonner";
 	import { onMount } from "svelte";
 	import { fade } from "svelte/transition";
+	import { page } from "$app/stores";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
 	import Topbar from "$lib/components/layout/Topbar.svelte";
 	import Toasts from "$lib/components/ui/Toasts.svelte";
@@ -102,12 +103,15 @@
 		// Global game exit listener to accurately update play time and discord presence
 		listenGameExit((event) => {
 			gamingStats.onGameExit();
+			appState.isGameRunning = false;
+			appState.activeGameDetails = null;
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
-					details: "Luxmc Launcher",
+					details: "Luxmc Launcher v1.2.0-ALPHA",
 					state: "No Menu Principal",
 					largeText: "Luxmc Launcher (Linux)",
-					largeImage: "luxmc"
+					largeImage: "default",
+					inGame: false
 				}).catch(() => {});
 			}
 		}).catch(() => {});
@@ -115,6 +119,52 @@
 		const stop = startAutoPersist();
 		return stop;
 	});
+
+	let rpcTimeout: ReturnType<typeof setTimeout> | null = null;
+	$effect(() => {
+		const currentPath = $page.url.pathname;
+		if (settings.value.discordRpc === false) return;
+		if (appState.isGameRunning) return;
+
+		if (rpcTimeout) clearTimeout(rpcTimeout);
+		rpcTimeout = setTimeout(() => {
+			let state = "No Menu Principal";
+			let details = "Luxmc Launcher v1.2.0-ALPHA";
+
+			if (currentPath === "/") {
+				state = "No Menu Principal";
+			} else if (currentPath === "/instances") {
+				state = "Gerenciando Instâncias";
+			} else if (currentPath.startsWith("/instances/")) {
+				state = "Configurando Instância";
+			} else if (currentPath === "/mods") {
+				state = "Explorando Mods & Modpacks";
+			} else if (currentPath === "/skins") {
+				state = "Personalizador de Skins 3D";
+			} else if (currentPath === "/servers") {
+				state = "Lista de Servidores";
+			} else if (currentPath === "/screenshots") {
+				state = "Galeria de Capturas de Tela";
+			} else if (currentPath === "/logs" || currentPath === "/logs-history") {
+				state = "Analisando Logs";
+			} else if (currentPath === "/settings") {
+				state = "Configurações do Launcher";
+			} else if (currentPath === "/friends") {
+				state = "Amigos & Chat P2P";
+			}
+
+			discordSetActivity({
+				details,
+				state,
+				largeText: "Luxmc Launcher (Linux)",
+				largeImage: "default",
+				smallText: "Minecraft Linux",
+				smallImage: "default",
+				inGame: false
+			}).catch(() => {});
+		}, 300);
+	});
+
 	$effect(() => {
 		JSON.stringify(settings.value);
 		schedulePersist();
@@ -176,9 +226,11 @@
 		<div class="flex h-full min-w-0 flex-1 flex-col relative z-10">
 			<!-- Removed Topbar to make it seamless like a native app -->
 			<main class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth custom-scrollbar">
-				<div class="mx-auto max-w-[1600px] h-full flex flex-col">
-					{@render children?.()}
-				</div>
+				{#key $page.url.pathname}
+					<div class="mx-auto max-w-[1600px] h-full flex flex-col" in:fade={{ duration: 160 }}>
+						{@render children?.()}
+					</div>
+				{/key}
 			</main>
 		</div>
 	</div>

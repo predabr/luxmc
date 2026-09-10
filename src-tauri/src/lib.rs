@@ -90,6 +90,8 @@ pub async fn run() {
             commands::mods::mods_remove,
             commands::mods::mods_check_updates,
             commands::mods::mods_update,
+            commands::mods::mods_download_to_temp,
+            commands::mods::curseforge_status,
             commands::instances::instance_import_modpack,
             commands::instances::instance_import_mrpack,
             commands::instances::instance_health_check,

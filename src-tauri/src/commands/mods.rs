@@ -278,37 +278,39 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
         let _ = tokio::fs::write(prof_dest_dir.join(&file_name), &bytes).await;
     }
 
-    let mod_row = ModRow {
-        profile_id: resolved_profile_id.clone(),
-        project_id: request.project_id,
-        version_id: request.version_id,
-        file_name: file_name.clone(),
-        sha1: file_sha1,
-        source: request.source,
-        installed_at: String::new(),
-    };
-    crate::db::schema::mods::upsert(&db, &mod_row).await?;
+    if target_subfolder == "mods" {
+        let mod_row = ModRow {
+            profile_id: resolved_profile_id.clone(),
+            project_id: request.project_id,
+            version_id: request.version_id,
+            file_name: file_name.clone(),
+            sha1: file_sha1,
+            source: request.source,
+            installed_at: String::new(),
+        };
+        crate::db::schema::mods::upsert(&db, &mod_row).await?;
 
-    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
-        .bind(&resolved_profile_id)
-        .fetch_one(db.pool())
-        .await
-        .unwrap_or((0,));
-    let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
-        .bind(count.0)
-        .bind(&resolved_profile_id)
-        .execute(db.pool())
-        .await;
+        let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
+            .bind(&resolved_profile_id)
+            .fetch_one(db.pool())
+            .await
+            .unwrap_or((0,));
+        let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
+            .bind(count.0)
+            .bind(&resolved_profile_id)
+            .execute(db.pool())
+            .await;
 
-    // Automatically promote profile loader to Fabric if installing a .jar mod onto a vanilla instance
-    if target_subfolder == "mods" && file_name.ends_with(".jar") {
-        if let Some(ref prof) = profile {
-            if prof.loader == "vanilla" || prof.loader.is_empty() {
-                tracing::info!(profile_id = %resolved_profile_id, "Promoting profile loader from vanilla to fabric");
-                let _ = sqlx::query("UPDATE profiles SET loader = 'fabric' WHERE id = ?")
-                    .bind(&resolved_profile_id)
-                    .execute(db.pool())
-                    .await;
+        // Automatically promote profile loader to Fabric if installing a .jar mod onto a vanilla instance
+        if file_name.ends_with(".jar") {
+            if let Some(ref prof) = profile {
+                if prof.loader == "vanilla" || prof.loader.is_empty() {
+                    tracing::info!(profile_id = %resolved_profile_id, "Promoting profile loader from vanilla to fabric");
+                    let _ = sqlx::query("UPDATE profiles SET loader = 'fabric' WHERE id = ?")
+                        .bind(&resolved_profile_id)
+                        .execute(db.pool())
+                        .await;
+                }
             }
         }
     }
@@ -615,4 +617,30 @@ pub async fn mods_update(
         installed_at: String::new(),
     };
     crate::db::schema::mods::upsert(&db, &mod_row).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn mods_download_to_temp(
+    state: State<'_, AppState>,
+    url: String,
+    fileName: String,
+) -> AppResult<String> {
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
+        crate::error::AppError::InvalidState("could not determine cache dir".into())
+    })?;
+    let temp_dir = base_dir.cache_dir().join("modpacks");
+    tokio::fs::create_dir_all(&temp_dir).await?;
+    let target_path = temp_dir.join(&fileName);
+
+    let resp = state.http.get(&url).send().await?.error_for_status()?;
+    let bytes = resp.bytes().await?;
+    tokio::fs::write(&target_path, &bytes).await?;
+
+    Ok(target_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn curseforge_status() -> bool {
+    crate::core::mods::curseforge::api_key().is_some()
 }

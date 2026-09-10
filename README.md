@@ -196,20 +196,20 @@ Funciona em **qualquer** distribuição Linux (Ubuntu, Debian, Fedora, Arch, Pop
 ```bash
 # 1. Baixe o AppImage da aba Releases
 # 2. Dê permissão de execução
-chmod +x luxmc-1.1.0-beta.AppImage
+chmod +x luxmc-1.2.0-alpha.AppImage
 
 # 3. Execute
-./luxmc-1.1.0-beta.AppImage
+./luxmc-1.2.0-alpha.AppImage
 ```
 
 ### 🔴 Debian / Ubuntu / Pop!_OS / Linux Mint (.deb)
 ```bash
-sudo apt install ./luxmc_1.1.0_amd64.deb
+sudo apt install ./luxmc_1.2.0_amd64.deb
 ```
 
 ### 🔵 Fedora / RHEL / openSUSE (.rpm)
 ```bash
-sudo dnf install ./luxmc-1.1.0.x86_64.rpm
+sudo dnf install ./luxmc-1.2.0.x86_64.rpm
 ```
 
 ### 🟣 Arch Linux / Manjaro (AUR)

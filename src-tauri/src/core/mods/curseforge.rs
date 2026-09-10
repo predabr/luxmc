@@ -3,6 +3,21 @@ use crate::error::AppResult;
 
 const CURSEFORGE_API: &str = "https://api.curseforge.com/v1";
 
+fn decode_obfuscated_key(hex_str: &str, mask: u8) -> Option<String> {
+    if hex_str.len() % 2 != 0 {
+        return None;
+    }
+    let mut bytes = Vec::new();
+    for i in (0..hex_str.len()).step_by(2) {
+        if let Ok(b) = u8::from_str_radix(&hex_str[i..i + 2], 16) {
+            bytes.push(b ^ mask);
+        } else {
+            return None;
+        }
+    }
+    String::from_utf8(bytes).ok()
+}
+
 pub fn api_key() -> Option<String> {
     if let Ok(k) = std::env::var("CURSEFORGE_API_KEY") {
         let trimmed = k.trim().to_string();
@@ -11,8 +26,38 @@ pub fn api_key() -> Option<String> {
         }
     }
 
+    if let (Some(hex_str), Some(mask_str)) = (
+        option_env!("CURSEFORGE_KEY_OBFUSCATED"),
+        option_env!("CURSEFORGE_KEY_MASK"),
+    ) {
+        if let Ok(mask) = mask_str.parse::<u8>() {
+            if let Some(decoded) = decode_obfuscated_key(hex_str, mask) {
+                let trimmed = decoded.trim().to_string();
+                if !trimmed.is_empty() {
+                    return Some(trimmed);
+                }
+            }
+        }
+    }
+
+
     for path in &[".env", "../.env"] {
         if let Ok(content) = std::fs::read_to_string(path) {
+            for line in content.lines() {
+                let trimmed = line.trim();
+                if let Some(val) = trimmed.strip_prefix("CURSEFORGE_API_KEY=") {
+                    let cleaned = val.trim().trim_matches('"').trim_matches('\'').to_string();
+                    if !cleaned.is_empty() {
+                        return Some(cleaned);
+                    }
+                }
+            }
+        }
+    }
+
+    if let Some(dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+        let cfg_env = dir.config_dir().join(".env");
+        if let Ok(content) = std::fs::read_to_string(cfg_env) {
             for line in content.lines() {
                 let trimmed = line.trim();
                 if let Some(val) = trimmed.strip_prefix("CURSEFORGE_API_KEY=") {
