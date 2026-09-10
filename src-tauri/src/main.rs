@@ -74,8 +74,11 @@ fn main() {
             }
         }
 
-        // WebKitGTK Linux stability settings
-        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+        // WebKitGTK Linux GPU acceleration & stability:
+        // Do NOT disable WEBKIT_DISABLE_DMABUF_RENDERER unconditionally.
+        // Disabling DMA-BUF forces WebKitGTK into CPU software rasterization (10-20 FPS lag).
+        // Native GPU DMA-BUF achieves 60-144 FPS smooth rendering on AMD, Intel, and modern Mesa.
+        if std::env::var("LUXMC_SOFTWARE_RENDER").as_deref() == Ok("1") {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
         if std::env::var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS").is_err() {

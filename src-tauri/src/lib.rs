@@ -16,6 +16,12 @@ pub async fn run() {
         .with_target(false)
         .init();
 
+    if crate::core::mods::curseforge::api_key().is_some() {
+        tracing::info!("CurseForge API: enabled");
+    } else {
+        tracing::warn!("CurseForge API: disabled (no API key found)");
+    }
+
     if let Err(e) = db::shared_db().await {
         tracing::error!(error = %e, "failed to initialise database");
     }

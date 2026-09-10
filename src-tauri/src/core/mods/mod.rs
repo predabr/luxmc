@@ -17,6 +17,7 @@ pub struct ModSearchResult {
     pub categories: Vec<String>,
     pub versions: Vec<String>,
     pub source: String,
+    pub source_id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,7 +82,7 @@ impl ModrinthClient {
         limit: u32,
     ) -> AppResult<Vec<ModSearchResult>> {
         let facets = format!(
-            r#"["categories:fabric","categories:forge","categories:neoforge","categories:quilt","versions:{}"]"#,
+            r#"[["categories:fabric","categories:forge","categories:neoforge","categories:quilt"],["versions:{}"]]"#,
             mc_version
         );
         let url = format!(
@@ -147,6 +148,11 @@ impl ModrinthClient {
                     })
                     .unwrap_or_default(),
                 source: "modrinth".into(),
+                source_id: hit
+                    .get("project_id")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("")
+                    .to_string(),
             });
         }
         Ok(results)
@@ -164,7 +170,7 @@ impl ModrinthClient {
             "shader" => "shader",
             _ => "mod",
         };
-        let facets = format!(r#"["categories:{}","versions:{}"]"#, category, mc_version);
+        let facets = format!(r#"[["categories:{}"],["versions:{}"]]"#, category, mc_version);
         let url = format!(
             "{}/search?query={}&limit={}&facets={}",
             MODRINTH_API,
@@ -228,6 +234,11 @@ impl ModrinthClient {
                     })
                     .unwrap_or_default(),
                 source: "modrinth".into(),
+                source_id: hit
+                    .get("project_id")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("")
+                    .to_string(),
             });
         }
         Ok(results)

@@ -14,6 +14,31 @@ pub struct ModInstallRequest {
     pub profile_id: String,
     pub project_id: String,
     pub version_id: String,
+    #[serde(default = "default_source")]
+    pub source: String,
+}
+
+fn default_source() -> String {
+    "modrinth".into()
+}
+
+fn normalize_slug(s: &str) -> String {
+    s.to_lowercase()
+        .replace(['-', '_'], "")
+        .trim()
+        .to_string()
+}
+
+fn dedup_results(mut combined: Vec<ModSearchResult>) -> Vec<ModSearchResult> {
+    let mut seen_slugs: HashSet<String> = HashSet::new();
+    let mut seen_titles: HashSet<String> = HashSet::new();
+    combined.retain(|r| {
+        let norm_slug = normalize_slug(&r.slug);
+        let norm_title = normalize_slug(&r.title);
+        let is_new = seen_slugs.insert(norm_slug) && seen_titles.insert(norm_title);
+        is_new
+    });
+    combined
 }
 
 #[tauri::command]
@@ -27,24 +52,37 @@ pub async fn mods_search(
     let limit = limit.unwrap_or(20);
 
     let modrinth_client = ModrinthClient::new(state.http.clone());
-    let modrinth_results = modrinth_client
-        .search_mods(&query, &mcVersion, limit)
-        .await
-        .unwrap_or_default();
 
-    let curseforge_results = curseforge::search_mods(&state.http, &query, &mcVersion, limit)
-        .await
-        .unwrap_or_default();
+    let (modrinth_results, curseforge_results) = tokio::join!(
+        async {
+            modrinth_client
+                .search_mods(&query, &mcVersion, limit)
+                .await
+                .unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "Modrinth search failed");
+                    Vec::new()
+                })
+        },
+        async {
+            curseforge::search_mods(&state.http, &query, &mcVersion, limit)
+                .await
+                .unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "CurseForge search failed");
+                    Vec::new()
+                })
+        }
+    );
+
+    tracing::info!(
+        modrinth_count = modrinth_results.len(),
+        curseforge_count = curseforge_results.len(),
+        query = %query,
+        "mods_search completed"
+    );
 
     let mut combined = modrinth_results;
-    let existing_slugs: std::collections::HashSet<String> =
-        combined.iter().map(|r| r.slug.clone()).collect();
-    for result in curseforge_results {
-        if !existing_slugs.contains(&result.slug) {
-            combined.push(result);
-        }
-    }
-
+    combined.extend(curseforge_results);
+    let mut combined = dedup_results(combined);
     combined.sort_by(|a, b| b.downloads.cmp(&a.downloads));
     combined.truncate(limit as usize);
     Ok(combined)
@@ -79,24 +117,23 @@ pub async fn mods_search_typed(
             Ok(results)
         }
         _ => {
-            let modrinth_results = modrinth_client
-                .search_mods(&query, &mcVersion, limit)
-                .await
-                .unwrap_or_default();
-            let curseforge_results =
-                curseforge::search_mods(&state.http, &query, &mcVersion, limit)
-                    .await
-                    .unwrap_or_default();
+            let (modrinth_results, curseforge_results) = tokio::join!(
+                async {
+                    modrinth_client
+                        .search_mods(&query, &mcVersion, limit)
+                        .await
+                        .unwrap_or_default()
+                },
+                async {
+                    curseforge::search_mods(&state.http, &query, &mcVersion, limit)
+                        .await
+                        .unwrap_or_default()
+                }
+            );
 
             let mut combined = modrinth_results;
-            let existing_slugs: std::collections::HashSet<String> =
-                combined.iter().map(|r| r.slug.clone()).collect();
-            for result in curseforge_results {
-                if !existing_slugs.contains(&result.slug) {
-                    combined.push(result);
-                }
-            }
-
+            combined.extend(curseforge_results);
+            let mut combined = dedup_results(combined);
             combined.sort_by(|a, b| b.downloads.cmp(&a.downloads));
             combined.truncate(limit as usize);
             Ok(combined)
@@ -110,20 +147,19 @@ pub async fn mods_versions(
     state: State<'_, AppState>,
     projectId: String,
     mcVersion: String,
+    source: Option<String>,
 ) -> AppResult<Vec<ModVersion>> {
-    let modrinth_client = ModrinthClient::new(state.http.clone());
-    let modrinth_versions = modrinth_client
-        .get_mod_versions(&projectId, &mcVersion)
-        .await
-        .unwrap_or_default();
+    let src = source.as_deref().unwrap_or("modrinth");
 
-    let curseforge_versions = curseforge::get_mod_versions(&state.http, &projectId, &mcVersion)
-        .await
-        .unwrap_or_default();
-
-    let mut combined = modrinth_versions;
-    combined.extend(curseforge_versions);
-    Ok(combined)
+    match src {
+        "curseforge" => {
+            curseforge::get_mod_versions(&state.http, &projectId, &mcVersion).await
+        }
+        _ => {
+            let modrinth_client = ModrinthClient::new(state.http.clone());
+            modrinth_client.get_mod_versions(&projectId, &mcVersion).await
+        }
+    }
 }
 
 #[tauri::command]
@@ -135,28 +171,62 @@ pub async fn mods_list(_state: State<'_, AppState>, profileId: String) -> AppRes
 
 #[tauri::command]
 pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest) -> AppResult<()> {
-    let client = ModrinthClient::new(state.http.clone());
-    let versions = client.get_mod_versions(&request.project_id, "").await?;
-
-    let version = versions
-        .iter()
-        .find(|v| v.id == request.version_id)
-        .ok_or_else(|| crate::error::AppError::NotFound("mod version not found".into()))?;
-
-    let file = version
-        .files
-        .first()
-        .ok_or_else(|| crate::error::AppError::NotFound("mod file not found".into()))?;
-
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
     let mods_dir = base_dir.data_dir().join("mods").join(&request.profile_id);
     tokio::fs::create_dir_all(&mods_dir).await?;
 
-    let resp = state.http.get(&file.url).send().await?.error_for_status()?;
+    let (file_url, file_name, _file_size, file_sha1) = match request.source.as_str() {
+        "curseforge" => {
+            let versions = curseforge::get_mod_versions(&state.http, &request.project_id, "").await?;
+            let version = versions
+                .iter()
+                .find(|v| v.id == request.version_id)
+                .ok_or_else(|| {
+                    crate::error::AppError::NotFound("CurseForge mod version not found".into())
+                })?;
+            let file = version.files.first().ok_or_else(|| {
+                crate::error::AppError::NotFound("CurseForge mod file not found".into())
+            })?;
+            (
+                file.url.clone(),
+                file.filename.clone(),
+                file.size,
+                file.sha1.clone(),
+            )
+        }
+        _ => {
+            let client = ModrinthClient::new(state.http.clone());
+            let versions = client.get_mod_versions(&request.project_id, "").await?;
+            let version = versions
+                .iter()
+                .find(|v| v.id == request.version_id)
+                .ok_or_else(|| {
+                    crate::error::AppError::NotFound("Modrinth mod version not found".into())
+                })?;
+            let file = version.files.first().ok_or_else(|| {
+                crate::error::AppError::NotFound("Modrinth mod file not found".into())
+            })?;
+            (
+                file.url.clone(),
+                file.filename.clone(),
+                file.size,
+                file.sha1.clone(),
+            )
+        }
+    };
+
+    tracing::info!(
+        source = %request.source,
+        project_id = %request.project_id,
+        file = %file_name,
+        "downloading mod"
+    );
+
+    let resp = state.http.get(&file_url).send().await?.error_for_status()?;
     let bytes = resp.bytes().await?;
-    let file_path = mods_dir.join(&file.filename);
+    let file_path = mods_dir.join(&file_name);
     tokio::fs::write(&file_path, &bytes).await?;
 
     let db = crate::db::shared_db().await?;
@@ -164,9 +234,9 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
         profile_id: request.profile_id,
         project_id: request.project_id,
         version_id: request.version_id,
-        file_name: file.filename.clone(),
-        sha1: file.sha1.clone(),
-        source: "modrinth".into(),
+        file_name,
+        sha1: file_sha1,
+        source: request.source,
         installed_at: String::new(),
     };
     crate::db::schema::mods::upsert(&db, &mod_row).await
@@ -190,6 +260,7 @@ pub async fn mods_install_with_deps(
     tokio::fs::create_dir_all(&mods_dir).await?;
 
     let db = crate::db::shared_db().await?;
+    let source = request.source.clone();
 
     let mut depth = 0;
     while !to_install.is_empty() && depth < 3 {
@@ -221,7 +292,7 @@ pub async fn mods_install_with_deps(
                     version_id: version.id.clone(),
                     file_name: file.filename.clone(),
                     sha1: file.sha1.clone(),
-                    source: "modrinth".into(),
+                    source: source.clone(),
                     installed_at: String::new(),
                 };
                 crate::db::schema::mods::upsert(&db, &mod_row).await?;
@@ -286,6 +357,9 @@ pub async fn mods_check_updates(
 
     let mut updates = Vec::new();
     for mod_row in &installed {
+        if mod_row.source == "curseforge" {
+            continue;
+        }
         if let Ok(Some((latest_id, latest_num, download_url))) = client
             .get_latest_version(&mod_row.project_id, &profile.mc_version, &loaders)
             .await
@@ -321,25 +395,6 @@ pub async fn mods_update(
     versionId: String,
     profileId: String,
 ) -> AppResult<()> {
-    let client = ModrinthClient::new(state.http.clone());
-    let versions = client.get_mod_versions(&projectId, "").await?;
-
-    let version = versions
-        .iter()
-        .find(|v| v.id == versionId)
-        .ok_or_else(|| crate::error::AppError::NotFound("mod version not found".into()))?;
-
-    let file = version
-        .files
-        .first()
-        .ok_or_else(|| crate::error::AppError::NotFound("mod file not found".into()))?;
-
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
-        crate::error::AppError::InvalidState("could not determine data dir".into())
-    })?;
-    let mods_dir = base_dir.data_dir().join("mods").join(&profileId);
-    tokio::fs::create_dir_all(&mods_dir).await?;
-
     let db = crate::db::shared_db().await?;
 
     let old = sqlx::query_as::<_, crate::db::schema::mods::ModRow>(
@@ -350,23 +405,64 @@ pub async fn mods_update(
     .fetch_optional(db.pool())
     .await?;
 
+    let source = old
+        .as_ref()
+        .map(|m| m.source.clone())
+        .unwrap_or_else(|| "modrinth".into());
+
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
+        crate::error::AppError::InvalidState("could not determine data dir".into())
+    })?;
+    let mods_dir = base_dir.data_dir().join("mods").join(&profileId);
+    tokio::fs::create_dir_all(&mods_dir).await?;
+
     if let Some(ref old_mod) = old {
         let old_path = mods_dir.join(&old_mod.file_name);
         let _ = tokio::fs::remove_file(&old_path).await;
     }
 
-    let resp = state.http.get(&file.url).send().await?.error_for_status()?;
+    let (file_url, file_name, file_sha1) = match source.as_str() {
+        "curseforge" => {
+            let versions = curseforge::get_mod_versions(&state.http, &projectId, "").await?;
+            let version = versions
+                .iter()
+                .find(|v| v.id == versionId)
+                .ok_or_else(|| {
+                    crate::error::AppError::NotFound("CurseForge mod version not found".into())
+                })?;
+            let file = version.files.first().ok_or_else(|| {
+                crate::error::AppError::NotFound("CurseForge mod file not found".into())
+            })?;
+            (file.url.clone(), file.filename.clone(), file.sha1.clone())
+        }
+        _ => {
+            let client = ModrinthClient::new(state.http.clone());
+            let versions = client.get_mod_versions(&projectId, "").await?;
+            let version = versions
+                .iter()
+                .find(|v| v.id == versionId)
+                .ok_or_else(|| {
+                    crate::error::AppError::NotFound("Modrinth mod version not found".into())
+                })?;
+            let file = version.files.first().ok_or_else(|| {
+                crate::error::AppError::NotFound("Modrinth mod file not found".into())
+            })?;
+            (file.url.clone(), file.filename.clone(), file.sha1.clone())
+        }
+    };
+
+    let resp = state.http.get(&file_url).send().await?.error_for_status()?;
     let bytes = resp.bytes().await?;
-    let file_path = mods_dir.join(&file.filename);
+    let file_path = mods_dir.join(&file_name);
     tokio::fs::write(&file_path, &bytes).await?;
 
     let mod_row = crate::db::schema::mods::ModRow {
         profile_id: profileId,
         project_id: projectId,
         version_id: versionId,
-        file_name: file.filename.clone(),
-        sha1: file.sha1.clone(),
-        source: "modrinth".into(),
+        file_name,
+        sha1: file_sha1,
+        source,
         installed_at: String::new(),
     };
     crate::db::schema::mods::upsert(&db, &mod_row).await

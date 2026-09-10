@@ -9,7 +9,6 @@
 		Plus,
 		Users,
 		Settings as SettingsIcon,
-		Compass,
 	} from "lucide-svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -31,71 +30,64 @@
 		{ href: "/skins", labelKey: "nav.skins", title: "Personalização", icon: Shirt },
 		{ href: "/instances", labelKey: "nav.instances", title: "Biblioteca", icon: Boxes },
 	];
+
+	const friendsActive = $derived($page.url.pathname.startsWith("/friends"));
+	const settingsActive = $derived($page.url.pathname.startsWith("/settings"));
 </script>
 
-<aside class="flex h-screen w-[70px] shrink-0 flex-col items-center py-3 bg-[#111215] border-r border-white/5 z-40 relative select-none shadow-[4px_0_24px_rgba(0,0,0,0.6)]">
+<aside class="flex h-screen w-[70px] shrink-0 flex-col items-center py-4 bg-[#111215] border-r border-white/5 z-40 relative select-none shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
 	
-	<!-- Profile Avatar at Top (stretches to top cleanly) -->
+	<!-- Profile Avatar / Brand at Top (Squircle Frame matching reference) -->
 	<button 
 		type="button"
 		title="Meu Perfil" 
-		class="relative mb-5 group hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+		class="relative mb-4 group transition-transform duration-200 active:scale-95 cursor-pointer"
 		onclick={() => showProfileModal = true}
 	>
-		<div class="h-11 w-11 rounded-full overflow-hidden bg-[#1c1d22] border-2 border-white/10 group-hover:border-amber-400/80 transition-all duration-300 shadow-md flex items-center justify-center">
+		<div class="h-11 w-11 rounded-[16px] overflow-hidden bg-[#1c1d22] border border-white/10 group-hover:border-[#d8bc98]/70 transition-all duration-200 shadow-md flex items-center justify-center p-0.5">
 			<img 
-				src={activeSkinStore.current.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "https://mc-heads.net/avatar/MHF_Steve/100")} 
+				src={activeSkinStore.current.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "/logo.png")} 
 				alt="Avatar" 
-				class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" 
+				class="w-full h-full object-cover rounded-[14px]" 
 			/>
 		</div>
 
 		<!-- Hover Floating Tooltip -->
-		<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 shadow-2xl">
+		<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 shadow-2xl">
 			{account.value?.username || "Perfil de Jogador"}
 		</div>
 	</button>
 
-	<!-- Main Navigation Icons with Fluid Hover Animations -->
-	<nav class="flex-1 w-full flex flex-col items-center gap-2.5">
+	<!-- Main Navigation Icons (Exact squircle & champagne gradient from Reference Image 3) -->
+	<nav class="flex-1 w-full flex flex-col items-center gap-2">
 		{#each items as item}
 			{@const active = item.href === "/" ? $page.url.pathname === "/" : $page.url.pathname.startsWith(item.href)}
 			<div class="relative group w-full flex justify-center">
-				<!-- Animated Pill Indicator -->
-				<div 
-					class="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 rounded-r-full transition-all duration-300 ease-out {active ? 'h-7 bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.8)]' : 'h-0 bg-transparent'}"
-				></div>
-				
 				<a
 					href={item.href}
-					class="relative h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 {active ? 'bg-brand-500/15 border border-brand-500/30 text-brand-500 shadow-[0_0_15px_rgba(226,184,107,0.25)] font-bold' : 'text-white/40 hover:text-white hover:bg-white/5 border border-transparent'}"
+					class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 {active ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
 				>
-					<item.icon class="h-5 w-5 transition-transform duration-200 group-hover:scale-110" />
+					<item.icon class="h-5 w-5 {active ? 'text-[#15171c]' : 'text-[#8a8d98] group-hover:text-white transition-colors'}" strokeWidth={active ? 2.2 : 1.8} />
 				</a>
 
 				<!-- Smooth Tooltip -->
-				<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 shadow-2xl">
+				<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl">
 					{item.title}
 				</div>
 			</div>
 		{/each}
 		
-		<div class="w-8 h-[1px] bg-white/10 my-1"></div>
+		<div class="w-7 h-[1px] bg-white/10 my-1"></div>
 		
-		<!-- Dynamic Created Instances List on Sidebar -->
+		<!-- Dynamic Created Instances List on Sidebar (Squircle styling) -->
 		{#if profiles.list.length > 0}
-			<div class="w-full flex flex-col items-center gap-2 overflow-y-auto max-h-[30vh] custom-scrollbar px-1 py-1">
+			<div class="w-full flex flex-col items-center gap-2 overflow-y-auto max-h-[28vh] custom-scrollbar px-1 py-0.5">
 				{#each profiles.list as prof}
 					{@const active = $page.url.pathname === `/instances/${prof.id}` || ($page.url.pathname === "/instances" && profiles.activeId === prof.id)}
 					<div class="relative group w-full flex justify-center">
-						<div 
-							class="absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ease-out {active ? 'h-6 shadow-sm' : 'h-0 bg-transparent'}"
-							style={active ? 'background-color: var(--accent-color, #e2b86b);' : ''}
-						></div>
-						
 						<a
 							href={`/instances/${prof.id}`}
-							class="relative h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95 border {active ? 'bg-white/10 shadow-lg ring-2 ring-brand-500/50 border-brand-500' : 'border-white/10 bg-[#1c1d22] hover:border-white/30'}"
+							class="relative h-10 w-10 rounded-[14px] overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border {active ? 'ring-2 ring-[#d8bc98] border-transparent shadow-lg scale-105' : 'border-white/10 bg-[#1c1d22] hover:border-white/30'}"
 						>
 							{#if prof.icon && (prof.icon.startsWith("http") || prof.icon.startsWith("/") || prof.icon.startsWith("data:"))}
 								<img src={prof.icon} alt={prof.name} class="w-full h-full object-cover" />
@@ -105,7 +97,7 @@
 						</a>
 
 						<!-- Instance Tooltip with Name, Version & Loader -->
-						<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-2 rounded-2xl border border-white/10 shadow-2xl flex flex-col gap-0.5">
+						<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/10 shadow-2xl flex flex-col gap-0.5">
 							<div class="flex items-center gap-1.5">
 								<span class="text-white font-extrabold">{prof.name}</span>
 								<span class="text-[9px] font-mono font-bold bg-white/10 text-white px-1.5 py-0.2 rounded uppercase border border-white/20">{prof.loader}</span>
@@ -115,57 +107,47 @@
 					</div>
 				{/each}
 			</div>
-			<div class="w-6 h-[1px] bg-white/5 my-0.5"></div>
+			<div class="w-7 h-[1px] bg-white/5 my-0.5"></div>
 		{/if}
 
-		<!-- Add Instance Button with Plus Animation -->
+		<!-- Add Instance Button with Plus -->
 		<div class="relative group w-full flex justify-center">
 			<a
 				href="/instances"
-				class="h-10 w-10 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 hover:scale-110 active:scale-95 transition-all duration-300 border border-dashed border-white/10 hover:border-white/40"
+				class="h-10 w-10 rounded-[14px] flex items-center justify-center text-[#8a8d98] hover:text-white hover:bg-white/5 transition-all duration-200 border border-dashed border-white/10 hover:border-white/30 active:scale-95"
 			>
-				<Plus class="h-4 w-4 transition-transform duration-300 group-hover:rotate-90 text-white/60 group-hover:text-white" />
+				<Plus class="h-4 w-4 transition-transform duration-200 group-hover:rotate-90 text-white/60 group-hover:text-white" />
 			</a>
-			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 shadow-2xl">
+			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl">
 				Criar Nova Instância
 			</div>
 		</div>
 	</nav>
 
 	<!-- Bottom Section: Friends, Settings -->
-	<div class="mt-auto w-full flex flex-col items-center gap-2.5 pt-2">
+	<div class="mt-auto w-full flex flex-col items-center gap-2 pt-2">
 		<!-- Friends Route with Tooltip -->
 		<div class="relative group w-full flex justify-center">
-			<div 
-				class="absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ease-out {$page.url.pathname.startsWith('/friends') ? 'h-7 shadow-sm' : 'h-0 bg-transparent'}"
-				style={$page.url.pathname.startsWith('/friends') ? 'background-color: var(--accent-color, #e2b86b);' : ''}
-			></div>
 			<a
 				href="/friends"
-				class="relative h-11 w-11 rounded-full flex items-center justify-center transition-all duration-300 ease-out hover:scale-110 active:scale-95 {$page.url.pathname.startsWith('/friends') ? 'bg-white/10 shadow-inner' : 'text-white/40 hover:text-white hover:bg-white/5'}"
-				style={$page.url.pathname.startsWith('/friends') ? 'color: var(--accent-color, #e2b86b);' : ''}
+				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 {friendsActive ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
 			>
-				<Users class="h-5 w-5" />
+				<Users class="h-5 w-5 {friendsActive ? 'text-[#15171c]' : 'text-[#8a8d98] group-hover:text-white transition-colors'}" strokeWidth={friendsActive ? 2.2 : 1.8} />
 			</a>
-			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 shadow-2xl">
+			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl">
 				Amigos & Chat
 			</div>
 		</div>
 
 		<!-- Settings Route with Tooltip -->
 		<div class="relative group w-full flex justify-center">
-			<div 
-				class="absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-full transition-all duration-300 ease-out {$page.url.pathname.startsWith('/settings') ? 'h-7 shadow-sm' : 'h-0 bg-transparent'}"
-				style={$page.url.pathname.startsWith('/settings') ? 'background-color: var(--accent-color, #e2b86b);' : ''}
-			></div>
 			<a
 				href="/settings"
-				class="relative h-11 w-11 rounded-full flex items-center justify-center transition-all duration-300 ease-out hover:scale-110 active:scale-95 {$page.url.pathname.startsWith('/settings') ? 'bg-white/10 shadow-inner' : 'text-white/40 hover:text-white hover:bg-white/5'}"
-				style={$page.url.pathname.startsWith('/settings') ? 'color: var(--accent-color, #e2b86b);' : ''}
+				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 {settingsActive ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
 			>
-				<SettingsIcon class="h-5 w-5 transition-transform duration-500 {$page.url.pathname.startsWith('/settings') ? 'rotate-90' : 'group-hover:rotate-45'}" />
+				<SettingsIcon class="h-5 w-5 transition-transform duration-300 {settingsActive ? 'text-[#15171c] rotate-90' : 'text-[#8a8d98] group-hover:rotate-45 group-hover:text-white'}" strokeWidth={settingsActive ? 2.2 : 1.8} />
 			</a>
-			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 shadow-2xl">
+			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl">
 				Configurações
 			</div>
 		</div>

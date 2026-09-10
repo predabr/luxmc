@@ -65,15 +65,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v0.8.0-beta
-          releaseName: 'Luxmc Launcher v0.8.0-BETA'
+          tagName: v1.0.0-beta
+          releaseName: 'Luxmc Launcher v1.0.0-BETA'
           releaseBody: |
-            ## 🚀 Luxmc Launcher v0.8.0-BETA — Official Release
+            ## 🚀 Luxmc Launcher v1.0.0-BETA — Official Release
             
-            - ⚡ **Cutscene 360° Split & Snap**: Quadrantes girando por 2s, pausa dramática e reagrupamento limpo.
-            - 🎵 **Áudio & Efeitos Visuais**: Efeito sonoro sintetizado em tempo real + partículas douradas no canvas.
-            - 🎮 **Configurações da Instância (SKlauncher-style)**: Abas dedicadas (Geral, Instalação, Janela, Java/Vulkan, Hooks).
-            - 👕 **Personalização 3D**: Ajuste volumétrico de skins, 3D capes (OptiFine/Migrator/Mojang) e busca NameMC.
-            - 🐧 **Linux-first**: Suporte a Vulkan (Mesa Zink), ícone nativo corrigido e Discord Rich Presence.
+            ### ⚡ Desempenho & Aceleração de Hardware no Linux
+            - **Fim do Lag no AppImage**: Habilitada aceleração total por hardware via DMA-BUF (Mesa/Vulkan/OpenGL), eliminando a rasterização por software (CPU) que travava a interface.
+            - **Renderização Fluida**: Remoção de filtros pesados de desfoque global que sobrecarregavam a GPU a cada frame.
+            
+            ### 🎬 Nova Cutscene Cinematográfica
+            - **Animação mais ágil (2.3s)**: Transição contínua sem congelamentos artificiais.
+            - **Snap magnético e flash de iluminação** com efeito sonoro harmônico gerado via Web Audio API.
+            - **Atalhos para pular**: Teclas Space, Enter, Esc ou clique em qualquer lugar da tela.
+            
+            ### 🎨 Redesign Visual Completo (Estilo Referência)
+            - **Sidebar Lateral**: Item ativo em squircle com gradiente metálico e ícones minimalistas.
+            - **Central de Mods & Recursos**: Integração nativa Modrinth + CurseForge com busca simultânea, filtros duplos, seletor de versões e instalação direta.
+            - **Dashboard Inicial**: Nova saudação estilizada, atalhos rápidos de biblioteca, tabela de servidores ranqueados e estatísticas de tempo de jogo.
+            - **Configurações do Sistema**: Novos switches de alternância estilizados (trilha champanhe com thumb escuro), abas com ícones e botão de salvar padronizado.
           releaseDraft: false
           prerelease: true

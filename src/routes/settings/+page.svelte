@@ -183,7 +183,7 @@
 		kernelVersion: "Linux",
 		arch: "x86_64",
 		totalRamMb: 16384,
-		launcherVersion: "0.8.0-BETA"
+		launcherVersion: "1.0.0-BETA"
 	});
 
 	onMount(() => {
@@ -195,7 +195,7 @@
 					kernelVersion: String(specs.kernelVersion),
 					arch: specs.arch,
 					totalRamMb: specs.totalRamMb,
-					launcherVersion: specs.launcherVersion || "0.8.0-BETA"
+					launcherVersion: specs.launcherVersion || "1.0.0-BETA"
 				};
 			}
 		}).catch(err => console.error(err));
@@ -324,82 +324,33 @@
 			</div>
 
 			<nav class="flex flex-col gap-1 overflow-y-auto max-h-[480px] custom-scrollbar pr-1">
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'geral' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'geral'}
-				>
-					<SettingsIcon class="w-4 h-4 text-emerald-400" /> Geral
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'aparencia' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'aparencia'}
-				>
-					<Palette class="w-4 h-4 text-purple-400" /> Aparência
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'amigos' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'amigos'}
-				>
-					<Users class="w-4 h-4 text-emerald-400" /> Amigos & Discord
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'java' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'java'}
-				>
-					<Cpu class="w-4 h-4 text-blue-400" /> Java & Memória
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'linux' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'linux'}
-				>
-					<Terminal class="w-4 h-4 text-orange-400" /> Linux & GameMode
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'graficos' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'graficos'}
-				>
-					<Monitor class="w-4 h-4 text-cyan-400" /> Gráficos Minecraft
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'armazenamento' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'armazenamento'}
-				>
-					<HardDrive class="w-4 h-4 text-rose-400" /> Armazenamento
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'privacidade' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'privacidade'}
-				>
-					<Shield class="w-4 h-4 text-teal-400" /> Privacidade
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'notificacoes' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'notificacoes'}
-				>
-					<Bell class="w-4 h-4 text-yellow-400" /> Notificações
-				</button>
-
-				<button 
-					class="flex items-center gap-3 px-3.5 py-2.5 rounded-full text-xs font-bold transition-all w-full text-left active:scale-95 {activeSection === 'sobre' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5'}"
-					onclick={() => activeSection = 'sobre'}
-				>
-					<Info class="w-4 h-4 text-sky-400" /> Sobre
-				</button>
+				{#each [
+					{ key: 'geral', label: 'Geral', icon: SettingsIcon, color: 'text-[#c5a880]' },
+					{ key: 'aparencia', label: 'Aparência', icon: Palette, color: 'text-purple-400' },
+					{ key: 'amigos', label: 'Amigos', icon: Users, color: 'text-emerald-400' },
+					{ key: 'java', label: 'Java', icon: Cpu, color: 'text-blue-400' },
+					{ key: 'linux', label: 'Linux & GameMode', icon: Terminal, color: 'text-orange-400' },
+					{ key: 'graficos', label: 'Gráficos', icon: Monitor, color: 'text-cyan-400' },
+					{ key: 'armazenamento', label: 'Armazenamento', icon: HardDrive, color: 'text-rose-400' },
+					{ key: 'privacidade', label: 'Privacidade', icon: Shield, color: 'text-teal-400' },
+					{ key: 'notificacoes', label: 'Notificações', icon: Bell, color: 'text-yellow-400' },
+					{ key: 'sobre', label: 'Sobre', icon: Info, color: 'text-sky-400' },
+				] as item}
+					{@const active = activeSection === item.key}
+					<button 
+						class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer active:scale-95 {active ? 'border border-[#c5a880]/35 bg-[#25211b]/60 text-[#d8bc98] shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5 border border-transparent'}"
+						onclick={() => activeSection = item.key as Section}
+					>
+						<item.icon class="w-4 h-4 {active ? 'text-[#c5a880]' : item.color}" /> {item.label}
+					</button>
+				{/each}
 			</nav>
 		</div>
 
-		<!-- Bottom Brand Details (Cleaned of SKlauncher) -->
+		<!-- Bottom Brand Details matching Reference Image 4 -->
 		<div class="px-3 pt-3 text-[10px] text-white/30 font-medium leading-relaxed border-t border-white/5">
-			<div class="text-white/60 font-bold">Luxmc v0.8.0 Beta</div>
-			<div>Linux x86_64 · Wayland/X11</div>
+			<div class="text-white/60 font-bold">Luxmc {systemSpecs.launcherVersion}</div>
+			<div>{systemSpecs.osDistro} · x86_64</div>
 		</div>
 	</div>
 
@@ -408,30 +359,45 @@
 		
 		<div class="space-y-6">
 			
-			<!-- SECTION 1: GERAL -->
+			<!-- SECTION 1: GERAL (Matching Reference Image 4) -->
 			{#if activeSection === 'geral'}
-				<div class="border-b border-white/5 pb-4">
-					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
-						<SettingsIcon class="w-5 h-5 text-brand-500" /> Geral & Sistema
-					</h3>
-					<p class="text-xs text-white/50 mt-0.5">Preferências gerais de execução do launcher</p>
+				<div class="flex items-center justify-between border-b border-white/5 pb-4">
+					<div class="flex items-center gap-3">
+						<div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[#c5a880]">
+							<SettingsIcon class="w-4 h-4" />
+						</div>
+						<div>
+							<h3 class="text-base font-extrabold text-white">Geral</h3>
+							<p class="text-xs text-white/40 mt-0.5">Configurações gerais e preferências da aplicação</p>
+						</div>
+					</div>
+					<a 
+						href="/" 
+						class="w-7 h-7 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-xs"
+						title="Fechar configurações"
+					>
+						✕
+					</a>
 				</div>
 
-				<div class="space-y-3">
+				<div class="space-y-4">
+					<!-- Grupo: Idioma -->
 					<div>
-						<span class="text-xs font-bold text-white block mb-1.5">Idioma do Launcher</span>
-						<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3.5 flex items-center justify-between">
+						<div class="text-xs font-bold text-white mb-2">Idioma</div>
+						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-3.5 flex items-center justify-between">
 							<div class="flex items-center gap-3">
-								<Globe class="w-4 h-4 text-white/40" />
+								<div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-white/40">
+									<Globe class="w-4 h-4" />
+								</div>
 								<div>
-									<div class="text-xs font-bold text-white">Idioma da Interface</div>
-									<div class="text-[10px] text-white/40">Selecione o idioma de exibição do Luxmc</div>
+									<div class="text-xs font-bold text-white">Idioma</div>
+									<div class="text-[10px] text-white/40">Escolha o seu idioma preferido</div>
 								</div>
 							</div>
 							<select 
 								bind:value={selectedLanguage}
 								onchange={() => setLocale(selectedLanguage === 'pt-BR' ? 'pt-BR' : 'en')}
-								class="bg-[#24252a] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white font-bold focus:outline-none cursor-pointer"
+								class="bg-[#1c1d22] border border-white/10 rounded-xl px-4 py-2 text-xs text-white font-bold focus:outline-none focus:border-[#c5a880] cursor-pointer"
 							>
 								<option value="pt-BR">Português (Brasil)</option>
 								<option value="en">English (US)</option>
@@ -439,33 +405,40 @@
 						</div>
 					</div>
 
-					<div class="space-y-2">
-						{#each [
-							{ title: 'Minimizar para a Bandeja', desc: 'Manter a aplicação na bandeja do sistema ao fechar a janela', val: minimizeToTray, toggle: () => minimizeToTray = !minimizeToTray },
-							{ title: 'Ocultar Launcher ao Iniciar Jogo', desc: 'Minimiza o launcher para liberar memória RAM quando o Minecraft abrir', val: minimizeOnLaunch, toggle: () => minimizeOnLaunch = !minimizeOnLaunch },
-							{ title: 'Reabrir Launcher ao Fechar o Jogo', desc: 'Restaura a janela do Luxmc automaticamente quando a sessão do jogo terminar', val: reopenOnGameClose, toggle: () => reopenOnGameClose = !reopenOnGameClose },
-							{ title: 'Abrir Console de Logs em Janela Separada', desc: 'Exibir a saída do jogo e erros em tempo real numa janela flutuante', val: openConsoleWindow, toggle: () => openConsoleWindow = !openConsoleWindow },
-							{ title: 'Desativar Registro de Tempo de Jogo', desc: 'Não computar horas e minutos jogados para maior discrição', val: disableTimeTracking, toggle: () => disableTimeTracking = !disableTimeTracking },
-							{ title: 'Ocultar Instâncias Padrão na Biblioteca', desc: 'Exibe apenas instâncias customizadas que você criou', val: hideDefaultInstances, toggle: () => hideDefaultInstances = !hideDefaultInstances },
-							{ title: 'Permitir Atualizações Alpha e Beta de Mods', desc: 'Disponibiliza downloads experimentais de mods e pacotes no Modrinth', val: allowBetaMods, toggle: () => allowBetaMods = !allowBetaMods },
-							{ title: 'Exibir Taxa de Transferência em Bits por Segundo', desc: 'Mostra velocidades em Mbps/Kbps em vez de MB/s', val: useBitsPerSecond, toggle: () => useBitsPerSecond = !useBitsPerSecond },
-							{ title: 'Iniciar Luxmc com o Linux', desc: 'Inicia automaticamente em segundo plano ao ligar o computador', val: autoStartWithLinux, toggle: () => autoStartWithLinux = !autoStartWithLinux }
-						] as opt}
-							<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
-								<div>
-									<div class="text-xs font-bold text-white">{opt.title}</div>
-									<div class="text-[10px] text-white/40">{opt.desc}</div>
+					<!-- Grupo: Aplicação (Matching Reference Image 4 Switch design) -->
+					<div>
+						<div class="text-xs font-bold text-white mb-2">Aplicação</div>
+						<div class="bg-[#18191c] border border-white/5 rounded-2xl divide-y divide-white/5 overflow-hidden">
+							{#each [
+								{ title: 'Minimizar para a Bandeja', desc: 'Manter a app em execução na bandeja ao fechar', val: minimizeToTray, toggle: () => minimizeToTray = !minimizeToTray },
+								{ title: 'Minimizar ao Iniciar', desc: 'Ocultar o launcher na bandeja do sistema quando uma instância é iniciada', val: minimizeOnLaunch, toggle: () => minimizeOnLaunch = !minimizeOnLaunch },
+								{ title: 'Ocultar Instâncias Padrão', desc: 'Ocultar instâncias padrão (última versão e snapshot) da biblioteca', val: hideDefaultInstances, toggle: () => hideDefaultInstances = !hideDefaultInstances },
+								{ title: 'Abrir Consola noutra Janela', desc: 'Abrir consola do jogo numa janela separada em vez de uma janela emergente', val: openConsoleWindow, toggle: () => openConsoleWindow = !openConsoleWindow },
+								{ title: 'Desativar Registo de Tempo', desc: 'Não registar o tempo gasto a jogar instâncias', val: disableTimeTracking, toggle: () => disableTimeTracking = !disableTimeTracking },
+								{ title: 'Desativar Sugestões de Mods', desc: 'Ocultar mods sugeridos na aba de conteúdo das Instâncias', val: disableModSuggestions, toggle: () => disableModSuggestions = !disableModSuggestions },
+								{ title: 'Permitir atualizações de mods alfa e beta', desc: 'Atualize os mods também para versões alfa e beta, não apenas versões estáveis', val: allowBetaMods, toggle: () => allowBetaMods = !allowBetaMods },
+								{ title: 'Bits por segundo', desc: 'Usar Mbps e Kbps em vez de MB/s e KB/s', val: useBitsPerSecond, toggle: () => useBitsPerSecond = !useBitsPerSecond },
+							] as opt}
+								<div class="p-3.5 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
+									<div>
+										<div class="text-xs font-bold text-white">{opt.title}</div>
+										<div class="text-[10px] text-white/40 mt-0.5">{opt.desc}</div>
+									</div>
+									
+									<!-- Reference Image 4 Switch (ON: #c5a880 track + #181c24 thumb; OFF: #383a42 track + white thumb) -->
+									<button 
+										type="button"
+										role="switch"
+										aria-label={opt.title}
+										aria-checked={opt.val}
+										class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+										onclick={opt.toggle}
+									>
+										<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+									</button>
 								</div>
-								<button 
-									type="button"
-									aria-label={opt.title}
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
-									onclick={opt.toggle}
-								>
-									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
-								</button>
-							</div>
-						{/each}
+							{/each}
+						</div>
 					</div>
 				</div>
 
@@ -558,11 +531,13 @@
 								</div>
 								<button 
 									type="button"
+									role="switch"
 									aria-label={opt.title}
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+									aria-checked={opt.val}
+									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -618,11 +593,13 @@
 								</div>
 								<button 
 									type="button"
+									role="switch"
 									aria-label={opt.title}
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+									aria-checked={opt.val}
+									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -732,11 +709,13 @@
 								</div>
 								<button 
 									type="button"
+									role="switch"
 									aria-label={opt.title}
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+									aria-checked={opt.val}
+									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -775,11 +754,13 @@
 							</div>
 							<button 
 								type="button"
+								role="switch"
 								aria-label={opt.title}
-								class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+								aria-checked={opt.val}
+								class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 								onclick={opt.toggle}
 							>
-								<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
+								<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 							</button>
 						</div>
 					{/each}
@@ -810,14 +791,16 @@
 						</div>
 						<button 
 							type="button"
+							role="switch"
 							aria-label="Alternar Vulkan"
-							class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 cursor-pointer {enableVulkan ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+							aria-checked={enableVulkan}
+							class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableVulkan ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 							onclick={() => {
 								enableVulkan = !enableVulkan;
 								toast(enableVulkan ? "Pipeline Vulkan Zink ativado!" : "Pipeline OpenGL padrão restaurado.", "info");
 							}}
 						>
-							<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {enableVulkan ? 'translate-x-5' : 'translate-x-0'}"></span>
+							<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {enableVulkan ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 						</button>
 					</div>
 
@@ -846,11 +829,13 @@
 								</div>
 								<button 
 									type="button"
+									role="switch"
 									aria-label={opt.title}
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+									aria-checked={opt.val}
+									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -917,11 +902,13 @@
 								</div>
 								<button 
 									type="button"
+									role="switch"
 									aria-label={opt.title}
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+									aria-checked={opt.val}
+									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -953,11 +940,13 @@
 							</div>
 							<button 
 								type="button"
+								role="switch"
 								aria-label={opt.title}
-								class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+								aria-checked={opt.val}
+								class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 								onclick={opt.toggle}
 							>
-								<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
+								<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 							</button>
 						</div>
 					{/each}
@@ -987,11 +976,13 @@
 							</div>
 							<button 
 								type="button"
+								role="switch"
 								aria-label={opt.title}
-								class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {opt.val ? 'bg-brand-500 shadow-[0_0_10px_rgba(226,184,107,0.35)]' : 'bg-[#2d2e34]'}"
+								aria-checked={opt.val}
+								class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 								onclick={opt.toggle}
 							>
-								<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5' : 'translate-x-0'}"></span>
+								<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 							</button>
 						</div>
 					{/each}
@@ -1111,8 +1102,8 @@
 		<div class="pt-6 border-t border-white/5 flex items-center justify-between mt-6">
 			<span class="text-[11px] text-white/40">Todas as configurações são aplicadas imediatamente nas próximas sessões.</span>
 			<button 
-				class="hover:brightness-110 active:scale-95 text-[#141518] font-black text-xs px-8 py-3 rounded-full shadow-lg transition-all flex items-center gap-2 cursor-pointer hover:scale-105"
-				style="background-color: var(--accent-color, #e2b86b);"
+				type="button"
+				class="bg-[#c5a880] hover:bg-[#d6b991] active:scale-95 text-[#14161a] font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
 				onclick={saveSettings}
 			>
 				<Check class="w-4 h-4 stroke-[3]" /> Guardar alterações

@@ -291,6 +291,7 @@ export async function modsSearch(query: string, mcVersion: string, limit?: numbe
 	categories: string[];
 	versions: string[];
 	source: string;
+	sourceId: string;
 }>> {
 	return api.invoke("mods_search", { query, mcVersion, limit });
 }
@@ -304,11 +305,12 @@ export async function modsSearchTyped(query: string, mcVersion: string, contentT
 	categories: string[];
 	versions: string[];
 	source: string;
+	sourceId: string;
 }>> {
 	return api.invoke("mods_search_typed", { query, mcVersion, contentType, limit });
 }
 
-export async function modsVersions(projectId: string, mcVersion: string): Promise<Array<{
+export async function modsVersions(projectId: string, mcVersion: string, source?: string): Promise<Array<{
 	id: string;
 	name: string;
 	versionNumber: string;
@@ -319,7 +321,7 @@ export async function modsVersions(projectId: string, mcVersion: string): Promis
 		sha1: string;
 	}>;
 }>> {
-	return api.invoke("mods_versions", { projectId, mcVersion });
+	return api.invoke("mods_versions", { projectId, mcVersion, source });
 }
 
 export async function modsList(profileId: string): Promise<Array<{
@@ -338,6 +340,7 @@ export async function modsInstall(request: {
 	profileId: string;
 	projectId: string;
 	versionId: string;
+	source: string;
 }): Promise<void> {
 	return api.invoke("mods_install", { request });
 }

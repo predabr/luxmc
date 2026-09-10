@@ -2,11 +2,28 @@ use super::{ModFile, ModSearchResult, ModVersion};
 use crate::error::AppResult;
 
 const CURSEFORGE_API: &str = "https://api.curseforge.com/v1";
+const EMBEDDED_KEY: &str = "$2a$10$ZAl3a4/dJg9zsqJ2FJ.S/O0eEnOCDlPfAH81irnXt9GwXIsELgPuq";
 
 pub fn api_key() -> Option<String> {
-    std::env::var("CURSEFORGE_API_KEY")
+    let from_env = std::env::var("CURSEFORGE_API_KEY")
         .ok()
-        .filter(|k| !k.is_empty())
+        .filter(|k| !k.is_empty());
+
+    if let Some(k) = from_env {
+        tracing::info!(
+            "CurseForge API key loaded from environment ({}…)",
+            &k[..k.len().min(8)]
+        );
+        return Some(k);
+    }
+
+    if !EMBEDDED_KEY.is_empty() {
+        tracing::info!("CurseForge API key loaded from embedded default");
+        return Some(EMBEDDED_KEY.to_string());
+    }
+
+    tracing::warn!("CurseForge API key not available — CurseForge results will be omitted");
+    None
 }
 
 pub async fn search_mods(
@@ -33,16 +50,23 @@ pub async fn search_mods(
         limit,
     );
 
-    let resp: serde_json::Value = http
+    let resp = http
         .get(&url)
         .header("x-api-key", &key)
         .send()
-        .await?
-        .error_for_status()?
-        .json()
         .await?;
 
-    let data = resp
+    if !resp.status().is_success() {
+        tracing::warn!(
+            status = %resp.status(),
+            "CurseForge search request failed — omitting CurseForge results"
+        );
+        return Ok(Vec::new());
+    }
+
+    let body: serde_json::Value = resp.json().await?;
+
+    let data = body
         .get("data")
         .and_then(|d| d.as_array())
         .cloned()
@@ -51,7 +75,7 @@ pub async fn search_mods(
     let results = data
         .iter()
         .map(|m| {
-            let _id = m.get("id").and_then(|i| i.as_u64()).unwrap_or(0);
+            let cf_id = m.get("id").and_then(|i| i.as_u64()).unwrap_or(0);
             let slug = m
                 .get("slug")
                 .and_then(|s| s.as_str())
@@ -114,6 +138,7 @@ pub async fn search_mods(
                 categories,
                 versions,
                 source: "curseforge".into(),
+                source_id: cf_id.to_string(),
             }
         })
         .collect();
@@ -136,16 +161,23 @@ pub async fn get_mod_versions(
         CURSEFORGE_API, project_id, mc_version
     );
 
-    let resp: serde_json::Value = http
+    let resp = http
         .get(&url)
         .header("x-api-key", &key)
         .send()
-        .await?
-        .error_for_status()?
-        .json()
         .await?;
 
-    let data = resp
+    if !resp.status().is_success() {
+        tracing::warn!(
+            status = %resp.status(),
+            "CurseForge get_mod_versions failed"
+        );
+        return Ok(Vec::new());
+    }
+
+    let body: serde_json::Value = resp.json().await?;
+
+    let data = body
         .get("data")
         .and_then(|d| d.as_array())
         .cloned()

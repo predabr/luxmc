@@ -136,9 +136,9 @@
 
 <div class="fixed inset-0 z-[-2] bg-[#0c0c0e]">
 	{#if settings.value.theme === "default-dark" && !appState.performanceMode}
-		<!-- Innovative dark radial glow instead of full image -->
-		<div class="absolute inset-0 opacity-40 transition-opacity duration-1000" style="background: radial-gradient(circle at 20% -20%, rgb(var(--brand-500)), transparent 60%); filter: blur(100px);"></div>
-		<div class="absolute inset-0 opacity-20 transition-opacity duration-1000" style="background: radial-gradient(circle at 80% 120%, rgb(var(--brand-500)), transparent 60%); filter: blur(100px);"></div>
+		<!-- Clean high-performance GPU radial glow without expensive filter blur -->
+		<div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
+		<div class="absolute inset-0 opacity-15 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
 	{:else}
 		<div class="absolute inset-0 bg-black/60"></div>
 	{/if}

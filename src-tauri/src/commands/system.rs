@@ -126,6 +126,6 @@ pub fn get_system_specs() -> SystemSpecs {
         kernel_version,
         arch: std::env::consts::ARCH.to_string(),
         total_ram_mb,
-        launcher_version: "0.6.0-BETA".to_string(),
+        launcher_version: "1.0.0-BETA".to_string(),
     }
 }

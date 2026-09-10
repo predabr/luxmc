@@ -397,56 +397,64 @@
 	<div class="flex gap-8 h-full w-full select-none" in:fade={{ duration: 100 }}>
 		
 		<!-- MAIN CONTENT AREA -->
+		<!-- MAIN CONTENT AREA -->
 		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-7">
 			
-			<!-- Top Welcome Header -->
+			<!-- Top Welcome Header matching Reference Image 1 -->
 			<div class="flex items-center justify-between mt-1">
 				<div>
 					<h1 class="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
-						Bem-vindo ao Luxmc, {account.value?.username || 'Gamer'}
+						Bora lá, {account.value?.username || 'Spect3rBW'}
 					</h1>
-					<p class="text-white/50 text-xs mt-1">Minecraft otimizado com alto desempenho e máxima fluidez no Linux.</p>
+					<p class="text-white/40 text-xs mt-1 font-medium">Hora nobre, loot nobre.</p>
 				</div>
 
 				<a 
 					href="/instances" 
-					class="bg-gradient-to-r from-brand-500 to-[#ebd095] text-black hover:scale-[1.02] active:scale-95 rounded-2xl px-6 py-3 flex items-center gap-3.5 transition-all shadow-[0_0_25px_rgba(226,184,107,0.35)] cursor-pointer group"
+					class="bg-[#18191c] border border-white/10 hover:border-white/20 text-white hover:scale-[1.02] active:scale-98 rounded-2xl px-5 py-3 flex items-center gap-3.5 transition-all shadow-md group cursor-pointer"
 				>
-					<div class="h-9 w-9 rounded-xl bg-black/15 flex items-center justify-center group-hover:scale-105 transition-transform">
-						<Play class="w-4 h-4 text-black fill-current ml-0.5" />
+					<div class="h-9 w-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center group-hover:scale-105 transition-transform text-[#d8bc98]">
+						<Boxes class="w-4 h-4" />
 					</div>
 					<div class="text-left leading-tight">
-						<div class="font-black text-xs uppercase tracking-wider">Jogar Agora</div>
-						<div class="text-[11px] text-black/70 font-bold">Minhas Instâncias</div>
+						<div class="font-bold text-xs text-white">Navegar na Biblioteca</div>
+						<div class="text-[10px] text-white/40 font-medium">Explorar as suas instâncias</div>
 					</div>
 				</a>
 			</div>
 
-			<!-- Destaques de Modpacks Populares -->
+			<!-- Explorar Central de Conteúdo matching Reference Image 1 -->
 			<section>
 				<div class="flex items-center justify-between mb-3">
-					<h2 class="text-xs font-bold text-white uppercase tracking-wider">Modpacks em Destaque</h2>
-					<a href="/mods" class="text-xs text-brand-500 hover:underline font-bold">Ver todos</a>
+					<h2 class="text-xs font-bold text-white uppercase tracking-wider">Explorar Central de Conteúdo</h2>
+					<a href="/mods" class="text-xs text-[#caa97c] hover:underline font-bold">Ver todos</a>
 				</div>
 
 				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 					{#each modpacks as pack}
-						<a href="/mods" class="group rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden hover:border-brand-500/40 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(0,0,0,0.5)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
+						<a href="/mods" class="group rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden hover:border-[#caa97c]/40 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(0,0,0,0.4)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
 							<div class="h-32 w-full relative bg-[#222328] overflow-hidden">
-								<img src={pack.bgImg} class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" alt={pack.title} />
+								<img src={pack.bgImg} class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-300" alt={pack.title} />
 								<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-transparent to-transparent"></div>
 								
-								<!-- Badge Overlay -->
-								<div class="absolute bottom-[-10px] left-3 h-11 w-11 rounded-xl overflow-hidden {pack.badgeColor} flex items-center justify-center font-black text-[10px] shadow-xl p-0.5">
+								<!-- Modrinth Icon at top right -->
+								<div class="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shadow-md">
+									<span class="font-black text-[10px] text-emerald-400">m</span>
+								</div>
+
+								<!-- Badge Overlay on cover -->
+								<div class="absolute bottom-2 left-2.5 h-9 w-9 rounded-xl overflow-hidden bg-black/60 border border-white/10 flex items-center justify-center shadow-md p-0.5">
 									<img src={pack.iconImg} alt={pack.title} class="w-full h-full object-cover rounded-lg" />
 								</div>
 							</div>
-							<div class="p-4 pt-4">
-								<h3 class="font-extrabold text-white text-sm truncate group-hover:text-brand-500 transition-colors">{pack.title}</h3>
-								<p class="text-[11px] text-white/50 mt-1 line-clamp-2 leading-relaxed">{pack.subtitle}</p>
-								<div class="flex justify-between items-center mt-3 text-[10px] font-bold text-white/40">
-									<span class="flex items-center gap-1"><Users class="w-3 h-3"/> {pack.author}</span>
-									<span class="flex items-center gap-1"><Download class="w-3 h-3"/> {pack.downloads}</span>
+							<div class="p-4 pt-3 flex-1 flex flex-col justify-between">
+								<div>
+									<h3 class="font-extrabold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{pack.title}</h3>
+									<p class="text-[10px] text-white/40 mt-1 line-clamp-2 leading-relaxed">{pack.subtitle}</p>
+								</div>
+								<div class="flex justify-between items-center mt-3 pt-2 border-t border-white/5 text-[10px] font-medium text-white/40">
+									<span class="flex items-center gap-1"><Users class="w-3 h-3 text-white/30"/> {pack.author}</span>
+									<span class="flex items-center gap-1 font-mono"><Download class="w-3 h-3 text-white/30"/> {pack.downloads}</span>
 								</div>
 							</div>
 						</a>
@@ -454,14 +462,14 @@
 				</div>
 			</section>
 
-			<!-- Servidores Populares & Tempo de Jogo -->
+			<!-- Servidores & O seu tempo de jogo matching Reference Image 1 -->
 			<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
 				
-				<!-- Servidores Populares -->
+				<!-- Servidores (Left Column) -->
 				<section class="xl:col-span-6">
 					<div class="flex items-center justify-between mb-3">
-						<h2 class="text-xs font-bold text-white uppercase tracking-wider">Servidores Recomendados</h2>
-						<a href="/servers" class="text-xs text-brand-500 hover:underline font-bold">Ver lista completa</a>
+						<h2 class="text-xs font-bold text-white uppercase tracking-wider">Servidores</h2>
+						<a href="/servers" class="text-xs text-[#caa97c] hover:underline font-bold">Ver lista completa</a>
 					</div>
 
 					<div class="flex flex-col gap-2">
@@ -483,136 +491,93 @@
 									</div>
 									<div>
 										<div class="flex items-center gap-2">
-											<h4 class="font-bold text-white text-xs group-hover:text-brand-500 transition-colors">{srv.name}</h4>
-											<span class="bg-brand-500/10 text-brand-500 text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase border border-brand-500/20">{srv.badge}</span>
+											<h4 class="font-bold text-white text-xs group-hover:text-[#caa97c] transition-colors">{srv.name}</h4>
+											<span class="bg-white/10 text-white/80 text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase border border-white/10">{srv.badge}</span>
 										</div>
 										<div class="flex items-center gap-2 text-[10px] text-white/40 font-medium mt-0.5">
-											<span class="text-emerald-400 font-bold">{srv.online} jogadores</span>
+											<span class="text-white/60 font-medium flex items-center gap-1"><Users class="w-2.5 h-2.5" /> {srv.online}</span>
 											<span>•</span>
-											<span class="font-mono text-white/50">{srv.ip}</span>
+											<span class="font-mono text-white/40">{srv.version}</span>
 										</div>
 									</div>
 								</div>
-								<div class="text-right">
-									<span class="text-emerald-400 font-mono font-bold text-xs flex items-center gap-1 justify-end">
-										<Signal class="w-3 h-3" /> {srv.ping}
-									</span>
-									<span class="text-white/20 text-[9px] block">Copiar IP</span>
+								<div class="text-right flex items-center gap-2">
+									<span class="text-white/30 font-mono text-xs font-bold">{srv.rank}</span>
 								</div>
 							</div>
 						{/each}
 					</div>
 				</section>
 
-				<!-- Estatísticas de Jogo (Cards Clássicos Limpos) -->
+				<!-- O seu tempo de jogo (Right Column matching Reference Image 1) -->
 				<section class="xl:col-span-6 flex flex-col">
 					<div class="flex items-center justify-between mb-3">
 						<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-							<Clock class="w-3.5 h-3.5 text-brand-500" /> Estatísticas de Jogo
+							O seu tempo de jogo
 						</h2>
-						{#if gamingStats.isPlaying}
-							<span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1.5 animate-pulse bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-								<span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,1)]"></span>
-								Minecraft em Execução
-							</span>
-						{:else}
-							<span class="text-[10px] text-white/40 font-mono">Registro em Tempo Real</span>
-						{/if}
+						<span class="text-[10px] text-white/40 font-mono">Registro em Tempo Real</span>
 					</div>
 
-					<!-- Daily Playtime Highlight Card -->
-					<div class="bg-gradient-to-r from-[#1c1d22] via-[#1a1b20] to-[#151619] border border-brand-500/25 rounded-2xl p-4 mb-3 flex items-center justify-between shadow-md relative overflow-hidden">
-						<div class="absolute -right-4 -bottom-4 w-28 h-28 bg-brand-500/10 rounded-full blur-2xl pointer-events-none"></div>
-						<div class="flex items-center gap-3.5 z-10">
-							<div class="w-11 h-11 rounded-xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center shrink-0">
-								<Clock class="w-5 h-5 text-brand-500" />
+					<!-- Playtime Chart Card matching Reference Image 1 -->
+					<div class="bg-[#18191c] border border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+						
+						<!-- Top Metric -->
+						<div class="mb-4">
+							<div class="text-2xl font-black text-white">{gamingStats.formattedTodayTime || "0m"}</div>
+							<div class="text-[11px] text-white/40 mt-0.5">Últimos 7 dias</div>
+						</div>
+
+						<!-- Middle 7-day Bar Visual -->
+						<div class="my-4 py-6 border-y border-white/5 relative flex flex-col items-center justify-center">
+							<div class="flex items-center justify-center py-2 text-white/30 text-xs font-medium">
+								Ainda sem tempo de jogo
 							</div>
-							<div>
-								<div class="text-[10px] uppercase font-black tracking-wider text-brand-500">Tempo de Jogo Diário</div>
-								<div class="text-sm font-extrabold text-white mt-0.5">
-									Você jogou <span class="text-brand-500 font-black">{gamingStats.formattedTodayTime}</span> hoje
-								</div>
+
+							<!-- 7-day labels row -->
+							<div class="w-full flex justify-between items-center text-[10px] text-white/40 font-medium mt-4 pt-2 border-t border-white/5 px-2">
+								<span>Qui</span>
+								<span>Sex</span>
+								<span>Sáb</span>
+								<span>Dom</span>
+								<span>Seg</span>
+								<span>Ter</span>
+								<span class="text-white font-bold">Hoje</span>
 							</div>
 						</div>
-						{#if gamingStats.isPlaying}
-							<div class="z-10 flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold animate-pulse">
-								<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-								Ativo agora ({gamingStats.activeSessionMinutes}m)
+
+						<!-- Bottom 3 Metrics Row -->
+						<div class="grid grid-cols-3 gap-2 pt-2 text-center">
+							<div class="text-left">
+								<div class="text-xs font-black text-white">{gamingStats.formattedLastSession || "0m"}</div>
+								<div class="text-[10px] text-white/40 mt-0.5">Sessão média</div>
 							</div>
-						{/if}
+							<div class="text-left">
+								<div class="text-xs font-black text-white">{gamingStats.formattedTotalTime || "0m"}</div>
+								<div class="text-[10px] text-white/40 mt-0.5">Sessão mais longa</div>
+							</div>
+							<div class="text-left">
+								<div class="text-xs font-black text-white">0 de 7</div>
+								<div class="text-[10px] text-white/40 mt-0.5">Dias jogados</div>
+							</div>
+						</div>
+
 					</div>
 
-					<div class="grid grid-cols-2 gap-3">
-						<!-- Total Playtime Card -->
-						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm hover:border-white/10 transition-all">
-							<div class="w-11 h-11 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
-								<Trophy class="w-5 h-5 text-brand-500" />
-							</div>
-							<div class="min-w-0">
-								<div class="text-[10px] text-white/40 font-bold uppercase tracking-wider">Tempo Total</div>
-								<div class="text-lg font-black text-white truncate mt-0.5">{gamingStats.formattedTotalTime}</div>
-							</div>
-						</div>
-
-						<!-- Last Session Card -->
-						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm hover:border-white/10 transition-all">
-							<div class="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-								<Flame class="w-5 h-5 text-emerald-400" />
-							</div>
-							<div class="min-w-0">
-								<div class="text-[10px] text-white/40 font-bold uppercase tracking-wider">Última Sessão</div>
-								<div class="text-lg font-black text-white truncate mt-0.5">{gamingStats.formattedLastSession}</div>
-							</div>
-						</div>
-
-						<!-- Total Launches Card -->
-						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm hover:border-white/10 transition-all">
-							<div class="w-11 h-11 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-								<Zap class="w-5 h-5 text-blue-400" />
-							</div>
-							<div class="min-w-0">
-								<div class="text-[10px] text-white/40 font-bold uppercase tracking-wider">Inicializações</div>
-								<div class="text-lg font-black text-white truncate mt-0.5">{gamingStats.totalLaunches} vezes</div>
-							</div>
-						</div>
-
-						<!-- Active/Favorite Version Card -->
-						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-4 flex items-center gap-3.5 shadow-sm hover:border-white/10 transition-all">
-							<div class="w-11 h-11 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
-								<Gamepad2 class="w-5 h-5 text-purple-400" />
-							</div>
-							<div class="min-w-0">
-								<div class="text-[10px] text-white/40 font-bold uppercase tracking-wider">Versão Principal</div>
-								<div class="text-lg font-black text-white truncate mt-0.5">{profiles.active?.mcVersion || "1.21.4"}</div>
-							</div>
-						</div>
-					</div>
-
-					<!-- Quick Instance Info Strip -->
-					<div class="bg-[#18191c] border border-white/5 rounded-2xl p-3.5 flex items-center justify-between mt-3 shadow-sm">
-						<div class="flex items-center gap-2.5">
-							<Boxes class="w-4 h-4 text-white/40" />
-							<span class="text-xs text-white/70 font-bold">Total de Instâncias Instaladas:</span>
-						</div>
-						<span class="text-xs font-mono font-black text-brand-500 bg-brand-500/10 px-3 py-1 rounded-full border border-brand-500/20">
-							{profiles.list.length} {profiles.list.length === 1 ? 'instância' : 'instâncias'}
-						</span>
-					</div>
 				</section>
 
 			</div>
 
-			<!-- Big Luxmc News Banner at Bottom of Main Area -->
+			<!-- Big Featured News Banner at Bottom matching Reference Image 1 -->
 			<section>
-				<h2 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Destaque da Comunidade Luxmc</h2>
-				<div class="rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden shadow-md">
-					<div class="h-44 w-full relative bg-gradient-to-r from-amber-950/50 to-purple-950/40">
-						<img src="https://images.unsplash.com/photo-1627856013091-fed6e4e30025?w=1000&auto=format&fit=crop&q=80" class="w-full h-full object-cover opacity-60" alt="News Banner" />
+				<h2 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Notícias</h2>
+				<div class="rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden shadow-md group cursor-pointer hover:border-white/20 transition-all">
+					<div class="h-44 w-full relative bg-gradient-to-r from-purple-950/60 via-[#18191c] to-amber-950/40">
+						<img src="https://images.unsplash.com/photo-1627856013091-fed6e4e30025?w=1000&auto=format&fit=crop&q=80" class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" alt="News Banner" />
 						<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/50 to-transparent"></div>
 						<div class="absolute bottom-4 left-5 right-5">
-							<span class="text-[10px] font-bold text-brand-500 uppercase tracking-widest">LANÇAMENTO OFICIAL</span>
-							<h3 class="text-base font-extrabold text-white mt-1">Luxmc v0.8.0-BETA: Pipeline Vulkan & Alta Performance Linux</h3>
-							<p class="text-xs text-white/60 mt-1 line-clamp-1">Suporte nativo a Vulkan (Mesa Zink), autenticação rápida, integração NameMC e mais de 100 servidores.</p>
+							<span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">27 DE AGO. DE 2026</span>
+							<h3 class="text-base font-extrabold text-white mt-1 group-hover:text-[#caa97c] transition-colors">New on Java Realms: Mischiefs & Secrets</h3>
+							<p class="text-xs text-white/60 mt-1 line-clamp-1">9 new and exciting maps have been released this month!</p>
 						</div>
 					</div>
 				</div>
