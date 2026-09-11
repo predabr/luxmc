@@ -1,4 +1,4 @@
-name: Release AppImage & Linux Bundles
+name: Release AppImage, Windows & Universal JAR
 
 on:
   push:
@@ -10,16 +10,26 @@ on:
 
 jobs:
   build-and-release:
-    name: Build Linux Packages (AppImage, Deb, RPM)
+    name: Build Packages (${{ matrix.platform }})
     permissions:
       contents: write
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install System Dependencies (Linux/Tauri)
+      - name: Install System Dependencies (Linux)
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -53,67 +63,71 @@ jobs:
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-unknown-linux-gnu
+          targets: ${{ matrix.target }}
 
       - name: Cache Rust Dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
 
-      - name: Build Tauri AppImage & Linux Bundles
+      - name: Build Tauri Bundles
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v1.0.0-beta
-          releaseName: 'Luxmc Launcher v1.0.0-BETA'
+          tagName: v1.2.0-alpha
+          releaseName: 'Luxmc Launcher v1.2.0-ALPHA'
           releaseBody: |
-            ## 🚀 Luxmc Launcher v1.0.0-BETA — Official Release
+            ## 🚀 Luxmc Launcher v1.2.0-ALPHA — Official Multiplatform Release
             
-            ### ⚡ Desempenho & Aceleração de Hardware no Linux
-            - **Fim do Lag no AppImage**: Habilitada aceleração total por hardware via GPU (`WEBKIT_FORCE_COMPOSITING_MODE=1`), eliminando a rasterização por software (CPU) que travava a interface no Linux.
-            - **Renderização Fluida & Estável**: Interface lisa, transições a 60+ FPS sem engasgos ou travamentos no AppImage.
-            
-            ### 🎬 Nova Cutscene Cinematográfica (Estilo SKlauncher)
-            - **Logo Reveal Suave**: Fade-in com transição fluida, aura champanhe difusa e logo 3D centralizado.
-            - **Linha de Shimmer & Áudio**: Barra de progresso com brilho contínuo e som sutil de inicialização.
-            - **Dissolve Elegante**: Fade-out contínuo que dissolve perfeitamente no menu inicial do launcher.
-            - **Atalho Instantâneo**: Pule a qualquer momento com `Espaço`, `Enter`, `Esc` ou um clique.
-            
-            ### 📦 Central de Conteúdo Completa & Detalhes de Mods
-            - **Página de Detalhes dos Mods**: Exatamente no padrão visual profissional (Modrinth + CurseForge).
-            - **Abas Integradas**:
-              - **Visão Geral**: Descrição completa formatada com suporte total a Markdown e HTML.
-              - **Galeria**: Grade de capturas de tela com legendas e modal de **Lightbox** em tela cheia.
-              - **Versões**: Tabela completa de lançamentos com versão do jogo, loaders, tamanho e download direto.
-            - **Ações Rápidas**: Atalhos para `Como Instalar`, `Discord`, `Código Fonte`, `Issues` e `Apoiar`.
-            - **Barra Lateral de Informações**: Avatar do criador, total de downloads, loaders e versões do jogo.
-            - **Navegação Sem Bloqueios**: Botão `← Voltar` preserva a página, busca e filtros intactos.
-            
-            ### 🌐 Servidores de Minecraft: DNS Real & Monitor de Ping
-            - **Resolução de Domínios**: Correção completa de DNS para conectar em `mc.hypixel.net`, `mush.com.br`, `2b2t.org` e dezenas de redes brasileiras e internacionais.
-            - **Atualização em Tempo Real**: Pings concorrentes em paralelo exibindo jogadores online e latência em milissegundos.
+            Disponível agora para **Windows (.exe / .msi)**, **Linux (AppImage / .deb)** e **Universal Java (.jar)**!
             
             ### 🎮 Discord Rich Presence 2.0 Conectado
-            - **No Launcher**: Exibe status do Luxmc Launcher e localização no app.
-            - **Em Jogo**: Alterna automaticamente para o ID oficial do Minecraft, mostrando **Jogando Minecraft**, nome da instância, versão ativa e contador de tempo de sessão.
-            - **Reconexão Automática**: Conecta automaticamente mesmo se o Discord for aberto após o launcher.
+            - **No Launcher**: Exibe status do Luxmc Launcher e localização no app com ícone 3D oficial em alta resolução.
+            - **Em Jogo**: Alterna automaticamente para o ID oficial do Minecraft, mostrando **Jogando Minecraft**, nome da instância, loader, versão ativa e tempo de sessão.
             
-            ### 🛠️ Novas Funcionalidades Modernas Integradas
-            1. Página Completa de Detalhes de Mods com Galeria e Versões.
-            2. Cutscene Cinemática com Logo Reveal e Dissolve.
-            3. Discord RPC 2.0 com detecção automática in-game.
-            4. Live Server Monitor com resolução real de DNS.
-            5. Gerenciador Interno de Mods por Instância (Ativar/Desativar `.jar`, Adicionar, Excluir e Abrir Pasta).
-            6. Presets Rápidos de Instâncias em 1 Clique (Vanilla Otimizado, PvP Clássico 1.8.9, Survival Moderno, Modded NeoForge).
-            7. Compartilhamento de Logs e Crash Reports via `mclo.gs` com cópia automática de link.
-            8. Suporte a Client ID Dinâmico do Azure Microsoft nas Configurações.
-            9. Seletor Rápido de Contas no Topbar com exibição de avatares.
-            10. Seletor de Memória RAM JVM com detecção do sistema.
-            11. Gerenciador de Screenshots com Lightbox HD.
-            12. Exportador e Importador de Instâncias (.zip e .mrpack).
-            13. Analisador Inteligente de Crash Reports e Logs do Jogo.
-            14. Detector de Runtimes Java no Linux (Java 8, 17 e 21).
-            15. Acelerador de Desempenho Linux (Feral GameMode + Vulkan/Zink).
+            ### ☕ Universal Java Bootstrap (Luxmc.jar)
+            - Executável multiplataforma `java -jar Luxmc.jar` compatível com Java 11, 17, 21 e 25+.
+            - Identificação automática do sistema operacional e do binário nativo local ou download direto das releases oficiais.
+            
+            ### 🪟 Binário Nativo Windows (Luxmc.exe)
+            - Compilado nativamente em 64-bit com aceleração WebView2.
+            
+            ### ⚡ Desempenho & Aceleração de Hardware
+            - Otimização de RAM em cache de skins, mods e instâncias.
+            - Navegação fluida com estilo visual inspirado no SKlauncher e paleta Luxmc.
           releaseDraft: false
           prerelease: true
+
+  build-jar:
+    name: Build Universal Luxmc.jar
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+    needs: build-and-release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Compile Bootstrap JAR
+        run: |
+          mkdir -p out
+          javac -source 11 -target 11 -d out bootstrap-jar/src/com/luxmc/bootstrap/Main.java
+          cp src-tauri/icons/icon.png out/icon.png
+          echo "Manifest-Version: 1.0" > manifest.txt
+          echo "Main-Class: com.luxmc.bootstrap.Main" >> manifest.txt
+          jar cfm Luxmc.jar manifest.txt -C out .
+
+      - name: Upload JAR to Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v1.2.0-alpha
+          files: Luxmc.jar

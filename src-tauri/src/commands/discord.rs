@@ -1,5 +1,6 @@
 use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
+#[allow(unused_imports)]
 use std::sync::Mutex;
 
 #[cfg(unix)]
@@ -7,11 +8,16 @@ use std::io::{Read, Write};
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 
+#[cfg(unix)]
 static DISCORD_STREAM: Mutex<Option<UnixStream>> = Mutex::new(None);
+#[cfg(unix)]
 static CURRENT_CLIENT_ID: Mutex<Option<String>> = Mutex::new(None);
 
+#[allow(dead_code)]
 const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
+#[allow(dead_code)]
 const LUXMC_ICON_URL: &str = "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
+#[allow(dead_code)]
 const MINECRAFT_GRASS_ASSET: &str = "grass";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,7 +81,7 @@ fn send_frame(stream: &mut UnixStream, opcode: u32, payload: &str) -> std::io::R
 }
 
 #[tauri::command]
-#[allow(non_snake_case)]
+#[allow(non_snake_case, unused_variables)]
 pub async fn discord_set_activity(
     details: Option<String>,
     state: Option<String>,

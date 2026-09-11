@@ -13,6 +13,7 @@ pub struct GpuInfo {
     pub supports_zink: bool,
 }
 
+#[allow(unused_mut)]
 pub fn detect_gpu() -> GpuInfo {
     let mut vendor = "Desconhecido".to_string();
     let mut renderer = "Driver Padrão".to_string();
