@@ -156,8 +156,9 @@ pub async fn mods_versions(
     source: Option<String>,
 ) -> AppResult<Vec<ModVersion>> {
     let src = source.as_deref().unwrap_or("modrinth");
+    tracing::info!(project_id = %projectId, mc_version = %mcVersion, source = %src, "mods_versions called");
 
-    match src {
+    let result = match src {
         "curseforge" => {
             curseforge::get_mod_versions(&state.http, &projectId, &mcVersion).await
         }
@@ -165,7 +166,22 @@ pub async fn mods_versions(
             let modrinth_client = ModrinthClient::new(state.http.clone());
             modrinth_client.get_mod_versions(&projectId, &mcVersion).await
         }
+    };
+
+    match &result {
+        Ok(versions) => {
+            tracing::info!(count = versions.len(), source = %src, "mods_versions returned");
+            for v in versions.iter().take(3) {
+                tracing::info!(id = %v.id, name = %v.name, files = v.files.len(), "  version");
+                for f in v.files.iter().take(2) {
+                    tracing::info!(url = %f.url, filename = %f.filename, "    file");
+                }
+            }
+        }
+        Err(e) => tracing::error!(error = %e, source = %src, "mods_versions failed"),
     }
+
+    result
 }
 
 #[tauri::command]
@@ -193,6 +209,7 @@ pub async fn mods_list(_state: State<'_, AppState>, profileId: String) -> AppRes
 
 #[tauri::command]
 pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest) -> AppResult<()> {
+    tracing::info!(profile_id = %request.profile_id, project_id = %request.project_id, version_id = %request.version_id, source = %request.source, content_type = ?request.content_type, "mods_install called");
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
@@ -249,15 +266,38 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     tracing::info!(
         source = %request.source,
         project_id = %request.project_id,
+        version_id = %request.version_id,
         target_subfolder = %target_subfolder,
         file = %file_name,
+        url = %file_url,
         "downloading item"
     );
 
-    let resp = state.http.get(&file_url).send().await?.error_for_status()?;
-    let bytes = resp.bytes().await?;
+    let resp = state.http.get(&file_url).send().await.map_err(|e| {
+        tracing::error!(url = %file_url, error = %e, "HTTP request failed");
+        e
+    })?;
+    let resp = resp.error_for_status().map_err(|e| {
+        tracing::error!(url = %file_url, error = %e, "HTTP status error");
+        e
+    })?;
+
+    use futures_util::StreamExt;
     let file_path = target_dir.join(&file_name);
-    tokio::fs::write(&file_path, &bytes).await?;
+    let mut stream = resp.bytes_stream();
+    let mut file = tokio::fs::File::create(&file_path).await.map_err(|e| {
+        tracing::error!(path = %file_path.display(), error = %e, "failed to create file");
+        e
+    })?;
+    let mut all_bytes = Vec::new();
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|e| {
+            tracing::error!(url = %file_url, error = %e, "stream error");
+            crate::error::AppError::Http(e)
+        })?;
+        all_bytes.extend_from_slice(&bytes);
+        let _ = tokio::io::AsyncWriteExt::write_all(&mut file, &bytes).await;
+    }
 
     let db = crate::db::shared_db().await?;
     let profile = if let Some(p) = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -275,7 +315,7 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     if let Some(ref prof) = profile {
         let prof_dest_dir = std::path::PathBuf::from(&prof.game_dir).join(target_subfolder);
         let _ = tokio::fs::create_dir_all(&prof_dest_dir).await;
-        let _ = tokio::fs::write(prof_dest_dir.join(&file_name), &bytes).await;
+        let _ = tokio::fs::write(prof_dest_dir.join(&file_name), &all_bytes).await;
     }
 
     if target_subfolder == "mods" {
@@ -626,6 +666,7 @@ pub async fn mods_download_to_temp(
     url: String,
     fileName: String,
 ) -> AppResult<String> {
+    tracing::info!(url = %url, filename = %fileName, "mods_download_to_temp");
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine cache dir".into())
     })?;
@@ -634,13 +675,103 @@ pub async fn mods_download_to_temp(
     let target_path = temp_dir.join(&fileName);
 
     let resp = state.http.get(&url).send().await?.error_for_status()?;
-    let bytes = resp.bytes().await?;
-    tokio::fs::write(&target_path, &bytes).await?;
 
+    use futures_util::StreamExt;
+    let mut stream = resp.bytes_stream();
+    let mut file = tokio::fs::File::create(&target_path).await?;
+    let mut total_bytes: usize = 0;
+    while let Some(chunk) = stream.next().await {
+        let bytes = chunk.map_err(|e| {
+            tracing::error!(url = %url, error = %e, "download stream error");
+            crate::error::AppError::Http(e)
+        })?;
+        total_bytes += bytes.len();
+        tokio::io::AsyncWriteExt::write_all(&mut file, &bytes).await?;
+    }
+
+    tracing::info!(path = %target_path.display(), size = total_bytes, "mods_download_to_temp done");
     Ok(target_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
 pub fn curseforge_status() -> bool {
-    crate::core::mods::curseforge::api_key().is_some()
+    crate::core::mods::curseforge::has_key()
+}
+
+#[tauri::command]
+pub async fn curseforge_set_key(key: String) -> Result<(), String> {
+    crate::core::mods::curseforge::store_key(&key)
+}
+
+#[tauri::command]
+pub fn curseforge_remove_key() -> Result<(), String> {
+    crate::core::mods::curseforge::remove_key()
+}
+
+#[tauri::command]
+pub async fn curseforge_validate_key(state: State<'_, AppState>) -> Result<bool, String> {
+    crate::core::mods::curseforge::validate_key(&state.http).await
+}
+
+#[tauri::command]
+pub async fn mods_resolve_names(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> AppResult<u32> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profile_id)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profile_id} not found")))?;
+
+    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
+    if !mods_dir.exists() {
+        return Ok(0);
+    }
+
+    let mut renamed = 0u32;
+    let mut entries: Vec<_> = tokio::fs::read_dir(&mods_dir)
+        .await?
+        .filter_map(|e| e.ok())
+        .collect()
+        .await;
+
+    let numeric_pattern = regex::Regex::new(r"^(\d+)_\d+\.jar$").unwrap();
+    let mut project_ids: Vec<u64> = Vec::new();
+    let mut file_map: Vec<(std::path::PathBuf, String)> = Vec::new();
+
+    for entry in &entries {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if let Some(caps) = numeric_pattern.captures(&name) {
+            if let Ok(pid) = caps[1].parse::<u64>() {
+                project_ids.push(pid);
+                file_map.push((entry.path(), name));
+            }
+        }
+    }
+
+    if project_ids.is_empty() {
+        return Ok(0);
+    }
+
+    let mod_names = crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids).await;
+
+    for (i, (path, old_name)) in file_map.iter().enumerate() {
+        if let Some(name) = mod_names.get(&project_ids[i]) {
+            if !name.is_empty() && name != &project_ids[i].to_string() {
+                let safe_name = name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+                let new_name = format!("{}.jar", safe_name);
+                let new_path = path.parent().unwrap_or(&mods_dir).join(&new_name);
+                if new_path != *path {
+                    if tokio::fs::rename(path, &new_path).await.is_ok() {
+                        renamed += 1;
+                        tracing::info!(old = %old_name, new = %new_name, "renamed mod file");
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(renamed)
 }

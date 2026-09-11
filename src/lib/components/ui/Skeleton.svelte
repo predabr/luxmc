@@ -1,19 +1,26 @@
 <script lang="ts">
-	import { twMerge } from "tailwind-merge";
-
-	type Props = {
-		class?: string;
-		lines?: number;
-	};
-
-	let { class: klass = "", lines = 1 }: Props = $props();
+  let { 
+    class: klass = "",
+    variant = "text",
+    width,
+    height
+  }: {
+    class?: string;
+    variant?: "text" | "circular" | "rectangular";
+    width?: string;
+    height?: string;
+  } = $props();
+  
+  const baseClass = "animate-pulse bg-bg-subtle";
+  const variants = {
+    text: "rounded h-4",
+    circular: "rounded-full",
+    rectangular: "rounded-xl"
+  };
 </script>
 
-<div class={twMerge("animate-pulse space-y-2", klass)}>
-	{#each Array(lines) as _, i}
-		<div
-			class="h-4 rounded-md bg-bg-subtle"
-			style="width: {i === lines - 1 ? '60%' : '100%'}"
-		></div>
-	{/each}
-</div>
+<div 
+  class="{baseClass} {variants[variant]} {klass}"
+  style:width={width}
+  style:height={height}
+></div>

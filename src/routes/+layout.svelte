@@ -1,16 +1,14 @@
 <script lang="ts">
 	import "../app.css";
-	import { Toaster } from "svelte-sonner";
 	import { onMount } from "svelte";
 	import { fade } from "svelte/transition";
 	import { page } from "$app/stores";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
-	import Topbar from "$lib/components/layout/Topbar.svelte";
 	import Toasts from "$lib/components/ui/Toasts.svelte";
 	import StatusBanner from "$lib/components/ui/StatusBanner.svelte";
-	import Background3D from "$lib/components/visuals/Background3D.svelte";
 	import UpdateModal from "$lib/components/ui/UpdateModal.svelte";
 	import DownloadProgressBar from "$lib/components/ui/DownloadProgressBar.svelte";
+	import ErrorBoundary from "$lib/components/ui/ErrorBoundary.svelte";
 	import Cutscene from "$lib/components/visuals/Cutscene.svelte";
 	import { bootstrapSettings, schedulePersist, startAutoPersist } from "$lib/stores/persistence.svelte";
 	import { setToastInstance } from "$lib/stores/toasts.svelte";
@@ -27,7 +25,7 @@
 	let { children } = $props();
 	let initialized = $state(false);
 	let showSplash = $state(true);
-	let toastsInstance = $state<any>(null);
+	let toastsInstance = $state<Toasts | null>(null);
 	$effect(() => {
 		if (toastsInstance) setToastInstance(toastsInstance);
 	});
@@ -41,7 +39,7 @@
 			clearTimeout(initTimer);
 			appState.devMode = init.devMode;
 			if (init.account) {
-				account.account = {
+				account.value = {
 					id: init.account.id,
 					username: init.account.username,
 					uuid: init.account.uuid,
@@ -52,7 +50,7 @@
 				const saved = localStorage.getItem("luxmc_current_account");
 				if (saved) {
 					try {
-						account.account = JSON.parse(saved);
+						account.value = JSON.parse(saved);
 					} catch {}
 				}
 			}
@@ -84,7 +82,7 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "v1.2.0-ALPHA · Linux",
+					state: "v1.3.0-BETA · Linux",
 					largeText: "Luxmc Launcher (Linux)",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
@@ -111,7 +109,7 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "v1.2.0-ALPHA · Linux",
+					state: "v1.3.0-BETA · Linux",
 					largeText: "Luxmc Launcher (Linux)",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
@@ -134,14 +132,14 @@
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
 			let details = "No Menu Principal";
-			let state = "v1.2.0-ALPHA · Linux";
+			let state = "v1.3.0-BETA · Linux";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
 				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
 				details = "Gerenciando Instâncias";
-				state = "v1.2.0-ALPHA · Linux";
+				state = "v1.3.0-BETA · Linux";
 			} else if (currentPath.startsWith("/instances/")) {
 				details = "Configurando Instância";
 				state = "Ajustando Modos & Versões";
@@ -214,14 +212,10 @@
 		<div class="absolute inset-0 bg-black/60"></div>
 	{/if}
 </div>
-{#if !appState.performanceMode}
-	<!-- Removing heavy Background3D to make it solid/clean like SKlauncher but keeping the performance mode toggle logic -->
-{/if}
-
-<Toaster position="bottom-right" theme="dark" richColors closeButton />
 <Toasts bind:this={toastsInstance} />
 <StatusBanner />
 
+<ErrorBoundary>
 {#if showSplash || appState.showCutscene}
 	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; }} />
 {:else if !initialized}
@@ -252,3 +246,4 @@
 {/if}
 <UpdateModal />
 <DownloadProgressBar />
+</ErrorBoundary>

@@ -38,6 +38,7 @@
 		Gauge
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
+	import VirtualList from "$lib/components/ui/VirtualList.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
@@ -149,6 +150,8 @@
 			instanceJvmArgs = activeProfile.jvmArgs || "";
 			instanceAutoOptimize = activeProfile.autoOptimize !== false;
 			instanceEnableVulkanOpt = activeProfile.useVulkan === true;
+			instanceLoaderType = activeProfile.loader || "vanilla";
+			instanceLoaderVersion = activeProfile.loaderVersion || "";
 		}
 	});
 
@@ -174,6 +177,8 @@
 			activeProfile.jvmArgs = instanceJvmArgs;
 			activeProfile.autoOptimize = instanceAutoOptimize;
 			activeProfile.useVulkan = instanceEnableVulkanOpt;
+			activeProfile.loader = instanceLoaderType;
+			activeProfile.loaderVersion = instanceLoaderVersion;
 
 			try {
 				await profilesUpdate({
@@ -183,6 +188,8 @@
 					jvmArgs: instanceJvmArgs,
 					autoOptimize: instanceAutoOptimize,
 					useVulkan: instanceEnableVulkanOpt,
+					loader: instanceLoaderType,
+					loaderVersion: instanceLoaderVersion || null,
 				});
 				profiles.update(activeProfile.id, {
 					name: instanceNameInput,
@@ -190,6 +197,8 @@
 					jvmArgs: instanceJvmArgs,
 					autoOptimize: instanceAutoOptimize,
 					useVulkan: instanceEnableVulkanOpt,
+					loader: instanceLoaderType,
+					loaderVersion: instanceLoaderVersion,
 				});
 				toast("Configurações salvas com sucesso!", "success");
 			} catch (e) {
@@ -356,6 +365,12 @@
 		subTab === "resourcepacks" ? resourcePacks : subTab === "shaders" ? shaderPacks : dataPacks
 	);
 
+	const filteredMods = $derived(
+		searchQuery
+			? instanceMods.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+			: instanceMods
+	);
+
 	onMount(async () => {
 		try {
 			const specs = await getSystemSpecs();
@@ -374,24 +389,27 @@
 		if (!instanceId) return;
 		isLoadingData = true;
 		try {
-			// Check if version is installed
 			const ver = activeProfile?.mcVersion || "1.20.4";
-			isInstalled = await versionsCheckInstalled(ver).catch(() => true);
 
-			// Load real worlds with icon.png extraction
-			worldsList = await instanceWorldsList(instanceId).catch(() => []);
-			
-			// Load real screenshots
-			screenshotsList = await instancesScreenshots(instanceId).catch(() => []);
+			const [newIsInstalled, newWorlds, newScreenshots, newFileTree, newMods, newResources, newShaders, newDataPacks] = await Promise.all([
+				versionsCheckInstalled(ver).catch(() => true),
+				instanceWorldsList(instanceId).catch(() => []),
+				instancesScreenshots(instanceId).catch(() => []),
+				instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []),
+				instanceFileTree(instanceId, "mods").catch(() => []),
+				instanceFileTree(instanceId, "resourcepacks").catch(() => []),
+				instanceFileTree(instanceId, "shaderpacks").catch(() => []),
+				instanceFileTree(instanceId, "datapacks").catch(() => []),
+			]);
 
-			// Load real file tree
-			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
-
-			// Load real mods, resourcepacks, shaderpacks, and datapacks
-			instanceMods = await instanceFileTree(instanceId, "mods").catch(() => []);
-			resourcePacks = await instanceFileTree(instanceId, "resourcepacks").catch(() => []);
-			shaderPacks = await instanceFileTree(instanceId, "shaderpacks").catch(() => []);
-			dataPacks = await instanceFileTree(instanceId, "datapacks").catch(() => []);
+			isInstalled = newIsInstalled;
+			worldsList = newWorlds;
+			screenshotsList = newScreenshots;
+			fileTree = newFileTree;
+			instanceMods = newMods;
+			resourcePacks = newResources;
+			shaderPacks = newShaders;
+			dataPacks = newDataPacks;
 		} catch (e) {
 			console.error(e);
 		} finally {
@@ -542,7 +560,7 @@
 			let userAccId = account.value?.id || userUuid;
 			if (!userUuid) {
 				const devAcc = await authDevLogin();
-				account.account = {
+				account.value = {
 					id: devAcc.id,
 					username: devAcc.username,
 					uuid: devAcc.uuid,
@@ -579,6 +597,15 @@
 			gamingStats.onGameStart();
 			appState.isGameRunning = true;
 			appState.activeGameDetails = { name: activeProfile?.name || "Minecraft", version: verId, loader: activeProfile?.loader || "vanilla" };
+
+			if (activeProfile) {
+				profilesUpdate({
+					id: activeProfile.id,
+					lastPlayed: new Date().toISOString(),
+					launchCount: (activeProfile.launchCount || 0) + 1,
+				}).catch(() => {});
+			}
+
 			discordSetActivity({
 				inGame: true,
 				details: `Jogando ${activeProfile?.name || "Minecraft"}`,
@@ -598,12 +625,13 @@
 			toast("Falha ao iniciar o jogo: " + String(e), "error");
 			launchStatusText = "";
 			downloadProgressPercent = 0;
+			appState.isGameRunning = false;
 		} finally {
 			setTimeout(() => {
 				isLaunching = false;
 				launchStatusText = "";
 				downloadProgressPercent = 0;
-			}, 4000);
+			}, 2000);
 		}
 	}
 
@@ -679,10 +707,10 @@
 		</a>
 
 		<!-- Instance Hero Card -->
-		<div class="bg-[#18191c] border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group">
+		<div class="bg-[#18191c] border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-xl relative group">
 			
 			<!-- Minecraft Background Artwork -->
-			<div class="absolute inset-0 pointer-events-none z-0">
+			<div class="absolute inset-0 pointer-events-none z-0 overflow-hidden rounded-3xl">
 				<img 
 					src={activeProfile?.loader === 'vanilla' ? '/vanilla_banner.png' : '/modpack_fo.webp'} 
 					alt="Minecraft Banner" 
@@ -694,9 +722,13 @@
 			<div class="flex items-center justify-between relative z-10">
 				<!-- Icon & Badges & Title -->
 				<div class="flex items-center gap-4">
-					<div class="h-16 w-16 rounded-2xl bg-[#222328] border border-white/10 flex items-center justify-center p-2 shadow-inner">
-						<img src="/grass_block.png" alt="Minecraft" class="w-12 h-12 object-contain drop-shadow" />
-					</div>
+				<div class="h-16 w-16 rounded-2xl bg-[#222328] border border-white/10 flex items-center justify-center p-2 shadow-inner overflow-hidden">
+					{#if activeProfile?.icon && (activeProfile.icon.startsWith("http") || activeProfile.icon.startsWith("/") || activeProfile.icon.startsWith("data:"))}
+						<img src={activeProfile.icon} alt={activeProfile.name} class="w-12 h-12 object-cover rounded-xl" />
+					{:else}
+						<img src="/grass_block.png" alt="Minecraft" class="w-12 h-12 object-contain drop-shadow [image-rendering:pixelated]" />
+					{/if}
+				</div>
 
 					<div>
 						<div class="flex items-center gap-2">
@@ -739,13 +771,19 @@
 
 					<!-- Big Metallic Action Button (JOGAR / Instalar) -->
 					<button 
-						class="hover:brightness-110 active:scale-95 text-black text-xs font-black px-9 py-3.5 rounded-full border border-white/20 transition-all flex items-center gap-2.5 shadow-[0_0_25px_rgba(226,184,107,0.4)] cursor-pointer shrink-0 hover:scale-105"
-						style="background-color: var(--accent-color, #e2b86b);"
+						class="hover:brightness-110 active:scale-95 text-black text-xs font-black px-9 py-3.5 rounded-full border border-white/20 transition-all flex items-center gap-2.5 cursor-pointer shrink-0 hover:scale-105 {appState.isGameRunning ? 'shadow-[0_0_25px_rgba(34,197,94,0.5)] bg-emerald-500' : 'shadow-[0_0_25px_rgba(226,184,107,0.4)]'}"
+						style={appState.isGameRunning ? '' : "background-color: var(--accent-color, #e2b86b);"}
 						onclick={handlePlay}
 						disabled={isLaunching}
 					>
 						{#if isLaunching}
 							<RefreshCw class="w-4 h-4 animate-spin" /> {launchStatusText || 'Iniciando...'}
+						{:else if appState.isGameRunning}
+							<span class="relative flex h-3 w-3">
+								<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+								<span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+							</span>
+							JOGANDO
 						{:else if isInstalled}
 							<Play class="w-4 h-4 fill-current" /> JOGAR MINECRAFT
 						{:else}
@@ -950,18 +988,19 @@
 							</div>
 						</div>
 					{:else}
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-							{#each instanceMods as mod}
+						<VirtualList items={filteredMods} itemHeight={72} height="600px" class="rounded-2xl">
+							{#snippet children(mod: FileTreeEntry, _index: number)}
 								{@const isDisabled = mod.name.endsWith('.disabled')}
-								{@const displayName = mod.name.replace('.disabled', '').replace('.jar', '')}
-								<div class="bg-[#18191c] border border-white/5 hover:border-white/15 p-4 rounded-2xl flex items-center justify-between transition-all group {isDisabled ? 'opacity-50' : ''}">
+								{@const rawName = mod.name.replace('.disabled', '').replace('.jar', '')}
+								{@const displayName = rawName.includes('_') && /^\d+_\d+$/.test(rawName) ? 'Mod #' + rawName.split('_')[0] : rawName.replace(/_/g, ' ')}
+								<div class="bg-[#18191c] border border-white/5 hover:border-white/15 p-4 flex items-center justify-between transition-all group {isDisabled ? 'opacity-50' : ''}" style="content-visibility: auto;">
 									<div class="flex items-center gap-3.5 min-w-0">
 										<div class="w-10 h-10 rounded-xl {isDisabled ? 'bg-white/5 text-white/30' : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'} flex items-center justify-center shrink-0 shadow-sm">
 											<Puzzle class="w-5 h-5" />
 										</div>
 										<div class="min-w-0">
 											<div class="flex items-center gap-2">
-												<h5 class="text-xs font-bold text-white truncate max-w-[220px]" title={displayName}>{displayName}</h5>
+												<h5 class="text-xs font-bold text-white truncate max-w-[320px]" title={displayName}>{displayName}</h5>
 												<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full {isDisabled ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
 													{isDisabled ? 'Desativado' : 'Ativo'}
 												</span>
@@ -969,7 +1008,7 @@
 											<div class="flex items-center gap-2 mt-1 text-[10px] text-white/40 font-mono">
 												<span>{mod.size > 1048576 ? (mod.size / (1024 * 1024)).toFixed(2) + ' MB' : Math.round(mod.size / 1024) + ' KB'}</span>
 												<span>·</span>
-												<span class="truncate max-w-[150px]">{mod.name}</span>
+												<span class="truncate max-w-[250px]">{mod.name}</span>
 											</div>
 										</div>
 									</div>
@@ -998,8 +1037,8 @@
 										</button>
 									</div>
 								</div>
-							{/each}
-						</div>
+							{/snippet}
+						</VirtualList>
 					{/if}
 				{:else}
 					{#if currentPacksList.length === 0}

@@ -43,7 +43,7 @@
 				...account.value,
 				username: trimmed
 			};
-			account.account = updated;
+			account.value = updated;
 			localStorage.setItem("luxmc_current_account", JSON.stringify(updated));
 		}
 		isEditingNick = false;

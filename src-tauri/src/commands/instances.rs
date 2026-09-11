@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::db::models::ProfileRow;
@@ -172,13 +172,19 @@ pub async fn instances_screenshots(
 #[tauri::command]
 pub async fn screenshot_delete(path: String) -> AppResult<()> {
     let p = std::path::Path::new(&path);
-    // Safety: only allow deletion of files that live inside a `screenshots/` dir.
-    let parent = p
-        .parent()
-        .and_then(|par| par.file_name())
-        .and_then(|n| n.to_str())
-        .unwrap_or("");
-    if parent != "screenshots" {
+    let canonical = match p.canonicalize() {
+        Ok(c) => c,
+        Err(_) => {
+            return Err(crate::error::AppError::Internal(
+                "Path does not exist".to_string(),
+            ));
+        }
+    };
+    let path_str = canonical.to_string_lossy();
+    let dominated_by_screenshots = path_str
+        .split(std::path::MAIN_SEPARATOR)
+        .any(|component| component == "screenshots");
+    if !dominated_by_screenshots {
         return Err(crate::error::AppError::Internal(
             "Path must be inside a screenshots directory".to_string(),
         ));
@@ -213,26 +219,32 @@ pub async fn screenshots_open_folder(app: tauri::AppHandle, profile_id: String) 
 
 #[derive(Debug, Deserialize)]
 struct CfManifest {
+    #[serde(default)]
     minecraft: CfMinecraft,
+    #[serde(default)]
     files: Vec<CfFile>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct CfMinecraft {
+    #[serde(default)]
     #[allow(dead_code)]
     version: String,
+    #[serde(default, alias = "modLoaders")]
     mod_loaders: Vec<CfModLoader>,
 }
 
 #[derive(Debug, Deserialize)]
 struct CfModLoader {
+    #[serde(default)]
     id: String,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct CfFile {
+    #[serde(alias = "projectID", alias = "projectId")]
     project_id: u64,
+    #[serde(alias = "fileID", alias = "fileId")]
     file_id: u64,
 }
 
@@ -298,6 +310,7 @@ struct MrpackMod {
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_import_modpack(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     file_path: String,
     profile_name: String,
@@ -305,18 +318,37 @@ pub async fn instance_import_modpack(
     loader: String,
     icon: Option<String>,
 ) -> AppResult<ProfileRow> {
-    let data = tokio::fs::read(&file_path).await?;
-    let cursor = std::io::Cursor::new(data);
-    let mut archive = zip::ZipArchive::new(cursor)
-        .map_err(|e| crate::error::AppError::InvalidState(format!("invalid zip: {e}")))?;
+    tracing::info!(file_path = %file_path, profile_name = %profile_name, mc_version = %mc_version, loader = %loader, "instance_import_modpack called");
+    let file = std::fs::File::open(&file_path).map_err(|e| {
+        tracing::error!(file_path = %file_path, error = %e, "failed to open modpack zip");
+        e
+    })?;
+    let file_size = file.metadata().map(|m| m.len()).unwrap_or(0);
+    tracing::info!(size = file_size, "modpack zip opened");
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
+        .map_err(|e| {
+            tracing::error!(error = %e, "failed to parse zip archive");
+            crate::error::AppError::InvalidState(format!("invalid zip: {e}"))
+        })?;
+    tracing::info!(entries = archive.len(), "zip archive opened");
 
     let manifest_entry = archive.by_name("manifest.json").map_err(|e| {
+        tracing::error!(error = %e, "manifest.json not found in zip");
         crate::error::AppError::NotFound(format!("manifest.json not found in zip: {e}"))
     })?;
 
     let manifest: CfManifest = serde_json::from_reader(manifest_entry)
-        .map_err(|e| crate::error::AppError::InvalidState(format!("invalid manifest: {e}")))?;
+        .map_err(|e| {
+            tracing::error!(error = %e, "failed to parse manifest.json");
+            crate::error::AppError::InvalidState(format!("invalid manifest: {e}"))
+        })?;
+    tracing::info!(files = manifest.files.len(), "manifest parsed");
 
+    let manifest_mc_version = manifest.minecraft.version.clone();
+    let manifest_loader_type = manifest.minecraft.mod_loaders.first().map(|ml| {
+        let parts: Vec<&str> = ml.id.split('-').collect();
+        parts[0].to_string()
+    });
     let loader_version = manifest
         .minecraft
         .mod_loaders
@@ -324,12 +356,30 @@ pub async fn instance_import_modpack(
         .map(|ml| {
             let parts: Vec<&str> = ml.id.split('-').collect();
             if parts.len() > 1 {
-                parts[1].to_string()
+                parts[1..].join("-")
             } else {
                 ml.id.clone()
             }
         })
         .unwrap_or_default();
+    tracing::info!(manifest_mc_version = %manifest_mc_version, manifest_loader_type = ?manifest_loader_type, loader_version = %loader_version, "manifest loader info extracted");
+
+    let mc_version = if !manifest_mc_version.is_empty() {
+        tracing::info!(original = %mc_version, manifest = %manifest_mc_version, "overriding mc_version with manifest version");
+        manifest_mc_version
+    } else {
+        mc_version
+    };
+    let loader = if let Some(ref lt) = manifest_loader_type {
+        if loader == "vanilla" || loader.is_empty() {
+            tracing::info!(original_loader = %loader, detected = %lt, "overriding loader with manifest loader type");
+            lt.clone()
+        } else {
+            loader
+        }
+    } else {
+        loader
+    };
 
     let profile_id = Uuid::new_v4().to_string();
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
@@ -341,6 +391,7 @@ pub async fn instance_import_modpack(
 
     let storage_mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
     let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
+    tracing::info!("directories created, extracting overrides");
 
     // Extract overrides directory if present
     for i in 0..archive.len() {
@@ -364,57 +415,114 @@ pub async fn instance_import_modpack(
         }
     }
 
-    let curseforge_key = crate::core::mods::curseforge::api_key();
+    let project_ids: Vec<u64> = manifest.files.iter().map(|f| f.project_id).collect();
+    let mod_names = crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids).await;
+    tracing::info!(resolved = mod_names.len(), total = project_ids.len(), "resolved mod names from CurseForge");
 
-    for cf_file in &manifest.files {
+    let mut mods_ok = 0u32;
+    let mut mods_fail = 0u32;
+    let total_files = manifest.files.len() as u32;
+
+    let _ = app.emit("modpack-progress", serde_json::json!({
+        "phase": "downloading",
+        "current": 0,
+        "total": total_files,
+        "status": format!("Preparando download de {} mods...", total_files)
+    }));
+
+    for (idx, cf_file) in manifest.files.iter().enumerate() {
         let project_id_str = cf_file.project_id.to_string();
         let file_id_str = cf_file.file_id.to_string();
+        let progress_pct = ((idx as f64 / total_files as f64) * 100.0) as u32;
 
-        if let Some(ref key) = curseforge_key {
-            let url = format!(
-                "https://api.curseforge.com/v1/mods/{}/files/{}/download-url",
-                project_id_str, file_id_str,
-            );
-            let resp: serde_json::Value = state
-                .http
-                .get(&url)
-                .header("x-api-key", key)
-                .send()
-                .await?
-                .error_for_status()?
-                .json()
-                .await?;
+        let _ = app.emit("modpack-progress", serde_json::json!({
+            "phase": "downloading",
+            "current": idx + 1,
+            "total": total_files,
+            "percent": progress_pct,
+            "status": format!("Baixando mod {}/{}...", idx + 1, total_files)
+        }));
 
-            if let Some(download_url) = resp.get("data").and_then(|d| d.as_str()) {
-                if !download_url.is_empty() {
-                    let file_resp = state
-                        .http
-                        .get(download_url)
-                        .send()
-                        .await?
-                        .error_for_status()?;
-                    let bytes = file_resp.bytes().await?;
+        let download_url = match crate::core::mods::curseforge::get_download_url(
+            &state.http,
+            &project_id_str,
+            &file_id_str,
+        ).await {
+            Ok(url) => url,
+            Err(e) => {
+                tracing::warn!(project_id = %project_id_str, error = %e, "skipping mod: could not get download url");
+                mods_fail += 1;
+                continue;
+            }
+        };
 
-                    let filename = format!("{}_{}.jar", project_id_str, file_id_str);
-                    let file_path = mods_dir.join(&filename);
-                    tokio::fs::write(&file_path, &bytes).await?;
-                    let _ = tokio::fs::write(storage_mods_dir.join(&filename), &bytes).await;
+        let resp = match state.http.get(&download_url).send().await {
+            Ok(r) => match r.error_for_status() {
+                Ok(r) => r,
+                Err(e) => { mods_fail += 1; tracing::warn!(project_id = %project_id_str, error = %e, "skip: HTTP error"); continue; }
+            },
+            Err(e) => { mods_fail += 1; tracing::warn!(project_id = %project_id_str, error = %e, "skip: request failed"); continue; }
+        };
 
-                    let db = crate::db::shared_db().await?;
-                    let mod_row = crate::db::schema::mods::ModRow {
-                        profile_id: profile_id.clone(),
-                        project_id: project_id_str,
-                        version_id: file_id_str,
-                        file_name: filename,
-                        sha1: String::new(),
-                        source: "curseforge".into(),
-                        installed_at: String::new(),
-                    };
-                    let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+        use futures_util::StreamExt;
+        let display_name = mod_names.get(&cf_file.project_id).cloned().unwrap_or_default();
+        let filename = if display_name.is_empty() {
+            format!("{}_{}.jar", project_id_str, file_id_str)
+        } else {
+            let safe_name = display_name.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' }).collect::<String>();
+            format!("{}.jar", safe_name)
+        };
+        let file_path = mods_dir.join(&filename);
+        let storage_path = storage_mods_dir.join(&filename);
+
+        let mut file = match tokio::fs::File::create(&file_path).await {
+            Ok(f) => f,
+            Err(e) => { mods_fail += 1; tracing::warn!(error = %e, "skip: cannot create file"); continue; }
+        };
+        let mut storage_file = tokio::fs::File::create(&storage_path).await.ok();
+
+        let mut stream = resp.bytes_stream();
+        let mut total_bytes: u64 = 0;
+        while let Some(chunk) = stream.next().await {
+            match chunk {
+                Ok(bytes) => {
+                    total_bytes += bytes.len() as u64;
+                    let _ = tokio::io::AsyncWriteExt::write_all(&mut file, &bytes).await;
+                    if let Some(ref mut sf) = storage_file {
+                        let _ = tokio::io::AsyncWriteExt::write_all(sf, &bytes).await;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(project_id = %project_id_str, error = %e, "stream error mid-download");
+                    break;
                 }
             }
         }
+
+        if let Ok(db) = crate::db::shared_db().await {
+            let mod_row = crate::db::schema::mods::ModRow {
+                profile_id: profile_id.clone(),
+                project_id: project_id_str,
+                version_id: file_id_str,
+                file_name: filename,
+                sha1: String::new(),
+                source: "curseforge".into(),
+                installed_at: String::new(),
+            };
+            let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+        }
+        mods_ok += 1;
+        tracing::debug!(idx = idx + 1, total = total_files, bytes = total_bytes, "mod downloaded");
     }
+
+    let _ = app.emit("modpack-progress", serde_json::json!({
+        "phase": "complete",
+        "current": total_files,
+        "total": total_files,
+        "percent": 100,
+        "status": format!("{} mods instalados, {} falharam", mods_ok, mods_fail)
+    }));
+    tracing::info!(mods_ok, mods_fail, total = total_files, "curseforge modpack mod download summary");
 
     let now = chrono::Utc::now();
     let profile_row = ProfileRow {
@@ -601,6 +709,7 @@ pub async fn instance_import_mrpack(
     profile_name: String,
     icon: Option<String>,
 ) -> AppResult<ProfileRow> {
+    tracing::info!(file_path = %file_path, profile_name = %profile_name, "instance_import_mrpack called");
     let data = tokio::fs::read(&file_path).await?;
     let cursor = std::io::Cursor::new(data);
     let mut archive = zip::ZipArchive::new(cursor)

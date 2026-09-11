@@ -1,53 +1,123 @@
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
+
 use super::{ModAuthor, ModFile, ModGalleryImage, ModProjectDetails, ModSearchResult, ModVersion};
 use crate::error::AppResult;
 
 const CURSEFORGE_API: &str = "https://api.curseforge.com/v1";
+const KEYRING_SERVICE: &str = "io.github.Luxmc";
+const KEYRING_USER: &str = "curseforge_api_key";
+const MIN_KEY_LENGTH: usize = 20;
+const MAX_KEY_LENGTH: usize = 128;
 
-fn decode_obfuscated_key(hex_str: &str, mask: u8) -> Option<String> {
-    if hex_str.len() % 2 != 0 {
-        return None;
+static API_KEY_CACHE: OnceLock<std::sync::Mutex<Option<(String, Instant)>>> = OnceLock::new();
+
+fn keyring_entry() -> Result<keyring::Entry, String> {
+    keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
+        .or_else(|_| {
+            keyring::Entry::new_with_target(
+                &format!("{}-{}", KEYRING_SERVICE, KEYRING_USER),
+                KEYRING_SERVICE,
+                KEYRING_USER,
+            )
+        })
+        .map_err(|e| format!("Keyring error: {e}"))
+}
+
+fn is_valid_curseforge_key(key: &str) -> bool {
+    let trimmed = key.trim();
+    if trimmed.is_empty() || trimmed.len() < MIN_KEY_LENGTH || trimmed.len() > MAX_KEY_LENGTH {
+        return false;
     }
-    let mut bytes = Vec::new();
-    for i in (0..hex_str.len()).step_by(2) {
-        if let Ok(b) = u8::from_str_radix(&hex_str[i..i + 2], 16) {
-            bytes.push(b ^ mask);
-        } else {
-            return None;
+    if trimmed.chars().any(|c| c.is_ascii_whitespace()) {
+        return false;
+    }
+    true
+}
+
+fn get_cached_key() -> Option<String> {
+    let cache = API_KEY_CACHE.get_or_init(|| std::sync::Mutex::new(None));
+    let guard = cache.lock().unwrap();
+    if let Some((ref key, ts)) = *guard {
+        if ts.elapsed() < Duration::from_secs(300) {
+            return Some(key.clone());
         }
     }
-    String::from_utf8(bytes).ok()
+    None
+}
+
+fn set_cached_key(key: String) {
+    let cache = API_KEY_CACHE.get_or_init(|| std::sync::Mutex::new(None));
+    let mut guard = cache.lock().unwrap();
+    *guard = Some((key, Instant::now()));
+}
+
+fn clear_cached_key() {
+    let cache = API_KEY_CACHE.get_or_init(|| std::sync::Mutex::new(None));
+    let mut guard = cache.lock().unwrap();
+    *guard = None;
 }
 
 pub fn api_key() -> Option<String> {
+    if let Some(key) = get_cached_key() {
+        return Some(key);
+    }
+
+    if let Ok(entry) = keyring_entry() {
+        if let Ok(key) = entry.get_password() {
+            let trimmed = key.trim().to_string();
+            if is_valid_curseforge_key(&trimmed) {
+                set_cached_key(trimmed.clone());
+                return Some(trimmed);
+            }
+        }
+    }
+
     if let Ok(k) = std::env::var("CURSEFORGE_API_KEY") {
         let trimmed = k.trim().to_string();
-        if !trimmed.is_empty() {
+        if is_valid_curseforge_key(&trimmed) {
+            set_cached_key(trimmed.clone());
             return Some(trimmed);
         }
     }
 
-    if let (Some(hex_str), Some(mask_str)) = (
-        option_env!("CURSEFORGE_KEY_OBFUSCATED"),
-        option_env!("CURSEFORGE_KEY_MASK"),
-    ) {
-        if let Ok(mask) = mask_str.parse::<u8>() {
-            if let Some(decoded) = decode_obfuscated_key(hex_str, mask) {
-                let trimmed = decoded.trim().to_string();
-                if !trimmed.is_empty() {
-                    return Some(trimmed);
-                }
-            }
+    let mut search_paths: Vec<std::path::PathBuf> = Vec::new();
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            search_paths.push(exe_dir.join(".env"));
+            search_paths.push(exe_dir.parent().unwrap_or(exe_dir).join(".env"));
+            search_paths.push(exe_dir.parent().unwrap_or(exe_dir).parent().unwrap_or(exe_dir).join(".env"));
         }
     }
 
+    if let Ok(cwd) = std::env::current_dir() {
+        search_paths.push(cwd.join(".env"));
+        search_paths.push(cwd.parent().unwrap_or(&cwd).join(".env"));
+    }
 
-    for path in &[".env", "../.env"] {
-        if let Ok(content) = std::fs::read_to_string(path) {
+    if let Some(config_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+        search_paths.push(config_dir.config_dir().join(".env"));
+        search_paths.push(config_dir.data_dir().join(".env"));
+    }
+
+    search_paths.push(std::path::PathBuf::from("/home/pedro/Documentos/Luxmc/.env"));
+    search_paths.push(std::path::PathBuf::from("/home/pedro/Documentos/Luxmc/src-tauri/.env"));
+
+    search_paths.dedup();
+
+    for env_path in &search_paths {
+        if let Ok(content) = std::fs::read_to_string(env_path) {
             for line in content.lines() {
                 let trimmed = line.trim();
+                if trimmed.starts_with('#') || trimmed.is_empty() {
+                    continue;
+                }
                 if let Some(val) = trimmed.strip_prefix("CURSEFORGE_API_KEY=") {
                     let cleaned = val.trim().trim_matches('"').trim_matches('\'').to_string();
-                    if !cleaned.is_empty() {
+                    if is_valid_curseforge_key(&cleaned) {
+                        tracing::info!(path = %env_path.display(), "CurseForge API key loaded");
+                        set_cached_key(cleaned.clone());
                         return Some(cleaned);
                     }
                 }
@@ -55,23 +125,49 @@ pub fn api_key() -> Option<String> {
         }
     }
 
-    if let Some(dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
-        let cfg_env = dir.config_dir().join(".env");
-        if let Ok(content) = std::fs::read_to_string(cfg_env) {
-            for line in content.lines() {
-                let trimmed = line.trim();
-                if let Some(val) = trimmed.strip_prefix("CURSEFORGE_API_KEY=") {
-                    let cleaned = val.trim().trim_matches('"').trim_matches('\'').to_string();
-                    if !cleaned.is_empty() {
-                        return Some(cleaned);
-                    }
-                }
-            }
-        }
-    }
-
-    tracing::warn!("CurseForge API key not configured (set CURSEFORGE_API_KEY in environment or .env) — CurseForge results will be omitted");
     None
+}
+
+pub fn store_key(key: &str) -> Result<(), String> {
+    let trimmed = key.trim();
+    if !is_valid_curseforge_key(trimmed) {
+        return Err(format!(
+            "Invalid key: must be {}-{} alphanumeric characters, no whitespace",
+            MIN_KEY_LENGTH, MAX_KEY_LENGTH
+        ));
+    }
+    let entry = keyring_entry()?;
+    entry.set_password(trimmed).map_err(|e| format!("Keyring write error: {e}"))?;
+    set_cached_key(trimmed.to_string());
+    Ok(())
+}
+
+pub fn remove_key() -> Result<(), String> {
+    let entry = keyring_entry()?;
+    entry.delete_credential().map_err(|e| format!("Keyring delete error: {e}"))?;
+    clear_cached_key();
+    Ok(())
+}
+
+pub fn has_key() -> bool {
+    api_key().is_some()
+}
+
+pub async fn validate_key(client: &reqwest::Client) -> Result<bool, String> {
+    let key = api_key().ok_or("No CurseForge API key configured")?;
+    let resp = client
+        .get(format!("{}/mods/search?gameId=432&pageSize=1&index=0", CURSEFORGE_API))
+        .header("x-api-key", &key)
+        .send()
+        .await
+        .map_err(|e| format!("Network error: {e}"))?;
+
+    match resp.status().as_u16() {
+        200 => Ok(true),
+        403 => Err("Invalid API key (403 Forbidden)".into()),
+        429 => Err("Rate limited (429) — try again later".into()),
+        code => Err(format!("Unexpected status: {code}")),
+    }
 }
 
 pub async fn search_mods(
@@ -137,14 +233,20 @@ pub async fn search_mods(
     let resp = http
         .get(&url)
         .header("x-api-key", &key)
+        .timeout(Duration::from_secs(15))
         .send()
         .await?;
 
     if !resp.status().is_success() {
-        tracing::warn!(
-            status = %resp.status(),
-            "CurseForge search request failed — omitting CurseForge results"
-        );
+        let status = resp.status();
+        if status.as_u16() == 403 {
+            clear_cached_key();
+            tracing::warn!("CurseForge API key rejected (403) — key cleared from cache");
+        } else if status.as_u16() == 429 {
+            tracing::warn!("CurseForge rate limited (429) — retrying later");
+        } else {
+            tracing::warn!(status = %status, "CurseForge search failed");
+        }
         return Ok(Vec::new());
     }
 
@@ -263,20 +365,32 @@ pub async fn get_mod_versions(
         None => return Ok(Vec::new()),
     };
 
+    let version_param = if mc_version.is_empty() || mc_version == "Qualquer Versão" {
+        String::new()
+    } else {
+        format!("&gameVersion={}", urlencoding::encode(mc_version))
+    };
+
     let url = format!(
-        "{}/mods/{}/files?gameVersion={}",
-        CURSEFORGE_API, project_id, mc_version
+        "{}/mods/{}/files?{}",
+        CURSEFORGE_API, project_id, version_param
     );
 
     let resp = http
         .get(&url)
         .header("x-api-key", &key)
+        .timeout(Duration::from_secs(15))
         .send()
         .await?;
 
     if !resp.status().is_success() {
+        let status = resp.status();
+        if status.as_u16() == 403 {
+            clear_cached_key();
+        }
         tracing::warn!(
-            status = %resp.status(),
+            status = %status,
+            project_id = %project_id,
             "CurseForge get_mod_versions failed"
         );
         return Ok(Vec::new());
@@ -346,6 +460,7 @@ pub async fn get_mod_details(
     let resp = http
         .get(&url)
         .header("x-api-key", &key)
+        .timeout(Duration::from_secs(15))
         .send()
         .await?
         .error_for_status()?;
@@ -454,7 +569,13 @@ pub async fn get_mod_details(
     }
 
     let desc_url = format!("{}/mods/{}/description", CURSEFORGE_API, mod_id);
-    let body_html = if let Ok(d_resp) = http.get(&desc_url).header("x-api-key", &key).send().await {
+    let body_html = if let Ok(d_resp) = http
+        .get(&desc_url)
+        .header("x-api-key", &key)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
+    {
         if let Ok(d_json) = d_resp.json::<serde_json::Value>().await {
             d_json.get("data").and_then(|d| d.as_str()).unwrap_or("").to_string()
         } else {
@@ -488,4 +609,71 @@ pub async fn get_mod_details(
         author,
         gallery,
     })
+}
+
+pub async fn get_download_url(
+    http: &reqwest::Client,
+    project_id: &str,
+    file_id: &str,
+) -> AppResult<String> {
+    let key = match api_key() {
+        Some(k) => k,
+        None => return Err(crate::error::AppError::NotFound("CurseForge API key missing".into())),
+    };
+
+    let url = format!(
+        "{}/mods/{}/files/{}/download-url",
+        CURSEFORGE_API, project_id, file_id
+    );
+
+    let resp = http
+        .get(&url)
+        .header("x-api-key", &key)
+        .timeout(Duration::from_secs(15))
+        .send()
+        .await?
+        .error_for_status()?;
+    let body: serde_json::Value = resp.json().await?;
+
+    body.get("data")
+        .and_then(|d| d.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .ok_or_else(|| crate::error::AppError::NotFound("Download URL not found on CurseForge".into()))
+}
+
+pub async fn get_mod_names_batch(
+    http: &reqwest::Client,
+    mod_ids: &[u64],
+) -> std::collections::HashMap<u64, String> {
+    let key = match api_key() {
+        Some(k) => k,
+        None => return std::collections::HashMap::new(),
+    };
+
+    let mut names = std::collections::HashMap::new();
+    for chunk in mod_ids.chunks(50) {
+        let ids_str: Vec<String> = chunk.iter().map(|id| id.to_string()).collect();
+        let url = format!("{}/mods/{}", CURSEFORGE_API, ids_str.join(","));
+        if let Ok(resp) = http
+            .get(&url)
+            .header("x-api-key", &key)
+            .timeout(Duration::from_secs(20))
+            .send()
+            .await
+        {
+            if let Ok(body) = resp.json::<serde_json::Value>().await {
+                if let Some(data) = body.get("data").and_then(|d| d.as_array()) {
+                    for m in data {
+                        if let Some(id) = m.get("id").and_then(|i| i.as_u64()) {
+                            if let Some(name) = m.get("name").and_then(|n| n.as_str()) {
+                                names.insert(id, name.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    names
 }

@@ -22,7 +22,7 @@
 	let lastUpdate = $state<Date | null>(null);
 	let logContainer = $state<HTMLDivElement | null>(null);
 
-	const filteredEntries = $derived(() => {
+	const filteredEntries = $derived.by(() => {
 		if (!searchQuery.trim()) return gameLogs.entries;
 		const q = searchQuery.toLowerCase();
 		return gameLogs.entries.filter((e) => e.message.toLowerCase().includes(q));
@@ -160,7 +160,7 @@
 						<Terminal class="h-4 w-4" />
 					</div>
 					<span class="text-sm font-bold text-white/90">{t("logs.gameOutput")}</span>
-					<span class="text-xs font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{t("logs.linesCount", { count: filteredEntries().length })}</span>
+					<span class="text-xs font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{t("logs.linesCount", { count: filteredEntries.length })}</span>
 				</div>
 			</div>
 
@@ -204,7 +204,7 @@
 				if (!atBottom) autoScroll = false;
 			}}
 		>
-		{#each filteredEntries() as entry (entry.id)}
+		{#each filteredEntries as entry (entry.id)}
 			<div class="flex gap-2 py-0.5 hover:bg-white/[0.02] rounded px-1 {getLineClass(entry)}">
 				<span class="w-16 shrink-0 text-right text-white/30 text-[10px]">
 					{getRelativeTime(entry.timestamp)}
@@ -221,7 +221,7 @@
 
 		<div class="mt-3 flex items-center justify-between border-t border-white/5 pt-3 text-[11px] text-white/40">
 			<div class="flex items-center gap-3">
-				<span>{t("logs.linesCountPlain", { count: filteredEntries().length })}</span>
+				<span>{t("logs.linesCountPlain", { count: filteredEntries.length })}</span>
 				{#if searchQuery.trim()}
 					<span class="flex items-center gap-1 text-brand-500 font-bold">
 						<Filter class="h-3 w-3" />

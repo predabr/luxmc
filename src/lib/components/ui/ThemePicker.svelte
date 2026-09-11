@@ -9,7 +9,7 @@
 		id: "cyan" | "emerald" | "violet" | "amber" | "rose";
 		nameKey: "defaultCyan" | "emeraldForest" | "violetPulse" | "amberHearth" | "roseQuartz";
 		preview: string[];
-		accent: string;
+		accent: "cyan" | "emerald" | "violet" | "gold" | "rose";
 	};
 
 	const presets: ThemePreset[] = [
@@ -17,7 +17,7 @@
 			id: "cyan",
 			nameKey: "defaultCyan",
 			preview: ["rgb(20, 184, 166)", "rgb(13, 148, 136)", "rgb(94, 214, 198)"],
-			accent: "indigo",
+			accent: "cyan",
 		},
 		{
 			id: "emerald",
@@ -35,21 +35,21 @@
 			id: "amber",
 			nameKey: "amberHearth",
 			preview: ["rgb(245, 158, 11)", "rgb(217, 119, 6)", "rgb(252, 211, 77)"],
-			accent: "blue",
+			accent: "gold",
 		},
 		{
 			id: "rose",
 			nameKey: "roseQuartz",
 			preview: ["rgb(244, 63, 94)", "rgb(225, 29, 72)", "rgb(253, 164, 175)"],
-			accent: "blue",
+			accent: "rose",
 		},
 	];
 
 	function selectTheme(preset: ThemePreset) {
 		const html = document.documentElement;
-		html.classList.remove("accent-indigo", "accent-emerald", "accent-violet", "accent-blue");
+		html.classList.remove("accent-gold", "accent-cyan", "accent-emerald", "accent-rose", "accent-violet", "accent-orange", "accent-blue");
 		html.classList.add(`accent-${preset.accent}`);
-		settings.patch({ accentTheme: preset.accent as any, theme: "default-dark" });
+		settings.patch({ accentTheme: preset.accent, theme: "default-dark" });
 	}
 </script>
 

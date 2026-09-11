@@ -4,10 +4,10 @@
 	import type { Snippet } from "svelte";
 
 	const card = tv({
-		base: "rounded-xl border border-border bg-bg-elevated",
+		base: "rounded-xl border border-border bg-bg-elevated transition-all duration-200 ease-out",
 		variants: {
 			padding: { none: "", sm: "p-3", md: "p-5", lg: "p-7" },
-			interactive: { true: "transition-all duration-150 hover:border-brand-500/40 cursor-pointer" },
+			interactive: { true: "hover:-translate-y-0.5 hover:shadow-lg hover:border-brand-500/30 cursor-pointer" },
 			elevated: { true: "shadow-sm shadow-black/10" }
 		},
 		defaultVariants: { padding: "md" }

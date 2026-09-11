@@ -1,35 +1,187 @@
-name: Release Multiplatform (Linux, Windows, macOS & Universal JAR)
+name: Release Luxmc
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+  actions: read
+
+env:
+  NODE_VERSION: "22"
+  RUST_TOOLCHAIN: stable
+
 jobs:
-  build-and-release:
-    name: Build Packages (${{ matrix.platform }})
-    permissions:
-      contents: write
+  validate:
+    name: Validate
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Frontend Lint (svelte-check)
+        run: pnpm check
+
+      - name: Rust Compilation Check
+        working-directory: src-tauri
+        run: cargo check
+
+      - name: Rust Tests
+        working-directory: src-tauri
+        run: cargo test
+
+  generate-changelog:
+    name: Generate Changelog
+    runs-on: ubuntu-22.04
+    outputs:
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get Previous Tag
+        id: prev_tag
+        run: |
+          if git describe --tags --abbrev=0 HEAD^ 2>/dev/null; then
+            echo "tag=$(git describe --tags --abbrev=0 HEAD^)" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          PREV_TAG="${{ steps.prev_tag.outputs.tag }}"
+          if [ -z "$PREV_TAG" ]; then
+            COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD)
+          else
+            COMMITS=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD)
+          fi
+
+          # Group by type
+          FEATS=""
+          FIXES=""
+          CHORES=""
+          OTHERS=""
+
+          while IFS= read -r line; do
+            MSG=$(echo "$line" | sed 's/^- //')
+            if echo "$MSG" | grep -qE "^feat"; then
+              FEATS="$FEATS$MSG"$'\n'
+            elif echo "$MSG" | grep -qE "^fix"; then
+              FIXES="$FIXES$MSG"$'\n'
+            elif echo "$MSG" | grep -qE "^chore|^refactor|^docs|^test|^ci|^build"; then
+              CHORES="$CHORES$MSG"$'\n'
+            else
+              OTHERS="$OTHERS$MSG"$'\n'
+            fi
+          done <<< "$COMMITS"
+
+          {
+            echo "changelog<<CHANGELOG_EOF"
+            if [ -n "$FEATS" ]; then
+              echo "### ✨ Features"
+              echo "$FEATS"
+              echo ""
+            fi
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Bug Fixes"
+              echo "$FIXES"
+              echo ""
+            fi
+            if [ -n "$CHORES" ]; then
+              echo "### 🧹 Maintenance"
+              echo "$CHORES"
+              echo ""
+            fi
+            if [ -n "$OTHERS" ]; then
+              echo "### 📦 Other Changes"
+              echo "$OTHERS"
+              echo ""
+            fi
+            if [ -z "$FEATS" ] && [ -z "$FIXES" ] && [ -z "$CHORES" ] && [ -z "$OTHERS" ]; then
+              echo "_No changes recorded._"
+            fi
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.platform }}-${{ matrix.target }})
+    needs: [validate, generate-changelog]
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+          - platform: ubuntu-22.04-arm64
+            target: aarch64-unknown-linux-gnu
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
           - platform: macos-latest
             target: aarch64-apple-darwin
-
-    runs-on: ${{ matrix.platform }}
+          - platform: macos-latest
+            target: x86_64-apple-darwin
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install System Dependencies (Linux)
-        if: matrix.platform == 'ubuntu-22.04'
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install pnpm Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust Dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+          shared-key: "rust-${{ matrix.target }}"
+
+      - name: Install System Dependencies (Linux x86_64)
+        if: matrix.platform == 'ubuntu-22.04' && matrix.target == 'x86_64-unknown-linux-gnu'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -47,49 +199,148 @@ jobs:
             squashfs-tools \
             rpm
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Install System Dependencies (Linux ARM64)
+        if: matrix.platform == 'ubuntu-22.04-arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libfuse2 \
+            squashfs-tools \
+            rpm
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Install Dependencies
-        run: pnpm install
-
-      - name: Setup Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Cache Rust Dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "./src-tauri -> target"
+      - name: Install cross (Linux ARM64 cross-compilation)
+        if: matrix.platform == 'ubuntu-22.04' && matrix.target == 'aarch64-unknown-linux-gnu'
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build Tauri Bundles
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Luxmc Launcher ${{ github.ref_name }}'
-          releaseBody: |
-            ## 🚀 Luxmc Launcher ${{ github.ref_name }} — Official Multiplatform Release
-            
-            Disponível para **Windows (.exe / .msi)**, **Linux (AppImage / .deb / .rpm)**, **macOS (.dmg / .app)** e **Universal Java (.jar)**!
-          releaseDraft: false
+          releaseName: "Luxmc ${{ github.ref_name }}"
+          releaseBody: "See the assets below to download and install Luxmc."
+          releaseDraft: true
           prerelease: false
+          args: --target ${{ matrix.target }}
+
+      - name: Collect Build Artifacts
+        id: artifacts
+        run: |
+          mkdir -p upload
+          if [ "${{ matrix.platform }}" = "ubuntu-22.04" ] || [ "${{ matrix.platform }}" = "ubuntu-22.04-arm64" ]; then
+            cp src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage upload/ 2>/dev/null || true
+            cp src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb upload/ 2>/dev/null || true
+            cp src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm upload/ 2>/dev/null || true
+          fi
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            cp src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe upload/ 2>/dev/null || true
+            cp src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi upload/ 2>/dev/null || true
+          fi
+          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            cp src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg upload/ 2>/dev/null || true
+            cp src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app upload/ 2>/dev/null || true
+          fi
+          echo "artifacts=upload" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.platform }}-${{ matrix.target }}
+          path: upload/
+          retention-days: 7
+
+  upload-release:
+    name: Upload to Release
+    needs: [build, generate-changelog]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+
+      - name: List Downloaded Artifacts
+        run: find artifacts/ -type f | head -50
+
+      - name: Upload Assets to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Luxmc ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
+          body: |
+            ## Luxmc ${{ github.ref_name }}
+
+            ### Download
+
+            | Platform | Installer | Status |
+            |----------|-----------|--------|
+            | **Windows** | `.exe` (NSIS) / `.msi` (WiX) | ✅ Available |
+            | **Linux x86_64** | AppImage / `.deb` / `.rpm` | ✅ Available |
+            | **Linux ARM64** | AppImage / `.deb` / `.rpm` | ✅ Available |
+            | **macOS (Apple Silicon)** | `.dmg` | ✅ Available |
+            | **macOS (Intel)** | `.dmg` | ✅ Available |
+
+            ### System Requirements
+
+            - **Windows**: Windows 10 or later (x64)
+            - **Linux**: Ubuntu 22.04+ or equivalent (x64 / ARM64)
+            - **macOS**: macOS 10.13 (High Sierra) or later
+
+            ### Installation
+
+            **Windows**
+            1. Download the `.exe` installer and run it
+            2. Follow the on-screen wizard
+            3. Launch Luxmc from the Start Menu
+
+            **Linux**
+            - AppImage: `chmod +x Luxmc-*.AppImage && ./Luxmc-*.AppImage`
+            - Debian/Ubuntu: `sudo dpkg -i Luxmc-*.deb`
+            - Fedora/RHEL: `sudo rpm -i Luxmc-*.rpm`
+
+            **macOS**
+            1. Download the `.dmg` file
+            2. Drag Luxmc to your Applications folder
+            3. Right-click → Open (first launch only, to bypass Gatekeeper)
+
+            ### Changelog
+
+            ${{ needs.generate-changelog.outputs.changelog }}
+          files: artifacts/**/*
+          fail_on_unmatched_files: false
 
   build-jar:
     name: Build Universal Luxmc.jar
-    permissions:
-      contents: write
+    needs: upload-release
     runs-on: ubuntu-22.04
-    needs: build-and-release
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -97,8 +348,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - name: Compile Bootstrap JAR
         run: |

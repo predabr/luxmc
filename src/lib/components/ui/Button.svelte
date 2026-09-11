@@ -39,7 +39,7 @@
 	>
 		{#if loading}
 			<span
-				class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+				class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
 				aria-hidden="true"
 			></span>
 		{/if}

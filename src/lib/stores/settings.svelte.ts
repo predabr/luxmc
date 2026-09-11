@@ -1,5 +1,5 @@
 export type ThemeName = "default-dark" | "default-light";
-export type AccentTheme = "indigo" | "blue" | "emerald" | "violet";
+export type AccentTheme = "gold" | "cyan" | "emerald" | "rose" | "violet" | "orange" | "blue";
 
 export interface AppSettings {
 	theme: ThemeName;
@@ -37,7 +37,7 @@ const defaults: AppSettings = {
 	blur: true,
 	sidebarPosition: "left",
 	language: "en",
-	accentTheme: "indigo",
+	accentTheme: "gold",
 	activeProfileId: null,
 };
 

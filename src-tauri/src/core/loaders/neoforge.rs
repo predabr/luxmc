@@ -231,12 +231,50 @@ pub async fn prepare_neoforge(
     let mut jvm_args = Vec::new();
     if let Some(args) = version_data.arguments {
         for arg in args.jvm {
-            if let Some(s) = arg.as_str() {
-                let replaced = s
-                    .replace("${library_directory}", &lib_dir_str)
-                    .replace("${classpath_separator}", cp_sep)
-                    .replace("${version_name}", &format!("neoforge-{}", chosen_version));
-                jvm_args.push(replaced);
+            match &arg {
+                serde_json::Value::String(s) => {
+                    let replaced = s
+                        .replace("${library_directory}", &lib_dir_str)
+                        .replace("${classpath_separator}", cp_sep)
+                        .replace("${version_name}", &format!("neoforge-{}", chosen_version));
+                    jvm_args.push(replaced);
+                }
+                serde_json::Value::Object(obj) => {
+                    if let Some(serde_json::Value::Array(rules)) = obj.get("rules") {
+                        let mut allow = false;
+                        let mut deny = false;
+                        for rule in rules {
+                            if let Some(action) = rule.get("action").and_then(|a| a.as_str()) {
+                                if action == "allow" {
+                                    allow = true;
+                                } else if action == "deny" {
+                                    deny = true;
+                                }
+                            }
+                        }
+                        if deny && !allow {
+                            continue;
+                        }
+                    }
+                    if let Some(serde_json::Value::Array(values)) = obj.get("value") {
+                        for v in values {
+                            if let Some(s) = v.as_str() {
+                                let replaced = s
+                                    .replace("${library_directory}", &lib_dir_str)
+                                    .replace("${classpath_separator}", cp_sep)
+                                    .replace("${version_name}", &format!("neoforge-{}", chosen_version));
+                                jvm_args.push(replaced);
+                            }
+                        }
+                    } else if let Some(serde_json::Value::String(s)) = obj.get("value") {
+                        let replaced = s
+                            .replace("${library_directory}", &lib_dir_str)
+                            .replace("${classpath_separator}", cp_sep)
+                            .replace("${version_name}", &format!("neoforge-{}", chosen_version));
+                        jvm_args.push(replaced);
+                    }
+                }
+                _ => {}
             }
         }
     }

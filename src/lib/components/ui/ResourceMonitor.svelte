@@ -21,24 +21,8 @@
 		} catch {}
 	}
 
-	async function sampleProcess(pid: number): Promise<Reading | null> {
-		try {
-			const stat = await fetch(`/proc/${pid}/stat`).then((r) => (r.ok ? r.text() : null));
-			if (!stat) return null;
-			const parts = stat.split(" ");
-			const utime = Number(parts[13]);
-			const stime = Number(parts[14]);
-			const rssKb = Number(parts[23]);
-			const totalTicks = utime + stime;
-			const totalMemMb = rssKb / 1024;
-			return {
-				cpuPercent: Math.min(100, totalTicks / 100),
-				memMb: Math.round(totalMemMb),
-				ts: Date.now(),
-			};
-		} catch {
-			return null;
-		}
+	async function sampleProcess(_pid: number): Promise<Reading | null> {
+		return null;
 	}
 
 	type Props = {

@@ -94,12 +94,17 @@ const config: Config = {
 				shimmer: {
 					"0%": { backgroundPosition: "-1000px 0" },
 					"100%": { backgroundPosition: "1000px 0" }
+				},
+				"btn-shimmer": {
+					"0%": { left: "-100%" },
+					"100%": { left: "200%" }
 				}
 			},
 			animation: {
 				"fade-in": "fade-in 200ms ease-out",
 				"slide-up": "slide-up 200ms ease-out",
-				shimmer: "shimmer 2s linear infinite"
+				shimmer: "shimmer 2s linear infinite",
+				"btn-shimmer": "btn-shimmer 0.6s ease-out"
 			}
 		}
 	},

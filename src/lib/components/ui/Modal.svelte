@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fade, slide } from 'svelte/transition';
+	import { fade } from 'svelte/transition';
 	import { X } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import { useTranslation } from '$lib/i18n/useTranslation.svelte';
@@ -41,7 +41,7 @@
 	>
 		<div
 			class={`bg-bg-elevated border border-border rounded-lg shadow-2xl ${maxWidth} w-full mx-4`}
-			transition:slide={{ duration: 300 }}
+			style="animation: modalIn 200ms ease-out forwards;"
 		>
 			<div class="flex items-center justify-between border-b border-border p-6">
 				<h2 id={titleId} class="text-xl font-bold">{title}</h2>
@@ -62,3 +62,16 @@
 		</div>
 	</div>
 {/if}
+
+<style>
+	@keyframes modalIn {
+		from {
+			opacity: 0;
+			transform: scale(0.95) translateY(4px);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1) translateY(0);
+		}
+	}
+</style>

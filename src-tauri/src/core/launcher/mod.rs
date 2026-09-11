@@ -184,8 +184,28 @@ impl GameLauncher {
                     }
                 }
                 if has_jars {
-                    self.emit_log("Detected mods in mods/ directory; automatically enabling Fabric loader for this session");
-                    loader = "fabric".to_string();
+                    let mod_names: Vec<String> = {
+                        let mut names = Vec::new();
+                        let mut entries2 = tokio::fs::read_dir(&mods_dir).await.ok();
+                        if let Some(ref mut e) = entries2 {
+                            while let Ok(Some(entry)) = e.next_entry().await {
+                                if let Some(name) = entry.path().file_name().map(|n| n.to_string_lossy().to_lowercase()) {
+                                    if name.ends_with(".jar") {
+                                        names.push(name);
+                                    }
+                                }
+                            }
+                        }
+                        names
+                    };
+                    let has_neoforge = mod_names.iter().any(|n| n.contains("neoforge") || n.contains("rftools") || n.contains("mekanism"));
+                    if has_neoforge {
+                        self.emit_log("Detected NeoForge-related mods; automatically enabling NeoForge loader for this session");
+                        loader = "neoforge".to_string();
+                    } else {
+                        self.emit_log("Detected mods in mods/ directory; automatically enabling Fabric loader for this session");
+                        loader = "fabric".to_string();
+                    }
                 }
             }
         }
@@ -218,7 +238,11 @@ impl GameLauncher {
                     extra_jvm_args.extend(prep.jvm_args);
                 }
                 Err(e) => {
-                    self.emit_log(&format!("WARNING: Failed to prepare {} loader: {}. Falling back to standard launch.", loader, e));
+                    self.emit_log(&format!("ERROR: Failed to prepare {} loader: {}. Cannot launch with mods.", loader, e));
+                    return Err(crate::error::AppError::InvalidState(format!(
+                        "Falha ao preparar o loader {}: {}. Verifique se a versao do Minecraft e do loader sao compativeis.",
+                        loader, e
+                    )));
                 }
             }
         }

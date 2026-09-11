@@ -91,7 +91,7 @@
 			expiresAt: acc.expiresAt ? new Date(acc.expiresAt).getTime() : 0
 		};
 		localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
-		account.account = newAcc;
+		account.value = newAcc;
 		showMenu = false;
 		toast(`Alternado para a conta ${acc.username}!`, "success");
 	}

@@ -26,6 +26,8 @@
 	let renderer: THREE.WebGLRenderer;
 	let playerGroup: THREE.Group;
 	let capeMesh: THREE.Mesh | null = null;
+	let isVisible = $state(false);
+	let resizeObserver: ResizeObserver | null = null;
 
 	// Texture and materials
 	let currentTexture: THREE.CanvasTexture | THREE.Texture | null = null;
@@ -514,22 +516,8 @@
 		isDragging = true;
 		prevMouseX = e.clientX;
 		prevMouseY = e.clientY;
-	}
-
-	function onPointerMove(e: MouseEvent) {
-		if (!isDragging) return;
-		const dx = e.clientX - prevMouseX;
-		const dy = e.clientY - prevMouseY;
-
-		yaw += dx * 0.012;
-		pitch = Math.max(-0.6, Math.min(0.6, pitch + dy * 0.008));
-
-		prevMouseX = e.clientX;
-		prevMouseY = e.clientY;
-	}
-
-	function onPointerUp() {
-		isDragging = false;
+		window.addEventListener("mousemove", handlePointerMove);
+		window.addEventListener("mouseup", handlePointerUp);
 	}
 
 	function onWheel(e: WheelEvent) {
@@ -556,15 +544,14 @@
 		camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
 		updateCamera();
 
-		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
 		renderer.setSize(width, height);
-		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 		renderer.toneMapping = THREE.ACESFilmicToneMapping;
 		renderer.toneMappingExposure = 1.15;
 		renderer.shadowMap.enabled = false;
 		containerEl.appendChild(renderer.domElement);
 
-		// Studio 3-point lighting setup
 		const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
 		scene.add(ambientLight);
 
@@ -580,7 +567,6 @@
 		backLight.position.set(0, 25, -30);
 		scene.add(backLight);
 
-		// Materials
 		solidMaterial = new THREE.MeshStandardMaterial({
 			roughness: 0.65,
 			metalness: 0.05
@@ -598,16 +584,16 @@
 		buildMinecraftModel(slim);
 		loadSkin(skinUrl);
 
-		// Animation loop
 		let idleTime = 0;
 		const animate = () => {
 			animFrameId = requestAnimationFrame(animate);
+
+			if (!isVisible) return;
 
 			if (autoRotate && !isDragging) {
 				yaw += 0.007;
 			}
 
-			// Gentle breathing idle motion and cape flutter
 			idleTime += 0.03;
 			if (playerGroup) {
 				const breathe = Math.sin(idleTime) * 0.015;
@@ -622,7 +608,17 @@
 		};
 		animate();
 
-		const resizeObserver = new ResizeObserver((entries) => {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				for (const entry of entries) {
+					isVisible = entry.isIntersecting;
+				}
+			},
+			{ threshold: 0.1 }
+		);
+		observer.observe(containerEl);
+
+		resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
 				const w = entry.contentRect.width;
 				const h = entry.contentRect.height;
@@ -636,14 +632,38 @@
 		resizeObserver.observe(containerEl);
 
 		return () => {
-			resizeObserver.disconnect();
+			observer.disconnect();
+			resizeObserver?.disconnect();
 		};
 	});
 
+	function handlePointerMove(e: MouseEvent) {
+		if (!isDragging) return;
+		const dx = e.clientX - prevMouseX;
+		const dy = e.clientY - prevMouseY;
+
+		yaw += dx * 0.012;
+		pitch = Math.max(-0.6, Math.min(0.6, pitch + dy * 0.008));
+
+		prevMouseX = e.clientX;
+		prevMouseY = e.clientY;
+	}
+
+	function handlePointerUp() {
+		isDragging = false;
+	}
+
 	onDestroy(() => {
+		window.removeEventListener("mousemove", handlePointerMove);
+		window.removeEventListener("mouseup", handlePointerUp);
+
 		if (animFrameId !== null) {
 			cancelAnimationFrame(animFrameId);
 			animFrameId = null;
+		}
+		if (resizeObserver) {
+			resizeObserver.disconnect();
+			resizeObserver = null;
 		}
 		if (playerGroup) {
 			disposePlayerGroup(playerGroup);
@@ -722,8 +742,6 @@
 		updateCamera();
 	}
 </script>
-
-<svelte:window onmousemove={onPointerMove} onmouseup={onPointerUp} />
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div 

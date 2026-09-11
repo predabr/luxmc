@@ -1,19 +1,19 @@
 <script lang="ts">
-	import {  fade } from "svelte/transition";
+	import { fade } from "svelte/transition";
 	import { onMount, onDestroy } from "svelte";
-	import { 
-		Settings as SettingsIcon, 
-		Palette, 
-		Users, 
-		Cpu, 
-		HardDrive, 
-		Sliders, 
-		Shield, 
-		Bell, 
-		Info, 
-		Check, 
-		FolderOpen, Network, 
-		Globe, 
+	import {
+		Settings as SettingsIcon,
+		Palette,
+		Users,
+		Cpu,
+		HardDrive,
+		Sliders,
+		Shield,
+		Bell,
+		Info,
+		Check,
+		FolderOpen, Network,
+		Globe,
 		RefreshCw,
 		Sparkles,
 		Volume2,
@@ -39,29 +39,33 @@
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
-	import { 
-		storageBreakdown, 
-		discordSetActivity, 
+	import {
+		storageBreakdown,
+		discordSetActivity,
 		discordClearActivity,
 		getSystemSpecs,
 		changelogGet,
 		type ChangelogEntry,
-		type StorageBreakdown 
+		type StorageBreakdown
 	} from "$lib/api";
+	import ThemeSection from "$lib/components/settings/ThemeSection.svelte";
+	import JvmSection from "$lib/components/settings/JvmSection.svelte";
+	import LanguageSection from "$lib/components/settings/LanguageSection.svelte";
+	import AdvancedSection from "$lib/components/settings/AdvancedSection.svelte";
 
 	const { t } = useTranslation();
 
-	type Section = 
-		| "geral" 
+	type Section =
+		| "geral"
 		| "contas"
-		| "aparencia" 
-		| "amigos" 
-		| "java" 
-		| "linux" 
-		| "graficos" 
-		| "armazenamento" 
-		| "privacidade" 
-		| "notificacoes" 
+		| "aparencia"
+		| "amigos"
+		| "java"
+		| "linux"
+		| "graficos"
+		| "armazenamento"
+		| "privacidade"
+		| "notificacoes"
 		| "sobre";
 
 	let activeSection = $state<Section>("geral");
@@ -80,17 +84,6 @@
 	let useBitsPerSecond = $state(false);
 	let autoStartWithLinux = $state(false);
 
-	// 2. Aparência states
-	let draftTheme = $state(themeStore.theme);
-	let draftAccent = $state(themeStore.accent);
-	const hasAppearanceChanges = $derived(draftTheme !== themeStore.theme || draftAccent !== themeStore.accent);
-	let blurEffects = $state(true);
-	let smoothAnimations = $state(true);
-	let mysticAuraGlow = $state(true);
-	let performanceMode = $state(false);
-	let uiScale = $state("100%");
-	let quantumParticles = $state(true);
-
 	// 3. Amigos & Discord states (8)
 	let discordRpc = $state(true);
 	let discordShowInstance = $state(true);
@@ -102,16 +95,6 @@
 	let p2pLanDiscovery = $state(true);
 	let friendMessageSound = $state(true);
 	let dndModeDuringGame = $state(false);
-
-	// 4. Java & Memória states (8)
-	let javaPath = $state(settings.value.javaPath || "/usr/bin/java");
-	let minRam = $state(settings.value.minRamMb || 2048);
-	let maxRam = $state(settings.value.maxRamMb || 6144);
-	let selectedGc = $state("aikar");
-	let jvmArgs = $state(settings.value.jvmArgs || "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200");
-	let disableExplicitGc = $state(true);
-	let parallelRefProc = $state(true);
-	let tieredCompilation = $state(true);
 
 	// 5. Linux & GameMode states (13)
 	let enableGameMode = $state(true);
@@ -188,7 +171,7 @@
 		kernelVersion: "Linux",
 		arch: "x86_64",
 		totalRamMb: 16384,
-		launcherVersion: "1.2.0-ALPHA"
+		launcherVersion: "1.3.0-BETA"
 	});
 
 	let changelogList = $state<ChangelogEntry[]>([]);
@@ -205,7 +188,7 @@
 					kernelVersion: String(specs.kernelVersion),
 					arch: specs.arch,
 					totalRamMb: specs.totalRamMb,
-					launcherVersion: specs.launcherVersion || "1.2.0-ALPHA"
+					launcherVersion: specs.launcherVersion || "1.3.0-BETA"
 				};
 			}
 		}).catch(err => console.error(err));
@@ -214,14 +197,12 @@
 		if (savedVulkan !== null) {
 			enableVulkan = savedVulkan === "true";
 		}
-		// Hourly background refresh of storage breakdown
 		storageInterval = setInterval(loadStorageMetrics, 60 * 60 * 1000);
 
-		// Connect Discord RPC if enabled
 		if (discordRpc) {
 			discordSetActivity({
 				details: "Configurações do Launcher",
-				state: "v1.2.0-ALPHA · Linux",
+				state: "v1.3.0-BETA · Linux",
 				largeText: "Luxmc Launcher (Linux)",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
@@ -247,7 +228,7 @@
 		if (discordRpc) {
 			const ok = await discordSetActivity({
 				details: "Configurações do Launcher",
-				state: "v1.2.0-ALPHA · Linux",
+				state: "v1.3.0-BETA · Linux",
 				largeText: "Luxmc Launcher (Linux)",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
@@ -264,29 +245,6 @@
 		}
 	}
 
-	function autoOptimizeRam() {
-		minRam = 2048;
-		maxRam = 6144;
-		selectedGc = "aikar";
-		jvmArgs = "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC";
-		disableExplicitGc = true;
-		parallelRefProc = true;
-		tieredCompilation = true;
-		toast("RAM e Flags do GC otimizadas com sucesso para Linux!", "success");
-	}
-
-	async function browseJava() {
-		try {
-			const selected = await open({ directory: false, multiple: false });
-			if (selected && typeof selected === "string") {
-				javaPath = selected;
-				toast(`Java selecionado: ${selected}`, "success");
-			}
-		} catch (e) {
-			toast(String(e), "error");
-		}
-	}
-
 	async function cleanStorageCache() {
 		isCleaning = true;
 		setTimeout(async () => {
@@ -296,24 +254,14 @@
 		}, 600);
 	}
 
-	function discardAppearance() {
-		draftTheme = themeStore.theme;
-		draftAccent = themeStore.accent;
-		toast("Alterações de aparência descartadas.", "info");
-	}
-
 	function saveSettings() {
-		if (hasAppearanceChanges) {
-			themeStore.setTheme(draftTheme);
-			themeStore.setAccent(draftAccent);
-		}
 		settings.patch({
-			javaPath,
-			minRamMb: Number(minRam),
-			maxRamMb: Number(maxRam),
-			jvmArgs,
+			javaPath: settings.value.javaPath,
+			minRamMb: settings.value.minRamMb,
+			maxRamMb: settings.value.maxRamMb,
+			jvmArgs: settings.value.jvmArgs,
 			discordRpc,
-			performanceMode,
+			performanceMode: settings.value.performanceMode,
 			gamemode: enableGameMode,
 			mangohud: enableMangoHud,
 			waylandNative: nativeWayland,
@@ -329,7 +277,7 @@
 </script>
 
 <div class="flex gap-6 h-full w-full select-none" in:fade={{ duration: 250 }}>
-	
+
 	<!-- Left Categories Sidebar -->
 	<div class="w-[260px] shrink-0 bg-[#141518] border border-white/5 rounded-3xl p-4 flex flex-col justify-between shadow-xl">
 		<div class="space-y-4">
@@ -353,7 +301,7 @@
 					{ key: 'sobre', label: 'Sobre', icon: Info, color: 'text-sky-400' },
 				] as item}
 					{@const active = activeSection === item.key}
-					<button 
+					<button
 						class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer active:scale-95 {active ? 'border border-[#c5a880]/35 bg-[#25211b]/60 text-[#d8bc98] shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5 border border-transparent'}"
 						onclick={() => activeSection = item.key as Section}
 					>
@@ -372,9 +320,9 @@
 
 	<!-- Right Main Settings Panel -->
 	<div class="flex-1 bg-[#141518] border border-white/5 rounded-3xl p-7 flex flex-col justify-between shadow-xl overflow-y-auto custom-scrollbar relative">
-		
+
 		<div class="space-y-6">
-			
+
 			<!-- SECTION 1: GERAL (Matching Reference Image 4) -->
 			{#if activeSection === 'geral'}
 				<div class="flex items-center justify-between border-b border-white/5 pb-4">
@@ -387,8 +335,8 @@
 							<p class="text-xs text-white/40 mt-0.5">Configurações gerais e preferências da aplicação</p>
 						</div>
 					</div>
-					<a 
-						href="/" 
+					<a
+						href="/"
 						class="w-7 h-7 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-xs"
 						title="Fechar configurações"
 					>
@@ -410,7 +358,7 @@
 									<div class="text-[10px] text-white/40">Escolha o seu idioma preferido</div>
 								</div>
 							</div>
-							<select 
+							<select
 								bind:value={selectedLanguage}
 								onchange={() => setLocale(selectedLanguage === 'pt-BR' ? 'pt-BR' : 'en')}
 								class="bg-[#1c1d22] border border-white/10 rounded-xl px-4 py-2 text-xs text-white font-bold focus:outline-none focus:border-[#c5a880] cursor-pointer"
@@ -440,9 +388,9 @@
 										<div class="text-xs font-bold text-white">{opt.title}</div>
 										<div class="text-[10px] text-white/40 mt-0.5">{opt.desc}</div>
 									</div>
-									
+
 									<!-- Reference Image 4 Switch (ON: #c5a880 track + #181c24 thumb; OFF: #383a42 track + white thumb) -->
-									<button 
+									<button
 										type="button"
 										role="switch"
 										aria-label={opt.title}
@@ -487,14 +435,14 @@
 								Application (client) ID do Azure:
 							</label>
 							<div class="flex gap-2">
-								<input 
+								<input
 									id="custom-client-id"
 									type="text"
 									class="flex-1 bg-[#141518] border border-white/10 focus:border-amber-500/80 rounded-2xl px-4 py-2.5 text-xs text-white font-mono placeholder:text-white/20 outline-none transition-all"
 									placeholder="ex: e1f8c8a0-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 									bind:value={customClientId}
 								/>
-								<button 
+								<button
 									type="button"
 									class="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs transition-all active:scale-95 cursor-pointer shadow-md"
 									onclick={() => {
@@ -538,9 +486,9 @@
 						<div class="text-xs font-bold text-white uppercase tracking-wider">Conta Conectada Atualmente</div>
 						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
 							<div class="flex items-center gap-3">
-								<img 
+								<img
 									src={account.value?.id ? `https://crafatar.com/avatars/${account.value.id}?size=64&overlay` : "/grass_block.png"}
-									alt="Conta" 
+									alt="Conta"
 									class="w-10 h-10 rounded-xl border border-white/10 object-cover bg-black/40"
 									onerror={(e) => { (e.target as HTMLImageElement).src = '/grass_block.png'; }}
 								/>
@@ -559,7 +507,7 @@
 								</div>
 							</div>
 							{#if account.value}
-								<button 
+								<button
 									type="button"
 									class="px-4 py-2 rounded-xl text-xs font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-all cursor-pointer"
 									onclick={() => { account.clear(); toast("Conta desconectada.", "info"); }}
@@ -580,98 +528,7 @@
 					<p class="text-xs text-white/50 mt-0.5">Cores, efeitos holográficos e animações fluidas</p>
 				</div>
 
-				<div class="space-y-4">
-					{#if hasAppearanceChanges}
-						<div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 flex items-center justify-between shadow-sm animate-fade-in">
-							<div class="text-xs text-amber-300 font-bold flex items-center gap-2">
-								<Sparkles class="w-4 h-4 text-amber-400" />
-								<span>Você tem alterações de aparência não salvas.</span>
-							</div>
-							<div class="flex items-center gap-2">
-								<button 
-									type="button" 
-									class="text-xs px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold transition-all cursor-pointer"
-									onclick={discardAppearance}
-								>
-									Descartar
-								</button>
-								<button 
-									type="button" 
-									class="text-xs px-4 py-1.5 rounded-full font-black text-black transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 flex items-center gap-1.5"
-									style="background-color: var(--accent-color, #e2b86b);"
-									onclick={saveSettings}
-								>
-									<Check class="w-3.5 h-3.5 stroke-[3]" /> Guardar Alterações
-								</button>
-							</div>
-						</div>
-					{/if}
-
-					<div>
-						<span class="text-xs font-bold text-white block mb-2">Tema Visual do Launcher (Preto ou Branco)</span>
-						<div class="grid grid-cols-2 gap-3">
-							{#each Object.values(THEMES) as th}
-								<button 
-									type="button"
-									class="p-4 rounded-full border flex items-center justify-center gap-3 transition-all active:scale-95 cursor-pointer {draftTheme === th.id ? 'border-brand-500 bg-[#222328] shadow-md ring-2 ring-brand-500/30' : 'border-white/5 bg-[#1c1d22] hover:border-white/20'}"
-									onclick={() => {
-										draftTheme = th.id;
-										toast(`Tema selecionado: ${th.name}. Clique em "Guardar alterações" para aplicar.`, "info");
-									}}
-								>
-									<div class="w-5 h-5 rounded-full border border-white/30 shrink-0 shadow-inner" style="background-color: {th.previewColor};"></div>
-									<span class="text-xs font-bold text-white truncate">{th.name}</span>
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<div>
-						<span class="text-xs font-bold text-white block mb-2">Cor de Destaque (Accent Neon)</span>
-						<div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-							{#each Object.values(ACCENTS) as ac}
-								<button 
-									type="button"
-									class="p-3 rounded-2xl border flex flex-col items-center gap-1.5 transition-all cursor-pointer {draftAccent === ac.id ? 'border-brand-500 bg-[#222328] shadow-md scale-105 ring-2 ring-brand-500/40' : 'border-white/5 bg-[#1c1d22] hover:border-white/20'}"
-									onclick={() => {
-										draftAccent = ac.id;
-										toast(`Cor de destaque: ${ac.name}. Clique em "Guardar alterações" para aplicar.`, "info");
-									}}
-								>
-									<div class="w-5 h-5 rounded-full shadow-md" style="background-color: {ac.hex};"></div>
-									<span class="text-[10px] font-bold text-white/90 truncate">{ac.name}</span>
-								</button>
-							{/each}
-						</div>
-					</div>
-
-					<div class="space-y-2">
-						{#each [
-							{ title: 'Aura Mística Neon & Brilho Dourado', desc: 'Glow dinâmico e sombras holográficas nas bordas dos cartões', val: mysticAuraGlow, toggle: () => mysticAuraGlow = !mysticAuraGlow },
-							{ title: 'Desfoque de Vidro Holográfico (Backdrop-blur)', desc: 'Efeito translúcido com aceleração gráfica na interface', val: blurEffects, toggle: () => blurEffects = !blurEffects },
-							{ title: 'Animações Fluidas de 144Hz / Alta Taxa de Quadros', desc: 'Transições magnéticas aceleradas com curvas cúbicas suaves', val: smoothAnimations, toggle: () => smoothAnimations = !smoothAnimations },
-							{ title: 'Partículas Quânticas de Fundo', desc: 'Partículas discretas flutuando no plano de fundo do launcher', val: quantumParticles, toggle: () => quantumParticles = !quantumParticles },
-							{ title: 'Modo Ultra Desempenho (Desativa Efeitos)', desc: 'Remove sombras e desfoques para economizar bateria e GPU integrada', val: performanceMode, toggle: () => performanceMode = !performanceMode }
-						] as opt}
-							<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
-								<div>
-									<div class="text-xs font-bold text-white">{opt.title}</div>
-									<div class="text-[10px] text-white/40">{opt.desc}</div>
-								</div>
-								<button 
-									type="button"
-									role="switch"
-									aria-label={opt.title}
-									aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
-									onclick={opt.toggle}
-								>
-									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
-								</button>
-							</div>
-						{/each}
-					</div>
-				</div>
+				<ThemeSection onSave={saveSettings} />
 
 			<!-- SECTION 3: AMIGOS & DISCORD RPC -->
 			{:else if activeSection === 'amigos'}
@@ -693,7 +550,7 @@
 								<div class="text-[10px] text-white/60">Transmite seu status ao vivo no Discord via socket IPC /run/user/1000</div>
 							</div>
 						</div>
-						<button 
+						<button
 							type="button"
 							aria-label="Ativar ou desativar Discord Rich Presence"
 							class="w-11 h-6 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {discordRpc ? 'bg-brand-500 shadow-[0_0_12px_rgba(226,184,107,0.4)]' : 'bg-[#2d2e34]'}"
@@ -720,7 +577,7 @@
 									<div class="text-xs font-bold text-white">{opt.title}</div>
 									<div class="text-[10px] text-white/40">{opt.desc}</div>
 								</div>
-								<button 
+								<button
 									type="button"
 									role="switch"
 									aria-label={opt.title}
@@ -735,14 +592,14 @@
 					</div>
 
 					<!-- Test Discord Connection Button -->
-					<button 
-						type="button" 
+					<button
+						type="button"
 						class="w-full bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/10 text-xs font-bold flex items-center justify-between transition-all cursor-pointer shadow-sm group"
 						onclick={async () => {
 							try {
 								await discordSetActivity({
 									details: "Testando Rich Presence",
-									state: "v1.2.0-ALPHA · Linux",
+									state: "v1.3.0-BETA · Linux",
 									largeText: "Luxmc Launcher (Linux)",
 									largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 									smallImage: "grass",
@@ -771,87 +628,7 @@
 					<p class="text-xs text-white/50 mt-0.5">Executável Java, cálculo de heap e flags avançadas de GC</p>
 				</div>
 
-				<div class="space-y-4">
-					<!-- Auto-Optimize Box -->
-					<div class="bg-gradient-to-r from-[#1c1d22] to-[#25262c] border border-brand-500/30 rounded-2xl p-4 flex items-center justify-between shadow-md">
-						<div>
-							<div class="text-xs font-black text-white flex items-center gap-2">
-								<Sparkles class="w-4 h-4 text-brand-500" /> Otimizar RAM e GC Automaticamente
-							</div>
-							<div class="text-[10px] text-white/60 mt-0.5">Detecta sua memória instalada e aplica as Aikar's Flags ideais para eliminar engasgos de FPS</div>
-						</div>
-						<button 
-							class="bg-brand-500 hover:bg-[#ebd095] active:scale-95 text-black font-black text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shrink-0 flex items-center gap-1.5"
-							onclick={autoOptimizeRam}
-						>
-							<Sparkles class="w-3.5 h-3.5" /> Otimizar Agora
-						</button>
-					</div>
-
-					<div>
-						<span class="text-xs font-bold text-white block mb-1.5">Executável Java do Sistema</span>
-						<div class="flex gap-2">
-							<input type="text" bind:value={javaPath} class="flex-1 bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white focus:border-brand-500 focus:outline-none font-mono" />
-							<button class="bg-[#24252a] hover:bg-white/10 active:scale-95 text-white text-xs font-bold px-4 py-2 rounded-2xl border border-white/10 flex items-center gap-1.5 cursor-pointer" onclick={browseJava}>
-								<FolderOpen class="w-3.5 h-3.5" /> Procurar
-							</button>
-						</div>
-					</div>
-
-					<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-4 space-y-3">
-						<div class="flex items-center justify-between">
-							<span class="text-xs font-bold text-white">Alocação de Memória RAM Máxima (Xmx)</span>
-							<span class="text-xs font-mono font-bold text-brand-500">{maxRam} MB ({Math.round(maxRam / 1024)} GB)</span>
-						</div>
-
-						<input 
-							type="range" 
-							min="1024" 
-							max="16384" 
-							step="512" 
-							bind:value={maxRam}
-							class="w-full accent-brand-500 cursor-pointer"
-						/>
-
-						<div class="flex justify-between text-[10px] text-white/30 font-mono font-bold">
-							<span>1 GB</span>
-							<span>4 GB</span>
-							<span>8 GB</span>
-							<span>12 GB</span>
-							<span>16 GB</span>
-						</div>
-					</div>
-
-					<div>
-						<span class="text-xs font-bold text-white block mb-1.5">Argumentos JVM Customizados (Flags)</span>
-						<input type="text" bind:value={jvmArgs} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono focus:border-brand-500 focus:outline-none" />
-					</div>
-
-					<div class="space-y-2">
-						{#each [
-							{ title: 'Desativar Chamadas Explícitas de GC (-XX:+DisableExplicitGC)', desc: 'Impede que mods forcem paradas de coleta e causem travamentos no jogo', val: disableExplicitGc, toggle: () => disableExplicitGc = !disableExplicitGc },
-							{ title: 'Processamento Paralelo de Referências (-XX:+ParallelRefProcEnabled)', desc: 'Distribui a limpeza de referências fracas por todos os núcleos da CPU', val: parallelRefProc, toggle: () => parallelRefProc = !parallelRefProc },
-							{ title: 'Compilação JIT Tiered (-XX:+TieredCompilation)', desc: 'Compilação nativa em múltiplos níveis para carregamento rápido', val: tieredCompilation, toggle: () => tieredCompilation = !tieredCompilation }
-						] as opt}
-							<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
-								<div>
-									<div class="text-xs font-bold text-white">{opt.title}</div>
-									<div class="text-[10px] text-white/40">{opt.desc}</div>
-								</div>
-								<button 
-									type="button"
-									role="switch"
-									aria-label={opt.title}
-									aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
-									onclick={opt.toggle}
-								>
-									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
-								</button>
-							</div>
-						{/each}
-					</div>
-				</div>
+				<JvmSection onSave={saveSettings} />
 
 			<!-- SECTION 5: LINUX & GAMEMODE -->
 			{:else if activeSection === 'linux'}
@@ -883,7 +660,7 @@
 								<div class="text-xs font-bold text-white">{opt.title}</div>
 								<div class="text-[10px] text-white/40">{opt.desc}</div>
 							</div>
-							<button 
+							<button
 								type="button"
 								role="switch"
 								aria-label={opt.title}
@@ -920,7 +697,7 @@
 								<div class="text-[10px] text-white/50 mt-0.5">Executa o pipeline gráfico do Minecraft sobre Vulkan puro, reduzindo stutters e aumentando a fluidez</div>
 							</div>
 						</div>
-						<button 
+						<button
 							type="button"
 							role="switch"
 							aria-label="Alternar Vulkan"
@@ -958,7 +735,7 @@
 									<div class="text-xs font-bold text-white">{opt.title}</div>
 									<div class="text-[10px] text-white/40">{opt.desc}</div>
 								</div>
-								<button 
+								<button
 									type="button"
 									role="switch"
 									aria-label={opt.title}
@@ -1004,7 +781,7 @@
 					</div>
 
 					<div class="grid grid-cols-2 gap-3">
-						<button 
+						<button
 							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow"
 							onclick={cleanStorageCache}
 							disabled={isCleaning}
@@ -1012,7 +789,7 @@
 							<RefreshCw class="w-4 h-4 {isCleaning ? 'animate-spin' : ''}" />
 							{isCleaning ? 'Limpando...' : 'Limpar Cache de Downloads'}
 						</button>
-						<button 
+						<button
 							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow"
 							onclick={() => toast("Backup compactado de todos os mundos salvo!", "success")}
 						>
@@ -1031,7 +808,7 @@
 									<div class="text-xs font-bold text-white">{opt.title}</div>
 									<div class="text-[10px] text-white/40">{opt.desc}</div>
 								</div>
-								<button 
+								<button
 									type="button"
 									role="switch"
 									aria-label={opt.title}
@@ -1069,7 +846,7 @@
 								<div class="text-xs font-bold text-white">{opt.title}</div>
 								<div class="text-[10px] text-white/40">{opt.desc}</div>
 							</div>
-							<button 
+							<button
 								type="button"
 								role="switch"
 								aria-label={opt.title}
@@ -1105,7 +882,7 @@
 								<div class="text-xs font-bold text-white">{opt.title}</div>
 								<div class="text-[10px] text-white/40">{opt.desc}</div>
 							</div>
-							<button 
+							<button
 								type="button"
 								role="switch"
 								aria-label={opt.title}
@@ -1135,13 +912,13 @@
 
 						<!-- Clean unconstrained 3D Logo Display in rounded-full container -->
 						<div class="h-24 w-24 rounded-full bg-black/40 border border-white/10 flex items-center justify-center p-3 shadow-xl shrink-0 relative group">
-							<img 
-								src="/logo.png" 
-								alt="Luxmc Logo Oficial 3D" 
-								class="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(226,184,107,0.4)] group-hover:scale-105 transition-transform duration-300" 
+							<img
+								src="/logo.png"
+								alt="Luxmc Logo Oficial 3D"
+								class="w-full h-full object-contain drop-shadow-[0_0_15px_rgba(226,184,107,0.4)] group-hover:scale-105 transition-transform duration-300"
 							/>
 						</div>
-						
+
 						<div class="relative z-10">
 							<div class="flex items-center gap-2.5">
 								<h4 class="text-xl font-black text-white tracking-tight">Luxmc Launcher</h4>
@@ -1186,7 +963,7 @@
 					</div>
 
 					<div class="grid grid-cols-2 gap-3">
-						<button 
+						<button
 							type="button"
 							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-5 py-3.5 rounded-full border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
 							onclick={() => toast("Você está usando a versão mais recente do Luxmc!", "success")}
@@ -1194,8 +971,8 @@
 							<span class="flex items-center gap-2"><RefreshCw class="w-4 h-4 text-brand-500" /> Checar Atualizações</span>
 							<span class="text-[10px] text-white/40">Verificar</span>
 						</button>
-						<a 
-							href="https://github.com" 
+						<a
+							href="https://github.com"
 							target="_blank"
 							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-5 py-3.5 rounded-full border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
 						>
@@ -1205,7 +982,7 @@
 					</div>
 
 					<!-- Cutscene Replay Card -->
-					<button 
+					<button
 						type="button"
 						class="w-full bg-gradient-to-r from-brand-500/15 via-[#e2b86b]/5 to-transparent hover:from-brand-500/25 border border-brand-500/30 p-4 rounded-3xl flex items-center justify-between text-xs font-bold text-white transition-all shadow-lg cursor-pointer group active:scale-[0.99]"
 						onclick={() => appState.playCutscene()}
@@ -1264,7 +1041,7 @@
 		<!-- Bottom Save Bar (No Collision) -->
 		<div class="pt-6 border-t border-white/5 flex items-center justify-between mt-6">
 			<span class="text-[11px] text-white/40">Todas as configurações são aplicadas imediatamente nas próximas sessões.</span>
-			<button 
+			<button
 				type="button"
 				class="bg-[#c5a880] hover:bg-[#d6b991] active:scale-95 text-[#14161a] font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
 				onclick={saveSettings}

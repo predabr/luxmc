@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fade } from "svelte/transition";
+	import { fade, slide } from "svelte/transition";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { 
@@ -40,6 +40,9 @@
 		versionsDownload, 
 		discordSetActivity 
 	} from "$lib/api";
+	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
+
+	const { t } = useTranslation();
 
 	let offlineName = $state("");
 	let offlinePassword = $state("");
@@ -69,7 +72,7 @@
 			const saved = localStorage.getItem("luxmc_current_account");
 			if (saved) {
 				try {
-					account.account = JSON.parse(saved);
+					account.value = JSON.parse(saved);
 				} catch {}
 			}
 		}
@@ -85,11 +88,11 @@
 		const name = offlineName.trim();
 		const pass = offlinePassword.trim();
 		if (!name) {
-			toast("Por favor, digite seu GamerTag ou nickname.", "error");
+			toast(t("home.pleaseEnterGamertag"), "error");
 			return;
 		}
 		if (!pass) {
-			toast("Por favor, digite a senha da conta.", "error");
+			toast(t("home.pleaseEnterPassword"), "error");
 			return;
 		}
 
@@ -102,31 +105,31 @@
 			if (authTab === "register") {
 				const confirm = offlineConfirmPassword.trim();
 				if (pass.length < 3) {
-					toast("A senha deve ter pelo menos 3 caracteres.", "error");
+					toast(t("home.passwordMinLength"), "error");
 					isLoggingIn = false;
 					return;
 				}
 				if (pass !== confirm) {
-					toast("As senhas não coincidem!", "error");
+					toast(t("home.passwordsMismatch"), "error");
 					isLoggingIn = false;
 					return;
 				}
 				if (accountsMap[key]) {
-					toast(`O GamerTag "${name}" já existe! Mude para a aba "Entrar".`, "error");
+					toast(t("home.gamertagExists", { name }), "error");
 					isLoggingIn = false;
 					return;
 				}
 				accountsMap[key] = pass;
 				localStorage.setItem("luxmc_offline_passwords", JSON.stringify(accountsMap));
-				toast(`Conta "${name}" criada com sucesso!`, "success");
+				toast(t("home.accountCreated", { name }), "success");
 			} else {
 				if (!accountsMap[key]) {
-					toast(`Conta "${name}" não cadastrada. Clique em "Criar Conta" para se registrar.`, "error");
+					toast(t("home.accountNotRegistered", { name }), "error");
 					isLoggingIn = false;
 					return;
 				}
 				if (accountsMap[key] !== pass) {
-					toast(`Senha incorreta para "${name}"! Tente novamente.`, "error");
+					toast(t("home.incorrectPassword", { name }), "error");
 					isLoggingIn = false;
 					return;
 				}
@@ -142,11 +145,11 @@
 				expiresAt: 0
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
-			toast(`Bem-vindo ao Luxmc, ${name}!`, "success");
+			toast(t("home.welcomeToLuxmc", { name }), "success");
 
-			account.account = newAcc;
+			account.value = newAcc;
 		} catch (e) {
-			toast("Erro ao processar conta: " + String(e), "error");
+			toast(t("home.accountError", { error: String(e) }), "error");
 		} finally {
 			isLoggingIn = false;
 		}
@@ -155,7 +158,7 @@
 	async function handleMicrosoftLogin() {
 		isLoggingInMicrosoft = true;
 		try {
-			toast("Iniciando autenticação Microsoft OAuth... Conclua o login na janela do navegador.", "info");
+			toast(t("home.msAuthStarted"), "info");
 			const acc = await authLogin();
 			const newAcc = {
 				id: acc.id,
@@ -165,15 +168,15 @@
 				expiresAt: acc.expiresAt
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
-			toast(`Conectado com sucesso como ${acc.username}!`, "success");
+			toast(t("home.connectedAs", { username: acc.username }), "success");
 
-			account.account = newAcc;
+			account.value = newAcc;
 		} catch (e) {
 			const errStr = String(e);
 			if (errStr.includes("00000000-0000-0000-0000-000000000000") || errStr.includes("invalid_client") || errStr.includes("AADSTS700016")) {
-				toast("Aguardando aprovação da Microsoft! Você pode configurar seu Client ID em Configurações > Contas ou entrar no Modo Offline.", "info");
+				toast(t("home.msApprovalWaiting"), "info");
 			} else {
-				toast("Tentativa de login: " + errStr, "error");
+				toast(t("home.loginAttempt", { error: errStr }), "error");
 			}
 		} finally {
 			isLoggingInMicrosoft = false;
@@ -201,10 +204,10 @@
 				expiresAt: acc.expiresAt
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
-			toast(`Conectado em modo de teste como ${acc.username}!`, "success");
-			account.account = newAcc;
+			toast(t("home.connectedAsDev", { username: acc.username }), "success");
+			account.value = newAcc;
 		} catch (e) {
-			toast("Erro no login de teste: " + String(e), "error");
+			toast(t("home.devLoginErrorToast", { error: String(e) }), "error");
 		} finally {
 			isLoggingIn = false;
 		}
@@ -215,19 +218,19 @@
 
 		const targetProfile = activeInstance;
 		if (!targetProfile) {
-			toast("Nenhuma instância encontrada. Crie sua primeira instância para começar a jogar!", "info");
+			toast(t("home.noInstanceFound"), "info");
 			goto("/instances?new=true");
 			return;
 		}
 
 		isLaunching = true;
-		launchStatusText = "Iniciando...";
+		launchStatusText = t("home.starting");
 
 		try {
 			let userUuid = account.value?.uuid;
 			if (!userUuid) {
 				const devAcc = await authDevLogin();
-				account.account = {
+				account.value = {
 					id: devAcc.id,
 					username: devAcc.username,
 					uuid: devAcc.uuid,
@@ -238,15 +241,15 @@
 			}
 
 			const verId = targetProfile.mcVersion || "1.20.4";
-			launchStatusText = "Verificando arquivos...";
+			launchStatusText = t("home.checkingFiles");
 
 			const installed = await versionsCheckInstalled(verId).catch(() => false);
 			if (!installed) {
-				launchStatusText = `Baixando Minecraft ${verId}...`;
+				launchStatusText = t("home.downloadingMc", { version: verId });
 				await versionsDownload(verId);
 			}
 
-			launchStatusText = "Iniciando Minecraft...";
+			launchStatusText = t("home.startingMc");
 			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") !== "false" : true;
 			const result = await launchGame({
 				versionId: verId,
@@ -267,11 +270,11 @@
 				startTime: Math.floor(Date.now() / 1000)
 			}).catch(() => {});
 
-			toast(`🎮 Minecraft ${verId} iniciado com sucesso! (PID: ${result.pid})`, "success");
+			toast(`🎮 ${t("home.mcLaunched", { version: verId, pid: String(result.pid) })}`, "success");
 			profiles.setLastPlayed(targetProfile.id);
 		} catch (e) {
 			console.error("Home launch error:", e);
-			toast("Falha ao iniciar o jogo: " + String(e), "error");
+			toast(t("home.launchFailed", { error: String(e) }), "error");
 		} finally {
 			isLaunching = false;
 			launchStatusText = "";
@@ -367,7 +370,7 @@
 
 {#if !account.value}
 	<div class="flex h-full w-full items-center justify-center px-4 transition-all duration-500 {isEntering ? 'opacity-0 scale-95 blur-md pointer-events-none' : 'opacity-100 scale-100'}" in:fade={{ duration: 300 }}>
-		<div class="w-full max-w-md rounded-3xl bg-[#141518] border border-white/10 p-8 shadow-2xl space-y-6 flex flex-col items-center select-none relative overflow-hidden">
+		<div class="w-full max-w-md rounded-3xl bg-[#141518] border border-white/10 p-8 shadow-2xl flex flex-col items-center select-none relative overflow-hidden">
 			<div class="absolute -top-12 -right-12 w-48 h-48 bg-[#caa97c]/10 rounded-full blur-3xl pointer-events-none"></div>
 			<div class="absolute -bottom-12 -left-12 w-48 h-48 bg-[#6c5ce7]/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -376,10 +379,10 @@
 					<img src="/logo.png" alt="Luxmc 3D" class="w-full h-full object-contain drop-shadow-[0_0_24px_rgba(226,184,107,0.5)] group-hover:scale-105 transition-transform" />
 				</div>
 				<h1 class="text-2xl font-black text-white tracking-tight mt-4">Luxmc Launcher</h1>
-				<p class="text-xs text-white/50 mt-1">O Launcher Linux de Baixa Latência e Alto FPS</p>
+				<p class="text-xs text-white/50 mt-1">{t("home.subTagline")}</p>
 			</div>
 
-			<div class="w-full space-y-4">
+			<div class="w-full space-y-4 mt-2">
 				{#if isLoggingInMicrosoft}
 					<div class="w-full bg-[#18191c] border-2 border-[#6c5ce7]/50 rounded-3xl p-5 shadow-2xl relative overflow-hidden space-y-4 animate-fade-in" in:fade={{ duration: 200 }}>
 						<div class="absolute -right-8 -top-8 w-32 h-32 bg-[#6c5ce7]/20 rounded-full blur-2xl pointer-events-none"></div>
@@ -390,12 +393,12 @@
 							</div>
 							<div>
 								<div class="flex items-center gap-2">
-									<h3 class="text-xs font-black text-white">Autenticação Microsoft</h3>
+									<h3 class="text-xs font-black text-white">{t("home.msAuth")}</h3>
 									<span class="inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> Aguardando
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> {t("home.msWaiting")}
 									</span>
 								</div>
-								<p class="text-[11px] text-white/50 mt-0.5">Conclua o login na janela do navegador</p>
+								<p class="text-[11px] text-white/50 mt-0.5">{t("home.msCompleteInBrowser")}</p>
 							</div>
 						</div>
 
@@ -404,31 +407,31 @@
 								<div class="h-full bg-gradient-to-r from-[#6c5ce7] to-[#a29bfe] w-2/3 rounded-full animate-pulse"></div>
 							</div>
 							<p class="text-[11px] text-white/60 leading-relaxed">
-								Acesse sua conta Microsoft com segurança na aba aberta do navegador. Assim que autorizado, seu perfil será sincronizado aqui instantaneamente.
+								{t("home.msAccessDesc")}
 							</p>
 						</div>
 
 						<div class="flex items-center justify-between pt-2 border-t border-white/5">
 							<span class="text-[10px] text-white/40 flex items-center gap-1.5">
 								<ExternalLink class="w-3 h-3 text-[#a29bfe]" />
-								Janela OAuth aberta
+								{t("home.oauthWindowOpen")}
 							</span>
 							<button 
 								type="button" 
-								class="text-xs font-bold text-white/70 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+								class="text-xs font-bold text-white/70 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200 cursor-pointer"
 								onclick={() => { isLoggingInMicrosoft = false; }}
 							>
-								Cancelar
+								{t("home.cancel")}
 							</button>
 						</div>
 					</div>
 				{:else}
-					<div class="bg-gradient-to-b from-[#1c1d24] to-[#16171d] border-2 border-[#6c5ce7]/50 hover:border-[#6c5ce7] rounded-3xl p-4 shadow-[0_0_25px_rgba(108,92,231,0.2)] hover:shadow-[0_0_35px_rgba(108,92,231,0.35)] transition-all relative group overflow-hidden">
+					<div class="bg-gradient-to-b from-[#1c1d24] to-[#16171d] border-2 border-[#6c5ce7]/50 hover:border-[#6c5ce7] rounded-3xl p-4 shadow-[0_0_25px_rgba(108,92,231,0.2)] hover:shadow-[0_0_35px_rgba(108,92,231,0.35)] transition-all duration-300 relative group overflow-hidden" in:fade={{ duration: 300 }}>
 						<div class="absolute -right-8 -bottom-8 w-28 h-28 bg-[#6c5ce7]/15 rounded-full blur-2xl pointer-events-none group-hover:bg-[#6c5ce7]/25 transition-all"></div>
 
 						<button 
 							type="button" 
-							class="w-full h-16 rounded-2xl bg-gradient-to-r from-[#22242e] to-[#1c1e27] hover:from-[#2a2c39] hover:to-[#222530] border border-[#6c5ce7]/30 hover:border-[#6c5ce7]/60 text-white font-bold text-sm flex items-center justify-between px-4 transition-all active:scale-[0.98] cursor-pointer shadow-xl disabled:opacity-60"
+							class="w-full h-16 rounded-2xl bg-gradient-to-r from-[#22242e] to-[#1c1e27] hover:from-[#2a2c39] hover:to-[#222530] border border-[#6c5ce7]/30 hover:border-[#6c5ce7]/60 text-white font-bold text-sm flex items-center justify-between px-4 transition-all duration-300 active:scale-[0.98] cursor-pointer shadow-xl disabled:opacity-60"
 							onclick={handleMicrosoftLogin}
 							disabled={isLoggingIn || isLoggingInMicrosoft}
 						>
@@ -443,71 +446,71 @@
 								</div>
 								<div class="text-left">
 									<div class="flex items-center gap-2">
-										<span class="font-black text-white text-sm leading-tight">Entrar com Microsoft</span>
-										<span class="bg-[#6c5ce7]/30 text-[#a29bfe] text-[9px] font-black px-2 py-0.5 rounded-full border border-[#6c5ce7]/40 uppercase tracking-wider">Principal</span>
+										<span class="font-black text-white text-sm leading-tight">{t("home.signInWithMicrosoft")}</span>
+										<span class="bg-[#6c5ce7]/30 text-[#a29bfe] text-[9px] font-black px-2 py-0.5 rounded-full border border-[#6c5ce7]/40 uppercase tracking-wider">{t("home.primary")}</span>
 									</div>
-									<p class="text-[11px] text-white/50 font-medium mt-0.5">Conta Oficial Minecraft (Xbox Live & Mojang)</p>
+									<p class="text-[11px] text-white/50 font-medium mt-0.5">{t("home.msOfficialAccount")}</p>
 								</div>
 							</div>
 
-							<div class="h-9 px-4 rounded-xl bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-[#6c5ce7]/30 group-hover:scale-105 transition-all shrink-0">
-								<span>Conectar</span>
+							<div class="h-9 px-4 rounded-xl bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-[#6c5ce7]/30 group-hover:scale-105 transition-all duration-200 shrink-0">
+								<span>{t("home.connect")}</span>
 								<ArrowRight class="w-3.5 h-3.5" />
 							</div>
 						</button>
 					</div>
 				{/if}
 
-				<div class="flex items-center gap-3 py-0.5">
-					<div class="flex-1 h-[1px] bg-white/10"></div>
-					<span class="text-[10px] font-bold text-white/30 uppercase tracking-wider">ou acesse com conta offline</span>
-					<div class="flex-1 h-[1px] bg-white/10"></div>
-				</div>
+			<div class="flex items-center gap-3 py-1">
+				<div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent"></div>
+				<span class="text-[10px] font-bold text-white/30 uppercase tracking-wider">{t("home.orOffline")}</span>
+				<div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent"></div>
+			</div>
 
-				<div class="bg-[#18191c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-lg">
+			<div class="bg-[#18191c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-lg">
 					<div class="flex bg-[#121316] p-1 rounded-full border border-white/5">
 						<button 
 							type="button" 
-							class="flex-1 py-2 rounded-full text-xs font-bold transition-all cursor-pointer {authTab === 'login' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20' : 'text-white/40 hover:text-white'}"
+							class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'login' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20 shadow-[0_0_12px_rgba(202,169,124,0.1)]' : 'text-white/40 hover:text-white/70 border border-transparent'}"
 							onclick={() => authTab = 'login'}
 						>
-							Entrar
+							{t("home.loginTab")}
 						</button>
 						<button 
 							type="button" 
-							class="flex-1 py-2 rounded-full text-xs font-bold transition-all cursor-pointer {authTab === 'register' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20' : 'text-white/40 hover:text-white'}"
+							class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'register' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20 shadow-[0_0_12px_rgba(202,169,124,0.1)]' : 'text-white/40 hover:text-white/70 border border-transparent'}"
 							onclick={() => authTab = 'register'}
 						>
-							Criar Conta
+							{t("home.createAccountTab")}
 						</button>
 					</div>
 
-					{#if savedAccounts.length > 0 && authTab === 'login'}
-						<div class="flex flex-wrap items-center gap-1.5 pt-0.5">
-							<span class="text-[10px] text-white/40 font-semibold">Salvas:</span>
-							{#each savedAccounts as accName}
-								<button 
-									type="button" 
-									class="text-[10px] font-bold px-3 py-1 rounded-full border transition-all cursor-pointer {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-[#caa97c] bg-[#caa97c]/20 text-[#caa97c]' : 'border-white/10 bg-white/5 text-white/60 hover:text-white'}"
-									onclick={() => { offlineName = accName; }}
-								>
-									{accName}
-								</button>
-							{/each}
-						</div>
-					{/if}
+				{#if savedAccounts.length > 0 && authTab === 'login'}
+					<div class="flex flex-wrap items-center gap-1.5 pt-0.5" transition:slide={{ duration: 200 }}>
+						<span class="text-[10px] text-white/40 font-semibold shrink-0">{t("home.savedAccounts")}</span>
+						{#each savedAccounts as accName (accName)}
+							<button 
+								type="button" 
+								class="text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all cursor-pointer hover:scale-105 active:scale-95 {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-[#caa97c] bg-[#caa97c]/20 text-[#caa97c] shadow-[0_0_8px_rgba(202,169,124,0.2)]' : 'border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white/25 hover:bg-white/10'}"
+								onclick={() => { offlineName = accName; }}
+							>
+								{accName}
+							</button>
+						{/each}
+					</div>
+				{/if}
 
 					<div class="flex items-center gap-2 text-xs font-bold text-white/80">
 						<Gamepad2 class="w-4 h-4 text-[#caa97c]" />
-						<span>{authTab === 'login' ? 'Acessar Conta Offline / Pirata' : 'Registrar Nova Conta Offline'}</span>
+						<span>{authTab === 'login' ? t("home.accessOfflineAccount") : t("home.registerNewAccount")}</span>
 					</div>
 
-					<div class="space-y-2.5">
+					<div class="space-y-3">
 						<input 
 							type="text" 
-							placeholder="GamerTag (ex: Steve, Pedro, Gamer)..." 
+							placeholder={t("home.gamertagPlaceholder")} 
 							bind:value={offlineName}
-							class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] transition-colors"
+							class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-3 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
 							maxlength="16"
 							onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 						/>
@@ -515,16 +518,16 @@
 						<div class="relative">
 							<input 
 								type={showPassword ? "text" : "password"} 
-								placeholder="Senha da conta..." 
+								placeholder={t("home.accountPasswordPlaceholder")} 
 								bind:value={offlinePassword}
-								class="w-full bg-[#1e1f24] border border-white/10 rounded-full pl-5 pr-12 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] transition-colors"
+								class="w-full bg-[#1e1f24] border border-white/10 rounded-full pl-5 pr-12 py-3 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
 								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 							/>
 							<button
 								type="button"
-								class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white p-1.5 transition-colors cursor-pointer"
+								class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-[#caa97c] p-1.5 transition-all duration-200 cursor-pointer"
 								onclick={() => (showPassword = !showPassword)}
-								title={showPassword ? "Ocultar Senha" : "Exibir Senha"}
+								title={showPassword ? t("home.hidePassword") : t("home.showPassword")}
 							>
 								{#if showPassword}
 									<EyeOff class="w-3.5 h-3.5" />
@@ -534,55 +537,57 @@
 							</button>
 						</div>
 
-						{#if authTab === 'register'}
+					{#if authTab === 'register'}
+						<div transition:slide={{ duration: 200 }}>
 							<input 
 								type={showPassword ? "text" : "password"} 
-								placeholder="Confirme a senha..." 
+								placeholder={t("home.confirmPasswordPlaceholder")} 
 								bind:value={offlineConfirmPassword}
-								class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] transition-colors"
+								class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-3 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
 								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 							/>
-						{/if}
+						</div>
+					{/if}
 					</div>
 
 					<button 
 						type="button" 
-						class="w-full h-11 rounded-xl hover:brightness-105 active:scale-[0.98] text-[#15171c] font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-60"
+						class="w-full h-12 rounded-xl hover:brightness-110 active:scale-[0.98] text-[#15171c] font-bold text-xs flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
 						style="background-color: #caa97c;"
 						onclick={handleOfflineAuth}
 						disabled={isLoggingIn || isLoggingInMicrosoft}
 					>
 						{#if isLoggingIn}
-							<Loader2 class="w-4 h-4 animate-spin" /> Processando...
+							<Loader2 class="w-4 h-4 animate-spin" /> {t("home.processing")}
 						{:else}
-							<Play class="w-4 h-4 fill-current" /> {authTab === 'login' ? 'Entrar e Jogar' : 'Criar Conta e Jogar'}
+							<Play class="w-4 h-4 fill-current" /> {authTab === 'login' ? t("home.loginAndPlay") : t("home.createAndPlay")}
 						{/if}
 					</button>
 				</div>
 
-				<div class="flex flex-col items-center gap-1.5 pt-1">
+				<div class="flex flex-col items-center gap-2 pt-2 mt-2">
 					<button 
 						type="button" 
-						class="group px-4 py-2 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-amber-500/40 text-white/60 hover:text-white transition-all flex items-center gap-2.5 cursor-pointer text-xs disabled:opacity-50"
+						class="group px-4 py-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-amber-500/40 text-white/60 hover:text-white transition-all duration-300 flex items-center gap-2.5 cursor-pointer text-xs disabled:opacity-50 hover:shadow-[0_0_16px_rgba(245,158,11,0.08)]"
 						onclick={handleDevLogin}
 						disabled={isLoggingIn || isLoggingInMicrosoft}
 					>
 						<span class="bg-amber-500/20 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-wider">
-							MODO DEV
+							{t("home.devMode")}
 						</span>
-						<span class="font-semibold text-[11px] text-white/70 group-hover:text-white">Acesso de Desenvolvedor (Teste Local)</span>
+						<span class="font-semibold text-[11px] text-white/70 group-hover:text-white transition-colors">{t("home.devAccess")}</span>
 						{#if isLoggingIn}
 							<Loader2 class="w-3.5 h-3.5 animate-spin text-amber-400" />
 						{/if}
 					</button>
 					<span class="text-[9px] text-white/30 text-center">
-						Ambiente de testes local — para desenvolvedores e depuração sem autenticação externa
+						{t("home.devDesc")}
 					</span>
 				</div>
 			</div>
 
 			<div class="text-[10px] text-white/30 text-center leading-relaxed">
-				Compatível com skins 3D volumétricas, servidores mundiais e servidores piratas.
+				{t("home.compatibleWith")}
 			</div>
 		</div>
 	</div>
@@ -659,17 +664,17 @@
 
 			{:else}
 
-				<div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#1c1d24] via-[#18191f] to-[#15161b] border border-white/10 p-6 shadow-xl" in:fade={{ duration: 250 }}>
-					<div class="absolute -right-12 -top-12 w-56 h-56 bg-[#caa97c]/15 rounded-full blur-3xl pointer-events-none"></div>
+			<div class="relative rounded-3xl bg-gradient-to-r from-[#1c1d24] via-[#18191f] to-[#15161b] border border-white/10 p-6 shadow-xl" in:fade={{ duration: 250 }}>
+				<div class="absolute -right-12 -top-12 w-56 h-56 bg-[#caa97c]/15 rounded-full blur-3xl pointer-events-none"></div>
 
 					<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative z-10">
 						<div class="space-y-1.5">
 							<div class="flex items-center gap-2">
 								<span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-								<span class="text-[11px] font-bold uppercase tracking-widest text-[#caa97c]">Pronto para Jogar</span>
+								<span class="text-[11px] font-bold uppercase tracking-widest text-[#caa97c]">{t("home.readyToPlay")}</span>
 							</div>
 							<h1 class="text-2xl lg:text-3xl font-black text-white tracking-tight">
-								Bora lá, {account.value?.username || 'Jogador'}
+								{t("home.helloUser", { name: account.value?.username || 'Jogador' })}
 							</h1>
 							<div class="flex flex-wrap items-center gap-2.5 text-xs text-white/60 pt-0.5">
 								{#if activeInstance}
@@ -691,7 +696,7 @@
 										{activeInstance.loader}
 									</span>
 								{:else}
-									<span class="text-white/40">Nenhuma instância criada ainda</span>
+									<span class="text-white/40">{t("home.noInstanceYet")}</span>
 								{/if}
 							</div>
 						</div>
@@ -705,20 +710,20 @@
 							>
 								{#if isLaunching}
 									<Loader2 class="w-5 h-5 animate-spin" />
-									<span>{launchStatusText || 'INICIANDO...'}</span>
+									<span>{launchStatusText || t("home.starting").toUpperCase()}</span>
 								{:else}
 									<Play class="w-5 h-5 fill-current" />
-									<span>JOGAR AGORA</span>
+									<span>{t("home.playNow")}</span>
 								{/if}
 							</button>
 
 							<a 
 								href="/instances" 
 								class="h-14 px-5 rounded-2xl bg-[#18191c] hover:bg-[#222329] border border-white/10 hover:border-white/25 text-white font-bold text-xs flex items-center gap-2.5 transition-all shadow-md group cursor-pointer shrink-0"
-								title="Navegar na Biblioteca de Instâncias"
+								title={t("home.library")}
 							>
 								<Boxes class="w-4 h-4 text-[#caa97c] group-hover:scale-110 transition-transform" />
-								<span class="hidden sm:inline">Biblioteca</span>
+								<span class="hidden sm:inline">{t("home.library")}</span>
 							</a>
 						</div>
 					</div>
@@ -726,8 +731,8 @@
 
 				<section>
 					<div class="flex items-center justify-between mb-3">
-						<h2 class="text-xs font-bold text-white uppercase tracking-wider">Explorar Central de Conteúdo</h2>
-						<a href="/mods" class="text-xs text-[#caa97c] hover:underline font-bold">Ver todos</a>
+						<h2 class="text-xs font-bold text-white uppercase tracking-wider">{t("home.exploreContent")}</h2>
+						<a href="/mods" class="text-xs text-[#caa97c] hover:underline font-bold">{t("home.viewAll")}</a>
 					</div>
 
 					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -764,8 +769,8 @@
 					
 					<section class="xl:col-span-6">
 						<div class="flex items-center justify-between mb-3">
-							<h2 class="text-xs font-bold text-white uppercase tracking-wider">Servidores Recomendados</h2>
-							<a href="/servers" class="text-xs text-[#caa97c] hover:underline font-bold">Ver lista completa</a>
+							<h2 class="text-xs font-bold text-white uppercase tracking-wider">{t("home.recommendedServers")}</h2>
+							<a href="/servers" class="text-xs text-[#caa97c] hover:underline font-bold">{t("home.viewFullList")}</a>
 						</div>
 
 						<div class="flex flex-col gap-2">
@@ -774,12 +779,12 @@
 									class="flex items-center justify-between bg-[#18191c] hover:bg-[#202126] border border-white/5 hover:border-white/20 p-3 rounded-2xl transition-all cursor-pointer group shadow-sm hover:-translate-y-0.5"
 									onclick={() => {
 										navigator.clipboard.writeText(srv.ip);
-										toast(`IP ${srv.ip} copiado para a área de transferência!`, "success");
+										toast(t("home.copiedIp", { ip: srv.ip }), "success");
 									}}
 									role="button"
 									tabindex="0"
-									onkeydown={(e) => { if (e.key === 'Enter') { navigator.clipboard.writeText(srv.ip); toast(`IP ${srv.ip} copiado!`, "success"); } }}
-									title="Clique para copiar o IP"
+									onkeydown={(e) => { if (e.key === 'Enter') { navigator.clipboard.writeText(srv.ip); toast(t("home.copiedIpShort", { ip: srv.ip }), "success"); } }}
+									title={t("home.clickToCopyIp")}
 								>
 									<div class="flex items-center gap-3">
 										<div class="h-10 w-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center shrink-0">
@@ -809,21 +814,21 @@
 					<section class="xl:col-span-6 flex flex-col">
 						<div class="flex items-center justify-between mb-3">
 							<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-								O seu tempo de jogo
+								{t("home.yourPlayTime")}
 							</h2>
-							<span class="text-[10px] text-white/40 font-mono">Registro em Tempo Real</span>
+							<span class="text-[10px] text-white/40 font-mono">{t("home.realTimeTracking")}</span>
 						</div>
 
 						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:border-white/15 transition-all">
 							
 							<div class="mb-4">
 								<div class="text-2xl font-black text-white">{gamingStats.formattedTodayTime || "0m"}</div>
-								<div class="text-[11px] text-white/40 mt-0.5">Últimos 7 dias</div>
+								<div class="text-[11px] text-white/40 mt-0.5">{t("home.last7Days")}</div>
 							</div>
 
 							<div class="my-4 py-6 border-y border-white/5 relative flex flex-col items-center justify-center">
 								<div class="flex items-center justify-center py-2 text-white/30 text-xs font-medium">
-									Ainda sem tempo de jogo
+									{t("home.noPlayTimeYet")}
 								</div>
 
 								<div class="w-full flex justify-between items-center text-[10px] text-white/40 font-medium mt-4 pt-2 border-t border-white/5 px-2">
@@ -840,15 +845,15 @@
 							<div class="grid grid-cols-3 gap-2 pt-2 text-center">
 								<div class="text-left">
 									<div class="text-xs font-black text-white">{gamingStats.formattedLastSession || "0m"}</div>
-									<div class="text-[10px] text-white/40 mt-0.5">Sessão média</div>
+									<div class="text-[10px] text-white/40 mt-0.5">{t("home.averageSession")}</div>
 								</div>
 								<div class="text-left">
 									<div class="text-xs font-black text-white">{gamingStats.formattedTotalTime || "0m"}</div>
-									<div class="text-[10px] text-white/40 mt-0.5">Sessão mais longa</div>
+									<div class="text-[10px] text-white/40 mt-0.5">{t("home.longestSession")}</div>
 								</div>
 								<div class="text-left">
 									<div class="text-xs font-black text-white">0 de 7</div>
-									<div class="text-[10px] text-white/40 mt-0.5">Dias jogados</div>
+									<div class="text-[10px] text-white/40 mt-0.5">{t("home.daysPlayed")}</div>
 								</div>
 							</div>
 
@@ -859,7 +864,7 @@
 				</div>
 
 				<section>
-					<h2 class="text-xs font-bold text-white uppercase tracking-wider mb-3">Notícias</h2>
+					<h2 class="text-xs font-bold text-white uppercase tracking-wider mb-3">{t("home.news")}</h2>
 					<div class="rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden shadow-md group cursor-pointer hover:border-white/20 transition-all">
 						<div class="h-44 w-full relative bg-gradient-to-r from-purple-950/60 via-[#18191c] to-amber-950/40">
 							<img src="https://images.unsplash.com/photo-1627856013091-fed6e4e30025?w=1000&auto=format&fit=crop&q=80" class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" alt="News Banner" />

@@ -12,7 +12,7 @@ function createAccountStore() {
 		get value() {
 			return value;
 		},
-		set account(a: Account | null) {
+		set value(a: Account | null) {
 			value = a;
 		},
 		clear() {
