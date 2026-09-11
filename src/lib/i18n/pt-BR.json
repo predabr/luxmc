@@ -2,7 +2,7 @@
 	"app": {
 		"name": "Luxmc",
 		"tagline": "Launcher de Minecraft para Linux",
-		"version": "v1.2.0",
+		"version": "v1.3.0",
 		"pressForShortcuts": "Pressione {{key}} para ver atalhos do teclado",
 		"systemOnline": "Sistema Online",
 		"navigation": "Navegação",
@@ -200,7 +200,7 @@
 		"blurHint": "Vidro fosco em painéis e barra lateral.",
 		"animations": "Animações",
 		"animationsHint": "Desative para uma sensação mais rápida.",
-		"aboutBody": "Luxmc v1.2.0 — Launcher de Minecraft para Linux. Construído com Tauri 2 + SvelteKit + Tailwind CSS.",
+		"aboutBody": "Luxmc v1.3.0 — Launcher de Minecraft para Linux. Construído com Tauri 2 + SvelteKit + Tailwind CSS.",
 		"languageEnglish": "English",
 		"languagePortuguese": "Português (BR)",
 		"switchToEnglish": "Mudar para Inglês",

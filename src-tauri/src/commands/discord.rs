@@ -159,7 +159,7 @@ pub async fn discord_set_activity(
             } else {
                 (
                     "No Menu Principal".to_string(),
-                    "v1.2.0-ALPHA · Linux".to_string(),
+                    "v1.3.0-BETA · Linux".to_string(),
                 )
             };
 

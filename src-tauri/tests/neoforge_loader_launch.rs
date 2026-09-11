@@ -4,7 +4,7 @@ use luxmc_lib::core::loaders::prepare_loader;
 #[tokio::test]
 async fn test_neoforge_loader_versions_and_prepare() {
     let http = reqwest::Client::builder()
-        .user_agent("Luxmc/1.2.0-alpha")
+        .user_agent("Luxmc/1.3.0-beta")
         .build()
         .unwrap();
 

@@ -2,7 +2,7 @@
 	"app": {
 		"name": "Luxmc",
 		"tagline": "Linux Minecraft Launcher",
-		"version": "v1.2.0",
+		"version": "v1.3.0",
 		"pressForShortcuts": "Press {{key}} for keyboard shortcuts",
 		"systemOnline": "System Online",
 		"navigation": "Navigation",
@@ -200,7 +200,7 @@
 		"blurHint": "Glassmorphism on panels and sidebar.",
 		"animations": "Animations",
 		"animationsHint": "Disable for a snappier feel.",
-		"aboutBody": "Luxmc v1.2.0 — Linux-first Minecraft launcher. Built with Tauri 2 + SvelteKit + Tailwind CSS.",
+		"aboutBody": "Luxmc v1.3.0 — Linux-first Minecraft launcher. Built with Tauri 2 + SvelteKit + Tailwind CSS.",
 		"languageEnglish": "English",
 		"languagePortuguese": "Português (BR)",
 		"switchToEnglish": "Switch to English",

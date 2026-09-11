@@ -1,6 +1,6 @@
 pkgbase = luxmc
 	pkgdesc = Linux-first Minecraft launcher
-	pkgver = 1.2.0.alpha
+	pkgver = 1.3.0.beta
 	pkgrel = 1
 	url = https://github.com/predabr/luxmc
 	arch = x86_64
@@ -23,7 +23,7 @@ pkgbase = luxmc
 	provides = luxmc
 	conflicts = luxmc
 	options = !strip
-	source = luxmc-1.2.0.alpha.tar.gz::https://github.com/predabr/luxmc/archive/refs/tags/v1.2.0-alpha.tar.gz
+	source = luxmc-1.3.0.beta.tar.gz::https://github.com/predabr/luxmc/archive/refs/tags/v1.3.0-beta.tar.gz
 	sha256sums = SKIP
 
 pkgname = luxmc

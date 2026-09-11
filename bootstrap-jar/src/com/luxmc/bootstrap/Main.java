@@ -29,7 +29,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 public class Main {
-    private static final String VERSION = "1.2.0-ALPHA";
+    private static final String VERSION = "1.3.0-BETA";
     private static final String GITHUB_REPO = "predabr/luxmc";
 
     private static JFrame frame;

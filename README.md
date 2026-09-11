@@ -1,6 +1,6 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="180" />
-  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.2.0-ALPHA</span></h1>
+  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.3.0-BETA</span></h1>
   <p><strong>O Minecraft Launcher moderno, leve e de alta performance.</strong></p>
   <p><em>Rápido. Moderno. Poderoso. 100% gratuito.</em></p>
 
@@ -54,7 +54,7 @@ O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (T
 
 ---
 
-## 🌟 Novidades na v1.2.0-ALPHA
+## 🌟 Novidades na v1.3.0-BETA
 
 - 🎮 **Discord Rich Presence 2.0 Dinâmico:**
   - Exibição de presença de alta fidelidade com o ícone oficial 3D dourado em alta resolução.
@@ -196,7 +196,7 @@ O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (T
 
 ## 📥 Como Baixar e Instalar
 
-Baixe o executável ou pacote correspondente ao seu sistema operacional na aba de **[📦 Releases Oficiais (v1.2.0-ALPHA)](https://github.com/predabr/luxmc/releases/latest)**.
+Baixe o executável ou pacote correspondente ao seu sistema operacional na aba de **[📦 Releases Oficiais (v1.3.0-BETA)](https://github.com/predabr/luxmc/releases/latest)**.
 
 ### ☕ Universal Java (`Luxmc.jar`) — Roda em Qualquer Sistema
 Executável universal compatível com **Linux**, **Windows** e **macOS** (requer Java 11, 17, 21 ou 25+ instalado):
@@ -218,10 +218,10 @@ Executável nativo completo de 64-bit para Windows 10 e Windows 11 com aceleraç
 Compatível com **todas** as distribuições Linux (Ubuntu, Debian, Fedora, Arch, Pop!_OS, openSUSE, Mint, etc.):
 ```bash
 # 1. Dê permissão de execução
-chmod +x Luxmc_1.2.0-alpha_amd64.AppImage
+chmod +x Luxmc_1.3.0-beta_amd64.AppImage
 
 # 2. Execute
-./Luxmc_1.2.0-alpha_amd64.AppImage
+./Luxmc_1.3.0-beta_amd64.AppImage
 ```
 
 ### 🟣 Arch Linux / Manjaro (`yay` e `paru`)
@@ -251,12 +251,12 @@ makepkg -si
 
 ### 🔴 Debian / Ubuntu / Pop!_OS / Linux Mint (.deb)
 ```bash
-sudo apt install ./Luxmc_1.2.0-alpha_amd64.deb
+sudo apt install ./Luxmc_1.3.0-beta_amd64.deb
 ```
 
 ### 🔵 Fedora / RHEL / openSUSE (.rpm)
 ```bash
-sudo dnf install ./Luxmc-1.2.0-alpha-1.x86_64.rpm
+sudo dnf install ./Luxmc-1.3.0-beta-1.x86_64.rpm
 ```
 
 ---

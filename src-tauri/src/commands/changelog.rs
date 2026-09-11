@@ -56,7 +56,7 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 			],
 		},
 		ChangelogEntry {
-			version: "1.2.0-alpha".into(),
+			version: "1.3.0-beta".into(),
 			date: "2026-09-10".into(),
 			title: "Discord RPC Dinâmico, Otimização Extrema & Redesign SKlauncher".into(),
 			highlights: vec![

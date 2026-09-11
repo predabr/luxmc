@@ -33,7 +33,21 @@ jobs:
           version: 10
 
       - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
+
+      - name: Install System Dependencies (Validation)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -167,7 +181,7 @@ jobs:
           version: 10
 
       - name: Install pnpm Dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
