@@ -731,22 +731,24 @@ pub async fn mods_resolve_names(
     }
 
     let mut renamed = 0u32;
-    let mut entries: Vec<_> = tokio::fs::read_dir(&mods_dir)
-        .await?
-        .filter_map(|e| e.ok())
-        .collect()
-        .await;
+    let mut entries = tokio::fs::read_dir(&mods_dir).await?;
 
-    let numeric_pattern = regex::Regex::new(r"^(\d+)_\d+\.jar$").unwrap();
     let mut project_ids: Vec<u64> = Vec::new();
     let mut file_map: Vec<(std::path::PathBuf, String)> = Vec::new();
 
-    for entry in &entries {
+    while let Ok(Some(entry)) = entries.next_entry().await {
         let name = entry.file_name().to_string_lossy().to_string();
-        if let Some(caps) = numeric_pattern.captures(&name) {
-            if let Ok(pid) = caps[1].parse::<u64>() {
-                project_ids.push(pid);
-                file_map.push((entry.path(), name));
+        let bare = name.strip_suffix(".disabled").unwrap_or(&name);
+        if let Some(dollar_pos) = bare.find('_') {
+            if bare[dollar_pos + 1..].ends_with(".jar") {
+                let prefix = &bare[..dollar_pos];
+                let suffix = bare[dollar_pos + 1..].strip_suffix(".jar").unwrap_or("");
+                if !prefix.is_empty() && !suffix.is_empty() && prefix.parse::<u64>().is_ok() && suffix.parse::<u64>().is_ok() {
+                    if let Ok(pid) = prefix.parse::<u64>() {
+                        project_ids.push(pid);
+                        file_map.push((entry.path(), name));
+                    }
+                }
             }
         }
     }

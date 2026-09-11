@@ -39,7 +39,7 @@
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
-	import { profiles } from "$lib/stores/profiles.svelte";
+	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -49,7 +49,7 @@
 	import { 
 		launchGame, 
 		versionsCheckInstalled, 
-		versionsDownload, 
+		versionsDownload,
 		instanceFileTree, 
 		instancesScreenshots, 
 		instancesOpenFolder, 
@@ -80,6 +80,7 @@
 		optimizerGetPerfPack,
 		optimizerInstallPerfPack,
 		optimizerDetectGpu,
+		modsResolveNames,
 		type GpuInfo,
 		type PerformancePackInfo,
 		type JvmValidationResult,
@@ -100,8 +101,8 @@
 	let instanceNameInput = $state("Latest Release");
 	let instanceRamMb = $state(4096);
 	let instanceJvmArgs = $state("");
-	let instanceLoaderType = $state("vanilla");
-	let instanceLoaderVersion = $state("0.15.11");
+	let instanceLoaderType = $state<string>("vanilla");
+	let instanceLoaderVersion = $state<string>("0.15.11");
 	let instanceWindowWidth = $state(1280);
 	let instanceWindowHeight = $state(720);
 	let instanceStartFullscreen = $state(false);
@@ -177,8 +178,8 @@
 			activeProfile.jvmArgs = instanceJvmArgs;
 			activeProfile.autoOptimize = instanceAutoOptimize;
 			activeProfile.useVulkan = instanceEnableVulkanOpt;
-			activeProfile.loader = instanceLoaderType;
-			activeProfile.loaderVersion = instanceLoaderVersion;
+			(activeProfile as any).loader = instanceLoaderType;
+			(activeProfile as any).loaderVersion = instanceLoaderVersion;
 
 			try {
 				await profilesUpdate({
@@ -197,7 +198,7 @@
 					jvmArgs: instanceJvmArgs,
 					autoOptimize: instanceAutoOptimize,
 					useVulkan: instanceEnableVulkanOpt,
-					loader: instanceLoaderType,
+					loader: instanceLoaderType as Profile["loader"],
 					loaderVersion: instanceLoaderVersion,
 				});
 				toast("Configurações salvas com sucesso!", "success");
@@ -383,6 +384,17 @@
 			}
 		} catch {}
 		await refreshAllData();
+
+		if (instanceId) {
+			const hasNumericNames = instanceMods.some(m => /^\d+_\d+\.jar$/.test(m.name.replace('.disabled', '')));
+			if (hasNumericNames) {
+				modsResolveNames(instanceId).then(renamed => {
+					if (renamed > 0) {
+						refreshAllData();
+					}
+				}).catch(() => {});
+			}
+		}
 	});
 
 	async function refreshAllData() {

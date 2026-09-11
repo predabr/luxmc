@@ -121,3 +121,7 @@ export async function curseforgeRemoveKey(): Promise<void> {
 export async function curseforgeValidateKey(): Promise<boolean> {
 	return api.invoke("curseforge_validate_key");
 }
+
+export async function modsResolveNames(profileId: string): Promise<number> {
+	return api.invoke("mods_resolve_names", { profileId });
+}
