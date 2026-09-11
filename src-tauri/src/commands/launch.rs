@@ -156,10 +156,14 @@ pub async fn launch_game(
     let game_dir = std::path::PathBuf::from(&profile.game_dir);
     tokio::fs::create_dir_all(&game_dir).await?;
 
-    let _ = std::process::Command::new("pkill")
-        .args(["-f", "net.minecraft.client.main.Main"])
-        .output();
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    #[cfg(target_os = "linux")]
+    {
+        let user = std::env::var("USER").unwrap_or_else(|_| "root".to_string());
+        let _ = std::process::Command::new("pkill")
+            .args(["-f", "-u", &user, "net.minecraft.client.main.Main"])
+            .output();
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
 
     let token_str = account.access_token.as_deref().unwrap_or("");
     let is_real_msa = !token_str.is_empty()

@@ -94,7 +94,46 @@
 		uv.needsUpdate = true;
 	}
 
+	const capeTextureCache = new Map<CapeType, THREE.CanvasTexture>();
+
+	function createDefaultSteveCanvas(): HTMLCanvasElement {
+		const canvas = document.createElement("canvas");
+		canvas.width = 64;
+		canvas.height = 64;
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return canvas;
+		ctx.imageSmoothingEnabled = false;
+		ctx.fillStyle = "#2c1c11";
+		ctx.fillRect(0, 0, 64, 64);
+		ctx.fillStyle = "#c68c62";
+		ctx.fillRect(8, 8, 8, 8);
+		ctx.fillStyle = "#2e1b12";
+		ctx.fillRect(8, 8, 8, 2);
+		ctx.fillStyle = "#ffffff";
+		ctx.fillRect(8, 12, 2, 1);
+		ctx.fillRect(14, 12, 2, 1);
+		ctx.fillStyle = "#334c9c";
+		ctx.fillRect(9, 12, 1, 1);
+		ctx.fillRect(14, 12, 1, 1);
+		ctx.fillStyle = "#8c5638";
+		ctx.fillRect(10, 13, 4, 1);
+		ctx.fillStyle = "#4a2d1d";
+		ctx.fillRect(11, 14, 2, 1);
+		ctx.fillStyle = "#00839e";
+		ctx.fillRect(16, 16, 24, 16);
+		ctx.fillRect(40, 16, 16, 16);
+		ctx.fillRect(32, 48, 16, 16);
+		ctx.fillStyle = "#27347a";
+		ctx.fillRect(0, 16, 16, 16);
+		ctx.fillRect(16, 48, 16, 16);
+		return canvas;
+	}
+
 	function createCapeTexture(type: CapeType): THREE.CanvasTexture {
+		if (capeTextureCache.has(type)) {
+			return capeTextureCache.get(type)!;
+		}
+
 		const canvas = document.createElement("canvas");
 		canvas.width = 64;
 		canvas.height = 32;
@@ -312,6 +351,7 @@
 		tex.magFilter = THREE.NearestFilter;
 		tex.minFilter = THREE.NearestFilter;
 		tex.generateMipmaps = false;
+		capeTextureCache.set(type, tex);
 		return tex;
 	}
 
@@ -444,7 +484,6 @@
 			}
 			if (capeMesh.material) {
 				const mat = capeMesh.material as THREE.MeshStandardMaterial;
-				if (mat.map) mat.map.dispose();
 				mat.dispose();
 			}
 			capeMesh = null;
@@ -467,23 +506,31 @@
 		}
 	}
 
+	let currentLoadedUrl = "";
+	let loadSkinToken = 0;
+
 	function loadSkin(url: string) {
+		if (!url) return;
+		if (url === currentLoadedUrl && currentTexture) return;
+
+		const token = ++loadSkinToken;
 		const img = new Image();
-		img.crossOrigin = "anonymous";
+		if (!url.startsWith("data:") && !url.startsWith("blob:")) {
+			img.crossOrigin = "anonymous";
+		}
 		img.onload = () => {
+			if (token !== loadSkinToken) return;
 			const canvas = document.createElement("canvas");
 			canvas.width = 64;
 			canvas.height = 64;
-			const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+			const ctx = canvas.getContext("2d");
+			if (!ctx) return;
 			ctx.imageSmoothingEnabled = false;
 			ctx.drawImage(img, 0, 0);
 
-			// If it's an old 64x32 skin, duplicate limbs to 64x64 format
 			if (img.height === 32) {
 				ctx.imageSmoothingEnabled = false;
-				// Copy right arm to left arm
 				ctx.drawImage(canvas, 40, 16, 16, 16, 32, 48, 16, 16);
-				// Copy right leg to left leg
 				ctx.drawImage(canvas, 0, 16, 16, 16, 16, 48, 16, 16);
 			}
 
@@ -497,17 +544,37 @@
 			currentTexture.generateMipmaps = false;
 			currentTexture.colorSpace = THREE.SRGBColorSpace;
 
-			solidMaterial.map = currentTexture;
-			solidMaterial.needsUpdate = true;
-
-			overlayMaterial.map = currentTexture;
-			overlayMaterial.needsUpdate = true;
+			if (solidMaterial) {
+				solidMaterial.map = currentTexture;
+				solidMaterial.needsUpdate = true;
+			}
+			if (overlayMaterial) {
+				overlayMaterial.map = currentTexture;
+				overlayMaterial.needsUpdate = true;
+			}
+			currentLoadedUrl = url;
 		};
 		img.onerror = () => {
-			// Fallback to minotar default steve if custom url fails
-			if (!url.includes("Steve")) {
-				loadSkin("https://minotar.net/skin/Steve");
+			if (token !== loadSkinToken) return;
+			if (currentLoadedUrl === "fallback") return;
+			const canvas = createDefaultSteveCanvas();
+			if (currentTexture) {
+				currentTexture.dispose();
 			}
+			currentTexture = new THREE.CanvasTexture(canvas);
+			currentTexture.magFilter = THREE.NearestFilter;
+			currentTexture.minFilter = THREE.NearestFilter;
+			currentTexture.generateMipmaps = false;
+			currentTexture.colorSpace = THREE.SRGBColorSpace;
+			if (solidMaterial) {
+				solidMaterial.map = currentTexture;
+				solidMaterial.needsUpdate = true;
+			}
+			if (overlayMaterial) {
+				overlayMaterial.map = currentTexture;
+				overlayMaterial.needsUpdate = true;
+			}
+			currentLoadedUrl = "fallback";
 		};
 		img.src = url;
 	}
@@ -537,19 +604,31 @@
 	onMount(() => {
 		if (!containerEl) return;
 
-		const width = containerEl.clientWidth || 300;
-		const height = containerEl.clientHeight || 340;
+		const width = Math.min(800, Math.floor(containerEl.clientWidth || 300));
+		const height = Math.min(800, Math.floor(containerEl.clientHeight || 340));
 
 		scene = new THREE.Scene();
 		camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
 		updateCamera();
 
-		renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
-		renderer.setSize(width, height);
-		renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+		renderer = new THREE.WebGLRenderer({
+			antialias: false,
+			alpha: true,
+			powerPreference: "low-power",
+			depth: true,
+			stencil: false
+		});
+		renderer.setSize(width, height, false);
+		renderer.setPixelRatio(1.0);
 		renderer.toneMapping = THREE.ACESFilmicToneMapping;
 		renderer.toneMappingExposure = 1.15;
 		renderer.shadowMap.enabled = false;
+		renderer.domElement.style.position = "absolute";
+		renderer.domElement.style.inset = "0";
+		renderer.domElement.style.width = "100%";
+		renderer.domElement.style.height = "100%";
+		renderer.domElement.style.display = "block";
+		renderer.domElement.style.pointerEvents = "none";
 		containerEl.appendChild(renderer.domElement);
 
 		const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
@@ -586,9 +665,11 @@
 
 		let idleTime = 0;
 		const animate = () => {
+			if (!isVisible) {
+				animFrameId = null;
+				return;
+			}
 			animFrameId = requestAnimationFrame(animate);
-
-			if (!isVisible) return;
 
 			if (autoRotate && !isDragging) {
 				yaw += 0.007;
@@ -606,26 +687,36 @@
 			updateCamera();
 			renderer.render(scene, camera);
 		};
-		animate();
 
 		const observer = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
+					const wasVisible = isVisible;
 					isVisible = entry.isIntersecting;
+					if (isVisible && !wasVisible && animFrameId === null) {
+						animFrameId = requestAnimationFrame(animate);
+					}
 				}
 			},
-			{ threshold: 0.1 }
+			{ threshold: 0.05 }
 		);
 		observer.observe(containerEl);
 
+		let lastW = width;
+		let lastH = height;
 		resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
-				const w = entry.contentRect.width;
-				const h = entry.contentRect.height;
+				const rawW = entry.contentRect.width;
+				const rawH = entry.contentRect.height;
+				const w = Math.min(800, Math.floor(rawW));
+				const h = Math.min(800, Math.floor(rawH));
 				if (w > 0 && h > 0 && renderer && camera) {
+					if (Math.abs(w - lastW) < 2 && Math.abs(h - lastH) < 2) continue;
+					lastW = w;
+					lastH = h;
 					camera.aspect = w / h;
 					camera.updateProjectionMatrix();
-					renderer.setSize(w, h);
+					renderer.setSize(w, h, false);
 				}
 			}
 		});
@@ -674,11 +765,14 @@
 			if (capeMesh.geometry) capeMesh.geometry.dispose();
 			if (capeMesh.material) {
 				const mat = capeMesh.material as THREE.MeshStandardMaterial;
-				if (mat.map) mat.map.dispose();
 				mat.dispose();
 			}
 			capeMesh = null;
 		}
+		for (const tex of capeTextureCache.values()) {
+			tex.dispose();
+		}
+		capeTextureCache.clear();
 		if (currentTexture) {
 			currentTexture.dispose();
 			currentTexture = null;
@@ -698,6 +792,9 @@
 		}
 	});
 
+	let currentSlim: boolean | null = null;
+	let currentCape: CapeType | null = null;
+
 	$effect(() => {
 		const url = skinUrl;
 		if (url && solidMaterial) {
@@ -708,14 +805,24 @@
 	$effect(() => {
 		const isSlim = slim;
 		if (playerGroup) {
-			buildMinecraftModel(isSlim);
+			if (currentSlim === null) {
+				currentSlim = isSlim;
+			} else if (isSlim !== currentSlim) {
+				currentSlim = isSlim;
+				buildMinecraftModel(isSlim);
+			}
 		}
 	});
 
 	$effect(() => {
 		const c = cape;
 		if (playerGroup) {
-			updateCape();
+			if (currentCape === null) {
+				currentCape = c;
+			} else if (c !== currentCape) {
+				currentCape = c;
+				updateCape();
+			}
 		}
 	});
 
@@ -746,12 +853,11 @@
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div 
 	bind:this={containerEl}
-	class="relative w-full h-full cursor-grab active:cursor-grabbing select-none {className}"
+	class="relative w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden {className}"
 	onmousedown={onPointerDown}
 	onwheel={onWheel}
 	role="region"
 	aria-label="Visualizador 3D de Skin"
 >
-	<!-- Subtle Floor Pedestal Ring -->
 	<div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-6 bg-black/40 rounded-full blur-sm pointer-events-none"></div>
 </div>

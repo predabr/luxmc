@@ -31,7 +31,8 @@
 		if (!a) return "offline";
 		if (a.minecraftToken && a.minecraftToken.startsWith("luxmc-")) return "offline";
 		if (!a.expiresAt || a.expiresAt === 0) return "online";
-		const remaining = a.expiresAt - Date.now();
+		const expMs = a.expiresAt > 0 && a.expiresAt < 1e11 ? a.expiresAt * 1000 : a.expiresAt;
+		const remaining = expMs - Date.now();
 		if (remaining <= 0) return "expired";
 		if (remaining < 1000 * 60 * 60 * 24) return "expiring";
 		return "online";

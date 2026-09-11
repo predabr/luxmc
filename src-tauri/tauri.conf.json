@@ -24,16 +24,16 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' tauri: asset: http: https: data: blob:; img-src 'self' asset: http: https: data: blob:; media-src 'self' asset: http: https: data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' tauri: http: https:; worker-src 'self' blob:;",
+      "csp": "default-src 'self' tauri: asset: data: blob:; img-src 'self' asset: http: https: data: blob:; media-src 'self' asset: http: https: data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' tauri: http: https:; worker-src 'self' blob:;",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/**", "$DOWNLOAD/**"]
+        "scope": ["$APPDATA/Luxmc/**", "$DOWNLOAD/Luxmc/**"]
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "appimage", "deb", "dmg"],
     "category": "Game",
     "shortDescription": "Linux-first Minecraft launcher.",
     "longDescription": "Luxmc is a modern, Linux-first Minecraft launcher built with Tauri and SvelteKit.",

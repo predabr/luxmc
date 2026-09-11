@@ -101,9 +101,6 @@ pub fn api_key() -> Option<String> {
         search_paths.push(config_dir.data_dir().join(".env"));
     }
 
-    search_paths.push(std::path::PathBuf::from("/home/pedro/Documentos/Luxmc/.env"));
-    search_paths.push(std::path::PathBuf::from("/home/pedro/Documentos/Luxmc/src-tauri/.env"));
-
     search_paths.dedup();
 
     for env_path in &search_paths {

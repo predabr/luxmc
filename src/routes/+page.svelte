@@ -59,6 +59,14 @@
 
 	const activeInstance = $derived(profiles.active || profiles.list[0] || null);
 
+	async function hashPassword(password: string): Promise<string> {
+		const encoder = new TextEncoder();
+		const data = encoder.encode(password + 'luxmc_salt_v1');
+		const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+		const hashArray = Array.from(new Uint8Array(hashBuffer));
+		return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+	}
+
 	onMount(() => {
 		const accountsMapRaw = localStorage.getItem("luxmc_offline_passwords");
 		if (accountsMapRaw) {
@@ -119,7 +127,7 @@
 					isLoggingIn = false;
 					return;
 				}
-				accountsMap[key] = pass;
+				accountsMap[key] = await hashPassword(pass);
 				localStorage.setItem("luxmc_offline_passwords", JSON.stringify(accountsMap));
 				toast(t("home.accountCreated", { name }), "success");
 			} else {
@@ -128,7 +136,8 @@
 					isLoggingIn = false;
 					return;
 				}
-				if (accountsMap[key] !== pass) {
+				const hashedPass = await hashPassword(pass);
+				if (accountsMap[key] !== hashedPass) {
 					toast(t("home.incorrectPassword", { name }), "error");
 					isLoggingIn = false;
 					return;
@@ -165,7 +174,7 @@
 				username: acc.username,
 				uuid: acc.uuid,
 				minecraftToken: acc.accessToken,
-				expiresAt: acc.expiresAt
+				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
 			toast(t("home.connectedAs", { username: acc.username }), "success");
@@ -193,7 +202,7 @@
 					username: offline?.username || "DevPlayer",
 					uuid: offline?.uuid || "00000000-0000-0000-0000-000000000001",
 					accessToken: offline?.accessToken || "dev-access-token",
-					expiresAt: offline?.expiresAt || (Math.floor(Date.now() / 1000) + 86400)
+					expiresAt: offline?.expiresAt || (Date.now() + 86400 * 1000)
 				};
 			});
 			const newAcc = {
@@ -201,7 +210,7 @@
 				username: acc.username,
 				uuid: acc.uuid,
 				minecraftToken: acc.accessToken,
-				expiresAt: acc.expiresAt
+				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
 			toast(t("home.connectedAsDev", { username: acc.username }), "success");
@@ -235,7 +244,7 @@
 					username: devAcc.username,
 					uuid: devAcc.uuid,
 					minecraftToken: devAcc.accessToken,
-					expiresAt: devAcc.expiresAt
+					expiresAt: devAcc.expiresAt ? (devAcc.expiresAt < 1e11 ? devAcc.expiresAt * 1000 : devAcc.expiresAt) : 0
 				};
 				userUuid = devAcc.uuid;
 			}

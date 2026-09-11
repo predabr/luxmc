@@ -577,7 +577,7 @@
 					username: devAcc.username,
 					uuid: devAcc.uuid,
 					minecraftToken: devAcc.accessToken,
-					expiresAt: devAcc.expiresAt
+					expiresAt: devAcc.expiresAt ? (devAcc.expiresAt < 1e11 ? devAcc.expiresAt * 1000 : devAcc.expiresAt) : 0
 				};
 				userUuid = devAcc.uuid;
 				userAccId = devAcc.id;

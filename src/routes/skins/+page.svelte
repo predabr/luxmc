@@ -697,9 +697,7 @@
 			</button>
 		</div>
 
-		<!-- TAB 1: GUARDA-ROUPA (3D STAGE + SAVED & DEFAULT SKINS) -->
-		{#if activeTab === "wardrobe"}
-			<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" in:fade={{ duration: 200 }}>
+		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" class:hidden={activeTab !== "wardrobe"}>
 				
 				<!-- Left Column: 360° Real 3D Hardware Accelerated Character Stage -->
 				<div class="lg:col-span-5 bg-[#18191c] border border-white/5 rounded-3xl p-5 flex flex-col items-center justify-between min-h-[580px] relative shadow-2xl overflow-hidden">
@@ -950,11 +948,8 @@
 
 				</div>
 			</div>
-		{/if}
 
-		<!-- TAB 2: MARKETPLACE DA COMUNIDADE -->
-		{#if activeTab === "marketplace"}
-			<div class="space-y-6" in:fade={{ duration: 200 }}>
+		<div class="space-y-6" class:hidden={activeTab !== "marketplace"}>
 				<!-- Filter Categories & Search Bar -->
 				<div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#18191c] p-4 rounded-3xl border border-white/5">
 					<!-- Category Pills -->
@@ -1044,11 +1039,8 @@
 					{/each}
 				</div>
 			</div>
-		{/if}
 
-		<!-- TAB 3: CATÁLOGO DE CAPAS 3D -->
-		{#if activeTab === "capes"}
-			<div class="space-y-6" in:fade={{ duration: 200 }}>
+		<div class="space-y-6" class:hidden={activeTab !== "capes"}>
 				
 				<!-- Capes Banner -->
 				<div class="bg-gradient-to-r from-[#1b1c22] via-[#22232a] to-[#1b1c22] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -1146,12 +1138,9 @@
 						</div>
 					{/each}
 				</div>
-
 			</div>
-		{/if}
 
 	</div>
 
-	<!-- Right Sidebar (Notícias Luxmc) -->
 	<RightSidebar />
 </div>

@@ -161,7 +161,6 @@ pub async fn profiles_update(
         last_played: input
             .last_played
             .and_then(|s| s.parse().ok())
-            .map(|dt| dt)
             .or(existing.last_played),
         launch_count: input.launch_count.unwrap_or(existing.launch_count),
         mod_count: input.mod_count.unwrap_or(existing.mod_count),

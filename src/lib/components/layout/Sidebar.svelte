@@ -40,11 +40,12 @@
 		if (!acc.minecraftToken || acc.id.startsWith("offline_")) {
 			return { type: "offline", label: "Conta Offline", dotColor: "bg-sky-400" };
 		}
-		const nowSec = Date.now() / 1000;
-		if (acc.expiresAt > 0 && acc.expiresAt < nowSec) {
+		const expMs = acc.expiresAt > 0 && acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt;
+		const nowMs = Date.now();
+		if (expMs > 0 && expMs < nowMs) {
 			return { type: "expired", label: "Sessão Expirada", dotColor: "bg-rose-500" };
 		}
-		if (acc.expiresAt > 0 && (acc.expiresAt - nowSec) < 86400) {
+		if (expMs > 0 && (expMs - nowMs) < 86400 * 1000) {
 			return { type: "expiring", label: "Sessão Expirando", dotColor: "bg-amber-400" };
 		}
 		return { type: "online", label: "Microsoft Online", dotColor: "bg-emerald-400" };

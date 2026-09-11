@@ -6,6 +6,21 @@ use crate::db::models::ProfileRow;
 use crate::error::AppResult;
 use crate::state::AppState;
 
+fn dir_size_recursive(p: &std::path::Path) -> u64 {
+    let mut total = 0u64;
+    if let Ok(entries) = std::fs::read_dir(p) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                total += dir_size_recursive(&path);
+            } else if let Ok(meta) = path.metadata() {
+                total += meta.len();
+            }
+        }
+    }
+    total
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HealthCheckResult {
@@ -189,7 +204,7 @@ pub async fn screenshot_delete(path: String) -> AppResult<()> {
             "Path must be inside a screenshots directory".to_string(),
         ));
     }
-    tokio::fs::remove_file(p).await?;
+    tokio::fs::remove_file(&canonical).await?;
     Ok(())
 }
 
@@ -228,7 +243,6 @@ struct CfManifest {
 #[derive(Debug, Default, Deserialize)]
 struct CfMinecraft {
     #[serde(default)]
-    #[allow(dead_code)]
     version: String,
     #[serde(default, alias = "modLoaders")]
     mod_loaders: Vec<CfModLoader>,
@@ -400,6 +414,12 @@ pub async fn instance_import_modpack(
             if let Some(rel_path) = name.strip_prefix("overrides/") {
                 if !rel_path.is_empty() {
                     let outpath = instance_dir.join(rel_path);
+                    if let Ok(canonical_parent) = outpath.parent().unwrap_or(&instance_dir).canonicalize() {
+                        if !canonical_parent.starts_with(&instance_dir) {
+                            tracing::warn!(path = %rel_path, "skipping override entry: path traversal detected");
+                            continue;
+                        }
+                    }
                     if file.is_dir() {
                         let _ = std::fs::create_dir_all(&outpath);
                     } else {
@@ -762,6 +782,17 @@ pub async fn instance_import_mrpack(
 			if let Some(rel_path) = rel_path {
 				if !rel_path.is_empty() {
 					let outpath = instance_dir.join(rel_path);
+                    if let Ok(canonical_out) = outpath.canonicalize().or_else(|_| {
+                        std::path::Path::new(rel_path).parent()
+                            .map(|p| instance_dir.join(p))
+                            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "no parent"))
+                            .and_then(|p| std::fs::canonicalize(p))
+                    }) {
+						if !canonical_out.starts_with(&instance_dir) {
+							tracing::warn!(path = %rel_path, "skipping zip entry: path traversal detected");
+							continue;
+						}
+					}
 					if file.is_dir() {
 						let _ = std::fs::create_dir_all(&outpath);
 					} else {
@@ -1083,21 +1114,6 @@ pub async fn instance_worlds_list(
                         None
                     };
 
-fn dir_size_recursive(p: &std::path::Path) -> u64 {
-    let mut total = 0u64;
-    if let Ok(entries) = std::fs::read_dir(p) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                total += dir_size_recursive(&path);
-            } else if let Ok(meta) = path.metadata() {
-                total += meta.len();
-            }
-        }
-    }
-    total
-}
-
                     let total_size = dir_size_recursive(&path);
 
                     let last_played = entry
@@ -1152,8 +1168,16 @@ pub async fn instance_world_delete(
     let world_path = std::path::PathBuf::from(&row.game_dir)
         .join("saves")
         .join(folderName);
-    if world_path.is_dir() {
-        std::fs::remove_dir_all(&world_path)?;
+    let canonical_world = world_path.canonicalize().map_err(|_| {
+        crate::error::AppError::NotFound("World folder not found".to_string())
+    })?;
+    let game_dir = std::path::PathBuf::from(&row.game_dir);
+    let canonical_game_dir = game_dir.canonicalize().unwrap_or(game_dir);
+    if !canonical_world.starts_with(&canonical_game_dir) {
+        return Err(crate::error::AppError::InvalidInput("Invalid world path".into()));
+    }
+    if canonical_world.is_dir() {
+        std::fs::remove_dir_all(&canonical_world)?;
     }
 
     Ok(())
@@ -1222,8 +1246,16 @@ pub async fn instance_mod_delete(
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
     let mod_path = std::path::PathBuf::from(&row.game_dir).join("mods").join(&fileName);
-    if mod_path.exists() {
-        std::fs::remove_file(&mod_path)?;
+    let canonical_mod = mod_path.canonicalize().map_err(|_| {
+        crate::error::AppError::NotFound("Mod file not found".to_string())
+    })?;
+    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
+    let canonical_mods_dir = mods_dir.canonicalize().unwrap_or(mods_dir);
+    if !canonical_mod.starts_with(&canonical_mods_dir) {
+        return Err(crate::error::AppError::InvalidInput("Invalid mod path".into()));
+    }
+    if canonical_mod.exists() {
+        std::fs::remove_file(&canonical_mod)?;
     }
 
     // Also remove from data_dir/mods/{profileId} if present

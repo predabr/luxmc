@@ -667,6 +667,21 @@ pub async fn mods_download_to_temp(
     fileName: String,
 ) -> AppResult<String> {
     tracing::info!(url = %url, filename = %fileName, "mods_download_to_temp");
+
+    if !url.starts_with("https://") {
+        return Err(crate::error::AppError::InvalidInput("Only HTTPS URLs are allowed".into()));
+    }
+    let url_lower = url.to_lowercase();
+    let blocked_hosts = ["localhost", "127.0.0.1", "0.0.0.0", "::1"];
+    for host in &blocked_hosts {
+        if url_lower.contains(&format!("https://{}/", host)) || url_lower.contains(&format!("https://{}:", host)) {
+            return Err(crate::error::AppError::InvalidInput("Internal network URLs are not allowed".into()));
+        }
+    }
+    if url_lower.contains("https://10.") || url_lower.contains("https://192.168.") {
+        return Err(crate::error::AppError::InvalidInput("Internal network URLs are not allowed".into()));
+    }
+
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine cache dir".into())
     })?;

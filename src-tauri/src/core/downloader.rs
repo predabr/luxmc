@@ -279,7 +279,8 @@ impl DownloadManager {
         }
 
         for (url, size, hash) in to_download {
-            let permit = mgr.semaphore.clone().acquire_owned().await.unwrap();
+            let permit = mgr.semaphore.clone().acquire_owned().await
+                .map_err(|e| AppError::Internal(format!("semaphore closed: {e}")))?;
             let entry = DownloadEntry {
                 url: url.clone(),
                 size,
@@ -461,7 +462,8 @@ impl DownloadManager {
         }
 
         for (url, path, sha1, name, size) in to_download {
-            let permit = mgr.semaphore.clone().acquire_owned().await.unwrap();
+            let permit = mgr.semaphore.clone().acquire_owned().await
+                .map_err(|e| AppError::Internal(format!("semaphore closed: {e}")))?;
             let entry = DownloadEntry {
                 url: url.clone(),
                 size,

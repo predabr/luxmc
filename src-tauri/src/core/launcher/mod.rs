@@ -481,7 +481,7 @@ impl GameLauncher {
                 continue;
             }
 
-            if lib.name.contains("natives-linux") {
+            if lib.name.contains(&format!("natives-{}", platform_mojang_name(current_platform()))) {
                 let path = lib_path_from_name(&base, &lib.name);
                 if path.exists() {
                     let output = Command::new("unzip")
@@ -922,12 +922,13 @@ pub struct GameExitEvent {
 
 pub fn is_library_allowed(lib: &minecraft::Library) -> bool {
     if let Some(ref rules) = lib.rules {
+        let platform = platform_mojang_name(current_platform());
         let mut allowed = false;
         for rule in rules {
             match rule.action.as_str() {
                 "allow" => {
                     if let Some(ref os) = rule.os {
-                        if os.name == "linux" {
+                        if os.name == platform {
                             allowed = true;
                         }
                     } else {
@@ -936,7 +937,7 @@ pub fn is_library_allowed(lib: &minecraft::Library) -> bool {
                 }
                 "deny" => {
                     if let Some(ref os) = rule.os {
-                        if os.name == "linux" {
+                        if os.name == platform {
                             return false;
                         }
                     }

@@ -99,9 +99,22 @@
 		try { return marked.parse(content) as string; } catch { return content; }
 	}
 
+	function sanitizeHtml(html: string): string {
+		return html
+			.replace(/<script[\s\S]*?<\/script>/gi, '')
+			.replace(/<iframe[\s\S]*?<\/iframe>/gi, (_m, _o, _c) => {
+				return _m.includes('youtube.com/embed') || _m.includes('youtu.be/') ? _m : '';
+			})
+			.replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
+			.replace(/\son\w+\s*=\s*\S+/gi, '')
+			.replace(/javascript:/gi, '')
+			.replace(/data:text\/html/gi, '');
+	}
+
 	function processDescription(body: string, isHtml: boolean): string {
 		if (!body) return "";
 		let html = isHtml ? body : renderMarkdown(body);
+		html = sanitizeHtml(html);
 		html = html.replace(
 			/<iframe[^>]*src=["'](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([\w-]+)[^"']*["'][^>]*>.*?<\/iframe>/gi,
 			(_m, vid) => `
@@ -354,7 +367,7 @@
 							<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform duration-200 {sortMenuOpen ? 'rotate-180' : ''}" />
 						</button>
 						{#if sortMenuOpen}
-							<div class="fixed inset-0 z-20" onclick={() => sortMenuOpen = false}></div>
+							<button type="button" aria-label="Fechar menu" class="fixed inset-0 z-20 cursor-default bg-transparent border-none p-0 outline-none" onclick={() => sortMenuOpen = false}></button>
 							<div class="absolute right-0 mt-1.5 w-52 bg-[#181920] border border-white/10 rounded-xl shadow-2xl py-1 z-30 divide-y divide-white/5">
 								{#each sortOptions as opt}
 									<button type="button" class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer {selectedSort === opt.id ? 'bg-[#6c5ce7]/20 text-[#a29bfe] font-bold' : 'text-white/70 hover:bg-white/5 hover:text-white'}" onclick={() => { selectedSort = opt.id as any; sortMenuOpen = false; }}>

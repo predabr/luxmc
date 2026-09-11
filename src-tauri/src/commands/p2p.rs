@@ -6,6 +6,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
 const DEFAULT_P2P_PORT: u16 = 25575;
+const MAX_MESSAGE_SIZE: usize = 4096;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -97,15 +98,28 @@ pub async fn p2p_start_listener(app: tauri::AppHandle) -> AppResult<bool> {
     tracing::info!("Luxmc P2P listener active on {}", addr);
 
     tokio::spawn(async move {
-        while let Ok((stream, _peer)) = listener.accept().await {
+        while let Ok((stream, peer)) = listener.accept().await {
+            tracing::debug!(peer = %peer, "P2P connection accepted");
             let app_clone = app.clone();
             tokio::spawn(async move {
                 let mut reader = BufReader::new(stream);
                 let mut line = String::new();
-                if reader.read_line(&mut line).await.is_ok() {
-                    if let Ok(payload) = serde_json::from_str::<P2PMessagePayload>(&line) {
-                        let _ = app_clone.emit("p2p-chat-message", payload);
+                match tokio::time::timeout(std::time::Duration::from_secs(5), reader.read_line(&mut line)).await {
+                    Ok(Ok(0)) => {}
+                    Ok(Ok(_)) => {
+                        if line.len() > MAX_MESSAGE_SIZE {
+                            tracing::warn!("P2P message too large: {} bytes", line.len());
+                            return;
+                        }
+                        if let Ok(payload) = serde_json::from_str::<P2PMessagePayload>(&line) {
+                            if payload.sender.len() > 64 || payload.text.len() > 2048 {
+                                tracing::warn!("P2P payload fields too large");
+                                return;
+                            }
+                            let _ = app_clone.emit("p2p-chat-message", payload);
+                        }
                     }
+                    _ => {}
                 }
             });
         }
