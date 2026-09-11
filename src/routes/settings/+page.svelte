@@ -220,10 +220,12 @@
 		// Connect Discord RPC if enabled
 		if (discordRpc) {
 			discordSetActivity({
-				details: "Luxmc Launcher",
-				state: "Configurações do Launcher",
+				details: "Configurações do Launcher",
+				state: "v1.2.0-ALPHA · Linux",
 				largeText: "Luxmc Launcher (Linux)",
-				largeImage: "luxmc"
+				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				smallImage: "grass",
+				smallText: "Minecraft Linux"
 			}).catch((err) => console.error("Discord RPC init err:", err));
 		}
 	});
@@ -244,10 +246,12 @@
 		discordRpc = !discordRpc;
 		if (discordRpc) {
 			const ok = await discordSetActivity({
-				details: "Luxmc Launcher",
-				state: "Configurações do Launcher",
+				details: "Configurações do Launcher",
+				state: "v1.2.0-ALPHA · Linux",
 				largeText: "Luxmc Launcher (Linux)",
-				largeImage: "luxmc"
+				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				smallImage: "grass",
+				smallText: "Minecraft Linux"
 			});
 			if (ok) {
 				toast("Discord Rich Presence conectado com sucesso!", "success");
@@ -737,10 +741,12 @@
 						onclick={async () => {
 							try {
 								await discordSetActivity({
-									details: "Luxmc Launcher",
-									state: "Testando Rich Presence",
+									details: "Testando Rich Presence",
+									state: "v1.2.0-ALPHA · Linux",
 									largeText: "Luxmc Launcher (Linux)",
-									largeImage: "luxmc"
+									largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+									smallImage: "grass",
+									smallText: "Minecraft Linux"
 								});
 								toast("Conexão com Discord Rich Presence verificada com sucesso!", "success");
 							} catch (e) {

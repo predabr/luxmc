@@ -259,9 +259,11 @@
 			discordSetActivity({
 				inGame: true,
 				details: `Jogando ${targetProfile.name}`,
-				state: `Minecraft ${verId} · Luxmc`,
+				state: `Minecraft ${verId} · ${targetProfile.loader ? targetProfile.loader.toUpperCase() : "Vanilla"}`,
 				largeText: `Minecraft ${verId}`,
-				largeImage: "default",
+				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				smallImage: targetProfile.loader === "fabric" ? "fabric" : (targetProfile.loader === "forge" ? "curse" : "grass"),
+				smallText: `Luxmc · ${targetProfile.loader || "Vanilla"}`,
 				startTime: Math.floor(Date.now() / 1000)
 			}).catch(() => {});
 

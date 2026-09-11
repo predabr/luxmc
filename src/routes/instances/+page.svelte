@@ -687,9 +687,11 @@
 			discordSetActivity({
 				inGame: true,
 				details: `Jogando ${p.name}`,
-				state: `Minecraft ${verId} · Luxmc`,
+				state: `Minecraft ${verId} · ${p.loader ? p.loader.toUpperCase() : "Vanilla"}`,
 				largeText: `Minecraft ${verId}`,
-				largeImage: "default",
+				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				smallImage: p.loader === "fabric" ? "fabric" : (p.loader === "forge" ? "curse" : "grass"),
+				smallText: `Luxmc · ${p.loader || "Vanilla"}`,
 				startTime: Math.floor(Date.now() / 1000)
 			}).catch(() => {});
 			profiles.setLastPlayed(p.id);

@@ -83,10 +83,13 @@
 			initialized = true;
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
-					details: "Luxmc Launcher",
-					state: "No Menu Principal",
+					details: "No Menu Principal",
+					state: "v1.2.0-ALPHA · Linux",
 					largeText: "Luxmc Launcher (Linux)",
-					largeImage: "luxmc"
+					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+					smallImage: "grass",
+					smallText: "Minecraft Linux",
+					inGame: false
 				}).catch(() => {});
 			}
 			if (typeof window !== "undefined" && (init.stressTest || window.location.search.includes("test_leak=1"))) {
@@ -107,10 +110,12 @@
 			appState.activeGameDetails = null;
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
-					details: "Luxmc Launcher v1.2.0-ALPHA",
-					state: "No Menu Principal",
+					details: "No Menu Principal",
+					state: "v1.2.0-ALPHA · Linux",
 					largeText: "Luxmc Launcher (Linux)",
-					largeImage: "default",
+					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+					smallImage: "grass",
+					smallText: "Minecraft Linux",
 					inGame: false
 				}).catch(() => {});
 			}
@@ -128,38 +133,48 @@
 
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
-			let state = "No Menu Principal";
-			let details = "Luxmc Launcher v1.2.0-ALPHA";
+			let details = "No Menu Principal";
+			let state = "v1.2.0-ALPHA · Linux";
 
 			if (currentPath === "/") {
-				state = "No Menu Principal";
+				details = "No Menu Principal";
+				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
-				state = "Gerenciando Instâncias";
+				details = "Gerenciando Instâncias";
+				state = "v1.2.0-ALPHA · Linux";
 			} else if (currentPath.startsWith("/instances/")) {
-				state = "Configurando Instância";
+				details = "Configurando Instância";
+				state = "Ajustando Modos & Versões";
 			} else if (currentPath === "/mods") {
-				state = "Explorando Mods & Modpacks";
+				details = "Explorando Mods & Modpacks";
+				state = "Modrinth & CurseForge";
 			} else if (currentPath === "/skins") {
-				state = "Personalizador de Skins 3D";
+				details = "Personalizador de Skins 3D";
+				state = "Customizando Aparência";
 			} else if (currentPath === "/servers") {
-				state = "Lista de Servidores";
+				details = "Lista de Servidores";
+				state = "Procurando Mundos Multiplayer";
 			} else if (currentPath === "/screenshots") {
-				state = "Galeria de Capturas de Tela";
+				details = "Galeria de Capturas de Tela";
+				state = "Visualizando Screenshots";
 			} else if (currentPath === "/logs" || currentPath === "/logs-history") {
-				state = "Analisando Logs";
+				details = "Analisando Logs";
+				state = "Diagnóstico do Jogo";
 			} else if (currentPath === "/settings") {
-				state = "Configurações do Launcher";
+				details = "Configurações do Launcher";
+				state = "Ajustando Preferências";
 			} else if (currentPath === "/friends") {
-				state = "Amigos & Chat P2P";
+				details = "Amigos & Chat P2P";
+				state = "Rede Social Gamer";
 			}
 
 			discordSetActivity({
 				details,
 				state,
 				largeText: "Luxmc Launcher (Linux)",
-				largeImage: "default",
+				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallText: "Minecraft Linux",
-				smallImage: "default",
+				smallImage: "grass",
 				inGame: false
 			}).catch(() => {});
 		}, 300);

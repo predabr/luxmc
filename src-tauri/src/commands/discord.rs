@@ -11,6 +11,8 @@ static DISCORD_STREAM: Mutex<Option<UnixStream>> = Mutex::new(None);
 static CURRENT_CLIENT_ID: Mutex<Option<String>> = Mutex::new(None);
 
 const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
+const LUXMC_ICON_URL: &str = "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
+const MINECRAFT_GRASS_ASSET: &str = "grass";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -140,24 +142,31 @@ pub async fn discord_set_activity(
                 .ok();
             let now = startTime.unwrap_or_else(|| chrono::Utc::now().timestamp());
 
-            let (def_img, def_text, def_details, def_state) = if is_game {
+            let (def_details, def_state) = if is_game {
                 (
-                    "default".to_string(),
-                    "Minecraft (Luxmc)".to_string(),
                     "Jogando Minecraft".to_string(),
                     "Luxmc Launcher".to_string(),
                 )
             } else {
                 (
-                    "default".to_string(),
-                    "Luxmc Launcher".to_string(),
-                    "Luxmc Launcher v1.2.0-ALPHA".to_string(),
                     "No Menu Principal".to_string(),
+                    "v1.2.0-ALPHA · Linux".to_string(),
                 )
             };
 
-            let img = largeImage.unwrap_or(def_img);
-            let txt = largeText.unwrap_or(def_text);
+            let img = match largeImage.as_deref() {
+                Some("default") | Some("luxmc") | Some("") | None => LUXMC_ICON_URL.to_string(),
+                Some(val) => val.to_string(),
+            };
+
+            let txt = largeText.unwrap_or_else(|| {
+                if is_game {
+                    "Minecraft (Luxmc)".to_string()
+                } else {
+                    "Luxmc Launcher".to_string()
+                }
+            });
+
             let det = details.unwrap_or(def_details);
             let st = state.unwrap_or(def_state);
 
@@ -166,10 +175,22 @@ pub async fn discord_set_activity(
                 "large_text": txt,
             });
 
-            if let Some(s_img) = smallImage {
-                assets["small_image"] = serde_json::Value::String(s_img);
-                if let Some(s_txt) = smallText {
-                    assets["small_text"] = serde_json::Value::String(s_txt);
+            let (s_img, s_txt) = match smallImage.as_deref() {
+                Some("default") | Some("") => (
+                    Some(MINECRAFT_GRASS_ASSET.to_string()),
+                    smallText.or_else(|| Some("Minecraft Linux".to_string())),
+                ),
+                Some(val) => (Some(val.to_string()), smallText),
+                None => (
+                    Some(MINECRAFT_GRASS_ASSET.to_string()),
+                    smallText.or_else(|| Some(if is_game { "Minecraft" } else { "Minecraft Linux" }.to_string())),
+                ),
+            };
+
+            if let Some(s_img_val) = s_img {
+                assets["small_image"] = serde_json::Value::String(s_img_val);
+                if let Some(s_txt_val) = s_txt {
+                    assets["small_text"] = serde_json::Value::String(s_txt_val);
                 }
             }
 
