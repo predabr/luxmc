@@ -1,0 +1,24 @@
+pkgbase = luxmc-bin
+	pkgdesc = Linux-first Minecraft launcher (prebuilt binary)
+	pkgver = 1.2.0.alpha
+	pkgrel = 1
+	url = https://github.com/predabr/luxmc
+	arch = x86_64
+	license = Proprietary
+	depends = webkit2gtk-4.1
+	depends = gtk3
+	depends = libsoup3
+	depends = openssl
+	depends = librsvg
+	depends = libayatana-appindicator
+	depends = hicolor-icon-theme
+	depends = xdg-utils
+	optdepends = gamemode: Feral GameMode integration for performance boost
+	optdepends = vulkan-radeon: RADV driver for AMD Vulkan acceleration
+	optdepends = vulkan-intel: ANV driver for Intel Vulkan acceleration
+	provides = luxmc
+	conflicts = luxmc
+	source = https://github.com/predabr/luxmc/releases/download/v1.2.0-alpha/Luxmc_1.2.0-alpha_amd64.deb
+	sha256sums = 5682ee30fdcc3e85544da7d96fe34c8c98e7437f342e6c77efacc8a23ed9b321
+
+pkgname = luxmc-bin

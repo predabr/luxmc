@@ -1,13 +1,14 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="180" />
-  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.1.0-BETA</span></h1>
-  <p><strong>O Minecraft Launcher de alta performance projetado de Linux para Linux.</strong></p>
+  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.2.0-ALPHA</span></h1>
+  <p><strong>O Minecraft Launcher moderno, leve e de alta performance.</strong></p>
   <p><em>Rápido. Moderno. Poderoso. 100% gratuito.</em></p>
 
   <p>
-    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.1.0--BETA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
-    <img src="https://img.shields.io/badge/platform-Linux-blue?style=for-the-badge&logo=linux" alt="Linux" />
-    <img src="https://img.shields.io/badge/Windows-Em%20Breve-0078D4?style=for-the-badge&logo=windows" alt="Windows Em Breve" />
+    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.2.0--ALPHA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
+    <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20Java-blue?style=for-the-badge&logo=linux" alt="Multiplatform" />
+    <img src="https://img.shields.io/badge/Windows-Nativo%20EXE-0078D4?style=for-the-badge&logo=windows" alt="Windows EXE" />
+    <img src="https://img.shields.io/badge/Java-Universal%20JAR-ED8B00?style=for-the-badge&logo=openjdk" alt="Universal JAR" />
     <img src="https://img.shields.io/badge/backend-Rust%20%2F%20Tauri%202-orange?style=for-the-badge&logo=rust" alt="Rust Tauri 2" />
     <img src="https://img.shields.io/badge/frontend-Svelte%205-red?style=for-the-badge&logo=svelte" alt="Svelte 5" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-Luxmc%20License-purple?style=for-the-badge" alt="License" /></a>
@@ -53,35 +54,41 @@ O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (T
 
 ---
 
-## 🌟 Novidades na v1.1.0-BETA
+## 🌟 Novidades na v1.2.0-ALPHA
 
-- ⚡ **Sistema de Otimização Inteligente Luxmc (Aikar G1GC Tuning):** Gerador dinâmico de parâmetros de JVM baseado na especificação de Aikar para G1GC do Minecraft. Ajusta o tamanho das regiões de heap (`G1HeapRegionSize`), threads paralelas e threads de marcação concorrente proporcionalmente à RAM alocada:
-  - **Medição Real no Host (OpenJDK 26):** Inicialização padrão em 41ms vs. 289ms com flags inteligentes. Os ~248ms adicionais no boot são decorrentes de `-XX:+AlwaysPreTouch`, que pré-aloca e toca todas as páginas físicas de memória do SO durante a inicialização para **eliminar congelamentos e engasgos de GC durante a gameplay**.
-- 🚀 **Pacote de Performance Essencial em 1-Clique:**
-  - Instalação oficial automatizada para Fabric (*Sodium*, *Lithium*, *FerriteCore*) e Forge/NeoForge (*Embeddium*, *ModernFix*, *FerriteCore*).
-  - Resolução direta de versões compatíveis via Modrinth API com notificação clara para instâncias Vanilla.
-- 🎮 **Aceleração Gráfica Mesa Zink / Vulkan no Linux:**
-  - Redireciona o pipeline gráfico OpenGL diretamente para os drivers Vulkan nativos da GPU (RADV para AMD, ANV para Intel) via Gallium Zink.
-  - Ativação automática de `RADV_PERFTEST=aco` para compilação ultrarrápida de shaders em GPUs AMD.
-- 🔍 **Detecção de Hardware Nativa no Linux:**
-  - Leitura direta pelo subsistema DRM em `/sys/class/drm` e `lspci`, identificando fabricante da GPU, renderizador e suporte a Zink sem subprocessos desnecessários.
-- 🛠️ **Correção Crítica no Pipeline de Inicialização de JVM:**
-  - Remoção de flags hardcoded que bloqueavam a alocação de memória customizada em instâncias.
-- 💎 **Varredura Completa de Design & Zero Warnings:**
-  - Padronização no design system Luxury Dark (`#141518` / `#caa97c`) em todas as telas (Settings, Logs, Screenshots, Skins e Servidores).
-  - 100% de conformidade técnica: zero erros e zero warnings em `cargo check`, `cargo test`, `pnpm check` e `pnpm build`.
+- 🎮 **Discord Rich Presence 2.0 Dinâmico:**
+  - Exibição de presença de alta fidelidade com o ícone oficial 3D dourado em alta resolução.
+  - Alternância automática para o App ID oficial do Minecraft ao entrar em jogo, exibindo **Jogando Minecraft**, nome da instância, loader (Fabric, Forge, NeoForge, Quilt, Vanilla), versão ativa e tempo de gameplay contínuo.
+- ☕ **Bootstrap Universal Java (`Luxmc.jar`):**
+  - Executável universal multiplataforma executável com `java -jar Luxmc.jar` para qualquer sistema operacional com Java 11, 17, 21 ou 25+.
+  - Interface gráfica dark moderna com tema oficial Luxmc (dourado champanhe `#EBD095`), detecção automática de arquitetura/sistema operacional e inicialização instantânea do binário nativo local ou download oficial transparente.
+- 🪟 **Binário Nativo Microsoft Windows (`Luxmc.exe`):**
+  - Executável autônomo PE32+ de 64-bit compilado com MSVC (`x86_64-pc-windows-msvc`) com aceleração de hardware via WebView2 nativo do Windows.
+- 🧠 **Otimização Extrema de RAM & Eliminação de Memory Leaks:**
+  - Limpeza profunda e limites de retenção de cache na central de mods, listas de modpacks, shaders e renderizador de skins 3D volumétricas.
+  - Consumo estável sem estouros de heap nem sobrecarga de garbage collection.
+- 🎨 **Fluidez & Estilo Visual Inspirados no SKlauncher:**
+  - Botões aprimorados com microinterações refinadas, brilho e estados de foco elegantes.
+  - Transições suaves a 60+ FPS em todas as páginas do aplicativo.
+- 🔐 **Segurança Reforçada & Proteção de Credenciais:**
+  - Proteção de variáveis sensíveis e chaves de APIs no backend Rust sem exposição em arquivos públicos.
+  - Migrações de banco SQLite sincronizadas e estáveis.
 
 <details>
-<summary><strong>📦 Histórico de Versões Anteriores (v1.0.0-BETA)</strong></summary>
+<summary><strong>📦 Histórico de Versões Anteriores (v1.1.0-BETA & v1.0.0-BETA)</strong></summary>
 
-- ⚡ **Zero-Lag & Aceleração GPU Total:** Pipeline DMA-BUF ativo no WebKitGTK para o Linux AppImage rodar liso na sua GPU.
-- 🧠 **Gerenciamento Inteligente de Memória:** Limitadores de memória integrados impedem vazamentos de RAM.
+### v1.1.0-BETA
+- ⚡ **Sistema de Otimização Inteligente Luxmc (Aikar G1GC Tuning):** Gerador dinâmico de parâmetros de JVM para GC suave sem engasgos.
+- 🚀 **Pacote de Performance Essencial em 1-Clique:** Instalação oficial de mods de performance para Fabric e Forge.
+- 🎮 **Aceleração Gráfica Mesa Zink / Vulkan no Linux:** Redirecionamento OpenGL via Gallium Zink e drivers RADV/ANV.
+- 🔍 **Detecção de Hardware Nativa no Linux:** Leitura direta via DRM `/sys/class/drm` e `lspci`.
+
+### v1.0.0-BETA
+- ⚡ **Zero-Lag & Aceleração GPU Total:** Pipeline DMA-BUF ativo no WebKitGTK.
 - 📦 **Central de Mods com Visão Detalhada:** Descrição formatada, galeria, changelogs e downloads direto do **Modrinth** e **CurseForge**.
-- 🧩 **Gerenciador Interno de Mods por Instância:** Ative/desative mods (`.jar` ↔ `.jar.disabled`), exclua ou abra a pasta nativa.
-- 📋 **Logs & Crash Reports via `mclo.gs`:** Envie relatórios de erro sanitizados com cópia automática de link.
-- 🔑 **Suporte a Azure Client ID:** Configure seu Client ID Microsoft direto nas Configurações.
-- 🎬 **Cutscene Cinematográfica:** Abertura rápida de 2.3s com anéis orbitais e snap magnético.
-- 🔄 **Reparo, Backup e Exportação de Instâncias:** Repare instâncias corrompidas e exporte instâncias como `.zip`.
+- 🧩 **Gerenciador Interno de Mods por Instância:** Ative/desative mods (`.jar` ↔ `.jar.disabled`).
+- 📋 **Logs & Crash Reports via `mclo.gs`:** Envie relatórios de erro sanitizados.
+- 🎬 **Cutscene Cinematográfica:** Abertura fluida com snap magnético.
 
 </details>
 
@@ -189,38 +196,68 @@ O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (T
 
 ## 📥 Como Baixar e Instalar
 
-Baixe o pacote correspondente à sua distribuição na aba de **[📦 Releases Oficiais](https://github.com/predabr/luxmc/releases)**.
+Baixe o executável ou pacote correspondente ao seu sistema operacional na aba de **[📦 Releases Oficiais (v1.2.0-ALPHA)](https://github.com/predabr/luxmc/releases/latest)**.
 
-### 🟢 Universal Linux (AppImage) — Recomendado
-Funciona em **qualquer** distribuição Linux (Ubuntu, Debian, Fedora, Arch, Pop!_OS, openSUSE, Mint, etc.):
+### ☕ Universal Java (`Luxmc.jar`) — Roda em Qualquer Sistema
+Executável universal compatível com **Linux**, **Windows** e **macOS** (requer Java 11, 17, 21 ou 25+ instalado):
 ```bash
-# 1. Baixe o AppImage da aba Releases
-# 2. Dê permissão de execução
-chmod +x luxmc-1.2.0-alpha.AppImage
+# 1. Baixe o arquivo Luxmc.jar
+# 2. Execute via terminal ou clique duas vezes:
+java -jar Luxmc.jar
 
-# 3. Execute
-./luxmc-1.2.0-alpha.AppImage
+# Para execução direta sem abrir interface gráfica de bootstrap:
+java -jar Luxmc.jar --cli
 ```
 
-### 🔴 Debian / Ubuntu / Pop!_OS / Linux Mint (.deb)
+### 🪟 Microsoft Windows (`Luxmc.exe`) — Binário Nativo
+Executável nativo completo de 64-bit para Windows 10 e Windows 11 com aceleração WebView2 integrada:
+1. Baixe **`Luxmc.exe`** na aba de Releases.
+2. Dê duplo clique para executar diretamente (dispensa instaladores ou arquivos adicionais).
+
+### 🟢 Universal Linux (AppImage) — Recomendado para Linux
+Compatível com **todas** as distribuições Linux (Ubuntu, Debian, Fedora, Arch, Pop!_OS, openSUSE, Mint, etc.):
 ```bash
-sudo apt install ./luxmc_1.2.0_amd64.deb
+# 1. Dê permissão de execução
+chmod +x Luxmc_1.2.0-alpha_amd64.AppImage
+
+# 2. Execute
+./Luxmc_1.2.0-alpha_amd64.AppImage
 ```
 
-### 🔵 Fedora / RHEL / openSUSE (.rpm)
+### 🟣 Arch Linux / Manjaro (`yay` e `paru`)
+O Luxmc possui suporte oficial e verificado para o **Arch Linux** através do helper AUR (`luxmc-bin`). O pacote faz a extração instantânea do binário otimizado, ícones em todas as resoluções e atalho `.desktop` no menu de aplicativos do sistema.
+
+#### Opção A: Usando `yay` ou `paru` direto do repositório local
 ```bash
-sudo dnf install ./luxmc-1.2.0.x86_64.rpm
+# Usando yay:
+yay -B packaging/aur
+
+# Ou usando paru:
+paru -B packaging/aur
 ```
 
-### 🟣 Arch Linux / Manjaro (AUR)
+#### Opção B: Instalação via AUR oficial
 ```bash
 yay -S luxmc-bin
 # ou
 paru -S luxmc-bin
 ```
 
-### 🪟 Microsoft Windows (Em Breve)
-> 🚀 O suporte nativo ao **Windows** (instaladores `.msi` e `.exe`) está em fase de finalização e será disponibilizado nas próximas atualizações!
+#### Opção C: Compilação/Instalação manual com `makepkg`
+```bash
+cd packaging/aur
+makepkg -si
+```
+
+### 🔴 Debian / Ubuntu / Pop!_OS / Linux Mint (.deb)
+```bash
+sudo apt install ./Luxmc_1.2.0-alpha_amd64.deb
+```
+
+### 🔵 Fedora / RHEL / openSUSE (.rpm)
+```bash
+sudo dnf install ./Luxmc-1.2.0-alpha-1.x86_64.rpm
+```
 
 ---
 

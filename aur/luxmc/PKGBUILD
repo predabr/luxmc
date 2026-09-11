@@ -1,64 +1,65 @@
-# Maintainer: Luxmc contributors
+# Maintainer: Pedro <suporte@luxmc.com>
 pkgname=luxmc
-pkgver=1.0.0.beta
+pkgver=1.2.0.alpha
+_tagver="1.2.0-alpha"
 pkgrel=1
 pkgdesc="Linux-first Minecraft launcher"
 arch=('x86_64')
-url="https://github.com/anomalyco/luxmc"
-license=('MIT')
+url="https://github.com/predabr/luxmc"
+license=('Proprietary')
 depends=(
 	'gtk3'
 	'webkit2gtk-4.1'
 	'libsoup3'
 	'openssl'
 	'librsvg'
-	'libappindicator-gtk3'
+	'libayatana-appindicator'
 	'alsa-lib'
 	'libxkbcommon'
 	'hicolor-icon-theme'
 	'jre-openjdk'
 	'unzip'
+	'xdg-utils'
 )
 makedepends=(
 	'cargo'
 	'nodejs'
 	'pnpm'
-	'npm'
 )
 provides=('luxmc')
 conflicts=('luxmc')
 backup=()
 options=(!strip)
-source=("$pkgname-$pkgver.tar.gz::https://github.com/anomalyco/luxmc/archive/refs/tags/v$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::https://github.com/predabr/luxmc/archive/refs/tags/v${_tagver}.tar.gz")
 sha256sums=('SKIP')
 
 prepare() {
-	cd "$pkgname-$pkgver"
+	cd "luxmc-${_tagver}"
 	export RUSTUP_TOOLCHAIN=stable
 	export CARGO_TARGET_DIR=target
 	pnpm install --frozen-lockfile
 }
 
 build() {
-	cd "$pkgname-$pkgver"
+	cd "luxmc-${_tagver}"
 	pnpm tauri build 2>&1 | tee build.log
 }
 
 package() {
-	cd "$pkgname-$pkgver"
+	cd "luxmc-${_tagver}"
 
 	# Binary
 	install -Dm755 src-tauri/target/release/luxmc \
 		"$pkgdir/usr/bin/luxmc"
 
 	# Desktop file
-	install -Dm644 src-tauri/target/release/bundle/deb/*/data/usr/share/applications/io.github.luxmc.Luxmc.desktop \
-		"$pkgdir/usr/share/applications/io.github.luxmc.Luxmc.desktop" 2>/dev/null || \
 	install -Dm644 src-tauri/icons/io.github.luxmc.Luxmc.desktop \
-		"$pkgdir/usr/share/applications/io.github.luxmc.Luxmc.desktop" 2>/dev/null || true
+		"$pkgdir/usr/share/applications/io.github.luxmc.Luxmc.desktop" 2>/dev/null || \
+	install -Dm644 src-tauri/target/release/bundle/deb/*/data/usr/share/applications/*.desktop \
+		"$pkgdir/usr/share/applications/Luxmc.desktop" 2>/dev/null || true
 
 	# Icons
-	for size in 32 128 256; do
+	for size in 32 64 128 256; do
 		local src="src-tauri/icons/${size}x${size}.png"
 		local src2x="src-tauri/icons/${size}x${size}@2x.png"
 		if [[ -f "$src" ]]; then
@@ -70,10 +71,4 @@ package() {
 				"$pkgdir/usr/share/icons/hicolor/${size}x${size}@2/apps/luxmc.png"
 		fi
 	done
-
-	# SVG icon if present
-	if [[ -f "src-tauri/icons/icon.svg" ]]; then
-		install -Dm644 "src-tauri/icons/icon.svg" \
-			"$pkgdir/usr/share/icons/hicolor/scalable/apps/luxmc.svg"
-	fi
 }

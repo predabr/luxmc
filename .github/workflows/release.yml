@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -75,29 +73,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: v1.2.0-alpha
-          releaseName: 'Luxmc Launcher v1.2.0-ALPHA'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Luxmc Launcher ${{ github.ref_name }}'
           releaseBody: |
-            ## 🚀 Luxmc Launcher v1.2.0-ALPHA — Official Multiplatform Release
+            ## 🚀 Luxmc Launcher ${{ github.ref_name }} — Official Release
             
-            Disponível agora para **Windows (.exe / .msi)**, **Linux (AppImage / .deb)** e **Universal Java (.jar)**!
-            
-            ### 🎮 Discord Rich Presence 2.0 Conectado
-            - **No Launcher**: Exibe status do Luxmc Launcher e localização no app com ícone 3D oficial em alta resolução.
-            - **Em Jogo**: Alterna automaticamente para o ID oficial do Minecraft, mostrando **Jogando Minecraft**, nome da instância, loader, versão ativa e tempo de sessão.
-            
-            ### ☕ Universal Java Bootstrap (Luxmc.jar)
-            - Executável multiplataforma `java -jar Luxmc.jar` compatível com Java 11, 17, 21 e 25+.
-            - Identificação automática do sistema operacional e do binário nativo local ou download direto das releases oficiais.
-            
-            ### 🪟 Binário Nativo Windows (Luxmc.exe)
-            - Compilado nativamente em 64-bit com aceleração WebView2.
-            
-            ### ⚡ Desempenho & Aceleração de Hardware
-            - Otimização de RAM em cache de skins, mods e instâncias.
-            - Navegação fluida com estilo visual inspirado no SKlauncher e paleta Luxmc.
+            Disponível para **Windows (.exe / .msi)**, **Linux (AppImage / .deb / .rpm)** e **Universal Java (.jar)**!
           releaseDraft: false
-          prerelease: true
+          prerelease: false
 
   build-jar:
     name: Build Universal Luxmc.jar
@@ -129,5 +112,5 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: v1.2.0-alpha
+          tag_name: ${{ github.ref_name }}
           files: Luxmc.jar

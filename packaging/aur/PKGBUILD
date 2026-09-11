@@ -1,17 +1,33 @@
 # Maintainer: Pedro <suporte@luxmc.com>
 pkgname=luxmc-bin
-pkgver=1.0.0
+pkgver=1.2.0.alpha
+_tagver="1.2.0-alpha"
 pkgrel=1
-pkgdesc="Luxmc - Linux-first Minecraft Launcher"
+pkgdesc="Linux-first Minecraft launcher (prebuilt binary)"
 arch=('x86_64')
 url="https://github.com/predabr/luxmc"
-license=('GPL3')
-depends=('webkit2gtk-4.1' 'gtk3' 'cairo' 'pango' 'glib2' 'openssl' 'flite')
+license=('Proprietary')
+depends=(
+    'webkit2gtk-4.1'
+    'gtk3'
+    'libsoup3'
+    'openssl'
+    'librsvg'
+    'libayatana-appindicator'
+    'hicolor-icon-theme'
+    'xdg-utils'
+)
+optdepends=(
+    'gamemode: Feral GameMode integration for performance boost'
+    'vulkan-radeon: RADV driver for AMD Vulkan acceleration'
+    'vulkan-intel: ANV driver for Intel Vulkan acceleration'
+)
 provides=('luxmc')
 conflicts=('luxmc')
-source=("https://github.com/predabr/luxmc/releases/download/v${pkgver}/luxmc_${pkgver}_amd64.deb")
-sha256sums=('SKIP')
+source=("https://github.com/predabr/luxmc/releases/download/v${_tagver}/Luxmc_${_tagver}_amd64.deb")
+sha256sums=('5682ee30fdcc3e85544da7d96fe34c8c98e7437f342e6c77efacc8a23ed9b321')
 
 package() {
-    tar -xf data.tar.gz -C "${pkgdir}"
+    bsdtar -xf "${srcdir}/data.tar.gz" -C "${pkgdir}"
+    chmod 755 "${pkgdir}/usr/bin/luxmc"
 }
