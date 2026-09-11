@@ -476,32 +476,30 @@
 		{@const isInstalled = installedIds.has(id)}
 		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-6">
 			
-			<!-- Top Navigation: Back Button -->
-			<div class="flex items-center justify-between">
+			<div class="flex items-center justify-between shrink-0">
 				<button 
 					type="button" 
-					class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1c1d22] hover:bg-[#282930] text-white/70 hover:text-white border border-white/10 text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95"
+					class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1c1d22] hover:bg-[#282930] text-white/70 hover:text-white border border-white/10 text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-95 shrink-0"
 					onclick={closeDetails}
 				>
 					<ArrowLeft class="w-4 h-4" />
 					<span>Voltar ao Catálogo</span>
 				</button>
 
-				<div class="flex items-center gap-2 text-xs text-white/40 font-mono">
+				<div class="flex items-center gap-2 text-xs text-white/40 font-mono shrink-0">
 					<span>Fonte: <strong class="text-white uppercase">{selectedItem.source}</strong></span>
 					<span>•</span>
 					<span>ID: {selectedItem.sourceId}</span>
 				</div>
 			</div>
 
-			<!-- Hero Header Banner Card matching Reference media_1789002785331.png -->
-			<div class="bg-[#18191c] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+			<div class="bg-[#18191c] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden shrink-0">
 				<div class="absolute -right-16 -top-16 w-64 h-64 bg-[#caa97c]/5 rounded-full blur-3xl pointer-events-none"></div>
 
-				<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative z-10">
+				<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10 w-full">
 					
 					<!-- Left: Large Icon + Title + Tags -->
-					<div class="flex items-start gap-5 min-w-0">
+					<div class="flex items-start sm:items-center gap-5 min-w-0 flex-1">
 						<!-- Big App Icon -->
 						<div class="w-20 h-20 shrink-0 rounded-2xl bg-[#222328] border border-white/15 p-1 overflow-hidden shadow-2xl flex items-center justify-center">
 							{#if selectedItem.iconUrl}
@@ -511,19 +509,19 @@
 							{/if}
 						</div>
 
-						<div class="min-w-0">
+						<div class="min-w-0 flex-1">
 							<!-- Title with Verified Badge -->
 							<div class="flex items-center gap-2 flex-wrap">
-								<h1 class="text-xl font-black text-white tracking-tight">{selectedItem.title}</h1>
-								<div class="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+								<h1 class="text-xl font-black text-white tracking-tight truncate">{selectedItem.title}</h1>
+								<div class="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
 									<CheckCircle2 class="w-3 h-3" /> Verificado
 								</div>
 								{#if selectedItem.source === "modrinth"}
-									<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+									<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0">
 										Modrinth
 									</span>
 								{:else}
-									<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30 flex items-center gap-1">
+									<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30 flex items-center gap-1 shrink-0">
 										<Flame class="w-3 h-3" /> CurseForge
 									</span>
 								{/if}
@@ -537,7 +535,7 @@
 							<!-- Category & Loader Badges -->
 							<div class="flex items-center gap-1.5 flex-wrap mt-3">
 								{#each selectedItem.categories.slice(0, 4) as cat}
-									<span class="text-[10px] font-semibold px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/70">
+									<span class="text-[10px] font-semibold px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-white/70 shrink-0">
 										{cat}
 									</span>
 								{/each}
@@ -545,11 +543,10 @@
 						</div>
 					</div>
 
-					<!-- Right: Install Button matching Reference Image -->
-					<div class="shrink-0 flex items-center gap-3 w-full md:w-auto justify-end">
+					<div class="shrink-0 flex items-center gap-3 w-full lg:w-auto justify-end mt-2 lg:mt-0">
 						<button 
 							type="button"
-							class="w-full md:w-auto bg-gradient-to-r from-[#caa97c] to-[#e4c99c] hover:from-[#d5b588] hover:to-[#edd5ad] text-black font-extrabold text-xs px-6 py-3 rounded-2xl flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(202,169,124,0.35)] transition-all cursor-pointer active:scale-95 disabled:opacity-50"
+							class="w-full lg:w-auto bg-gradient-to-r from-[#caa97c] to-[#e4c99c] hover:from-[#d5b588] hover:to-[#edd5ad] text-black font-extrabold text-xs px-7 py-3.5 rounded-2xl flex items-center justify-center gap-2.5 shadow-[0_4px_24px_rgba(202,169,124,0.35)] transition-all cursor-pointer active:scale-95 disabled:opacity-50 shrink-0 hover:scale-[1.02]"
 							onclick={() => selectedType === 'Modpack' ? openModpackInstall(selectedItem!) : promptInstall(selectedItem!)}
 							disabled={isInstalling || isInstalled}
 						>
@@ -560,10 +557,10 @@
 								<Check class="w-4 h-4 text-emerald-950 font-black" />
 								<span>Instalado na Instância</span>
 							{:else if selectedType === 'Modpack'}
-								<PackagePlus class="w-4 h-4 text-black" />
+								<PackagePlus class="w-4 h-4 text-black stroke-[2.5]" />
 								<span>Criar Instância do Modpack</span>
 							{:else}
-								<Download class="w-4 h-4 text-black" />
+								<Download class="w-4 h-4 text-black stroke-[2.5]" />
 								<span>Instalar na Instância</span>
 							{/if}
 						</button>
@@ -572,9 +569,7 @@
 				</div>
 			</div>
 
-			<!-- Navigation Tabs & Action Links matching Reference media_1789002785331.png -->
-			<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-3">
-				<!-- Tabs -->
+			<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-3 shrink-0">
 				<div class="flex items-center gap-1 bg-[#18191c] p-1 rounded-2xl border border-white/5">
 					<button 
 						type="button"

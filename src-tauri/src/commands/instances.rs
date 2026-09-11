@@ -242,7 +242,16 @@ struct CfFile {
 struct MrpackManifest {
     #[serde(default)]
     format_version: u32,
-    game: MrpackGame,
+    #[serde(default)]
+    game: serde_json::Value,
+    #[serde(default)]
+    version_id: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    summary: Option<String>,
+    #[serde(default)]
+    files: Vec<MrpackFile>,
     #[serde(default)]
     mods: Vec<MrpackMod>,
     #[serde(default)]
@@ -252,10 +261,26 @@ struct MrpackManifest {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
-struct MrpackGame {
-    id: String,
+struct MrpackFile {
+    path: String,
     #[serde(default)]
-    version: String,
+    hashes: std::collections::HashMap<String, String>,
+    #[serde(default)]
+    env: Option<MrpackEnv>,
+    #[serde(default)]
+    downloads: Vec<String>,
+    #[serde(default)]
+    file_size: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
+struct MrpackEnv {
+    #[serde(default)]
+    client: Option<String>,
+    #[serde(default)]
+    server: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -588,122 +613,214 @@ pub async fn instance_import_mrpack(
     let manifest: MrpackManifest = serde_json::from_reader(manifest_entry)
         .map_err(|e| crate::error::AppError::InvalidState(format!("invalid mrpack manifest: {e}")))?;
 
-    let mc_version = manifest.game.version.clone();
-    let profile_id = Uuid::new_v4().to_string();
+	let mc_version = manifest
+		.dependencies
+		.get("minecraft")
+		.and_then(|v| v.as_str())
+		.map(|s| s.to_string())
+		.or_else(|| {
+			if let Some(s) = manifest.game.as_str() {
+				if s != "minecraft" {
+					return Some(s.to_string());
+				}
+			}
+			manifest.game.get("version").and_then(|v| v.as_str()).map(|s| s.to_string())
+		})
+		.unwrap_or_else(|| "1.21.1".to_string());
+	let profile_id = Uuid::new_v4().to_string();
 
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
-        crate::error::AppError::InvalidState("could not determine data dir".into())
-    })?;
-    let instance_dir = base_dir.data_dir().join("instances").join(&profile_name);
-    let mods_dir = instance_dir.join("mods");
-    tokio::fs::create_dir_all(&mods_dir).await?;
+	let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
+		crate::error::AppError::InvalidState("could not determine data dir".into())
+	})?;
+	let instance_dir = base_dir.data_dir().join("instances").join(&profile_name);
+	let mods_dir = instance_dir.join("mods");
+	tokio::fs::create_dir_all(&mods_dir).await?;
 
-    let storage_mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
-    let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
+	let storage_mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
+	let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
 
-    // Extract overrides directory if present in .mrpack
-    for i in 0..archive.len() {
-        if let Ok(mut file) = archive.by_index(i) {
-            let name = file.name().to_string();
-            if let Some(rel_path) = name.strip_prefix("overrides/") {
-                if !rel_path.is_empty() {
-                    let outpath = instance_dir.join(rel_path);
-                    if file.is_dir() {
-                        let _ = std::fs::create_dir_all(&outpath);
-                    } else {
-                        if let Some(p) = outpath.parent() {
-                            let _ = std::fs::create_dir_all(p);
-                        }
-                        if let Ok(mut outfile) = std::fs::File::create(&outpath) {
-                            let _ = std::io::copy(&mut file, &mut outfile);
-                        }
-                    }
-                }
-            }
-        }
-    }
+	for i in 0..archive.len() {
+		if let Ok(mut file) = archive.by_index(i) {
+			let name = file.name().to_string();
+			let rel_path = if let Some(rel) = name.strip_prefix("overrides/") {
+				Some(rel)
+			} else if let Some(rel) = name.strip_prefix("client-overrides/") {
+				Some(rel)
+			} else {
+				None
+			};
 
-    let client = crate::core::mods::ModrinthClient::new(state.http.clone());
-    let db = crate::db::shared_db().await?;
+			if let Some(rel_path) = rel_path {
+				if !rel_path.is_empty() {
+					let outpath = instance_dir.join(rel_path);
+					if file.is_dir() {
+						let _ = std::fs::create_dir_all(&outpath);
+					} else {
+						if let Some(p) = outpath.parent() {
+							let _ = std::fs::create_dir_all(p);
+						}
+						if let Ok(mut outfile) = std::fs::File::create(&outpath) {
+							let _ = std::io::copy(&mut file, &mut outfile);
+						}
+					}
+				}
+			}
+		}
+	}
 
-    for mrpack_mod in &manifest.mods {
-        if let (Some(project_id), Some(version_id)) =
-            (&mrpack_mod.project_id, &mrpack_mod.version_id)
-        {
-            let version_detail = client
-                .get_version_detail(project_id, version_id, &mc_version)
-                .await;
-            if let Ok(version) = version_detail {
-                if let Some(file) = version.files.first() {
-                    let resp = state.http.get(&file.url).send().await?.error_for_status()?;
-                    let bytes = resp.bytes().await?;
-                    let filename = mrpack_mod.file_name.as_deref().unwrap_or(&file.filename);
-                    let file_path = mods_dir.join(filename);
-                    tokio::fs::write(&file_path, &bytes).await?;
-                    let _ = tokio::fs::write(storage_mods_dir.join(filename), &bytes).await;
+	let client = crate::core::mods::ModrinthClient::new(state.http.clone());
+	let db = crate::db::shared_db().await?;
+	let mut installed_mods_count = 0;
 
-                    let mod_row = crate::db::schema::mods::ModRow {
-                        profile_id: profile_id.clone(),
-                        project_id: project_id.clone(),
-                        version_id: version_id.clone(),
-                        file_name: filename.to_string(),
-                        sha1: file.sha1.clone(),
-                        source: "modrinth".into(),
-                        installed_at: String::new(),
-                    };
-                    let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
-                }
-            }
-        }
-    }
+	for mrpack_file in &manifest.files {
+		if let Some(env) = &mrpack_file.env {
+			if env.client.as_deref() == Some("unsupported") {
+				continue;
+			}
+		}
 
-    let loader = if manifest.dependencies.contains_key("fabric-loader") {
-        "fabric"
-    } else if manifest.dependencies.contains_key("forge") {
-        "forge"
-    } else if manifest.dependencies.contains_key("neoforge") {
-        "neoforge"
-    } else if manifest.dependencies.contains_key("quilt-loader") {
-        "quilt"
-    } else {
-        "vanilla"
-    };
+		if mrpack_file.downloads.is_empty() {
+			continue;
+		}
 
-    let loader_version = manifest
-        .dependencies
-        .values()
-        .find_map(|v| v.as_str().map(|s| s.to_string()))
-        .unwrap_or_default();
+		let outpath = instance_dir.join(&mrpack_file.path);
+		if let Some(parent) = outpath.parent() {
+			let _ = tokio::fs::create_dir_all(parent).await;
+		}
 
-    let now = chrono::Utc::now();
-    let profile_row = ProfileRow {
-        id: profile_id,
-        name: profile_name,
-        icon: icon.unwrap_or_else(|| "default".into()),
-        mc_version,
-        loader: loader.into(),
-        loader_version: Some(loader_version),
-        java_path: None,
-        jvm_args: None,
-        resolution_w: None,
-        resolution_h: None,
-        fullscreen: false,
-        game_dir: instance_dir.to_string_lossy().to_string(),
-        created_at: now,
-        updated_at: now,
-        favorite: false,
-        notes: None,
-        last_played: None,
-        launch_count: 0,
-        mod_count: manifest.mods.len() as i64,
-        disk_usage: 0,
-        ram_mb: None,
-        instance_group: None,
-        auto_optimize: true,
-        use_vulkan: false,
-    };
+		for url in &mrpack_file.downloads {
+			if let Ok(resp) = state.http.get(url).send().await {
+				if resp.status().is_success() {
+					if let Ok(bytes) = resp.bytes().await {
+						let _ = tokio::fs::write(&outpath, &bytes).await;
 
-    crate::db::schema::profiles::upsert(&db, &profile_row).await?;
+						if mrpack_file.path.starts_with("mods/") || mrpack_file.path.ends_with(".jar") {
+							installed_mods_count += 1;
+							let filename = std::path::Path::new(&mrpack_file.path)
+								.file_name()
+								.and_then(|n| n.to_str())
+								.unwrap_or("mod.jar");
+							let _ = tokio::fs::write(storage_mods_dir.join(filename), &bytes).await;
+
+							let sha1 = mrpack_file
+								.hashes
+								.get("sha1")
+								.cloned()
+								.unwrap_or_default();
+
+							let mod_row = crate::db::schema::mods::ModRow {
+								profile_id: profile_id.clone(),
+								project_id: filename.to_string(),
+								version_id: String::new(),
+								file_name: filename.to_string(),
+								sha1,
+								source: "modrinth".into(),
+								installed_at: String::new(),
+							};
+							let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+						}
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	if manifest.files.is_empty() {
+		for mrpack_mod in &manifest.mods {
+			if let (Some(project_id), Some(version_id)) =
+				(&mrpack_mod.project_id, &mrpack_mod.version_id)
+			{
+				let version_detail = client
+					.get_version_detail(project_id, version_id, &mc_version)
+					.await;
+				if let Ok(version) = version_detail {
+					if let Some(file) = version.files.first() {
+						if let Ok(resp) = state.http.get(&file.url).send().await {
+							if resp.status().is_success() {
+								if let Ok(bytes) = resp.bytes().await {
+									installed_mods_count += 1;
+									let filename = mrpack_mod.file_name.as_deref().unwrap_or(&file.filename);
+									let file_path = mods_dir.join(filename);
+									let _ = tokio::fs::write(&file_path, &bytes).await;
+									let _ = tokio::fs::write(storage_mods_dir.join(filename), &bytes).await;
+
+									let mod_row = crate::db::schema::mods::ModRow {
+										profile_id: profile_id.clone(),
+										project_id: project_id.clone(),
+										version_id: version_id.clone(),
+										file_name: filename.to_string(),
+										sha1: file.sha1.clone(),
+										source: "modrinth".into(),
+										installed_at: String::new(),
+									};
+									let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	let (loader, loader_version) = if let Some(v) = manifest
+		.dependencies
+		.get("fabric-loader")
+		.and_then(|v| v.as_str())
+	{
+		("fabric", Some(v.to_string()))
+	} else if let Some(v) = manifest
+		.dependencies
+		.get("neoforge")
+		.and_then(|v| v.as_str())
+	{
+		("neoforge", Some(v.to_string()))
+	} else if let Some(v) = manifest
+		.dependencies
+		.get("forge")
+		.and_then(|v| v.as_str())
+	{
+		("forge", Some(v.to_string()))
+	} else if let Some(v) = manifest
+		.dependencies
+		.get("quilt-loader")
+		.and_then(|v| v.as_str())
+	{
+		("quilt", Some(v.to_string()))
+	} else {
+		("vanilla", None)
+	};
+
+	let now = chrono::Utc::now();
+	let profile_row = ProfileRow {
+		id: profile_id,
+		name: profile_name,
+		icon: icon.unwrap_or_else(|| "default".into()),
+		mc_version,
+		loader: loader.into(),
+		loader_version,
+		java_path: None,
+		jvm_args: None,
+		resolution_w: None,
+		resolution_h: None,
+		fullscreen: false,
+		game_dir: instance_dir.to_string_lossy().to_string(),
+		created_at: now,
+		updated_at: now,
+		favorite: false,
+		notes: None,
+		last_played: None,
+		launch_count: 0,
+		mod_count: installed_mods_count as i64,
+		disk_usage: 0,
+		ram_mb: None,
+		instance_group: None,
+		auto_optimize: true,
+		use_vulkan: false,
+	};
+
+	crate::db::schema::profiles::upsert(&db, &profile_row).await?;
     Ok(profile_row)
 }
 
