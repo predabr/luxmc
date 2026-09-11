@@ -410,11 +410,11 @@ Contribuições são bem-vindas! Siga estas diretrizes:
 - [x] Barra de progresso de downloads
 - [x] Cutscene cinematográfica
 - [ ] Autenticação Microsoft completa (aguardando aprovação Azure)
-- [ ] Suporte ao Windows (instaladores .msi e .exe)
-- [ ] NeoForge loader completo (prepare_loader)
-- [ ] Sistema de amigos e chat integrado
-- [ ] Marketplace de skins e capas da comunidade
-- [ ] Suporte a macOS
+- [x] Suporte ao Windows (instaladores .msi e .exe)
+- [x] NeoForge loader completo (prepare_loader)
+- [x] Sistema de amigos e chat integrado
+- [x] Marketplace de skins e capas da comunidade
+- [x] Suporte a macOS
 
 ---
 

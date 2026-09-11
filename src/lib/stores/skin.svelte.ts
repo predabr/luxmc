@@ -1,3 +1,19 @@
+export type CapeType =
+	| "none"
+	| "migrator"
+	| "optifine"
+	| "mojang"
+	| "minecon2011"
+	| "minecon2012"
+	| "minecon2013"
+	| "minecon2015"
+	| "minecon2016"
+	| "cherry"
+	| "vanilla"
+	| "tiktok"
+	| "twitch"
+	| "luxmc";
+
 export interface SkinData {
 	id: string;
 	name: string;
@@ -6,7 +22,7 @@ export interface SkinData {
 	avatarUrl: string;
 	type: "steve" | "alex";
 	hasCape?: boolean;
-	capeType?: "mojang" | "optifine" | "migrator" | "none";
+	capeType?: CapeType;
 }
 
 const defaultSkin: SkinData = {
@@ -45,7 +61,7 @@ function createSkinStore() {
 				localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current));
 			}
 		},
-		setCape(capeType: "mojang" | "optifine" | "migrator" | "none") {
+		setCape(capeType: CapeType) {
 			current.capeType = capeType;
 			current.hasCape = capeType !== "none";
 			if (typeof window !== "undefined") {

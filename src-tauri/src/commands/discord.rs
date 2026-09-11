@@ -38,10 +38,12 @@ pub struct DiscordActivityArgs {
 #[cfg(unix)]
 fn get_socket_path() -> Option<std::path::PathBuf> {
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+    let tmp_dir = std::env::var("TMPDIR").unwrap_or_else(|_| "/tmp".to_string());
     let home_dir = std::env::var("HOME").unwrap_or_default();
 
     let candidates = vec![
         std::path::PathBuf::from(&runtime_dir),
+        std::path::PathBuf::from(&tmp_dir),
         std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.Discord"),
         std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.DiscordCanary"),
         std::path::PathBuf::from(&runtime_dir).join("app/de.vencord.Vesktop"),
@@ -50,6 +52,7 @@ fn get_socket_path() -> Option<std::path::PathBuf> {
         std::path::PathBuf::from(&home_dir).join(".var/app/com.discordapp.Discord/config"),
         std::path::PathBuf::from(&home_dir).join(".var/app/de.vencord.Vesktop/config"),
         std::path::PathBuf::from(&home_dir).join(".config/discord"),
+        std::path::PathBuf::from(&home_dir).join("Library/Application Support/discord"),
     ];
 
     let prefixes = vec!["discord-ipc-", "ipc-"];

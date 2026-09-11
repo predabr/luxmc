@@ -53,6 +53,19 @@
       "appimage": {
         "bundleMediaFramework": true
       }
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.13"
     }
   }
 }

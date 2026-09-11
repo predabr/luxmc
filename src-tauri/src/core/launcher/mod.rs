@@ -190,7 +190,7 @@ impl GameLauncher {
             }
         }
 
-        if loader == "fabric" || loader == "quilt" {
+        if loader == "fabric" || loader == "quilt" || loader == "neoforge" {
             if loader == "fabric" {
                 let mods_dir = game_dir.join("mods");
                 let _ = crate::core::loaders::fabric::ensure_fabric_api(

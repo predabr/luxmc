@@ -54,6 +54,9 @@
 	let newFriendUsername = $state("");
 	let newFriendAddress = $state("");
 	let showAddModal = $state(false);
+	let showInviteModal = $state(false);
+	let inviteServerAddress = $state("jogar.mush.com.br");
+	let inviteServerName = $state("MushMC");
 	let searchQuery = $state("");
 	let localIp = $state("127.0.0.1");
 	let localPort = $state(25575);
@@ -251,6 +254,21 @@
 		}
 	}
 
+	async function sendGameInvite() {
+		if (!activeFriend) return;
+		const addr = inviteServerAddress.trim();
+		const name = inviteServerName.trim() || addr;
+		if (!addr) {
+			toast("Digite o endereço ou IP do servidor.", "error");
+			return;
+		}
+		const text = `🎮 [CONVITE DE PARTIDA] Bora jogar juntos no servidor "${name}"! Endereço: ${addr}`;
+		newMessageText = text;
+		showInviteModal = false;
+		await sendMessage();
+		toast(`Convite para "${name}" enviado para ${activeFriend.username}!`, "success");
+	}
+
 	function copyMyAddress() {
 		const addr = `${localIp}:${localPort}`;
 		navigator.clipboard.writeText(addr);
@@ -445,21 +463,130 @@
 					</div>
 				</div>
 
-				<span class="bg-[#1c1d22] border border-white/10 text-white/50 text-[10px] font-mono px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-					<ShieldCheck class="w-3.5 h-3.5 text-emerald-400" /> P2P Criptografado
-				</span>
+				<div class="flex items-center gap-2">
+					<button 
+						type="button" 
+						class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-500/15 text-brand-400 border border-brand-500/30 hover:bg-brand-500 hover:text-black text-xs font-bold transition-all cursor-pointer shadow-sm"
+						onclick={() => showInviteModal = true}
+					>
+						<Gamepad2 class="w-3.5 h-3.5" />
+						Convidar para Partida
+					</button>
+
+					<span class="bg-[#1c1d22] border border-white/10 text-white/50 text-[10px] font-mono px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+						<ShieldCheck class="w-3.5 h-3.5 text-emerald-400" /> P2P Criptografado
+					</span>
+				</div>
 			</div>
+
+			<!-- Quick Invite Modal -->
+			{#if showInviteModal}
+				<div class="p-4 bg-[#18191f] border-b border-white/10 space-y-3" in:fade={{ duration: 150 }}>
+					<div class="flex items-center justify-between">
+						<span class="text-xs font-black text-white flex items-center gap-1.5">
+							<Gamepad2 class="w-3.5 h-3.5 text-amber-400" /> Convidar {activeFriend.username} para Jogar
+						</span>
+						<button 
+							type="button" 
+							class="text-xs text-white/40 hover:text-white cursor-pointer"
+							onclick={() => showInviteModal = false}
+						>
+							Fechar ✕
+						</button>
+					</div>
+
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+						<input 
+							type="text" 
+							placeholder="Nome do Servidor (ex: MushMC, Hypixel, Meu Mundo LAN)..." 
+							bind:value={inviteServerName}
+							class="bg-[#121316] border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand-500"
+						/>
+						<input 
+							type="text" 
+							placeholder="Endereço / IP (ex: jogar.mush.com.br, 192.168.1.50:25565)..." 
+							bind:value={inviteServerAddress}
+							class="bg-[#121316] border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand-500 font-mono"
+						/>
+					</div>
+
+					<!-- Quick Presets -->
+					<div class="flex items-center justify-between gap-2 pt-1">
+						<div class="flex items-center gap-1.5">
+							<span class="text-[10px] text-white/40 font-bold uppercase">Predefinições:</span>
+							<button 
+								type="button" 
+								class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white cursor-pointer"
+								onclick={() => { inviteServerName = "MushMC"; inviteServerAddress = "jogar.mush.com.br"; }}
+							>
+								MushMC
+							</button>
+							<button 
+								type="button" 
+								class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white cursor-pointer"
+								onclick={() => { inviteServerName = "Hypixel Network"; inviteServerAddress = "jogar.redehypixel.net"; }}
+							>
+								Hypixel
+							</button>
+							<button 
+								type="button" 
+								class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white cursor-pointer"
+								onclick={() => { inviteServerName = "Mundo LAN Local"; inviteServerAddress = `${localIp}:25565`; }}
+							>
+								Mundo LAN ({localIp})
+							</button>
+						</div>
+
+						<button 
+							type="button" 
+							class="px-4 py-1.5 rounded-xl font-black text-xs text-black bg-[#caa97c] hover:brightness-110 cursor-pointer shadow-md"
+							onclick={sendGameInvite}
+						>
+							Enviar Convite Instantâneo
+						</button>
+					</div>
+				</div>
+			{/if}
 
 			<!-- Message Feed -->
 			<div class="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-4">
 				{#each activeFriend.messages as msg}
 					<div class="flex flex-col {msg.sender === 'me' ? 'items-end' : 'items-start'}">
-						<div 
-							class="max-w-[75%] rounded-2xl px-4 py-2.5 text-xs {msg.sender === 'me' ? 'text-black font-semibold rounded-tr-none' : 'bg-[#1e1f24] text-white border border-white/5 rounded-tl-none'}"
-							style={msg.sender === 'me' ? 'background-color: var(--accent-color, #e2b86b);' : ''}
-						>
-							{msg.text}
-						</div>
+						{#if msg.text.includes("[CONVITE DE PARTIDA]")}
+							<div class="max-w-[85%] rounded-2xl p-4 bg-gradient-to-r from-[#20222a] to-[#18191f] border border-brand-500/30 shadow-lg space-y-2.5">
+								<div class="flex items-center justify-between gap-2">
+									<span class="text-[10px] font-black uppercase text-brand-400 flex items-center gap-1.5 bg-brand-500/10 px-2 py-0.5 rounded-lg border border-brand-500/20">
+										<Gamepad2 class="w-3 h-3" /> Convite de Partida
+									</span>
+									<span class="text-[10px] text-white/40 font-mono">{msg.time}</span>
+								</div>
+								<p class="text-xs text-white/90 font-medium leading-relaxed">{msg.text.replace("🎮 [CONVITE DE PARTIDA] ", "")}</p>
+								<div class="flex items-center justify-between gap-2 pt-2 border-t border-white/5">
+									<button 
+										type="button" 
+										class="text-[11px] font-bold text-black bg-[#caa97c] hover:brightness-110 px-3 py-1 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+										onclick={() => {
+											const match = msg.text.match(/Endereço:\s*([^\s]+)/i);
+											const ip = match ? match[1] : "";
+											if (ip) {
+												navigator.clipboard.writeText(ip);
+												toast(`IP "${ip}" copiado para a área de transferência!`, "success");
+											}
+										}}
+									>
+										<Copy class="w-3 h-3" /> Copiar IP do Servidor
+									</button>
+									<span class="text-[10px] text-emerald-400 font-mono font-bold">Online</span>
+								</div>
+							</div>
+						{:else}
+							<div 
+								class="max-w-[75%] rounded-2xl px-4 py-2.5 text-xs {msg.sender === 'me' ? 'text-black font-semibold rounded-tr-none' : 'bg-[#1e1f24] text-white border border-white/5 rounded-tl-none'}"
+								style={msg.sender === 'me' ? 'background-color: var(--accent-color, #e2b86b);' : ''}
+							>
+								{msg.text}
+							</div>
+						{/if}
 						<span class="text-[9px] text-white/30 font-mono mt-1 px-1">{msg.time}</span>
 					</div>
 				{/each}

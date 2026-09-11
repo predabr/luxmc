@@ -69,6 +69,7 @@ pub async fn prepare_loader(
     match LoaderKind::from_str(loader) {
         LoaderKind::Fabric => fabric::prepare_fabric(http, libraries_dir, mc_version, loader_version).await,
         LoaderKind::Quilt => quilt::prepare_quilt(http, libraries_dir, mc_version, loader_version).await,
+        LoaderKind::NeoForge => neoforge::prepare_neoforge(http, libraries_dir, mc_version, loader_version).await,
         _ => Err(crate::error::AppError::NotFound(format!("Loader '{}' not supported for auto-injection", loader))),
     }
 }
