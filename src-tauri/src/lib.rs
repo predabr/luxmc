@@ -64,6 +64,7 @@ pub async fn run() {
             commands::auth::auth_dev_login,
             commands::auth::auth_offline_login,
             commands::auth::auth_get_client_id,
+            commands::auth::auth_get_tenant_id,
             commands::auth::auth_set_client_id,
             commands::profiles::profiles_list,
             commands::profiles::profiles_get,

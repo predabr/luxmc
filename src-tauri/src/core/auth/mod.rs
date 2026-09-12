@@ -76,9 +76,17 @@ pub fn pkce_challenge(verifier: &str) -> String {
     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(digest)
 }
 
+pub const DEFAULT_CLIENT_ID: &str = "9750ebbe-21e9-4a4d-b808-f451a3e0af7f";
+pub const DEFAULT_TENANT_ID: &str = "78c2f825-9437-484a-aaa6-4d61631e106b";
+
 pub fn default_client_id() -> String {
     std::env::var("LUXMC_MS_CLIENT_ID")
-        .unwrap_or_else(|_| "00000000-0000-0000-0000-000000000000".to_string())
+        .unwrap_or_else(|_| DEFAULT_CLIENT_ID.to_string())
+}
+
+pub fn default_tenant_id() -> String {
+    std::env::var("LUXMC_MS_TENANT_ID")
+        .unwrap_or_else(|_| DEFAULT_TENANT_ID.to_string())
 }
 
 pub struct AuthService {

@@ -174,7 +174,7 @@
 		try {
 			const existingId = await authGetClientId().catch(() => "");
 			if (!existingId || existingId === "00000000-0000-0000-0000-000000000000") {
-				msClientIdInput = "";
+				msClientIdInput = "9750ebbe-21e9-4a4d-b808-f451a3e0af7f";
 				showMsClientIdModal = true;
 				return;
 			}
@@ -671,7 +671,7 @@
 					<input 
 						id="ms-client-input"
 						type="text" 
-						placeholder="ex: e1f8c8a0-xxxx-xxxx-xxxx-xxxxxxxxxxxx" 
+						placeholder="9750ebbe-21e9-4a4d-b808-f451a3e0af7f" 
 						bind:value={msClientIdInput}
 						class="w-full bg-[#121316] border border-white/15 focus:border-amber-500 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-all"
 						onkeydown={(e) => { if (e.key === "Enter") saveAndLoginWithClientId(); }}

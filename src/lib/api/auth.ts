@@ -84,6 +84,10 @@ export async function authGetClientId(): Promise<string> {
 	return api.invoke("auth_get_client_id");
 }
 
+export async function authGetTenantId(): Promise<string> {
+	return api.invoke("auth_get_tenant_id");
+}
+
 export async function authSetClientId(clientId: string): Promise<void> {
 	return api.invoke("auth_set_client_id", { clientId });
 }

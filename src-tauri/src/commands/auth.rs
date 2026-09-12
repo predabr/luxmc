@@ -19,7 +19,7 @@ async fn get_configured_client_id() -> String {
                 if let Ok(val) = serde_json::from_str::<serde_json::Value>(&raw) {
                     if let Some(cid) = val.get("customMicrosoftClientId").and_then(|v| v.as_str()) {
                         let trimmed = cid.trim();
-                        if !trimmed.is_empty() {
+                        if !trimmed.is_empty() && trimmed != "00000000-0000-0000-0000-000000000000" {
                             return trimmed.to_string();
                         }
                     }
@@ -38,6 +38,11 @@ pub async fn auth_get_client_id() -> String {
     } else {
         cid
     }
+}
+
+#[tauri::command]
+pub async fn auth_get_tenant_id() -> String {
+    crate::core::auth::default_tenant_id()
 }
 
 #[tauri::command]
