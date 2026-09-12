@@ -324,9 +324,13 @@ jobs:
           ${{ needs.generate-changelog.outputs.changelog }}
           EOF
 
-          gh release view "$TAG_NAME" || gh release create "$TAG_NAME" --title "Luxmc $TAG_NAME" --notes-file /tmp/release_notes.md
-          gh release edit "$TAG_NAME" --title "Luxmc $TAG_NAME" --notes-file /tmp/release_notes.md --draft=false
-          find artifacts/ -type f -exec gh release upload "$TAG_NAME" {} --clobber +
+          gh release edit "$TAG_NAME" --title "Luxmc $TAG_NAME" --notes-file /tmp/release_notes.md --draft=false || gh release create "$TAG_NAME" --title "Luxmc $TAG_NAME" --notes-file /tmp/release_notes.md || true
+          for f in artifacts/*; do
+            if [ -f "$f" ]; then
+              echo "Uploading $f to release $TAG_NAME..."
+              gh release upload "$TAG_NAME" "$f" --clobber
+            fi
+          done
 
   build-jar:
     name: Build Universal Luxmc.jar
