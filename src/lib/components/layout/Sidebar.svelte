@@ -4,7 +4,7 @@
 	import {
 		LayoutGrid,
 		Package,
-		Globe,
+		SlidersHorizontal,
 		Shirt,
 		Boxes,
 		Plus,
@@ -29,7 +29,7 @@
 	const items: Item[] = [
 		{ href: "/", labelKey: "nav.home", title: "Início", icon: LayoutGrid },
 		{ href: "/mods", labelKey: "nav.mods", title: "Central de Conteúdo", icon: Package },
-		{ href: "/servers", labelKey: "nav.servers", title: "Servidores", icon: Globe },
+		{ href: "/organizer", labelKey: "nav.organizer", title: "Organizador", icon: SlidersHorizontal },
 		{ href: "/skins", labelKey: "nav.skins", title: "Personalização", icon: Shirt },
 		{ href: "/instances", labelKey: "nav.instances", title: "Biblioteca", icon: Boxes },
 	];

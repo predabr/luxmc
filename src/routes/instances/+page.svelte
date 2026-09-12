@@ -540,9 +540,14 @@
 		try {
 			const p = await instanceImportModpack(importFile, importName.trim(), importVersion, importLoader);
 			profiles.add({
-				id: p.id, name: p.name, icon: "", mcVersion: importVersion,
-				loader: importLoader as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
-				gameDir: "", createdAt: Date.now(), updatedAt: Date.now(),
+				id: p.id,
+				name: p.name,
+				icon: p.icon || "",
+				mcVersion: p.mcVersion,
+				loader: (p.loader.toLowerCase() as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt") || "fabric",
+				gameDir: p.gameDir,
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
 			});
 			profiles.activeId = p.id;
 			showImport = false; importFile = null; importName = "";
@@ -566,9 +571,14 @@
 		try {
 			const p = await instanceImportMrpack(importMrpackFile, importMrpackName.trim());
 			profiles.add({
-				id: p.id, name: p.name, icon: "", mcVersion: p.mcVersion,
-				loader: p.loader as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
-				gameDir: p.gameDir, createdAt: Date.now(), updatedAt: Date.now(),
+				id: p.id,
+				name: p.name,
+				icon: p.icon || "",
+				mcVersion: p.mcVersion,
+				loader: (p.loader.toLowerCase() as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt") || "fabric",
+				gameDir: p.gameDir,
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
 			});
 			profiles.activeId = p.id;
 			showImportMrpack = false; importMrpackFile = null; importMrpackName = "";

@@ -109,6 +109,7 @@ export interface GameExitEvent {
 	versionId: string;
 	code: number;
 	success: boolean;
+	errorMessage?: string | null;
 }
 
 export interface HealthCheckResult {

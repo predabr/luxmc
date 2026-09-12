@@ -94,6 +94,100 @@ pub async fn instances_duplicate(_state: State<'_, AppState>, id: String) -> App
     Ok(row)
 }
 
+#[cfg(target_os = "linux")]
+fn scrub_appimage_env(cmd: &mut std::process::Command) {
+    cmd.env_remove("LD_LIBRARY_PATH");
+    cmd.env_remove("LD_PRELOAD");
+    cmd.env_remove("APPDIR");
+    cmd.env_remove("APPIMAGE");
+    cmd.env_remove("OWD");
+    cmd.env_remove("PYTHONPATH");
+    cmd.env_remove("GIO_MODULE_DIR");
+    cmd.env_remove("GSETTINGS_SCHEMA_DIR");
+    cmd.env_remove("GTK_PATH");
+    cmd.env_remove("GTK_EXE_PREFIX");
+    cmd.env_remove("QT_PLUGIN_PATH");
+
+    if let Ok(orig_ld) = std::env::var("LD_LIBRARY_PATH_ORIG") {
+        cmd.env("LD_LIBRARY_PATH", orig_ld);
+    }
+    if let Ok(orig_xdg) = std::env::var("XDG_DATA_DIRS_ORIG") {
+        cmd.env("XDG_DATA_DIRS", orig_xdg);
+    }
+}
+
+pub fn open_folder_safe(path: &std::path::Path) -> AppResult<()> {
+    if !path.exists() {
+        let _ = std::fs::create_dir_all(path);
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        let mut gio_cmd = std::process::Command::new("gio");
+        gio_cmd.args(["open", &path.to_string_lossy()]);
+        scrub_appimage_env(&mut gio_cmd);
+        if let Ok(mut child) = gio_cmd.spawn() {
+            tokio::spawn(async move {
+                let _ = child.wait();
+            });
+            return Ok(());
+        }
+
+        let mut xdg_cmd = std::process::Command::new("xdg-open");
+        xdg_cmd.arg(path);
+        scrub_appimage_env(&mut xdg_cmd);
+        if let Ok(mut child) = xdg_cmd.spawn() {
+            tokio::spawn(async move {
+                let _ = child.wait();
+            });
+            return Ok(());
+        }
+
+        for fm in &["nautilus", "dolphin", "thunar", "nemo", "pcmanfm"] {
+            let mut fm_cmd = std::process::Command::new(fm);
+            fm_cmd.arg(path);
+            scrub_appimage_env(&mut fm_cmd);
+            if let Ok(mut child) = fm_cmd.spawn() {
+                tokio::spawn(async move {
+                    let _ = child.wait();
+                });
+                return Ok(());
+            }
+        }
+    }
+
+    open::that_detached(path).map_err(crate::error::AppError::Io)?;
+    Ok(())
+}
+
+pub fn open_url_safe(url: &str) -> AppResult<()> {
+    #[cfg(target_os = "linux")]
+    {
+        let mut gio_cmd = std::process::Command::new("gio");
+        gio_cmd.args(["open", url]);
+        scrub_appimage_env(&mut gio_cmd);
+        if let Ok(mut child) = gio_cmd.spawn() {
+            tokio::spawn(async move {
+                let _ = child.wait();
+            });
+            return Ok(());
+        }
+
+        let mut xdg_cmd = std::process::Command::new("xdg-open");
+        xdg_cmd.arg(url);
+        scrub_appimage_env(&mut xdg_cmd);
+        if let Ok(mut child) = xdg_cmd.spawn() {
+            tokio::spawn(async move {
+                let _ = child.wait();
+            });
+            return Ok(());
+        }
+    }
+
+    open::that_detached(url).map_err(crate::error::AppError::Io)?;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn instances_open_folder(_state: State<'_, AppState>, id: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
@@ -103,7 +197,8 @@ pub async fn instances_open_folder(_state: State<'_, AppState>, id: String) -> A
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {id} not found")))?;
 
-    open::that(&row.game_dir)?;
+    let path = std::path::PathBuf::from(&row.game_dir);
+    open_folder_safe(&path)?;
     Ok(())
 }
 
@@ -120,49 +215,91 @@ pub async fn instances_screenshots(
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {id} not found")))?;
 
     let dir = std::path::Path::new(&row.game_dir).join("screenshots");
+    if !dir.exists() {
+        return Ok(Vec::new());
+    }
+
     let mut entries = Vec::new();
 
     if dir.is_dir() {
-        for entry in std::fs::read_dir(&dir)? {
-            let entry = entry?;
-            let path = entry.path();
+        if let Ok(read_dir) = std::fs::read_dir(&dir) {
+            for entry in read_dir.flatten() {
+                let path = entry.path();
 
-            let is_image = path
-                .extension()
-                .and_then(|e| e.to_str())
-                .map(|e| matches!(e.to_lowercase().as_str(), "png" | "jpg" | "jpeg"))
-                .unwrap_or(false);
+                let is_image = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .map(|e| matches!(e.to_lowercase().as_str(), "png" | "jpg" | "jpeg"))
+                    .unwrap_or(false);
 
-            if !is_image {
-                continue;
+                if !is_image {
+                    continue;
+                }
+
+                let modified_time = entry
+                    .metadata()
+                    .ok()
+                    .and_then(|m| m.modified().ok());
+
+                let modified_rfc3339 = modified_time
+                    .map(|t| {
+                        let dt: chrono::DateTime<chrono::Utc> = t.into();
+                        dt.to_rfc3339()
+                    })
+                    .unwrap_or_default();
+
+                entries.push((
+                    modified_time,
+                    ScreenshotEntry {
+                        name: path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("")
+                            .to_string(),
+                        path: path.to_string_lossy().to_string(),
+                        modified: modified_rfc3339,
+                        data_url: None,
+                    },
+                ));
             }
-
-            let metadata = entry.metadata()?;
-            let modified = metadata
-                .modified()
-                .ok()
-                .and_then(|t| {
-                    let dt: chrono::DateTime<chrono::Utc> = t.into();
-                    Some(dt.to_rfc3339())
-                })
-                .unwrap_or_default();
-
-            let data_url = None;
-
-            entries.push(ScreenshotEntry {
-                name: path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("")
-                    .to_string(),
-                path: path.to_string_lossy().to_string(),
-                modified,
-                data_url,
-            });
         }
     }
 
-    Ok(entries)
+    // Sort newest first
+    entries.sort_by(|a, b| b.0.cmp(&a.0));
+
+    // Provide lightweight data_url fallback only for the first 6 screenshots if <= 1.5MB
+    use base64::Engine;
+    let result: Vec<ScreenshotEntry> = entries
+        .into_iter()
+        .enumerate()
+        .map(|(idx, (_, mut entry))| {
+            if idx < 6 {
+                if let Ok(bytes) = std::fs::read(&entry.path) {
+                    if bytes.len() <= 1500 * 1024 {
+                        let ext = std::path::Path::new(&entry.path)
+                            .extension()
+                            .and_then(|e| e.to_str())
+                            .unwrap_or("png")
+                            .to_lowercase();
+                        let mime = if ext == "jpg" || ext == "jpeg" {
+                            "image/jpeg"
+                        } else {
+                            "image/png"
+                        };
+                        entry.data_url = Some(format!(
+                            "data:{};base64,{}",
+                            mime,
+                            base64::prelude::BASE64_STANDARD.encode(&bytes)
+                        ));
+                    }
+                }
+            }
+            entry
+        })
+        .collect();
+
+    Ok(result)
 }
 
 /// Delete a screenshot file by its absolute path.
@@ -194,8 +331,7 @@ pub async fn screenshot_delete(path: String) -> AppResult<()> {
 
 /// Open the screenshots folder in the system file manager.
 #[tauri::command]
-pub async fn screenshots_open_folder(app: tauri::AppHandle, profile_id: String) -> AppResult<()> {
-    use tauri_plugin_opener::OpenerExt;
+pub async fn screenshots_open_folder(_app: tauri::AppHandle, profile_id: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     let row =
         sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -207,12 +343,7 @@ pub async fn screenshots_open_folder(app: tauri::AppHandle, profile_id: String) 
             })?;
 
     let dir = std::path::Path::new(&row.game_dir).join("screenshots");
-    if !dir.exists() {
-        tokio::fs::create_dir_all(&dir).await?;
-    }
-    app.opener()
-        .open_path(dir.to_string_lossy().as_ref(), None::<&str>)
-        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
+    open_folder_safe(&dir)?;
     Ok(())
 }
 
@@ -222,6 +353,8 @@ struct CfManifest {
     minecraft: CfMinecraft,
     #[serde(default)]
     files: Vec<CfFile>,
+    #[serde(default)]
+    overrides: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -331,22 +464,53 @@ pub async fn instance_import_modpack(
         })?;
     tracing::info!(entries = archive.len(), "zip archive opened");
 
-    let manifest_entry = archive.by_name("manifest.json").map_err(|e| {
-        tracing::error!(error = %e, "manifest.json not found in zip");
-        crate::error::AppError::NotFound(format!("manifest.json not found in zip: {e}"))
+    let mut manifest_idx = None;
+    let mut root_prefix = String::new();
+
+    for i in 0..archive.len() {
+        if let Ok(file) = archive.by_index(i) {
+            let name = file.name().replace('\\', "/");
+            let clean = name.trim_start_matches('/');
+            if clean == "manifest.json" {
+                manifest_idx = Some(i);
+                root_prefix = String::new();
+                break;
+            } else if clean.ends_with("/manifest.json") && clean.matches('/').count() == 1 {
+                if let Some(prefix) = clean.strip_suffix("manifest.json") {
+                    manifest_idx = Some(i);
+                    root_prefix = prefix.to_string();
+                }
+            }
+        }
+    }
+
+    let manifest_idx = manifest_idx.ok_or_else(|| {
+        tracing::error!("manifest.json not found in zip");
+        crate::error::AppError::NotFound("manifest.json not found in zip".into())
     })?;
 
-    let manifest: CfManifest = serde_json::from_reader(manifest_entry)
-        .map_err(|e| {
+    let manifest: CfManifest = {
+        let entry = archive.by_index(manifest_idx).map_err(|e| {
+            tracing::error!(error = %e, "failed to read manifest entry");
+            crate::error::AppError::InvalidState(format!("failed to read manifest entry: {e}"))
+        })?;
+        serde_json::from_reader(entry).map_err(|e| {
             tracing::error!(error = %e, "failed to parse manifest.json");
             crate::error::AppError::InvalidState(format!("invalid manifest: {e}"))
-        })?;
-    tracing::info!(files = manifest.files.len(), "manifest parsed");
+        })?
+    };
+    tracing::info!(files = manifest.files.len(), prefix = %root_prefix, "manifest parsed");
 
-    let manifest_mc_version = manifest.minecraft.version.clone();
+    let manifest_mc_version = manifest
+        .minecraft
+        .version
+        .trim()
+        .trim_matches('\'')
+        .trim_matches('"')
+        .to_string();
     let manifest_loader_type = manifest.minecraft.mod_loaders.first().map(|ml| {
         let parts: Vec<&str> = ml.id.split('-').collect();
-        parts[0].to_string()
+        parts[0].trim().to_lowercase()
     });
     let loader_version = manifest
         .minecraft
@@ -355,9 +519,9 @@ pub async fn instance_import_modpack(
         .map(|ml| {
             let parts: Vec<&str> = ml.id.split('-').collect();
             if parts.len() > 1 {
-                parts[1..].join("-")
+                parts[1..].join("-").trim().to_string()
             } else {
-                ml.id.clone()
+                ml.id.trim().to_string()
             }
         })
         .unwrap_or_default();
@@ -391,14 +555,43 @@ pub async fn instance_import_modpack(
     tracing::info!("directories created, extracting overrides");
 
     // Extract overrides directory if present
+    let overrides_folder = manifest
+        .overrides
+        .as_deref()
+        .unwrap_or("overrides")
+        .trim_matches('/')
+        .trim_matches('\\');
+
+    let full_overrides_prefix = format!("{}{}/", root_prefix, overrides_folder).to_lowercase();
+    let fallback_overrides_prefix = format!("{}overrides/", root_prefix).to_lowercase();
+    let fallback_client_prefix = format!("{}client-overrides/", root_prefix).to_lowercase();
+    let fallback_client_dir = format!("{}client/", root_prefix).to_lowercase();
+
     for i in 0..archive.len() {
         if let Ok(mut file) = archive.by_index(i) {
-            let enclosed = match file.enclosed_name() {
-                Some(p) => p.to_path_buf(),
-                None => continue,
+            let raw_name = file.name().replace('\\', "/");
+            let clean_name = raw_name.trim_start_matches('/');
+            let lower_name = clean_name.to_lowercase();
+
+            let rel_str = if lower_name.starts_with(&full_overrides_prefix) {
+                clean_name.get(full_overrides_prefix.len()..)
+            } else if lower_name.starts_with(&fallback_overrides_prefix) {
+                clean_name.get(fallback_overrides_prefix.len()..)
+            } else if lower_name.starts_with(&fallback_client_prefix) {
+                clean_name.get(fallback_client_prefix.len()..)
+            } else if lower_name.starts_with(&fallback_client_dir) {
+                clean_name.get(fallback_client_dir.len()..)
+            } else {
+                None
             };
-            if let Ok(rel_path) = enclosed.strip_prefix("overrides") {
-                if rel_path.as_os_str().is_empty() {
+
+            if let Some(rel) = rel_str {
+                let rel_path = std::path::Path::new(rel);
+                if rel.is_empty()
+                    || rel_path.is_absolute()
+                    || rel.contains("..")
+                    || rel.contains(':')
+                {
                     continue;
                 }
                 let outpath = instance_dir.join(rel_path);
@@ -552,6 +745,28 @@ pub async fn instance_import_modpack(
                     final_filename = new_filename;
                 }
             }
+        }
+
+        let is_valid_jar = if total_bytes > 200 {
+            if let Ok(test_f) = std::fs::File::open(&file_path) {
+                zip::ZipArchive::new(std::io::BufReader::new(test_f)).is_ok()
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if !is_valid_jar {
+            tracing::warn!(
+                file = %final_filename,
+                size = total_bytes,
+                "Downloaded file is not a valid zip/jar, discarding to prevent JVM boot crash"
+            );
+            let _ = tokio::fs::remove_file(&file_path).await;
+            let _ = tokio::fs::remove_file(&storage_path).await;
+            mods_fail += 1;
+            continue;
         }
 
         if let Ok(db) = crate::db::shared_db().await {
@@ -809,30 +1024,34 @@ pub async fn instance_import_mrpack(
 
 	for i in 0..archive.len() {
 		if let Ok(mut file) = archive.by_index(i) {
-			let enclosed = match file.enclosed_name() {
-				Some(p) => p.to_path_buf(),
-				None => continue,
-			};
-			let rel_path = if let Ok(rel) = enclosed.strip_prefix("overrides") {
-				Some(rel.to_path_buf())
-			} else if let Ok(rel) = enclosed.strip_prefix("client-overrides") {
-				Some(rel.to_path_buf())
+			let raw_name = file.name().replace('\\', "/");
+			let clean_name = raw_name.trim_start_matches('/');
+			let rel_str = if clean_name.to_lowercase().starts_with("overrides/") {
+				clean_name.split_once('/').map(|x| x.1)
+			} else if clean_name.to_lowercase().starts_with("client-overrides/") {
+				clean_name.split_once('/').map(|x| x.1)
 			} else {
 				None
 			};
 
-			if let Some(rel_path) = rel_path {
-				if !rel_path.as_os_str().is_empty() {
-					let outpath = instance_dir.join(&rel_path);
-					if file.is_dir() {
-						let _ = std::fs::create_dir_all(&outpath);
-					} else {
-						if let Some(p) = outpath.parent() {
-							let _ = std::fs::create_dir_all(p);
-						}
-						if let Ok(mut outfile) = std::fs::File::create(&outpath) {
-							let _ = std::io::copy(&mut file, &mut outfile);
-						}
+			if let Some(rel) = rel_str {
+				let rel_path = std::path::Path::new(rel);
+				if rel.is_empty()
+					|| rel_path.is_absolute()
+					|| rel.contains("..")
+					|| rel.contains(':')
+				{
+					continue;
+				}
+				let outpath = instance_dir.join(rel_path);
+				if file.is_dir() {
+					let _ = std::fs::create_dir_all(&outpath);
+				} else {
+					if let Some(p) = outpath.parent() {
+						let _ = std::fs::create_dir_all(p);
+					}
+					if let Ok(mut outfile) = std::fs::File::create(&outpath) {
+						let _ = std::io::copy(&mut file, &mut outfile);
 					}
 				}
 			}
@@ -1371,11 +1590,7 @@ pub async fn instance_mods_open_folder(
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
     let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
-    if !mods_dir.exists() {
-        std::fs::create_dir_all(&mods_dir)?;
-    }
-
-    open::that(&mods_dir)?;
+    open_folder_safe(&mods_dir)?;
     Ok(())
 }
 
@@ -1472,10 +1687,6 @@ pub async fn instance_pack_open_folder(
     };
 
     let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
-    if !target_dir.exists() {
-        std::fs::create_dir_all(&target_dir)?;
-    }
-
-    open::that(&target_dir)?;
+    open_folder_safe(&target_dir)?;
     Ok(())
 }

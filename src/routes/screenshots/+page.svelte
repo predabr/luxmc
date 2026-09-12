@@ -13,9 +13,9 @@
 
 	const { t } = useTranslation();
 
-	let screenshots = $state<Array<{ name: string; path: string; modified: string }>>([]);
+	let screenshots = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null }>>([]);
 	let loading = $state(false);
-	let selectedImage = $state<{ name: string; path: string; modified: string } | null>(null);
+	let selectedImage = $state<{ name: string; path: string; modified: string; dataUrl?: string | null } | null>(null);
 	let screenshotToDelete = $state<{ name: string; path: string } | null>(null);
 	let showDeleteConfirm = $state(false);
 	let deleting = $state(false);
@@ -189,7 +189,7 @@
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
 				<div class="group relative overflow-hidden rounded-2xl bg-[#141518] border border-white/5 cursor-zoom-in break-inside-avoid shadow-lg transition-all hover:border-brand-500/30 hover:shadow-brand-500/5" onclick={() => selectedImage = s}>
-					<img src={convertFileSrc(s.path)} alt={s.name} class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+					<img src={s.dataUrl || convertFileSrc(s.path)} alt={s.name} class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 					<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex flex-col justify-end p-4">
 						<p class="text-xs font-bold text-white truncate drop-shadow-md">{s.name}</p>
 						<p class="text-[10px] text-brand-500 font-medium">{new Date(s.modified).toLocaleString()}</p>
@@ -211,7 +211,7 @@
 			<X class="h-6 w-6" />
 		</button>
 		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-		<img src={convertFileSrc(selectedImage.path)} alt={selectedImage.name} class="max-w-full max-h-full object-contain rounded-3xl shadow-2xl border border-white/10" onclick={(e) => e.stopPropagation()} />
+		<img src={selectedImage.dataUrl || convertFileSrc(selectedImage.path)} alt={selectedImage.name} class="max-w-full max-h-full object-contain rounded-3xl shadow-2xl border border-white/10" onclick={(e) => e.stopPropagation()} />
 		<div class="absolute bottom-8 flex gap-4" onclick={(e) => e.stopPropagation()}>
 			<Button variant="secondary" onclick={() => copyToClipboard(selectedImage!.path)}>
 				<Copy class="h-4 w-4"/> Copiar Caminho

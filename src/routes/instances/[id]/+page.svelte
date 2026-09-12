@@ -54,6 +54,7 @@
 		instanceFileTree, 
 		instancesScreenshots, 
 		instancesOpenFolder, 
+		screenshotsOpenFolder,
 		screenshotDelete,
 		authDevLogin,
 		instanceWorldsList,
@@ -745,6 +746,15 @@
 			toast("Erro ao abrir pasta: " + String(e), "error");
 		}
 	}
+
+	async function openScreenshotsFolder() {
+		if (!instanceId) return;
+		try {
+			await screenshotsOpenFolder(instanceId);
+		} catch (e) {
+			toast("Erro ao abrir pasta de capturas: " + String(e), "error");
+		}
+	}
 </script>
 
 <div class="flex gap-8 h-full w-full select-none">
@@ -1203,7 +1213,7 @@
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-white">Capturas de Tela (F2)</h3>
-					<button class="text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer" style="color: var(--accent-color, #e2b86b);" onclick={openInstanceFolder}>
+					<button class="text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer" style="color: var(--accent-color, #e2b86b);" onclick={openScreenshotsFolder}>
 						<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta screenshots/
 					</button>
 				</div>

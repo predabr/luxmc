@@ -37,7 +37,7 @@
 		"/": 0,
 		"/news": 0.5,
 		"/mods": 1,
-		"/servers": 2,
+		"/organizer": 2,
 		"/skins": 3,
 		"/instances": 4,
 		"/friends": 5,
@@ -163,6 +163,10 @@
 			gamingStats.onGameExit();
 			appState.isGameRunning = false;
 			appState.activeGameDetails = null;
+			if (!event.success || event.code !== 0) {
+				const detail = event.errorMessage ? `\nMotivo: ${event.errorMessage}` : " Consulte a aba de Logs para detalhes.";
+				toast(`O Minecraft encerrou com código de saída ${event.code}.${detail}`, "error");
+			}
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
@@ -206,9 +210,9 @@
 			} else if (currentPath === "/skins") {
 				details = "Personalizador de Skins 3D";
 				state = "Customizando Aparência";
-			} else if (currentPath === "/servers") {
-				details = "Lista de Servidores";
-				state = "Procurando Mundos Multiplayer";
+			} else if (currentPath === "/organizer") {
+				details = "Organizando o Layout";
+				state = "Personalizando Painéis";
 			} else if (currentPath === "/screenshots") {
 				details = "Galeria de Capturas de Tela";
 				state = "Visualizando Screenshots";

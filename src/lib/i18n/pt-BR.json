@@ -28,7 +28,7 @@
 		"mods": "Mods",
 		"news": "Notícias",
 		"logs": "Logs",
-		"servers": "Servidores",
+		"organizer": "Organizador",
 		"skins": "Personalização",
 		"friends": "Amigos",
 		"screenshots": "Capturas de tela",
@@ -285,6 +285,20 @@
 		"signOut": "Sair",
 		"signedInAs": "Conectado como {{name}}"
 	},
+	"organizer": {
+		"title": "Organizador de Layout",
+		"subtitle": "Personalize o layout e a ordem dos painéis da tela inicial conforme sua preferência.",
+		"reset": "Restaurar Padrão",
+		"saved": "Layout salvo automaticamente",
+		"blocks": "Blocos do Painel Inicial",
+		"preview": "Prévia Interativa",
+		"visible": "Visível",
+		"hidden": "Oculto",
+		"width": "Largura",
+		"dragTip": "Arraste os cards para reorganizar ou use as setas para ajustar a posição.",
+		"fullWidth": "Largura Completa",
+		"halfWidth": "Meia Largura"
+	},
 	"servers": {
 		"title": "Servidores",
 		"addServer": "Adicionar Servidor",
@@ -375,6 +389,7 @@
 	},
 	"instances": {
 		"title": "Instâncias",
+		"favorite": "Favoritar",
 		"create": "Criar Instância",
 		"createDesc": "Criar uma nova instância do Minecraft",
 		"edit": "Editar Instância",
@@ -569,7 +584,7 @@
 		"pressCombo": "Pressione uma combinação de teclas...",
 		"goToInstances": "Ir para Instâncias",
 		"goToNews": "Ir para Notícias",
-		"goToServers": "Ir para Servidores",
+		"goToOrganizer": "Ir para Organizador",
 		"goToLogs": "Ir para Logs",
 		"goToSettings": "Ir para Ajustes",
 		"goToMods": "Ir para Mods",

@@ -148,7 +148,7 @@
 							class="grid h-5 w-5 shrink-0 place-items-center rounded transition-colors cursor-pointer"
 							style="color: {profile.favorite ? 'rgb(250, 204, 21)' : 'rgb(var(--fg-subtle))'};"
 							onclick={handleFavorite}
-							aria-label={t("servers.favorite")}
+							aria-label={t("instances.favorite")}
 						>
 							<Star class="h-3.5 w-3.5 {profile.favorite ? 'fill-current' : ''}" />
 						</button>
@@ -285,7 +285,7 @@
 				class="grid h-5 w-5 shrink-0 place-items-center rounded transition-colors"
 				style="color: {profile.favorite ? 'rgb(250, 204, 21)' : 'rgb(var(--fg-subtle))'};"
 				onclick={handleFavorite}
-				aria-label={t("servers.favorite")}
+				aria-label={t("instances.favorite")}
 			>
 				<Star class="h-3.5 w-3.5 {profile.favorite ? 'fill-current' : ''}" />
 			</button>

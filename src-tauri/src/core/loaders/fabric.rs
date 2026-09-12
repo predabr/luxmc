@@ -173,7 +173,7 @@ pub async fn prepare_fabric(
         }
     }
     if jvm_args.is_empty() {
-        jvm_args.push("-DFabricMcEmu= net.minecraft.client.main.Main ".to_string());
+        jvm_args.push("-DFabricMcEmu=net.minecraft.client.main.Main".to_string());
     }
 
     Ok(PreparedLoader {

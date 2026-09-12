@@ -168,14 +168,24 @@ fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
     Ok(s)
 }
 
-fn find_java_binary(libraries_dir: &Path) -> std::path::PathBuf {
+fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBuf {
+    let major = match mc_version {
+        v if v.starts_with("1.20.5") || v.starts_with("1.20.6") || v.starts_with("1.21") || v.starts_with("2") => 21,
+        v if v.starts_with("1.17") || v.starts_with("1.18") || v.starts_with("1.19") || v.starts_with("1.20") => 17,
+        _ => 8,
+    };
     if let Some(parent) = libraries_dir.parent() {
-        let possible_bins = [
-            parent.join("java").join("21").join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }),
-            parent.join("java").join("17").join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }),
-            parent.join("java").join("8").join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }),
+        let bin_name = if cfg!(windows) { "java.exe" } else { "java" };
+        let preferred = parent.join("java").join(major.to_string()).join("bin").join(bin_name);
+        if preferred.exists() {
+            return preferred;
+        }
+        let fallbacks = [
+            parent.join("java").join("17").join("bin").join(bin_name),
+            parent.join("java").join("21").join("bin").join(bin_name),
+            parent.join("java").join("8").join("bin").join(bin_name),
         ];
-        for b in possible_bins {
+        for b in fallbacks {
             if b.exists() {
                 return b;
             }
@@ -255,7 +265,7 @@ pub async fn prepare_forge(
             let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
         }
 
-        let java_bin = find_java_binary(libraries_dir);
+        let java_bin = find_java_binary(libraries_dir, mc_version);
         let _ = tokio::process::Command::new(&java_bin)
             .arg("-jar")
             .arg(&installer_dest)

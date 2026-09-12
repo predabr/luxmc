@@ -275,6 +275,24 @@ pub async fn prepare_neoforge(
         }
     }
 
+    let client_rel = format!(
+        "net/neoforged/neoforge/{}/neoforge-{}-client.jar",
+        chosen_version, chosen_version
+    );
+    let client_dest = libraries_dir.join(&client_rel);
+    if client_dest.exists() && !classpath_entries.contains(&client_dest) {
+        classpath_entries.push(client_dest);
+    }
+
+    let universal_rel = format!(
+        "net/neoforged/neoforge/{}/neoforge-{}-universal.jar",
+        chosen_version, chosen_version
+    );
+    let universal_dest = libraries_dir.join(&universal_rel);
+    if universal_dest.exists() && !classpath_entries.contains(&universal_dest) {
+        classpath_entries.push(universal_dest);
+    }
+
     if installer_dest.exists() && !classpath_entries.contains(&installer_dest) {
         classpath_entries.push(installer_dest);
     }

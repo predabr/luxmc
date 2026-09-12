@@ -27,7 +27,7 @@
       "csp": "default-src 'self' tauri: asset: data: blob:; img-src 'self' asset: http: https: data: blob:; media-src 'self' asset: http: https: data: blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' tauri: http: https:; worker-src 'self' blob:;",
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/Luxmc/**", "$DOWNLOAD/Luxmc/**"]
+        "scope": ["**"]
       }
     }
   },

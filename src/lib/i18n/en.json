@@ -28,7 +28,7 @@
 		"mods": "Mods",
 		"news": "News",
 		"logs": "Logs",
-		"servers": "Servers",
+		"organizer": "Organizer",
 		"skins": "Customization",
 		"friends": "Friends",
 		"screenshots": "Screenshots",
@@ -285,6 +285,20 @@
 		"signOut": "Sign out",
 		"signedInAs": "Signed in as {{name}}"
 	},
+	"organizer": {
+		"title": "Layout Organizer",
+		"subtitle": "Customize your home screen layout and card order to match your preferences.",
+		"reset": "Reset Default",
+		"saved": "Layout saved automatically",
+		"blocks": "Home Dashboard Blocks",
+		"preview": "Interactive Preview",
+		"visible": "Visible",
+		"hidden": "Hidden",
+		"width": "Width",
+		"dragTip": "Drag cards to reorder or use the arrow controls.",
+		"fullWidth": "Full Width",
+		"halfWidth": "Half Width"
+	},
 	"servers": {
 		"title": "Servers",
 		"addServer": "Add Server",
@@ -375,6 +389,7 @@
 	},
 	"instances": {
 		"title": "Instances",
+		"favorite": "Favorite",
 		"create": "Create Instance",
 		"createDesc": "Create a new Minecraft instance",
 		"edit": "Edit Instance",
@@ -569,7 +584,7 @@
 		"pressCombo": "Press a key combo...",
 		"goToInstances": "Go to Instances",
 		"goToNews": "Go to News",
-		"goToServers": "Go to Servers",
+		"goToOrganizer": "Go to Organizer",
 		"goToLogs": "Go to Logs",
 		"goToSettings": "Go to Settings",
 		"goToMods": "Go to Mods",

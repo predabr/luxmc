@@ -104,7 +104,7 @@ pub async fn auth_login(
 
     app.emit("launcher-log", "Opening browser for Microsoft login...")
         .ok();
-    open::that(&pending.url).map_err(|e| {
+    crate::commands::instances::open_url_safe(&pending.url).map_err(|e| {
         let msg = format!(
             "Failed to open browser: {}. Please open this URL manually:\n{}",
             e, pending.url

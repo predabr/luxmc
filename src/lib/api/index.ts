@@ -5,7 +5,6 @@ export * from "./types";
 export * from "./auth";
 export * from "./instances";
 export * from "./mods";
-export * from "./servers";
 export * from "./settings";
 export * from "./system";
 export * from "./events";

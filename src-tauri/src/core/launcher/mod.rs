@@ -287,7 +287,6 @@ impl GameLauncher {
                 classpath.retain(|p| {
                     let s = p.to_string_lossy();
                     !s.ends_with("-installer.jar")
-                        && !(s.contains("/versions/") && s.ends_with(&format!("/{}.jar", profile.mc_version)))
                 });
             }
 
@@ -356,9 +355,16 @@ impl GameLauncher {
         let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
         jvm_args.extend(extra_jvm_args);
 
-        let mut game_args =
-            self.build_game_args(detail, username, uuid, access_token, user_type, game_dir, profile);
-        game_args.extend(extra_game_args);
+        let mut game_args = extra_game_args;
+        game_args.extend(self.build_game_args(
+            detail,
+            username,
+            uuid,
+            access_token,
+            user_type,
+            game_dir,
+            profile,
+        ));
 
         self.emit_log(&format!("Main class: {}", main_class));
 
@@ -493,6 +499,10 @@ impl GameLauncher {
                 cmd.env("LD_LIBRARY_PATH", ld_dirs.join(":"));
             }
 
+            if let Ok(orig_dirs) = std::env::var("XDG_DATA_DIRS_ORIG") {
+                cmd.env("XDG_DATA_DIRS", orig_dirs);
+            }
+
             cmd.env_remove("APPDIR");
             cmd.env_remove("APPIMAGE");
             cmd.env_remove("OWD");
@@ -501,13 +511,8 @@ impl GameLauncher {
             cmd.env_remove("GTK_PATH");
             cmd.env_remove("GSETTINGS_SCHEMA_DIR");
 
-            cmd.env_remove("WAYLAND_DISPLAY");
-            cmd.env_remove("WAYLAND_SOCKET");
             cmd.env("_JAVA_AWT_WM_NONREPARENTING", "1");
-            cmd.env("GDK_BACKEND", "x11");
-            cmd.env("SDL_VIDEODRIVER", "x11");
-            cmd.env("GLFW_PLATFORM", "x11");
-            if std::env::var("DISPLAY").is_err() {
+            if std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err() {
                 cmd.env("DISPLAY", ":0");
             }
 
@@ -584,12 +589,20 @@ impl GameLauncher {
             }
         });
 
+        let last_stderr = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
+        let last_stderr_writer = last_stderr.clone();
         let app_stderr = self.app.clone();
         tokio::spawn(async move {
             let reader = BufReader::new(stderr);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
                 tracing::error!(target: "game", "stderr: {}", line);
+                let trimmed = line.trim();
+                if !trimmed.is_empty() {
+                    if let Ok(mut lock) = last_stderr_writer.lock() {
+                        *lock = Some(trimmed.to_string());
+                    }
+                }
                 if let Some(ref app) = app_stderr {
                     let _ = app.emit(
                         "game-log",
@@ -604,12 +617,18 @@ impl GameLauncher {
 
         let app_exit = self.app.clone();
         let detail_id = detail.id.clone();
+        let last_stderr_reader = last_stderr.clone();
         tokio::spawn(async move {
             match child.wait().await {
                 Ok(status) => {
                     let code = status.code().unwrap_or(-1);
                     let msg = format!("Game process exited with code {}", code);
                     tracing::info!(target: "launch", "{}", msg);
+                    let error_message = if !status.success() {
+                        last_stderr_reader.lock().ok().and_then(|g| g.clone())
+                    } else {
+                        None
+                    };
                     if let Some(ref app) = app_exit {
                         let _ = app.emit(
                             "game-exit",
@@ -617,6 +636,7 @@ impl GameLauncher {
                                 version_id: detail_id,
                                 code,
                                 success: status.success(),
+                                error_message,
                             },
                         );
                     }
@@ -631,6 +651,7 @@ impl GameLauncher {
                                 version_id: detail_id,
                                 code: -1,
                                 success: false,
+                                error_message: Some(e.to_string()),
                             },
                         );
                     }
@@ -1215,6 +1236,8 @@ pub struct GameExitEvent {
     pub version_id: String,
     pub code: i32,
     pub success: bool,
+    #[serde(default)]
+    pub error_message: Option<String>,
 }
 
 pub fn is_library_allowed(lib: &minecraft::Library) -> bool {

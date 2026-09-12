@@ -24,13 +24,18 @@
 		EyeOff,
 		ExternalLink,
 		CheckCircle2,
-		AlertCircle
+		AlertCircle,
+		SlidersHorizontal,
+		FolderOpen,
+		Camera,
+		Package
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
+	import { layoutStore } from "$lib/stores/layout.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { 
 		authDevLogin, 
@@ -41,7 +46,8 @@
 		launchGame, 
 		versionsCheckInstalled, 
 		versionsDownload, 
-		discordSetActivity 
+		discordSetActivity,
+		instancesOpenFolder
 	} from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 
@@ -408,58 +414,19 @@
 		}
 	];
 
-	const servers = [
-		{ 
-			rank: "#1", 
-			name: "Hypixel Network", 
-			badge: "ORIGINAL", 
-			online: "44.120", 
-			version: "1.8.9 - 1.21.4", 
-			logo: "https://mc-heads.net/head/MHF_Gold/100",
-			ip: "mc.hypixel.net",
-			ping: "18ms"
-		},
-		{ 
-			rank: "#2", 
-			name: "Mush MC", 
-			badge: "BRASIL · PIRATA", 
-			online: "8.950", 
-			version: "1.8 - 1.21.4", 
-			logo: "https://mc-heads.net/head/MHF_MushroomCow/100",
-			ip: "mush.com.br",
-			ping: "12ms"
-		},
-		{ 
-			rank: "#3", 
-			name: "2b2t Anarchy", 
-			badge: "SEM REGRAS", 
-			online: "1.050", 
-			version: "1.20.4", 
-			logo: "https://mc-heads.net/head/MHF_Obsidian/100",
-			ip: "2b2t.org",
-			ping: "45ms"
-		},
-		{ 
-			rank: "#4", 
-			name: "Complex Gaming", 
-			badge: "PIXELMON", 
-			online: "2.840", 
-			version: "1.16 - 1.21.4", 
-			logo: "https://mc-heads.net/head/MHF_Emerald/100",
-			ip: "hub.mc-complex.com",
-			ping: "24ms"
-		},
-		{ 
-			rank: "#5", 
-			name: "DonutSMP Hardcore", 
-			badge: "LIFESTEAL", 
-			online: "3.420", 
-			version: "1.20.4 - 1.21.4", 
-			logo: "https://mc-heads.net/head/MHF_TNT/100",
-			ip: "donutsmp.net",
-			ping: "31ms"
+	async function openInstanceFolder(id?: string) {
+		const targetId = id || activeInstance?.id;
+		if (!targetId) {
+			toast("Nenhuma instância selecionada.", "warning");
+			return;
 		}
-	];
+		try {
+			await instancesOpenFolder(targetId);
+			toast("Pasta da instância aberta.", "success");
+		} catch (e) {
+			toast("Falha ao abrir pasta: " + String(e), "error");
+		}
+	}
 </script>
 
 {#if !account.value}
@@ -863,226 +830,327 @@
 
 			{:else}
 
-			<div class="relative rounded-3xl bg-gradient-to-r from-[#1c1d24] via-[#18191f] to-[#15161b] border border-white/10 p-6 shadow-xl" in:fade={{ duration: 250 }}>
-				<div class="absolute -right-12 -top-12 w-56 h-56 bg-[#caa97c]/15 rounded-full blur-3xl pointer-events-none"></div>
-
-					<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative z-10">
-						<div class="space-y-1.5">
-							<div class="flex items-center gap-2">
-								<span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-								<span class="text-[11px] font-bold uppercase tracking-widest text-[#caa97c]">{t("home.readyToPlay")}</span>
-							</div>
-							<h1 class="text-2xl lg:text-3xl font-black text-white tracking-tight">
-								{t("home.helloUser", { name: account.value?.username || 'Jogador' })}
-							</h1>
-							<div class="flex flex-wrap items-center gap-2.5 text-xs text-white/60 pt-0.5">
-								{#if activeInstance}
-									<div class="flex items-center gap-2">
-										<div class="h-6 w-6 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-											{#if activeInstance.icon && (activeInstance.icon.startsWith("http") || activeInstance.icon.startsWith("/") || activeInstance.icon.startsWith("data:"))}
-												<img src={activeInstance.icon} alt={activeInstance.name} class="w-full h-full object-cover" />
-											{:else}
-												<img src="/grass_block.png" alt={activeInstance.name} class="w-4 h-4 object-contain [image-rendering:pixelated]" />
-											{/if}
-										</div>
-										<span class="font-bold text-white text-xs">{activeInstance.name}</span>
-									</div>
-									<span class="text-white/30">•</span>
-									<span class="font-mono text-[10px] bg-white/5 px-2 py-0.5 rounded-md border border-white/10 text-white/80">
-										{activeInstance.mcVersion}
-									</span>
-									<span class="font-mono text-[10px] bg-[#caa97c]/15 text-[#caa97c] px-2 py-0.5 rounded-md border border-[#caa97c]/25 uppercase font-bold">
-										{activeInstance.loader}
-									</span>
-								{:else}
-									<span class="text-white/40">{t("home.noInstanceYet")}</span>
-								{/if}
-							</div>
-						</div>
-
-						<div class="flex items-center gap-3 w-full lg:w-auto shrink-0">
-							<button
-								type="button"
-								class="flex-1 lg:flex-initial h-14 px-8 rounded-2xl bg-gradient-to-r from-[#e2b86b] via-[#caa97c] to-[#b89560] hover:from-[#ebd08f] hover:to-[#c4a16b] text-[#121316] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-3 shadow-[0_4px_25px_rgba(202,169,124,0.35)] hover:shadow-[0_6px_32px_rgba(202,169,124,0.5)] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
-								onclick={handleHomePlay}
-								disabled={isLaunching}
-							>
-								{#if isLaunching}
-									<Loader2 class="w-5 h-5 animate-spin" />
-									<span>{launchStatusText || t("home.starting").toUpperCase()}</span>
-								{:else}
-									<Play class="w-5 h-5 fill-current" />
-									<span>{t("home.playNow")}</span>
-								{/if}
-							</button>
-
-							<a 
-								href="/instances" 
-								class="h-14 px-5 rounded-2xl bg-[#18191c] hover:bg-[#222329] border border-white/10 hover:border-white/25 text-white font-bold text-xs flex items-center gap-2.5 transition-all shadow-md group cursor-pointer shrink-0"
-								title={t("home.library")}
-							>
-								<Boxes class="w-4 h-4 text-[#caa97c] group-hover:scale-110 transition-transform" />
-								<span class="hidden sm:inline">{t("home.library")}</span>
-							</a>
-						</div>
-					</div>
-				</div>
-
-				<section>
-					<div class="flex items-center justify-between mb-3">
-						<h2 class="text-xs font-bold text-white uppercase tracking-wider">{t("home.exploreContent")}</h2>
-						<a href="/mods" class="text-xs text-[#caa97c] hover:underline font-bold">{t("home.viewAll")}</a>
-					</div>
-
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-						{#each modpacks as pack}
-							<a href="/mods" class="group rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden hover:border-[#caa97c]/40 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(0,0,0,0.4)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
-								<div class="h-32 w-full relative bg-[#222328] overflow-hidden">
-									<img src={pack.bgImg} class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-300" alt={pack.title} />
-									<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-transparent to-transparent"></div>
-									
-									<div class="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shadow-md">
-										<span class="font-black text-[10px] text-emerald-400">m</span>
-									</div>
-
-									<div class="absolute bottom-2 left-2.5 h-9 w-9 rounded-xl overflow-hidden bg-black/60 border border-white/10 flex items-center justify-center shadow-md p-0.5">
-										<img src={pack.iconImg} alt={pack.title} class="w-full h-full object-cover rounded-lg" />
-									</div>
-								</div>
-								<div class="p-4 pt-3 flex-1 flex flex-col justify-between">
-									<div>
-										<h3 class="font-extrabold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{pack.title}</h3>
-										<p class="text-[10px] text-white/40 mt-1 line-clamp-2 leading-relaxed">{pack.subtitle}</p>
-									</div>
-									<div class="flex justify-between items-center mt-3 pt-2 border-t border-white/5 text-[10px] font-medium text-white/40">
-										<span class="flex items-center gap-1"><Users class="w-3 h-3 text-white/30"/> {pack.author}</span>
-										<span class="flex items-center gap-1 font-mono"><Download class="w-3 h-3 text-white/30"/> {pack.downloads}</span>
-									</div>
-								</div>
-							</a>
-						{/each}
-					</div>
-				</section>
-
 				<div class="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
-					
-					<section class="xl:col-span-6">
-						<div class="flex items-center justify-between mb-3">
-							<h2 class="text-xs font-bold text-white uppercase tracking-wider">{t("home.recommendedServers")}</h2>
-							<a href="/servers" class="text-xs text-[#caa97c] hover:underline font-bold">{t("home.viewFullList")}</a>
-						</div>
+					{#each layoutStore.sections as sec (sec.id)}
+						{#if sec.enabled}
+							<div class="{sec.width === 'half' ? 'xl:col-span-6' : 'xl:col-span-12'} w-full transition-all duration-300">
+								{#if sec.id === 'hero'}
+									<!-- Hero Banner & Launch Block -->
+									<div class="relative rounded-3xl bg-gradient-to-r from-[#1c1d24] via-[#18191f] to-[#15161b] border border-white/10 p-6 shadow-xl overflow-hidden" in:fade={{ duration: 250 }}>
+										<div class="absolute -right-12 -top-12 w-56 h-56 bg-[#caa97c]/15 rounded-full blur-3xl pointer-events-none"></div>
 
-						<div class="flex flex-col gap-2">
-							{#each servers as srv}
-								<div 
-									class="flex items-center justify-between bg-bg-elevated hover:bg-bg-subtle border border-white/5 hover:border-white/20 p-3 rounded-xl transition-all cursor-pointer group shadow-sm hover:-translate-y-0.5"
-									onclick={() => {
-										navigator.clipboard.writeText(srv.ip)
-											.then(() => toast(t("home.copiedIp", { ip: srv.ip }), "success"))
-											.catch((e) => toast("Falha ao copiar IP: " + String(e), "error"));
-									}}
-									role="button"
-									tabindex="0"
-									onkeydown={(e) => {
-										if (e.key === 'Enter') {
-											navigator.clipboard.writeText(srv.ip)
-												.then(() => toast(t("home.copiedIpShort", { ip: srv.ip }), "success"))
-												.catch((e) => toast("Falha ao copiar IP: " + String(e), "error"));
-										}
-									}}
-									title={t("home.clickToCopyIp")}
-								>
-									<div class="flex items-center gap-3">
-										<div class="h-10 w-10 rounded-xl bg-black/40 border border-white/5 flex items-center justify-center shrink-0">
-											<img src={srv.logo} alt={srv.name} class="w-7 h-7 rounded-md object-contain" />
-										</div>
-										<div>
-											<div class="flex items-center gap-2">
-												<h4 class="font-bold text-white text-xs group-hover:text-[#caa97c] transition-colors">{srv.name}</h4>
-												<span class="bg-white/10 text-white/80 text-[8px] font-extrabold px-2 py-0.5 rounded-full border border-white/10 uppercase">{srv.badge}</span>
+										<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative z-10">
+											<div class="space-y-1.5">
+												<div class="flex items-center gap-2">
+													<span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
+													<span class="text-[11px] font-bold uppercase tracking-widest text-[#caa97c]">{t("home.readyToPlay")}</span>
+												</div>
+												<h1 class="text-2xl lg:text-3xl font-black text-white tracking-tight">
+													{t("home.helloUser", { name: account.value?.username || 'Jogador' })}
+												</h1>
+												<div class="flex flex-wrap items-center gap-2.5 text-xs text-white/60 pt-0.5">
+													{#if activeInstance}
+														<div class="flex items-center gap-2">
+															<div class="h-6 w-6 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+																{#if activeInstance.icon && (activeInstance.icon.startsWith("http") || activeInstance.icon.startsWith("/") || activeInstance.icon.startsWith("data:"))}
+																	<img src={activeInstance.icon} alt={activeInstance.name} class="w-full h-full object-cover" />
+																{:else}
+																	<img src="/grass_block.png" alt={activeInstance.name} class="w-4 h-4 object-contain [image-rendering:pixelated]" />
+																{/if}
+															</div>
+															<span class="font-bold text-white text-xs">{activeInstance.name}</span>
+														</div>
+														<span class="text-white/30">•</span>
+														<span class="font-mono text-[10px] bg-white/5 px-2 py-0.5 rounded-md border border-white/10 text-white/80">
+															{activeInstance.mcVersion}
+														</span>
+														<span class="font-mono text-[10px] bg-[#caa97c]/15 text-[#caa97c] px-2 py-0.5 rounded-md border border-[#caa97c]/25 uppercase font-bold">
+															{activeInstance.loader}
+														</span>
+													{:else}
+														<span class="text-white/40">{t("home.noInstanceYet")}</span>
+													{/if}
+												</div>
 											</div>
-											<div class="flex items-center gap-2 text-[10px] text-white/40 font-medium mt-0.5">
-												<span class="text-white/60 font-medium flex items-center gap-1"><Users class="w-2.5 h-2.5" /> {srv.online}</span>
-												<span>•</span>
-												<span class="font-mono text-white/40">{srv.version}</span>
+
+											<div class="flex items-center gap-3 w-full lg:w-auto shrink-0">
+												<button
+													type="button"
+													class="flex-1 lg:flex-initial h-14 px-8 rounded-2xl bg-gradient-to-r from-[#e2b86b] via-[#caa97c] to-[#b89560] hover:from-[#ebd08f] hover:to-[#c4a16b] text-[#121316] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-3 shadow-[0_4px_25px_rgba(202,169,124,0.35)] hover:shadow-[0_6px_32px_rgba(202,169,124,0.5)] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+													onclick={handleHomePlay}
+													disabled={isLaunching}
+												>
+													{#if isLaunching}
+														<Loader2 class="w-5 h-5 animate-spin" />
+														<span>{launchStatusText || t("home.starting").toUpperCase()}</span>
+													{:else}
+														<Play class="w-5 h-5 fill-current" />
+														<span>{t("home.playNow")}</span>
+													{/if}
+												</button>
+
+												<a 
+													href="/instances" 
+													class="h-14 px-5 rounded-2xl bg-[#18191c] hover:bg-[#222329] border border-white/10 hover:border-white/25 text-white font-bold text-xs flex items-center gap-2.5 transition-all shadow-md group cursor-pointer shrink-0"
+													title={t("home.library")}
+												>
+													<Boxes class="w-4 h-4 text-[#caa97c] group-hover:scale-110 transition-transform" />
+													<span class="hidden sm:inline">{t("home.library")}</span>
+												</a>
 											</div>
 										</div>
 									</div>
-									<div class="text-right flex items-center gap-2">
-										<span class="text-emerald-400 font-mono text-[10px] font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">{srv.ping}</span>
-										<span class="text-white/30 font-mono text-xs font-bold">{srv.rank}</span>
-									</div>
-								</div>
-							{/each}
-						</div>
-					</section>
 
-					<section class="xl:col-span-6 flex flex-col">
-						<div class="flex items-center justify-between mb-3">
-							<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-								{t("home.yourPlayTime")}
-							</h2>
-							<span class="text-[10px] text-white/40 font-mono">{t("home.realTimeTracking")}</span>
-						</div>
+								{:else if sec.id === 'quickInstances'}
+									<!-- Quick Instances Carousel / Bar -->
+									<section>
+										<div class="flex items-center justify-between mb-3">
+											<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+												<Boxes class="w-3.5 h-3.5 text-[#caa97c]" />
+												Minhas Instâncias
+											</h2>
+											<a href="/instances" class="text-xs text-[#caa97c] hover:underline font-bold">Ver Todas</a>
+										</div>
 
-						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:border-white/15 transition-all">
-							
-							<div class="mb-4">
-								<div class="text-2xl font-black text-white">{gamingStats.formattedTodayTime || "0m"}</div>
-								<div class="text-[11px] text-white/40 mt-0.5">{t("home.last7Days")}</div>
+										{#if profiles.list.length === 0}
+											<div class="rounded-2xl bg-[#18191c] border border-white/5 p-6 flex flex-col items-center justify-center text-center">
+												<p class="text-xs text-white/50 mb-3">Nenhuma instância criada ainda.</p>
+												<a href="/instances" class="px-4 py-2 rounded-xl bg-[#caa97c] text-black text-xs font-bold hover:bg-[#ebd08f] transition-all">
+													Criar Nova Instância
+												</a>
+											</div>
+										{:else}
+											<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+												{#each profiles.list.slice(0, 4) as inst}
+													{@const isSelected = activeInstance?.id === inst.id}
+													<div 
+														class="flex items-center justify-between p-3 rounded-2xl bg-[#18191c] border {isSelected ? 'border-[#caa97c]/60 bg-[#1e1f26] shadow-[0_0_15px_rgba(202,169,124,0.15)]' : 'border-white/5 hover:border-white/20'} transition-all cursor-pointer group"
+														onclick={() => { profiles.activeId = inst.id; }}
+														role="button"
+														tabindex="0"
+														onkeydown={(e) => { if (e.key === 'Enter') profiles.activeId = inst.id; }}
+													>
+														<div class="flex items-center gap-3 min-w-0">
+															<div class="h-10 w-10 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+																{#if inst.icon && (inst.icon.startsWith("http") || inst.icon.startsWith("/") || inst.icon.startsWith("data:"))}
+																	<img src={inst.icon} alt={inst.name} class="w-full h-full object-cover" />
+																{:else}
+																	<img src="/grass_block.png" alt={inst.name} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
+																{/if}
+															</div>
+															<div class="min-w-0">
+																<h4 class="font-bold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{inst.name}</h4>
+																<div class="flex items-center gap-1.5 text-[10px] text-white/40 font-mono mt-0.5">
+																	<span>{inst.mcVersion}</span>
+																	<span>•</span>
+																	<span class="uppercase text-[#caa97c]/80 font-bold">{inst.loader}</span>
+																</div>
+															</div>
+														</div>
+														<div class="shrink-0 ml-2">
+															<button
+																type="button"
+																class="h-8 w-8 rounded-xl flex items-center justify-center {isSelected ? 'bg-[#caa97c] text-black' : 'bg-white/5 hover:bg-white/10 text-white/70'} transition-all"
+																title="Jogar esta instância"
+																onclick={(e) => {
+																	e.stopPropagation();
+																	profiles.activeId = inst.id;
+																	handleHomePlay();
+																}}
+															>
+																<Play class="w-3.5 h-3.5 fill-current" />
+															</button>
+														</div>
+													</div>
+												{/each}
+											</div>
+										{/if}
+									</section>
+
+								{:else if sec.id === 'curatedPacks'}
+									<!-- Modpacks Recomendados -->
+									<section>
+										<div class="flex items-center justify-between mb-3">
+											<h2 class="text-xs font-bold text-white uppercase tracking-wider">{t("home.exploreContent")}</h2>
+											<a href="/mods" class="text-xs text-[#caa97c] hover:underline font-bold">{t("home.viewAll")}</a>
+										</div>
+
+										<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+											{#each modpacks as pack}
+												<a href="/mods" class="group rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden hover:border-[#caa97c]/40 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(0,0,0,0.4)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
+													<div class="h-32 w-full relative bg-[#222328] overflow-hidden">
+														<img src={pack.bgImg} class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-300" alt={pack.title} />
+														<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-transparent to-transparent"></div>
+														
+														<div class="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shadow-md">
+															<span class="font-black text-[10px] text-emerald-400">m</span>
+														</div>
+
+														<div class="absolute bottom-2 left-2.5 h-9 w-9 rounded-xl overflow-hidden bg-black/60 border border-white/10 flex items-center justify-center shadow-md p-0.5">
+															<img src={pack.iconImg} alt={pack.title} class="w-full h-full object-cover rounded-lg" />
+														</div>
+													</div>
+													<div class="p-4 pt-3 flex-1 flex flex-col justify-between">
+														<div>
+															<h3 class="font-extrabold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{pack.title}</h3>
+															<p class="text-[10px] text-white/40 mt-1 line-clamp-2 leading-relaxed">{pack.subtitle}</p>
+														</div>
+														<div class="flex justify-between items-center mt-3 pt-2 border-t border-white/5 text-[10px] font-medium text-white/40">
+															<span class="flex items-center gap-1"><Users class="w-3 h-3 text-white/30"/> {pack.author}</span>
+															<span class="flex items-center gap-1 font-mono"><Download class="w-3 h-3 text-white/30"/> {pack.downloads}</span>
+														</div>
+													</div>
+												</a>
+											{/each}
+										</div>
+									</section>
+
+								{:else if sec.id === 'gamingStats'}
+									<!-- Tempo de Jogo & Monitor -->
+									<section class="flex flex-col">
+										<div class="flex items-center justify-between mb-3">
+											<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+												{t("home.yourPlayTime")}
+											</h2>
+											<span class="text-[10px] text-white/40 font-mono">{t("home.realTimeTracking")}</span>
+										</div>
+
+										<div class="bg-[#18191c] border border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:border-white/15 transition-all">
+											<div class="mb-4">
+												<div class="text-2xl font-black text-white">{gamingStats.formattedTodayTime || "0m"}</div>
+												<div class="text-[11px] text-white/40 mt-0.5">{t("home.last7Days")}</div>
+											</div>
+
+											<div class="my-4 py-6 border-y border-white/5 relative flex flex-col items-center justify-center">
+												<div class="flex items-center justify-center py-2 text-white/30 text-xs font-medium">
+													{t("home.noPlayTimeYet")}
+												</div>
+
+												<div class="w-full flex justify-between items-center text-[10px] text-white/40 font-medium mt-4 pt-2 border-t border-white/5 px-2">
+													<span>Qui</span>
+													<span>Sex</span>
+													<span>Sáb</span>
+													<span>Dom</span>
+													<span>Seg</span>
+													<span>Ter</span>
+													<span class="text-white font-bold">Hoje</span>
+												</div>
+											</div>
+
+											<div class="grid grid-cols-3 gap-2 pt-2 text-center">
+												<div class="text-left">
+													<div class="text-xs font-black text-white">{gamingStats.formattedLastSession || "0m"}</div>
+													<div class="text-[10px] text-white/40 mt-0.5">{t("home.averageSession")}</div>
+												</div>
+												<div class="text-left">
+													<div class="text-xs font-black text-white">{gamingStats.formattedTotalTime || "0m"}</div>
+													<div class="text-[10px] text-white/40 mt-0.5">{t("home.longestSession")}</div>
+												</div>
+												<div class="text-left">
+													<div class="text-xs font-black text-white">0 de 7</div>
+													<div class="text-[10px] text-white/40 mt-0.5">{t("home.daysPlayed")}</div>
+												</div>
+											</div>
+										</div>
+									</section>
+
+								{:else if sec.id === 'newsFeed'}
+									<!-- Notícias & Atualizações -->
+									<section>
+										<div class="flex items-center justify-between mb-3">
+											<h2 class="text-xs font-bold text-white uppercase tracking-wider">{t("home.news")}</h2>
+											<a href="/news" class="text-xs text-[#caa97c] hover:underline font-bold">Ver Todas</a>
+										</div>
+										<div class="rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden shadow-md group cursor-pointer hover:border-white/20 transition-all">
+											<div class="h-44 w-full relative bg-gradient-to-r from-purple-950/60 via-[#18191c] to-amber-950/40">
+												<img src="https://images.unsplash.com/photo-1627856013091-fed6e4e30025?w=1000&auto=format&fit=crop&q=80" class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" alt="News Banner" />
+												<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/50 to-transparent"></div>
+												<div class="absolute bottom-4 left-5 right-5">
+													<span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">27 DE AGO. DE 2026</span>
+													<h3 class="text-base font-extrabold text-white mt-1 group-hover:text-[#caa97c] transition-colors">New on Java Realms: Mischiefs & Secrets</h3>
+													<p class="text-xs text-white/60 mt-1 line-clamp-1">9 new and exciting maps have been released this month!</p>
+												</div>
+											</div>
+										</div>
+									</section>
+
+								{:else if sec.id === 'tools'}
+									<!-- Ferramentas Rápidas & Organizador -->
+									<section>
+										<div class="flex items-center justify-between mb-3">
+											<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+												<Zap class="w-3.5 h-3.5 text-[#caa97c]" />
+												Atalhos & Ferramentas Rápidas
+											</h2>
+											<a href="/organizer" class="text-xs text-[#caa97c] hover:underline font-bold flex items-center gap-1">
+												<SlidersHorizontal class="w-3 h-3" />
+												Personalizar
+											</a>
+										</div>
+
+										<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+											<button 
+												type="button"
+												onclick={() => goto("/organizer")}
+												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-[#caa97c]/50 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+											>
+												<div class="h-8 w-8 rounded-xl bg-[#caa97c]/10 border border-[#caa97c]/20 flex items-center justify-center text-[#caa97c] group-hover:scale-110 transition-transform">
+													<SlidersHorizontal class="w-4 h-4" />
+												</div>
+												<div>
+													<h4 class="font-bold text-white text-xs group-hover:text-[#caa97c] transition-colors">Organizador</h4>
+													<p class="text-[10px] text-white/40 mt-0.5">Ajustar Layout</p>
+												</div>
+											</button>
+
+											<button 
+												type="button"
+												onclick={() => openInstanceFolder()}
+												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-white/20 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+											>
+												<div class="h-8 w-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/70 group-hover:scale-110 transition-transform">
+													<FolderOpen class="w-4 h-4" />
+												</div>
+												<div>
+													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Pasta do Jogo</h4>
+													<p class="text-[10px] text-white/40 mt-0.5">Abrir .minecraft</p>
+												</div>
+											</button>
+
+											<button 
+												type="button"
+												onclick={() => goto("/mods")}
+												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-white/20 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+											>
+												<div class="h-8 w-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+													<Package class="w-4 h-4" />
+												</div>
+												<div>
+													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Mods & Shaders</h4>
+													<p class="text-[10px] text-white/40 mt-0.5">CurseForge / Modrinth</p>
+												</div>
+											</button>
+
+											<button 
+												type="button"
+												onclick={() => goto("/screenshots")}
+												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-white/20 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+											>
+												<div class="h-8 w-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform">
+													<Camera class="w-4 h-4" />
+												</div>
+												<div>
+													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Screenshots</h4>
+													<p class="text-[10px] text-white/40 mt-0.5">Galeria de Fotos</p>
+												</div>
+											</button>
+										</div>
+									</section>
+								{/if}
 							</div>
-
-							<div class="my-4 py-6 border-y border-white/5 relative flex flex-col items-center justify-center">
-								<div class="flex items-center justify-center py-2 text-white/30 text-xs font-medium">
-									{t("home.noPlayTimeYet")}
-								</div>
-
-								<div class="w-full flex justify-between items-center text-[10px] text-white/40 font-medium mt-4 pt-2 border-t border-white/5 px-2">
-									<span>Qui</span>
-									<span>Sex</span>
-									<span>Sáb</span>
-									<span>Dom</span>
-									<span>Seg</span>
-									<span>Ter</span>
-									<span class="text-white font-bold">Hoje</span>
-								</div>
-							</div>
-
-							<div class="grid grid-cols-3 gap-2 pt-2 text-center">
-								<div class="text-left">
-									<div class="text-xs font-black text-white">{gamingStats.formattedLastSession || "0m"}</div>
-									<div class="text-[10px] text-white/40 mt-0.5">{t("home.averageSession")}</div>
-								</div>
-								<div class="text-left">
-									<div class="text-xs font-black text-white">{gamingStats.formattedTotalTime || "0m"}</div>
-									<div class="text-[10px] text-white/40 mt-0.5">{t("home.longestSession")}</div>
-								</div>
-								<div class="text-left">
-									<div class="text-xs font-black text-white">0 de 7</div>
-									<div class="text-[10px] text-white/40 mt-0.5">{t("home.daysPlayed")}</div>
-								</div>
-							</div>
-
-						</div>
-
-					</section>
-
+						{/if}
+					{/each}
 				</div>
-
-				<section>
-					<h2 class="text-xs font-bold text-white uppercase tracking-wider mb-3">{t("home.news")}</h2>
-					<div class="rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden shadow-md group cursor-pointer hover:border-white/20 transition-all">
-						<div class="h-44 w-full relative bg-gradient-to-r from-purple-950/60 via-[#18191c] to-amber-950/40">
-							<img src="https://images.unsplash.com/photo-1627856013091-fed6e4e30025?w=1000&auto=format&fit=crop&q=80" class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" alt="News Banner" />
-							<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/50 to-transparent"></div>
-							<div class="absolute bottom-4 left-5 right-5">
-								<span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">27 DE AGO. DE 2026</span>
-								<h3 class="text-base font-extrabold text-white mt-1 group-hover:text-[#caa97c] transition-colors">New on Java Realms: Mischiefs & Secrets</h3>
-								<p class="text-xs text-white/60 mt-1 line-clamp-1">9 new and exciting maps have been released this month!</p>
-							</div>
-						</div>
-					</div>
-				</section>
 
 			{/if}
 
