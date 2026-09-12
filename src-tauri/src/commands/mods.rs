@@ -763,6 +763,81 @@ pub async fn curseforge_validate_key(state: State<'_, AppState>) -> Result<bool,
     crate::core::mods::curseforge::validate_key(&state.http).await
 }
 
+pub fn extract_mod_name_from_jar(jar_path: &std::path::Path) -> Option<String> {
+    let file = std::fs::File::open(jar_path).ok()?;
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file)).ok()?;
+
+    // 1. Try fabric.mod.json
+    if let Ok(entry) = archive.by_name("fabric.mod.json") {
+        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+            if let Some(name) = json.get("name").and_then(|n| n.as_str()) {
+                if !name.trim().is_empty() {
+                    return Some(name.trim().to_string());
+                }
+            }
+            if let Some(id) = json.get("id").and_then(|i| i.as_str()) {
+                if !id.trim().is_empty() {
+                    return Some(id.trim().to_string());
+                }
+            }
+        }
+    }
+
+    // 2. Try quilt.mod.json
+    if let Ok(entry) = archive.by_name("quilt.mod.json") {
+        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+            if let Some(name) = json.pointer("/quilt_loader/metadata/name").and_then(|n| n.as_str()) {
+                if !name.trim().is_empty() {
+                    return Some(name.trim().to_string());
+                }
+            }
+        }
+    }
+
+    // 3. Try META-INF/neoforge.mods.toml or META-INF/mods.toml
+    for toml_name in &["META-INF/neoforge.mods.toml", "META-INF/mods.toml"] {
+        if let Ok(mut entry) = archive.by_name(toml_name) {
+            use std::io::Read;
+            let mut content = String::new();
+            if entry.read_to_string(&mut content).is_ok() {
+                for line in content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.starts_with("displayName") {
+                        if let Some(val) = trimmed.split('=').nth(1) {
+                            let clean = val.trim().trim_matches('"').trim_matches('\'').trim();
+                            if !clean.is_empty() && !clean.starts_with("${") {
+                                return Some(clean.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Try mcmod.info
+    if let Ok(entry) = archive.by_name("mcmod.info") {
+        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+            let item = if let Some(arr) = json.as_array() {
+                arr.first()
+            } else if let Some(modlist) = json.get("modList").and_then(|m| m.as_array()) {
+                modlist.first()
+            } else {
+                Some(&json)
+            };
+            if let Some(item) = item {
+                if let Some(name) = item.get("name").and_then(|n| n.as_str()) {
+                    if !name.trim().is_empty() {
+                        return Some(name.trim().to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    None
+}
+
 #[tauri::command]
 pub async fn mods_resolve_names(
     state: State<'_, AppState>,
@@ -789,36 +864,69 @@ pub async fn mods_resolve_names(
     while let Ok(Some(entry)) = entries.next_entry().await {
         let name = entry.file_name().to_string_lossy().to_string();
         let bare = name.strip_suffix(".disabled").unwrap_or(&name);
-        if let Some(dollar_pos) = bare.find('_') {
+        let is_numeric_pair = if let Some(dollar_pos) = bare.find('_') {
             if bare[dollar_pos + 1..].ends_with(".jar") {
                 let prefix = &bare[..dollar_pos];
                 let suffix = bare[dollar_pos + 1..].strip_suffix(".jar").unwrap_or("");
-                if !prefix.is_empty() && !suffix.is_empty() && prefix.parse::<u64>().is_ok() && suffix.parse::<u64>().is_ok() {
-                    if let Ok(pid) = prefix.parse::<u64>() {
+                !prefix.is_empty() && !suffix.is_empty() && prefix.parse::<u64>().is_ok() && suffix.parse::<u64>().is_ok()
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        let is_numeric_single = bare.strip_suffix(".jar").map(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit())).unwrap_or(false);
+
+        if is_numeric_pair || is_numeric_single {
+            let entry_path = entry.path();
+            if let Some(jar_name) = extract_mod_name_from_jar(&entry_path) {
+                let safe_name = jar_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+                let is_disabled = name.ends_with(".disabled");
+                let new_name = if is_disabled {
+                    format!("{}.jar.disabled", safe_name)
+                } else {
+                    format!("{}.jar", safe_name)
+                };
+                let new_path = entry_path.parent().unwrap_or(&mods_dir).join(&new_name);
+                if new_path != entry_path {
+                    if tokio::fs::rename(&entry_path, &new_path).await.is_ok() {
+                        renamed += 1;
+                        continue;
+                    }
+                }
+            }
+
+            if is_numeric_pair {
+                if let Some(dollar_pos) = bare.find('_') {
+                    if let Ok(pid) = bare[..dollar_pos].parse::<u64>() {
                         project_ids.push(pid);
-                        file_map.push((entry.path(), name));
+                        file_map.push((entry_path, name));
                     }
                 }
             }
         }
     }
 
-    if project_ids.is_empty() {
-        return Ok(0);
-    }
+    if !project_ids.is_empty() {
+        let mod_names = crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids).await;
 
-    let mod_names = crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids).await;
-
-    for (i, (path, old_name)) in file_map.iter().enumerate() {
-        if let Some(name) = mod_names.get(&project_ids[i]) {
-            if !name.is_empty() && name != &project_ids[i].to_string() {
-                let safe_name = name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
-                let new_name = format!("{}.jar", safe_name);
-                let new_path = path.parent().unwrap_or(&mods_dir).join(&new_name);
-                if new_path != *path {
-                    if tokio::fs::rename(path, &new_path).await.is_ok() {
-                        renamed += 1;
-                        tracing::info!(old = %old_name, new = %new_name, "renamed mod file");
+        for (i, (path, old_name)) in file_map.iter().enumerate() {
+            if let Some(name) = mod_names.get(&project_ids[i]) {
+                if !name.is_empty() && name != &project_ids[i].to_string() {
+                    let safe_name = name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+                    let is_disabled = old_name.ends_with(".disabled");
+                    let new_name = if is_disabled {
+                        format!("{}.jar.disabled", safe_name)
+                    } else {
+                        format!("{}.jar", safe_name)
+                    };
+                    let new_path = path.parent().unwrap_or(&mods_dir).join(&new_name);
+                    if new_path != *path {
+                        if tokio::fs::rename(path, &new_path).await.is_ok() {
+                            renamed += 1;
+                            tracing::info!(old = %old_name, new = %new_name, "renamed mod file");
+                        }
                     }
                 }
             }

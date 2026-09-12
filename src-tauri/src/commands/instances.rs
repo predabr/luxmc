@@ -417,8 +417,10 @@ pub async fn instance_import_modpack(
     }
 
     let project_ids: Vec<u64> = manifest.files.iter().map(|f| f.project_id).collect();
+    let file_ids: Vec<u64> = manifest.files.iter().map(|f| f.file_id).collect();
     let mod_names = crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids).await;
-    tracing::info!(resolved = mod_names.len(), total = project_ids.len(), "resolved mod names from CurseForge");
+    let file_infos = crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids).await;
+    tracing::info!(resolved_names = mod_names.len(), resolved_files = file_infos.len(), total = project_ids.len(), "resolved CurseForge batch metadata");
 
     let mut mods_ok = 0u32;
     let mut mods_fail = 0u32;
@@ -444,16 +446,27 @@ pub async fn instance_import_modpack(
             "status": format!("Baixando mod {}/{}...", idx + 1, total_files)
         }));
 
-        let download_url = match crate::core::mods::curseforge::get_download_url(
-            &state.http,
-            &project_id_str,
-            &file_id_str,
-        ).await {
-            Ok(url) => url,
-            Err(e) => {
-                tracing::warn!(project_id = %project_id_str, error = %e, "skipping mod: could not get download url");
-                mods_fail += 1;
-                continue;
+        let file_info = file_infos.get(&cf_file.file_id);
+        let download_url = if let Some(info) = file_info {
+            if let Some(ref dl) = info.download_url {
+                dl.clone()
+            } else {
+                let p1 = cf_file.file_id / 1000;
+                let p2 = cf_file.file_id % 1000;
+                format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name))
+            }
+        } else {
+            match crate::core::mods::curseforge::get_download_url(
+                &state.http,
+                &project_id_str,
+                &file_id_str,
+            ).await {
+                Ok(url) => url,
+                Err(e) => {
+                    tracing::warn!(project_id = %project_id_str, error = %e, "skipping mod: could not get download url");
+                    mods_fail += 1;
+                    continue;
+                }
             }
         };
 
@@ -466,12 +479,13 @@ pub async fn instance_import_modpack(
         };
 
         use futures_util::StreamExt;
-        let display_name = mod_names.get(&cf_file.project_id).cloned().unwrap_or_default();
-        let filename = if display_name.is_empty() {
-            format!("{}_{}.jar", project_id_str, file_id_str)
-        } else {
+        let filename = if let Some(info) = file_info {
+            info.file_name.clone()
+        } else if let Some(display_name) = mod_names.get(&cf_file.project_id) {
             let safe_name = display_name.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' }).collect::<String>();
             format!("{}.jar", safe_name)
+        } else {
+            format!("{}_{}.jar", project_id_str, file_id_str)
         };
         let file_path = mods_dir.join(&filename);
         let storage_path = storage_mods_dir.join(&filename);
@@ -499,13 +513,30 @@ pub async fn instance_import_modpack(
                 }
             }
         }
+        drop(file);
+        drop(storage_file);
+
+        let mut final_filename = filename;
+        if final_filename.starts_with(&project_id_str) {
+            if let Some(real_name) = crate::commands::mods::extract_mod_name_from_jar(&file_path) {
+                let safe = real_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+                let new_filename = format!("{}.jar", safe);
+                let new_path = mods_dir.join(&new_filename);
+                let new_storage_path = storage_mods_dir.join(&new_filename);
+                if new_path != file_path {
+                    let _ = tokio::fs::rename(&file_path, &new_path).await;
+                    let _ = tokio::fs::rename(&storage_path, &new_storage_path).await;
+                    final_filename = new_filename;
+                }
+            }
+        }
 
         if let Ok(db) = crate::db::shared_db().await {
             let mod_row = crate::db::schema::mods::ModRow {
                 profile_id: profile_id.clone(),
                 project_id: project_id_str,
                 version_id: file_id_str,
-                file_name: filename,
+                file_name: final_filename,
                 sha1: String::new(),
                 source: "curseforge".into(),
                 installed_at: String::new(),

@@ -725,11 +725,12 @@ pub async fn get_mod_names_batch(
 
     let mut names = std::collections::HashMap::new();
     for chunk in mod_ids.chunks(50) {
-        let ids_str: Vec<String> = chunk.iter().map(|id| id.to_string()).collect();
-        let url = format!("{}/mods/{}", CURSEFORGE_API, ids_str.join(","));
+        let url = format!("{}/mods", CURSEFORGE_API);
+        let payload = serde_json::json!({ "modIds": chunk });
         if let Ok(resp) = http
-            .get(&url)
+            .post(&url)
             .header("x-api-key", &key)
+            .json(&payload)
             .timeout(Duration::from_secs(20))
             .send()
             .await
@@ -749,3 +750,56 @@ pub async fn get_mod_names_batch(
     }
     names
 }
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CurseForgeFileInfo {
+    pub id: u64,
+    pub mod_id: u64,
+    pub file_name: String,
+    pub download_url: Option<String>,
+}
+
+pub async fn get_files_batch(
+    http: &reqwest::Client,
+    file_ids: &[u64],
+) -> std::collections::HashMap<u64, CurseForgeFileInfo> {
+    let key = match api_key() {
+        Some(k) => k,
+        None => return std::collections::HashMap::new(),
+    };
+
+    let mut map = std::collections::HashMap::new();
+    for chunk in file_ids.chunks(50) {
+        let url = format!("{}/mods/files", CURSEFORGE_API);
+        let payload = serde_json::json!({ "fileIds": chunk });
+        if let Ok(resp) = http
+            .post(&url)
+            .header("x-api-key", &key)
+            .json(&payload)
+            .timeout(Duration::from_secs(20))
+            .send()
+            .await
+        {
+            if let Ok(json) = resp.json::<serde_json::Value>().await {
+                if let Some(arr) = json.get("data").and_then(|d| d.as_array()) {
+                    for item in arr {
+                        if let Some(id) = item.get("id").and_then(|i| i.as_u64()) {
+                            let mod_id = item.get("modId").and_then(|m| m.as_u64()).unwrap_or(0);
+                            let file_name = item.get("fileName").and_then(|n| n.as_str()).unwrap_or("mod.jar").to_string();
+                            let download_url = item.get("downloadUrl").and_then(|u| u.as_str()).map(|s| s.to_string());
+                            map.insert(id, CurseForgeFileInfo {
+                                id,
+                                mod_id,
+                                file_name,
+                                download_url,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+    map
+}
+

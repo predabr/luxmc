@@ -15,6 +15,7 @@ pub struct ServerStatus {
     pub players_online: u32,
     pub motd: String,
     pub favicon: Option<String>,
+    pub latency_ms: Option<u32>,
 }
 
 fn write_varint(buf: &mut Vec<u8>, mut value: i32) {
@@ -94,6 +95,7 @@ fn read_packet(stream: &mut TcpStream) -> AppResult<(i32, Vec<u8>)> {
 use std::net::ToSocketAddrs;
 
 pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
+    let start_time = std::time::Instant::now();
     let target = (host, port);
     let addr = match target.to_socket_addrs() {
         Ok(mut iter) => iter.next(),
@@ -153,10 +155,7 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
                                         })
                                         .unwrap_or_default();
 
-                                    let favicon = v
-                                        .get("favicon")
-                                        .and_then(|f| f.as_str())
-                                        .map(|s| s.to_string());
+                                    let latency = start_time.elapsed().as_millis().min(9999) as u32;
 
                                     return Ok(ServerStatus {
                                         online: true,
@@ -164,7 +163,8 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
                                         players_max,
                                         players_online,
                                         motd,
-                                        favicon,
+                                        favicon: None,
+                                        latency_ms: Some(latency),
                                     });
                                 }
                             }
@@ -195,6 +195,8 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
                     .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(" "))
                     .unwrap_or_default();
 
+                let latency = start_time.elapsed().as_millis().min(9999) as u32;
+
                 return Ok(ServerStatus {
                     online,
                     version,
@@ -202,6 +204,7 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
                     players_online,
                     motd,
                     favicon: None,
+                    latency_ms: Some(latency),
                 });
             }
         }
@@ -214,5 +217,6 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
         players_online: 0,
         motd: String::new(),
         favicon: None,
+        latency_ms: None,
     })
 }

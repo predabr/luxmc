@@ -92,6 +92,27 @@
 	const instanceId = $derived($page.params.id ?? "");
 	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) || profiles.active);
 
+	const heroBanner = $derived.by(() => {
+		if (activeProfile?.banner) return activeProfile.banner;
+		const nameLower = (activeProfile?.name || "").toLowerCase();
+		if (nameLower.includes("better mc") || nameLower.includes("bmc") || nameLower.includes("medieval") || nameLower.includes("rlcraft") || nameLower.includes("dawncraft") || nameLower.includes("roguelike") || nameLower.includes("dungeon")) {
+			return "/modpack_better_mc.webp";
+		}
+		if (nameLower.includes("pixelmon") || nameLower.includes("cobblemon") || nameLower.includes("pokemon") || nameLower.includes("poke")) {
+			return "/modpack_cobblemon.webp";
+		}
+		if (nameLower.includes("fabulously") || nameLower.includes("fo") || nameLower.includes("homestead") || nameLower.includes("all the mods") || nameLower.includes("atm") || nameLower.includes("create") || nameLower.includes("tech") || nameLower.includes("skyblock") || nameLower.includes("stoneblock")) {
+			return "/modpack_fo.webp";
+		}
+		if (activeProfile?.icon && activeProfile.icon.startsWith("http")) {
+			return activeProfile.icon;
+		}
+		if (activeProfile?.loader === "fabric") return "/modpack_fo.webp";
+		if (activeProfile?.loader === "forge") return "/modpack_better_mc.webp";
+		if (activeProfile?.loader === "neoforge") return "/modpack_cobblemon.webp";
+		return "/vanilla_banner.png";
+	});
+
 	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros">("conteudo");
 	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("mods");
 	let searchQuery = $state("");
@@ -422,6 +443,16 @@
 			resourcePacks = newResources;
 			shaderPacks = newShaders;
 			dataPacks = newDataPacks;
+
+			if (instanceId && newMods.some(m => /^\d+(_\d+)?\.jar$/.test(m.name.replace('.disabled', '')))) {
+				modsResolveNames(instanceId).then(renamed => {
+					if (renamed > 0) {
+						instanceFileTree(instanceId, "mods").then(updated => {
+							instanceMods = updated;
+						}).catch(() => {});
+					}
+				}).catch(() => {});
+			}
 		} catch (e) {
 			console.error(e);
 		} finally {
@@ -720,28 +751,13 @@
 
 		<!-- Instance Hero Card -->
 		<div class="bg-[#18191c] border border-white/5 rounded-3xl p-6 flex flex-col justify-between shadow-xl relative group">
-			
 			<!-- Minecraft Background Artwork -->
 			<div class="absolute inset-0 pointer-events-none z-0 overflow-hidden rounded-3xl">
-				{#if activeProfile?.banner}
-					<img 
-						src={activeProfile.banner} 
-						alt="Instance Banner" 
-						class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" 
-					/>
-				{:else if activeProfile?.icon && (activeProfile.icon.startsWith("http") || activeProfile.icon.startsWith("data:"))}
-					<img 
-						src={activeProfile.icon} 
-						alt="Instance Artwork" 
-						class="w-full h-full object-cover blur-lg scale-110 opacity-30 group-hover:scale-125 transition-transform duration-700" 
-					/>
-				{:else}
-					<img 
-						src="/vanilla_banner.png" 
-						alt="Minecraft Banner" 
-						class="w-full h-full object-cover opacity-35 group-hover:scale-105 transition-transform duration-700" 
-					/>
-				{/if}
+				<img 
+					src={heroBanner} 
+					alt="Instance Banner" 
+					class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" 
+				/>
 				<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/85 to-[#18191c]/40"></div>
 			</div>
 

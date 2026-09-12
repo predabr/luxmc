@@ -38,6 +38,7 @@
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
+	import { openUrl } from "@tauri-apps/plugin-opener";
 	import {
 		storageBreakdown,
 		discordSetActivity,
@@ -956,23 +957,31 @@
 						</div>
 					</div>
 
-					<div class="grid grid-cols-2 gap-3">
+					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 						<button
 							type="button"
-							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-5 py-3.5 rounded-full border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
-							onclick={() => toast("Você está usando a versão mais recente do Luxmc!", "success")}
+							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
+							onclick={() => toast("Você está usando a versão mais recente do Luxmc (v1.3.1)!", "success")}
 						>
 							<span class="flex items-center gap-2"><RefreshCw class="w-4 h-4 text-brand-500" /> Checar Atualizações</span>
-							<span class="text-[10px] text-white/40">Verificar</span>
+							<span class="text-[10px] text-white/40">v1.3.1</span>
 						</button>
-						<a
-							href="https://github.com"
-							target="_blank"
-							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-5 py-3.5 rounded-full border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
+						<button
+							type="button"
+							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
+							onclick={() => openUrl("https://github.com/predabr/luxmc")}
 						>
-							<span class="flex items-center gap-2"><ExternalLink class="w-4 h-4 text-purple-400" /> Repositório Oficial GitHub</span>
-							<span class="text-[10px] text-white/40">Abrir</span>
-						</a>
+							<span class="flex items-center gap-2"><ExternalLink class="w-4 h-4 text-purple-400" /> Repositório GitHub</span>
+							<span class="text-[10px] text-white/40">predabr/luxmc</span>
+						</button>
+						<button
+							type="button"
+							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
+							onclick={() => openUrl("https://github.com/predabr/luxmc/issues")}
+						>
+							<span class="flex items-center gap-2"><ExternalLink class="w-4 h-4 text-amber-400" /> Reportar Erro / Issues</span>
+							<span class="text-[10px] text-white/40">Suporte</span>
+						</button>
 					</div>
 
 					<!-- Cutscene Replay Card -->

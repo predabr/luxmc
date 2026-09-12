@@ -147,6 +147,8 @@ impl GameLauncher {
         user_type: &str,
         game_dir: &PathBuf,
         profile: &crate::db::models::ProfileRow,
+        skin_url: Option<&str>,
+        skin_variant: Option<&str>,
     ) -> AppResult<u32> {
         self.emit_stage(LaunchStage::Preparing);
         self.emit_log(&format!("Preparing to launch {}", detail.id));
@@ -304,6 +306,33 @@ impl GameLauncher {
         self.emit_stage(LaunchStage::ExtractingNatives);
         let natives_dir = self.prepare_natives(detail).await?;
         self.emit_log(&format!("Natives dir: {}", natives_dir.display()));
+
+        // Apply customized player skin if configured
+        let skin_info = if let Some(s_url) = skin_url.filter(|s| !s.trim().is_empty()) {
+            Some((s_url.to_string(), skin_variant.unwrap_or("classic").to_string()))
+        } else if let Ok(db) = crate::db::shared_db().await {
+            use sqlx::Row;
+            if let Ok(Some(row)) = sqlx::query("SELECT skin_url, skin_variant FROM accounts WHERE username = ? OR uuid = ? OR id = ? LIMIT 1")
+                .bind(username)
+                .bind(uuid)
+                .bind(uuid)
+                .fetch_optional(db.pool())
+                .await
+            {
+                let s_url: Option<String> = row.try_get("skin_url").ok();
+                let s_var: Option<String> = row.try_get("skin_variant").ok();
+                s_url.map(|u| (u, s_var.unwrap_or_else(|| "classic".to_string())))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some((skin_source, variant)) = skin_info {
+            self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
+            let _ = inject_player_skin(self.downloader.http(), game_dir, &skin_source, &variant).await;
+        }
 
         self.emit_stage(LaunchStage::ResolvingArgs);
         let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
@@ -852,6 +881,27 @@ impl GameLauncher {
             }
         }
 
+        // Detect system libglfw.so on Linux to prevent bundled LWJGL 3 crash on modern Linux/Wayland
+        #[cfg(target_os = "linux")]
+        {
+            let glfw_candidates = [
+                "/usr/lib/libglfw.so",
+                "/usr/lib64/libglfw.so",
+                "/usr/lib/x86_64-linux-gnu/libglfw.so",
+                "/usr/lib/x86_64-linux-gnu/libglfw.so.3",
+                "/usr/lib/libglfw.so.3",
+            ];
+            for path in glfw_candidates {
+                if std::path::Path::new(path).exists() {
+                    let glfw_arg = format!("-Dorg.lwjgl.glfw.libname={}", path);
+                    if !args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.libname")) {
+                        args.push(glfw_arg);
+                        break;
+                    }
+                }
+            }
+        }
+
         args
     }
 
@@ -1158,3 +1208,112 @@ pub fn lib_path_from_name(base: &PathBuf, name: &str) -> PathBuf {
     let (ver_clean, filename) = crate::core::minecraft::maven_lib_path_and_filename(artifact, version, classifier);
     base.join(format!("{}/{}/{}/{}", group, artifact, ver_clean, filename))
 }
+
+async fn inject_player_skin(
+    http: &reqwest::Client,
+    game_dir: &std::path::Path,
+    skin_source: &str,
+    _variant: &str,
+) -> AppResult<()> {
+    let skin_bytes: Vec<u8> = if skin_source.starts_with("http://") || skin_source.starts_with("https://") {
+        if let Ok(resp) = http.get(skin_source).send().await {
+            if resp.status().is_success() {
+                resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        }
+    } else if skin_source.starts_with("data:image/") {
+        if let Some(comma_pos) = skin_source.find(',') {
+            use base64::Engine;
+            base64::engine::general_purpose::STANDARD
+                .decode(&skin_source[comma_pos + 1..])
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    } else {
+        let path = std::path::Path::new(skin_source);
+        if path.exists() {
+            tokio::fs::read(path).await.unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    };
+
+    if skin_bytes.is_empty() {
+        return Ok(());
+    }
+
+    let pack_dir = game_dir.join("resourcepacks").join("LuxmcCustomSkin");
+    let entity_dir_wide = pack_dir.join("assets/minecraft/textures/entity/player/wide");
+    let entity_dir_slim = pack_dir.join("assets/minecraft/textures/entity/player/slim");
+    let entity_dir_legacy = pack_dir.join("assets/minecraft/textures/entity");
+
+    let _ = tokio::fs::create_dir_all(&entity_dir_wide).await;
+    let _ = tokio::fs::create_dir_all(&entity_dir_slim).await;
+    let _ = tokio::fs::create_dir_all(&entity_dir_legacy).await;
+
+    let mcmeta = serde_json::json!({
+        "pack": {
+            "pack_format": 15,
+            "supported_formats": {
+                "min_inclusive": 1,
+                "max_inclusive": 99
+            },
+            "description": "Luxmc Player Custom Skin"
+        }
+    });
+    let _ = tokio::fs::write(pack_dir.join("pack.mcmeta"), serde_json::to_string_pretty(&mcmeta).unwrap_or_default()).await;
+
+    let skin_models = [
+        "steve", "alex", "ari", "efe", "kai", "makena", "noor", "sunny", "zuri",
+    ];
+    for model in &skin_models {
+        let _ = tokio::fs::write(entity_dir_wide.join(format!("{}.png", model)), &skin_bytes).await;
+        let _ = tokio::fs::write(entity_dir_slim.join(format!("{}.png", model)), &skin_bytes).await;
+        let _ = tokio::fs::write(entity_dir_legacy.join(format!("{}.png", model)), &skin_bytes).await;
+    }
+
+    let options_file = game_dir.join("options.txt");
+    let skin_pack_entry = "\"file/LuxmcCustomSkin\"";
+    if options_file.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&options_file).await {
+            let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+            let mut found = false;
+            for line in &mut lines {
+                if line.starts_with("resourcePacks:") {
+                    found = true;
+                    if !line.contains(skin_pack_entry) {
+                        let inner = line.trim_start_matches("resourcePacks:").trim();
+                        if inner.starts_with('[') && inner.ends_with(']') {
+                            let array_content = &inner[1..inner.len() - 1];
+                            let new_array = if array_content.trim().is_empty() {
+                                format!("[\"vanilla\",{}]", skin_pack_entry)
+                            } else {
+                                format!("[{},{}]", array_content, skin_pack_entry)
+                            };
+                            *line = format!("resourcePacks:{}", new_array);
+                        }
+                    }
+                } else if line.starts_with("incompatibleResourcePacks:") {
+                    *line = line.replace(&format!(",{}", skin_pack_entry), "")
+                        .replace(&format!("{},", skin_pack_entry), "")
+                        .replace(skin_pack_entry, "");
+                }
+            }
+            if !found {
+                lines.push(format!("resourcePacks:[\"vanilla\",{}]", skin_pack_entry));
+            }
+            let _ = tokio::fs::write(&options_file, lines.join("\n")).await;
+        }
+    } else {
+        let default_options = format!("resourcePacks:[\"vanilla\",{}]\nincompatibleResourcePacks:[]\n", skin_pack_entry);
+        let _ = tokio::fs::write(&options_file, default_options).await;
+    }
+
+    Ok(())
+}
+

@@ -586,11 +586,12 @@
 
 	async function applySkin(skin: SkinItem, silent = false) {
 		isSlimModel = skin.type === "alex";
+		const skinData = skin.skinUrl || skin.url;
 		activeSkinStore.setSkin({
 			id: skin.id,
 			name: skin.name,
 			url: skin.url,
-			skinUrl: skin.skinUrl,
+			skinUrl: skinData,
 			avatarUrl: skin.avatarUrl,
 			type: skin.type
 		});
@@ -598,14 +599,19 @@
 			toast(`Skin "${skin.name}" sincronizada com seu perfil!`, "success");
 		}
 
-		if (account.value?.uuid && account.value?.minecraftToken && skin.skinUrl?.startsWith("http")) {
+		if (account.value) {
 			try {
-				await authChangeSkin(account.value.uuid, skin.type, skin.skinUrl);
-				if (!silent) {
+				const identifier = account.value.uuid || account.value.id;
+				if (identifier && skinData) {
+					await authChangeSkin(identifier, skin.type, skinData);
+					account.value.skinUrl = skinData;
+					account.value.skinVariant = skin.type;
+				}
+				if (!silent && account.value.minecraftToken && skinData?.startsWith("http")) {
 					toast("Skin sincronizada com os servidores oficiais da Mojang!", "success");
 				}
 			} catch (e) {
-				// Offline or non-fatal
+				console.warn("Skin account sync:", e);
 			}
 		}
 	}

@@ -10,7 +10,9 @@
 		Plus,
 		Users,
 		Settings as SettingsIcon,
+		Github,
 	} from "lucide-svelte";
+	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -175,6 +177,22 @@
 			</a>
 			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl">
 				Amigos
+			</div>
+		</div>
+
+		<!-- GitHub Repository Route with Tooltip -->
+		<div class="relative group w-full flex justify-center">
+			<button
+				type="button"
+				onclick={() => openUrl("https://github.com/predabr/luxmc")}
+				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 cursor-pointer nav-pill-inactive active:scale-95 group-hover:border-white/20"
+				aria-label="Repositório GitHub"
+			>
+				<Github class="h-5 w-5 text-[#8a8d98] group-hover:text-white transition-colors" strokeWidth={1.8} />
+			</button>
+			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl flex items-center gap-1.5">
+				<span>GitHub Oficial</span>
+				<span class="text-[10px] text-brand-500 font-mono">predabr/luxmc</span>
 			</div>
 		</div>
 

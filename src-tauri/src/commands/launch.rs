@@ -227,6 +227,8 @@ pub async fn launch_game(
             user_type,
             &game_dir,
             &profile,
+            account.skin_url.as_deref(),
+            account.skin_variant.as_deref(),
         )
         .await?;
 

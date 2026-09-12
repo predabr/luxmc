@@ -105,12 +105,13 @@ pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     flags.push(format!("-Xms{}M", initial_ram));
     flags.push(format!("-Xmx{}M", ram_mb));
 
-    // Core G1GC flags established by Aikar
+    // Core client-optimized G1GC flags: low 50ms pause target, pre-touch to eliminate frame drops
     flags.push("-XX:+UseG1GC".into());
     flags.push("-XX:+ParallelRefProcEnabled".into());
-    flags.push("-XX:MaxGCPauseMillis=200".into());
+    flags.push("-XX:MaxGCPauseMillis=50".into());
     flags.push("-XX:+UnlockExperimentalVMOptions".into());
     flags.push("-XX:+DisableExplicitGC".into());
+    flags.push("-XX:+AlwaysPreTouch".into());
 
     // Dynamic region size and new generation sizing based on allocated memory
     if ram_mb <= 4096 {
@@ -139,7 +140,6 @@ pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     flags.push("-XX:G1RSetUpdatingPauseTimePercent=5".into());
     flags.push("-XX:SurvivorRatio=32".into());
     flags.push("-XX:+PerfDisableSharedMem".into());
-    flags.push("-XX:MaxTenuringThreshold=1".into());
 
     flags
 }
