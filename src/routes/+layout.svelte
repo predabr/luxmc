@@ -1,7 +1,8 @@
 <script lang="ts">
 	import "../app.css";
 	import { onMount } from "svelte";
-	import { fade } from "svelte/transition";
+	import { fade, fly } from "svelte/transition";
+	import { cubicOut } from "svelte/easing";
 	import { page } from "$app/stores";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
 	import Toasts from "$lib/components/ui/Toasts.svelte";
@@ -29,6 +30,41 @@
 	let toastsInstance = $state<Toasts | null>(null);
 	$effect(() => {
 		if (toastsInstance) setToastInstance(toastsInstance);
+	});
+
+	const tabOrderMap: Record<string, number> = {
+		"/": 0,
+		"/mods": 1,
+		"/servers": 2,
+		"/skins": 3,
+		"/instances": 4,
+		"/friends": 5,
+		"/screenshots": 6,
+		"/logs": 7,
+		"/logs-history": 7.1,
+		"/settings": 8
+	};
+
+	function getRouteOrder(pathname: string): number {
+		if (tabOrderMap[pathname] !== undefined) return tabOrderMap[pathname];
+		if (pathname.startsWith("/instances/")) return 4.1;
+		for (const [key, idx] of Object.entries(tabOrderMap)) {
+			if (key !== "/" && pathname.startsWith(key)) return idx;
+		}
+		return 0;
+	}
+
+	let previousPathname = $state($page.url.pathname);
+	let slideDirection = $state(1);
+
+	$effect(() => {
+		const currentPath = $page.url.pathname;
+		if (currentPath !== previousPathname) {
+			const prevIdx = getRouteOrder(previousPathname);
+			const curIdx = getRouteOrder(currentPath);
+			slideDirection = curIdx >= prevIdx ? 1 : -1;
+			previousPathname = currentPath;
+		}
 	});
 	onMount(() => {
 		themeStore.init();
@@ -255,11 +291,20 @@
 	<div class="flex h-full w-full overflow-hidden" in:fade={{ duration: 100 }}>
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-w-0 flex-1 flex-col relative z-10">
-			<!-- Removed Topbar to make it seamless like a native app -->
-			<main class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth custom-scrollbar">
-				<div class="mx-auto max-w-[1600px] h-full flex flex-col">
-					{@render children?.()}
-				</div>
+			<main class="flex-1 overflow-x-hidden overflow-y-auto px-6 py-6 scroll-smooth custom-scrollbar relative">
+				{#key $page.url.pathname}
+					<div
+						class="mx-auto max-w-[1600px] min-h-full flex flex-col w-full will-change-transform"
+						in:fly={{
+							x: appState.performanceMode ? 0 : slideDirection * 65,
+							duration: appState.performanceMode ? 0 : 220,
+							opacity: 0,
+							easing: cubicOut
+						}}
+					>
+						{@render children?.()}
+					</div>
+				{/key}
 			</main>
 		</div>
 	</div>

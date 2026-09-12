@@ -70,7 +70,13 @@
 		const text = gameLogs.entries
 			.map((e) => `[${e.timestamp.toLocaleTimeString()}] [${e.stream}] ${e.message}`)
 			.join("\n");
-		navigator.clipboard.writeText(text);
+		if (!text.trim()) {
+			toast(t("logs.noLogs") || "Não há logs para copiar.", "error");
+			return;
+		}
+		navigator.clipboard.writeText(text)
+			.then(() => toast(t("logs.copied") || "Logs copiados para a área de transferência!", "success"))
+			.catch((e) => toast("Falha ao copiar logs: " + String(e), "error"));
 	}
 
 	function exportLogs() {
@@ -184,7 +190,7 @@
 					<Download class="h-3.5 w-3.5" />
 					{t("logs.export")}
 				</Button>
-				<Button variant="solid" size="sm" onclick={handleShareMclogs} loading={isSharing} class="bg-brand-500 hover:bg-[#ebd095] text-black font-bold">
+				<Button variant="solid" size="sm" onclick={handleShareMclogs} loading={isSharing}>
 					<Share2 class="h-3.5 w-3.5" />
 					Compartilhar (mclo.gs)
 				</Button>

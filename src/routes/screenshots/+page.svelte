@@ -127,9 +127,13 @@
 		}
 	}
 	function copyToClipboard(path: string) {
-		navigator.clipboard.writeText(path).then(() => {
-			toast("Copied to clipboard", "success");
-		});
+		navigator.clipboard.writeText(path)
+			.then(() => {
+				toast("Caminho copiado para a área de transferência!", "success");
+			})
+			.catch((e) => {
+				toast("Falha ao copiar caminho: " + String(e), "error");
+			});
 	}
 	async function openFolder() {
 		if (profiles.active) {
@@ -210,10 +214,10 @@
 		<img src={convertFileSrc(selectedImage.path)} alt={selectedImage.name} class="max-w-full max-h-full object-contain rounded-3xl shadow-2xl border border-white/10" onclick={(e) => e.stopPropagation()} />
 		<div class="absolute bottom-8 flex gap-4" onclick={(e) => e.stopPropagation()}>
 			<Button variant="secondary" onclick={() => copyToClipboard(selectedImage!.path)}>
-				<Copy class="h-4 w-4"/> Copy Path
+				<Copy class="h-4 w-4"/> Copiar Caminho
 			</Button>
-			<Button variant="solid" onclick={() => confirmDelete(selectedImage!)}>
-				<Trash2 class="h-4 w-4"/> Delete
+			<Button variant="danger" onclick={() => confirmDelete(selectedImage!)}>
+				<Trash2 class="h-4 w-4"/> {t("screenshots.deleteBtn")}
 			</Button>
 		</div>
 	</div>

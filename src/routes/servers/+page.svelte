@@ -64,8 +64,13 @@
 	);
 
 	function copyServerIp(ip: string) {
-		navigator.clipboard.writeText(ip);
-		toast(`IP ${ip} copiado para a área de transferência!`, "success");
+		navigator.clipboard.writeText(ip)
+			.then(() => {
+				toast(`IP ${ip} copiado para a área de transferência!`, "success");
+			})
+			.catch((e) => {
+				toast(`Falha ao copiar IP: ${String(e)}`, "error");
+			});
 	}
 
 	let isRefreshingPings = $state(false);
@@ -158,8 +163,7 @@
 
 			<div class="flex items-center gap-2">
 				<Button
-					variant="outline"
-					class="border-white/10 bg-[#1e1f23] hover:bg-white/10 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer"
+					variant="secondary"
 					disabled={isRefreshingPings}
 					onclick={refreshPings}
 				>
@@ -167,8 +171,7 @@
 					{isRefreshingPings ? "Atualizando..." : "Atualizar Pings"}
 				</Button>
 				<Button
-					variant="outline"
-					class="border-brand-500/30 bg-brand-500/10 hover:bg-brand-500/20 text-brand-500 gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer"
+					variant="solid"
 					onclick={() => showAddServerModal = true}
 				>
 					+ Adicionar Servidor
@@ -259,8 +262,8 @@
 				</span>
 				<div class="flex items-center gap-2">
 					<Button
-						variant="outline"
-						class="border-white/10 bg-[#1e1f23] hover:bg-white/10 text-white gap-1 rounded-xl text-xs px-3 py-1.5 cursor-pointer disabled:opacity-30"
+						variant="secondary"
+						size="sm"
 						disabled={currentPage === 1}
 						onclick={() => setPage(currentPage - 1)}
 					>
@@ -277,7 +280,7 @@
 						}) as p}
 							<button
 								type="button"
-								class="w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer {currentPage === p ? 'bg-brand-500 text-black font-black shadow-sm' : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'}"
+								class="w-8 h-8 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer {currentPage === p ? 'bg-brand-500 text-black font-black shadow-sm' : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'}"
 								onclick={() => setPage(p)}
 							>
 								{p}
@@ -286,8 +289,8 @@
 					</div>
 
 					<Button
-						variant="outline"
-						class="border-white/10 bg-[#1e1f23] hover:bg-white/10 text-white gap-1 rounded-xl text-xs px-3 py-1.5 cursor-pointer disabled:opacity-30"
+						variant="secondary"
+						size="sm"
 						disabled={currentPage === totalPages}
 						onclick={() => setPage(currentPage + 1)}
 					>

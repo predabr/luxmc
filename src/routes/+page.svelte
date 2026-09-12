@@ -975,14 +975,21 @@
 						<div class="flex flex-col gap-2">
 							{#each servers as srv}
 								<div 
-									class="flex items-center justify-between bg-[#18191c] hover:bg-[#202126] border border-white/5 hover:border-white/20 p-3 rounded-2xl transition-all cursor-pointer group shadow-sm hover:-translate-y-0.5"
+									class="flex items-center justify-between bg-bg-elevated hover:bg-bg-subtle border border-white/5 hover:border-white/20 p-3 rounded-xl transition-all cursor-pointer group shadow-sm hover:-translate-y-0.5"
 									onclick={() => {
-										navigator.clipboard.writeText(srv.ip);
-										toast(t("home.copiedIp", { ip: srv.ip }), "success");
+										navigator.clipboard.writeText(srv.ip)
+											.then(() => toast(t("home.copiedIp", { ip: srv.ip }), "success"))
+											.catch((e) => toast("Falha ao copiar IP: " + String(e), "error"));
 									}}
 									role="button"
 									tabindex="0"
-									onkeydown={(e) => { if (e.key === 'Enter') { navigator.clipboard.writeText(srv.ip); toast(t("home.copiedIpShort", { ip: srv.ip }), "success"); } }}
+									onkeydown={(e) => {
+										if (e.key === 'Enter') {
+											navigator.clipboard.writeText(srv.ip)
+												.then(() => toast(t("home.copiedIpShort", { ip: srv.ip }), "success"))
+												.catch((e) => toast("Falha ao copiar IP: " + String(e), "error"));
+										}
+									}}
 									title={t("home.clickToCopyIp")}
 								>
 									<div class="flex items-center gap-3">

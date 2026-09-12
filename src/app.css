@@ -25,7 +25,15 @@
   --warning: 234 179 8;
   --danger: 239 68 68;
   --info: 56 189 248;
-  --radius: 14px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius: 12px;
+  --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.25), 0 1px 3px -1px rgba(0, 0, 0, 0.15);
+  --shadow-elevated: 0 8px 24px -4px rgba(0, 0, 0, 0.4), 0 2px 6px -2px rgba(0, 0, 0, 0.2);
   color-scheme: dark;
 }
 
@@ -42,6 +50,15 @@
   --brand-500: 20 184 166;
   --brand-600: 13 148 136;
   --brand-foreground: 255 255 255;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius: 12px;
+  --shadow-soft: 0 2px 8px -2px rgba(0, 0, 0, 0.08), 0 1px 3px -1px rgba(0, 0, 0, 0.05);
+  --shadow-elevated: 0 8px 24px -4px rgba(0, 0, 0, 0.12), 0 2px 6px -2px rgba(0, 0, 0, 0.06);
   color-scheme: light;
 }
 

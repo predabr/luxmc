@@ -22,6 +22,7 @@
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { instanceSetFavorite } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
+	import { toast } from "$lib/stores/toasts.svelte";
 
 	const { t } = useTranslation();
 
@@ -77,8 +78,12 @@
 
 	function handleFavorite(e: MouseEvent) {
 		e.stopPropagation();
+		const nextFav = !profile.favorite;
 		profiles.toggleFavorite(profile.id);
-		instanceSetFavorite(profile.id, !profile.favorite).catch(() => {});
+		instanceSetFavorite(profile.id, nextFav).catch((err) => {
+			profiles.toggleFavorite(profile.id);
+			toast("Falha ao salvar favorito: " + String(err), "error");
+		});
 	}
 </script>
 

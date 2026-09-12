@@ -402,12 +402,21 @@
 	}
 
 	async function bulkDelete() {
+		let count = 0;
 		for (const id of selectedIds) {
-			await api.invoke("profiles_delete", { id });
-			profiles.remove(id);
+			try {
+				await api.invoke("profiles_delete", { id });
+				profiles.remove(id);
+				count++;
+			} catch (e) {
+				toast(t("instances.failedDelete", { error: String(e) }), "error");
+			}
 		}
 		selectedIds = new Set();
 		selectionMode = false;
+		if (count > 0) {
+			toast(`${count} instâncias removidas com sucesso.`, "success");
+		}
 	}
 
 	async function bulkDuplicate() {
@@ -594,34 +603,31 @@
 			{/if}
 
 			<div class="flex items-center gap-2.5">
-				<button
-					type="button"
-					class="px-5 py-2.5 rounded-full bg-[#18191c] hover:bg-[#202127] border border-white/10 hover:border-white/20 text-xs font-bold text-white flex items-center gap-2 transition-all active:scale-95 shadow-sm cursor-pointer"
+				<Button
+					variant="secondary"
 					onclick={pickModpackFile}
 				>
-					<Import class="h-4 w-4 text-brand-500" />
+					<Import class="h-4 w-4 text-brand-400" />
 					Importar .zip
-				</button>
+				</Button>
 
-				<button
-					type="button"
-					class="px-5 py-2.5 rounded-full bg-[#18191c] hover:bg-[#202127] border border-white/10 hover:border-[#1bd96a]/40 text-xs font-bold text-white flex items-center gap-2 transition-all active:scale-95 shadow-sm cursor-pointer"
+				<Button
+					variant="secondary"
 					onclick={pickMrpackFile}
 				>
-					<div class="w-3.5 h-3.5 rounded-full bg-[#1bd96a]/20 border border-[#1bd96a]/40 flex items-center justify-center">
-						<div class="w-1.5 h-1.5 rounded-full bg-[#1bd96a]"></div>
+					<div class="w-3.5 h-3.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+						<div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
 					</div>
 					Importar Modrinth .mrpack
-				</button>
+				</Button>
 
-				<button
-					type="button"
-					class="px-6 py-2.5 rounded-full bg-gradient-to-r from-brand-500 to-[#cba358] hover:brightness-110 active:scale-95 text-black font-black text-xs flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(226,184,107,0.35)] cursor-pointer"
+				<Button
+					variant="solid"
 					onclick={() => { showCreate = !showCreate; lastError = null; }}
 				>
-					<Plus class="h-4 w-4 stroke-[3]" />
+					<Plus class="h-4 w-4 stroke-[2.5]" />
 					Nova Instância
-				</button>
+				</Button>
 			</div>
 		</div>
 	</div>
