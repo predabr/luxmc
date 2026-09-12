@@ -135,5 +135,17 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 				"Redução estrita de cache em memória na busca e ping de servidores multiplayer, eliminando vazamento de RAM".into(),
 			],
 		},
+		ChangelogEntry {
+			version: "1.5.4-beta".into(),
+			date: "2026-09-12".into(),
+			title: "Correção de Modpacks CurseForge, Abertura de Pastas no AppImage, Galeria de Screenshots & Novo Organizador de Layout".into(),
+			highlights: vec![
+				"Correção de inicialização imediata em modpacks do CurseForge: preservação de versão e loader reais do manifest e integridade do classpath".into(),
+				"Limpeza de variáveis de ambiente do AppImage evitando erros de saída 4 (unix_wait_status 1024) no xdg-open e navegadores".into(),
+				"Novo módulo Organizador de Layout: personalização completa e reordenação drag-and-drop de seções da Home com persistência local".into(),
+				"Correção de miniaturas e visualização de screenshots com suporte a streaming de assets locais".into(),
+				"Remoção completa de código legado de servidores para máxima otimização e estabilidade de memória".into(),
+			],
+		},
 	])
 }

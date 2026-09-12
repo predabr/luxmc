@@ -308,7 +308,7 @@
 
 				<div class="pt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-white/40">
 					<span>Mudanças salvas automaticamente</span>
-					<span class="text-[#caa97c] font-medium">Luxmc v1.5.3</span>
+					<span class="text-[#caa97c] font-medium">Luxmc v1.5.4-beta</span>
 				</div>
 			</div>
 		</div>

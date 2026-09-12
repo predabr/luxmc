@@ -139,7 +139,7 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "v1.5.3-beta · Linux",
+					state: "v1.5.4-beta · Linux",
 					largeText: "Luxmc Launcher (Linux)",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
@@ -170,7 +170,7 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "v1.5.3-beta · Linux",
+					state: "v1.5.4-beta · Linux",
 					largeText: "Luxmc Launcher (Linux)",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
@@ -193,14 +193,14 @@
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
 			let details = "No Menu Principal";
-			let state = "v1.5.3-beta · Linux";
+			let state = "v1.5.4-beta · Linux";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
 				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
 				details = "Gerenciando Instâncias";
-				state = "v1.5.3-beta · Linux";
+				state = "v1.5.4-beta · Linux";
 			} else if (currentPath.startsWith("/instances/")) {
 				details = "Configurando Instância";
 				state = "Ajustando Modos & Versões";

@@ -13,10 +13,10 @@
 		},
 		{
 			id: "news-1",
-			title: "Luxmc v1.5.3-beta: CurseForge, Skins Oficiais & Performance",
-			date: "Hoje às 17:30",
+			title: "Luxmc v1.5.4-beta: Modpacks CurseForge, AppImage & Novo Organizador",
+			date: "Hoje às 19:30",
 			tag: "ATUALIZAÇÃO",
-			desc: "CurseForge direto, passthrough de skins Mojang, configurações de aparência em tempo real e troca instantânea de abas.",
+			desc: "Resolução de inicialização de modpacks CurseForge, pastas no AppImage e personalizador total de layout.",
 			img: "/logo.png"
 		},
 		{
