@@ -148,25 +148,22 @@ pub async fn app_init(
     if let Some(ref mut acc) = account {
         if (acc.skin_url.is_none() || acc.cape_url.is_none()) && !acc.uuid.is_empty() {
             if let Some((skin_url, skin_variant, cape_url)) = fetch_mojang_textures(&acc.uuid).await {
-                let mut changed = false;
                 if acc.skin_url.is_none() {
                     acc.skin_url = Some(skin_url);
-                    changed = true;
                 }
                 if acc.skin_variant.is_none() && skin_variant.is_some() {
                     acc.skin_variant = skin_variant;
-                    changed = true;
                 }
                 if acc.cape_url.is_none() && cape_url.is_some() {
                     acc.cape_url = cape_url;
-                    changed = true;
-                }
-                if changed {
-                    acc.updated_at = chrono::Utc::now();
-                    let _ = crate::db::schema::accounts::upsert(&db, acc).await;
                 }
             }
         }
+        if acc.skin_url.is_none() || acc.skin_url.as_deref().unwrap_or("").trim().is_empty() {
+            acc.skin_url = Some(format!("https://minotar.net/skin/{}", acc.username));
+        }
+        acc.updated_at = chrono::Utc::now();
+        let _ = crate::db::schema::accounts::upsert(&db, acc).await;
     }
 
     let active_profile_id = settings

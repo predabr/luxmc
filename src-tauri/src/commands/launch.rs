@@ -52,7 +52,7 @@ pub async fn launch_game(
 
     let db = crate::db::shared_db().await?;
 
-    let account: AccountRow =
+    let mut account: AccountRow =
         sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE uuid = ? OR id = ?")
             .bind(&request.account_id)
             .bind(&request.account_id)
@@ -172,6 +172,26 @@ pub async fn launch_game(
             .args(["-f", "-u", &user, "net.minecraft.client.main.Main"])
             .output();
         tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
+
+    if !account.refresh_token.is_empty() {
+        if let Ok(refreshed) = state.auth.refresh_account(&account.refresh_token).await {
+            account.access_token = Some(refreshed.access_token.clone());
+            account.refresh_token = refreshed.refresh_token.clone();
+            account.expires_at = Some(chrono::DateTime::from_timestamp(refreshed.expires_at, 0).unwrap_or_default());
+            if refreshed.skin_url.is_some() {
+                account.skin_url = refreshed.skin_url;
+            }
+            if refreshed.skin_variant.is_some() {
+                account.skin_variant = refreshed.skin_variant;
+            }
+            account.updated_at = chrono::Utc::now();
+            let _ = crate::db::schema::accounts::upsert(&db, &account).await;
+        }
+    }
+
+    if account.skin_url.is_none() || account.skin_url.as_deref().unwrap_or("").trim().is_empty() {
+        account.skin_url = Some(format!("https://minotar.net/skin/{}", account.username));
     }
 
     let token_str = account.access_token.as_deref().unwrap_or("");

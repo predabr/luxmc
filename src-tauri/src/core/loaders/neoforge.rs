@@ -332,6 +332,13 @@ pub async fn prepare_neoforge(
         jvm_args.push("-Dneoforge.enabled=true".to_string());
     }
 
+    if !jvm_args.iter().any(|a| a.starts_with("-Dneoforge.earlydisplay=")) {
+        jvm_args.push("-Dneoforge.earlydisplay=false".to_string());
+    }
+    if !jvm_args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.checkThread0=")) {
+        jvm_args.push("-Dorg.lwjgl.glfw.checkThread0=false".to_string());
+    }
+
     let mut game_args = Vec::new();
     if let Some(ref args) = version_data.arguments {
         for arg in &args.game {

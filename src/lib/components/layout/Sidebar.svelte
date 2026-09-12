@@ -39,16 +39,8 @@
 
 	function getAccountStatus(acc: typeof account.value) {
 		if (!acc) return { type: "none", label: "Desconectado", dotColor: "bg-zinc-500" };
-		if (!acc.minecraftToken || acc.id.startsWith("offline_")) {
+		if (!acc.minecraftToken || acc.id.startsWith("offline_") || acc.id.startsWith("offline-")) {
 			return { type: "offline", label: "Conta Offline", dotColor: "bg-sky-400" };
-		}
-		const expMs = acc.expiresAt > 0 && acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt;
-		const nowMs = Date.now();
-		if (expMs > 0 && expMs < nowMs) {
-			return { type: "expired", label: "Sessão Expirada", dotColor: "bg-rose-500" };
-		}
-		if (expMs > 0 && (expMs - nowMs) < 86400 * 1000) {
-			return { type: "expiring", label: "Sessão Expirando", dotColor: "bg-amber-400" };
 		}
 		return { type: "online", label: "Microsoft Online", dotColor: "bg-emerald-400" };
 	}

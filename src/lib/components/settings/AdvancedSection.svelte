@@ -6,19 +6,15 @@
 	type Props = {
 		performanceMode: boolean;
 		discordRpc: boolean;
-		curseforgeApiKey: string;
 		onPerformanceModeChange: (val: boolean) => void;
 		onDiscordRpcChange: (val: boolean) => void;
-		onCurseforgeApiKeyChange: (val: string) => void;
 	};
 
 	let {
 		performanceMode,
 		discordRpc,
-		curseforgeApiKey,
 		onPerformanceModeChange,
 		onDiscordRpcChange,
-		onCurseforgeApiKeyChange,
 	}: Props = $props();
 
 	async function toggleDiscordRpc() {
@@ -89,19 +85,5 @@
 		>
 			<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {discordRpc ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 		</button>
-	</div>
-
-	<!-- CurseForge API Key -->
-	<div>
-		<label for="curseforge-api" class="text-xs font-bold text-white block mb-1.5">Chave API do CurseForge (opcional)</label>
-		<input
-			id="curseforge-api"
-			type="text"
-			placeholder="$2a$10$..."
-			value={curseforgeApiKey}
-			onchange={(e) => onCurseforgeApiKeyChange((e.target as HTMLInputElement).value)}
-			class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white font-mono focus:border-brand-500 focus:outline-none placeholder:text-white/30"
-		/>
-		<p class="text-[10px] text-white/40 mt-1">Necessário para baixar mods premium do CurseForge</p>
 	</div>
 </div>

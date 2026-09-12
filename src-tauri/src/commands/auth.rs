@@ -252,8 +252,8 @@ pub async fn auth_dev_login(state: State<'_, AppState>) -> AppResult<AuthAccount
         access_token: "dev-access-token".into(),
         refresh_token: "dev-refresh-token".into(),
         expires_at: chrono::Utc::now().timestamp() + 86400,
-        skin_url: None,
-        skin_variant: None,
+        skin_url: Some("https://minotar.net/skin/MHF_Steve".into()),
+        skin_variant: Some("classic".into()),
         cape_url: None,
     };
     save_account(&state, &account).await?;
@@ -279,6 +279,7 @@ pub async fn auth_offline_login(username: String) -> AppResult<AuthAccount> {
         &Uuid::NAMESPACE_URL,
         format!("offline:{}", username).as_bytes(),
     );
+    let default_skin = format!("https://minotar.net/skin/{}", username);
     let account = AuthAccount {
         id: uuid.to_string(),
         username,
@@ -286,8 +287,8 @@ pub async fn auth_offline_login(username: String) -> AppResult<AuthAccount> {
         access_token: String::new(),
         refresh_token: String::new(),
         expires_at: chrono::Utc::now().timestamp() + 86400 * 365,
-        skin_url: None,
-        skin_variant: None,
+        skin_url: Some(default_skin),
+        skin_variant: Some("classic".into()),
         cape_url: None,
     };
     let db = crate::db::shared_db().await?;

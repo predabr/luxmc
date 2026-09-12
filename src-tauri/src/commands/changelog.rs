@@ -97,5 +97,18 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 				"Pipeline de release automatizado com suporte a Linux (AppImage, deb, rpm), Windows (exe, msi) e macOS (dmg)".into(),
 			],
 		},
+		ChangelogEntry {
+			version: "1.5.1-beta".into(),
+			date: "2026-09-12".into(),
+			title: "Correções Críticas: GLFW Wayland, NeoForge WGL OpenGL, Sessão Permanente e RAM de Servidores".into(),
+			highlights: vec![
+				"Correção de crash GLFW 65548 no Linux AppImage em Wayland através de compatibilidade transparente XWayland".into(),
+				"Correção de crash WGL OpenGL em modpacks NeoForge e Forge no Windows desativando early display conflitante".into(),
+				"Sessão Microsoft permanente: refresh transparente de token em segundo plano sem expiração ou deslogamento automático".into(),
+				"Otimização da aba de servidores: sockets assíncronos não-bloqueantes com cache TTL de 60s, eliminando consumo excessivo de RAM".into(),
+				"Aplicação aprimorada de skins customizadas para todas as versões do Minecraft com suporte a formatos legados e modernos".into(),
+				"Remoção de campos legados e simplificação da configuração de mods e integrações".into(),
+			],
+		},
 	])
 }

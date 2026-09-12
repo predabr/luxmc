@@ -329,10 +329,11 @@ impl GameLauncher {
             None
         };
 
-        if let Some((skin_source, variant)) = skin_info {
-            self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
-            let _ = inject_player_skin(self.downloader.http(), game_dir, &skin_source, &variant).await;
-        }
+        let (skin_source, variant) = skin_info.unwrap_or_else(|| {
+            (format!("https://minotar.net/skin/{}", username), skin_variant.unwrap_or("classic").to_string())
+        });
+        self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
+        let _ = inject_player_skin(self.downloader.http(), game_dir, &skin_source, &variant, &detail.id).await;
 
         self.emit_stage(LaunchStage::ResolvingArgs);
         let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
@@ -483,6 +484,15 @@ impl GameLauncher {
             cmd.env_remove("GTK_PATH");
             cmd.env_remove("GSETTINGS_SCHEMA_DIR");
 
+            cmd.env_remove("WAYLAND_DISPLAY");
+            cmd.env_remove("WAYLAND_SOCKET");
+            cmd.env("_JAVA_AWT_WM_NONREPARENTING", "1");
+            cmd.env("GDK_BACKEND", "x11");
+            cmd.env("SDL_VIDEODRIVER", "x11");
+            if std::env::var("DISPLAY").is_err() {
+                cmd.env("DISPLAY", ":0");
+            }
+
             if profile.use_vulkan {
                 self.emit_log("Mesa Zink (OpenGL sobre Vulkan) aceleração ativa");
                 cmd.env("MESA_LOADER_DRIVER_OVERRIDE", "zink");
@@ -495,6 +505,31 @@ impl GameLauncher {
                 cmd.env("MESA_SHADER_CACHE_MAX_SIZE", "100G");
                 cmd.env("MESA_GL_THREAD", "true");
             }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
+            let system32 = format!("{}\\System32", system_root);
+            let mut win_paths = Vec::new();
+            win_paths.push(natives_dir.to_string_lossy().to_string());
+            if let Some(parent) = java_path.parent() {
+                win_paths.push(parent.to_string_lossy().to_string());
+            }
+            win_paths.push(system32);
+            if let Ok(current_path) = std::env::var("PATH").or_else(|_| std::env::var("Path")) {
+                win_paths.push(current_path);
+            }
+            let joined_path = win_paths.join(";");
+            cmd.env("PATH", &joined_path);
+            cmd.env("Path", &joined_path);
+            cmd.env("SHIM_MCCOMPAT", "0x800000001");
+            cmd.env("GPU_MAX_ALLOC_PERCENT", "100");
+            cmd.env("GPU_USE_SYNC_OBJECTS", "1");
+            cmd.env("GPU_NUM_COMPUTE_RINGS", "1");
+            cmd.env("GPU_MAX_HEAP_SIZE", "100");
+            cmd.env("GPU_FORCE_64BIT_PTR", "1");
+            cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
         }
 
         let mut child = cmd.spawn().map_err(|e| {
@@ -902,6 +937,18 @@ impl GameLauncher {
             }
         }
 
+        if !args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.checkThread0=")) {
+            args.push("-Dorg.lwjgl.glfw.checkThread0=false".to_string());
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            let intel_fix = "-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump";
+            if !args.iter().any(|a| a.starts_with("-XX:HeapDumpPath=")) {
+                args.push(intel_fix.to_string());
+            }
+        }
+
         args
     }
 
@@ -1209,13 +1256,55 @@ pub fn lib_path_from_name(base: &PathBuf, name: &str) -> PathBuf {
     base.join(format!("{}/{}/{}/{}", group, artifact, ver_clean, filename))
 }
 
+fn get_pack_format_for_version(version: &str) -> u32 {
+    let clean = version.trim();
+    if clean.starts_with("1.21.4") {
+        46
+    } else if clean.starts_with("1.21.2") || clean.starts_with("1.21.3") {
+        42
+    } else if clean.starts_with("1.21") {
+        34
+    } else if clean.starts_with("1.20.5") || clean.starts_with("1.20.6") {
+        32
+    } else if clean.starts_with("1.20.3") || clean.starts_with("1.20.4") {
+        22
+    } else if clean.starts_with("1.20.2") {
+        18
+    } else if clean.starts_with("1.20") {
+        15
+    } else if clean.starts_with("1.19.4") {
+        13
+    } else if clean.starts_with("1.19.3") {
+        12
+    } else if clean.starts_with("1.19") {
+        9
+    } else if clean.starts_with("1.18") {
+        8
+    } else if clean.starts_with("1.17") {
+        7
+    } else if clean.starts_with("1.16") {
+        6
+    } else if clean.starts_with("1.15") {
+        5
+    } else if clean.starts_with("1.13") || clean.starts_with("1.14") {
+        4
+    } else if clean.starts_with("1.11") || clean.starts_with("1.12") {
+        3
+    } else if clean.starts_with("1.9") || clean.starts_with("1.10") {
+        2
+    } else {
+        1
+    }
+}
+
 async fn inject_player_skin(
     http: &reqwest::Client,
     game_dir: &std::path::Path,
     skin_source: &str,
     _variant: &str,
+    mc_version: &str,
 ) -> AppResult<()> {
-    let skin_bytes: Vec<u8> = if skin_source.starts_with("http://") || skin_source.starts_with("https://") {
+    let mut skin_bytes: Vec<u8> = if skin_source.starts_with("http://") || skin_source.starts_with("https://") {
         if let Ok(resp) = http.get(skin_source).send().await {
             if resp.status().is_success() {
                 resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
@@ -1244,28 +1333,64 @@ async fn inject_player_skin(
     };
 
     if skin_bytes.is_empty() {
+        if let Some(username) = skin_source.split('/').last() {
+            let clean_name = username.trim_end_matches(".png");
+            if !clean_name.is_empty() {
+                let fallback_urls = [
+                    format!("https://mc-heads.net/skin/{}", clean_name),
+                    format!("https://minotar.net/skin/{}", clean_name),
+                ];
+                for url in &fallback_urls {
+                    if let Ok(resp) = http.get(url).send().await {
+                        if resp.status().is_success() {
+                            if let Ok(b) = resp.bytes().await {
+                                if !b.is_empty() {
+                                    skin_bytes = b.to_vec();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if skin_bytes.is_empty() {
         return Ok(());
     }
 
     let pack_dir = game_dir.join("resourcepacks").join("LuxmcCustomSkin");
     let entity_dir_wide = pack_dir.join("assets/minecraft/textures/entity/player/wide");
     let entity_dir_slim = pack_dir.join("assets/minecraft/textures/entity/player/slim");
+    let entity_dir_player = pack_dir.join("assets/minecraft/textures/entity/player");
     let entity_dir_legacy = pack_dir.join("assets/minecraft/textures/entity");
 
     let _ = tokio::fs::create_dir_all(&entity_dir_wide).await;
     let _ = tokio::fs::create_dir_all(&entity_dir_slim).await;
+    let _ = tokio::fs::create_dir_all(&entity_dir_player).await;
     let _ = tokio::fs::create_dir_all(&entity_dir_legacy).await;
 
-    let mcmeta = serde_json::json!({
-        "pack": {
-            "pack_format": 15,
-            "supported_formats": {
-                "min_inclusive": 1,
-                "max_inclusive": 99
-            },
-            "description": "Luxmc Player Custom Skin"
-        }
-    });
+    let pack_fmt = get_pack_format_for_version(mc_version);
+    let mcmeta = if pack_fmt >= 18 {
+        serde_json::json!({
+            "pack": {
+                "pack_format": pack_fmt,
+                "supported_formats": {
+                    "min_inclusive": 1,
+                    "max_inclusive": 99
+                },
+                "description": "Luxmc Player Custom Skin"
+            }
+        })
+    } else {
+        serde_json::json!({
+            "pack": {
+                "pack_format": pack_fmt,
+                "description": "Luxmc Player Custom Skin"
+            }
+        })
+    };
     let _ = tokio::fs::write(pack_dir.join("pack.mcmeta"), serde_json::to_string_pretty(&mcmeta).unwrap_or_default()).await;
 
     let skin_models = [
@@ -1274,11 +1399,16 @@ async fn inject_player_skin(
     for model in &skin_models {
         let _ = tokio::fs::write(entity_dir_wide.join(format!("{}.png", model)), &skin_bytes).await;
         let _ = tokio::fs::write(entity_dir_slim.join(format!("{}.png", model)), &skin_bytes).await;
-        let _ = tokio::fs::write(entity_dir_legacy.join(format!("{}.png", model)), &skin_bytes).await;
     }
+    let _ = tokio::fs::write(entity_dir_player.join("steve.png"), &skin_bytes).await;
+    let _ = tokio::fs::write(entity_dir_player.join("alex.png"), &skin_bytes).await;
+    let _ = tokio::fs::write(entity_dir_legacy.join("steve.png"), &skin_bytes).await;
+    let _ = tokio::fs::write(entity_dir_legacy.join("alex.png"), &skin_bytes).await;
 
     let options_file = game_dir.join("options.txt");
     let skin_pack_entry = "\"file/LuxmcCustomSkin\"";
+    let skin_pack_legacy = "\"LuxmcCustomSkin\"";
+
     if options_file.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&options_file).await {
             let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
@@ -1286,31 +1416,38 @@ async fn inject_player_skin(
             for line in &mut lines {
                 if line.starts_with("resourcePacks:") {
                     found = true;
-                    if !line.contains(skin_pack_entry) {
-                        let inner = line.trim_start_matches("resourcePacks:").trim();
-                        if inner.starts_with('[') && inner.ends_with(']') {
-                            let array_content = &inner[1..inner.len() - 1];
-                            let new_array = if array_content.trim().is_empty() {
-                                format!("[\"vanilla\",{}]", skin_pack_entry)
-                            } else {
-                                format!("[{},{}]", array_content, skin_pack_entry)
-                            };
-                            *line = format!("resourcePacks:{}", new_array);
+                    let inner = line.trim_start_matches("resourcePacks:").trim();
+                    if inner.starts_with('[') && inner.ends_with(']') {
+                        let array_content = &inner[1..inner.len() - 1];
+                        let mut entries: Vec<String> = array_content
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        if !entries.iter().any(|e| e == skin_pack_entry) {
+                            entries.push(skin_pack_entry.to_string());
                         }
+                        if !entries.iter().any(|e| e == skin_pack_legacy) {
+                            entries.push(skin_pack_legacy.to_string());
+                        }
+                        *line = format!("resourcePacks:[{}]", entries.join(","));
                     }
                 } else if line.starts_with("incompatibleResourcePacks:") {
                     *line = line.replace(&format!(",{}", skin_pack_entry), "")
                         .replace(&format!("{},", skin_pack_entry), "")
-                        .replace(skin_pack_entry, "");
+                        .replace(skin_pack_entry, "")
+                        .replace(&format!(",{}", skin_pack_legacy), "")
+                        .replace(&format!("{},", skin_pack_legacy), "")
+                        .replace(skin_pack_legacy, "");
                 }
             }
             if !found {
-                lines.push(format!("resourcePacks:[\"vanilla\",{}]", skin_pack_entry));
+                lines.push(format!("resourcePacks:[\"vanilla\",{},{}]", skin_pack_entry, skin_pack_legacy));
             }
             let _ = tokio::fs::write(&options_file, lines.join("\n")).await;
         }
     } else {
-        let default_options = format!("resourcePacks:[\"vanilla\",{}]\nincompatibleResourcePacks:[]\n", skin_pack_entry);
+        let default_options = format!("resourcePacks:[\"vanilla\",{},{}]\nincompatibleResourcePacks:[]\n", skin_pack_entry, skin_pack_legacy);
         let _ = tokio::fs::write(&options_file, default_options).await;
     }
 

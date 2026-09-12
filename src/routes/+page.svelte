@@ -150,14 +150,26 @@
 
 			const backendAcc = await authOfflineLogin(name).catch(() => null);
 
+			const skinUrl = backendAcc?.skinUrl || `https://minotar.net/skin/${name}`;
 			const newAcc = {
 				id: backendAcc?.id || ("offline_" + Date.now()),
 				username: name,
 				uuid: backendAcc?.uuid || ("offline-" + key),
 				minecraftToken: "",
-				expiresAt: 0
+				expiresAt: 0,
+				skinUrl,
+				skinVariant: "classic",
+				capeUrl: null
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
+			activeSkinStore.setSkin({
+				id: newAcc.uuid,
+				name: newAcc.username,
+				url: `https://mc-heads.net/body/${newAcc.username}/300`,
+				skinUrl,
+				avatarUrl: `https://mc-heads.net/avatar/${newAcc.username}/100`,
+				type: "steve"
+			});
 			toast(t("home.welcomeToLuxmc", { name }), "success");
 
 			account.value = newAcc;
@@ -260,14 +272,26 @@
 					expiresAt: offline?.expiresAt || (Date.now() + 86400 * 1000)
 				};
 			});
+			const skinUrl = "https://minotar.net/skin/MHF_Steve";
 			const newAcc = {
 				id: acc.id,
 				username: acc.username,
 				uuid: acc.uuid,
 				minecraftToken: acc.accessToken,
-				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0
+				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0,
+				skinUrl,
+				skinVariant: "classic",
+				capeUrl: null
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
+			activeSkinStore.setSkin({
+				id: newAcc.uuid,
+				name: newAcc.username,
+				url: `https://mc-heads.net/body/${newAcc.username}/300`,
+				skinUrl,
+				avatarUrl: `https://mc-heads.net/avatar/${newAcc.username}/100`,
+				type: "steve"
+			});
 			toast(t("home.connectedAsDev", { username: acc.username }), "success");
 			account.value = newAcc;
 		} catch (e) {

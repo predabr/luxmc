@@ -19,13 +19,11 @@ pub struct ServerRow {
 
 #[tauri::command]
 pub async fn server_ping(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
     host: String,
     port: u16,
 ) -> AppResult<ServerStatus> {
-    tokio::task::spawn_blocking(move || server::ping(&host, port))
-        .await
-        .map_err(|e| crate::error::AppError::Internal(e.to_string()))?
+    server::ping_cached(&state.http, &host, port).await
 }
 
 #[tauri::command]

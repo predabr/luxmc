@@ -96,14 +96,7 @@
 			);
 		}
 		if (!isDestroyed) {
-			const currentTargetIds = new Set(targets.map(t => t.id));
-			const boundedData: Record<string, { online: number; max: number; ping: number }> = {};
-			for (const [k, v] of Object.entries(liveServerData)) {
-				if (currentTargetIds.has(k) || Object.keys(boundedData).length < 24) {
-					boundedData[k] = v;
-				}
-			}
-			liveServerData = { ...boundedData, ...newBatch };
+			liveServerData = newBatch;
 		}
 		isRefreshingPings = false;
 	}
@@ -117,11 +110,27 @@
 	onMount(() => {
 		void refreshPings();
 		pingInterval = setInterval(refreshPings, 45000);
+		if (typeof document !== "undefined") {
+			document.addEventListener("visibilitychange", handleVisibilityChange);
+		}
 	});
+
+	function handleVisibilityChange() {
+		if (typeof document !== "undefined" && !document.hidden && !isDestroyed) {
+			void refreshPings();
+		}
+	}
 
 	onDestroy(() => {
 		isDestroyed = true;
-		if (pingInterval) clearInterval(pingInterval);
+		if (pingInterval) {
+			clearInterval(pingInterval);
+			pingInterval = null;
+		}
+		if (typeof document !== "undefined") {
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
+		}
+		liveServerData = {};
 	});
 </script>
 

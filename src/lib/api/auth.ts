@@ -63,29 +63,27 @@ export async function authRemove(uuid: string): Promise<void> {
 	return api.invoke("auth_remove", { uuid });
 }
 
-export async function authDevLogin(): Promise<{
+export interface AuthAccount {
 	id: string;
 	username: string;
 	uuid: string;
 	accessToken: string;
 	refreshToken: string;
 	expiresAt: number;
-}> {
+	skinUrl?: string;
+	skinVariant?: string;
+	capeUrl?: string;
+}
+
+export async function authDevLogin(): Promise<AuthAccount> {
 	return api.invoke("auth_dev_login");
 }
 
-export async function authOfflineLogin(username: string): Promise<{
-	id: string;
-	username: string;
-	uuid: string;
-	accessToken: string;
-	refreshToken: string;
-	expiresAt: number;
-}> {
+export async function authOfflineLogin(username: string): Promise<AuthAccount> {
 	return api.invoke("auth_offline_login", { username });
 }
 
-export async function authSwitchAccount(uuid: string): Promise<void> {
+export async function authSwitchAccount(uuid: string): Promise<AuthAccount> {
 	return api.invoke("auth_switch_account", { uuid });
 }
 
