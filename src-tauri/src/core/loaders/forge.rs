@@ -429,9 +429,10 @@ pub async fn prepare_forge(
         jvm_args.push("-Dforge.enabled=true".to_string());
     }
 
-    if !jvm_args.iter().any(|a| a.starts_with("-Dfml.earlyprogresswindow=")) {
-        jvm_args.push("-Dfml.earlyprogresswindow=false".to_string());
-    }
+    jvm_args.retain(|a| !a.starts_with("-Dfml.earlyprogresswindow="));
+    jvm_args.push("-Dfml.earlyprogresswindow=false".to_string());
+    jvm_args.retain(|a| !a.starts_with("-Dneoforge.earlydisplay="));
+    jvm_args.push("-Dneoforge.earlydisplay=false".to_string());
     if !jvm_args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.checkThread0=")) {
         jvm_args.push("-Dorg.lwjgl.glfw.checkThread0=false".to_string());
     }

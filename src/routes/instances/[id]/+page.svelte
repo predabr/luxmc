@@ -41,6 +41,7 @@
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { appState } from "$lib/stores/app.svelte";
@@ -634,7 +635,9 @@
 				versionId: verId,
 				accountId: userUuid || "",
 				profileId: targetProfileId,
-				enableVulkan: isVulkan
+				enableVulkan: isVulkan,
+				skinUrl: activeSkinStore.current.skinUrl || account.value?.skinUrl || null,
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic"
 			});
 
 			gamingStats.onGameStart();

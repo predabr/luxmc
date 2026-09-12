@@ -13,8 +13,8 @@
 		},
 		{
 			id: "news-1",
-			title: "Luxmc v1.5.1-beta: Correções Críticas & Performance",
-			date: "Hoje às 15:00",
+			title: "Luxmc v1.5.2-beta: Correções Críticas & Performance",
+			date: "Hoje às 16:00",
 			tag: "ATUALIZAÇÃO",
 			desc: "Correção de Wayland GLFW, NeoForge WGL OpenGL, sessão permanente e otimização da RAM de servidores.",
 			img: "/logo.png"

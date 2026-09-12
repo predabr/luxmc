@@ -124,7 +124,8 @@ pub async fn app_init(
                 None => true,
             };
             if is_expired {
-                if let Ok(refreshed) = state.auth.refresh_account(&acc.refresh_token).await {
+                let client_id = crate::commands::auth::get_configured_client_id().await;
+                if let Ok(refreshed) = state.auth.refresh_account_with_client_id(&acc.refresh_token, Some(&client_id)).await {
                     let updated_row = AccountRow {
                         id: refreshed.id.clone(),
                         username: refreshed.username.clone(),

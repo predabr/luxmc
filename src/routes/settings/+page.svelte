@@ -856,7 +856,7 @@
 							onclick={() => updaterStore.check(true)}
 						>
 							<span class="flex items-center gap-2"><RefreshCw class="w-4 h-4 text-brand-500 {updaterStore.isChecking ? 'animate-spin' : ''}" /> Checar Atualizações</span>
-							<span class="text-[10px] text-white/40">v1.5.1-beta</span>
+							<span class="text-[10px] text-white/40">v1.5.2-beta</span>
 						</button>
 						<button
 							type="button"

@@ -81,7 +81,7 @@ fn read_packet(stream: &mut TcpStream) -> AppResult<(i32, Vec<u8>)> {
         }
     }
 
-    if length <= 0 || length > 1024 * 1024 {
+    if length <= 0 || length > 64 * 1024 {
         return Err(AppError::Internal(format!(
             "invalid packet length: {}",
             length
@@ -117,7 +117,7 @@ async fn read_packet_async(stream: &mut AsyncTcpStream) -> AppResult<(i32, Vec<u
         }
     }
 
-    if length <= 0 || length > 1024 * 1024 {
+    if length <= 0 || length > 64 * 1024 {
         return Err(AppError::Internal(format!("invalid packet length: {}", length)));
     }
 
@@ -135,9 +135,14 @@ async fn read_packet_async(stream: &mut AsyncTcpStream) -> AppResult<(i32, Vec<u
 
 type PingCache = Mutex<HashMap<String, (Instant, ServerStatus)>>;
 static PING_CACHE: OnceLock<PingCache> = OnceLock::new();
+static PING_SEMAPHORE: OnceLock<tokio::sync::Semaphore> = OnceLock::new();
 
 fn get_cache() -> &'static PingCache {
     PING_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn get_ping_semaphore() -> &'static tokio::sync::Semaphore {
+    PING_SEMAPHORE.get_or_init(|| tokio::sync::Semaphore::new(3))
 }
 
 pub async fn ping_cached(http: &reqwest::Client, host: &str, port: u16) -> AppResult<ServerStatus> {
@@ -167,128 +172,102 @@ pub async fn ping_cached(http: &reqwest::Client, host: &str, port: u16) -> AppRe
     Ok(status)
 }
 
-pub async fn ping_async(http: &reqwest::Client, host: &str, port: u16) -> AppResult<ServerStatus> {
+pub async fn ping_async(_http: &reqwest::Client, host: &str, port: u16) -> AppResult<ServerStatus> {
+    let _permit = match get_ping_semaphore().acquire().await {
+        Ok(p) => p,
+        Err(_) => {
+            return Ok(ServerStatus {
+                online: false,
+                version: "Offline".to_string(),
+                players_max: 0,
+                players_online: 0,
+                motd: String::new(),
+                favicon: None,
+                latency_ms: None,
+            });
+        }
+    };
+
     let start_time = Instant::now();
     let addr_str = format!("{}:{}", host, port);
 
-    let resolved = tokio::time::timeout(
+    let connect_res = tokio::time::timeout(
         Duration::from_millis(1500),
-        tokio::net::lookup_host(&addr_str),
+        AsyncTcpStream::connect(&addr_str),
     )
     .await;
 
-    if let Ok(Ok(mut addrs)) = resolved {
-        if let Some(sock_addr) = addrs.next() {
-            if let Ok(Ok(mut stream)) = tokio::time::timeout(
-                Duration::from_millis(1500),
-                AsyncTcpStream::connect(sock_addr),
-            )
-            .await
-            {
-                let mut handshake = Vec::new();
-                write_varint(&mut handshake, 0x00);
-                write_varint(&mut handshake, -1);
-                write_string(&mut handshake, host);
-                let mut port_buf = [0u8; 2];
-                port_buf.copy_from_slice(&port.to_be_bytes());
-                handshake.extend_from_slice(&port_buf);
-                write_varint(&mut handshake, 1);
+    if let Ok(Ok(mut stream)) = connect_res {
+        let mut handshake = Vec::new();
+        write_varint(&mut handshake, 0x00);
+        write_varint(&mut handshake, -1);
+        write_string(&mut handshake, host);
+        let mut port_buf = [0u8; 2];
+        port_buf.copy_from_slice(&port.to_be_bytes());
+        handshake.extend_from_slice(&port_buf);
+        write_varint(&mut handshake, 1);
 
-                let mut packet = Vec::new();
-                write_varint(&mut packet, handshake.len() as i32);
-                packet.extend_from_slice(&handshake);
+        let mut packet = Vec::new();
+        write_varint(&mut packet, handshake.len() as i32);
+        packet.extend_from_slice(&handshake);
 
-                if stream.write_all(&packet).await.is_ok() {
-                    let mut status_req = Vec::new();
-                    write_varint(&mut status_req, 0x00);
-                    let mut status_packet = Vec::new();
-                    write_varint(&mut status_packet, status_req.len() as i32);
-                    status_packet.extend_from_slice(&status_req);
+        if stream.write_all(&packet).await.is_ok() {
+            let mut status_req = Vec::new();
+            write_varint(&mut status_req, 0x00);
+            let mut status_packet = Vec::new();
+            write_varint(&mut status_packet, status_req.len() as i32);
+            status_packet.extend_from_slice(&status_req);
 
-                    if stream.write_all(&status_packet).await.is_ok() {
-                        if let Ok(Ok((_, payload))) = tokio::time::timeout(
-                            Duration::from_millis(2000),
-                            read_packet_async(&mut stream),
-                        )
-                        .await
-                        {
-                            let mut pos = 0;
-                            if let Ok(_json_len) = read_varint(&payload, &mut pos) {
-                                if let Ok(json_str) = std::str::from_utf8(&payload[pos..]) {
-                                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(json_str) {
-                                        let version = v
-                                            .get("version")
-                                            .and_then(|v| v.get("name"))
-                                            .and_then(|v| v.as_str())
-                                            .unwrap_or("1.21.4")
-                                            .to_string();
+            if stream.write_all(&status_packet).await.is_ok() {
+                if let Ok(Ok((_, payload))) = tokio::time::timeout(
+                    Duration::from_millis(1500),
+                    read_packet_async(&mut stream),
+                )
+                .await
+                {
+                    let mut pos = 0;
+                    if let Ok(_json_len) = read_varint(&payload, &mut pos) {
+                        if let Ok(json_str) = std::str::from_utf8(&payload[pos..]) {
+                            if let Ok(v) = serde_json::from_str::<serde_json::Value>(json_str) {
+                                let version = v
+                                    .get("version")
+                                    .and_then(|v| v.get("name"))
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("1.21.4")
+                                    .to_string();
 
-                                        let players = v.get("players").cloned().unwrap_or_default();
-                                        let players_max = players.get("max").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-                                        let players_online = players.get("online").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                                let players = v.get("players").cloned().unwrap_or_default();
+                                let players_max = players.get("max").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+                                let players_online = players.get("online").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
-                                        let motd = v
-                                            .get("description")
-                                            .map(|d| {
-                                                if let Some(text) = d.get("text").and_then(|t| t.as_str()) {
-                                                    text.to_string()
-                                                } else if let Some(s) = d.as_str() {
-                                                    s.to_string()
-                                                } else {
-                                                    d.to_string()
-                                                }
-                                            })
-                                            .unwrap_or_default();
+                                let motd = v
+                                    .get("description")
+                                    .map(|d| {
+                                        if let Some(text) = d.get("text").and_then(|t| t.as_str()) {
+                                            text.to_string()
+                                        } else if let Some(s) = d.as_str() {
+                                            s.to_string()
+                                        } else {
+                                            d.to_string()
+                                        }
+                                    })
+                                    .unwrap_or_default();
 
-                                        let latency = start_time.elapsed().as_millis().min(9999) as u32;
+                                let latency = start_time.elapsed().as_millis().min(9999) as u32;
 
-                                        return Ok(ServerStatus {
-                                            online: true,
-                                            version,
-                                            players_max,
-                                            players_online,
-                                            motd,
-                                            favicon: None,
-                                            latency_ms: Some(latency),
-                                        });
-                                    }
-                                }
+                                return Ok(ServerStatus {
+                                    online: true,
+                                    version,
+                                    players_max,
+                                    players_online,
+                                    motd,
+                                    favicon: None,
+                                    latency_ms: Some(latency),
+                                });
                             }
                         }
                     }
                 }
-            }
-        }
-    }
-
-    let url = format!("https://api.mcsrvstat.us/3/{}", host);
-    if let Ok(Ok(resp)) = tokio::time::timeout(
-        Duration::from_millis(2500),
-        http.get(&url).send(),
-    )
-    .await
-    {
-        if resp.status().is_success() {
-            if let Ok(v) = resp.json::<serde_json::Value>().await {
-                let online = v.get("online").and_then(|o| o.as_bool()).unwrap_or(false);
-                let version = v.get("version").and_then(|s| s.as_str()).unwrap_or("Online").to_string();
-                let players_online = v.get("players").and_then(|p| p.get("online")).and_then(|o| o.as_u64()).unwrap_or(0) as u32;
-                let players_max = v.get("players").and_then(|p| p.get("max")).and_then(|m| m.as_u64()).unwrap_or(1000) as u32;
-                let motd = v.get("motd").and_then(|m| m.get("clean")).and_then(|c| c.as_array())
-                    .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(" "))
-                    .unwrap_or_default();
-
-                let latency = start_time.elapsed().as_millis().min(9999) as u32;
-
-                return Ok(ServerStatus {
-                    online,
-                    version,
-                    players_max,
-                    players_online,
-                    motd,
-                    favicon: None,
-                    latency_ms: Some(latency),
-                });
             }
         }
     }
@@ -315,9 +294,9 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
     };
 
     if let Some(sock_addr) = addr {
-        if let Ok(mut stream) = TcpStream::connect_timeout(&sock_addr, Duration::from_secs(3)) {
-            stream.set_read_timeout(Some(Duration::from_secs(3))).ok();
-            stream.set_write_timeout(Some(Duration::from_secs(3))).ok();
+        if let Ok(mut stream) = TcpStream::connect_timeout(&sock_addr, Duration::from_secs(2)) {
+            stream.set_read_timeout(Some(Duration::from_secs(2))).ok();
+            stream.set_write_timeout(Some(Duration::from_secs(2))).ok();
 
             let mut handshake = Vec::new();
             write_varint(&mut handshake, 0x00);
@@ -383,41 +362,6 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    // HTTP Status Fallback (mcsrvstat.us)
-    static HTTP_CLIENT: std::sync::OnceLock<reqwest::blocking::Client> = std::sync::OnceLock::new();
-    let client = HTTP_CLIENT.get_or_init(|| {
-        reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(4))
-            .build()
-            .unwrap_or_default()
-    });
-
-    if let Ok(resp) = client.get(format!("https://api.mcsrvstat.us/3/{}", host)).send() {
-        if resp.status().is_success() {
-            if let Ok(v) = resp.json::<serde_json::Value>() {
-                let online = v.get("online").and_then(|o| o.as_bool()).unwrap_or(false);
-                let version = v.get("version").and_then(|s| s.as_str()).unwrap_or("Online").to_string();
-                let players_online = v.get("players").and_then(|p| p.get("online")).and_then(|o| o.as_u64()).unwrap_or(0) as u32;
-                let players_max = v.get("players").and_then(|p| p.get("max")).and_then(|m| m.as_u64()).unwrap_or(1000) as u32;
-                let motd = v.get("motd").and_then(|m| m.get("clean")).and_then(|c| c.as_array())
-                    .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(" "))
-                    .unwrap_or_default();
-
-                let latency = start_time.elapsed().as_millis().min(9999) as u32;
-
-                return Ok(ServerStatus {
-                    online,
-                    version,
-                    players_max,
-                    players_online,
-                    motd,
-                    favicon: None,
-                    latency_ms: Some(latency),
-                });
             }
         }
     }

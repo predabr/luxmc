@@ -8,7 +8,7 @@ use tauri::Emitter;
 use tauri::State;
 use uuid::Uuid;
 
-async fn get_configured_client_id() -> String {
+pub async fn get_configured_client_id() -> String {
     if let Ok(conn) = crate::db::shared_db().await {
         use sqlx::Row;
         if let Ok(Some(row)) = sqlx::query("SELECT value FROM app_settings WHERE key = 'app'")

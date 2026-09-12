@@ -8,7 +8,7 @@ pub struct AppState {
 impl Default for AppState {
     fn default() -> Self {
         let http = reqwest::Client::builder()
-            .user_agent("Luxmc/1.5.1-beta (Linux; Minecraft Launcher)")
+            .user_agent("Luxmc/1.5.2-beta (Linux; Minecraft Launcher)")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         let auth = AuthService::new(http.clone());

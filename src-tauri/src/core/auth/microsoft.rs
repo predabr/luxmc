@@ -109,6 +109,34 @@ impl MicrosoftOAuth {
             expires_in: body.expires_in,
         })
     }
+
+    pub async fn refresh_with_client_id(
+        &self,
+        refresh_token: &str,
+        client_id_override: Option<&str>,
+    ) -> AppResult<MicrosoftTokens> {
+        let cid = client_id_override.filter(|s| !s.is_empty()).unwrap_or(&self.client_id);
+        let form = [
+            ("client_id", cid),
+            ("refresh_token", refresh_token),
+            ("grant_type", "refresh_token"),
+            ("redirect_uri", REDIRECT_URI),
+        ];
+        let token_url = self.token_url();
+        let resp = self
+            .http
+            .post(&token_url)
+            .form(&form)
+            .send()
+            .await?
+            .error_for_status()?;
+        let body: MicrosoftTokenResponse = resp.json().await?;
+        Ok(MicrosoftTokens {
+            access_token: body.access_token,
+            refresh_token: body.refresh_token,
+            expires_in: body.expires_in,
+        })
+    }
 }
 
 fn random_state() -> String {

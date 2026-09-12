@@ -1,7 +1,7 @@
 # Maintainer: Pedro <suporte@luxmc.com>
 pkgname=luxmc
-pkgver=1.5.1.beta
-_tagver="1.5.1-beta"
+pkgver=1.5.2.beta
+_tagver="1.5.2-beta"
 pkgrel=1
 pkgdesc="Linux-first Minecraft launcher written in Tauri 2, SvelteKit, and Rust"
 arch=('x86_64')

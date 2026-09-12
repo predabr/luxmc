@@ -26,7 +26,14 @@
 		</span>
 
 		<div class="h-13 w-13 rounded-2xl bg-black/50 border border-white/10 flex items-center justify-center shrink-0 p-2 group-hover:scale-105 transition-transform shadow-md">
-			<img src={server.logo} alt={server.name} class="w-full h-full object-contain rounded-lg" loading="lazy" decoding="async" />
+			<img
+				src={server.logo}
+				alt={server.name}
+				class="w-full h-full object-contain rounded-lg"
+				loading="lazy"
+				decoding="async"
+				onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+			/>
 		</div>
 
 		<div class="min-w-0">

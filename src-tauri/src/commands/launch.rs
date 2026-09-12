@@ -17,6 +17,8 @@ pub struct LaunchRequest {
     pub account_id: String,
     pub profile_id: String,
     pub enable_vulkan: Option<bool>,
+    pub skin_url: Option<String>,
+    pub skin_variant: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,7 +55,8 @@ pub async fn launch_game(
     let db = crate::db::shared_db().await?;
 
     let mut account: AccountRow =
-        sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE uuid = ? OR id = ?")
+        sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE uuid = ? OR id = ? OR username = ?")
+            .bind(&request.account_id)
             .bind(&request.account_id)
             .bind(&request.account_id)
             .fetch_optional(db.pool())
@@ -175,7 +178,8 @@ pub async fn launch_game(
     }
 
     if !account.refresh_token.is_empty() {
-        if let Ok(refreshed) = state.auth.refresh_account(&account.refresh_token).await {
+        let client_id = crate::commands::auth::get_configured_client_id().await;
+        if let Ok(refreshed) = state.auth.refresh_account_with_client_id(&account.refresh_token, Some(&client_id)).await {
             account.access_token = Some(refreshed.access_token.clone());
             account.refresh_token = refreshed.refresh_token.clone();
             account.expires_at = Some(chrono::DateTime::from_timestamp(refreshed.expires_at, 0).unwrap_or_default());
@@ -190,9 +194,16 @@ pub async fn launch_game(
         }
     }
 
-    if account.skin_url.is_none() || account.skin_url.as_deref().unwrap_or("").trim().is_empty() {
-        account.skin_url = Some(format!("https://minotar.net/skin/{}", account.username));
-    }
+    let effective_skin_url = request
+        .skin_url
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| account.skin_url.filter(|s| !s.trim().is_empty()))
+        .unwrap_or_else(|| format!("https://minotar.net/skin/{}", account.username));
+    let effective_skin_variant = request
+        .skin_variant
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| account.skin_variant.filter(|s| !s.trim().is_empty()))
+        .unwrap_or_else(|| "classic".to_string());
 
     let token_str = account.access_token.as_deref().unwrap_or("");
     let is_real_msa = !token_str.is_empty()
@@ -204,30 +215,7 @@ pub async fn launch_game(
     let (final_uuid, final_token, user_type) = if is_real_msa {
         (account.uuid.clone(), token_str.to_string(), "msa")
     } else {
-        let mojang_uuid = match state
-            .http
-            .get(format!(
-                "https://api.mojang.com/users/profiles/minecraft/{}",
-                account.username
-            ))
-            .timeout(std::time::Duration::from_millis(1500))
-            .send()
-            .await
-        {
-            Ok(resp) if resp.status().is_success() => {
-                if let Ok(json) = resp.json::<serde_json::Value>().await {
-                    json.get("id")
-                        .and_then(|i| i.as_str())
-                        .map(|s| s.to_string())
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-
-        let resolved_uuid = mojang_uuid.unwrap_or_else(|| compute_offline_uuid(&account.username));
-        (resolved_uuid, "-".to_string(), "mojang")
+        (compute_offline_uuid(&account.username), "-".to_string(), "mojang")
     };
 
     app.emit(
@@ -247,8 +235,8 @@ pub async fn launch_game(
             user_type,
             &game_dir,
             &profile,
-            account.skin_url.as_deref(),
-            account.skin_variant.as_deref(),
+            Some(&effective_skin_url),
+            Some(&effective_skin_variant),
         )
         .await?;
 

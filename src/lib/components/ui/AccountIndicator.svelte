@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { LogOut, LogIn, User, Settings, CircleCheck, CircleAlert, CircleX, Users, Plus, Check } from "lucide-svelte";
+	import { LogOut, LogIn, User, Settings, CircleCheck, Users, Plus, Check } from "lucide-svelte";
 	import Button from "./Button.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
@@ -24,7 +24,7 @@
 			: "/grass_block.png"
 	);
 
-	type AccountStatus = "online" | "expiring" | "expired" | "offline";
+	type AccountStatus = "online" | "offline";
 
 	function computeStatus(): AccountStatus {
 		const a = account.value;
@@ -39,10 +39,6 @@
 		switch (accountStatus) {
 			case "online":
 				return { color: "rgb(34, 197, 94)", label: t("accountIndicator.online"), Icon: CircleCheck };
-			case "expiring":
-				return { color: "rgb(234, 179, 8)", label: t("accountIndicator.expiring"), Icon: CircleAlert };
-			case "expired":
-				return { color: "rgb(239, 68, 68)", label: t("accountIndicator.expired"), Icon: CircleX };
 			case "offline":
 				return { color: "rgb(95, 105, 130)", label: t("accountIndicator.offline"), Icon: User };
 		}

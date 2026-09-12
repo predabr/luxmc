@@ -110,5 +110,17 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 				"Remoção de campos legados e simplificação da configuração de mods e integrações".into(),
 			],
 		},
+		ChangelogEntry {
+			version: "1.5.2-beta".into(),
+			date: "2026-09-12".into(),
+			title: "Estabilidade Completa: GLFW Wayland, NeoForge Early Display, Injeção Total de Skins e Otimização de Servidores".into(),
+			highlights: vec![
+				"Correção de compilação e caminhos de assets embutidos no empacotamento nativo do launcher".into(),
+				"Eliminação de consumo de RAM na lista de servidores via semáforo de concorrência e buffers de 64KB".into(),
+				"Cancelamento imediato de consultas concorrentes na troca de páginas e filtros de servidores".into(),
+				"Interface de mods limpa e profissional com remoção de alertas intrusivos de chave de API".into(),
+				"Sincronização ponta-a-ponta de skins personalizadas em todas as rotas de inicialização de jogo".into(),
+			],
+		},
 	])
 }

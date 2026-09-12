@@ -389,15 +389,6 @@
 				</div>
 			</div>
 
-			{#if selectedSource === "curseforge" && !curseforgeActive}
-				<div class="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 mb-4">
-					<AlertTriangle class="w-5 h-5 text-amber-400 shrink-0" />
-					<div>
-						<p class="text-xs font-bold text-amber-400">CurseForge API não configurada</p>
-						<p class="text-[10px] text-amber-300/70 mt-0.5">Defina CURSEFORGE_API_KEY no arquivo .env para habilitar resultados do CurseForge.</p>
-					</div>
-				</div>
-			{/if}
 
 			{#if searchError}
 				<div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-2xl p-4 mb-4">

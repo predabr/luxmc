@@ -31,6 +31,7 @@
 	import { convertFileSrc } from "@tauri-apps/api/core";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import {
@@ -308,8 +309,12 @@
 			}
 			const isVulkan = p.useVulkan === true;
 			const res = await launchGame({
-				versionId: verId, accountId: accountId || "",
-				profileId: p.id, enableVulkan: isVulkan
+				versionId: verId,
+				accountId: accountId || "",
+				profileId: p.id,
+				enableVulkan: isVulkan,
+				skinUrl: activeSkinStore.current.skinUrl || account.value?.skinUrl || null,
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic"
 			});
 			gamingStats.onGameStart();
 			appState.isGameRunning = true;

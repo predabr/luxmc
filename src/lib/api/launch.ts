@@ -5,6 +5,8 @@ export async function launchGame(request: {
 	accountId: string;
 	profileId: string;
 	enableVulkan?: boolean;
+	skinUrl?: string | null;
+	skinVariant?: string | null;
 }): Promise<{ pid: number }> {
 	return api.invoke("launch_game", { request });
 }

@@ -158,6 +158,15 @@ impl AuthService {
         self.complete_login(ms_tokens).await
     }
 
+    pub async fn refresh_account_with_client_id(
+        &self,
+        refresh_token: &str,
+        client_id: Option<&str>,
+    ) -> AppResult<AuthAccount> {
+        let ms_tokens = self.microsoft.refresh_with_client_id(refresh_token, client_id).await?;
+        self.complete_login(ms_tokens).await
+    }
+
     async fn complete_login(&self, ms_tokens: MicrosoftTokens) -> AppResult<AuthAccount> {
         let xbox_tokens = self.xbox.user_token(&ms_tokens.access_token).await?;
         let mc_token = self

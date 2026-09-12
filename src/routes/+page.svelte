@@ -343,7 +343,9 @@
 				versionId: verId,
 				accountId: userUuid || "",
 				profileId: targetProfile.id,
-				enableVulkan: isVulkan
+				enableVulkan: isVulkan,
+				skinUrl: activeSkinStore.current.skinUrl || account.value?.skinUrl || null,
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic"
 			});
 
 			gamingStats.onGameStart();

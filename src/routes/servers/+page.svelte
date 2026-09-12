@@ -70,21 +70,23 @@
 
 	let isRefreshingPings = $state(false);
 	let isDestroyed = false;
+	let pingSeq = 0;
 
 	async function refreshPings() {
-		if (isRefreshingPings || isDestroyed) return;
+		if (isDestroyed) return;
 		if (typeof document !== "undefined" && document.hidden) return;
+		const thisSeq = ++pingSeq;
 		isRefreshingPings = true;
 		const targets = paginatedServers.slice(0, pageSize);
 		const newBatch: Record<string, { online: number; max: number; ping: number }> = {};
-		for (let i = 0; i < targets.length; i += 4) {
-			if (isDestroyed) break;
-			const chunk = targets.slice(i, i + 4);
+		for (let i = 0; i < targets.length; i += 3) {
+			if (isDestroyed || thisSeq !== pingSeq) break;
+			const chunk = targets.slice(i, i + 3);
 			await Promise.allSettled(
 				chunk.map(async (s) => {
 					try {
 						const data = await serverPing(s.address, 25565);
-						if (data && !isDestroyed) {
+						if (data && !isDestroyed && thisSeq === pingSeq) {
 							newBatch[s.id] = {
 								online: data.playersOnline,
 								max: data.playersMax || 1000,
@@ -95,10 +97,12 @@
 				})
 			);
 		}
-		if (!isDestroyed) {
+		if (!isDestroyed && thisSeq === pingSeq) {
 			liveServerData = newBatch;
 		}
-		isRefreshingPings = false;
+		if (thisSeq === pingSeq) {
+			isRefreshingPings = false;
+		}
 	}
 
 	function setPage(page: number) {
@@ -123,6 +127,7 @@
 
 	onDestroy(() => {
 		isDestroyed = true;
+		pingSeq++;
 		if (pingInterval) {
 			clearInterval(pingInterval);
 			pingInterval = null;
