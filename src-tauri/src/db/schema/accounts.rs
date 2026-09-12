@@ -4,7 +4,7 @@ use crate::error::AppResult;
 use chrono::Utc;
 
 pub async fn list(db: &Db) -> AppResult<Vec<AccountRow>> {
-    let rows = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts ORDER BY created_at ASC")
+    let rows = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts ORDER BY updated_at DESC, created_at DESC")
         .fetch_all(db.pool())
         .await
         .map_err(crate::error::AppError::from)?;
@@ -37,6 +37,15 @@ pub async fn upsert(db: &Db, account: &AccountRow) -> AppResult<()> {
     Ok(())
 }
 
+pub async fn get_by_id(db: &Db, id: &str) -> AppResult<Option<AccountRow>> {
+    let row = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE id = ?")
+        .bind(id)
+        .fetch_optional(db.pool())
+        .await
+        .map_err(crate::error::AppError::from)?;
+    Ok(row)
+}
+
 pub async fn get_by_uuid(db: &Db, uuid: &str) -> AppResult<Option<AccountRow>> {
     let row = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE uuid = ?")
         .bind(uuid)
@@ -44,6 +53,17 @@ pub async fn get_by_uuid(db: &Db, uuid: &str) -> AppResult<Option<AccountRow>> {
         .await
         .map_err(crate::error::AppError::from)?;
     Ok(row)
+}
+
+pub async fn touch_account(db: &Db, id: &str) -> AppResult<()> {
+    let now = Utc::now();
+    sqlx::query("UPDATE accounts SET updated_at = ? WHERE id = ?")
+        .bind(now)
+        .bind(id)
+        .execute(db.pool())
+        .await
+        .map_err(crate::error::AppError::from)?;
+    Ok(())
 }
 
 pub async fn delete(db: &Db, uuid: &str) -> AppResult<()> {

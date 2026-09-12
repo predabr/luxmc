@@ -156,7 +156,17 @@ impl GameLauncher {
         let major = detail.java_major_version();
         self.emit_log(&format!("Java major version required: {}", major));
 
-        let java_path = self.java.ensure_java(major).await?;
+        let java_path = if let Some(custom_path) = profile.java_path.as_deref().filter(|p| !p.trim().is_empty()) {
+            let p = PathBuf::from(custom_path);
+            if p.exists() {
+                self.emit_log(&format!("Using custom Java binary from profile: {}", p.display()));
+                p
+            } else {
+                self.java.ensure_java(major).await?
+            }
+        } else {
+            self.java.ensure_java(major).await?
+        };
         self.emit_log(&format!("Java binary: {}", java_path.display()));
 
         self.emit_stage(LaunchStage::ResolvingClasspath);
@@ -868,20 +878,24 @@ impl GameLauncher {
         }
 
         if !args.contains(&"--username".to_string()) {
-            args.insert(0, "--gameDir".to_string());
-            args.insert(0, game_dir.to_string_lossy().to_string());
-            args.insert(0, "--version".to_string());
-            args.insert(0, detail.id.clone());
-            args.insert(0, "--accessToken".to_string());
-            args.insert(0, access_token.to_string());
-            args.insert(0, "--uuid".to_string());
-            args.insert(0, uuid.to_string());
-            args.insert(0, "--username".to_string());
-            args.insert(0, username.to_string());
-            args.insert(0, "--userType".to_string());
-            args.insert(0, user_type.to_string());
-            args.insert(0, "--userProperties".to_string());
-            args.insert(0, "{}".to_string());
+            args.push("--username".to_string());
+            args.push(username.to_string());
+            args.push("--version".to_string());
+            args.push(detail.id.clone());
+            args.push("--gameDir".to_string());
+            args.push(game_dir.to_string_lossy().to_string());
+            args.push("--assetsDir".to_string());
+            args.push(assets_dir.to_string_lossy().to_string());
+            args.push("--assetIndex".to_string());
+            args.push(asset_index_id.to_string());
+            args.push("--uuid".to_string());
+            args.push(uuid.to_string());
+            args.push("--accessToken".to_string());
+            args.push(access_token.to_string());
+            args.push("--userType".to_string());
+            args.push(user_type.to_string());
+            args.push("--userProperties".to_string());
+            args.push("{}".to_string());
         }
 
 

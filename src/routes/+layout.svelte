@@ -46,6 +46,11 @@
 					minecraftToken: init.account.accessToken ?? "",
 					expiresAt: init.account.expiresAt ? new Date(init.account.expiresAt).getTime() : 0,
 				};
+				if (typeof window !== "undefined") {
+					try {
+						localStorage.setItem("luxmc_current_account", JSON.stringify(account.value));
+					} catch {}
+				}
 			} else if (typeof window !== "undefined") {
 				const saved = localStorage.getItem("luxmc_current_account");
 				if (saved) {

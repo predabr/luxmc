@@ -167,6 +167,32 @@ pub async fn auth_refresh(
     Ok(account)
 }
 
+async fn set_active_account_id(account_id: &str) -> AppResult<()> {
+    let conn = crate::db::shared_db().await?;
+    use sqlx::Row;
+
+    let current_val = if let Ok(Some(row)) = sqlx::query("SELECT value FROM app_settings WHERE key = 'app'")
+        .fetch_optional(conn.pool())
+        .await
+    {
+        row.try_get::<String, _>("value").unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    let mut map: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&current_val).unwrap_or_default();
+    map.insert("activeAccountId".into(), serde_json::Value::String(account_id.to_string()));
+
+    let serialized = serde_json::to_string(&map).map_err(|e| AppError::Internal(e.to_string()))?;
+    sqlx::query("INSERT INTO app_settings (key, value) VALUES ('app', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(serialized)
+        .execute(conn.pool())
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to save activeAccountId: {e}")))?;
+
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn auth_accounts(_state: State<'_, AppState>) -> AppResult<Vec<AccountRow>> {
     let db = crate::db::shared_db().await?;
@@ -182,6 +208,8 @@ pub async fn auth_switch_account(
     let row = crate::db::schema::accounts::get_by_uuid(&db, &uuid)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Account with uuid {} not found", uuid)))?;
+    let _ = crate::db::schema::accounts::touch_account(&db, &row.id).await;
+    let _ = set_active_account_id(&row.id).await;
     Ok(AuthAccount {
         id: row.id,
         username: row.username,
@@ -198,7 +226,16 @@ pub async fn auth_switch_account(
 #[tauri::command]
 pub async fn auth_remove(_state: State<'_, AppState>, uuid: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
-    crate::db::schema::accounts::delete(&db, &uuid).await
+    if let Ok(Some(_row)) = crate::db::schema::accounts::get_by_uuid(&db, &uuid).await {
+        crate::db::schema::accounts::delete(&db, &uuid).await?;
+        let remaining = crate::db::schema::accounts::list(&db).await?;
+        if let Some(next_acc) = remaining.into_iter().next() {
+            let _ = set_active_account_id(&next_acc.id).await;
+        }
+    } else {
+        crate::db::schema::accounts::delete(&db, &uuid).await?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -267,6 +304,7 @@ pub async fn auth_offline_login(username: String) -> AppResult<AuthAccount> {
         updated_at: chrono::Utc::now(),
     };
     crate::db::schema::accounts::upsert(&db, &row).await?;
+    let _ = set_active_account_id(&account.id).await;
     Ok(account)
 }
 
@@ -284,7 +322,9 @@ async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<()>
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
     };
-    crate::db::schema::accounts::upsert(&db, &row).await
+    crate::db::schema::accounts::upsert(&db, &row).await?;
+    let _ = set_active_account_id(&account.id).await;
+    Ok(())
 }
 
 #[tauri::command]

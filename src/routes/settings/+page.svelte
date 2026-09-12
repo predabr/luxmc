@@ -61,7 +61,6 @@
 
 	type Section =
 		| "geral"
-		| "contas"
 		| "aparencia"
 		| "amigos"
 		| "java"
@@ -73,7 +72,6 @@
 		| "sobre";
 
 	let activeSection = $state<Section>("geral");
-	let customClientId = $state(settings.value.customMicrosoftClientId || "");
 
 	// 1. Geral states (10)
 	let selectedLanguage = $state("pt-BR");
@@ -315,8 +313,7 @@
 			waylandNative: nativeWayland,
 			autoBackup: autoWorldBackup,
 			streamerMode: anonymousMode,
-			sfxVolume: soundVolume,
-			customMicrosoftClientId: customClientId.trim() || undefined
+			sfxVolume: soundVolume
 		});
 		localStorage.setItem("luxmc_enable_vulkan", String(enableVulkan));
 		schedulePersist();
@@ -337,7 +334,6 @@
 			<nav class="flex flex-col gap-1 overflow-y-auto max-h-[480px] custom-scrollbar pr-1">
 				{#each [
 					{ key: 'geral', label: 'Geral', icon: SettingsIcon, color: 'text-[#c5a880]' },
-					{ key: 'contas', label: 'Contas & Microsoft', icon: Lock, color: 'text-amber-400' },
 					{ key: 'aparencia', label: 'Aparência', icon: Palette, color: 'text-purple-400' },
 					{ key: 'amigos', label: 'Amigos', icon: Users, color: 'text-emerald-400' },
 					{ key: 'java', label: 'Java', icon: Cpu, color: 'text-blue-400' },
@@ -453,183 +449,72 @@
 							{/each}
 						</div>
 					</div>
-				</div>
-
-			<!-- SECTION: CONTAS & MICROSOFT -->
-			{:else if activeSection === 'contas'}
-				<div class="border-b border-white/5 pb-4">
-					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
-						<Lock class="w-5 h-5 text-amber-400" /> Contas & Autenticação Microsoft
-					</h3>
-					<p class="text-xs text-white/50 mt-0.5">Gerenciamento de contas, perfis e credenciais OAuth da Azure</p>
-				</div>
-
-				<div class="space-y-5">
-					<!-- Microsoft Status & Azure App ID Card -->
-					<div class="bg-[#18191c] border border-amber-500/20 rounded-3xl p-5 space-y-4">
-						<div class="flex items-start gap-3.5">
-							<div class="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
-								<Sparkles class="w-5 h-5" />
-							</div>
-							<div class="space-y-1">
-								<h4 class="text-xs font-black text-white uppercase tracking-wider">Integração Oficial Microsoft Azure</h4>
-								<p class="text-xs text-white/60 leading-relaxed">
-									O pedido para habilitar o login Microsoft da sua aplicação no Azure foi enviado e está em processo de aprovação. Assim que você receber o e-mail de confirmação da Microsoft, insira o seu <span class="text-amber-400 font-bold">Application (client) ID</span> abaixo para que o launcher use as suas credenciais oficiais sem necessidade de nova versão.
-								</p>
-							</div>
-						</div>
-
-						<div class="border-t border-white/5 pt-4 space-y-3">
-							<label for="custom-client-id" class="text-xs font-bold text-white/80 block">
-								Application (client) ID do Azure:
-							</label>
-							<div class="flex gap-2">
-								<input
-									id="custom-client-id"
-									type="text"
-									class="flex-1 bg-[#141518] border border-white/10 focus:border-amber-500/80 rounded-2xl px-4 py-2.5 text-xs text-white font-mono placeholder:text-white/20 outline-none transition-all"
-									placeholder="ex: e1f8c8a0-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-									bind:value={customClientId}
-								/>
-								<button
-									type="button"
-									class="px-5 py-2.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs transition-all active:scale-95 cursor-pointer shadow-md"
-									onclick={() => {
-										settings.patch({ customMicrosoftClientId: customClientId.trim() || undefined });
-										schedulePersist();
-										toast("Client ID da Microsoft Azure guardado com sucesso!", "success");
-									}}
-								>
-									Salvar ID
-								</button>
-							</div>
-							{#if customClientId}
-								<div class="text-[11px] text-emerald-400 font-medium flex items-center gap-1.5">
-									<CheckCircle2 class="w-3.5 h-3.5" /> Client ID personalizado ativo no launcher.
+					<!-- Grupo: Integrações & Mods -->
+					<div>
+						<div class="text-xs font-bold text-white mb-2">Integrações & Mods</div>
+						<div class="bg-[#18191c] border border-orange-500/20 rounded-2xl p-4 space-y-4">
+							<div class="flex items-start gap-3.5">
+								<div class="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
+									<Flame class="w-4 h-4" />
 								</div>
-							{:else}
-								<div class="text-[11px] text-white/40 font-medium">
-									Nenhum ID customizado informado. O launcher usará o Client ID padrão ou a variável de ambiente.
-								</div>
-							{/if}
-						</div>
-
-						<!-- Configurações de Redirect URI para conferência -->
-						<div class="bg-[#141518] border border-white/5 rounded-2xl p-4 space-y-2">
-							<div class="text-[11px] font-bold text-white/80 uppercase tracking-wider">Parâmetros do Aplicativo Azure:</div>
-							<div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
-								<div class="p-2.5 rounded-xl bg-white/5 border border-white/5">
-									<span class="text-white/40 block">Redirect URI:</span>
-									<span class="text-white font-mono font-bold">http://localhost:8453/callback</span>
-								</div>
-								<div class="p-2.5 rounded-xl bg-white/5 border border-white/5">
-									<span class="text-white/40 block">Escopos Requeridos:</span>
-									<span class="text-white font-mono font-bold">offline_access XBoxLive.signin</span>
-								</div>
-							</div>
-						</div>
-					</div>
-
-					<!-- Contas Conectadas -->
-					<div class="space-y-3">
-						<div class="text-xs font-bold text-white uppercase tracking-wider">Conta Conectada Atualmente</div>
-						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-4 flex items-center justify-between">
-							<div class="flex items-center gap-3">
-								<img
-									src={account.value?.id ? `https://crafatar.com/avatars/${account.value.id}?size=64&overlay` : "/grass_block.png"}
-									alt="Conta"
-									class="w-10 h-10 rounded-xl border border-white/10 object-cover bg-black/40"
-									onerror={(e) => { (e.target as HTMLImageElement).src = '/grass_block.png'; }}
-								/>
-								<div>
-									<div class="text-xs font-bold text-white flex items-center gap-2">
-										{account.value?.username || "Nenhuma conta conectada"}
-										{#if account.value}
-											<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-brand-500/10 text-brand-500 border border-brand-500/20">
-												Ativa
+								<div class="space-y-1">
+									<div class="flex items-center gap-2">
+										<h4 class="text-xs font-black text-white uppercase tracking-wider">CurseForge API Key</h4>
+										{#if curseforgeActive}
+											<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+												<CheckCircle2 class="w-3 h-3" /> Chave Ativa
+											</span>
+										{:else}
+											<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+												Sem Chave
 											</span>
 										{/if}
 									</div>
-									<div class="text-[10px] text-white/40 mt-0.5 font-mono">
-										{account.value?.uuid || "Faça login na tela inicial ou pelo alternador"}
-									</div>
+									<p class="text-xs text-white/60 leading-relaxed">
+										A chave oficial do CurseForge já vem integrada no Luxmc para download de mods e modpacks. Caso possua uma chave própria, insira-a abaixo.
+									</p>
 								</div>
 							</div>
-							{#if account.value}
-								<button
-									type="button"
-									class="px-4 py-2 rounded-xl text-xs font-bold bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20 transition-all cursor-pointer"
-									onclick={() => { account.clear(); toast("Conta desconectada.", "info"); }}
-								>
-									Desconectar
-								</button>
-							{/if}
-						</div>
-					</div>
 
-					<!-- CurseForge API Key Card -->
-					<div class="bg-[#18191c] border border-orange-500/20 rounded-3xl p-5 space-y-4">
-						<div class="flex items-start gap-3.5">
-							<div class="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
-								<Flame class="w-5 h-5" />
-							</div>
-							<div class="space-y-1">
-								<div class="flex items-center gap-2">
-									<h4 class="text-xs font-black text-white uppercase tracking-wider">CurseForge API Key</h4>
-									{#if curseforgeActive}
-										<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-											<CheckCircle2 class="w-3 h-3" /> Chave Ativa
-										</span>
-									{:else}
-										<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
-											Sem Chave
-										</span>
-									{/if}
+							<div class="border-t border-white/5 pt-3 space-y-2.5">
+								<label for="cf-api-key" class="text-[11px] font-bold text-white/80 block">
+									Chave de API (x-api-key):
+								</label>
+								<div class="flex gap-2">
+									<input
+										id="cf-api-key"
+										type="password"
+										class="flex-1 bg-[#141518] border border-white/10 focus:border-orange-500/80 rounded-xl px-3.5 py-2 text-xs text-white font-mono placeholder:text-white/20 outline-none transition-all"
+										placeholder="Cole sua API Key do CurseForge aqui..."
+										bind:value={curseforgeKeyInput}
+									/>
+									<button
+										type="button"
+										class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-all active:scale-95 cursor-pointer border border-white/10 flex items-center gap-1.5"
+										onclick={testCurseForgeKey}
+										disabled={isValidatingCf}
+									>
+										{#if isValidatingCf}
+											<RefreshCw class="w-3 h-3 animate-spin" />
+										{:else}
+											<Sparkles class="w-3 h-3 text-orange-400" />
+										{/if}
+										Testar
+									</button>
+									<button
+										type="button"
+										class="px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-xs transition-all active:scale-95 cursor-pointer shadow-md"
+										onclick={saveCurseForgeKey}
+									>
+										Salvar
+									</button>
 								</div>
-								<p class="text-xs text-white/60 leading-relaxed">
-									A chave oficial de desenvolvimento da API do CurseForge já vem integrada no Luxmc para buscar mods e modpacks automaticamente. Caso você possua uma chave própria gerada no console da Eternal / CurseForge, insira-a abaixo.
-								</p>
-							</div>
-						</div>
-
-						<div class="border-t border-white/5 pt-4 space-y-3">
-							<label for="cf-api-key" class="text-xs font-bold text-white/80 block">
-								Chave de API (x-api-key):
-							</label>
-							<div class="flex gap-2">
-								<input
-									id="cf-api-key"
-									type="password"
-									class="flex-1 bg-[#141518] border border-white/10 focus:border-orange-500/80 rounded-2xl px-4 py-2.5 text-xs text-white font-mono placeholder:text-white/20 outline-none transition-all"
-									placeholder="Cole sua API Key do CurseForge aqui..."
-									bind:value={curseforgeKeyInput}
-								/>
-								<button
-									type="button"
-									class="px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-all active:scale-95 cursor-pointer border border-white/10 flex items-center gap-1.5"
-									onclick={testCurseForgeKey}
-									disabled={isValidatingCf}
-								>
-									{#if isValidatingCf}
-										<RefreshCw class="w-3.5 h-3.5 animate-spin" />
-									{:else}
-										<Sparkles class="w-3.5 h-3.5 text-orange-400" />
-									{/if}
-									Testar
-								</button>
-								<button
-									type="button"
-									class="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-400 text-black font-black text-xs transition-all active:scale-95 cursor-pointer shadow-md"
-									onclick={saveCurseForgeKey}
-								>
-									Salvar Chave
-								</button>
 							</div>
 						</div>
 					</div>
 				</div>
 
-			<!-- SECTION 2: APARÊNCIA -->
+			<!-- SECTION: APARÊNCIA -->
 			{:else if activeSection === 'aparencia'}
 				<div class="border-b border-white/5 pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">

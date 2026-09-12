@@ -115,12 +115,14 @@ impl MinecraftClient {
             .find(|c| c.state.as_deref() == Some("ACTIVE"))
             .or_else(|| body.capes.first());
 
+        let fix_url = |u: Option<String>| u.map(|s| if s.starts_with("http://") { s.replacen("http://", "https://", 1) } else { s });
+
         Ok(super::MinecraftProfile {
             id: body.id,
             name: body.name,
-            skin_url: active_skin.map(|s| s.url.clone()),
+            skin_url: fix_url(active_skin.map(|s| s.url.clone())),
             skin_variant: active_skin.and_then(|s| s.variant.clone()),
-            cape_url: active_cape.map(|c| c.url.clone()),
+            cape_url: fix_url(active_cape.map(|c| c.url.clone())),
         })
     }
 }

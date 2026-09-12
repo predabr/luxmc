@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from "svelte";
 	import { fade } from "svelte/transition";
 	import { 
 		Plus, 
@@ -456,8 +457,48 @@
 		}
 	]);
 
+	onMount(() => {
+		const raw = localStorage.getItem("luxmc_saved_skins");
+		if (raw) {
+			try {
+				const parsed = JSON.parse(raw);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					savedSkins = parsed;
+				}
+			} catch {}
+		}
+
+		if (account.value?.username) {
+			const uName = account.value.username;
+			const officialSkin: SkinItem = {
+				id: "official_" + (account.value.uuid || uName),
+				name: uName + " (Oficial)",
+				url: `https://mc-heads.net/body/${uName}/300`,
+				skinUrl: activeSkinStore.current.skinUrl || `https://minotar.net/skin/${uName}`,
+				avatarUrl: `https://mc-heads.net/avatar/${uName}/100`,
+				type: activeSkinStore.current.type || "steve",
+				custom: true
+			};
+			if (!savedSkins.some(s => s.id === officialSkin.id)) {
+				savedSkins = [officialSkin, ...savedSkins].slice(0, 25);
+			}
+		}
+
+		if (activeSkinStore.current.customCapeUrl && (selectedCape === "none" || activeSkinStore.current.capeType === "custom")) {
+			selectedCape = "custom";
+		}
+	});
+
+	$effect(() => {
+		if (typeof window !== "undefined" && savedSkins.length > 0) {
+			try {
+				localStorage.setItem("luxmc_saved_skins", JSON.stringify(savedSkins));
+			} catch {}
+		}
+	});
+
 	let autoRotate = $state(true);
-	let selectedCape = $state<CapeType>(activeSkinStore.current.capeType || "none");
+	let selectedCape = $state<CapeType>(activeSkinStore.current.capeType || (activeSkinStore.current.customCapeUrl ? "custom" : "none"));
 	let isSlimModel = $state(activeSkinStore.current.type === "alex");
 	let fileInputEl: HTMLInputElement;
 	let skinViewerRef: { 

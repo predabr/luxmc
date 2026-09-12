@@ -13,10 +13,10 @@
 		},
 		{
 			id: "news-1",
-			title: "Luxmc v0.2.0: Motor Wayland & Vulkan Zero-Lag",
-			date: "Hoje às 09:30",
-			tag: "LUXMC",
-			desc: "Desempenho gráfico acelerado no Linux, motor assíncrono em Rust e renderizador WebGL 3D ultra-fluido.",
+			title: "Luxmc v1.3.1-alpha: Java 8 Automático & Modpacks",
+			date: "Hoje às 11:30",
+			tag: "ATUALIZAÇÃO",
+			desc: "Compatibilidade total com Pixelmon, 1.8.9 e 1.12.2, suporte estrito ao Java 8 e login persistente Microsoft.",
 			img: "/logo.png"
 		},
 		{

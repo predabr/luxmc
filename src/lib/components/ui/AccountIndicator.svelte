@@ -4,7 +4,7 @@
 	import Button from "./Button.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
-	import { authAccounts } from "$lib/api";
+	import { authAccounts, authSwitchAccount } from "$lib/api";
 	import { toast } from "$lib/stores/toasts.svelte";
 
 	const { t } = useTranslation();
@@ -83,7 +83,10 @@
 		img.src = "/grass_block.png";
 	}
 
-	function handleSwitchAccount(acc: { id: string; username: string; uuid: string; accessToken: string | null; expiresAt: string | null }) {
+	async function handleSwitchAccount(acc: { id: string; username: string; uuid: string; accessToken: string | null; expiresAt: string | null }) {
+		try {
+			await authSwitchAccount(acc.uuid);
+		} catch {}
 		const newAcc = {
 			id: acc.id,
 			username: acc.username,

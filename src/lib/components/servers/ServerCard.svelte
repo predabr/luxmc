@@ -67,7 +67,7 @@
 
 	<div class="flex items-center gap-4 shrink-0 pl-4">
 		<div class="hidden md:flex h-14 w-64 rounded-2xl bg-gradient-to-r {server.bannerColor} border border-white/10 items-center justify-center p-3 text-center shadow-inner relative overflow-hidden group-hover:brightness-110 transition-all">
-			<div class="absolute inset-0 bg-black/25 backdrop-blur-[1px]"></div>
+			<div class="absolute inset-0 bg-black/40"></div>
 			<span class="relative z-10 font-black text-white text-[11px] tracking-wider uppercase drop-shadow-md truncate px-2">
 				{server.bannerText}
 			</span>

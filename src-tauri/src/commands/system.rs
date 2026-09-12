@@ -40,9 +40,6 @@ pub async fn app_init() -> Result<AppInitState, crate::error::AppError> {
     let stress_test = std::env::var("LUXMC_STRESS_TEST").unwrap_or_default() == "1";
     let db = crate::db::shared_db().await?;
 
-    let accounts = crate::db::schema::accounts::list(&db).await?;
-    let account = accounts.into_iter().next();
-
     let profiles = crate::db::schema::profiles::list(&db).await?;
 
     let settings: serde_json::Value = {
@@ -57,6 +54,20 @@ pub async fn app_init() -> Result<AppInitState, crate::error::AppError> {
             }
             None => serde_json::Value::Null,
         }
+    };
+
+    let active_account_id = settings
+        .get("activeAccountId")
+        .and_then(|v| v.as_str());
+
+    let account = if let Some(id) = active_account_id {
+        if let Ok(Some(acc)) = crate::db::schema::accounts::get_by_id(&db, id).await {
+            Some(acc)
+        } else {
+            crate::db::schema::accounts::list(&db).await?.into_iter().next()
+        }
+    } else {
+        crate::db::schema::accounts::list(&db).await?.into_iter().next()
     };
 
     let active_profile_id = settings

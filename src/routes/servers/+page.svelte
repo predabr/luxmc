@@ -17,7 +17,7 @@
 	let showAddServerModal = $state(false);
 
 	let currentPage = $state(1);
-	const pageSize = 20;
+	const pageSize = 12;
 
 	const tags = $derived.by(() => {
 		const tagMap: Record<string, number> = {};
@@ -73,24 +73,25 @@
 	async function refreshPings() {
 		if (isRefreshingPings) return;
 		isRefreshingPings = true;
-		const targets = paginatedServers.slice(0, 20);
+		const targets = paginatedServers.slice(0, pageSize);
 		const newBatch: Record<string, { online: number; max: number; ping: number }> = {};
-		await Promise.allSettled(
-			targets.map(async (s) => {
-				try {
-					const data = await serverPing(s.address, 25565);
-					if (data) {
-						newBatch[s.id] = {
-							online: data.playersOnline,
-							max: data.playersMax || 1000,
-							ping: data.latencyMs ?? 32,
-						};
-					}
-				} catch {
-					// Keep fallback
-				}
-			})
-		);
+		for (let i = 0; i < targets.length; i += 4) {
+			const chunk = targets.slice(i, i + 4);
+			await Promise.allSettled(
+				chunk.map(async (s) => {
+					try {
+						const data = await serverPing(s.address, 25565);
+						if (data) {
+							newBatch[s.id] = {
+								online: data.playersOnline,
+								max: data.playersMax || 1000,
+								ping: data.latencyMs ?? 32,
+							};
+						}
+					} catch {}
+				})
+			);
+		}
 		liveServerData = { ...liveServerData, ...newBatch };
 		isRefreshingPings = false;
 	}

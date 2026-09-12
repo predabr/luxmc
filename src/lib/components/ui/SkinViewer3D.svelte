@@ -292,17 +292,25 @@
 			let capeTex: THREE.Texture;
 			if (cape === "custom" && customCapeUrl) {
 				const img = new Image();
+				let normalizedUrl = customCapeUrl;
+				if (normalizedUrl.startsWith("http://")) {
+					normalizedUrl = normalizedUrl.replace("http://", "https://");
+				}
+				if (!normalizedUrl.startsWith("data:") && !normalizedUrl.startsWith("blob:")) {
+					img.crossOrigin = "anonymous";
+				}
 				const tex = new THREE.Texture(img);
 				tex.magFilter = THREE.NearestFilter;
 				tex.minFilter = THREE.NearestFilter;
 				tex.generateMipmaps = false;
+				tex.colorSpace = THREE.SRGBColorSpace;
 				img.onload = () => {
 					tex.needsUpdate = true;
 					if (capeMesh) {
 						(capeMesh.material as THREE.MeshLambertMaterial).needsUpdate = true;
 					}
 				};
-				img.src = customCapeUrl;
+				img.src = normalizedUrl;
 				capeTex = tex;
 			} else {
 				capeTex = createCapeTexture(cape);
@@ -310,7 +318,9 @@
 
 			const capeMat = new THREE.MeshLambertMaterial({
 				map: capeTex,
-				side: THREE.DoubleSide
+				side: THREE.DoubleSide,
+				transparent: true,
+				alphaTest: 0.1
 			});
 			capeMesh = new THREE.Mesh(capeGeom, capeMat);
 			capeMesh.position.set(0, 16, -2.35);
@@ -342,6 +352,7 @@
 			ctx.drawImage(img, 0, 0);
 
 			if (img.height === 32) {
+				ctx.clearRect(0, 32, 64, 32);
 				ctx.imageSmoothingEnabled = false;
 				ctx.drawImage(canvas, 40, 16, 16, 16, 32, 48, 16, 16);
 				ctx.drawImage(canvas, 0, 16, 16, 16, 16, 48, 16, 16);
@@ -453,11 +464,15 @@
 		dirLight.position.set(15, 25, 20);
 		scene.add(dirLight);
 
-		solidMaterial = new THREE.MeshLambertMaterial();
+		solidMaterial = new THREE.MeshLambertMaterial({
+			transparent: true,
+			alphaTest: 0.1,
+			side: THREE.DoubleSide
+		});
 
 		overlayMaterial = new THREE.MeshLambertMaterial({
 			transparent: true,
-			alphaTest: 0.5,
+			alphaTest: 0.1,
 			side: THREE.DoubleSide
 		});
 
@@ -650,10 +665,7 @@
 		const c = cape;
 		const customUrl = customCapeUrl || "";
 		if (playerGroup) {
-			if (currentCape === null || currentCustomCapeUrl === null) {
-				currentCape = c;
-				currentCustomCapeUrl = customUrl;
-			} else if (c !== currentCape || customUrl !== currentCustomCapeUrl) {
+			if (c !== currentCape || customUrl !== currentCustomCapeUrl) {
 				currentCape = c;
 				currentCustomCapeUrl = customUrl;
 				updateCape();

@@ -39,6 +39,7 @@ struct ComponentFile {
     file_type: Option<String>,
     downloads: Option<ComponentFileDownloads>,
     executable: Option<bool>,
+    target: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -159,54 +160,95 @@ impl JavaRuntimeManager {
     }
 
     fn find_system_java(&self, major: u32) -> AppResult<PathBuf> {
-        let output = std::process::Command::new("java")
-            .arg("-version")
-            .stderr(std::process::Stdio::piped())
-            .output()
-            .map_err(|_| AppError::Internal("java not found on PATH".into()))?;
-
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        let version_str = stderr.split('"').nth(1).unwrap_or("");
-        let detected = parse_java_major(version_str);
-
-        if detected >= major {
-            if cfg!(windows) {
-                if let Ok(path_out) = std::process::Command::new("where.exe")
-                    .arg("java")
-                    .output()
-                {
-                    let first_line = String::from_utf8_lossy(&path_out.stdout)
-                        .lines()
-                        .next()
-                        .unwrap_or("")
-                        .trim()
-                        .to_string();
-                    if !first_line.is_empty() {
-                        return Ok(PathBuf::from(first_line));
-                    }
+        let check_binary = |path: &std::path::Path, expected_major: u32| -> bool {
+            if let Ok(output) = std::process::Command::new(path)
+                .arg("-version")
+                .stderr(std::process::Stdio::piped())
+                .output()
+            {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                let version_str = stderr.split('"').nth(1).unwrap_or("");
+                let detected = parse_java_major(version_str);
+                if expected_major == 8 {
+                    detected == 8
+                } else {
+                    detected >= expected_major && (detected <= expected_major + 4)
                 }
-                if let Ok(java_home) = std::env::var("JAVA_HOME") {
-                    let p = PathBuf::from(java_home).join("bin").join("java.exe");
-                    if p.exists() {
-                        return Ok(p);
-                    }
-                }
-                return Ok(PathBuf::from("java.exe"));
             } else {
-                let path_out = std::process::Command::new("which")
-                    .arg("java")
-                    .output()
-                    .map_err(|_| AppError::Internal("which java failed".into()))?;
-                let path = String::from_utf8_lossy(&path_out.stdout).trim().to_string();
-                if !path.is_empty() {
-                    return Ok(PathBuf::from(path));
+                false
+            }
+        };
+
+        if cfg!(windows) {
+            if major == 8 {
+                let win_8_paths = [
+                    r"C:\Program Files\Eclipse Adoptium\jre-8.0\bin\java.exe",
+                    r"C:\Program Files\Eclipse Adoptium\jdk-8.0\bin\java.exe",
+                    r"C:\Program Files\Java\jre1.8.0\bin\java.exe",
+                    r"C:\Program Files\Java\jdk1.8.0\bin\java.exe",
+                    r"C:\Program Files (x86)\Java\jre1.8.0\bin\java.exe",
+                ];
+                for p in win_8_paths {
+                    let pb = PathBuf::from(p);
+                    if pb.exists() && check_binary(&pb, 8) {
+                        return Ok(pb);
+                    }
+                }
+            }
+
+            if let Ok(path_out) = std::process::Command::new("where.exe")
+                .arg("java")
+                .output()
+            {
+                for line in String::from_utf8_lossy(&path_out.stdout).lines() {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() {
+                        let pb = PathBuf::from(trimmed);
+                        if pb.exists() && check_binary(&pb, major) {
+                            return Ok(pb);
+                        }
+                    }
+                }
+            }
+
+            if let Ok(java_home) = std::env::var("JAVA_HOME") {
+                let p = PathBuf::from(java_home).join("bin").join("java.exe");
+                if p.exists() && check_binary(&p, major) {
+                    return Ok(p);
+                }
+            }
+        } else {
+            if major == 8 {
+                let linux_8_paths = [
+                    "/usr/lib/jvm/java-8-openjdk/bin/java",
+                    "/usr/lib/jvm/java-1.8.0-openjdk/bin/java",
+                    "/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
+                    "/usr/lib/jvm/default-runtime/bin/java",
+                    "/usr/lib/jvm/temurin-8-jdk/bin/java",
+                    "/usr/lib/jvm/zulu-8/bin/java",
+                ];
+                for p in linux_8_paths {
+                    let pb = PathBuf::from(p);
+                    if pb.exists() && check_binary(&pb, 8) {
+                        return Ok(pb);
+                    }
+                }
+            }
+
+            if let Ok(path_out) = std::process::Command::new("which").arg("java").output() {
+                let path_str = String::from_utf8_lossy(&path_out.stdout).trim().to_string();
+                if !path_str.is_empty() {
+                    let pb = PathBuf::from(path_str);
+                    if pb.exists() && check_binary(&pb, major) {
+                        return Ok(pb);
+                    }
                 }
             }
         }
 
         Err(AppError::Internal(format!(
-            "system java is version {}, need >= {}",
-            detected, major
+            "Compatible system Java {} not found",
+            major
         )))
     }
 
@@ -251,6 +293,19 @@ impl JavaRuntimeManager {
         ));
 
         for (path, file) in &files {
+            if file.file_type.as_deref() == Some("link") {
+                #[cfg(unix)]
+                if let Some(target) = file.target.as_deref() {
+                    let file_path = java_dir.join(path);
+                    if let Some(parent) = file_path.parent() {
+                        tokio::fs::create_dir_all(parent).await?;
+                    }
+                    let _ = tokio::fs::remove_file(&file_path).await;
+                    let _ = std::os::unix::fs::symlink(target, &file_path);
+                }
+                continue;
+            }
+
             if file.file_type.as_deref() != Some("file") {
                 continue;
             }
@@ -327,7 +382,32 @@ impl JavaRuntimeManager {
         platform_entries: &std::collections::HashMap<String, Vec<RuntimeEntry>>,
         major_version: u32,
     ) -> AppResult<String> {
-        for (_name, entries) in platform_entries {
+        let target_component_keys: &[&str] = match major_version {
+            8 => &["jre-legacy"],
+            16 => &["java-runtime-alpha"],
+            17 => &["java-runtime-gamma", "java-runtime-beta"],
+            21 => &["java-runtime-delta"],
+            25 => &["java-runtime-epsilon"],
+            _ => &[],
+        };
+
+        for target_key in target_component_keys {
+            if let Some(entries) = platform_entries.get(*target_key) {
+                for entry in entries {
+                    if let Some(ref manifest_ref) = entry.manifest {
+                        if let Some(ref url) = manifest_ref.url {
+                            self.emit_log(&format!(
+                                "Found Java {} runtime component: {}",
+                                major_version, target_key
+                            ));
+                            return Ok(url.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        for (name, entries) in platform_entries {
             for entry in entries {
                 if let Some(ref version) = entry.version {
                     let entry_major = version
@@ -335,13 +415,13 @@ impl JavaRuntimeManager {
                         .as_ref()
                         .and_then(|n| parse_major_from_version_name(n));
 
-                    if entry_major == Some(major_version) {
+                    if entry_major == Some(major_version) || (major_version == 8 && name == "jre-legacy") {
                         if let Some(ref manifest_ref) = entry.manifest {
                             if let Some(ref url) = manifest_ref.url {
                                 self.emit_log(&format!(
                                     "Found Java {} runtime component: {}",
                                     major_version,
-                                    version.component.as_deref().unwrap_or("unknown")
+                                    version.component.as_deref().unwrap_or(name.as_str())
                                 ));
                                 return Ok(url.clone());
                             }
