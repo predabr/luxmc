@@ -26,13 +26,13 @@
 	let renderer: THREE.WebGLRenderer;
 	let playerGroup: THREE.Group;
 	let capeMesh: THREE.Mesh | null = null;
-	let isVisible = $state(false);
+	let isVisible = false;
 	let resizeObserver: ResizeObserver | null = null;
 
 	// Texture and materials
 	let currentTexture: THREE.CanvasTexture | THREE.Texture | null = null;
-	let solidMaterial: THREE.MeshStandardMaterial;
-	let overlayMaterial: THREE.MeshStandardMaterial;
+	let solidMaterial: THREE.MeshLambertMaterial;
+	let overlayMaterial: THREE.MeshLambertMaterial;
 
 	// Orbit drag state
 	let isDragging = false;
@@ -364,8 +364,7 @@
 				}
 				if (mesh === capeMesh) {
 					if (mesh.material) {
-						const mat = mesh.material as THREE.MeshStandardMaterial;
-						if (mat.map) mat.map.dispose();
+						const mat = mesh.material as THREE.Material;
 						mat.dispose();
 					}
 					capeMesh = null;
@@ -483,7 +482,7 @@
 				capeMesh.geometry.dispose();
 			}
 			if (capeMesh.material) {
-				const mat = capeMesh.material as THREE.MeshStandardMaterial;
+				const mat = capeMesh.material as THREE.Material;
 				mat.dispose();
 			}
 			capeMesh = null;
@@ -494,10 +493,8 @@
 			setCapeUV(capeGeom);
 
 			const capeTex = createCapeTexture(cape);
-			const capeMat = new THREE.MeshStandardMaterial({
-				map: capeTex,
-				roughness: 0.65,
-				metalness: 0.05
+			const capeMat = new THREE.MeshLambertMaterial({
+				map: capeTex
 			});
 			capeMesh = new THREE.Mesh(capeGeom, capeMat);
 			capeMesh.position.set(0, 8, -2.6);
@@ -601,11 +598,16 @@
 		camera.lookAt(0, 8, 0);
 	}
 
+	const MAX_CANVAS_WIDTH = 380;
+	const MAX_CANVAS_HEIGHT = 440;
+	const TARGET_FPS = 30;
+	const FRAME_INTERVAL = 1000 / TARGET_FPS;
+
 	onMount(() => {
 		if (!containerEl) return;
 
-		const width = Math.min(800, Math.floor(containerEl.clientWidth || 300));
-		const height = Math.min(800, Math.floor(containerEl.clientHeight || 340));
+		const width = Math.min(MAX_CANVAS_WIDTH, Math.floor(containerEl.clientWidth || 300));
+		const height = Math.min(MAX_CANVAS_HEIGHT, Math.floor(containerEl.clientHeight || 340));
 
 		scene = new THREE.Scene();
 		camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 1000);
@@ -616,12 +618,11 @@
 			alpha: true,
 			powerPreference: "low-power",
 			depth: true,
-			stencil: false
+			stencil: false,
+			precision: "mediump"
 		});
-		renderer.setSize(width, height, false);
 		renderer.setPixelRatio(1.0);
-		renderer.toneMapping = THREE.ACESFilmicToneMapping;
-		renderer.toneMappingExposure = 1.15;
+		renderer.setSize(width, height, false);
 		renderer.shadowMap.enabled = false;
 		renderer.domElement.style.position = "absolute";
 		renderer.domElement.style.inset = "0";
@@ -631,31 +632,17 @@
 		renderer.domElement.style.pointerEvents = "none";
 		containerEl.appendChild(renderer.domElement);
 
-		const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+		const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
 		scene.add(ambientLight);
 
-		const frontLight = new THREE.DirectionalLight(0xfff7ed, 1.5);
-		frontLight.position.set(20, 35, 30);
-		scene.add(frontLight);
+		const dirLight = new THREE.DirectionalLight(0xffffff, 0.45);
+		dirLight.position.set(15, 25, 20);
+		scene.add(dirLight);
 
-		const fillLight = new THREE.DirectionalLight(0xe0e7ff, 0.8);
-		fillLight.position.set(-20, 15, 20);
-		scene.add(fillLight);
+		solidMaterial = new THREE.MeshLambertMaterial();
 
-		const backLight = new THREE.DirectionalLight(0xfef3c7, 1.2);
-		backLight.position.set(0, 25, -30);
-		scene.add(backLight);
-
-		solidMaterial = new THREE.MeshStandardMaterial({
-			roughness: 0.65,
-			metalness: 0.05
-		});
-
-		overlayMaterial = new THREE.MeshStandardMaterial({
-			roughness: 0.65,
-			metalness: 0.05,
+		overlayMaterial = new THREE.MeshLambertMaterial({
 			transparent: true,
-			opacity: 1,
 			alphaTest: 0.5,
 			side: THREE.DoubleSide
 		});
@@ -664,12 +651,20 @@
 		loadSkin(skinUrl);
 
 		let idleTime = 0;
-		const animate = () => {
-			if (!isVisible) {
+		let lastFrameTime = 0;
+
+		const animate = (time: number) => {
+			if (!isVisible || (typeof document !== "undefined" && document.visibilityState === "hidden")) {
 				animFrameId = null;
 				return;
 			}
 			animFrameId = requestAnimationFrame(animate);
+
+			const elapsed = time - lastFrameTime;
+			if (elapsed < FRAME_INTERVAL) {
+				return;
+			}
+			lastFrameTime = time - (elapsed % FRAME_INTERVAL);
 
 			if (autoRotate && !isDragging) {
 				yaw += 0.007;
@@ -702,16 +697,28 @@
 		);
 		observer.observe(containerEl);
 
+		const handleVisibilityChange = () => {
+			if (document.visibilityState === "hidden") {
+				if (animFrameId !== null) {
+					cancelAnimationFrame(animFrameId);
+					animFrameId = null;
+				}
+			} else if (isVisible && animFrameId === null) {
+				animFrameId = requestAnimationFrame(animate);
+			}
+		};
+		document.addEventListener("visibilitychange", handleVisibilityChange);
+
 		let lastW = width;
 		let lastH = height;
 		resizeObserver = new ResizeObserver((entries) => {
 			for (const entry of entries) {
 				const rawW = entry.contentRect.width;
 				const rawH = entry.contentRect.height;
-				const w = Math.min(800, Math.floor(rawW));
-				const h = Math.min(800, Math.floor(rawH));
+				const w = Math.min(MAX_CANVAS_WIDTH, Math.floor(rawW));
+				const h = Math.min(MAX_CANVAS_HEIGHT, Math.floor(rawH));
 				if (w > 0 && h > 0 && renderer && camera) {
-					if (Math.abs(w - lastW) < 2 && Math.abs(h - lastH) < 2) continue;
+					if (Math.abs(w - lastW) < 4 && Math.abs(h - lastH) < 4) continue;
 					lastW = w;
 					lastH = h;
 					camera.aspect = w / h;
@@ -723,6 +730,7 @@
 		resizeObserver.observe(containerEl);
 
 		return () => {
+			document.removeEventListener("visibilitychange", handleVisibilityChange);
 			observer.disconnect();
 			resizeObserver?.disconnect();
 		};
@@ -764,7 +772,7 @@
 		if (capeMesh) {
 			if (capeMesh.geometry) capeMesh.geometry.dispose();
 			if (capeMesh.material) {
-				const mat = capeMesh.material as THREE.MeshStandardMaterial;
+				const mat = capeMesh.material as THREE.Material;
 				mat.dispose();
 			}
 			capeMesh = null;

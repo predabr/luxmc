@@ -709,7 +709,7 @@
 								<Layers class="w-3.5 h-3.5 text-amber-400" /> Three.js WebGL
 							</span>
 							<span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-								60 FPS
+								30 FPS Eco
 							</span>
 						</div>
 
@@ -909,7 +909,7 @@
 										<div class="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-brand-500 shadow-sm animate-pulse"></div>
 									{/if}
 									<div class="flex-1 flex items-center justify-center">
-										<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/5 shadow-md" />
+										<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/5 shadow-md" loading="lazy" decoding="async" />
 									</div>
 									<span class="text-xs font-bold text-white/80 group-hover:text-white truncate max-w-[90%]">{skin.name}</span>
 								</button>
@@ -935,7 +935,7 @@
 										<div class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-brand-500 shadow-sm animate-pulse"></div>
 									{/if}
 									<div class="flex-1 flex items-center justify-center">
-										<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/5 shadow-md" />
+										<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/5 shadow-md" loading="lazy" decoding="async" />
 									</div>
 									<div class="text-center">
 										<span class="text-xs font-bold text-white/70 group-hover:text-white block">{skin.name}</span>
@@ -949,7 +949,8 @@
 				</div>
 			</div>
 
-		<div class="space-y-6" class:hidden={activeTab !== "marketplace"}>
+		{#if activeTab === "marketplace"}
+			<div class="space-y-6">
 				<!-- Filter Categories & Search Bar -->
 				<div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#18191c] p-4 rounded-3xl border border-white/5">
 					<!-- Category Pills -->
@@ -1008,6 +1009,7 @@
 									alt={skin.name} 
 									class="h-40 object-contain z-10 drop-shadow-[0_10px_16px_rgba(0,0,0,0.6)] group-hover:scale-105 transition-transform" 
 									loading="lazy"
+									decoding="async"
 								/>
 							</div>
 
@@ -1039,8 +1041,10 @@
 					{/each}
 				</div>
 			</div>
+		{/if}
 
-		<div class="space-y-6" class:hidden={activeTab !== "capes"}>
+		{#if activeTab === "capes"}
+			<div class="space-y-6">
 				
 				<!-- Capes Banner -->
 				<div class="bg-gradient-to-r from-[#1b1c22] via-[#22232a] to-[#1b1c22] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -1139,6 +1143,7 @@
 					{/each}
 				</div>
 			</div>
+		{/if}
 
 	</div>
 

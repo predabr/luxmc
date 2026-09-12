@@ -15,12 +15,12 @@ describe("button", () => {
 
   it("renders with primary variant", () => {
     const classes = button({ variant: "primary" });
-    expect(classes).toContain("bg-brand-500");
+    expect(classes).toContain("from-brand-500");
   });
 
   it("renders with danger variant", () => {
     const classes = button({ variant: "danger" });
-    expect(classes).toContain("bg-danger");
+    expect(classes).toContain("to-danger");
   });
 
   it("renders with sm size", () => {
