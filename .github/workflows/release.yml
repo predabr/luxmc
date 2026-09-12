@@ -160,8 +160,6 @@ jobs:
         include:
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
-          - platform: ubuntu-22.04-arm64
-            target: aarch64-unknown-linux-gnu
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
           - platform: macos-latest
@@ -216,29 +214,6 @@ jobs:
             squashfs-tools \
             rpm
 
-      - name: Install System Dependencies (Linux ARM64)
-        if: matrix.platform == 'ubuntu-22.04-arm64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libssl-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libfuse2 \
-            squashfs-tools \
-            rpm
-
-      - name: Install cross (Linux ARM64 cross-compilation)
-        if: matrix.platform == 'ubuntu-22.04' && matrix.target == 'aarch64-unknown-linux-gnu'
-        run: cargo install cross --git https://github.com/cross-rs/cross
-
       - name: Build Tauri Bundles
         uses: tauri-apps/tauri-action@v0
         env:
@@ -258,7 +233,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p upload
-          if [ "${{ matrix.platform }}" = "ubuntu-22.04" ] || [ "${{ matrix.platform }}" = "ubuntu-22.04-arm64" ]; then
+          if [ "${{ matrix.platform }}" = "ubuntu-22.04" ]; then
             cp src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage upload/ 2>/dev/null || true
             cp src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb upload/ 2>/dev/null || true
             cp src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm upload/ 2>/dev/null || true
@@ -317,15 +292,14 @@ jobs:
             | Platform | Installer | Status |
             |----------|-----------|--------|
             | **Windows** | `.exe` (NSIS) | ✅ Available |
-            | **Linux x86_64** | AppImage / `.deb` / `.rpm` | ✅ Available |
-            | **Linux ARM64** | AppImage / `.deb` / `.rpm` | ✅ Available |
+            | **Linux** | AppImage / `.deb` / `.rpm` | ✅ Available |
             | **macOS (Apple Silicon)** | `.dmg` | ✅ Available |
             | **macOS (Intel)** | `.dmg` | ✅ Available |
 
             ### System Requirements
 
             - **Windows**: Windows 10 or later (x64)
-            - **Linux**: Ubuntu 22.04+ or equivalent (x64 / ARM64)
+            - **Linux**: Ubuntu 22.04+ or equivalent (x64)
             - **macOS**: macOS 10.13 (High Sierra) or later
 
             ### Installation
