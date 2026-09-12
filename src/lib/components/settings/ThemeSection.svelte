@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { Check, Sparkles } from "lucide-svelte";
 	import { themeStore, THEMES, ACCENTS } from "$lib/stores/theme.svelte";
+	import { settings } from "$lib/stores/settings.svelte";
+	import { appState } from "$lib/stores/app.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 
 	type Props = {
@@ -12,16 +14,28 @@
 	let draftTheme = $state(themeStore.theme);
 	let draftAccent = $state(themeStore.accent);
 	const hasAppearanceChanges = $derived(draftTheme !== themeStore.theme || draftAccent !== themeStore.accent);
-	let blurEffects = $state(true);
-	let smoothAnimations = $state(true);
+	let blurEffects = $state(settings.value.blur !== false);
+	let smoothAnimations = $state(settings.value.animations !== false);
 	let mysticAuraGlow = $state(true);
-	let performanceMode = $state(false);
-	let quantumParticles = $state(true);
+	let performanceMode = $state(settings.value.performanceMode ?? false);
+	let quantumParticles = $state(!settings.value.performanceMode);
 
 	function discardAppearance() {
 		draftTheme = themeStore.theme;
 		draftAccent = themeStore.accent;
 		toast("Alterações de aparência descartadas.", "info");
+	}
+
+	function handleSave() {
+		themeStore.setTheme(draftTheme);
+		themeStore.setAccent(draftAccent);
+		settings.patch({
+			performanceMode,
+			blur: blurEffects && !performanceMode,
+			animations: smoothAnimations && !performanceMode
+		});
+		appState.performanceMode = performanceMode;
+		onSave();
 	}
 </script>
 
@@ -44,7 +58,7 @@
 					type="button"
 					class="text-xs px-4 py-1.5 rounded-full font-black text-black transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 flex items-center gap-1.5"
 					style="background-color: var(--accent-color, #e2b86b);"
-					onclick={onSave}
+					onclick={handleSave}
 				>
 					<Check class="w-3.5 h-3.5 stroke-[3]" /> Guardar Alterações
 				</button>

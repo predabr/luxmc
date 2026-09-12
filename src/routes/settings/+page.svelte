@@ -87,6 +87,7 @@
 	let allowBetaMods = $state(false);
 	let useBitsPerSecond = $state(false);
 	let autoStartWithLinux = $state(false);
+	let performanceMode = $state(settings.value.performanceMode ?? false);
 
 	// 3. Amigos & Discord states (8)
 	let discordRpc = $state(true);
@@ -217,7 +218,7 @@
 		if (discordRpc) {
 			discordSetActivity({
 				details: "Configurações do Launcher",
-				state: "v1.3.0-BETA · Linux",
+				state: "v1.3.1-alpha · Linux",
 				largeText: "Luxmc Launcher (Linux)",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
@@ -243,7 +244,7 @@
 		if (discordRpc) {
 			const ok = await discordSetActivity({
 				details: "Configurações do Launcher",
-				state: "v1.3.0-BETA · Linux",
+				state: "v1.3.1-alpha · Linux",
 				largeText: "Luxmc Launcher (Linux)",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
@@ -308,7 +309,7 @@
 			maxRamMb: settings.value.maxRamMb,
 			jvmArgs: settings.value.jvmArgs,
 			discordRpc,
-			performanceMode: settings.value.performanceMode,
+			performanceMode,
 			gamemode: enableGameMode,
 			mangohud: enableMangoHud,
 			waylandNative: nativeWayland,
@@ -429,6 +430,7 @@
 								{ title: 'Desativar Sugestões de Mods', desc: 'Ocultar mods sugeridos na aba de conteúdo das Instâncias', val: disableModSuggestions, toggle: () => disableModSuggestions = !disableModSuggestions },
 								{ title: 'Permitir atualizações de mods alfa e beta', desc: 'Atualize os mods também para versões alfa e beta, não apenas versões estáveis', val: allowBetaMods, toggle: () => allowBetaMods = !allowBetaMods },
 								{ title: 'Bits por segundo', desc: 'Usar Mbps e Kbps em vez de MB/s e KB/s', val: useBitsPerSecond, toggle: () => useBitsPerSecond = !useBitsPerSecond },
+								{ title: 'Modo Alta Performance (Economia de RAM)', desc: 'Desativa efeitos visuais pesados e reduz uso de memória no launcher', val: performanceMode, toggle: () => { performanceMode = !performanceMode; settings.patch({ performanceMode }); appState.performanceMode = performanceMode; } },
 							] as opt}
 								<div class="p-3.5 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
 									<div>
@@ -707,7 +709,7 @@
 							try {
 								await discordSetActivity({
 									details: "Testando Rich Presence",
-									state: "v1.3.0-BETA · Linux",
+									state: "v1.3.1-alpha · Linux",
 									largeText: "Luxmc Launcher (Linux)",
 									largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 									smallImage: "grass",

@@ -25,6 +25,12 @@ pub struct AuthAccount {
     pub access_token: String,
     pub refresh_token: String,
     pub expires_at: i64,
+    #[serde(default)]
+    pub skin_url: Option<String>,
+    #[serde(default)]
+    pub skin_variant: Option<String>,
+    #[serde(default)]
+    pub cape_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +51,9 @@ pub struct XboxTokenSet {
 pub struct MinecraftProfile {
     pub id: String,
     pub name: String,
+    pub skin_url: Option<String>,
+    pub skin_variant: Option<String>,
+    pub cape_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,6 +174,9 @@ impl AuthService {
             access_token: mc_token,
             refresh_token: ms_tokens.refresh_token,
             expires_at: Utc::now().timestamp() + ms_tokens.expires_in,
+            skin_url: profile.skin_url,
+            skin_variant: profile.skin_variant,
+            cape_url: profile.cape_url,
         })
     }
 }

@@ -451,13 +451,35 @@ impl DownloadManager {
                         }
                     }
                 }
-            } else if !path.exists() {
-                let url = lib_url_from_name(&lib.name, lib.url.as_deref());
-                if !url.is_empty() {
-                    if let Some(parent) = path.parent() {
-                        tokio::fs::create_dir_all(parent).await?;
+            } else {
+                let mut handled_natives = false;
+                if let Some(ref natives_map) = lib.natives {
+                    if let Some(native_key) = natives_map.get(os_name) {
+                        let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
+                        let native_key = native_key.replace("${arch}", arch);
+                        let native_lib_name = format!("{}:{}", lib.name, native_key);
+                        let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
+                        if !native_path.exists() {
+                            let url = lib_url_from_name(&native_lib_name, lib.url.as_deref());
+                            if !url.is_empty() {
+                                if let Some(parent) = native_path.parent() {
+                                    tokio::fs::create_dir_all(parent).await?;
+                                }
+                                to_download.push((url, native_path, String::new(), native_lib_name, 0));
+                            }
+                        }
+                        handled_natives = true;
                     }
-                    to_download.push((url, path, String::new(), lib.name.clone(), 0));
+                }
+
+                if !handled_natives && !path.exists() {
+                    let url = lib_url_from_name(&lib.name, lib.url.as_deref());
+                    if !url.is_empty() {
+                        if let Some(parent) = path.parent() {
+                            tokio::fs::create_dir_all(parent).await?;
+                        }
+                        to_download.push((url, path, String::new(), lib.name.clone(), 0));
+                    }
                 }
             }
         }
@@ -647,16 +669,64 @@ impl DownloadManager {
         }
 
         let lib_dir = self.libraries_dir();
+        let os_name = crate::core::launcher::platform_mojang_name(crate::core::launcher::current_platform());
         for lib in &detail.libraries {
             if !crate::core::launcher::is_library_allowed(lib) {
                 continue;
             }
-            let path = lib_path_from_name(&lib_dir, &lib.name);
-            if !path.exists() {
-                return Err(AppError::NotFound(format!(
-                    "library {} not downloaded",
-                    lib.name
-                )));
+
+            if let Some(ref downloads) = lib.downloads {
+                if downloads.artifact.is_some() {
+                    let path = lib_path_from_name(&lib_dir, &lib.name);
+                    if !path.exists() {
+                        return Err(AppError::NotFound(format!(
+                            "library {} not downloaded",
+                            lib.name
+                        )));
+                    }
+                }
+
+                if let Some(ref classifiers) = downloads.classifiers {
+                    for (classifier_key, _) in classifiers {
+                        let matches_os = match os_name {
+                            "windows" => classifier_key.starts_with("natives-windows"),
+                            "linux" => classifier_key.starts_with("natives-linux"),
+                            "osx" => classifier_key.starts_with("natives-osx") || classifier_key.starts_with("natives-macos"),
+                            _ => false,
+                        };
+                        if matches_os {
+                            let native_lib_name = format!("{}:{}", lib.name, classifier_key);
+                            let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
+                            if !native_path.exists() {
+                                return Err(AppError::NotFound(format!(
+                                    "native library {} not downloaded",
+                                    native_lib_name
+                                )));
+                            }
+                        }
+                    }
+                }
+            } else if let Some(ref natives_map) = lib.natives {
+                if let Some(native_key) = natives_map.get(os_name) {
+                    let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
+                    let native_key = native_key.replace("${arch}", arch);
+                    let native_lib_name = format!("{}:{}", lib.name, native_key);
+                    let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
+                    if !native_path.exists() {
+                        return Err(AppError::NotFound(format!(
+                            "native library {} not downloaded",
+                            native_lib_name
+                        )));
+                    }
+                }
+            } else {
+                let path = lib_path_from_name(&lib_dir, &lib.name);
+                if !path.exists() {
+                    return Err(AppError::NotFound(format!(
+                        "library {} not downloaded",
+                        lib.name
+                    )));
+                }
             }
         }
 

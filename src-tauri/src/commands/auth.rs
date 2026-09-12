@@ -189,6 +189,9 @@ pub async fn auth_switch_account(
         access_token: row.access_token.unwrap_or_default(),
         refresh_token: row.refresh_token,
         expires_at: row.expires_at.map(|dt| dt.timestamp()).unwrap_or(0),
+        skin_url: None,
+        skin_variant: None,
+        cape_url: None,
     })
 }
 
@@ -212,6 +215,9 @@ pub async fn auth_dev_login(state: State<'_, AppState>) -> AppResult<AuthAccount
         access_token: "dev-access-token".into(),
         refresh_token: "dev-refresh-token".into(),
         expires_at: chrono::Utc::now().timestamp() + 86400,
+        skin_url: None,
+        skin_variant: None,
+        cape_url: None,
     };
     save_account(&state, &account).await?;
     Ok(account)
@@ -243,6 +249,9 @@ pub async fn auth_offline_login(username: String) -> AppResult<AuthAccount> {
         access_token: String::new(),
         refresh_token: String::new(),
         expires_at: chrono::Utc::now().timestamp() + 86400 * 365,
+        skin_url: None,
+        skin_variant: None,
+        cape_url: None,
     };
     let db = crate::db::shared_db().await?;
     let row = AccountRow {

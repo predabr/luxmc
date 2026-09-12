@@ -22,9 +22,30 @@ struct MinecraftLoginResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MinecraftProfileSkin {
+    pub id: Option<String>,
+    pub state: Option<String>,
+    pub url: String,
+    pub variant: Option<String>,
+    pub alias: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MinecraftProfileCape {
+    pub id: Option<String>,
+    pub state: Option<String>,
+    pub url: String,
+    pub alias: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct MinecraftProfileResponse {
     id: String,
     name: String,
+    #[serde(default)]
+    skins: Vec<MinecraftProfileSkin>,
+    #[serde(default)]
+    capes: Vec<MinecraftProfileCape>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,9 +104,23 @@ impl MinecraftClient {
             return Err(AppError::NotFound("minecraft profile not found".into()));
         }
         let body: MinecraftProfileResponse = resp.json().await?;
+        let active_skin = body
+            .skins
+            .iter()
+            .find(|s| s.state.as_deref() == Some("ACTIVE"))
+            .or_else(|| body.skins.first());
+        let active_cape = body
+            .capes
+            .iter()
+            .find(|c| c.state.as_deref() == Some("ACTIVE"))
+            .or_else(|| body.capes.first());
+
         Ok(super::MinecraftProfile {
             id: body.id,
             name: body.name,
+            skin_url: active_skin.map(|s| s.url.clone()),
+            skin_variant: active_skin.and_then(|s| s.variant.clone()),
+            cape_url: active_cape.map(|c| c.url.clone()),
         })
     }
 }

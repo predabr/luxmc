@@ -1058,10 +1058,7 @@ pub fn lib_path_from_name(base: &PathBuf, name: &str) -> PathBuf {
     let group = parts[0].replace('.', "/");
     let artifact = parts[1];
     let version = parts[2];
-    let filename = if parts.len() > 3 {
-        format!("{}-{}-{}", artifact, version, parts[3])
-    } else {
-        format!("{}-{}.jar", artifact, version)
-    };
-    base.join(format!("{}/{}/{}/{}", group, artifact, version, filename))
+    let classifier = if parts.len() > 3 { Some(parts[3]) } else { None };
+    let (ver_clean, filename) = crate::core::minecraft::maven_lib_path_and_filename(artifact, version, classifier);
+    base.join(format!("{}/{}/{}/{}", group, artifact, ver_clean, filename))
 }

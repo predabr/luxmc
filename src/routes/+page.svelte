@@ -29,6 +29,7 @@
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { 
@@ -197,6 +198,19 @@
 				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
+
+			activeSkinStore.setSkin({
+				id: acc.uuid,
+				name: acc.username,
+				url: `https://mc-heads.net/body/${acc.username}/300`,
+				skinUrl: acc.skinUrl || `https://minotar.net/skin/${acc.username}`,
+				avatarUrl: `https://mc-heads.net/avatar/${acc.username}/100`,
+				type: acc.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve",
+				hasCape: Boolean(acc.capeUrl),
+				capeType: acc.capeUrl ? "custom" : "none",
+				customCapeUrl: acc.capeUrl || ""
+			});
+
 			toast(t("home.connectedAs", { username: acc.username }), "success");
 
 			account.value = newAcc;

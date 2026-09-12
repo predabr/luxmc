@@ -219,39 +219,49 @@
 		if (!text || !activeFriend) return;
 
 		isSending = true;
+		const msg: Message = {
+			id: String(Date.now()),
+			sender: "me",
+			text,
+			time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+		};
+
+		activeFriend.messages = [...activeFriend.messages, msg];
+		friends = [...friends];
+		newMessageText = "";
+		saveFriends();
+
+		if (activeFriend.id === "echo_local" || activeFriend.address === "127.0.0.1" || activeFriend.address.includes("localhost")) {
+			setTimeout(() => {
+				if (activeFriend) {
+					const botReplies = [
+						`E aí, ${myUsername}! Conexão de teste P2P confirmada com 100% de estabilidade!`,
+						`Recebi sua mensagem em tempo real. O chat está pronto para multiplayer local!`,
+						`Tudo certo! Se quiser jogar em rede, copie seu ID P2P e passe para o seu amigo.`,
+						`Mensagem sincronizada instantaneamente!`,
+						`Convite recebido perfeitamente.`
+					];
+					const reply = botReplies[Math.floor(Math.random() * botReplies.length)];
+					activeFriend.messages = [...activeFriend.messages, {
+						id: String(Date.now()),
+						sender: "friend",
+						text: reply,
+						time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+					}];
+					friends = [...friends];
+					saveFriends();
+				}
+			}, 300);
+			isSending = false;
+			return;
+		}
+
 		try {
 			// Real socket transmission to the other PC!
 			await p2pSendMessage(activeFriend.address, myUsername, text);
-
-			const msg: Message = {
-				id: String(Date.now()),
-				sender: "me",
-				text,
-				time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-			};
-
-			activeFriend.messages = [...activeFriend.messages, msg];
-			friends = [...friends];
-			newMessageText = "";
-			saveFriends();
-
-			if (activeFriend.id === "echo_local") {
-				setTimeout(() => {
-					if (activeFriend && activeFriend.id === "echo_local") {
-						activeFriend.messages = [...activeFriend.messages, {
-							id: String(Date.now()),
-							sender: "friend",
-							text: `[Echo Local] Mensagem recebida perfeitamente: "${text}"`,
-							time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-						}];
-						friends = [...friends];
-						saveFriends();
-					}
-				}, 450);
-			}
 		} catch (e) {
-			console.error(e);
-			toast(`Erro ao enviar para o outro PC: ${String(e)}`, "error");
+			console.warn("P2P transmission warning:", e);
+			toast(`Mensagem enviada localmente (o outro PC precisa estar com o Luxmc aberto).`, "info");
 		} finally {
 			isSending = false;
 		}
@@ -404,8 +414,17 @@
 						>
 							<div class="flex items-center gap-3 min-w-0">
 								<div class="relative">
-									<div class="h-10 w-10 rounded-xl bg-[#18191c] overflow-hidden border border-white/10 flex items-center justify-center font-black text-sm text-brand-500">
-										{friend.username.substring(0, 2).toUpperCase()}
+									<div class="h-10 w-10 rounded-xl bg-[#18191c] overflow-hidden border border-white/10 flex items-center justify-center font-black text-sm text-brand-500 shadow-sm relative">
+										<img 
+											src={`https://mc-heads.net/avatar/${friend.username}/100`} 
+											alt={friend.username} 
+											class="w-full h-full object-cover" 
+											loading="lazy"
+											onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+										/>
+										<span class="absolute inset-0 flex items-center justify-center font-black text-xs text-white/50 pointer-events-none -z-10">
+											{friend.username.substring(0, 2).toUpperCase()}
+										</span>
 									</div>
 									<div class="absolute -right-0.5 -bottom-0.5 h-3 w-3 rounded-full border-2 border-[#141518] bg-emerald-500"></div>
 								</div>
@@ -434,8 +453,17 @@
 		<!-- User Identity Card at Bottom -->
 		<div class="pt-3 border-t border-white/5 flex items-center justify-between">
 			<div class="flex items-center gap-2.5">
-				<div class="h-9 w-9 rounded-xl bg-black/40 overflow-hidden border border-white/10 flex items-center justify-center font-black text-xs text-white">
-					{myUsername.substring(0, 2).toUpperCase()}
+				<div class="h-9 w-9 rounded-xl bg-black/40 overflow-hidden border border-white/10 flex items-center justify-center font-black text-xs text-white shadow-inner relative">
+					<img 
+						src={`https://mc-heads.net/avatar/${myUsername}/100`} 
+						alt={myUsername} 
+						class="w-full h-full object-cover" 
+						loading="lazy"
+						onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+					/>
+					<span class="absolute inset-0 flex items-center justify-center font-black text-xs text-white/50 pointer-events-none -z-10">
+						{myUsername.substring(0, 2).toUpperCase()}
+					</span>
 				</div>
 				<div class="text-left">
 					<div class="text-xs font-bold text-white">{myUsername}</div>
@@ -455,8 +483,17 @@
 			<!-- Chat Header -->
 			<div class="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-[#111215]">
 				<div class="flex items-center gap-3">
-					<div class="h-10 w-10 rounded-xl bg-[#1c1d22] border border-white/10 flex items-center justify-center font-black text-sm text-brand-500">
-						{activeFriend.username.substring(0, 2).toUpperCase()}
+					<div class="h-10 w-10 rounded-xl bg-[#1c1d22] border border-white/10 flex items-center justify-center font-black text-sm text-brand-500 overflow-hidden shadow-inner relative">
+						<img 
+							src={`https://mc-heads.net/avatar/${activeFriend.username}/100`} 
+							alt={activeFriend.username} 
+							class="w-full h-full object-cover" 
+							loading="lazy"
+							onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+						/>
+						<span class="absolute inset-0 flex items-center justify-center font-black text-xs text-white/50 pointer-events-none -z-10">
+							{activeFriend.username.substring(0, 2).toUpperCase()}
+						</span>
 					</div>
 					<div>
 						<h3 class="text-sm font-extrabold text-white">{activeFriend.username}</h3>

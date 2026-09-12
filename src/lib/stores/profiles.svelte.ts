@@ -21,6 +21,7 @@ export interface Profile {
 	ramMb?: number;
 	autoOptimize?: boolean;
 	useVulkan?: boolean;
+	banner?: string;
 }
 
 function createProfileStore() {

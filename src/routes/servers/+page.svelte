@@ -74,12 +74,13 @@
 		if (isRefreshingPings) return;
 		isRefreshingPings = true;
 		const targets = paginatedServers.slice(0, 20);
+		const newBatch: Record<string, { online: number; max: number; ping: number }> = {};
 		await Promise.allSettled(
 			targets.map(async (s) => {
 				try {
 					const data = await serverPing(s.address, 25565);
 					if (data) {
-						liveServerData[s.id] = {
+						newBatch[s.id] = {
 							online: data.playersOnline,
 							max: data.playersMax || 1000,
 							ping: data.latencyMs ?? 32,
@@ -90,6 +91,7 @@
 				}
 			})
 		);
+		liveServerData = { ...liveServerData, ...newBatch };
 		isRefreshingPings = false;
 	}
 

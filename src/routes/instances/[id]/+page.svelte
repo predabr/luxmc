@@ -723,12 +723,26 @@
 			
 			<!-- Minecraft Background Artwork -->
 			<div class="absolute inset-0 pointer-events-none z-0 overflow-hidden rounded-3xl">
-				<img 
-					src={activeProfile?.loader === 'vanilla' ? '/vanilla_banner.png' : '/modpack_fo.webp'} 
-					alt="Minecraft Banner" 
-					class="w-full h-full object-cover opacity-35 group-hover:scale-105 transition-transform duration-700" 
-				/>
-				<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/80 to-[#18191c]/40"></div>
+				{#if activeProfile?.banner}
+					<img 
+						src={activeProfile.banner} 
+						alt="Instance Banner" 
+						class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" 
+					/>
+				{:else if activeProfile?.icon && (activeProfile.icon.startsWith("http") || activeProfile.icon.startsWith("data:"))}
+					<img 
+						src={activeProfile.icon} 
+						alt="Instance Artwork" 
+						class="w-full h-full object-cover blur-lg scale-110 opacity-30 group-hover:scale-125 transition-transform duration-700" 
+					/>
+				{:else}
+					<img 
+						src="/vanilla_banner.png" 
+						alt="Minecraft Banner" 
+						class="w-full h-full object-cover opacity-35 group-hover:scale-105 transition-transform duration-700" 
+					/>
+				{/if}
+				<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/85 to-[#18191c]/40"></div>
 			</div>
 
 			<div class="flex items-center justify-between relative z-10">

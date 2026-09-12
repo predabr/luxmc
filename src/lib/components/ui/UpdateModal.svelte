@@ -41,12 +41,16 @@
 	});
 
 	function isNewerVersion(current: string, latest: string) {
-		const currParts = current.split(".").map(Number);
-		const latestParts = latest.split(".").map(Number);
+		const cleanParts = (v: string) =>
+			v.replace(/^v/i, "").split("-")[0].split(".").map((x) => parseInt(x, 10) || 0);
+		const currParts = cleanParts(current);
+		const latestParts = cleanParts(latest);
 		
-		for (let i = 0; i < 3; i++) {
-			if ((latestParts[i] || 0) > (currParts[i] || 0)) return true;
-			if ((latestParts[i] || 0) < (currParts[i] || 0)) return false;
+		for (let i = 0; i < Math.max(currParts.length, latestParts.length); i++) {
+			const c = currParts[i] || 0;
+			const l = latestParts[i] || 0;
+			if (l > c) return true;
+			if (l < c) return false;
 		}
 		return false;
 	}

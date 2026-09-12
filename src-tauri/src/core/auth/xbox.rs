@@ -58,7 +58,7 @@ impl XboxClient {
             RelyingParty: "http://auth.xboxlive.com",
             TokenType: "JWT",
             Properties: XboxUserProperties {
-                AuthMethod: "RPC",
+                AuthMethod: "RPS",
                 SiteName: "user.auth.xboxlive.com",
                 RpsTicket: &rps,
             },
@@ -69,8 +69,14 @@ impl XboxClient {
             .json(&req)
             .header("Accept", "application/json")
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(AppError::Internal(format!(
+                "Xbox Live user authenticate failed ({status}): {text}"
+            )));
+        }
         let body: XboxTokenResponse = resp.json().await?;
         let user_hash = extract_xuid(&body.DisplayClaims)
             .ok_or_else(|| AppError::InvalidState("xuid missing from xbox response".into()))?;
@@ -92,8 +98,14 @@ impl XboxClient {
             .json(&req)
             .header("Accept", "application/json")
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(AppError::Internal(format!(
+                "Xbox Live XSTS authorize failed ({status}): {text}"
+            )));
+        }
         let body: XboxTokenResponse = resp.json().await?;
         Ok(super::XboxTokenSet {
             user_token: user_token.to_string(),

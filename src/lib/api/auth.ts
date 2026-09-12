@@ -11,6 +11,9 @@ export async function authLogin(): Promise<{
 	accessToken: string;
 	refreshToken: string;
 	expiresAt: number;
+	skinUrl?: string;
+	skinVariant?: string;
+	capeUrl?: string;
 }> {
 	return api.invoke("auth_login");
 }
@@ -22,6 +25,9 @@ export async function authComplete(code: string, state: string, verifier: string
 	accessToken: string;
 	refreshToken: string;
 	expiresAt: number;
+	skinUrl?: string;
+	skinVariant?: string;
+	capeUrl?: string;
 }> {
 	return api.invoke("auth_complete", { code, stateToken: state, verifier });
 }
@@ -33,6 +39,9 @@ export async function authRefresh(refreshToken: string): Promise<{
 	accessToken: string;
 	refreshToken: string;
 	expiresAt: number;
+	skinUrl?: string;
+	skinVariant?: string;
+	capeUrl?: string;
 }> {
 	return api.invoke("auth_refresh", { refreshToken });
 }

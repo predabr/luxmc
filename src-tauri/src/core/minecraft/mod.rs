@@ -178,6 +178,33 @@ pub struct LibraryOs {
     pub name: String,
 }
 
+pub fn maven_lib_path_and_filename(artifact: &str, version: &str, classifier: Option<&str>) -> (String, String) {
+    let (ver_clean, ver_ext) = if let Some((v, ext)) = version.split_once('@') {
+        (v, Some(ext))
+    } else {
+        (version, None)
+    };
+
+    let filename = if let Some(cls) = classifier {
+        if let Some((c, ext)) = cls.split_once('@') {
+            format!("{}-{}-{}.{}", artifact, ver_clean, c, ext)
+        } else if cls.ends_with(".jar") {
+            format!("{}-{}-{}", artifact, ver_clean, cls)
+        } else {
+            let ext = ver_ext.unwrap_or("jar");
+            format!("{}-{}-{}.{}", artifact, ver_clean, cls, ext)
+        }
+    } else if let Some(ext) = ver_ext {
+        format!("{}-{}.{}", artifact, ver_clean, ext)
+    } else if version.ends_with(".jar") {
+        format!("{}-{}", artifact, version)
+    } else {
+        format!("{}-{}.jar", artifact, version)
+    };
+
+    (ver_clean.to_string(), filename)
+}
+
 pub fn lib_url_from_name(name: &str, base_url: Option<&str>) -> String {
     let parts: Vec<&str> = name.split(':').collect();
     if parts.len() < 3 {
@@ -186,12 +213,9 @@ pub fn lib_url_from_name(name: &str, base_url: Option<&str>) -> String {
     let group = parts[0].replace('.', "/");
     let artifact = parts[1];
     let version = parts[2];
-    let filename = if parts.len() > 3 {
-        format!("{}-{}-{}", artifact, version, parts[3])
-    } else {
-        format!("{}-{}.jar", artifact, version)
-    };
-    let path = format!("{}/{}/{}/{}", group, artifact, version, filename);
+    let classifier = if parts.len() > 3 { Some(parts[3]) } else { None };
+    let (ver_clean, filename) = maven_lib_path_and_filename(artifact, version, classifier);
+    let path = format!("{}/{}/{}/{}", group, artifact, ver_clean, filename);
     let base = base_url.unwrap_or("https://libraries.minecraft.net/");
     if base.ends_with('/') {
         format!("{}{}", base, path)
