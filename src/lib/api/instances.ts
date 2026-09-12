@@ -183,7 +183,8 @@ export async function instanceImportModpack(
 	profileName: string,
 	mcVersion: string,
 	loader: string,
-	icon?: string
+	icon?: string,
+	ramMb?: number
 ): Promise<{
 	id: string;
 	name: string;
@@ -192,13 +193,14 @@ export async function instanceImportModpack(
 	gameDir: string;
 	icon?: string;
 }> {
-	return api.invoke("instance_import_modpack", { filePath, profileName, mcVersion, loader, icon });
+	return api.invoke("instance_import_modpack", { filePath, profileName, mcVersion, loader, icon, ramMb });
 }
 
 export async function instanceImportMrpack(
 	filePath: string,
 	profileName: string,
-	icon?: string
+	icon?: string,
+	ramMb?: number
 ): Promise<{
 	id: string;
 	name: string;
@@ -207,7 +209,7 @@ export async function instanceImportMrpack(
 	gameDir: string;
 	icon?: string;
 }> {
-	return api.invoke("instance_import_mrpack", { filePath, profileName, icon });
+	return api.invoke("instance_import_mrpack", { filePath, profileName, icon, ramMb });
 }
 
 export async function instanceHealthCheck(profileId: string): Promise<HealthCheckResult> {

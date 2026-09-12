@@ -147,23 +147,7 @@ pub async fn instances_screenshots(
                 })
                 .unwrap_or_default();
 
-            let data_url = if let Ok(bytes) = std::fs::read(&path) {
-                use base64::Engine;
-                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
-                let ext = path
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("png")
-                    .to_lowercase();
-                let mime = if ext == "jpg" || ext == "jpeg" {
-                    "image/jpeg"
-                } else {
-                    "image/png"
-                };
-                Some(format!("data:{};base64,{}", mime, b64))
-            } else {
-                None
-            };
+            let data_url = None;
 
             entries.push(ScreenshotEntry {
                 name: path
@@ -331,6 +315,7 @@ pub async fn instance_import_modpack(
     mc_version: String,
     loader: String,
     icon: Option<String>,
+    ram_mb: Option<i64>,
 ) -> AppResult<ProfileRow> {
     tracing::info!(file_path = %file_path, profile_name = %profile_name, mc_version = %mc_version, loader = %loader, "instance_import_modpack called");
     let file = std::fs::File::open(&file_path).map_err(|e| {
@@ -564,7 +549,7 @@ pub async fn instance_import_modpack(
         launch_count: 0,
         mod_count: manifest.files.len() as i64,
         disk_usage: 0,
-        ram_mb: None,
+        ram_mb: Some(ram_mb.unwrap_or(4096)),
         instance_group: None,
         auto_optimize: true,
         use_vulkan: false,
@@ -726,6 +711,7 @@ pub async fn instance_import_mrpack(
     file_path: String,
     profile_name: String,
     icon: Option<String>,
+    ram_mb: Option<i64>,
 ) -> AppResult<ProfileRow> {
     tracing::info!(file_path = %file_path, profile_name = %profile_name, "instance_import_mrpack called");
     let data = tokio::fs::read(&file_path).await?;
@@ -952,7 +938,7 @@ pub async fn instance_import_mrpack(
 		launch_count: 0,
 		mod_count: installed_mods_count as i64,
 		disk_usage: 0,
-		ram_mb: None,
+		ram_mb: Some(ram_mb.unwrap_or(4096)),
 		instance_group: None,
 		auto_optimize: true,
 		use_vulkan: false,

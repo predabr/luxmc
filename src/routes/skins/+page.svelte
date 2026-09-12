@@ -709,7 +709,7 @@
 								<Layers class="w-3.5 h-3.5 text-amber-400" /> Three.js WebGL
 							</span>
 							<span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-								30 FPS Eco
+								60 FPS Fluido
 							</span>
 						</div>
 
@@ -735,6 +735,7 @@
 							cape={selectedCape}
 							slim={isSlimModel}
 							{autoRotate}
+							active={activeTab === 'wardrobe'}
 							className="z-10"
 						/>
 

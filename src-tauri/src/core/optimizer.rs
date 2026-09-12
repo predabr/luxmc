@@ -111,7 +111,6 @@ pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     flags.push("-XX:MaxGCPauseMillis=200".into());
     flags.push("-XX:+UnlockExperimentalVMOptions".into());
     flags.push("-XX:+DisableExplicitGC".into());
-    flags.push("-XX:+AlwaysPreTouch".into());
 
     // Dynamic region size and new generation sizing based on allocated memory
     if ram_mb <= 4096 {

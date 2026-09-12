@@ -9,6 +9,7 @@
 		slim?: boolean;
 		autoRotate?: boolean;
 		className?: string;
+		active?: boolean;
 	};
 
 	let {
@@ -16,7 +17,8 @@
 		cape = "none",
 		slim = false,
 		autoRotate = true,
-		className = ""
+		className = "",
+		active = true
 	}: Props = $props();
 
 	let containerEl: HTMLDivElement | null = $state(null);
@@ -600,8 +602,6 @@
 
 	const MAX_CANVAS_WIDTH = 380;
 	const MAX_CANVAS_HEIGHT = 440;
-	const TARGET_FPS = 30;
-	const FRAME_INTERVAL = 1000 / TARGET_FPS;
 
 	onMount(() => {
 		if (!containerEl) return;
@@ -614,14 +614,14 @@
 		updateCamera();
 
 		renderer = new THREE.WebGLRenderer({
-			antialias: false,
+			antialias: true,
 			alpha: true,
-			powerPreference: "low-power",
+			powerPreference: "high-performance",
 			depth: true,
 			stencil: false,
-			precision: "mediump"
+			precision: "highp"
 		});
-		renderer.setPixelRatio(1.0);
+		renderer.setPixelRatio(Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 2));
 		renderer.setSize(width, height, false);
 		renderer.shadowMap.enabled = false;
 		renderer.domElement.style.position = "absolute";
@@ -651,20 +651,13 @@
 		loadSkin(skinUrl);
 
 		let idleTime = 0;
-		let lastFrameTime = 0;
 
-		const animate = (time: number) => {
-			if (!isVisible || (typeof document !== "undefined" && document.visibilityState === "hidden")) {
+		const animate = () => {
+			if (!active || !isVisible || (typeof document !== "undefined" && document.visibilityState === "hidden")) {
 				animFrameId = null;
 				return;
 			}
 			animFrameId = requestAnimationFrame(animate);
-
-			const elapsed = time - lastFrameTime;
-			if (elapsed < FRAME_INTERVAL) {
-				return;
-			}
-			lastFrameTime = time - (elapsed % FRAME_INTERVAL);
 
 			if (autoRotate && !isDragging) {
 				yaw += 0.007;
@@ -688,7 +681,7 @@
 				for (const entry of entries) {
 					const wasVisible = isVisible;
 					isVisible = entry.isIntersecting;
-					if (isVisible && !wasVisible && animFrameId === null) {
+					if (active && isVisible && !wasVisible && animFrameId === null) {
 						animFrameId = requestAnimationFrame(animate);
 					}
 				}
@@ -831,6 +824,14 @@
 				currentCape = c;
 				updateCape();
 			}
+		}
+	});
+
+	$effect(() => {
+		const isAct = active;
+		if (!isAct && animFrameId !== null) {
+			cancelAnimationFrame(animFrameId);
+			animFrameId = null;
 		}
 	});
 

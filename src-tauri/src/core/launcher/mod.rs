@@ -659,7 +659,7 @@ impl GameLauncher {
             let mut sys = sysinfo::System::new_all();
             sys.refresh_memory();
             let total_ram_mb = sys.total_memory() / 1024 / 1024;
-            std::cmp::min(std::cmp::max(total_ram_mb / 2, 2048), 8192)
+            std::cmp::min(std::cmp::max(total_ram_mb / 4, 2048), 4096)
         };
 
         // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags

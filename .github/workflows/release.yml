@@ -264,6 +264,8 @@ jobs:
     name: Upload to Release
     needs: [build, generate-changelog]
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -278,57 +280,60 @@ jobs:
         run: find artifacts/ -type f | head -50
 
       - name: Upload Assets to Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: "Luxmc ${{ github.ref_name }}"
-          draft: false
-          prerelease: false
-          body: |
-            ## Luxmc ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          cat << 'EOF' > /tmp/release_notes.md
+          ## Luxmc ${{ github.ref_name }}
 
-            ### Download
+          ### Download
 
-            | Platform | Installer | Status |
-            |----------|-----------|--------|
-            | **Windows** | `.exe` (NSIS) | ✅ Available |
-            | **Linux** | AppImage / `.deb` / `.rpm` | ✅ Available |
-            | **macOS (Apple Silicon)** | `.dmg` | ✅ Available |
-            | **macOS (Intel)** | `.dmg` | ✅ Available |
+          | Platform | Installer | Status |
+          |----------|-----------|--------|
+          | **Windows** | `.exe` (NSIS) | ✅ Available |
+          | **Linux** | AppImage / `.deb` / `.rpm` | ✅ Available |
+          | **macOS (Apple Silicon)** | `.dmg` | ✅ Available |
+          | **macOS (Intel)** | `.dmg` | ✅ Available |
 
-            ### System Requirements
+          ### System Requirements
 
-            - **Windows**: Windows 10 or later (x64)
-            - **Linux**: Ubuntu 22.04+ or equivalent (x64)
-            - **macOS**: macOS 10.13 (High Sierra) or later
+          - **Windows**: Windows 10 or later (x64)
+          - **Linux**: Ubuntu 22.04+ or equivalent (x64)
+          - **macOS**: macOS 10.13 (High Sierra) or later
 
-            ### Installation
+          ### Installation
 
-            **Windows**
-            1. Download the `.exe` installer and run it
-            2. Follow the on-screen wizard
-            3. Launch Luxmc from the Start Menu
+          **Windows**
+          1. Download the `.exe` installer and run it
+          2. Follow the on-screen wizard
+          3. Launch Luxmc from the Start Menu
 
-            **Linux**
-            - AppImage: `chmod +x Luxmc-*.AppImage && ./Luxmc-*.AppImage`
-            - Debian/Ubuntu: `sudo dpkg -i Luxmc-*.deb`
-            - Fedora/RHEL: `sudo rpm -i Luxmc-*.rpm`
+          **Linux**
+          - AppImage: `chmod +x Luxmc-*.AppImage && ./Luxmc-*.AppImage`
+          - Debian/Ubuntu: `sudo dpkg -i Luxmc-*.deb`
+          - Fedora/RHEL: `sudo rpm -i Luxmc-*.rpm`
 
-            **macOS**
-            1. Download the `.dmg` file
-            2. Drag Luxmc to your Applications folder
-            3. Right-click → Open (first launch only, to bypass Gatekeeper)
+          **macOS**
+          1. Download the `.dmg` file
+          2. Drag Luxmc to your Applications folder
+          3. Right-click → Open (first launch only, to bypass Gatekeeper)
 
-            ### Changelog
+          ### Changelog
 
-            ${{ needs.generate-changelog.outputs.changelog }}
-          files: artifacts/**/*
-          fail_on_unmatched_files: false
+          ${{ needs.generate-changelog.outputs.changelog }}
+          EOF
+
+          gh release view "$TAG_NAME" || gh release create "$TAG_NAME" --title "Luxmc $TAG_NAME" --notes-file /tmp/release_notes.md
+          gh release edit "$TAG_NAME" --title "Luxmc $TAG_NAME" --notes-file /tmp/release_notes.md --draft=false
+          find artifacts/ -type f -exec gh release upload "$TAG_NAME" {} --clobber +
 
   build-jar:
     name: Build Universal Luxmc.jar
     needs: upload-release
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -349,9 +354,8 @@ jobs:
           jar cfm Luxmc.jar manifest.txt -C out .
 
       - name: Upload JAR to Release
-        uses: softprops/action-gh-release@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          files: Luxmc.jar
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          gh release upload "$TAG_NAME" Luxmc.jar --clobber

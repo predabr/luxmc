@@ -219,8 +219,8 @@
 				|| (item.title.toLowerCase().includes("neoforge") ? "neoforge" : "")
 				|| (item.title.toLowerCase().includes("fabric") ? "fabric" : "");
 			const cp = item.source === "curseforge"
-				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", detectedLoader, iconUrl)
-				: await instanceImportMrpack(tempPath, name, iconUrl);
+				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", detectedLoader, iconUrl, modpackRamMb)
+				: await instanceImportMrpack(tempPath, name, iconUrl, modpackRamMb);
 			profiles.add({
 				id: cp.id, name: cp.name, icon: iconUrl || "default", mcVersion: cp.mcVersion,
 				loader: (cp.loader || detectedLoader || "fabric") as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
