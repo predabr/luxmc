@@ -66,6 +66,7 @@ pub async fn run() {
             commands::auth::auth_get_client_id,
             commands::auth::auth_get_tenant_id,
             commands::auth::auth_set_client_id,
+            commands::auth::auth_change_skin,
             commands::profiles::profiles_list,
             commands::profiles::profiles_get,
             commands::profiles::profiles_create,

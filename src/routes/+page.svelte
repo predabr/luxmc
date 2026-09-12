@@ -493,32 +493,27 @@
 
 						<button 
 							type="button" 
-							class="w-full rounded-2xl bg-gradient-to-r from-[#20222c] to-[#181a22] hover:from-[#262835] hover:to-[#1e202b] border-2 border-[#6c5ce7]/50 hover:border-[#6c5ce7] p-3.5 text-white flex items-center justify-between gap-3 transition-all duration-300 active:scale-[0.99] cursor-pointer shadow-xl hover:shadow-[0_0_25px_rgba(108,92,231,0.25)] relative overflow-hidden disabled:opacity-60"
+							class="w-full rounded-2xl bg-gradient-to-r from-[#20222c] to-[#181a22] hover:from-[#2a2d3d] hover:to-[#20222e] border border-[#6c5ce7]/40 hover:border-[#6c5ce7] p-3.5 text-white flex items-center gap-3.5 transition-all duration-200 active:scale-[0.98] cursor-pointer shadow-xl hover:shadow-[0_0_20px_rgba(108,92,231,0.25)] relative overflow-hidden disabled:opacity-60"
 							onclick={handleMicrosoftLogin}
 							disabled={isLoggingIn || isLoggingInMicrosoft}
 						>
-							<div class="flex items-center gap-3 min-w-0">
-								<div class="h-10 w-10 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0 shadow-inner">
-									<svg class="h-full w-full" viewBox="0 0 24 24" fill="none">
-										<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
-										<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
-										<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
-										<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
-									</svg>
+							<div class="h-10 w-10 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0 shadow-inner">
+								<svg class="h-full w-full" viewBox="0 0 24 24" fill="none">
+									<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
+									<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
+									<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
+									<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
+								</svg>
+							</div>
+							<div class="text-left flex-1 min-w-0">
+								<div class="flex items-center gap-2">
+									<span class="font-bold text-white text-sm whitespace-nowrap">{t("home.signInWithMicrosoft")}</span>
+									<span class="bg-[#6c5ce7]/30 text-[#a29bfe] text-[9px] font-black px-1.5 py-0.5 rounded-full border border-[#6c5ce7]/40 uppercase tracking-wider shrink-0">{t("home.primary")}</span>
 								</div>
-								<div class="text-left min-w-0">
-									<div class="flex items-center gap-2">
-										<span class="font-black text-white text-xs sm:text-sm whitespace-nowrap">{t("home.signInWithMicrosoft")}</span>
-										<span class="bg-[#6c5ce7]/30 text-[#a29bfe] text-[9px] font-black px-1.5 py-0.5 rounded-full border border-[#6c5ce7]/40 uppercase tracking-wider shrink-0">{t("home.primary")}</span>
-									</div>
-									<p class="text-[11px] text-white/50 font-medium truncate mt-0.5">{t("home.msOfficialAccount")}</p>
-								</div>
+								<p class="text-[11px] text-white/50 font-medium truncate mt-0.5">{t("home.msOfficialAccount")}</p>
 							</div>
 
-							<div class="h-8 px-3 rounded-xl bg-[#6c5ce7] group-hover:bg-[#5b4cdb] text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-[#6c5ce7]/30 group-hover:scale-105 transition-all duration-200 shrink-0">
-								<span>{t("home.connect")}</span>
-								<ArrowRight class="w-3.5 h-3.5" />
-							</div>
+							<ArrowRight class="w-5 h-5 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
 						</button>
 					</div>
 				{/if}

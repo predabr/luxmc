@@ -180,6 +180,7 @@ pub async fn prepare_fabric(
         main_class: profile.main_class,
         classpath_entries,
         jvm_args,
+        game_args: Vec::new(),
     })
 }
 

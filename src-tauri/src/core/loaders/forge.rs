@@ -45,6 +45,8 @@ pub struct ForgeVersionJson {
     pub main_class: String,
     #[serde(default)]
     pub arguments: Option<ForgeArguments>,
+    #[serde(default, rename = "minecraftArguments")]
+    pub minecraft_arguments: Option<String>,
     #[serde(default)]
     pub libraries: Vec<ForgeLibrary>,
 }
@@ -128,6 +130,30 @@ pub async fn fetch_versions(
     Ok(versions)
 }
 
+fn extract_installer_maven_files(installer_bytes: &[u8], libraries_dir: &Path) -> AppResult<()> {
+    let mut archive = zip::ZipArchive::new(Cursor::new(installer_bytes))
+        .map_err(|e| AppError::Internal(format!("Failed to open Forge installer zip: {e}")))?;
+
+    for i in 0..archive.len() {
+        if let Ok(mut file) = archive.by_index(i) {
+            let name = file.name().to_string();
+            if let Some(rel) = name.strip_prefix("maven/") {
+                if rel.is_empty() || file.is_dir() {
+                    continue;
+                }
+                let dest = libraries_dir.join(rel);
+                if let Some(parent) = dest.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                if let Ok(mut outfile) = std::fs::File::create(&dest) {
+                    let _ = std::io::copy(&mut file, &mut outfile);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
         .map_err(|e| AppError::Internal(format!("Failed to open Forge installer zip: {e}")))?;
@@ -195,6 +221,7 @@ pub async fn prepare_forge(
     }
 
     let installer_bytes = tokio::fs::read(&installer_dest).await?;
+    let _ = extract_installer_maven_files(&installer_bytes, libraries_dir);
     let version_json_str = extract_version_json_from_bytes(&installer_bytes)?;
 
     let version_data: ForgeVersionJson = serde_json::from_str(&version_json_str)
@@ -210,7 +237,7 @@ pub async fn prepare_forge(
                         .to_string_lossy()
                         .replace('\\', "/")
                 });
-                let url = art.url.clone().unwrap_or_else(|| {
+                let url = art.url.clone().filter(|u| !u.trim().is_empty()).unwrap_or_else(|| {
                     format!("{}/{}", FORGE_MAVEN, path.trim_start_matches('/'))
                 });
                 (path, url)
@@ -306,8 +333,8 @@ pub async fn prepare_forge(
     let lib_dir_str = libraries_dir.to_string_lossy().replace('\\', "/");
 
     let mut jvm_args = Vec::new();
-    if let Some(args) = version_data.arguments {
-        for arg in args.jvm {
+    if let Some(ref args) = version_data.arguments {
+        for arg in &args.jvm {
             match &arg {
                 serde_json::Value::String(s) => {
                     let replaced = s
@@ -355,10 +382,54 @@ pub async fn prepare_forge(
         jvm_args.push("-Dforge.enabled=true".to_string());
     }
 
+    let mut game_args = Vec::new();
+    if let Some(ref args) = version_data.arguments {
+        for arg in &args.game {
+            match arg {
+                serde_json::Value::String(s) => {
+                    game_args.push(s.clone());
+                }
+                serde_json::Value::Object(obj) => {
+                    if let Some(serde_json::Value::Array(rules)) = obj.get("rules") {
+                        if !crate::core::launcher::evaluate_rules(rules) {
+                            continue;
+                        }
+                    }
+                    if let Some(serde_json::Value::Array(values)) = obj.get("value") {
+                        for v in values {
+                            if let Some(s) = v.as_str() {
+                                game_args.push(s.to_string());
+                            }
+                        }
+                    } else if let Some(serde_json::Value::String(s)) = obj.get("value") {
+                        game_args.push(s.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    if let Some(ref mc_args) = version_data.minecraft_arguments {
+        let parts: Vec<&str> = mc_args.split_whitespace().collect();
+        let mut idx = 0;
+        while idx < parts.len() {
+            let p = parts[idx];
+            if p == "--tweakClass" && idx + 1 < parts.len() {
+                game_args.push(p.to_string());
+                game_args.push(parts[idx + 1].to_string());
+                idx += 2;
+                continue;
+            }
+            idx += 1;
+        }
+    }
+
     Ok(PreparedLoader {
         main_class: version_data.main_class,
         classpath_entries,
         jvm_args,
+        game_args,
     })
 }
 

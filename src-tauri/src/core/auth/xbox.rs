@@ -67,7 +67,9 @@ impl XboxClient {
             .http
             .post(XBOX_USER_AUTH)
             .json(&req)
+            .header("Content-Type", "application/json")
             .header("Accept", "application/json")
+            .header("x-xbl-contract-version", "1")
             .send()
             .await?;
         if !resp.status().is_success() {
@@ -85,7 +87,7 @@ impl XboxClient {
 
     async fn xsts(&self, user_token: &str, user_hash: &str) -> AppResult<super::XboxTokenSet> {
         let req = XstsRequest {
-            RelyingParty: "rpc://api.minecraftservices.com/",
+            RelyingParty: "rp://api.minecraftservices.com/",
             TokenType: "JWT",
             Properties: XstsProperties {
                 SandboxId: "RETAIL",
@@ -96,15 +98,15 @@ impl XboxClient {
             .http
             .post(XBOX_XSTS_AUTH)
             .json(&req)
+            .header("Content-Type", "application/json")
             .header("Accept", "application/json")
+            .header("x-xbl-contract-version", "1")
             .send()
             .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            return Err(AppError::Internal(format!(
-                "Xbox Live XSTS authorize failed ({status}): {text}"
-            )));
+            return Err(AppError::Internal(format_xsts_error(status, &text)));
         }
         let body: XboxTokenResponse = resp.json().await?;
         Ok(super::XboxTokenSet {
@@ -113,6 +115,23 @@ impl XboxClient {
             user_hash: user_hash.to_string(),
         })
     }
+}
+
+fn format_xsts_error(status: reqwest::StatusCode, text: &str) -> String {
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
+        if let Some(code) = v.get("XErr").and_then(|c| c.as_i64()) {
+            let msg = match code {
+                2148916233 => "Esta conta Microsoft não possui um perfil do Xbox Live. Acesse xbox.com e crie seu perfil.",
+                2148916235 => "O Xbox Live não está disponível no seu país ou região.",
+                2148916236 | 2148916237 => "Esta conta Microsoft requer confirmação de idade no site login.live.com.",
+                2148916238 => "Esta conta Microsoft é de menor de idade e precisa ser vinculada a uma família no account.microsoft.com/family.",
+                2148916234 => "Esta conta Microsoft precisa aceitar os Termos de Serviço do Xbox no site xbox.com.",
+                _ => return format!("Xbox Live XSTS authorize failed ({status}, XErr {code}): {text}"),
+            };
+            return format!("{msg} (Erro {code})");
+        }
+    }
+    format!("Xbox Live XSTS authorize failed ({status}): {text}")
 }
 
 fn extract_xuid(claims: &serde_json::Value) -> Option<String> {

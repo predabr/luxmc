@@ -61,6 +61,7 @@ pub struct PreparedLoader {
     pub main_class: String,
     pub classpath_entries: Vec<std::path::PathBuf>,
     pub jvm_args: Vec<String>,
+    pub game_args: Vec<String>,
 }
 
 pub async fn prepare_loader(

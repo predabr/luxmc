@@ -66,39 +66,130 @@
 
 	const myUsername = $derived(account.value?.username || "GamerLux");
 
+	const GLOBAL_CHANNEL: Friend = {
+		id: "global",
+		username: "Chat Global LuxMC",
+		address: "Canal Universal",
+		status: "online",
+		activity: "Jogadores Online",
+		messages: [
+			{
+				id: "welcome_global",
+				sender: "friend",
+				text: "Bem-vindo ao Chat Global Universal do Luxmc! Aqui todos os jogadores online podem conversar, trocar IPs de servidores e combinar partidas em tempo real.",
+				time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+			}
+		]
+	};
+
+	let eventSource: EventSource | null = null;
+
+	function connectUniversalRelay() {
+		try {
+			if (eventSource) eventSource.close();
+			eventSource = new EventSource("https://ntfy.sh/luxmc_global_chat_v2/sse");
+			eventSource.onmessage = (event) => {
+				try {
+					const data = JSON.parse(event.data);
+					if (!data || !data.message) return;
+					let payload: { id?: string; sender?: string; text?: string; time?: string; target?: string };
+					try {
+						payload = JSON.parse(data.message);
+					} catch {
+						payload = { text: data.message, sender: "Jogador", target: "global" };
+					}
+
+					const sender = payload.sender;
+					const text = payload.text;
+					if (!sender || !text) return;
+					if (sender.toLowerCase() === myUsername.toLowerCase()) return;
+
+					const target = (payload.target || "global").toLowerCase();
+					const msgId = payload.id || String(Date.now());
+					const timeStr = payload.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+					if (target === "global") {
+						const globalCh = friends.find(f => f.id === "global");
+						if (globalCh && !globalCh.messages.some(m => m.id === msgId)) {
+							const globalMsg: Message = {
+								id: msgId,
+								sender: "friend",
+								text: `[${sender}] ${text}`,
+								time: timeStr
+							};
+							globalCh.messages = [...globalCh.messages, globalMsg].slice(-100);
+							friends = [...friends];
+							saveFriends();
+						}
+					} else if (target === myUsername.toLowerCase()) {
+						let friend = friends.find(f => f.username.toLowerCase() === sender.toLowerCase());
+						const dmMsg: Message = {
+							id: msgId,
+							sender: "friend",
+							text: text,
+							time: timeStr
+						};
+						if (!friend) {
+							friend = {
+								id: String(Date.now()),
+								username: sender,
+								address: "Universal",
+								status: "online",
+								activity: "Chat Universal",
+								messages: [dmMsg]
+							};
+							friends = [...friends, friend];
+						} else if (!friend.messages.some(m => m.id === msgId)) {
+							friend.messages = [...friend.messages, dmMsg].slice(-100);
+							friends = [...friends];
+						}
+						saveFriends();
+						toast(`💬 ${sender}: "${text}"`, "info");
+					}
+				} catch {
+					// Ignore invalid messages
+				}
+			};
+		} catch (e) {
+			console.warn("Relay init error:", e);
+		}
+	}
+
 	onMount(async () => {
-		// Load saved friends
 		try {
 			const saved = localStorage.getItem("luxmc_p2p_friends");
 			if (saved) {
 				friends = JSON.parse(saved);
-				if (friends.length > 0) {
-					activeFriendId = friends[0].id;
-				}
 			}
 		} catch (e) {
 			console.error(e);
 		}
 
-		// Initialize P2P Listener & Get local IP
+		if (!friends.some(f => f.id === "global")) {
+			friends = [GLOBAL_CHANNEL, ...friends];
+		}
+		if (!activeFriendId) {
+			activeFriendId = "global";
+		}
+
+		connectUniversalRelay();
+
 		try {
 			const info = await p2pGetLocalInfo();
 			localIp = info.ip;
 			localPort = info.port;
-
 			await p2pStartListener();
-
-			// Listen for real incoming socket messages from other PC
 			unlistenMsg = await listenP2PMessage((payload: P2PMessagePayload) => {
 				handleIncomingMessage(payload);
 			});
 		} catch (e) {
-			console.error("P2P listener error:", e);
+			console.error("Local socket listener warning:", e);
 		}
 	});
 
 	onDestroy(() => {
 		if (unlistenMsg) unlistenMsg();
+		if (eventSource) eventSource.close();
 	});
 
 	function handleIncomingMessage(payload: P2PMessagePayload) {
@@ -172,25 +263,21 @@
 		const name = newFriendUsername.trim();
 		const addr = newFriendAddress.trim();
 		if (!name) {
-			toast("Insira o nome do jogador no launcher.", "error");
-			return;
-		}
-		if (!addr) {
-			toast("Insira o IP do outro PC (Ex: 192.168.1.50).", "error");
+			toast("Insira o nome do jogador.", "error");
 			return;
 		}
 
 		const newFriend: Friend = {
 			id: String(Date.now()),
 			username: name,
-			address: addr,
+			address: addr || "Universal",
 			status: "online",
-			activity: `PC: ${addr}`,
+			activity: addr ? `Conexão: ${addr}` : "Chat Universal",
 			messages: [
 				{
 					id: String(Date.now()),
 					sender: "me",
-					text: `Conexão P2P estabelecida entre os dois computadores!`,
+					text: `Conversa com ${name} iniciada!`,
 					time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 				}
 			]
@@ -202,10 +289,14 @@
 		newFriendAddress = "";
 		showAddModal = false;
 		saveFriends();
-		toast(`Amigo "${name}" adicionado com endereço ${addr}!`, "success");
+		toast(`Amigo "${name}" adicionado com sucesso!`, "success");
 	}
 
 	function removeFriend(id: string) {
+		if (id === "global") {
+			toast("O Chat Global não pode ser removido.", "info");
+			return;
+		}
 		friends = friends.filter(f => f.id !== id);
 		if (activeFriendId === id) {
 			activeFriendId = friends.length > 0 ? friends[0].id : null;
@@ -219,14 +310,16 @@
 		if (!text || !activeFriend) return;
 
 		isSending = true;
+		const msgId = String(Date.now());
+		const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 		const msg: Message = {
-			id: String(Date.now()),
+			id: msgId,
 			sender: "me",
 			text,
-			time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+			time: timeStr
 		};
 
-		activeFriend.messages = [...activeFriend.messages, msg];
+		activeFriend.messages = [...activeFriend.messages, msg].slice(-100);
 		friends = [...friends];
 		newMessageText = "";
 		saveFriends();
@@ -235,19 +328,20 @@
 			setTimeout(() => {
 				if (activeFriend) {
 					const botReplies = [
-						`E aí, ${myUsername}! Conexão de teste P2P confirmada com 100% de estabilidade!`,
-						`Recebi sua mensagem em tempo real. O chat está pronto para multiplayer local!`,
-						`Tudo certo! Se quiser jogar em rede, copie seu ID P2P e passe para o seu amigo.`,
+						`E aí, ${myUsername}! Conexão de teste confirmada com 100% de estabilidade!`,
+						`Recebi sua mensagem em tempo real. O chat está pronto para conversar!`,
+						`Tudo certo! As mensagens sincronizam universalmente pelo Luxmc.`,
 						`Mensagem sincronizada instantaneamente!`,
 						`Convite recebido perfeitamente.`
 					];
 					const reply = botReplies[Math.floor(Math.random() * botReplies.length)];
-					activeFriend.messages = [...activeFriend.messages, {
+					const replyMsg: Message = {
 						id: String(Date.now()),
 						sender: "friend",
 						text: reply,
 						time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-					}];
+					};
+					activeFriend.messages = [...activeFriend.messages, replyMsg].slice(-100);
 					friends = [...friends];
 					saveFriends();
 				}
@@ -256,15 +350,35 @@
 			return;
 		}
 
+		const target = activeFriend.id === "global" ? "global" : activeFriend.username;
+		const payload = {
+			id: msgId,
+			sender: myUsername,
+			text,
+			time: timeStr,
+			target
+		};
+
 		try {
-			// Real socket transmission to the other PC!
-			await p2pSendMessage(activeFriend.address, myUsername, text);
+			await fetch("https://ntfy.sh/luxmc_global_chat_v2", {
+				method: "POST",
+				headers: {
+					"Content-Type": "text/plain",
+					"Title": `Luxmc Chat - ${myUsername}`
+				},
+				body: JSON.stringify(payload)
+			});
 		} catch (e) {
-			console.warn("P2P transmission warning:", e);
-			toast(`Mensagem enviada localmente (o outro PC precisa estar com o Luxmc aberto).`, "info");
-		} finally {
-			isSending = false;
+			console.warn("Relay transmission error:", e);
 		}
+
+		if (activeFriend.address && activeFriend.address.includes(":") && activeFriend.id !== "global") {
+			try {
+				await p2pSendMessage(activeFriend.address, myUsername, text);
+			} catch {}
+		}
+
+		isSending = false;
 	}
 
 	async function sendGameInvite() {
@@ -301,33 +415,32 @@
 			<div class="space-y-2">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
-						<h2 class="text-base font-extrabold text-white">Amigos P2P</h2>
+						<h2 class="text-base font-extrabold text-white">Chat & Amigos</h2>
 						<span class="bg-[#222328] text-white/50 text-xs px-2 py-0.5 rounded-md font-mono">{friends.length}</span>
 					</div>
 
 					<button 
 						class="p-2 rounded-full bg-[#222328] hover:bg-white/15 text-white transition-all cursor-pointer"
 						onclick={() => showAddModal = !showAddModal}
-						title="Conectar a outro PC"
+						title="Adicionar amigo ou sala"
 					>
 						<UserPlus class="w-4 h-4" />
 					</button>
 				</div>
 
-				<!-- Clean Luxmc P2P Connection Card (No Raw Technical Clutter) -->
 				<div class="bg-[#1c1d22] border border-white/10 p-3 rounded-2xl flex items-center justify-between shadow-inner">
 					<div class="flex items-center gap-2.5 min-w-0">
 						<div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0"></div>
 						<div class="min-w-0">
-							<span class="text-[9px] font-bold text-white/40 uppercase block">Rede P2P Luxmc</span>
-							<span class="text-xs font-mono font-black text-amber-400 truncate block">ID: #{myUsername.toUpperCase()} · Ativo</span>
+							<span class="text-[9px] font-bold text-white/40 uppercase block">Rede Universal Luxmc</span>
+							<span class="text-xs font-mono font-black text-amber-400 truncate block">ID: #{myUsername.toUpperCase()} · Online</span>
 						</div>
 					</div>
 
 					<button 
 						class="p-2 rounded-full bg-white/5 hover:bg-white/15 text-white transition-all cursor-pointer shrink-0 active:scale-95"
 						onclick={copyMyAddress}
-						title="Copiar meu código de conexão para enviar ao amigo"
+						title="Copiar meu nome para enviar ao amigo"
 					>
 						{#if copied}
 							<Check class="w-3.5 h-3.5 text-emerald-400" />
@@ -338,23 +451,23 @@
 				</div>
 			</div>
 
-			<!-- Add Friend by PC IP / Name Modal -->
+			<!-- Add Friend Modal -->
 			{#if showAddModal}
 				<div class="bg-[#1c1d22] border border-white/20 p-4 rounded-3xl space-y-3 shadow-xl" in:fade={{ duration: 150 }}>
 					<span class="text-xs font-black text-white flex items-center gap-1.5">
-						<Laptop class="w-3.5 h-3.5 text-amber-400" /> Conectar Amigo (Offline ou Original)
+						<Users class="w-3.5 h-3.5 text-amber-400" /> Adicionar Amigo (Universal)
 					</span>
 					
 					<div class="space-y-2">
 						<input 
 							type="text" 
-							placeholder="Nome do amigo no Launcher..." 
+							placeholder="Nome do amigo / Gamertag..." 
 							bind:value={newFriendUsername}
 							class="w-full bg-[#121316] border border-white/10 rounded-full px-4 py-2 text-xs text-white placeholder-white/40 focus:outline-none"
 						/>
 						<input 
 							type="text" 
-							placeholder="Código Luxmc ou IP do outro PC (Ex: 192.168.1.55)..." 
+							placeholder="Código ou IP (Opcional - deixe vazio para Universal)..." 
 							bind:value={newFriendAddress}
 							onkeydown={(e) => e.key === 'Enter' && addFriend()}
 							class="w-full bg-[#121316] border border-white/10 rounded-full px-4 py-2 text-xs text-white placeholder-white/40 focus:outline-none font-mono"
@@ -364,7 +477,7 @@
 							style="background-color: var(--accent-color, #e2b86b);"
 							onclick={addFriend}
 						>
-							Conectar Jogador
+							Adicionar Amigo
 						</button>
 					</div>
 				</div>
@@ -388,9 +501,9 @@
 						<div class="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3 text-white/30">
 							<Laptop class="w-6 h-6" />
 						</div>
-						<p class="text-xs font-bold text-white">Nenhum PC conectado</p>
+						<p class="text-xs font-bold text-white">Nenhum jogador encontrado</p>
 						<p class="text-[11px] text-white/40 mt-1 leading-relaxed">
-							Conecte-se diretamente com outro computador via IP ou inicie um teste de chat local instantâneo.
+							Busque pelo nome de usuário ou adicione um novo amigo para começar a conversar.
 						</p>
 						<button
 							type="button"
@@ -431,7 +544,7 @@
 								<div class="text-left min-w-0">
 									<h4 class="text-xs font-bold text-white truncate">{friend.username}</h4>
 									<p class="text-[10px] text-emerald-400 font-medium truncate flex items-center gap-1">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conectado via P2P
+										<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> {friend.id === 'global' ? 'Canal Universal' : 'Online'}
 									</p>
 								</div>
 							</div>
@@ -498,7 +611,7 @@
 					<div>
 						<h3 class="text-sm font-extrabold text-white">{activeFriend.username}</h3>
 						<div class="text-[10px] text-emerald-400 font-medium flex items-center gap-1.5">
-							<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Conexão Direta PC a PC Ativa
+							<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> {activeFriend.id === "global" ? "Canal Global · Todos os Jogadores Online" : "Chat Universal Ativo"}
 						</div>
 					</div>
 				</div>
@@ -514,7 +627,7 @@
 					</button>
 
 					<span class="bg-[#1c1d22] border border-white/10 text-white/50 text-[10px] font-mono px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-						<ShieldCheck class="w-3.5 h-3.5 text-emerald-400" /> P2P Criptografado
+						<ShieldCheck class="w-3.5 h-3.5 text-emerald-400" /> {activeFriend.id === "global" ? "Rede Global" : "Canal Direto"}
 					</span>
 				</div>
 			</div>
@@ -640,7 +753,7 @@
 				>
 					<input 
 						type="text" 
-						placeholder="Enviar mensagem direta para o PC de {activeFriend.username}..." 
+						placeholder="Enviar mensagem para {activeFriend.username}..." 
 						bind:value={newMessageText}
 						class="flex-1 bg-[#18191c] border border-white/10 rounded-full py-3 px-5 text-xs text-white placeholder-white/40 focus:outline-none"
 					/>
@@ -649,7 +762,7 @@
 						disabled={isSending}
 						class="h-11 w-11 rounded-full text-black flex items-center justify-center transition-all cursor-pointer shadow-md shrink-0 disabled:opacity-50 hover:scale-105 active:scale-95 hover:brightness-110"
 						style="background-color: var(--accent-color, #e2b86b);"
-						title="Enviar mensagem para o outro PC"
+						title="Enviar mensagem"
 					>
 						<Send class="w-4 h-4 {isSending ? 'animate-spin' : ''}" />
 					</button>

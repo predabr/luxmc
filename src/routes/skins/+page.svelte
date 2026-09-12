@@ -31,6 +31,7 @@
 	import { getCapePreviewDataUrl } from "$lib/utils/capeTextures";
 	import { account } from "$lib/stores/account.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { authChangeSkin } from "$lib/api/auth";
 
 	type SkinItem = {
 		id: string;
@@ -524,7 +525,7 @@
 		});
 	}
 
-	function applySkin(skin: SkinItem) {
+	async function applySkin(skin: SkinItem) {
 		isSlimModel = skin.type === "alex";
 		activeSkinStore.setSkin({
 			id: skin.id,
@@ -535,6 +536,15 @@
 			type: skin.type
 		});
 		toast(`Skin "${skin.name}" sincronizada com seu perfil!`, "success");
+
+		if (account.value?.uuid && account.value?.minecraftToken && skin.skinUrl?.startsWith("http")) {
+			try {
+				await authChangeSkin(account.value.uuid, skin.type, skin.skinUrl);
+				toast("Skin sincronizada com os servidores oficiais da Mojang!", "success");
+			} catch (e) {
+				// Offline or non-fatal
+			}
+		}
 	}
 
 	function equipMarketplaceSkin(skin: MarketplaceSkin) {

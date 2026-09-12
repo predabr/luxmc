@@ -100,3 +100,7 @@ export async function authGetTenantId(): Promise<string> {
 export async function authSetClientId(clientId: string): Promise<void> {
 	return api.invoke("auth_set_client_id", { clientId });
 }
+
+export async function authChangeSkin(uuid: string, variant: string, skinUrl: string): Promise<void> {
+	return api.invoke("auth_change_skin", { uuid, variant, skinUrl });
+}

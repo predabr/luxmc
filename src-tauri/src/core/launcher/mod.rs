@@ -169,6 +169,7 @@ impl GameLauncher {
             .to_string();
 
         let mut extra_jvm_args = Vec::new();
+        let mut extra_game_args = Vec::new();
 
         let mut loader = profile.loader.trim().to_lowercase();
         if loader == "fabric" {
@@ -260,6 +261,7 @@ impl GameLauncher {
                     new_cp.extend(classpath);
                     classpath = new_cp;
                     extra_jvm_args.extend(prep.jvm_args);
+                    extra_game_args.extend(prep.game_args);
                 }
                 Err(e) => {
                     self.emit_log(&format!("ERROR: Failed to prepare {} loader: {}. Cannot launch with mods.", loader, e));
@@ -281,8 +283,9 @@ impl GameLauncher {
         let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
         jvm_args.extend(extra_jvm_args);
 
-        let game_args =
+        let mut game_args =
             self.build_game_args(detail, username, uuid, access_token, user_type, game_dir, profile);
+        game_args.extend(extra_game_args);
 
         self.emit_log(&format!("Main class: {}", main_class));
 
@@ -387,6 +390,10 @@ impl GameLauncher {
             cmd.env_remove("APPDIR");
             cmd.env_remove("APPIMAGE");
             cmd.env_remove("OWD");
+            cmd.env_remove("LD_PRELOAD");
+            cmd.env_remove("GIO_MODULE_DIR");
+            cmd.env_remove("GTK_PATH");
+            cmd.env_remove("GSETTINGS_SCHEMA_DIR");
 
             if profile.use_vulkan {
                 self.emit_log("Mesa Zink (OpenGL sobre Vulkan) aceleração ativa");

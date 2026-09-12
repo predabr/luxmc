@@ -229,8 +229,8 @@ pub async fn prepare_neoforge(
     let lib_dir_str = libraries_dir.to_string_lossy().replace('\\', "/");
 
     let mut jvm_args = Vec::new();
-    if let Some(args) = version_data.arguments {
-        for arg in args.jvm {
+    if let Some(ref args) = version_data.arguments {
+        for arg in &args.jvm {
             match &arg {
                 serde_json::Value::String(s) => {
                     let replaced = s
@@ -278,10 +278,39 @@ pub async fn prepare_neoforge(
         jvm_args.push("-Dneoforge.enabled=true".to_string());
     }
 
+    let mut game_args = Vec::new();
+    if let Some(ref args) = version_data.arguments {
+        for arg in &args.game {
+            match arg {
+                serde_json::Value::String(s) => {
+                    game_args.push(s.clone());
+                }
+                serde_json::Value::Object(obj) => {
+                    if let Some(serde_json::Value::Array(rules)) = obj.get("rules") {
+                        if !crate::core::launcher::evaluate_rules(rules) {
+                            continue;
+                        }
+                    }
+                    if let Some(serde_json::Value::Array(values)) = obj.get("value") {
+                        for v in values {
+                            if let Some(s) = v.as_str() {
+                                game_args.push(s.to_string());
+                            }
+                        }
+                    } else if let Some(serde_json::Value::String(s)) = obj.get("value") {
+                        game_args.push(s.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     Ok(PreparedLoader {
         main_class: version_data.main_class,
         classpath_entries,
         jvm_args,
+        game_args,
     })
 }
 

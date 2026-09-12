@@ -286,3 +286,44 @@ async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<()>
     };
     crate::db::schema::accounts::upsert(&db, &row).await
 }
+
+#[tauri::command]
+pub async fn auth_change_skin(
+    uuid: String,
+    variant: String,
+    skin_url: String,
+) -> AppResult<()> {
+    let db = crate::db::shared_db().await?;
+    let account = crate::db::schema::accounts::get_by_uuid(&db, &uuid).await?
+        .ok_or_else(|| AppError::NotFound(format!("Account not found: {}", uuid)))?;
+
+    let token = account.access_token.filter(|t| !t.is_empty()).ok_or_else(|| {
+        AppError::InvalidState("Conta offline ou sem token Microsoft ativo. Faca login com a Microsoft para sincronizar com os servidores oficiais.".into())
+    })?;
+
+    let client = reqwest::Client::new();
+    let body = serde_json::json!({
+        "variant": if variant == "slim" { "slim" } else { "classic" },
+        "url": skin_url
+    });
+
+    let res = client
+        .post("https://api.minecraftservices.com/minecraft/profile/skins")
+        .bearer_auth(token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(AppError::Http)?;
+
+    if !res.status().is_success() {
+        let status = res.status();
+        let err_text = res.text().await.unwrap_or_default();
+        return Err(AppError::Internal(format!(
+            "Falha ao atualizar skin na Mojang ({}): {}",
+            status, err_text
+        )));
+    }
+
+    Ok(())
+}
+
