@@ -25,18 +25,20 @@ export interface SkinData {
 	hasCape?: boolean;
 	capeType?: CapeType;
 	customCapeUrl?: string;
+	custom?: boolean;
 }
 
 const defaultSkin: SkinData = {
 	id: "steve",
 	name: "Steve Padrão",
 	url: "https://mc-heads.net/body/Steve/300",
-	skinUrl: "https://minotar.net/skin/Steve",
+	skinUrl: "",
 	avatarUrl: "https://mc-heads.net/avatar/Steve/100",
 	type: "steve",
 	hasCape: false,
 	capeType: "none",
-	customCapeUrl: ""
+	customCapeUrl: "",
+	custom: false
 };
 
 function createSkinStore() {

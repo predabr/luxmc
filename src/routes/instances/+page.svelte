@@ -308,12 +308,16 @@
 				await versionsDownload(verId);
 			}
 			const isVulkan = p.useVulkan === true;
+			const isMsa = Boolean(account.value?.minecraftToken && account.value.minecraftToken.length > 100);
+			const skinToPass = activeSkinStore.current.custom
+				? (activeSkinStore.current.skinUrl || null)
+				: (isMsa ? null : (activeSkinStore.current.skinUrl || account.value?.skinUrl || null));
 			const res = await launchGame({
 				versionId: verId,
 				accountId: accountId || "",
 				profileId: p.id,
 				enableVulkan: isVulkan,
-				skinUrl: activeSkinStore.current.skinUrl || account.value?.skinUrl || null,
+				skinUrl: skinToPass,
 				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic"
 			});
 			gamingStats.onGameStart();

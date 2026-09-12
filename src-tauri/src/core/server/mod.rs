@@ -160,9 +160,9 @@ pub async fn ping_cached(http: &reqwest::Client, host: &str, port: u16) -> AppRe
 
     {
         let mut cache = get_cache().lock().await;
-        if cache.len() > 100 {
-            cache.retain(|_, (t, _)| t.elapsed() < Duration::from_secs(60));
-            if cache.len() > 80 {
+        if cache.len() > 40 {
+            cache.retain(|_, (t, _)| t.elapsed() < Duration::from_secs(30));
+            if cache.len() > 30 {
                 cache.clear();
             }
         }

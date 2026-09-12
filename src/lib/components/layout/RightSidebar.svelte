@@ -13,10 +13,10 @@
 		},
 		{
 			id: "news-1",
-			title: "Luxmc v1.5.2-beta: Correções Críticas & Performance",
-			date: "Hoje às 16:00",
+			title: "Luxmc v1.5.3-beta: CurseForge, Skins Oficiais & Performance",
+			date: "Hoje às 17:30",
 			tag: "ATUALIZAÇÃO",
-			desc: "Correção de Wayland GLFW, NeoForge WGL OpenGL, sessão permanente e otimização da RAM de servidores.",
+			desc: "CurseForge direto, passthrough de skins Mojang, configurações de aparência em tempo real e troca instantânea de abas.",
 			img: "/logo.png"
 		},
 		{

@@ -122,5 +122,18 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 				"Sincronização ponta-a-ponta de skins personalizadas em todas as rotas de inicialização de jogo".into(),
 			],
 		},
+		ChangelogEntry {
+			version: "1.5.3-beta".into(),
+			date: "2026-09-12".into(),
+			title: "CurseForge Direto, Passthrough de Skins Mojang Oficiais, Aparência em Tempo Real & Performance Instantânea".into(),
+			highlights: vec![
+				"Resolução direta e download de mods e dependências do CurseForge com fallback automático Edge CDN oficial da Forge".into(),
+				"Suporte nativo a skins de contas oficiais Mojang/Microsoft: carregamento autêntico direto via sessionserver sem interferência de pacotes locais".into(),
+				"Upload multipart direto para api.minecraftservices.com ao trocar skin no launcher em contas oficiais".into(),
+				"Otimização da navegação entre abas: remoção de destruição pesada de DOM e transições bloqueantes para troca instantânea de páginas".into(),
+				"Ajustes de aparência e temas (Dark/Light e tons neon) aplicados imediatamente em tempo real em todos os elementos da interface".into(),
+				"Redução estrita de cache em memória na busca e ping de servidores multiplayer, eliminando vazamento de RAM".into(),
+			],
+		},
 	])
 }

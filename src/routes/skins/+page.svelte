@@ -587,13 +587,15 @@
 	async function applySkin(skin: SkinItem, silent = false) {
 		isSlimModel = skin.type === "alex";
 		const skinData = skin.skinUrl || skin.url;
+		const isCustom = Boolean(skin.custom || (skin.id !== "steve" && skin.id !== "alex"));
 		activeSkinStore.setSkin({
 			id: skin.id,
 			name: skin.name,
 			url: skin.url,
 			skinUrl: skinData,
 			avatarUrl: skin.avatarUrl,
-			type: skin.type
+			type: skin.type,
+			custom: isCustom
 		});
 		if (!silent) {
 			toast(`Skin "${skin.name}" sincronizada com seu perfil!`, "success");
@@ -607,7 +609,7 @@
 					account.value.skinUrl = skinData;
 					account.value.skinVariant = skin.type;
 				}
-				if (!silent && account.value.minecraftToken && skinData?.startsWith("http")) {
+				if (!silent && account.value.minecraftToken && account.value.minecraftToken.length > 100) {
 					toast("Skin sincronizada com os servidores oficiais da Mojang!", "success");
 				}
 			} catch (e) {
@@ -776,7 +778,7 @@
 	onchange={handleCapeUpload} 
 />
 
-<div class="flex gap-8 h-full w-full select-none" in:fade={{ duration: 300 }}>
+<div class="flex gap-8 h-full w-full select-none">
 	<!-- Main Skins & Marketplace Area -->
 	<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-6">
 		

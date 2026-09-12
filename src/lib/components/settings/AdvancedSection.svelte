@@ -23,7 +23,7 @@
 		if (next) {
 			const ok = await discordSetActivity({
 				details: "Configurações do Launcher",
-				state: "v1.5.0-beta · Linux",
+				state: "v1.5.3-beta · Linux",
 				largeText: "Luxmc Launcher (Linux)",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",

@@ -194,17 +194,6 @@ pub async fn launch_game(
         }
     }
 
-    let effective_skin_url = request
-        .skin_url
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| account.skin_url.filter(|s| !s.trim().is_empty()))
-        .unwrap_or_else(|| format!("https://minotar.net/skin/{}", account.username));
-    let effective_skin_variant = request
-        .skin_variant
-        .filter(|s| !s.trim().is_empty())
-        .or_else(|| account.skin_variant.filter(|s| !s.trim().is_empty()))
-        .unwrap_or_else(|| "classic".to_string());
-
     let token_str = account.access_token.as_deref().unwrap_or("");
     let is_real_msa = !token_str.is_empty()
         && !token_str.starts_with("offline")
@@ -217,6 +206,33 @@ pub async fn launch_game(
     } else {
         (compute_offline_uuid(&account.username), "-".to_string(), "mojang")
     };
+
+    let has_explicit_custom_skin = request
+        .skin_url
+        .as_deref()
+        .map(|s| {
+            let trimmed = s.trim();
+            !trimmed.is_empty()
+                && (trimmed.starts_with("data:image/")
+                    || (!trimmed.starts_with("http://") && !trimmed.starts_with("https://")))
+        })
+        .unwrap_or(false);
+
+    let effective_skin_url = if is_real_msa && !has_explicit_custom_skin {
+        None
+    } else {
+        request
+            .skin_url
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| account.skin_url.filter(|s| !s.trim().is_empty()))
+            .or_else(|| (!is_real_msa).then(|| format!("https://minotar.net/skin/{}", account.username)))
+    };
+
+    let effective_skin_variant = request
+        .skin_variant
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| account.skin_variant.filter(|s| !s.trim().is_empty()))
+        .unwrap_or_else(|| "classic".to_string());
 
     app.emit(
         "launcher-log",
@@ -235,7 +251,7 @@ pub async fn launch_game(
             user_type,
             &game_dir,
             &profile,
-            Some(&effective_skin_url),
+            effective_skin_url.as_deref(),
             Some(&effective_skin_variant),
         )
         .await?;

@@ -631,12 +631,16 @@
 			launchStatusText = "Injetando parâmetros JVM, flags e inicializando Minecraft...";
 			const targetProfileId = activeProfile?.id || instanceId || "";
 			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
+			const isMsa = Boolean(account.value?.minecraftToken && account.value.minecraftToken.length > 100);
+			const skinToPass = activeSkinStore.current.custom
+				? (activeSkinStore.current.skinUrl || null)
+				: (isMsa ? null : (activeSkinStore.current.skinUrl || account.value?.skinUrl || null));
 			const result = await launchGame({
 				versionId: verId,
 				accountId: userUuid || "",
 				profileId: targetProfileId,
 				enableVulkan: isVulkan,
-				skinUrl: activeSkinStore.current.skinUrl || account.value?.skinUrl || null,
+				skinUrl: skinToPass,
 				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic"
 			});
 
@@ -742,7 +746,7 @@
 	}
 </script>
 
-<div class="flex gap-8 h-full w-full select-none" in:fade={{ duration: 300 }}>
+<div class="flex gap-8 h-full w-full select-none">
 	
 	<!-- Center Main Instance View -->
 	<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-5">

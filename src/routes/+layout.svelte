@@ -104,7 +104,7 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "v1.5.0-beta · Linux",
+					state: "v1.5.3-beta · Linux",
 					largeText: "Luxmc Launcher (Linux)",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
@@ -131,7 +131,7 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "v1.5.0-beta · Linux",
+					state: "v1.5.3-beta · Linux",
 					largeText: "Luxmc Launcher (Linux)",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
@@ -154,14 +154,14 @@
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
 			let details = "No Menu Principal";
-			let state = "v1.5.0-beta · Linux";
+			let state = "v1.5.3-beta · Linux";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
 				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
 				details = "Gerenciando Instâncias";
-				state = "v1.5.0-beta · Linux";
+				state = "v1.5.3-beta · Linux";
 			} else if (currentPath.startsWith("/instances/")) {
 				details = "Configurando Instância";
 				state = "Ajustando Modos & Versões";
@@ -257,11 +257,9 @@
 		<div class="flex h-full min-w-0 flex-1 flex-col relative z-10">
 			<!-- Removed Topbar to make it seamless like a native app -->
 			<main class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth custom-scrollbar">
-				{#key $page.url.pathname}
-					<div class="mx-auto max-w-[1600px] h-full flex flex-col" in:fade={{ duration: 160 }}>
-						{@render children?.()}
-					</div>
-				{/key}
+				<div class="mx-auto max-w-[1600px] h-full flex flex-col">
+					{@render children?.()}
+				</div>
 			</main>
 		</div>
 	</div>

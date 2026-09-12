@@ -45,6 +45,28 @@
   color-scheme: light;
 }
 
+html.light body {
+  background-color: #f1f3f7 !important;
+  color: #1e293b !important;
+}
+
+html.light .bg-\[\#0c0c0e\] { background-color: #f1f3f7 !important; }
+html.light .bg-\[\#101014\] { background-color: #f8fafc !important; }
+html.light .bg-\[\#141518\] { background-color: #ffffff !important; }
+html.light .bg-\[\#18191c\] { background-color: #ffffff !important; }
+html.light .bg-\[\#1c1d22\] { background-color: #f1f5f9 !important; }
+html.light .bg-\[\#1e1f23\] { background-color: #e2e8f0 !important; }
+html.light .bg-\[\#222328\] { background-color: #cbd5e1 !important; }
+html.light .bg-black\/50, html.light .bg-black\/60, html.light .bg-black\/40 {
+  background-color: rgba(255, 255, 255, 0.75) !important;
+}
+html.light .text-white { color: #0f172a !important; }
+html.light .text-white\/90 { color: #1e293b !important; }
+html.light .text-white\/80 { color: #334155 !important; }
+html.light .text-white\/70, html.light .text-white\/60 { color: #475569 !important; }
+html.light .text-white\/50, html.light .text-white\/40, html.light .text-white\/30 { color: #64748b !important; }
+html.light .border-white\/5, html.light .border-white\/10, html.light .border-white\/20 { border-color: rgba(15, 23, 42, 0.08) !important; }
+
 html, body {
   height: 100%;
   margin: 0;

@@ -470,12 +470,35 @@ pub async fn instance_import_modpack(
             }
         };
 
-        let resp = match state.http.get(&download_url).send().await {
-            Ok(r) => match r.error_for_status() {
-                Ok(r) => r,
-                Err(e) => { mods_fail += 1; tracing::warn!(project_id = %project_id_str, error = %e, "skip: HTTP error"); continue; }
-            },
-            Err(e) => { mods_fail += 1; tracing::warn!(project_id = %project_id_str, error = %e, "skip: request failed"); continue; }
+        let edge_url = if let Some(info) = file_info {
+            let p1 = cf_file.file_id / 1000;
+            let p2 = cf_file.file_id % 1000;
+            Some(format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name)))
+        } else if let Some(display_name) = mod_names.get(&cf_file.project_id) {
+            let p1 = cf_file.file_id / 1000;
+            let p2 = cf_file.file_id % 1000;
+            Some(format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(display_name)))
+        } else {
+            None
+        };
+
+        let resp_res = state.http.get(&download_url).send().await;
+        let resp = match resp_res {
+            Ok(r) if r.status().is_success() => r,
+            _ => {
+                if let Some(ref edge) = edge_url {
+                    if edge != &download_url {
+                        match state.http.get(edge).send().await {
+                            Ok(r) if r.status().is_success() => r,
+                            _ => { mods_fail += 1; tracing::warn!(project_id = %project_id_str, "skip: both direct and edge download failed"); continue; }
+                        }
+                    } else {
+                        mods_fail += 1; tracing::warn!(project_id = %project_id_str, "skip: edge download failed"); continue;
+                    }
+                } else {
+                    mods_fail += 1; tracing::warn!(project_id = %project_id_str, "skip: download failed"); continue;
+                }
+            }
         };
 
         use futures_util::StreamExt;

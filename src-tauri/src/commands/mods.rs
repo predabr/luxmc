@@ -225,22 +225,26 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
 
     let (file_url, file_name, _file_size, file_sha1) = match request.source.as_str() {
         "curseforge" => {
-            let versions = curseforge::get_mod_versions(&state.http, &request.project_id, "").await?;
-            let version = versions
-                .iter()
-                .find(|v| v.id == request.version_id)
-                .ok_or_else(|| {
-                    crate::error::AppError::NotFound("CurseForge mod version not found".into())
+            if let Ok(file) = curseforge::get_mod_file_details(&state.http, &request.project_id, &request.version_id).await {
+                (file.url, file.filename, file.size, file.sha1)
+            } else {
+                let versions = curseforge::get_mod_versions(&state.http, &request.project_id, "").await?;
+                let version = versions
+                    .iter()
+                    .find(|v| v.id == request.version_id)
+                    .ok_or_else(|| {
+                        crate::error::AppError::NotFound("CurseForge mod version not found".into())
+                    })?;
+                let file = version.files.first().ok_or_else(|| {
+                    crate::error::AppError::NotFound("CurseForge mod file not found".into())
                 })?;
-            let file = version.files.first().ok_or_else(|| {
-                crate::error::AppError::NotFound("CurseForge mod file not found".into())
-            })?;
-            (
-                file.url.clone(),
-                file.filename.clone(),
-                file.size,
-                file.sha1.clone(),
-            )
+                (
+                    file.url.clone(),
+                    file.filename.clone(),
+                    file.size,
+                    file.sha1.clone(),
+                )
+            }
         }
         _ => {
             let client = ModrinthClient::new(state.http.clone());
@@ -273,14 +277,47 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
         "downloading item"
     );
 
-    let resp = state.http.get(&file_url).send().await.map_err(|e| {
-        tracing::error!(url = %file_url, error = %e, "HTTP request failed");
-        e
-    })?;
-    let resp = resp.error_for_status().map_err(|e| {
-        tracing::error!(url = %file_url, error = %e, "HTTP status error");
-        e
-    })?;
+    let edge_fallback_url = if request.source == "curseforge" {
+        if let Ok(id_num) = request.version_id.parse::<u64>() {
+            let p1 = id_num / 1000;
+            let p2 = id_num % 1000;
+            Some(format!(
+                "https://edge.forgecdn.net/files/{}/{}/{}",
+                p1,
+                p2,
+                urlencoding::encode(&file_name)
+            ))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let download_target = if file_url.is_empty() {
+        edge_fallback_url.clone().unwrap_or_default()
+    } else {
+        file_url.clone()
+    };
+
+    let resp_res = state.http.get(&download_target).send().await;
+    let resp = match resp_res {
+        Ok(r) if r.status().is_success() => r,
+        _ => {
+            if let Some(ref fallback) = edge_fallback_url {
+                if fallback != &download_target {
+                    tracing::info!(fallback_url = %fallback, "Primary download failed, attempting CurseForge Edge CDN fallback");
+                    state.http.get(fallback).send().await?.error_for_status()?
+                } else if let Ok(r) = resp_res {
+                    r.error_for_status()?
+                } else {
+                    return Err(crate::error::AppError::NotFound(format!("Failed to download file from {}", download_target)));
+                }
+            } else {
+                resp_res?.error_for_status()?
+            }
+        }
+    };
 
     use futures_util::StreamExt;
     let safe_name = std::path::Path::new(&file_name)

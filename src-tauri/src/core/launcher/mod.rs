@@ -12,7 +12,7 @@ use crate::error::AppResult;
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "1.5.0-BETA";
+const LAUNCHER_VERSION: &str = "1.5.3-BETA";
 
 /// Pipeline state machine. Every transition is emitted to the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -308,32 +308,49 @@ impl GameLauncher {
         self.emit_log(&format!("Natives dir: {}", natives_dir.display()));
 
         // Apply customized player skin if configured
-        let skin_info = if let Some(s_url) = skin_url.filter(|s| !s.trim().is_empty()) {
-            Some((s_url.to_string(), skin_variant.unwrap_or("classic").to_string()))
-        } else if let Ok(db) = crate::db::shared_db().await {
-            use sqlx::Row;
-            if let Ok(Some(row)) = sqlx::query("SELECT skin_url, skin_variant FROM accounts WHERE username = ? OR uuid = ? OR id = ? LIMIT 1")
-                .bind(username)
-                .bind(uuid)
-                .bind(uuid)
-                .fetch_optional(db.pool())
-                .await
-            {
-                let s_url: Option<String> = row.try_get("skin_url").ok();
-                let s_var: Option<String> = row.try_get("skin_variant").ok();
-                s_url.map(|u| (u, s_var.unwrap_or_else(|| "classic".to_string())))
+        let is_msa = user_type == "msa";
+        let has_explicit_custom_skin = skin_url
+            .map(|s| {
+                let trimmed = s.trim();
+                !trimmed.is_empty()
+                    && (trimmed.starts_with("data:image/")
+                        || (!trimmed.starts_with("http://") && !trimmed.starts_with("https://")))
+            })
+            .unwrap_or(false);
+
+        if is_msa && !has_explicit_custom_skin {
+            self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
+            let _ = clean_skin_injection(game_dir).await;
+        } else {
+            let skin_info = if let Some(s_url) = skin_url.filter(|s| !s.trim().is_empty()) {
+                Some((s_url.to_string(), skin_variant.unwrap_or("classic").to_string()))
+            } else if let Ok(db) = crate::db::shared_db().await {
+                use sqlx::Row;
+                if let Ok(Some(row)) = sqlx::query("SELECT skin_url, skin_variant FROM accounts WHERE username = ? OR uuid = ? OR id = ? LIMIT 1")
+                    .bind(username)
+                    .bind(uuid)
+                    .bind(uuid)
+                    .fetch_optional(db.pool())
+                    .await
+                {
+                    let s_url: Option<String> = row.try_get("skin_url").ok();
+                    let s_var: Option<String> = row.try_get("skin_variant").ok();
+                    s_url.map(|u| (u, s_var.unwrap_or_else(|| "classic".to_string())))
+                } else {
+                    None
+                }
             } else {
                 None
-            }
-        } else {
-            None
-        };
+            };
 
-        let (skin_source, variant) = skin_info.unwrap_or_else(|| {
-            (format!("https://minotar.net/skin/{}", username), skin_variant.unwrap_or("classic").to_string())
-        });
-        self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
-        let _ = inject_player_skin(self.downloader.http(), game_dir, &skin_source, &variant, &profile.mc_version).await;
+            if let Some((skin_source, variant)) = skin_info {
+                self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
+                let _ = inject_player_skin(self.downloader.http(), game_dir, &skin_source, &variant, &profile.mc_version).await;
+            } else if !is_msa {
+                let default_source = format!("https://minotar.net/skin/{}", username);
+                let _ = inject_player_skin(self.downloader.http(), game_dir, &default_source, "classic", &profile.mc_version).await;
+            }
+        }
 
         self.emit_stage(LaunchStage::ResolvingArgs);
         let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
@@ -1324,6 +1341,56 @@ fn get_pack_format_for_version(version: &str) -> u32 {
     }
 }
 
+pub async fn clean_skin_injection(game_dir: &std::path::Path) -> AppResult<()> {
+    let pack_dir = game_dir.join("resourcepacks").join("LuxmcCustomSkin");
+    if pack_dir.exists() {
+        let _ = tokio::fs::remove_dir_all(&pack_dir).await;
+    }
+
+    let options_file = game_dir.join("options.txt");
+    if options_file.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&options_file).await {
+            let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
+            let mut changed = false;
+            for line in &mut lines {
+                if line.starts_with("resourcePacks:") {
+                    let inner = line.trim_start_matches("resourcePacks:").trim();
+                    if inner.starts_with('[') && inner.ends_with(']') {
+                        let array_content = &inner[1..inner.len() - 1];
+                        let entries: Vec<String> = array_content
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| {
+                                !s.is_empty()
+                                    && s != "\"LuxmcCustomSkin\""
+                                    && s != "\"file/LuxmcCustomSkin\""
+                            })
+                            .collect();
+                        *line = format!("resourcePacks:[{}]", entries.join(","));
+                        changed = true;
+                    }
+                } else if line.starts_with("incompatibleResourcePacks:") {
+                    let cleaned = line
+                        .replace(",\"file/LuxmcCustomSkin\"", "")
+                        .replace("\"file/LuxmcCustomSkin\",", "")
+                        .replace("\"file/LuxmcCustomSkin\"", "")
+                        .replace(",\"LuxmcCustomSkin\"", "")
+                        .replace("\"LuxmcCustomSkin\",", "")
+                        .replace("\"LuxmcCustomSkin\"", "");
+                    if &cleaned != line {
+                        *line = cleaned;
+                        changed = true;
+                    }
+                }
+            }
+            if changed {
+                let _ = tokio::fs::write(&options_file, lines.join("\n")).await;
+            }
+        }
+    }
+    Ok(())
+}
+
 async fn inject_player_skin(
     http: &reqwest::Client,
     game_dir: &std::path::Path,
@@ -1384,8 +1451,9 @@ async fn inject_player_skin(
         }
     }
 
-    if skin_bytes.is_empty() {
-        skin_bytes = include_bytes!("../../../icons/64x64.png").to_vec();
+    if skin_bytes.is_empty() || skin_bytes.len() < 8 || &skin_bytes[0..8] != b"\x89PNG\r\n\x1a\n" {
+        tracing::warn!("No valid PNG skin bytes found for player skin injection. Cleaning up injection pack...");
+        return clean_skin_injection(game_dir).await;
     }
 
     let pack_dir = game_dir.join("resourcepacks").join("LuxmcCustomSkin");

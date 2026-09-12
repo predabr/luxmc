@@ -405,7 +405,7 @@
 	}
 </script>
 
-<div class="flex gap-6 h-full w-full select-none" in:fade={{ duration: 250 }}>
+<div class="flex gap-6 h-full w-full select-none">
 	
 	<!-- Friends List Column (Left) -->
 	<div class="w-[340px] shrink-0 bg-[#141518] border border-white/5 rounded-3xl p-4 flex flex-col justify-between shadow-xl">

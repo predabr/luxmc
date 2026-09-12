@@ -361,28 +361,68 @@ pub async fn auth_change_skin(
         && !token_str.starts_with("offline")
         && !token_str.starts_with("token_")
         && !token_str.starts_with("dev-")
-        && token_str.len() > 100
-        && (skin_url.starts_with("http://") || skin_url.starts_with("https://"));
+        && token_str.len() > 100;
 
     if is_real_msa {
         let client = reqwest::Client::new();
-        let body = serde_json::json!({
-            "variant": norm_variant,
-            "url": skin_url
-        });
+        if skin_url.starts_with("http://") || skin_url.starts_with("https://") {
+            let body = serde_json::json!({
+                "variant": norm_variant,
+                "url": skin_url
+            });
 
-        let res = client
-            .post("https://api.minecraftservices.com/minecraft/profile/skins")
-            .bearer_auth(token_str)
-            .json(&body)
-            .send()
-            .await;
+            let res = client
+                .post("https://api.minecraftservices.com/minecraft/profile/skins")
+                .bearer_auth(token_str)
+                .json(&body)
+                .send()
+                .await;
 
-        if let Ok(resp) = res {
-            if !resp.status().is_success() {
-                let status = resp.status();
-                let err_text = resp.text().await.unwrap_or_default();
-                tracing::warn!(status = %status, err = %err_text, "Failed to sync skin with Mojang API");
+            if let Ok(resp) = res {
+                if !resp.status().is_success() {
+                    let status = resp.status();
+                    let err_text = resp.text().await.unwrap_or_default();
+                    tracing::warn!(status = %status, err = %err_text, "Failed to sync skin URL with Mojang API");
+                }
+            }
+        } else {
+            let skin_bytes: Vec<u8> = if skin_url.starts_with("data:image/") {
+                if let Some(comma_pos) = skin_url.find(',') {
+                    use base64::Engine;
+                    base64::engine::general_purpose::STANDARD
+                        .decode(&skin_url[comma_pos + 1..])
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                }
+            } else {
+                tokio::fs::read(&skin_url).await.unwrap_or_default()
+            };
+
+            if !skin_bytes.is_empty() && skin_bytes.len() >= 8 && &skin_bytes[0..8] == b"\x89PNG\r\n\x1a\n" {
+                let part = reqwest::multipart::Part::bytes(skin_bytes)
+                    .file_name("skin.png")
+                    .mime_str("image/png")
+                    .unwrap_or_else(|_| reqwest::multipart::Part::bytes(Vec::new()));
+
+                let form = reqwest::multipart::Form::new()
+                    .text("variant", norm_variant.to_string())
+                    .part("file", part);
+
+                let res = client
+                    .post("https://api.minecraftservices.com/minecraft/profile/skins")
+                    .bearer_auth(token_str)
+                    .multipart(form)
+                    .send()
+                    .await;
+
+                if let Ok(resp) = res {
+                    if !resp.status().is_success() {
+                        let status = resp.status();
+                        let err_text = resp.text().await.unwrap_or_default();
+                        tracing::warn!(status = %status, err = %err_text, "Failed to sync multipart skin with Mojang API");
+                    }
+                }
             }
         }
     }

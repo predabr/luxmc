@@ -714,6 +714,67 @@ pub async fn get_download_url(
     )))
 }
 
+pub async fn get_mod_file_details(
+    http: &reqwest::Client,
+    project_id: &str,
+    file_id: &str,
+) -> AppResult<ModFile> {
+    let key = match api_key() {
+        Some(k) => k,
+        None => return Err(crate::error::AppError::NotFound("CurseForge API key missing".into())),
+    };
+
+    let file_info_url = format!("{}/mods/{}/files/{}", CURSEFORGE_API, project_id, file_id);
+    let resp = http
+        .get(&file_info_url)
+        .header("x-api-key", &key)
+        .timeout(Duration::from_secs(15))
+        .send()
+        .await?;
+
+    if resp.status().is_success() {
+        let body: serde_json::Value = resp.json().await?;
+        if let Some(data) = body.get("data") {
+            let filename = data.get("fileName").and_then(|n| n.as_str()).unwrap_or("mod.jar").to_string();
+            let size = data.get("fileLength").and_then(|l| l.as_u64()).unwrap_or(0);
+            let mut sha1 = String::new();
+            if let Some(hashes) = data.get("hashes").and_then(|h| h.as_array()) {
+                for h in hashes {
+                    if h.get("algo").and_then(|a| a.as_u64()) == Some(1) {
+                        if let Some(v) = h.get("value").and_then(|v| v.as_str()) {
+                            sha1 = v.to_string();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            let dl_url = data.get("downloadUrl").and_then(|d| d.as_str()).unwrap_or("");
+            let url = if !dl_url.is_empty() {
+                dl_url.to_string()
+            } else if let Ok(id_num) = file_id.parse::<u64>() {
+                let p1 = id_num / 1000;
+                let p2 = id_num % 1000;
+                format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&filename))
+            } else {
+                String::new()
+            };
+
+            return Ok(ModFile {
+                url,
+                filename,
+                size,
+                sha1,
+            });
+        }
+    }
+
+    Err(crate::error::AppError::NotFound(format!(
+        "File {} for mod {} not found on CurseForge",
+        file_id, project_id
+    )))
+}
+
 pub async fn get_mod_names_batch(
     http: &reqwest::Client,
     mod_ids: &[u64],
