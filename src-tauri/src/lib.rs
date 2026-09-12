@@ -158,6 +158,7 @@ pub async fn run() {
             commands::optimizer::optimizer_get_perf_pack,
             commands::optimizer::optimizer_install_perf_pack,
             commands::optimizer::optimizer_detect_gpu,
+            commands::updater::app_perform_update,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

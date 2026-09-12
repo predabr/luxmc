@@ -13,10 +13,10 @@
 		},
 		{
 			id: "news-1",
-			title: "Luxmc v1.3.1-alpha: Java 8 Automático & Modpacks",
-			date: "Hoje às 11:30",
+			title: "Luxmc v1.5.0-beta: Atualizador Automático & Modpacks",
+			date: "Hoje às 14:00",
 			tag: "ATUALIZAÇÃO",
-			desc: "Compatibilidade total com Pixelmon, 1.8.9 e 1.12.2, suporte estrito ao Java 8 e login persistente Microsoft.",
+			desc: "Atualizador embutido com reinicialização nativa, compatibilidade global com modpacks e otimizações de RAM.",
 			img: "/logo.png"
 		},
 		{

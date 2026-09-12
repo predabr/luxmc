@@ -14,3 +14,4 @@ export * from "./tools";
 export * from "./discord";
 export * from "./optimizer";
 export * from "./p2p";
+export * from "./updater";

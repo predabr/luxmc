@@ -56,6 +56,7 @@
 	import JvmSection from "$lib/components/settings/JvmSection.svelte";
 	import LanguageSection from "$lib/components/settings/LanguageSection.svelte";
 	import AdvancedSection from "$lib/components/settings/AdvancedSection.svelte";
+	import { updaterStore } from "$lib/stores/updater.svelte";
 
 	const { t } = useTranslation();
 
@@ -174,7 +175,7 @@
 		kernelVersion: "Linux",
 		arch: "x86_64",
 		totalRamMb: 16384,
-		launcherVersion: "1.3.1-Alpha"
+		launcherVersion: "1.5.0-Beta"
 	});
 
 	let changelogList = $state<ChangelogEntry[]>([]);
@@ -195,7 +196,7 @@
 					kernelVersion: String(specs.kernelVersion),
 					arch: specs.arch,
 					totalRamMb: specs.totalRamMb,
-					launcherVersion: specs.launcherVersion || "1.3.1-Alpha"
+					launcherVersion: specs.launcherVersion || "1.5.0-Beta"
 				};
 			}
 		}).catch(err => console.error(err));
@@ -216,7 +217,7 @@
 		if (discordRpc) {
 			discordSetActivity({
 				details: "Configurações do Launcher",
-				state: "v1.3.1-alpha · Linux",
+				state: "v1.5.0-beta · Linux",
 				largeText: "Luxmc Launcher (Linux)",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
@@ -242,7 +243,7 @@
 		if (discordRpc) {
 			const ok = await discordSetActivity({
 				details: "Configurações do Launcher",
-				state: "v1.3.1-alpha · Linux",
+				state: "v1.5.0-beta · Linux",
 				largeText: "Luxmc Launcher (Linux)",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
@@ -594,7 +595,7 @@
 							try {
 								await discordSetActivity({
 									details: "Testando Rich Presence",
-									state: "v1.3.1-alpha · Linux",
+									state: "v1.5.0-beta · Linux",
 									largeText: "Luxmc Launcher (Linux)",
 									largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 									smallImage: "grass",
@@ -961,10 +962,10 @@
 						<button
 							type="button"
 							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
-							onclick={() => toast("Você está usando a versão mais recente do Luxmc (v1.3.1)!", "success")}
+							onclick={() => updaterStore.check(true)}
 						>
-							<span class="flex items-center gap-2"><RefreshCw class="w-4 h-4 text-brand-500" /> Checar Atualizações</span>
-							<span class="text-[10px] text-white/40">v1.3.1</span>
+							<span class="flex items-center gap-2"><RefreshCw class="w-4 h-4 text-brand-500 {updaterStore.isChecking ? 'animate-spin' : ''}" /> Checar Atualizações</span>
+							<span class="text-[10px] text-white/40">v1.5.0-beta</span>
 						</button>
 						<button
 							type="button"

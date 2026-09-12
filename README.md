@@ -1,11 +1,11 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="180" />
-  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.3.1-ALPHA</span></h1>
+  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.5.0-BETA</span></h1>
   <p><strong>O Minecraft Launcher moderno, leve e de alta performance.</strong></p>
   <p><em>Rápido. Moderno. Poderoso. 100% gratuito.</em></p>
 
   <p>
-    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.3.1--ALPHA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
+    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.5.0--BETA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
     <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20Arch-blue?style=for-the-badge&logo=linux" alt="Multiplatform" />
     <img src="https://img.shields.io/badge/Windows-Nativo%20EXE-0078D4?style=for-the-badge&logo=windows" alt="Windows EXE" />
     <img src="https://img.shields.io/badge/Arch%20Linux-AUR%20PKGBUILD-1793D1?style=for-the-badge&logo=archlinux" alt="Arch Linux" />
@@ -54,9 +54,19 @@ O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (T
 
 ---
 
-## 🌟 Novidades na v1.3.1-ALPHA
+## 🌟 Novidades na v1.5.0-BETA
 
-Esta versão foca na resolução de problemas críticos de execução no Windows, compatibilidade retroativa de bibliotecas legadas, otimização extrema de memória e expansão da personalização:
+Esta versão traz o **Atualizador Automático In-App Nativo**, substituição atômica de binário em runtime, compatibilidade global com modpacks e otimizações contínuas de RAM:
+
+- 🚀 **Atualizador Automático Embutido:**
+  - O launcher verifica atualizações do GitHub Releases diretamente.
+  - Download via streaming com barra de progresso em tempo real (MB transferidos e porcentagem).
+  - Substituição atômica do executável (`.AppImage` no Linux, `.exe` no Windows) e reinicialização imediata sem intervenção manual.
+- 📦 **Suporte Universal e Estável a Modpacks:**
+  - Correção na importação de grandes modpacks (BetterMC, Cobblemon, Pixelmon, Fabulously Optimized).
+  - Tolerância a falhas em CDNs secundárias de mods e downloads paralelos sem travar a interface.
+- 🎨 **Injeção de Skins e Capas em Runtime:**
+  - Aplicação garantida das skins e capas salvas para o perfil de jogo.
 
 - 🪟 **Correção Definitiva do Erro Win32 193 no Windows:**
   - Identificação de plataforma em runtime (`windows-x64`) no gerenciador de downloads do Java da Mojang, baixando binários nativos executáveis PE (`java.exe`) em vez de binários ELF incompatíveis.
@@ -113,7 +123,7 @@ Esta versão foca na resolução de problemas críticos de execução no Windows
 
 ## 📥 Como Baixar e Instalar
 
-Baixe o pacote para seu sistema na aba de **[📦 Releases Oficiais (v1.3.1-ALPHA)](https://github.com/predabr/luxmc/releases/latest)**.
+Baixe o pacote para seu sistema na aba de **[📦 Releases Oficiais (v1.5.0-BETA)](https://github.com/predabr/luxmc/releases/latest)**.
 
 ### 🪟 Microsoft Windows (`Luxmc.exe`)
 Executável nativo de 64-bit para Windows 10 e Windows 11 com WebView2:
@@ -124,10 +134,10 @@ Executável nativo de 64-bit para Windows 10 e Windows 11 com WebView2:
 Compatível com todas as distribuições Linux:
 ```bash
 # 1. Dê permissão de execução
-chmod +x Luxmc_1.3.1-alpha_amd64.AppImage
+chmod +x Luxmc_1.5.0-beta_amd64.AppImage
 
 # 2. Execute
-./Luxmc_1.3.1-alpha_amd64.AppImage
+./Luxmc_1.5.0-beta_amd64.AppImage
 ```
 
 ### 🟣 Arch Linux / Manjaro
@@ -147,12 +157,12 @@ makepkg -si
 
 ### 🔴 Debian / Ubuntu / Pop!_OS (.deb)
 ```bash
-sudo apt install ./Luxmc_1.3.1-alpha_amd64.deb
+sudo apt install ./Luxmc_1.5.0-beta_amd64.deb
 ```
 
 ### 🔵 Fedora / openSUSE (.rpm)
 ```bash
-sudo dnf install ./Luxmc-1.3.1-alpha-1.x86_64.rpm
+sudo dnf install ./Luxmc-1.5.0-beta-1.x86_64.rpm
 ```
 
 ---

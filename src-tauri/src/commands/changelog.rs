@@ -84,5 +84,18 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 				"Auto-recuperação de versões do Minecraft direto do manifesto oficial caso não existam no banco de dados local".into(),
 			],
 		},
+		ChangelogEntry {
+			version: "1.5.0-beta".into(),
+			date: "2026-09-12".into(),
+			title: "Atualizador Automático In-App Nativo, Suporte Global a Modpacks & Performance Estável".into(),
+			highlights: vec![
+				"Atualizador automático embutido: download com streaming, barra de progresso em tempo real, substituição atômica de binário e reinicialização instantânea".into(),
+				"Correção definitiva de importação de modpacks (BetterMC, Cobblemon, Pixelmon) com download paralelo otimizado e tratamento de arquivos ausentes".into(),
+				"Injeção correta de skins e capas customizadas em instâncias offline e online".into(),
+				"Ajustes de parâmetros de memória e GC (G1GC com ZGC fallback) para evitar travamentos e picos de RAM".into(),
+				"Exibição correta de capas e nomes de instâncias criadas a partir de modpacks na biblioteca".into(),
+				"Pipeline de release automatizado com suporte a Linux (AppImage, deb, rpm), Windows (exe, msi) e macOS (dmg)".into(),
+			],
+		},
 	])
 }
