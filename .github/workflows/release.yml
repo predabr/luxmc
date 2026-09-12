@@ -290,7 +290,7 @@ jobs:
           TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
         run: |
           cat << 'EOF' > /tmp/release_notes.md
-          ## Luxmc ${{ github.ref_name }}
+          ## Luxmc ${{ inputs.tag_name || github.ref_name }}
 
           ### Download
 

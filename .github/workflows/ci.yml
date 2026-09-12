@@ -63,6 +63,9 @@ jobs:
       - name: Frontend Lint (svelte-check)
         run: pnpm check
 
+      - name: Frontend Build
+        run: pnpm build
+
       - name: Rust Compilation Check
         working-directory: src-tauri
         run: cargo check

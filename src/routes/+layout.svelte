@@ -4,6 +4,7 @@
 	import { fade, fly } from "svelte/transition";
 	import { cubicOut } from "svelte/easing";
 	import { page } from "$app/stores";
+	import { beforeNavigate } from "$app/navigation";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
 	import Toasts from "$lib/components/ui/Toasts.svelte";
 	import StatusBanner from "$lib/components/ui/StatusBanner.svelte";
@@ -34,6 +35,7 @@
 
 	const tabOrderMap: Record<string, number> = {
 		"/": 0,
+		"/news": 0.5,
 		"/mods": 1,
 		"/servers": 2,
 		"/skins": 3,
@@ -54,16 +56,13 @@
 		return 0;
 	}
 
-	let previousPathname = $state($page.url.pathname);
 	let slideDirection = $state(1);
 
-	$effect(() => {
-		const currentPath = $page.url.pathname;
-		if (currentPath !== previousPathname) {
-			const prevIdx = getRouteOrder(previousPathname);
-			const curIdx = getRouteOrder(currentPath);
+	beforeNavigate((nav) => {
+		if (nav.from && nav.to && nav.from.url.pathname !== nav.to.url.pathname) {
+			const prevIdx = getRouteOrder(nav.from.url.pathname);
+			const curIdx = getRouteOrder(nav.to.url.pathname);
 			slideDirection = curIdx >= prevIdx ? 1 : -1;
-			previousPathname = currentPath;
 		}
 	});
 	onMount(() => {

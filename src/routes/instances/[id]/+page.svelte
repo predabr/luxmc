@@ -456,6 +456,7 @@
 			}
 		} catch (e) {
 			console.error(e);
+			toast("Falha ao carregar dados da instância: " + String(e), "error");
 		} finally {
 			isLoadingData = false;
 		}
