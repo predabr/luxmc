@@ -217,9 +217,9 @@ pub async fn auth_switch_account(
         access_token: row.access_token.unwrap_or_default(),
         refresh_token: row.refresh_token,
         expires_at: row.expires_at.map(|dt| dt.timestamp()).unwrap_or(0),
-        skin_url: None,
-        skin_variant: None,
-        cape_url: None,
+        skin_url: row.skin_url,
+        skin_variant: row.skin_variant,
+        cape_url: row.cape_url,
     })
 }
 
@@ -302,6 +302,9 @@ pub async fn auth_offline_login(username: String) -> AppResult<AuthAccount> {
         ),
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        skin_url: account.skin_url.clone(),
+        skin_variant: account.skin_variant.clone(),
+        cape_url: account.cape_url.clone(),
     };
     crate::db::schema::accounts::upsert(&db, &row).await?;
     let _ = set_active_account_id(&account.id).await;
@@ -321,6 +324,9 @@ async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<()>
         ),
         created_at: chrono::Utc::now(),
         updated_at: chrono::Utc::now(),
+        skin_url: account.skin_url.clone(),
+        skin_variant: account.skin_variant.clone(),
+        cape_url: account.cape_url.clone(),
     };
     crate::db::schema::accounts::upsert(&db, &row).await?;
     let _ = set_active_account_id(&account.id).await;

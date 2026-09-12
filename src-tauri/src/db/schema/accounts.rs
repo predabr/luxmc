@@ -14,14 +14,17 @@ pub async fn list(db: &Db) -> AppResult<Vec<AccountRow>> {
 pub async fn upsert(db: &Db, account: &AccountRow) -> AppResult<()> {
     let now = Utc::now();
     sqlx::query(
-		"INSERT INTO accounts (id, username, uuid, refresh_token, access_token, expires_at, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		"INSERT INTO accounts (id, username, uuid, refresh_token, access_token, expires_at, created_at, updated_at, skin_url, skin_variant, cape_url)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(uuid) DO UPDATE SET
 			username = excluded.username,
 			refresh_token = excluded.refresh_token,
 			access_token = excluded.access_token,
 			expires_at = excluded.expires_at,
-			updated_at = excluded.updated_at",
+			updated_at = excluded.updated_at,
+			skin_url = excluded.skin_url,
+			skin_variant = excluded.skin_variant,
+			cape_url = excluded.cape_url",
 	)
 	.bind(&account.id)
 	.bind(&account.username)
@@ -31,6 +34,9 @@ pub async fn upsert(db: &Db, account: &AccountRow) -> AppResult<()> {
 	.bind(&account.expires_at)
 	.bind(&account.created_at)
 	.bind(now)
+	.bind(&account.skin_url)
+	.bind(&account.skin_variant)
+	.bind(&account.cape_url)
 	.execute(db.pool())
 	.await
 	.map_err(crate::error::AppError::from)?;

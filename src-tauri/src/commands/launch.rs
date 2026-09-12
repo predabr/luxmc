@@ -76,6 +76,9 @@ pub async fn launch_game(
                     expires_at: None,
                     created_at: chrono::Utc::now(),
                     updated_at: chrono::Utc::now(),
+                    skin_url: None,
+                    skin_variant: None,
+                    cape_url: None,
                 }
             });
 

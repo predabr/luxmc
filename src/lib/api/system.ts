@@ -20,6 +20,9 @@ export async function appInit(): Promise<{
 		expiresAt: string | null;
 		createdAt: string;
 		updatedAt: string;
+		skinUrl?: string | null;
+		skinVariant?: string | null;
+		capeUrl?: string | null;
 	} | null;
 	profiles: Array<{
 		id: string;

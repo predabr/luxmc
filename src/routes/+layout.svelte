@@ -18,6 +18,7 @@
 	import { appState } from "$lib/stores/app.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { appInit, discordSetActivity, listenGameExit } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
@@ -37,6 +38,7 @@
 		}, 2500);
 		appInit().then((init) => {
 			clearTimeout(initTimer);
+			initialized = true;
 			appState.devMode = init.devMode;
 			if (init.account) {
 				account.value = {
@@ -45,12 +47,27 @@
 					uuid: init.account.uuid,
 					minecraftToken: init.account.accessToken ?? "",
 					expiresAt: init.account.expiresAt ? new Date(init.account.expiresAt).getTime() : 0,
+					skinUrl: init.account.skinUrl ?? null,
+					skinVariant: init.account.skinVariant ?? null,
+					capeUrl: init.account.capeUrl ?? null,
 				};
 				if (typeof window !== "undefined") {
 					try {
 						localStorage.setItem("luxmc_current_account", JSON.stringify(account.value));
 					} catch {}
 				}
+				const skinUrl = init.account.skinUrl || `https://minotar.net/skin/${init.account.username}`;
+				activeSkinStore.setSkin({
+					id: init.account.uuid,
+					name: init.account.username,
+					url: `https://mc-heads.net/body/${init.account.username}/300`,
+					skinUrl,
+					avatarUrl: `https://mc-heads.net/avatar/${init.account.username}/100`,
+					type: init.account.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve",
+					hasCape: Boolean(init.account.capeUrl),
+					capeType: init.account.capeUrl ? "custom" : "none",
+					customCapeUrl: init.account.capeUrl || ""
+				});
 			} else if (typeof window !== "undefined") {
 				const saved = localStorage.getItem("luxmc_current_account");
 				if (saved) {
@@ -222,7 +239,7 @@
 
 <ErrorBoundary>
 {#if showSplash || appState.showCutscene}
-	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; }} />
+	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; initialized = true; }} />
 {:else if !initialized}
 	<div class="flex h-full w-full items-center justify-center bg-black/50 backdrop-blur-xl" in:fade={{ duration: 300 }}>
 		<div class="flex flex-col items-center gap-4">

@@ -470,21 +470,39 @@
 
 		if (account.value?.username) {
 			const uName = account.value.username;
+			let preferSkinUrl = account.value.skinUrl || activeSkinStore.current.skinUrl || `https://minotar.net/skin/${uName}`;
+			if (preferSkinUrl.startsWith("http://")) {
+				preferSkinUrl = preferSkinUrl.replace("http://", "https://");
+			}
+			const preferCapeUrl = account.value.capeUrl || activeSkinStore.current.customCapeUrl || "";
+
 			const officialSkin: SkinItem = {
 				id: "official_" + (account.value.uuid || uName),
 				name: uName + " (Oficial)",
 				url: `https://mc-heads.net/body/${uName}/300`,
-				skinUrl: activeSkinStore.current.skinUrl || `https://minotar.net/skin/${uName}`,
+				skinUrl: preferSkinUrl,
 				avatarUrl: `https://mc-heads.net/avatar/${uName}/100`,
-				type: activeSkinStore.current.type || "steve",
+				type: (account.value.skinVariant?.toLowerCase() === "slim" || activeSkinStore.current.type === "alex") ? "alex" : "steve",
 				custom: true
 			};
-			if (!savedSkins.some(s => s.id === officialSkin.id)) {
+			const existingIdx = savedSkins.findIndex(s => s.id === officialSkin.id);
+			if (existingIdx >= 0) {
+				savedSkins[existingIdx] = { ...savedSkins[existingIdx], skinUrl: preferSkinUrl, type: officialSkin.type };
+			} else {
 				savedSkins = [officialSkin, ...savedSkins].slice(0, 25);
+			}
+
+			if (!activeSkinStore.current.skinUrl || activeSkinStore.current.skinUrl.includes("/skin/Steve")) {
+				applySkin(officialSkin, true);
+			}
+
+			if (preferCapeUrl) {
+				selectedCape = "custom";
+				activeSkinStore.setCape("custom", preferCapeUrl);
 			}
 		}
 
-		if (activeSkinStore.current.customCapeUrl && (selectedCape === "none" || activeSkinStore.current.capeType === "custom")) {
+		if (activeSkinStore.current.customCapeUrl) {
 			selectedCape = "custom";
 		}
 	});
@@ -566,7 +584,7 @@
 		});
 	}
 
-	async function applySkin(skin: SkinItem) {
+	async function applySkin(skin: SkinItem, silent = false) {
 		isSlimModel = skin.type === "alex";
 		activeSkinStore.setSkin({
 			id: skin.id,
@@ -576,12 +594,16 @@
 			avatarUrl: skin.avatarUrl,
 			type: skin.type
 		});
-		toast(`Skin "${skin.name}" sincronizada com seu perfil!`, "success");
+		if (!silent) {
+			toast(`Skin "${skin.name}" sincronizada com seu perfil!`, "success");
+		}
 
 		if (account.value?.uuid && account.value?.minecraftToken && skin.skinUrl?.startsWith("http")) {
 			try {
 				await authChangeSkin(account.value.uuid, skin.type, skin.skinUrl);
-				toast("Skin sincronizada com os servidores oficiais da Mojang!", "success");
+				if (!silent) {
+					toast("Skin sincronizada com os servidores oficiais da Mojang!", "success");
+				}
 			} catch (e) {
 				// Offline or non-fatal
 			}
@@ -611,7 +633,7 @@
 		if (!file) return;
 
 		if (!file.name.toLowerCase().endsWith(".png")) {
-			toast("Selecione um arquivo de skin válido (.png) de 64x64!", "error");
+			toast("Selecione um arquivo de skin válido (.png)!", "error");
 			return;
 		}
 
@@ -622,14 +644,15 @@
 
 			const img = new Image();
 			img.onload = () => {
+				const scale = Math.max(1, Math.floor(img.width / 64));
 				const canvas = document.createElement("canvas");
 				canvas.width = 64;
 				canvas.height = 64;
 				const ctx = canvas.getContext("2d");
 				if (ctx) {
 					ctx.imageSmoothingEnabled = false;
-					ctx.drawImage(img, 8, 8, 8, 8, 0, 0, 64, 64);
-					ctx.drawImage(img, 40, 8, 8, 8, 0, 0, 64, 64);
+					ctx.drawImage(img, 8 * scale, 8 * scale, 8 * scale, 8 * scale, 0, 0, 64, 64);
+					ctx.drawImage(img, 40 * scale, 8 * scale, 8 * scale, 8 * scale, 0, 0, 64, 64);
 				}
 				const avatarDataUrl = canvas.toDataURL();
 				const cleanName = file.name.replace(/\.png$/i, "");

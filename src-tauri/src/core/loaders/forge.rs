@@ -168,19 +168,37 @@ fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
     Ok(s)
 }
 
+fn find_java_binary(libraries_dir: &Path) -> std::path::PathBuf {
+    if let Some(parent) = libraries_dir.parent() {
+        let possible_bins = [
+            parent.join("java").join("21").join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }),
+            parent.join("java").join("17").join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }),
+            parent.join("java").join("8").join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }),
+        ];
+        for b in possible_bins {
+            if b.exists() {
+                return b;
+            }
+        }
+    }
+    if let Ok(java_home) = std::env::var("JAVA_HOME") {
+        let b = std::path::PathBuf::from(java_home).join("bin").join(if cfg!(windows) { "java.exe" } else { "java" });
+        if b.exists() {
+            return b;
+        }
+    }
+    std::path::PathBuf::from(if cfg!(windows) { "java.exe" } else { "java" })
+}
+
 pub async fn prepare_forge(
     http: &reqwest::Client,
     libraries_dir: &Path,
     mc_version: &str,
     loader_version: Option<&str>,
 ) -> AppResult<PreparedLoader> {
-    let clean_loader_version = if let Some(v) = loader_version {
-        let trimmed = v.trim();
-        let prefix = format!("{}-", mc_version);
-        if trimmed.starts_with(&prefix) {
-            trimmed.trim_start_matches(&prefix).to_string()
-        } else if !trimmed.is_empty() {
-            trimmed.to_string()
+    let chosen_version = if let Some(v) = loader_version {
+        if !v.trim().is_empty() {
+            v.trim().to_string()
         } else {
             get_latest_loader_version(http, mc_version).await?
         }
@@ -188,7 +206,11 @@ pub async fn prepare_forge(
         get_latest_loader_version(http, mc_version).await?
     };
 
-    let full_version = format!("{}-{}", mc_version, clean_loader_version);
+    let full_version = if chosen_version.starts_with(mc_version) {
+        chosen_version.clone()
+    } else {
+        format!("{}-{}", mc_version, chosen_version)
+    };
 
     let installer_url = format!(
         "{}/net/minecraftforge/forge/{}/forge-{}-installer.jar",
@@ -218,6 +240,29 @@ pub async fn prepare_forge(
             .await
             .map_err(|e| AppError::Internal(format!("Failed to read Forge installer: {e}")))?;
         tokio::fs::write(&installer_dest, &bytes).await?;
+    }
+
+    let data_dir = libraries_dir.parent().unwrap_or(libraries_dir);
+    let client_rel = format!(
+        "net/minecraftforge/forge/{}/forge-{}-client.jar",
+        full_version, full_version
+    );
+    let client_dest = libraries_dir.join(&client_rel);
+
+    if !client_dest.exists() && installer_dest.exists() {
+        let profiles_file = data_dir.join("launcher_profiles.json");
+        if !profiles_file.exists() {
+            let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
+        }
+
+        let java_bin = find_java_binary(libraries_dir);
+        let _ = tokio::process::Command::new(&java_bin)
+            .arg("-jar")
+            .arg(&installer_dest)
+            .arg("--installClient")
+            .arg(data_dir)
+            .output()
+            .await;
     }
 
     let installer_bytes = tokio::fs::read(&installer_dest).await?;
@@ -321,12 +366,11 @@ pub async fn prepare_forge(
             }
         }
     }
+    if client_dest.exists() && !classpath_entries.contains(&client_dest) {
+        classpath_entries.push(client_dest);
+    }
     if universal_dest.exists() && !classpath_entries.contains(&universal_dest) {
         classpath_entries.push(universal_dest);
-    }
-
-    if installer_dest.exists() && !classpath_entries.contains(&installer_dest) {
-        classpath_entries.push(installer_dest);
     }
 
     let cp_sep = if cfg!(windows) { ";" } else { ":" };

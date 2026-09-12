@@ -57,6 +57,10 @@ impl Db {
             }
         }
 
+        let _ = sqlx::query("ALTER TABLE accounts ADD COLUMN skin_url TEXT").execute(&pool).await;
+        let _ = sqlx::query("ALTER TABLE accounts ADD COLUMN skin_variant TEXT").execute(&pool).await;
+        let _ = sqlx::query("ALTER TABLE accounts ADD COLUMN cape_url TEXT").execute(&pool).await;
+
         Ok(Self { pool })
     }
 

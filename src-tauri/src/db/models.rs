@@ -12,6 +12,12 @@ pub struct AccountRow {
     pub expires_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[serde(default)]
+    pub skin_url: Option<String>,
+    #[serde(default)]
+    pub skin_variant: Option<String>,
+    #[serde(default)]
+    pub cape_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]

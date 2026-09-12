@@ -176,11 +176,15 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
     }
 
     // HTTP Status Fallback (mcsrvstat.us)
-    if let Ok(resp) = reqwest::blocking::Client::builder()
-        .timeout(Duration::from_secs(4))
-        .build()
-        .and_then(|c| c.get(format!("https://api.mcsrvstat.us/3/{}", host)).send())
-    {
+    static HTTP_CLIENT: std::sync::OnceLock<reqwest::blocking::Client> = std::sync::OnceLock::new();
+    let client = HTTP_CLIENT.get_or_init(|| {
+        reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(4))
+            .build()
+            .unwrap_or_default()
+    });
+
+    if let Ok(resp) = client.get(format!("https://api.mcsrvstat.us/3/{}", host)).send() {
         if resp.status().is_success() {
             if let Ok(v) = resp.json::<serde_json::Value>() {
                 let online = v.get("online").and_then(|o| o.as_bool()).unwrap_or(false);
@@ -190,7 +194,6 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
                 let motd = v.get("motd").and_then(|m| m.get("clean")).and_then(|c| c.as_array())
                     .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect::<Vec<_>>().join(" "))
                     .unwrap_or_default();
-                let favicon = v.get("icon").and_then(|i| i.as_str()).map(|s| s.to_string());
 
                 return Ok(ServerStatus {
                     online,
@@ -198,7 +201,7 @@ pub fn ping(host: &str, port: u16) -> AppResult<ServerStatus> {
                     players_max,
                     players_online,
                     motd,
-                    favicon,
+                    favicon: None,
                 });
             }
         }

@@ -598,7 +598,7 @@
 			downloadProgressPercent = 85;
 			launchStatusText = "Injetando parâmetros JVM, flags e inicializando Minecraft...";
 			const targetProfileId = activeProfile?.id || instanceId || "";
-			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") !== "false" : true;
+			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
 			const result = await launchGame({
 				versionId: verId,
 				accountId: userUuid || "",

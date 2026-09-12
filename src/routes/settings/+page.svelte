@@ -32,7 +32,6 @@
 		Play
 	} from "lucide-svelte";
 	import { settings } from "$lib/stores/settings.svelte";
-	import { account } from "$lib/stores/account.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { themeStore, THEMES, ACCENTS } from "$lib/stores/theme.svelte";
 	import { setLocale, schedulePersist } from "$lib/stores/persistence.svelte";

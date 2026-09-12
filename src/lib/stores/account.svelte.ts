@@ -4,6 +4,9 @@ export interface Account {
 	uuid: string;
 	minecraftToken: string;
 	expiresAt: number;
+	skinUrl?: string | null;
+	skinVariant?: string | null;
+	capeUrl?: string | null;
 }
 
 function createAccountStore() {

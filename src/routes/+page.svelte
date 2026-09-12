@@ -55,6 +55,7 @@
 	let isLoggingInMicrosoft = $state(false);
 	let isEntering = $state(false);
 	let authTab = $state<"login" | "register">("login");
+	let mainAuthType = $state<"microsoft" | "offline">("microsoft");
 	let savedAccounts = $state<string[]>([]);
 	let isLoadingHome = $state(true);
 	let isLaunching = $state(false);
@@ -175,9 +176,7 @@
 		try {
 			const existingId = await authGetClientId().catch(() => "");
 			if (!existingId || existingId === "00000000-0000-0000-0000-000000000000") {
-				msClientIdInput = "9750ebbe-21e9-4a4d-b808-f451a3e0af7f";
-				showMsClientIdModal = true;
-				return;
+				await authSetClientId("9750ebbe-21e9-4a4d-b808-f451a3e0af7f").catch(() => null);
 			}
 			await startMsLogin();
 		} catch (e) {
@@ -195,7 +194,10 @@
 				username: acc.username,
 				uuid: acc.uuid,
 				minecraftToken: acc.accessToken,
-				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0
+				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0,
+				skinUrl: acc.skinUrl ?? null,
+				skinVariant: acc.skinVariant ?? null,
+				capeUrl: acc.capeUrl ?? null,
 			};
 			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
 
@@ -216,7 +218,7 @@
 			account.value = newAcc;
 		} catch (e) {
 			const errStr = String(e);
-			if (errStr.includes("client_id_required") || errStr.includes("00000000-0000-0000-0000-000000000000") || errStr.includes("unauthorized_client") || errStr.includes("invalid_client") || errStr.includes("AADSTS700016")) {
+			if (errStr.includes("client_id_required") || errStr.includes("unauthorized_client") || errStr.includes("AADSTS700016")) {
 				showMsClientIdModal = true;
 			} else {
 				toast(t("home.loginAttempt", { error: errStr }), "error");
@@ -312,7 +314,7 @@
 			}
 
 			launchStatusText = t("home.startingMc");
-			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") !== "false" : true;
+			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
 			const result = await launchGame({
 				versionId: verId,
 				accountId: userUuid || "",
@@ -445,202 +447,242 @@
 			</div>
 
 			<div class="w-full space-y-4 mt-2">
-				{#if isLoggingInMicrosoft}
-					<div class="w-full bg-[#18191c] border-2 border-[#6c5ce7]/50 rounded-3xl p-5 shadow-2xl relative overflow-hidden space-y-4 animate-fade-in" in:fade={{ duration: 200 }}>
-						<div class="absolute -right-8 -top-8 w-32 h-32 bg-[#6c5ce7]/20 rounded-full blur-2xl pointer-events-none"></div>
+				<!-- Segmented Auth Mode Selector -->
+				<div class="flex bg-[#121316] p-1.5 rounded-2xl border border-white/10 shadow-inner">
+					<button 
+						type="button" 
+						class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 {mainAuthType === 'microsoft' ? 'bg-[#25262c] text-white shadow-md border border-[#6c5ce7]/40 shadow-[0_0_12px_rgba(108,92,231,0.15)]' : 'text-white/40 hover:text-white/70 border border-transparent'}"
+						onclick={() => mainAuthType = 'microsoft'}
+					>
+						<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
+							<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
+							<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
+							<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
+							<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
+						</svg>
+						<span>Conta Microsoft</span>
+					</button>
+					<button 
+						type="button" 
+						class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 {mainAuthType === 'offline' ? 'bg-[#25262c] text-[#caa97c] shadow-md border border-[#caa97c]/30 shadow-[0_0_12px_rgba(202,169,124,0.15)]' : 'text-white/40 hover:text-white/70 border border-transparent'}"
+						onclick={() => mainAuthType = 'offline'}
+					>
+						<Gamepad2 class="w-3.5 h-3.5 shrink-0" />
+						<span>Modo Offline</span>
+					</button>
+				</div>
 
-						<div class="flex items-center gap-3.5">
-							<div class="h-11 w-11 rounded-2xl bg-[#6c5ce7]/20 border border-[#6c5ce7]/40 flex items-center justify-center shrink-0 shadow-inner">
-								<Loader2 class="w-5 h-5 text-[#a29bfe] animate-spin" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-xs font-black text-white">{t("home.msAuth")}</h3>
-									<span class="inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-										<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> {t("home.msWaiting")}
-									</span>
+				{#if mainAuthType === 'microsoft'}
+					{#if isLoggingInMicrosoft}
+						<div class="w-full bg-[#18191c] border-2 border-[#6c5ce7]/50 rounded-3xl p-5 shadow-2xl relative overflow-hidden space-y-4" in:fade={{ duration: 200 }}>
+							<div class="absolute -right-8 -top-8 w-32 h-32 bg-[#6c5ce7]/20 rounded-full blur-2xl pointer-events-none"></div>
+
+							<div class="flex items-center gap-3.5">
+								<div class="h-11 w-11 rounded-2xl bg-[#6c5ce7]/20 border border-[#6c5ce7]/40 flex items-center justify-center shrink-0 shadow-inner">
+									<Loader2 class="w-5 h-5 text-[#a29bfe] animate-spin" />
 								</div>
-								<p class="text-[11px] text-white/50 mt-0.5">{t("home.msCompleteInBrowser")}</p>
+								<div>
+									<div class="flex items-center gap-2">
+										<h3 class="text-xs font-black text-white">{t("home.msAuth")}</h3>
+										<span class="inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> {t("home.msWaiting")}
+										</span>
+									</div>
+									<p class="text-[11px] text-white/50 mt-0.5">{t("home.msCompleteInBrowser")}</p>
+								</div>
+							</div>
+
+							<div class="space-y-2 py-1">
+								<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
+									<div class="h-full bg-gradient-to-r from-[#6c5ce7] to-[#a29bfe] w-2/3 rounded-full animate-pulse"></div>
+								</div>
+								<p class="text-[11px] text-white/60 leading-relaxed">
+									{t("home.msAccessDesc")}
+								</p>
+							</div>
+
+							<div class="flex items-center justify-between pt-2 border-t border-white/5">
+								<span class="text-[10px] text-white/40 flex items-center gap-1.5">
+									<ExternalLink class="w-3 h-3 text-[#a29bfe]" />
+									{t("home.oauthWindowOpen")}
+								</span>
+								<button 
+									type="button" 
+									class="text-xs font-bold text-white/70 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200 cursor-pointer"
+									onclick={() => { isLoggingInMicrosoft = false; }}
+								>
+									{t("home.cancel")}
+								</button>
 							</div>
 						</div>
+					{:else}
+						<div class="bg-[#18191c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-xl relative overflow-hidden" in:fade={{ duration: 200 }}>
+							<div class="absolute -right-8 -top-8 w-40 h-40 bg-[#6c5ce7]/15 rounded-full blur-3xl pointer-events-none"></div>
 
-						<div class="space-y-2 py-1">
-							<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
-								<div class="h-full bg-gradient-to-r from-[#6c5ce7] to-[#a29bfe] w-2/3 rounded-full animate-pulse"></div>
+							<div class="space-y-1">
+								<div class="flex items-center gap-2">
+									<span class="font-bold text-white text-sm">Minecraft Oficial</span>
+									<span class="bg-[#6c5ce7]/20 text-[#a29bfe] text-[9px] font-black px-2 py-0.5 rounded-full border border-[#6c5ce7]/30 uppercase tracking-wider">Original</span>
+								</div>
+								<p class="text-xs text-white/50">Conecte sua conta Microsoft para skins oficiais, capas e servidores multijogador.</p>
 							</div>
-							<p class="text-[11px] text-white/60 leading-relaxed">
-								{t("home.msAccessDesc")}
-							</p>
-						</div>
 
-						<div class="flex items-center justify-between pt-2 border-t border-white/5">
-							<span class="text-[10px] text-white/40 flex items-center gap-1.5">
-								<ExternalLink class="w-3 h-3 text-[#a29bfe]" />
-								{t("home.oauthWindowOpen")}
-							</span>
 							<button 
 								type="button" 
-								class="text-xs font-bold text-white/70 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200 cursor-pointer"
-								onclick={() => { isLoggingInMicrosoft = false; }}
+								class="w-full rounded-2xl bg-gradient-to-r from-[#20222c] to-[#181a22] hover:from-[#2a2d3d] hover:to-[#20222e] border border-[#6c5ce7]/40 hover:border-[#6c5ce7] p-4 text-white flex items-center gap-3.5 transition-all duration-200 active:scale-[0.98] cursor-pointer shadow-xl hover:shadow-[0_0_20px_rgba(108,92,231,0.25)] relative overflow-hidden disabled:opacity-60"
+								onclick={handleMicrosoftLogin}
+								disabled={isLoggingIn || isLoggingInMicrosoft}
 							>
-								{t("home.cancel")}
-							</button>
-						</div>
-					</div>
-				{:else}
-					<div class="relative group" in:fade={{ duration: 300 }}>
-						<div class="absolute -right-4 -bottom-4 w-32 h-32 bg-[#6c5ce7]/15 rounded-full blur-2xl pointer-events-none group-hover:bg-[#6c5ce7]/25 transition-all"></div>
-
-						<button 
-							type="button" 
-							class="w-full rounded-2xl bg-gradient-to-r from-[#20222c] to-[#181a22] hover:from-[#2a2d3d] hover:to-[#20222e] border border-[#6c5ce7]/40 hover:border-[#6c5ce7] p-3.5 text-white flex items-center gap-3.5 transition-all duration-200 active:scale-[0.98] cursor-pointer shadow-xl hover:shadow-[0_0_20px_rgba(108,92,231,0.25)] relative overflow-hidden disabled:opacity-60"
-							onclick={handleMicrosoftLogin}
-							disabled={isLoggingIn || isLoggingInMicrosoft}
-						>
-							<div class="h-10 w-10 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0 shadow-inner">
-								<svg class="h-full w-full" viewBox="0 0 24 24" fill="none">
-									<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
-									<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
-									<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
-									<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
-								</svg>
-							</div>
-							<div class="text-left flex-1 min-w-0">
-								<div class="flex items-center gap-2">
-									<span class="font-bold text-white text-sm whitespace-nowrap">{t("home.signInWithMicrosoft")}</span>
-									<span class="bg-[#6c5ce7]/30 text-[#a29bfe] text-[9px] font-black px-1.5 py-0.5 rounded-full border border-[#6c5ce7]/40 uppercase tracking-wider shrink-0">{t("home.primary")}</span>
+								<div class="h-10 w-10 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0 shadow-inner">
+									<svg class="h-full w-full" viewBox="0 0 24 24" fill="none">
+										<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
+										<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
+										<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
+										<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
+									</svg>
 								</div>
-								<p class="text-[11px] text-white/50 font-medium truncate mt-0.5">{t("home.msOfficialAccount")}</p>
+								<div class="text-left flex-1 min-w-0">
+									<div class="flex items-center gap-2">
+										<span class="font-bold text-white text-sm whitespace-nowrap">{t("home.signInWithMicrosoft")}</span>
+									</div>
+									<p class="text-[11px] text-white/50 font-medium truncate mt-0.5">{t("home.msOfficialAccount")}</p>
+								</div>
+								<ArrowRight class="w-5 h-5 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+							</button>
+
+							<div class="pt-1 flex items-center justify-between text-[10px] text-white/40 border-t border-white/5">
+								<span class="flex items-center gap-1.5">
+									<ShieldCheck class="w-3.5 h-3.5 text-emerald-400" />
+									Autenticação oficial via browser
+								</span>
+								<button
+									type="button"
+									class="hover:text-amber-400 transition-colors cursor-pointer underline underline-offset-2"
+									onclick={() => showMsClientIdModal = true}
+								>
+									Azure ID
+								</button>
 							</div>
-
-							<ArrowRight class="w-5 h-5 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
-						</button>
-					</div>
-				{/if}
-
-			<div class="flex items-center gap-3 py-1">
-				<div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent"></div>
-				<span class="text-[10px] font-bold text-white/30 uppercase tracking-wider">{t("home.orOffline")}</span>
-				<div class="flex-1 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent"></div>
-			</div>
-
-			<div class="bg-[#18191c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-lg">
-					<div class="flex bg-[#121316] p-1 rounded-full border border-white/5">
-						<button 
-							type="button" 
-							class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'login' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20 shadow-[0_0_12px_rgba(202,169,124,0.1)]' : 'text-white/40 hover:text-white/70 border border-transparent'}"
-							onclick={() => authTab = 'login'}
-						>
-							{t("home.loginTab")}
-						</button>
-						<button 
-							type="button" 
-							class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'register' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20 shadow-[0_0_12px_rgba(202,169,124,0.1)]' : 'text-white/40 hover:text-white/70 border border-transparent'}"
-							onclick={() => authTab = 'register'}
-						>
-							{t("home.createAccountTab")}
-						</button>
-					</div>
-
-				{#if savedAccounts.length > 0 && authTab === 'login'}
-					<div class="flex flex-wrap items-center gap-1.5 pt-0.5" transition:slide={{ duration: 200 }}>
-						<span class="text-[10px] text-white/40 font-semibold shrink-0">{t("home.savedAccounts")}</span>
-						{#each savedAccounts as accName (accName)}
-							<button 
-								type="button" 
-								class="text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all cursor-pointer hover:scale-105 active:scale-95 {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-[#caa97c] bg-[#caa97c]/20 text-[#caa97c] shadow-[0_0_8px_rgba(202,169,124,0.2)]' : 'border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white/25 hover:bg-white/10'}"
-								onclick={() => { offlineName = accName; }}
-							>
-								{accName}
-							</button>
-						{/each}
-					</div>
-				{/if}
-
-					<div class="flex items-center gap-2 text-xs font-bold text-white/80">
-						<Gamepad2 class="w-4 h-4 text-[#caa97c]" />
-						<span>{authTab === 'login' ? t("home.accessOfflineAccount") : t("home.registerNewAccount")}</span>
-					</div>
-
-					<div class="space-y-3">
-						<input 
-							type="text" 
-							placeholder={t("home.gamertagPlaceholder")} 
-							bind:value={offlineName}
-							class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-3 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
-							maxlength="16"
-							onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
-						/>
-
-						<div class="relative">
-							<input 
-								type={showPassword ? "text" : "password"} 
-								placeholder={t("home.accountPasswordPlaceholder")} 
-								bind:value={offlinePassword}
-								class="w-full bg-[#1e1f24] border border-white/10 rounded-full pl-5 pr-12 py-3 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
-								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
-							/>
-							<button
-								type="button"
-								class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-[#caa97c] p-1.5 transition-all duration-200 cursor-pointer"
-								onclick={() => (showPassword = !showPassword)}
-								title={showPassword ? t("home.hidePassword") : t("home.showPassword")}
-							>
-								{#if showPassword}
-									<EyeOff class="w-3.5 h-3.5" />
-								{:else}
-									<Eye class="w-3.5 h-3.5" />
-								{/if}
-							</button>
-						</div>
-
-					{#if authTab === 'register'}
-						<div transition:slide={{ duration: 200 }}>
-							<input 
-								type={showPassword ? "text" : "password"} 
-								placeholder={t("home.confirmPasswordPlaceholder")} 
-								bind:value={offlineConfirmPassword}
-								class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-3 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
-								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
-							/>
 						</div>
 					{/if}
+
+				{:else}
+					<!-- Offline Login Box -->
+					<div class="bg-[#18191c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-lg" in:fade={{ duration: 200 }}>
+						<div class="flex bg-[#121316] p-1 rounded-full border border-white/5">
+							<button 
+								type="button" 
+								class="flex-1 py-2 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'login' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20' : 'text-white/40 hover:text-white/70 border border-transparent'}"
+								onclick={() => authTab = 'login'}
+							>
+								{t("home.loginTab")}
+							</button>
+							<button 
+								type="button" 
+								class="flex-1 py-2 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'register' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20' : 'text-white/40 hover:text-white/70 border border-transparent'}"
+								onclick={() => authTab = 'register'}
+							>
+								{t("home.createAccountTab")}
+							</button>
+						</div>
+
+						{#if savedAccounts.length > 0 && authTab === 'login'}
+							<div class="flex flex-wrap items-center gap-1.5 pt-0.5" transition:slide={{ duration: 200 }}>
+								<span class="text-[10px] text-white/40 font-semibold shrink-0">{t("home.savedAccounts")}</span>
+								{#each savedAccounts as accName (accName)}
+									<button 
+										type="button" 
+										class="text-[10px] font-bold px-3 py-1 rounded-full border transition-all cursor-pointer hover:scale-105 active:scale-95 {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-[#caa97c] bg-[#caa97c]/20 text-[#caa97c]' : 'border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white/25 hover:bg-white/10'}"
+										onclick={() => { offlineName = accName; }}
+									>
+										{accName}
+									</button>
+								{/each}
+							</div>
+						{/if}
+
+						<div class="flex items-center gap-2 text-xs font-bold text-white/80">
+							<Gamepad2 class="w-4 h-4 text-[#caa97c]" />
+							<span>{authTab === 'login' ? t("home.accessOfflineAccount") : t("home.registerNewAccount")}</span>
+						</div>
+
+						<div class="space-y-3">
+							<input 
+								type="text" 
+								placeholder={t("home.gamertagPlaceholder")} 
+								bind:value={offlineName}
+								class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
+								maxlength="16"
+								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
+							/>
+
+							<div class="relative">
+								<input 
+									type={showPassword ? "text" : "password"} 
+									placeholder={t("home.accountPasswordPlaceholder")} 
+									bind:value={offlinePassword}
+									class="w-full bg-[#1e1f24] border border-white/10 rounded-full pl-5 pr-12 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
+									onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
+								/>
+								<button
+									type="button"
+									class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-[#caa97c] p-1.5 transition-all duration-200 cursor-pointer"
+									onclick={() => (showPassword = !showPassword)}
+									title={showPassword ? t("home.hidePassword") : t("home.showPassword")}
+								>
+									{#if showPassword}
+										<EyeOff class="w-3.5 h-3.5" />
+									{:else}
+										<Eye class="w-3.5 h-3.5" />
+									{/if}
+								</button>
+							</div>
+
+							{#if authTab === 'register'}
+								<div transition:slide={{ duration: 200 }}>
+									<input 
+										type={showPassword ? "text" : "password"} 
+										placeholder={t("home.confirmPasswordPlaceholder")} 
+										bind:value={offlineConfirmPassword}
+										class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
+										onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
+									/>
+								</div>
+							{/if}
+						</div>
+
+						<button 
+							type="button" 
+							class="w-full h-11 rounded-xl hover:brightness-110 active:scale-[0.98] text-[#15171c] font-bold text-xs flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+							style="background-color: #caa97c;"
+							onclick={handleOfflineAuth}
+							disabled={isLoggingIn || isLoggingInMicrosoft}
+						>
+							{#if isLoggingIn}
+								<Loader2 class="w-4 h-4 animate-spin" /> {t("home.processing")}
+							{:else}
+								<Play class="w-4 h-4 fill-current" /> {authTab === 'login' ? t("home.loginAndPlay") : t("home.createAndPlay")}
+							{/if}
+						</button>
 					</div>
 
-					<button 
-						type="button" 
-						class="w-full h-12 rounded-xl hover:brightness-110 active:scale-[0.98] text-[#15171c] font-bold text-xs flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-						style="background-color: #caa97c;"
-						onclick={handleOfflineAuth}
-						disabled={isLoggingIn || isLoggingInMicrosoft}
-					>
-						{#if isLoggingIn}
-							<Loader2 class="w-4 h-4 animate-spin" /> {t("home.processing")}
-						{:else}
-							<Play class="w-4 h-4 fill-current" /> {authTab === 'login' ? t("home.loginAndPlay") : t("home.createAndPlay")}
-						{/if}
-					</button>
-				</div>
-
-				<div class="flex flex-col items-center gap-2 pt-2 mt-2">
-					<button 
-						type="button" 
-						class="group px-4 py-2.5 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-amber-500/40 text-white/60 hover:text-white transition-all duration-300 flex items-center gap-2.5 cursor-pointer text-xs disabled:opacity-50 hover:shadow-[0_0_16px_rgba(245,158,11,0.08)]"
-						onclick={handleDevLogin}
-						disabled={isLoggingIn || isLoggingInMicrosoft}
-					>
-						<span class="bg-amber-500/20 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-wider">
-							{t("home.devMode")}
-						</span>
-						<span class="font-semibold text-[11px] text-white/70 group-hover:text-white transition-colors">{t("home.devAccess")}</span>
-						{#if isLoggingIn}
-							<Loader2 class="w-3.5 h-3.5 animate-spin text-amber-400" />
-						{/if}
-					</button>
-					<span class="text-[9px] text-white/30 text-center">
-						{t("home.devDesc")}
-					</span>
-				</div>
+					<div class="flex flex-col items-center gap-1.5 pt-1">
+						<button 
+							type="button" 
+							class="group px-3.5 py-2 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-amber-500/40 text-white/60 hover:text-white transition-all duration-300 flex items-center gap-2 cursor-pointer text-xs disabled:opacity-50"
+							onclick={handleDevLogin}
+							disabled={isLoggingIn || isLoggingInMicrosoft}
+						>
+							<span class="bg-amber-500/20 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-wider">
+								{t("home.devMode")}
+							</span>
+							<span class="font-semibold text-[11px] text-white/70 group-hover:text-white transition-colors">{t("home.devAccess")}</span>
+							{#if isLoggingIn}
+								<Loader2 class="w-3.5 h-3.5 animate-spin text-amber-400" />
+							{/if}
+						</button>
+					</div>
+				{/if}
 			</div>
 
 			<div class="text-[10px] text-white/30 text-center leading-relaxed">

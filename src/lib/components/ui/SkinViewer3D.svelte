@@ -89,10 +89,10 @@
 		setFace(2, 1, 0, 11, 1);
 		// 3: Bottom (-Y): (11, 0) to (21, 1)
 		setFace(3, 11, 0, 21, 1);
-		// 4: Front (+Z, inner face facing player): (1, 1) to (11, 17)
-		setFace(4, 1, 1, 11, 17);
-		// 5: Back (-Z, outer face facing viewer): (12, 1) to (22, 17)
-		setFace(5, 12, 1, 22, 17);
+		// 4: Front (+Z, inner face facing player body): (12, 1) to (22, 17)
+		setFace(4, 12, 1, 22, 17);
+		// 5: Back (-Z, outer face facing viewer with cape design): (1, 1) to (11, 17)
+		setFace(5, 1, 1, 11, 17);
 
 		uv.needsUpdate = true;
 	}
@@ -334,11 +334,15 @@
 
 	function loadSkin(url: string) {
 		if (!url) return;
-		if (url === currentLoadedUrl && currentTexture) return;
+		let safeUrl = url;
+		if (safeUrl.startsWith("http://")) {
+			safeUrl = safeUrl.replace("http://", "https://");
+		}
+		if (safeUrl === currentLoadedUrl && currentTexture) return;
 
 		const token = ++loadSkinToken;
 		const img = new Image();
-		if (!url.startsWith("data:") && !url.startsWith("blob:")) {
+		if (!safeUrl.startsWith("data:") && !safeUrl.startsWith("blob:")) {
 			img.crossOrigin = "anonymous";
 		}
 		img.onload = () => {
@@ -349,13 +353,41 @@
 			const ctx = canvas.getContext("2d");
 			if (!ctx) return;
 			ctx.imageSmoothingEnabled = false;
-			ctx.drawImage(img, 0, 0);
 
-			if (img.height === 32) {
+			const isLegacy32 = img.height === img.width / 2 || img.height === 32;
+			if (img.width !== 64 || (img.height !== 64 && !isLegacy32)) {
+				ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, 64, isLegacy32 ? 32 : 64);
+			} else {
+				ctx.drawImage(img, 0, 0, 64, isLegacy32 ? 32 : 64);
+			}
+
+			if (isLegacy32) {
 				ctx.clearRect(0, 32, 64, 32);
 				ctx.imageSmoothingEnabled = false;
-				ctx.drawImage(canvas, 40, 16, 16, 16, 32, 48, 16, 16);
-				ctx.drawImage(canvas, 0, 16, 16, 16, 16, 48, 16, 16);
+
+				const copyFlipped = (sx: number, sy: number, w: number, h: number, dx: number, dy: number) => {
+					ctx.save();
+					ctx.translate(dx + w, dy);
+					ctx.scale(-1, 1);
+					ctx.drawImage(canvas, sx, sy, w, h, 0, 0, w, h);
+					ctx.restore();
+				};
+
+				// Left Leg from Right Leg (0, 16, 16, 16) -> (16, 48, 16, 16)
+				copyFlipped(4, 16, 4, 4, 20, 48);
+				copyFlipped(8, 16, 4, 4, 24, 48);
+				copyFlipped(0, 20, 4, 12, 24, 52);
+				copyFlipped(4, 20, 4, 12, 20, 52);
+				copyFlipped(8, 20, 4, 12, 16, 52);
+				copyFlipped(12, 20, 4, 12, 28, 52);
+
+				// Left Arm from Right Arm (40, 16, 16, 16) -> (32, 48, 16, 16)
+				copyFlipped(44, 16, 4, 4, 36, 48);
+				copyFlipped(48, 16, 4, 4, 40, 48);
+				copyFlipped(40, 20, 4, 12, 40, 52);
+				copyFlipped(44, 20, 4, 12, 36, 52);
+				copyFlipped(48, 20, 4, 12, 32, 52);
+				copyFlipped(52, 20, 4, 12, 44, 52);
 			}
 
 			if (currentTexture) {
@@ -376,7 +408,7 @@
 				overlayMaterial.map = currentTexture;
 				overlayMaterial.needsUpdate = true;
 			}
-			currentLoadedUrl = url;
+			currentLoadedUrl = safeUrl;
 		};
 		img.onerror = () => {
 			if (token !== loadSkinToken) return;
@@ -400,7 +432,7 @@
 			}
 			currentLoadedUrl = "fallback";
 		};
-		img.src = url;
+		img.src = safeUrl;
 	}
 
 	function onPointerDown(e: MouseEvent) {
@@ -466,14 +498,16 @@
 
 		solidMaterial = new THREE.MeshLambertMaterial({
 			transparent: true,
-			alphaTest: 0.1,
-			side: THREE.DoubleSide
+			alphaTest: 0.05,
+			side: THREE.FrontSide,
+			depthWrite: true
 		});
 
 		overlayMaterial = new THREE.MeshLambertMaterial({
 			transparent: true,
 			alphaTest: 0.1,
-			side: THREE.DoubleSide
+			side: THREE.DoubleSide,
+			depthWrite: true
 		});
 
 		buildMinecraftModel(slim);

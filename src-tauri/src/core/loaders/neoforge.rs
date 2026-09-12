@@ -105,6 +105,27 @@ fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
     Ok(s)
 }
 
+fn find_java_binary(libraries_dir: &Path) -> std::path::PathBuf {
+    if let Some(parent) = libraries_dir.parent() {
+        let possible_bins = [
+            parent.join("java").join("21").join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }),
+            parent.join("java").join("17").join("bin").join(if cfg!(windows) { "java.exe" } else { "java" }),
+        ];
+        for b in possible_bins {
+            if b.exists() {
+                return b;
+            }
+        }
+    }
+    if let Ok(java_home) = std::env::var("JAVA_HOME") {
+        let b = std::path::PathBuf::from(java_home).join("bin").join(if cfg!(windows) { "java.exe" } else { "java" });
+        if b.exists() {
+            return b;
+        }
+    }
+    std::path::PathBuf::from(if cfg!(windows) { "java.exe" } else { "java" })
+}
+
 pub async fn prepare_neoforge(
     http: &reqwest::Client,
     libraries_dir: &Path,
@@ -151,8 +172,41 @@ pub async fn prepare_neoforge(
         tokio::fs::write(&installer_dest, &bytes).await?;
     }
 
-    let installer_bytes = tokio::fs::read(&installer_dest).await?;
-    let version_json_str = extract_version_json_from_bytes(&installer_bytes)?;
+    let data_dir = libraries_dir.parent().unwrap_or(libraries_dir);
+    let installed_json_path = data_dir
+        .join("versions")
+        .join(format!("neoforge-{}", chosen_version))
+        .join(format!("neoforge-{}.json", chosen_version));
+
+    if !installed_json_path.exists() && installer_dest.exists() {
+        let profiles_file = data_dir.join("launcher_profiles.json");
+        if !profiles_file.exists() {
+            let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
+        }
+
+        let java_bin = find_java_binary(libraries_dir);
+        let _ = tokio::process::Command::new(&java_bin)
+            .arg("-jar")
+            .arg(&installer_dest)
+            .arg("--installClient")
+            .arg(data_dir)
+            .output()
+            .await;
+    }
+
+    let version_json_str = if installed_json_path.exists() {
+        tokio::fs::read_to_string(&installed_json_path)
+            .await
+            .unwrap_or_else(|_| {
+                tokio::task::block_in_place(|| {
+                    let b = std::fs::read(&installer_dest).unwrap_or_default();
+                    extract_version_json_from_bytes(&b).unwrap_or_default()
+                })
+            })
+    } else {
+        let installer_bytes = tokio::fs::read(&installer_dest).await?;
+        extract_version_json_from_bytes(&installer_bytes)?
+    };
 
     let version_data: NeoForgeVersionJson = serde_json::from_str(&version_json_str)
         .map_err(|e| AppError::Internal(format!("Failed to parse NeoForge version.json: {e}")))?;
@@ -219,10 +273,6 @@ pub async fn prepare_neoforge(
         if dest.exists() {
             classpath_entries.push(dest);
         }
-    }
-
-    if installer_dest.exists() && !classpath_entries.contains(&installer_dest) {
-        classpath_entries.push(installer_dest);
     }
 
     let cp_sep = if cfg!(windows) { ";" } else { ":" };

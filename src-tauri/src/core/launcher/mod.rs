@@ -266,7 +266,6 @@ impl GameLauncher {
                 Ok(prep) => {
                     self.emit_log(&format!("{} loader ready: mainClass = {}", loader, prep.main_class));
                     main_class = prep.main_class;
-                    // Prepend loader libraries to classpath
                     let mut new_cp = prep.classpath_entries;
                     new_cp.extend(classpath);
                     classpath = new_cp;
@@ -281,6 +280,23 @@ impl GameLauncher {
                     )));
                 }
             }
+
+            if loader == "neoforge" || loader == "forge" {
+                classpath.retain(|p| {
+                    let s = p.to_string_lossy();
+                    !s.ends_with("-installer.jar")
+                        && !(s.contains("/versions/") && s.ends_with(&format!("/{}.jar", profile.mc_version)))
+                });
+            }
+
+            let mut seen_cp = std::collections::HashSet::new();
+            let mut deduped_cp = Vec::new();
+            for entry in classpath {
+                if seen_cp.insert(entry.clone()) {
+                    deduped_cp.push(entry);
+                }
+            }
+            classpath = deduped_cp;
         }
 
         self.emit_log(&format!("Classpath entries: {}", classpath.len()));
@@ -365,6 +381,7 @@ impl GameLauncher {
 
         // === FASE 2: SPAWN ===
         self.emit_stage(LaunchStage::Spawning);
+        tokio::fs::create_dir_all(game_dir).await.ok();
         let mut cmd = Command::new(&java_path);
         cmd.args(&safe_jvm_args)
             .arg(main_class)
@@ -377,24 +394,56 @@ impl GameLauncher {
 
         #[cfg(target_os = "linux")]
         {
+            let mut ld_dirs: Vec<String> = Vec::new();
+            ld_dirs.push(natives_dir.to_string_lossy().to_string());
+
+            if let Some(parent) = java_path.parent() {
+                let java_home = parent.parent().unwrap_or(parent);
+                let lib_dir = java_home.join("lib");
+                let amd64_dir = lib_dir.join("amd64");
+                let candidates = [
+                    amd64_dir.join("server"),
+                    amd64_dir.join("jli"),
+                    amd64_dir,
+                    lib_dir.join("server"),
+                    lib_dir.join("jli"),
+                    lib_dir,
+                ];
+                for c in candidates {
+                    if c.exists() {
+                        ld_dirs.push(c.to_string_lossy().to_string());
+                    }
+                }
+            }
+
             if let Ok(orig_ld) = std::env::var("LD_LIBRARY_PATH_ORIG") {
-                if orig_ld.is_empty() {
-                    cmd.env_remove("LD_LIBRARY_PATH");
-                } else {
-                    cmd.env("LD_LIBRARY_PATH", orig_ld);
+                let filtered: Vec<&str> = orig_ld
+                    .split(':')
+                    .filter(|p| !p.is_empty() && !p.contains(".mount_") && !p.contains("/tmp/.mount"))
+                    .collect();
+                for f in filtered {
+                    ld_dirs.push(f.to_string());
                 }
             } else if let Ok(current_ld) = std::env::var("LD_LIBRARY_PATH") {
                 let filtered: Vec<&str> = current_ld
                     .split(':')
-                    .filter(|p| !p.contains(".mount_") && !p.contains("/tmp/.mount"))
+                    .filter(|p| !p.is_empty() && !p.contains(".mount_") && !p.contains("/tmp/.mount"))
                     .collect();
-                if filtered.is_empty() {
-                    cmd.env_remove("LD_LIBRARY_PATH");
-                } else {
-                    cmd.env("LD_LIBRARY_PATH", filtered.join(":"));
+                for f in filtered {
+                    ld_dirs.push(f.to_string());
                 }
-            } else {
+            }
+
+            for sys_dir in ["/usr/lib64", "/usr/lib", "/usr/local/lib"] {
+                if std::path::Path::new(sys_dir).exists() && !ld_dirs.iter().any(|d| d == sys_dir) {
+                    ld_dirs.push(sys_dir.to_string());
+                }
+            }
+
+            if ld_dirs.is_empty() {
                 cmd.env_remove("LD_LIBRARY_PATH");
+            } else {
+                cmd.env("LD_LIBRARY_PATH", ld_dirs.join(":"));
             }
 
             cmd.env_remove("APPDIR");
@@ -624,6 +673,24 @@ impl GameLauncher {
             }
         }
 
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(entries) = std::fs::read_dir(&natives_dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_file() {
+                        let is_lib = p.extension()
+                            .map(|ext| ext == "so" || ext == "dylib")
+                            .unwrap_or(false);
+                        if is_lib {
+                            let _ = std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755));
+                        }
+                    }
+                }
+            }
+        }
+
         let native_count = std::fs::read_dir(&natives_dir)
             .map(|rd| {
                 rd.filter(|e| {
@@ -756,7 +823,16 @@ impl GameLauncher {
         };
 
         for flag in generated_flags {
-            if !args.iter().any(|a| a.starts_with(&flag.split('=').next().unwrap_or(&flag))) {
+            let key = if flag.starts_with("-Xms") {
+                "-Xms"
+            } else if flag.starts_with("-Xmx") {
+                "-Xmx"
+            } else if flag.starts_with("-Xss") {
+                "-Xss"
+            } else {
+                flag.split('=').next().unwrap_or(&flag)
+            };
+            if !args.iter().any(|a| a.starts_with(key)) {
                 args.push(flag);
             }
         }
@@ -803,14 +879,13 @@ pub fn evaluate_rules(rules: &[serde_json::Value]) -> bool {
                 }
             }
             if let Some(arch) = os_obj.get("arch").and_then(|a| a.as_str()) {
-                let actual_arch = if cfg!(target_arch = "x86_64") {
-                    "x86"
-                } else if cfg!(target_arch = "aarch64") {
-                    "arm64"
-                } else {
-                    ""
+                let is_match = match arch {
+                    "x86" => cfg!(target_arch = "x86"),
+                    "x86_64" | "x64" => cfg!(target_arch = "x86_64"),
+                    "arm64" | "aarch64" => cfg!(target_arch = "aarch64"),
+                    _ => false,
                 };
-                if !actual_arch.is_empty() && arch != actual_arch {
+                if !is_match {
                     matches = false;
                 }
             }

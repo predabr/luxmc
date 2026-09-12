@@ -117,9 +117,25 @@ impl JavaRuntimeManager {
         tracing::info!(target: "java", "{}", message);
     }
 
+    fn verify_binary(&self, path: &std::path::Path, expected_major: u32) -> bool {
+        if let Ok(output) = std::process::Command::new(path)
+            .arg("-version")
+            .stderr(std::process::Stdio::piped())
+            .output()
+        {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let version_str = stderr.split('"').nth(1).unwrap_or("");
+            let detected = parse_java_major(version_str);
+            detected == expected_major
+        } else {
+            false
+        }
+    }
+
     pub async fn ensure_java(&self, major_version: u32) -> AppResult<PathBuf> {
         let bin = self.java_bin(major_version);
-        if bin.exists() {
+        let marker = self.java_dir(major_version).join(".installed");
+        if bin.exists() && (marker.exists() || self.verify_binary(&bin, major_version)) {
             self.emit_log(&format!(
                 "Java {} found at {}",
                 major_version,
@@ -169,11 +185,7 @@ impl JavaRuntimeManager {
                 let stderr = String::from_utf8_lossy(&output.stderr);
                 let version_str = stderr.split('"').nth(1).unwrap_or("");
                 let detected = parse_java_major(version_str);
-                if expected_major == 8 {
-                    detected == 8
-                } else {
-                    detected >= expected_major && (detected <= expected_major + 4)
-                }
+                detected == expected_major
             } else {
                 false
             }
@@ -218,20 +230,33 @@ impl JavaRuntimeManager {
                 }
             }
         } else {
-            if major == 8 {
-                let linux_8_paths = [
+            let specific_linux_paths: &[&str] = match major {
+                8 => &[
                     "/usr/lib/jvm/java-8-openjdk/bin/java",
                     "/usr/lib/jvm/java-1.8.0-openjdk/bin/java",
                     "/usr/lib/jvm/java-8-openjdk-amd64/bin/java",
-                    "/usr/lib/jvm/default-runtime/bin/java",
                     "/usr/lib/jvm/temurin-8-jdk/bin/java",
                     "/usr/lib/jvm/zulu-8/bin/java",
-                ];
-                for p in linux_8_paths {
-                    let pb = PathBuf::from(p);
-                    if pb.exists() && check_binary(&pb, 8) {
-                        return Ok(pb);
-                    }
+                ],
+                17 => &[
+                    "/usr/lib/jvm/java-17-openjdk/bin/java",
+                    "/usr/lib/jvm/java-17-openjdk-amd64/bin/java",
+                    "/usr/lib/jvm/temurin-17-jdk/bin/java",
+                    "/usr/lib/jvm/zulu-17/bin/java",
+                ],
+                21 => &[
+                    "/usr/lib/jvm/java-21-openjdk/bin/java",
+                    "/usr/lib/jvm/java-21-openjdk-amd64/bin/java",
+                    "/usr/lib/jvm/temurin-21-jdk/bin/java",
+                    "/usr/lib/jvm/zulu-21/bin/java",
+                ],
+                _ => &[],
+            };
+
+            for p in specific_linux_paths {
+                let pb = PathBuf::from(p);
+                if pb.exists() && check_binary(&pb, major) {
+                    return Ok(pb);
                 }
             }
 
@@ -363,6 +388,7 @@ impl JavaRuntimeManager {
             completed += 1;
         }
 
+        let _ = tokio::fs::write(java_dir.join(".installed"), b"ok").await;
         self.emit_log(&format!("Java {} runtime download complete", major_version));
         self.emit_progress(&DownloadProgress {
             phase: "java".into(),
@@ -451,7 +477,7 @@ fn parse_java_major(version_str: &str) -> u32 {
     let parts: Vec<&str> = cleaned.split('.').collect();
 
     match parts.as_slice() {
-        [major, ..] if major.starts_with('1') && parts.len() >= 2 => {
+        [major, ..] if *major == "1" && parts.len() >= 2 => {
             parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(8)
         }
         [major, ..] => major.parse().unwrap_or(8),
