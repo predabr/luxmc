@@ -44,11 +44,11 @@ impl MicrosoftOAuth {
     }
 
     pub fn auth_url(&self) -> String {
-        format!("https://login.microsoftonline.com/{}/oauth2/v2.0/authorize", self.tenant_id)
+        "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize".to_string()
     }
 
     pub fn token_url(&self) -> String {
-        format!("https://login.microsoftonline.com/{}/oauth2/v2.0/token", self.tenant_id)
+        "https://login.microsoftonline.com/consumers/oauth2/v2.0/token".to_string()
     }
 
     pub fn begin(&self) -> PendingAuth {

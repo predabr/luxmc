@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { fade } from "svelte/transition";
 	import { onMount, onDestroy } from "svelte";
-	import { Search, RefreshCw } from "lucide-svelte";
+	import { Search, RefreshCw, ChevronLeft, ChevronRight } from "lucide-svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { serverPing } from "$lib/api";
@@ -15,6 +15,9 @@
 	let liveServerData = $state<Record<string, { online: number; max: number; ping: number }>>({});
 	let pingInterval: ReturnType<typeof setInterval> | null = null;
 	let showAddServerModal = $state(false);
+
+	let currentPage = $state(1);
+	const pageSize = 20;
 
 	const tags = $derived.by(() => {
 		const tagMap: Record<string, number> = {};
@@ -47,6 +50,19 @@
 		})
 	);
 
+	const totalPages = $derived(Math.max(1, Math.ceil(filteredServers.length / pageSize)));
+
+	$effect(() => {
+		searchQuery;
+		selectedTag;
+		selectedRegion;
+		currentPage = 1;
+	});
+
+	const paginatedServers = $derived(
+		filteredServers.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+	);
+
 	function copyServerIp(ip: string) {
 		navigator.clipboard.writeText(ip);
 		toast(`IP ${ip} copiado para a área de transferência!`, "success");
@@ -57,7 +73,7 @@
 	async function refreshPings() {
 		if (isRefreshingPings) return;
 		isRefreshingPings = true;
-		const targets = filteredServers.slice(0, 15);
+		const targets = paginatedServers.slice(0, 20);
 		await Promise.allSettled(
 			targets.map(async (s) => {
 				try {
@@ -75,7 +91,12 @@
 			})
 		);
 		isRefreshingPings = false;
-		toast("Pings dos servidores atualizados com sucesso!", "success");
+	}
+
+	function setPage(page: number) {
+		if (page < 1 || page > totalPages) return;
+		currentPage = page;
+		void refreshPings();
 	}
 
 	onMount(() => {
@@ -190,8 +211,8 @@
 		</div>
 
 		<!-- Server List Cards -->
-		<div class="flex flex-col gap-3 pb-6">
-			{#each filteredServers as srv (srv.id + srv.rank)}
+		<div class="flex flex-col gap-3 pb-2">
+			{#each paginatedServers as srv (srv.id + srv.rank)}
 				<ServerCard
 					server={srv}
 					liveData={liveServerData[srv.id]}
@@ -200,6 +221,51 @@
 			{/each}
 		</div>
 
+		<!-- Pagination Controls -->
+		{#if totalPages > 1}
+			<div class="flex flex-col sm:flex-row items-center justify-between gap-4 bg-[#18191c] border border-white/5 p-4 rounded-3xl mb-6">
+				<span class="text-xs text-white/50 font-medium">
+					Página <strong class="text-white">{currentPage}</strong> de <strong class="text-white">{totalPages}</strong> ({filteredServers.length} servidores)
+				</span>
+				<div class="flex items-center gap-2">
+					<Button
+						variant="outline"
+						class="border-white/10 bg-[#1e1f23] hover:bg-white/10 text-white gap-1 rounded-xl text-xs px-3 py-1.5 cursor-pointer disabled:opacity-30"
+						disabled={currentPage === 1}
+						onclick={() => setPage(currentPage - 1)}
+					>
+						<ChevronLeft class="w-4 h-4" /> Anterior
+					</Button>
+					
+					<div class="flex items-center gap-1">
+						{#each Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+							let pageNum = i + 1;
+							if (totalPages > 5 && currentPage > 3) {
+								pageNum = Math.min(totalPages - 4 + i, Math.max(1, currentPage - 2 + i));
+							}
+							return pageNum;
+						}) as p}
+							<button
+								type="button"
+								class="w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer {currentPage === p ? 'bg-brand-500 text-black font-black shadow-sm' : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'}"
+								onclick={() => setPage(p)}
+							>
+								{p}
+							</button>
+						{/each}
+					</div>
+
+					<Button
+						variant="outline"
+						class="border-white/10 bg-[#1e1f23] hover:bg-white/10 text-white gap-1 rounded-xl text-xs px-3 py-1.5 cursor-pointer disabled:opacity-30"
+						disabled={currentPage === totalPages}
+						onclick={() => setPage(currentPage + 1)}
+					>
+						Próximo <ChevronRight class="w-4 h-4" />
+					</Button>
+				</div>
+			</div>
+		{/if}
 	</div>
 
 </div>

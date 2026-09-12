@@ -122,10 +122,11 @@
 				activity: "Conectado via P2P",
 				messages: [newMsg]
 			};
-			friends.push(friend);
+			friends = [...friends, friend];
 		} else {
-			friend.messages.push(newMsg);
+			friend.messages = [...friend.messages, newMsg];
 			friend.status = "online";
+			friends = [...friends];
 		}
 
 		saveFriends();
@@ -148,7 +149,7 @@
 				}
 			]
 		};
-		friends.push(testFriend);
+		friends = [...friends, testFriend];
 		activeFriendId = testFriend.id;
 		saveFriends();
 		toast("Canal de teste local criado com sucesso!", "success");
@@ -195,7 +196,7 @@
 			]
 		};
 
-		friends.push(newFriend);
+		friends = [...friends, newFriend];
 		activeFriendId = newFriend.id;
 		newFriendUsername = "";
 		newFriendAddress = "";
@@ -229,19 +230,21 @@
 				time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 			};
 
-			activeFriend.messages.push(msg);
+			activeFriend.messages = [...activeFriend.messages, msg];
+			friends = [...friends];
 			newMessageText = "";
 			saveFriends();
 
 			if (activeFriend.id === "echo_local") {
 				setTimeout(() => {
 					if (activeFriend && activeFriend.id === "echo_local") {
-						activeFriend.messages.push({
+						activeFriend.messages = [...activeFriend.messages, {
 							id: String(Date.now()),
 							sender: "friend",
 							text: `[Echo Local] Mensagem recebida perfeitamente: "${text}"`,
 							time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-						});
+						}];
+						friends = [...friends];
 						saveFriends();
 					}
 				}, 450);

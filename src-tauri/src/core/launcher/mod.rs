@@ -524,13 +524,46 @@ impl GameLauncher {
         let natives_dir = versions_dir.join(&detail.id).join("natives");
         tokio::fs::create_dir_all(&natives_dir).await?;
 
+        let os_name = platform_mojang_name(current_platform());
+
         for lib in &detail.libraries {
             if !is_library_allowed(lib) {
                 continue;
             }
 
-            if lib.name.contains(&format!("natives-{}", platform_mojang_name(current_platform()))) {
-                let path = lib_path_from_name(&base, &lib.name);
+            let mut candidate_paths = Vec::new();
+
+            if lib.name.contains(&format!("natives-{}", os_name)) {
+                candidate_paths.push(lib_path_from_name(&base, &lib.name));
+            }
+
+            if let Some(ref downloads) = lib.downloads {
+                if let Some(ref classifiers) = downloads.classifiers {
+                    for (classifier_key, _) in classifiers {
+                        let matches_os = match os_name {
+                            "windows" => classifier_key.starts_with("natives-windows"),
+                            "linux" => classifier_key.starts_with("natives-linux"),
+                            "osx" => classifier_key.starts_with("natives-osx") || classifier_key.starts_with("natives-macos"),
+                            _ => false,
+                        };
+                        if matches_os {
+                            let native_lib_name = format!("{}:{}", lib.name, classifier_key);
+                            candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
+                        }
+                    }
+                }
+            }
+
+            if let Some(ref natives_map) = lib.natives {
+                if let Some(native_key) = natives_map.get(os_name) {
+                    let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
+                    let native_key = native_key.replace("${arch}", arch);
+                    let native_lib_name = format!("{}:{}", lib.name, native_key);
+                    candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
+                }
+            }
+
+            for path in candidate_paths {
                 if path.exists() {
                     if let Ok(file) = std::fs::File::open(&path) {
                         if let Ok(mut archive) = zip::ZipArchive::new(file) {
@@ -560,8 +593,6 @@ impl GameLauncher {
                     } else {
                         self.emit_log(&format!("Failed to open native jar file: {}", path.display()));
                     }
-                } else {
-                    self.emit_log(&format!("native jar not found: {}", path.display()));
                 }
             }
         }

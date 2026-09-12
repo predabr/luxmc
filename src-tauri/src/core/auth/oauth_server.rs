@@ -47,10 +47,17 @@ pub async fn wait_for_callback(
     let path = request_line.split_whitespace().nth(1).unwrap_or("/");
 
     let params = parse_query_string(path);
+
+    if let Some(err) = params.get("error") {
+        let desc = params.get("error_description").cloned().unwrap_or_else(|| err.clone());
+        let _ = send_response(&mut writer_half, 400, &format!("Falha no Login Microsoft: {}", desc), false).await;
+        return Err(format!("Microsoft OAuth error: {} ({})", err, desc));
+    }
+
     let code = match params.get("code").cloned() {
         Some(c) => c,
         None => {
-            let _ = send_response(&mut writer_half, 400, "Missing code parameter").await;
+            let _ = send_response(&mut writer_half, 400, "Parâmetro de autorização ausente no retorno da Microsoft.", false).await;
             return Err("No code parameter in callback".to_string());
         }
     };
@@ -59,7 +66,8 @@ pub async fn wait_for_callback(
     let _ = send_response(
         &mut writer_half,
         200,
-        "Login successful! You can close this tab.",
+        "Login realizado com sucesso! Você já pode fechar esta aba e retornar ao Luxmc.",
+        true,
     )
     .await;
 
@@ -69,24 +77,89 @@ pub async fn wait_for_callback(
 async fn send_response(
     stream: &mut tokio::net::tcp::OwnedWriteHalf,
     status: u16,
-    body: &str,
+    message: &str,
+    success: bool,
 ) -> Result<(), std::io::Error> {
     let status_text = match status {
         200 => "OK",
         400 => "Bad Request",
         _ => "Error",
     };
+    let accent_color = if success { "#e2b86b" } else { "#ef4444" };
+    let status_title = if success { "Autenticação Concluída" } else { "Aviso de Autenticação" };
+    let icon_char = if success { "✓" } else { "✕" };
+
     let html = format!(
-        "<!DOCTYPE html><html><head><title>Luxmc</title></head><body><h1>{}</h1></body></html>",
-        body
+        r#"<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <title>Luxmc - Login</title>
+    <style>
+        body {{
+            background: #0f1013;
+            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }}
+        .card {{
+            background: #18191c;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 480px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }}
+        .icon {{
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #000;
+            background: {accent_color};
+            box-shadow: 0 0 24px {accent_color}66;
+        }}
+        h1 {{
+            font-size: 20px;
+            margin: 0 0 12px;
+            color: #fff;
+        }}
+        p {{
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.5;
+            margin: 0;
+        }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">{icon_char}</div>
+        <h1>{status_title}</h1>
+        <p>{message}</p>
+    </div>
+</body>
+</html>"#
     );
     let response = format!(
-		"HTTP/1.1 {} {}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-		status,
-		status_text,
-		html.len(),
-		html
-	);
+        "HTTP/1.1 {} {}\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        status,
+        status_text,
+        html.len(),
+        html
+    );
     stream.write_all(response.as_bytes()).await?;
     stream.flush().await?;
     Ok(())

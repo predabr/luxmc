@@ -1,14 +1,14 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="180" />
-  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.3.0-BETA</span></h1>
+  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.3.1-ALPHA</span></h1>
   <p><strong>O Minecraft Launcher moderno, leve e de alta performance.</strong></p>
   <p><em>Rápido. Moderno. Poderoso. 100% gratuito.</em></p>
 
   <p>
-    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.2.0--ALPHA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
-    <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20Java-blue?style=for-the-badge&logo=linux" alt="Multiplatform" />
+    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.3.1--ALPHA-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
+    <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20Arch-blue?style=for-the-badge&logo=linux" alt="Multiplatform" />
     <img src="https://img.shields.io/badge/Windows-Nativo%20EXE-0078D4?style=for-the-badge&logo=windows" alt="Windows EXE" />
-    <img src="https://img.shields.io/badge/Java-Universal%20JAR-ED8B00?style=for-the-badge&logo=openjdk" alt="Universal JAR" />
+    <img src="https://img.shields.io/badge/Arch%20Linux-AUR%20PKGBUILD-1793D1?style=for-the-badge&logo=archlinux" alt="Arch Linux" />
     <img src="https://img.shields.io/badge/backend-Rust%20%2F%20Tauri%202-orange?style=for-the-badge&logo=rust" alt="Rust Tauri 2" />
     <img src="https://img.shields.io/badge/frontend-Svelte%205-red?style=for-the-badge&logo=svelte" alt="Svelte 5" />
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-Luxmc%20License-purple?style=for-the-badge" alt="License" /></a>
@@ -29,7 +29,7 @@
   <img src="static/skins.png" alt="Personalização 3D de Skins & Capas" style="border-radius: 12px; width: 48%; box-shadow: 0 10px 30px rgba(0,0,0,0.4);" />
 </div>
 <div align="center">
-  <p><em>Esquerda: Diretório de 100+ servidores com ping e filtros. Direita: Personalização 3D volumétrica com NameMC e capas.</em></p>
+  <p><em>Esquerda: Diretório de 100+ servidores com paginação fluida e economia de RAM. Direita: Personalização 3D volumétrica com catálogo HD e importação de capas .PNG.</em></p>
 </div>
 
 <br/>
@@ -38,403 +38,201 @@
 
 ## 🎮 O que é o Luxmc?
 
-O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (Tauri 2)** com frontend em **Svelte 5 + TypeScript + Tailwind CSS**. Projetado especificamente para Linux, ele oferece consumo mínimo de RAM, inicialização instantânea e uma experiência de usuário premium com interface inspirada nos melhores launchers do mercado.
+O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (Tauri 2)** com frontend em **Svelte 5 + TypeScript + Tailwind CSS**. Projetado com foco primário em estabilidade no Linux e suporte nativo ao Windows, ele oferece consumo reduzido de RAM, inicialização ultra-rápida e uma experiência premium inspirada nos melhores launchers modernos.
 
 ### Por que usar o Luxmc?
 
 | Recurso | Luxmc | Launcher Oficial | Outros Launchers |
 |---------|-------|-----------------|-------------------|
-| **Consumo de RAM** | ~200 MB | ~800 MB+ | ~400-600 MB |
+| **Consumo de RAM** | ~180-220 MB | ~800 MB+ | ~400-600 MB |
 | **Inicialização** | < 2s | ~8-15s | ~5-10s |
 | **Central de Mods** | ✅ Modrinth + CurseForge | ❌ | ✅ Parcial |
-| **Personalização 3D** | ✅ Volumétrico real | ❌ | ✅ 2D apenas |
-| **Diretório de Servidores** | ✅ 100+ com ping | ❌ | ❌ |
-| **Open Source** | ✅ | ❌ | Parcial |
-| **Nativo Linux** | ✅ Tauri 2 / Rust | ❌ Electron | ❌ Java/Electron |
+| **Personalização 3D** | ✅ Volumétrico real + 13 Capas | ❌ | ✅ 2D apenas |
+| **Diretório de Servidores** | ✅ 100+ com ping paginado | ❌ | ❌ |
+| **Chat & P2P Multiplayer** | ✅ Socket TCP Direto | ❌ | ❌ |
+| **Nativo Linux & Windows** | ✅ Tauri 2 / Rust | ❌ Electron | ❌ Java/Electron |
 
 ---
 
-## 🌟 Novidades na v1.3.0-BETA
+## 🌟 Novidades na v1.3.1-ALPHA
 
-- 🎮 **Discord Rich Presence 2.0 Dinâmico:**
-  - Exibição de presença de alta fidelidade com o ícone oficial 3D dourado em alta resolução.
-  - Alternância automática para o App ID oficial do Minecraft ao entrar em jogo, exibindo **Jogando Minecraft**, nome da instância, loader (Fabric, Forge, NeoForge, Quilt, Vanilla), versão ativa e tempo de gameplay contínuo.
-- ☕ **Bootstrap Universal Java (`Luxmc.jar`):**
-  - Executável universal multiplataforma executável com `java -jar Luxmc.jar` para qualquer sistema operacional com Java 11, 17, 21 ou 25+.
-  - Interface gráfica dark moderna com tema oficial Luxmc (dourado champanhe `#EBD095`), detecção automática de arquitetura/sistema operacional e inicialização instantânea do binário nativo local ou download oficial transparente.
-- 🪟 **Binário Nativo Microsoft Windows (`Luxmc.exe`):**
-  - Executável autônomo PE32+ de 64-bit compilado com MSVC (`x86_64-pc-windows-msvc`) com aceleração de hardware via WebView2 nativo do Windows.
-- 🧠 **Otimização Extrema de RAM & Eliminação de Memory Leaks:**
-  - Limpeza profunda e limites de retenção de cache na central de mods, listas de modpacks, shaders e renderizador de skins 3D volumétricas.
-  - Consumo estável sem estouros de heap nem sobrecarga de garbage collection.
-- 🎨 **Fluidez & Estilo Visual Inspirados no SKlauncher:**
-  - Botões aprimorados com microinterações refinadas, brilho e estados de foco elegantes.
-  - Transições suaves a 60+ FPS em todas as páginas do aplicativo.
-- 🔐 **Segurança Reforçada & Proteção de Credenciais:**
-  - Proteção de variáveis sensíveis e chaves de APIs no backend Rust sem exposição em arquivos públicos.
-  - Migrações de banco SQLite sincronizadas e estáveis.
+Esta versão foca na resolução de problemas críticos de execução no Windows, compatibilidade retroativa de bibliotecas legadas, otimização extrema de memória e expansão da personalização:
 
-<details>
-<summary><strong>📦 Histórico de Versões Anteriores (v1.1.0-BETA & v1.0.0-BETA)</strong></summary>
-
-### v1.1.0-BETA
-- ⚡ **Sistema de Otimização Inteligente Luxmc (Aikar G1GC Tuning):** Gerador dinâmico de parâmetros de JVM para GC suave sem engasgos.
-- 🚀 **Pacote de Performance Essencial em 1-Clique:** Instalação oficial de mods de performance para Fabric e Forge.
-- 🎮 **Aceleração Gráfica Mesa Zink / Vulkan no Linux:** Redirecionamento OpenGL via Gallium Zink e drivers RADV/ANV.
-- 🔍 **Detecção de Hardware Nativa no Linux:** Leitura direta via DRM `/sys/class/drm` e `lspci`.
-
-### v1.0.0-BETA
-- ⚡ **Zero-Lag & Aceleração GPU Total:** Pipeline DMA-BUF ativo no WebKitGTK.
-- 📦 **Central de Mods com Visão Detalhada:** Descrição formatada, galeria, changelogs e downloads direto do **Modrinth** e **CurseForge**.
-- 🧩 **Gerenciador Interno de Mods por Instância:** Ative/desative mods (`.jar` ↔ `.jar.disabled`).
-- 📋 **Logs & Crash Reports via `mclo.gs`:** Envie relatórios de erro sanitizados.
-- 🎬 **Cutscene Cinematográfica:** Abertura fluida com snap magnético.
-
-</details>
+- 🪟 **Correção Definitiva do Erro Win32 193 no Windows:**
+  - Identificação de plataforma em runtime (`windows-x64`) no gerenciador de downloads do Java da Mojang, baixando binários nativos executáveis PE (`java.exe`) em vez de binários ELF incompatíveis.
+  - Inicialização garantida de qualquer versão (Vanilla, Fabric, Forge, NeoForge, Quilt) no Windows 10/11.
+- 📦 **Suporte a Bibliotecas com Classificadores e Fallback BMCLAPI (Fim do 404):**
+  - Download e descompactação de bibliotecas nativas via `downloads.classifiers` (`natives-windows`, `natives-linux`, `natives-osx`).
+  - Resolução de URLs de bibliotecas legadas (como bibliotecas Twitch de versões 1.7/1.8 que a Mojang removeu de seus servidores) através de espelho com tolerância a falhas sem abortar a inicialização.
+- 🔑 **Autenticação Microsoft Corrigida (`/consumers/`):**
+  - Resolução do erro `AADSTS9002346` redirecionando o fluxo OAuth para contas pessoais Microsoft (`login.microsoftonline.com/consumers/...`).
+  - Servidor de callback local aprimorado com tela dark temática informando o status da autorização.
+- 🛡️ **Importação de Capas Separada & Catálogo HD Completo:**
+  - Botão dedicado **"Importar Capa (.PNG)"** que adiciona e equipa capas personalizadas sem sobrescrever a skin do jogador.
+  - Catálogo de **13 capas oficiais e comemorativas** renderizadas em pixel-art HD e aplicadas em tempo real com física e rotação no modelo 3D.
+- 🧠 **Otimização de RAM no Diretório de Servidores (WebKitGTK & AppImage):**
+  - Sistema de paginação (20 servidores por página) com ping sob demanda restrito aos servidores em exibição.
+  - Carregamento de imagens com `loading="lazy"` e `decoding="async"`, eliminando sobrecargas de memória no Linux AppImage.
+- 💬 **Chat P2P em Tempo Real com Reatividade Svelte 5:**
+  - Adicionado timeout de 3 segundos em transmissões TCP para evitar congelamento de interface com hosts inativos.
+  - Atualização reativa instantânea de mensagens de chat no Svelte 5 sem necessidade de recarregar a tela.
+- 🎬 **Nova Cutscene 3D de Abertura:**
+  - Animação conceitual onde a logo se divide em 4 quadrantes, separa-se pelas extremidades, realiza um giro completo de 360°, conecta-se novamente ao centro com impacto suave e aciona um som harmônico de cristal sintetizado nativamente via **Web Audio API**.
+- 🐧 **Suporte Nativo ao Arch Linux:**
+  - Arquivos oficiais `PKGBUILD` prontos para empacotamento local e AUR.
 
 ---
 
 ## 🚀 Principais Recursos
 
-### ⚡ Desempenho
-- **Construído em Rust (Tauri 2):** Consumo mínimo de memória RAM e inicialização instantânea.
-- **Pipeline GPU nativo:** DMA-BUF e aceleração de hardware via WebKitGTK.
-- **Limitadores de memória integrados:** Sem vazamentos, sem travamentos.
+### ⚡ Desempenho & Estabilidade
+- **Construído em Rust (Tauri 2):** Consumo mínimo de memória e CPU.
+- **Pipeline GPU nativo:** DMA-BUF e aceleração de hardware via WebKitGTK / WebView2.
+- **Limitadores de memória integrados:** Coleta controlada de assets em páginas pesadas.
 
 ### ☕ Java & Otimização
-- **Smart Java & Auto-Otimização:** Detecta ou baixa o Java correto para cada versão do Minecraft.
-- **Aikar's Flags automáticas:** Aplica as melhores flags de JVM automaticamente.
-- **Editor de JVM por instância:** Presets de RAM + validador de flags em tempo real.
+- **Smart Java:** Identifica ou baixa a versão exata do Java (8, 17, 21) correspondente à versão do Minecraft e à plataforma do usuário.
+- **Aikar's Flags automáticas:** Aplica parâmetros de JVM para GC suave sem travamentos de frame.
+- **Editor de JVM por instância:** Permite definir memória mínima/máxima e argumentos personalizados.
 
 ### 🧩 Mods & Loaders
-- **Suporte a Múltiplos Mod Loaders:** Vanilla, Fabric, Forge, NeoForge e Quilt.
-- **Central de Conteúdo:** Modrinth + CurseForge com filtros por fonte, tipo, versão, loader e categoria.
-- **Fabric API automático:** Detecta e instala o Fabric API quando necessário.
-- **Gerenciador por instância:** Ative/desative/exclua mods com isolamento seguro.
+- **Suporte a Mod Loaders:** Vanilla, Fabric, Forge, NeoForge e Quilt.
+- **Central de Mods Integrada:** Busca unificada no Modrinth e CurseForge com filtros por versão e loader.
+- **Fallback de Banners:** Exibição elegante com visualização de ícones e banners de modpacks.
 
 ### 👕 Personalização
-- **Renderizador 3D Volumétrico Real:** Modelo de 9 faces com rotação 360° em tempo real.
-- **NameMC Integration:** Busca de skins por nickname direto pelo launcher.
-- **Capas:** Suporte a OptiFine, Mojang e Migrator.
+- **Modelo 3D Volumétrico Real:** Rotação 360° interativa, troca entre modelos Classic (4px) e Slim (3px).
+- **NameMC:** Busca de skins por nickname.
+- **Capas 3D:** 13 capas históricas incluídas e suporte a capas customizadas.
 
 ### 🌐 Servidores & Multiplayer
-- **Diretório de 100+ Servidores:** Brasileiros e mundiais com ping em tempo real e filtros.
-- **Mundo Aberto P2P:** Jogue mundos locais com amigos via rede/LAN.
-- **Cópia de IP em 1 clique** para entrar rápido.
-
-### 🔒 Privacidade & Segurança
-- **Keyring seguro do sistema:** Tokens protegidos via libsecret / KWallet.
-- **Modo anônimo para streamers:** Oculte dados sensíveis.
-- **Sem telemetria:** Zero rastreamento, zero dados coletados.
-
-### 📥 Atualizações
-- **Verificação automática:** Alertas nativos para novas versões do launcher.
-- **Reparo de instâncias:** Corrija instâncias corrompidas com 1 clique.
-- **Backup & Export:** Salve e compartilhe instâncias completas.
-
----
-
-## 📸 Galeria de Screenshots
-
-<details>
-<summary><strong>🏠 Dashboard — Tela Principal</strong></summary>
-<br/>
-<div align="center">
-  <img src="static/home.png" alt="Dashboard" width="850" style="border-radius: 12px;" />
-</div>
-
-- Saudação personalizada com nome do jogador
-- Modpacks em destaque com carrossel
-- Servidores recomendados com ping ao vivo
-- Estatísticas de jogo (tempo total, sessões, versão principal)
-- Notícias & Comunidade na sidebar direita
-</details>
-
-<details>
-<summary><strong>🌐 Diretório de Servidores</strong></summary>
-<br/>
-<div align="center">
-  <img src="static/servers.png" alt="Servidores" width="850" style="border-radius: 12px;" />
-</div>
-
-- 100+ servidores brasileiros e mundiais
-- Filtros: Todos, Original, Pirata, Survival, Bedwars, Brasil, Skyblock, PvP, etc.
-- Ping em tempo real e contagem de jogadores online
-- Badges de tipo (ORIGINAL, ANARCHY, SURVIVAL)
-- Cópia de IP em 1 clique
-</details>
-
-<details>
-<summary><strong>👕 Personalização 3D de Skins & Capas</strong></summary>
-<br/>
-<div align="center">
-  <img src="static/skins.png" alt="Skins 3D" width="850" style="border-radius: 12px;" />
-</div>
-
-- Modelo 3D volumétrico real com rotação completa
-- Integração NameMC para busca de skins
-- Galeria de skins salvas e customizadas
-- Capas: Migrator, OptiFine, Mojang
-- Importação de skin .PNG e sincronização em tempo real
-</details>
-
-<details>
-<summary><strong>📦 Central de Conteúdo (Mods)</strong></summary>
-<br/>
-<div align="center">
-  <img src="static/screenshot.png" alt="Central de Mods" width="850" style="border-radius: 12px;" />
-</div>
-
-- Grid de modpacks/mods com imagem dual (banner + ícone)
-- Filtros: Modrinth/CurseForge, Modpack/Mod/Shader/Resource Pack/Data Pack
-- Filtro por versão do jogo e mod loader
-- Categorias: Adventure, Challenging, Combat, Kitchen Sink, Magic, etc.
-- Botão "Instalar" com progresso em tempo real
-</details>
+- **Diretório de 100+ Servidores:** Brasileiros e mundiais com ping em tempo real e paginação econômica.
+- **Chat P2P Integrado:** Comunicação direta por IP entre jogadores do Luxmc.
 
 ---
 
 ## 📥 Como Baixar e Instalar
 
-Baixe o executável ou pacote correspondente ao seu sistema operacional na aba de **[📦 Releases Oficiais (v1.3.0-BETA)](https://github.com/predabr/luxmc/releases/latest)**.
+Baixe o pacote para seu sistema na aba de **[📦 Releases Oficiais (v1.3.1-ALPHA)](https://github.com/predabr/luxmc/releases/latest)**.
 
-### ☕ Universal Java (`Luxmc.jar`) — Roda em Qualquer Sistema
-Executável universal compatível com **Linux**, **Windows** e **macOS** (requer Java 11, 17, 21 ou 25+ instalado):
-```bash
-# 1. Baixe o arquivo Luxmc.jar
-# 2. Execute via terminal ou clique duas vezes:
-java -jar Luxmc.jar
+### 🪟 Microsoft Windows (`Luxmc.exe`)
+Executável nativo de 64-bit para Windows 10 e Windows 11 com WebView2:
+1. Baixe **`Luxmc.exe`** ou o instalador `.msi`.
+2. Dê duplo clique para iniciar diretamente.
 
-# Para execução direta sem abrir interface gráfica de bootstrap:
-java -jar Luxmc.jar --cli
-```
-
-### 🪟 Microsoft Windows (`Luxmc.exe`) — Binário Nativo
-Executável nativo completo de 64-bit para Windows 10 e Windows 11 com aceleração WebView2 integrada:
-1. Baixe **`Luxmc.exe`** na aba de Releases.
-2. Dê duplo clique para executar diretamente (dispensa instaladores ou arquivos adicionais).
-
-### 🟢 Universal Linux (AppImage) — Recomendado para Linux
-Compatível com **todas** as distribuições Linux (Ubuntu, Debian, Fedora, Arch, Pop!_OS, openSUSE, Mint, etc.):
+### 🟢 Universal Linux (AppImage)
+Compatível com todas as distribuições Linux:
 ```bash
 # 1. Dê permissão de execução
-chmod +x Luxmc_1.3.0-beta_amd64.AppImage
+chmod +x Luxmc_1.3.1-alpha_amd64.AppImage
 
 # 2. Execute
-./Luxmc_1.3.0-beta_amd64.AppImage
+./Luxmc_1.3.1-alpha_amd64.AppImage
 ```
 
-### 🟣 Arch Linux / Manjaro (`yay` e `paru`)
-O Luxmc possui suporte oficial e verificado para o **Arch Linux** através do helper AUR (`luxmc-bin`). O pacote faz a extração instantânea do binário otimizado, ícones em todas as resoluções e atalho `.desktop` no menu de aplicativos do sistema.
+### 🟣 Arch Linux / Manjaro
+O repositório inclui suporte completo para o Arch Linux:
 
-#### Opção A: Usando `yay` ou `paru` direto do repositório local
 ```bash
-# Usando yay:
-yay -B packaging/aur
-
-# Ou usando paru:
-paru -B packaging/aur
+# Compilação e instalação nativa via PKGBUILD:
+cd packaging/arch
+makepkg -si
 ```
 
-#### Opção B: Instalação via AUR oficial
-```bash
-yay -S luxmc-bin
-# ou
-paru -S luxmc-bin
-```
-
-#### Opção C: Compilação/Instalação manual com `makepkg`
+Ou através do pacote de binário pré-compilado:
 ```bash
 cd packaging/aur
 makepkg -si
 ```
 
-### 🔴 Debian / Ubuntu / Pop!_OS / Linux Mint (.deb)
+### 🔴 Debian / Ubuntu / Pop!_OS (.deb)
 ```bash
-sudo apt install ./Luxmc_1.3.0-beta_amd64.deb
+sudo apt install ./Luxmc_1.3.1-alpha_amd64.deb
 ```
 
-### 🔵 Fedora / RHEL / openSUSE (.rpm)
+### 🔵 Fedora / openSUSE (.rpm)
 ```bash
-sudo dnf install ./Luxmc-1.3.0-beta-1.x86_64.rpm
+sudo dnf install ./Luxmc-1.3.1-alpha-1.x86_64.rpm
 ```
 
 ---
 
 ## 🛠️ Compilando do Código-Fonte
 
-### Requisitos do Sistema
+### Requisitos
 
 | Requisito | Versão Mínima |
 |-----------|--------------|
 | **Node.js** | v20+ |
 | **pnpm** | v9+ |
 | **Rust** (stable) | 1.77+ |
-| **WebKitGTK** | 4.1+ |
-| **GTK** | 3.0+ |
+| **WebKitGTK** (Linux) | 4.1+ |
+| **GTK** (Linux) | 3.0+ |
 
-### Dependências de Desenvolvimento
-
-<details>
-<summary><strong>Debian / Ubuntu</strong></summary>
-
-```bash
-sudo apt install libwebkit2gtk-4.1-dev build-essential curl wget libssl-dev \
-  libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
-```
-</details>
-
-<details>
-<summary><strong>Arch Linux</strong></summary>
-
-```bash
-sudo pacman -S webkit2gtk-4.1 base-devel openssl gtk3 libappindicator-gtk3 librsvg
-```
-</details>
-
-<details>
-<summary><strong>Fedora</strong></summary>
-
-```bash
-sudo dnf install webkit2gtk4.1-devel @development-tools openssl-devel \
-  gtk3-devel libappindicator-gtk3-devel librsvg2-devel
-```
-</details>
-
-### Build & Execução
+### Compilação
 
 ```bash
 # 1. Clone o repositório
 git clone https://github.com/predabr/luxmc.git
 cd luxmc
 
-# 2. Instale as dependências do frontend
+# 2. Instale as dependências
 pnpm install
 
-# 3. Inicie em modo desenvolvimento (hot-reload)
+# 3. Inicie em desenvolvimento
 pnpm tauri dev
 
-# 4. Gere os pacotes de produção (AppImage, .deb, .rpm)
+# 4. Gere os pacotes de produção
 pnpm tauri build
 ```
 
-### Variáveis de Ambiente (Opcional)
-
-Copie o arquivo `.env.example` para `.env` e configure:
-
-```bash
-cp .env.example .env
-```
-
-| Variável | Descrição |
-|----------|-----------|
-| `CURSEFORGE_API_KEY` | Chave da API do CurseForge (opcional — sem ela, apenas Modrinth funciona) |
-| `LUXMC_MS_CLIENT_ID` | Azure Client ID para autenticação Microsoft |
-| `LUXMC_DEV_MODE` | Ativa o modo desenvolvedor (`true`/`false`) |
-| `LUXMC_SOFTWARE_RENDER` | Força renderização por software (`true`/`false`) |
-
 ---
 
-## 🏗️ Arquitetura
+## 🏗️ Estrutura do Projeto
 
 ```
 luxmc/
 ├── src/                          # Frontend (SvelteKit + Svelte 5 + TypeScript)
 │   ├── lib/
 │   │   ├── api/                  # Wrappers tipados para Tauri commands
-│   │   ├── components/           # Componentes UI reutilizáveis
-│   │   │   ├── layout/           # Sidebar, Header, DownloadProgressBar
-│   │   │   └── ui/               # Botões, Cards, Toggles
-│   │   └── stores/               # Estado global (Svelte 5 runes)
-│   └── routes/                   # Páginas SvelteKit
-│       ├── +page.svelte          # Login / Dashboard
-│       ├── mods/                 # Central de Conteúdo
-│       ├── instances/            # Gerenciador de Instâncias
-│       └── settings/             # Configurações
+│   │   ├── components/           # Componentes UI (Skins, Servidores, Mods, Cutscene)
+│   │   ├── stores/               # Estado reativo (Svelte 5 runes)
+│   │   └── utils/                # Texturas e utilitários
+│   └── routes/                   # Páginas SvelteKit (Dashboard, Mods, Skins, Servidores, Amigos)
 ├── src-tauri/                    # Backend Rust (Tauri 2)
 │   ├── src/
-│   │   ├── core/                 # Lógica de negócio
-│   │   │   ├── downloader.rs     # Download Manager com progresso
-│   │   │   ├── loaders/          # Fabric, Quilt, NeoForge
-│   │   │   └── mods/             # Modrinth & CurseForge clients
-│   │   ├── commands/             # #[tauri::command] handlers
-│   │   └── lib.rs                # Registro de commands
-│   └── tests/                    # Testes de integração Rust
-├── static/                       # Assets estáticos
-└── tailwind.config.ts            # Tokens de design Tailwind
+│   │   ├── core/                 # Lógica de negócio (Java, Downloader, Minecraft, P2P)
+│   │   ├── commands/             # Handlers #[tauri::command]
+│   │   └── lib.rs                # Registro de plugins e comandos
+│   └── Cargo.toml
+├── packaging/
+│   ├── arch/                     # PKGBUILD nativo de compilação para Arch Linux
+│   └── aur/                      # PKGBUILD binário para AUR
+└── static/                       # Assets estáticos
 ```
-
-### Stack Tecnológica
-
-| Camada | Tecnologia | Versão |
-|--------|-----------|--------|
-| **Backend** | Rust + Tauri 2 | Stable 1.77+ |
-| **Frontend** | SvelteKit + Svelte 5 | ^5.56 |
-| **Estilização** | Tailwind CSS | ^3.4 |
-| **Renderização 3D** | Three.js + Threlte | ^0.185 |
-| **Banco de Dados** | SQLite (sqlx) | Integrado |
-| **Segurança** | libsecret / KWallet (Keyring) | Sistema |
-| **Build** | Vite 6 + Cargo | Latest |
 
 ---
 
 ## 🤝 Contribuindo
 
-Contribuições são bem-vindas! Siga estas diretrizes:
-
 1. **Fork** o repositório
-2. **Crie uma branch** para sua feature: `git checkout -b feat/minha-feature`
-3. **Siga as convenções** do projeto:
-   - TypeScript strict mode ativo
-   - Svelte 5 runes (`$state`, `$derived`, `$effect`) — sem stores legados
-   - Tokens Tailwind do `tailwind.config.ts` — nunca hardcode valores hex
-   - Todo side-effect Tauri via `#[tauri::command]` + wrapper tipado em `src/lib/api/`
-4. **Verifique** antes de commitar:
+2. Crie sua branch de funcionalidade: `git checkout -b feat/minha-feature`
+3. Execute as verificações do projeto antes de submeter:
    ```bash
-   pnpm check        # Frontend (svelte-check)
-   cargo check        # Backend (Rust)
-   cargo test --tests # Testes de integração
+   pnpm check       # Verificação de tipos Svelte/TS
+   cargo check      # Verificação de compilação Rust (dentro de src-tauri/)
    ```
-5. **Abra um Pull Request** descrevendo suas mudanças
-
----
-
-## 📋 Roadmap
-
-- [x] Central de Mods (Modrinth + CurseForge)
-- [x] Personalização 3D de Skins & Capas
-- [x] Diretório de Servidores com ping real
-- [x] Fabric loader com Fabric API automático
-- [x] Editor de JVM por instância
-- [x] Sistema de reparo, backup e exportação
-- [x] Barra de progresso de downloads
-- [x] Cutscene cinematográfica
-- [ ] Autenticação Microsoft completa (aguardando aprovação Azure)
-- [x] Suporte ao Windows (instaladores .msi e .exe)
-- [x] NeoForge loader completo (prepare_loader)
-- [x] Sistema de amigos e chat integrado
-- [x] Marketplace de skins e capas da comunidade
-- [x] Suporte a macOS
+4. Abra um Pull Request.
 
 ---
 
 ## 📄 Licença
 
 Distribuído sob a **Licença Própria do Luxmc Launcher** (Copyright © 2026 Pedro & Time Luxmc).
-O software é gratuito para uso pessoal e não comercial. É expressamente proibida a revenda, comercialização, empacotamento com anúncios (adware) ou rebranding não autorizado. Para ler todos os termos e condições, consulte o arquivo [LICENSE](LICENSE).
-
----
+Gratuito para uso pessoal e não comercial. Consulte [LICENSE](LICENSE) para detalhes.
 
 <div align="center">
   <br/>
-  <p>
-    <strong>Feito com ❤️ no Brasil, para a comunidade Linux.</strong>
-  </p>
-  <p>
-    <a href="https://github.com/predabr/luxmc/releases">📦 Download</a> •
-    <a href="https://github.com/predabr/luxmc/issues">🐛 Reportar Bug</a> •
-    <a href="https://github.com/predabr/luxmc/discussions">💬 Discussões</a>
-  </p>
-  <br/>
+  <p><strong>Feito com dedicação para a comunidade gamer.</strong></p>
   <img src="static/logo.png" alt="Luxmc" width="60" />
 </div>

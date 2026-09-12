@@ -12,11 +12,6 @@ const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_DELAY_MS: u64 = 1000;
 
 #[derive(Debug, Deserialize)]
-struct RuntimeManifest {
-    linux: Option<std::collections::HashMap<String, Vec<RuntimeEntry>>>,
-}
-
-#[derive(Debug, Deserialize)]
 struct RuntimeEntry {
     manifest: Option<RuntimeManifestRef>,
     version: Option<RuntimeVersion>,
@@ -63,6 +58,28 @@ pub struct JavaRuntimeManager {
     app: Option<tauri::AppHandle>,
 }
 
+fn current_mojang_platform_key() -> &'static str {
+    if cfg!(target_os = "windows") {
+        if cfg!(target_arch = "aarch64") {
+            "windows-arm64"
+        } else if cfg!(target_arch = "x86") {
+            "windows-x86"
+        } else {
+            "windows-x64"
+        }
+    } else if cfg!(target_os = "macos") {
+        if cfg!(target_arch = "aarch64") {
+            "mac-os-arm64"
+        } else {
+            "mac-os"
+        }
+    } else if cfg!(target_arch = "x86") {
+        "linux-i386"
+    } else {
+        "linux"
+    }
+}
+
 impl JavaRuntimeManager {
     pub fn new(http: reqwest::Client, data_dir: PathBuf) -> Self {
         Self {
@@ -82,7 +99,8 @@ impl JavaRuntimeManager {
     }
 
     fn java_bin(&self, major: u32) -> PathBuf {
-        self.java_dir(major).join("bin").join("java")
+        let bin_name = if cfg!(windows) { "java.exe" } else { "java" };
+        self.java_dir(major).join("bin").join(bin_name)
     }
 
     fn emit_progress(&self, progress: &DownloadProgress) {
@@ -116,8 +134,9 @@ impl JavaRuntimeManager {
             }
             Err(_) => {
                 self.emit_log(&format!(
-                    "System Java {} not found, will download runtime",
-                    major_version
+                    "System Java {} not found, will download runtime for platform {}",
+                    major_version,
+                    current_mojang_platform_key()
                 ));
                 self.download_runtime(major_version).await?;
 
@@ -125,10 +144,15 @@ impl JavaRuntimeManager {
                 if bin.exists() {
                     Ok(bin)
                 } else {
+                    let hint = if cfg!(windows) {
+                        format!("Install Java {} manually from https://adoptium.net/", major_version)
+                    } else {
+                        format!("Install Java {} manually with: sudo pacman -S jre-openjdk", major_version)
+                    };
                     Err(AppError::Internal(format!(
-						"Failed to install Java {} runtime. Install Java {} manually with: sudo pacman -S jre-openjdk",
-						major_version, major_version
-					)))
+                        "Failed to install Java {} runtime. {}",
+                        major_version, hint
+                    )))
                 }
             }
         }
@@ -146,13 +170,37 @@ impl JavaRuntimeManager {
         let detected = parse_java_major(version_str);
 
         if detected >= major {
-            let path_out = std::process::Command::new("which")
-                .arg("java")
-                .output()
-                .map_err(|_| AppError::Internal("which java failed".into()))?;
-            let path = String::from_utf8_lossy(&path_out.stdout).trim().to_string();
-            if !path.is_empty() {
-                return Ok(PathBuf::from(path));
+            if cfg!(windows) {
+                if let Ok(path_out) = std::process::Command::new("where.exe")
+                    .arg("java")
+                    .output()
+                {
+                    let first_line = String::from_utf8_lossy(&path_out.stdout)
+                        .lines()
+                        .next()
+                        .unwrap_or("")
+                        .trim()
+                        .to_string();
+                    if !first_line.is_empty() {
+                        return Ok(PathBuf::from(first_line));
+                    }
+                }
+                if let Ok(java_home) = std::env::var("JAVA_HOME") {
+                    let p = PathBuf::from(java_home).join("bin").join("java.exe");
+                    if p.exists() {
+                        return Ok(p);
+                    }
+                }
+                return Ok(PathBuf::from("java.exe"));
+            } else {
+                let path_out = std::process::Command::new("which")
+                    .arg("java")
+                    .output()
+                    .map_err(|_| AppError::Internal("which java failed".into()))?;
+                let path = String::from_utf8_lossy(&path_out.stdout).trim().to_string();
+                if !path.is_empty() {
+                    return Ok(PathBuf::from(path));
+                }
             }
         }
 
@@ -173,14 +221,16 @@ impl JavaRuntimeManager {
             speed: None,
         });
 
-        let manifest: RuntimeManifest =
+        let manifest: std::collections::HashMap<String, std::collections::HashMap<String, Vec<RuntimeEntry>>> =
             retry_get_json(&self.http, JAVA_RUNTIME_MANIFEST_URL).await?;
 
-        let linux = manifest
-            .linux
-            .ok_or_else(|| AppError::Internal("no linux java runtimes available".into()))?;
+        let platform_key = current_mojang_platform_key();
+        let platform_entries = manifest
+            .get(platform_key)
+            .or_else(|| manifest.get("linux"))
+            .ok_or_else(|| AppError::Internal(format!("no java runtimes available for platform {}", platform_key)))?;
 
-        let component_url = self.find_component_url(&linux, major_version)?;
+        let component_url = self.find_component_url(platform_entries, major_version)?;
 
         let component_manifest: ComponentManifest =
             retry_get_json(&self.http, &component_url).await?;
@@ -274,10 +324,10 @@ impl JavaRuntimeManager {
 
     fn find_component_url(
         &self,
-        linux: &std::collections::HashMap<String, Vec<RuntimeEntry>>,
+        platform_entries: &std::collections::HashMap<String, Vec<RuntimeEntry>>,
         major_version: u32,
     ) -> AppResult<String> {
-        for (_name, entries) in linux {
+        for (_name, entries) in platform_entries {
             for entry in entries {
                 if let Some(ref version) = entry.version {
                     let entry_major = version
@@ -301,10 +351,14 @@ impl JavaRuntimeManager {
             }
         }
 
+        let hint = if cfg!(windows) {
+            format!("Install Java {} manually from https://adoptium.net/", major_version)
+        } else {
+            format!("Install Java {} manually with: sudo pacman -S jre-openjdk", major_version)
+        };
         Err(AppError::Internal(format!(
-            "No Java runtime found for major version {}. \
-			 Install manually with: sudo pacman -S jre-openjdk",
-            major_version
+            "No Java runtime found for major version {}. {}",
+            major_version, hint
         )))
     }
 }

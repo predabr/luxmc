@@ -32,6 +32,7 @@
 			? "bg-[#caa97c] hover:bg-[#b89565] text-black shadow-[#caa97c]/20"
 			: "bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white shadow-[#6c5ce7]/20"
 	);
+	const bannerSrc = $derived(item.bannerUrl || item.iconUrl || "/vanilla_banner.png");
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -42,20 +43,14 @@
 >
 	<!-- Top Banner Image -->
 	<div class="relative w-full h-36 bg-[#0f1013] overflow-hidden">
-		{#if item.bannerUrl}
-			<LazyImage
-				src={item.bannerUrl}
-				alt={item.title}
-				class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-			/>
-		{:else}
-			<div class="w-full h-full bg-[#181920] relative flex items-center justify-center overflow-hidden">
-				<div class="absolute inset-0 opacity-[0.04]" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 14px 14px;"></div>
-				<div class="absolute inset-0 bg-gradient-to-t from-[#15161b] via-transparent to-transparent"></div>
-			</div>
-		{/if}
+		<LazyImage
+			src={bannerSrc}
+			alt={item.title}
+			class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 {item.bannerUrl ? '' : 'blur-[1px] opacity-80'}"
+			fallback="/vanilla_banner.png"
+		/>
 
-		<div class="absolute top-2.5 right-2.5">
+		<div class="absolute top-2.5 right-2.5 z-10">
 			<SourceBadge source={item.source} />
 		</div>
 

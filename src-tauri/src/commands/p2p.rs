@@ -149,8 +149,10 @@ pub async fn p2p_send_message(
     let serialized =
         serde_json::to_string(&payload).map_err(|e| AppError::Internal(e.to_string()))? + "\n";
 
-    let mut stream = TcpStream::connect(&addr)
+    let connect_future = TcpStream::connect(&addr);
+    let mut stream = tokio::time::timeout(std::time::Duration::from_secs(3), connect_future)
         .await
+        .map_err(|_| AppError::Internal(format!("Tempo limite esgotado ao conectar a {}", addr)))?
         .map_err(|e| AppError::Internal(format!("Não foi possível conectar a {}: {}", addr, e)))?;
 
     stream

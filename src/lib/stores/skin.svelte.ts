@@ -1,5 +1,6 @@
 export type CapeType =
 	| "none"
+	| "custom"
 	| "migrator"
 	| "optifine"
 	| "mojang"
@@ -23,6 +24,7 @@ export interface SkinData {
 	type: "steve" | "alex";
 	hasCape?: boolean;
 	capeType?: CapeType;
+	customCapeUrl?: string;
 }
 
 const defaultSkin: SkinData = {
@@ -33,7 +35,8 @@ const defaultSkin: SkinData = {
 	avatarUrl: "https://mc-heads.net/avatar/Steve/100",
 	type: "steve",
 	hasCape: false,
-	capeType: "none"
+	capeType: "none",
+	customCapeUrl: ""
 };
 
 function createSkinStore() {
@@ -61,9 +64,12 @@ function createSkinStore() {
 				localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current));
 			}
 		},
-		setCape(capeType: CapeType) {
+		setCape(capeType: CapeType, customUrl?: string) {
 			current.capeType = capeType;
 			current.hasCape = capeType !== "none";
+			if (customUrl !== undefined) {
+				current.customCapeUrl = customUrl;
+			}
 			if (typeof window !== "undefined") {
 				localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current));
 			}

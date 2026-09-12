@@ -28,6 +28,7 @@
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import SkinViewer3D from "$lib/components/ui/SkinViewer3D.svelte";
 	import { activeSkinStore, type CapeType } from "$lib/stores/skin.svelte";
+	import { getCapePreviewDataUrl } from "$lib/utils/capeTextures";
 	import { account } from "$lib/stores/account.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 
@@ -602,6 +603,38 @@
 		target.value = "";
 	}
 
+	let capeFileInputEl: HTMLInputElement;
+
+	function handleCapeUpload(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const file = target.files?.[0];
+		if (!file) return;
+
+		if (!file.name.toLowerCase().endsWith(".png")) {
+			toast("Selecione um arquivo de capa válido (.png)!", "error");
+			return;
+		}
+
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			const dataUrl = event.target?.result as string;
+			if (!dataUrl) return;
+
+			selectedCape = "custom";
+			activeSkinStore.setCape("custom", dataUrl);
+			autoRotate = false;
+			skinViewerRef?.setAngle(175);
+			toast("Capa personalizada importada e equipada com sucesso!", "success");
+		};
+		reader.readAsDataURL(file);
+		target.value = "";
+	}
+
+	function setModelType(slim: boolean) {
+		isSlimModel = slim;
+		activeSkinStore.setSkin({ type: slim ? 'alex' : 'steve' });
+	}
+
 	function setQuickAngle(deg: number) {
 		autoRotate = false;
 		skinViewerRef?.setAngle(deg);
@@ -610,12 +643,14 @@
 	function selectCape(cape: CapeType) {
 		selectedCape = cape;
 		activeSkinStore.setCape(cape);
-		const found = capeCatalog.find(c => c.id === cape);
-		const name = found ? found.name : "Sem Capa";
-		if (cape !== "none") {
-			autoRotate = false;
-			skinViewerRef?.setAngle(175);
+		if (cape === "none") {
+			toast("Capa desequipada!", "info");
+			return;
 		}
+		const found = capeCatalog.find(c => c.id === cape);
+		const name = found ? found.name : (cape === "custom" ? "Capa Personalizada" : "Sem Capa");
+		autoRotate = false;
+		skinViewerRef?.setAngle(175);
 		toast(`Capa "${name}" atualizada no modelo 3D!`, "success");
 	}
 
@@ -653,6 +688,14 @@
 	onchange={handleFileUpload} 
 />
 
+<input 
+	type="file" 
+	accept="image/png" 
+	class="hidden" 
+	bind:this={capeFileInputEl} 
+	onchange={handleCapeUpload} 
+/>
+
 <div class="flex gap-8 h-full w-full select-none" in:fade={{ duration: 300 }}>
 	<!-- Main Skins & Marketplace Area -->
 	<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-6">
@@ -680,6 +723,24 @@
 				</Button>
 
 				<Button 
+					variant="secondary" 
+					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
+					onclick={() => capeFileInputEl.click()}
+				>
+					<Shield class="w-3.5 h-3.5 text-brand-400" />
+					Importar Capa
+				</Button>
+
+				<Button 
+					variant="secondary" 
+					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
+					onclick={() => setQuickAngle(175)}
+				>
+					<RotateCw class="w-3.5 h-3.5 text-blue-400" />
+					Ver Costas
+				</Button>
+
+				<Button 
 					variant="outline" 
 					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm" 
 					onclick={() => downloadSkinFile(activeSkinStore.current.name || "skin", activeTextureUrl)}
@@ -699,61 +760,61 @@
 			</div>
 		</div>
 
-		<!-- Nav Tabs Switcher -->
-		<div class="flex items-center gap-2 bg-[#141518] p-1.5 rounded-2xl border border-white/5 w-fit">
+		<!-- Main 3-Tab Navigator (Guarda-roupa / Capas HD / Marketplace) -->
+		<div class="flex items-center gap-2 bg-[#121316] p-1.5 rounded-2xl border border-white/5 w-fit">
 			<button 
 				type="button" 
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'wardrobe' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
-				onclick={() => { activeTab = "wardrobe"; skinViewerRef?.setAngle(20); }}
+				class="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'wardrobe' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+				onclick={() => activeTab = "wardrobe"}
 			>
-				<Shirt class="w-3.5 h-3.5" />
-				Guarda-Roupa 3D
+				<Shirt class="w-4 h-4" /> Guarda-roupa
 			</button>
-
 			<button 
 				type="button" 
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'marketplace' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+				class="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'capes' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+				onclick={() => {
+					activeTab = "capes";
+					setQuickAngle(175);
+				}}
+			>
+				<Shield class="w-4 h-4" /> Capas 3D ({capeCatalog.length})
+			</button>
+			<button 
+				type="button" 
+				class="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'marketplace' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 				onclick={() => activeTab = "marketplace"}
 			>
-				<ShoppingBag class="w-3.5 h-3.5" />
-				Marketplace de Skins
-				<span class="text-[9px] font-black px-1.5 py-0.5 rounded-md {activeTab === 'marketplace' ? 'bg-black/20 text-black' : 'bg-brand-500/20 text-brand-400'}">
-					NOVO
-				</span>
-			</button>
-
-			<button 
-				type="button" 
-				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'capes' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
-				onclick={() => { activeTab = "capes"; autoRotate = false; skinViewerRef?.setAngle(175); }}
-			>
-				<Shield class="w-3.5 h-3.5" />
-				Catálogo de Capas 3D
-				<span class="text-[9px] font-black px-1.5 py-0.5 rounded-md {activeTab === 'capes' ? 'bg-black/20 text-black' : 'bg-brand-500/20 text-brand-400'}">
-					13 Capas
-				</span>
+				<ShoppingBag class="w-4 h-4" /> Catálogo da Comunidade
 			</button>
 		</div>
 
-		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" class:hidden={activeTab === "marketplace"}>
+		<!-- Tab: Wardrobe & Capes View with Split Layout -->
+		<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" class:hidden={activeTab === "marketplace"}>
 				
-				<!-- Left Column: 360° Real 3D Hardware Accelerated Character Stage -->
-				<div class="lg:col-span-5 bg-[#18191c] border border-white/5 rounded-3xl p-5 flex flex-col items-center justify-between min-h-[580px] relative shadow-2xl overflow-hidden">
-					
-					<!-- Top Bar inside Stage -->
-					<div class="w-full flex items-center justify-between gap-2 z-10">
-						<div class="flex items-center gap-2">
-							<span class="text-[11px] font-bold text-white/70 flex items-center gap-1.5 bg-black/40 px-3 py-1 rounded-xl border border-white/5">
-								<Layers class="w-3.5 h-3.5 text-amber-400" /> Three.js WebGL
-							</span>
-							<span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-								60 FPS Fluido
-							</span>
+				<!-- Left Column: 3D Stage & Rig Settings (5 cols) -->
+				<div class="lg:col-span-5 bg-[#18191c] border border-white/5 rounded-3xl p-5 flex flex-col items-center shadow-xl relative overflow-hidden">
+					<!-- Top Rig Quick-Toggles -->
+					<div class="w-full flex items-center justify-between pb-3 border-b border-white/5">
+						<div class="flex items-center gap-1.5 bg-[#121316] p-1 rounded-xl border border-white/5">
+							<button 
+								type="button" 
+								class="px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {!isSlimModel ? 'bg-[#caa97c] text-black shadow-sm' : 'text-white/50 hover:text-white'}"
+								onclick={() => setModelType(false)}
+							>
+								Classic (4px)
+							</button>
+							<button 
+								type="button" 
+								class="px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {isSlimModel ? 'bg-[#caa97c] text-black shadow-sm' : 'text-white/50 hover:text-white'}"
+								onclick={() => setModelType(true)}
+							>
+								Slim (3px)
+							</button>
 						</div>
 
 						<button 
 							type="button" 
-							class="flex items-center gap-1.5 px-3 py-1 rounded-xl text-[11px] font-semibold transition-colors border cursor-pointer {autoRotate ? 'bg-[#caa97c] text-black border-[#caa97c] font-bold shadow-sm' : 'bg-[#222328] text-white/50 border-white/5 hover:text-white'}"
+							class="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold border border-white/10 transition-colors cursor-pointer {autoRotate ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-white/5 text-white/60 hover:bg-white/10'}"
 							onclick={() => autoRotate = !autoRotate}
 						>
 							<RotateCw class="w-3 h-3 {autoRotate ? 'animate-spin' : ''}" />
@@ -771,6 +832,7 @@
 							bind:this={skinViewerRef}
 							skinUrl={activeTextureUrl}
 							cape={selectedCape}
+							customCapeUrl={activeSkinStore.current.customCapeUrl}
 							slim={isSlimModel}
 							{autoRotate}
 							active={activeTab === 'wardrobe' || activeTab === 'capes'}
@@ -1000,11 +1062,19 @@
 							</div>
 							<h2 class="text-base font-extrabold text-white">Catálogo Completo de Capas 3D</h2>
 							<p class="text-xs text-white/60 leading-relaxed">
-								Equipe qualquer capa e visualize em tempo real no modelo 3D ao lado com física e texturas completas.
+								Equipe qualquer capa oficial ou importe seu próprio arquivo .PNG para visualizar em tempo real no modelo 3D.
 							</p>
 						</div>
 
 						<div class="flex items-center gap-2 shrink-0">
+							<button 
+								type="button" 
+								class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-brand-500/20 text-brand-300 border border-brand-500/30 hover:bg-brand-500 hover:text-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+								onclick={() => capeFileInputEl.click()}
+							>
+								<Upload class="w-3.5 h-3.5" />
+								Importar Capa (.PNG)
+							</button>
 							{#if selectedCape !== "none"}
 								<button 
 									type="button" 
@@ -1019,6 +1089,58 @@
 
 					<!-- Capes Grid -->
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{#if activeSkinStore.current.customCapeUrl}
+							{@const isCustomEquipped = selectedCape === "custom"}
+							<div class="bg-[#18191c] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isCustomEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
+								<div class="flex items-center justify-between gap-2 mb-2">
+									<span class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border bg-amber-500/20 text-amber-300 border-amber-500/30">
+										Personalizada
+									</span>
+									<span class="text-[11px] font-medium text-white/40">Arquivo Local</span>
+								</div>
+
+								<div class="h-24 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border border-white/10 flex items-center justify-center relative overflow-hidden my-2">
+									<div class="flex items-center gap-3 z-10">
+										<div class="w-10 h-16 rounded-md bg-black/50 border border-white/20 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+											<img src={activeSkinStore.current.customCapeUrl} alt="Capa Customizada" class="w-full h-full object-contain [image-rendering:pixelated]" />
+										</div>
+										<div>
+											<h4 class="text-xs font-extrabold text-white">Sua Capa Personalizada</h4>
+											<p class="text-[10px] text-white/50">Arquivo PNG importado</p>
+										</div>
+									</div>
+								</div>
+
+								<p class="text-xs text-white/60 leading-relaxed my-1.5">
+									Sua textura de capa importada via arquivo do computador.
+								</p>
+
+								<div class="mt-2 pt-2.5 border-t border-white/5 flex items-center justify-between">
+									{#if isCustomEquipped}
+										<span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+											<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Equipada
+										</span>
+										<button 
+											type="button" 
+											class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+											onclick={() => selectCape("none")}
+										>
+											Desequipar
+										</button>
+									{:else}
+										<span class="text-[10px] text-white/30 font-medium">Textura Personalizada</span>
+										<button 
+											type="button" 
+											class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-brand-500/15 text-brand-400 border border-brand-500/30 hover:bg-brand-500 hover:text-black transition-all cursor-pointer shadow-sm"
+											onclick={() => selectCape("custom")}
+										>
+											Equipar Capa
+										</button>
+									{/if}
+								</div>
+							</div>
+						{/if}
+
 						{#each capeCatalog as cape}
 							{@const isEquipped = selectedCape === cape.id}
 							<div class="bg-[#18191c] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
@@ -1031,9 +1153,12 @@
 
 								<div class="h-24 rounded-2xl bg-gradient-to-br {cape.borderGradient} border border-white/10 flex items-center justify-center relative overflow-hidden my-2">
 									<div class="flex items-center gap-3 z-10">
-										<div class="w-9 h-14 rounded-md bg-black/40 border border-white/20 flex flex-col items-center justify-center shadow-lg relative">
-											<Shield class="w-4 h-4 text-amber-300" />
-											<span class="text-[7px] font-bold text-white/70 uppercase mt-0.5">3D</span>
+										<div class="w-10 h-16 rounded-md bg-black/60 border border-white/20 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+											{#if getCapePreviewDataUrl(cape.id)}
+												<img src={getCapePreviewDataUrl(cape.id)} alt={cape.name} class="w-full h-full object-contain [image-rendering:pixelated]" />
+											{:else}
+												<Shield class="w-4 h-4 text-amber-300" />
+											{/if}
 										</div>
 										<div>
 											<h4 class="text-xs font-extrabold text-white">{cape.name}</h4>

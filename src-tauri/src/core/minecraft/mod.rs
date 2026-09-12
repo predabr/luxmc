@@ -155,6 +155,7 @@ pub struct Library {
     pub downloads: Option<LibraryDownloads>,
     pub rules: Option<Vec<LibraryRule>>,
     pub url: Option<String>,
+    pub natives: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

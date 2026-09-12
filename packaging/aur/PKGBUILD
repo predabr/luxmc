@@ -1,7 +1,7 @@
 # Maintainer: Pedro <suporte@luxmc.com>
 pkgname=luxmc-bin
-pkgver=1.3.0.beta
-_tagver="1.3.0-beta"
+pkgver=1.3.1.alpha
+_tagver="1.3.1-alpha"
 pkgrel=1
 pkgdesc="Linux-first Minecraft launcher (prebuilt binary)"
 arch=('x86_64')

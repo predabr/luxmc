@@ -402,37 +402,63 @@ impl DownloadManager {
 
         let mut to_download: Vec<(String, PathBuf, String, String, u64)> = Vec::new();
 
+        let os_name = crate::core::launcher::platform_mojang_name(crate::core::launcher::current_platform());
         for lib in libraries {
             if !crate::core::launcher::is_library_allowed(lib) {
                 continue;
             }
             let path = lib_path_from_name(&lib_dir, &lib.name);
-            if path.exists() {
-                continue;
-            }
 
             if let Some(ref downloads) = lib.downloads {
                 if let Some(ref artifact) = downloads.artifact {
+                    if !path.exists() {
+                        if let Some(parent) = path.parent() {
+                            tokio::fs::create_dir_all(parent).await?;
+                        }
+                        to_download.push((
+                            artifact.url.clone(),
+                            path.clone(),
+                            artifact.sha1.clone(),
+                            lib.name.clone(),
+                            artifact.size,
+                        ));
+                    }
+                }
+
+                if let Some(ref classifiers) = downloads.classifiers {
+                    for (classifier_key, entry) in classifiers {
+                        let matches_os = match os_name {
+                            "windows" => classifier_key.starts_with("natives-windows"),
+                            "linux" => classifier_key.starts_with("natives-linux"),
+                            "osx" => classifier_key.starts_with("natives-osx") || classifier_key.starts_with("natives-macos"),
+                            _ => false,
+                        };
+                        if matches_os {
+                            let native_lib_name = format!("{}:{}", lib.name, classifier_key);
+                            let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
+                            if !native_path.exists() {
+                                if let Some(parent) = native_path.parent() {
+                                    tokio::fs::create_dir_all(parent).await?;
+                                }
+                                to_download.push((
+                                    entry.url.clone(),
+                                    native_path,
+                                    entry.sha1.clone(),
+                                    native_lib_name,
+                                    entry.size,
+                                ));
+                            }
+                        }
+                    }
+                }
+            } else if !path.exists() {
+                let url = lib_url_from_name(&lib.name, lib.url.as_deref());
+                if !url.is_empty() {
                     if let Some(parent) = path.parent() {
                         tokio::fs::create_dir_all(parent).await?;
                     }
-                    to_download.push((
-                        artifact.url.clone(),
-                        path.clone(),
-                        artifact.sha1.clone(),
-                        lib.name.clone(),
-                        artifact.size,
-                    ));
-                    continue;
+                    to_download.push((url, path, String::new(), lib.name.clone(), 0));
                 }
-            }
-
-            let url = lib_url_from_name(&lib.name, lib.url.as_deref());
-            if !url.is_empty() {
-                if let Some(parent) = path.parent() {
-                    tokio::fs::create_dir_all(parent).await?;
-                }
-                to_download.push((url, path, String::new(), lib.name.clone(), 0));
             }
         }
 
@@ -698,7 +724,33 @@ async fn download_file_once(
     path: &PathBuf,
     label: &str,
 ) -> AppResult<()> {
-    let resp = mgr.http.get(&entry.url).send().await?.error_for_status()?;
+    let mut resp = mgr.http.get(&entry.url).send().await;
+
+    if let Ok(ref r) = resp {
+        if r.status() == reqwest::StatusCode::NOT_FOUND && entry.url.starts_with("https://libraries.minecraft.net/") {
+            let mirror_url = entry.url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/libraries/");
+            if let Ok(m_resp) = mgr.http.get(&mirror_url).send().await {
+                if m_resp.status().is_success() {
+                    resp = Ok(m_resp);
+                }
+            }
+        }
+    }
+
+    let resp = match resp {
+        Ok(r) => match r.error_for_status() {
+            Ok(val) => val,
+            Err(e) => {
+                if (label.contains("twitch") || entry.url.contains("tv/twitch")) && e.status() == Some(reqwest::StatusCode::NOT_FOUND) {
+                    DownloadManager::emit_log(mgr, &format!("Ignored missing legacy optional library: {}", label));
+                    return Ok(());
+                }
+                return Err(e.into());
+            }
+        },
+        Err(e) => return Err(e.into()),
+    };
+
     let total_size = resp.content_length().unwrap_or(entry.size);
 
     let mut stream = resp.bytes_stream();
