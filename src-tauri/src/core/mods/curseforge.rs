@@ -864,3 +864,34 @@ pub async fn get_files_batch(
     map
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_curseforge_api_search_and_file_details() {
+        let http = reqwest::Client::new();
+        let search_res = search_mods(&http, "jei", "1.20.1", "mod", Some("forge"), 5, 0, Some("downloads")).await;
+        assert!(search_res.is_ok(), "CurseForge search failed: {:?}", search_res.err());
+        let results = search_res.unwrap();
+        assert!(!results.is_empty(), "CurseForge search should return at least 1 result for JEI");
+
+        // Test JEI project details & file resolution
+        let file_res = get_mod_file_details(&http, "238222", "8792638").await;
+        assert!(file_res.is_ok(), "CurseForge file details failed: {:?}", file_res.err());
+        let file = file_res.unwrap();
+        assert!(file.filename.ends_with(".jar"), "File name should end with .jar: {}", file.filename);
+        assert!(!file.url.is_empty(), "Download URL should not be empty");
+
+        // Verify the file URL is downloadable via HTTP
+        let head = http.head(&file.url).send().await;
+        assert!(head.is_ok(), "HTTP request to download URL failed: {:?}", head.err());
+        let resp = head.unwrap();
+        assert!(
+            resp.status().is_success() || resp.status().is_redirection(),
+            "CurseForge file should be downloadable (status: {})",
+            resp.status()
+        );
+    }
+}
+
