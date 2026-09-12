@@ -31,6 +31,48 @@ async fn get_configured_client_id() -> String {
 }
 
 #[tauri::command]
+pub async fn auth_get_client_id() -> String {
+    let cid = get_configured_client_id().await;
+    if cid == "00000000-0000-0000-0000-000000000000" {
+        "".to_string()
+    } else {
+        cid
+    }
+}
+
+#[tauri::command]
+pub async fn auth_set_client_id(client_id: String) -> AppResult<()> {
+    let trimmed = client_id.trim();
+    let conn = crate::db::shared_db().await?;
+    use sqlx::Row;
+
+    let current_val = if let Ok(Some(row)) = sqlx::query("SELECT value FROM app_settings WHERE key = 'app'")
+        .fetch_optional(conn.pool())
+        .await
+    {
+        row.try_get::<String, _>("value").unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    let mut map: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&current_val).unwrap_or_default();
+    if trimmed.is_empty() {
+        map.remove("customMicrosoftClientId");
+    } else {
+        map.insert("customMicrosoftClientId".into(), serde_json::Value::String(trimmed.to_string()));
+    }
+
+    let serialized = serde_json::to_string(&map).map_err(|e| AppError::Internal(e.to_string()))?;
+    sqlx::query("INSERT INTO app_settings (key, value) VALUES ('app', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(serialized)
+        .execute(conn.pool())
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to save client_id: {e}")))?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn auth_begin(state: State<'_, AppState>) -> AppResult<PendingAuth> {
     let client_id = get_configured_client_id().await;
     Ok(state.auth.begin_with_client_id(Some(&client_id)))
@@ -42,6 +84,11 @@ pub async fn auth_login(
     app: tauri::AppHandle,
 ) -> AppResult<AuthAccount> {
     let client_id = get_configured_client_id().await;
+    if client_id == "00000000-0000-0000-0000-000000000000" {
+        return Err(AppError::InvalidState(
+            "client_id_required".into(),
+        ));
+    }
     let pending = state.auth.begin_with_client_id(Some(&client_id));
     let listener = oauth_server::start_callback_server().await.map_err(|e| {
         AppError::Internal(format!(

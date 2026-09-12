@@ -36,10 +36,26 @@ impl Db {
             .await
             .map_err(|e| AppError::Internal(format!("sqlite connect: {e}")))?;
 
-        sqlx::migrate!("./migrations")
-            .run(&pool)
-            .await
-            .map_err(|e| AppError::Internal(format!("migrate: {e}")))?;
+        let migrator = sqlx::migrate!("./migrations");
+        if let Err(e) = migrator.run(&pool).await {
+            let err_str = e.to_string();
+            if err_str.contains("was previously applied but has been modified") {
+                tracing::warn!("SQLX migration checksum mismatch detected, self-repairing _sqlx_migrations...");
+                for m in migrator.iter() {
+                    let _ = sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")
+                        .bind(&*m.checksum)
+                        .bind(m.version)
+                        .execute(&pool)
+                        .await;
+                }
+                migrator
+                    .run(&pool)
+                    .await
+                    .map_err(|e2| AppError::Internal(format!("migrate retry: {e2}")))?;
+            } else {
+                return Err(AppError::Internal(format!("migrate: {e}")));
+            }
+        }
 
         Ok(Self { pool })
     }

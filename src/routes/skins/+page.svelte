@@ -614,6 +614,18 @@
 		const name = found ? found.name : "Sem Capa";
 		toast(`Capa "${name}" atualizada no modelo 3D!`, "success");
 	}
+
+	function downloadSkinFile(name: string, skinUrl: string) {
+		if (!skinUrl) return;
+		const a = document.createElement("a");
+		a.href = skinUrl;
+		a.download = `${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}.png`;
+		a.target = "_blank";
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		toast(`Download da skin "${name}" iniciado!`, "info");
+	}
 </script>
 
 <input 
@@ -648,6 +660,15 @@
 				>
 					<Upload class="w-3.5 h-3.5 text-amber-400" />
 					Importar .PNG
+				</Button>
+
+				<Button 
+					variant="outline" 
+					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm" 
+					onclick={() => downloadSkinFile(activeSkinStore.current.name || "skin", activeTextureUrl)}
+				>
+					<Download class="w-3.5 h-3.5 text-emerald-400" />
+					Baixar .PNG
 				</Button>
 				
 				<Button 
@@ -1028,15 +1049,25 @@
 									{/each}
 								</div>
 
-								<!-- Equip Button -->
-								<button 
-									type="button" 
-									class="w-full mt-2 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer bg-brand-500/15 text-brand-400 border border-brand-500/30 hover:bg-brand-500 hover:text-black shadow-sm"
-									onclick={() => equipMarketplaceSkin(skin)}
-								>
-									<Check class="w-3.5 h-3.5" />
-									Equipar no Guarda-Roupa
-								</button>
+								<!-- Equip & Download Buttons -->
+								<div class="flex items-center gap-2 mt-2">
+									<button 
+										type="button" 
+										class="flex-1 py-2 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer bg-brand-500/15 text-brand-400 border border-brand-500/30 hover:bg-brand-500 hover:text-black shadow-sm"
+										onclick={() => equipMarketplaceSkin(skin)}
+									>
+										<Check class="w-3.5 h-3.5" />
+										Equipar
+									</button>
+									<button
+										type="button"
+										class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-colors cursor-pointer"
+										onclick={() => downloadSkinFile(skin.name, skin.skinUrl)}
+										title="Baixar arquivo .PNG da skin"
+									>
+										<Download class="w-3.5 h-3.5 text-emerald-400" />
+									</button>
+								</div>
 							</div>
 						</div>
 					{/each}

@@ -45,6 +45,10 @@
 		discordClearActivity,
 		getSystemSpecs,
 		changelogGet,
+		curseforgeStatus,
+		curseforgeGetKey,
+		curseforgeSetKey,
+		curseforgeValidateKey,
 		type ChangelogEntry,
 		type StorageBreakdown
 	} from "$lib/api";
@@ -176,6 +180,10 @@
 
 	let changelogList = $state<ChangelogEntry[]>([]);
 
+	let curseforgeKeyInput = $state("");
+	let curseforgeActive = $state(false);
+	let isValidatingCf = $state(false);
+
 	onMount(() => {
 		loadStorageMetrics();
 		changelogGet().then(entries => {
@@ -192,6 +200,13 @@
 				};
 			}
 		}).catch(err => console.error(err));
+
+		curseforgeStatus().then(st => {
+			curseforgeActive = st;
+		}).catch(() => {});
+		curseforgeGetKey().then(k => {
+			if (k) curseforgeKeyInput = k;
+		}).catch(() => {});
 
 		const savedVulkan = localStorage.getItem("luxmc_enable_vulkan");
 		if (savedVulkan !== null) {
@@ -252,6 +267,38 @@
 			await loadStorageMetrics();
 			toast("Cache temporário limpo com sucesso!", "success");
 		}, 600);
+	}
+
+	async function saveCurseForgeKey() {
+		const k = curseforgeKeyInput.trim();
+		if (!k) {
+			toast("Insira uma chave da API do CurseForge.", "error");
+			return;
+		}
+		try {
+			await curseforgeSetKey(k);
+			curseforgeActive = true;
+			toast("Chave do CurseForge guardada com sucesso!", "success");
+		} catch (e) {
+			toast(String(e), "error");
+		}
+	}
+
+	async function testCurseForgeKey() {
+		isValidatingCf = true;
+		try {
+			const valid = await curseforgeValidateKey();
+			if (valid) {
+				curseforgeActive = true;
+				toast("Conexão com a API do CurseForge verificada com sucesso! ✅", "success");
+			} else {
+				toast("A chave informada não é válida ou foi recusada pela API do CurseForge.", "error");
+			}
+		} catch (e) {
+			toast("Erro ao testar conexão: " + String(e), "error");
+		} finally {
+			isValidatingCf = false;
+		}
 	}
 
 	function saveSettings() {
@@ -515,6 +562,67 @@
 									Desconectar
 								</button>
 							{/if}
+						</div>
+					</div>
+
+					<!-- CurseForge API Key Card -->
+					<div class="bg-[#18191c] border border-orange-500/20 rounded-3xl p-5 space-y-4">
+						<div class="flex items-start gap-3.5">
+							<div class="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
+								<Flame class="w-5 h-5" />
+							</div>
+							<div class="space-y-1">
+								<div class="flex items-center gap-2">
+									<h4 class="text-xs font-black text-white uppercase tracking-wider">CurseForge API Key</h4>
+									{#if curseforgeActive}
+										<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+											<CheckCircle2 class="w-3 h-3" /> Chave Ativa
+										</span>
+									{:else}
+										<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-red-500/15 text-red-400 border border-red-500/30">
+											Sem Chave
+										</span>
+									{/if}
+								</div>
+								<p class="text-xs text-white/60 leading-relaxed">
+									A chave oficial de desenvolvimento da API do CurseForge já vem integrada no Luxmc para buscar mods e modpacks automaticamente. Caso você possua uma chave própria gerada no console da Eternal / CurseForge, insira-a abaixo.
+								</p>
+							</div>
+						</div>
+
+						<div class="border-t border-white/5 pt-4 space-y-3">
+							<label for="cf-api-key" class="text-xs font-bold text-white/80 block">
+								Chave de API (x-api-key):
+							</label>
+							<div class="flex gap-2">
+								<input
+									id="cf-api-key"
+									type="password"
+									class="flex-1 bg-[#141518] border border-white/10 focus:border-orange-500/80 rounded-2xl px-4 py-2.5 text-xs text-white font-mono placeholder:text-white/20 outline-none transition-all"
+									placeholder="Cole sua API Key do CurseForge aqui..."
+									bind:value={curseforgeKeyInput}
+								/>
+								<button
+									type="button"
+									class="px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-white font-bold text-xs transition-all active:scale-95 cursor-pointer border border-white/10 flex items-center gap-1.5"
+									onclick={testCurseForgeKey}
+									disabled={isValidatingCf}
+								>
+									{#if isValidatingCf}
+										<RefreshCw class="w-3.5 h-3.5 animate-spin" />
+									{:else}
+										<Sparkles class="w-3.5 h-3.5 text-orange-400" />
+									{/if}
+									Testar
+								</button>
+								<button
+									type="button"
+									class="px-5 py-2.5 rounded-2xl bg-orange-500 hover:bg-orange-400 text-black font-black text-xs transition-all active:scale-95 cursor-pointer shadow-md"
+									onclick={saveCurseForgeKey}
+								>
+									Salvar Chave
+								</button>
+							</div>
 						</div>
 					</div>
 				</div>

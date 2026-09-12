@@ -110,6 +110,10 @@ export async function curseforgeStatus(): Promise<boolean> {
 	return api.invoke("curseforge_status");
 }
 
+export async function curseforgeGetKey(): Promise<string | null> {
+	return api.invoke("curseforge_get_key");
+}
+
 export async function curseforgeSetKey(key: string): Promise<void> {
 	return api.invoke("curseforge_set_key", { key });
 }

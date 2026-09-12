@@ -1,0 +1,9 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Explicitly ensure SQL migrations are LF on all platforms
+*.sql text eol=lf
+*.rs text eol=lf
+*.ts text eol=lf
+*.svelte text eol=lf
+*.json text eol=lf

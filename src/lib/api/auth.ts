@@ -79,3 +79,11 @@ export async function authOfflineLogin(username: string): Promise<{
 export async function authSwitchAccount(uuid: string): Promise<void> {
 	return api.invoke("auth_switch_account", { uuid });
 }
+
+export async function authGetClientId(): Promise<string> {
+	return api.invoke("auth_get_client_id");
+}
+
+export async function authSetClientId(clientId: string): Promise<void> {
+	return api.invoke("auth_set_client_id", { clientId });
+}

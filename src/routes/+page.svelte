@@ -35,6 +35,8 @@
 		authDevLogin, 
 		authOfflineLogin, 
 		authLogin, 
+		authGetClientId,
+		authSetClientId,
 		launchGame, 
 		versionsCheckInstalled, 
 		versionsDownload, 
@@ -164,7 +166,25 @@
 		}
 	}
 
+	let showMsClientIdModal = $state(false);
+	let msClientIdInput = $state("");
+	let isSavingClientId = $state(false);
+
 	async function handleMicrosoftLogin() {
+		try {
+			const existingId = await authGetClientId().catch(() => "");
+			if (!existingId || existingId === "00000000-0000-0000-0000-000000000000") {
+				msClientIdInput = "";
+				showMsClientIdModal = true;
+				return;
+			}
+			await startMsLogin();
+		} catch (e) {
+			toast(String(e), "error");
+		}
+	}
+
+	async function startMsLogin() {
 		isLoggingInMicrosoft = true;
 		try {
 			toast(t("home.msAuthStarted"), "info");
@@ -182,13 +202,32 @@
 			account.value = newAcc;
 		} catch (e) {
 			const errStr = String(e);
-			if (errStr.includes("00000000-0000-0000-0000-000000000000") || errStr.includes("invalid_client") || errStr.includes("AADSTS700016")) {
-				toast(t("home.msApprovalWaiting"), "info");
+			if (errStr.includes("client_id_required") || errStr.includes("00000000-0000-0000-0000-000000000000") || errStr.includes("unauthorized_client") || errStr.includes("invalid_client") || errStr.includes("AADSTS700016")) {
+				showMsClientIdModal = true;
 			} else {
 				toast(t("home.loginAttempt", { error: errStr }), "error");
 			}
 		} finally {
 			isLoggingInMicrosoft = false;
+		}
+	}
+
+	async function saveAndLoginWithClientId() {
+		const cid = msClientIdInput.trim();
+		if (!cid) {
+			toast("Insira um Application (client) ID válido do Azure.", "error");
+			return;
+		}
+		isSavingClientId = true;
+		try {
+			await authSetClientId(cid);
+			toast("Client ID da Microsoft configurado!", "success");
+			showMsClientIdModal = false;
+			await startMsLogin();
+		} catch (e) {
+			toast("Erro ao salvar Client ID: " + String(e), "error");
+		} finally {
+			isSavingClientId = false;
 		}
 	}
 
@@ -435,17 +474,17 @@
 						</div>
 					</div>
 				{:else}
-					<div class="bg-gradient-to-b from-[#1c1d24] to-[#16171d] border-2 border-[#6c5ce7]/50 hover:border-[#6c5ce7] rounded-3xl p-4 shadow-[0_0_25px_rgba(108,92,231,0.2)] hover:shadow-[0_0_35px_rgba(108,92,231,0.35)] transition-all duration-300 relative group overflow-hidden" in:fade={{ duration: 300 }}>
-						<div class="absolute -right-8 -bottom-8 w-28 h-28 bg-[#6c5ce7]/15 rounded-full blur-2xl pointer-events-none group-hover:bg-[#6c5ce7]/25 transition-all"></div>
+					<div class="relative group" in:fade={{ duration: 300 }}>
+						<div class="absolute -right-4 -bottom-4 w-32 h-32 bg-[#6c5ce7]/15 rounded-full blur-2xl pointer-events-none group-hover:bg-[#6c5ce7]/25 transition-all"></div>
 
 						<button 
 							type="button" 
-							class="w-full h-16 rounded-2xl bg-gradient-to-r from-[#22242e] to-[#1c1e27] hover:from-[#2a2c39] hover:to-[#222530] border border-[#6c5ce7]/30 hover:border-[#6c5ce7]/60 text-white font-bold text-sm flex items-center justify-between px-4 transition-all duration-300 active:scale-[0.98] cursor-pointer shadow-xl disabled:opacity-60"
+							class="w-full rounded-2xl bg-gradient-to-r from-[#20222c] to-[#181a22] hover:from-[#262835] hover:to-[#1e202b] border-2 border-[#6c5ce7]/50 hover:border-[#6c5ce7] p-3.5 text-white flex items-center justify-between gap-3 transition-all duration-300 active:scale-[0.99] cursor-pointer shadow-xl hover:shadow-[0_0_25px_rgba(108,92,231,0.25)] relative overflow-hidden disabled:opacity-60"
 							onclick={handleMicrosoftLogin}
 							disabled={isLoggingIn || isLoggingInMicrosoft}
 						>
-							<div class="flex items-center gap-3.5">
-								<div class="h-11 w-11 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-center p-2.5 shrink-0 shadow-inner">
+							<div class="flex items-center gap-3 min-w-0">
+								<div class="h-10 w-10 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0 shadow-inner">
 									<svg class="h-full w-full" viewBox="0 0 24 24" fill="none">
 										<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
 										<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
@@ -453,16 +492,16 @@
 										<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
 									</svg>
 								</div>
-								<div class="text-left">
+								<div class="text-left min-w-0">
 									<div class="flex items-center gap-2">
-										<span class="font-black text-white text-sm leading-tight">{t("home.signInWithMicrosoft")}</span>
-										<span class="bg-[#6c5ce7]/30 text-[#a29bfe] text-[9px] font-black px-2 py-0.5 rounded-full border border-[#6c5ce7]/40 uppercase tracking-wider">{t("home.primary")}</span>
+										<span class="font-black text-white text-xs sm:text-sm whitespace-nowrap">{t("home.signInWithMicrosoft")}</span>
+										<span class="bg-[#6c5ce7]/30 text-[#a29bfe] text-[9px] font-black px-1.5 py-0.5 rounded-full border border-[#6c5ce7]/40 uppercase tracking-wider shrink-0">{t("home.primary")}</span>
 									</div>
-									<p class="text-[11px] text-white/50 font-medium mt-0.5">{t("home.msOfficialAccount")}</p>
+									<p class="text-[11px] text-white/50 font-medium truncate mt-0.5">{t("home.msOfficialAccount")}</p>
 								</div>
 							</div>
 
-							<div class="h-9 px-4 rounded-xl bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white text-xs font-black flex items-center gap-2 shadow-lg shadow-[#6c5ce7]/30 group-hover:scale-105 transition-all duration-200 shrink-0">
+							<div class="h-8 px-3 rounded-xl bg-[#6c5ce7] group-hover:bg-[#5b4cdb] text-white text-xs font-black flex items-center gap-1.5 shadow-lg shadow-[#6c5ce7]/30 group-hover:scale-105 transition-all duration-200 shrink-0">
 								<span>{t("home.connect")}</span>
 								<ArrowRight class="w-3.5 h-3.5" />
 							</div>
@@ -600,6 +639,76 @@
 			</div>
 		</div>
 	</div>
+
+	{#if showMsClientIdModal}
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" in:fade={{ duration: 150 }}>
+			<div class="w-full max-w-md rounded-3xl bg-[#18191c] border border-amber-500/30 p-6 shadow-2xl space-y-4">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2.5">
+						<div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
+							<Lock class="w-4 h-4" />
+						</div>
+						<div>
+							<h3 class="text-sm font-black text-white">Configurar Microsoft Azure</h3>
+							<p class="text-[10px] text-white/50">Application (client) ID Requerido</p>
+						</div>
+					</div>
+					<button 
+						type="button" 
+						class="w-7 h-7 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
+						onclick={() => showMsClientIdModal = false}
+					>
+						✕
+					</button>
+				</div>
+
+				<p class="text-xs text-white/70 leading-relaxed">
+					Para autenticar com a Microsoft, insira o <span class="text-amber-400 font-bold">Application (client) ID</span> gerado no seu registro de aplicativo no Azure Portal (configurado para <em>Personal Microsoft accounts only</em>).
+				</p>
+
+				<div class="space-y-1.5">
+					<label for="ms-client-input" class="text-[11px] font-bold text-white/80 block">Client ID (UUID):</label>
+					<input 
+						id="ms-client-input"
+						type="text" 
+						placeholder="ex: e1f8c8a0-xxxx-xxxx-xxxx-xxxxxxxxxxxx" 
+						bind:value={msClientIdInput}
+						class="w-full bg-[#121316] border border-white/15 focus:border-amber-500 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-all"
+						onkeydown={(e) => { if (e.key === "Enter") saveAndLoginWithClientId(); }}
+					/>
+				</div>
+
+				<div class="p-3 rounded-2xl bg-white/5 border border-white/5 text-[10px] text-white/50 space-y-1">
+					<div class="font-bold text-white/70">Aviso do Azure Portal:</div>
+					<div>Redirect URI configurado deve ser: <code class="text-amber-300 font-mono">http://localhost:8453/callback</code></div>
+				</div>
+
+				<div class="flex items-center gap-2 pt-2">
+					<button 
+						type="button" 
+						class="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white font-bold text-xs transition-all cursor-pointer"
+						onclick={() => showMsClientIdModal = false}
+					>
+						Cancelar
+					</button>
+					<button 
+						type="button" 
+						class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+						onclick={saveAndLoginWithClientId}
+						disabled={isSavingClientId}
+					>
+						{#if isSavingClientId}
+							<Loader2 class="w-3.5 h-3.5 animate-spin" />
+							Salvando...
+						{:else}
+							<CheckCircle2 class="w-3.5 h-3.5" />
+							Salvar e Conectar
+						{/if}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 {:else}
 

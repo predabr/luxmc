@@ -69,14 +69,12 @@
 		const tw = 64;
 		const th = 32;
 
-		function setFace(faceIndex: number, u1: number, v1: number, u2: number, v2: number, flipX = false) {
+		function setFace(faceIndex: number, u1: number, v1: number, u2: number, v2: number) {
 			const i = faceIndex * 4;
-			const leftU = flipX ? u2 : u1;
-			const rightU = flipX ? u1 : u2;
-			uv.setXY(i + 0, leftU / tw, 1 - v1 / th);
-			uv.setXY(i + 1, rightU / tw, 1 - v1 / th);
-			uv.setXY(i + 2, leftU / tw, 1 - v2 / th);
-			uv.setXY(i + 3, rightU / tw, 1 - v2 / th);
+			uv.setXY(i + 0, u1 / tw, 1 - v1 / th);
+			uv.setXY(i + 1, u2 / tw, 1 - v1 / th);
+			uv.setXY(i + 2, u1 / tw, 1 - v2 / th);
+			uv.setXY(i + 3, u2 / tw, 1 - v2 / th);
 		}
 
 		// Standard Minecraft cape box: width=10, height=16, depth=1
@@ -90,8 +88,8 @@
 		setFace(3, 11, 0, 21, 1);
 		// 4: Front (+Z, inner face facing player): (1, 1) to (11, 17)
 		setFace(4, 1, 1, 11, 17);
-		// 5: Back (-Z, outer face facing viewer): (12, 1) to (22, 17) with flipX so text reads correctly
-		setFace(5, 12, 1, 22, 17, true);
+		// 5: Back (-Z, outer face facing viewer): (12, 1) to (22, 17)
+		setFace(5, 12, 1, 22, 17);
 
 		uv.needsUpdate = true;
 	}
@@ -492,14 +490,16 @@
 
 		if (cape !== "none") {
 			const capeGeom = new THREE.BoxGeometry(10, 16, 1);
+			capeGeom.translate(0, -8, 0.5);
 			setCapeUV(capeGeom);
 
 			const capeTex = createCapeTexture(cape);
 			const capeMat = new THREE.MeshLambertMaterial({
-				map: capeTex
+				map: capeTex,
+				side: THREE.DoubleSide
 			});
 			capeMesh = new THREE.Mesh(capeGeom, capeMat);
-			capeMesh.position.set(0, 8, -2.6);
+			capeMesh.position.set(0, 16, -2.25);
 			capeMesh.rotation.x = -15 * (Math.PI / 180);
 			playerGroup.add(capeMesh);
 		}
@@ -614,14 +614,14 @@
 		updateCamera();
 
 		renderer = new THREE.WebGLRenderer({
-			antialias: true,
+			antialias: false,
 			alpha: true,
-			powerPreference: "high-performance",
+			powerPreference: "default",
 			depth: true,
 			stencil: false,
-			precision: "highp"
+			precision: "mediump"
 		});
-		renderer.setPixelRatio(Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 2));
+		renderer.setPixelRatio(Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1, 1.5));
 		renderer.setSize(width, height, false);
 		renderer.shadowMap.enabled = false;
 		renderer.domElement.style.position = "absolute";
@@ -650,39 +650,15 @@
 		buildMinecraftModel(slim);
 		loadSkin(skinUrl);
 
-		let idleTime = 0;
-
-		const animate = () => {
-			if (!active || !isVisible || (typeof document !== "undefined" && document.visibilityState === "hidden")) {
-				animFrameId = null;
-				return;
-			}
-			animFrameId = requestAnimationFrame(animate);
-
-			if (autoRotate && !isDragging) {
-				yaw += 0.007;
-			}
-
-			idleTime += 0.03;
-			if (playerGroup) {
-				const breathe = Math.sin(idleTime) * 0.015;
-				playerGroup.position.y = breathe * 2;
-				if (capeMesh) {
-					capeMesh.rotation.x = (-15 + Math.sin(idleTime * 1.5) * 2.5) * (Math.PI / 180);
-				}
-			}
-
-			updateCamera();
-			renderer.render(scene, camera);
-		};
-
 		const observer = new IntersectionObserver(
 			(entries) => {
 				for (const entry of entries) {
 					const wasVisible = isVisible;
 					isVisible = entry.isIntersecting;
 					if (active && isVisible && !wasVisible && animFrameId === null) {
-						animFrameId = requestAnimationFrame(animate);
+						startLoop();
+					} else if (!isVisible && animFrameId !== null) {
+						stopLoop();
 					}
 				}
 			},
@@ -692,12 +668,9 @@
 
 		const handleVisibilityChange = () => {
 			if (document.visibilityState === "hidden") {
-				if (animFrameId !== null) {
-					cancelAnimationFrame(animFrameId);
-					animFrameId = null;
-				}
-			} else if (isVisible && animFrameId === null) {
-				animFrameId = requestAnimationFrame(animate);
+				stopLoop();
+			} else if (isVisible && active) {
+				startLoop();
 			}
 		};
 		document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -711,7 +684,7 @@
 				const w = Math.min(MAX_CANVAS_WIDTH, Math.floor(rawW));
 				const h = Math.min(MAX_CANVAS_HEIGHT, Math.floor(rawH));
 				if (w > 0 && h > 0 && renderer && camera) {
-					if (Math.abs(w - lastW) < 4 && Math.abs(h - lastH) < 4) continue;
+					if (Math.abs(w - lastW) < 6 && Math.abs(h - lastH) < 6) continue;
 					lastW = w;
 					lastH = h;
 					camera.aspect = w / h;
@@ -722,12 +695,54 @@
 		});
 		resizeObserver.observe(containerEl);
 
+		startLoop();
+
 		return () => {
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 			observer.disconnect();
 			resizeObserver?.disconnect();
+			stopLoop();
 		};
 	});
+
+	let idleTime = 0;
+
+	function animate() {
+		if (!active || !isVisible || (typeof document !== "undefined" && document.visibilityState === "hidden") || !renderer) {
+			animFrameId = null;
+			return;
+		}
+		animFrameId = requestAnimationFrame(animate);
+
+		if (autoRotate && !isDragging) {
+			yaw += 0.007;
+		}
+
+		idleTime += 0.03;
+		if (playerGroup) {
+			const breathe = Math.sin(idleTime) * 0.015;
+			playerGroup.position.y = breathe * 2;
+			if (capeMesh) {
+				capeMesh.rotation.x = (-15 + Math.sin(idleTime * 1.5) * 2.5) * (Math.PI / 180);
+			}
+		}
+
+		updateCamera();
+		renderer.render(scene, camera);
+	}
+
+	function startLoop() {
+		if (animFrameId === null && active && isVisible && renderer) {
+			animFrameId = requestAnimationFrame(animate);
+		}
+	}
+
+	function stopLoop() {
+		if (animFrameId !== null) {
+			cancelAnimationFrame(animFrameId);
+			animFrameId = null;
+		}
+	}
 
 	function handlePointerMove(e: MouseEvent) {
 		if (!isDragging) return;
@@ -829,9 +844,10 @@
 
 	$effect(() => {
 		const isAct = active;
-		if (!isAct && animFrameId !== null) {
-			cancelAnimationFrame(animFrameId);
-			animFrameId = null;
+		if (isAct) {
+			startLoop();
+		} else {
+			stopLoop();
 		}
 	});
 

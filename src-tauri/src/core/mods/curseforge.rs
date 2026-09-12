@@ -46,11 +46,13 @@ fn get_cached_key() -> Option<String> {
     None
 }
 
-fn set_cached_key(key: String) {
+pub fn set_cached_key(key: String) {
     let cache = API_KEY_CACHE.get_or_init(|| std::sync::Mutex::new(None));
     let mut guard = cache.lock().unwrap();
     *guard = Some((key, Instant::now()));
 }
+
+pub const DEFAULT_CURSEFORGE_KEY: &str = "$2a$10$ZAl3a4/dJg9zsqJ2FJ.S/O0eEnOCDlPfAH81irnXt9GwXIsELgPuq";
 
 fn clear_cached_key() {
     let cache = API_KEY_CACHE.get_or_init(|| std::sync::Mutex::new(None));
@@ -122,6 +124,20 @@ pub fn api_key() -> Option<String> {
         }
     }
 
+    if let Some(env_val) = option_env!("CURSEFORGE_API_KEY") {
+        let trimmed = env_val.trim().to_string();
+        if is_valid_curseforge_key(&trimmed) {
+            set_cached_key(trimmed.clone());
+            return Some(trimmed);
+        }
+    }
+
+    if is_valid_curseforge_key(DEFAULT_CURSEFORGE_KEY) {
+        let key = DEFAULT_CURSEFORGE_KEY.to_string();
+        set_cached_key(key.clone());
+        return Some(key);
+    }
+
     None
 }
 
@@ -133,8 +149,9 @@ pub fn store_key(key: &str) -> Result<(), String> {
             MIN_KEY_LENGTH, MAX_KEY_LENGTH
         ));
     }
-    let entry = keyring_entry()?;
-    entry.set_password(trimmed).map_err(|e| format!("Keyring write error: {e}"))?;
+    if let Ok(entry) = keyring_entry() {
+        let _ = entry.set_password(trimmed);
+    }
     set_cached_key(trimmed.to_string());
     Ok(())
 }

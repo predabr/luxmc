@@ -289,15 +289,15 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
         tracing::error!(path = %file_path.display(), error = %e, "failed to create file");
         e
     })?;
-    let mut all_bytes = Vec::new();
     while let Some(chunk) = stream.next().await {
         let bytes = chunk.map_err(|e| {
             tracing::error!(url = %file_url, error = %e, "stream error");
             crate::error::AppError::Http(e)
         })?;
-        all_bytes.extend_from_slice(&bytes);
         let _ = tokio::io::AsyncWriteExt::write_all(&mut file, &bytes).await;
     }
+    let _ = tokio::io::AsyncWriteExt::flush(&mut file).await;
+    drop(file);
 
     let db = crate::db::shared_db().await?;
     let profile = if let Some(p) = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -315,7 +315,7 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     if let Some(ref prof) = profile {
         let prof_dest_dir = std::path::PathBuf::from(&prof.game_dir).join(target_subfolder);
         let _ = tokio::fs::create_dir_all(&prof_dest_dir).await;
-        let _ = tokio::fs::write(prof_dest_dir.join(&file_name), &all_bytes).await;
+        let _ = tokio::fs::copy(&file_path, prof_dest_dir.join(&file_name)).await;
     }
 
     if target_subfolder == "mods" {
@@ -714,13 +714,32 @@ pub fn curseforge_status() -> bool {
 }
 
 #[tauri::command]
-pub async fn curseforge_set_key(key: String) -> Result<(), String> {
-    crate::core::mods::curseforge::store_key(&key)
+pub fn curseforge_get_key() -> Option<String> {
+    crate::core::mods::curseforge::api_key()
 }
 
 #[tauri::command]
-pub fn curseforge_remove_key() -> Result<(), String> {
-    crate::core::mods::curseforge::remove_key()
+pub async fn curseforge_set_key(key: String) -> Result<(), String> {
+    let trimmed = key.trim().to_string();
+    crate::core::mods::curseforge::store_key(&trimmed)?;
+    if let Ok(conn) = crate::db::shared_db().await {
+        let _ = sqlx::query("INSERT INTO app_settings (key, value) VALUES ('curseforge_api_key', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+            .bind(&trimmed)
+            .execute(conn.pool())
+            .await;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn curseforge_remove_key() -> Result<(), String> {
+    crate::core::mods::curseforge::remove_key()?;
+    if let Ok(conn) = crate::db::shared_db().await {
+        let _ = sqlx::query("DELETE FROM app_settings WHERE key = 'curseforge_api_key'")
+            .execute(conn.pool())
+            .await;
+    }
+    Ok(())
 }
 
 #[tauri::command]
