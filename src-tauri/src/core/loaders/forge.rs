@@ -372,6 +372,9 @@ pub async fn prepare_forge(
     if universal_dest.exists() && !classpath_entries.contains(&universal_dest) {
         classpath_entries.push(universal_dest);
     }
+    if installer_dest.exists() && !classpath_entries.contains(&installer_dest) {
+        classpath_entries.push(installer_dest);
+    }
 
     let cp_sep = if cfg!(windows) { ";" } else { ":" };
     let lib_dir_str = libraries_dir.to_string_lossy().replace('\\', "/");
