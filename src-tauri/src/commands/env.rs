@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use serde::Serialize;
 
 use crate::error::{AppError, AppResult};
@@ -22,17 +20,6 @@ pub struct EnvIssue {
 #[tauri::command]
 pub async fn env_check() -> AppResult<EnvCheckResult> {
     let mut issues = Vec::new();
-
-    match which("unzip") {
-        Some(_) => {}
-        None => {
-            issues.push(EnvIssue {
-                code: "MISSING_UNZIP".into(),
-                message: "O programa 'unzip' não foi encontrado no sistema.".into(),
-                fix: "Instale com: sudo pacman -S unzip".into(),
-            });
-        }
-    }
 
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
@@ -77,7 +64,7 @@ pub async fn env_check() -> AppResult<EnvCheckResult> {
             issues.push(EnvIssue {
 				code: "NO_JAVA".into(),
 				message: "Java não encontrado no sistema. O Luxmc pode baixar automaticamente, mas é recomendado ter Java instalado.".into(),
-				fix: "Instale com: sudo pacman -S jre-openjdk".into(),
+				fix: "Instale o Java (JRE/JDK) no sistema se desejar usar Java global.".into(),
 			});
         }
     }
@@ -88,39 +75,23 @@ pub async fn env_check() -> AppResult<EnvCheckResult> {
     })
 }
 
-fn which(name: &str) -> Option<PathBuf> {
-    let output = std::process::Command::new("which")
-        .arg(name)
-        .output()
-        .ok()?;
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    if stdout.is_empty() || !output.status.success() {
-        None
-    } else {
-        Some(PathBuf::from(stdout))
+fn disk_free_bytes(path: &std::path::Path) -> Option<u64> {
+    let disks = sysinfo::Disks::new_with_refreshed_list();
+    let mut best_match: Option<(&sysinfo::Disk, usize)> = None;
+    for disk in disks.list() {
+        let mount = disk.mount_point();
+        if path.starts_with(mount) {
+            let len = mount.as_os_str().len();
+            if best_match.map_or(true, |(_, best_len)| len > best_len) {
+                best_match = Some((disk, len));
+            }
+        }
     }
-}
-
-fn disk_free_bytes(path: &PathBuf) -> Option<u64> {
-    let output = std::process::Command::new("stat")
-        .args(["-f", "--format=%a", path.to_str()?])
-        .output()
-        .ok()?;
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let avail: u64 = stdout.parse().ok()?;
-    let fragment: u64 = std::process::Command::new("stat")
-        .args(["-f", "--format=%S", path.to_str()?])
-        .output()
-        .ok()
-        .and_then(|o| {
-            String::from_utf8_lossy(&o.stdout)
-                .trim()
-                .to_string()
-                .parse()
-                .ok()
-        })
-        .unwrap_or(4096);
-    Some(avail * fragment)
+    if let Some((disk, _)) = best_match {
+        Some(disk.available_space())
+    } else {
+        disks.list().first().map(|d| d.available_space())
+    }
 }
 
 fn java_version() -> Option<String> {

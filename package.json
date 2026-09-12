@@ -1,6 +1,6 @@
 {
   "name": "luxmc",
-  "version": "1.3.0-beta",
+  "version": "1.3.1-alpha",
   "description": "Linux-first Minecraft launcher.",
   "type": "module",
   "private": true,

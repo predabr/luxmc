@@ -69,5 +69,20 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
 				"Segurança máxima: ofuscação de chaves CurseForge em tempo de compilação via script Rust sem segredos em texto claro no binário".into(),
 			],
 		},
+		ChangelogEntry {
+			version: "1.3.1-alpha".into(),
+			date: "2026-09-12".into(),
+			title: "Correções Críticas Windows/Linux, CurseForge Edge CDN, Microsoft OAuth & Estabilidade de RAM".into(),
+			highlights: vec![
+				"Isolamento completo do ambiente Linux AppImage (LD_LIBRARY_PATH_ORIG) evitando colisão de drivers gráficos na inicialização do Minecraft e modpacks".into(),
+				"Extração in-process nativa de natives e pacotes via Rust zip::ZipArchive eliminando a dependência do executável 'unzip'".into(),
+				"Edge CDN Fallback para a API do CurseForge contornando erros 403 em mods com bloqueio de distribuição de terceiros".into(),
+				"Autenticação Microsoft Azure conectada ao Tenant oficial (78c2f825-9437-484a-aaa6-4d61631e106b), corrigindo 'unauthorized_client'".into(),
+				"Otimização de RAM no sistema e JVM: inicialização leve de heap (-Xms) dinâmico e downloads de skins via Blob URLs no WebKit".into(),
+				"Correção de geometria, física e posicionamento das capas 3D no visualizador com caimento dinâmico correto".into(),
+				"Proteção contra Zip-Slip e sanitização de Path Traversal em downloads temporários e importação de instâncias".into(),
+				"Auto-recuperação de versões do Minecraft direto do manifesto oficial caso não existam no banco de dados local".into(),
+			],
+		},
 	])
 }

@@ -314,22 +314,13 @@ pub async fn prepare_forge(
                         .replace("${library_directory}", &lib_dir_str)
                         .replace("${classpath_separator}", cp_sep)
                         .replace("${version_name}", &version_data.id);
-                    jvm_args.push(replaced);
+                    if crate::core::launcher::jvm_arg_allowed_on_current_os(&replaced) {
+                        jvm_args.push(replaced);
+                    }
                 }
                 serde_json::Value::Object(obj) => {
                     if let Some(serde_json::Value::Array(rules)) = obj.get("rules") {
-                        let mut allow = false;
-                        let mut deny = false;
-                        for rule in rules {
-                            if let Some(action) = rule.get("action").and_then(|a| a.as_str()) {
-                                if action == "allow" {
-                                    allow = true;
-                                } else if action == "deny" {
-                                    deny = true;
-                                }
-                            }
-                        }
-                        if deny && !allow {
+                        if !crate::core::launcher::evaluate_rules(rules) {
                             continue;
                         }
                     }
@@ -340,7 +331,9 @@ pub async fn prepare_forge(
                                     .replace("${library_directory}", &lib_dir_str)
                                     .replace("${classpath_separator}", cp_sep)
                                     .replace("${version_name}", &version_data.id);
-                                jvm_args.push(replaced);
+                                if crate::core::launcher::jvm_arg_allowed_on_current_os(&replaced) {
+                                    jvm_args.push(replaced);
+                                }
                             }
                         }
                     } else if let Some(serde_json::Value::String(s)) = obj.get("value") {
@@ -348,7 +341,9 @@ pub async fn prepare_forge(
                             .replace("${library_directory}", &lib_dir_str)
                             .replace("${classpath_separator}", cp_sep)
                             .replace("${version_name}", &version_data.id);
-                        jvm_args.push(replaced);
+                        if crate::core::launcher::jvm_arg_allowed_on_current_os(&replaced) {
+                            jvm_args.push(replaced);
+                        }
                     }
                 }
                 _ => {}

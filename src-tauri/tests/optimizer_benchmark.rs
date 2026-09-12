@@ -9,7 +9,7 @@ fn test_dynamic_aikar_flags_generation() {
 
     // Test <= 4GB (2048 MB)
     let flags_2g = generate_aikar_flags(2048);
-    assert!(flags_2g.contains(&"-Xms2048M".to_string()));
+    assert!(flags_2g.contains(&"-Xms1024M".to_string()));
     assert!(flags_2g.contains(&"-Xmx2048M".to_string()));
     assert!(flags_2g.contains(&"-XX:G1HeapRegionSize=8M".to_string()));
     assert!(flags_2g.contains(&"-XX:G1NewSizePercent=30".to_string()));
@@ -20,7 +20,7 @@ fn test_dynamic_aikar_flags_generation() {
 
     // Test 4GB..8GB (6144 MB)
     let flags_6g = generate_aikar_flags(6144);
-    assert!(flags_6g.contains(&"-Xms6144M".to_string()));
+    assert!(flags_6g.contains(&"-Xms1024M".to_string()));
     assert!(flags_6g.contains(&"-Xmx6144M".to_string()));
     assert!(flags_6g.contains(&"-XX:G1HeapRegionSize=16M".to_string()));
     assert!(flags_6g.contains(&"-XX:G1NewSizePercent=30".to_string()));
@@ -30,7 +30,7 @@ fn test_dynamic_aikar_flags_generation() {
 
     // Test > 8GB (16384 MB)
     let flags_16g = generate_aikar_flags(16384);
-    assert!(flags_16g.contains(&"-Xms16384M".to_string()));
+    assert!(flags_16g.contains(&"-Xms1024M".to_string()));
     assert!(flags_16g.contains(&"-Xmx16384M".to_string()));
     assert!(flags_16g.contains(&"-XX:G1HeapRegionSize=32M".to_string()));
     assert!(flags_16g.contains(&"-XX:G1NewSizePercent=40".to_string()));

@@ -5,10 +5,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::{AppError, AppResult};
 
-use super::{default_client_id, pkce_challenge, pkce_verifier, AuthProvider, MicrosoftTokens};
+use super::{default_client_id, default_tenant_id, pkce_challenge, pkce_verifier, AuthProvider, MicrosoftTokens};
 
-const AUTH_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
-const TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
 const REDIRECT_URI: &str = "http://localhost:8453/callback";
 const SCOPES: &str = "offline_access XBoxLive.signin";
 
@@ -32,6 +30,7 @@ pub struct MicrosoftTokenResponse {
 
 pub struct MicrosoftOAuth {
     pub client_id: String,
+    pub tenant_id: String,
     pub http: reqwest::Client,
 }
 
@@ -39,8 +38,17 @@ impl MicrosoftOAuth {
     pub fn new(http: reqwest::Client) -> Self {
         Self {
             client_id: default_client_id(),
+            tenant_id: default_tenant_id(),
             http,
         }
+    }
+
+    pub fn auth_url(&self) -> String {
+        format!("https://login.microsoftonline.com/{}/oauth2/v2.0/authorize", self.tenant_id)
+    }
+
+    pub fn token_url(&self) -> String {
+        format!("https://login.microsoftonline.com/{}/oauth2/v2.0/token", self.tenant_id)
     }
 
     pub fn begin(&self) -> PendingAuth {
@@ -52,8 +60,9 @@ impl MicrosoftOAuth {
         let verifier = pkce_verifier();
         let challenge = pkce_challenge(&verifier);
         let state = random_state();
+        let auth_url = self.auth_url();
         let url = format!(
-			"{AUTH_URL}?client_id={cid}&response_type=code&redirect_uri={ru}&response_mode=query&scope={scopes}&state={state}&code_challenge={challenge}&code_challenge_method=S256",
+			"{auth_url}?client_id={cid}&response_type=code&redirect_uri={ru}&response_mode=query&scope={scopes}&state={state}&code_challenge={challenge}&code_challenge_method=S256",
 			cid = urlencoding(cid),
 			ru = urlencoding(REDIRECT_URI),
 			scopes = urlencoding(SCOPES),
@@ -85,9 +94,10 @@ impl MicrosoftOAuth {
             ("grant_type", "authorization_code"),
             ("redirect_uri", REDIRECT_URI),
         ];
+        let token_url = self.token_url();
         let resp = self
             .http
-            .post(TOKEN_URL)
+            .post(&token_url)
             .form(&form)
             .send()
             .await?
@@ -150,9 +160,10 @@ impl AuthProvider for MicrosoftOAuth {
             ("grant_type", "refresh_token"),
             ("redirect_uri", REDIRECT_URI),
         ];
+        let token_url = self.token_url();
         let resp = self
             .http
-            .post(TOKEN_URL)
+            .post(&token_url)
             .form(&form)
             .send()
             .await?

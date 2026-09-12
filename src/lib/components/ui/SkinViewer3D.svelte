@@ -490,7 +490,7 @@
 
 		if (cape !== "none") {
 			const capeGeom = new THREE.BoxGeometry(10, 16, 1);
-			capeGeom.translate(0, -8, 0.5);
+			capeGeom.translate(0, -8, -0.5);
 			setCapeUV(capeGeom);
 
 			const capeTex = createCapeTexture(cape);
@@ -499,8 +499,8 @@
 				side: THREE.DoubleSide
 			});
 			capeMesh = new THREE.Mesh(capeGeom, capeMat);
-			capeMesh.position.set(0, 16, -2.25);
-			capeMesh.rotation.x = -15 * (Math.PI / 180);
+			capeMesh.position.set(0, 16, -2.35);
+			capeMesh.rotation.x = 12 * (Math.PI / 180);
 			playerGroup.add(capeMesh);
 		}
 	}
@@ -723,7 +723,7 @@
 			const breathe = Math.sin(idleTime) * 0.015;
 			playerGroup.position.y = breathe * 2;
 			if (capeMesh) {
-				capeMesh.rotation.x = (-15 + Math.sin(idleTime * 1.5) * 2.5) * (Math.PI / 180);
+				capeMesh.rotation.x = (12 + Math.sin(idleTime * 1.5) * 2.5) * (Math.PI / 180);
 			}
 		}
 

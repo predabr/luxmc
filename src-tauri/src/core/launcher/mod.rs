@@ -12,7 +12,7 @@ use crate::error::AppResult;
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "1.3.0-BETA";
+const LAUNCHER_VERSION: &str = "1.3.1-ALPHA";
 
 /// Pipeline state machine. Every transition is emitted to the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -364,6 +364,30 @@ impl GameLauncher {
 
         #[cfg(target_os = "linux")]
         {
+            if let Ok(orig_ld) = std::env::var("LD_LIBRARY_PATH_ORIG") {
+                if orig_ld.is_empty() {
+                    cmd.env_remove("LD_LIBRARY_PATH");
+                } else {
+                    cmd.env("LD_LIBRARY_PATH", orig_ld);
+                }
+            } else if let Ok(current_ld) = std::env::var("LD_LIBRARY_PATH") {
+                let filtered: Vec<&str> = current_ld
+                    .split(':')
+                    .filter(|p| !p.contains(".mount_") && !p.contains("/tmp/.mount"))
+                    .collect();
+                if filtered.is_empty() {
+                    cmd.env_remove("LD_LIBRARY_PATH");
+                } else {
+                    cmd.env("LD_LIBRARY_PATH", filtered.join(":"));
+                }
+            } else {
+                cmd.env_remove("LD_LIBRARY_PATH");
+            }
+
+            cmd.env_remove("APPDIR");
+            cmd.env_remove("APPIMAGE");
+            cmd.env_remove("OWD");
+
             if profile.use_vulkan {
                 self.emit_log("Mesa Zink (OpenGL sobre Vulkan) aceleração ativa");
                 cmd.env("MESA_LOADER_DRIVER_OVERRIDE", "zink");
@@ -508,29 +532,33 @@ impl GameLauncher {
             if lib.name.contains(&format!("natives-{}", platform_mojang_name(current_platform()))) {
                 let path = lib_path_from_name(&base, &lib.name);
                 if path.exists() {
-                    let output = Command::new("unzip")
-                        .args([
-                            "-o",
-                            "-j",
-                            path.to_str().unwrap_or(""),
-                            "-d",
-                            natives_dir.to_str().unwrap_or(""),
-                        ])
-                        .output()
-                        .await;
-                    match output {
-                        Ok(out) => {
-                            if !out.status.success() {
-                                let stderr = String::from_utf8_lossy(&out.stderr);
-                                self.emit_log(&format!(
-                                    "unzip failed for {}: {}",
-                                    lib.name, stderr
-                                ));
+                    if let Ok(file) = std::fs::File::open(&path) {
+                        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                            for i in 0..archive.len() {
+                                if let Ok(mut file) = archive.by_index(i) {
+                                    if file.is_dir() {
+                                        continue;
+                                    }
+                                    let enclosed = match file.enclosed_name() {
+                                        Some(name) => name.to_path_buf(),
+                                        None => continue,
+                                    };
+                                    if enclosed.starts_with("META-INF") {
+                                        continue;
+                                    }
+                                    if let Some(file_name) = enclosed.file_name() {
+                                        let outpath = natives_dir.join(file_name);
+                                        if let Ok(mut outfile) = std::fs::File::create(&outpath) {
+                                            let _ = std::io::copy(&mut file, &mut outfile);
+                                        }
+                                    }
+                                }
                             }
+                        } else {
+                            self.emit_log(&format!("Failed to open native zip archive: {}", path.display()));
                         }
-                        Err(e) => {
-                            self.emit_log(&format!("failed to run unzip for {}: {}", lib.name, e));
-                        }
+                    } else {
+                        self.emit_log(&format!("Failed to open native jar file: {}", path.display()));
                     }
                 } else {
                     self.emit_log(&format!("native jar not found: {}", path.display()));
@@ -548,11 +576,16 @@ impl GameLauncher {
             }
         }
 
-        let so_count = std::fs::read_dir(&natives_dir)
+        let native_count = std::fs::read_dir(&natives_dir)
             .map(|rd| {
                 rd.filter(|e| {
                     e.as_ref()
-                        .map(|f| f.path().extension().map(|ext| ext == "so").unwrap_or(false))
+                        .map(|f| {
+                            f.path()
+                                .extension()
+                                .map(|ext| ext == "so" || ext == "dll" || ext == "dylib")
+                                .unwrap_or(false)
+                        })
                         .unwrap_or(false)
                 })
                 .count()
@@ -560,7 +593,7 @@ impl GameLauncher {
             .unwrap_or(0);
         self.emit_log(&format!(
             "Extracted {} native libraries to {}",
-            so_count,
+            native_count,
             natives_dir.display()
         ));
 
@@ -628,14 +661,19 @@ impl GameLauncher {
                         .replace("${version_name}", &detail.id)
                         .replace("${game_directory}", &game_dir.to_string_lossy());
 
-                    // Resolve vars first, then split on whitespace so compound args
-                    // packed into one JSON string still get evaluated individually.
-                    for sub in resolved.split_whitespace() {
-                        if !jvm_arg_allowed_on_current_os(sub) {
-                            self.emit_log(&format!("Dropped JVM arg on this platform: {}", sub));
-                            continue;
+                    // If it is a classpath, property (-D), or single parameter, don't split spaces!
+                    if s.contains("${classpath}") || resolved.starts_with("-D") || resolved.starts_with("-Xbootclasspath") {
+                        if jvm_arg_allowed_on_current_os(&resolved) {
+                            args.push(resolved);
                         }
-                        args.push(sub.to_string());
+                    } else {
+                        for sub in resolved.split_whitespace() {
+                            if !jvm_arg_allowed_on_current_os(sub) {
+                                self.emit_log(&format!("Dropped JVM arg on this platform: {}", sub));
+                                continue;
+                            }
+                            args.push(sub.to_string());
+                        }
                     }
                 }
             }
@@ -694,47 +732,54 @@ impl GameLauncher {
     }
 
     fn evaluate_jvm_rules(&self, rules: &[serde_json::Value]) -> bool {
-        let current = current_platform();
-        let current_name = platform_mojang_name(current);
+        evaluate_rules(rules)
+    }
+}
 
-        let mut allowed = false;
-        for rule in rules {
-            let action = rule
-                .get("action")
-                .and_then(|a| a.as_str())
-                .unwrap_or("allow");
-            let mut matches = true;
+pub fn evaluate_rules(rules: &[serde_json::Value]) -> bool {
+    let current = current_platform();
+    let current_name = platform_mojang_name(current);
 
-            if let Some(os_obj) = rule.get("os").and_then(|os| os.as_object()) {
-                if let Some(os_name) = os_obj.get("name").and_then(|n| n.as_str()) {
-                    if os_name != current_name {
-                        matches = false;
-                    }
-                }
-                if let Some(arch) = os_obj.get("arch").and_then(|a| a.as_str()) {
-                    let actual_arch = if cfg!(target_arch = "x86_64") {
-                        "x86"
-                    } else if cfg!(target_arch = "aarch64") {
-                        "arm64"
-                    } else {
-                        ""
-                    };
-                    if !actual_arch.is_empty() && arch != actual_arch {
-                        matches = false;
-                    }
+    let mut allowed = false;
+    for rule in rules {
+        let action = rule
+            .get("action")
+            .and_then(|a| a.as_str())
+            .unwrap_or("allow");
+        let mut matches = true;
+
+        if let Some(os_obj) = rule.get("os").and_then(|os| os.as_object()) {
+            if let Some(os_name) = os_obj.get("name").and_then(|n| n.as_str()) {
+                if os_name != current_name {
+                    matches = false;
                 }
             }
-
-            if matches {
-                allowed = match action {
-                    "allow" => true,
-                    "disallow" => false,
-                    _ => allowed,
+            if let Some(arch) = os_obj.get("arch").and_then(|a| a.as_str()) {
+                let actual_arch = if cfg!(target_arch = "x86_64") {
+                    "x86"
+                } else if cfg!(target_arch = "aarch64") {
+                    "arm64"
+                } else {
+                    ""
                 };
+                if !actual_arch.is_empty() && arch != actual_arch {
+                    matches = false;
+                }
             }
         }
-        allowed
+
+        if matches {
+            allowed = match action {
+                "allow" => true,
+                "disallow" => false,
+                _ => allowed,
+            };
+        }
     }
+    allowed
+}
+
+impl GameLauncher {
 
     fn build_game_args(
         &self,

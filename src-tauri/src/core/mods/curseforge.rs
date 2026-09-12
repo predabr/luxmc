@@ -443,12 +443,30 @@ pub async fn get_mod_versions(
                 .to_string();
             let file_length = f.get("fileLength").and_then(|s| s.as_u64()).unwrap_or(0);
 
+            let final_url = if !download_url.is_empty() {
+                download_url
+            } else if !file_name.is_empty() {
+                let id_num = f.get("id").and_then(|i| i.as_u64()).unwrap_or(0);
+                if id_num > 0 {
+                    format!(
+                        "https://edge.forgecdn.net/files/{}/{}/{}",
+                        id_num / 1000,
+                        id_num % 1000,
+                        urlencoding::encode(&file_name)
+                    )
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+
             ModVersion {
                 id,
                 name: display,
                 version_number: String::new(),
                 files: vec![ModFile {
-                    url: download_url,
+                    url: final_url,
                     filename: file_name,
                     size: file_length,
                     sha1: String::new(),
@@ -640,20 +658,60 @@ pub async fn get_download_url(
         CURSEFORGE_API, project_id, file_id
     );
 
-    let resp = http
+    if let Ok(resp) = http
         .get(&url)
         .header("x-api-key", &key)
         .timeout(Duration::from_secs(15))
         .send()
-        .await?
-        .error_for_status()?;
-    let body: serde_json::Value = resp.json().await?;
+        .await
+    {
+        if resp.status().is_success() {
+            if let Ok(body) = resp.json::<serde_json::Value>().await {
+                if let Some(d) = body.get("data").and_then(|d| d.as_str()) {
+                    if !d.is_empty() {
+                        return Ok(d.to_string());
+                    }
+                }
+            }
+        }
+    }
 
-    body.get("data")
-        .and_then(|d| d.as_str())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .ok_or_else(|| crate::error::AppError::NotFound("Download URL not found on CurseForge".into()))
+    // Fallback: fetch file metadata directly and use Edge CDN if downloadUrl is null
+    let file_info_url = format!("{}/mods/{}/files/{}", CURSEFORGE_API, project_id, file_id);
+    if let Ok(resp) = http
+        .get(&file_info_url)
+        .header("x-api-key", &key)
+        .timeout(Duration::from_secs(15))
+        .send()
+        .await
+    {
+        if resp.status().is_success() {
+            if let Ok(body) = resp.json::<serde_json::Value>().await {
+                if let Some(data) = body.get("data") {
+                    if let Some(dl) = data.get("downloadUrl").and_then(|d| d.as_str()) {
+                        if !dl.is_empty() {
+                            return Ok(dl.to_string());
+                        }
+                    }
+                    if let Some(file_name) = data.get("fileName").and_then(|n| n.as_str()) {
+                        if let Ok(id_num) = file_id.parse::<u64>() {
+                            let p1 = id_num / 1000;
+                            let p2 = id_num % 1000;
+                            return Ok(format!(
+                                "https://edge.forgecdn.net/files/{}/{}/{}",
+                                p1, p2, urlencoding::encode(file_name)
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Err(crate::error::AppError::NotFound(format!(
+        "Download URL not found on CurseForge for mod {} file {}",
+        project_id, file_id
+    )))
 }
 
 pub async fn get_mod_names_batch(

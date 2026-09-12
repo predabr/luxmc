@@ -144,33 +144,28 @@ pub async fn prepare_fabric(
         for arg in args.jvm {
             match &arg {
                 serde_json::Value::String(s) => {
-                    jvm_args.push(s.to_string());
+                    if crate::core::launcher::jvm_arg_allowed_on_current_os(s) {
+                        jvm_args.push(s.to_string());
+                    }
                 }
                 serde_json::Value::Object(obj) => {
                     if let Some(serde_json::Value::Array(rules)) = obj.get("rules") {
-                        let mut allow = false;
-                        let mut deny = false;
-                        for rule in rules {
-                            if let Some(action) = rule.get("action").and_then(|a| a.as_str()) {
-                                if action == "allow" {
-                                    allow = true;
-                                } else if action == "deny" {
-                                    deny = true;
-                                }
-                            }
-                        }
-                        if deny && !allow {
+                        if !crate::core::launcher::evaluate_rules(rules) {
                             continue;
                         }
                     }
                     if let Some(serde_json::Value::Array(values)) = obj.get("value") {
                         for v in values {
                             if let Some(s) = v.as_str() {
-                                jvm_args.push(s.to_string());
+                                if crate::core::launcher::jvm_arg_allowed_on_current_os(s) {
+                                    jvm_args.push(s.to_string());
+                                }
                             }
                         }
                     } else if let Some(serde_json::Value::String(s)) = obj.get("value") {
-                        jvm_args.push(s.to_string());
+                        if crate::core::launcher::jvm_arg_allowed_on_current_os(s) {
+                            jvm_args.push(s.to_string());
+                        }
                     }
                 }
                 _ => {}

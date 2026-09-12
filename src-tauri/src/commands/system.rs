@@ -88,44 +88,32 @@ pub struct SystemSpecs {
 
 #[tauri::command]
 pub fn get_system_specs() -> SystemSpecs {
-    let mut os_distro = "Linux Generic".to_string();
-    if let Ok(content) = std::fs::read_to_string("/etc/os-release") {
-        for line in content.lines() {
-            if line.starts_with("PRETTY_NAME=") {
-                os_distro = line
-                    .trim_start_matches("PRETTY_NAME=")
-                    .trim_matches('"')
-                    .to_string();
-                break;
-            } else if line.starts_with("NAME=") && os_distro == "Linux Generic" {
-                os_distro = line
-                    .trim_start_matches("NAME=")
-                    .trim_matches('"')
-                    .to_string();
-            }
-        }
-    }
+    let mut sys = sysinfo::System::new_all();
+    sys.refresh_memory();
 
-    let kernel_version = std::process::Command::new("uname")
-        .arg("-r")
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "Linux Kernel".to_string());
-
-    let mut total_ram_mb = 8192;
-    if let Ok(mem_info) = std::fs::read_to_string("/proc/meminfo") {
-        for line in mem_info.lines() {
-            if line.starts_with("MemTotal:") {
-                let parts: Vec<&str> = line.split_whitespace().collect();
-                if parts.len() >= 2 {
-                    if let Ok(kb) = parts[1].parse::<u64>() {
-                        total_ram_mb = kb / 1024;
-                    }
-                }
-                break;
-            }
+    let raw_name = sysinfo::System::name().unwrap_or_else(|| {
+        if cfg!(target_os = "windows") {
+            "Windows".to_string()
+        } else if cfg!(target_os = "macos") {
+            "macOS".to_string()
+        } else {
+            "Linux Generic".to_string()
         }
-    }
+    });
+
+    let os_version = sysinfo::System::os_version().unwrap_or_default();
+    let os_distro = if !os_version.is_empty() && !raw_name.contains(&os_version) {
+        format!("{} {}", raw_name, os_version)
+    } else {
+        raw_name
+    };
+
+    let kernel_version = sysinfo::System::kernel_version().unwrap_or_else(|| {
+        std::env::consts::OS.to_string()
+    });
+
+    let total_ram_mb = sys.total_memory() / 1024 / 1024;
+    let total_ram_mb = if total_ram_mb > 0 { total_ram_mb } else { 8192 };
 
     let gpu = crate::core::optimizer::detect_gpu();
 

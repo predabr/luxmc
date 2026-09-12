@@ -99,16 +99,33 @@ pub async fn launch_game(
     )
     .ok();
 
-    let version_row = crate::db::schema::versions::get(&db, &request.version_id)
-        .await?
-        .ok_or_else(|| {
-            let msg = format!(
-                "Version {} not found. Try refreshing the version list.",
-                request.version_id
-            );
-            app.emit("launcher-log", &msg).ok();
-            AppError::NotFound(msg)
-        })?;
+    let version_row = match crate::db::schema::versions::get(&db, &request.version_id).await? {
+        Some(v) => v,
+        None => {
+            app.emit("launcher-log", format!("Versão {} não encontrada localmente. Buscando manifesto oficial...", request.version_id)).ok();
+            let manifest = minecraft::fetch_version_manifest(&state.http).await?;
+            if let Some(target) = manifest.versions.iter().find(|v| v.id == request.version_id) {
+                let now = chrono::Utc::now().to_rfc3339();
+                let vrow = crate::db::schema::versions::VersionRow {
+                    id: target.id.clone(),
+                    version_type: target.version_type.clone(),
+                    url: target.url.clone(),
+                    time: target.release_time.clone(),
+                    release_time: target.release_time.clone(),
+                    fetched_at: now,
+                };
+                crate::db::schema::versions::upsert(&db, &vrow).await?;
+                vrow
+            } else {
+                let msg = format!(
+                    "Version {} not found in official manifest. Try refreshing the version list.",
+                    request.version_id
+                );
+                app.emit("launcher-log", &msg).ok();
+                return Err(AppError::NotFound(msg));
+            }
+        }
+    };
 
     app.emit(
         "launcher-log",
@@ -128,21 +145,6 @@ pub async fn launch_game(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
     let data_dir = base_dir.data_dir().to_path_buf();
-
-    app.emit("launcher-log", "Checking environment...").ok();
-
-    let has_unzip = std::process::Command::new("which")
-        .arg("unzip")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
-    if !has_unzip {
-        app.emit(
-            "launcher-log",
-            "WARNING: 'unzip' not found. Natives extraction may fail.",
-        )
-        .ok();
-    }
 
     app.emit("launcher-log", "Verifying download...").ok();
     let downloader =

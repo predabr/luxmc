@@ -175,7 +175,7 @@
 		kernelVersion: "Linux",
 		arch: "x86_64",
 		totalRamMb: 16384,
-		launcherVersion: "1.3.0-BETA"
+		launcherVersion: "1.3.1-Alpha"
 	});
 
 	let changelogList = $state<ChangelogEntry[]>([]);
@@ -196,7 +196,7 @@
 					kernelVersion: String(specs.kernelVersion),
 					arch: specs.arch,
 					totalRamMb: specs.totalRamMb,
-					launcherVersion: specs.launcherVersion || "1.3.0-BETA"
+					launcherVersion: specs.launcherVersion || "1.3.1-Alpha"
 				};
 			}
 		}).catch(err => console.error(err));

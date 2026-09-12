@@ -101,8 +101,8 @@ pub fn detect_gpu() -> GpuInfo {
 pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     let mut flags = Vec::new();
 
-    // Matching -Xms and -Xmx eliminates GC resize stutters completely
-    flags.push(format!("-Xms{}M", ram_mb));
+    let initial_ram = std::cmp::min(1024, ram_mb / 2);
+    flags.push(format!("-Xms{}M", initial_ram));
     flags.push(format!("-Xmx{}M", ram_mb));
 
     // Core G1GC flags established by Aikar

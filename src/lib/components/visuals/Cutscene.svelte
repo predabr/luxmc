@@ -127,7 +127,7 @@
 				<div class="tagline" class:visible={phase === "tagline"}>
 					<div class="title-row">
 						<h1 class="title">Luxmc</h1>
-						<span class="badge">v1.3.0-BETA</span>
+						<span class="badge">v1.3.1-Alpha</span>
 					</div>
 					<p class="subtitle">Linux-First Minecraft Launcher</p>
 				</div>

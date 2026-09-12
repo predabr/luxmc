@@ -612,19 +612,36 @@
 		activeSkinStore.setCape(cape);
 		const found = capeCatalog.find(c => c.id === cape);
 		const name = found ? found.name : "Sem Capa";
+		if (cape !== "none") {
+			autoRotate = false;
+			skinViewerRef?.setAngle(175);
+		}
 		toast(`Capa "${name}" atualizada no modelo 3D!`, "success");
 	}
 
-	function downloadSkinFile(name: string, skinUrl: string) {
+	async function downloadSkinFile(name: string, skinUrl: string) {
 		if (!skinUrl) return;
-		const a = document.createElement("a");
-		a.href = skinUrl;
-		a.download = `${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}.png`;
-		a.target = "_blank";
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		toast(`Download da skin "${name}" iniciado!`, "info");
+		try {
+			const res = await fetch(skinUrl);
+			const blob = await res.blob();
+			const blobUrl = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = blobUrl;
+			a.download = `${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}.png`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+			toast(`Skin "${name}" descarregada com sucesso!`, "success");
+		} catch {
+			const a = document.createElement("a");
+			a.href = skinUrl;
+			a.download = `${name.toLowerCase().replace(/[^a-z0-9]/g, "_")}.png`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			toast(`Download da skin "${name}" iniciado!`, "info");
+		}
 	}
 </script>
 
@@ -687,7 +704,7 @@
 			<button 
 				type="button" 
 				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'wardrobe' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
-				onclick={() => activeTab = "wardrobe"}
+				onclick={() => { activeTab = "wardrobe"; skinViewerRef?.setAngle(20); }}
 			>
 				<Shirt class="w-3.5 h-3.5" />
 				Guarda-Roupa 3D
@@ -708,7 +725,7 @@
 			<button 
 				type="button" 
 				class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'capes' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
-				onclick={() => activeTab = "capes"}
+				onclick={() => { activeTab = "capes"; autoRotate = false; skinViewerRef?.setAngle(175); }}
 			>
 				<Shield class="w-3.5 h-3.5" />
 				Catálogo de Capas 3D
@@ -718,7 +735,7 @@
 			</button>
 		</div>
 
-		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" class:hidden={activeTab !== "wardrobe"}>
+		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" class:hidden={activeTab === "marketplace"}>
 				
 				<!-- Left Column: 360° Real 3D Hardware Accelerated Character Stage -->
 				<div class="lg:col-span-5 bg-[#18191c] border border-white/5 rounded-3xl p-5 flex flex-col items-center justify-between min-h-[580px] relative shadow-2xl overflow-hidden">
@@ -756,7 +773,7 @@
 							cape={selectedCape}
 							slim={isSlimModel}
 							{autoRotate}
-							active={activeTab === 'wardrobe'}
+							active={activeTab === 'wardrobe' || activeTab === 'capes'}
 							className="z-10"
 						/>
 
@@ -839,7 +856,7 @@
 				</div>
 
 				<!-- Right Column: Saved Skins, NameMC & Default Library -->
-				<div class="lg:col-span-7 flex flex-col gap-6">
+				<div class="lg:col-span-7 flex flex-col gap-6" class:hidden={activeTab !== "wardrobe"}>
 					
 					<!-- NameMC Integration Card -->
 					<div class="bg-gradient-to-r from-[#18191c] via-[#1c1d22] to-[#18191c] border border-white/10 rounded-3xl p-5 shadow-lg space-y-3 relative overflow-hidden">
@@ -969,6 +986,94 @@
 					</div>
 
 				</div>
+
+				<!-- Right Column when activeTab === "capes": Capes Catalog -->
+				<div class="lg:col-span-7 flex flex-col gap-6" class:hidden={activeTab !== "capes"}>
+					<!-- Capes Banner -->
+					<div class="bg-gradient-to-r from-[#1b1c22] via-[#22232a] to-[#1b1c22] border border-white/10 rounded-3xl p-5 shadow-xl relative overflow-hidden flex items-center justify-between gap-4">
+						<div class="space-y-1">
+							<div class="flex items-center gap-2">
+								<span class="px-2.5 py-0.5 rounded-full bg-brand-500/20 text-brand-400 text-[10px] font-black uppercase tracking-wider border border-brand-500/30 flex items-center gap-1">
+									<Sparkles class="w-3 h-3" /> Físicas & Volumétricas
+								</span>
+								<span class="text-white/40 text-[11px] font-mono">13 Modelos Incluídos</span>
+							</div>
+							<h2 class="text-base font-extrabold text-white">Catálogo Completo de Capas 3D</h2>
+							<p class="text-xs text-white/60 leading-relaxed">
+								Equipe qualquer capa e visualize em tempo real no modelo 3D ao lado com física e texturas completas.
+							</p>
+						</div>
+
+						<div class="flex items-center gap-2 shrink-0">
+							{#if selectedCape !== "none"}
+								<button 
+									type="button" 
+									class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all cursor-pointer"
+									onclick={() => selectCape("none")}
+								>
+									Remover Capa
+								</button>
+							{/if}
+						</div>
+					</div>
+
+					<!-- Capes Grid -->
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						{#each capeCatalog as cape}
+							{@const isEquipped = selectedCape === cape.id}
+							<div class="bg-[#18191c] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
+								<div class="flex items-center justify-between gap-2 mb-2">
+									<span class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border {cape.badgeColor}">
+										{cape.rarity}
+									</span>
+									<span class="text-[11px] font-medium text-white/40">{cape.event}</span>
+								</div>
+
+								<div class="h-24 rounded-2xl bg-gradient-to-br {cape.borderGradient} border border-white/10 flex items-center justify-center relative overflow-hidden my-2">
+									<div class="flex items-center gap-3 z-10">
+										<div class="w-9 h-14 rounded-md bg-black/40 border border-white/20 flex flex-col items-center justify-center shadow-lg relative">
+											<Shield class="w-4 h-4 text-amber-300" />
+											<span class="text-[7px] font-bold text-white/70 uppercase mt-0.5">3D</span>
+										</div>
+										<div>
+											<h4 class="text-xs font-extrabold text-white">{cape.name}</h4>
+											<p class="text-[10px] text-white/50">{cape.event}</p>
+										</div>
+									</div>
+								</div>
+
+								<p class="text-xs text-white/60 leading-relaxed my-1.5 line-clamp-2">
+									{cape.description}
+								</p>
+
+								<div class="mt-2 pt-2.5 border-t border-white/5 flex items-center justify-between">
+									{#if isEquipped}
+										<span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+											<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Equipada
+										</span>
+										<button 
+											type="button" 
+											class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+											onclick={() => selectCape("none")}
+										>
+											Desequipar
+										</button>
+									{:else}
+										<span class="text-[10px] text-white/30 font-medium">Textura HD 3D</span>
+										<button 
+											type="button" 
+											class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-brand-500/15 text-brand-400 border border-brand-500/30 hover:bg-brand-500 hover:text-black transition-all cursor-pointer shadow-sm"
+											onclick={() => selectCape(cape.id)}
+										>
+											Equipar Capa
+										</button>
+									{/if}
+								</div>
+							</div>
+						{/each}
+					</div>
+				</div>
+
 			</div>
 
 		{#if activeTab === "marketplace"}
@@ -1069,108 +1174,6 @@
 									</button>
 								</div>
 							</div>
-						</div>
-					{/each}
-				</div>
-			</div>
-		{/if}
-
-		{#if activeTab === "capes"}
-			<div class="space-y-6">
-				
-				<!-- Capes Banner -->
-				<div class="bg-gradient-to-r from-[#1b1c22] via-[#22232a] to-[#1b1c22] border border-white/10 rounded-3xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-					<div class="space-y-2 max-w-xl">
-						<div class="flex items-center gap-2">
-							<span class="px-2.5 py-0.5 rounded-full bg-brand-500/20 text-brand-400 text-[10px] font-black uppercase tracking-wider border border-brand-500/30 flex items-center gap-1">
-								<Sparkles class="w-3 h-3" /> Físicas & Volumétricas
-							</span>
-							<span class="text-white/40 text-xs font-mono">13 Modelos Incluídos</span>
-						</div>
-						<h2 class="text-xl font-extrabold text-white">Catálogo Completo de Capas Lendárias</h2>
-						<p class="text-xs text-white/60 leading-relaxed">
-							Todas as capas são renderizadas em 3D em tempo real com textura frontal e traseira, sombras volumétricas e caimento aerodinâmico dinâmico nas costas do jogador.
-						</p>
-					</div>
-
-					<div class="flex items-center gap-3 shrink-0">
-						{#if selectedCape !== "none"}
-							<button 
-								type="button" 
-								class="px-4 py-2 rounded-xl text-xs font-bold bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all cursor-pointer"
-								onclick={() => selectCape("none")}
-							>
-								Remover Capa Ativa
-							</button>
-						{/if}
-						<button 
-							type="button" 
-							class="px-4 py-2 rounded-xl text-xs font-bold bg-[#caa97c] text-black hover:brightness-110 transition-all cursor-pointer shadow-md"
-							onclick={() => activeTab = "wardrobe"}
-						>
-							Ver no Modelo 3D →
-						</button>
-					</div>
-				</div>
-
-				<!-- Capes Grid -->
-				<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-					{#each capeCatalog as cape}
-						{@const isEquipped = selectedCape === cape.id}
-						<div class="bg-[#18191c] border-2 rounded-3xl p-5 flex flex-col justify-between transition-all group relative overflow-hidden {isEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
-							
-							<!-- Top Rarity & Event Header -->
-							<div class="flex items-center justify-between gap-2 mb-3">
-								<span class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border {cape.badgeColor}">
-									{cape.rarity}
-								</span>
-								<span class="text-[11px] font-medium text-white/40">{cape.event}</span>
-							</div>
-
-							<!-- Visual Cape Representation Box -->
-							<div class="h-28 rounded-2xl bg-gradient-to-br {cape.borderGradient} border border-white/10 flex items-center justify-center relative overflow-hidden my-2">
-								<div class="flex items-center gap-3 z-10">
-									<div class="w-10 h-16 rounded-md bg-black/40 border border-white/20 flex flex-col items-center justify-center shadow-lg relative">
-										<Shield class="w-5 h-5 text-amber-300" />
-										<span class="text-[8px] font-bold text-white/70 uppercase mt-1">3D</span>
-									</div>
-									<div>
-										<h4 class="text-sm font-extrabold text-white">{cape.name}</h4>
-										<p class="text-[10px] text-white/50">{cape.event}</p>
-									</div>
-								</div>
-							</div>
-
-							<!-- Lore / Description -->
-							<p class="text-xs text-white/60 leading-relaxed my-2">
-								{cape.description}
-							</p>
-
-							<!-- Equip / Active Button -->
-							<div class="mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
-								{#if isEquipped}
-									<span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-										<CheckCircle2 class="w-4 h-4 text-emerald-400" /> Equipada no Personagem
-									</span>
-									<button 
-										type="button" 
-										class="px-3 py-1.5 rounded-xl text-xs font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
-										onclick={() => selectCape("none")}
-									>
-										Desequipar
-									</button>
-								{:else}
-									<span class="text-[11px] text-white/30 font-medium">Disponível em alta resolução</span>
-									<button 
-										type="button" 
-										class="px-4 py-1.5 rounded-xl text-xs font-bold bg-brand-500/15 text-brand-400 border border-brand-500/30 hover:bg-brand-500 hover:text-black transition-all cursor-pointer shadow-sm"
-										onclick={() => selectCape(cape.id)}
-									>
-										Equipar Capa
-									</button>
-								{/if}
-							</div>
-
 						</div>
 					{/each}
 				</div>

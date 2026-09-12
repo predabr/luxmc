@@ -393,25 +393,23 @@ pub async fn instance_import_modpack(
     // Extract overrides directory if present
     for i in 0..archive.len() {
         if let Ok(mut file) = archive.by_index(i) {
-            let name = file.name().to_string();
-            if let Some(rel_path) = name.strip_prefix("overrides/") {
-                if !rel_path.is_empty() {
-                    let outpath = instance_dir.join(rel_path);
-                    if let Ok(canonical_parent) = outpath.parent().unwrap_or(&instance_dir).canonicalize() {
-                        if !canonical_parent.starts_with(&instance_dir) {
-                            tracing::warn!(path = %rel_path, "skipping override entry: path traversal detected");
-                            continue;
-                        }
+            let enclosed = match file.enclosed_name() {
+                Some(p) => p.to_path_buf(),
+                None => continue,
+            };
+            if let Ok(rel_path) = enclosed.strip_prefix("overrides") {
+                if rel_path.as_os_str().is_empty() {
+                    continue;
+                }
+                let outpath = instance_dir.join(rel_path);
+                if file.is_dir() {
+                    let _ = std::fs::create_dir_all(&outpath);
+                } else {
+                    if let Some(p) = outpath.parent() {
+                        let _ = std::fs::create_dir_all(p);
                     }
-                    if file.is_dir() {
-                        let _ = std::fs::create_dir_all(&outpath);
-                    } else {
-                        if let Some(p) = outpath.parent() {
-                            let _ = std::fs::create_dir_all(p);
-                        }
-                        if let Ok(mut outfile) = std::fs::File::create(&outpath) {
-                            let _ = std::io::copy(&mut file, &mut outfile);
-                        }
+                    if let Ok(mut outfile) = std::fs::File::create(&outpath) {
+                        let _ = std::io::copy(&mut file, &mut outfile);
                     }
                 }
             }
@@ -707,6 +705,7 @@ pub async fn instance_file_tree(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_import_mrpack(
+    app: tauri::AppHandle,
     state: State<'_, AppState>,
     file_path: String,
     profile_name: String,
@@ -714,9 +713,11 @@ pub async fn instance_import_mrpack(
     ram_mb: Option<i64>,
 ) -> AppResult<ProfileRow> {
     tracing::info!(file_path = %file_path, profile_name = %profile_name, "instance_import_mrpack called");
-    let data = tokio::fs::read(&file_path).await?;
-    let cursor = std::io::Cursor::new(data);
-    let mut archive = zip::ZipArchive::new(cursor)
+    let file = std::fs::File::open(&file_path).map_err(|e| {
+        tracing::error!(file_path = %file_path, error = %e, "failed to open mrpack zip");
+        e
+    })?;
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
         .map_err(|e| crate::error::AppError::InvalidState(format!("invalid zip: {e}")))?;
 
     let manifest_entry = archive.by_name("modrinth.index.json").map_err(|e| {
@@ -754,29 +755,21 @@ pub async fn instance_import_mrpack(
 
 	for i in 0..archive.len() {
 		if let Ok(mut file) = archive.by_index(i) {
-			let name = file.name().to_string();
-			let rel_path = if let Some(rel) = name.strip_prefix("overrides/") {
-				Some(rel)
-			} else if let Some(rel) = name.strip_prefix("client-overrides/") {
-				Some(rel)
+			let enclosed = match file.enclosed_name() {
+				Some(p) => p.to_path_buf(),
+				None => continue,
+			};
+			let rel_path = if let Ok(rel) = enclosed.strip_prefix("overrides") {
+				Some(rel.to_path_buf())
+			} else if let Ok(rel) = enclosed.strip_prefix("client-overrides") {
+				Some(rel.to_path_buf())
 			} else {
 				None
 			};
 
 			if let Some(rel_path) = rel_path {
-				if !rel_path.is_empty() {
-					let outpath = instance_dir.join(rel_path);
-                    if let Ok(canonical_out) = outpath.canonicalize().or_else(|_| {
-                        std::path::Path::new(rel_path).parent()
-                            .map(|p| instance_dir.join(p))
-                            .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::Other, "no parent"))
-                            .and_then(|p| std::fs::canonicalize(p))
-                    }) {
-						if !canonical_out.starts_with(&instance_dir) {
-							tracing::warn!(path = %rel_path, "skipping zip entry: path traversal detected");
-							continue;
-						}
-					}
+				if !rel_path.as_os_str().is_empty() {
+					let outpath = instance_dir.join(&rel_path);
 					if file.is_dir() {
 						let _ = std::fs::create_dir_all(&outpath);
 					} else {
@@ -796,7 +789,28 @@ pub async fn instance_import_mrpack(
 	let db = crate::db::shared_db().await?;
 	let mut installed_mods_count = 0;
 
-	for mrpack_file in &manifest.files {
+	let total_mrpack_files = manifest.files.len() as u32;
+	let _ = app.emit("modpack-progress", serde_json::json!({
+		"phase": "downloading",
+		"current": 0,
+		"total": total_mrpack_files,
+		"status": format!("Preparando download de {} arquivos...", total_mrpack_files)
+	}));
+
+	for (idx, mrpack_file) in manifest.files.iter().enumerate() {
+		let progress_pct = if total_mrpack_files > 0 {
+			((idx as f64 / total_mrpack_files as f64) * 100.0) as u32
+		} else {
+			0
+		};
+		let _ = app.emit("modpack-progress", serde_json::json!({
+			"phase": "downloading",
+			"current": idx + 1,
+			"total": total_mrpack_files,
+			"percent": progress_pct,
+			"status": format!("Baixando arquivo {}/{}...", idx + 1, total_mrpack_files)
+		}));
+
 		if let Some(env) = &mrpack_file.env {
 			if env.client.as_deref() == Some("unsupported") {
 				continue;

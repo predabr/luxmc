@@ -283,7 +283,11 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
     })?;
 
     use futures_util::StreamExt;
-    let file_path = target_dir.join(&file_name);
+    let safe_name = std::path::Path::new(&file_name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("mod.jar");
+    let file_path = target_dir.join(safe_name);
     let mut stream = resp.bytes_stream();
     let mut file = tokio::fs::File::create(&file_path).await.map_err(|e| {
         tracing::error!(path = %file_path.display(), error = %e, "failed to create file");
@@ -411,13 +415,17 @@ pub async fn mods_install_with_deps(
             if let Some(file) = version.files.first() {
                 let resp = state.http.get(&file.url).send().await?.error_for_status()?;
                 let bytes = resp.bytes().await?;
-                let file_path = mods_dir.join(&file.filename);
+                let safe_dep_name = std::path::Path::new(&file.filename)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("mod.jar");
+                let file_path = mods_dir.join(safe_dep_name);
                 tokio::fs::write(&file_path, &bytes).await?;
 
                 if let Some(ref prof) = profile {
                     let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
                     let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
-                    let _ = tokio::fs::write(prof_mods_dir.join(&file.filename), &bytes).await;
+                    let _ = tokio::fs::write(prof_mods_dir.join(safe_dep_name), &bytes).await;
                 }
 
                 let mod_row = ModRow {
@@ -687,7 +695,15 @@ pub async fn mods_download_to_temp(
     })?;
     let temp_dir = base_dir.cache_dir().join("modpacks");
     tokio::fs::create_dir_all(&temp_dir).await?;
-    let target_path = temp_dir.join(&fileName);
+
+    let clean_name = std::path::Path::new(&fileName)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("package.zip");
+    if clean_name.is_empty() || clean_name == "." || clean_name == ".." {
+        return Err(crate::error::AppError::InvalidInput("Invalid filename".into()));
+    }
+    let target_path = temp_dir.join(clean_name);
 
     let resp = state.http.get(&url).send().await?.error_for_status()?;
 
