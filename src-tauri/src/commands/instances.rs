@@ -385,14 +385,12 @@ pub async fn instance_import_modpack(
         mc_version
     };
     let loader = if let Some(ref lt) = manifest_loader_type {
-        if loader == "vanilla" || loader.is_empty() {
-            tracing::info!(original_loader = %loader, detected = %lt, "overriding loader with manifest loader type");
-            lt.clone()
-        } else {
-            loader
-        }
+        tracing::info!(original_loader = %loader, detected = %lt, "using manifest loader type for modpack");
+        lt.to_lowercase()
+    } else if !loader.is_empty() {
+        loader.to_lowercase()
     } else {
-        loader
+        "fabric".to_string()
     };
 
     let profile_id = Uuid::new_v4().to_string();

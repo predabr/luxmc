@@ -131,8 +131,12 @@ pub async fn launch_game(
 
     app.emit("launcher-log", "Checking environment...").ok();
 
-    let unzip_check = std::process::Command::new("which").arg("unzip").output();
-    if unzip_check.is_err() || !unzip_check.unwrap().status.success() {
+    let has_unzip = std::process::Command::new("which")
+        .arg("unzip")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    if !has_unzip {
         app.emit(
             "launcher-log",
             "WARNING: 'unzip' not found. Natives extraction may fail.",

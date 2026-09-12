@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::AppResult;
 
 pub mod fabric;
+pub mod forge;
 pub mod neoforge;
 pub mod quilt;
 
@@ -23,6 +24,7 @@ pub struct LoaderInstallResult {
 
 pub enum LoaderKind {
     Fabric,
+    Forge,
     NeoForge,
     Quilt,
     Vanilla,
@@ -32,6 +34,7 @@ impl LoaderKind {
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "fabric" => LoaderKind::Fabric,
+            "forge" => LoaderKind::Forge,
             "neoforge" => LoaderKind::NeoForge,
             "quilt" => LoaderKind::Quilt,
             _ => LoaderKind::Vanilla,
@@ -46,6 +49,7 @@ pub async fn fetch_loader_versions(
 ) -> AppResult<Vec<LoaderVersion>> {
     match LoaderKind::from_str(loader) {
         LoaderKind::Fabric => fabric::fetch_versions(http, mc_version).await,
+        LoaderKind::Forge => forge::fetch_versions(http, mc_version).await,
         LoaderKind::NeoForge => neoforge::fetch_versions(http, mc_version).await,
         LoaderKind::Quilt => quilt::fetch_versions(http, mc_version).await,
         LoaderKind::Vanilla => Ok(Vec::new()),
@@ -68,6 +72,7 @@ pub async fn prepare_loader(
 ) -> AppResult<PreparedLoader> {
     match LoaderKind::from_str(loader) {
         LoaderKind::Fabric => fabric::prepare_fabric(http, libraries_dir, mc_version, loader_version).await,
+        LoaderKind::Forge => forge::prepare_forge(http, libraries_dir, mc_version, loader_version).await,
         LoaderKind::Quilt => quilt::prepare_quilt(http, libraries_dir, mc_version, loader_version).await,
         LoaderKind::NeoForge => neoforge::prepare_neoforge(http, libraries_dir, mc_version, loader_version).await,
         _ => Err(crate::error::AppError::NotFound(format!("Loader '{}' not supported for auto-injection", loader))),

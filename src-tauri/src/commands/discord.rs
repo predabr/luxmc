@@ -108,8 +108,8 @@ pub async fn discord_set_activity(
             .or(custom_id)
             .unwrap_or_else(|| MINECRAFT_CLIENT_ID.to_string());
 
-        let mut stream_guard = DISCORD_STREAM.lock().unwrap();
-        let mut client_id_guard = CURRENT_CLIENT_ID.lock().unwrap();
+        let mut stream_guard = DISCORD_STREAM.lock().unwrap_or_else(|e| e.into_inner());
+        let mut client_id_guard = CURRENT_CLIENT_ID.lock().unwrap_or_else(|e| e.into_inner());
 
         let needs_new_connection = stream_guard.is_none()
             || client_id_guard.as_deref() != Some(&target_client_id);
@@ -239,7 +239,7 @@ pub async fn discord_set_activity(
 pub async fn discord_clear_activity() -> AppResult<()> {
     #[cfg(unix)]
     {
-        let mut guard = DISCORD_STREAM.lock().unwrap();
+        let mut guard = DISCORD_STREAM.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(ref mut stream) = *guard {
             let act = serde_json::json!({
                 "cmd": "SET_ACTIVITY",

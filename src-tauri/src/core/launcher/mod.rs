@@ -171,6 +171,26 @@ impl GameLauncher {
         let mut extra_jvm_args = Vec::new();
 
         let mut loader = profile.loader.trim().to_lowercase();
+        if loader == "fabric" {
+            let is_forge_version = profile.loader_version.as_deref().map(|v| {
+                v.starts_with("47.") || v.starts_with("48.") || v.starts_with("49.") || v.starts_with("50.") ||
+                v.starts_with("40.") || v.starts_with("41.") || v.starts_with("42.") || v.starts_with("43.") ||
+                v.starts_with("36.") || v.starts_with("37.") || v.starts_with("38.") || v.starts_with("39.") ||
+                v.starts_with("31.") || v.starts_with("32.") || v.starts_with("33.") || v.starts_with("34.") || v.starts_with("35.") ||
+                v.starts_with("14.") || v.starts_with("12.") || v.starts_with("10.") || v.starts_with("9.") || v.starts_with("7.")
+            }).unwrap_or(false);
+            let name_indicates_forge = profile.name.to_lowercase().contains("forge") && !profile.name.to_lowercase().contains("neoforge");
+            if is_forge_version || name_indicates_forge {
+                self.emit_log("Auto-correcting loader from 'fabric' to 'forge' based on modpack metadata");
+                loader = "forge".to_string();
+                if let Ok(db) = crate::db::shared_db().await {
+                    let mut updated_profile = profile.clone();
+                    updated_profile.loader = "forge".to_string();
+                    let _ = crate::db::schema::profiles::upsert(&db, &updated_profile).await;
+                }
+            }
+        }
+
         if loader == "vanilla" || loader.is_empty() {
             let mods_dir = game_dir.join("mods");
             if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
@@ -199,9 +219,13 @@ impl GameLauncher {
                         names
                     };
                     let has_neoforge = mod_names.iter().any(|n| n.contains("neoforge") || n.contains("rftools") || n.contains("mekanism"));
+                    let has_forge = mod_names.iter().any(|n| (n.contains("forge") && !n.contains("neoforge")) || n.contains("fml"));
                     if has_neoforge {
                         self.emit_log("Detected NeoForge-related mods; automatically enabling NeoForge loader for this session");
                         loader = "neoforge".to_string();
+                    } else if has_forge {
+                        self.emit_log("Detected Forge-related mods; automatically enabling Forge loader for this session");
+                        loader = "forge".to_string();
                     } else {
                         self.emit_log("Detected mods in mods/ directory; automatically enabling Fabric loader for this session");
                         loader = "fabric".to_string();
@@ -210,7 +234,7 @@ impl GameLauncher {
             }
         }
 
-        if loader == "fabric" || loader == "quilt" || loader == "neoforge" {
+        if loader == "fabric" || loader == "quilt" || loader == "neoforge" || loader == "forge" {
             if loader == "fabric" {
                 let mods_dir = game_dir.join("mods");
                 let _ = crate::core::loaders::fabric::ensure_fabric_api(

@@ -214,12 +214,16 @@
 			modpackProgressText = "Configurando nova instância e extraindo mods...";
 			modpackProgressPercent = 0;
 			const iconUrl = item.iconUrl || "";
+			const detectedLoader = item.categories?.find(c => ["forge", "fabric", "neoforge", "quilt"].includes(c.toLowerCase()))?.toLowerCase()
+				|| (item.title.toLowerCase().includes("forge") && !item.title.toLowerCase().includes("neoforge") ? "forge" : "")
+				|| (item.title.toLowerCase().includes("neoforge") ? "neoforge" : "")
+				|| (item.title.toLowerCase().includes("fabric") ? "fabric" : "");
 			const cp = item.source === "curseforge"
-				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", "fabric", iconUrl)
+				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", detectedLoader, iconUrl)
 				: await instanceImportMrpack(tempPath, name, iconUrl);
 			profiles.add({
 				id: cp.id, name: cp.name, icon: iconUrl || "default", mcVersion: cp.mcVersion,
-				loader: (cp.loader || "fabric") as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
+				loader: (cp.loader || detectedLoader || "fabric") as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
 				gameDir: cp.gameDir, ramMb: modpackRamMb, createdAt: Date.now(), updatedAt: Date.now(),
 			});
 			profiles.activeId = cp.id; targetInstanceId = cp.id;
