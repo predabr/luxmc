@@ -962,11 +962,18 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
 
     for candidate in candidates.into_iter().flatten() {
         if let Ok(mut entry) = archive.by_name(candidate) {
-            if entry.size() > 0 && entry.size() < 1_000_000 {
+            if entry.size() > 0 && entry.size() < 1_500_000 {
                 let mut buf = Vec::new();
                 if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
+                    let mime = if candidate.ends_with(".jpg") || candidate.ends_with(".jpeg") {
+                        "jpeg"
+                    } else if candidate.ends_with(".webp") {
+                        "webp"
+                    } else {
+                        "png"
+                    };
                     let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
-                    return Some(format!("data:image/png;base64,{}", b64));
+                    return Some(format!("data:image/{};base64,{}", mime, b64));
                 }
             }
         }
@@ -975,7 +982,12 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
     for i in 0..archive.len() {
         if let Ok(mut entry) = archive.by_index(i) {
             let name = entry.name().to_lowercase();
-            if (name.ends_with("/icon.png") || name.ends_with("logo.png")) && entry.size() < 500_000 {
+            let is_icon = name.ends_with("/icon.png")
+                || name.ends_with("icon.png")
+                || name.ends_with("/logo.png")
+                || name.ends_with("logo.png")
+                || name.ends_with("pack.png");
+            if is_icon && entry.size() > 0 && entry.size() < 1_000_000 {
                 let mut buf = Vec::new();
                 if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
                     let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);

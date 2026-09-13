@@ -1790,25 +1790,15 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
             for x in x1..x2.min(w) {
                 let pixel = *canvas.get_pixel(x, y);
 
+                if pixel[3] > 0 {
+                    if pixel[3] < 255 {
+                        canvas.put_pixel(x, y, image::Rgba([pixel[0], pixel[1], pixel[2], 255]));
+                    }
+                    continue;
+                }
+
                 let is_right_arm_back = x >= 51 * scale && x < 56 * scale && y >= 20 * scale && y < 32 * scale;
                 let is_left_arm_back = x >= 43 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale;
-
-                let is_placeholder_black = (pixel[0] == 45 && pixel[1] == 45 && pixel[2] == 45)
-                    || (pixel[0] == 40 && pixel[1] == 30 && pixel[2] == 25);
-
-                let is_arm_back_unrendered = (is_right_arm_back || is_left_arm_back)
-                    && (pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0);
-
-                let needs_fix = pixel[3] < 255 || is_placeholder_black || is_arm_back_unrendered;
-
-                if !needs_fix {
-                    continue;
-                }
-
-                if pixel[3] > 0 && !is_placeholder_black && !is_arm_back_unrendered {
-                    canvas.put_pixel(x, y, image::Rgba([pixel[0], pixel[1], pixel[2], 255]));
-                    continue;
-                }
 
                 let overlay_pos = if x >= 40 * scale && x < 56 * scale && y >= 16 * scale && y < 32 * scale {
                     Some((x, y + 16 * scale))

@@ -130,12 +130,8 @@
 			}
 		}
 
-		const isBlackOrEmpty = (r: number, g: number, b: number, a: number) => {
-			if (a < 220) return true;
-			if (r === 0 && g === 0 && b === 0) return true;
-			if (r === 45 && g === 45 && b === 45) return true;
-			if (r === 40 && g === 30 && b === 25) return true;
-			return false;
+		const isBlackOrEmpty = (_r: number, _g: number, _b: number, a: number) => {
+			return a < 10;
 		};
 
 		const armWidth = isSlim ? 3 : 4;
@@ -148,11 +144,11 @@
 				const [r, g, b, a] = getPixel(bx, by);
 				if (isBlackOrEmpty(r, g, b, a)) {
 					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
+					if (oa > 50) {
 						setPixel(bx, by, or, og, ob, 255);
 					} else {
 						const [fr, fg, fb, fa] = getPixel(rFrontStartX * scale + dx, by);
-						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+						if (fa > 50) {
 							setPixel(bx, by, fr, fg, fb, 255);
 						} else {
 							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
@@ -174,11 +170,11 @@
 					const rbx = rBackStartXLeft * scale + (armWidth * scale - 1 - dx);
 					const rby = 20 * scale + dy;
 					const [rr, rg, rb, ra] = getPixel(rbx, rby);
-					if (ra > 50 && !(rr === 0 && rg === 0 && rb === 0)) {
+					if (ra > 50) {
 						setPixel(bx, by, rr, rg, rb, 255);
 					} else {
 						const [fr, fg, fb, fa] = getPixel(lFrontStartX * scale + dx, by);
-						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+						if (fa > 50) {
 							setPixel(bx, by, fr, fg, fb, 255);
 						} else {
 							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
@@ -195,11 +191,11 @@
 				const [r, g, b, a] = getPixel(bx, by);
 				if (isBlackOrEmpty(r, g, b, a)) {
 					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
+					if (oa > 50) {
 						setPixel(bx, by, or, og, ob, 255);
 					} else {
 						const [fr, fg, fb, fa] = getPixel(20 * scale + dx, by);
-						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+						if (fa > 50) {
 							setPixel(bx, by, fr, fg, fb, 255);
 						} else {
 							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);

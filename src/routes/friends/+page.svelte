@@ -64,6 +64,25 @@
 	let unlistenMsg: (() => void) | null = null;
 	let isSending = $state(false);
 	let copied = $state(false);
+	let messagesContainer = $state<HTMLDivElement | null>(null);
+
+	function scrollToBottom(behavior: ScrollBehavior = "smooth") {
+		if (messagesContainer) {
+			messagesContainer.scrollTo({ top: messagesContainer.scrollHeight, behavior });
+		}
+	}
+
+	$effect(() => {
+		if (activeFriend?.messages.length) {
+			setTimeout(() => scrollToBottom("smooth"), 40);
+		}
+	});
+
+	$effect(() => {
+		if (activeFriendId) {
+			setTimeout(() => scrollToBottom("auto"), 20);
+		}
+	});
 
 	const myUsername = $derived(account.value?.username || "GamerLux");
 
@@ -707,7 +726,7 @@
 			{/if}
 
 			<!-- Message Feed -->
-			<div class="flex-1 min-h-0 p-6 overflow-y-auto custom-scrollbar space-y-4">
+			<div bind:this={messagesContainer} class="flex-1 min-h-0 p-6 overflow-y-auto custom-scrollbar space-y-4">
 				{#each activeFriend.messages as msg}
 					<div class="flex flex-col {msg.sender === 'me' ? 'items-end' : 'items-start'}">
 						{#if msg.text.includes("[CONVITE DE PARTIDA]")}

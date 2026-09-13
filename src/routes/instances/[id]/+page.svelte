@@ -119,22 +119,19 @@
 
 	const heroBanner = $derived.by(() => {
 		if (activeProfile?.banner) return activeProfile.banner;
-		const nameLower = (activeProfile?.name || "").toLowerCase();
-		if (nameLower.includes("better mc") || nameLower.includes("bmc") || nameLower.includes("medieval") || nameLower.includes("rlcraft") || nameLower.includes("dawncraft") || nameLower.includes("roguelike") || nameLower.includes("dungeon")) {
-			return "/modpack_better_mc.webp";
-		}
-		if (nameLower.includes("pixelmon") || nameLower.includes("cobblemon") || nameLower.includes("pokemon") || nameLower.includes("poke")) {
-			return "/modpack_cobblemon.webp";
-		}
-		if (nameLower.includes("fabulously") || nameLower.includes("fo") || nameLower.includes("homestead") || nameLower.includes("all the mods") || nameLower.includes("atm") || nameLower.includes("create") || nameLower.includes("tech") || nameLower.includes("skyblock") || nameLower.includes("stoneblock")) {
-			return "/modpack_fo.webp";
-		}
-		if (activeProfile?.icon && activeProfile.icon.startsWith("http")) {
+		if (activeProfile?.icon && (activeProfile.icon.startsWith("http") || activeProfile.icon.startsWith("data:"))) {
 			return activeProfile.icon;
 		}
-		if (activeProfile?.loader === "fabric") return "/modpack_fo.webp";
-		if (activeProfile?.loader === "forge") return "/modpack_better_mc.webp";
-		if (activeProfile?.loader === "neoforge") return "/modpack_cobblemon.webp";
+		const nameLower = (activeProfile?.name || "").toLowerCase();
+		if (nameLower.includes("better mc") || nameLower.includes("bmc")) {
+			return "/modpack_better_mc.webp";
+		}
+		if (nameLower.includes("pixelmon") || nameLower.includes("cobblemon")) {
+			return "/modpack_cobblemon.webp";
+		}
+		if (nameLower.includes("fabulously optimized") || nameLower.includes("fo")) {
+			return "/modpack_fo.webp";
+		}
 		return "/vanilla_banner.png";
 	});
 
@@ -1305,7 +1302,12 @@
 									<div class="flex items-center gap-3.5 min-w-0">
 										<div class="w-10 h-10 rounded-xl overflow-hidden {isDisabled ? 'bg-white/5 text-white/30' : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'} flex items-center justify-center shrink-0 shadow-sm relative">
 											{#if mod.icon}
-												<img src={mod.icon} alt={displayName} class="w-full h-full object-cover [image-rendering:pixelated]" />
+												<img 
+													src={mod.icon} 
+													alt={displayName} 
+													class="w-full h-full object-cover [image-rendering:pixelated]" 
+													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+												/>
 											{:else}
 												<Puzzle class="w-5 h-5" />
 											{/if}

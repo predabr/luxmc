@@ -852,27 +852,27 @@
 					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 						<button
 							type="button"
-							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
+							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-brand-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all duration-200 shadow hover:shadow-brand-500/5 cursor-pointer group"
 							onclick={() => updaterStore.check(true)}
 						>
-							<span class="flex items-center gap-2"><RefreshCw class="w-4 h-4 text-brand-500 {updaterStore.isChecking ? 'animate-spin' : ''}" /> Checar Atualizações</span>
-							<span class="text-[10px] text-white/40">v1.5.2-beta</span>
+							<span class="flex items-center gap-2.5"><RefreshCw class="w-4 h-4 text-brand-500 {updaterStore.isChecking ? 'animate-spin' : 'group-hover:rotate-45 transition-transform'}" /> Checar Atualizações</span>
+							<span class="text-[10px] text-brand-400/80 font-mono font-bold bg-brand-500/10 px-2 py-0.5 rounded-full border border-brand-500/20">v1.6.0</span>
 						</button>
 						<button
 							type="button"
-							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
+							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-purple-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all duration-200 shadow hover:shadow-purple-500/5 cursor-pointer group"
 							onclick={() => openUrl("https://github.com/predabr/luxmc")}
 						>
-							<span class="flex items-center gap-2"><ExternalLink class="w-4 h-4 text-purple-400" /> Repositório GitHub</span>
-							<span class="text-[10px] text-white/40">predabr/luxmc</span>
+							<span class="flex items-center gap-2.5"><ExternalLink class="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" /> Repositório GitHub</span>
+							<span class="text-[10px] text-white/40 font-mono">predabr/luxmc</span>
 						</button>
 						<button
 							type="button"
-							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all shadow cursor-pointer"
+							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-amber-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all duration-200 shadow hover:shadow-amber-500/5 cursor-pointer group"
 							onclick={() => openUrl("https://github.com/predabr/luxmc/issues")}
 						>
-							<span class="flex items-center gap-2"><ExternalLink class="w-4 h-4 text-amber-400" /> Reportar Erro / Issues</span>
-							<span class="text-[10px] text-white/40">Suporte</span>
+							<span class="flex items-center gap-2.5"><ExternalLink class="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" /> Reportar Erro / Issues</span>
+							<span class="text-[10px] text-amber-400/80 font-mono font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">Suporte</span>
 						</button>
 					</div>
 

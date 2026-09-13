@@ -515,12 +515,8 @@ pub async fn prepare_forge(
     }
     if client_dest.exists() && !classpath_entries.contains(&client_dest) {
         classpath_entries.push(client_dest);
-    }
-    if universal_dest.exists() && !classpath_entries.contains(&universal_dest) {
+    } else if universal_dest.exists() && !classpath_entries.contains(&universal_dest) {
         classpath_entries.push(universal_dest);
-    }
-    if installer_dest.exists() && !classpath_entries.contains(&installer_dest) {
-        classpath_entries.push(installer_dest);
     }
 
     let cp_sep = if cfg!(windows) { ";" } else { ":" };

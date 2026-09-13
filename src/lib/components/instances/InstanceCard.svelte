@@ -107,21 +107,15 @@
 			{@const nameLower = (profile.name || '').toLowerCase()}
 			{@const bannerSrc = profile.banner
 				? profile.banner
-				: (nameLower.includes('better mc') || nameLower.includes('bmc') || nameLower.includes('medieval') || nameLower.includes('rlcraft') || nameLower.includes('dawncraft') || nameLower.includes('roguelike') || nameLower.includes('dungeon'))
-					? '/modpack_better_mc.webp'
-					: (nameLower.includes('pixelmon') || nameLower.includes('cobblemon') || nameLower.includes('pokemon') || nameLower.includes('poke'))
-						? '/modpack_cobblemon.webp'
-						: (nameLower.includes('fabulously') || nameLower.includes('fo') || nameLower.includes('homestead') || nameLower.includes('all the mods') || nameLower.includes('atm') || nameLower.includes('create') || nameLower.includes('tech') || nameLower.includes('skyblock') || nameLower.includes('stoneblock'))
-							? '/modpack_fo.webp'
-							: (profile.icon && profile.icon.startsWith('http'))
-								? profile.icon
-								: profile.loader === 'fabric'
-									? '/modpack_fo.webp'
-									: profile.loader === 'forge'
-										? '/modpack_better_mc.webp'
-										: profile.loader === 'neoforge'
-											? '/modpack_cobblemon.webp'
-											: '/vanilla_banner.png'}
+				: (profile.icon && (profile.icon.startsWith('http') || profile.icon.startsWith('data:')))
+					? profile.icon
+					: (nameLower.includes('better mc') || nameLower.includes('bmc'))
+						? '/modpack_better_mc.webp'
+						: (nameLower.includes('pixelmon') || nameLower.includes('cobblemon'))
+							? '/modpack_cobblemon.webp'
+							: (nameLower.includes('fabulously optimized') || nameLower.includes('fo'))
+								? '/modpack_fo.webp'
+								: '/vanilla_banner.png'}
 			<div class="h-36 -mx-4 -mt-4 mb-3 rounded-t-2xl overflow-hidden relative bg-[#1c1d22]">
 				<img
 					src={bannerSrc}
