@@ -56,36 +56,36 @@ O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (T
 
 ---
 
-## 🌟 Novidades na v1.5.5-BETA
+## 🌟 Novidades na v1.5.6-BETA
 
-- 📦 **Motor de Download CurseForge com Fallback em 4 Níveis:**
-  - Resolução robusta de modpacks que antes ficavam com mods faltando (ex: All The Mods 10/11).
-  - Cascata com API individual de arquivos, endpoint em lote, Edge CDN e mirrors de contingência.
-  - Validação de integridade de arquivos `.jar` garantindo que arquivos truncados sejam descartados antes da inicialização.
-  - **Botão de Cancelar Download**: permite cancelar a instalação de modpacks em andamento a qualquer momento com um clique.
+- 🚀 **Resolução Definitiva de Inicialização no CurseForge:**
+  - Tratamento inteligente da versão base (`clean_req_ver`) no manifesto da Mojang, impedindo que nomes compostos (ex: `1.20.1-forge-47.3.0`) causem o erro "Version not found" que fechava o jogo instantaneamente.
+  - Varredura e extração robusta de `version.json` diretamente do instalador do Forge na memória.
+  - Deduplicação do classpath entre o cliente vanilla e o cliente embutido do NeoForge.
 
-- 🧠 **Launcher Inteligente (Auto-Hardware & Alocação Dinâmica):**
-  - O launcher analisa dinamicamente os recursos da máquina (RAM total e GPU).
-  - Em modpacks pesados (Forge e NeoForge com centenas de mods), eleva automaticamente a memória alocada para 6 GB a 8 GB (ou 10 GB em sistemas com 24 GB+), prevenindo travamentos por OutOfMemory e lentidão no carregamento.
+- 👕 **Injeção Perfeita de Skins e Capas em Runtime:**
+  - Correção definitiva do canal alfa nas costas do jogador (tronco, braços, pernas e cabeça), eliminando bugs visuais e texturas invisíveis no jogo.
+  - Ativação automática e forçada de todas as camadas do modelo (`modelPart_jacket`, `modelPart_cape`, `modelPart_hat`, mangas e calças) no `options.txt`.
+  - Injeção da textura de capa para OptiFine e loaders modernos via resourcepack dinâmico em tempo de execução.
 
-- 🛠️ **Correção Definitiva de Classpath no NeoForge:**
-  - Resolução do crash de conflito de módulos da JVM (`Modules minecraft and _1_21_1 both export...`) através da deduplicação inteligente do jar vanilla quando o NeoForge já fornece o cliente embutido.
+- 🛡️ **Persistência Completa de Skins e Capas Locais:**
+  - Armazenamento permanente dos arquivos `.png` em disco (`~/.local/share/luxmc/skins/` e `capes/`) e registro das texturas no banco de dados SQLite local.
+  - Opções para equipar, alternar e excluir capas personalizadas diretamente pelo catálogo visual.
 
-- 👕 **Personalizador de Skins 3D Aprimorado:**
-  - Sincronização persistente que não sobrescreve a escolha do usuário na inicialização.
-  - Injeção automática e nativa da skin selecionada no jogo via resource pack do Luxmc (funciona em contas Microsoft e contas locais).
-  - Suporte resiliente com espelhos de textura e alternância instantânea entre modelos Classic (4px) e Slim (3px).
+- 🕹️ **Novo Visualizador 3D do Personalizador (`skinview3d`):**
+  - Renderização 3D idêntica à do Minecraft com iluminação realista, física de caminhada (`WalkingAnimation`), camadas externas completas e exibição de capas com suporte a física.
+  - Pausa inteligente de renderização quando fora da tela para poupar GPU e bateria.
 
-- 📋 **Modal de Instâncias Centralizado e Responsivo:**
-  - Novo modal overlay (`CreateInstanceModal`) fixo e centralizado na tela, com suporte para fechar com tecla `Escape` ou clicando fora.
-  - Cabeçalho com efeito blur e fixação `sticky`, mantendo as ações sempre acessíveis.
+- ⏱️ **Painel de Tempo de Jogo em Tempo Real ("YOUR PLAY TIME"):**
+  - Gráfico de barras dinâmico dos últimos 7 dias com tooltips interativos e destaque dourado no dia de hoje.
+  - Métricas precisas de tempo total dos últimos 7 dias, sessão média, sessão mais longa e dias jogados (`X de 7`), com persistência contínua no SQLite.
 
-- 🎨 **Organizador de Layout Modular (`/organizer`):**
-  - Permite reorganizar os cards e widgets da tela inicial via arrastar e soltar (drag-and-drop), ajustar larguras e ocultar seções com salvamento automático local.
+- 🗂️ **Organizador de Layout com Física e Animação Fluida (`svelte-dnd-action`):**
+  - Reordenação de cards e painéis via arrastar e soltar suave a 60 FPS com transição física de 200ms e confetes de comemoração (`canvas-confetti`).
 
-- 🚀 **Animações e Efeitos Fluidos:**
-  - Animação de transição lateral ao alternar entre abas.
-  - Efeitos táteis de iluminação (`.animate-pulse-glow`) e shimmer nos cards e botões.
+- 🦀 **Integração das Melhores Bibliotecas do Ecossistema:**
+  - Backend Rust potencializado com `rayon` (multi-threading), `moka` (cache concorrente), `fastnbt`, `craftping`, `murmur2`, `notify`, `which`, `sysinfo` e `discord-rich-presence`.
+  - Frontend Svelte 5 com `bits-ui`, `@melt-ui/svelte`, `motion`, `howler`, `tone`, `xterm`, `chart.js` e `node-vibrant`.
 
 ---
 
@@ -118,7 +118,7 @@ O **Luxmc** é um launcher de Minecraft moderno construído **do zero em Rust (T
 
 ## 📥 Como Baixar e Instalar
 
-Baixe o pacote para seu sistema na aba de **[📦 Releases Oficiais (v1.5.5-BETA)](https://github.com/predabr/luxmc/releases/latest)**.
+Baixe o pacote para seu sistema na aba de **[📦 Releases Oficiais (v1.5.6-BETA)](https://github.com/predabr/luxmc/releases/latest)**.
 
 ### 🪟 Microsoft Windows (`Luxmc.exe`)
 Executável nativo de 64-bit para Windows 10 e Windows 11 com WebView2:
@@ -129,10 +129,10 @@ Executável nativo de 64-bit para Windows 10 e Windows 11 com WebView2:
 Compatível com todas as distribuições Linux:
 ```bash
 # 1. Dê permissão de execução
-chmod +x Luxmc_1.5.5-beta_amd64.AppImage
+chmod +x Luxmc_1.5.6-beta_amd64.AppImage
 
 # 2. Execute
-./Luxmc_1.5.5-beta_amd64.AppImage
+./Luxmc_1.5.6-beta_amd64.AppImage
 ```
 
 ### 🟣 Arch Linux / Manjaro
@@ -152,12 +152,12 @@ makepkg -si
 
 ### 🔴 Debian / Ubuntu / Pop!_OS (.deb)
 ```bash
-sudo apt install ./Luxmc_1.5.5-beta_amd64.deb
+sudo apt install ./Luxmc_1.5.6-beta_amd64.deb
 ```
 
 ### 🔵 Fedora / openSUSE (.rpm)
 ```bash
-sudo dnf install ./Luxmc-1.5.5-beta-1.x86_64.rpm
+sudo dnf install ./Luxmc-1.5.6-beta-1.x86_64.rpm
 ```
 
 ---
