@@ -1802,8 +1802,7 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                 let is_left_arm_back = x >= 43 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale;
 
                 let is_placeholder_black = (pixel[0] == 45 && pixel[1] == 45 && pixel[2] == 45)
-                    || (pixel[0] == 40 && pixel[1] == 30 && pixel[2] == 25)
-                    || (pixel[0] < 10 && pixel[1] < 10 && pixel[2] < 10 && pixel[3] > 200);
+                    || (pixel[0] == 40 && pixel[1] == 30 && pixel[2] == 25);
 
                 let is_arm_back_unrendered = (is_right_arm_back || is_left_arm_back)
                     && (pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0);
@@ -1927,7 +1926,8 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
         for y in y1..y2.min(final_h) {
             for x in x1..x2.min(final_w) {
                 let p = *canvas.get_pixel(x, y);
-                if p[3] < 250 || (p[0] < 10 && p[1] < 10 && p[2] < 10) {
+                let is_ph = (p[0] == 45 && p[1] == 45 && p[2] == 45) || (p[0] == 40 && p[1] == 30 && p[2] == 25);
+                if p[3] < 200 || is_ph {
                     canvas.put_pixel(x, y, fallback_skin_tone);
                 }
             }

@@ -616,6 +616,12 @@ async fn download_cf_mod_file(
         }
     }
 
+    tracing::warn!(
+        project_id = %project_id_str,
+        file_id = %file_id_str,
+        name = display_name.unwrap_or("unknown"),
+        "CurseForge file could not be downloaded automatically (author distribution restricted)"
+    );
     false
 }
 
@@ -753,6 +759,11 @@ pub async fn instance_import_modpack(
     let config_prefix = format!("{}config/", root_prefix).to_lowercase();
     let defaultconfigs_prefix = format!("{}defaultconfigs/", root_prefix).to_lowercase();
     let scripts_prefix = format!("{}scripts/", root_prefix).to_lowercase();
+    let patchouli_prefix = format!("{}patchouli_books/", root_prefix).to_lowercase();
+    let openloader_prefix = format!("{}openloader/", root_prefix).to_lowercase();
+    let resourcepacks_prefix = format!("{}resourcepacks/", root_prefix).to_lowercase();
+    let shaderpacks_prefix = format!("{}shaderpacks/", root_prefix).to_lowercase();
+    let mods_prefix = format!("{}mods/", root_prefix).to_lowercase();
 
     let mut extracted_count = 0;
     for i in 0..archive.len() {
@@ -776,6 +787,16 @@ pub async fn instance_import_modpack(
             } else if lower_name.starts_with(&defaultconfigs_prefix) {
                 Some(&clean_name[root_prefix.len()..])
             } else if lower_name.starts_with(&scripts_prefix) {
+                Some(&clean_name[root_prefix.len()..])
+            } else if lower_name.starts_with(&patchouli_prefix) {
+                Some(&clean_name[root_prefix.len()..])
+            } else if lower_name.starts_with(&openloader_prefix) {
+                Some(&clean_name[root_prefix.len()..])
+            } else if lower_name.starts_with(&resourcepacks_prefix) {
+                Some(&clean_name[root_prefix.len()..])
+            } else if lower_name.starts_with(&shaderpacks_prefix) {
+                Some(&clean_name[root_prefix.len()..])
+            } else if lower_name.starts_with(&mods_prefix) {
                 Some(&clean_name[root_prefix.len()..])
             } else {
                 None

@@ -393,6 +393,13 @@ pub async fn prepare_neoforge(
         jvm_args.push(format!("-DignoreList=client-extra,{}.jar,{}", mc_version, mc_version));
     }
 
+    if !jvm_args.iter().any(|a| a.contains("java.base/java.lang")) {
+        jvm_args.push("--add-opens=java.base/java.lang=ALL-UNNAMED".to_string());
+    }
+    if !jvm_args.iter().any(|a| a.contains("java.base/java.util")) {
+        jvm_args.push("--add-opens=java.base/java.util=ALL-UNNAMED".to_string());
+    }
+
     let mut game_args = Vec::new();
     if let Some(ref args) = version_data.arguments {
         for arg in &args.game {

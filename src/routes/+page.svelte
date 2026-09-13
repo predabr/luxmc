@@ -28,7 +28,9 @@
 		SlidersHorizontal,
 		FolderOpen,
 		Camera,
-		Package
+		Package,
+		ChevronDown,
+		Search
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import { account } from "$lib/stores/account.svelte";
@@ -67,8 +69,18 @@
 	let isLoadingHome = $state(true);
 	let isLaunching = $state(false);
 	let launchStatusText = $state("");
+	let showQuickInstancePicker = $state(false);
 
 	const activeInstance = $derived(profiles.active || profiles.list[0] || null);
+
+	function getLoaderColor(loader: string) {
+		const l = (loader || "").toLowerCase();
+		if (l.includes("fabric")) return "bg-sky-500/15 text-sky-400 border-sky-500/30";
+		if (l.includes("neoforge")) return "bg-orange-500/15 text-orange-400 border-orange-500/30";
+		if (l.includes("forge")) return "bg-amber-500/15 text-amber-400 border-amber-500/30";
+		if (l.includes("quilt")) return "bg-purple-500/15 text-purple-400 border-purple-500/30";
+		return "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
+	}
 
 	async function hashPassword(password: string): Promise<string> {
 		const encoder = new TextEncoder();
@@ -764,8 +776,48 @@
 
 	<div class="flex gap-8 h-full w-full select-none" in:fade={{ duration: 100 }}>
 		
-		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-7">
-			
+		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-6">
+			<!-- SKLauncher-style Top Header Bar -->
+			<header class="flex items-center justify-between gap-4 py-1">
+				<button 
+					type="button"
+					onclick={() => {
+						window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+					}}
+					class="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-[#141518]/90 hover:bg-[#1c1d22] border border-white/5 hover:border-white/15 text-xs text-white/40 hover:text-white transition-all shadow-md group cursor-pointer"
+					title="Paleta de Comandos (Ctrl+K)"
+				>
+					<Search class="w-3.5 h-3.5 text-[#caa97c] group-hover:scale-110 transition-transform" />
+					<span class="font-medium hidden sm:inline">Buscar instâncias, mods ou ações...</span>
+					<span class="font-medium sm:hidden">Buscar...</span>
+					<kbd class="text-[10px] font-mono text-white/20 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-md">Ctrl+K</kbd>
+				</button>
+
+				<div class="flex items-center gap-2.5">
+					<div class="flex items-center gap-2.5 px-3.5 py-1.5 rounded-2xl bg-[#141518]/90 border border-white/5 shadow-md">
+						<div class="w-8 h-8 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
+							<img 
+								src={activeSkinStore.current.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + account.value.uuid + "/64" : "/logo.png")} 
+								alt="Avatar" 
+								class="w-full h-full object-cover"
+							/>
+						</div>
+						<div class="text-left hidden sm:block">
+							<div class="text-xs font-bold text-white leading-tight">
+								{account.value?.username || "Jogador"}
+							</div>
+							<div class="text-[10px] font-semibold leading-tight mt-0.5">
+								{#if !account.value?.minecraftToken || account.value?.id.startsWith("offline_") || account.value?.id.startsWith("offline-")}
+									<span class="text-sky-400">Offline</span>
+								{:else}
+									<span class="text-emerald-400">Microsoft</span>
+								{/if}
+							</div>
+						</div>
+					</div>
+				</div>
+			</header>
+
 			{#if isLoadingHome}
 				<div class="space-y-7 animate-pulse">
 					<div class="h-28 rounded-3xl bg-[#18191c] border border-white/5 p-6 flex items-center justify-between">
@@ -837,38 +889,97 @@
 						{#if sec.enabled}
 							<div class="{sec.width === 'half' ? 'xl:col-span-6' : 'xl:col-span-12'} w-full transition-all duration-300">
 								{#if sec.id === 'hero'}
-									<!-- Hero Banner & Launch Block -->
-									<div class="relative rounded-3xl bg-gradient-to-r from-[#1c1d24] via-[#18191f] to-[#15161b] border border-white/10 p-6 shadow-xl overflow-hidden" in:fade={{ duration: 250 }}>
-										<div class="absolute -right-12 -top-12 w-56 h-56 bg-[#caa97c]/15 rounded-full blur-3xl pointer-events-none"></div>
+									<!-- SKLauncher-inspired Hero Banner & Launch Block -->
+									<div class="relative rounded-3xl bg-[#141519] border border-white/10 shadow-2xl overflow-hidden" in:fade={{ duration: 250 }}>
+										{#if activeInstance?.banner}
+											<div 
+												class="absolute inset-0 bg-cover bg-center opacity-25 scale-105 filter blur-sm pointer-events-none"
+												style="background-image: url('{activeInstance.banner}');"
+											></div>
+										{/if}
+										<div class="absolute inset-0 bg-gradient-to-r from-[#111215] via-[#141519]/95 to-[#141519]/80 pointer-events-none"></div>
+										<div class="absolute -right-12 -top-12 w-64 h-64 bg-[#caa97c]/10 rounded-full blur-3xl pointer-events-none"></div>
 
-										<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-5 relative z-10">
-											<div class="space-y-1.5">
+										<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 p-7 relative z-10">
+											<div class="space-y-2.5 max-w-xl">
 												<div class="flex items-center gap-2">
-													<span class="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></span>
-													<span class="text-[11px] font-bold uppercase tracking-widest text-[#caa97c]">{t("home.readyToPlay")}</span>
+													<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)] animate-pulse"></span>
+													<span class="text-[11px] font-black uppercase tracking-widest text-[#caa97c]">{t("home.readyToPlay")}</span>
 												</div>
-												<h1 class="text-2xl lg:text-3xl font-black text-white tracking-tight">
-													{t("home.helloUser", { name: account.value?.username || 'Jogador' })}
-												</h1>
-												<div class="flex flex-wrap items-center gap-2.5 text-xs text-white/60 pt-0.5">
+												
+												<div class="relative">
 													{#if activeInstance}
-														<div class="flex items-center gap-2">
-															<div class="h-6 w-6 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
-																{#if activeInstance.icon && (activeInstance.icon.startsWith("http") || activeInstance.icon.startsWith("/") || activeInstance.icon.startsWith("data:"))}
-																	<img src={activeInstance.icon} alt={activeInstance.name} class="w-full h-full object-cover" />
-																{:else}
-																	<img src="/grass_block.png" alt={activeInstance.name} class="w-4 h-4 object-contain [image-rendering:pixelated]" />
-																{/if}
+														<button 
+															type="button"
+															onclick={() => showQuickInstancePicker = !showQuickInstancePicker}
+															class="flex items-center gap-3 text-left group cursor-pointer"
+															title="Clique para alternar a instância"
+														>
+															<h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight group-hover:text-[#caa97c] transition-colors">
+																{activeInstance.name}
+															</h1>
+															<div class="p-1 rounded-lg bg-white/5 border border-white/10 text-white/50 group-hover:text-white transition-colors">
+																<ChevronDown class="w-4 h-4 transition-transform {showQuickInstancePicker ? 'rotate-180' : ''}" />
 															</div>
-															<span class="font-bold text-white text-xs">{activeInstance.name}</span>
+														</button>
+													{:else}
+														<h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight">
+															{t("home.helloUser", { name: account.value?.username || 'Jogador' })}
+														</h1>
+													{/if}
+
+													{#if showQuickInstancePicker && profiles.list.length > 0}
+														<div 
+															class="absolute left-0 top-full mt-2 w-80 max-h-64 overflow-y-auto custom-scrollbar rounded-2xl bg-[#1c1d22] border border-white/10 shadow-2xl p-2 z-50 space-y-1"
+														>
+															<div class="text-[10px] font-bold text-white/40 uppercase tracking-wider px-2.5 py-1">
+																Alternar Instância
+															</div>
+															{#each profiles.list as p}
+																<button 
+																	type="button"
+																	onclick={() => {
+																		profiles.activeId = p.id;
+																		showQuickInstancePicker = false;
+																	}}
+																	class="w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer {p.id === activeInstance?.id ? 'bg-[#caa97c]/15 text-white border border-[#caa97c]/30' : 'hover:bg-white/5 text-white/80'}"
+																>
+																	<div class="flex items-center gap-2.5 min-w-0">
+																		<div class="w-8 h-8 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+																			{#if p.icon && (p.icon.startsWith("http") || p.icon.startsWith("/") || p.icon.startsWith("data:"))}
+																				<img src={p.icon} alt={p.name} class="w-full h-full object-cover" />
+																			{:else}
+																				<img src="/grass_block.png" alt={p.name} class="w-5 h-5 object-contain [image-rendering:pixelated]" />
+																			{/if}
+																		</div>
+																		<div class="min-w-0">
+																			<div class="text-xs font-bold truncate">{p.name}</div>
+																			<div class="text-[10px] text-white/40 font-mono">{p.mcVersion}</div>
+																		</div>
+																	</div>
+																	<span class="text-[9px] font-bold font-mono uppercase px-1.5 py-0.5 rounded border {getLoaderColor(p.loader)}">
+																		{p.loader}
+																	</span>
+																</button>
+															{/each}
 														</div>
-														<span class="text-white/30">•</span>
-														<span class="font-mono text-[10px] bg-white/5 px-2 py-0.5 rounded-md border border-white/10 text-white/80">
+													{/if}
+												</div>
+
+												<div class="flex flex-wrap items-center gap-2 text-xs text-white/60">
+													{#if activeInstance}
+														<span class="font-mono text-[11px] bg-white/5 px-2.5 py-1 rounded-lg border border-white/10 text-white/90 font-medium">
 															{activeInstance.mcVersion}
 														</span>
-														<span class="font-mono text-[10px] bg-[#caa97c]/15 text-[#caa97c] px-2 py-0.5 rounded-md border border-[#caa97c]/25 uppercase font-bold">
+														<span class="font-mono text-[11px] px-2.5 py-1 rounded-lg border font-bold uppercase {getLoaderColor(activeInstance.loader)}">
 															{activeInstance.loader}
 														</span>
+														{#if gamingStats.formattedTotalTime}
+															<span class="flex items-center gap-1.5 text-[11px] text-white/50 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 font-mono">
+																<Clock class="w-3.5 h-3.5 text-[#caa97c]" />
+																{gamingStats.formattedTotalTime}
+															</span>
+														{/if}
 													{:else}
 														<span class="text-white/40">{t("home.noInstanceYet")}</span>
 													{/if}
@@ -878,7 +989,7 @@
 											<div class="flex items-center gap-3 w-full lg:w-auto shrink-0">
 												<button
 													type="button"
-													class="flex-1 lg:flex-initial h-14 px-8 rounded-2xl bg-gradient-to-r from-[#e2b86b] via-[#caa97c] to-[#b89560] hover:from-[#ebd08f] hover:to-[#c4a16b] text-[#121316] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-3 shadow-[0_4px_25px_rgba(202,169,124,0.35)] hover:shadow-[0_6px_32px_rgba(202,169,124,0.5)] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed"
+													class="flex-1 lg:flex-initial h-16 px-10 rounded-2xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] hover:from-[#e5cca8] hover:to-[#caa97c] text-[#111215] font-black text-sm uppercase tracking-wider flex items-center justify-center gap-3.5 shadow-[0_8px_30px_rgba(202,169,124,0.35)] hover:shadow-[0_12px_45px_rgba(202,169,124,0.55)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed group"
 													onclick={handleHomePlay}
 													disabled={isLaunching}
 												>
@@ -886,14 +997,14 @@
 														<Loader2 class="w-5 h-5 animate-spin" />
 														<span>{launchStatusText || t("home.starting").toUpperCase()}</span>
 													{:else}
-														<Play class="w-5 h-5 fill-current" />
+														<Play class="w-5 h-5 fill-current group-hover:scale-110 transition-transform" />
 														<span>{t("home.playNow")}</span>
 													{/if}
 												</button>
 
 												<a 
 													href="/instances" 
-													class="h-14 px-5 rounded-2xl bg-[#18191c] hover:bg-[#222329] border border-white/10 hover:border-white/25 text-white font-bold text-xs flex items-center gap-2.5 transition-all shadow-md group cursor-pointer shrink-0"
+													class="h-16 px-5 rounded-2xl bg-[#18191c] hover:bg-[#202127] border border-white/10 hover:border-white/20 text-white font-bold text-xs flex items-center gap-2.5 transition-all shadow-md group cursor-pointer shrink-0"
 													title={t("home.library")}
 												>
 													<Boxes class="w-4 h-4 text-[#caa97c] group-hover:scale-110 transition-transform" />

@@ -617,6 +617,20 @@ pub async fn prepare_forge(
         jvm_args.push(format!("-DignoreList=client-extra,{}.jar,{}", mc_version, mc_version));
     }
 
+    let java_major = match mc_version {
+        v if v.starts_with("1.20.5") || v.starts_with("1.20.6") || v.starts_with("1.21") || v.starts_with("2") => 21,
+        v if v.starts_with("1.17") || v.starts_with("1.18") || v.starts_with("1.19") || v.starts_with("1.20") => 17,
+        _ => 8,
+    };
+    if java_major >= 17 {
+        if !jvm_args.iter().any(|a| a.contains("java.base/java.lang")) {
+            jvm_args.push("--add-opens=java.base/java.lang=ALL-UNNAMED".to_string());
+        }
+        if !jvm_args.iter().any(|a| a.contains("java.base/java.util")) {
+            jvm_args.push("--add-opens=java.base/java.util=ALL-UNNAMED".to_string());
+        }
+    }
+
     let mut game_args = Vec::new();
     if let Some(ref args) = version_data.arguments {
         for arg in &args.game {

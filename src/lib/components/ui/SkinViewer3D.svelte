@@ -132,7 +132,6 @@
 
 		const isProblematic = (r: number, g: number, b: number, a: number) => {
 			return a < 200 
-				|| (r < 10 && g < 10 && b < 10)
 				|| (r === 45 && g === 45 && b === 45)
 				|| (r === 40 && g === 30 && b === 25);
 		};
@@ -220,10 +219,9 @@
 			for (let y = y1; y < Math.min(y2, h); y++) {
 				for (let x = x1; x < Math.min(x2, w); x++) {
 					const idx = (y * w + x) * 4;
-					if (data[idx + 3] > 0 && data[idx + 3] < 250) {
-						data[idx + 3] = 255;
-					}
-					if (data[idx + 3] > 200 && data[idx] < 10 && data[idx + 1] < 10 && data[idx + 2] < 10) {
+					const isPlaceholder = (data[idx] === 45 && data[idx + 1] === 45 && data[idx + 2] === 45)
+						|| (data[idx] === 40 && data[idx + 1] === 30 && data[idx + 2] === 25);
+					if (data[idx + 3] < 200 || isPlaceholder) {
 						data[idx] = fallbackR;
 						data[idx + 1] = fallbackG;
 						data[idx + 2] = fallbackB;

@@ -85,6 +85,9 @@
 		{#each items as item}
 			{@const active = item.href === "/" ? $page.url.pathname === "/" : $page.url.pathname.startsWith(item.href)}
 			<div class="relative group w-full flex justify-center">
+				{#if active}
+					<span class="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#caa97c] rounded-r-full shadow-[0_0_10px_#caa97c]"></span>
+				{/if}
 				<a
 					href={item.href}
 					onclick={(e) => {
@@ -111,6 +114,9 @@
 				{#each profiles.list as prof}
 					{@const active = $page.url.pathname === `/instances/${prof.id}` || ($page.url.pathname === "/instances" && profiles.activeId === prof.id)}
 					<div class="relative group w-full flex justify-center">
+						{#if active}
+							<span class="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#caa97c] rounded-r-full shadow-[0_0_8px_#caa97c]"></span>
+						{/if}
 						<a
 							href={`/instances/${prof.id}`}
 							onclick={(e) => {
