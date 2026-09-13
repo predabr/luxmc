@@ -334,3 +334,37 @@ export interface PerformancePackInfo {
 	reason?: string | null;
 	mods: PerformanceModEntry[];
 }
+
+export interface JavaInstallStatus {
+	major: number;
+	installed: boolean;
+	path: string | null;
+	versionString: string | null;
+	isSystem: boolean;
+}
+
+export interface JavaScanResult {
+	runtimes: JavaInstallStatus[];
+}
+
+export interface MissingDep {
+	slug: string;
+	name: string;
+	projectId: string;
+	reason: string;
+}
+
+export interface DepCheckResult {
+	missing: MissingDep[];
+	allOk: boolean;
+}
+
+export interface ModpackUpdateInfo {
+	hasUpdate: boolean;
+	currentVersion: string | null;
+	latestVersion: string | null;
+	changelog: string | null;
+	source: string;
+	projectId: string | null;
+	versionId: string | null;
+}

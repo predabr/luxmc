@@ -523,42 +523,111 @@
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Terminal class="w-5 h-5 text-orange-400" /> Linux & Otimizações de Sistema
 					</h3>
-					<p class="text-xs text-white/50 mt-0.5">GameMode, Wayland nativo e prioridade de CPU</p>
+					<p class="text-xs text-white/50 mt-0.5">GameMode, MangoHud, Wayland e prioridade de CPU</p>
 				</div>
 
-				<div class="space-y-2">
-					{#each [
-						{ title: 'Feral GameMode (gamemoderun)', desc: 'Ajusta governador de CPU para performance e eleva prioridade do processo', val: enableGameMode, toggle: () => enableGameMode = !enableGameMode },
-						{ title: 'Suporte Nativo a Wayland (Zero Input Lag)', desc: 'Contorna a camada de compatibilidade XWayland para menor latência', val: nativeWayland, toggle: () => nativeWayland = !nativeWayland },
-						{ title: 'MangoHud FPS & Hardware Monitor (mangohud)', desc: 'Exibe taxa de FPS, uso de VRAM e temperatura da placa de vídeo no jogo', val: enableMangoHud, toggle: () => enableMangoHud = !enableMangoHud },
-						{ title: 'MESA Shader Cache Disk Ilimitado', desc: 'Define MESA_SHADER_CACHE_MAX_SIZE=100G para eliminar micro-travamentos de shaders', val: mesaShaderCache, toggle: () => mesaShaderCache = !mesaShaderCache },
-						{ title: 'Forçar GPU Dedicada NVIDIA (Prime Offload)', desc: 'Ativa renderização direta na placa NVIDIA em notebooks híbridos', val: primeNvidiaGpu, toggle: () => primeNvidiaGpu = !primeNvidiaGpu },
-						{ title: 'Suporte a Gamescope Micro-Compositor', desc: 'Permite rodar via Gamescope da Valve com upscaling FSR e taxa travada', val: gamescopeSupport, toggle: () => gamescopeSupport = !gamescopeSupport },
-						{ title: 'Baixa Latência de Áudio PipeWire (Pro Audio)', desc: 'Configura buffer de áudio em 128/48000 para sincronismo sonoro instantâneo', val: pipewireProAudio, toggle: () => pipewireProAudio = !pipewireProAudio },
-						{ title: 'Prioridade Dinâmica Ananicy Cpp (Auto-Nice)', desc: 'Concede prioridade de agendador de tempo real na CPU para o Java', val: ananicyCpuScheduler, toggle: () => ananicyCpuScheduler = !ananicyCpuScheduler },
-						{ title: 'Desativar Aceleração de Ponteiro do Mouse', desc: 'Garante mira linear 1:1 absoluta no PvP sem aceleração do desktop', val: disableMouseAcceleration, toggle: () => disableMouseAcceleration = !disableMouseAcceleration },
-						{ title: 'Bypass de Compositor Wayland (Direct Scanout)', desc: 'Desativa sincronização do compositor para Adaptive Sync / G-Sync', val: waylandCompositorBypass, toggle: () => waylandCompositorBypass = !waylandCompositorBypass },
-						{ title: 'Prioridade de I/O em Disco (ionice tempo real)', desc: 'Carregamento instantâneo de chunks e texturas sem congelamentos', val: diskIoPriority, toggle: () => diskIoPriority = !diskIoPriority },
-						{ title: 'Otimização de Memória Swap ZRAM', desc: 'Comprime páginas em memória RAM evitando acessos lentos ao SSD', val: zramOptimization, toggle: () => zramOptimization = !zramOptimization },
-						{ title: 'Prevenir Suspensão / Bloqueio de Tela em Jogo', desc: 'Impede que o monitor desligue automaticamente durante gameplays', val: preventSystemSleep, toggle: () => preventSystemSleep = !preventSystemSleep }
-					] as opt}
-						<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
-							<div>
-								<div class="text-xs font-bold text-white">{opt.title}</div>
-								<div class="text-[10px] text-white/40">{opt.desc}</div>
+				<div class="space-y-4">
+					<!-- MangoHud Card Expandido -->
+					<div class="rounded-2xl border {enableMangoHud ? 'border-purple-500/30 bg-purple-500/5' : 'border-white/5 bg-[#1c1d22]'} overflow-hidden transition-all">
+						<div class="p-4 flex items-center justify-between">
+							<div class="flex items-center gap-3">
+								<div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 {enableMangoHud ? 'bg-purple-500/15 border border-purple-500/25 text-purple-400' : 'bg-white/5 border border-white/10 text-white/40'}">
+									<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
+								</div>
+								<div>
+									<div class="text-xs font-black text-white">MangoHud FPS Overlay</div>
+									<div class="text-[10px] text-white/40">Overlay de FPS, uso de VRAM, temperatura e clock da GPU no jogo</div>
+								</div>
 							</div>
 							<button
-								type="button"
-								role="switch"
-								aria-label={opt.title}
-								aria-checked={opt.val}
-								class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
-								onclick={opt.toggle}
+								type="button" role="switch" aria-label="MangoHud" aria-checked={enableMangoHud}
+								class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableMangoHud ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+								onclick={() => enableMangoHud = !enableMangoHud}
 							>
-								<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+								<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {enableMangoHud ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 							</button>
 						</div>
-					{/each}
+						{#if enableMangoHud}
+							<div class="border-t border-purple-500/10 px-4 py-3 grid grid-cols-2 gap-2">
+								{#each [
+									{ label: "FPS & Frametime", key: "fps" },
+									{ label: "GPU Temperatura",  key: "gpu_temp" },
+									{ label: "VRAM Uso",         key: "vram" },
+									{ label: "CPU Temperatura",  key: "cpu_temp" },
+									{ label: "GPU Clock",        key: "gpu_core_clock" },
+									{ label: "Memória RAM",      key: "ram" },
+								] as item}
+									<div class="flex items-center gap-2 cursor-default">
+										<div class="w-4 h-4 rounded-md border border-purple-500/30 bg-purple-500/10 flex items-center justify-center" aria-hidden="true">
+											<svg class="w-2.5 h-2.5 text-purple-400" viewBox="0 0 12 12" fill="currentColor"><path d="M10 3L5 8.5 2 5.5"/></svg>
+										</div>
+										<span class="text-[11px] text-white/60">{item.label}</span>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+
+					<!-- Wayland / XWayland Seletor -->
+					<div class="rounded-2xl border border-white/5 bg-[#1c1d22] p-4 space-y-3">
+						<div class="flex items-center gap-2 pb-2 border-b border-white/5">
+							<svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+							<span class="text-xs font-bold text-white">Protocolo de Janela</span>
+						</div>
+						{#each [
+							{ id: "xwayland",       label: "XWayland (Recomendado)",    desc: "Executa via camada X11 — máxima compatibilidade com LWJGL/GLFW", active: !nativeWayland },
+							{ id: "wayland_native", label: "Wayland Nativo",            desc: "Zero latência extra, mas pode causar problemas em GLFW/Swing",    active: nativeWayland },
+						] as opt}
+							<button
+								type="button"
+								onclick={() => nativeWayland = opt.id === "wayland_native"}
+								class="w-full flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-left
+									{opt.active ? 'border-blue-500/30 bg-blue-500/5' : 'border-white/5 hover:border-white/10 hover:bg-white/3'}"
+							>
+								<div class="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
+									{opt.active ? 'border-blue-400' : 'border-white/20'}">
+									{#if opt.active}
+										<div class="w-2 h-2 rounded-full bg-blue-400"></div>
+									{/if}
+								</div>
+								<div>
+									<div class="text-xs font-bold {opt.active ? 'text-blue-300' : 'text-white/70'}">{opt.label}</div>
+									<div class="text-[10px] text-white/40">{opt.desc}</div>
+								</div>
+							</button>
+						{/each}
+					</div>
+
+					<!-- Restante dos toggles -->
+					<div class="space-y-2">
+						{#each [
+							{ title: 'Feral GameMode (gamemoderun)', desc: 'Ajusta governador de CPU para performance e eleva prioridade do processo', val: enableGameMode, toggle: () => enableGameMode = !enableGameMode },
+							{ title: 'MESA Shader Cache Disk Ilimitado', desc: 'Define MESA_SHADER_CACHE_MAX_SIZE=100G para eliminar micro-travamentos de shaders', val: mesaShaderCache, toggle: () => mesaShaderCache = !mesaShaderCache },
+							{ title: 'Forçar GPU Dedicada NVIDIA (Prime Offload)', desc: 'Ativa renderização direta na placa NVIDIA em notebooks híbridos', val: primeNvidiaGpu, toggle: () => primeNvidiaGpu = !primeNvidiaGpu },
+							{ title: 'Suporte a Gamescope Micro-Compositor', desc: 'Permite rodar via Gamescope da Valve com upscaling FSR e taxa travada', val: gamescopeSupport, toggle: () => gamescopeSupport = !gamescopeSupport },
+							{ title: 'Baixa Latência de Áudio PipeWire (Pro Audio)', desc: 'Configura buffer de áudio em 128/48000 para sincronismo sonoro instantâneo', val: pipewireProAudio, toggle: () => pipewireProAudio = !pipewireProAudio },
+							{ title: 'Prioridade Dinâmica Ananicy Cpp (Auto-Nice)', desc: 'Concede prioridade de agendador de tempo real na CPU para o Java', val: ananicyCpuScheduler, toggle: () => ananicyCpuScheduler = !ananicyCpuScheduler },
+							{ title: 'Desativar Aceleração de Ponteiro do Mouse', desc: 'Garante mira linear 1:1 absoluta no PvP sem aceleração do desktop', val: disableMouseAcceleration, toggle: () => disableMouseAcceleration = !disableMouseAcceleration },
+							{ title: 'Bypass de Compositor Wayland (Direct Scanout)', desc: 'Desativa sincronização do compositor para Adaptive Sync / G-Sync', val: waylandCompositorBypass, toggle: () => waylandCompositorBypass = !waylandCompositorBypass },
+							{ title: 'Prioridade de I/O em Disco (ionice tempo real)', desc: 'Carregamento instantâneo de chunks e texturas sem congelamentos', val: diskIoPriority, toggle: () => diskIoPriority = !diskIoPriority },
+							{ title: 'Otimização de Memória Swap ZRAM', desc: 'Comprime páginas em memória RAM evitando acessos lentos ao SSD', val: zramOptimization, toggle: () => zramOptimization = !zramOptimization },
+							{ title: 'Prevenir Suspensão / Bloqueio de Tela em Jogo', desc: 'Impede que o monitor desligue automaticamente durante gameplays', val: preventSystemSleep, toggle: () => preventSystemSleep = !preventSystemSleep }
+						] as opt}
+							<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+								<div>
+									<div class="text-xs font-bold text-white">{opt.title}</div>
+									<div class="text-[10px] text-white/40">{opt.desc}</div>
+								</div>
+								<button
+									type="button" role="switch" aria-label={opt.title} aria-checked={opt.val}
+									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									onclick={opt.toggle}
+								>
+									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+								</button>
+							</div>
+						{/each}
+					</div>
 				</div>
 
 			<!-- SECTION 6: GRÁFICOS MINECRAFT -->

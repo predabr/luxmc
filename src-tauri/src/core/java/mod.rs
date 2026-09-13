@@ -175,6 +175,10 @@ impl JavaRuntimeManager {
         }
     }
 
+    pub fn find_system_java_pub(&self, major: u32) -> AppResult<PathBuf> {
+        self.find_system_java(major)
+    }
+
     fn find_system_java(&self, major: u32) -> AppResult<PathBuf> {
         let check_binary = |path: &std::path::Path, expected_major: u32| -> bool {
             if let Ok(output) = std::process::Command::new(path)

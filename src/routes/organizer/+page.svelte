@@ -2,11 +2,12 @@
 	import { 
 		GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, RotateCcw, 
 		Check, Sparkles, LayoutGrid, Package, Boxes, Clock, 
-		Newspaper, Wrench, Play, MoveVertical, Smartphone, Monitor
+		Newspaper, Wrench, Play, MoveVertical, Smartphone, Monitor,
+		Gamepad2, AlignJustify, Grid3x3
 	} from "lucide-svelte";
 	import { dndzone } from "svelte-dnd-action";
 	import confetti from "canvas-confetti";
-	import { layoutStore, type SectionId, type LayoutSectionItem } from "$lib/stores/layout.svelte";
+	import { layoutStore, type SectionId, type LayoutSectionItem, type LayoutPreset } from "$lib/stores/layout.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Heading from "$lib/components/ui/Heading.svelte";
@@ -19,6 +20,21 @@
 	$effect(() => {
 		items = layoutStore.sections.map(s => ({ ...s }));
 	});
+
+	const presets: Array<{ id: LayoutPreset; label: string; desc: string; icon: typeof Gamepad2 }> = [
+		{ id: "gamer",   label: "Modo Gamer",    desc: "Foco em play rápido",  icon: Gamepad2 },
+		{ id: "compact", label: "Compacto",       desc: "Minimalista",          icon: Smartphone },
+		{ id: "full",    label: "Completo",        desc: "Tudo visível",         icon: Grid3x3 },
+	];
+
+	function applyPreset(id: LayoutPreset) {
+		layoutStore.applyPreset(id);
+		items = layoutStore.sections.map(s => ({ ...s }));
+		try {
+			confetti({ particleCount: 40, spread: 50, origin: { y: 0.5 } });
+		} catch {}
+		toast(`Preset "${presets.find(p => p.id === id)?.label}" aplicado!`, "success");
+	}
 
 	function handleDndConsider(e: CustomEvent<{ items: LayoutSectionItem[] }>) {
 		items = e.detail.items;
@@ -73,9 +89,24 @@
 		</div>
 
 		<div class="flex items-center gap-3 self-end sm:self-center">
+			<!-- Preset Buttons -->
+			<div class="flex items-center gap-1.5 bg-bg-subtle border border-white/5 p-1 rounded-2xl">
+				{#each presets as preset}
+					{@const Icon = preset.icon}
+					<button
+						type="button"
+						onclick={() => applyPreset(preset.id)}
+						title={preset.desc}
+						class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer text-white/50 hover:text-white hover:bg-white/10"
+					>
+						<Icon class="w-3.5 h-3.5" />
+						{preset.label}
+					</button>
+				{/each}
+			</div>
 			<Button variant="secondary" onclick={resetLayout} class="gap-2 text-xs">
 				<RotateCcw class="w-3.5 h-3.5" />
-				<span>Redefinir Padrão</span>
+				<span>Redefinir</span>
 			</Button>
 			<a href="/" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#caa97c] hover:bg-[#d8bc98] text-[#111215] text-xs font-black transition-all shadow-lg hover:shadow-[#caa97c]/20">
 				<span>Ver no Início</span>

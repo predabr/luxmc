@@ -1,4 +1,5 @@
 export type SectionId = "hero" | "quickInstances" | "curatedPacks" | "gamingStats" | "newsFeed" | "tools";
+export type LayoutPreset = "gamer" | "compact" | "full";
 
 export interface LayoutSectionItem {
 	id: SectionId;
@@ -161,6 +162,29 @@ class LayoutStore {
 
 	reorderSections(newSections: LayoutSectionItem[]) {
 		this.sections = newSections;
+		this.persist();
+	}
+
+	applyPreset(preset: LayoutPreset) {
+		const clone = DEFAULT_SECTIONS.map((s) => ({ ...s }));
+		if (preset === "gamer") {
+			const order: SectionId[] = ["hero", "quickInstances", "gamingStats", "tools", "curatedPacks", "newsFeed"];
+			this.sections = order.map((id) => {
+				const s = clone.find((c) => c.id === id)!;
+				if (id === "gamingStats") s.width = "half";
+				if (id === "newsFeed") { s.enabled = false; }
+				if (id === "curatedPacks") { s.enabled = false; }
+				return s;
+			});
+		} else if (preset === "compact") {
+			this.sections = clone.map((s) => ({
+				...s,
+				enabled: s.id === "hero" || s.id === "quickInstances",
+				width: "full" as const,
+			}));
+		} else {
+			this.sections = clone.map((s) => ({ ...s, enabled: true }));
+		}
 		this.persist();
 	}
 }

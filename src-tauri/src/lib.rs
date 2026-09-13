@@ -185,6 +185,13 @@ pub async fn run() {
             commands::skins::gaming_stats_get,
             commands::skins::gaming_stats_save,
             commands::teamwork_preview::teamwork_preview,
+            commands::java::java_scan,
+            commands::java::java_install,
+            commands::java::java_uninstall,
+            commands::dep_checker::mods_check_missing_deps,
+            commands::dep_checker::mods_install_missing_deps,
+            commands::modpack_update::modpack_check_update,
+            commands::modpack_update::modpack_update_atomic,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -4,6 +4,7 @@ export { listen, type UnlistenFn } from "./client";
 export * from "./types";
 export * from "./auth";
 export * from "./instances";
+export * from "./java";
 export * from "./mods";
 export * from "./settings";
 export * from "./system";
