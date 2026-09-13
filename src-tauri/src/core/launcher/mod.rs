@@ -1700,14 +1700,17 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
         for dy in 0..12 {
             for dx in 0..4 {
                 let back_p = *target.get_pixel(52 + dx, 20 + dy);
-                if back_p[3] == 0
+                if back_p[3] < 200
                     || (back_p[0] == 0 && back_p[1] == 0 && back_p[2] == 0)
                     || (back_p[0] == 45 && back_p[1] == 45 && back_p[2] == 45)
                     || (back_p[0] == 40 && back_p[1] == 30 && back_p[2] == 25)
+                    || (back_p[0] < 10 && back_p[1] < 10 && back_p[2] < 10)
                 {
                     let front_p = *target.get_pixel(44 + dx, 20 + dy);
-                    if front_p[3] > 0 {
+                    if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
                         target.put_pixel(52 + dx, 20 + dy, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    } else {
+                        target.put_pixel(52 + dx, 20 + dy, image::Rgba([210, 165, 130, 255]));
                     }
                 }
             }
@@ -1738,15 +1741,20 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
             for dx in 0..4 {
                 target.put_pixel(36 + (3 - dx), 52 + dy, *target.get_pixel(44 + dx, 20 + dy));
                 let src_back = *target.get_pixel(52 + dx, 20 + dy);
-                let back_val = if src_back[3] > 0
+                let back_val = if src_back[3] > 200
                     && !(src_back[0] == 0 && src_back[1] == 0 && src_back[2] == 0)
                     && !(src_back[0] == 45 && src_back[1] == 45 && src_back[2] == 45)
                     && !(src_back[0] == 40 && src_back[1] == 30 && src_back[2] == 25)
+                    && !(src_back[0] < 10 && src_back[1] < 10 && src_back[2] < 10)
                 {
-                    src_back
+                    image::Rgba([src_back[0], src_back[1], src_back[2], 255])
                 } else {
                     let fp = *target.get_pixel(44 + dx, 20 + dy);
-                    if fp[3] > 0 { fp } else { image::Rgba([210, 165, 130, 255]) }
+                    if fp[3] > 0 && !(fp[0] == 0 && fp[1] == 0 && fp[2] == 0) { 
+                        image::Rgba([fp[0], fp[1], fp[2], 255])
+                    } else { 
+                        image::Rgba([210, 165, 130, 255]) 
+                    }
                 };
                 target.put_pixel(44 + (3 - dx), 52 + dy, back_val);
                 target.put_pixel(40 + (3 - dx), 52 + dy, *target.get_pixel(40 + dx, 20 + dy));
@@ -1794,12 +1802,13 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                 let is_left_arm_back = x >= 43 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale;
 
                 let is_placeholder_black = (pixel[0] == 45 && pixel[1] == 45 && pixel[2] == 45)
-                    || (pixel[0] == 40 && pixel[1] == 30 && pixel[2] == 25);
+                    || (pixel[0] == 40 && pixel[1] == 30 && pixel[2] == 25)
+                    || (pixel[0] < 10 && pixel[1] < 10 && pixel[2] < 10 && pixel[3] > 200);
 
                 let is_arm_back_unrendered = (is_right_arm_back || is_left_arm_back)
                     && (pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0);
 
-                let needs_fix = pixel[3] < 255 || is_placeholder_black || is_arm_back_unrendered;
+                let needs_fix = pixel[3] < 250 || is_placeholder_black || is_arm_back_unrendered;
 
                 if !needs_fix {
                     continue;
@@ -1830,7 +1839,7 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                 if let Some((ox, oy)) = overlay_pos {
                     if ox < w && oy < h {
                         let op = *canvas.get_pixel(ox, oy);
-                        if op[3] > 0 && !(op[0] == 0 && op[1] == 0 && op[2] == 0) {
+                        if op[3] > 50 && !(op[0] == 0 && op[1] == 0 && op[2] == 0) && !(op[0] < 10 && op[1] < 10 && op[2] < 10) {
                             canvas.put_pixel(x, y, image::Rgba([op[0], op[1], op[2], 255]));
                             filled = true;
                         }
@@ -1898,6 +1907,27 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                         canvas.put_pixel(x, y, fallback_skin_tone);
                     }
                 } else {
+                    canvas.put_pixel(x, y, fallback_skin_tone);
+                }
+            }
+        }
+    }
+
+    let (final_w, final_h) = canvas.dimensions();
+    let final_scale = (final_w / 64).max(1);
+    
+    let critical_base_zones = [
+        (40 * final_scale, 16 * final_scale, 56 * final_scale, 32 * final_scale),
+        (32 * final_scale, 48 * final_scale, 48 * final_scale, 64 * final_scale),
+        (16 * final_scale, 16 * final_scale, 40 * final_scale, 32 * final_scale),
+        (0 * final_scale, 16 * final_scale, 16 * final_scale, 32 * final_scale),
+    ];
+
+    for &(x1, y1, x2, y2) in &critical_base_zones {
+        for y in y1..y2.min(final_h) {
+            for x in x1..x2.min(final_w) {
+                let p = *canvas.get_pixel(x, y);
+                if p[3] < 250 || (p[0] < 10 && p[1] < 10 && p[2] < 10) {
                     canvas.put_pixel(x, y, fallback_skin_tone);
                 }
             }
@@ -2102,6 +2132,21 @@ async fn inject_player_skin(
             pack_dir.join(format!("assets/minecraft/optifine/capes/{}.png", u_clean)),
             pack_dir.join(format!("assets/minecraft/optifine/capes/{}.png", u_lower)),
             pack_dir.join("assets/minecraft/textures/models/armor/cape.png"),
+            pack_dir.join("assets/minecraft/textures/entity/player/wide/elytra.png"),
+            pack_dir.join("assets/minecraft/textures/entity/player/slim/elytra.png"),
+            pack_dir.join(format!("assets/minecraft/textures/entity/player/wide/{}.png", u_clean)),
+            pack_dir.join(format!("assets/minecraft/textures/entity/player/slim/{}.png", u_clean)),
+            pack_dir.join(format!("assets/minecraft/textures/entity/player/wide/{}.png", u_lower)),
+            pack_dir.join(format!("assets/minecraft/textures/entity/player/slim/{}.png", u_lower)),
+            pack_dir.join("assets/entity_model_features/textures/entity/cape.png"),
+            pack_dir.join(format!("assets/entity_model_features/textures/entity/{}.png", u_clean)),
+            pack_dir.join(format!("assets/entity_model_features/textures/entity/{}.png", u_lower)),
+            pack_dir.join("assets/entity_texture_features/textures/entity/cape.png"),
+            pack_dir.join(format!("assets/entity_texture_features/textures/entity/{}.png", u_clean)),
+            pack_dir.join(format!("assets/entity_texture_features/textures/entity/{}.png", u_lower)),
+            pack_dir.join("assets/minecraft/textures/player/cape.png"),
+            pack_dir.join(format!("assets/minecraft/textures/player/{}.png", u_clean)),
+            pack_dir.join(format!("assets/minecraft/textures/player/{}.png", u_lower)),
         ];
 
         for path in &cape_paths {
@@ -2144,12 +2189,17 @@ async fn inject_player_skin(
                 let mut found_key = false;
                 for line in &mut lines {
                     if line.starts_with(&prefix) {
+                        let old_val = line.split(':').nth(1).unwrap_or("");
+                        if old_val != *val {
+                            tracing::debug!("Forcing {} from {} to {}", key, old_val, val);
+                        }
                         *line = format!("{}:{}", key, val);
                         found_key = true;
                         break;
                     }
                 }
                 if !found_key {
+                    tracing::debug!("Adding missing {} setting", key);
                     lines.push(format!("{}:{}", key, val));
                 }
             }

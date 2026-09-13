@@ -738,7 +738,6 @@ pub async fn instance_import_modpack(
     let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
     tracing::info!("directories created, extracting overrides");
 
-    // Extract overrides directory if present
     let overrides_folder = manifest
         .overrides
         .as_deref()
@@ -750,7 +749,12 @@ pub async fn instance_import_modpack(
     let fallback_overrides_prefix = format!("{}overrides/", root_prefix).to_lowercase();
     let fallback_client_prefix = format!("{}client-overrides/", root_prefix).to_lowercase();
     let fallback_client_dir = format!("{}client/", root_prefix).to_lowercase();
+    let kubejs_prefix = format!("{}kubejs/", root_prefix).to_lowercase();
+    let config_prefix = format!("{}config/", root_prefix).to_lowercase();
+    let defaultconfigs_prefix = format!("{}defaultconfigs/", root_prefix).to_lowercase();
+    let scripts_prefix = format!("{}scripts/", root_prefix).to_lowercase();
 
+    let mut extracted_count = 0;
     for i in 0..archive.len() {
         if let Ok(mut file) = archive.by_index(i) {
             let raw_name = file.name().replace('\\', "/");
@@ -765,6 +769,14 @@ pub async fn instance_import_modpack(
                 clean_name.get(fallback_client_prefix.len()..)
             } else if lower_name.starts_with(&fallback_client_dir) {
                 clean_name.get(fallback_client_dir.len()..)
+            } else if lower_name.starts_with(&kubejs_prefix) {
+                Some(&clean_name[root_prefix.len()..])
+            } else if lower_name.starts_with(&config_prefix) {
+                Some(&clean_name[root_prefix.len()..])
+            } else if lower_name.starts_with(&defaultconfigs_prefix) {
+                Some(&clean_name[root_prefix.len()..])
+            } else if lower_name.starts_with(&scripts_prefix) {
+                Some(&clean_name[root_prefix.len()..])
             } else {
                 None
             };
@@ -786,12 +798,15 @@ pub async fn instance_import_modpack(
                         let _ = std::fs::create_dir_all(p);
                     }
                     if let Ok(mut outfile) = std::fs::File::create(&outpath) {
-                        let _ = std::io::copy(&mut file, &mut outfile);
+                        if std::io::copy(&mut file, &mut outfile).is_ok() {
+                            extracted_count += 1;
+                        }
                     }
                 }
             }
         }
     }
+    tracing::info!(extracted = extracted_count, "overrides extraction completed");
 
     let project_ids: Vec<u64> = manifest.files.iter().map(|f| f.project_id).collect();
     let file_ids: Vec<u64> = manifest.files.iter().map(|f| f.file_id).collect();

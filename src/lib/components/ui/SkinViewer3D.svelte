@@ -130,8 +130,11 @@
 			}
 		}
 
-		const isBlackOrEmpty = (_r: number, _g: number, _b: number, a: number) => {
-			return a < 10;
+		const isProblematic = (r: number, g: number, b: number, a: number) => {
+			return a < 200 
+				|| (r < 10 && g < 10 && b < 10)
+				|| (r === 45 && g === 45 && b === 45)
+				|| (r === 40 && g === 30 && b === 25);
 		};
 
 		const armWidth = isSlim ? 3 : 4;
@@ -142,13 +145,13 @@
 				const bx = rBackStartX * scale + dx;
 				const by = 20 * scale + dy;
 				const [r, g, b, a] = getPixel(bx, by);
-				if (isBlackOrEmpty(r, g, b, a)) {
+				if (isProblematic(r, g, b, a)) {
 					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50) {
+					if (oa > 50 && !(or < 10 && og < 10 && ob < 10)) {
 						setPixel(bx, by, or, og, ob, 255);
 					} else {
 						const [fr, fg, fb, fa] = getPixel(rFrontStartX * scale + dx, by);
-						if (fa > 50) {
+						if (fa > 50 && !(fr < 10 && fg < 10 && fb < 10)) {
 							setPixel(bx, by, fr, fg, fb, 255);
 						} else {
 							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
@@ -166,15 +169,15 @@
 				const bx = lBackStartX * scale + dx;
 				const by = 52 * scale + dy;
 				const [r, g, b, a] = getPixel(bx, by);
-				if (isBlackOrEmpty(r, g, b, a)) {
+				if (isProblematic(r, g, b, a)) {
 					const rbx = rBackStartXLeft * scale + (armWidth * scale - 1 - dx);
 					const rby = 20 * scale + dy;
 					const [rr, rg, rb, ra] = getPixel(rbx, rby);
-					if (ra > 50) {
+					if (ra > 50 && !(rr < 10 && rg < 10 && rb < 10)) {
 						setPixel(bx, by, rr, rg, rb, 255);
 					} else {
 						const [fr, fg, fb, fa] = getPixel(lFrontStartX * scale + dx, by);
-						if (fa > 50) {
+						if (fa > 50 && !(fr < 10 && fg < 10 && fb < 10)) {
 							setPixel(bx, by, fr, fg, fb, 255);
 						} else {
 							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
@@ -189,13 +192,13 @@
 				const bx = 32 * scale + dx;
 				const by = 20 * scale + dy;
 				const [r, g, b, a] = getPixel(bx, by);
-				if (isBlackOrEmpty(r, g, b, a)) {
+				if (isProblematic(r, g, b, a)) {
 					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50) {
+					if (oa > 50 && !(or < 10 && og < 10 && ob < 10)) {
 						setPixel(bx, by, or, og, ob, 255);
 					} else {
 						const [fr, fg, fb, fa] = getPixel(20 * scale + dx, by);
-						if (fa > 50) {
+						if (fa > 50 && !(fr < 10 && fg < 10 && fb < 10)) {
 							setPixel(bx, by, fr, fg, fb, 255);
 						} else {
 							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
@@ -217,7 +220,13 @@
 			for (let y = y1; y < Math.min(y2, h); y++) {
 				for (let x = x1; x < Math.min(x2, w); x++) {
 					const idx = (y * w + x) * 4;
-					if (data[idx + 3] > 0 && data[idx + 3] < 255) {
+					if (data[idx + 3] > 0 && data[idx + 3] < 250) {
+						data[idx + 3] = 255;
+					}
+					if (data[idx + 3] > 200 && data[idx] < 10 && data[idx + 1] < 10 && data[idx + 2] < 10) {
+						data[idx] = fallbackR;
+						data[idx + 1] = fallbackG;
+						data[idx + 2] = fallbackB;
 						data[idx + 3] = 255;
 					}
 				}

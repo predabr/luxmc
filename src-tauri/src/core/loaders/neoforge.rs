@@ -107,7 +107,13 @@ fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
 
 fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBuf {
     let major = match mc_version {
-        v if v.starts_with("1.20.5") || v.starts_with("1.20.6") || v.starts_with("1.21") || v.starts_with("2") => 21,
+        v if v.starts_with("1.20.5") || v.starts_with("1.20.6")
+            || v.starts_with("1.21")
+            || (v.starts_with("1.2") && {
+                let patch: u32 = v.split('.').nth(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+                patch >= 22
+            })
+            || v.starts_with("2") => 21,
         _ => 17,
     };
     if let Some(parent) = libraries_dir.parent() {
@@ -116,11 +122,9 @@ fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBu
         if preferred.exists() {
             return preferred;
         }
-        let possible_bins = [
-            parent.join("java").join("21").join("bin").join(bin_name),
-            parent.join("java").join("17").join("bin").join(bin_name),
-        ];
-        for b in possible_bins {
+        let fallbacks: &[u32] = if major == 21 { &[21, 17] } else { &[17, 21] };
+        for &v in fallbacks {
+            let b = parent.join("java").join(v.to_string()).join("bin").join(bin_name);
             if b.exists() {
                 return b;
             }
@@ -131,6 +135,9 @@ fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBu
         if b.exists() {
             return b;
         }
+    }
+    if let Ok(found) = which::which("java") {
+        return found;
     }
     std::path::PathBuf::from(if cfg!(windows) { "java.exe" } else { "java" })
 }
@@ -361,6 +368,16 @@ pub async fn prepare_neoforge(
     jvm_args.push("-Dfml.earlyprogresswindow=false".to_string());
     if !jvm_args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.checkThread0=")) {
         jvm_args.push("-Dorg.lwjgl.glfw.checkThread0=false".to_string());
+    }
+
+    if !jvm_args.iter().any(|a| a.contains("fml.neoForgeVersion") || a.contains("neoForgeVersion")) {
+        jvm_args.push(format!("-Dfml.neoForgeVersion={}", chosen_version));
+    }
+    if !jvm_args.iter().any(|a| a.contains("fml.mcVersion") || a.contains("mcVersion")) {
+        jvm_args.push(format!("-Dfml.mcVersion={}", mc_version));
+    }
+    if !jvm_args.iter().any(|a| a.contains("fml.neoFormVersion")) {
+        jvm_args.push(format!("-Dfml.neoFormVersion={}", mc_version));
     }
 
     let mut found_ignore_list = false;

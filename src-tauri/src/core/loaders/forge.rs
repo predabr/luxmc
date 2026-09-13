@@ -170,8 +170,15 @@ fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
 
 fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBuf {
     let major = match mc_version {
-        v if v.starts_with("1.20.5") || v.starts_with("1.20.6") || v.starts_with("1.21") || v.starts_with("2") => 21,
-        v if v.starts_with("1.17") || v.starts_with("1.18") || v.starts_with("1.19") || v.starts_with("1.20") => 17,
+        v if v.starts_with("1.20.5") || v.starts_with("1.20.6")
+            || v.starts_with("1.21")
+            || (v.starts_with("1.2") && {
+                let patch: u32 = v.split('.').nth(1).and_then(|s| s.parse().ok()).unwrap_or(0);
+                patch >= 22
+            })
+            || v.starts_with("2") => 21,
+        v if v.starts_with("1.17") || v.starts_with("1.18") || v.starts_with("1.19")
+            || v.starts_with("1.20") => 17,
         _ => 8,
     };
     if let Some(parent) = libraries_dir.parent() {
@@ -180,12 +187,13 @@ fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBu
         if preferred.exists() {
             return preferred;
         }
-        let fallbacks = [
-            parent.join("java").join("17").join("bin").join(bin_name),
-            parent.join("java").join("21").join("bin").join(bin_name),
-            parent.join("java").join("8").join("bin").join(bin_name),
-        ];
-        for b in fallbacks {
+        let fallbacks: &[u32] = match major {
+            21 => &[21, 17],
+            17 => &[17, 21],
+            _ => &[8, 17, 21],
+        };
+        for &v in fallbacks {
+            let b = parent.join("java").join(v.to_string()).join("bin").join(bin_name);
             if b.exists() {
                 return b;
             }
@@ -196,6 +204,9 @@ fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBu
         if b.exists() {
             return b;
         }
+    }
+    if let Ok(found) = which::which("java") {
+        return found;
     }
     std::path::PathBuf::from(if cfg!(windows) { "java.exe" } else { "java" })
 }
@@ -578,6 +589,19 @@ pub async fn prepare_forge(
     jvm_args.push("-Dneoforge.earlydisplay=false".to_string());
     if !jvm_args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.checkThread0=")) {
         jvm_args.push("-Dorg.lwjgl.glfw.checkThread0=false".to_string());
+    }
+
+    let forge_only_version = full_version
+        .strip_prefix(&format!("{}-", mc_version))
+        .unwrap_or(&full_version);
+    if !jvm_args.iter().any(|a| a.contains("fml.forgeVersion") || a.contains("forge.version")) {
+        jvm_args.push(format!("-Dfml.forgeVersion={}", forge_only_version));
+    }
+    if !jvm_args.iter().any(|a| a.contains("fml.mcVersion") || a.contains("minecraft.version")) {
+        jvm_args.push(format!("-Dfml.mcVersion={}", mc_version));
+    }
+    if !jvm_args.iter().any(|a| a.contains("fml.mcpVersion")) {
+        jvm_args.push(format!("-Dfml.mcpVersion={}", mc_version));
     }
 
     let mut found_ignore_list = false;
