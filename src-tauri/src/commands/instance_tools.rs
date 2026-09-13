@@ -244,6 +244,184 @@ pub async fn instance_export_zip(
     Ok(outputPath)
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InstanceShareManifest {
+    pub name: String,
+    pub mc_version: String,
+    pub loader: String,
+    pub loader_version: Option<String>,
+    pub ram_mb: Option<i64>,
+    pub jvm_args: Option<String>,
+    pub mods: Vec<String>,
+}
+
+#[tauri::command]
+pub async fn instance_export_share_code(
+    _state: State<'_, AppState>,
+    profileId: String,
+) -> AppResult<String> {
+    let db = db::shared_db().await?;
+    let row: crate::db::models::ProfileRow = sqlx::query_as("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let game_dir = std::path::PathBuf::from(&row.game_dir);
+    let mods_dir = game_dir.join("mods");
+    let mut mods = Vec::new();
+    if mods_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if name.ends_with(".jar") || name.ends_with(".jar.disabled") {
+                    mods.push(name);
+                }
+            }
+        }
+    }
+
+    let manifest = InstanceShareManifest {
+        name: row.name,
+        mc_version: row.mc_version,
+        loader: row.loader,
+        loader_version: row.loader_version,
+        ram_mb: row.ram_mb,
+        jvm_args: row.jvm_args,
+        mods,
+    };
+
+    let manifest_json = serde_json::to_string(&manifest)
+        .map_err(|e| AppError::Internal(format!("serialize manifest: {e}")))?;
+
+    let num: u32 = rand::random::<u32>() & 0xFFFFFF;
+    let short_code = format!("LUX-{:06X}", num);
+
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+    use base64::Engine;
+
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    let _ = encoder.write_all(manifest_json.as_bytes());
+    let compressed = encoder.finish().unwrap_or_else(|_| manifest_json.as_bytes().to_vec());
+    let b64_code = format!("LUX-B64:{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&compressed));
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let _ = sqlx::query(
+        "INSERT INTO share_codes (code, data, created_at) VALUES (?, ?, ?)
+         ON CONFLICT(code) DO UPDATE SET data = excluded.data, created_at = excluded.created_at",
+    )
+    .bind(&short_code)
+    .bind(&manifest_json)
+    .bind(&now)
+    .execute(db.pool())
+    .await;
+
+    let _ = sqlx::query(
+        "INSERT INTO share_codes (code, data, created_at) VALUES (?, ?, ?)
+         ON CONFLICT(code) DO UPDATE SET data = excluded.data, created_at = excluded.created_at",
+    )
+    .bind(&b64_code)
+    .bind(&manifest_json)
+    .bind(&now)
+    .execute(db.pool())
+    .await;
+
+    if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+        let codes_dir = base_dir.data_dir().join("share_codes");
+        let _ = std::fs::create_dir_all(&codes_dir);
+        let _ = std::fs::write(codes_dir.join(format!("{}.json", short_code)), &manifest_json);
+    }
+
+    Ok(b64_code)
+}
+
+#[tauri::command]
+pub async fn instance_import_share_code(
+    state: State<'_, AppState>,
+    shareCode: String,
+) -> AppResult<crate::db::models::ProfileRow> {
+    let raw_trimmed = shareCode.trim();
+    if raw_trimmed.is_empty() {
+        return Err(AppError::InvalidInput("Código de compartilhamento não pode ser vazio.".into()));
+    }
+
+    let db = db::shared_db().await?;
+
+    let json_data: String = if let Some(encoded) = raw_trimmed.strip_prefix("LUX-B64:").or_else(|| raw_trimmed.strip_prefix("lux-b64:")) {
+        use base64::Engine;
+        use flate2::read::GzDecoder;
+        use std::io::Read;
+
+        let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .decode(encoded)
+            .or_else(|_| base64::engine::general_purpose::URL_SAFE.decode(encoded))
+            .or_else(|_| base64::engine::general_purpose::STANDARD.decode(encoded))
+            .map_err(|_| AppError::InvalidInput("Código de compartilhamento Base64 inválido.".into()))?;
+
+        let mut decoder = GzDecoder::new(&bytes[..]);
+        let mut decompressed = String::new();
+        if decoder.read_to_string(&mut decompressed).is_ok() && !decompressed.is_empty() {
+            decompressed
+        } else if let Ok(s) = String::from_utf8(bytes) {
+            s
+        } else {
+            return Err(AppError::InvalidInput("Dados do código corrompidos.".into()));
+        }
+    } else {
+        let clean_code = raw_trimmed.to_uppercase();
+        if let Some(row) = sqlx::query_as::<_, (String,)>("SELECT data FROM share_codes WHERE code = ?")
+            .bind(&clean_code)
+            .fetch_optional(db.pool())
+            .await?
+        {
+            row.0
+        } else if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+            let file_path = base_dir.data_dir().join("share_codes").join(format!("{}.json", clean_code));
+            if file_path.exists() {
+                std::fs::read_to_string(&file_path)
+                    .map_err(|e| AppError::Internal(format!("ler arquivo de código: {e}")))?
+            } else {
+                return Err(AppError::NotFound(format!("Código de compartilhamento '{clean_code}' não encontrado.")));
+            }
+        } else {
+            return Err(AppError::NotFound(format!("Código de compartilhamento '{clean_code}' não encontrado.")));
+        }
+    };
+
+    let manifest: InstanceShareManifest = serde_json::from_str(&json_data)
+        .map_err(|e| AppError::InvalidInput(format!("Estrutura do código inválida: {e}")))?;
+
+    let input = crate::commands::profiles::ProfileCreate {
+        name: format!("{} (Importado)", manifest.name),
+        icon: None,
+        mc_version: manifest.mc_version,
+        loader: manifest.loader,
+        loader_version: manifest.loader_version,
+        java_path: None,
+        jvm_args: manifest.jvm_args,
+        resolution_w: None,
+        resolution_h: None,
+        fullscreen: None,
+        game_dir: None,
+        favorite: Some(false),
+        notes: Some(format!("Importado via código {}", raw_trimmed)),
+        ram_mb: manifest.ram_mb,
+        instance_group: Some("Importados".into()),
+        auto_optimize: Some(true),
+        use_vulkan: Some(false),
+    };
+
+    let new_profile = crate::commands::profiles::profiles_create(state, input).await?;
+    let game_dir = std::path::PathBuf::from(&new_profile.game_dir);
+    let mods_dir = game_dir.join("mods");
+    let _ = std::fs::create_dir_all(&mods_dir);
+
+    Ok(new_profile)
+}
+
 fn walkdir(dir: &std::path::Path) -> Vec<std::fs::DirEntry> {
     let mut out = Vec::new();
     let entries = match std::fs::read_dir(dir) {

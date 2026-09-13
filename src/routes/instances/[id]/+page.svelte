@@ -35,7 +35,10 @@
 		ToggleRight,
 		Cpu,
 		Zap,
-		Gauge
+		Gauge,
+		ZoomIn,
+		ZoomOut,
+		RotateCcw
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
@@ -74,7 +77,11 @@
 		deleteFileOrDir,
 		p2pGetHostLink,
 		instanceRepair,
+		instanceRepairModpack,
 		instanceExportZip,
+		instanceExportShareCode,
+		modsCheckUpdates,
+		modsUpdate,
 		instanceBackupSaves,
 		instanceRestoreSaves,
 		jvmArgsValidate,
@@ -91,6 +98,8 @@
 		type WorldDetail,
 		type HostLinkInfo
 	} from "$lib/api";
+	import { achievements } from "$lib/stores/achievements.svelte";
+	import { playSound } from "$lib/utils/sound";
 
 	const instanceId = $derived($page.params.id ?? "");
 	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) || profiles.active);
@@ -330,8 +339,82 @@
 		}
 	}
 
-	
-	// Host World State
+	let generatedShareCode = $state<string | null>(null);
+	let showShareCodeModal = $state(false);
+	let isGeneratingShareCode = $state(false);
+
+	async function handleExportShareCode() {
+		if (!activeProfile) return;
+		isGeneratingShareCode = true;
+		try {
+			const code = await instanceExportShareCode(activeProfile.id);
+			generatedShareCode = code;
+			showShareCodeModal = true;
+			if (navigator?.clipboard) {
+				await navigator.clipboard.writeText(code);
+			}
+			achievements.unlock("share_code");
+			playSound("chime");
+			toast(`Código ${code} gerado e copiado!`, "success");
+		} catch (e) {
+			toast("Erro ao gerar código de compartilhamento: " + String(e), "error");
+		} finally {
+			isGeneratingShareCode = false;
+		}
+	}
+
+	let isCheckingUpdates = $state(false);
+
+	async function handleCheckModUpdates() {
+		if (!instanceId) return;
+		isCheckingUpdates = true;
+		toast("Verificando atualizações de mods...", "info");
+		try {
+			const updates = await modsCheckUpdates(instanceId);
+			if (!updates || updates.length === 0) {
+				toast("Todos os mods estão atualizados!", "success");
+			} else {
+				toast(`${updates.length} atualização(ões) encontrada(s)! Atualizando...`, "info");
+				let count = 0;
+				for (const u of updates) {
+					try {
+						await modsUpdate(u.projectId, u.latestVersionId, instanceId);
+						count++;
+					} catch {}
+				}
+				toast(`${count} mod(s) atualizado(s) com sucesso!`, "success");
+				playSound("chime");
+				await refreshAllData();
+			}
+		} catch (e) {
+			toast("Erro ao verificar atualizações: " + String(e), "error");
+		} finally {
+			isCheckingUpdates = false;
+		}
+	}
+
+	let isRepairingModpack = $state(false);
+
+	async function handleRepairModpack() {
+		if (!instanceId) return;
+		isRepairingModpack = true;
+		try {
+			toast("Verificando integridade e baixando mods faltantes...", "info");
+			const count = await instanceRepairModpack(instanceId);
+			if (count > 0) {
+				toast(`Modpack reparado! ${count} mod(s) baixado(s).`, "success");
+				playSound("achievement");
+				await refreshAllData();
+			} else {
+				toast("Todos os mods do modpack já estão íntegros!", "success");
+			}
+		} catch (e) {
+			toast("Erro ao reparar modpack: " + String(e), "error");
+		} finally {
+			isRepairingModpack = false;
+		}
+	}
+
 	let showHostModal = $state(false);
 	let hostLinkInfo = $state<HostLinkInfo | null>(null);
 	let customHostPort = $state(25565);
@@ -373,6 +456,55 @@
 	let worldsList = $state<WorldDetail[]>([]);
 	let screenshotsList = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null }>>([]);
 	let previewScreenshot = $state<{ name: string; path: string; dataUrl?: string | null } | null>(null);
+	let screenshotZoom = $state(1);
+
+	function zoomInScreenshot() {
+		screenshotZoom = Math.min(3, +(screenshotZoom + 0.25).toFixed(2));
+	}
+
+	function zoomOutScreenshot() {
+		screenshotZoom = Math.max(0.5, +(screenshotZoom - 0.25).toFixed(2));
+	}
+
+	function resetScreenshotZoom() {
+		screenshotZoom = 1;
+	}
+
+	async function copyScreenshotImage() {
+		if (!previewScreenshot) return;
+		try {
+			const src = previewScreenshot.dataUrl || convertFileSrc(previewScreenshot.path);
+			const res = await fetch(src);
+			const blob = await res.blob();
+			const pngBlob = blob.type === "image/png" ? blob : new Blob([blob], { type: "image/png" });
+			await navigator.clipboard.write([
+				new ClipboardItem({ "image/png": pngBlob })
+			]);
+			toast("Imagem copiada para a área de transferência!", "success");
+			playSound("chime");
+		} catch {
+			await navigator.clipboard.writeText(previewScreenshot.path);
+			toast("Caminho da captura copiado!", "info");
+		}
+	}
+
+	$effect(() => {
+		if (!previewScreenshot) return;
+		function onKey(e: KeyboardEvent) {
+			if (e.key === "Escape") {
+				previewScreenshot = null;
+			} else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+				e.preventDefault();
+				copyScreenshotImage();
+			} else if (e.key === "+" || e.key === "=") {
+				zoomInScreenshot();
+			} else if (e.key === "-") {
+				zoomOutScreenshot();
+			}
+		}
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	});
 	let fileTree = $state<FileTreeEntry[]>([]);
 	let instanceMods = $state<FileTreeEntry[]>([]);
 	let resourcePacks = $state<FileTreeEntry[]>([]);
@@ -814,7 +946,7 @@
 					<button 
 						type="button"
 						class="bg-[#222328] hover:bg-brand-500/20 text-white hover:text-brand-500 text-xs font-black px-6 py-3.5 rounded-full border border-brand-500/40 hover:border-brand-500 transition-all flex items-center gap-2.5 shadow-xl cursor-pointer shrink-0 hover:scale-105 active:scale-95 group"
-						onclick={() => showInstanceSettingsModal = true}
+						onclick={() => { instanceNameInput = activeProfile?.name || "Latest Release"; showInstanceSettingsModal = true; }}
 						title="Abrir todas as configurações da instância"
 					>
 						<SettingsIcon class="w-4 h-4 text-brand-500 group-hover:rotate-45 transition-transform" />
@@ -901,13 +1033,6 @@
 					>
 						<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta da Instância
 					</button>
-					<button 
-						type="button"
-						class="bg-[#1c1d22] border border-brand-500/40 hover:border-brand-500 hover:bg-brand-500/10 text-brand-500 hover:text-white px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 transition-all shadow-md hover:scale-[1.02] active:scale-95 cursor-pointer"
-						onclick={() => { instanceNameInput = activeProfile?.name || "Latest Release"; showInstanceSettingsModal = true; }}
-					>
-						<SettingsIcon class="w-4 h-4 text-brand-500" /> Configurações da Instância
-					</button>
 				</div>
 			</div>
 
@@ -991,6 +1116,25 @@
 								onclick={handleOpenModsFolder}
 							>
 								<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta mods/
+							</button>
+							<button 
+								type="button"
+								class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+								onclick={handleCheckModUpdates}
+								disabled={isCheckingUpdates}
+							>
+								<RefreshCw class="w-3.5 h-3.5 {isCheckingUpdates ? 'animate-spin' : ''}" />
+								{isCheckingUpdates ? 'Checando...' : 'Atualizar Mods'}
+							</button>
+							<button 
+								type="button"
+								class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-brand-500/20 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+								onclick={handleRepairModpack}
+								disabled={isRepairingModpack}
+								title="Verificar integridade e baixar mods faltantes do modpack"
+							>
+								<Sparkles class="w-3.5 h-3.5 text-brand-500 {isRepairingModpack ? 'animate-spin' : ''}" />
+								{isRepairingModpack ? 'Reparando...' : 'Reparar Modpack'}
 							</button>
 							<a 
 								href="/mods"
@@ -1368,53 +1512,126 @@
 
 <!-- Screenshot Fullscreen Preview Modal -->
 {#if previewScreenshot}
-	<div class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
-		<div class="max-w-4xl w-full bg-[#18191c] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-			<div class="p-4 border-b border-white/10 flex items-center justify-between">
-				<div class="flex items-center gap-2 min-w-0">
-					<Image class="w-4 h-4 text-purple-400 shrink-0" />
-					<span class="text-xs font-bold text-white truncate">{previewScreenshot.name}</span>
-				</div>
-				<div class="flex items-center gap-2 shrink-0">
-					<button 
-						type="button" 
-						class="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-						onclick={() => {
-							navigator.clipboard.writeText(previewScreenshot!.path);
-							toast("Caminho da captura copiado!", "success");
-						}}
-					>
-						<Copy class="w-3.5 h-3.5" /> Copiar Caminho
+	<!-- svelte-ignore a11y_click_events_have_key_events -->
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
+	<div class="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4 select-none" in:fade={{ duration: 150 }} onclick={() => previewScreenshot = null}>
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="absolute top-6 left-6 right-6 flex items-center justify-between z-10" onclick={(e) => e.stopPropagation()}>
+			<div class="flex items-center gap-2 min-w-0">
+				<Image class="w-4 h-4 text-purple-400 shrink-0" />
+				<span class="text-xs font-bold text-white truncate max-w-sm drop-shadow">{previewScreenshot.name}</span>
+			</div>
+			<div class="flex items-center gap-2">
+				<div class="flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full px-2 py-1 border border-white/10">
+					<button type="button" class="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10 cursor-pointer" onclick={zoomOutScreenshot} title="Diminuir Zoom (-)">
+						<ZoomOut class="w-3.5 h-3.5" />
 					</button>
-					<button 
-						type="button" 
-						class="px-3.5 py-1.5 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-						onclick={async () => {
-							await handleDeleteScreenshot(previewScreenshot!.path);
-							previewScreenshot = null;
-						}}
-					>
-						<Trash2 class="w-3.5 h-3.5" /> Excluir
+					<button type="button" class="px-2 text-[10px] font-mono text-white/90 hover:text-white cursor-pointer" onclick={resetScreenshotZoom} title="Resetar Zoom">
+						{Math.round(screenshotZoom * 100)}%
 					</button>
-					<button 
-						type="button" 
-						class="p-1.5 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white transition-colors cursor-pointer ml-2"
-						onclick={() => previewScreenshot = null}
-					>
-						<X class="w-4 h-4" />
+					<button type="button" class="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10 cursor-pointer" onclick={zoomInScreenshot} title="Aumentar Zoom (+)">
+						<ZoomIn class="w-3.5 h-3.5" />
 					</button>
 				</div>
+				<button 
+					type="button" 
+					class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+					onclick={() => previewScreenshot = null}
+				>
+					<X class="w-4 h-4" />
+				</button>
 			</div>
-			<div class="p-4 flex items-center justify-center bg-black/70 max-h-[70vh] overflow-hidden">
-				<img 
-					src={previewScreenshot.dataUrl || convertFileSrc(previewScreenshot.path)} 
-					alt={previewScreenshot.name} 
-					class="max-h-[65vh] max-w-full object-contain rounded-xl shadow-lg"
-				/>
+		</div>
+
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="flex-1 w-full flex items-center justify-center overflow-hidden p-6" onclick={(e) => e.stopPropagation()}>
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<img 
+				src={previewScreenshot.dataUrl || convertFileSrc(previewScreenshot.path)} 
+				alt={previewScreenshot.name} 
+				class="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl transition-transform duration-150 ease-out" 
+				style="transform: scale({screenshotZoom});"
+				onclick={(e) => e.stopPropagation()} 
+			/>
+		</div>
+
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="absolute bottom-6 flex flex-wrap items-center gap-3 z-10" onclick={(e) => e.stopPropagation()}>
+			<button 
+				type="button" 
+				class="px-5 py-2 rounded-full bg-brand-500 hover:bg-brand-400 text-black text-xs font-black flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer transition-all"
+				onclick={copyScreenshotImage}
+			>
+				<Copy class="w-3.5 h-3.5" /> Copiar Imagem (Ctrl+C)
+			</button>
+			<button 
+				type="button" 
+				class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-white/10"
+				onclick={() => {
+					navigator.clipboard.writeText(previewScreenshot!.path);
+					toast("Caminho copiado!", "success");
+				}}
+			>
+				<Copy class="w-3.5 h-3.5" /> Copiar Caminho
+			</button>
+			<button 
+				type="button" 
+				class="px-4 py-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-red-500/20"
+				onclick={async () => {
+					await handleDeleteScreenshot(previewScreenshot!.path);
+					previewScreenshot = null;
+				}}
+			>
+				<Trash2 class="w-3.5 h-3.5" /> Excluir
+			</button>
+		</div>
+	</div>
+{/if}
+
+<!-- Share Code Modal -->
+{#if showShareCodeModal && generatedShareCode}
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" in:fade={{ duration: 150 }}>
+		<div class="w-full max-w-md bg-[#141518] border border-brand-500/30 rounded-3xl p-6 shadow-2xl">
+			<div class="flex items-center justify-between mb-4">
+				<div class="flex items-center gap-2">
+					<Sparkles class="w-5 h-5 text-brand-500" />
+					<h3 class="text-sm font-black text-white">Compartilhar Instância</h3>
+				</div>
+				<button type="button" class="text-white/40 hover:text-white p-1 rounded-lg cursor-pointer" onclick={() => showShareCodeModal = false}>
+					<X class="w-4 h-4" />
+				</button>
 			</div>
-			<div class="p-3 bg-[#141518] border-t border-white/5 text-[10px] text-white/40 font-mono truncate px-4">
-				{previewScreenshot.path}
+
+			<p class="text-xs text-white/60 mb-4 leading-relaxed">
+				Envie este código rápido para seus amigos. Eles só precisam clicar em <strong>"Importar por Código"</strong> na tela de instâncias para baixar a mesma versão, loader e mods!
+			</p>
+
+			<div class="bg-black/50 border border-brand-500/40 rounded-2xl p-4 flex items-center justify-between mb-5">
+				<span class="font-mono text-xl font-black text-brand-500 tracking-wider select-all">{generatedShareCode}</span>
+				<button 
+					type="button" 
+					class="px-3.5 py-1.5 bg-brand-500 hover:bg-brand-400 text-black text-xs font-black rounded-xl cursor-pointer flex items-center gap-1.5 transition-all"
+					onclick={() => {
+						navigator.clipboard.writeText(generatedShareCode!);
+						toast("Código copiado para a área de transferência!", "success");
+						playSound("chime");
+					}}
+				>
+					<Copy class="w-3.5 h-3.5" /> Copiar
+				</button>
 			</div>
+
+			<button 
+				type="button" 
+				class="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-bold text-white transition-colors cursor-pointer"
+				onclick={() => showShareCodeModal = false}
+			>
+				Fechar
+			</button>
 		</div>
 	</div>
 {/if}
@@ -2049,6 +2266,25 @@
 										<div class="mt-2">
 											<p class="text-xs font-bold text-white">Exportar Instância</p>
 											<p class="text-[10px] text-white/40">Criar pacote completo .zip</p>
+										</div>
+									</button>
+
+									<!-- Share Code LUX-XXXX -->
+									<button 
+										type="button"
+										class="p-3 rounded-xl bg-[#202128] hover:bg-[#282933] border border-white/5 hover:border-brand-500/40 text-left transition-all cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleExportShareCode}
+										disabled={isGeneratingShareCode}
+									>
+										<div class="flex items-center justify-between w-full">
+											<Sparkles class="w-4 h-4 text-brand-500 group-hover:scale-110 transition-transform" />
+											{#if isGeneratingShareCode}
+												<span class="text-[9px] text-brand-500 font-bold">Gerando...</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-white">Compartilhar Código</p>
+											<p class="text-[10px] text-white/40">Gerar código LUX-XXXX</p>
 										</div>
 									</button>
 								</div>

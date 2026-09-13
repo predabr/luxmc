@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod changelog;
 pub mod discord;
+pub mod doctor;
 pub mod env;
 pub mod instance_icons;
 pub mod instance_tools;

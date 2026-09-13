@@ -62,11 +62,14 @@ async fn test_performance_pack_and_modrinth_files() {
     println!("\n=== TESTE 3: PACOTE DE MODS DE PERFORMANCE ===");
     let fabric_pack = get_performance_pack_info("fabric", "1.21.4");
     assert!(fabric_pack.available);
-    assert_eq!(fabric_pack.mods.len(), 3);
+    assert!(fabric_pack.mods.len() >= 3);
     assert!(fabric_pack.mods.iter().any(|m| m.slug == "sodium"));
     assert!(fabric_pack.mods.iter().any(|m| m.slug == "lithium"));
     assert!(fabric_pack.mods.iter().any(|m| m.slug == "ferrite-core"));
-    println!("✓ Fabric 1.21.4: Sodium, Lithium, FerriteCore validados");
+    assert!(fabric_pack.mods.iter().any(|m| m.slug == "modernfix"));
+    assert!(fabric_pack.mods.iter().any(|m| m.slug == "entityculling"));
+    assert!(fabric_pack.mods.iter().any(|m| m.slug == "immediatelyfast"));
+    println!("✓ Fabric 1.21.4: Sodium, Lithium, FerriteCore, ModernFix, EntityCulling, ImmediatelyFast validados");
 
     let forge_pack = get_performance_pack_info("forge", "1.20.1");
     assert!(forge_pack.available);

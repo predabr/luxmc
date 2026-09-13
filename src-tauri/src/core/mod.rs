@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod doctor;
 pub mod downloader;
 pub mod java;
 pub mod launcher;

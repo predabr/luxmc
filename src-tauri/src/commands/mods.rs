@@ -594,6 +594,21 @@ pub async fn mods_check_updates(
     let mut updates = Vec::new();
     for mod_row in &installed {
         if mod_row.source == "curseforge" {
+            if let Ok(versions) = curseforge::get_mod_versions(&state.http, &mod_row.project_id, &profile.mc_version).await {
+                if let Some(latest) = versions.first() {
+                    if latest.id != mod_row.version_id {
+                        let dl_url = latest.files.first().map(|f| f.url.clone()).unwrap_or_default();
+                        updates.push(ModUpdate {
+                            project_id: mod_row.project_id.clone(),
+                            project_name: latest.name.clone(),
+                            current_version_id: mod_row.version_id.clone(),
+                            latest_version_id: latest.id.clone(),
+                            latest_version_number: latest.version_number.clone(),
+                            download_url: dl_url,
+                        });
+                    }
+                }
+            }
             continue;
         }
         if let Ok(Some((latest_id, latest_num, download_url))) = client
@@ -638,6 +653,13 @@ pub async fn mods_update(
     )
     .bind(&profileId)
     .bind(&projectId)
+    .fetch_optional(db.pool())
+    .await?;
+
+    let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>(
+        "SELECT * FROM profiles WHERE id = ?",
+    )
+    .bind(&profileId)
     .fetch_optional(db.pool())
     .await?;
 
@@ -691,6 +713,18 @@ pub async fn mods_update(
     let bytes = resp.bytes().await?;
     let file_path = mods_dir.join(&file_name);
     tokio::fs::write(&file_path, &bytes).await?;
+
+    if let Some(ref prof) = profile {
+        let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
+        let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
+        if let Some(ref old_mod) = old {
+            let old_game_path = prof_mods_dir.join(&old_mod.file_name);
+            let _ = tokio::fs::remove_file(&old_game_path).await;
+            let old_disabled_path = prof_mods_dir.join(format!("{}.disabled", old_mod.file_name));
+            let _ = tokio::fs::remove_file(&old_disabled_path).await;
+        }
+        let _ = tokio::fs::write(prof_mods_dir.join(&file_name), &bytes).await;
+    }
 
     let mod_row = crate::db::schema::mods::ModRow {
         profile_id: profileId,

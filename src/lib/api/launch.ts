@@ -8,6 +8,8 @@ export async function launchGame(request: {
 	skinUrl?: string | null;
 	skinVariant?: string | null;
 	capeUrl?: string | null;
+	serverIp?: string | null;
+	serverPort?: number | null;
 }): Promise<{ pid: number }> {
 	return api.invoke("launch_game", { request });
 }

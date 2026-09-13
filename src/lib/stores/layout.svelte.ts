@@ -97,6 +97,7 @@ function loadSavedSections(): LayoutSectionItem[] {
 
 class LayoutStore {
 	sections = $state<LayoutSectionItem[]>(loadSavedSections());
+	isCompactMode = $state<boolean>(false);
 
 	constructor() {
 		if (typeof window !== "undefined") {

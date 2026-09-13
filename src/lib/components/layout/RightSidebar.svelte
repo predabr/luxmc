@@ -1,6 +1,65 @@
 <script lang="ts">
-	import { Newspaper, RefreshCw, Sparkles, ArrowRight, Zap, ShieldCheck, Calendar } from "lucide-svelte";
+	import { Newspaper, RefreshCw, Sparkles, ArrowRight, Zap, ShieldCheck, Calendar, Server, Play, Loader2 } from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { profiles } from "$lib/stores/profiles.svelte";
+	import { account } from "$lib/stores/account.svelte";
+	import { launchGame } from "$lib/api";
+	import { playSound } from "$lib/utils/sound";
+
+	let connectingServer = $state<string | null>(null);
+
+	const quickJoinServers = [
+		{
+			id: "mush",
+			name: "MushMC",
+			host: "jogar.mush.com.br",
+			port: 25565,
+			badge: "BR",
+			desc: "Bed Wars, PvP & Duels"
+		},
+		{
+			id: "hypixel",
+			name: "Hypixel Network",
+			host: "mc.hypixel.net",
+			port: 25565,
+			badge: "US",
+			desc: "SkyBlock, BedWars & Arcades"
+		}
+	];
+
+	async function handleQuickJoin(host: string, port = 25565) {
+		const activeInstance = profiles.active || profiles.list[0] || null;
+		if (!activeInstance) {
+			toast("Crie ou selecione uma instância antes de conectar", "warning");
+			return;
+		}
+		if (!account.value) {
+			toast("Faça login em uma conta antes de conectar", "warning");
+			return;
+		}
+
+		connectingServer = host;
+		playSound("launch");
+
+		try {
+			await launchGame({
+				versionId: activeInstance.mcVersion,
+				accountId: account.value.id,
+				profileId: activeInstance.id,
+				enableVulkan: activeInstance.useVulkan ?? false,
+				skinUrl: account.value.skinUrl,
+				skinVariant: account.value.skinVariant,
+				capeUrl: account.value.capeUrl,
+				serverIp: host,
+				serverPort: port
+			});
+			toast(`🎮 Conectando diretamente ao ${host}...`, "success");
+		} catch (e) {
+			toast("Falha na conexão rápida: " + String(e), "error");
+		} finally {
+			connectingServer = null;
+		}
+	}
 
 	const luxmcNews = [
 		{
@@ -52,7 +111,52 @@
 
 <aside class="w-[340px] shrink-0 h-full flex flex-col overflow-y-auto custom-scrollbar pr-1 pb-4 select-none space-y-5">
 	
-	<!-- Top: Notícias Section -->
+	<div class="space-y-3">
+		<div class="flex items-center justify-between pb-1 border-b border-white/5">
+			<h2 class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+				<Server class="w-3.5 h-3.5 text-brand-500" /> Conexão Rápida
+			</h2>
+			<span class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+				<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 1-Clique
+			</span>
+		</div>
+
+		<div class="flex flex-col gap-2.5">
+			{#each quickJoinServers as srv}
+				<div class="flex items-center justify-between bg-[#18191c] hover:bg-[#1f2025] p-3 rounded-2xl transition-all border border-white/5 hover:border-brand-500/30 group shadow-sm">
+					<div class="flex items-center gap-2.5 min-w-0">
+						<div class="w-8 h-8 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center font-black text-xs text-brand-500 shrink-0 group-hover:scale-105 transition-transform">
+							{srv.badge}
+						</div>
+						<div class="min-w-0">
+							<h4 class="text-xs font-extrabold text-white group-hover:text-brand-500 transition-colors truncate">
+								{srv.name}
+							</h4>
+							<p class="text-[10px] text-white/40 truncate font-mono">
+								{srv.host}
+							</p>
+						</div>
+					</div>
+
+					<button
+						type="button"
+						class="px-3 py-1.5 rounded-xl bg-brand-500/10 hover:bg-brand-500 text-brand-500 hover:text-black font-black text-[11px] transition-all flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
+						disabled={connectingServer === srv.host}
+						onclick={() => handleQuickJoin(srv.host, srv.port)}
+						title={`Conectar diretamente ao ${srv.name}`}
+					>
+						{#if connectingServer === srv.host}
+							<Loader2 class="w-3 h-3 animate-spin" />
+						{:else}
+							<Play class="w-3 h-3 fill-current" />
+						{/if}
+						<span>Entrar</span>
+					</button>
+				</div>
+			{/each}
+		</div>
+	</div>
+
 	<div class="space-y-3">
 		<div class="flex items-center justify-between pb-1 border-b border-white/5">
 			<h2 class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
@@ -102,9 +206,7 @@
 		</div>
 	</div>
 
-	<!-- Bottom: Luxmc Community Hub -->
 	<div class="space-y-3 pt-2">
-		<!-- Promo Card: Luxmc Hub -->
 		<div class="rounded-2xl bg-gradient-to-br from-[#1c1d22] to-[#141518] border border-white/10 p-4 relative overflow-hidden group cursor-pointer hover:border-brand-500/40 transition-all shadow-md">
 			<div class="absolute -right-3 -top-3 w-16 h-16 bg-brand-500/10 rounded-full blur-xl group-hover:bg-brand-500/20 transition-all"></div>
 			
@@ -121,7 +223,6 @@
 			</p>
 		</div>
 
-		<!-- Bottom Social Icons -->
 		<div class="flex items-center justify-center gap-5 text-white/30 pt-1 pb-2">
 			<a href="https://discord.com" target="_blank" class="hover:text-white transition-colors" title="Discord">
 				<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>

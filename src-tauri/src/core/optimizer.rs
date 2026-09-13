@@ -193,6 +193,21 @@ pub fn get_performance_pack_info(loader: &str, mc_version: &str) -> PerformanceP
                     title: "FerriteCore".into(),
                     description: "Reduz o consumo de memória RAM do Minecraft em 30% a 50% através da otimização de estados de blocos e modelos.".into(),
                 },
+                PerformanceModEntry {
+                    slug: "modernfix".into(),
+                    title: "ModernFix".into(),
+                    description: "Reduz drasticamente o tempo de carregamento e corrige vazamentos de memória.".into(),
+                },
+                PerformanceModEntry {
+                    slug: "entityculling".into(),
+                    title: "Entity Culling".into(),
+                    description: "Ignora a renderização de blocos e entidades fora do campo de visão, aumentando a fluidez gráfica.".into(),
+                },
+                PerformanceModEntry {
+                    slug: "immediatelyfast".into(),
+                    title: "ImmediatelyFast".into(),
+                    description: "Otimiza a renderização imediata do HUD, texto, partículas e telas de menu.".into(),
+                },
             ],
         },
         "neoforge" => {
@@ -216,6 +231,21 @@ pub fn get_performance_pack_info(loader: &str, mc_version: &str) -> PerformanceP
                         slug: "ferrite-core".into(),
                         title: "FerriteCore".into(),
                         description: "Redução drástica do consumo de RAM em instâncias NeoForge.".into(),
+                    },
+                    PerformanceModEntry {
+                        slug: "modernfix".into(),
+                        title: "ModernFix".into(),
+                        description: "Reduz o consumo de RAM e acelera a inicialização no NeoForge.".into(),
+                    },
+                    PerformanceModEntry {
+                        slug: "entityculling".into(),
+                        title: "Entity Culling".into(),
+                        description: "Otimiza a renderização de entidades e blocos.".into(),
+                    },
+                    PerformanceModEntry {
+                        slug: "immediatelyfast".into(),
+                        title: "ImmediatelyFast".into(),
+                        description: "Acelera a renderização de interface e texto.".into(),
                     },
                 ],
             }
@@ -241,6 +271,16 @@ pub fn get_performance_pack_info(loader: &str, mc_version: &str) -> PerformanceP
                         slug: "modernfix".into(),
                         title: "ModernFix".into(),
                         description: "Reduz o tempo de carregamento do Forge e corrige vazamentos de memória.".into(),
+                    },
+                    PerformanceModEntry {
+                        slug: "entityculling".into(),
+                        title: "Entity Culling".into(),
+                        description: "Ignora a renderização de blocos e entidades fora do campo de visão.".into(),
+                    },
+                    PerformanceModEntry {
+                        slug: "immediatelyfast".into(),
+                        title: "ImmediatelyFast".into(),
+                        description: "Otimiza a renderização de HUD e menus no Forge.".into(),
                     },
                 ],
             }

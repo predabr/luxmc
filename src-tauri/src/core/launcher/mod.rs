@@ -150,6 +150,8 @@ impl GameLauncher {
         skin_url: Option<&str>,
         skin_variant: Option<&str>,
         cape_url: Option<&str>,
+        server_ip: Option<&str>,
+        server_port: Option<u16>,
     ) -> AppResult<u32> {
         self.emit_stage(LaunchStage::Preparing);
         self.emit_log(&format!("Preparing to launch {}", detail.id));
@@ -295,12 +297,26 @@ impl GameLauncher {
                 let vanilla_jar = versions_dir.join(mc_ver).join(format!("{}.jar", mc_ver));
 
                 let has_bundled_client = classpath.iter().any(|p| {
-                    let s = p.to_string_lossy();
-                    p.exists() && (s.contains(&format!("minecraft-{}-client.jar", mc_ver)) || s.contains(&format!("client-{}-srg.jar", mc_ver)))
+                    let s = p.to_string_lossy().to_lowercase();
+                    p.exists() && (
+                        (s.contains("neoforge-") && s.ends_with("-client.jar"))
+                        || (s.contains("forge-") && s.ends_with("-client.jar"))
+                        || (s.contains("minecraft-") && s.ends_with("-client.jar"))
+                        || (s.contains("client-") && s.ends_with("-srg.jar"))
+                        || (s.contains("client-") && s.ends_with("-slim.jar"))
+                    )
                 });
 
-                if has_bundled_client {
-                    classpath.retain(|p| p != &vanilla_jar);
+                if has_bundled_client || loader == "neoforge" || loader == "forge" {
+                    classpath.retain(|p| {
+                        let s = p.to_string_lossy().replace('\\', "/").to_lowercase();
+                        let is_vanilla = s.ends_with(&format!("/{}.jar", mc_ver.to_lowercase()))
+                            || s.ends_with(&format!("/versions/{}/{}.jar", mc_ver.to_lowercase(), mc_ver.to_lowercase()))
+                            || s.ends_with(&format!("/{}.jar", detail.id.to_lowercase()))
+                            || s.ends_with(&format!("/versions/{}/{}.jar", detail.id.to_lowercase(), detail.id.to_lowercase()))
+                            || p == &vanilla_jar;
+                        !is_vanilla
+                    });
                     self.emit_log(&format!(
                         "Removed vanilla {}.jar from classpath (bundled client jar present)",
                         mc_ver
@@ -404,6 +420,16 @@ impl GameLauncher {
             game_dir,
             profile,
         ));
+
+        if let Some(ip) = server_ip.filter(|s| !s.trim().is_empty()) {
+            game_args.push("--server".to_string());
+            game_args.push(ip.trim().to_string());
+            if let Some(port) = server_port.filter(|p| *p > 0) {
+                game_args.push("--port".to_string());
+                game_args.push(port.to_string());
+            }
+            self.emit_log(&format!("Quick Join: connecting directly to {}:{}", ip.trim(), server_port.unwrap_or(25565)));
+        }
 
         self.emit_log(&format!("Main class: {}", main_class));
 

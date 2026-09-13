@@ -90,6 +90,14 @@ impl Db {
             )"
         ).execute(&pool).await;
 
+        let _ = sqlx::query(
+            "CREATE TABLE IF NOT EXISTS share_codes (
+                code TEXT PRIMARY KEY NOT NULL,
+                data TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )"
+        ).execute(&pool).await;
+
         Ok(Self { pool })
     }
 

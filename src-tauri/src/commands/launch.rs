@@ -20,6 +20,8 @@ pub struct LaunchRequest {
     pub skin_url: Option<String>,
     pub skin_variant: Option<String>,
     pub cape_url: Option<String>,
+    pub server_ip: Option<String>,
+    pub server_port: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -265,6 +267,8 @@ pub async fn launch_game(
             effective_skin_url.as_deref(),
             Some(&effective_skin_variant),
             effective_cape_url.as_deref(),
+            request.server_ip.as_deref(),
+            request.server_port,
         )
         .await?;
 

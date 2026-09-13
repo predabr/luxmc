@@ -2,7 +2,7 @@ let devMode = $state(false);
 let performanceMode = $state(false);
 let showCutscene = $state(false);
 let isGameRunning = $state(false);
-let activeGameDetails = $state<{ name: string; version: string; loader: string } | null>(null);
+let activeGameDetails = $state<{ name: string; version: string; loader: string; profileId?: string } | null>(null);
 
 export const appState = {
 	get performanceMode() { return performanceMode; },
@@ -14,7 +14,7 @@ export const appState = {
 	get isGameRunning() { return isGameRunning; },
 	set isGameRunning(v: boolean) { isGameRunning = v; },
 	get activeGameDetails() { return activeGameDetails; },
-	set activeGameDetails(v: { name: string; version: string; loader: string } | null) { activeGameDetails = v; },
+	set activeGameDetails(v: { name: string; version: string; loader: string; profileId?: string } | null) { activeGameDetails = v; },
 	playCutscene() { showCutscene = true; },
 };
 

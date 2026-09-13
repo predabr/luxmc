@@ -1,7 +1,7 @@
 use super::{LoaderVersion, PreparedLoader};
 use crate::error::{AppError, AppResult};
 use serde::Deserialize;
-use std::io::{Cursor, Read};
+use std::io::{Cursor, Read, Write};
 use std::path::Path;
 
 const FORGE_MAVEN: &str = "https://maven.minecraftforge.net";
@@ -200,6 +200,89 @@ fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBu
     std::path::PathBuf::from(if cfg!(windows) { "java.exe" } else { "java" })
 }
 
+fn prepare_patched_installer(installer_path: &Path) -> AppResult<std::path::PathBuf> {
+    let file = std::fs::File::open(installer_path)
+        .map_err(|e| AppError::Internal(format!("Failed to open Forge installer: {e}")))?;
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
+        .map_err(|e| AppError::Internal(format!("Failed to read Forge installer zip: {e}")))?;
+
+    let mut has_processor_outputs = false;
+    for i in 0..archive.len() {
+        if let Ok(mut f) = archive.by_index(i) {
+            if f.name() == "install_profile.json" {
+                let mut content = String::new();
+                if f.read_to_string(&mut content).is_ok() {
+                    if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
+                        if let Some(processors) = json_val.get("processors").and_then(|p| p.as_array()) {
+                            for proc in processors {
+                                if let Some(outputs) = proc.get("outputs") {
+                                    if outputs.as_object().map(|o| !o.is_empty()).unwrap_or(false) {
+                                        has_processor_outputs = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    if !has_processor_outputs {
+        return Ok(installer_path.to_path_buf());
+    }
+
+    let patched_path = installer_path.with_extension("patched.jar");
+    let out_file = std::fs::File::create(&patched_path)
+        .map_err(|e| AppError::Internal(format!("Failed to create patched Forge installer: {e}")))?;
+    let mut zip_writer = zip::ZipWriter::new(out_file);
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    let file = std::fs::File::open(installer_path)
+        .map_err(|e| AppError::Internal(format!("Failed to re-open Forge installer: {e}")))?;
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
+        .map_err(|e| AppError::Internal(format!("Failed to re-read Forge installer: {e}")))?;
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i)
+            .map_err(|e| AppError::Internal(format!("Failed to read entry from installer: {e}")))?;
+        let name = entry.name().to_string();
+
+        if name == "install_profile.json" {
+            let mut content = String::new();
+            entry.read_to_string(&mut content).map_err(|e| AppError::Internal(format!("Failed to read install_profile.json: {e}")))?;
+            let mut json_val: serde_json::Value = serde_json::from_str(&content)
+                .map_err(|e| AppError::Internal(format!("Failed to parse install_profile.json: {e}")))?;
+            if let Some(processors) = json_val.get_mut("processors").and_then(|p| p.as_array_mut()) {
+                for proc in processors {
+                    if let Some(outputs) = proc.get_mut("outputs") {
+                        *outputs = serde_json::json!({});
+                    }
+                }
+            }
+            let modified = serde_json::to_vec(&json_val)
+                .map_err(|e| AppError::Internal(format!("Failed to serialize install_profile.json: {e}")))?;
+            zip_writer.start_file(&name, options)
+                .map_err(|e| AppError::Internal(format!("Failed to start zip entry: {e}")))?;
+            zip_writer.write_all(&modified)
+                .map_err(|e| AppError::Internal(format!("Failed to write zip entry: {e}")))?;
+        } else {
+            zip_writer.start_file(&name, options)
+                .map_err(|e| AppError::Internal(format!("Failed to start zip entry: {e}")))?;
+            std::io::copy(&mut entry, &mut zip_writer)
+                .map_err(|e| AppError::Internal(format!("Failed to copy zip entry: {e}")))?;
+        }
+    }
+    zip_writer.finish()
+        .map_err(|e| AppError::Internal(format!("Failed to finish zip writer: {e}")))?;
+
+    tracing::info!(patched = %patched_path.display(), "Successfully created patched Forge installer");
+    Ok(patched_path)
+}
+
 pub async fn prepare_forge(
     http: &reqwest::Client,
     libraries_dir: &Path,
@@ -265,14 +348,27 @@ pub async fn prepare_forge(
             let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
         }
 
+        let installer_to_run = match prepare_patched_installer(&installer_dest) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to patch Forge installer, using original");
+                installer_dest.clone()
+            }
+        };
+
         let java_bin = find_java_binary(libraries_dir, mc_version);
+        tracing::info!(java = %java_bin.display(), installer = %installer_to_run.display(), "Executing Forge installer");
         let _ = tokio::process::Command::new(&java_bin)
             .arg("-jar")
-            .arg(&installer_dest)
+            .arg(&installer_to_run)
             .arg("--installClient")
             .arg(data_dir)
             .output()
             .await;
+
+        if installer_to_run != installer_dest && installer_to_run.exists() {
+            let _ = tokio::fs::remove_file(&installer_to_run).await;
+        }
     }
 
     let installer_bytes = tokio::fs::read(&installer_dest).await?;
@@ -486,6 +582,19 @@ pub async fn prepare_forge(
     jvm_args.push("-Dneoforge.earlydisplay=false".to_string());
     if !jvm_args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.checkThread0=")) {
         jvm_args.push("-Dorg.lwjgl.glfw.checkThread0=false".to_string());
+    }
+
+    let mut found_ignore_list = false;
+    for arg in &mut jvm_args {
+        if arg.starts_with("-DignoreList=") {
+            found_ignore_list = true;
+            if !arg.contains(&format!("{}.jar", mc_version)) {
+                arg.push_str(&format!(",{}.jar,{}", mc_version, mc_version));
+            }
+        }
+    }
+    if !found_ignore_list {
+        jvm_args.push(format!("-DignoreList=client-extra,{}.jar,{}", mc_version, mc_version));
     }
 
     let mut game_args = Vec::new();

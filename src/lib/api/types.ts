@@ -1,3 +1,23 @@
+export interface ProfileRow {
+	id: string;
+	name: string;
+	icon: string;
+	mcVersion: string;
+	loader: string;
+	loaderVersion: string | null;
+	javaPath: string | null;
+	jvmArgs: string | null;
+	resolutionW: number | null;
+	resolutionH: number | null;
+	fullscreen: boolean;
+	gameDir: string;
+	ramMb?: number | null;
+	autoOptimize?: boolean;
+	useVulkan?: boolean;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface DownloadSpeed {
 	bytesPerSecond: number;
 	totalDownloaded: number;

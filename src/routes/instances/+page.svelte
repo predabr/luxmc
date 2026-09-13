@@ -22,6 +22,7 @@
 		Image,
 		Import,
 		HeartPulse,
+		Sparkles,
 		FolderTree,
 		StickyNote,
 		X,
@@ -56,15 +57,43 @@
 		discordSetActivity,
 		type HealthCheckResult,
 		type FileTreeEntry,
+		instanceImportShareCode
 	} from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { achievements } from "$lib/stores/achievements.svelte";
+	import { playSound } from "$lib/utils/sound";
 
 	const { t } = useTranslation();
 
 	let showCreate = $state(false);
 	let showImport = $state(false);
 	let showImportMrpack = $state(false);
+	let showImportCode = $state(false);
+	let shareCodeInput = $state("");
+	let isImportingCode = $state(false);
+
+	async function handleImportShareCode() {
+		const code = shareCodeInput.trim();
+		if (!code) {
+			toast("Insira um código válido (ex: LUX-XXXXXX)", "warning");
+			return;
+		}
+		isImportingCode = true;
+		try {
+			const profile = await instanceImportShareCode(code);
+			toast(`Instância "${profile.name}" importada com sucesso!`, "success");
+			showImportCode = false;
+			shareCodeInput = "";
+			achievements.unlock("share_code");
+			playSound("chime");
+			await profiles.refresh();
+		} catch (e) {
+			toast("Erro ao importar código: " + String(e), "error");
+		} finally {
+			isImportingCode = false;
+		}
+	}
 	let importFile = $state<string | null>(null);
 	let importMrpackFile = $state<string | null>(null);
 	let importName = $state("");
@@ -633,27 +662,39 @@
 				</Button>
 			{/if}
 
-			<div class="flex items-center gap-2.5">
+			<div class="flex items-center gap-2">
 				<Button
 					variant="secondary"
-					onclick={pickModpackFile}
+					size="sm"
+					onclick={() => showImportCode = true}
 				>
-					<Import class="h-4 w-4 text-brand-400" />
-					Importar .zip
+					<Sparkles class="h-3.5 w-3.5 text-brand-400" />
+					Código
 				</Button>
 
 				<Button
 					variant="secondary"
+					size="sm"
+					onclick={pickModpackFile}
+				>
+					<Import class="h-3.5 w-3.5 text-brand-400" />
+					.zip
+				</Button>
+
+				<Button
+					variant="secondary"
+					size="sm"
 					onclick={pickMrpackFile}
 				>
-					<div class="w-3.5 h-3.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
-						<div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+					<div class="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
+						<div class="w-1 h-1 rounded-full bg-emerald-400"></div>
 					</div>
-					Importar Modrinth .mrpack
+					.mrpack
 				</Button>
 
 				<Button
 					variant="solid"
+					size="sm"
 					onclick={() => { showCreate = !showCreate; lastError = null; }}
 				>
 					<Plus class="h-4 w-4 stroke-[2.5]" />
@@ -799,15 +840,59 @@
 			<button type="button" class="px-5 py-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
 				onclick={() => { if (profiles.active) openFolder(profiles.active.id); else toast("Nenhuma instância ativa selecionada", "info"); }}
 			>
-				<FolderOpen class="w-4 h-4 text-white/50" /> Abrir Pasta
-			</button>
-			<button type="button" class="px-6 py-2.5 rounded-full bg-brand-500 hover:bg-[#ebd095] text-black font-black text-xs transition-all active:scale-95 shadow-md cursor-pointer flex items-center gap-2"
-				onclick={() => showCreate = true}
-			>
-				<Plus class="w-4 w-4 stroke-[3]" /> Criar Instância
+				<FolderOpen class="w-4 h-4 text-white/50" /> Abrir Pasta das Instâncias
 			</button>
 		</div>
 	</div>
+
+	<!-- Import Code Modal -->
+	{#if showImportCode}
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md" transition:fade={{ duration: 150 }}>
+			<div class="w-full max-w-md bg-[#141518] border border-brand-500/30 rounded-3xl p-6 shadow-2xl">
+				<div class="flex items-center justify-between mb-4">
+					<div class="flex items-center gap-2">
+						<Sparkles class="w-5 h-5 text-brand-500" />
+						<h3 class="text-sm font-black text-white">Importar Instância por Código</h3>
+					</div>
+					<button type="button" class="text-white/40 hover:text-white p-1 rounded-lg cursor-pointer" onclick={() => showImportCode = false}>
+						<X class="w-4 h-4" />
+					</button>
+				</div>
+
+				<p class="text-xs text-white/60 mb-4 leading-relaxed">
+					Cole o código de compartilhamento recebido (ex: <span class="font-mono text-brand-400">LUX-XXXXXX</span>) para importar a instância automaticamente.
+				</p>
+
+				<div class="mb-5">
+					<input 
+						type="text" 
+						bind:value={shareCodeInput} 
+						placeholder="LUX-XXXXXX" 
+						class="w-full bg-[#1c1d22] border border-white/10 focus:border-brand-500 rounded-2xl px-4 py-3 text-sm text-white font-mono uppercase tracking-wider outline-none transition-colors"
+					/>
+				</div>
+
+				<div class="flex items-center justify-end gap-3">
+					<button 
+						type="button" 
+						class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 transition-colors cursor-pointer"
+						onclick={() => showImportCode = false}
+					>
+						Cancelar
+					</button>
+					<button 
+						type="button" 
+						class="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-black text-xs font-black transition-all flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer disabled:opacity-50"
+						disabled={isImportingCode}
+						onclick={handleImportShareCode}
+					>
+						<Sparkles class="w-3.5 h-3.5 fill-current" />
+						{isImportingCode ? 'Importando...' : 'Importar'}
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Health Check Modal -->
 	{#if healthCheckId}

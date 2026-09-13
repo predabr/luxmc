@@ -12,6 +12,9 @@
 	import DownloadProgressBar from "$lib/components/ui/DownloadProgressBar.svelte";
 	import ErrorBoundary from "$lib/components/ui/ErrorBoundary.svelte";
 	import Cutscene from "$lib/components/visuals/Cutscene.svelte";
+	import CrashDoctorModal from "$lib/components/ui/CrashDoctorModal.svelte";
+	import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
+	import MiniPlayer from "$lib/components/ui/MiniPlayer.svelte";
 	import { bootstrapSettings, schedulePersist, startAutoPersist } from "$lib/stores/persistence.svelte";
 	import { setToastInstance } from "$lib/stores/toasts.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
@@ -21,7 +24,10 @@
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
-	import { appInit, discordSetActivity, listenGameExit } from "$lib/api";
+	import { crashDoctor } from "$lib/stores/crashDoctor.svelte";
+	import { achievements } from "$lib/stores/achievements.svelte";
+	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
+	import { appInit, discordSetActivity, listenGameExit, crashDoctorDiagnose } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
 	const { t } = useTranslation();
@@ -158,14 +164,25 @@
 			initialized = true;
 		});
 
-		// Global game exit listener to accurately update play time and discord presence
+		// Global game exit listener to accurately update play time, crash diagnosis, and discord presence
 		listenGameExit((event) => {
 			gamingStats.onGameExit();
+			const lastProfileId = appState.activeGameDetails?.profileId || profiles.activeId || "";
 			appState.isGameRunning = false;
 			appState.activeGameDetails = null;
 			if (!event.success || event.code !== 0) {
 				const detail = event.errorMessage ? `\nMotivo: ${event.errorMessage}` : " Consulte a aba de Logs para detalhes.";
 				toast(`O Minecraft encerrou com código de saída ${event.code}.${detail}`, "error");
+
+				if (lastProfileId) {
+					crashDoctorDiagnose(lastProfileId, event.errorMessage).then((diagnosis) => {
+						if (diagnosis && diagnosis.hasError) {
+							crashDoctor.open(diagnosis, lastProfileId);
+						}
+					}).catch(() => {});
+				}
+			} else {
+				achievements.unlock("primeira_noite");
 			}
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
@@ -182,6 +199,13 @@
 
 		const stop = startAutoPersist();
 		return stop;
+	});
+
+	$effect(() => {
+		const bannerOrIcon = profiles.active?.banner || profiles.active?.icon;
+		if (bannerOrIcon) {
+			applyAdaptivePalette(bannerOrIcon);
+		}
 	});
 
 	let rpcTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -314,4 +338,7 @@
 {/if}
 <UpdateModal />
 <DownloadProgressBar />
+<CrashDoctorModal />
+<CommandPalette />
+<MiniPlayer />
 </ErrorBoundary>

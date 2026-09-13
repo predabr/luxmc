@@ -3,6 +3,7 @@ import type {
 	HealthCheckResult,
 	FileTreeEntry,
 	WorldDetail,
+	ProfileRow,
 } from "./types";
 
 export async function profilesList(): Promise<Array<{
@@ -220,6 +221,10 @@ export async function instanceHealthCheck(profileId: string): Promise<HealthChec
 	return api.invoke("instance_health_check", { profileId });
 }
 
+export async function instanceRepairModpack(profileId: string): Promise<number> {
+	return api.invoke<number>("instance_repair_modpack", { profileId });
+}
+
 export async function instanceFileTree(profileId: string, subPath?: string): Promise<FileTreeEntry[]> {
 	return api.invoke("instance_file_tree", { profileId, subPath });
 }
@@ -294,4 +299,12 @@ export async function instanceWorldsList(profileId: string): Promise<WorldDetail
 
 export async function instanceWorldDelete(profileId: string, folderName: string): Promise<void> {
 	return api.invoke<void>("instance_world_delete", { profileId, folderName });
+}
+
+export async function instanceExportShareCode(profileId: string): Promise<string> {
+	return api.invoke<string>("instance_export_share_code", { profileId });
+}
+
+export async function instanceImportShareCode(shareCode: string): Promise<ProfileRow> {
+	return api.invoke<ProfileRow>("instance_import_share_code", { shareCode });
 }

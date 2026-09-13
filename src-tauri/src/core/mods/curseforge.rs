@@ -788,25 +788,31 @@ pub async fn get_mod_names_batch(
     for chunk in mod_ids.chunks(50) {
         let url = format!("{}/mods", CURSEFORGE_API);
         let payload = serde_json::json!({ "modIds": chunk });
-        if let Ok(resp) = http
-            .post(&url)
-            .header("x-api-key", &key)
-            .json(&payload)
-            .timeout(Duration::from_secs(20))
-            .send()
-            .await
-        {
-            if let Ok(body) = resp.json::<serde_json::Value>().await {
-                if let Some(data) = body.get("data").and_then(|d| d.as_array()) {
-                    for m in data {
-                        if let Some(id) = m.get("id").and_then(|i| i.as_u64()) {
-                            if let Some(name) = m.get("name").and_then(|n| n.as_str()) {
-                                names.insert(id, name.to_string());
+        for attempt in 0..3 {
+            let resp = http
+                .post(&url)
+                .header("x-api-key", &key)
+                .json(&payload)
+                .timeout(Duration::from_secs(20))
+                .send()
+                .await;
+            if let Ok(resp) = resp {
+                if resp.status().is_success() {
+                    if let Ok(body) = resp.json::<serde_json::Value>().await {
+                        if let Some(data) = body.get("data").and_then(|d| d.as_array()) {
+                            for m in data {
+                                if let Some(id) = m.get("id").and_then(|i| i.as_u64()) {
+                                    if let Some(name) = m.get("name").and_then(|n| n.as_str()) {
+                                        names.insert(id, name.to_string());
+                                    }
+                                }
                             }
+                            break;
                         }
                     }
                 }
             }
+            tokio::time::sleep(Duration::from_millis(300 * (attempt + 1))).await;
         }
     }
     names
@@ -834,31 +840,37 @@ pub async fn get_files_batch(
     for chunk in file_ids.chunks(50) {
         let url = format!("{}/mods/files", CURSEFORGE_API);
         let payload = serde_json::json!({ "fileIds": chunk });
-        if let Ok(resp) = http
-            .post(&url)
-            .header("x-api-key", &key)
-            .json(&payload)
-            .timeout(Duration::from_secs(20))
-            .send()
-            .await
-        {
-            if let Ok(json) = resp.json::<serde_json::Value>().await {
-                if let Some(arr) = json.get("data").and_then(|d| d.as_array()) {
-                    for item in arr {
-                        if let Some(id) = item.get("id").and_then(|i| i.as_u64()) {
-                            let mod_id = item.get("modId").and_then(|m| m.as_u64()).unwrap_or(0);
-                            let file_name = item.get("fileName").and_then(|n| n.as_str()).unwrap_or("mod.jar").to_string();
-                            let download_url = item.get("downloadUrl").and_then(|u| u.as_str()).map(|s| s.to_string());
-                            map.insert(id, CurseForgeFileInfo {
-                                id,
-                                mod_id,
-                                file_name,
-                                download_url,
-                            });
+        for attempt in 0..3 {
+            let resp = http
+                .post(&url)
+                .header("x-api-key", &key)
+                .json(&payload)
+                .timeout(Duration::from_secs(20))
+                .send()
+                .await;
+            if let Ok(resp) = resp {
+                if resp.status().is_success() {
+                    if let Ok(json) = resp.json::<serde_json::Value>().await {
+                        if let Some(arr) = json.get("data").and_then(|d| d.as_array()) {
+                            for item in arr {
+                                if let Some(id) = item.get("id").and_then(|i| i.as_u64()) {
+                                    let mod_id = item.get("modId").and_then(|m| m.as_u64()).unwrap_or(0);
+                                    let file_name = item.get("fileName").and_then(|n| n.as_str()).unwrap_or("mod.jar").to_string();
+                                    let download_url = item.get("downloadUrl").and_then(|u| u.as_str()).map(|s| s.to_string());
+                                    map.insert(id, CurseForgeFileInfo {
+                                        id,
+                                        mod_id,
+                                        file_name,
+                                        download_url,
+                                    });
+                                }
+                            }
+                            break;
                         }
                     }
                 }
             }
+            tokio::time::sleep(Duration::from_millis(300 * (attempt + 1))).await;
         }
     }
     map

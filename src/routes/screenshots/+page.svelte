@@ -3,7 +3,7 @@
 	import Card from "$lib/components/ui/Card.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import Modal from "$lib/components/ui/Modal.svelte";
-	import { Camera, X, FolderOpen, RefreshCw, Copy, Download, Trash2 } from "lucide-svelte";
+	import { Camera, X, FolderOpen, RefreshCw, Copy, Download, Trash2, ZoomIn, ZoomOut, RotateCcw } from "lucide-svelte";
 	import { fade } from "svelte/transition";
 	import { convertFileSrc } from "@tauri-apps/api/core";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -50,9 +50,42 @@
 		}
 	}
 
+	let zoom = $state(1);
+
+	function zoomIn() {
+		zoom = Math.min(3, +(zoom + 0.25).toFixed(2));
+	}
+
+	function zoomOut() {
+		zoom = Math.max(0.5, +(zoom - 0.25).toFixed(2));
+	}
+
+	function resetZoom() {
+		zoom = 1;
+	}
+
 	function openImage(screenshot: { name: string; path: string; modified: string }) {
 		selectedImage = screenshot;
+		resetZoom();
 	}
+
+	$effect(() => {
+		if (!selectedImage) return;
+		function onKey(e: KeyboardEvent) {
+			if (e.key === "Escape") {
+				selectedImage = null;
+			} else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+				e.preventDefault();
+				copyImage(selectedImage!);
+			} else if (e.key === "+" || e.key === "=") {
+				zoomIn();
+			} else if (e.key === "-") {
+				zoomOut();
+			}
+		}
+		window.addEventListener("keydown", onKey);
+		return () => window.removeEventListener("keydown", onKey);
+	});
 
 	function closeModal() {
 		selectedImage = null;
@@ -206,19 +239,60 @@
 {#if selectedImage}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-8" onclick={() => selectedImage = null} transition:fade={{duration: 200}}>
-		<button type="button" aria-label="Fechar visualização" class="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer" onclick={() => selectedImage = null}>
-			<X class="h-6 w-6" />
-		</button>
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-		<img src={selectedImage.dataUrl || convertFileSrc(selectedImage.path)} alt={selectedImage.name} class="max-w-full max-h-full object-contain rounded-3xl shadow-2xl border border-white/10" onclick={(e) => e.stopPropagation()} />
-		<div class="absolute bottom-8 flex gap-4" onclick={(e) => e.stopPropagation()}>
-			<Button variant="secondary" onclick={() => copyToClipboard(selectedImage!.path)}>
-				<Copy class="h-4 w-4"/> Copiar Caminho
-			</Button>
-			<Button variant="danger" onclick={() => confirmDelete(selectedImage!)}>
-				<Trash2 class="h-4 w-4"/> {t("screenshots.deleteBtn")}
-			</Button>
+	<div class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4 select-none" onclick={() => selectedImage = null} transition:fade={{duration: 200}}>
+		<div class="absolute top-6 left-6 right-6 flex items-center justify-between z-10" onclick={(e) => e.stopPropagation()}>
+			<span class="text-xs font-bold text-white/80 truncate max-w-sm drop-shadow">{selectedImage.name}</span>
+			<div class="flex items-center gap-2">
+				<div class="flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full px-2 py-1 border border-white/10">
+					<button type="button" class="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10 cursor-pointer" onclick={zoomOut} title="Diminuir Zoom (-)">
+						<ZoomOut class="w-3.5 h-3.5" />
+					</button>
+					<button type="button" class="px-2 text-[10px] font-mono text-white/90 hover:text-white cursor-pointer" onclick={resetZoom} title="Resetar Zoom">
+						{Math.round(zoom * 100)}%
+					</button>
+					<button type="button" class="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10 cursor-pointer" onclick={zoomIn} title="Aumentar Zoom (+)">
+						<ZoomIn class="w-3.5 h-3.5" />
+					</button>
+				</div>
+				<button type="button" aria-label="Fechar visualização" class="p-2.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer" onclick={() => selectedImage = null}>
+					<X class="h-4 w-4" />
+				</button>
+			</div>
+		</div>
+
+		<div class="flex-1 w-full flex items-center justify-center overflow-hidden p-6" onclick={(e) => e.stopPropagation()}>
+			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+			<img 
+				src={selectedImage.dataUrl || convertFileSrc(selectedImage.path)} 
+				alt={selectedImage.name} 
+				class="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl transition-transform duration-150 ease-out" 
+				style="transform: scale({zoom});"
+				onclick={(e) => e.stopPropagation()} 
+			/>
+		</div>
+
+		<div class="absolute bottom-6 flex flex-wrap items-center gap-3 z-10" onclick={(e) => e.stopPropagation()}>
+			<button 
+				type="button"
+				class="px-4 py-2 rounded-full bg-brand-500 hover:bg-brand-400 text-black text-xs font-black flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer transition-all"
+				onclick={() => copyImage(selectedImage!)}
+			>
+				<Copy class="h-3.5 w-3.5" /> Copiar Imagem (Ctrl+C)
+			</button>
+			<button 
+				type="button"
+				class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border border-white/10"
+				onclick={() => copyToClipboard(selectedImage!.path)}
+			>
+				<Copy class="h-3.5 w-3.5" /> Copiar Caminho
+			</button>
+			<button 
+				type="button"
+				class="px-4 py-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border border-red-500/20"
+				onclick={() => confirmDelete(selectedImage!)}
+			>
+				<Trash2 class="h-3.5 w-3.5" /> {t("screenshots.deleteBtn")}
+			</button>
 		</div>
 	</div>
 {/if}
