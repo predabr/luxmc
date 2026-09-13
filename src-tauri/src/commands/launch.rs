@@ -108,6 +108,44 @@ pub async fn launch_game(
     )
     .ok();
 
+    let instance_dir = std::path::PathBuf::from(&profile.game_dir);
+    let manifest_path = instance_dir.join("manifest.json");
+    if manifest_path.exists() {
+        if let Ok(manifest_content) = tokio::fs::read_to_string(&manifest_path).await {
+            if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&manifest_content) {
+                if let Some(files) = manifest.get("files").and_then(|f| f.as_array()) {
+                    let total_manifest_files = files.len();
+                    let mods_dir = instance_dir.join("mods");
+                    let mut existing_jar_count = 0;
+                    if let Ok(mut rd) = tokio::fs::read_dir(&mods_dir).await {
+                        while let Ok(Some(entry)) = rd.next_entry().await {
+                            let name = entry.file_name().to_string_lossy().to_string();
+                            if name.ends_with(".jar") || name.ends_with(".jar.disabled") {
+                                if let Ok(meta) = entry.metadata().await {
+                                    if meta.len() > 100 {
+                                        existing_jar_count += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if total_manifest_files > 10 && existing_jar_count < total_manifest_files.saturating_sub(5) {
+                        let missing = total_manifest_files.saturating_sub(existing_jar_count);
+                        app.emit("launcher-log", format!(
+                            "Modpack possui mods pendentes ({}/{} instalados). Reparando {} mods ausentes...",
+                            existing_jar_count, total_manifest_files, missing
+                        )).ok();
+                        let _ = crate::commands::instances::instance_repair_modpack(
+                            app.clone(),
+                            state.clone(),
+                            request.profile_id.clone(),
+                        ).await;
+                    }
+                }
+            }
+        }
+    }
+
     let clean_req_ver = request.version_id.split('-').next().unwrap_or(&request.version_id);
     let version_row = match crate::db::schema::versions::get(&db, &request.version_id).await? {
         Some(v) => v,

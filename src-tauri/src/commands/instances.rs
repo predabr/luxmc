@@ -439,19 +439,28 @@ struct MrpackMod {
     env: std::collections::HashMap<String, serde_json::Value>,
 }
 
-fn smart_modpack_ram(user_ram: Option<i64>) -> i64 {
-    if let Some(r) = user_ram.filter(|r| *r > 0) {
-        return r;
-    }
+fn smart_modpack_ram(user_ram: Option<i64>, mod_count: usize) -> i64 {
     let mut sys = sysinfo::System::new_all();
     sys.refresh_memory();
     let total = sys.total_memory() / 1024 / 1024;
+    let min_heavy_ram = if total >= 24576 { 10240 } else if total >= 15360 { 8192 } else { 6144 };
+
+    if mod_count > 100 {
+        if let Some(r) = user_ram.filter(|r| *r >= min_heavy_ram) {
+            return r;
+        }
+        return min_heavy_ram;
+    }
+
+    if let Some(r) = user_ram.filter(|r| *r > 0) {
+        return r;
+    }
     if total >= 24576 {
-        10240
-    } else if total >= 15360 {
         8192
-    } else if total >= 11264 {
+    } else if total >= 15360 {
         6144
+    } else if total >= 11264 {
+        4096
     } else {
         std::cmp::min(std::cmp::max(total * 6 / 10, 4096), 6144) as i64
     }
@@ -475,6 +484,19 @@ async fn download_cf_mod_file(
     let project_id_str = cf_file.project_id.to_string();
     let file_id_str = cf_file.file_id.to_string();
 
+    let single_info;
+    let file_info = match file_info {
+        Some(info) => Some(info),
+        None => {
+            let single = crate::core::mods::curseforge::get_files_batch(http, &[cf_file.file_id]).await;
+            single_info = single.get(&cf_file.file_id).cloned();
+            single_info.as_ref()
+        }
+    };
+
+    let p1 = cf_file.file_id / 1000;
+    let p2 = cf_file.file_id % 1000;
+
     let mut urls_to_try: Vec<String> = Vec::new();
 
     if let Some(info) = file_info {
@@ -483,6 +505,19 @@ async fn download_cf_mod_file(
                 urls_to_try.push(dl.clone());
             }
         }
+        let edge = format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name));
+        if !urls_to_try.contains(&edge) { urls_to_try.push(edge); }
+        let edge_raw = format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, info.file_name.replace(' ', "%20"));
+        if !urls_to_try.contains(&edge_raw) { urls_to_try.push(edge_raw); }
+        let media = format!("https://mediafilez.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name));
+        if !urls_to_try.contains(&media) { urls_to_try.push(media); }
+        let media_raw = format!("https://mediafilez.forgecdn.net/files/{}/{}/{}", p1, p2, info.file_name.replace(' ', "%20"));
+        if !urls_to_try.contains(&media_raw) { urls_to_try.push(media_raw); }
+    }
+
+    if let Some(name) = display_name {
+        let guess = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(name));
+        if !urls_to_try.contains(&guess) { urls_to_try.push(guess); }
     }
 
     if urls_to_try.is_empty() {
@@ -493,31 +528,12 @@ async fn download_cf_mod_file(
         }
     }
 
-    let p1 = cf_file.file_id / 1000;
-    let p2 = cf_file.file_id % 1000;
-
-    if let Some(info) = file_info {
-        let edge = format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name));
-        if !urls_to_try.contains(&edge) { urls_to_try.push(edge); }
-        let media = format!("https://mediafilez.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name));
-        if !urls_to_try.contains(&media) { urls_to_try.push(media); }
-    }
-
-    if let Some(name) = display_name {
-        let guess = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(name));
-        if !urls_to_try.contains(&guess) { urls_to_try.push(guess); }
-    }
-
     if urls_to_try.is_empty() {
         if let Ok(details) = crate::core::mods::curseforge::get_mod_file_details(http, &project_id_str, &file_id_str).await {
             if !details.url.is_empty() && !urls_to_try.contains(&details.url) {
                 urls_to_try.push(details.url);
             }
         }
-    }
-
-    if urls_to_try.is_empty() {
-        return false;
     }
 
     let filename = if let Some(info) = file_info {
@@ -540,9 +556,15 @@ async fn download_cf_mod_file(
         }
     }
 
+    if let Some(p) = file_path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+    if let Some(p) = storage_path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+
     for try_url in &urls_to_try {
-        for _attempt in 0..2 {
-            let resp = match http.get(try_url).timeout(std::time::Duration::from_secs(30)).send().await {
+        for attempt in 0..3 {
+            if attempt > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(250 * attempt as u64)).await;
+            }
+            let resp = match http.get(try_url).timeout(std::time::Duration::from_secs(35)).send().await {
                 Ok(r) if r.status().is_success() => r,
                 _ => continue,
             };
@@ -552,7 +574,7 @@ async fn download_cf_mod_file(
                 _ => continue,
             };
 
-            let is_valid = zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_ok();
+            let is_valid = bytes.len() > 200 && (zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_ok() || bytes.starts_with(b"PK"));
             if !is_valid {
                 continue;
             }
@@ -841,8 +863,72 @@ pub async fn instance_import_modpack(
 
     files_stream.buffer_unordered(8).collect::<Vec<()>>().await;
 
-    let final_ok = mods_ok.load(std::sync::atomic::Ordering::SeqCst);
-    let final_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
+    let mut final_ok = mods_ok.load(std::sync::atomic::Ordering::SeqCst);
+    let mut final_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
+
+    if final_fail > 0 && !state.import_cancel.load(std::sync::atomic::Ordering::SeqCst) {
+        tracing::info!(failed = final_fail, "retrying failed modpack mods in resilient pass");
+        let _ = app.emit("modpack-progress", serde_json::json!({
+            "phase": "downloading",
+            "current": final_ok,
+            "total": total_files,
+            "percent": 90,
+            "status": format!("Repassando {} mods pendentes...", final_fail)
+        }));
+
+        let mut existing_files = std::collections::HashSet::new();
+        if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if let Ok(meta) = entry.metadata().await {
+                    if meta.len() > 100 {
+                        existing_files.insert(name);
+                    }
+                }
+            }
+        }
+
+        let pending: Vec<CfFile> = manifest.files.iter().filter(|f| {
+            let f_id = f.file_id;
+            let p_id_str = f.project_id.to_string();
+            let f_id_str = f_id.to_string();
+            let fi = file_infos.get(&f_id);
+            let expected_name = fi.map(|i| i.file_name.clone()).unwrap_or_default();
+            !existing_files.contains(&expected_name) && !existing_files.iter().any(|e| e.contains(&format!("{}_{}", p_id_str, f_id_str)))
+        }).cloned().collect();
+
+        if !pending.is_empty() {
+            let retry_stream = futures_util::stream::iter(pending).map(|cf_file| {
+                let http = state.http.clone();
+                let file_info = file_infos.get(&cf_file.file_id).cloned();
+                let display_name = mod_names.get(&cf_file.project_id).cloned();
+                let mods_dir = mods_dir.clone();
+                let storage_mods_dir = storage_mods_dir.clone();
+                let profile_id = profile_id.clone();
+                let ok_counter = mods_ok.clone();
+                let fail_counter = mods_fail.clone();
+
+                async move {
+                    let ok = download_cf_mod_file(
+                        &http,
+                        &cf_file,
+                        file_info.as_ref(),
+                        display_name.as_deref(),
+                        &mods_dir,
+                        &storage_mods_dir,
+                        &profile_id,
+                    ).await;
+                    if ok {
+                        ok_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                        let _ = fail_counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |f| Some(f.saturating_sub(1)));
+                    }
+                }
+            });
+            retry_stream.buffer_unordered(4).collect::<Vec<()>>().await;
+            final_ok = mods_ok.load(std::sync::atomic::Ordering::SeqCst);
+            final_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
+        }
+    }
 
     let _ = app.emit("modpack-progress", serde_json::json!({
         "phase": "complete",
@@ -875,7 +961,7 @@ pub async fn instance_import_modpack(
         launch_count: 0,
         mod_count: manifest.files.len() as i64,
         disk_usage: 0,
-        ram_mb: Some(smart_modpack_ram(ram_mb)),
+        ram_mb: Some(smart_modpack_ram(ram_mb, manifest.files.len())),
         instance_group: None,
         auto_optimize: true,
         use_vulkan: false,
@@ -902,6 +988,35 @@ pub async fn instance_repair_modpack(
 
     let instance_dir = std::path::PathBuf::from(&row.game_dir);
     let manifest_path = instance_dir.join("manifest.json");
+
+    if !manifest_path.exists() {
+        if let Some(proj) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+            let modpack_cache = proj.cache_dir().join("modpacks");
+            if let Ok(mut rd) = tokio::fs::read_dir(&modpack_cache).await {
+                while let Ok(Some(entry)) = rd.next_entry().await {
+                    let p = entry.path();
+                    if p.extension().map_or(false, |e| e == "zip") {
+                        if let Ok(f) = std::fs::File::open(&p) {
+                            if let Ok(mut zip_arch) = zip::ZipArchive::new(std::io::BufReader::new(f)) {
+                                for i in 0..zip_arch.len() {
+                                    if let Ok(mut zf) = zip_arch.by_index(i) {
+                                        if zf.name().ends_with("manifest.json") {
+                                            let mut buf = Vec::new();
+                                            if std::io::copy(&mut zf, &mut buf).is_ok() {
+                                                let _ = std::fs::write(&manifest_path, &buf);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if manifest_path.exists() { break; }
+                }
+            }
+        }
+    }
 
     if !manifest_path.exists() {
         return Err(crate::error::AppError::NotFound(
@@ -975,7 +1090,7 @@ pub async fn instance_repair_modpack(
     let repaired_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
 
     use futures_util::StreamExt;
-    let stream = futures_util::stream::iter(missing_files).map(|cf_file| {
+    let stream = futures_util::stream::iter(missing_files.clone()).map(|cf_file| {
         let http = state.http.clone();
         let file_info = file_infos.get(&cf_file.file_id).cloned();
         let display_name = mod_names.get(&cf_file.project_id).cloned();
@@ -1013,15 +1128,71 @@ pub async fn instance_repair_modpack(
     });
 
     stream.buffer_unordered(8).collect::<Vec<()>>().await;
-    let total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
+    let mut total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
+
+    if total_repaired < total_missing {
+        let mut still_missing = Vec::new();
+        let mut check_existing = std::collections::HashSet::new();
+        if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if let Ok(meta) = entry.metadata().await {
+                    if meta.len() > 100 {
+                        check_existing.insert(name);
+                    }
+                }
+            }
+        }
+        for cf in &missing_files {
+            let p_str = cf.project_id.to_string();
+            let f_str = cf.file_id.to_string();
+            let fi = file_infos.get(&cf.file_id);
+            let expected = fi.map(|i| i.file_name.clone()).unwrap_or_default();
+            if !check_existing.contains(&expected) && !check_existing.iter().any(|e| e.contains(&format!("{}_{}", p_str, f_str))) {
+                still_missing.push(cf.clone());
+            }
+        }
+
+        if !still_missing.is_empty() {
+            let retry_stream = futures_util::stream::iter(still_missing).map(|cf_file| {
+                let http = state.http.clone();
+                let file_info = file_infos.get(&cf_file.file_id).cloned();
+                let display_name = mod_names.get(&cf_file.project_id).cloned();
+                let mods_dir = mods_dir.clone();
+                let storage_mods_dir = storage_mods_dir.clone();
+                let profile_id = profileId.clone();
+                let repaired = repaired_count.clone();
+
+                async move {
+                    let ok = download_cf_mod_file(
+                        &http,
+                        &cf_file,
+                        file_info.as_ref(),
+                        display_name.as_deref(),
+                        &mods_dir,
+                        &storage_mods_dir,
+                        &profile_id,
+                    ).await;
+                    if ok {
+                        repaired.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    }
+                }
+            });
+            retry_stream.buffer_unordered(4).collect::<Vec<()>>().await;
+            total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
+        }
+    }
 
     let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
         .bind(&profileId)
         .fetch_one(db.pool())
         .await
         .unwrap_or((0,));
-    let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
-        .bind(count.0)
+
+    let ram_boost = smart_modpack_ram(row.ram_mb, manifest.files.len());
+    let _ = sqlx::query("UPDATE profiles SET mod_count = ?, ram_mb = ? WHERE id = ?")
+        .bind(std::cmp::max(count.0, manifest.files.len() as i64))
+        .bind(ram_boost)
         .bind(&profileId)
         .execute(db.pool())
         .await;
@@ -1437,7 +1608,7 @@ pub async fn instance_import_mrpack(
 		launch_count: 0,
 		mod_count: installed_mods_count as i64,
 		disk_usage: 0,
-		ram_mb: Some(smart_modpack_ram(ram_mb)),
+		ram_mb: Some(smart_modpack_ram(ram_mb, installed_mods_count)),
 		instance_group: None,
 		auto_optimize: true,
 		use_vulkan: false,

@@ -399,9 +399,6 @@ pub async fn get_mod_versions(
 
     if !resp.status().is_success() {
         let status = resp.status();
-        if status.as_u16() == 403 {
-            clear_cached_key();
-        }
         tracing::warn!(
             status = %status,
             project_id = %project_id,
@@ -837,19 +834,20 @@ pub async fn get_files_batch(
     };
 
     let mut map = std::collections::HashMap::new();
-    for chunk in file_ids.chunks(50) {
+    for chunk in file_ids.chunks(100) {
         let url = format!("{}/mods/files", CURSEFORGE_API);
         let payload = serde_json::json!({ "fileIds": chunk });
-        for attempt in 0..3 {
+        for attempt in 0..5 {
             let resp = http
                 .post(&url)
                 .header("x-api-key", &key)
                 .json(&payload)
-                .timeout(Duration::from_secs(20))
+                .timeout(Duration::from_secs(25))
                 .send()
                 .await;
             if let Ok(resp) = resp {
-                if resp.status().is_success() {
+                let status = resp.status();
+                if status.is_success() {
                     if let Ok(json) = resp.json::<serde_json::Value>().await {
                         if let Some(arr) = json.get("data").and_then(|d| d.as_array()) {
                             for item in arr {
@@ -868,9 +866,12 @@ pub async fn get_files_batch(
                             break;
                         }
                     }
+                } else if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                    tokio::time::sleep(Duration::from_millis(1500 * (attempt + 1) as u64)).await;
+                    continue;
                 }
             }
-            tokio::time::sleep(Duration::from_millis(300 * (attempt + 1))).await;
+            tokio::time::sleep(Duration::from_millis(400 * (attempt + 1))).await;
         }
     }
     map
