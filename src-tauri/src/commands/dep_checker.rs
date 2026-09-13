@@ -129,7 +129,7 @@ pub async fn mods_install_missing_deps(
     state: State<'_, AppState>,
     profileId: String,
     mcVersion: String,
-    loader: String,
+    _loader: String,
     projectIds: Vec<String>,
 ) -> AppResult<u32> {
     let db = crate::db::shared_db().await?;

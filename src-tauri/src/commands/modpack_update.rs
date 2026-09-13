@@ -136,7 +136,7 @@ async fn check_modrinth_update(
 
 async fn check_curseforge_update(
     state: &AppState,
-    row: &crate::db::models::ProfileRow,
+    _row: &crate::db::models::ProfileRow,
     manifest_path: &std::path::Path,
 ) -> AppResult<ModpackUpdateInfo> {
     let content = tokio::fs::read_to_string(manifest_path).await.unwrap_or_default();
