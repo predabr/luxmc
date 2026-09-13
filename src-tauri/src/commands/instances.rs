@@ -37,6 +37,7 @@ pub struct FileTreeEntry {
     pub path: String,
     pub is_dir: bool,
     pub size: u64,
+    pub icon: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1145,6 +1146,15 @@ pub async fn instance_file_tree(
             let path = entry.path();
             let metadata = entry.metadata()?;
             let is_dir = metadata.is_dir();
+            let is_jar_or_zip = !is_dir && path.extension().map_or(false, |e| {
+                let s = e.to_string_lossy().to_lowercase();
+                s == "jar" || s == "zip" || s == "disabled"
+            });
+            let icon = if is_jar_or_zip {
+                crate::commands::mods::extract_mod_icon_from_jar(&path)
+            } else {
+                None
+            };
             let size = if is_dir { 0 } else { metadata.len() };
 
             entries.push(FileTreeEntry {
@@ -1155,6 +1165,7 @@ pub async fn instance_file_tree(
                 path: path.to_string_lossy().to_string(),
                 is_dir,
                 size,
+                icon,
             });
         }
     }

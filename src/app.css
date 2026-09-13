@@ -69,11 +69,23 @@ html.light body {
 
 html.light .bg-\[\#0c0c0e\] { background-color: #f1f3f7 !important; }
 html.light .bg-\[\#101014\] { background-color: #f8fafc !important; }
+html.light .bg-\[\#111215\] { background-color: #ffffff !important; }
+html.light .bg-\[\#121316\] { background-color: #f8fafc !important; }
 html.light .bg-\[\#141518\] { background-color: #ffffff !important; }
+html.light .bg-\[\#16171b\] { background-color: #f1f5f9 !important; }
 html.light .bg-\[\#18191c\] { background-color: #ffffff !important; }
+html.light .bg-\[\#18191f\] { background-color: #f8fafc !important; }
+html.light .bg-\[\#1a1b20\] { background-color: #f1f5f9 !important; }
 html.light .bg-\[\#1c1d22\] { background-color: #f1f5f9 !important; }
 html.light .bg-\[\#1e1f23\] { background-color: #e2e8f0 !important; }
+html.light .bg-\[\#1e1f24\] { background-color: #ffffff !important; color: #0f172a !important; }
+html.light .bg-\[\#20222a\] { background-color: #f1f5f9 !important; }
 html.light .bg-\[\#222328\] { background-color: #cbd5e1 !important; }
+html.light aside {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.06) !important;
+}
 html.light .bg-black\/50, html.light .bg-black\/60, html.light .bg-black\/40 {
   background-color: rgba(255, 255, 255, 0.75) !important;
 }

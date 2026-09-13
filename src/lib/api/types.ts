@@ -144,6 +144,7 @@ export interface FileTreeEntry {
 	path: string;
 	isDir: boolean;
 	size: number;
+	icon?: string | null;
 }
 
 export interface LaunchLogSummary {

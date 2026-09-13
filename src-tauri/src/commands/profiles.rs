@@ -184,7 +184,24 @@ pub async fn profiles_delete(_state: State<'_, AppState>, id: String) -> AppResu
     {
         let path = std::path::PathBuf::from(&row.game_dir);
         if path.is_dir() {
-            let _ = tokio::fs::remove_dir_all(path).await;
+            let _ = tokio::fs::remove_dir_all(&path).await;
+        }
+
+        if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+            let storage_mods_dir = base_dir.data_dir().join("mods").join(&id);
+            if storage_mods_dir.is_dir() {
+                let _ = tokio::fs::remove_dir_all(&storage_mods_dir).await;
+            }
+
+            let instance_dir_by_id = base_dir.data_dir().join("instances").join(&id);
+            if instance_dir_by_id.is_dir() {
+                let _ = tokio::fs::remove_dir_all(&instance_dir_by_id).await;
+            }
+
+            let instance_dir_by_name = base_dir.data_dir().join("instances").join(&row.name);
+            if instance_dir_by_name.is_dir() {
+                let _ = tokio::fs::remove_dir_all(&instance_dir_by_name).await;
+            }
         }
     }
     crate::db::schema::profiles::delete(&db, &id).await

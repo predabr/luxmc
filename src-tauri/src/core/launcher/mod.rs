@@ -307,7 +307,7 @@ impl GameLauncher {
                     )
                 });
 
-                if has_bundled_client || loader == "neoforge" || loader == "forge" {
+                if has_bundled_client {
                     classpath.retain(|p| {
                         let s = p.to_string_lossy().replace('\\', "/").to_lowercase();
                         let is_vanilla = s.ends_with(&format!("/{}.jar", mc_ver.to_lowercase()))
@@ -577,8 +577,11 @@ impl GameLauncher {
             cmd.env_remove("GSETTINGS_SCHEMA_DIR");
 
             cmd.env("_JAVA_AWT_WM_NONREPARENTING", "1");
-            if std::env::var("DISPLAY").is_err() && std::env::var("WAYLAND_DISPLAY").is_err() {
+            if std::env::var("DISPLAY").is_ok() {
+                cmd.env("GLFW_PLATFORM", "x11");
+            } else if std::env::var("WAYLAND_DISPLAY").is_err() {
                 cmd.env("DISPLAY", ":0");
+                cmd.env("GLFW_PLATFORM", "x11");
             }
 
             if profile.use_vulkan {
@@ -611,7 +614,6 @@ impl GameLauncher {
             let joined_path = win_paths.join(";");
             cmd.env("PATH", &joined_path);
             cmd.env("Path", &joined_path);
-            cmd.env("SHIM_MCCOMPAT", "0x800000001");
             cmd.env("GPU_MAX_ALLOC_PERCENT", "100");
             cmd.env("GPU_USE_SYNC_OBJECTS", "1");
             cmd.env("GPU_NUM_COMPUTE_RINGS", "1");
@@ -1735,7 +1737,6 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
         for dy in 0..12 {
             for dx in 0..4 {
                 target.put_pixel(36 + (3 - dx), 52 + dy, *target.get_pixel(44 + dx, 20 + dy));
-                // Left arm back handling: copy right arm back if missing, otherwise use front or fallback
                 let src_back = *target.get_pixel(52 + dx, 20 + dy);
                 let back_val = if src_back[3] > 0
                     && !(src_back[0] == 0 && src_back[1] == 0 && src_back[2] == 0)
@@ -1747,10 +1748,9 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                     let fp = *target.get_pixel(44 + dx, 20 + dy);
                     if fp[3] > 0 { fp } else { image::Rgba([210, 165, 130, 255]) }
                 };
-                // Place the resolved pixel into left arm back region (36,20) with horizontal mirroring
-                target.put_pixel(36 + (3 - dx), 20 + dy, back_val);
-                target.put_pixel(40 + (3 - dx), 20 + dy, *target.get_pixel(40 + dx, 20 + dy));
-                target.put_pixel(32 + (3 - dx), 20 + dy, *target.get_pixel(48 + dx, 20 + dy));
+                target.put_pixel(44 + (3 - dx), 52 + dy, back_val);
+                target.put_pixel(40 + (3 - dx), 52 + dy, *target.get_pixel(40 + dx, 20 + dy));
+                target.put_pixel(32 + (3 - dx), 52 + dy, *target.get_pixel(48 + dx, 20 + dy));
             }
         }
         target

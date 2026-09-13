@@ -15,24 +15,24 @@
 			name: "Complementary Reimagined",
 			author: "EminGT",
 			fpsCost: "Leve (~10% FPS)",
-			beforeImg: "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=800&auto=format&fit=crop&q=80",
-			afterImg: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&auto=format&fit=crop&q=80",
+			beforeImg: "/screenshot.png",
+			afterImg: "https://cdn.modrinth.com/data/HVnmMxH1/images/26327bef581206670288bf7e1b1b5f411291f793.jpeg",
 			features: ["Água Wavy PBR", "Godrays Suaves", "Sombras de Alta Resolução", "Auroras Boreais"]
 		},
 		{
 			name: "BSL Shaders Pro",
 			author: "Capt Tatsu",
 			fpsCost: "Médio (~18% FPS)",
-			beforeImg: "https://images.unsplash.com/photo-1518495973542-4542c06a5843?w=800&auto=format&fit=crop&q=80",
-			afterImg: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80",
+			beforeImg: "/screenshot.png",
+			afterImg: "https://cdn.modrinth.com/data/Q1vvjJYV/images/01e67d2bc1cfb34d2b80790eddcc836d00de5e55.jpeg",
 			features: ["Oclusão de Ambiente", "Profundidade de Campo", "Iluminação Quente", "Céu Volumétrico"]
 		},
 		{
-			name: "Iris Ultra (PBR & Raytracing)",
-			author: "Iris Team",
-			fpsCost: "Alto (~25% FPS)",
-			beforeImg: "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800&auto=format&fit=crop&q=80",
-			afterImg: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop&q=80",
+			name: "Photon Shaders (PBR & Realismo)",
+			author: "SixthSurge",
+			fpsCost: "Médio (~15% FPS)",
+			beforeImg: "/screenshot.png",
+			afterImg: "https://cdn.modrinth.com/data/lLqFfGNs/images/53158735be49a61e603c276c66788af48e5a9503.png",
 			features: ["Traçado de Raios Parcial", "Reflexos em Tempo Real", "Vento na Vegetação", "Física de Nuvens"]
 		}
 	];

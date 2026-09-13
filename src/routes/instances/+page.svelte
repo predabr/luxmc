@@ -429,6 +429,7 @@
 		try {
 			await api.invoke("profiles_delete", { id });
 			profiles.remove(id);
+			playSound("delete");
 		} catch (e) {
 			toast(t("instances.failedDelete", { error: String(e) }), "error");
 		}
@@ -448,6 +449,7 @@
 		selectedIds = new Set();
 		selectionMode = false;
 		if (count > 0) {
+			playSound("delete");
 			toast(`${count} instâncias removidas com sucesso.`, "success");
 		}
 	}

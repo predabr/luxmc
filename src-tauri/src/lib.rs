@@ -29,6 +29,7 @@ pub async fn run() {
     tauri::Builder::default()
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
+                let _ = window.maximize();
                 if let Ok(dyn_img) = image::load_from_memory(include_bytes!("../icons/icon.png")) {
                     let rgba = dyn_img.to_rgba8();
                     let (w, h) = rgba.dimensions();

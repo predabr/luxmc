@@ -22,6 +22,7 @@
 	} from "lucide-svelte";
 	import Button from "$lib/components/ui/Button.svelte";
 	import { account } from "$lib/stores/account.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { 
 		p2pGetLocalInfo, 
@@ -261,7 +262,6 @@
 
 	function addFriend() {
 		const name = newFriendUsername.trim();
-		const addr = newFriendAddress.trim();
 		if (!name) {
 			toast("Insira o nome do jogador.", "error");
 			return;
@@ -270,9 +270,9 @@
 		const newFriend: Friend = {
 			id: String(Date.now()),
 			username: name,
-			address: addr || "Universal",
+			address: "Universal",
 			status: "online",
-			activity: addr ? `Conexão: ${addr}` : "Chat Universal",
+			activity: "Chat Universal",
 			messages: [
 				{
 					id: String(Date.now()),
@@ -405,14 +405,14 @@
 	}
 </script>
 
-<div class="flex gap-6 h-full w-full select-none">
+<div class="flex gap-6 h-[calc(100vh-3.5rem)] max-h-[calc(100vh-3.5rem)] w-full select-none overflow-hidden">
 	
 	<!-- Friends List Column (Left) -->
-	<div class="w-[340px] shrink-0 bg-[#141518] border border-white/5 rounded-3xl p-4 flex flex-col justify-between shadow-xl">
+	<div class="w-[340px] shrink-0 bg-[#141518] border border-white/5 rounded-3xl p-4 flex flex-col justify-between shadow-xl h-full min-h-0 overflow-hidden">
 		
-		<div class="space-y-4">
+		<div class="space-y-3 flex-1 min-h-0 flex flex-col">
 			<!-- Header & My P2P Address Banner -->
-			<div class="space-y-2">
+			<div class="space-y-2 shrink-0">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<h2 class="text-base font-extrabold text-white">Chat & Amigos</h2>
@@ -464,24 +464,18 @@
 
 			<!-- Add Friend Modal -->
 			{#if showAddModal}
-				<div class="bg-[#1c1d22] border border-white/20 p-4 rounded-3xl space-y-3 shadow-xl" in:fade={{ duration: 150 }}>
+				<div class="bg-[#1c1d22] border border-white/20 p-4 rounded-3xl space-y-3 shadow-xl shrink-0" in:fade={{ duration: 150 }}>
 					<span class="text-xs font-black text-white flex items-center gap-1.5">
-						<Users class="w-3.5 h-3.5 text-amber-400" /> Adicionar Amigo (Universal)
+						<Users class="w-3.5 h-3.5 text-amber-400" /> Adicionar Amigo
 					</span>
 					
 					<div class="space-y-2">
 						<input 
 							type="text" 
-							placeholder="Nome do amigo / Gamertag..." 
+							placeholder="Nome do amigo / Gamertag (ex: Notch, Alex)..." 
 							bind:value={newFriendUsername}
-							class="w-full bg-[#121316] border border-white/10 rounded-full px-4 py-2 text-xs text-white placeholder-white/40 focus:outline-none"
-						/>
-						<input 
-							type="text" 
-							placeholder="Código ou IP (Opcional - deixe vazio para Universal)..." 
-							bind:value={newFriendAddress}
 							onkeydown={(e) => e.key === 'Enter' && addFriend()}
-							class="w-full bg-[#121316] border border-white/10 rounded-full px-4 py-2 text-xs text-white placeholder-white/40 focus:outline-none font-mono"
+							class="w-full bg-[#121316] border border-white/10 rounded-full px-4 py-2.5 text-xs text-white placeholder-white/40 focus:outline-none"
 						/>
 						<button 
 							class="w-full text-black font-black text-xs py-2.5 rounded-full hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-md"
@@ -495,7 +489,7 @@
 			{/if}
 
 			<!-- Search -->
-			<div class="relative">
+			<div class="relative shrink-0">
 				<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40" />
 				<input 
 					type="text" 
@@ -506,7 +500,7 @@
 			</div>
 
 			<!-- Friends List -->
-			<div class="space-y-1.5 overflow-y-auto max-h-[380px] custom-scrollbar pr-1">
+			<div class="space-y-1.5 overflow-y-auto flex-1 min-h-0 custom-scrollbar pr-1">
 				{#if filteredFriends.length === 0}
 					<div class="py-10 px-4 text-center">
 						<div class="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-3 text-white/30">
@@ -575,11 +569,11 @@
 		</div>
 
 		<!-- User Identity Card at Bottom -->
-		<div class="pt-3 border-t border-white/5 flex items-center justify-between">
+		<div class="pt-3 border-t border-white/5 flex items-center justify-between shrink-0">
 			<div class="flex items-center gap-2.5">
 				<div class="h-9 w-9 rounded-xl bg-black/40 overflow-hidden border border-white/10 flex items-center justify-center font-black text-xs text-white shadow-inner relative">
 					<img 
-						src={`https://mc-heads.net/avatar/${myUsername}/100`} 
+						src={activeSkinStore.current.avatarUrl || (account.value?.uuid ? `https://mc-heads.net/avatar/${account.value.uuid}/100` : `https://mc-heads.net/avatar/${myUsername}/100`)} 
 						alt={myUsername} 
 						class="w-full h-full object-cover" 
 						loading="lazy"
@@ -601,7 +595,7 @@
 	</div>
 
 	<!-- Chat Area Column (Right) -->
-	<div class="flex-1 bg-[#141518] border border-white/5 rounded-3xl flex flex-col justify-between shadow-xl overflow-hidden">
+	<div class="flex-1 bg-[#141518] border border-white/5 rounded-3xl flex flex-col justify-between shadow-xl h-full min-h-0 overflow-hidden">
 		
 		{#if activeFriend}
 			<!-- Chat Header -->
@@ -713,7 +707,7 @@
 			{/if}
 
 			<!-- Message Feed -->
-			<div class="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-4">
+			<div class="flex-1 min-h-0 p-6 overflow-y-auto custom-scrollbar space-y-4">
 				{#each activeFriend.messages as msg}
 					<div class="flex flex-col {msg.sender === 'me' ? 'items-end' : 'items-start'}">
 						{#if msg.text.includes("[CONVITE DE PARTIDA]")}

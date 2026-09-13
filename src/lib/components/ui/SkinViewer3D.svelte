@@ -164,15 +164,18 @@
 
 		const lBackStartX = isSlim ? 43 : 44;
 		const lFrontStartX = 36;
+		const rBackStartXLeft = isSlim ? 51 : 52;
 		for (let dy = 0; dy < 12 * scale; dy++) {
 			for (let dx = 0; dx < armWidth * scale; dx++) {
 				const bx = lBackStartX * scale + dx;
 				const by = 52 * scale + dy;
 				const [r, g, b, a] = getPixel(bx, by);
 				if (isBlackOrEmpty(r, g, b, a)) {
-					const [or, og, ob, oa] = getPixel(bx + 16 * scale, by);
-					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
-						setPixel(bx, by, or, og, ob, 255);
+					const rbx = rBackStartXLeft * scale + (armWidth * scale - 1 - dx);
+					const rby = 20 * scale + dy;
+					const [rr, rg, rb, ra] = getPixel(rbx, rby);
+					if (ra > 50 && !(rr === 0 && rg === 0 && rb === 0)) {
+						setPixel(bx, by, rr, rg, rb, 255);
 					} else {
 						const [fr, fg, fb, fa] = getPixel(lFrontStartX * scale + dx, by);
 						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {

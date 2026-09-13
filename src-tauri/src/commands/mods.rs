@@ -909,6 +909,85 @@ pub fn extract_mod_name_from_jar(jar_path: &std::path::Path) -> Option<String> {
     None
 }
 
+pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
+    use base64::Engine;
+    use std::io::Read;
+    let file = std::fs::File::open(jar_path).ok()?;
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file)).ok()?;
+
+    let mut icon_path: Option<String> = None;
+    if let Ok(entry) = archive.by_name("fabric.mod.json") {
+        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+            if let Some(icon) = json.get("icon").and_then(|i| i.as_str()) {
+                icon_path = Some(icon.trim_start_matches('/').to_string());
+            } else if let Some(icons) = json.get("icon").and_then(|i| i.as_object()) {
+                if let Some(first) = icons.values().next().and_then(|v| v.as_str()) {
+                    icon_path = Some(first.trim_start_matches('/').to_string());
+                }
+            }
+        }
+    }
+
+    if icon_path.is_none() {
+        for toml_name in &["META-INF/neoforge.mods.toml", "META-INF/mods.toml"] {
+            if let Ok(mut entry) = archive.by_name(toml_name) {
+                let mut content = String::new();
+                if entry.read_to_string(&mut content).is_ok() {
+                    for line in content.lines() {
+                        let trimmed = line.trim();
+                        if trimmed.starts_with("logoFile") {
+                            if let Some(val) = trimmed.split('=').nth(1) {
+                                let clean = val.trim().trim_matches('"').trim_matches('\'').trim();
+                                if !clean.is_empty() {
+                                    icon_path = Some(clean.trim_start_matches('/').to_string());
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if icon_path.is_some() {
+                break;
+            }
+        }
+    }
+
+    let candidates = [
+        icon_path.as_deref(),
+        Some("icon.png"),
+        Some("assets/icon.png"),
+        Some("pack.png"),
+    ];
+
+    for candidate in candidates.into_iter().flatten() {
+        if let Ok(mut entry) = archive.by_name(candidate) {
+            if entry.size() > 0 && entry.size() < 1_000_000 {
+                let mut buf = Vec::new();
+                if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
+                    return Some(format!("data:image/png;base64,{}", b64));
+                }
+            }
+        }
+    }
+
+    for i in 0..archive.len() {
+        if let Ok(mut entry) = archive.by_index(i) {
+            let name = entry.name().to_lowercase();
+            if (name.ends_with("/icon.png") || name.ends_with("logo.png")) && entry.size() < 500_000 {
+                let mut buf = Vec::new();
+                if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
+                    let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
+                    return Some(format!("data:image/png;base64,{}", b64));
+                }
+            }
+        }
+    }
+
+    None
+}
+
 #[tauri::command]
 pub async fn mods_resolve_names(
     state: State<'_, AppState>,

@@ -16,7 +16,7 @@ function getAudioContext(): AudioContext | null {
 	return audioCtx;
 }
 
-export function playSound(type: "click" | "launch" | "chime" | "warning" | "achievement") {
+export function playSound(type: "click" | "launch" | "chime" | "warning" | "achievement" | "delete") {
 	try {
 		if (typeof window === "undefined") return;
 		const s = settings.value as { soundEnabled?: boolean; soundVolume?: number };
@@ -89,6 +89,18 @@ export function playSound(type: "click" | "launch" | "chime" | "warning" | "achi
 			gain.connect(masterGain);
 			osc.start(now);
 			osc.stop(now + 0.25);
+		} else if (type === "delete") {
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+			osc.type = "sine";
+			osc.frequency.setValueAtTime(360, now);
+			osc.frequency.exponentialRampToValueAtTime(120, now + 0.14);
+			gain.gain.setValueAtTime(0.28, now);
+			gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+			osc.connect(gain);
+			gain.connect(masterGain);
+			osc.start(now);
+			osc.stop(now + 0.14);
 		}
 	} catch {
 	}

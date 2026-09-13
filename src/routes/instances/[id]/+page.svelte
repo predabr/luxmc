@@ -554,6 +554,14 @@
 		}
 	}
 
+	let hasAutoScannedShield = $state(false);
+	$effect(() => {
+		if (subTab === "mods" && instanceMods.length > 0 && !shieldResult && !isScanningShield && !hasAutoScannedShield) {
+			hasAutoScannedShield = true;
+			runShieldScan();
+		}
+	});
+
 	const currentPacksList = $derived(
 		subTab === "resourcepacks" ? resourcePacks : subTab === "shaders" ? shaderPacks : dataPacks
 	);
@@ -646,6 +654,7 @@
 	async function handleDeleteMod(mod: FileTreeEntry) {
 		try {
 			await instanceModDelete(instanceId, mod.name);
+			playSound("delete");
 			toast(`Mod "${mod.name}" removido com sucesso!`, "success");
 			await refreshAllData();
 		} catch (e) {
@@ -744,6 +753,7 @@
 		if (!confirm(`Tem certeza que deseja excluir "${file.name}" permanentemente?`)) return;
 		try {
 			await deleteFileOrDir(file.path);
+			playSound("delete");
 			toast(`"${file.name}" excluído com sucesso!`, "success");
 			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
 		} catch (e) {
@@ -756,6 +766,7 @@
 		if (!confirm(`Tem certeza que deseja excluir o mundo "${folderName}" permanentemente? Esta ação não pode ser desfeita.`)) return;
 		try {
 			await instanceWorldDelete(instanceId, folderName);
+			playSound("delete");
 			toast(`Mundo "${folderName}" excluído com sucesso!`, "success");
 			worldsList = worldsList.filter(w => w.folderName !== folderName);
 		} catch (e) {
@@ -882,6 +893,7 @@
 		const packType = subTab === 'shaders' ? 'shaderpacks' : subTab === 'datapacks' ? 'datapacks' : 'resourcepacks';
 		try {
 			await instancePackDelete(instanceId, packType, fileName);
+			playSound("delete");
 			toast("Item removido com sucesso!", "success");
 			await refreshAllData();
 		} catch (e) {
@@ -901,6 +913,7 @@
 	async function handleDeleteScreenshot(path: string) {
 		try {
 			await screenshotDelete(path);
+			playSound("delete");
 			screenshotsList = screenshotsList.filter(s => s.path !== path);
 			toast("Captura de tela removida!", "info");
 		} catch (e) {
@@ -1290,8 +1303,12 @@
 								{@const displayName = rawName.includes('_') && /^\d+_\d+$/.test(rawName) ? 'Mod #' + rawName.split('_')[0] : rawName.replace(/_/g, ' ')}
 								<div class="bg-[#18191c] border border-white/5 hover:border-white/15 p-4 flex items-center justify-between transition-all group {isDisabled ? 'opacity-50' : ''}" style="content-visibility: auto;">
 									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="w-10 h-10 rounded-xl {isDisabled ? 'bg-white/5 text-white/30' : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'} flex items-center justify-center shrink-0 shadow-sm">
-											<Puzzle class="w-5 h-5" />
+										<div class="w-10 h-10 rounded-xl overflow-hidden {isDisabled ? 'bg-white/5 text-white/30' : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'} flex items-center justify-center shrink-0 shadow-sm relative">
+											{#if mod.icon}
+												<img src={mod.icon} alt={displayName} class="w-full h-full object-cover [image-rendering:pixelated]" />
+											{:else}
+												<Puzzle class="w-5 h-5" />
+											{/if}
 										</div>
 										<div class="min-w-0">
 											<div class="flex items-center gap-2">
