@@ -412,7 +412,14 @@
 		};
 		img.onerror = () => {
 			if (token !== loadSkinToken) return;
-			if (currentLoadedUrl === "fallback") return;
+			// If minotar failed, try mc-heads mirror before giving up
+			if (safeUrl.includes("minotar.net/skin/")) {
+				const nick = safeUrl.split("minotar.net/skin/")[1];
+				if (nick) {
+					loadSkin(`https://mc-heads.net/skin/${nick}`);
+					return;
+				}
+			}
 			const canvas = createDefaultSteveCanvas();
 			if (currentTexture) {
 				currentTexture.dispose();
@@ -430,7 +437,7 @@
 				overlayMaterial.map = currentTexture;
 				overlayMaterial.needsUpdate = true;
 			}
-			currentLoadedUrl = "fallback";
+			currentLoadedUrl = "";
 		};
 		img.src = safeUrl;
 	}

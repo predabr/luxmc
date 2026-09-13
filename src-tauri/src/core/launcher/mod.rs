@@ -288,6 +288,26 @@ impl GameLauncher {
                     let s = p.to_string_lossy();
                     !s.ends_with("-installer.jar")
                 });
+
+                // NeoForge/Forge already includes a patched minecraft jar in its own library set.
+                // If any classpath entry contains "minecraft-{mc_version}" (the patched client),
+                // remove the plain vanilla "{mc_version}.jar" to prevent duplicate module exports
+                // which cause JVM startup crash: "Modules minecraft and _1_21_1 both export...".
+                let mc_ver = &profile.mc_version;
+                let versions_dir = self.downloader.versions_dir();
+                let vanilla_jar = versions_dir.join(mc_ver).join(format!("{}.jar", mc_ver));
+                let loader_has_mc = classpath.iter().any(|p| {
+                    let s = p.to_string_lossy();
+                    (s.contains(&format!("minecraft-{}", mc_ver)) || s.contains(&format!("minecraft_{}", mc_ver)))
+                        && *p != vanilla_jar
+                });
+                if loader_has_mc {
+                    classpath.retain(|p| p != &vanilla_jar);
+                    self.emit_log(&format!(
+                        "Removed vanilla {}.jar from classpath (NeoForge/Forge already provides patched minecraft jar)",
+                        mc_ver
+                    ));
+                }
             }
 
             let mut seen_cp = std::collections::HashSet::new();
@@ -312,8 +332,8 @@ impl GameLauncher {
             .map(|s| {
                 let trimmed = s.trim();
                 !trimmed.is_empty()
-                    && (trimmed.starts_with("data:image/")
-                        || (!trimmed.starts_with("http://") && !trimmed.starts_with("https://")))
+                    && !trimmed.starts_with("https://textures.minecraft.net/")
+                    && !trimmed.starts_with("http://textures.minecraft.net/")
             })
             .unwrap_or(false);
 
@@ -906,18 +926,43 @@ impl GameLauncher {
             args.push(cp_str.clone());
         }
 
-        // Calculate RAM allocation from profile or dynamic system detection
-        let ram_mb = if let Some(allocated) = profile.ram_mb {
-            if allocated > 0 {
-                allocated as u64
-            } else {
-                4096
-            }
-        } else {
+        // Calculate RAM allocation from profile or dynamic system detection with Intelligent Scaling
+        let is_heavy_modded = profile.loader == "forge"
+            || profile.loader == "neoforge"
+            || profile.name.to_lowercase().contains("all the mods")
+            || profile.name.to_lowercase().contains("atm")
+            || profile.name.to_lowercase().contains("better mc");
+
+        let ram_mb = {
             let mut sys = sysinfo::System::new_all();
             sys.refresh_memory();
             let total_ram_mb = sys.total_memory() / 1024 / 1024;
-            std::cmp::min(std::cmp::max(total_ram_mb / 4, 2048), 4096)
+
+            if let Some(allocated) = profile.ram_mb.filter(|r| *r > 0) {
+                let alloc = allocated as u64;
+                if is_heavy_modded && alloc <= 4096 && total_ram_mb >= 12288 {
+                    let boost = std::cmp::min(8192, total_ram_mb * 55 / 100);
+                    self.emit_log(&format!(
+                        "Intelligent Launcher: auto-boosting RAM for heavy modpack from {}MB to {}MB (Total System RAM: {}MB)",
+                        alloc, boost, total_ram_mb
+                    ));
+                    boost
+                } else {
+                    alloc
+                }
+            } else if is_heavy_modded {
+                if total_ram_mb >= 24576 {
+                    10240
+                } else if total_ram_mb >= 15360 {
+                    8192
+                } else if total_ram_mb >= 11264 {
+                    6144
+                } else {
+                    std::cmp::min(std::cmp::max(total_ram_mb * 6 / 10, 4096), 6144)
+                }
+            } else {
+                std::cmp::min(std::cmp::max(total_ram_mb / 4, 2048), 6144)
+            }
         };
 
         // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags

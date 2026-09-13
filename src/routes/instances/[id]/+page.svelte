@@ -633,10 +633,7 @@
 			launchStatusText = "Injetando parâmetros JVM, flags e inicializando Minecraft...";
 			const targetProfileId = activeProfile?.id || instanceId || "";
 			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
-			const isMsa = Boolean(account.value?.minecraftToken && account.value.minecraftToken.length > 100);
-			const skinToPass = activeSkinStore.current.custom
-				? (activeSkinStore.current.skinUrl || null)
-				: (isMsa ? null : (activeSkinStore.current.skinUrl || account.value?.skinUrl || null));
+			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
 			const result = await launchGame({
 				versionId: verId,
 				accountId: userUuid || "",

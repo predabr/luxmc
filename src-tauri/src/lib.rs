@@ -102,6 +102,7 @@ pub async fn run() {
             commands::mods::curseforge_validate_key,
             commands::mods::mods_resolve_names,
             commands::instances::instance_import_modpack,
+            commands::instances::instance_cancel_import,
             commands::instances::instance_import_mrpack,
             commands::instances::instance_health_check,
             commands::instances::instance_file_tree,

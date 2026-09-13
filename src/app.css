@@ -218,6 +218,28 @@ html.density-spacious { font-size: 15px; }
   animation: pulse-green 2s ease-in-out infinite;
 }
 
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px -3px rgba(var(--brand-500), 0.3);
+  }
+  50% {
+    box-shadow: 0 0 25px 2px rgba(var(--brand-500), 0.55);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
 .log-info { color: rgb(45, 212, 191); }
 .log-warn { color: rgb(234, 179, 8); }
 .log-error { color: rgb(239, 68, 68); }

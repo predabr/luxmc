@@ -42,6 +42,7 @@
 		instancesScreenshots,
 		instanceImportModpack,
 		instanceImportMrpack,
+		instanceCancelImport,
 		instanceHealthCheck,
 		instanceFileTree,
 		instanceSetNotes,
@@ -71,6 +72,7 @@
 	let importLoader = $state("fabric");
 	let importing = $state(false);
 	let importingMrpack = $state(false);
+	let importProgress = $state<{ phase: string; current: number; total: number; percent: number; status: string } | null>(null);
 	let lastError = $state<string | null>(null);
 
 	let systemRamMb = $state(8192);
@@ -308,10 +310,7 @@
 				await versionsDownload(verId);
 			}
 			const isVulkan = p.useVulkan === true;
-			const isMsa = Boolean(account.value?.minecraftToken && account.value.minecraftToken.length > 100);
-			const skinToPass = activeSkinStore.current.custom
-				? (activeSkinStore.current.skinUrl || null)
-				: (isMsa ? null : (activeSkinStore.current.skinUrl || account.value?.skinUrl || null));
+			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
 			const res = await launchGame({
 				versionId: verId,
 				accountId: accountId || "",
@@ -537,23 +536,40 @@
 	async function importModpack() {
 		if (!importFile || !importName.trim()) return;
 		importing = true;
+		importProgress = null;
+		let unlisten: (() => void) | null = null;
+		let wasCancelled = false;
 		try {
+			const { listen } = await import("@tauri-apps/api/event");
+			unlisten = await listen<{ phase: string; current: number; total: number; percent: number; status: string }>(
+				"modpack-progress",
+				(event) => {
+					importProgress = event.payload;
+					if (event.payload.phase === "cancelled") {
+						wasCancelled = true;
+					}
+				}
+			);
 			const p = await instanceImportModpack(importFile, importName.trim(), importVersion, importLoader);
-			profiles.add({
-				id: p.id,
-				name: p.name,
-				icon: p.icon || "",
-				mcVersion: p.mcVersion,
-				loader: (p.loader.toLowerCase() as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt") || "fabric",
-				gameDir: p.gameDir,
-				createdAt: Date.now(),
-				updatedAt: Date.now(),
-			});
-			profiles.activeId = p.id;
-			showImport = false; importFile = null; importName = "";
-			toast(t("instances.createdSuccess"), "success");
+			if (wasCancelled) {
+				toast("Importação cancelada.", "info");
+			} else {
+				profiles.add({
+					id: p.id, name: p.name, icon: p.icon || "",
+					mcVersion: p.mcVersion,
+					loader: (p.loader.toLowerCase() as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt") || "fabric",
+					gameDir: p.gameDir, createdAt: Date.now(), updatedAt: Date.now(),
+				});
+				profiles.activeId = p.id;
+				showImport = false; importFile = null; importName = "";
+				toast(t("instances.createdSuccess"), "success");
+			}
 		} catch (e) { toast(t("instances.failedImportModpack", { error: String(e) }), "error"); }
-		finally { importing = false; }
+		finally { importing = false; importProgress = null; unlisten?.(); }
+	}
+
+	async function cancelImport() {
+		try { await instanceCancelImport(); } catch {}
 	}
 
 	async function pickMrpackFile() {
@@ -589,7 +605,7 @@
 </script>
 
 <div class="mx-auto flex h-full max-w-6xl flex-col gap-6">
-	<div class="flex items-center justify-between">
+	<div class="sticky top-0 z-20 flex items-center justify-between rounded-2xl px-1 py-2" style="background: linear-gradient(to bottom, rgb(var(--bg)) 80%, transparent); backdrop-filter: blur(8px);">
 		<Heading>{t("instances.title")}</Heading>
 		<div class="flex gap-2">
 			{#if selectionMode && selectedIds.size > 0}
@@ -656,29 +672,47 @@
 			<div class="flex flex-col gap-3">
 				<p class="text-sm" style="color: rgb(var(--fg-muted));">{t("instances.importModpackDesc")}</p>
 				<p class="truncate text-xs" style="color: rgb(var(--fg-subtle));">{importFile}</p>
-				<div class="flex gap-3">
-					<div class="flex-1">
-						<label for="import-name" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.name")}</label>
-						<Input id="import-name" bind:value={importName} placeholder={t("instances.modpackName")} />
+				{#if importing && importProgress}
+					<div class="flex flex-col gap-2">
+						<div class="flex items-center justify-between text-xs" style="color: rgb(var(--fg-muted));">
+							<span>{importProgress.status}</span>
+							<span>{importProgress.current}/{importProgress.total}</span>
+						</div>
+						<div class="h-2 w-full overflow-hidden rounded-full" style="background: rgb(var(--bg-elevated));">
+							<div
+								class="h-full rounded-full transition-all duration-300"
+								style="width: {importProgress.percent ?? 0}%; background: linear-gradient(90deg, rgb(var(--brand-500)), rgb(var(--brand-400)));"
+							></div>
+						</div>
+						<Button variant="danger" size="sm" onclick={cancelImport}>
+							<X class="h-4 w-4" /> Cancelar Download
+						</Button>
 					</div>
-					<div class="w-36">
-						<label for="import-loader" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.loader")}</label>
-						<select id="import-loader" class="h-9 w-full rounded-md px-2 text-sm" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));" bind:value={importLoader}>
-							<option value="fabric">Fabric</option>
-							<option value="forge">Forge</option>
-							<option value="neoforge">NeoForge</option>
-							<option value="quilt">Quilt</option>
-						</select>
+				{:else}
+					<div class="flex gap-3">
+						<div class="flex-1">
+							<label for="import-name" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.name")}</label>
+							<Input id="import-name" bind:value={importName} placeholder={t("instances.modpackName")} />
+						</div>
+						<div class="w-36">
+							<label for="import-loader" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.loader")}</label>
+							<select id="import-loader" class="h-9 w-full rounded-md px-2 text-sm" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));" bind:value={importLoader}>
+								<option value="fabric">Fabric</option>
+								<option value="forge">Forge</option>
+								<option value="neoforge">NeoForge</option>
+								<option value="quilt">Quilt</option>
+							</select>
+						</div>
 					</div>
-				</div>
-				<div class="flex gap-2">
-					<Button variant="solid" onclick={importModpack} loading={importing}>
-						<Import class="h-4 w-4" /> {t("instances.importModpack")}
-					</Button>
-					<Button variant="secondary" onclick={() => { showImport = false; importFile = null; }}>
-						<X class="h-4 w-4" /> {t("common.cancel")}
-					</Button>
-				</div>
+					<div class="flex gap-2">
+						<Button variant="solid" onclick={importModpack} loading={importing}>
+							<Import class="h-4 w-4" /> {t("instances.importModpack")}
+						</Button>
+						<Button variant="secondary" onclick={() => { showImport = false; importFile = null; }}>
+							<X class="h-4 w-4" /> {t("common.cancel")}
+						</Button>
+					</div>
+				{/if}
 			</div>
 		</Card>
 	{/if}

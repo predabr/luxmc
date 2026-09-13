@@ -48,7 +48,7 @@ function createSkinStore() {
 		if (saved) {
 			try {
 				const parsed = JSON.parse(saved);
-				if (parsed.id !== "frog_hoodie") {
+				if (parsed && typeof parsed === "object") {
 					initial = { ...defaultSkin, ...parsed };
 				}
 			} catch {}

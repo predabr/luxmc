@@ -438,6 +438,30 @@ struct MrpackMod {
     env: std::collections::HashMap<String, serde_json::Value>,
 }
 
+fn smart_modpack_ram(user_ram: Option<i64>) -> i64 {
+    if let Some(r) = user_ram.filter(|r| *r > 0) {
+        return r;
+    }
+    let mut sys = sysinfo::System::new_all();
+    sys.refresh_memory();
+    let total = sys.total_memory() / 1024 / 1024;
+    if total >= 24576 {
+        10240
+    } else if total >= 15360 {
+        8192
+    } else if total >= 11264 {
+        6144
+    } else {
+        std::cmp::min(std::cmp::max(total * 6 / 10, 4096), 6144) as i64
+    }
+}
+
+#[tauri::command]
+pub async fn instance_cancel_import(state: State<'_, AppState>) -> AppResult<()> {
+    state.import_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+    Ok(())
+}
+
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_import_modpack(
@@ -450,6 +474,7 @@ pub async fn instance_import_modpack(
     icon: Option<String>,
     ram_mb: Option<i64>,
 ) -> AppResult<ProfileRow> {
+    state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     tracing::info!(file_path = %file_path, profile_name = %profile_name, mc_version = %mc_version, loader = %loader, "instance_import_modpack called");
     let file = std::fs::File::open(&file_path).map_err(|e| {
         tracing::error!(file_path = %file_path, error = %e, "failed to open modpack zip");
@@ -626,7 +651,20 @@ pub async fn instance_import_modpack(
         "status": format!("Preparando download de {} mods...", total_files)
     }));
 
+    use futures_util::StreamExt;
+
     for (idx, cf_file) in manifest.files.iter().enumerate() {
+        if state.import_cancel.load(std::sync::atomic::Ordering::SeqCst) {
+            tracing::info!("import cancelled by user at mod {}/{}", idx, total_files);
+            let _ = app.emit("modpack-progress", serde_json::json!({
+                "phase": "cancelled",
+                "current": idx,
+                "total": total_files,
+                "status": "Importação cancelada pelo usuário."
+            }));
+            break;
+        }
+
         let project_id_str = cf_file.project_id.to_string();
         let file_id_str = cf_file.file_id.to_string();
         let progress_pct = ((idx as f64 / total_files as f64) * 100.0) as u32;
@@ -640,149 +678,181 @@ pub async fn instance_import_modpack(
         }));
 
         let file_info = file_infos.get(&cf_file.file_id);
-        let download_url = if let Some(info) = file_info {
+
+        // Build a prioritized list of download URLs (best → worst).
+        // KEY FIX: The batch API returns downloadUrl=null for mods whose authors
+        // opted out of the CurseForge CDN. We must call the individual endpoint
+        // to get a real URL for those mods.
+        let mut urls_to_try: Vec<String> = Vec::new();
+
+        // 1. Individual API call — most reliable, handles opt-out mods
+        match crate::core::mods::curseforge::get_download_url(
+            &state.http, &project_id_str, &file_id_str,
+        ).await {
+            Ok(url) if !url.is_empty() => { urls_to_try.push(url); }
+            _ => {}
+        }
+
+        // 2. Batch-resolved direct download URL
+        if let Some(info) = file_info {
             if let Some(ref dl) = info.download_url {
-                dl.clone()
-            } else {
-                let p1 = cf_file.file_id / 1000;
-                let p2 = cf_file.file_id % 1000;
-                format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name))
-            }
-        } else {
-            match crate::core::mods::curseforge::get_download_url(
-                &state.http,
-                &project_id_str,
-                &file_id_str,
-            ).await {
-                Ok(url) => url,
-                Err(e) => {
-                    tracing::warn!(project_id = %project_id_str, error = %e, "skipping mod: could not get download url");
-                    mods_fail += 1;
-                    continue;
+                if !dl.is_empty() && !urls_to_try.contains(dl) {
+                    urls_to_try.push(dl.clone());
                 }
             }
-        };
+        }
 
-        let edge_url = if let Some(info) = file_info {
+        // 3. Edge CDN with exact file name
+        if let Some(info) = file_info {
             let p1 = cf_file.file_id / 1000;
             let p2 = cf_file.file_id % 1000;
-            Some(format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name)))
-        } else if let Some(display_name) = mod_names.get(&cf_file.project_id) {
+            let edge = format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name));
+            if !urls_to_try.contains(&edge) { urls_to_try.push(edge); }
+            let media = format!("https://mediafilez.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name));
+            if !urls_to_try.contains(&media) { urls_to_try.push(media); }
+        }
+
+        // 4. Edge CDN guessed from mod display name (final fallback)
+        if let Some(display_name) = mod_names.get(&cf_file.project_id) {
             let p1 = cf_file.file_id / 1000;
             let p2 = cf_file.file_id % 1000;
-            Some(format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(display_name)))
-        } else {
-            None
-        };
+            let guess = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(display_name));
+            if !urls_to_try.contains(&guess) { urls_to_try.push(guess); }
+        }
 
-        let resp_res = state.http.get(&download_url).send().await;
-        let resp = match resp_res {
-            Ok(r) if r.status().is_success() => r,
-            _ => {
-                if let Some(ref edge) = edge_url {
-                    if edge != &download_url {
-                        match state.http.get(edge).send().await {
-                            Ok(r) if r.status().is_success() => r,
-                            _ => { mods_fail += 1; tracing::warn!(project_id = %project_id_str, "skip: both direct and edge download failed"); continue; }
-                        }
-                    } else {
-                        mods_fail += 1; tracing::warn!(project_id = %project_id_str, "skip: edge download failed"); continue;
-                    }
-                } else {
-                    mods_fail += 1; tracing::warn!(project_id = %project_id_str, "skip: download failed"); continue;
-                }
-            }
-        };
+        if urls_to_try.is_empty() {
+            tracing::warn!(project_id = %project_id_str, file_id = %file_id_str, "no download URLs available, skipping");
+            mods_fail += 1;
+            continue;
+        }
 
-        use futures_util::StreamExt;
+        // Determine filename for file creation
         let filename = if let Some(info) = file_info {
             info.file_name.clone()
         } else if let Some(display_name) = mod_names.get(&cf_file.project_id) {
-            let safe_name = display_name.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' }).collect::<String>();
-            format!("{}.jar", safe_name)
+            let safe = display_name.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' }).collect::<String>();
+            format!("{}.jar", safe)
         } else {
             format!("{}_{}.jar", project_id_str, file_id_str)
         };
         let file_path = mods_dir.join(&filename);
         let storage_path = storage_mods_dir.join(&filename);
 
-        let mut file = match tokio::fs::File::create(&file_path).await {
-            Ok(f) => f,
-            Err(e) => { mods_fail += 1; tracing::warn!(error = %e, "skip: cannot create file"); continue; }
-        };
-        let mut storage_file = tokio::fs::File::create(&storage_path).await.ok();
+        // Try each URL in order, stop on first successful valid jar download
+        let mut downloaded_ok = false;
+        let mut total_bytes: u64;
 
-        let mut stream = resp.bytes_stream();
-        let mut total_bytes: u64 = 0;
-        while let Some(chunk) = stream.next().await {
-            match chunk {
-                Ok(bytes) => {
-                    total_bytes += bytes.len() as u64;
-                    let _ = tokio::io::AsyncWriteExt::write_all(&mut file, &bytes).await;
-                    if let Some(ref mut sf) = storage_file {
-                        let _ = tokio::io::AsyncWriteExt::write_all(sf, &bytes).await;
-                    }
+        'url_loop: for (url_idx, try_url) in urls_to_try.iter().enumerate() {
+            tracing::debug!(
+                project_id = %project_id_str, file_id = %file_id_str,
+                attempt = url_idx + 1, url = %try_url, "downloading mod"
+            );
+
+            let resp = match state.http.get(try_url).send().await {
+                Ok(r) if r.status().is_success() => r,
+                Ok(r) => {
+                    tracing::debug!(url = %try_url, status = %r.status(), "non-success, trying next");
+                    continue 'url_loop;
                 }
                 Err(e) => {
-                    tracing::warn!(project_id = %project_id_str, error = %e, "stream error mid-download");
-                    break;
+                    tracing::debug!(url = %try_url, error = %e, "request error, trying next");
+                    continue 'url_loop;
                 }
-            }
-        }
-        drop(file);
-        drop(storage_file);
-
-        let mut final_filename = filename;
-        if final_filename.starts_with(&project_id_str) {
-            if let Some(real_name) = crate::commands::mods::extract_mod_name_from_jar(&file_path) {
-                let safe = real_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
-                let new_filename = format!("{}.jar", safe);
-                let new_path = mods_dir.join(&new_filename);
-                let new_storage_path = storage_mods_dir.join(&new_filename);
-                if new_path != file_path {
-                    let _ = tokio::fs::rename(&file_path, &new_path).await;
-                    let _ = tokio::fs::rename(&storage_path, &new_storage_path).await;
-                    final_filename = new_filename;
-                }
-            }
-        }
-
-        let is_valid_jar = if total_bytes > 200 {
-            if let Ok(test_f) = std::fs::File::open(&file_path) {
-                zip::ZipArchive::new(std::io::BufReader::new(test_f)).is_ok()
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-        if !is_valid_jar {
-            tracing::warn!(
-                file = %final_filename,
-                size = total_bytes,
-                "Downloaded file is not a valid zip/jar, discarding to prevent JVM boot crash"
-            );
-            let _ = tokio::fs::remove_file(&file_path).await;
-            let _ = tokio::fs::remove_file(&storage_path).await;
-            mods_fail += 1;
-            continue;
-        }
-
-        if let Ok(db) = crate::db::shared_db().await {
-            let mod_row = crate::db::schema::mods::ModRow {
-                profile_id: profile_id.clone(),
-                project_id: project_id_str,
-                version_id: file_id_str,
-                file_name: final_filename,
-                sha1: String::new(),
-                source: "curseforge".into(),
-                installed_at: String::new(),
             };
-            let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+
+            let mut out_file = match tokio::fs::File::create(&file_path).await {
+                Ok(f) => f,
+                Err(e) => { tracing::warn!(error = %e, "cannot create output file"); continue 'url_loop; }
+            };
+            let mut storage_file = tokio::fs::File::create(&storage_path).await.ok();
+
+            let mut stream = resp.bytes_stream();
+            total_bytes = 0;
+            let mut stream_err = false;
+            while let Some(chunk) = stream.next().await {
+                match chunk {
+                    Ok(bytes) => {
+                        total_bytes += bytes.len() as u64;
+                        if tokio::io::AsyncWriteExt::write_all(&mut out_file, &bytes).await.is_err() {
+                            stream_err = true;
+                            break;
+                        }
+                        if let Some(ref mut sf) = storage_file {
+                            let _ = tokio::io::AsyncWriteExt::write_all(sf, &bytes).await;
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!(url = %try_url, error = %e, "stream error mid-download");
+                        stream_err = true;
+                        break;
+                    }
+                }
+            }
+            drop(out_file);
+            drop(storage_file);
+
+            if stream_err || total_bytes < 100 {
+                tracing::debug!(url = %try_url, bytes = total_bytes, "incomplete download, trying next");
+                let _ = tokio::fs::remove_file(&file_path).await;
+                let _ = tokio::fs::remove_file(&storage_path).await;
+                continue 'url_loop;
+            }
+
+            let is_valid = if let Ok(test_f) = std::fs::File::open(&file_path) {
+                zip::ZipArchive::new(std::io::BufReader::new(test_f)).is_ok()
+            } else { false };
+
+            if !is_valid {
+                tracing::debug!(url = %try_url, bytes = total_bytes, "not a valid jar, trying next");
+                let _ = tokio::fs::remove_file(&file_path).await;
+                let _ = tokio::fs::remove_file(&storage_path).await;
+                continue 'url_loop;
+            }
+
+            // Valid jar downloaded — rename if using generic fallback name
+            let mut final_filename = filename.clone();
+            if final_filename.starts_with(&project_id_str) {
+                if let Some(real_name) = crate::commands::mods::extract_mod_name_from_jar(&file_path) {
+                    let safe = real_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+                    let new_filename = format!("{}.jar", safe);
+                    let new_path = mods_dir.join(&new_filename);
+                    let new_storage_path = storage_mods_dir.join(&new_filename);
+                    if new_path != file_path {
+                        let _ = tokio::fs::rename(&file_path, &new_path).await;
+                        let _ = tokio::fs::rename(&storage_path, &new_storage_path).await;
+                        final_filename = new_filename;
+                    }
+                }
+            }
+
+            if let Ok(db) = crate::db::shared_db().await {
+                let mod_row = crate::db::schema::mods::ModRow {
+                    profile_id: profile_id.clone(),
+                    project_id: project_id_str.clone(),
+                    version_id: file_id_str.clone(),
+                    file_name: final_filename,
+                    sha1: String::new(),
+                    source: "curseforge".into(),
+                    installed_at: String::new(),
+                };
+                let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+            }
+
+            tracing::debug!(idx = idx + 1, total = total_files, bytes = total_bytes, attempt = url_idx + 1, "mod downloaded ok");
+            downloaded_ok = true;
+            break 'url_loop;
         }
-        mods_ok += 1;
-        tracing::debug!(idx = idx + 1, total = total_files, bytes = total_bytes, "mod downloaded");
+
+        if downloaded_ok {
+            mods_ok += 1;
+        } else {
+            tracing::warn!(
+                project_id = %project_id_str, file_id = %file_id_str,
+                urls_tried = urls_to_try.len(),
+                "all download attempts exhausted for mod"
+            );
+            mods_fail += 1;
+        }
     }
 
     let _ = app.emit("modpack-progress", serde_json::json!({
@@ -816,7 +886,7 @@ pub async fn instance_import_modpack(
         launch_count: 0,
         mod_count: manifest.files.len() as i64,
         disk_usage: 0,
-        ram_mb: Some(ram_mb.unwrap_or(4096)),
+        ram_mb: Some(smart_modpack_ram(ram_mb)),
         instance_group: None,
         auto_optimize: true,
         use_vulkan: false,
@@ -1225,7 +1295,7 @@ pub async fn instance_import_mrpack(
 		launch_count: 0,
 		mod_count: installed_mods_count as i64,
 		disk_usage: 0,
-		ram_mb: Some(ram_mb.unwrap_or(4096)),
+		ram_mb: Some(smart_modpack_ram(ram_mb)),
 		instance_group: None,
 		auto_optimize: true,
 		use_vulkan: false,

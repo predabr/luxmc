@@ -348,7 +348,7 @@ pub async fn auth_change_skin(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Account not found: {}", uuid)))?;
 
-    let norm_variant = if variant == "slim" { "slim" } else { "classic" };
+    let norm_variant = if variant == "slim" || variant == "alex" { "slim" } else { "classic" };
 
     let mut updated = account.clone();
     updated.skin_url = Some(skin_url.clone());

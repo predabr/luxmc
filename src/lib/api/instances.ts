@@ -196,6 +196,10 @@ export async function instanceImportModpack(
 	return api.invoke("instance_import_modpack", { filePath, profileName, mcVersion, loader, icon, ramMb });
 }
 
+export async function instanceCancelImport(): Promise<void> {
+	return api.invoke("instance_cancel_import");
+}
+
 export async function instanceImportMrpack(
 	filePath: string,
 	profileName: string,

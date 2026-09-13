@@ -470,7 +470,8 @@
 
 		if (account.value?.username) {
 			const uName = account.value.username;
-			let preferSkinUrl = account.value.skinUrl || activeSkinStore.current.skinUrl || `https://minotar.net/skin/${uName}`;
+			const hasOfficialSkin = Boolean(account.value.skinUrl);
+			let preferSkinUrl = account.value.skinUrl || `https://minotar.net/skin/${uName}`;
 			if (preferSkinUrl.startsWith("http://")) {
 				preferSkinUrl = preferSkinUrl.replace("http://", "https://");
 			}
@@ -492,11 +493,11 @@
 				savedSkins = [officialSkin, ...savedSkins].slice(0, 25);
 			}
 
-			if (!activeSkinStore.current.skinUrl || activeSkinStore.current.skinUrl.includes("/skin/Steve")) {
+			if (!activeSkinStore.current.skinUrl && hasOfficialSkin) {
 				applySkin(officialSkin, true);
 			}
 
-			if (preferCapeUrl) {
+			if (preferCapeUrl && !activeSkinStore.current.customCapeUrl) {
 				selectedCape = "custom";
 				activeSkinStore.setCape("custom", preferCapeUrl);
 			}

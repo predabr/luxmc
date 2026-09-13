@@ -171,8 +171,18 @@
 </script>
 
 {#if isOpen}
-	<div class="rounded-3xl bg-[#141518] border border-white/10 p-6 shadow-2xl space-y-6 select-none" in:fade={{ duration: 200 }}>
-		<div class="flex items-center justify-between border-b border-white/5 pb-4">
+	<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto"
+		transition:fade={{ duration: 150 }}
+		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+		onkeydown={(e) => { if (e.key === "Escape") handleClose(); }}
+		role="dialog"
+		tabindex="-1"
+		aria-modal="true"
+	>
+		<div class="rounded-3xl bg-[#141518] border border-white/10 p-6 shadow-2xl space-y-6 select-none max-w-4xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar my-auto" in:fade={{ duration: 200 }}>
+			<div class="flex items-center justify-between border-b border-white/5 pb-4">
 			<div>
 				<h3 class="text-lg font-black text-white flex items-center gap-2">
 					<Sparkles class="w-5 h-5 text-brand-500" /> Criar Nova Instância
@@ -424,4 +434,5 @@
 			</div>
 		{/if}
 	</div>
+</div>
 {/if}
