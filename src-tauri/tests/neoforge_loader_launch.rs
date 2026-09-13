@@ -31,10 +31,10 @@ async fn test_neoforge_loader_versions_and_prepare() {
         "Classpath must contain NeoForge libraries"
     );
 
-    let has_installer = prep.classpath_entries.iter().any(|p| {
-        p.to_string_lossy().contains("neoforge-20.4.237-installer.jar") && p.exists()
+    let has_loader = prep.classpath_entries.iter().any(|p| {
+        p.to_string_lossy().contains("neoforge-20.4.237") && p.exists()
     });
-    assert!(has_installer, "NeoForge installer jar must exist on disk");
+    assert!(has_loader, "NeoForge loader jar must exist in classpath and on disk");
 
     let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 }

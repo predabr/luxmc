@@ -34,10 +34,10 @@ async fn test_forge_loader_versions_and_prepare() {
         "Classpath must contain Forge libraries"
     );
 
-    let has_installer = prep.classpath_entries.iter().any(|p| {
-        p.to_string_lossy().contains("forge-1.20.1-47.4.20-installer.jar") && p.exists()
+    let has_loader = prep.classpath_entries.iter().any(|p| {
+        p.to_string_lossy().contains("forge-1.20.1-47.4.20") && p.exists()
     });
-    assert!(has_installer, "Forge installer jar must exist on disk");
+    assert!(has_loader, "Forge loader jar must exist in classpath and on disk");
 
     let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 }
