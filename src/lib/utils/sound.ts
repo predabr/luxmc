@@ -93,3 +93,125 @@ export function playSound(type: "click" | "launch" | "chime" | "warning" | "achi
 	} catch {
 	}
 }
+
+let soundscapeMasterGain: GainNode | null = null;
+let soundscapeInterval: number | null = null;
+let soundscapeNodes: AudioNode[] = [];
+
+export function startSoundscape(mode: "overworld" | "cave" | "end" = "overworld") {
+	try {
+		stopSoundscape();
+		const ctx = getAudioContext();
+		if (!ctx) return;
+
+		const s = settings.value as { soundscapeVolume?: number; soundEnabled?: boolean };
+		if (s?.soundEnabled === false) return;
+		const vol = typeof s?.soundscapeVolume === "number" ? Math.max(0, Math.min(1, s.soundscapeVolume)) : 0.25;
+
+		const master = ctx.createGain();
+		master.gain.setValueAtTime(0, ctx.currentTime);
+		master.gain.linearRampToValueAtTime(vol * 0.4, ctx.currentTime + 2.0);
+		master.connect(ctx.destination);
+		soundscapeMasterGain = master;
+
+		const freqs = mode === "cave" 
+			? [65.41, 98.0, 130.81, 146.83]
+			: mode === "end"
+			? [55.0, 110.0, 164.81, 220.0]
+			: [130.81, 164.81, 196.0, 246.94];
+
+		freqs.forEach((freq, idx) => {
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+			const filter = ctx.createBiquadFilter();
+
+			osc.type = mode === "cave" ? "triangle" : "sine";
+			osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+			filter.type = "lowpass";
+			filter.frequency.setValueAtTime(mode === "cave" ? 300 : 800, ctx.currentTime);
+
+			gain.gain.setValueAtTime(0.08 / (idx + 1), ctx.currentTime);
+
+			osc.connect(filter);
+			filter.connect(gain);
+			gain.connect(master);
+			osc.start();
+
+			soundscapeNodes.push(osc, gain, filter);
+		});
+
+		soundscapeInterval = window.setInterval(() => {
+			if (!soundscapeMasterGain) return;
+			try {
+				const now = ctx.currentTime;
+				const chimeOsc = ctx.createOscillator();
+				const chimeGain = ctx.createGain();
+				const chimeFilter = ctx.createBiquadFilter();
+
+				const scale = mode === "cave"
+					? [130.81, 146.83, 164.81, 196.0, 220.0]
+					: mode === "end"
+					? [220.0, 246.94, 277.18, 329.63, 440.0]
+					: [261.63, 293.66, 329.63, 392.0, 440.0, 523.25];
+
+				const note = scale[Math.floor(Math.random() * scale.length)];
+				chimeOsc.type = "sine";
+				chimeOsc.frequency.setValueAtTime(note, now);
+
+				chimeFilter.type = "bandpass";
+				chimeFilter.frequency.setValueAtTime(note, now);
+				chimeFilter.Q.setValueAtTime(3.0, now);
+
+				chimeGain.gain.setValueAtTime(0, now);
+				chimeGain.gain.linearRampToValueAtTime(0.05, now + 0.4);
+				chimeGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.5);
+
+				chimeOsc.connect(chimeFilter);
+				chimeFilter.connect(chimeGain);
+				chimeGain.connect(soundscapeMasterGain);
+
+				chimeOsc.start(now);
+				chimeOsc.stop(now + 3.6);
+			} catch {}
+		}, 4500);
+
+	} catch {}
+}
+
+export function stopSoundscape() {
+	try {
+		if (soundscapeInterval) {
+			clearInterval(soundscapeInterval);
+			soundscapeInterval = null;
+		}
+		if (soundscapeMasterGain) {
+			soundscapeMasterGain.gain.linearRampToValueAtTime(0, (audioCtx?.currentTime || 0) + 1.0);
+			setTimeout(() => {
+				soundscapeNodes.forEach((node) => {
+					try {
+						if ("stop" in node && typeof (node as any).stop === "function") {
+							(node as any).stop();
+						}
+						node.disconnect();
+					} catch {}
+				});
+				soundscapeNodes = [];
+				soundscapeMasterGain?.disconnect();
+				soundscapeMasterGain = null;
+			}, 1100);
+		}
+	} catch {}
+}
+
+export function setSoundscapeVolume(volume: number) {
+	if (soundscapeMasterGain && audioCtx) {
+		const vol = Math.max(0, Math.min(1, volume));
+		soundscapeMasterGain.gain.linearRampToValueAtTime(vol * 0.4, audioCtx.currentTime + 0.1);
+	}
+}
+
+export function isSoundscapeActive(): boolean {
+	return soundscapeMasterGain !== null;
+}
+

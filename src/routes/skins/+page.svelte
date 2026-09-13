@@ -671,6 +671,116 @@
 		activeTab = "wardrobe";
 	}
 
+	function normalizeSkinCanvas(canvas: HTMLCanvasElement, isSlim: boolean) {
+		const ctx = canvas.getContext("2d", { willReadFrequently: true });
+		if (!ctx) return;
+		const w = canvas.width;
+		const h = canvas.height;
+		const scale = Math.max(1, Math.floor(w / 64));
+		const imgData = ctx.getImageData(0, 0, w, h);
+		const data = imgData.data;
+
+		const getPixel = (x: number, y: number): [number, number, number, number] => {
+			if (x < 0 || x >= w || y < 0 || y >= h) return [0, 0, 0, 0];
+			const idx = (y * w + x) * 4;
+			return [data[idx], data[idx + 1], data[idx + 2], data[idx + 3]];
+		};
+
+		const setPixel = (x: number, y: number, r: number, g: number, b: number, a = 255) => {
+			if (x < 0 || x >= w || y < 0 || y >= h) return;
+			const idx = (y * w + x) * 4;
+			data[idx] = r;
+			data[idx + 1] = g;
+			data[idx + 2] = b;
+			data[idx + 3] = a;
+		};
+
+		let fallbackR = 210, fallbackG = 165, fallbackB = 130;
+		for (const [sx, sy] of [[24 * scale, 24 * scale], [12 * scale, 12 * scale]]) {
+			const [r, g, b, a] = getPixel(sx, sy);
+			if (a > 200 && (r > 60 || g > 60 || b > 60)) {
+				fallbackR = r; fallbackG = g; fallbackB = b;
+				break;
+			}
+		}
+
+		const isBlackOrEmpty = (r: number, g: number, b: number, a: number) => {
+			if (a < 220) return true;
+			if (r === 0 && g === 0 && b === 0) return true;
+			if (r === 45 && g === 45 && b === 45) return true;
+			if (r === 40 && g === 30 && b === 25) return true;
+			return false;
+		};
+
+		const armWidth = isSlim ? 3 : 4;
+		const rBackStartX = isSlim ? 51 : 52;
+		for (let dy = 0; dy < 12 * scale; dy++) {
+			for (let dx = 0; dx < armWidth * scale; dx++) {
+				const bx = rBackStartX * scale + dx;
+				const by = 20 * scale + dy;
+				const [r, g, b, a] = getPixel(bx, by);
+				if (isBlackOrEmpty(r, g, b, a)) {
+					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
+					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else {
+						const [fr, fg, fb, fa] = getPixel(44 * scale + dx, by);
+						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+							setPixel(bx, by, fr, fg, fb, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					}
+				}
+			}
+		}
+
+		const lBackStartX = isSlim ? 43 : 44;
+		for (let dy = 0; dy < 12 * scale; dy++) {
+			for (let dx = 0; dx < armWidth * scale; dx++) {
+				const bx = lBackStartX * scale + dx;
+				const by = 52 * scale + dy;
+				const [r, g, b, a] = getPixel(bx, by);
+				if (isBlackOrEmpty(r, g, b, a)) {
+					const [or, og, ob, oa] = getPixel(bx + 16 * scale, by);
+					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else {
+						const [fr, fg, fb, fa] = getPixel(36 * scale + dx, by);
+						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+							setPixel(bx, by, fr, fg, fb, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					}
+				}
+			}
+		}
+
+		for (let dy = 0; dy < 12 * scale; dy++) {
+			for (let dx = 0; dx < 8 * scale; dx++) {
+				const bx = 32 * scale + dx;
+				const by = 20 * scale + dy;
+				const [r, g, b, a] = getPixel(bx, by);
+				if (isBlackOrEmpty(r, g, b, a)) {
+					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
+					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else {
+						const [fr, fg, fb, fa] = getPixel(20 * scale + dx, by);
+						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+							setPixel(bx, by, fr, fg, fb, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					}
+				}
+			}
+		}
+
+		ctx.putImageData(imgData, 0, 0);
+	}
+
 	function handleFileUpload(e: Event) {
 		const target = e.target as HTMLInputElement;
 		const file = target.files?.[0];
@@ -701,11 +811,42 @@
 				const avatarDataUrl = canvas.toDataURL();
 				const cleanName = file.name.replace(/\.png$/i, "");
 
+				let finalSkinUrl = dataUrl;
+				const normCanvas = document.createElement("canvas");
+				normCanvas.width = 64;
+				normCanvas.height = 64;
+				const nctx = normCanvas.getContext("2d");
+				if (nctx) {
+					nctx.imageSmoothingEnabled = false;
+					if (img.width === 2 * img.height) {
+						nctx.drawImage(img, 0, 0, 64, 32);
+						nctx.save();
+						nctx.scale(-1, 1);
+						nctx.drawImage(normCanvas, 4, 16, 4, 4, -20 - 4, 48, 4, 4);
+						nctx.drawImage(normCanvas, 8, 16, 4, 4, -24 - 4, 48, 4, 4);
+						nctx.drawImage(normCanvas, 0, 20, 4, 12, -24 - 4, 52, 4, 12);
+						nctx.drawImage(normCanvas, 4, 20, 4, 12, -20 - 4, 52, 4, 12);
+						nctx.drawImage(normCanvas, 8, 20, 4, 12, -16 - 4, 52, 4, 12);
+						nctx.drawImage(normCanvas, 12, 20, 4, 12, -28 - 4, 52, 4, 12);
+						nctx.drawImage(normCanvas, 44, 16, 4, 4, -36 - 4, 48, 4, 4);
+						nctx.drawImage(normCanvas, 48, 16, 4, 4, -40 - 4, 48, 4, 4);
+						nctx.drawImage(normCanvas, 40, 20, 4, 12, -40 - 4, 52, 4, 12);
+						nctx.drawImage(normCanvas, 44, 20, 4, 12, -36 - 4, 52, 4, 12);
+						nctx.drawImage(normCanvas, 48, 20, 4, 12, -32 - 4, 52, 4, 12);
+						nctx.drawImage(normCanvas, 52, 20, 4, 12, -44 - 4, 52, 4, 12);
+						nctx.restore();
+					} else {
+						nctx.drawImage(img, 0, 0, 64, 64);
+					}
+					normalizeSkinCanvas(normCanvas, isSlimModel);
+					finalSkinUrl = normCanvas.toDataURL("image/png");
+				}
+
 				const newSkin: SkinItem = {
 					id: "custom_" + Date.now(),
 					name: cleanName,
 					url: avatarDataUrl,
-					skinUrl: dataUrl,
+					skinUrl: finalSkinUrl,
 					avatarUrl: avatarDataUrl,
 					type: isSlimModel ? "alex" : "steve",
 					custom: true
@@ -716,7 +857,7 @@
 				skinsSave({
 					id: newSkin.id,
 					name: cleanName,
-					skinUrl: dataUrl,
+					skinUrl: finalSkinUrl,
 					avatarUrl: avatarDataUrl,
 					modelType: isSlimModel ? "alex" : "steve",
 					isCustom: true

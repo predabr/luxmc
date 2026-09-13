@@ -1533,12 +1533,194 @@ pub async fn instance_set_favorite(
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct WorldPlayerItem {
+    pub slot: i32,
+    pub id: String,
+    pub count: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct WorldDetail {
     pub name: String,
     pub folder_name: String,
     pub icon_base64: Option<String>,
     pub last_played: Option<i64>,
     pub game_mode: Option<String>,
+    pub size_bytes: u64,
+    pub seed: Option<i64>,
+    pub spawn_x: Option<i32>,
+    pub spawn_y: Option<i32>,
+    pub spawn_z: Option<i32>,
+    pub version_name: Option<String>,
+    pub difficulty: Option<String>,
+    pub hardcore: Option<bool>,
+    pub player_health: Option<f32>,
+    pub player_level: Option<i32>,
+    pub day_count: Option<i64>,
+    pub snapshots_count: Option<usize>,
+    pub player_inventory: Option<Vec<WorldPlayerItem>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct LevelDatRoot {
+    #[serde(rename = "Data")]
+    data: Option<LevelDataCompound>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct LevelDataCompound {
+    #[serde(rename = "LevelName")]
+    level_name: Option<String>,
+    #[serde(rename = "GameType")]
+    game_type: Option<i32>,
+    hardcore: Option<u8>,
+    #[serde(rename = "SpawnX")]
+    spawn_x: Option<i32>,
+    #[serde(rename = "SpawnY")]
+    spawn_y: Option<i32>,
+    #[serde(rename = "SpawnZ")]
+    spawn_z: Option<i32>,
+    #[serde(rename = "RandomSeed")]
+    random_seed: Option<i64>,
+    #[serde(rename = "WorldGenSettings")]
+    world_gen_settings: Option<WorldGenSettingsCompound>,
+    #[serde(rename = "Time")]
+    time: Option<i64>,
+    #[serde(rename = "DayTime")]
+    day_time: Option<i64>,
+    #[serde(rename = "Difficulty")]
+    difficulty: Option<u8>,
+    #[serde(rename = "Version")]
+    version: Option<VersionCompound>,
+    #[serde(rename = "Player")]
+    player: Option<PlayerDataCompound>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct WorldGenSettingsCompound {
+    seed: Option<i64>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct VersionCompound {
+    #[serde(rename = "Name")]
+    name: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct NbtInventoryItem {
+    #[serde(rename = "Slot", default)]
+    slot: Option<i8>,
+    #[serde(rename = "id", default)]
+    id: Option<String>,
+    #[serde(rename = "Count", default)]
+    count_byte: Option<i8>,
+    #[serde(rename = "count", default)]
+    count_int: Option<i32>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct PlayerDataCompound {
+    #[serde(rename = "Health")]
+    health: Option<f32>,
+    #[serde(rename = "XpLevel")]
+    xp_level: Option<i32>,
+    #[serde(rename = "Inventory", default)]
+    inventory: Option<Vec<NbtInventoryItem>>,
+}
+
+fn parse_level_dat(level_dat_path: &std::path::Path) -> Option<LevelDataCompound> {
+    use std::io::Read;
+    let file = std::fs::File::open(level_dat_path).ok()?;
+    let mut decoder = flate2::read::GzDecoder::new(file);
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed).ok()?;
+    let root: LevelDatRoot = fastnbt::from_bytes(&decompressed).ok()?;
+    root.data
+}
+
+fn parse_player_inventory(
+    player_data: Option<&PlayerDataCompound>,
+    world_dir: &std::path::Path,
+) -> Option<Vec<WorldPlayerItem>> {
+    let mut raw_items = player_data
+        .and_then(|p| p.inventory.clone())
+        .unwrap_or_default();
+
+    if raw_items.is_empty() {
+        let playerdata_dir = world_dir.join("playerdata");
+        if playerdata_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&playerdata_dir) {
+                let mut best_file: Option<std::path::PathBuf> = None;
+                let mut best_time = std::time::UNIX_EPOCH;
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().and_then(|e| e.to_str()) == Some("dat") {
+                        if let Ok(meta) = path.metadata() {
+                            if let Ok(mtime) = meta.modified() {
+                                if mtime > best_time {
+                                    best_time = mtime;
+                                    best_file = Some(path);
+                                }
+                            }
+                        }
+                    }
+                }
+                if let Some(p) = best_file {
+                    use std::io::Read;
+                    if let Ok(file) = std::fs::File::open(&p) {
+                        let mut decoder = flate2::read::GzDecoder::new(file);
+                        let mut decompressed = Vec::new();
+                        if decoder.read_to_end(&mut decompressed).is_ok() {
+                            if let Ok(player) = fastnbt::from_bytes::<PlayerDataCompound>(&decompressed) {
+                                if let Some(inv) = player.inventory {
+                                    raw_items = inv;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if raw_items.is_empty() {
+        return None;
+    }
+
+    let mut items: Vec<WorldPlayerItem> = raw_items
+        .into_iter()
+        .filter_map(|it| {
+            let id = it.id?;
+            if id.is_empty() {
+                return None;
+            }
+            let count = it
+                .count_int
+                .or_else(|| it.count_byte.map(|b| b as i32))
+                .unwrap_or(1);
+            let slot = it.slot.map(|s| s as i32).unwrap_or(0);
+            Some(WorldPlayerItem { slot, id, count })
+        })
+        .collect();
+
+    items.sort_by_key(|it| it.slot);
+    if items.is_empty() {
+        None
+    } else {
+        Some(items)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldSnapshotInfo {
+    pub id: String,
+    pub filename: String,
+    pub folder_name: String,
+    pub label: String,
+    pub created_at: i64,
     pub size_bytes: u64,
 }
 
@@ -1558,6 +1740,7 @@ pub async fn instance_worlds_list(
         })?;
 
     let saves_dir = std::path::PathBuf::from(&row.game_dir).join("saves");
+    let snapshots_base = std::path::PathBuf::from(&row.game_dir).join("snapshots");
     let mut list = Vec::new();
 
     if saves_dir.is_dir() {
@@ -1569,7 +1752,7 @@ pub async fn instance_worlds_list(
                         .file_name()
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_default();
-                    let world_name = folder_name.clone();
+                    let mut world_name = folder_name.clone();
 
                     let icon_path = path.join("icon.png");
                     let icon_base64 = if icon_path.exists() {
@@ -1595,13 +1778,93 @@ pub async fn instance_worlds_list(
                         .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                         .map(|d| d.as_secs() as i64);
 
+                    let mut game_mode = "Sobrevivência".to_string();
+                    let mut seed = None;
+                    let mut spawn_x = None;
+                    let mut spawn_y = None;
+                    let mut spawn_z = None;
+                    let mut version_name = None;
+                    let mut difficulty = None;
+                    let mut hardcore = None;
+                    let mut player_health = None;
+                    let mut player_level = None;
+                    let mut day_count = None;
+                    let mut player_inventory = None;
+
+                    let level_dat_path = path.join("level.dat");
+                    if level_dat_path.is_file() {
+                        if let Some(data) = parse_level_dat(&level_dat_path) {
+                            if let Some(lvl_name) = data.level_name {
+                                if !lvl_name.trim().is_empty() {
+                                    world_name = lvl_name;
+                                }
+                            }
+
+                            if data.hardcore == Some(1) {
+                                game_mode = "Hardcore".to_string();
+                                hardcore = Some(true);
+                            } else {
+                                game_mode = match data.game_type {
+                                    Some(1) => "Criativo".to_string(),
+                                    Some(2) => "Aventura".to_string(),
+                                    Some(3) => "Espectador".to_string(),
+                                    _ => "Sobrevivência".to_string(),
+                                };
+                                hardcore = Some(false);
+                            }
+
+                            seed = data.random_seed.or_else(|| data.world_gen_settings.and_then(|w| w.seed));
+                            spawn_x = data.spawn_x;
+                            spawn_y = data.spawn_y;
+                            spawn_z = data.spawn_z;
+                            version_name = data.version.and_then(|v| v.name);
+                            difficulty = match data.difficulty {
+                                Some(0) => Some("Pacífico".to_string()),
+                                Some(1) => Some("Fácil".to_string()),
+                                Some(2) => Some("Normal".to_string()),
+                                Some(3) => Some("Difícil".to_string()),
+                                _ => None,
+                            };
+                            player_health = data.player.as_ref().and_then(|p| p.health);
+                            player_level = data.player.as_ref().and_then(|p| p.xp_level);
+                            day_count = data.day_time.or(data.time).map(|t| (t / 24000).max(1));
+                            player_inventory = parse_player_inventory(data.player.as_ref(), &path);
+                        }
+                    }
+
+                    let world_snapshots_dir = snapshots_base.join(&folder_name);
+                    let snapshots_count = if world_snapshots_dir.is_dir() {
+                        std::fs::read_dir(&world_snapshots_dir)
+                            .ok()
+                            .map(|entries| {
+                                entries
+                                    .flatten()
+                                    .filter(|e| e.path().extension().map_or(false, |ext| ext == "zst"))
+                                    .count()
+                            })
+                    } else {
+                        Some(0)
+                    };
+
                     list.push(WorldDetail {
                         name: world_name,
                         folder_name,
                         icon_base64,
                         last_played,
-                        game_mode: Some("Sobrevivência".to_string()),
+                        game_mode: Some(game_mode),
                         size_bytes: total_size,
+                        seed,
+                        spawn_x,
+                        spawn_y,
+                        spawn_z,
+                        version_name,
+                        difficulty,
+                        hardcore,
+                        player_health,
+                        player_level,
+                        day_count,
+                        snapshots_count,
+                        player_inventory,
                     });
                 }
             }
@@ -1609,6 +1872,173 @@ pub async fn instance_worlds_list(
     }
 
     Ok(list)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_world_snapshot_create(
+    _state: State<'_, AppState>,
+    profileId: String,
+    folderName: String,
+    label: Option<String>,
+) -> AppResult<WorldSnapshotInfo> {
+    if folderName.is_empty() || folderName.contains("..") || folderName.contains('/') || folderName.contains('\\') {
+        return Err(crate::error::AppError::InvalidInput("Invalid folder name".into()));
+    }
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let world_dir = std::path::PathBuf::from(&row.game_dir).join("saves").join(&folderName);
+    if !world_dir.is_dir() {
+        return Err(crate::error::AppError::NotFound("World directory not found".into()));
+    }
+
+    let snapshots_dir = std::path::PathBuf::from(&row.game_dir).join("snapshots").join(&folderName);
+    tokio::fs::create_dir_all(&snapshots_dir).await?;
+
+    let timestamp = chrono::Utc::now().timestamp();
+    let safe_label = label
+        .as_deref()
+        .unwrap_or("Manual")
+        .trim()
+        .replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-', "");
+    let filename = format!("snapshot_{}_{}.tar.zst", timestamp, if safe_label.is_empty() { "Auto" } else { &safe_label });
+    let dest_path = snapshots_dir.join(&filename);
+
+    let file = std::fs::File::create(&dest_path)?;
+    let zstd_writer = zstd::Encoder::new(file, 3)?.auto_finish();
+    let mut tar_builder = tar::Builder::new(zstd_writer);
+    tar_builder.append_dir_all(".", &world_dir)?;
+    tar_builder.finish()?;
+
+    let size_bytes = dest_path.metadata().map(|m| m.len()).unwrap_or(0);
+    Ok(WorldSnapshotInfo {
+        id: format!("{}_{}", folderName, timestamp),
+        filename,
+        folder_name: folderName,
+        label: if safe_label.is_empty() { "Auto".to_string() } else { safe_label },
+        created_at: timestamp,
+        size_bytes,
+    })
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_world_snapshots_list(
+    _state: State<'_, AppState>,
+    profileId: String,
+    folderName: String,
+) -> AppResult<Vec<WorldSnapshotInfo>> {
+    if folderName.is_empty() || folderName.contains("..") || folderName.contains('/') || folderName.contains('\\') {
+        return Err(crate::error::AppError::InvalidInput("Invalid folder name".into()));
+    }
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let snapshots_dir = std::path::PathBuf::from(&row.game_dir).join("snapshots").join(&folderName);
+    let mut list = Vec::new();
+    if snapshots_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&snapshots_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let fname = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                if fname.ends_with(".tar.zst") && fname.starts_with("snapshot_") {
+                    let meta = entry.metadata().ok();
+                    let size_bytes = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+                    let created_at = meta
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs() as i64)
+                        .unwrap_or_else(|| chrono::Utc::now().timestamp());
+
+                    let parts: Vec<&str> = fname.trim_end_matches(".tar.zst").splitn(3, '_').collect();
+                    let label = if parts.len() >= 3 { parts[2].to_string() } else { "Snapshot".to_string() };
+
+                    list.push(WorldSnapshotInfo {
+                        id: fname.clone(),
+                        filename: fname,
+                        folder_name: folderName.clone(),
+                        label,
+                        created_at,
+                        size_bytes,
+                    });
+                }
+            }
+        }
+    }
+
+    list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+    Ok(list)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_world_snapshot_restore(
+    _state: State<'_, AppState>,
+    profileId: String,
+    folderName: String,
+    filename: String,
+) -> AppResult<()> {
+    if folderName.is_empty() || folderName.contains("..") || filename.contains("..") || filename.contains('/') || filename.contains('\\') {
+        return Err(crate::error::AppError::InvalidInput("Invalid arguments".into()));
+    }
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let snapshot_file = std::path::PathBuf::from(&row.game_dir).join("snapshots").join(&folderName).join(&filename);
+    if !snapshot_file.is_file() {
+        return Err(crate::error::AppError::NotFound("Snapshot archive not found".into()));
+    }
+
+    let world_dir = std::path::PathBuf::from(&row.game_dir).join("saves").join(&folderName);
+    if world_dir.is_dir() {
+        let _ = tokio::fs::remove_dir_all(&world_dir).await;
+    }
+    tokio::fs::create_dir_all(&world_dir).await?;
+
+    let file = std::fs::File::open(&snapshot_file)?;
+    let zstd_reader = zstd::Decoder::new(file)?;
+    let mut archive = tar::Archive::new(zstd_reader);
+    archive.unpack(&world_dir)?;
+
+    Ok(())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_world_snapshot_delete(
+    _state: State<'_, AppState>,
+    profileId: String,
+    folderName: String,
+    filename: String,
+) -> AppResult<()> {
+    if folderName.is_empty() || folderName.contains("..") || filename.contains("..") || filename.contains('/') || filename.contains('\\') {
+        return Err(crate::error::AppError::InvalidInput("Invalid arguments".into()));
+    }
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let snapshot_file = std::path::PathBuf::from(&row.game_dir).join("snapshots").join(&folderName).join(&filename);
+    if snapshot_file.is_file() {
+        std::fs::remove_file(&snapshot_file)?;
+    }
+    Ok(())
 }
 
 #[tauri::command]

@@ -218,6 +218,12 @@ export interface HostLinkInfo {
 	directAddress: string;
 }
 
+export interface WorldPlayerItem {
+	slot: number;
+	id: string;
+	count: number;
+}
+
 export interface WorldDetail {
 	name: string;
 	folderName: string;
@@ -225,6 +231,74 @@ export interface WorldDetail {
 	lastPlayed: number | null;
 	gameMode: string | null;
 	sizeBytes: number;
+	seed?: number | null;
+	spawnX?: number | null;
+	spawnY?: number | null;
+	spawnZ?: number | null;
+	versionName?: string | null;
+	difficulty?: string | null;
+	hardcore?: boolean | null;
+	playerHealth?: number | null;
+	playerLevel?: number | null;
+	dayCount?: number | null;
+	snapshotsCount?: number | null;
+	playerInventory?: WorldPlayerItem[] | null;
+}
+
+export interface WorldSnapshotInfo {
+	id: string;
+	filename: string;
+	folderName: string;
+	label: string;
+	createdAt: number;
+	sizeBytes: number;
+}
+
+export interface ShieldThreat {
+	fileName: string;
+	filePath: string;
+	severity: string;
+	threatType: string;
+	description: string;
+}
+
+export interface ShieldScanResult {
+	totalScanned: number;
+	isClean: boolean;
+	threats: ShieldThreat[];
+	scanTimeMs: number;
+}
+
+export interface InstanceMinecraftOptions {
+	gamma: number;
+	fov: number;
+	renderDistance: number;
+	simulationDistance: number;
+	maxFps: number;
+	guiScale: number;
+	fullscreen: boolean;
+	vsync: boolean;
+	autoJump: boolean;
+	bobView: boolean;
+	soundMaster: number;
+	soundMusic: number;
+}
+
+export interface ConfigFileInfo {
+	relativePath: string;
+	content: string;
+	language: string;
+}
+
+export interface GameTelemetrySummary {
+	profileId: string;
+	profileName: string;
+	versionId: string;
+	durationSeconds: number;
+	peakRamMb: number;
+	exitCode: number;
+	cleanExit: boolean;
+	timestamp: string;
 }
 
 export interface DiscordActivityOptions {

@@ -6,6 +6,8 @@
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { schedulePersist } from "$lib/stores/persistence.svelte";
 
+	import { startSoundscape, stopSoundscape, setSoundscapeVolume } from "$lib/utils/sound";
+
 	type Props = {
 		onSave?: () => void;
 	};
@@ -19,6 +21,34 @@
 	let mysticAuraGlow = $state(true);
 	let performanceMode = $state(settings.value.performanceMode ?? false);
 	let quantumParticles = $state(!settings.value.performanceMode);
+	let liveWallpaper = $state(settings.value.liveWallpaper !== false);
+	let soundscapesEnabled = $state(settings.value.soundscapesEnabled !== false);
+	let soundscapeVolume = $state(settings.value.soundscapeVolume ?? 0.2);
+
+	function toggleLiveWallpaper() {
+		liveWallpaper = !liveWallpaper;
+		settings.patch({ liveWallpaper });
+		schedulePersist();
+	}
+
+	function toggleSoundscapes() {
+		soundscapesEnabled = !soundscapesEnabled;
+		settings.patch({ soundscapesEnabled });
+		schedulePersist();
+		if (soundscapesEnabled) {
+			startSoundscape("overworld");
+		} else {
+			stopSoundscape();
+		}
+	}
+
+	function handleSoundscapeVolumeChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		soundscapeVolume = parseFloat(target.value);
+		settings.patch({ soundscapeVolume });
+		schedulePersist();
+		setSoundscapeVolume(soundscapeVolume);
+	}
 
 	function selectTheme(tId: string) {
 		themeStore.setTheme(tId);
@@ -109,6 +139,8 @@
 	<div class="space-y-2">
 		{#each [
 			{ title: 'Aura Mística Neon & Brilho Dourado', desc: 'Glow dinâmico e sombras holográficas nas bordas dos cartões', val: mysticAuraGlow, toggle: () => mysticAuraGlow = !mysticAuraGlow },
+			{ title: 'Live Wallpaper WebGL 3D no Fundo', desc: 'Campo de partículas volumétricas interativo no fundo do launcher', val: liveWallpaper, toggle: toggleLiveWallpaper },
+			{ title: 'Atmosfera Acústica Procedural (Soundscapes)', desc: 'Paisagem sonora ambiente imersiva gerada via Web Audio API', val: soundscapesEnabled, toggle: toggleSoundscapes },
 			{ title: 'Desfoque de Vidro Holográfico (Backdrop-blur)', desc: 'Efeito translúcido com aceleração gráfica na interface', val: blurEffects, toggle: toggleBlur },
 			{ title: 'Animações Fluidas de 144Hz / Alta Taxa de Quadros', desc: 'Transições magnéticas aceleradas com curvas cúbicas suaves', val: smoothAnimations, toggle: toggleAnimations },
 			{ title: 'Partículas Quânticas de Fundo', desc: 'Partículas discretas flutuando no plano de fundo do launcher', val: quantumParticles, toggle: () => quantumParticles = !quantumParticles },
@@ -131,5 +163,23 @@
 				</button>
 			</div>
 		{/each}
+
+		{#if soundscapesEnabled}
+			<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+				<div>
+					<div class="text-xs font-bold text-white">Volume da Atmosfera Acústica</div>
+					<div class="text-[10px] text-white/40">Intensidade do sintetizador de ambiente ({Math.round(soundscapeVolume * 100)}%)</div>
+				</div>
+				<input
+					type="range"
+					min="0.05"
+					max="1"
+					step="0.05"
+					value={soundscapeVolume}
+					oninput={handleSoundscapeVolumeChange}
+					class="w-32 accent-[#e2b86b] cursor-pointer"
+				/>
+			</div>
+		{/if}
 	</div>
 </div>

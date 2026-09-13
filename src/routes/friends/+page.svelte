@@ -419,13 +419,24 @@
 						<span class="bg-[#222328] text-white/50 text-xs px-2 py-0.5 rounded-md font-mono">{friends.length}</span>
 					</div>
 
-					<button 
-						class="p-2 rounded-full bg-[#222328] hover:bg-white/15 text-white transition-all cursor-pointer"
-						onclick={() => showAddModal = !showAddModal}
-						title="Adicionar amigo ou sala"
-					>
-						<UserPlus class="w-4 h-4" />
-					</button>
+					<div class="flex items-center gap-1.5">
+						<a 
+							href="/teamwork-preview"
+							class="px-3 py-1.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+							title="Abrir Central de Teamwork e Squad P2P"
+						>
+							<Users class="w-3.5 h-3.5" />
+							<span>Squad Preview</span>
+						</a>
+
+						<button 
+							class="p-2 rounded-full bg-[#222328] hover:bg-white/15 text-white transition-all cursor-pointer"
+							onclick={() => showAddModal = !showAddModal}
+							title="Adicionar amigo ou sala"
+						>
+							<UserPlus class="w-4 h-4" />
+						</button>
+					</div>
 				</div>
 
 				<div class="bg-[#1c1d22] border border-white/10 p-3 rounded-2xl flex items-center justify-between shadow-inner">

@@ -49,6 +49,21 @@
 		viewer.playerObject.rotation.y = (20 * Math.PI) / 180;
 		viewer.playerObject.skin.setOuterLayerVisible(true);
 
+		// Balanced lighting: ambient + camera light + backlight so the back and arms are brightly rendered
+		viewer.globalLight.intensity = 2.4;
+		viewer.cameraLight.intensity = 0.9;
+		try {
+			const backLight1 = viewer.cameraLight.clone();
+			backLight1.position.set(25, 10, -45);
+			backLight1.intensity = 0.9;
+			viewer.scene.add(backLight1);
+
+			const backLight2 = viewer.cameraLight.clone();
+			backLight2.position.set(-25, 10, -45);
+			backLight2.intensity = 0.9;
+			viewer.scene.add(backLight2);
+		} catch {}
+
 		updateCape();
 
 		resizeObserver = new ResizeObserver((entries) => {
@@ -73,11 +88,155 @@
 		}
 	});
 
+	function healSkinCanvas(canvas: HTMLCanvasElement, isSlim: boolean) {
+		const ctx = canvas.getContext("2d", { willReadFrequently: true });
+		if (!ctx) return;
+		const w = canvas.width;
+		const h = canvas.height;
+		if (w <= 0 || h <= 0) return;
+		const scale = Math.max(1, Math.floor(w / 64));
+		const imgData = ctx.getImageData(0, 0, w, h);
+		const data = imgData.data;
+
+		const getPixel = (x: number, y: number): [number, number, number, number] => {
+			if (x < 0 || x >= w || y < 0 || y >= h) return [0, 0, 0, 0];
+			const idx = (y * w + x) * 4;
+			return [data[idx], data[idx + 1], data[idx + 2], data[idx + 3]];
+		};
+
+		const setPixel = (x: number, y: number, r: number, g: number, b: number, a = 255) => {
+			if (x < 0 || x >= w || y < 0 || y >= h) return;
+			const idx = (y * w + x) * 4;
+			data[idx] = r;
+			data[idx + 1] = g;
+			data[idx + 2] = b;
+			data[idx + 3] = a;
+		};
+
+		let fallbackR = 210, fallbackG = 165, fallbackB = 130;
+		const samplePoints = [
+			[24 * scale, 24 * scale],
+			[22 * scale, 22 * scale],
+			[12 * scale, 12 * scale],
+			[26 * scale, 26 * scale]
+		];
+		for (const [sx, sy] of samplePoints) {
+			const [r, g, b, a] = getPixel(sx, sy);
+			if (a > 200 && (r > 60 || g > 60 || b > 60)) {
+				fallbackR = r;
+				fallbackG = g;
+				fallbackB = b;
+				break;
+			}
+		}
+
+		const isBlackOrEmpty = (r: number, g: number, b: number, a: number) => {
+			if (a < 220) return true;
+			if (r === 0 && g === 0 && b === 0) return true;
+			if (r === 45 && g === 45 && b === 45) return true;
+			if (r === 40 && g === 30 && b === 25) return true;
+			return false;
+		};
+
+		const armWidth = isSlim ? 3 : 4;
+		const rBackStartX = isSlim ? 51 : 52;
+		const rFrontStartX = 44;
+		for (let dy = 0; dy < 12 * scale; dy++) {
+			for (let dx = 0; dx < armWidth * scale; dx++) {
+				const bx = rBackStartX * scale + dx;
+				const by = 20 * scale + dy;
+				const [r, g, b, a] = getPixel(bx, by);
+				if (isBlackOrEmpty(r, g, b, a)) {
+					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
+					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else {
+						const [fr, fg, fb, fa] = getPixel(rFrontStartX * scale + dx, by);
+						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+							setPixel(bx, by, fr, fg, fb, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					}
+				}
+			}
+		}
+
+		const lBackStartX = isSlim ? 43 : 44;
+		const lFrontStartX = 36;
+		for (let dy = 0; dy < 12 * scale; dy++) {
+			for (let dx = 0; dx < armWidth * scale; dx++) {
+				const bx = lBackStartX * scale + dx;
+				const by = 52 * scale + dy;
+				const [r, g, b, a] = getPixel(bx, by);
+				if (isBlackOrEmpty(r, g, b, a)) {
+					const [or, og, ob, oa] = getPixel(bx + 16 * scale, by);
+					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else {
+						const [fr, fg, fb, fa] = getPixel(lFrontStartX * scale + dx, by);
+						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+							setPixel(bx, by, fr, fg, fb, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					}
+				}
+			}
+		}
+
+		for (let dy = 0; dy < 12 * scale; dy++) {
+			for (let dx = 0; dx < 8 * scale; dx++) {
+				const bx = 32 * scale + dx;
+				const by = 20 * scale + dy;
+				const [r, g, b, a] = getPixel(bx, by);
+				if (isBlackOrEmpty(r, g, b, a)) {
+					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
+					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else {
+						const [fr, fg, fb, fa] = getPixel(20 * scale + dx, by);
+						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
+							setPixel(bx, by, fr, fg, fb, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					}
+				}
+			}
+		}
+
+		const baseRects = [
+			[0 * scale, 0 * scale, 32 * scale, 16 * scale],
+			[16 * scale, 16 * scale, 40 * scale, 32 * scale],
+			[40 * scale, 16 * scale, 56 * scale, 32 * scale],
+			[0 * scale, 16 * scale, 16 * scale, 32 * scale],
+			[16 * scale, 48 * scale, 32 * scale, 64 * scale],
+			[32 * scale, 48 * scale, 48 * scale, 64 * scale]
+		];
+		for (const [x1, y1, x2, y2] of baseRects) {
+			for (let y = y1; y < Math.min(y2, h); y++) {
+				for (let x = x1; x < Math.min(x2, w); x++) {
+					const idx = (y * w + x) * 4;
+					if (data[idx + 3] > 0 && data[idx + 3] < 255) {
+						data[idx + 3] = 255;
+					}
+				}
+			}
+		}
+
+		ctx.putImageData(imgData, 0, 0);
+	}
+
 	function updateSkin() {
 		if (!viewer) return;
 		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl : "https://minotar.net/skin/Steve";
 		viewer.loadSkin(targetSkin, { model: slim ? "slim" : "default" })
 			.then(() => {
+				if (viewer?.skinCanvas) {
+					healSkinCanvas(viewer.skinCanvas, slim);
+					(viewer as unknown as { recreateSkinTexture(): void }).recreateSkinTexture();
+				}
 				viewer?.playerObject.skin.setOuterLayerVisible(true);
 			})
 			.catch((e) => {

@@ -3,6 +3,7 @@ import type {
 	DownloadProgress,
 	GameLogEntry,
 	GameExitEvent,
+	GameTelemetrySummary,
 } from "./types";
 
 export async function listenDownloadProgress(
@@ -33,6 +34,14 @@ export async function listenLauncherLog(
 	callback: (message: string) => void,
 ): Promise<UnlistenFn> {
 	return listen<string>("launcher-log", (event) => {
+		callback(event.payload);
+	});
+}
+
+export async function listenGameTelemetry(
+	callback: (summary: GameTelemetrySummary) => void,
+): Promise<UnlistenFn> {
+	return listen<GameTelemetrySummary>("game-telemetry-summary", (event) => {
 		callback(event.payload);
 	});
 }

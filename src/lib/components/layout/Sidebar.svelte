@@ -11,6 +11,7 @@
 		Users,
 		Settings as SettingsIcon,
 		Github,
+		Zap
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { account } from "$lib/stores/account.svelte";
@@ -32,6 +33,7 @@
 		{ href: "/organizer", labelKey: "nav.organizer", title: "Organizador", icon: SlidersHorizontal },
 		{ href: "/skins", labelKey: "nav.skins", title: "Personalização", icon: Shirt },
 		{ href: "/instances", labelKey: "nav.instances", title: "Biblioteca", icon: Boxes },
+		{ href: "/boost", labelKey: "nav.boost", title: "Turbo Booster", icon: Zap },
 	];
 
 	const friendsActive = $derived($page.url.pathname.startsWith("/friends"));

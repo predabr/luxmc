@@ -12,7 +12,7 @@ use crate::error::AppResult;
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "1.5.4-BETA";
+const LAUNCHER_VERSION: &str = "1.5.7-BETA";
 
 /// Pipeline state machine. Every transition is emitted to the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -633,6 +633,33 @@ impl GameLauncher {
         self.emit_log(&format!("Java process started, PID: {}", pid));
         self.emit_stage(LaunchStage::Running);
 
+        // Ghost mode: immediately release unused launcher memory
+        crate::commands::optimizer::optimizer_trim_memory();
+
+        let start_time = std::time::Instant::now();
+        let peak_ram_bytes = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+        let peak_ram_tracker = peak_ram_bytes.clone();
+
+        if pid > 0 {
+            tokio::spawn(async move {
+                let mut sys = sysinfo::System::new();
+                let spid = sysinfo::Pid::from_u32(pid);
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[spid]), true);
+                    if let Some(proc) = sys.process(spid) {
+                        let mem = proc.memory();
+                        let current_max = peak_ram_tracker.load(std::sync::atomic::Ordering::Relaxed);
+                        if mem > current_max {
+                            peak_ram_tracker.store(mem, std::sync::atomic::Ordering::Relaxed);
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            });
+        }
+
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
@@ -682,11 +709,15 @@ impl GameLauncher {
 
         let app_exit = self.app.clone();
         let detail_id = detail.id.clone();
+        let profile_id = profile.id.clone();
+        let profile_name = profile.name.clone();
         let last_stderr_reader = last_stderr.clone();
         tokio::spawn(async move {
             match child.wait().await {
                 Ok(status) => {
                     let code = status.code().unwrap_or(-1);
+                    let duration_secs = start_time.elapsed().as_secs();
+                    let peak_mb = peak_ram_bytes.load(std::sync::atomic::Ordering::Relaxed) / (1024 * 1024);
                     let msg = format!("Game process exited with code {}", code);
                     tracing::info!(target: "launch", "{}", msg);
                     let error_message = if !status.success() {
@@ -698,11 +729,24 @@ impl GameLauncher {
                         let _ = app.emit(
                             "game-exit",
                             GameExitEvent {
-                                version_id: detail_id,
+                                version_id: detail_id.clone(),
                                 code,
                                 success: status.success(),
                                 error_message,
                             },
+                        );
+                        let _ = app.emit(
+                            "game-telemetry-summary",
+                            serde_json::json!({
+                                "profileId": profile_id,
+                                "profileName": profile_name,
+                                "versionId": detail_id,
+                                "durationSeconds": duration_secs,
+                                "peakRamMb": peak_mb,
+                                "exitCode": code,
+                                "cleanExit": status.success(),
+                                "timestamp": chrono::Utc::now().to_rfc3339(),
+                            }),
                         );
                     }
                 }
@@ -1332,6 +1376,123 @@ mod tests {
         assert_eq!(back_pixel[1], 100);
         assert_eq!(back_pixel[2], 50);
     }
+
+    #[test]
+    fn test_normalize_skin_fixes_arm_back_rendering() {
+        let mut img = image::RgbaImage::new(64, 64);
+        img.put_pixel(46, 24, image::Rgba([180, 120, 80, 255]));
+        img.put_pixel(54, 24, image::Rgba([0, 0, 0, 0]));
+
+        img.put_pixel(38, 56, image::Rgba([170, 110, 75, 255]));
+        img.put_pixel(46, 56, image::Rgba([0, 0, 0, 0]));
+
+        let normalized = normalize_skin_image(img);
+        let right_back = *normalized.get_pixel(54, 24);
+        let left_back = *normalized.get_pixel(46, 56);
+
+        assert_eq!(right_back[3], 255);
+        assert_eq!(right_back[0], 180);
+        assert_eq!(right_back[1], 120);
+        assert_eq!(right_back[2], 80);
+
+        assert_eq!(left_back[3], 255);
+        assert_eq!(left_back[0], 170);
+        assert_eq!(left_back[1], 110);
+        assert_eq!(left_back[2], 75);
+    }
+
+    #[test]
+    fn test_normalize_skin_fixes_placeholder_black_arm_back() {
+        let mut img = image::RgbaImage::new(64, 64);
+        img.put_pixel(45, 24, image::Rgba([190, 130, 90, 255]));
+        img.put_pixel(53, 24, image::Rgba([0, 0, 0, 255]));
+
+        img.put_pixel(37, 56, image::Rgba([195, 135, 95, 255]));
+        img.put_pixel(45, 56, image::Rgba([45, 45, 45, 255]));
+
+        let normalized = normalize_skin_image(img);
+        let right_back = *normalized.get_pixel(53, 24);
+        let left_back = *normalized.get_pixel(45, 56);
+
+        assert_eq!(right_back[3], 255);
+        assert_eq!(right_back[0], 190);
+        assert_eq!(right_back[1], 130);
+        assert_eq!(right_back[2], 90);
+
+        assert_eq!(left_back[3], 255);
+        assert_eq!(left_back[0], 195);
+        assert_eq!(left_back[1], 135);
+        assert_eq!(left_back[2], 95);
+    }
+
+    #[test]
+    fn test_normalize_skin_alex_slim_arm_back() {
+        let mut img = image::RgbaImage::new(64, 64);
+        img.put_pixel(44, 24, image::Rgba([200, 140, 100, 255]));
+        img.put_pixel(51, 24, image::Rgba([0, 0, 0, 0]));
+
+        img.put_pixel(36, 56, image::Rgba([205, 145, 105, 255]));
+        img.put_pixel(43, 56, image::Rgba([0, 0, 0, 0]));
+
+        let normalized = normalize_skin_image(img);
+        let right_slim_back = *normalized.get_pixel(51, 24);
+        let left_slim_back = *normalized.get_pixel(43, 56);
+
+        assert_eq!(right_slim_back[3], 255);
+        assert_eq!(right_slim_back[0], 200);
+        assert_eq!(left_slim_back[3], 255);
+        assert_eq!(left_slim_back[0], 205);
+    }
+
+    fn make_64x32_skin(arm_back_color: image::Rgba<u8>) -> image::RgbaImage {
+        let mut img = image::RgbaImage::new(64, 32);
+        for y in 0..32 {
+            for x in 0..64 {
+                img.put_pixel(x, y, image::Rgba([210, 165, 130, 255]));
+            }
+        }
+        for dy in 0..12 {
+            for dx in 0..4 {
+                img.put_pixel(52 + dx, 20 + dy, arm_back_color);
+            }
+        }
+        img
+    }
+
+    #[test]
+    fn left_arm_back_copies_from_right_arm_back_64x32() {
+        let color = image::Rgba([200, 100, 50, 255]);
+        let img = make_64x32_skin(color);
+        let result = normalize_skin_image(img);
+        assert_eq!(result.dimensions(), (64, 64));
+        let p = *result.get_pixel(36 + (3 - 0), 20 + 0);
+        assert_eq!(p[3], 255, "left arm back pixel must be opaque");
+        assert_ne!(
+            (p[0], p[1], p[2]),
+            (0, 0, 0),
+            "left arm back must not be black"
+        );
+    }
+
+    #[test]
+    fn transparent_back_64x32_uses_front_as_fallback() {
+        let mut img = image::RgbaImage::new(64, 32);
+        for y in 0..32 {
+            for x in 0..64 {
+                img.put_pixel(x, y, image::Rgba([210, 165, 130, 255]));
+            }
+        }
+        for dy in 0..12 {
+            for dx in 0..4 {
+                img.put_pixel(52 + dx, 20 + dy, image::Rgba([0, 0, 0, 0]));
+                img.put_pixel(44 + dx, 20 + dy, image::Rgba([180, 120, 80, 255]));
+            }
+        }
+        let result = normalize_skin_image(img);
+        let p = *result.get_pixel(36 + (3 - 0), 20 + 0);
+        assert_eq!(p[3], 255, "fallback pixel must be opaque");
+        assert_ne!((p[0], p[1], p[2]), (0, 0, 0), "fallback must not be black");
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -1525,7 +1686,7 @@ pub async fn clean_skin_injection(game_dir: &std::path::Path) -> AppResult<()> {
     Ok(())
 }
 
-fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
+pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
     let (orig_w, orig_h) = img.dimensions();
     let mut canvas = if orig_w == 64 && orig_h == 32 {
         let mut target = image::RgbaImage::new(64, 64);
@@ -1534,35 +1695,62 @@ fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                 target.put_pixel(x, y, *img.get_pixel(x, y));
             }
         }
-        // Synthesize left leg from right leg
-        for dy in 0..4 {
-            for dx in 0..4 {
-                target.put_pixel(20 + (3 - dx), 48 + dy, *img.get_pixel(4 + dx, 16 + dy));
-                target.put_pixel(24 + (3 - dx), 48 + dy, *img.get_pixel(8 + dx, 16 + dy));
-            }
-        }
         for dy in 0..12 {
             for dx in 0..4 {
-                target.put_pixel(20 + (3 - dx), 52 + dy, *img.get_pixel(4 + dx, 20 + dy));
-                target.put_pixel(28 + (3 - dx), 52 + dy, *img.get_pixel(12 + dx, 20 + dy));
-                target.put_pixel(24 + (3 - dx), 52 + dy, *img.get_pixel(0 + dx, 20 + dy));
-                target.put_pixel(16 + (3 - dx), 52 + dy, *img.get_pixel(8 + dx, 20 + dy));
+                let back_p = *target.get_pixel(52 + dx, 20 + dy);
+                if back_p[3] == 0
+                    || (back_p[0] == 0 && back_p[1] == 0 && back_p[2] == 0)
+                    || (back_p[0] == 45 && back_p[1] == 45 && back_p[2] == 45)
+                    || (back_p[0] == 40 && back_p[1] == 30 && back_p[2] == 25)
+                {
+                    let front_p = *target.get_pixel(44 + dx, 20 + dy);
+                    if front_p[3] > 0 {
+                        target.put_pixel(52 + dx, 20 + dy, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    }
+                }
             }
         }
 
-        // Synthesize left arm from right arm
         for dy in 0..4 {
             for dx in 0..4 {
-                target.put_pixel(36 + (3 - dx), 48 + dy, *img.get_pixel(44 + dx, 16 + dy));
-                target.put_pixel(40 + (3 - dx), 48 + dy, *img.get_pixel(48 + dx, 16 + dy));
+                target.put_pixel(20 + (3 - dx), 48 + dy, *target.get_pixel(4 + dx, 16 + dy));
+                target.put_pixel(24 + (3 - dx), 48 + dy, *target.get_pixel(8 + dx, 16 + dy));
             }
         }
         for dy in 0..12 {
             for dx in 0..4 {
-                target.put_pixel(36 + (3 - dx), 52 + dy, *img.get_pixel(44 + dx, 20 + dy));
-                target.put_pixel(44 + (3 - dx), 52 + dy, *img.get_pixel(52 + dx, 20 + dy));
-                target.put_pixel(40 + (3 - dx), 52 + dy, *img.get_pixel(40 + dx, 20 + dy));
-                target.put_pixel(32 + (3 - dx), 52 + dy, *img.get_pixel(48 + dx, 20 + dy));
+                target.put_pixel(20 + (3 - dx), 52 + dy, *target.get_pixel(4 + dx, 20 + dy));
+                target.put_pixel(28 + (3 - dx), 52 + dy, *target.get_pixel(12 + dx, 20 + dy));
+                target.put_pixel(24 + (3 - dx), 52 + dy, *target.get_pixel(0 + dx, 20 + dy));
+                target.put_pixel(16 + (3 - dx), 52 + dy, *target.get_pixel(8 + dx, 20 + dy));
+            }
+        }
+
+        for dy in 0..4 {
+            for dx in 0..4 {
+                target.put_pixel(36 + (3 - dx), 48 + dy, *target.get_pixel(44 + dx, 16 + dy));
+                target.put_pixel(40 + (3 - dx), 48 + dy, *target.get_pixel(48 + dx, 16 + dy));
+            }
+        }
+        for dy in 0..12 {
+            for dx in 0..4 {
+                target.put_pixel(36 + (3 - dx), 52 + dy, *target.get_pixel(44 + dx, 20 + dy));
+                // Left arm back handling: copy right arm back if missing, otherwise use front or fallback
+                let src_back = *target.get_pixel(52 + dx, 20 + dy);
+                let back_val = if src_back[3] > 0
+                    && !(src_back[0] == 0 && src_back[1] == 0 && src_back[2] == 0)
+                    && !(src_back[0] == 45 && src_back[1] == 45 && src_back[2] == 45)
+                    && !(src_back[0] == 40 && src_back[1] == 30 && src_back[2] == 25)
+                {
+                    src_back
+                } else {
+                    let fp = *target.get_pixel(44 + dx, 20 + dy);
+                    if fp[3] > 0 { fp } else { image::Rgba([210, 165, 130, 255]) }
+                };
+                // Place the resolved pixel into left arm back region (36,20) with horizontal mirroring
+                target.put_pixel(36 + (3 - dx), 20 + dy, back_val);
+                target.put_pixel(40 + (3 - dx), 20 + dy, *target.get_pixel(40 + dx, 20 + dy));
+                target.put_pixel(32 + (3 - dx), 20 + dy, *target.get_pixel(48 + dx, 20 + dy));
             }
         }
         target
@@ -1575,7 +1763,19 @@ fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
     let (w, h) = canvas.dimensions();
     let scale = (w / 64).max(1);
 
-    // Force solid opacity on base body parts to eliminate in-game back rendering glitches
+    let mut fallback_skin_tone = image::Rgba([210, 165, 130, 255]);
+    for ty in [24 * scale, 22 * scale, 12 * scale, 26 * scale] {
+        for tx in [24 * scale, 22 * scale, 12 * scale, 26 * scale] {
+            if tx < w && ty < h {
+                let p = *canvas.get_pixel(tx, ty);
+                if p[3] > 200 && (p[0] > 60 || p[1] > 60 || p[2] > 60) {
+                    fallback_skin_tone = image::Rgba([p[0], p[1], p[2], 255]);
+                    break;
+                }
+            }
+        }
+    }
+
     let base_rects = [
         (0 * scale, 0 * scale, 32 * scale, 16 * scale),
         (16 * scale, 16 * scale, 40 * scale, 32 * scale),
@@ -1589,62 +1789,116 @@ fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
         for y in y1..y2.min(h) {
             for x in x1..x2.min(w) {
                 let pixel = *canvas.get_pixel(x, y);
-                if pixel[3] < 255 {
-                    if pixel[3] > 0 {
-                        canvas.put_pixel(x, y, image::Rgba([pixel[0], pixel[1], pixel[2], 255]));
-                    } else if x >= 32 * scale && x < 40 * scale && y >= 20 * scale && y < 32 * scale {
-                        let front_x = 20 * scale + (x - 32 * scale);
-                        let front_pixel = *canvas.get_pixel(front_x, y);
-                        if front_pixel[3] > 0 {
-                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
-                        } else {
-                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
+
+                let is_right_arm_back = x >= 51 * scale && x < 56 * scale && y >= 20 * scale && y < 32 * scale;
+                let is_left_arm_back = x >= 43 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale;
+
+                let is_placeholder_black = (pixel[0] == 45 && pixel[1] == 45 && pixel[2] == 45)
+                    || (pixel[0] == 40 && pixel[1] == 30 && pixel[2] == 25);
+
+                let is_arm_back_unrendered = (is_right_arm_back || is_left_arm_back)
+                    && (pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0);
+
+                let needs_fix = pixel[3] < 255 || is_placeholder_black || is_arm_back_unrendered;
+
+                if !needs_fix {
+                    continue;
+                }
+
+                if pixel[3] > 0 && !is_placeholder_black && !is_arm_back_unrendered {
+                    canvas.put_pixel(x, y, image::Rgba([pixel[0], pixel[1], pixel[2], 255]));
+                    continue;
+                }
+
+                let overlay_pos = if x >= 40 * scale && x < 56 * scale && y >= 16 * scale && y < 32 * scale {
+                    Some((x, y + 16 * scale))
+                } else if x >= 32 * scale && x < 48 * scale && y >= 48 * scale && y < 64 * scale {
+                    Some((x + 16 * scale, y))
+                } else if x >= 16 * scale && x < 40 * scale && y >= 16 * scale && y < 32 * scale {
+                    Some((x, y + 16 * scale))
+                } else if x < 32 * scale && y < 16 * scale {
+                    Some((x + 32 * scale, y))
+                } else if x < 16 * scale && y >= 16 * scale && y < 32 * scale {
+                    Some((x, y + 16 * scale))
+                } else if x >= 16 * scale && x < 32 * scale && y >= 48 * scale && y < 64 * scale {
+                    Some((x - 16 * scale, y))
+                } else {
+                    None
+                };
+
+                let mut filled = false;
+                if let Some((ox, oy)) = overlay_pos {
+                    if ox < w && oy < h {
+                        let op = *canvas.get_pixel(ox, oy);
+                        if op[3] > 0 && !(op[0] == 0 && op[1] == 0 && op[2] == 0) {
+                            canvas.put_pixel(x, y, image::Rgba([op[0], op[1], op[2], 255]));
+                            filled = true;
                         }
-                    } else if x >= 24 * scale && x < 32 * scale && y >= 8 * scale && y < 16 * scale {
-                        let front_x = 8 * scale + (x - 24 * scale);
-                        let front_pixel = *canvas.get_pixel(front_x, y);
-                        if front_pixel[3] > 0 {
-                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
-                        } else {
-                            canvas.put_pixel(x, y, image::Rgba([40, 30, 25, 255]));
-                        }
-                    } else if x >= 12 * scale && x < 16 * scale && y >= 20 * scale && y < 32 * scale {
-                        let front_x = 4 * scale + (x - 12 * scale);
-                        let front_pixel = *canvas.get_pixel(front_x, y);
-                        if front_pixel[3] > 0 {
-                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
-                        } else {
-                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
-                        }
-                    } else if x >= 28 * scale && x < 32 * scale && y >= 52 * scale && y < 64 * scale {
-                        let front_x = 20 * scale + (x - 28 * scale);
-                        let front_pixel = *canvas.get_pixel(front_x, y);
-                        if front_pixel[3] > 0 {
-                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
-                        } else {
-                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
-                        }
-                    } else if x >= 52 * scale && x < 56 * scale && y >= 20 * scale && y < 32 * scale {
-                        let front_x = 44 * scale + (x - 52 * scale);
-                        let front_pixel = *canvas.get_pixel(front_x, y);
-                        if front_pixel[3] > 0 {
-                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
-                        } else {
-                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
-                        }
-                    } else if x >= 44 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale {
-                        let front_x = 36 * scale + (x - 44 * scale);
-                        let front_pixel = *canvas.get_pixel(front_x, y);
-                        if front_pixel[3] > 0 {
-                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
-                        } else {
-                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
-                        }
-                    } else if (x >= 16 * scale && x < 40 * scale && y >= 16 * scale && y < 32 * scale)
-                        || (x >= 8 * scale && x < 24 * scale && y < 16 * scale)
-                    {
-                        canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
                     }
+                }
+
+                if filled {
+                    continue;
+                }
+
+                if is_right_arm_back {
+                    let front_x = if x >= 52 * scale {
+                        44 * scale + (x - 52 * scale)
+                    } else {
+                        44 * scale
+                    };
+                    let front_p = *canvas.get_pixel(front_x, y);
+                    if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
+                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    } else {
+                        canvas.put_pixel(x, y, fallback_skin_tone);
+                    }
+                } else if is_left_arm_back {
+                    let front_x = if x >= 44 * scale {
+                        36 * scale + (x - 44 * scale)
+                    } else {
+                        36 * scale
+                    };
+                    let front_p = *canvas.get_pixel(front_x, y);
+                    if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
+                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    } else {
+                        canvas.put_pixel(x, y, fallback_skin_tone);
+                    }
+                } else if x >= 32 * scale && x < 40 * scale && y >= 20 * scale && y < 32 * scale {
+                    let front_x = 20 * scale + (x - 32 * scale);
+                    let front_p = *canvas.get_pixel(front_x, y);
+                    if front_p[3] > 0 {
+                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    } else {
+                        canvas.put_pixel(x, y, fallback_skin_tone);
+                    }
+                } else if x >= 24 * scale && x < 32 * scale && y >= 8 * scale && y < 16 * scale {
+                    let front_x = 8 * scale + (x - 24 * scale);
+                    let front_p = *canvas.get_pixel(front_x, y);
+                    if front_p[3] > 0 {
+                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    } else {
+                        canvas.put_pixel(x, y, fallback_skin_tone);
+                    }
+                } else if x >= 12 * scale && x < 16 * scale && y >= 20 * scale && y < 32 * scale {
+                    let front_x = 4 * scale + (x - 12 * scale);
+                    let front_p = *canvas.get_pixel(front_x, y);
+                    if front_p[3] > 0 {
+                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    } else {
+                        canvas.put_pixel(x, y, fallback_skin_tone);
+                    }
+                } else if x >= 28 * scale && x < 32 * scale && y >= 52 * scale && y < 64 * scale {
+                    let front_x = 20 * scale + (x - 28 * scale);
+                    let front_p = *canvas.get_pixel(front_x, y);
+                    if front_p[3] > 0 {
+                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    } else {
+                        canvas.put_pixel(x, y, fallback_skin_tone);
+                    }
+                } else {
+                    canvas.put_pixel(x, y, fallback_skin_tone);
                 }
             }
         }

@@ -247,6 +247,28 @@ pub async fn launch_game(
         .filter(|c| !c.trim().is_empty())
         .or_else(|| account.cape_url.filter(|c| !c.trim().is_empty()));
 
+    let mods_dir = game_dir.join("mods");
+    if mods_dir.is_dir() {
+        let shield_result = crate::commands::shield::scan_mods_directory(&mods_dir);
+        if !shield_result.is_clean {
+            app.emit("launcher-shield-warning", &shield_result).ok();
+            app.emit(
+                "launcher-log",
+                format!(
+                    "⚠️ Luxmc Shield: detectada(s) {} possível(is) ameaça(s) nos mods da instância!",
+                    shield_result.threats.len()
+                ),
+            )
+            .ok();
+
+            if shield_result.threats.iter().any(|t| t.severity == "critical") {
+                return Err(AppError::InvalidState(
+                    "Luxmc Shield bloqueou o lançamento: detectado mod com malware crítico.".into(),
+                ));
+            }
+        }
+    }
+
     app.emit(
         "launcher-log",
         format!(

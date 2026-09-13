@@ -4,6 +4,7 @@ import type {
 	P2PMessagePayload,
 	HostLinkInfo,
 } from "./types";
+export type { HostLinkInfo };
 
 export async function p2pGetLocalInfo(): Promise<P2PConnectionInfo> {
 	return api.invoke<P2PConnectionInfo>("p2p_get_local_info");

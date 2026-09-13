@@ -163,6 +163,16 @@ pub async fn run() {
             commands::optimizer::optimizer_get_perf_pack,
             commands::optimizer::optimizer_install_perf_pack,
             commands::optimizer::optimizer_detect_gpu,
+            commands::optimizer::optimizer_trim_memory,
+            commands::instances::instance_world_snapshot_create,
+            commands::instances::instance_world_snapshots_list,
+            commands::instances::instance_world_snapshot_restore,
+            commands::instances::instance_world_snapshot_delete,
+            commands::shield::instance_shield_scan,
+            commands::options_editor::instance_options_get,
+            commands::options_editor::instance_options_set,
+            commands::options_editor::instance_config_read,
+            commands::options_editor::instance_config_write,
             commands::updater::app_perform_update,
             commands::skins::skins_list,
             commands::skins::skins_save,
@@ -173,6 +183,7 @@ pub async fn run() {
             commands::skins::capes_delete,
             commands::skins::gaming_stats_get,
             commands::skins::gaming_stats_save,
+            commands::teamwork_preview::teamwork_preview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

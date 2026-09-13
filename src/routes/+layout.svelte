@@ -15,6 +15,11 @@
 	import CrashDoctorModal from "$lib/components/ui/CrashDoctorModal.svelte";
 	import CommandPalette from "$lib/components/ui/CommandPalette.svelte";
 	import MiniPlayer from "$lib/components/ui/MiniPlayer.svelte";
+	import LiveWallpaper from "$lib/components/visuals/LiveWallpaper.svelte";
+	import TelemetryModal from "$lib/components/ui/TelemetryModal.svelte";
+	import type { GameTelemetrySummary } from "$lib/api/types";
+	import { listenGameTelemetry } from "$lib/api/events";
+	import { startSoundscape, stopSoundscape } from "$lib/utils/sound";
 	import { bootstrapSettings, schedulePersist, startAutoPersist } from "$lib/stores/persistence.svelte";
 	import { setToastInstance } from "$lib/stores/toasts.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
@@ -35,6 +40,8 @@
 	let initialized = $state(false);
 	let showSplash = $state(true);
 	let toastsInstance = $state<Toasts | null>(null);
+	let telemetryData = $state<GameTelemetrySummary | null>(null);
+	let showTelemetryModal = $state(false);
 	$effect(() => {
 		if (toastsInstance) setToastInstance(toastsInstance);
 	});
@@ -44,9 +51,11 @@
 		"/news": 0.5,
 		"/mods": 1,
 		"/organizer": 2,
+		"/boost": 2.5,
 		"/skins": 3,
 		"/instances": 4,
 		"/friends": 5,
+		"/teamwork-preview": 5.5,
 		"/screenshots": 6,
 		"/logs": 7,
 		"/logs-history": 7.1,
@@ -195,10 +204,31 @@
 					inGame: false
 				}).catch(() => {});
 			}
+			if (settings.value.soundscapesEnabled !== false && !appState.performanceMode) {
+				startSoundscape("overworld");
+			}
 		}).catch(() => {});
 
+		let unlistenTelemetry: (() => void) | undefined;
+		listenGameTelemetry((summary) => {
+			telemetryData = summary;
+			showTelemetryModal = true;
+		}).then((unlisten) => {
+			unlistenTelemetry = unlisten;
+		}).catch(() => {});
+
+		if (settings.value.soundscapesEnabled !== false && !appState.performanceMode) {
+			setTimeout(() => {
+				startSoundscape("overworld");
+			}, 1200);
+		}
+
 		const stop = startAutoPersist();
-		return stop;
+		return () => {
+			stop();
+			if (unlistenTelemetry) unlistenTelemetry();
+			stopSoundscape();
+		};
 	});
 
 	$effect(() => {
@@ -293,6 +323,9 @@
 		<!-- Clean high-performance GPU radial glow without expensive filter blur -->
 		<div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
 		<div class="absolute inset-0 opacity-15 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
+		{#if settings.value.liveWallpaper !== false}
+			<LiveWallpaper />
+		{/if}
 	{:else}
 		<div class="absolute inset-0 bg-black/60"></div>
 	{/if}
@@ -341,4 +374,8 @@
 <CrashDoctorModal />
 <CommandPalette />
 <MiniPlayer />
+<TelemetryModal
+	summary={showTelemetryModal ? telemetryData : null}
+	onClose={() => showTelemetryModal = false}
+/>
 </ErrorBoundary>

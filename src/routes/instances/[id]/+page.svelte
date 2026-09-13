@@ -38,10 +38,21 @@
 		Gauge,
 		ZoomIn,
 		ZoomOut,
-		RotateCcw
+		RotateCcw,
+		ShieldCheck,
+		ShieldAlert,
+		Compass,
+		MapPin,
+		Sliders,
+		Radio,
+		Archive
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
+	import WorldSnapshotsModal from "$lib/components/ui/WorldSnapshotsModal.svelte";
+	import InstanceConfigEditorModal from "$lib/components/ui/InstanceConfigEditorModal.svelte";
+	import P2PHostModal from "$lib/components/ui/P2PHostModal.svelte";
+	import ShaderSplitViewer from "$lib/components/ui/ShaderSplitViewer.svelte";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -96,7 +107,9 @@
 		type JvmValidationResult,
 		type FileTreeEntry,
 		type WorldDetail,
-		type HostLinkInfo
+		type HostLinkInfo,
+		instanceShieldScan,
+		type ShieldScanResult
 	} from "$lib/api";
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { playSound } from "$lib/utils/sound";
@@ -517,6 +530,29 @@
 	let fileBreadcrumbs = $state<string[]>([]);
 	let activeEditorFile = $state<{ path: string; name: string; content: string } | null>(null);
 	let isSavingEditor = $state(false);
+
+	let selectedSnapshotWorld = $state<{ name: string; folder: string } | null>(null);
+	let showConfigEditor = $state(false);
+	let showP2PHost = $state(false);
+	let shieldResult = $state<ShieldScanResult | null>(null);
+	let isScanningShield = $state(false);
+
+	async function runShieldScan() {
+		if (!instanceId || isScanningShield) return;
+		isScanningShield = true;
+		try {
+			shieldResult = await instanceShieldScan(instanceId);
+			if (shieldResult.isClean) {
+				toast(`Luxmc Shield: ${shieldResult.totalScanned} mods verificados. 0 ameaças detectadas!`, "success");
+			} else {
+				toast(`⚠️ Luxmc Shield detectou ${shieldResult.threats.length} ameaça(s) nos mods!`, "error");
+			}
+		} catch (e) {
+			toast("Erro ao executar Luxmc Shield: " + String(e), "error");
+		} finally {
+			isScanningShield = false;
+		}
+	}
 
 	const currentPacksList = $derived(
 		subTab === "resourcepacks" ? resourcePacks : subTab === "shaders" ? shaderPacks : dataPacks
@@ -1028,10 +1064,28 @@
 
 				<div class="flex items-center gap-2">
 					<button 
+						type="button"
+						class="bg-[#222328] hover:bg-emerald-500/20 text-white/80 hover:text-emerald-300 px-3.5 py-2 rounded-full border border-white/10 hover:border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+						onclick={() => showP2PHost = true}
+						title="Gerar código ou link para amigos entrarem no seu mundo LAN"
+					>
+						<Radio class="w-3.5 h-3.5 text-emerald-400" /> Host P2P
+					</button>
+
+					<button 
+						type="button"
+						class="bg-[#222328] hover:bg-[#caa97c]/20 text-white/80 hover:text-[#caa97c] px-3.5 py-2 rounded-full border border-white/10 hover:border-[#caa97c]/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+						onclick={() => showConfigEditor = true}
+						title="Ajustar Gamma / Fullbright, FOV e opções do jogo"
+					>
+						<Sliders class="w-3.5 h-3.5 text-[#caa97c]" /> Opções / Fullbright
+					</button>
+
+					<button 
 						class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
 						onclick={openInstanceFolder}
 					>
-						<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta da Instância
+						<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta
 					</button>
 				</div>
 			</div>
@@ -1168,6 +1222,41 @@
 				</div>
 
 				{#if subTab === 'mods'}
+					<!-- Luxmc Shield Security Card -->
+					<div class="bg-[#141518] border border-white/5 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 mb-4 shadow-sm">
+						<div class="flex items-center gap-2.5">
+							<div class="w-8 h-8 rounded-xl flex items-center justify-center {shieldResult ? (shieldResult.isClean ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30') : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}">
+								{#if shieldResult && !shieldResult.isClean}
+									<ShieldAlert class="w-4 h-4" />
+								{:else}
+									<ShieldCheck class="w-4 h-4" />
+								{/if}
+							</div>
+							<div>
+								<div class="text-xs font-bold text-white flex items-center gap-2">
+									Luxmc Shield (Anti-Malware)
+									{#if shieldResult}
+										<span class="px-2 py-0.5 rounded-full text-[10px] font-black {shieldResult.isClean ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}">
+											{shieldResult.isClean ? '100% Seguro' : `${shieldResult.threats.length} Ameaça(s)!`}
+										</span>
+									{/if}
+								</div>
+								<div class="text-[10px] text-white/40">
+									{shieldResult ? `${shieldResult.totalScanned} jars inspecionados em ${shieldResult.scanTimeMs}ms (hashes CVE + bytecode)` : 'Proteção ativa contra Fracturiser, BleedingPipe e stealers de sessão'}
+								</div>
+							</div>
+						</div>
+						<button 
+							type="button" 
+							class="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+							disabled={isScanningShield}
+							onclick={runShieldScan}
+						>
+							<RefreshCw class="w-3 h-3 {isScanningShield ? 'animate-spin' : ''}" />
+							{isScanningShield ? 'Escaneando...' : 'Escanear Mods'}
+						</button>
+					</div>
+
 					{#if instanceMods.length === 0}
 						<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
 							<div class="h-16 w-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4 text-blue-400">
@@ -1247,6 +1336,11 @@
 						</VirtualList>
 					{/if}
 				{:else}
+					{#if subTab === 'shaders'}
+						<div class="mb-4">
+							<ShaderSplitViewer />
+						</div>
+					{/if}
 					{#if currentPacksList.length === 0}
 						<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
 							<div class="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/20">
@@ -1311,42 +1405,119 @@
 						<p class="text-xs text-white/40 mt-1">Abra o Minecraft e crie seu primeiro mundo singleplayer!</p>
 					</div>
 				{:else}
-					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
 						{#each worldsList as world}
-							<div class="bg-[#18191c] border border-white/5 p-4 rounded-2xl flex items-center justify-between hover:border-white/15 transition-all group">
-								<div class="flex items-center gap-3.5 min-w-0">
-									<div class="h-12 w-12 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
+							<div class="bg-[#18191c] border border-white/5 p-4 rounded-2xl flex flex-col justify-between hover:border-white/15 transition-all group gap-3">
+								<div class="flex items-start gap-3.5 min-w-0">
+									<div class="h-14 w-14 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
 										{#if world.iconBase64}
 											<img src={world.iconBase64} alt={world.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
 										{:else}
-											<img src="/grass_block.png" alt="Mundo" class="w-7 h-7 object-contain drop-shadow" />
+											<img src="/grass_block.png" alt="Mundo" class="w-8 h-8 object-contain drop-shadow" />
 										{/if}
 									</div>
-									<div class="min-w-0">
-										<h5 class="text-xs font-bold text-white truncate">{world.name}</h5>
-										<div class="flex items-center gap-2 mt-0.5 text-[10px] text-white/40">
+									<div class="min-w-0 flex-1">
+										<div class="flex items-center gap-2">
+											<h5 class="text-xs font-bold text-white truncate">{world.name}</h5>
+											{#if world.hardcore}
+												<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-red-500/20 text-red-400 border border-red-500/30">HARDCORE</span>
+											{/if}
+										</div>
+										<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] text-white/50">
 											<span class="text-emerald-400 font-semibold">{world.gameMode || 'Sobrevivência'}</span>
 											<span>·</span>
 											<span>{(world.sizeBytes / (1024 * 1024)).toFixed(1)} MB</span>
+											{#if world.versionName}
+												<span>·</span>
+												<span class="font-mono text-white/40">{world.versionName}</span>
+											{/if}
 										</div>
+
+										<!-- NBT Radar Badges -->
+										<div class="flex flex-wrap items-center gap-2 mt-2 pt-2 border-t border-white/5 text-[10px] font-mono">
+											{#if world.seed != null}
+												<button
+													type="button"
+													class="flex items-center gap-1 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white px-2 py-0.5 rounded-md border border-white/5 transition-colors cursor-pointer"
+													onclick={() => {
+														if (world.seed != null) {
+															navigator.clipboard.writeText(world.seed.toString());
+															toast(`Seed copiada: ${world.seed}`, "success");
+														}
+													}}
+													title="Copiar Seed"
+												>
+													<Compass class="w-3 h-3 text-brand-500" />
+													<span>Seed: {world.seed}</span>
+													<Copy class="w-2.5 h-2.5 opacity-50" />
+												</button>
+											{/if}
+											{#if world.spawnX != null && world.spawnZ != null}
+												<div class="flex items-center gap-1 text-white/40" title="Coordenadas de Spawn">
+													<MapPin class="w-3 h-3 text-emerald-400" />
+													<span>Spawn: {world.spawnX}, {world.spawnY ?? 64}, {world.spawnZ}</span>
+												</div>
+											{/if}
+											{#if world.dayCount != null}
+												<span class="text-amber-300/70">Dia {world.dayCount}</span>
+											{/if}
+											{#if world.playerHealth != null}
+												<span class="text-rose-400 font-semibold">❤️ {Math.round(world.playerHealth)}/20</span>
+											{/if}
+											{#if world.playerLevel != null && world.playerLevel > 0}
+												<span class="text-emerald-300 font-semibold">⭐ Nvl {world.playerLevel}</span>
+											{/if}
+										</div>
+
+										{#if world.playerInventory && world.playerInventory.length > 0}
+											<div class="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-white/5">
+												<span class="text-[9px] uppercase tracking-wider text-white/40 font-bold mr-1">Inventário:</span>
+												{#each world.playerInventory.slice(0, 9) as item}
+													<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/40 border border-white/10 text-[10px] font-mono text-white/80" title={`Slot ${item.slot}: ${item.id} (x${item.count})`}>
+														<span class="text-brand-400 font-bold">{item.id.replace(/^minecraft:/, '')}</span>
+														{#if item.count > 1}
+															<span class="text-[9px] px-1 rounded bg-brand-500/20 text-brand-300 font-bold">x{item.count}</span>
+														{/if}
+													</span>
+												{/each}
+												{#if world.playerInventory.length > 9}
+													<span class="text-[9px] text-white/40 font-mono">+{world.playerInventory.length - 9}</span>
+												{/if}
+											</div>
+										{/if}
 									</div>
 								</div>
 
-								<div class="flex items-center gap-1.5 shrink-0">
+								<!-- Action Buttons -->
+								<div class="flex items-center justify-between pt-1 border-t border-white/5">
 									<button 
-										class="bg-white/5 hover:brightness-110 text-white px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 opacity-80 group-hover:opacity-100 active:scale-95"
-										onclick={handlePlay}
-										title="Jogar este mundo"
+										type="button"
+										class="bg-[#222328] hover:bg-brand-500/20 text-white/80 hover:text-brand-400 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-white/10 hover:border-brand-500/30 active:scale-95"
+										onclick={() => selectedSnapshotWorld = { name: world.name, folder: world.folderName }}
+										title="Time Machine: Gerenciar snapshots e backups deste mundo"
 									>
-										<Play class="w-3 h-3 fill-current" /> Jogar
+										<Archive class="w-3 h-3 text-brand-500" />
+										<span>Snapshots {world.snapshotsCount != null && world.snapshotsCount > 0 ? `(${world.snapshotsCount})` : ''}</span>
 									</button>
-									<button 
-										class="p-2 rounded-full text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-										onclick={() => handleDeleteWorld(world.folderName)}
-										title="Excluir este mundo"
-									>
-										<Trash2 class="w-3.5 h-3.5" />
-									</button>
+
+									<div class="flex items-center gap-1.5">
+										<button 
+											type="button"
+											class="bg-white/5 hover:brightness-110 text-white px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 opacity-80 group-hover:opacity-100 active:scale-95"
+											onclick={handlePlay}
+											title="Jogar este mundo"
+										>
+											<Play class="w-3 h-3 fill-current" /> Jogar
+										</button>
+										<button 
+											type="button"
+											class="p-1.5 rounded-full text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+											onclick={() => handleDeleteWorld(world.folderName)}
+											title="Excluir este mundo"
+										>
+											<Trash2 class="w-3.5 h-3.5" />
+										</button>
+									</div>
 								</div>
 							</div>
 						{/each}
@@ -2335,3 +2506,25 @@
 		</div>
 	</div>
 {/if}
+
+{#if selectedSnapshotWorld}
+	<WorldSnapshotsModal
+		open={!!selectedSnapshotWorld}
+		profileId={instanceId}
+		worldName={selectedSnapshotWorld.name}
+		folderName={selectedSnapshotWorld.folder}
+		onClose={() => selectedSnapshotWorld = null}
+		onRestored={() => refreshAllData()}
+	/>
+{/if}
+
+<InstanceConfigEditorModal
+	open={showConfigEditor}
+	profileId={instanceId}
+	onClose={() => showConfigEditor = false}
+/>
+
+<P2PHostModal
+	open={showP2PHost}
+	onClose={() => showP2PHost = false}
+/>

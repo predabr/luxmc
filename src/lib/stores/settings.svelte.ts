@@ -28,6 +28,9 @@ export interface AppSettings {
 	streamerMode?: boolean;
 	sfxVolume?: number;
 	soundEnabled?: boolean;
+	liveWallpaper?: boolean;
+	soundscapesEnabled?: boolean;
+	soundscapeVolume?: number;
 	customMicrosoftClientId?: string;
 }
 
@@ -40,6 +43,9 @@ const defaults: AppSettings = {
 	language: "en",
 	accentTheme: "gold",
 	activeProfileId: null,
+	liveWallpaper: true,
+	soundscapesEnabled: true,
+	soundscapeVolume: 0.2,
 };
 
 function createSettingsStore() {

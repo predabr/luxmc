@@ -64,3 +64,66 @@ pub async fn optimizer_install_perf_pack(
 pub fn optimizer_detect_gpu() -> GpuInfo {
     detect_gpu()
 }
+
+#[tauri::command]
+pub fn optimizer_trim_memory() -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        extern "C" {
+            fn malloc_trim(pad: usize) -> i32;
+            fn madvise(addr: *mut std::ffi::c_void, length: usize, advice: i32) -> i32;
+        }
+        const MADV_DONTNEED: i32 = 4;
+        unsafe {
+            malloc_trim(0);
+        }
+        if let Ok(maps) = std::fs::read_to_string("/proc/self/maps") {
+            for line in maps.lines() {
+                if line.contains("[heap]") || (line.ends_with(" 0") && line.contains("rw-p")) {
+                    if let Some(range) = line.split_whitespace().next() {
+                        let parts: Vec<&str> = range.split('-').collect();
+                        if parts.len() == 2 {
+                            if let (Ok(start), Ok(end)) = (
+                                usize::from_str_radix(parts[0], 16),
+                                usize::from_str_radix(parts[1], 16),
+                            ) {
+                                if end > start && (end - start) <= 64 * 1024 * 1024 {
+                                    unsafe {
+                                        madvise(
+                                            start as *mut std::ffi::c_void,
+                                            end - start,
+                                            MADV_DONTNEED,
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        true
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::raw::c_void;
+        extern "system" {
+            fn GetCurrentProcess() -> *mut c_void;
+            fn SetProcessWorkingSetSize(
+                hProcess: *mut c_void,
+                dwMinimumWorkingSetSize: usize,
+                dwMaximumWorkingSetSize: usize,
+            ) -> i32;
+        }
+        unsafe {
+            let handle = GetCurrentProcess();
+            SetProcessWorkingSetSize(handle, usize::MAX, usize::MAX);
+        }
+        true
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+    {
+        false
+    }
+}
+

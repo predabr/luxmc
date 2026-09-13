@@ -3,6 +3,10 @@ import type {
 	HealthCheckResult,
 	FileTreeEntry,
 	WorldDetail,
+	WorldSnapshotInfo,
+	ShieldScanResult,
+	InstanceMinecraftOptions,
+	ConfigFileInfo,
 	ProfileRow,
 } from "./types";
 
@@ -307,4 +311,84 @@ export async function instanceExportShareCode(profileId: string): Promise<string
 
 export async function instanceImportShareCode(shareCode: string): Promise<ProfileRow> {
 	return api.invoke<ProfileRow>("instance_import_share_code", { shareCode });
+}
+
+export async function instanceWorldSnapshotCreate(
+	profileId: string,
+	folderName: string,
+	label?: string
+): Promise<WorldSnapshotInfo> {
+	return api.invoke<WorldSnapshotInfo>("instance_world_snapshot_create", {
+		profileId,
+		folderName,
+		label
+	});
+}
+
+export async function instanceWorldSnapshotsList(
+	profileId: string,
+	folderName: string
+): Promise<WorldSnapshotInfo[]> {
+	return api.invoke<WorldSnapshotInfo[]>("instance_world_snapshots_list", {
+		profileId,
+		folderName
+	});
+}
+
+export async function instanceWorldSnapshotRestore(
+	profileId: string,
+	folderName: string,
+	filename: string
+): Promise<void> {
+	return api.invoke<void>("instance_world_snapshot_restore", {
+		profileId,
+		folderName,
+		filename
+	});
+}
+
+export async function instanceWorldSnapshotDelete(
+	profileId: string,
+	folderName: string,
+	filename: string
+): Promise<void> {
+	return api.invoke<void>("instance_world_snapshot_delete", {
+		profileId,
+		folderName,
+		filename
+	});
+}
+
+export async function instanceShieldScan(profileId: string): Promise<ShieldScanResult> {
+	return api.invoke<ShieldScanResult>("instance_shield_scan", { profileId });
+}
+
+export async function instanceOptionsGet(profileId: string): Promise<InstanceMinecraftOptions> {
+	return api.invoke<InstanceMinecraftOptions>("instance_options_get", { profileId });
+}
+
+export async function instanceOptionsSet(
+	profileId: string,
+	options: InstanceMinecraftOptions
+): Promise<void> {
+	return api.invoke<void>("instance_options_set", { profileId, options });
+}
+
+export async function instanceConfigRead(
+	profileId: string,
+	relativePath: string
+): Promise<ConfigFileInfo> {
+	return api.invoke<ConfigFileInfo>("instance_config_read", { profileId, relativePath });
+}
+
+export async function instanceConfigWrite(
+	profileId: string,
+	relativePath: string,
+	content: string
+): Promise<void> {
+	return api.invoke<void>("instance_config_write", { profileId, relativePath, content });
+}
+
+export async function optimizerTrimMemory(): Promise<boolean> {
+	return api.invoke<boolean>("optimizer_trim_memory");
 }

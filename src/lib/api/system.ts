@@ -58,7 +58,7 @@ export async function envCheck(): Promise<EnvCheckResult> {
 	return api.invoke("env_check");
 }
 
-export async function getSystemSpecs(): Promise<{
+export interface SystemSpecs {
 	osDistro: string;
 	kernelVersion: string;
 	arch: string;
@@ -67,8 +67,10 @@ export async function getSystemSpecs(): Promise<{
 	gpuVendor: string;
 	gpuRenderer: string;
 	gpuSupportsZink: boolean;
-}> {
-	return api.invoke("get_system_specs");
+}
+
+export async function getSystemSpecs(): Promise<SystemSpecs> {
+	return api.invoke<SystemSpecs>("get_system_specs");
 }
 
 export async function changelogGet(): Promise<ChangelogEntry[]> {
