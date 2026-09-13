@@ -157,6 +157,11 @@ class LayoutStore {
 		this.sections = DEFAULT_SECTIONS.map((s) => ({ ...s }));
 		this.persist();
 	}
+
+	reorderSections(newSections: LayoutSectionItem[]) {
+		this.sections = newSections;
+		this.persist();
+	}
 }
 
 export const layoutStore = new LayoutStore();

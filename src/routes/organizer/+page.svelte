@@ -4,6 +4,8 @@
 		Check, Sparkles, LayoutGrid, Package, Boxes, Clock, 
 		Newspaper, Wrench, Play, MoveVertical, Smartphone, Monitor
 	} from "lucide-svelte";
+	import { dndzone } from "svelte-dnd-action";
+	import confetti from "canvas-confetti";
 	import { layoutStore, type SectionId, type LayoutSectionItem } from "$lib/stores/layout.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import Button from "$lib/components/ui/Button.svelte";
@@ -11,48 +13,33 @@
 	import Card from "$lib/components/ui/Card.svelte";
 	import Badge from "$lib/components/ui/Badge.svelte";
 
-	let draggedIndex = $state<number | null>(null);
-	let dragOverIndex = $state<number | null>(null);
+	let items = $state<LayoutSectionItem[]>(layoutStore.sections.map(s => ({ ...s })));
 	let selectedPreview = $state<SectionId | null>(null);
 
-	function handleDragStart(index: number, e: DragEvent) {
-		draggedIndex = index;
-		if (e.dataTransfer) {
-			e.dataTransfer.effectAllowed = "move";
-			e.dataTransfer.setData("text/plain", String(index));
-		}
+	$effect(() => {
+		items = layoutStore.sections.map(s => ({ ...s }));
+	});
+
+	function handleDndConsider(e: CustomEvent<{ items: LayoutSectionItem[] }>) {
+		items = e.detail.items;
 	}
 
-	function handleDragOver(index: number, e: DragEvent) {
-		e.preventDefault();
-		if (draggedIndex === null || draggedIndex === index) return;
-		dragOverIndex = index;
-		if (e.dataTransfer) {
-			e.dataTransfer.dropEffect = "move";
-		}
-	}
-
-	function handleDragLeave() {
-		dragOverIndex = null;
-	}
-
-	function handleDrop(index: number, e: DragEvent) {
-		e.preventDefault();
-		if (draggedIndex !== null && draggedIndex !== index) {
-			layoutStore.moveSection(draggedIndex, index);
-			toast("Seção reposicionada!", "info");
-		}
-		draggedIndex = null;
-		dragOverIndex = null;
-	}
-
-	function handleDragEnd() {
-		draggedIndex = null;
-		dragOverIndex = null;
+	function handleDndFinalize(e: CustomEvent<{ items: LayoutSectionItem[] }>) {
+		items = e.detail.items;
+		layoutStore.reorderSections(items);
+		toast("Seções reordenadas!", "info");
 	}
 
 	function resetLayout() {
 		layoutStore.resetToDefaults();
+		items = layoutStore.sections.map(s => ({ ...s }));
+		try {
+			confetti({
+				particleCount: 50,
+				spread: 60,
+				origin: { y: 0.6 }
+			});
+		} catch {}
 		toast("Layout restaurado para a ordem padrão!", "success");
 	}
 
@@ -110,30 +97,26 @@
 				<span class="text-[11px] text-white/40">Arraste ou use as setas</span>
 			</div>
 
-			<div class="space-y-3">
-				{#each layoutStore.sections as section, index (section.id)}
+			<div
+				use:dndzone={{ items, flipDurationMs: 200, dropTargetStyle: {} }}
+				onconsider={handleDndConsider}
+				onfinalize={handleDndFinalize}
+				class="space-y-3"
+			>
+				{#each items as section, index (section.id)}
 					{@const Icon = getSectionIcon(section.id)}
-					{@const isDragging = draggedIndex === index}
-					{@const isOver = dragOverIndex === index}
 					{@const isSelected = selectedPreview === section.id}
 
 					<!-- Draggable Section Card -->
 					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 					<div
-						draggable="true"
-						ondragstart={(e) => handleDragStart(index, e)}
-						ondragover={(e) => handleDragOver(index, e)}
-						ondragleave={handleDragLeave}
-						ondrop={(e) => handleDrop(index, e)}
-						ondragend={handleDragEnd}
 						onclick={() => selectedPreview = section.id}
 						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectedPreview = section.id; }}
 						role="listitem"
 						tabindex="0"
 						class="group relative flex items-center justify-between gap-4 p-4 rounded-2xl transition-all duration-200 cursor-grab active:cursor-grabbing border
-							{isDragging ? 'opacity-40 scale-95 border-[#caa97c]' : ''}
-							{isOver ? 'border-[#caa97c] bg-[#caa97c]/10 scale-[1.01]' : 'border-white/5 hover:border-white/15 bg-[#16171b]'}
+							border-white/5 hover:border-white/15 bg-[#16171b]
 							{isSelected ? 'ring-2 ring-[#caa97c]/50 bg-[#1a1b20]' : ''}
 							{!section.enabled ? 'opacity-60 bg-[#121316]' : 'shadow-md'}
 						"
@@ -193,7 +176,7 @@
 								</button>
 								<button
 									type="button"
-									disabled={index === layoutStore.sections.length - 1}
+									disabled={index === items.length - 1}
 									onclick={(e) => { e.stopPropagation(); layoutStore.moveDown(section.id); }}
 									title="Mover para baixo"
 									class="p-1.5 text-white/50 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed rounded-lg hover:bg-white/10 transition-colors cursor-pointer"

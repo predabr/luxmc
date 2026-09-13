@@ -42,6 +42,7 @@
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
+	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { appState } from "$lib/stores/app.svelte";
@@ -634,13 +635,17 @@
 			const targetProfileId = activeProfile?.id || instanceId || "";
 			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
+			const effectiveCape = activeSkinStore.current.hasCape
+				? (activeSkinStore.current.customCapeUrl || (activeSkinStore.current.capeType && activeSkinStore.current.capeType !== "none" ? getFullCapeDataUrl(activeSkinStore.current.capeType) : null))
+				: (account.value?.capeUrl || null);
 			const result = await launchGame({
 				versionId: verId,
 				accountId: userUuid || "",
 				profileId: targetProfileId,
 				enableVulkan: isVulkan,
 				skinUrl: skinToPass,
-				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic"
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
+				capeUrl: effectiveCape
 			});
 
 			gamingStats.onGameStart();

@@ -244,3 +244,23 @@ export function getCapePreviewDataUrl(type: CapeType): string {
 	previewCache.set(type, dataUrl);
 	return dataUrl;
 }
+
+const fullCache = new Map<string, string>();
+
+export function getFullCapeDataUrl(type: CapeType): string {
+	if (typeof document === "undefined" || type === "none") return "";
+	if (fullCache.has(type)) {
+		return fullCache.get(type)!;
+	}
+
+	const canvas = document.createElement("canvas");
+	canvas.width = 64;
+	canvas.height = 32;
+	const ctx = canvas.getContext("2d");
+	if (!ctx) return "";
+
+	drawCapeToCanvas(ctx, type);
+	const dataUrl = canvas.toDataURL("image/png");
+	fullCache.set(type, dataUrl);
+	return dataUrl;
+}

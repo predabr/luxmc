@@ -19,6 +19,7 @@ pub struct LaunchRequest {
     pub enable_vulkan: Option<bool>,
     pub skin_url: Option<String>,
     pub skin_variant: Option<String>,
+    pub cape_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,30 +106,35 @@ pub async fn launch_game(
     )
     .ok();
 
+    let clean_req_ver = request.version_id.split('-').next().unwrap_or(&request.version_id);
     let version_row = match crate::db::schema::versions::get(&db, &request.version_id).await? {
         Some(v) => v,
         None => {
-            app.emit("launcher-log", format!("Versão {} não encontrada localmente. Buscando manifesto oficial...", request.version_id)).ok();
-            let manifest = minecraft::fetch_version_manifest(&state.http).await?;
-            if let Some(target) = manifest.versions.iter().find(|v| v.id == request.version_id) {
-                let now = chrono::Utc::now().to_rfc3339();
-                let vrow = crate::db::schema::versions::VersionRow {
-                    id: target.id.clone(),
-                    version_type: target.version_type.clone(),
-                    url: target.url.clone(),
-                    time: target.release_time.clone(),
-                    release_time: target.release_time.clone(),
-                    fetched_at: now,
-                };
-                crate::db::schema::versions::upsert(&db, &vrow).await?;
-                vrow
+            if let Ok(Some(v_clean)) = crate::db::schema::versions::get(&db, clean_req_ver).await {
+                v_clean
             } else {
-                let msg = format!(
-                    "Version {} not found in official manifest. Try refreshing the version list.",
-                    request.version_id
-                );
-                app.emit("launcher-log", &msg).ok();
-                return Err(AppError::NotFound(msg));
+                app.emit("launcher-log", format!("Versão {} não encontrada localmente. Buscando manifesto oficial...", request.version_id)).ok();
+                let manifest = minecraft::fetch_version_manifest(&state.http).await?;
+                if let Some(target) = manifest.versions.iter().find(|v| v.id == request.version_id || v.id == clean_req_ver) {
+                    let now = chrono::Utc::now().to_rfc3339();
+                    let vrow = crate::db::schema::versions::VersionRow {
+                        id: target.id.clone(),
+                        version_type: target.version_type.clone(),
+                        url: target.url.clone(),
+                        time: target.release_time.clone(),
+                        release_time: target.release_time.clone(),
+                        fetched_at: now,
+                    };
+                    crate::db::schema::versions::upsert(&db, &vrow).await?;
+                    vrow
+                } else {
+                    let msg = format!(
+                        "Version {} not found in official manifest. Try refreshing the version list.",
+                        request.version_id
+                    );
+                    app.emit("launcher-log", &msg).ok();
+                    return Err(AppError::NotFound(msg));
+                }
             }
         }
     };
@@ -234,6 +240,11 @@ pub async fn launch_game(
         .or_else(|| account.skin_variant.filter(|s| !s.trim().is_empty()))
         .unwrap_or_else(|| "classic".to_string());
 
+    let effective_cape_url = request
+        .cape_url
+        .filter(|c| !c.trim().is_empty())
+        .or_else(|| account.cape_url.filter(|c| !c.trim().is_empty()));
+
     app.emit(
         "launcher-log",
         format!(
@@ -253,6 +264,7 @@ pub async fn launch_game(
             &profile,
             effective_skin_url.as_deref(),
             Some(&effective_skin_variant),
+            effective_cape_url.as_deref(),
         )
         .await?;
 

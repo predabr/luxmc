@@ -35,6 +35,7 @@
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
+	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { layoutStore } from "$lib/stores/layout.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { 
@@ -346,13 +347,17 @@
 			launchStatusText = t("home.startingMc");
 			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
+			const effectiveCape = activeSkinStore.current.hasCape
+				? (activeSkinStore.current.customCapeUrl || (activeSkinStore.current.capeType && activeSkinStore.current.capeType !== "none" ? getFullCapeDataUrl(activeSkinStore.current.capeType) : null))
+				: (account.value?.capeUrl || null);
 			const result = await launchGame({
 				versionId: verId,
 				accountId: userUuid || "",
 				profileId: targetProfile.id,
 				enableVulkan: isVulkan,
 				skinUrl: skinToPass,
-				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic"
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
+				capeUrl: effectiveCape
 			});
 
 			gamingStats.onGameStart();
@@ -1014,37 +1019,46 @@
 
 										<div class="bg-[#18191c] border border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:border-white/15 transition-all">
 											<div class="mb-4">
-												<div class="text-2xl font-black text-white">{gamingStats.formattedTodayTime || "0m"}</div>
+												<div class="text-2xl font-black text-white">{gamingStats.formattedLast7DaysTime || "0m"}</div>
 												<div class="text-[11px] text-white/40 mt-0.5">{t("home.last7Days")}</div>
 											</div>
 
-											<div class="my-4 py-6 border-y border-white/5 relative flex flex-col items-center justify-center">
-												<div class="flex items-center justify-center py-2 text-white/30 text-xs font-medium">
-													{t("home.noPlayTimeYet")}
+											<div class="my-4 py-3 border-y border-white/5 relative flex flex-col items-center justify-center">
+												<div class="h-24 w-full flex items-end justify-between gap-2 px-1 pt-2">
+													{#each gamingStats.last7Days as day}
+														{@const heightPercent = gamingStats.maxMinutesInLast7 > 0 ? Math.max(8, Math.round((day.minutes / gamingStats.maxMinutesInLast7) * 100)) : 8}
+														<div class="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
+															<div class="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-900 border border-white/10 text-[10px] text-white font-mono px-1.5 py-0.5 rounded shadow whitespace-nowrap pointer-events-none z-10">
+																{day.formattedTime}
+															</div>
+															<div class="w-full bg-white/5 rounded-t-sm h-20 flex items-end overflow-hidden">
+																<div
+																	class="w-full rounded-t-sm transition-all duration-500 {day.isToday ? 'bg-[#caa97c] shadow-[0_0_10px_rgba(202,169,124,0.3)]' : (day.minutes > 0 ? 'bg-white/40 group-hover:bg-white/70' : 'bg-white/10')}"
+																	style="height: {day.minutes > 0 ? heightPercent + '%' : '6%'};"
+																></div>
+															</div>
+														</div>
+													{/each}
 												</div>
 
-												<div class="w-full flex justify-between items-center text-[10px] text-white/40 font-medium mt-4 pt-2 border-t border-white/5 px-2">
-													<span>Qui</span>
-													<span>Sex</span>
-													<span>Sáb</span>
-													<span>Dom</span>
-													<span>Seg</span>
-													<span>Ter</span>
-													<span class="text-white font-bold">Hoje</span>
+												<div class="w-full flex justify-between items-center text-[10px] text-white/40 font-medium mt-3 pt-2 border-t border-white/5 px-2">
+													{#each gamingStats.last7Days as day}
+														<span class="{day.isToday ? 'text-white font-bold' : ''}">{day.dayLabel}</span>
+													{/each}
 												</div>
 											</div>
 
 											<div class="grid grid-cols-3 gap-2 pt-2 text-center">
 												<div class="text-left">
-													<div class="text-xs font-black text-white">{gamingStats.formattedLastSession || "0m"}</div>
+													<div class="text-xs font-black text-white">{gamingStats.formattedAverageSession || "0m"}</div>
 													<div class="text-[10px] text-white/40 mt-0.5">{t("home.averageSession")}</div>
 												</div>
 												<div class="text-left">
-													<div class="text-xs font-black text-white">{gamingStats.formattedTotalTime || "0m"}</div>
+													<div class="text-xs font-black text-white">{gamingStats.formattedLongestSession || "0m"}</div>
 													<div class="text-[10px] text-white/40 mt-0.5">{t("home.longestSession")}</div>
 												</div>
 												<div class="text-left">
-													<div class="text-xs font-black text-white">0 de 7</div>
+													<div class="text-xs font-black text-white">{gamingStats.daysPlayedInLast7} de 7</div>
 													<div class="text-[10px] text-white/40 mt-0.5">{t("home.daysPlayed")}</div>
 												</div>
 											</div>

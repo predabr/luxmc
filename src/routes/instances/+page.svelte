@@ -32,6 +32,7 @@
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
+	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import {
@@ -311,13 +312,17 @@
 			}
 			const isVulkan = p.useVulkan === true;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
+			const effectiveCape = activeSkinStore.current.hasCape
+				? (activeSkinStore.current.customCapeUrl || (activeSkinStore.current.capeType && activeSkinStore.current.capeType !== "none" ? getFullCapeDataUrl(activeSkinStore.current.capeType) : null))
+				: (account.value?.capeUrl || null);
 			const res = await launchGame({
 				versionId: verId,
 				accountId: accountId || "",
 				profileId: p.id,
 				enableVulkan: isVulkan,
 				skinUrl: skinToPass,
-				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic"
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
+				capeUrl: effectiveCape
 			});
 			gamingStats.onGameStart();
 			appState.isGameRunning = true;

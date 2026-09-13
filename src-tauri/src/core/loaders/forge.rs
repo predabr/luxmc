@@ -277,7 +277,48 @@ pub async fn prepare_forge(
 
     let installer_bytes = tokio::fs::read(&installer_dest).await?;
     let _ = extract_installer_maven_files(&installer_bytes, libraries_dir);
-    let version_json_str = extract_version_json_from_bytes(&installer_bytes)?;
+
+    let versions_dir = data_dir.join("versions");
+    let candidate_ids = [
+        format!("{}-forge-{}", mc_version, chosen_version),
+        format!("{}-forge{}", mc_version, chosen_version),
+        format!("forge-{}-{}", mc_version, chosen_version),
+        full_version.clone(),
+        format!("{}-{}", mc_version, chosen_version),
+        format!("forge-{}", chosen_version),
+    ];
+
+    let mut installed_json_path = None;
+    for cand in &candidate_ids {
+        let p = versions_dir.join(cand).join(format!("{}.json", cand));
+        if p.exists() {
+            installed_json_path = Some(p);
+            break;
+        }
+    }
+
+    if installed_json_path.is_none() && versions_dir.exists() {
+        if let Ok(mut entries) = tokio::fs::read_dir(&versions_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if (name.contains(mc_version) || name.contains(&chosen_version)) && name.to_lowercase().contains("forge") {
+                    let cand_file = entry.path().join(format!("{}.json", name));
+                    if cand_file.exists() {
+                        installed_json_path = Some(cand_file);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let version_json_str = if let Some(ref p) = installed_json_path {
+        tokio::fs::read_to_string(p).await.unwrap_or_else(|_| {
+            extract_version_json_from_bytes(&installer_bytes).unwrap_or_default()
+        })
+    } else {
+        extract_version_json_from_bytes(&installer_bytes)?
+    };
 
     let version_data: ForgeVersionJson = serde_json::from_str(&version_json_str)
         .map_err(|e| AppError::Internal(format!("Failed to parse Forge version.json: {e}")))?;

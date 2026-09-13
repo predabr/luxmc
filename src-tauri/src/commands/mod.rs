@@ -15,6 +15,7 @@ pub mod p2p;
 pub mod profiles;
 pub mod servers;
 pub mod settings;
+pub mod skins;
 pub mod storage;
 pub mod system;
 pub mod updater;

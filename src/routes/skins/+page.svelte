@@ -22,7 +22,8 @@
 		Tag,
 		Flame,
 		Star,
-		Check
+		Check,
+		Trash2
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import Button from "$lib/components/ui/Button.svelte";
@@ -33,6 +34,7 @@
 	import { account } from "$lib/stores/account.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { authChangeSkin } from "$lib/api/auth";
+	import { skinsList, skinsSave, skinsDelete, capesList, capesSave, capesDelete, type SavedCapeRecord } from "$lib/api/skins";
 
 	type SkinItem = {
 		id: string;
@@ -457,6 +459,8 @@
 		}
 	]);
 
+	let savedCapes = $state<SavedCapeRecord[]>([]);
+
 	onMount(() => {
 		const raw = localStorage.getItem("luxmc_saved_skins");
 		if (raw) {
@@ -467,6 +471,37 @@
 				}
 			} catch {}
 		}
+
+		capesList().then((dbCapes) => {
+			if (dbCapes && dbCapes.length > 0) {
+				savedCapes = dbCapes;
+				if (!activeSkinStore.current.customCapeUrl) {
+					activeSkinStore.setCape("custom", dbCapes[0].capeUrl);
+					selectedCape = "custom";
+				}
+			}
+		}).catch(e => console.warn("Failed to load capes from db:", e));
+
+		skinsList().then((dbSkins) => {
+			if (dbSkins && dbSkins.length > 0) {
+				const mapped: SkinItem[] = dbSkins.map(s => ({
+					id: s.id,
+					name: s.name,
+					url: s.avatarUrl || s.skinUrl,
+					skinUrl: s.skinUrl,
+					avatarUrl: s.avatarUrl || s.skinUrl,
+					type: (s.modelType === "alex" ? "alex" : "steve") as "steve" | "alex",
+					custom: s.isCustom
+				}));
+				const merged = [...savedSkins];
+				for (const item of mapped) {
+					if (!merged.some(s => s.id === item.id)) {
+						merged.push(item);
+					}
+				}
+				savedSkins = merged;
+			}
+		}).catch(e => console.warn("Failed to load skins from db:", e));
 
 		if (account.value?.username) {
 			const uName = account.value.username;
@@ -678,12 +713,27 @@
 
 				savedSkins = [newSkin, ...savedSkins].slice(0, 25);
 				applySkin(newSkin);
+				skinsSave({
+					id: newSkin.id,
+					name: cleanName,
+					skinUrl: dataUrl,
+					avatarUrl: avatarDataUrl,
+					modelType: isSlimModel ? "alex" : "steve",
+					isCustom: true
+				}).catch(e => console.warn("Failed to persist skin to db:", e));
 				toast(`Nova skin "${cleanName}" carregada e sincronizada com seu perfil!`, "success");
 			};
 			img.src = dataUrl;
 		};
 		reader.readAsDataURL(file);
 		target.value = "";
+	}
+
+	function deleteSavedSkin(skinId: string, e: MouseEvent) {
+		e.stopPropagation();
+		savedSkins = savedSkins.filter(s => s.id !== skinId);
+		skinsDelete(skinId).catch(e => console.warn("Failed to delete skin from db:", e));
+		toast("Skin removida!", "info");
 	}
 
 	let capeFileInputEl: HTMLInputElement;
@@ -699,7 +749,7 @@
 		}
 
 		const reader = new FileReader();
-		reader.onload = (event) => {
+		reader.onload = async (event) => {
 			const dataUrl = event.target?.result as string;
 			if (!dataUrl) return;
 
@@ -707,10 +757,41 @@
 			activeSkinStore.setCape("custom", dataUrl);
 			autoRotate = false;
 			skinViewerRef?.setAngle(175);
-			toast("Capa personalizada importada e equipada com sucesso!", "success");
+
+			try {
+				const capeName = file.name.replace(/\.png$/i, "") || "Capa Personalizada";
+				const saved = await capesSave({
+					id: "cape_" + Date.now(),
+					name: capeName,
+					capeUrl: dataUrl
+				});
+				savedCapes = [saved, ...savedCapes.filter(c => c.id !== saved.id)];
+				toast("Capa personalizada salva e equipada!", "success");
+			} catch (err) {
+				console.warn("Failed to persist cape to SQLite:", err);
+				toast("Capa personalizada importada e equipada!", "success");
+			}
 		};
 		reader.readAsDataURL(file);
 		target.value = "";
+	}
+
+	async function deleteSavedCape(capeId: string, e: MouseEvent) {
+		e.stopPropagation();
+		savedCapes = savedCapes.filter(c => c.id !== capeId);
+		if (activeSkinStore.current.customCapeUrl && selectedCape === "custom") {
+			if (savedCapes.length > 0) {
+				activeSkinStore.setCape("custom", savedCapes[0].capeUrl);
+			} else {
+				selectCape("none");
+			}
+		}
+		try {
+			await capesDelete(capeId);
+		} catch (err) {
+			console.warn("Failed to delete cape from db:", err);
+		}
+		toast("Capa personalizada removida!", "info");
 	}
 
 	function setModelType(slim: boolean) {
@@ -1084,19 +1165,33 @@
 							<!-- Saved Skins Cards -->
 							{#each savedSkins as skin}
 								{@const isSelected = activeSkinStore.current.id === skin.id}
-								<button 
-									type="button" 
-									class="h-36 rounded-2xl bg-[#18191c] border-2 p-3 relative flex flex-col items-center justify-between transition-all group overflow-hidden cursor-pointer {isSelected ? 'border-brand-500 bg-[#222328] shadow-[0_0_16px_rgba(226,184,107,0.25)]' : 'border-white/5 hover:border-white/20'}"
-									onclick={() => applySkin(skin)}
+								<div 
+									class="h-36 rounded-2xl bg-[#18191c] border-2 p-3 relative flex flex-col items-center justify-between transition-all group overflow-hidden {isSelected ? 'border-brand-500 bg-[#222328] shadow-[0_0_16px_rgba(226,184,107,0.25)]' : 'border-white/5 hover:border-white/20'}"
 								>
 									{#if isSelected}
 										<div class="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-brand-500 shadow-sm animate-pulse"></div>
 									{/if}
-									<div class="flex-1 flex items-center justify-center">
-										<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/5 shadow-md" loading="lazy" decoding="async" />
-									</div>
-									<span class="text-xs font-bold text-white/80 group-hover:text-white truncate max-w-[90%]">{skin.name}</span>
-								</button>
+									{#if skin.custom && skin.id !== "cyber_steve"}
+										<button
+											type="button"
+											class="absolute top-2 left-2 w-6 h-6 rounded-lg bg-black/60 hover:bg-red-500/80 text-white/60 hover:text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 z-10 cursor-pointer"
+											onclick={(e) => deleteSavedSkin(skin.id, e)}
+											title="Excluir Skin"
+										>
+											<Trash2 class="w-3.5 h-3.5" />
+										</button>
+									{/if}
+									<button
+										type="button"
+										class="w-full h-full flex flex-col items-center justify-between cursor-pointer bg-transparent border-0 p-0"
+										onclick={() => applySkin(skin)}
+									>
+										<div class="flex-1 flex items-center justify-center">
+											<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/5 shadow-md" loading="lazy" decoding="async" />
+										</div>
+										<span class="text-xs font-bold text-white/80 group-hover:text-white truncate max-w-[90%]">{skin.name}</span>
+									</button>
+								</div>
 							{/each}
 						</div>
 					</div>
@@ -1172,7 +1267,75 @@
 
 					<!-- Capes Grid -->
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-						{#if activeSkinStore.current.customCapeUrl}
+						{#if savedCapes.length > 0}
+							{#each savedCapes as cape (cape.id)}
+								{@const isCustomEquipped = selectedCape === "custom" && activeSkinStore.current.customCapeUrl === cape.capeUrl}
+								<div class="bg-[#18191c] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isCustomEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
+									<div class="flex items-center justify-between gap-2 mb-2">
+										<span class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border bg-amber-500/20 text-amber-300 border-amber-500/30">
+											Personalizada
+										</span>
+										<div class="flex items-center gap-1.5">
+											<span class="text-[11px] font-medium text-white/40">Arquivo Local</span>
+											<button
+												type="button"
+												class="p-1 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+												title="Excluir capa salva"
+												onclick={(e) => deleteSavedCape(cape.id, e)}
+											>
+												<Trash2 class="w-3.5 h-3.5" />
+											</button>
+										</div>
+									</div>
+
+									<div class="h-24 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border border-white/10 flex items-center justify-center relative overflow-hidden my-2">
+										<div class="flex items-center gap-3 z-10">
+											<div class="w-10 h-16 rounded-md bg-black/50 border border-white/20 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+												<img src={cape.capeUrl} alt={cape.name} class="w-full h-full object-contain [image-rendering:pixelated]" />
+											</div>
+											<div>
+												<h4 class="text-xs font-extrabold text-white">{cape.name}</h4>
+												<p class="text-[10px] text-white/50">Salva no Luxmc</p>
+											</div>
+										</div>
+									</div>
+
+									<p class="text-xs text-white/60 leading-relaxed my-1.5">
+										Textura de capa personalizada salva localmente no computador.
+									</p>
+
+									<div class="mt-2 pt-2.5 border-t border-white/5 flex items-center justify-between">
+										{#if isCustomEquipped}
+											<span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+												<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Equipada
+											</span>
+											<button 
+												type="button" 
+												class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+												onclick={() => selectCape("none")}
+											>
+												Desequipar
+											</button>
+										{:else}
+											<span class="text-[10px] text-white/30 font-medium">Textura Personalizada</span>
+											<button 
+												type="button" 
+												class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-brand-500/15 text-brand-400 border border-brand-500/30 hover:bg-brand-500 hover:text-black transition-all cursor-pointer shadow-sm"
+												onclick={() => {
+													selectedCape = "custom";
+													activeSkinStore.setCape("custom", cape.capeUrl);
+													autoRotate = false;
+													skinViewerRef?.setAngle(175);
+													toast(`Capa "${cape.name}" equipada!`, "success");
+												}}
+											>
+												Equipar Capa
+											</button>
+										{/if}
+									</div>
+								</div>
+							{/each}
+						{:else if activeSkinStore.current.customCapeUrl}
 							{@const isCustomEquipped = selectedCape === "custom"}
 							<div class="bg-[#18191c] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isCustomEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
 								<div class="flex items-center justify-between gap-2 mb-2">

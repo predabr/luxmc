@@ -149,6 +149,7 @@ impl GameLauncher {
         profile: &crate::db::models::ProfileRow,
         skin_url: Option<&str>,
         skin_variant: Option<&str>,
+        cape_url: Option<&str>,
     ) -> AppResult<u32> {
         self.emit_stage(LaunchStage::Preparing);
         self.emit_log(&format!("Preparing to launch {}", detail.id));
@@ -289,24 +290,23 @@ impl GameLauncher {
                     !s.ends_with("-installer.jar")
                 });
 
-                // NeoForge/Forge already includes a patched minecraft jar in its own library set.
-                // If any classpath entry contains "minecraft-{mc_version}" (the patched client),
-                // remove the plain vanilla "{mc_version}.jar" to prevent duplicate module exports
-                // which cause JVM startup crash: "Modules minecraft and _1_21_1 both export...".
                 let mc_ver = &profile.mc_version;
                 let versions_dir = self.downloader.versions_dir();
                 let vanilla_jar = versions_dir.join(mc_ver).join(format!("{}.jar", mc_ver));
-                let loader_has_mc = classpath.iter().any(|p| {
+
+                let has_bundled_client = classpath.iter().any(|p| {
                     let s = p.to_string_lossy();
-                    (s.contains(&format!("minecraft-{}", mc_ver)) || s.contains(&format!("minecraft_{}", mc_ver)))
-                        && *p != vanilla_jar
+                    p.exists() && (s.contains(&format!("minecraft-{}-client.jar", mc_ver)) || s.contains(&format!("client-{}-srg.jar", mc_ver)))
                 });
-                if loader_has_mc {
+
+                if has_bundled_client {
                     classpath.retain(|p| p != &vanilla_jar);
                     self.emit_log(&format!(
-                        "Removed vanilla {}.jar from classpath (NeoForge/Forge already provides patched minecraft jar)",
+                        "Removed vanilla {}.jar from classpath (bundled client jar present)",
                         mc_ver
                     ));
+                } else if !classpath.contains(&vanilla_jar) && vanilla_jar.exists() {
+                    classpath.push(vanilla_jar);
                 }
             }
 
@@ -337,7 +337,26 @@ impl GameLauncher {
             })
             .unwrap_or(false);
 
-        if is_msa && !has_explicit_custom_skin {
+        let effective_cape = if let Some(c) = cape_url.filter(|c| !c.trim().is_empty()) {
+            Some(c.to_string())
+        } else if let Ok(db) = crate::db::shared_db().await {
+            use sqlx::Row;
+            if let Ok(Some(row)) = sqlx::query("SELECT cape_url FROM accounts WHERE username = ? OR uuid = ? OR id = ? LIMIT 1")
+                .bind(username)
+                .bind(uuid)
+                .bind(uuid)
+                .fetch_optional(db.pool())
+                .await
+            {
+                row.try_get::<Option<String>, _>("cape_url").ok().flatten().filter(|c| !c.trim().is_empty())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if is_msa && !has_explicit_custom_skin && effective_cape.is_none() {
             self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
             let _ = clean_skin_injection(game_dir).await;
         } else {
@@ -364,10 +383,10 @@ impl GameLauncher {
 
             if let Some((skin_source, variant)) = skin_info {
                 self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
-                let _ = inject_player_skin(self.downloader.http(), game_dir, &skin_source, &variant, &profile.mc_version).await;
-            } else if !is_msa {
+                let _ = inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), &profile.mc_version).await;
+            } else if !is_msa || effective_cape.is_some() {
                 let default_source = format!("https://minotar.net/skin/{}", username);
-                let _ = inject_player_skin(self.downloader.http(), game_dir, &default_source, "classic", &profile.mc_version).await;
+                let _ = inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), &profile.mc_version).await;
             }
         }
 
@@ -1266,6 +1285,27 @@ mod tests {
         let result = ensure_flite_library(&path).await;
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_normalize_skin_64x32_to_64x64() {
+        let legacy_img = image::RgbaImage::new(64, 32);
+        let normalized = normalize_skin_image(legacy_img);
+        assert_eq!(normalized.dimensions(), (64, 64));
+    }
+
+    #[test]
+    fn test_normalize_skin_fixes_torso_back_alpha() {
+        let mut img = image::RgbaImage::new(64, 64);
+        img.put_pixel(24, 24, image::Rgba([200, 100, 50, 255]));
+        img.put_pixel(36, 24, image::Rgba([0, 0, 0, 0]));
+
+        let normalized = normalize_skin_image(img);
+        let back_pixel = *normalized.get_pixel(36, 24);
+        assert_eq!(back_pixel[3], 255);
+        assert_eq!(back_pixel[0], 200);
+        assert_eq!(back_pixel[1], 100);
+        assert_eq!(back_pixel[2], 50);
+    }
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -1459,11 +1499,141 @@ pub async fn clean_skin_injection(game_dir: &std::path::Path) -> AppResult<()> {
     Ok(())
 }
 
+fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
+    let (orig_w, orig_h) = img.dimensions();
+    let mut canvas = if orig_w == 64 && orig_h == 32 {
+        let mut target = image::RgbaImage::new(64, 64);
+        for y in 0..32 {
+            for x in 0..64 {
+                target.put_pixel(x, y, *img.get_pixel(x, y));
+            }
+        }
+        // Synthesize left leg from right leg
+        for dy in 0..4 {
+            for dx in 0..4 {
+                target.put_pixel(20 + (3 - dx), 48 + dy, *img.get_pixel(4 + dx, 16 + dy));
+                target.put_pixel(24 + (3 - dx), 48 + dy, *img.get_pixel(8 + dx, 16 + dy));
+            }
+        }
+        for dy in 0..12 {
+            for dx in 0..4 {
+                target.put_pixel(20 + (3 - dx), 52 + dy, *img.get_pixel(4 + dx, 20 + dy));
+                target.put_pixel(28 + (3 - dx), 52 + dy, *img.get_pixel(12 + dx, 20 + dy));
+                target.put_pixel(24 + (3 - dx), 52 + dy, *img.get_pixel(0 + dx, 20 + dy));
+                target.put_pixel(16 + (3 - dx), 52 + dy, *img.get_pixel(8 + dx, 20 + dy));
+            }
+        }
+
+        // Synthesize left arm from right arm
+        for dy in 0..4 {
+            for dx in 0..4 {
+                target.put_pixel(36 + (3 - dx), 48 + dy, *img.get_pixel(44 + dx, 16 + dy));
+                target.put_pixel(40 + (3 - dx), 48 + dy, *img.get_pixel(48 + dx, 16 + dy));
+            }
+        }
+        for dy in 0..12 {
+            for dx in 0..4 {
+                target.put_pixel(36 + (3 - dx), 52 + dy, *img.get_pixel(44 + dx, 20 + dy));
+                target.put_pixel(44 + (3 - dx), 52 + dy, *img.get_pixel(52 + dx, 20 + dy));
+                target.put_pixel(40 + (3 - dx), 52 + dy, *img.get_pixel(40 + dx, 20 + dy));
+                target.put_pixel(32 + (3 - dx), 52 + dy, *img.get_pixel(48 + dx, 20 + dy));
+            }
+        }
+        target
+    } else if orig_w != orig_h {
+        image::imageops::resize(&img, 64, 64, image::imageops::FilterType::Nearest)
+    } else {
+        img
+    };
+
+    let (w, h) = canvas.dimensions();
+    let scale = (w / 64).max(1);
+
+    // Force solid opacity on base body parts to eliminate in-game back rendering glitches
+    let base_rects = [
+        (0 * scale, 0 * scale, 32 * scale, 16 * scale),
+        (16 * scale, 16 * scale, 40 * scale, 32 * scale),
+        (40 * scale, 16 * scale, 56 * scale, 32 * scale),
+        (0 * scale, 16 * scale, 16 * scale, 32 * scale),
+        (16 * scale, 48 * scale, 32 * scale, 64 * scale),
+        (32 * scale, 48 * scale, 48 * scale, 64 * scale),
+    ];
+
+    for &(x1, y1, x2, y2) in &base_rects {
+        for y in y1..y2.min(h) {
+            for x in x1..x2.min(w) {
+                let pixel = *canvas.get_pixel(x, y);
+                if pixel[3] < 255 {
+                    if pixel[3] > 0 {
+                        canvas.put_pixel(x, y, image::Rgba([pixel[0], pixel[1], pixel[2], 255]));
+                    } else if x >= 32 * scale && x < 40 * scale && y >= 20 * scale && y < 32 * scale {
+                        let front_x = 20 * scale + (x - 32 * scale);
+                        let front_pixel = *canvas.get_pixel(front_x, y);
+                        if front_pixel[3] > 0 {
+                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
+                        } else {
+                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
+                        }
+                    } else if x >= 24 * scale && x < 32 * scale && y >= 8 * scale && y < 16 * scale {
+                        let front_x = 8 * scale + (x - 24 * scale);
+                        let front_pixel = *canvas.get_pixel(front_x, y);
+                        if front_pixel[3] > 0 {
+                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
+                        } else {
+                            canvas.put_pixel(x, y, image::Rgba([40, 30, 25, 255]));
+                        }
+                    } else if x >= 12 * scale && x < 16 * scale && y >= 20 * scale && y < 32 * scale {
+                        let front_x = 4 * scale + (x - 12 * scale);
+                        let front_pixel = *canvas.get_pixel(front_x, y);
+                        if front_pixel[3] > 0 {
+                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
+                        } else {
+                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
+                        }
+                    } else if x >= 28 * scale && x < 32 * scale && y >= 52 * scale && y < 64 * scale {
+                        let front_x = 20 * scale + (x - 28 * scale);
+                        let front_pixel = *canvas.get_pixel(front_x, y);
+                        if front_pixel[3] > 0 {
+                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
+                        } else {
+                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
+                        }
+                    } else if x >= 52 * scale && x < 56 * scale && y >= 20 * scale && y < 32 * scale {
+                        let front_x = 44 * scale + (x - 52 * scale);
+                        let front_pixel = *canvas.get_pixel(front_x, y);
+                        if front_pixel[3] > 0 {
+                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
+                        } else {
+                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
+                        }
+                    } else if x >= 44 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale {
+                        let front_x = 36 * scale + (x - 44 * scale);
+                        let front_pixel = *canvas.get_pixel(front_x, y);
+                        if front_pixel[3] > 0 {
+                            canvas.put_pixel(x, y, image::Rgba([front_pixel[0], front_pixel[1], front_pixel[2], 255]));
+                        } else {
+                            canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
+                        }
+                    } else if (x >= 16 * scale && x < 40 * scale && y >= 16 * scale && y < 32 * scale)
+                        || (x >= 8 * scale && x < 24 * scale && y < 16 * scale)
+                    {
+                        canvas.put_pixel(x, y, image::Rgba([45, 45, 45, 255]));
+                    }
+                }
+            }
+        }
+    }
+
+    canvas
+}
+
 async fn inject_player_skin(
     http: &reqwest::Client,
     game_dir: &std::path::Path,
+    username: &str,
     skin_source: &str,
     _variant: &str,
+    cape_source: Option<&str>,
     mc_version: &str,
 ) -> AppResult<()> {
     let mut skin_bytes: Vec<u8> = if skin_source.starts_with("http://") || skin_source.starts_with("https://") {
@@ -1495,8 +1665,8 @@ async fn inject_player_skin(
     };
 
     if skin_bytes.is_empty() {
-        if let Some(username) = skin_source.split('/').last() {
-            let clean_name = username.trim_end_matches(".png");
+        if let Some(u) = skin_source.split('/').last() {
+            let clean_name = u.trim_end_matches(".png");
             if !clean_name.is_empty() {
                 let fallback_urls = [
                     format!("https://mc-heads.net/skin/{}", clean_name),
@@ -1524,6 +1694,20 @@ async fn inject_player_skin(
         return clean_skin_injection(game_dir).await;
     }
 
+    // Normalize skin image
+    let normalized_skin_bytes = if let Ok(dyn_img) = image::load_from_memory(&skin_bytes) {
+        let norm_img = normalize_skin_image(dyn_img.to_rgba8());
+        let mut buf = Vec::new();
+        let mut cursor = std::io::Cursor::new(&mut buf);
+        if norm_img.write_to(&mut cursor, image::ImageFormat::Png).is_ok() {
+            buf
+        } else {
+            skin_bytes
+        }
+    } else {
+        skin_bytes
+    };
+
     let pack_dir = game_dir.join("resourcepacks").join("LuxmcCustomSkin");
     let entity_dir_wide = pack_dir.join("assets/minecraft/textures/entity/player/wide");
     let entity_dir_slim = pack_dir.join("assets/minecraft/textures/entity/player/slim");
@@ -1543,7 +1727,7 @@ async fn inject_player_skin(
                 "min_inclusive": 1,
                 "max_inclusive": 99
             },
-            "description": "Luxmc Player Custom Skin"
+            "description": "Luxmc Player Custom Skin & Cape"
         }
     });
     let _ = tokio::fs::write(pack_dir.join("pack.mcmeta"), serde_json::to_string_pretty(&mcmeta).unwrap_or_default()).await;
@@ -1553,10 +1737,99 @@ async fn inject_player_skin(
         "steve", "alex", "ari", "efe", "kai", "makena", "noor", "sunny", "zuri",
     ];
     for model in &skin_models {
-        let _ = tokio::fs::write(entity_dir_wide.join(format!("{}.png", model)), &skin_bytes).await;
-        let _ = tokio::fs::write(entity_dir_slim.join(format!("{}.png", model)), &skin_bytes).await;
-        let _ = tokio::fs::write(entity_dir_player.join(format!("{}.png", model)), &skin_bytes).await;
-        let _ = tokio::fs::write(entity_dir_legacy.join(format!("{}.png", model)), &skin_bytes).await;
+        let _ = tokio::fs::write(entity_dir_wide.join(format!("{}.png", model)), &normalized_skin_bytes).await;
+        let _ = tokio::fs::write(entity_dir_slim.join(format!("{}.png", model)), &normalized_skin_bytes).await;
+        let _ = tokio::fs::write(entity_dir_player.join(format!("{}.png", model)), &normalized_skin_bytes).await;
+        let _ = tokio::fs::write(entity_dir_legacy.join(format!("{}.png", model)), &normalized_skin_bytes).await;
+    }
+
+    // Direct legacy Steve & Alex fallbacks
+    let _ = tokio::fs::write(entity_dir_legacy.join("steve.png"), &normalized_skin_bytes).await;
+    let _ = tokio::fs::write(entity_dir_legacy.join("alex.png"), &normalized_skin_bytes).await;
+
+    // Cape handling
+    let cape_bytes: Vec<u8> = if let Some(cs) = cape_source.filter(|s| !s.trim().is_empty()) {
+        if cs.starts_with("http://") || cs.starts_with("https://") {
+            if let Ok(resp) = http.get(cs).send().await {
+                if resp.status().is_success() {
+                    resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
+                } else {
+                    Vec::new()
+                }
+            } else {
+                Vec::new()
+            }
+        } else if cs.starts_with("data:image/") {
+            if let Some(pos) = cs.find(',') {
+                use base64::Engine;
+                base64::engine::general_purpose::STANDARD
+                    .decode(&cs[pos + 1..])
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            }
+        } else {
+            let p = std::path::Path::new(cs);
+            if p.exists() {
+                tokio::fs::read(p).await.unwrap_or_default()
+            } else {
+                Vec::new()
+            }
+        }
+    } else {
+        Vec::new()
+    };
+
+    if !cape_bytes.is_empty() {
+        let normalized_cape_bytes = if let Ok(dyn_cape) = image::load_from_memory(&cape_bytes) {
+            use image::GenericImageView;
+            let (cw, ch) = dyn_cape.dimensions();
+            let cape_img = if cw == 64 && ch == 32 {
+                dyn_cape.to_rgba8()
+            } else if cw == ch * 2 {
+                dyn_cape.to_rgba8()
+            } else {
+                image::imageops::resize(&dyn_cape.to_rgba8(), 64, 32, image::imageops::FilterType::Nearest)
+            };
+            let mut buf = Vec::new();
+            let mut cursor = std::io::Cursor::new(&mut buf);
+            if cape_img.write_to(&mut cursor, image::ImageFormat::Png).is_ok() {
+                buf
+            } else {
+                cape_bytes
+            }
+        } else {
+            cape_bytes
+        };
+
+        let u_clean = username.trim();
+        let u_lower = u_clean.to_lowercase();
+        let cape_paths = [
+            pack_dir.join("assets/minecraft/textures/entity/cape.png"),
+            pack_dir.join("assets/minecraft/textures/entity/player/cape.png"),
+            pack_dir.join("assets/minecraft/textures/entity/elytra.png"),
+            pack_dir.join("assets/minecraft/textures/entity/player/elytra.png"),
+            pack_dir.join("assets/minecraft/textures/cape/cape.png"),
+            pack_dir.join("assets/minecraft/textures/capes/cape.png"),
+            pack_dir.join(format!("assets/minecraft/textures/capes/{}.png", u_clean)),
+            pack_dir.join(format!("assets/minecraft/textures/capes/{}.png", u_lower)),
+            pack_dir.join("assets/minecraft/textures/entity/cape/cape.png"),
+            pack_dir.join("assets/minecraft/textures/entity/player/wide/cape.png"),
+            pack_dir.join("assets/minecraft/textures/entity/player/slim/cape.png"),
+            pack_dir.join("assets/minecraft/optifine/cape.png"),
+            pack_dir.join("assets/minecraft/optifine/cape/cape.png"),
+            pack_dir.join("assets/minecraft/optifine/capes/default.png"),
+            pack_dir.join(format!("assets/minecraft/optifine/capes/{}.png", u_clean)),
+            pack_dir.join(format!("assets/minecraft/optifine/capes/{}.png", u_lower)),
+            pack_dir.join("assets/minecraft/textures/models/armor/cape.png"),
+        ];
+
+        for path in &cape_paths {
+            if let Some(parent) = path.parent() {
+                let _ = tokio::fs::create_dir_all(parent).await;
+            }
+            let _ = tokio::fs::write(path, &normalized_cape_bytes).await;
+        }
     }
 
     let is_legacy = is_legacy_pack(mc_version);
@@ -1571,14 +1844,38 @@ async fn inject_player_skin(
         "\"LuxmcCustomSkin\""
     };
 
+    let skin_flags = [
+        ("modelPart_cape", "true"),
+        ("modelPart_jacket", "true"),
+        ("modelPart_left_sleeve", "true"),
+        ("modelPart_right_sleeve", "true"),
+        ("modelPart_left_pants_leg", "true"),
+        ("modelPart_right_pants_leg", "true"),
+        ("modelPart_hat", "true"),
+    ];
+
     let options_file = game_dir.join("options.txt");
     if options_file.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&options_file).await {
             let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
-            let mut found = false;
+            let mut found_pack = false;
+            for (key, val) in &skin_flags {
+                let prefix = format!("{}:", key);
+                let mut found_key = false;
+                for line in &mut lines {
+                    if line.starts_with(&prefix) {
+                        *line = format!("{}:{}", key, val);
+                        found_key = true;
+                        break;
+                    }
+                }
+                if !found_key {
+                    lines.push(format!("{}:{}", key, val));
+                }
+            }
             for line in &mut lines {
                 if line.starts_with("resourcePacks:") {
-                    found = true;
+                    found_pack = true;
                     let inner = line.trim_start_matches("resourcePacks:").trim();
                     if inner.starts_with('[') && inner.ends_with(']') {
                         let array_content = &inner[1..inner.len() - 1];
@@ -1601,7 +1898,7 @@ async fn inject_player_skin(
                         .replace(unchosen_pack_entry, "");
                 }
             }
-            if !found {
+            if !found_pack {
                 let default_list = if is_legacy {
                     format!("resourcePacks:[{}]", chosen_pack_entry)
                 } else {
@@ -1612,11 +1909,14 @@ async fn inject_player_skin(
             let _ = tokio::fs::write(&options_file, lines.join("\n")).await;
         }
     } else {
-        let default_options = if is_legacy {
+        let mut default_options = if is_legacy {
             format!("resourcePacks:[{}]\nincompatibleResourcePacks:[]\n", chosen_pack_entry)
         } else {
             format!("resourcePacks:[\"vanilla\",{}]\nincompatibleResourcePacks:[]\n", chosen_pack_entry)
         };
+        for (key, val) in &skin_flags {
+            default_options.push_str(&format!("{}:{}\n", key, val));
+        }
         let _ = tokio::fs::write(&options_file, default_options).await;
     }
 

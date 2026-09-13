@@ -61,6 +61,35 @@ impl Db {
         let _ = sqlx::query("ALTER TABLE accounts ADD COLUMN skin_variant TEXT").execute(&pool).await;
         let _ = sqlx::query("ALTER TABLE accounts ADD COLUMN cape_url TEXT").execute(&pool).await;
 
+        let _ = sqlx::query(
+            "CREATE TABLE IF NOT EXISTS skins (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                skin_url TEXT NOT NULL,
+                avatar_url TEXT NOT NULL,
+                model_type TEXT NOT NULL,
+                is_custom INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL
+            )"
+        ).execute(&pool).await;
+
+        let _ = sqlx::query(
+            "CREATE TABLE IF NOT EXISTS play_time_stats (
+                id TEXT PRIMARY KEY NOT NULL,
+                data TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )"
+        ).execute(&pool).await;
+
+        let _ = sqlx::query(
+            "CREATE TABLE IF NOT EXISTS capes (
+                id TEXT PRIMARY KEY NOT NULL,
+                name TEXT NOT NULL,
+                cape_url TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )"
+        ).execute(&pool).await;
+
         Ok(Self { pool })
     }
 

@@ -876,27 +876,6 @@
 						</button>
 					</div>
 
-					<!-- Cutscene Replay Card -->
-					<button
-						type="button"
-						class="w-full bg-gradient-to-r from-brand-500/15 via-[#e2b86b]/5 to-transparent hover:from-brand-500/25 border border-brand-500/30 p-4 rounded-3xl flex items-center justify-between text-xs font-bold text-white transition-all shadow-lg cursor-pointer group active:scale-[0.99]"
-						onclick={() => appState.playCutscene()}
-					>
-						<div class="flex items-center gap-3.5">
-							<div class="w-11 h-11 rounded-full bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-500 group-hover:scale-110 transition-transform shadow-[0_0_15px_rgba(226,184,107,0.3)]">
-								<Play class="w-5 h-5 fill-current ml-0.5" />
-							</div>
-							<div class="text-left">
-								<div class="text-white text-xs font-black tracking-wide flex items-center gap-2">
-									<span>Assistir Apresentação 3D (Cutscene)</span>
-									<span class="text-[9px] font-mono font-bold bg-brand-500/20 text-brand-500 px-2 py-0.5 rounded-full border border-brand-500/30">3D SHATTER</span>
-								</div>
-								<div class="text-[11px] text-white/50 font-normal mt-0.5">Veja o logotipo oficial 3D se despedaçar em fragmentos e se reagrupar no vácuo</div>
-							</div>
-						</div>
-						<span class="text-[10px] font-mono font-bold text-brand-500 bg-brand-500/10 px-4 py-2 rounded-full border border-brand-500/20 group-hover:bg-brand-500 group-hover:text-black transition-all">REPRODUZIR</span>
-					</button>
-
 					<!-- Changelog History -->
 					<div class="bg-[#1c1d22] border border-white/5 rounded-3xl p-5 space-y-4 text-xs shadow-md">
 						<div class="flex items-center justify-between pb-2 border-b border-white/5">

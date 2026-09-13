@@ -160,6 +160,15 @@ pub async fn run() {
             commands::optimizer::optimizer_install_perf_pack,
             commands::optimizer::optimizer_detect_gpu,
             commands::updater::app_perform_update,
+            commands::skins::skins_list,
+            commands::skins::skins_save,
+            commands::skins::skins_delete,
+            commands::skins::skins_import_file,
+            commands::skins::capes_list,
+            commands::skins::capes_save,
+            commands::skins::capes_delete,
+            commands::skins::gaming_stats_get,
+            commands::skins::gaming_stats_save,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
