@@ -68,10 +68,10 @@
 		}
 	}
 
+	import { goto } from "$app/navigation";
+
 	onMount(() => {
-		loadSpecs();
-		const initialRam = activeProfile?.ramMb || 4096;
-		updateFlags(initialRam);
+		goto("/instances");
 	});
 
 	async function handleTrimMemory() {

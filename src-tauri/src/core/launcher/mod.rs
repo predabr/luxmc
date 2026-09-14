@@ -193,10 +193,23 @@ impl GameLauncher {
                 v.starts_with("40.") || v.starts_with("41.") || v.starts_with("42.") || v.starts_with("43.") ||
                 v.starts_with("36.") || v.starts_with("37.") || v.starts_with("38.") || v.starts_with("39.") ||
                 v.starts_with("31.") || v.starts_with("32.") || v.starts_with("33.") || v.starts_with("34.") || v.starts_with("35.") ||
-                v.starts_with("14.") || v.starts_with("12.") || v.starts_with("10.") || v.starts_with("9.") || v.starts_with("7.")
+                v.starts_with("14.") || v.starts_with("12.") || v.starts_with("10.") || v.starts_with("9.") || v.starts_with("7.") ||
+                v.contains("forge")
             }).unwrap_or(false);
-            let name_indicates_forge = profile.name.to_lowercase().contains("forge") && !profile.name.to_lowercase().contains("neoforge");
-            if is_forge_version || name_indicates_forge {
+            let is_neoforge_version = profile.loader_version.as_deref().map(|v| {
+                v.starts_with("20.") || v.starts_with("21.") || v.starts_with("22.") || v.contains("neoforge")
+            }).unwrap_or(false);
+            let name_indicates_neoforge = profile.name.to_lowercase().contains("neoforge") || profile.name.to_lowercase().contains("all the mods") || profile.name.to_lowercase().contains("atm");
+            let name_indicates_forge = profile.name.to_lowercase().contains("forge") && !name_indicates_neoforge;
+            if is_neoforge_version || name_indicates_neoforge {
+                self.emit_log("Auto-correcting loader from 'fabric' to 'neoforge' based on modpack metadata");
+                loader = "neoforge".to_string();
+                if let Ok(db) = crate::db::shared_db().await {
+                    let mut updated_profile = profile.clone();
+                    updated_profile.loader = "neoforge".to_string();
+                    let _ = crate::db::schema::profiles::upsert(&db, &updated_profile).await;
+                }
+            } else if is_forge_version || name_indicates_forge {
                 self.emit_log("Auto-correcting loader from 'fabric' to 'forge' based on modpack metadata");
                 loader = "forge".to_string();
                 if let Ok(db) = crate::db::shared_db().await {
@@ -1017,43 +1030,57 @@ impl GameLauncher {
             args.push(cp_str.clone());
         }
 
-        // Calculate RAM allocation from profile or dynamic system detection with Intelligent Scaling
+        // 100% Automatic RAM Allocation: dynamically inspects user hardware and mod weight
         let is_heavy_modded = profile.loader == "forge"
             || profile.loader == "neoforge"
             || profile.name.to_lowercase().contains("all the mods")
             || profile.name.to_lowercase().contains("atm")
-            || profile.name.to_lowercase().contains("better mc");
+            || profile.name.to_lowercase().contains("better mc")
+            || profile.name.to_lowercase().contains("dawncraft")
+            || profile.name.to_lowercase().contains("prominence")
+            || profile.name.to_lowercase().contains("rlcraft")
+            || profile.mod_count >= 80;
 
         let ram_mb = {
             let mut sys = sysinfo::System::new_all();
             sys.refresh_memory();
             let total_ram_mb = sys.total_memory() / 1024 / 1024;
 
-            if let Some(allocated) = profile.ram_mb.filter(|r| *r > 0) {
-                let alloc = allocated as u64;
-                if is_heavy_modded && alloc <= 4096 && total_ram_mb >= 12288 {
-                    let boost = std::cmp::min(8192, total_ram_mb * 55 / 100);
-                    self.emit_log(&format!(
-                        "Intelligent Launcher: auto-boosting RAM for heavy modpack from {}MB to {}MB (Total System RAM: {}MB)",
-                        alloc, boost, total_ram_mb
-                    ));
-                    boost
-                } else {
-                    alloc
-                }
-            } else if is_heavy_modded {
-                if total_ram_mb >= 24576 {
+            let calculated = if is_heavy_modded {
+                if total_ram_mb >= 32768 {
+                    12288
+                } else if total_ram_mb >= 24576 {
                     10240
-                } else if total_ram_mb >= 15360 {
+                } else if total_ram_mb >= 16384 {
                     8192
-                } else if total_ram_mb >= 11264 {
-                    6144
+                } else if total_ram_mb >= 12288 {
+                    7168
+                } else if total_ram_mb >= 8192 {
+                    5632
                 } else {
-                    std::cmp::min(std::cmp::max(total_ram_mb * 6 / 10, 4096), 6144)
+                    std::cmp::max(total_ram_mb * 7 / 10, 4096)
+                }
+            } else if profile.mod_count >= 20 || (profile.loader != "vanilla" && !profile.loader.is_empty()) {
+                if total_ram_mb >= 16384 {
+                    6144
+                } else if total_ram_mb >= 8192 {
+                    4096
+                } else {
+                    3072
                 }
             } else {
-                std::cmp::min(std::cmp::max(total_ram_mb / 4, 2048), 6144)
-            }
+                if total_ram_mb >= 8192 {
+                    3072
+                } else {
+                    2048
+                }
+            };
+
+            self.emit_log(&format!(
+                "Luxmc Auto-RAM: {}MB alocados automaticamente com base no hardware (RAM Total: {}MB, Tipo: {})",
+                calculated, total_ram_mb, if is_heavy_modded { "Modpack Pesado" } else { "Padrão" }
+            ));
+            calculated
         };
 
         // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags
@@ -1446,6 +1473,29 @@ mod tests {
         assert_eq!(left_slim_back[0], 205);
     }
 
+    #[test]
+    fn test_normalize_skin_fixes_underside_hand() {
+        let mut img = image::RgbaImage::new(64, 64);
+        // Set right arm top to known color
+        img.put_pixel(45, 18, image::Rgba([190, 130, 90, 255]));
+        // Set right arm bottom (underside of hand) to transparent
+        img.put_pixel(49, 18, image::Rgba([0, 0, 0, 0]));
+
+        // Set left arm top to known color
+        img.put_pixel(37, 50, image::Rgba([195, 135, 95, 255]));
+        // Set left arm bottom (underside of hand) to black
+        img.put_pixel(41, 50, image::Rgba([0, 0, 0, 255]));
+
+        let normalized = normalize_skin_image(img);
+        let right_underside = *normalized.get_pixel(49, 18);
+        let left_underside = *normalized.get_pixel(41, 50);
+
+        assert_eq!(right_underside[3], 255, "Right hand underside must be opaque");
+        assert_eq!(right_underside[0], 190, "Right hand underside should match top of hand");
+        assert_eq!(left_underside[3], 255, "Left hand underside must be opaque");
+        assert_eq!(left_underside[0], 195, "Left hand underside should match top of hand");
+    }
+
     fn make_64x32_skin(arm_back_color: image::Rgba<u8>) -> image::RgbaImage {
         let mut img = image::RgbaImage::new(64, 32);
         for y in 0..32 {
@@ -1733,8 +1783,20 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
 
         for dy in 0..4 {
             for dx in 0..4 {
-                target.put_pixel(36 + (3 - dx), 48 + dy, *target.get_pixel(44 + dx, 16 + dy));
-                target.put_pixel(40 + (3 - dx), 48 + dy, *target.get_pixel(48 + dx, 16 + dy));
+                let right_top = *target.get_pixel(44 + dx, 16 + dy);
+                let right_bottom = *target.get_pixel(48 + dx, 16 + dy);
+                let healed_bottom = if right_bottom[3] > 200 && !(right_bottom[0] == 0 && right_bottom[1] == 0 && right_bottom[2] == 0) {
+                    right_bottom
+                } else if right_top[3] > 200 && !(right_top[0] == 0 && right_top[1] == 0 && right_top[2] == 0) {
+                    right_top
+                } else {
+                    image::Rgba([210, 165, 130, 255])
+                };
+                target.put_pixel(36 + (3 - dx), 48 + dy, right_top);
+                target.put_pixel(40 + (3 - dx), 48 + dy, healed_bottom);
+                if right_bottom[3] < 200 || (right_bottom[0] == 0 && right_bottom[1] == 0 && right_bottom[2] == 0) {
+                    target.put_pixel(48 + dx, 16 + dy, healed_bottom);
+                }
             }
         }
         for dy in 0..12 {
@@ -1800,6 +1862,8 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
 
                 let is_right_arm_back = x >= 51 * scale && x < 56 * scale && y >= 20 * scale && y < 32 * scale;
                 let is_left_arm_back = x >= 43 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale;
+                let is_right_hand_bottom = x >= 47 * scale && x < 52 * scale && y >= 16 * scale && y < 20 * scale;
+                let is_left_hand_bottom = x >= 39 * scale && x < 44 * scale && y >= 48 * scale && y < 52 * scale;
 
                 let is_placeholder_black = (pixel[0] == 45 && pixel[1] == 45 && pixel[2] == 45)
                     || (pixel[0] == 40 && pixel[1] == 30 && pixel[2] == 25);
@@ -1807,13 +1871,16 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                 let is_arm_back_unrendered = (is_right_arm_back || is_left_arm_back)
                     && (pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0);
 
-                let needs_fix = pixel[3] < 250 || is_placeholder_black || is_arm_back_unrendered;
+                let is_hand_bottom_unrendered = (is_right_hand_bottom || is_left_hand_bottom)
+                    && (pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0);
+
+                let needs_fix = pixel[3] < 250 || is_placeholder_black || is_arm_back_unrendered || is_hand_bottom_unrendered;
 
                 if !needs_fix {
                     continue;
                 }
 
-                if pixel[3] > 0 && !is_placeholder_black && !is_arm_back_unrendered {
+                if pixel[3] > 0 && !is_placeholder_black && !is_arm_back_unrendered && !is_hand_bottom_unrendered {
                     canvas.put_pixel(x, y, image::Rgba([pixel[0], pixel[1], pixel[2], 255]));
                     continue;
                 }
@@ -1849,7 +1916,33 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                     continue;
                 }
 
-                if is_right_arm_back {
+                if is_right_hand_bottom {
+                    let top_x = (x - 4 * scale).max(44 * scale);
+                    let top_p = *canvas.get_pixel(top_x, y);
+                    if top_p[3] > 0 && !(top_p[0] == 0 && top_p[1] == 0 && top_p[2] == 0) {
+                        canvas.put_pixel(x, y, image::Rgba([top_p[0], top_p[1], top_p[2], 255]));
+                    } else {
+                        let front_p = *canvas.get_pixel(44 * scale, 20 * scale);
+                        if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
+                            canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                        } else {
+                            canvas.put_pixel(x, y, fallback_skin_tone);
+                        }
+                    }
+                } else if is_left_hand_bottom {
+                    let top_x = (x - 4 * scale).max(36 * scale);
+                    let top_p = *canvas.get_pixel(top_x, y);
+                    if top_p[3] > 0 && !(top_p[0] == 0 && top_p[1] == 0 && top_p[2] == 0) {
+                        canvas.put_pixel(x, y, image::Rgba([top_p[0], top_p[1], top_p[2], 255]));
+                    } else {
+                        let front_p = *canvas.get_pixel(36 * scale, 52 * scale);
+                        if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
+                            canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                        } else {
+                            canvas.put_pixel(x, y, fallback_skin_tone);
+                        }
+                    }
+                } else if is_right_arm_back {
                     let front_x = if x >= 52 * scale {
                         44 * scale + (x - 52 * scale)
                     } else {
@@ -2114,6 +2207,13 @@ async fn inject_player_skin(
 
         let u_clean = username.trim();
         let u_lower = u_clean.to_lowercase();
+        let optifine_users_clean = pack_dir.join(format!("assets/minecraft/optifine/users/{}.properties", u_clean));
+        let optifine_users_lower = pack_dir.join(format!("assets/minecraft/optifine/users/{}.properties", u_lower));
+        let optifine_prop_content = format!("cape=optifine/capes/{}.png\n", u_clean);
+        if let Some(p) = optifine_users_clean.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+        let _ = tokio::fs::write(&optifine_users_clean, optifine_prop_content.as_bytes()).await;
+        let _ = tokio::fs::write(&optifine_users_lower, optifine_prop_content.as_bytes()).await;
+
         let cape_paths = [
             pack_dir.join("assets/minecraft/textures/entity/cape.png"),
             pack_dir.join("assets/minecraft/textures/entity/player/cape.png"),
@@ -2141,9 +2241,15 @@ async fn inject_player_skin(
             pack_dir.join("assets/entity_model_features/textures/entity/cape.png"),
             pack_dir.join(format!("assets/entity_model_features/textures/entity/{}.png", u_clean)),
             pack_dir.join(format!("assets/entity_model_features/textures/entity/{}.png", u_lower)),
+            pack_dir.join(format!("assets/entity_model_features/capes/{}.png", u_clean)),
+            pack_dir.join(format!("assets/entity_model_features/capes/{}.png", u_lower)),
             pack_dir.join("assets/entity_texture_features/textures/entity/cape.png"),
             pack_dir.join(format!("assets/entity_texture_features/textures/entity/{}.png", u_clean)),
             pack_dir.join(format!("assets/entity_texture_features/textures/entity/{}.png", u_lower)),
+            pack_dir.join(format!("assets/entity_texture_features/capes/{}.png", u_clean)),
+            pack_dir.join(format!("assets/entity_texture_features/capes/{}.png", u_lower)),
+            pack_dir.join(format!("assets/entity_texture_features/textures/capes/{}.png", u_clean)),
+            pack_dir.join(format!("assets/entity_texture_features/textures/capes/{}.png", u_lower)),
             pack_dir.join("assets/minecraft/textures/player/cape.png"),
             pack_dir.join(format!("assets/minecraft/textures/player/{}.png", u_clean)),
             pack_dir.join(format!("assets/minecraft/textures/player/{}.png", u_lower)),

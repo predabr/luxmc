@@ -782,10 +782,10 @@ pub async fn get_mod_names_batch(
     };
 
     let mut names = std::collections::HashMap::new();
-    for chunk in mod_ids.chunks(50) {
+    for chunk in mod_ids.chunks(40) {
         let url = format!("{}/mods", CURSEFORGE_API);
         let payload = serde_json::json!({ "modIds": chunk });
-        for attempt in 0..3 {
+        for attempt in 0..4 {
             let resp = http
                 .post(&url)
                 .header("x-api-key", &key)
@@ -815,6 +815,49 @@ pub async fn get_mod_names_batch(
     names
 }
 
+pub async fn get_mod_logos_batch(
+    http: &reqwest::Client,
+    mod_ids: &[u64],
+) -> std::collections::HashMap<u64, String> {
+    let key = match api_key() {
+        Some(k) => k,
+        None => return std::collections::HashMap::new(),
+    };
+
+    let mut logos = std::collections::HashMap::new();
+    for chunk in mod_ids.chunks(40) {
+        let url = format!("{}/mods", CURSEFORGE_API);
+        let payload = serde_json::json!({ "modIds": chunk });
+        for attempt in 0..4 {
+            let resp = http
+                .post(&url)
+                .header("x-api-key", &key)
+                .json(&payload)
+                .timeout(Duration::from_secs(20))
+                .send()
+                .await;
+            if let Ok(resp) = resp {
+                if resp.status().is_success() {
+                    if let Ok(body) = resp.json::<serde_json::Value>().await {
+                        if let Some(data) = body.get("data").and_then(|d| d.as_array()) {
+                            for m in data {
+                                if let Some(id) = m.get("id").and_then(|i| i.as_u64()) {
+                                    if let Some(thumb) = m.pointer("/logo/thumbnailUrl").and_then(|t| t.as_str()) {
+                                        logos.insert(id, thumb.to_string());
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(300 * (attempt + 1))).await;
+        }
+    }
+    logos
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CurseForgeFileInfo {
@@ -834,7 +877,7 @@ pub async fn get_files_batch(
     };
 
     let mut map = std::collections::HashMap::new();
-    for chunk in file_ids.chunks(100) {
+    for chunk in file_ids.chunks(40) {
         let url = format!("{}/mods/files", CURSEFORGE_API);
         let payload = serde_json::json!({ "fileIds": chunk });
         for attempt in 0..5 {
@@ -871,9 +914,46 @@ pub async fn get_files_batch(
                     continue;
                 }
             }
-            tokio::time::sleep(Duration::from_millis(400 * (attempt + 1))).await;
+            tokio::time::sleep(Duration::from_millis(350 * (attempt + 1))).await;
         }
     }
+
+    let missing_ids: Vec<u64> = file_ids.iter().copied().filter(|id| !map.contains_key(id)).collect();
+    if !missing_ids.is_empty() {
+        for chunk in missing_ids.chunks(10) {
+            let url = format!("{}/mods/files", CURSEFORGE_API);
+            let payload = serde_json::json!({ "fileIds": chunk });
+            if let Ok(resp) = http
+                .post(&url)
+                .header("x-api-key", &key)
+                .json(&payload)
+                .timeout(Duration::from_secs(20))
+                .send()
+                .await
+            {
+                if resp.status().is_success() {
+                    if let Ok(json) = resp.json::<serde_json::Value>().await {
+                        if let Some(arr) = json.get("data").and_then(|d| d.as_array()) {
+                            for item in arr {
+                                if let Some(id) = item.get("id").and_then(|i| i.as_u64()) {
+                                    let mod_id = item.get("modId").and_then(|m| m.as_u64()).unwrap_or(0);
+                                    let file_name = item.get("fileName").and_then(|n| n.as_str()).unwrap_or("mod.jar").to_string();
+                                    let download_url = item.get("downloadUrl").and_then(|u| u.as_str()).map(|s| s.to_string());
+                                    map.insert(id, CurseForgeFileInfo {
+                                        id,
+                                        mod_id,
+                                        file_name,
+                                        download_url,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     map
 }
 

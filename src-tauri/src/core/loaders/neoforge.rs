@@ -150,7 +150,8 @@ pub async fn prepare_neoforge(
 ) -> AppResult<PreparedLoader> {
     let chosen_version = if let Some(v) = loader_version {
         if !v.trim().is_empty() {
-            v.trim().to_string()
+            let clean = v.trim();
+            clean.strip_prefix("neoforge-").unwrap_or(clean).to_string()
         } else {
             get_latest_loader_version(http, mc_version).await?
         }

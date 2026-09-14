@@ -39,10 +39,10 @@
 			canvas: canvasEl,
 			width,
 			height,
-			skin: skinUrl || "https://minotar.net/skin/Steve",
 			model: slim ? "slim" : "default"
 		});
 
+		updateSkin();
 		viewer.autoRotate = autoRotate;
 		viewer.autoRotateSpeed = 0.5;
 		viewer.animation = new WalkingAnimation();
@@ -133,12 +133,15 @@
 		const isProblematic = (r: number, g: number, b: number, a: number) => {
 			return a < 200 
 				|| (r === 45 && g === 45 && b === 45)
-				|| (r === 40 && g === 30 && b === 25);
+				|| (r === 40 && g === 30 && b === 25)
+				|| (r < 15 && g < 15 && b < 15);
 		};
 
 		const armWidth = isSlim ? 3 : 4;
 		const rBackStartX = isSlim ? 51 : 52;
 		const rFrontStartX = 44;
+
+		// 1. Right Arm Back
 		for (let dy = 0; dy < 12 * scale; dy++) {
 			for (let dx = 0; dx < armWidth * scale; dx++) {
 				const bx = rBackStartX * scale + dx;
@@ -160,6 +163,7 @@
 			}
 		}
 
+		// 2. Left Arm Back
 		const lBackStartX = isSlim ? 43 : 44;
 		const lFrontStartX = 36;
 		const rBackStartXLeft = isSlim ? 51 : 52;
@@ -186,6 +190,53 @@
 			}
 		}
 
+		// 3. Right Arm Underside of Hand (Bottom)
+		const rHandStartX = isSlim ? 47 : 48;
+		for (let dy = 0; dy < 4 * scale; dy++) {
+			for (let dx = 0; dx < armWidth * scale; dx++) {
+				const bx = rHandStartX * scale + dx;
+				const by = 16 * scale + dy;
+				const [r, g, b, a] = getPixel(bx, by);
+				if (isProblematic(r, g, b, a)) {
+					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
+					if (oa > 50 && !(or < 10 && og < 10 && ob < 10)) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else {
+						const [tr, tg, tb, ta] = getPixel(44 * scale + dx, by);
+						if (ta > 50 && !(tr < 10 && tg < 10 && tb < 10)) {
+							setPixel(bx, by, tr, tg, tb, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					}
+				}
+			}
+		}
+
+		// 4. Left Arm Underside of Hand (Bottom)
+		const lHandStartX = isSlim ? 39 : 40;
+		for (let dy = 0; dy < 4 * scale; dy++) {
+			for (let dx = 0; dx < armWidth * scale; dx++) {
+				const bx = lHandStartX * scale + dx;
+				const by = 48 * scale + dy;
+				const [r, g, b, a] = getPixel(bx, by);
+				if (isProblematic(r, g, b, a)) {
+					const [or, og, ob, oa] = getPixel(bx + 16 * scale, by);
+					if (oa > 50 && !(or < 10 && og < 10 && ob < 10)) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else {
+						const [tr, tg, tb, ta] = getPixel(36 * scale + dx, by);
+						if (ta > 50 && !(tr < 10 && tg < 10 && tb < 10)) {
+							setPixel(bx, by, tr, tg, tb, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					}
+				}
+			}
+		}
+
+		// 5. Torso Back
 		for (let dy = 0; dy < 12 * scale; dy++) {
 			for (let dx = 0; dx < 8 * scale; dx++) {
 				const bx = 32 * scale + dx;
@@ -234,20 +285,100 @@
 		ctx.putImageData(imgData, 0, 0);
 	}
 
+	function loadAndHealSkin(src: string, isSlim: boolean): Promise<HTMLCanvasElement | string> {
+		return new Promise((resolve) => {
+			if (typeof window === "undefined") {
+				resolve(src);
+				return;
+			}
+			const img = new window.Image();
+			img.crossOrigin = "anonymous";
+			img.onload = () => {
+				try {
+					const w = img.naturalWidth || img.width;
+					const h = img.naturalHeight || img.height;
+					if (w <= 0 || h <= 0) {
+						resolve(src);
+						return;
+					}
+					const canvas = document.createElement("canvas");
+					canvas.width = 64;
+					canvas.height = 64;
+					const ctx = canvas.getContext("2d", { willReadFrequently: true });
+					if (!ctx) {
+						resolve(src);
+						return;
+					}
+					ctx.imageSmoothingEnabled = false;
+
+					if (w === 64 && h === 32) {
+						ctx.drawImage(img, 0, 0);
+						// Mirror left leg from right leg
+						for (let dy = 0; dy < 4; dy++) {
+							for (let dx = 0; dx < 4; dx++) {
+								ctx.drawImage(canvas, 4 + dx, 16 + dy, 1, 1, 20 + (3 - dx), 48 + dy, 1, 1);
+								ctx.drawImage(canvas, 8 + dx, 16 + dy, 1, 1, 24 + (3 - dx), 48 + dy, 1, 1);
+							}
+						}
+						for (let dy = 0; dy < 12; dy++) {
+							for (let dx = 0; dx < 4; dx++) {
+								ctx.drawImage(canvas, 4 + dx, 20 + dy, 1, 1, 20 + (3 - dx), 52 + dy, 1, 1);
+								ctx.drawImage(canvas, 12 + dx, 20 + dy, 1, 1, 28 + (3 - dx), 52 + dy, 1, 1);
+								ctx.drawImage(canvas, 0 + dx, 20 + dy, 1, 1, 24 + (3 - dx), 52 + dy, 1, 1);
+								ctx.drawImage(canvas, 8 + dx, 20 + dy, 1, 1, 16 + (3 - dx), 52 + dy, 1, 1);
+							}
+						}
+						// Mirror left arm from right arm
+						for (let dy = 0; dy < 4; dy++) {
+							for (let dx = 0; dx < 4; dx++) {
+								ctx.drawImage(canvas, 44 + dx, 16 + dy, 1, 1, 36 + (3 - dx), 48 + dy, 1, 1);
+								ctx.drawImage(canvas, 48 + dx, 16 + dy, 1, 1, 40 + (3 - dx), 48 + dy, 1, 1);
+							}
+						}
+						for (let dy = 0; dy < 12; dy++) {
+							for (let dx = 0; dx < 4; dx++) {
+								ctx.drawImage(canvas, 44 + dx, 20 + dy, 1, 1, 36 + (3 - dx), 52 + dy, 1, 1);
+								ctx.drawImage(canvas, 52 + dx, 20 + dy, 1, 1, 44 + (3 - dx), 52 + dy, 1, 1);
+								ctx.drawImage(canvas, 40 + dx, 20 + dy, 1, 1, 40 + (3 - dx), 52 + dy, 1, 1);
+								ctx.drawImage(canvas, 48 + dx, 20 + dy, 1, 1, 32 + (3 - dx), 52 + dy, 1, 1);
+							}
+						}
+					} else {
+						ctx.drawImage(img, 0, 0, 64, 64);
+					}
+
+					healSkinCanvas(canvas, isSlim);
+					resolve(canvas);
+				} catch (err) {
+					console.warn("Failed to preprocess skin canvas:", err);
+					resolve(src);
+				}
+			};
+			img.onerror = () => {
+				resolve(src);
+			};
+			img.src = src;
+		});
+	}
+
 	function updateSkin() {
 		if (!viewer) return;
 		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl : "https://minotar.net/skin/Steve";
-		viewer.loadSkin(targetSkin, { model: slim ? "slim" : "default" })
-			.then(() => {
-				if (viewer?.skinCanvas) {
-					healSkinCanvas(viewer.skinCanvas, slim);
-					(viewer as unknown as { recreateSkinTexture(): void }).recreateSkinTexture();
-				}
+		loadAndHealSkin(targetSkin, slim).then((healedSrc) => {
+			if (!viewer) return;
+			const res = viewer.loadSkin(healedSrc, { model: slim ? "slim" : "default" });
+			if (res && typeof (res as Promise<void>).then === "function") {
+				(res as Promise<void>)
+					.then(() => {
+						viewer?.playerObject.skin.setOuterLayerVisible(true);
+					})
+					.catch((e: unknown) => {
+						console.warn("Failed to load skin in 3D viewer:", e);
+					});
+			} else {
 				viewer?.playerObject.skin.setOuterLayerVisible(true);
-			})
-			.catch((e) => {
-				console.warn("Failed to load skin in 3D viewer:", e);
-			});
+			}
+		});
 	}
 
 	function updateCape() {

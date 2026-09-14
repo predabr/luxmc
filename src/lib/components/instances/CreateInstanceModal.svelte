@@ -7,7 +7,8 @@
 		X,
 		AlertTriangle,
 		Sparkles,
-		Zap
+		Zap,
+		Cpu
 	} from "lucide-svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -311,35 +312,23 @@
 					</div>
 				</div>
 
-				<!-- RAM -->
-				<div class="bg-[#18191c] border border-white/5 rounded-3xl p-4 space-y-2.5">
+				<!-- Automatic RAM -->
+				<div class="bg-[#18191c] border border-emerald-500/20 rounded-3xl p-4 space-y-2">
 					<div class="flex items-center justify-between text-xs">
-						<div class="flex items-center gap-2">
-							<span class="font-bold text-white/80">Alocação de Memória RAM</span>
-							<span class="text-[10px] text-white/40 font-mono bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
-								Detectado no PC: {Math.round(systemRamMb / 1024)} GB
-							</span>
+						<div class="flex items-center gap-2.5">
+							<div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+								<Cpu class="w-4 h-4" />
+							</div>
+							<div>
+								<span class="font-bold text-white block">Memória RAM 100% Automática</span>
+								<span class="text-[10px] text-white/50 block">Hardware detectado: {Math.round(systemRamMb / 1024)} GB RAM</span>
+							</div>
 						</div>
-						<span class="font-mono font-black text-brand-500 bg-brand-500/10 px-3 py-0.5 rounded-full border border-brand-500/20">
-							{selectedRamGb} GB ({selectedRamGb * 1024} MB)
-						</span>
+						<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">Auto Tuning</span>
 					</div>
-					<div class="flex items-center gap-2">
-						{#each ramPresets as ram}
-							{@const isRecommended = (systemRamMb >= 12288 && ram === 6) || (systemRamMb < 12288 && ram === 4)}
-							<button
-								type="button"
-								class="flex-1 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer relative {selectedRamGb === ram ? 'bg-brand-500 text-black shadow-md scale-[1.02]' : 'bg-[#222328] text-white/60 hover:text-white border border-white/5 hover:border-white/20'}"
-								onclick={() => selectedRamGb = ram}
-							>
-								<span>{ram} GB</span>
-								{#if isRecommended}
-									<span class="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] font-extrabold uppercase px-1 rounded bg-emerald-500 text-black shadow-xs">Ideal</span>
-								{/if}
-							</button>
-						{/each}
-					</div>
-					<p class="text-[10px] text-white/40">{getRamDescription(selectedRamGb)}</p>
+					<p class="text-[11px] text-white/40 leading-relaxed pt-1">
+						O Luxmc calcula e aloca dinamicamente a quantidade exata de memória para a versão e loader selecionados, evitando travamentos e liberando memória ociosa no Linux.
+					</p>
 				</div>
 
 				<!-- Optimizations -->

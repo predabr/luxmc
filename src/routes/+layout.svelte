@@ -51,7 +51,6 @@
 		"/news": 0.5,
 		"/mods": 1,
 		"/organizer": 2,
-		"/boost": 2.5,
 		"/skins": 3,
 		"/instances": 4,
 		"/friends": 5,

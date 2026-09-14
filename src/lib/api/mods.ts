@@ -129,3 +129,7 @@ export async function curseforgeValidateKey(): Promise<boolean> {
 export async function modsResolveNames(profileId: string): Promise<number> {
 	return api.invoke("mods_resolve_names", { profileId });
 }
+
+export async function modsResolveIcons(profileId: string): Promise<number> {
+	return api.invoke("mods_resolve_icons", { profileId });
+}

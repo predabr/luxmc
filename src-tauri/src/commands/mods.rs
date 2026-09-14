@@ -916,8 +916,13 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
     let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file)).ok()?;
 
     let mut icon_path: Option<String> = None;
+    let mut mod_id: Option<String> = None;
+
     if let Ok(entry) = archive.by_name("fabric.mod.json") {
         if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+            if let Some(id) = json.get("id").and_then(|i| i.as_str()) {
+                mod_id = Some(id.trim().to_string());
+            }
             if let Some(icon) = json.get("icon").and_then(|i| i.as_str()) {
                 icon_path = Some(icon.trim_start_matches('/').to_string());
             } else if let Some(icons) = json.get("icon").and_then(|i| i.as_object()) {
@@ -929,40 +934,103 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
     }
 
     if icon_path.is_none() {
+        if let Ok(entry) = archive.by_name("quilt.mod.json") {
+            if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+                if let Some(id) = json.pointer("/quilt_loader/id").and_then(|i| i.as_str()) {
+                    mod_id = Some(id.trim().to_string());
+                }
+                if let Some(icon) = json.pointer("/quilt_loader/metadata/icon").and_then(|i| i.as_str()) {
+                    icon_path = Some(icon.trim_start_matches('/').to_string());
+                }
+            }
+        }
+    }
+
+    if icon_path.is_none() || mod_id.is_none() {
         for toml_name in &["META-INF/neoforge.mods.toml", "META-INF/mods.toml"] {
             if let Ok(mut entry) = archive.by_name(toml_name) {
                 let mut content = String::new();
                 if entry.read_to_string(&mut content).is_ok() {
                     for line in content.lines() {
                         let trimmed = line.trim();
-                        if trimmed.starts_with("logoFile") {
+                        if (trimmed.starts_with("modId") || trimmed.starts_with("mod_id")) && mod_id.is_none() {
+                            if let Some(val) = trimmed.split('=').nth(1) {
+                                let clean = val.trim().trim_matches('"').trim_matches('\'').trim();
+                                if !clean.is_empty() {
+                                    mod_id = Some(clean.to_string());
+                                }
+                            }
+                        }
+                        if trimmed.starts_with("logoFile") && icon_path.is_none() {
                             if let Some(val) = trimmed.split('=').nth(1) {
                                 let clean = val.trim().trim_matches('"').trim_matches('\'').trim();
                                 if !clean.is_empty() {
                                     icon_path = Some(clean.trim_start_matches('/').to_string());
-                                    break;
                                 }
                             }
                         }
                     }
                 }
             }
-            if icon_path.is_some() {
+            if icon_path.is_some() && mod_id.is_some() {
                 break;
             }
         }
     }
 
-    let candidates = [
-        icon_path.as_deref(),
-        Some("icon.png"),
-        Some("assets/icon.png"),
-        Some("pack.png"),
-    ];
+    if icon_path.is_none() {
+        if let Ok(mut entry) = archive.by_name("mcmod.info") {
+            let mut content = String::new();
+            if entry.read_to_string(&mut content).is_ok() {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    let first = if let Some(arr) = json.as_array() {
+                        arr.first()
+                    } else if let Some(arr) = json.get("modList").and_then(|l| l.as_array()) {
+                        arr.first()
+                    } else {
+                        Some(&json)
+                    };
+                    if let Some(obj) = first {
+                        if let Some(id) = obj.get("modid").and_then(|i| i.as_str()) {
+                            mod_id = Some(id.trim().to_string());
+                        }
+                        if let Some(lf) = obj.get("logoFile").and_then(|l| l.as_str()) {
+                            let clean = lf.trim().trim_matches('"').trim_matches('\'').trim();
+                            if !clean.is_empty() {
+                                icon_path = Some(clean.trim_start_matches('/').to_string());
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    for candidate in candidates.into_iter().flatten() {
+    let mut candidate_paths: Vec<String> = Vec::new();
+    if let Some(ref p) = icon_path {
+        candidate_paths.push(p.clone());
+        if let Some(ref mid) = mod_id {
+            candidate_paths.push(format!("assets/{}/{}", mid, p));
+            candidate_paths.push(format!("assets/{}/textures/{}", mid, p));
+            candidate_paths.push(format!("assets/{}/textures/gui/{}", mid, p));
+        }
+    }
+    if let Some(ref mid) = mod_id {
+        candidate_paths.push(format!("assets/{}/icon.png", mid));
+        candidate_paths.push(format!("assets/{}/logo.png", mid));
+        candidate_paths.push(format!("assets/{}/textures/icon.png", mid));
+        candidate_paths.push(format!("assets/{}/textures/logo.png", mid));
+        candidate_paths.push(format!("assets/{}/textures/gui/icon.png", mid));
+    }
+    candidate_paths.push("icon.png".into());
+    candidate_paths.push("assets/icon.png".into());
+    candidate_paths.push("logo.png".into());
+    candidate_paths.push("assets/logo.png".into());
+    candidate_paths.push("pack.png".into());
+
+    for candidate in &candidate_paths {
         if let Ok(mut entry) = archive.by_name(candidate) {
-            if entry.size() > 0 && entry.size() < 1_500_000 {
+            if entry.size() > 0 && entry.size() < 2_000_000 {
                 let mut buf = Vec::new();
                 if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
                     let mime = if candidate.ends_with(".jpg") || candidate.ends_with(".jpeg") {
@@ -982,16 +1050,30 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
     for i in 0..archive.len() {
         if let Ok(mut entry) = archive.by_index(i) {
             let name = entry.name().to_lowercase();
-            let is_icon = name.ends_with("/icon.png")
+            let matches_icon_name = icon_path.as_ref().map_or(false, |ip| {
+                let lower_ip = ip.to_lowercase();
+                name == lower_ip || name.ends_with(&format!("/{}", lower_ip))
+            });
+
+            let is_generic_icon = name.ends_with("/icon.png")
                 || name.ends_with("icon.png")
                 || name.ends_with("/logo.png")
                 || name.ends_with("logo.png")
-                || name.ends_with("pack.png");
-            if is_icon && entry.size() > 0 && entry.size() < 1_000_000 {
+                || name.ends_with("/pack.png")
+                || (name.starts_with("assets/") && name.ends_with(".png") && (name.contains("icon") || name.contains("logo")));
+
+            if (matches_icon_name || is_generic_icon) && entry.size() > 0 && entry.size() < 2_000_000 {
                 let mut buf = Vec::new();
                 if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
+                    let mime = if name.ends_with(".jpg") || name.ends_with(".jpeg") {
+                        "jpeg"
+                    } else if name.ends_with(".webp") {
+                        "webp"
+                    } else {
+                        "png"
+                    };
                     let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
-                    return Some(format!("data:image/png;base64,{}", b64));
+                    return Some(format!("data:image/{};base64,{}", mime, b64));
                 }
             }
         }
@@ -1096,4 +1178,107 @@ pub async fn mods_resolve_names(
     }
 
     Ok(renamed)
+}
+
+#[tauri::command]
+pub async fn mods_resolve_icons(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> AppResult<u32> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profile_id)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profile_id} not found")))?;
+
+    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
+    if !mods_dir.exists() {
+        return Ok(0);
+    }
+
+    let db_mods = crate::db::schema::mods::list_by_profile(&db, &profile_id).await.unwrap_or_default();
+    let mut resolved_count = 0u32;
+    let mut cf_project_ids: Vec<u64> = Vec::new();
+    let mut mr_slugs: Vec<String> = Vec::new();
+
+    for m in &db_mods {
+        if m.source == "curseforge" {
+            if let Ok(pid) = m.project_id.parse::<u64>() {
+                cf_project_ids.push(pid);
+            }
+        } else if m.source == "modrinth" || m.source == "modrinth_fallback" {
+            mr_slugs.push(m.project_id.clone());
+        }
+    }
+
+    let manifest_path = std::path::PathBuf::from(&row.game_dir).join("manifest.json");
+    if manifest_path.exists() {
+        if let Ok(content) = tokio::fs::read_to_string(&manifest_path).await {
+            if let Ok(manifest) = serde_json::from_str::<crate::commands::instances::CfManifest>(&content) {
+                for f in manifest.files {
+                    cf_project_ids.push(f.project_id);
+                }
+            }
+        }
+    }
+
+    cf_project_ids.dedup();
+    if !cf_project_ids.is_empty() {
+        let logos = crate::core::mods::curseforge::get_mod_logos_batch(&state.http, &cf_project_ids).await;
+        for (pid, url) in logos {
+            let pid_str = pid.to_string();
+            let _ = sqlx::query(
+                "INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url"
+            )
+            .bind(&pid_str)
+            .bind(&url)
+            .execute(db.pool())
+            .await;
+            resolved_count += 1;
+
+            for m in &db_mods {
+                if m.project_id == pid_str {
+                    let _ = sqlx::query(
+                        "INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url"
+                    )
+                    .bind(&m.file_name)
+                    .bind(&url)
+                    .execute(db.pool())
+                    .await;
+                }
+            }
+        }
+    }
+
+    mr_slugs.dedup();
+    if !mr_slugs.is_empty() {
+        for chunk in mr_slugs.chunks(20) {
+            let ids_param = serde_json::to_string(&chunk).unwrap_or_default();
+            let url = format!("https://api.modrinth.com/v2/projects?ids={}", urlencoding::encode(&ids_param));
+            if let Ok(resp) = state.http.get(&url).header("User-Agent", "Luxmc/1.6.2").send().await {
+                if resp.status().is_success() {
+                    if let Ok(projects) = resp.json::<Vec<serde_json::Value>>().await {
+                        for p in projects {
+                            if let (Some(id), Some(icon)) = (
+                                p.get("id").and_then(|i| i.as_str()),
+                                p.get("icon_url").and_then(|u| u.as_str())
+                            ) {
+                                let _ = sqlx::query(
+                                    "INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url"
+                                )
+                                .bind(id)
+                                .bind(icon)
+                                .execute(db.pool())
+                                .await;
+                                resolved_count += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(resolved_count)
 }

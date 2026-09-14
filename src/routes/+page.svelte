@@ -373,12 +373,25 @@
 			});
 
 			gamingStats.onGameStart();
+			const tNameLower = targetProfile.name.toLowerCase();
+			const modpackCover = (targetProfile.icon && (targetProfile.icon.startsWith("http://") || targetProfile.icon.startsWith("https://")))
+				? targetProfile.icon
+				: tNameLower.includes("better mc") || tNameLower.includes("bmc")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_better_mc.webp"
+				: tNameLower.includes("all the mods") || tNameLower.includes("atm")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_atm.webp"
+				: tNameLower.includes("pixelmon") || tNameLower.includes("cobblemon")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_cobblemon.webp"
+				: tNameLower.includes("fabulously optimized") || tNameLower.includes("fo")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_fo.webp"
+				: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
+
 			discordSetActivity({
 				inGame: true,
-				details: `Jogando ${targetProfile.name}`,
+				details: targetProfile.name,
 				state: `Minecraft ${verId} · ${targetProfile.loader ? targetProfile.loader.toUpperCase() : "Vanilla"}`,
-				largeText: `Minecraft ${verId}`,
-				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				largeText: targetProfile.name,
+				largeImage: modpackCover,
 				smallImage: targetProfile.loader === "fabric" ? "fabric" : (targetProfile.loader === "forge" ? "curse" : "grass"),
 				smallText: `Luxmc · ${targetProfile.loader || "Vanilla"}`,
 				startTime: Math.floor(Date.now() / 1000)

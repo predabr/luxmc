@@ -26,7 +26,8 @@
 		FolderTree,
 		StickyNote,
 		X,
-		SquareCheck
+		SquareCheck,
+		Cpu
 	} from "lucide-svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
@@ -355,13 +356,23 @@
 			});
 			gamingStats.onGameStart();
 			appState.isGameRunning = true;
-			appState.activeGameDetails = { name: p.name, version: verId, loader: p.loader };
+			const pNameLower = p.name.toLowerCase();
+			const modpackCover = (p.icon && (p.icon.startsWith("http://") || p.icon.startsWith("https://")))
+				? p.icon
+				: pNameLower.includes("better mc") || pNameLower.includes("bmc")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_better_mc.webp"
+				: pNameLower.includes("pixelmon") || pNameLower.includes("cobblemon")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_cobblemon.webp"
+				: pNameLower.includes("fabulously optimized") || pNameLower.includes("fo")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_fo.webp"
+				: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
+
 			discordSetActivity({
 				inGame: true,
-				details: `Jogando ${p.name}`,
+				details: p.name,
 				state: `Minecraft ${verId} · ${p.loader ? p.loader.toUpperCase() : "Vanilla"}`,
-				largeText: `Minecraft ${verId}`,
-				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				largeText: p.name,
+				largeImage: modpackCover,
 				smallImage: p.loader === "fabric" ? "fabric" : (p.loader === "forge" ? "curse" : "grass"),
 				smallText: `Luxmc · ${p.loader || "Vanilla"}`,
 				startTime: Math.floor(Date.now() / 1000)
@@ -1116,31 +1127,22 @@
 					<FilterableVersionSelect versions={availableVersions} bind:value={editVersion} loading={versionsLoading} />
 				</div>
 
-				<div class="bg-[#18191c] border border-white/5 rounded-2xl p-3.5 space-y-2">
+				<div class="bg-[#18191c] border border-emerald-500/20 rounded-2xl p-3.5 space-y-2">
 					<div class="flex items-center justify-between text-xs">
-						<div class="flex items-center gap-2">
-							<span class="font-bold text-white/80">Alocação de Memória RAM</span>
-							<span class="text-[10px] text-white/40 font-mono bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
-								Detectado no PC: {Math.round(systemRamMb / 1024)} GB
-							</span>
+						<div class="flex items-center gap-2.5">
+							<div class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+								<Cpu class="w-3.5 h-3.5" />
+							</div>
+							<div>
+								<span class="font-bold text-white block">Memória RAM 100% Automática</span>
+								<span class="text-[10px] text-white/50 block">Hardware: {Math.round(systemRamMb / 1024)} GB Totais</span>
+							</div>
 						</div>
-						<span class="font-mono font-black text-brand-500 bg-brand-500/10 px-2.5 py-0.5 rounded-full border border-brand-500/20">
-							{editRamGb} GB ({editRamGb * 1024} MB)
-						</span>
+						<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">Auto Tuning</span>
 					</div>
-					<div class="flex items-center gap-1.5">
-						{#each [2, 4, 6, 8, 12, 16] as ram}
-							{@const isRecommended = (systemRamMb >= 12288 && ram === 6) || (systemRamMb < 12288 && ram === 4)}
-							<button type="button" class="flex-1 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer relative {editRamGb === ram ? 'bg-brand-500 text-black shadow-md' : 'bg-[#222328] text-white/60 hover:text-white border border-white/5 hover:border-white/20'}"
-								onclick={() => editRamGb = ram}
-							>
-								<span>{ram} GB</span>
-								{#if isRecommended}
-									<span class="absolute -top-2 left-1/2 -translate-x-1/2 text-[7px] font-extrabold uppercase px-1 rounded bg-emerald-500 text-black">Ideal</span>
-								{/if}
-							</button>
-						{/each}
-					</div>
+					<p class="text-[10px] text-white/40 leading-relaxed">
+						O Luxmc aloca a quantidade ideal de RAM dinamicamente com base na quantidade de mods da instância e recursos livres do seu Linux.
+					</p>
 				</div>
 
 				<div class="space-y-1.5">

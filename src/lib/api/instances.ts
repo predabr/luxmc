@@ -392,3 +392,11 @@ export async function instanceConfigWrite(
 export async function optimizerTrimMemory(): Promise<boolean> {
 	return api.invoke<boolean>("optimizer_trim_memory");
 }
+
+export async function instanceInstallQuickPack(
+	profileId: string,
+	packType: string,
+	projectId: string
+): Promise<string> {
+	return api.invoke<string>("instance_install_quick_pack", { profileId, packType, projectId });
+}

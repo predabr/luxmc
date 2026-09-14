@@ -349,35 +349,35 @@ pub async fn screenshots_open_folder(_app: tauri::AppHandle, profile_id: String)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct CfManifest {
+pub(crate) struct CfManifest {
     #[serde(default)]
-    minecraft: CfMinecraft,
+    pub(crate) minecraft: CfMinecraft,
     #[serde(default)]
-    files: Vec<CfFile>,
+    pub(crate) files: Vec<CfFile>,
     #[serde(default)]
-    overrides: Option<String>,
+    pub(crate) overrides: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
-struct CfMinecraft {
+pub(crate) struct CfMinecraft {
     #[serde(default)]
-    version: String,
+    pub(crate) version: String,
     #[serde(default, alias = "modLoaders")]
-    mod_loaders: Vec<CfModLoader>,
+    pub(crate) mod_loaders: Vec<CfModLoader>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct CfModLoader {
+pub(crate) struct CfModLoader {
     #[serde(default)]
-    id: String,
+    pub(crate) id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct CfFile {
+pub(crate) struct CfFile {
     #[serde(alias = "projectID", alias = "projectId")]
-    project_id: u64,
+    pub(crate) project_id: u64,
     #[serde(alias = "fileID", alias = "fileId")]
-    file_id: u64,
+    pub(crate) file_id: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -439,30 +439,39 @@ struct MrpackMod {
     env: std::collections::HashMap<String, serde_json::Value>,
 }
 
-fn smart_modpack_ram(user_ram: Option<i64>, mod_count: usize) -> i64 {
+fn smart_modpack_ram(_user_ram: Option<i64>, mod_count: usize) -> i64 {
     let mut sys = sysinfo::System::new_all();
     sys.refresh_memory();
-    let total = sys.total_memory() / 1024 / 1024;
-    let min_heavy_ram = if total >= 24576 { 10240 } else if total >= 15360 { 8192 } else { 6144 };
+    let total = (sys.total_memory() / 1024 / 1024) as i64;
 
-    if mod_count > 100 {
-        if let Some(r) = user_ram.filter(|r| *r >= min_heavy_ram) {
-            return r;
+    if mod_count >= 100 {
+        if total >= 32768 {
+            12288
+        } else if total >= 24576 {
+            10240
+        } else if total >= 16384 {
+            8192
+        } else if total >= 12288 {
+            7168
+        } else if total >= 8192 {
+            5632
+        } else {
+            std::cmp::max(total * 7 / 10, 4096)
         }
-        return min_heavy_ram;
-    }
-
-    if let Some(r) = user_ram.filter(|r| *r > 0) {
-        return r;
-    }
-    if total >= 24576 {
-        8192
-    } else if total >= 15360 {
-        6144
-    } else if total >= 11264 {
-        4096
+    } else if mod_count >= 20 {
+        if total >= 16384 {
+            6144
+        } else if total >= 8192 {
+            4096
+        } else {
+            3072
+        }
     } else {
-        std::cmp::min(std::cmp::max(total * 6 / 10, 4096), 6144) as i64
+        if total >= 8192 {
+            3072
+        } else {
+            2048
+        }
     }
 }
 
@@ -478,6 +487,8 @@ async fn download_from_modrinth_fallback(
     display_name: Option<&str>,
     file_path: &std::path::Path,
     storage_path: &std::path::Path,
+    mc_version: Option<&str>,
+    loader: Option<&str>,
 ) -> bool {
     let clean_query = if let Some(dn) = display_name {
         dn.trim()
@@ -489,14 +500,23 @@ async fn download_from_modrinth_fallback(
             .unwrap_or(file_name)
     };
 
-    if clean_query.is_empty() {
+    if clean_query.is_empty() || clean_query.chars().all(|c| c.is_ascii_digit() || c == '_') || clean_query.len() < 2 {
         return false;
     }
 
-    let search_url = format!(
-        "https://api.modrinth.com/v2/search?query={}&limit=3",
-        urlencoding::encode(clean_query)
-    );
+    let search_url = if let (Some(mc), Some(ld)) = (mc_version, loader) {
+        let facets = format!("[[\"project_type:mod\"],[\"versions:{}\"],[\"categories:{}\"]]", mc, ld.to_lowercase());
+        format!(
+            "https://api.modrinth.com/v2/search?query={}&facets={}&limit=3",
+            urlencoding::encode(clean_query),
+            urlencoding::encode(&facets)
+        )
+    } else {
+        format!(
+            "https://api.modrinth.com/v2/search?query={}&limit=3",
+            urlencoding::encode(clean_query)
+        )
+    };
 
     let resp = match http
         .get(&search_url)
@@ -519,13 +539,26 @@ async fn download_from_modrinth_fallback(
         None => return false,
     };
 
+    let query_lower = clean_query.to_lowercase();
     for proj in projects {
         let proj_id = match proj.get("project_id").and_then(|p| p.as_str()) {
             Some(id) => id,
             None => continue,
         };
 
-        let ver_url = format!("https://api.modrinth.com/v2/project/{}/version", proj_id);
+        let proj_title = proj.get("title").and_then(|t| t.as_str()).unwrap_or("");
+        let proj_slug = proj.get("slug").and_then(|s| s.as_str()).unwrap_or("");
+        let title_match = proj_title.to_lowercase().contains(&query_lower) || proj_slug.to_lowercase().contains(&query_lower);
+
+        let ver_url = if let (Some(mc), Some(ld)) = (mc_version, loader) {
+            format!(
+                "https://api.modrinth.com/v2/project/{}/version?game_versions=[\"{}\"]&loaders=[\"{}\"]",
+                proj_id, mc, ld.to_lowercase()
+            )
+        } else {
+            format!("https://api.modrinth.com/v2/project/{}/version", proj_id)
+        };
+
         let ver_resp = match http
             .get(&ver_url)
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -558,8 +591,8 @@ async fn download_from_modrinth_fallback(
                     }
 
                     let is_match = mr_filename.eq_ignore_ascii_case(file_name)
-                        || mr_filename.to_lowercase().starts_with(&clean_query.to_lowercase())
-                        || file_entry.get("primary").and_then(|p| p.as_bool()).unwrap_or(false);
+                        || mr_filename.to_lowercase().starts_with(&query_lower)
+                        || (title_match && file_entry.get("primary").and_then(|p| p.as_bool()).unwrap_or(false));
 
                     if is_match {
                         if let Ok(dl_resp) = http
@@ -589,7 +622,7 @@ async fn download_from_modrinth_fallback(
     false
 }
 
-async fn download_cf_mod_file(
+pub(crate) async fn download_cf_mod_file(
     http: &reqwest::Client,
     cf_file: &CfFile,
     file_info: Option<&crate::core::mods::curseforge::CurseForgeFileInfo>,
@@ -597,6 +630,8 @@ async fn download_cf_mod_file(
     mods_dir: &std::path::Path,
     storage_mods_dir: &std::path::Path,
     profile_id: &str,
+    mc_version: Option<&str>,
+    loader: Option<&str>,
 ) -> bool {
     let project_id_str = cf_file.project_id.to_string();
     let file_id_str = cf_file.file_id.to_string();
@@ -628,9 +663,26 @@ async fn download_cf_mod_file(
         }
     }
 
+    let mut resolved_filename = file_info.map(|i| i.file_name.clone());
+
     if let Ok(details) = crate::core::mods::curseforge::get_mod_file_details(http, &project_id_str, &file_id_str).await {
         if !details.url.is_empty() && !urls_to_try.contains(&details.url) {
             urls_to_try.push(details.url);
+        }
+        if resolved_filename.is_none() && !details.filename.is_empty() {
+            resolved_filename = Some(details.filename);
+        }
+    }
+
+    let cdn_name_ref = resolved_filename.as_deref().or_else(|| file_info.map(|i| i.file_name.as_str()));
+    if let Some(name_for_cdn) = cdn_name_ref {
+        for host in ["mediafilez.forgecdn.net", "media.forgecdn.net", "edge.forgecdn.net"] {
+            for sub in [format!("{}/{}", p1, p2), format!("{}/{}", p1, p2_pad)] {
+                let u1 = format!("https://{}/files/{}/{}", host, sub, urlencoding::encode(name_for_cdn));
+                if !urls_to_try.contains(&u1) { urls_to_try.push(u1); }
+                let u2 = format!("https://{}/files/{}/{}", host, sub, name_for_cdn.replace(' ', "%20"));
+                if !urls_to_try.contains(&u2) { urls_to_try.push(u2); }
+            }
         }
     }
 
@@ -640,15 +692,10 @@ async fn download_cf_mod_file(
                 urls_to_try.push(dl.clone());
             }
         }
-        for host in ["mediafilez.forgecdn.net", "media.forgecdn.net", "edge.forgecdn.net"] {
-            for sub in [format!("{}/{}", p1, p2), format!("{}/{}", p1, p2_pad)] {
-                let u1 = format!("https://{}/files/{}/{}", host, sub, urlencoding::encode(&info.file_name));
-                if !urls_to_try.contains(&u1) { urls_to_try.push(u1); }
-                let u2 = format!("https://{}/files/{}/{}", host, sub, info.file_name.replace(' ', "%20"));
-                if !urls_to_try.contains(&u2) { urls_to_try.push(u2); }
-            }
-        }
     }
+
+    urls_to_try.push(format!("https://curse.nikky.moe/api/v2/pack/file/{}", file_id_str));
+    urls_to_try.push(format!("https://cf.way2muchnoise.eu/file/{}", file_id_str));
 
     if let Some(name) = display_name {
         let guess = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(name));
@@ -657,7 +704,9 @@ async fn download_cf_mod_file(
         if !urls_to_try.contains(&guess_pad) { urls_to_try.push(guess_pad); }
     }
 
-    let filename = if let Some(info) = file_info {
+    let filename = if let Some(ref r_name) = resolved_filename {
+        r_name.clone()
+    } else if let Some(info) = file_info {
         info.file_name.clone()
     } else if let Some(name) = display_name {
         let safe = name.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' }).collect::<String>();
@@ -670,11 +719,16 @@ async fn download_cf_mod_file(
     let storage_path = storage_mods_dir.join(&filename);
 
     if file_path.exists() {
-        if let Ok(f) = std::fs::File::open(&file_path) {
-            if zip::ZipArchive::new(std::io::BufReader::new(f)).is_ok() {
-                return true;
+        if let Ok(meta) = std::fs::metadata(&file_path) {
+            if meta.len() > 200 {
+                if let Ok(f) = std::fs::File::open(&file_path) {
+                    if zip::ZipArchive::new(std::io::BufReader::new(f)).is_ok() {
+                        return true;
+                    }
+                }
             }
         }
+        let _ = tokio::fs::remove_file(&file_path).await;
     }
 
     if let Some(p) = file_path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
@@ -744,7 +798,7 @@ async fn download_cf_mod_file(
         }
     }
 
-    if download_from_modrinth_fallback(http, &filename, display_name, &file_path, &storage_path).await {
+    if download_from_modrinth_fallback(http, &filename, display_name, &file_path, &storage_path, mc_version, loader).await {
         if let Ok(db) = crate::db::shared_db().await {
             let mod_row = crate::db::schema::mods::ModRow {
                 profile_id: profile_id.to_string(),
@@ -1007,6 +1061,9 @@ pub async fn instance_import_modpack(
         let ok_counter = mods_ok.clone();
         let fail_counter = mods_fail.clone();
 
+        let mc_ver = mc_version.clone();
+        let ld = loader.clone();
+
         async move {
             if cancel.load(std::sync::atomic::Ordering::SeqCst) {
                 return;
@@ -1020,6 +1077,8 @@ pub async fn instance_import_modpack(
                 &mods_dir,
                 &storage_mods_dir,
                 &profile_id,
+                Some(&mc_ver),
+                Some(&ld),
             ).await;
 
             if ok {
@@ -1043,26 +1102,32 @@ pub async fn instance_import_modpack(
 
     files_stream.buffer_unordered(8).collect::<Vec<()>>().await;
 
-    let mut final_ok = mods_ok.load(std::sync::atomic::Ordering::SeqCst);
-    let mut final_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
+    for retry_pass in 0..3 {
+        let current_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
+        if current_fail == 0 || state.import_cancel.load(std::sync::atomic::Ordering::SeqCst) {
+            break;
+        }
 
-    if final_fail > 0 && !state.import_cancel.load(std::sync::atomic::Ordering::SeqCst) {
-        tracing::info!(failed = final_fail, "retrying failed modpack mods in resilient pass");
+        tracing::info!(pass = retry_pass + 1, failed = current_fail, "retrying failed modpack mods in resilient pass");
         let _ = app.emit("modpack-progress", serde_json::json!({
             "phase": "downloading",
-            "current": final_ok,
+            "current": total_files.saturating_sub(current_fail),
             "total": total_files,
-            "percent": 90,
-            "status": format!("Repassando {} mods pendentes...", final_fail)
+            "percent": 90 + retry_pass * 3,
+            "status": format!("Repassando {} mods pendentes (tentativa {}/3)...", current_fail, retry_pass + 1)
         }));
 
-        let mut existing_files = std::collections::HashSet::new();
+        let mut existing_valid = std::collections::HashSet::new();
         if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
                 let name = entry.file_name().to_string_lossy().to_string();
                 if let Ok(meta) = entry.metadata().await {
-                    if meta.len() > 100 {
-                        existing_files.insert(name);
+                    if meta.len() > 200 {
+                        if let Ok(f) = std::fs::File::open(entry.path()) {
+                            if zip::ZipArchive::new(std::io::BufReader::new(f)).is_ok() {
+                                existing_valid.insert(name);
+                            }
+                        }
                     }
                 }
             }
@@ -1074,41 +1139,75 @@ pub async fn instance_import_modpack(
             let f_id_str = f_id.to_string();
             let fi = file_infos.get(&f_id);
             let expected_name = fi.map(|i| i.file_name.clone()).unwrap_or_default();
-            !existing_files.contains(&expected_name) && !existing_files.iter().any(|e| e.contains(&format!("{}_{}", p_id_str, f_id_str)))
+            !existing_valid.contains(&expected_name) && !existing_valid.iter().any(|e| e.contains(&format!("{}_{}", p_id_str, f_id_str)))
         }).cloned().collect();
 
-        if !pending.is_empty() {
-            let retry_stream = futures_util::stream::iter(pending).map(|cf_file| {
-                let http = state.http.clone();
-                let file_info = file_infos.get(&cf_file.file_id).cloned();
-                let display_name = mod_names.get(&cf_file.project_id).cloned();
-                let mods_dir = mods_dir.clone();
-                let storage_mods_dir = storage_mods_dir.clone();
-                let profile_id = profile_id.clone();
-                let ok_counter = mods_ok.clone();
-                let fail_counter = mods_fail.clone();
+        if pending.is_empty() {
+            mods_fail.store(0, std::sync::atomic::Ordering::SeqCst);
+            break;
+        }
 
-                async move {
-                    let ok = download_cf_mod_file(
-                        &http,
-                        &cf_file,
-                        file_info.as_ref(),
-                        display_name.as_deref(),
-                        &mods_dir,
-                        &storage_mods_dir,
-                        &profile_id,
-                    ).await;
-                    if ok {
-                        ok_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                        let _ = fail_counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |f| Some(f.saturating_sub(1)));
-                    }
+        let retry_stream = futures_util::stream::iter(pending).map(|cf_file| {
+            let http = state.http.clone();
+            let file_info = file_infos.get(&cf_file.file_id).cloned();
+            let display_name = mod_names.get(&cf_file.project_id).cloned();
+            let mods_dir = mods_dir.clone();
+            let storage_mods_dir = storage_mods_dir.clone();
+            let profile_id = profile_id.clone();
+            let mc_ver = mc_version.clone();
+            let ld = loader.clone();
+            let ok_counter = mods_ok.clone();
+            let fail_counter = mods_fail.clone();
+
+            async move {
+                let ok = download_cf_mod_file(
+                    &http,
+                    &cf_file,
+                    file_info.as_ref(),
+                    display_name.as_deref(),
+                    &mods_dir,
+                    &storage_mods_dir,
+                    &profile_id,
+                    Some(&mc_ver),
+                    Some(&ld),
+                ).await;
+                if ok {
+                    ok_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let _ = fail_counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |f| Some(f.saturating_sub(1)));
                 }
-            });
-            retry_stream.buffer_unordered(4).collect::<Vec<()>>().await;
-            final_ok = mods_ok.load(std::sync::atomic::Ordering::SeqCst);
-            final_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+        retry_stream.buffer_unordered(4).collect::<Vec<()>>().await;
+    }
+
+    if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
+        let mut seen_mods: std::collections::HashMap<String, (std::path::PathBuf, u64)> = std::collections::HashMap::new();
+        let mut to_remove: Vec<std::path::PathBuf> = Vec::new();
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let path = entry.path();
+            if path.extension().map_or(false, |e| e == "jar") {
+                let size = entry.metadata().await.map(|m| m.len()).unwrap_or(0);
+                let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                let base_key = stem.split('-').next().unwrap_or(&stem).to_lowercase();
+                if let Some((prev_path, prev_size)) = seen_mods.get(&base_key) {
+                    if size <= *prev_size {
+                        to_remove.push(path);
+                    } else {
+                        to_remove.push(prev_path.clone());
+                        seen_mods.insert(base_key, (path, size));
+                    }
+                } else {
+                    seen_mods.insert(base_key, (path, size));
+                }
+            }
+        }
+        for p in to_remove {
+            let _ = tokio::fs::remove_file(p).await;
         }
     }
+
+    let final_ok = mods_ok.load(std::sync::atomic::Ordering::SeqCst);
+    let final_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
 
     let _ = app.emit("modpack-progress", serde_json::json!({
         "phase": "complete",
@@ -1280,6 +1379,8 @@ pub async fn instance_repair_modpack(
         let app = app.clone();
         let completed = completed_count.clone();
         let repaired = repaired_count.clone();
+        let mc_ver = row.mc_version.clone();
+        let ld = row.loader.clone();
 
         async move {
             let ok = download_cf_mod_file(
@@ -1290,6 +1391,8 @@ pub async fn instance_repair_modpack(
                 &mods_dir,
                 &storage_mods_dir,
                 &profile_id,
+                Some(&mc_ver),
+                Some(&ld),
             ).await;
 
             if ok {
@@ -1342,6 +1445,8 @@ pub async fn instance_repair_modpack(
                 let storage_mods_dir = storage_mods_dir.clone();
                 let profile_id = profileId.clone();
                 let repaired = repaired_count.clone();
+                let mc_ver = row.mc_version.clone();
+                let ld = row.loader.clone();
 
                 async move {
                     let ok = download_cf_mod_file(
@@ -1352,6 +1457,8 @@ pub async fn instance_repair_modpack(
                         &mods_dir,
                         &storage_mods_dir,
                         &profile_id,
+                        Some(&mc_ver),
+                        Some(&ld),
                     ).await;
                     if ok {
                         repaired.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -1491,6 +1598,14 @@ pub async fn instance_file_tree(
 
     let mut entries = Vec::new();
 
+    let cached_icons: std::collections::HashMap<String, String> = {
+        let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, icon_url FROM mod_icons")
+            .fetch_all(db.pool())
+            .await
+            .unwrap_or_default();
+        rows.into_iter().collect()
+    };
+
     if base.is_dir() {
         for entry in std::fs::read_dir(&base)? {
             let entry = entry?;
@@ -1501,18 +1616,32 @@ pub async fn instance_file_tree(
                 let s = e.to_string_lossy().to_lowercase();
                 s == "jar" || s == "zip" || s == "disabled"
             });
+            let fname = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
             let icon = if is_jar_or_zip {
-                crate::commands::mods::extract_mod_icon_from_jar(&path)
+                if let Some(cached) = cached_icons.get(&fname) {
+                    Some(cached.clone())
+                } else if let Some(jar_icon) = crate::commands::mods::extract_mod_icon_from_jar(&path) {
+                    let _ = sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
+                        .bind(&fname)
+                        .bind(&jar_icon)
+                        .execute(db.pool())
+                        .await;
+                    Some(jar_icon)
+                } else {
+                    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                    let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
+                    cached_icons.get(&stem).cloned().or_else(|| cached_icons.get(&base_key).cloned())
+                }
             } else {
                 None
             };
             let size = if is_dir { 0 } else { metadata.len() };
 
             entries.push(FileTreeEntry {
-                name: path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_default(),
+                name: fname,
                 path: path.to_string_lossy().to_string(),
                 is_dir,
                 size,
@@ -2682,4 +2811,78 @@ pub async fn instance_pack_open_folder(
     let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
     open_folder_safe(&target_dir)?;
     Ok(())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_install_quick_pack(
+    state: State<'_, AppState>,
+    profileId: String,
+    packType: String,
+    projectId: String,
+) -> AppResult<String> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let folder_name = match packType.as_str() {
+        "shaders" | "shaderpacks" => "shaderpacks",
+        "datapacks" => "datapacks",
+        _ => "resourcepacks",
+    };
+
+    let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
+    tokio::fs::create_dir_all(&target_dir).await?;
+
+    let version_url = format!("https://api.modrinth.com/v2/project/{}/version", projectId);
+    let resp = state.http.get(&version_url)
+        .header("User-Agent", "Luxmc/1.6.2")
+        .timeout(std::time::Duration::from_secs(20))
+        .send()
+        .await
+        .map_err(|e| crate::error::AppError::Internal(format!("Falha ao conectar com Modrinth: {e}")))?;
+
+    let versions: serde_json::Value = resp.json().await
+        .map_err(|e| crate::error::AppError::InvalidState(format!("Resposta inválida de versões: {e}")))?;
+
+    let ver_list = versions.as_array()
+        .ok_or_else(|| crate::error::AppError::NotFound("Nenhuma versão encontrada para este pacote".into()))?;
+
+    let mut download_info: Option<(String, String)> = None;
+    for ver in ver_list {
+        if let Some(files) = ver.get("files").and_then(|f| f.as_array()) {
+            for f in files {
+                let url = f.get("url").and_then(|u| u.as_str()).unwrap_or("");
+                let filename = f.get("filename").and_then(|n| n.as_str()).unwrap_or("");
+                if !url.is_empty() && !filename.is_empty() {
+                    download_info = Some((url.to_string(), filename.to_string()));
+                    break;
+                }
+            }
+        }
+        if download_info.is_some() {
+            break;
+        }
+    }
+
+    let (dl_url, filename) = download_info
+        .ok_or_else(|| crate::error::AppError::NotFound("Arquivo para download não encontrado".into()))?;
+
+    let file_resp = state.http.get(&dl_url)
+        .header("User-Agent", "Luxmc/1.6.2")
+        .timeout(std::time::Duration::from_secs(60))
+        .send()
+        .await
+        .map_err(|e| crate::error::AppError::Internal(format!("Falha no download: {e}")))?;
+
+    let bytes = file_resp.bytes().await
+        .map_err(|e| crate::error::AppError::Internal(format!("Falha ao ler dados do arquivo: {e}")))?;
+
+    let dest = target_dir.join(&filename);
+    tokio::fs::write(&dest, &bytes).await?;
+
+    Ok(filename)
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PackagePlus, Box, Loader2, X } from "lucide-svelte";
+	import { PackagePlus, Box, Loader2, X, Cpu } from "lucide-svelte";
 	import { fade, scale } from "svelte/transition";
 	import type { ModSearchResultItem } from "$lib/api";
 
@@ -100,27 +100,17 @@
 				/>
 			</div>
 
-			<div>
-				<div class="flex items-center justify-between text-[11px] font-bold text-white/60 uppercase tracking-wider mb-1.5">
-					<span>Memória RAM Recomendada</span>
-					<span class="text-[#caa97c] font-mono text-xs">{(ramMb / 1024).toFixed(1)} GB ({ramMb} MB)</span>
+			<div class="bg-[#18191d] border border-emerald-500/20 rounded-xl p-3 flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+						<Cpu class="w-4 h-4" />
+					</div>
+					<div>
+						<span class="text-xs font-bold text-white block">Memória RAM Automática</span>
+						<span class="text-[10px] text-white/50 block">Otimizada dinamicamente com base no seu hardware e modpack</span>
+					</div>
 				</div>
-				<input
-					type="range"
-					min="2048"
-					max="16384"
-					step="512"
-					bind:value={ramMb}
-					disabled={isInstalling}
-					class="w-full accent-[#caa97c] cursor-pointer disabled:opacity-50"
-				/>
-				<div class="flex justify-between text-[10px] text-white/30 font-mono mt-1">
-					<span>2 GB</span>
-					<span>4 GB</span>
-					<span>8 GB</span>
-					<span>12 GB</span>
-					<span>16 GB</span>
-				</div>
+				<span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">Auto</span>
 			</div>
 		</div>
 

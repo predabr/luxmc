@@ -98,6 +98,13 @@ impl Db {
             )"
         ).execute(&pool).await;
 
+        let _ = sqlx::query(
+            "CREATE TABLE IF NOT EXISTS mod_icons (
+                key TEXT PRIMARY KEY NOT NULL,
+                icon_url TEXT NOT NULL
+            )"
+        ).execute(&pool).await;
+
         Ok(Self { pool })
     }
 

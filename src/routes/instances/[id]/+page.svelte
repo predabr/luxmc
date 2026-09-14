@@ -45,7 +45,9 @@
 		MapPin,
 		Sliders,
 		Radio,
-		Archive
+		Archive,
+		ArrowUpCircle,
+		AlertCircle
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
@@ -102,6 +104,7 @@
 		optimizerInstallPerfPack,
 		optimizerDetectGpu,
 		modsResolveNames,
+		modsResolveIcons,
 		type GpuInfo,
 		type PerformancePackInfo,
 		type JvmValidationResult,
@@ -109,7 +112,12 @@
 		type WorldDetail,
 		type HostLinkInfo,
 		instanceShieldScan,
-		type ShieldScanResult
+		type ShieldScanResult,
+		instanceInstallQuickPack,
+		modpackCheckUpdate,
+		modpackUpdateAtomic,
+		type ModpackUpdateInfo,
+		listen
 	} from "$lib/api";
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { playSound } from "$lib/utils/sound";
@@ -138,6 +146,127 @@
 	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros">("conteudo");
 	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("mods");
 	let searchQuery = $state("");
+
+	let modpackUpdate = $state<ModpackUpdateInfo | null>(null);
+	let isCheckingUpdate = $state(false);
+	let isUpdatingModpack = $state(false);
+	let updateStatusText = $state("");
+	let updateProgressPercent = $state(0);
+	let quickInstallingSlug = $state<string | null>(null);
+
+	const quickShaders = [
+		{
+			name: "Complementary Reimagined",
+			slug: "complementary-reimagined",
+			desc: "Iluminação deslumbrante com névoa volumétrica e desempenho impecável.",
+			author: "EminGT",
+			badge: "Mais Popular",
+			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+			checkMatch: (name: string) => name.includes("complementary") && name.includes("reimagined")
+		},
+		{
+			name: "BSL Shaders",
+			slug: "bsl-shaders",
+			desc: "Cores vivas, sombras suaves, água translúcida e iluminação acolhedora.",
+			author: "Capt Tatsu",
+			badge: "Cinemático",
+			tagColor: "text-sky-400 bg-sky-500/10 border-sky-500/20",
+			checkMatch: (name: string) => name.includes("bsl")
+		},
+		{
+			name: "MakeUp - Ultra Fast",
+			slug: "makeup-ultra-fast-shaders",
+			desc: "Shader ultra leve e otimizado para computadores modestos e notebooks.",
+			author: "XavierFbx",
+			badge: "Ultra Leve",
+			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+			checkMatch: (name: string) => name.includes("makeup")
+		},
+		{
+			name: "Complementary Unbound",
+			slug: "complementary-unbound",
+			desc: "Visual realista de alta fidelidade com reflexos e suporte avançado a PBR.",
+			author: "EminGT",
+			badge: "Alta Fidelidade",
+			tagColor: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+			checkMatch: (name: string) => name.includes("complementary") && name.includes("unbound")
+		},
+		{
+			name: "Solas Shader",
+			slug: "solas-shader",
+			desc: "Nuvens volumétricas tridimensionais, auroras boreais e feixes de sol.",
+			author: "SeptFox-dyn",
+			badge: "Atmosférico",
+			tagColor: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+			checkMatch: (name: string) => name.includes("solas")
+		}
+	];
+
+	const quickResourcePacks = [
+		{
+			name: "Bare Bones",
+			slug: "bare-bones",
+			desc: "Estilo simplificado e vibrante idêntico aos trailers oficiais da Mojang.",
+			author: "RobotPantaloons",
+			badge: "Estilo Trailer",
+			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+			checkMatch: (name: string) => name.includes("bare") && name.includes("bones")
+		},
+		{
+			name: "Faithful 32x",
+			slug: "faithful-32x",
+			desc: "Texturas originais do Minecraft com dobro de resolução e definição nítida.",
+			author: "Faithful Team",
+			badge: "Clássico HD",
+			tagColor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+			checkMatch: (name: string) => name.includes("faithful")
+		},
+		{
+			name: "Stay True",
+			slug: "stay-true",
+			desc: "Folhagens conectadas, texturas variadas e harmonia com o estilo Vanilla.",
+			author: "Trrigg",
+			badge: "Realismo Vanilla",
+			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+			checkMatch: (name: string) => name.includes("stay") && name.includes("true")
+		},
+		{
+			name: "Fresh Animations",
+			slug: "fresh-animations",
+			desc: "Animações faciais e corporais vivas e expressivas para todos os mobs.",
+			author: "FreshLX",
+			badge: "Animações Vivas",
+			tagColor: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+			checkMatch: (name: string) => name.includes("fresh") && name.includes("animation")
+		}
+	];
+
+	function getModBadge(name: string) {
+		const clean = name.replace(/[^a-zA-Z0-9]/g, " ").trim();
+		const parts = clean.split(/\s+/).filter(Boolean);
+		let initials = "";
+		if (parts.length >= 2) {
+			initials = (parts[0][0] + parts[1][0]).toUpperCase();
+		} else if (parts.length === 1) {
+			initials = parts[0].slice(0, 2).toUpperCase();
+		} else {
+			initials = "MD";
+		}
+		let hash = 0;
+		for (let i = 0; i < name.length; i++) {
+			hash = name.charCodeAt(i) + ((hash << 5) - hash);
+		}
+		const gradients = [
+			"from-violet-600 via-indigo-600 to-purple-800 text-violet-100 border-violet-400/30",
+			"from-emerald-600 via-teal-600 to-cyan-800 text-emerald-100 border-emerald-400/30",
+			"from-amber-600 via-orange-600 to-red-800 text-amber-100 border-amber-400/30",
+			"from-rose-600 via-pink-600 to-purple-800 text-rose-100 border-rose-400/30",
+			"from-blue-600 via-cyan-600 to-sky-800 text-blue-100 border-blue-400/30",
+			"from-fuchsia-600 via-pink-600 to-rose-800 text-fuchsia-100 border-fuchsia-400/30"
+		];
+		const theme = gradients[Math.abs(hash) % gradients.length];
+		return { initials, theme };
+	}
 
 	let showInstanceSettingsModal = $state(false);
 	let activeInstanceSection = $state<"geral" | "instalacao" | "otimizacao" | "janela" | "controlos" | "java" | "hooks">("geral");
@@ -581,6 +710,9 @@
 			}
 		} catch {}
 		await refreshAllData();
+		if (instanceId) {
+			checkModpackUpdate();
+		}
 
 		if (instanceId) {
 			const hasNumericNames = instanceMods.some(m => /^\d+_\d+\.jar$/.test(m.name.replace('.disabled', '')));
@@ -623,6 +755,16 @@
 			if (instanceId && newMods.some(m => /^\d+(_\d+)?\.jar$/.test(m.name.replace('.disabled', '')))) {
 				modsResolveNames(instanceId).then(renamed => {
 					if (renamed > 0) {
+						instanceFileTree(instanceId, "mods").then(updated => {
+							instanceMods = updated;
+						}).catch(() => {});
+					}
+				}).catch(() => {});
+			}
+
+			if (instanceId && newMods.some(m => !m.icon)) {
+				modsResolveIcons(instanceId).then(resolved => {
+					if (resolved > 0) {
 						instanceFileTree(instanceId, "mods").then(updated => {
 							instanceMods = updated;
 						}).catch(() => {});
@@ -836,12 +978,23 @@
 				}).catch(() => {});
 			}
 
+			const pNameLower = (activeProfile?.name || "").toLowerCase();
+			const modpackCover = (activeProfile?.icon && (activeProfile.icon.startsWith("http") || activeProfile.icon.startsWith("data:")))
+				? activeProfile.icon
+				: pNameLower.includes("better mc") || pNameLower.includes("bmc")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_better_mc.webp"
+				: pNameLower.includes("pixelmon") || pNameLower.includes("cobblemon")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_cobblemon.webp"
+				: pNameLower.includes("fabulously optimized") || pNameLower.includes("fo")
+				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_fo.webp"
+				: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
+
 			discordSetActivity({
 				inGame: true,
-				details: `Jogando ${activeProfile?.name || "Minecraft"}`,
+				details: activeProfile?.name || "Minecraft",
 				state: `Minecraft ${verId} · ${activeProfile?.loader ? activeProfile.loader.toUpperCase() : "Vanilla"}`,
-				largeText: `Minecraft ${verId}`,
-				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				largeText: activeProfile?.name || `Minecraft ${verId}`,
+				largeImage: modpackCover,
 				smallImage: activeProfile?.loader === "fabric" ? "fabric" : (activeProfile?.loader === "forge" ? "curse" : "grass"),
 				smallText: `Luxmc · ${activeProfile?.loader || "Vanilla"}`,
 				startTime: Math.floor(Date.now() / 1000)
@@ -915,6 +1068,79 @@
 			toast("Captura de tela removida!", "info");
 		} catch (e) {
 			toast("Erro ao excluir captura: " + String(e), "error");
+		}
+	}
+
+	async function checkModpackUpdate() {
+		if (!instanceId || isCheckingUpdate) return;
+		isCheckingUpdate = true;
+		try {
+			const info = await modpackCheckUpdate(instanceId);
+			if (info && info.hasUpdate) {
+				modpackUpdate = info;
+			} else {
+				modpackUpdate = null;
+			}
+		} catch (e) {
+			console.debug("Modpack update check not applicable or failed:", e);
+		} finally {
+			isCheckingUpdate = false;
+		}
+	}
+
+	async function handleApplyModpackUpdate() {
+		if (!modpackUpdate || !instanceId || isUpdatingModpack) return;
+		isUpdatingModpack = true;
+		updateStatusText = "Iniciando atualização protegida...";
+		updateProgressPercent = 5;
+
+		let unlistenProgress: (() => void) | null = null;
+		try {
+			unlistenProgress = await listen<{ phase?: string; percent?: number; status?: string }>(
+				"modpack-progress",
+				(event) => {
+					if (event.payload.status) updateStatusText = event.payload.status;
+					if (typeof event.payload.percent === "number") updateProgressPercent = event.payload.percent;
+				}
+			);
+
+			await modpackUpdateAtomic(
+				instanceId,
+				modpackUpdate.versionId || "",
+				modpackUpdate.source || "modrinth",
+				modpackUpdate.projectId || ""
+			);
+
+			toast(`🎉 Modpack atualizado com sucesso para a versão ${modpackUpdate.latestVersion || "mais recente"}! Seus mundos, prints e opções foram 100% preservados.`, "success");
+			playSound("chime");
+			modpackUpdate = null;
+			await refreshAllData();
+		} catch (e) {
+			console.error("Falha ao atualizar modpack:", e);
+			toast("Erro ao atualizar modpack: " + String(e), "error");
+		} finally {
+			if (unlistenProgress) unlistenProgress();
+			isUpdatingModpack = false;
+			updateStatusText = "";
+			updateProgressPercent = 0;
+		}
+	}
+
+	async function handleQuickInstallPack(slug: string, packTitle: string) {
+		if (quickInstallingSlug) return;
+		quickInstallingSlug = slug;
+		try {
+			toast(`Iniciando download de ${packTitle}...`, "info");
+			const targetType = subTab === "shaders" ? "shaderpacks" : "resourcepacks";
+			const installedName = await instanceInstallQuickPack(instanceId, targetType, slug);
+			playSound("chime");
+			toast(`✨ ${packTitle} instalado com sucesso! (${installedName})`, "success");
+			await refreshAllData();
+		} catch (e) {
+			console.error("Quick pack install error:", e);
+			toast("Falha ao instalar pacote: " + String(e), "error");
+		} finally {
+			quickInstallingSlug = null;
 		}
 	}
 
@@ -1101,6 +1327,64 @@
 			</div>
 
 		</div>
+
+		<!-- Modpack 1-Click Auto-Update Notification Banner -->
+		{#if modpackUpdate?.hasUpdate || isUpdatingModpack}
+			<div class="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-[#18191c] border border-amber-500/30 rounded-3xl p-5 shadow-xl relative overflow-hidden">
+				<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+				<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
+					<div class="flex items-start gap-3.5">
+						<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-black font-black shadow-lg shrink-0">
+							<ArrowUpCircle class="w-6 h-6" />
+						</div>
+						<div class="space-y-1">
+							<div class="flex items-center gap-2 flex-wrap">
+								<span class="font-extrabold text-sm text-white">Nova Versão do Modpack Disponível!</span>
+								<span class="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
+									{modpackUpdate?.latestVersion || "Atualização Oficial"}
+								</span>
+								{#if modpackUpdate?.currentVersion}
+									<span class="text-[10px] text-white/40 font-mono">
+										(Instalado: {modpackUpdate.currentVersion})
+									</span>
+								{/if}
+							</div>
+							<p class="text-xs text-white/60">
+								Uma atualização oficial foi detectada no {modpackUpdate?.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}.
+							</p>
+							<div class="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 pt-0.5">
+								<ShieldCheck class="w-3.5 h-3.5 shrink-0" />
+								<span>Seus mundos (saves/), prints (screenshots/) e opções (options.txt) serão 100% preservados.</span>
+							</div>
+						</div>
+					</div>
+
+					<div class="shrink-0 flex items-center gap-3 w-full md:w-auto">
+						{#if isUpdatingModpack}
+							<div class="flex flex-col items-end gap-1.5 w-full min-w-[220px]">
+								<div class="flex items-center justify-between w-full text-xs font-bold text-amber-300">
+									<span class="flex items-center gap-1.5">
+										<RefreshCw class="w-3 h-3 animate-spin" /> {updateStatusText || "Atualizando..."}
+									</span>
+									<span>{updateProgressPercent}%</span>
+								</div>
+								<div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+									<div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-300 rounded-full" style="width: {updateProgressPercent}%"></div>
+								</div>
+							</div>
+						{:else}
+							<button
+								type="button"
+								class="w-full md:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-black font-black text-xs shadow-lg hover:shadow-amber-500/25 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+								onclick={handleApplyModpackUpdate}
+							>
+								<Download class="w-4 h-4" /> Atualizar em 1 Clique
+							</button>
+						{/if}
+					</div>
+				</div>
+			</div>
+		{/if}
 
 		<!-- Main Navigation Tabs -->
 		<div class="flex items-center justify-between border-b border-white/5 pb-2">
@@ -1293,36 +1577,40 @@
 							</div>
 						</div>
 					{:else}
-						<VirtualList items={filteredMods} itemHeight={72} height="600px" class="rounded-2xl">
+						<VirtualList items={filteredMods} itemHeight={76} height="600px" class="rounded-2xl">
 							{#snippet children(mod: FileTreeEntry, _index: number)}
 								{@const isDisabled = mod.name.endsWith('.disabled')}
 								{@const rawName = mod.name.replace('.disabled', '').replace('.jar', '')}
 								{@const displayName = rawName.includes('_') && /^\d+_\d+$/.test(rawName) ? 'Mod #' + rawName.split('_')[0] : rawName.replace(/_/g, ' ')}
-								<div class="bg-[#18191c] border border-white/5 hover:border-white/15 p-4 flex items-center justify-between transition-all group {isDisabled ? 'opacity-50' : ''}" style="content-visibility: auto;">
+								{@const badge = getModBadge(displayName)}
+								<div class="bg-[#18191c]/90 hover:bg-[#202126] border border-white/5 hover:border-white/15 p-3.5 rounded-2xl flex items-center justify-between transition-all group shadow-sm hover:shadow-md {isDisabled ? 'opacity-50' : ''}" style="content-visibility: auto;">
 									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="w-10 h-10 rounded-xl overflow-hidden {isDisabled ? 'bg-white/5 text-white/30' : 'bg-blue-500/15 text-blue-400 border border-blue-500/30'} flex items-center justify-center shrink-0 shadow-sm relative">
+										<div class="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-md relative {isDisabled ? 'grayscale opacity-60' : ''}">
 											{#if mod.icon}
 												<img 
 													src={mod.icon} 
 													alt={displayName} 
-													class="w-full h-full object-cover [image-rendering:pixelated]" 
+													class="w-full h-full object-cover rounded-2xl border border-white/10 [image-rendering:pixelated]" 
 													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
 												/>
 											{:else}
-												<Puzzle class="w-5 h-5" />
+												<div class="w-full h-full bg-gradient-to-br {badge.theme} border flex flex-col items-center justify-center shadow-inner select-none">
+													<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
+													<span class="text-[7px] font-bold opacity-70 tracking-widest uppercase">MOD</span>
+												</div>
 											{/if}
 										</div>
 										<div class="min-w-0">
 											<div class="flex items-center gap-2">
-												<h5 class="text-xs font-bold text-white truncate max-w-[320px]" title={displayName}>{displayName}</h5>
+												<h5 class="text-xs font-extrabold text-white truncate max-w-[320px] group-hover:text-amber-300 transition-colors" title={displayName}>{displayName}</h5>
 												<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full {isDisabled ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
 													{isDisabled ? 'Desativado' : 'Ativo'}
 												</span>
 											</div>
 											<div class="flex items-center gap-2 mt-1 text-[10px] text-white/40 font-mono">
-												<span>{mod.size > 1048576 ? (mod.size / (1024 * 1024)).toFixed(2) + ' MB' : Math.round(mod.size / 1024) + ' KB'}</span>
+												<span class="text-white/60">{mod.size > 1048576 ? (mod.size / (1024 * 1024)).toFixed(2) + ' MB' : Math.round(mod.size / 1024) + ' KB'}</span>
 												<span>·</span>
-												<span class="truncate max-w-[250px]">{mod.name}</span>
+												<span class="truncate max-w-[260px]">{mod.name}</span>
 											</div>
 										</div>
 									</div>
@@ -1330,22 +1618,24 @@
 									<div class="flex items-center gap-2 shrink-0">
 										<button 
 											type="button"
-											class="p-2 rounded-xl transition-all cursor-pointer {isDisabled ? 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'}"
+											class="px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm active:scale-95 {isDisabled ? 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 border border-white/10' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 shadow-emerald-500/10'}"
 											onclick={() => handleToggleMod(mod)}
 											title={isDisabled ? 'Ativar mod' : 'Desativar mod'}
 										>
 											{#if isDisabled}
-												<ToggleLeft class="w-4 h-4" />
+												<ToggleLeft class="w-4 h-4 text-white/40" />
+												<span class="hidden sm:inline">Desativado</span>
 											{:else}
-												<ToggleRight class="w-4 h-4" />
+												<ToggleRight class="w-4 h-4 text-emerald-400" />
+												<span class="hidden sm:inline">Ativo</span>
 											{/if}
 										</button>
 
 										<button 
-											type="button"
-											class="p-2 rounded-xl text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+											type="button" 
+											class="p-2 rounded-xl text-white/40 hover:text-red-300 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 transition-all cursor-pointer active:scale-95 shadow-sm"
 											onclick={() => handleDeleteMod(mod)}
-											title="Excluir mod"
+											title="Excluir mod permanentemente"
 										>
 											<Trash2 class="w-4 h-4" />
 										</button>
@@ -1360,28 +1650,105 @@
 							<ShaderSplitViewer />
 						</div>
 					{/if}
-					{#if currentPacksList.length === 0}
-						<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
-							<div class="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mb-4 text-white/20">
-								<Box class="w-8 h-8" />
+					{#if subTab === 'shaders' || subTab === 'resourcepacks'}
+						<!-- Seção 1-Clique de Packs Populares Curados -->
+						<div class="bg-[#141518] border border-white/5 rounded-3xl p-5 mb-6 shadow-sm space-y-4">
+							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
+								<div class="flex items-center gap-2.5">
+									<div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+										<Sparkles class="w-4 h-4" />
+									</div>
+									<div>
+										<h4 class="text-xs font-black text-white uppercase tracking-wider">
+											{subTab === 'shaders' ? 'Shaders Populares · 1 Clique' : 'Texturas Aclamadas · 1 Clique'}
+										</h4>
+										<p class="text-[11px] text-white/40 mt-0.5">
+											{subTab === 'shaders'
+												? 'Baixe e instale instantaneamente os melhores shaders sem precisar abrir o navegador'
+												: 'Baixe e instale pacotes de textura populares direto para a pasta sem sair do launcher'}
+										</p>
+									</div>
+								</div>
+								<button 
+									type="button"
+									class="self-start sm:self-auto bg-white/5 hover:bg-white/10 text-white/80 hover:text-white px-3.5 py-1.5 rounded-xl border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+									onclick={handleAddResourcePack}
+								>
+									<Plus class="w-3.5 h-3.5" /> Importar .ZIP Local
+								</button>
 							</div>
-							<h3 class="text-base font-extrabold text-white">
-								{subTab === 'resourcepacks' ? 'Nenhum pacote de recursos' : subTab === 'shaders' ? 'Nenhum shader instalado' : 'Nenhum datapack instalado'}
+
+							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+								{#each (subTab === 'shaders' ? quickShaders : quickResourcePacks) as pack}
+									{@const isInstalled = currentPacksList.some(p => pack.checkMatch(p.name.toLowerCase()))}
+									<div class="bg-[#1a1b20] hover:bg-[#202127] border border-white/5 hover:border-white/15 p-4 rounded-2xl flex flex-col justify-between gap-3.5 transition-all group shadow-sm hover:shadow-md relative overflow-hidden">
+										<div class="space-y-2">
+											<div class="flex items-center justify-between gap-2">
+												<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border {pack.tagColor}">
+													{pack.badge}
+												</span>
+												<span class="text-[10px] text-white/30 font-medium">por {pack.author}</span>
+											</div>
+											<div>
+												<h5 class="text-xs font-extrabold text-white group-hover:text-amber-300 transition-colors">{pack.name}</h5>
+												<p class="text-[11px] text-white/50 line-clamp-2 mt-1 leading-relaxed">{pack.desc}</p>
+											</div>
+										</div>
+
+										<div class="flex items-center justify-between pt-2 border-t border-white/5">
+											{#if isInstalled}
+												<span class="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-bold px-3 py-1 rounded-xl flex items-center gap-1.5">
+													<Check class="w-3.5 h-3.5 text-emerald-400" /> Instalado
+												</span>
+											{:else}
+												<button
+													type="button"
+													class="w-full bg-[#25262c] hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-black text-white text-xs font-bold py-2 px-3 rounded-xl border border-white/10 hover:border-transparent transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+													onclick={() => handleQuickInstallPack(pack.slug, pack.name)}
+													disabled={quickInstallingSlug === pack.slug}
+												>
+													{#if quickInstallingSlug === pack.slug}
+														<RefreshCw class="w-3.5 h-3.5 animate-spin" /> Instalando...
+													{:else}
+														<Download class="w-3.5 h-3.5 text-amber-400 group-hover:text-black" /> Baixar em 1 Clique
+													{/if}
+												</button>
+											{/if}
+										</div>
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+
+					<div class="flex items-center justify-between mb-3">
+						<h4 class="text-xs font-bold text-white uppercase tracking-wider">
+							{subTab === 'resourcepacks' ? 'Pacotes de Textura Instalados' : subTab === 'shaders' ? 'Shaders Instalados' : 'Datapacks Instalados'} ({currentPacksList.length})
+						</h4>
+						<button 
+							class="text-xs font-bold text-white/40 hover:text-white flex items-center gap-1 cursor-pointer transition-colors"
+							onclick={handleOpenPackFolder}
+						>
+							<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta
+						</button>
+					</div>
+
+					{#if currentPacksList.length === 0}
+						<div class="bg-[#18191c] border border-white/5 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
+							<div class="h-14 w-14 rounded-full bg-white/5 flex items-center justify-center mb-3 text-white/20">
+								<Box class="w-7 h-7" />
+							</div>
+							<h3 class="text-sm font-extrabold text-white">
+								{subTab === 'resourcepacks' ? 'Nenhum pacote de textura instalado' : subTab === 'shaders' ? 'Nenhum shader instalado' : 'Nenhum datapack instalado'}
 							</h3>
 							<p class="text-xs text-white/40 mt-1 max-w-sm">
-								Esta instância ainda não possui {subTab === 'resourcepacks' ? 'texturas' : subTab === 'shaders' ? 'shaders' : 'datapacks'} adicionados.
+								{subTab === 'resourcepacks' || subTab === 'shaders' ? 'Utilize o instalador em 1 clique acima para baixar os melhores pacotes com um único clique.' : 'Adicione datapacks para modificar o comportamento do jogo.'}
 							</p>
-							<button 
-								class="mt-6 bg-[#222328] hover:bg-white/10 border border-white/10 text-white text-xs font-bold px-6 py-2.5 rounded-full transition-all flex items-center gap-2 cursor-pointer"
-								onclick={handleAddResourcePack}
-							>
-								<Plus class="w-4 h-4" /> Importar Arquivo .ZIP
-							</button>
 						</div>
 					{:else}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 							{#each currentPacksList as pack}
-								<div class="bg-[#18191c] border border-white/5 hover:border-white/15 p-4 rounded-2xl flex items-center justify-between transition-all group">
+								<div class="bg-[#18191c] border border-white/5 hover:border-white/15 p-4 rounded-2xl flex items-center justify-between transition-all group shadow-sm">
 									<div class="flex items-center gap-3.5 min-w-0">
 										<div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-sm">
 											<Box class="w-5 h-5" />
@@ -1393,7 +1760,7 @@
 									</div>
 									<button 
 										type="button" 
-										class="p-2 rounded-xl text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+										class="p-2 rounded-xl text-white/40 hover:text-red-300 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 transition-all cursor-pointer active:scale-95"
 										onclick={() => handleDeletePack(pack.name)}
 										title="Excluir arquivo"
 									>
@@ -2304,45 +2671,25 @@
 								</button>
 							</div>
 
-							<!-- RAM Presets & Slider -->
-							<div class="space-y-3 bg-[#18191f] border border-white/5 rounded-2xl p-4">
-								<div class="flex items-center justify-between">
-									<div class="flex items-center gap-2">
-										<span class="text-xs font-bold text-white/80">Alocação de Memória RAM</span>
-										<span class="text-[10px] text-white/40">(Sistema: {Math.round(systemRamMb / 1024)} GB)</span>
+							<!-- Memória RAM 100% Automática -->
+							<div class="bg-[#18191f] border border-emerald-500/25 rounded-2xl p-4 space-y-2">
+								<div class="flex items-center justify-between text-xs">
+									<div class="flex items-center gap-2.5">
+										<div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+											<Cpu class="w-4 h-4" />
+										</div>
+										<div>
+											<span class="font-bold text-white block">Memória RAM 100% Automática</span>
+											<span class="text-[10px] text-white/50 block">Hardware: {Math.round(systemRamMb / 1024)} GB Totais detectados</span>
+										</div>
 									</div>
-									<span class="text-xs font-mono font-black text-[#caa97c] bg-[#caa97c]/10 px-2.5 py-0.5 rounded-lg border border-[#caa97c]/20">
-										{instanceRamMb} MB ({(instanceRamMb / 1024).toFixed(1)} GB)
+									<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
+										<Sparkles class="w-3 h-3" /> Auto Tuning Ativo
 									</span>
 								</div>
-
-								<!-- Quick RAM Presets based on real system specs -->
-								<div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5 pt-1">
-									{#each ramPresets as preset}
-										<button 
-											type="button"
-											class="py-1.5 px-2 rounded-xl text-center border transition-all cursor-pointer {instanceRamMb === preset.mb ? 'bg-[#caa97c] text-black border-[#caa97c] font-black shadow-md' : 'bg-[#202128] text-white/70 border-white/5 hover:border-white/20 hover:text-white'}"
-											onclick={() => instanceRamMb = preset.mb}
-										>
-											<div class="text-[11px] font-bold leading-tight">{preset.label}</div>
-											<div class="text-[9px] opacity-60 leading-tight">{preset.desc}</div>
-										</button>
-									{/each}
-								</div>
-
-								<input 
-									type="range" 
-									min="1024" 
-									max={Math.max(4096, Math.min(Math.floor(systemRamMb * 0.9 / 1024) * 1024, 32768))} 
-									step="512" 
-									bind:value={instanceRamMb} 
-									class="w-full accent-[#caa97c] cursor-pointer mt-2" 
-								/>
-								<div class="flex justify-between text-[10px] font-mono text-white/40">
-									<span>1024 MB (1 GB)</span>
-									<span>{Math.round(systemRamMb * 0.45 / 1024) * 1024} MB</span>
-									<span>{Math.max(4096, Math.min(Math.floor(systemRamMb * 0.9 / 1024) * 1024, 32768))} MB ({Math.round(Math.max(4096, Math.min(Math.floor(systemRamMb * 0.9 / 1024) * 1024, 32768)) / 1024)} GB)</span>
-								</div>
+								<p class="text-[11px] text-white/50 leading-relaxed">
+									O Luxmc calcula e aloca dinamicamente a quantidade ótima de RAM ao iniciar com base no peso dos mods da instância e na memória livre do Linux, prevenindo travamentos e otimizando o Garbage Collector.
+								</p>
 							</div>
 
 							<!-- Custom JVM Arguments with Live OS-Safe Validator -->

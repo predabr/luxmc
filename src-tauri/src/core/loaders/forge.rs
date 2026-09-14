@@ -302,7 +302,8 @@ pub async fn prepare_forge(
 ) -> AppResult<PreparedLoader> {
     let chosen_version = if let Some(v) = loader_version {
         if !v.trim().is_empty() {
-            v.trim().to_string()
+            let clean = v.trim();
+            clean.strip_prefix("forge-").unwrap_or(clean).to_string()
         } else {
             get_latest_loader_version(http, mc_version).await?
         }
@@ -310,10 +311,11 @@ pub async fn prepare_forge(
         get_latest_loader_version(http, mc_version).await?
     };
 
-    let full_version = if chosen_version.starts_with(mc_version) {
-        chosen_version.clone()
+    let clean_chosen = chosen_version.strip_prefix("forge-").unwrap_or(&chosen_version);
+    let full_version = if clean_chosen.starts_with(mc_version) {
+        clean_chosen.to_string()
     } else {
-        format!("{}-{}", mc_version, chosen_version)
+        format!("{}-{}", mc_version, clean_chosen)
     };
 
     let installer_url = format!(
