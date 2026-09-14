@@ -1256,7 +1256,7 @@ pub async fn mods_resolve_icons(
         for chunk in mr_slugs.chunks(20) {
             let ids_param = serde_json::to_string(&chunk).unwrap_or_default();
             let url = format!("https://api.modrinth.com/v2/projects?ids={}", urlencoding::encode(&ids_param));
-            if let Ok(resp) = state.http.get(&url).header("User-Agent", "Luxmc/1.6.2").send().await {
+            if let Ok(resp) = state.http.get(&url).header("User-Agent", "Luxmc/1.6.5").send().await {
                 if resp.status().is_success() {
                     if let Ok(projects) = resp.json::<Vec<serde_json::Value>>().await {
                         for p in projects {

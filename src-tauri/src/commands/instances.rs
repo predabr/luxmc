@@ -2839,7 +2839,7 @@ pub async fn instance_install_quick_pack(
 
     let version_url = format!("https://api.modrinth.com/v2/project/{}/version", projectId);
     let resp = state.http.get(&version_url)
-        .header("User-Agent", "Luxmc/1.6.2")
+        .header("User-Agent", "Luxmc/1.6.5")
         .timeout(std::time::Duration::from_secs(20))
         .send()
         .await
@@ -2872,7 +2872,7 @@ pub async fn instance_install_quick_pack(
         .ok_or_else(|| crate::error::AppError::NotFound("Arquivo para download não encontrado".into()))?;
 
     let file_resp = state.http.get(&dl_url)
-        .header("User-Agent", "Luxmc/1.6.2")
+        .header("User-Agent", "Luxmc/1.6.5")
         .timeout(std::time::Duration::from_secs(60))
         .send()
         .await

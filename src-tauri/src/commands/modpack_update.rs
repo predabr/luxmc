@@ -96,7 +96,7 @@ async fn check_modrinth_update(
             pid, row.mc_version, row.loader.to_lowercase()
         );
         if let Ok(resp) = state.http.get(&ver_url)
-            .header("User-Agent", "Luxmc/1.6.2")
+            .header("User-Agent", "Luxmc/1.6.5")
             .send().await
         {
             if resp.status().is_success() {
@@ -266,7 +266,7 @@ pub async fn modpack_update_atomic(
     if source == "modrinth" {
         let url = format!("https://api.modrinth.com/v2/version/{}", versionId);
         let resp = state.http.get(&url)
-            .header("User-Agent", "Luxmc/1.6.2")
+            .header("User-Agent", "Luxmc/1.6.5")
             .send().await
             .map_err(|e| AppError::Internal(format!("Erro ao buscar versão do modpack: {e}")))?;
 
@@ -284,7 +284,7 @@ pub async fn modpack_update_atomic(
             .ok_or_else(|| AppError::NotFound("URL do arquivo .mrpack não encontrada".into()))?;
 
         let mrpack_resp = state.http.get(mrpack_dl_url)
-            .header("User-Agent", "Luxmc/1.6.2")
+            .header("User-Agent", "Luxmc/1.6.5")
             .send().await
             .map_err(|e| AppError::Internal(format!("Erro ao baixar arquivo .mrpack: {e}")))?;
 
@@ -360,7 +360,7 @@ pub async fn modpack_update_atomic(
                         if let Some(dl_arr) = downloads {
                             for dl_val in dl_arr {
                                 if let Some(dl_url) = dl_val.as_str() {
-                                    if let Ok(resp) = http.get(dl_url).header("User-Agent", "Luxmc/1.6.2").send().await {
+                                    if let Ok(resp) = http.get(dl_url).header("User-Agent", "Luxmc/1.6.5").send().await {
                                         if resp.status().is_success() {
                                             if let Ok(b) = resp.bytes().await {
                                                 let _ = tokio::fs::write(&target, &b).await;

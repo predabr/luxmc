@@ -1,11 +1,11 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="160" />
-  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.6.2</span></h1>
+  <h1>Luxmc Launcher <span style="color:#e2b86b">v1.6.5</span></h1>
   <p><strong>O Minecraft Launcher moderno, inteligente e de alta performance.</strong></p>
   <p><em>Rápido. Leve. Confiável. 100% gratuito e open-source.</em></p>
 
   <p>
-    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.6.2-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
+    <a href="https://github.com/predabr/luxmc/releases"><img src="https://img.shields.io/badge/version-v1.6.5-gold?style=for-the-badge&logo=rocket" alt="Version" /></a>
     <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-blue?style=for-the-badge&logo=linux" alt="Multiplatform" />
     <img src="https://img.shields.io/badge/Windows-Nativo%20EXE-0078D4?style=for-the-badge&logo=windows" alt="Windows EXE" />
     <img src="https://img.shields.io/badge/Linux-AppImage%20%7C%20Deb%20%7C%20RPM%20%7C%20Arch-1793D1?style=for-the-badge&logo=archlinux" alt="Linux Packaging" />
@@ -113,8 +113,8 @@ Baixe o pacote correspondente ao seu sistema operacional na aba de **[📦 Relea
 ### 🟢 Linux (AppImage — Universal)
 Funciona em qualquer distribuição Linux:
 ```bash
-chmod +x Luxmc_1.6.2_amd64.AppImage
-./Luxmc_1.6.2_amd64.AppImage
+chmod +x Luxmc_1.6.5_amd64.AppImage
+./Luxmc_1.6.5_amd64.AppImage
 ```
 
 ### 🟣 Arch Linux / Manjaro
@@ -126,12 +126,12 @@ makepkg -si
 
 ### 🔴 Debian / Ubuntu / Pop!_OS (.deb)
 ```bash
-sudo apt install ./Luxmc_1.6.2_amd64.deb
+sudo apt install ./Luxmc_1.6.5_amd64.deb
 ```
 
 ### 🔵 Fedora / openSUSE (.rpm)
 ```bash
-sudo dnf install ./Luxmc-1.6.2-1.x86_64.rpm
+sudo dnf install ./Luxmc-1.6.5-1.x86_64.rpm
 ```
 
 ---
