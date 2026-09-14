@@ -27,9 +27,63 @@ pub struct P2PConnectionInfo {
 #[serde(rename_all = "camelCase")]
 pub struct HostLinkInfo {
     pub local_ip: String,
+    pub public_ip: Option<String>,
     pub port: u16,
     pub share_link: String,
     pub direct_address: String,
+    pub public_address: Option<String>,
+    pub share_code: String,
+    pub motd: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscoveredLanWorld {
+    pub motd: String,
+    pub port: u16,
+    pub host: String,
+}
+
+#[tauri::command]
+pub async fn p2p_scan_lan_worlds() -> AppResult<Vec<DiscoveredLanWorld>> {
+    use std::net::Ipv4Addr;
+
+    let multicast_addr = Ipv4Addr::new(224, 0, 2, 60);
+    let socket = match tokio::net::UdpSocket::bind("0.0.0.0:4445").await {
+        Ok(s) => s,
+        Err(_) => {
+            return Ok(Vec::new());
+        }
+    };
+
+    let _ = socket.join_multicast_v4(multicast_addr, Ipv4Addr::UNSPECIFIED);
+
+    let mut worlds = Vec::new();
+    let mut buf = [0u8; 1024];
+
+    let end_time = tokio::time::Instant::now() + std::time::Duration::from_millis(1500);
+    while tokio::time::Instant::now() < end_time {
+        let remaining = end_time - tokio::time::Instant::now();
+        if let Ok(Ok((len, src))) = tokio::time::timeout(remaining, socket.recv_from(&mut buf)).await {
+            let msg = String::from_utf8_lossy(&buf[..len]);
+            if let (Some(motd_start), Some(motd_end)) = (msg.find("[MOTD]"), msg.find("[/MOTD]")) {
+                let motd = msg[motd_start + 6..motd_end].to_string();
+                if let (Some(ad_start), Some(ad_end)) = (msg.find("[AD]"), msg.find("[/AD]")) {
+                    let port_str = &msg[ad_start + 4..ad_end];
+                    if let Ok(port) = port_str.parse::<u16>() {
+                        let host = src.ip().to_string();
+                        if !worlds.iter().any(|w: &DiscoveredLanWorld| w.port == port && w.host == host) {
+                            worlds.push(DiscoveredLanWorld { motd, port, host });
+                        }
+                    }
+                }
+            }
+        } else {
+            break;
+        }
+    }
+
+    Ok(worlds)
 }
 
 #[tauri::command]
@@ -47,13 +101,35 @@ pub async fn p2p_get_host_link(port: Option<u16>) -> AppResult<HostLinkInfo> {
     };
 
     let direct_address = format!("{}:{}", local_ip, target_port);
-    let share_link = format!("luxmc://join/{}", direct_address);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .unwrap_or_default();
+
+    let public_ip = match client.get("https://api.ipify.org").send().await {
+        Ok(resp) if resp.status().is_success() => {
+            resp.text().await.ok().map(|s| s.trim().to_string())
+        }
+        _ => None,
+    };
+
+    let public_address = public_ip.as_ref().map(|pip| format!("{}:{}", pip, target_port));
+    let share_addr = public_address.clone().unwrap_or_else(|| direct_address.clone());
+    let share_link = format!("luxmc://join/{}", share_addr);
+
+    let code_num = (target_port as u32).wrapping_mul(17) % 9000 + 1000;
+    let share_code = format!("LUX-{}", code_num);
 
     Ok(HostLinkInfo {
         local_ip,
+        public_ip,
         port: target_port,
         share_link,
         direct_address,
+        public_address,
+        share_code,
+        motd: Some("Mundo do Amigo no Luxmc".into()),
     })
 }
 

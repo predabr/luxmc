@@ -30,9 +30,12 @@
 		Camera,
 		Package,
 		ChevronDown,
-		Search
+		Search,
+		Share2
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
+	import FavoriteServerWidget from "$lib/components/home/FavoriteServerWidget.svelte";
+	import GamerCardModal from "$lib/components/profile/GamerCardModal.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -70,6 +73,7 @@
 	let isLaunching = $state(false);
 	let launchStatusText = $state("");
 	let showQuickInstancePicker = $state(false);
+	let showGamerCardModal = $state(false);
 
 	const activeInstance = $derived(profiles.active || profiles.list[0] || null);
 
@@ -320,7 +324,7 @@
 		}
 	}
 
-	async function handleHomePlay() {
+	async function handleHomePlay(serverIp?: string, serverPort?: number) {
 		if (isLaunching) return;
 
 		const targetProfile = activeInstance;
@@ -331,7 +335,7 @@
 		}
 
 		isLaunching = true;
-		launchStatusText = t("home.starting");
+		launchStatusText = serverIp ? `Conectando diretamente a ${serverIp}...` : t("home.starting");
 
 		try {
 			let userUuid = account.value?.uuid;
@@ -356,7 +360,7 @@
 				await versionsDownload(verId);
 			}
 
-			launchStatusText = t("home.startingMc");
+			launchStatusText = serverIp ? `Iniciando e conectando a ${serverIp}...` : t("home.startingMc");
 			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
 			const effectiveCape = activeSkinStore.current.hasCape
@@ -369,7 +373,9 @@
 				enableVulkan: isVulkan,
 				skinUrl: skinToPass,
 				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
-				capeUrl: effectiveCape
+				capeUrl: effectiveCape,
+				serverIp: serverIp || null,
+				serverPort: serverPort || null
 			});
 
 			gamingStats.onGameStart();
@@ -406,6 +412,11 @@
 			isLaunching = false;
 			launchStatusText = "";
 		}
+	}
+
+	function handleQuickServerJoin(host: string, port: number) {
+		toast(`Iniciando Minecraft com entrada direta no servidor ${host}:${port}...`, "info");
+		handleHomePlay(host, port);
 	}
 
 	const modpacks = [
@@ -1003,7 +1014,7 @@
 												<button
 													type="button"
 													class="flex-1 lg:flex-initial h-16 px-10 rounded-2xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] hover:from-[#e5cca8] hover:to-[#caa97c] text-[#111215] font-black text-sm uppercase tracking-wider flex items-center justify-center gap-3.5 shadow-[0_8px_30px_rgba(202,169,124,0.35)] hover:shadow-[0_12px_45px_rgba(202,169,124,0.55)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed group"
-													onclick={handleHomePlay}
+													onclick={() => handleHomePlay()}
 													disabled={isLaunching}
 												>
 													{#if isLaunching}
@@ -1023,6 +1034,16 @@
 													<Boxes class="w-4 h-4 text-[#caa97c] group-hover:scale-110 transition-transform" />
 													<span class="hidden sm:inline">{t("home.library")}</span>
 												</a>
+
+												<button 
+													type="button"
+													onclick={() => showGamerCardModal = true}
+													class="h-16 px-4 rounded-2xl bg-[#18191c] hover:bg-[#202127] border border-white/10 hover:border-[#caa97c]/40 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md group cursor-pointer shrink-0"
+													title="Compartilhar Card de Gamer (estilo Spotify Wrapped / Discord)"
+												>
+													<Share2 class="w-4 h-4 text-[#caa97c] group-hover:scale-110 transition-transform" />
+													<span class="hidden md:inline">Gamer Card</span>
+												</button>
 											</div>
 										</div>
 									</div>
@@ -1091,6 +1112,12 @@
 												{/each}
 											</div>
 										{/if}
+									</section>
+
+								{:else if sec.id === 'favoriteServer'}
+									<!-- Servidor Favorito & Ping -->
+									<section>
+										<FavoriteServerWidget onQuickJoin={(host, port) => handleQuickServerJoin(host, port)} />
 									</section>
 
 								{:else if sec.id === 'curatedPacks'}
@@ -1223,7 +1250,7 @@
 											</a>
 										</div>
 
-										<div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+										<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
 											<button 
 												type="button"
 												onclick={() => goto("/organizer")}
@@ -1235,6 +1262,20 @@
 												<div>
 													<h4 class="font-bold text-white text-xs group-hover:text-[#caa97c] transition-colors">Organizador</h4>
 													<p class="text-[10px] text-white/40 mt-0.5">Ajustar Layout</p>
+												</div>
+											</button>
+
+											<button 
+												type="button"
+												onclick={() => showGamerCardModal = true}
+												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-purple-500/40 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+											>
+												<div class="h-8 w-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+													<Share2 class="w-4 h-4" />
+												</div>
+												<div>
+													<h4 class="font-bold text-white text-xs group-hover:text-purple-300 transition-colors">Card de Gamer</h4>
+													<p class="text-[10px] text-white/40 mt-0.5">Exportar Imagem</p>
 												</div>
 											</button>
 
@@ -1296,3 +1337,8 @@
 	</div>
 
 {/if}
+
+<GamerCardModal
+	isOpen={showGamerCardModal}
+	onClose={() => showGamerCardModal = false}
+/>

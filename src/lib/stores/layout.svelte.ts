@@ -1,4 +1,4 @@
-export type SectionId = "hero" | "quickInstances" | "curatedPacks" | "gamingStats" | "newsFeed" | "tools";
+export type SectionId = "hero" | "quickInstances" | "favoriteServer" | "curatedPacks" | "gamingStats" | "newsFeed" | "tools";
 export type LayoutPreset = "gamer" | "compact" | "full";
 
 export interface LayoutSectionItem {
@@ -28,6 +28,14 @@ const DEFAULT_SECTIONS: LayoutSectionItem[] = [
 		enabled: true,
 		icon: "boxes",
 		width: "full"
+	},
+	{
+		id: "favoriteServer",
+		title: "Servidor Favorito & Ping",
+		description: "Monitor em tempo real do seu servidor com ping, jogadores e entrada rápida",
+		enabled: true,
+		icon: "signal",
+		width: "half"
 	},
 	{
 		id: "curatedPacks",
@@ -168,7 +176,7 @@ class LayoutStore {
 	applyPreset(preset: LayoutPreset) {
 		const clone = DEFAULT_SECTIONS.map((s) => ({ ...s }));
 		if (preset === "gamer") {
-			const order: SectionId[] = ["hero", "quickInstances", "gamingStats", "tools", "curatedPacks", "newsFeed"];
+			const order: SectionId[] = ["hero", "quickInstances", "favoriteServer", "gamingStats", "tools", "curatedPacks", "newsFeed"];
 			this.sections = order.map((id) => {
 				const s = clone.find((c) => c.id === id)!;
 				if (id === "gamingStats") s.width = "half";

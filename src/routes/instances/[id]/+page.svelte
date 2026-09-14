@@ -47,7 +47,9 @@
 		Radio,
 		Archive,
 		ArrowUpCircle,
-		AlertCircle
+		AlertCircle,
+		Keyboard,
+		HardDrive
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
@@ -55,6 +57,10 @@
 	import InstanceConfigEditorModal from "$lib/components/ui/InstanceConfigEditorModal.svelte";
 	import P2PHostModal from "$lib/components/ui/P2PHostModal.svelte";
 	import ShaderSplitViewer from "$lib/components/ui/ShaderSplitViewer.svelte";
+	import KeybindEditorModal from "$lib/components/instances/KeybindEditorModal.svelte";
+	import ModConflictModal from "$lib/components/instances/ModConflictModal.svelte";
+	import ModpackExportModal from "$lib/components/instances/ModpackExportModal.svelte";
+	import WorldBackupModal from "$lib/components/instances/WorldBackupModal.svelte";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -117,6 +123,8 @@
 		modpackCheckUpdate,
 		modpackUpdateAtomic,
 		type ModpackUpdateInfo,
+		doctorCheckInstanceConflicts,
+		type PreLaunchCheckResult,
 		listen
 	} from "$lib/api";
 	import { achievements } from "$lib/stores/achievements.svelte";
@@ -153,6 +161,12 @@
 	let updateStatusText = $state("");
 	let updateProgressPercent = $state(0);
 	let quickInstallingSlug = $state<string | null>(null);
+
+	let showModConflictModal = $state(false);
+	let pendingLaunchConflicts = $state<PreLaunchCheckResult | null>(null);
+	let showModpackExportModal = $state(false);
+	let showWorldBackupModal = $state(false);
+	let showKeybindEditorModal = $state(false);
 
 	const quickShaders = [
 		{
@@ -913,8 +927,38 @@
 		}
 	}
 
-	async function handlePlay() {
+	async function checkDoctorConflictsManual() {
+		const targetProfileId = activeProfile?.id || instanceId || "";
+		try {
+			const res = await doctorCheckInstanceConflicts(targetProfileId);
+			if (res.hasConflicts) {
+				pendingLaunchConflicts = res;
+				showModConflictModal = true;
+			} else {
+				toast("Nenhum conflito de mods detectado! Seus mods estão compatíveis.", "success");
+			}
+		} catch (e) {
+			toast("Falha ao checar conflitos: " + String(e), "error");
+		}
+	}
+
+	async function handlePlay(skipConflictCheck: boolean = false) {
 		if (isLaunching) return;
+
+		const targetProfileId = activeProfile?.id || instanceId || "";
+		if (!skipConflictCheck) {
+			try {
+				const conflicts = await doctorCheckInstanceConflicts(targetProfileId);
+				if (conflicts.hasConflicts) {
+					pendingLaunchConflicts = conflicts;
+					showModConflictModal = true;
+					return;
+				}
+			} catch (e) {
+				console.warn("Pre-launch conflict check error:", e);
+			}
+		}
+
 		isLaunching = true;
 		downloadProgressPercent = 15;
 		launchStatusText = "Preparando autenticação da conta...";
@@ -1239,7 +1283,7 @@
 					<button 
 						class="hover:brightness-110 active:scale-95 text-black text-xs font-black px-9 py-3.5 rounded-full border border-white/20 transition-all flex items-center gap-2.5 cursor-pointer shrink-0 hover:scale-105 {appState.isGameRunning ? 'shadow-[0_0_25px_rgba(34,197,94,0.5)] bg-emerald-500' : 'shadow-[0_0_25px_rgba(226,184,107,0.4)]'}"
 						style={appState.isGameRunning ? '' : "background-color: var(--accent-color, #e2b86b);"}
-						onclick={handlePlay}
+						onclick={() => handlePlay()}
 						disabled={isLaunching}
 					>
 						{#if isLaunching}
@@ -1298,10 +1342,10 @@
 					</div>
 				</div>
 
-				<div class="flex items-center gap-2">
+				<div class="flex items-center gap-2 flex-wrap justify-end">
 					<button 
 						type="button"
-						class="bg-[#222328] hover:bg-emerald-500/20 text-white/80 hover:text-emerald-300 px-3.5 py-2 rounded-full border border-white/10 hover:border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+						class="bg-[#222328] hover:bg-emerald-500/20 text-white/90 hover:text-emerald-300 px-3.5 py-2 rounded-full border border-white/15 hover:border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
 						onclick={() => showP2PHost = true}
 						title="Gerar código ou link para amigos entrarem no seu mundo LAN"
 					>
@@ -1310,15 +1354,42 @@
 
 					<button 
 						type="button"
-						class="bg-[#222328] hover:bg-[#caa97c]/20 text-white/80 hover:text-[#caa97c] px-3.5 py-2 rounded-full border border-white/10 hover:border-[#caa97c]/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-						onclick={() => showConfigEditor = true}
-						title="Ajustar Gamma / Fullbright, FOV e opções do jogo"
+						class="bg-[#222328] hover:bg-amber-500/20 text-white/90 hover:text-amber-300 px-3.5 py-2 rounded-full border border-white/15 hover:border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+						onclick={() => showKeybindEditorModal = true}
+						title="Gerenciar controles e detectar conflitos de teclas fora do jogo"
 					>
-						<Sliders class="w-3.5 h-3.5 text-[#caa97c]" /> Opções / Fullbright
+						<Keyboard class="w-3.5 h-3.5 text-amber-400" /> Controles
 					</button>
 
 					<button 
-						class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+						type="button"
+						class="bg-[#222328] hover:bg-purple-500/20 text-white/90 hover:text-purple-300 px-3.5 py-2 rounded-full border border-white/15 hover:border-purple-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+						onclick={() => showModpackExportModal = true}
+						title="Exportar modpack limpo em .mrpack ou .zip"
+					>
+						<Package class="w-3.5 h-3.5 text-purple-400" /> Exportar Pack
+					</button>
+
+					<button 
+						type="button"
+						class="bg-[#222328] hover:bg-cyan-500/20 text-white/90 hover:text-cyan-300 px-3.5 py-2 rounded-full border border-white/15 hover:border-cyan-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+						onclick={() => showWorldBackupModal = true}
+						title="Nuvem Pessoal & Backups Automáticos de Saves"
+					>
+						<HardDrive class="w-3.5 h-3.5 text-cyan-400" /> Backups
+					</button>
+
+					<button 
+						type="button"
+						class="bg-[#222328] hover:bg-[#caa97c]/20 text-white/90 hover:text-[#caa97c] px-3.5 py-2 rounded-full border border-white/15 hover:border-[#caa97c]/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+						onclick={() => showConfigEditor = true}
+						title="Ajustar Gamma / Fullbright, FOV e opções do jogo"
+					>
+						<Sliders class="w-3.5 h-3.5 text-[#caa97c]" /> Fullbright
+					</button>
+
+					<button 
+						class="bg-[#222328] hover:bg-white/10 text-white/90 hover:text-white px-4 py-2 rounded-full border border-white/15 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-sm"
 						onclick={openInstanceFolder}
 					>
 						<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta
@@ -1390,7 +1461,7 @@
 		<div class="flex items-center justify-between border-b border-white/5 pb-2">
 			<div class="flex gap-2">
 				<button 
-					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 relative {mainTab === 'conteudo' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 relative {mainTab === 'conteudo' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 					onclick={() => mainTab = 'conteudo'}
 				>
 					<Layers class="w-4 h-4 text-amber-400" /> Conteúdo
@@ -1400,28 +1471,28 @@
 				</button>
 
 				<button 
-					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'mundos' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'mundos' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 					onclick={() => mainTab = 'mundos'}
 				>
 					<Globe2 class="w-4 h-4 text-emerald-400" /> Mundos ({worldsList.length})
 				</button>
 
 				<button 
-					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'galeria' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'galeria' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 					onclick={() => mainTab = 'galeria'}
 				>
 					<Image class="w-4 h-4 text-purple-400" /> Galeria ({screenshotsList.length})
 				</button>
 
 				<button 
-					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'ficheiros' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+					class="px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-2 {mainTab === 'ficheiros' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 					onclick={() => mainTab = 'ficheiros'}
 				>
 					<Folder class="w-4 h-4 text-blue-400" /> Ficheiros
 				</button>
 			</div>
 
-			<button class="text-white/40 hover:text-white p-2.5 rounded-full transition-colors cursor-pointer" title="Atualizar dados" onclick={refreshAllData}>
+			<button class="bg-[#222328] hover:bg-white/10 text-white/70 hover:text-white p-2.5 rounded-full border border-white/10 transition-colors cursor-pointer" title="Atualizar dados" onclick={refreshAllData}>
 				<RefreshCw class="w-4 h-4 {isLoadingData ? 'animate-spin' : ''}" />
 			</button>
 		</div>
@@ -1432,33 +1503,41 @@
 				<div class="flex flex-wrap items-center justify-between gap-3">
 					<div class="flex bg-[#18191c] border border-white/10 rounded-full p-1 gap-1">
 						<button 
-							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'mods' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'mods' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/70 hover:text-white hover:bg-[#202126]'}"
 							onclick={() => subTab = 'mods'}
 						>
 							<Puzzle class="w-3.5 h-3.5 text-blue-400" /> Mods ({instanceMods.length})
 						</button>
 						<button 
-							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'resourcepacks' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'resourcepacks' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/70 hover:text-white hover:bg-[#202126]'}"
 							onclick={() => subTab = 'resourcepacks'}
 						>
 							<Box class="w-3.5 h-3.5 text-amber-400" /> Pacotes de recursos ({resourcePacks.length})
 						</button>
 						<button 
-							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'shaders' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'shaders' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/70 hover:text-white hover:bg-[#202126]'}"
 							onclick={() => subTab = 'shaders'}
 						>
 							<Sparkles class="w-3.5 h-3.5 text-purple-400" /> Shaders ({shaderPacks.length})
 						</button>
 						<button 
-							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'datapacks' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+							class="px-4 py-1.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 {subTab === 'datapacks' ? 'bg-[#25262c] text-white shadow-sm border border-white/10' : 'text-white/70 hover:text-white hover:bg-[#202126]'}"
 							onclick={() => subTab = 'datapacks'}
 						>
 							<Code class="w-3.5 h-3.5 text-emerald-400" /> {"{}"} Datapacks ({dataPacks.length})
 						</button>
 					</div>
 
-					<div class="flex items-center gap-2">
+					<div class="flex items-center gap-2 flex-wrap">
 						{#if subTab === 'mods'}
+							<button 
+								type="button"
+								class="bg-[#222328] hover:bg-amber-500/20 text-white/90 hover:text-amber-300 px-3.5 py-2 rounded-full border border-white/15 hover:border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+								onclick={checkDoctorConflictsManual}
+								title="Verificar preventivamente se há mods conflitantes antes de jogar"
+							>
+								<ShieldAlert class="w-3.5 h-3.5 text-amber-400" /> Checar Conflitos
+							</button>
 							<button 
 								class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
 								onclick={handleOpenModsFolder}
@@ -1618,12 +1697,12 @@
 									<div class="flex items-center gap-2 shrink-0">
 										<button 
 											type="button"
-											class="px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm active:scale-95 {isDisabled ? 'bg-white/5 text-white/40 hover:text-white hover:bg-white/10 border border-white/10' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 shadow-emerald-500/10'}"
+											class="px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm active:scale-95 {isDisabled ? 'bg-[#22242a] text-white/70 hover:text-white hover:bg-[#2c2e36] border border-white/20' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 shadow-emerald-500/10'}"
 											onclick={() => handleToggleMod(mod)}
 											title={isDisabled ? 'Ativar mod' : 'Desativar mod'}
 										>
 											{#if isDisabled}
-												<ToggleLeft class="w-4 h-4 text-white/40" />
+												<ToggleLeft class="w-4 h-4 text-white/60" />
 												<span class="hidden sm:inline">Desativado</span>
 											{:else}
 												<ToggleRight class="w-4 h-4 text-emerald-400" />
@@ -1633,7 +1712,7 @@
 
 										<button 
 											type="button" 
-											class="p-2 rounded-xl text-white/40 hover:text-red-300 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 transition-all cursor-pointer active:scale-95 shadow-sm"
+											class="p-2 rounded-xl text-white/70 hover:text-red-300 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 bg-[#22242a] transition-all cursor-pointer active:scale-95 shadow-sm"
 											onclick={() => handleDeleteMod(mod)}
 											title="Excluir mod permanentemente"
 										>
@@ -1760,7 +1839,7 @@
 									</div>
 									<button 
 										type="button" 
-										class="p-2 rounded-xl text-white/40 hover:text-red-300 hover:bg-red-500/15 border border-transparent hover:border-red-500/30 transition-all cursor-pointer active:scale-95"
+										class="p-2 rounded-xl text-white/70 hover:text-red-300 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 bg-[#22242a] transition-all cursor-pointer active:scale-95 shadow-sm"
 										onclick={() => handleDeletePack(pack.name)}
 										title="Excluir arquivo"
 									>
@@ -1777,11 +1856,21 @@
 		<!-- TAB 2: Mundos Reais -->
 		{:else if mainTab === 'mundos'}
 			<div class="space-y-4">
-				<div class="flex items-center justify-between">
+				<div class="flex items-center justify-between flex-wrap gap-2">
 					<h3 class="text-sm font-bold text-white">Mundos Salvos nesta Instância</h3>
-					<button class="text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer" style="color: var(--accent-color, #e2b86b);" onclick={openInstanceFolder}>
-						<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta saves/
-					</button>
+					<div class="flex items-center gap-2">
+						<button 
+							type="button"
+							class="bg-[#222328] hover:bg-cyan-500/20 text-white/90 hover:text-cyan-300 px-3.5 py-1.5 rounded-full border border-white/15 hover:border-cyan-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+							onclick={() => showWorldBackupModal = true}
+							title="Nuvem Pessoal & Backups Automáticos de Saves"
+						>
+							<HardDrive class="w-3.5 h-3.5 text-cyan-400" /> Backups de Saves ({worldsList.length})
+						</button>
+						<button class="bg-[#222328] hover:bg-white/10 text-white/90 hover:text-white px-3.5 py-1.5 rounded-full border border-white/15 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm" onclick={openInstanceFolder}>
+							<FolderOpen class="w-3.5 h-3.5 text-[#caa97c]" /> Abrir pasta saves/
+						</button>
+					</div>
 				</div>
 
 				{#if worldsList.length === 0}
@@ -1886,18 +1975,18 @@
 										<span>Snapshots {world.snapshotsCount != null && world.snapshotsCount > 0 ? `(${world.snapshotsCount})` : ''}</span>
 									</button>
 
-									<div class="flex items-center gap-1.5">
+									<div class="flex items-center gap-2">
 										<button 
 											type="button"
-											class="bg-white/5 hover:brightness-110 text-white px-3.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 opacity-80 group-hover:opacity-100 active:scale-95"
-											onclick={handlePlay}
+											class="bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-black border border-emerald-500/40 px-4 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-sm"
+											onclick={() => handlePlay()}
 											title="Jogar este mundo"
 										>
 											<Play class="w-3 h-3 fill-current" /> Jogar
 										</button>
 										<button 
 											type="button"
-											class="p-1.5 rounded-full text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+											class="p-1.5 rounded-xl bg-[#22242a] text-white/70 hover:text-red-400 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 transition-all cursor-pointer active:scale-95 shadow-sm"
 											onclick={() => handleDeleteWorld(world.folderName)}
 											title="Excluir este mundo"
 										>
@@ -2046,7 +2135,7 @@
 									</span>
 									<button 
 										type="button" 
-										class="p-1.5 rounded-full text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+										class="p-1.5 rounded-lg bg-[#22242a] text-white/70 hover:text-red-400 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 transition-all opacity-0 group-hover:opacity-100 cursor-pointer shadow-sm"
 										onclick={(e) => { e.stopPropagation(); handleDeleteFileEntry(file); }}
 										title="Excluir"
 									>
@@ -2329,42 +2418,42 @@
 						<nav class="flex flex-col gap-1">
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'geral' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'geral' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 								onclick={() => activeInstanceSection = 'geral'}
 							>
 								<Box class="w-4 h-4 text-emerald-400" /> Geral
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'instalacao' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'instalacao' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 								onclick={() => activeInstanceSection = 'instalacao'}
 							>
 								<Download class="w-4 h-4 text-cyan-400" /> Instalação
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'otimizacao' ? 'bg-[#222328] text-[#caa97c] border border-[#caa97c]/30 shadow-sm' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'otimizacao' ? 'bg-[#222328] text-[#caa97c] border border-[#caa97c]/30 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 								onclick={() => activeInstanceSection = 'otimizacao'}
 							>
 								<Zap class="w-4 h-4 text-[#caa97c]" /> Otimização Luxmc
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'janela' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'janela' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 								onclick={() => activeInstanceSection = 'janela'}
 							>
 								<Layers class="w-4 h-4 text-purple-400" /> Janela
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'java' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'java' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 								onclick={() => activeInstanceSection = 'java'}
 							>
 								<Sparkles class="w-4 h-4 text-amber-400" /> Java e Memória
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'hooks' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/40 hover:text-white'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'hooks' ? 'bg-[#222328] text-white border border-white/10 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 								onclick={() => activeInstanceSection = 'hooks'}
 							>
 								<Code class="w-4 h-4 text-rose-400" /> Launch Hooks
@@ -2893,4 +2982,40 @@
 <P2PHostModal
 	open={showP2PHost}
 	onClose={() => showP2PHost = false}
+/>
+
+<ModConflictModal
+	isOpen={showModConflictModal}
+	profileId={instanceId}
+	conflictsResult={pendingLaunchConflicts}
+	onResolved={() => {
+		showModConflictModal = false;
+		refreshAllData();
+		handlePlay(true);
+	}}
+	onProceedAnyway={() => {
+		showModConflictModal = false;
+		handlePlay(true);
+	}}
+	onClose={() => showModConflictModal = false}
+/>
+
+<ModpackExportModal
+	isOpen={showModpackExportModal}
+	profileId={instanceId}
+	instanceName={activeProfile?.name || "Modpack"}
+	onClose={() => showModpackExportModal = false}
+/>
+
+<WorldBackupModal
+	isOpen={showWorldBackupModal}
+	profileId={instanceId}
+	worldsList={worldsList}
+	onClose={() => showWorldBackupModal = false}
+/>
+
+<KeybindEditorModal
+	isOpen={showKeybindEditorModal}
+	profileId={instanceId}
+	onClose={() => showKeybindEditorModal = false}
 />

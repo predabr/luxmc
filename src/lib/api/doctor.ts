@@ -20,3 +20,26 @@ export async function crashDoctorDiagnose(
 		logContent: logContent ?? null
 	});
 }
+
+export interface ModConflict {
+	title: string;
+	description: string;
+	modA: string;
+	modB: string;
+	recommendedAction: string;
+	fileToDisable: string;
+}
+
+export interface PreLaunchCheckResult {
+	hasConflicts: boolean;
+	conflicts: ModConflict[];
+	duplicates: string[];
+}
+
+export async function doctorCheckInstanceConflicts(
+	profileId: string
+): Promise<PreLaunchCheckResult> {
+	return api.invoke<PreLaunchCheckResult>("doctor_check_instance_conflicts", {
+		profileId
+	});
+}

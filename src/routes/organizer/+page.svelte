@@ -3,7 +3,7 @@
 		GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, RotateCcw, 
 		Check, Sparkles, LayoutGrid, Package, Boxes, Clock, 
 		Newspaper, Wrench, Play, MoveVertical, Smartphone, Monitor,
-		Gamepad2, AlignJustify, Grid3x3
+		Gamepad2, AlignJustify, Grid3x3, Signal
 	} from "lucide-svelte";
 	import { dndzone } from "svelte-dnd-action";
 	import confetti from "canvas-confetti";
@@ -63,6 +63,7 @@
 		switch (id) {
 			case "hero": return Play;
 			case "quickInstances": return Boxes;
+			case "favoriteServer": return Signal;
 			case "curatedPacks": return Package;
 			case "gamingStats": return Clock;
 			case "newsFeed": return Newspaper;

@@ -194,6 +194,13 @@ pub async fn run() {
             commands::dep_checker::mods_install_missing_deps,
             commands::modpack_update::modpack_check_update,
             commands::modpack_update::modpack_update_atomic,
+            commands::doctor::doctor_check_instance_conflicts,
+            commands::modpack_export::instance_export_modpack,
+            commands::keybinds::keybinds_list,
+            commands::keybinds::keybinds_update,
+            commands::world_backup::instance_backup_world,
+            commands::world_backup::instance_list_world_backups,
+            commands::p2p::p2p_scan_lan_worlds,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

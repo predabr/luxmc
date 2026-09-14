@@ -10,8 +10,18 @@ export async function p2pGetLocalInfo(): Promise<P2PConnectionInfo> {
 	return api.invoke<P2PConnectionInfo>("p2p_get_local_info");
 }
 
+export interface DiscoveredLanWorld {
+	motd: string;
+	port: number;
+	host: string;
+}
+
 export async function p2pGetHostLink(port?: number): Promise<HostLinkInfo> {
 	return api.invoke<HostLinkInfo>("p2p_get_host_link", { port });
+}
+
+export async function p2pScanLanWorlds(): Promise<DiscoveredLanWorld[]> {
+	return api.invoke<DiscoveredLanWorld[]>("p2p_scan_lan_worlds");
 }
 
 export async function p2pStartListener(): Promise<boolean> {

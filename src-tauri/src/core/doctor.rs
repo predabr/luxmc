@@ -264,6 +264,122 @@ pub fn diagnose_instance(game_dir: &Path) -> CrashDiagnosis {
     CrashDiagnosis::default()
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModConflict {
+    pub title: String,
+    pub description: String,
+    pub mod_a: String,
+    pub mod_b: String,
+    pub recommended_action: String,
+    pub file_to_disable: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreLaunchCheckResult {
+    pub has_conflicts: bool,
+    pub conflicts: Vec<ModConflict>,
+    pub duplicates: Vec<String>,
+}
+
+pub fn check_mod_conflicts(jar_filenames: &[String]) -> PreLaunchCheckResult {
+    let mut conflicts = Vec::new();
+    let mut duplicates = Vec::new();
+    let mut seen_mods: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+    let mut has_optifine = None;
+    let mut has_iris = None;
+    let mut has_oculus = None;
+    let mut has_sodium = None;
+    let mut has_embeddium = None;
+    let mut has_create = None;
+
+    for fname in jar_filenames {
+        let lower = fname.to_lowercase();
+        if lower.ends_with(".disabled") {
+            continue;
+        }
+
+        let stem = fname.strip_suffix(".jar").unwrap_or(fname);
+        let base = stem.split('-').next().unwrap_or(stem).split('_').next().unwrap_or(stem).to_lowercase();
+        if let Some(prev) = seen_mods.get(&base) {
+            duplicates.push(format!("Duplicata de mod detectada: '{}' e '{}'", prev, fname));
+        } else {
+            seen_mods.insert(base, fname.clone());
+        }
+
+        if lower.contains("optifine") { has_optifine = Some(fname.clone()); }
+        if lower.contains("iris") { has_iris = Some(fname.clone()); }
+        if lower.contains("oculus") { has_oculus = Some(fname.clone()); }
+        if lower.contains("sodium") { has_sodium = Some(fname.clone()); }
+        if lower.contains("embeddium") { has_embeddium = Some(fname.clone()); }
+        if lower.contains("create-") || lower.contains("create_") { has_create = Some(fname.clone()); }
+    }
+
+    if let (Some(ref opti), Some(ref iris)) = (&has_optifine, &has_iris) {
+        conflicts.push(ModConflict {
+            title: "Conflito: OptiFine & Iris Shaders".into(),
+            description: "Ambos os mods tentam controlar o pipeline de shaders. Executar ambos juntos causa tela preta ou crash imediato.".into(),
+            mod_a: opti.clone(),
+            mod_b: iris.clone(),
+            recommended_action: "Desativar OptiFine (Iris oferece compatibilidade moderna e maior FPS)".into(),
+            file_to_disable: opti.clone(),
+        });
+    }
+
+    if let (Some(ref opti), Some(ref oculus)) = (&has_optifine, &has_oculus) {
+        conflicts.push(ModConflict {
+            title: "Conflito: OptiFine & Oculus".into(),
+            description: "Oculus e OptiFine entram em conflito de inicialização gráfica no Forge/NeoForge.".into(),
+            mod_a: opti.clone(),
+            mod_b: oculus.clone(),
+            recommended_action: "Desativar OptiFine".into(),
+            file_to_disable: opti.clone(),
+        });
+    }
+
+    if let (Some(ref opti), Some(ref sod)) = (&has_optifine, &has_sodium) {
+        conflicts.push(ModConflict {
+            title: "Conflito: OptiFine & Sodium".into(),
+            description: "Sodium e OptiFine reescrevem o motor de renderização concorrentemente.".into(),
+            mod_a: opti.clone(),
+            mod_b: sod.clone(),
+            recommended_action: "Desativar OptiFine (Sodium dobra o FPS do jogo)".into(),
+            file_to_disable: opti.clone(),
+        });
+    }
+
+    if let (Some(ref opti), Some(ref emb)) = (&has_optifine, &has_embeddium) {
+        conflicts.push(ModConflict {
+            title: "Conflito: OptiFine & Embeddium".into(),
+            description: "Embeddium e OptiFine são incompatíveis.".into(),
+            mod_a: opti.clone(),
+            mod_b: emb.clone(),
+            recommended_action: "Desativar OptiFine".into(),
+            file_to_disable: opti.clone(),
+        });
+    }
+
+    if let (Some(ref opti), Some(ref crt)) = (&has_optifine, &has_create) {
+        conflicts.push(ModConflict {
+            title: "Incompatibilidade: OptiFine & Create (Flywheel)".into(),
+            description: "O motor de renderização de engrenagens do Create crasha ao detectar o OptiFine.".into(),
+            mod_a: opti.clone(),
+            mod_b: crt.clone(),
+            recommended_action: "Desativar OptiFine e utilizar Embeddium/Sodium".into(),
+            file_to_disable: opti.clone(),
+        });
+    }
+
+    let has_conflicts = !conflicts.is_empty() || !duplicates.is_empty();
+    PreLaunchCheckResult {
+        has_conflicts,
+        conflicts,
+        duplicates,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -302,5 +418,29 @@ mod tests {
         let diag = analyze_crash_text(log);
         assert!(diag.has_error);
         assert_eq!(diag.category, "mod_conflict");
+    }
+
+    #[test]
+    fn test_check_mod_conflicts_optifine_iris() {
+        let files = vec![
+            "OptiFine_1.20.1_HD_U_I6.jar".to_string(),
+            "iris-mc1.20.1-1.6.11.jar".to_string(),
+            "sodium-fabric-mc1.20.1-0.5.8.jar".to_string(),
+        ];
+        let res = check_mod_conflicts(&files);
+        assert!(res.has_conflicts);
+        assert!(res.conflicts.iter().any(|c| c.title.contains("OptiFine & Iris")));
+        assert!(res.conflicts.iter().any(|c| c.title.contains("OptiFine & Sodium")));
+    }
+
+    #[test]
+    fn test_check_mod_conflicts_duplicates() {
+        let files = vec![
+            "jei-1.20.1-forge-15.0.0.jar".to_string(),
+            "jei-1.20.1-forge-15.1.0.jar".to_string(),
+        ];
+        let res = check_mod_conflicts(&files);
+        assert!(res.has_conflicts);
+        assert_eq!(res.duplicates.len(), 1);
     }
 }

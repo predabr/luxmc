@@ -29,6 +29,7 @@
 	import Button from "$lib/components/ui/Button.svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import SkinViewer3D from "$lib/components/ui/SkinViewer3D.svelte";
+	import SkinAccessoriesStudio from "$lib/components/skins/SkinAccessoriesStudio.svelte";
 	import { activeSkinStore, type CapeType } from "$lib/stores/skin.svelte";
 	import { getCapePreviewDataUrl } from "$lib/utils/capeTextures";
 	import { account } from "$lib/stores/account.svelte";
@@ -443,9 +444,35 @@
 		}
 	];
 
-	let activeTab = $state<"wardrobe" | "marketplace" | "capes">("wardrobe");
+	let activeTab = $state<"wardrobe" | "accessories" | "marketplace" | "capes">("wardrobe");
 	let selectedMarketplaceCategory = $state<string>("todos");
 	let marketplaceSearch = $state<string>("");
+
+	async function refreshSavedSkins() {
+		try {
+			const dbSkins = await skinsList();
+			if (dbSkins && dbSkins.length > 0) {
+				const mapped: SkinItem[] = dbSkins.map(s => ({
+					id: s.id,
+					name: s.name,
+					url: s.avatarUrl || s.skinUrl,
+					skinUrl: s.skinUrl,
+					avatarUrl: s.avatarUrl || s.skinUrl,
+					type: (s.modelType === "alex" ? "alex" : "steve") as "steve" | "alex",
+					custom: s.isCustom
+				}));
+				const merged = [...savedSkins];
+				for (const item of mapped) {
+					if (!merged.some(s => s.id === item.id)) {
+						merged.unshift(item);
+					}
+				}
+				savedSkins = merged.slice(0, 30);
+			}
+		} catch (e) {
+			console.warn("Failed to reload skins:", e);
+		}
+	}
 
 	let savedSkins = $state<SkinItem[]>([
 		{
@@ -1065,7 +1092,7 @@
 			</div>
 		</div>
 
-		<!-- Main 3-Tab Navigator (Guarda-roupa / Capas HD / Marketplace) -->
+		<!-- Main 4-Tab Navigator (Guarda-roupa / Acessórios 3D / Capas HD / Marketplace) -->
 		<div class="flex items-center gap-2 bg-[#121316] p-1.5 rounded-2xl border border-white/5 w-fit">
 			<button 
 				type="button" 
@@ -1073,6 +1100,13 @@
 				onclick={() => activeTab = "wardrobe"}
 			>
 				<Shirt class="w-4 h-4" /> Guarda-roupa
+			</button>
+			<button 
+				type="button" 
+				class="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'accessories' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+				onclick={() => activeTab = "accessories"}
+			>
+				<Sparkles class="w-4 h-4" /> Acessórios 3D
 			</button>
 			<button 
 				type="button" 
@@ -1140,7 +1174,7 @@
 							customCapeUrl={activeSkinStore.current.customCapeUrl}
 							slim={isSlimModel}
 							{autoRotate}
-							active={activeTab === 'wardrobe' || activeTab === 'capes'}
+							active={activeTab === 'wardrobe' || activeTab === 'capes' || activeTab === 'accessories'}
 							className="z-10"
 						/>
 
@@ -1584,6 +1618,11 @@
 							</div>
 						{/each}
 					</div>
+				</div>
+
+				<!-- Right Column when activeTab === "accessories": Studio de Acessórios 3D -->
+				<div class="lg:col-span-7 flex flex-col gap-6" class:hidden={activeTab !== "accessories"}>
+					<SkinAccessoriesStudio onSkinUpdated={refreshSavedSkins} />
 				</div>
 
 			</div>
