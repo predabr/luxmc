@@ -925,7 +925,7 @@
 							onclick={() => updaterStore.check(true)}
 						>
 							<span class="flex items-center gap-2.5"><RefreshCw class="w-4 h-4 text-brand-500 {updaterStore.isChecking ? 'animate-spin' : 'group-hover:rotate-45 transition-transform'}" /> Checar Atualizações</span>
-							<span class="text-[10px] text-brand-400/80 font-mono font-bold bg-brand-500/10 px-2 py-0.5 rounded-full border border-brand-500/20">v1.6.0</span>
+							<span class="text-[10px] text-brand-400/80 font-mono font-bold bg-brand-500/10 px-2 py-0.5 rounded-full border border-brand-500/20">v1.6.2</span>
 						</button>
 						<button
 							type="button"

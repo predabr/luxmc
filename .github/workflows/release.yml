@@ -219,6 +219,25 @@ jobs:
             squashfs-tools \
             rpm
 
+      - name: Sync App Version with Tag
+        shell: bash
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#v}"
+          if [[ -n "$VERSION" && "$TAG" =~ ^v[0-9] ]]; then
+            echo "Syncing app version to $VERSION from tag $TAG"
+            if [ -f package.json ]; then
+              node -e "const fs = require('fs'); const p = JSON.parse(fs.readFileSync('package.json', 'utf8')); p.version = '$VERSION'; fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');"
+            fi
+            if [ -f src-tauri/tauri.conf.json ]; then
+              node -e "const fs = require('fs'); const t = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); t.version = '$VERSION'; fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(t, null, 2) + '\n');"
+            fi
+            if [ -f src-tauri/Cargo.toml ]; then
+              sed -i.bak -E "s/^(version[[:space:]]*=[[:space:]]*)\"[^\"]+\"/\1\"$VERSION\"/" src-tauri/Cargo.toml || true
+              rm -f src-tauri/Cargo.toml.bak
+            fi
+          fi
+
       - name: Build Tauri Bundles
         uses: tauri-apps/tauri-action@v0
         env:

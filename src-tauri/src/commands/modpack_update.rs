@@ -96,7 +96,7 @@ async fn check_modrinth_update(
             pid, row.mc_version, row.loader
         );
         if let Ok(resp) = state.http.get(&ver_url)
-            .header("User-Agent", "Luxmc/1.6.0")
+            .header("User-Agent", "Luxmc/1.6.2")
             .send().await
         {
             if resp.status().is_success() {
@@ -268,7 +268,7 @@ pub async fn modpack_update_atomic(
             versionId
         );
         let resp = state.http.get(&url)
-            .header("User-Agent", "Luxmc/1.6.0")
+            .header("User-Agent", "Luxmc/1.6.2")
             .send().await;
         match resp {
             Ok(r) if r.status().is_success() => {
