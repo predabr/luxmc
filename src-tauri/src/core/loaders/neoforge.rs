@@ -60,12 +60,15 @@ pub async fn fetch_versions(
         format!("{}.", mc_version)
     };
 
-    let resp_text = match http.get(NEOFORGE_METADATA).send().await {
-        Ok(r) => match r.text().await {
-            Ok(t) => t,
-            Err(_) => String::new(),
-        },
-        Err(_) => String::new(),
+    let resp_text = match http
+        .get(NEOFORGE_METADATA)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Luxmc/1.6.5")
+        .header("Accept", "text/xml, application/xml, */*")
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => r.text().await.unwrap_or_default(),
+        _ => String::new(),
     };
 
     let mut versions = Vec::new();
@@ -83,6 +86,29 @@ pub async fn fetch_versions(
                         stable: true,
                     });
                 }
+            }
+        }
+    }
+
+    if versions.is_empty() {
+        let fallbacks: &[(&str, &[&str])] = &[
+            ("1.20.2", &["20.2.86", "20.2.85", "20.2.84", "20.2.83"]),
+            ("1.20.4", &["20.4.237", "20.4.236", "20.4.235", "20.4.234", "20.4.233", "20.4.232"]),
+            ("1.20.6", &["20.6.119", "20.6.118", "20.6.117"]),
+            ("1.21.0", &["21.0.167", "21.0.166", "21.0.165"]),
+            ("1.21.1", &["21.1.137", "21.1.136", "21.1.135", "21.1.134"]),
+            ("1.21.3", &["21.3.56-beta", "21.3.55-beta"]),
+            ("1.21.4", &["21.4.120", "21.4.119", "21.4.118"]),
+        ];
+        for (mc, vers) in fallbacks {
+            if *mc == mc_version {
+                for v in *vers {
+                    versions.push(LoaderVersion {
+                        id: v.to_string(),
+                        stable: !v.contains("beta"),
+                    });
+                }
+                break;
             }
         }
     }
