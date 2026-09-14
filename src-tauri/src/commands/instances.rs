@@ -493,57 +493,74 @@ async fn download_from_modrinth_fallback(
     mc_version: Option<&str>,
     loader: Option<&str>,
 ) -> bool {
-    let clean_query = if let Some(dn) = display_name {
-        dn.trim()
-    } else {
-        file_name
-            .trim_end_matches(".jar")
-            .split('-')
-            .next()
-            .unwrap_or(file_name)
+    let raw_source = display_name.unwrap_or(file_name);
+    let without_ext = raw_source.trim_end_matches(".jar");
+    let clean_query = {
+        let no_brackets = without_ext.replace(['(', '[', '{', ')', ']', '}'], " ");
+        let mut words: Vec<&str> = Vec::new();
+        for w in no_brackets.split_whitespace() {
+            let lower = w.to_lowercase();
+            if lower == "api" || lower == "forge" || lower == "fabric" || lower == "neoforge" || lower == "quilt" || lower == "mod" || lower.starts_with('v') && lower[1..].chars().all(|c| c.is_ascii_digit() || c == '.') || lower.chars().all(|c| c.is_ascii_digit() || c == '.') {
+                continue;
+            }
+            words.push(w);
+        }
+        if words.is_empty() {
+            without_ext.split(&['-', '_'][..]).next().unwrap_or(without_ext).trim().to_string()
+        } else {
+            words.join(" ")
+        }
     };
 
-    if clean_query.is_empty() || clean_query.chars().all(|c| c.is_ascii_digit() || c == '_') || clean_query.len() < 2 {
+    if clean_query.is_empty() || clean_query.len() < 2 {
         return false;
     }
 
-    let search_url = if let (Some(mc), Some(ld)) = (mc_version, loader) {
-        let facets = format!("[[\"project_type:mod\"],[\"versions:{}\"],[\"categories:{}\"]]", mc, ld.to_lowercase());
-        format!(
-            "https://api.modrinth.com/v2/search?query={}&facets={}&limit=3",
-            urlencoding::encode(clean_query),
-            urlencoding::encode(&facets)
-        )
-    } else {
-        format!(
-            "https://api.modrinth.com/v2/search?query={}&limit=3",
-            urlencoding::encode(clean_query)
-        )
+    let search_urls = {
+        let mut urls = Vec::new();
+        if let (Some(mc), Some(ld)) = (mc_version, loader) {
+            let facets = format!("[[\"project_type:mod\"],[\"versions:{}\"],[\"categories:{}\"]]", mc, ld.to_lowercase());
+            urls.push(format!(
+                "https://api.modrinth.com/v2/search?query={}&facets={}&limit=4",
+                urlencoding::encode(&clean_query),
+                urlencoding::encode(&facets)
+            ));
+        }
+        urls.push(format!(
+            "https://api.modrinth.com/v2/search?query={}&limit=4",
+            urlencoding::encode(&clean_query)
+        ));
+        urls
     };
 
-    let resp = match http
-        .get(&search_url)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .timeout(std::time::Duration::from_secs(12))
-        .send()
-        .await
-    {
-        Ok(r) if r.status().is_success() => r,
-        _ => return false,
-    };
+    let mut projects_found = Vec::new();
+    for s_url in search_urls {
+        if let Ok(resp) = http
+            .get(&s_url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .timeout(std::time::Duration::from_secs(10))
+            .send()
+            .await
+        {
+            if resp.status().is_success() {
+                if let Ok(hits) = resp.json::<serde_json::Value>().await {
+                    if let Some(arr) = hits.get("hits").and_then(|h| h.as_array()) {
+                        if !arr.is_empty() {
+                            projects_found = arr.clone();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
-    let hits: serde_json::Value = match resp.json().await {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
-
-    let projects = match hits.get("hits").and_then(|h| h.as_array()) {
-        Some(arr) => arr,
-        None => return false,
-    };
+    if projects_found.is_empty() {
+        return false;
+    }
 
     let query_lower = clean_query.to_lowercase();
-    for proj in projects {
+    for proj in projects_found {
         let proj_id = match proj.get("project_id").and_then(|p| p.as_str()) {
             Some(id) => id,
             None => continue,
@@ -1106,7 +1123,7 @@ pub async fn instance_import_modpack(
         }
     });
 
-    files_stream.buffer_unordered(3).collect::<Vec<()>>().await;
+    files_stream.buffer_unordered(8).collect::<Vec<()>>().await;
 
     for retry_pass in 0..3 {
         let current_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
@@ -1416,7 +1433,7 @@ pub async fn instance_repair_modpack(
         }
     });
 
-    stream.buffer_unordered(3).collect::<Vec<()>>().await;
+    stream.buffer_unordered(8).collect::<Vec<()>>().await;
     let mut total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
 
     if total_repaired < total_missing {

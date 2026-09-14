@@ -17,6 +17,7 @@
 	import MiniPlayer from "$lib/components/ui/MiniPlayer.svelte";
 	import LiveWallpaper from "$lib/components/visuals/LiveWallpaper.svelte";
 	import TelemetryModal from "$lib/components/ui/TelemetryModal.svelte";
+	import ClientOverlayModal from "$lib/components/ui/ClientOverlayModal.svelte";
 	import type { GameTelemetrySummary } from "$lib/api/types";
 	import { listenGameTelemetry } from "$lib/api/events";
 	import { startSoundscape, stopSoundscape } from "$lib/utils/sound";
@@ -31,6 +32,7 @@
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { crashDoctor } from "$lib/stores/crashDoctor.svelte";
 	import { achievements } from "$lib/stores/achievements.svelte";
+	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
 	import { appInit, discordSetActivity, listenGameExit, crashDoctorDiagnose } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
@@ -38,7 +40,7 @@
 	const { t } = useTranslation();
 	let { children } = $props();
 	let initialized = $state(false);
-	let showSplash = $state(true);
+	let showSplash = $state(false);
 	let toastsInstance = $state<Toasts | null>(null);
 	let telemetryData = $state<GameTelemetrySummary | null>(null);
 	let showTelemetryModal = $state(false);
@@ -315,6 +317,15 @@
 		window.addEventListener('keydown', handler);
 		return () => window.removeEventListener('keydown', handler);
 	});
+	$effect(() => {
+		const handleClientKeys = (e: KeyboardEvent) => {
+			if (e.code === "ShiftRight" || e.key === "Insert") {
+				clientMods.toggleMenu();
+			}
+		};
+		window.addEventListener("keydown", handleClientKeys);
+		return () => window.removeEventListener("keydown", handleClientKeys);
+	});
 </script>
 
 <div class="fixed inset-0 z-[-2] bg-[#0c0c0e]">
@@ -373,6 +384,7 @@
 <CrashDoctorModal />
 <CommandPalette />
 <MiniPlayer />
+<ClientOverlayModal />
 <TelemetryModal
 	summary={showTelemetryModal ? telemetryData : null}
 	onClose={() => showTelemetryModal = false}

@@ -696,6 +696,7 @@ impl GameLauncher {
                         if mem > current_max {
                             peak_ram_tracker.store(mem, std::sync::atomic::Ordering::Relaxed);
                         }
+                        crate::commands::optimizer::optimizer_trim_memory();
                     } else {
                         break;
                     }

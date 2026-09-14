@@ -89,15 +89,11 @@ fn main() {
         }
 
         // Memory management: prevent glibc multi-arena memory fragmentation
-        // and force WebKitGTK / Glib to aggressively collect and return RAM.
         if std::env::var("MALLOC_ARENA_MAX").is_err() {
             std::env::set_var("MALLOC_ARENA_MAX", "2");
         }
-        if std::env::var("G_SLICE").is_err() {
-            std::env::set_var("G_SLICE", "always-malloc");
-        }
-        if std::env::var("WEBKIT_MEMORY_PRESSURE_HANDLER_LIMIT").is_err() {
-            std::env::set_var("WEBKIT_MEMORY_PRESSURE_HANDLER_LIMIT", "512");
+        if std::env::var("MALLOC_TRIM_THRESHOLD_").is_err() {
+            std::env::set_var("MALLOC_TRIM_THRESHOLD_", "131072");
         }
     }
 

@@ -11,12 +11,14 @@
 		Users,
 		Settings as SettingsIcon,
 		Github,
-		Zap
+		Zap,
+		Sliders
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
+	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import ProfileModal from "$lib/components/profile/ProfileModal.svelte";
 
@@ -192,6 +194,21 @@
 			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl flex items-center gap-1.5">
 				<span>GitHub Oficial</span>
 				<span class="text-[10px] text-brand-500 font-mono">predabr/luxmc</span>
+			</div>
+		</div>
+
+		<div class="relative group w-full flex justify-center">
+			<button
+				type="button"
+				onclick={() => clientMods.toggleMenu()}
+				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 cursor-pointer nav-pill-inactive active:scale-95 group-hover:border-amber-500/40 group-hover:bg-amber-500/10 text-amber-400/80 group-hover:text-amber-400"
+				aria-label="Luxmc Client Suite"
+			>
+				<Sliders class="h-5 w-5 transition-transform duration-200 group-hover:scale-110" strokeWidth={1.9} />
+			</button>
+			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl flex items-center gap-2">
+				<span>Client Suite</span>
+				<span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono text-[10px]">RShift / Insert</span>
 			</div>
 		</div>
 

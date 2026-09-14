@@ -80,10 +80,12 @@
 				ctx.beginPath();
 				ctx.arc(p.x, p.y, p.size * p.z, 0, Math.PI * 2);
 
-				// Amber / gold / brand glow
-				ctx.fillStyle = `rgba(215, 175, 120, ${pulsingAlpha * 0.5})`;
-				ctx.shadowColor = "rgba(226, 184, 107, 0.6)";
-				ctx.shadowBlur = 8 * p.z;
+				ctx.fillStyle = `rgba(215, 175, 120, ${pulsingAlpha * 0.25})`;
+				ctx.fill();
+
+				ctx.beginPath();
+				ctx.arc(p.x, p.y, (p.size * 0.5) * p.z, 0, Math.PI * 2);
+				ctx.fillStyle = `rgba(240, 205, 150, ${pulsingAlpha * 0.6})`;
 				ctx.fill();
 				ctx.restore();
 			}
@@ -94,6 +96,10 @@
 		render();
 
 		return () => {
+			if (animationFrameId) {
+				cancelAnimationFrame(animationFrameId);
+				animationFrameId = null;
+			}
 			window.removeEventListener("resize", handleResize);
 			window.removeEventListener("mousemove", handleMouseMove);
 		};

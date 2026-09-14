@@ -23,12 +23,16 @@ export async function bootstrapSettings() {
 	setupI18n(merged.language);
 }
 
+let lastSaved = "";
 export async function persistNow() {
 	if (!browser) return;
 	const s = getStore();
-	if (settings.value.activeProfileId !== profiles.activeId) {
+	if (settings.value.activeProfileId !== profiles.activeId && profiles.activeId) {
 		settings.value.activeProfileId = profiles.activeId;
 	}
+	const currentStr = JSON.stringify(settings.value);
+	if (currentStr === lastSaved) return;
+	lastSaved = currentStr;
 	await s.set(STORE_KEY, settings.value);
 	await s.save();
 }
@@ -39,7 +43,7 @@ export function schedulePersist() {
 	if (persistTimer) clearTimeout(persistTimer);
 	persistTimer = setTimeout(() => {
 		void persistNow();
-	}, 200);
+	}, 500);
 }
 
 export async function setTheme(theme: ThemeName) {
@@ -57,14 +61,5 @@ export async function setLocale(locale: Locale) {
 }
 
 export function startAutoPersist() {
-	if (!browser) return () => {};
-	let last = JSON.stringify(settings.value);
-	const id = setInterval(() => {
-		const cur = JSON.stringify(settings.value);
-		if (cur !== last) {
-			last = cur;
-			void persistNow();
-		}
-	}, 800);
-	return () => clearInterval(id);
+	return () => {};
 }
