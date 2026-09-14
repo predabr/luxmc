@@ -439,39 +439,42 @@ struct MrpackMod {
     env: std::collections::HashMap<String, serde_json::Value>,
 }
 
-fn smart_modpack_ram(_user_ram: Option<i64>, mod_count: usize) -> i64 {
+fn smart_modpack_ram(user_ram: Option<i64>, mod_count: usize) -> i64 {
+    if let Some(ram) = user_ram {
+        if ram > 0 {
+            return ram;
+        }
+    }
+
     let mut sys = sysinfo::System::new_all();
     sys.refresh_memory();
     let total = (sys.total_memory() / 1024 / 1024) as i64;
+    let os_reserve: i64 = 4096;
+    let available = (total - os_reserve).max(1024);
 
     if mod_count >= 100 {
-        if total >= 32768 {
-            12288
-        } else if total >= 24576 {
-            10240
-        } else if total >= 16384 {
-            8192
-        } else if total >= 12288 {
-            7168
-        } else if total >= 8192 {
-            5632
-        } else {
-            std::cmp::max(total * 7 / 10, 4096)
-        }
+        let want = if total >= 32768 { 12288 } else if total >= 24576 { 10240 } else if total >= 16384 { 8192 } else if total >= 12288 { 7168 } else if total >= 8192 { 5632 } else { total * 7 / 10 };
+        want.min(available)
     } else if mod_count >= 20 {
-        if total >= 16384 {
-            6144
-        } else if total >= 8192 {
-            4096
-        } else {
-            3072
-        }
+        let want = if total >= 16384 { 6144 } else if total >= 8192 { 4096 } else { 3072 };
+        want.min(available)
     } else {
-        if total >= 8192 {
-            3072
-        } else {
-            2048
+        let want = if total >= 8192 { 3072 } else { 2048 };
+        want.min(available)
+    }
+}
+
+fn smart_pvp_ram(user_ram: Option<i64>, mc_version: &str, mod_count: usize) -> i64 {
+    if let Some(ram) = user_ram {
+        if ram > 0 {
+            return ram;
         }
+    }
+    let is_pvp = mc_version.starts_with("1.8") || mc_version.starts_with("1.7");
+    if is_pvp {
+        if mod_count > 10 { 3072 } else { 2048 }
+    } else {
+        smart_modpack_ram(None, mod_count)
     }
 }
 
@@ -696,6 +699,9 @@ pub(crate) async fn download_cf_mod_file(
 
     urls_to_try.push(format!("https://curse.nikky.moe/api/v2/pack/file/{}", file_id_str));
     urls_to_try.push(format!("https://cf.way2muchnoise.eu/file/{}", file_id_str));
+    urls_to_try.push(format!("https://cursemeta.dries007.net/{}/{}", project_id_str, file_id_str));
+    urls_to_try.push(format!("https://api.cfwidget.com/mc-mods/minecraft/{}", project_id_str));
+    urls_to_try.push(format!("https://www.curseforge.com/minecraft/mc-mods/{}/files/{}", project_id_str, file_id_str));
 
     if let Some(name) = display_name {
         let guess = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(name));
@@ -1100,7 +1106,7 @@ pub async fn instance_import_modpack(
         }
     });
 
-    files_stream.buffer_unordered(8).collect::<Vec<()>>().await;
+    files_stream.buffer_unordered(3).collect::<Vec<()>>().await;
 
     for retry_pass in 0..3 {
         let current_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
@@ -1223,7 +1229,7 @@ pub async fn instance_import_modpack(
         id: profile_id,
         name: profile_name,
         icon: icon.unwrap_or_else(|| "default".into()),
-        mc_version,
+        mc_version: mc_version.clone(),
         loader,
         loader_version: Some(loader_version),
         java_path: None,
@@ -1240,7 +1246,7 @@ pub async fn instance_import_modpack(
         launch_count: 0,
         mod_count: manifest.files.len() as i64,
         disk_usage: 0,
-        ram_mb: Some(smart_modpack_ram(ram_mb, manifest.files.len())),
+        ram_mb: Some(smart_pvp_ram(ram_mb, &mc_version, manifest.files.len())),
         instance_group: None,
         auto_optimize: true,
         use_vulkan: false,
@@ -1410,7 +1416,7 @@ pub async fn instance_repair_modpack(
         }
     });
 
-    stream.buffer_unordered(8).collect::<Vec<()>>().await;
+    stream.buffer_unordered(3).collect::<Vec<()>>().await;
     let mut total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
 
     if total_repaired < total_missing {
@@ -1900,7 +1906,7 @@ pub async fn instance_import_mrpack(
 		id: profile_id,
 		name: profile_name,
 		icon: icon.unwrap_or_else(|| "default".into()),
-		mc_version,
+		mc_version: mc_version.clone(),
 		loader: loader.into(),
 		loader_version,
 		java_path: None,
@@ -1917,7 +1923,7 @@ pub async fn instance_import_mrpack(
 		launch_count: 0,
 		mod_count: installed_mods_count as i64,
 		disk_usage: 0,
-		ram_mb: Some(smart_modpack_ram(ram_mb, installed_mods_count)),
+		ram_mb: Some(smart_pvp_ram(ram_mb, &mc_version, installed_mods_count)),
 		instance_group: None,
 		auto_optimize: true,
 		use_vulkan: false,

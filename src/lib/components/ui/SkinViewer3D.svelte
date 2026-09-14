@@ -130,133 +130,53 @@
 			}
 		}
 
-		const isProblematic = (r: number, g: number, b: number, a: number) => {
-			return a < 200 
-				|| (r === 45 && g === 45 && b === 45)
-				|| (r === 40 && g === 30 && b === 25)
-				|| (r < 15 && g < 15 && b < 15);
+		const isTrulyEmpty = (a: number) => a < 10;
+
+		const healRegion = (startX: number, startY: number, width: number, height: number, mirrorX: number, mirrorY: number, altX: number, altY: number) => {
+			for (let dy = 0; dy < height * scale; dy++) {
+				for (let dx = 0; dx < width * scale; dx++) {
+					const bx = startX * scale + dx;
+					const by = startY * scale + dy;
+					const [, , , a] = getPixel(bx, by);
+					if (!isTrulyEmpty(a)) continue;
+					const [or, og, ob, oa] = getPixel(mirrorX * scale + dx, mirrorY * scale + dy);
+					if (oa > 10) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else if (altX >= 0) {
+						const [ar, ag, ab, aa] = getPixel(altX * scale + dx, altY * scale + dy);
+						if (aa > 10) {
+							setPixel(bx, by, ar, ag, ab, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					} else {
+						setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+					}
+				}
+			}
 		};
 
 		const armWidth = isSlim ? 3 : 4;
 		const rBackStartX = isSlim ? 51 : 52;
-		const rFrontStartX = 44;
-
-		// 1. Right Arm Back
-		for (let dy = 0; dy < 12 * scale; dy++) {
-			for (let dx = 0; dx < armWidth * scale; dx++) {
-				const bx = rBackStartX * scale + dx;
-				const by = 20 * scale + dy;
-				const [r, g, b, a] = getPixel(bx, by);
-				if (isProblematic(r, g, b, a)) {
-					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50 && !(or < 10 && og < 10 && ob < 10)) {
-						setPixel(bx, by, or, og, ob, 255);
-					} else {
-						const [fr, fg, fb, fa] = getPixel(rFrontStartX * scale + dx, by);
-						if (fa > 50 && !(fr < 10 && fg < 10 && fb < 10)) {
-							setPixel(bx, by, fr, fg, fb, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					}
-				}
-			}
-		}
-
-		// 2. Left Arm Back
 		const lBackStartX = isSlim ? 43 : 44;
-		const lFrontStartX = 36;
-		const rBackStartXLeft = isSlim ? 51 : 52;
-		for (let dy = 0; dy < 12 * scale; dy++) {
-			for (let dx = 0; dx < armWidth * scale; dx++) {
-				const bx = lBackStartX * scale + dx;
-				const by = 52 * scale + dy;
-				const [r, g, b, a] = getPixel(bx, by);
-				if (isProblematic(r, g, b, a)) {
-					const rbx = rBackStartXLeft * scale + (armWidth * scale - 1 - dx);
-					const rby = 20 * scale + dy;
-					const [rr, rg, rb, ra] = getPixel(rbx, rby);
-					if (ra > 50 && !(rr < 10 && rg < 10 && rb < 10)) {
-						setPixel(bx, by, rr, rg, rb, 255);
-					} else {
-						const [fr, fg, fb, fa] = getPixel(lFrontStartX * scale + dx, by);
-						if (fa > 50 && !(fr < 10 && fg < 10 && fb < 10)) {
-							setPixel(bx, by, fr, fg, fb, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					}
-				}
-			}
-		}
 
-		// 3. Right Arm Underside of Hand (Bottom)
+		healRegion(24, 8, 8, 8, 8, 8, 24, 8);
+
+		healRegion(rBackStartX, 20, armWidth, 12, 44, 20, 36, 20);
+
+		healRegion(lBackStartX, 52, armWidth, 12, 36, 52, 44, 52);
+
 		const rHandStartX = isSlim ? 47 : 48;
-		for (let dy = 0; dy < 4 * scale; dy++) {
-			for (let dx = 0; dx < armWidth * scale; dx++) {
-				const bx = rHandStartX * scale + dx;
-				const by = 16 * scale + dy;
-				const [r, g, b, a] = getPixel(bx, by);
-				if (isProblematic(r, g, b, a)) {
-					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50 && !(or < 10 && og < 10 && ob < 10)) {
-						setPixel(bx, by, or, og, ob, 255);
-					} else {
-						const [tr, tg, tb, ta] = getPixel(44 * scale + dx, by);
-						if (ta > 50 && !(tr < 10 && tg < 10 && tb < 10)) {
-							setPixel(bx, by, tr, tg, tb, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					}
-				}
-			}
-		}
+		healRegion(rHandStartX, 16, armWidth, 4, 44, 32, 44, 32);
 
-		// 4. Left Arm Underside of Hand (Bottom)
 		const lHandStartX = isSlim ? 39 : 40;
-		for (let dy = 0; dy < 4 * scale; dy++) {
-			for (let dx = 0; dx < armWidth * scale; dx++) {
-				const bx = lHandStartX * scale + dx;
-				const by = 48 * scale + dy;
-				const [r, g, b, a] = getPixel(bx, by);
-				if (isProblematic(r, g, b, a)) {
-					const [or, og, ob, oa] = getPixel(bx + 16 * scale, by);
-					if (oa > 50 && !(or < 10 && og < 10 && ob < 10)) {
-						setPixel(bx, by, or, og, ob, 255);
-					} else {
-						const [tr, tg, tb, ta] = getPixel(36 * scale + dx, by);
-						if (ta > 50 && !(tr < 10 && tg < 10 && tb < 10)) {
-							setPixel(bx, by, tr, tg, tb, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					}
-				}
-			}
-		}
+		healRegion(lHandStartX, 48, armWidth, 4, 36, 48, 36, 48);
 
-		// 5. Torso Back
-		for (let dy = 0; dy < 12 * scale; dy++) {
-			for (let dx = 0; dx < 8 * scale; dx++) {
-				const bx = 32 * scale + dx;
-				const by = 20 * scale + dy;
-				const [r, g, b, a] = getPixel(bx, by);
-				if (isProblematic(r, g, b, a)) {
-					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50 && !(or < 10 && og < 10 && ob < 10)) {
-						setPixel(bx, by, or, og, ob, 255);
-					} else {
-						const [fr, fg, fb, fa] = getPixel(20 * scale + dx, by);
-						if (fa > 50 && !(fr < 10 && fg < 10 && fb < 10)) {
-							setPixel(bx, by, fr, fg, fb, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					}
-				}
-			}
-		}
+		healRegion(32, 20, 8, 12, 20, 20, 20, 20);
+
+		healRegion(12, 20, 4, 12, 0, 20, 4, 20);
+
+		healRegion(28, 52, 4, 12, 16, 52, 20, 52);
 
 		const baseRects = [
 			[0 * scale, 0 * scale, 32 * scale, 16 * scale],
@@ -272,7 +192,7 @@
 					const idx = (y * w + x) * 4;
 					const isPlaceholder = (data[idx] === 45 && data[idx + 1] === 45 && data[idx + 2] === 45)
 						|| (data[idx] === 40 && data[idx + 1] === 30 && data[idx + 2] === 25);
-					if (data[idx + 3] < 200 || isPlaceholder) {
+					if (data[idx + 3] < 10 || isPlaceholder) {
 						data[idx] = fallbackR;
 						data[idx + 1] = fallbackG;
 						data[idx + 2] = fallbackB;

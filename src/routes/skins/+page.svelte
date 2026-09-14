@@ -731,79 +731,47 @@
 			}
 		}
 
-		const isBlackOrEmpty = (r: number, g: number, b: number, a: number) => {
-			if (a < 220) return true;
-			if (r === 0 && g === 0 && b === 0) return true;
-			if (r === 45 && g === 45 && b === 45) return true;
-			if (r === 40 && g === 30 && b === 25) return true;
-			return false;
+		const isTrulyEmpty = (a: number) => a < 10;
+
+		const healRegion = (startX: number, startY: number, width: number, height: number, mirrorX: number, mirrorY: number, altX: number, altY: number) => {
+			for (let dy = 0; dy < height * scale; dy++) {
+				for (let dx = 0; dx < width * scale; dx++) {
+					const bx = startX * scale + dx;
+					const by = startY * scale + dy;
+					const [, , , a] = getPixel(bx, by);
+					if (!isTrulyEmpty(a)) continue;
+					const [or, og, ob, oa] = getPixel(mirrorX * scale + dx, mirrorY * scale + dy);
+					if (oa > 10) {
+						setPixel(bx, by, or, og, ob, 255);
+					} else if (altX >= 0) {
+						const [ar, ag, ab, aa] = getPixel(altX * scale + dx, altY * scale + dy);
+						if (aa > 10) {
+							setPixel(bx, by, ar, ag, ab, 255);
+						} else {
+							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+						}
+					} else {
+						setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
+					}
+				}
+			}
 		};
 
 		const armWidth = isSlim ? 3 : 4;
 		const rBackStartX = isSlim ? 51 : 52;
-		for (let dy = 0; dy < 12 * scale; dy++) {
-			for (let dx = 0; dx < armWidth * scale; dx++) {
-				const bx = rBackStartX * scale + dx;
-				const by = 20 * scale + dy;
-				const [r, g, b, a] = getPixel(bx, by);
-				if (isBlackOrEmpty(r, g, b, a)) {
-					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
-						setPixel(bx, by, or, og, ob, 255);
-					} else {
-						const [fr, fg, fb, fa] = getPixel(44 * scale + dx, by);
-						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
-							setPixel(bx, by, fr, fg, fb, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					}
-				}
-			}
-		}
-
 		const lBackStartX = isSlim ? 43 : 44;
-		for (let dy = 0; dy < 12 * scale; dy++) {
-			for (let dx = 0; dx < armWidth * scale; dx++) {
-				const bx = lBackStartX * scale + dx;
-				const by = 52 * scale + dy;
-				const [r, g, b, a] = getPixel(bx, by);
-				if (isBlackOrEmpty(r, g, b, a)) {
-					const [or, og, ob, oa] = getPixel(bx + 16 * scale, by);
-					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
-						setPixel(bx, by, or, og, ob, 255);
-					} else {
-						const [fr, fg, fb, fa] = getPixel(36 * scale + dx, by);
-						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
-							setPixel(bx, by, fr, fg, fb, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					}
-				}
-			}
-		}
 
-		for (let dy = 0; dy < 12 * scale; dy++) {
-			for (let dx = 0; dx < 8 * scale; dx++) {
-				const bx = 32 * scale + dx;
-				const by = 20 * scale + dy;
-				const [r, g, b, a] = getPixel(bx, by);
-				if (isBlackOrEmpty(r, g, b, a)) {
-					const [or, og, ob, oa] = getPixel(bx, by + 16 * scale);
-					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
-						setPixel(bx, by, or, og, ob, 255);
-					} else {
-						const [fr, fg, fb, fa] = getPixel(20 * scale + dx, by);
-						if (fa > 50 && !(fr === 0 && fg === 0 && fb === 0)) {
-							setPixel(bx, by, fr, fg, fb, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					}
-				}
-			}
-		}
+		healRegion(24, 8, 8, 8, 8, 8, 24, 8);
+
+		healRegion(rBackStartX, 20, armWidth, 12, 44, 20, 36, 20);
+
+		healRegion(lBackStartX, 52, armWidth, 12, 36, 52, 44, 52);
+
+		healRegion(32, 20, 8, 12, 20, 20, 20, 20);
+
+		healRegion(12, 20, 4, 12, 0, 20, 4, 20);
+
+		healRegion(28, 52, 4, 12, 16, 52, 20, 52);
 
 		ctx.putImageData(imgData, 0, 0);
 	}

@@ -138,6 +138,34 @@ impl GameLauncher {
         }
     }
 
+    fn compute_auto_ram(&self, is_heavy_modded: bool, mod_count: i64) -> i64 {
+        let mut sys = sysinfo::System::new_all();
+        sys.refresh_memory();
+        let total_ram_mb = (sys.total_memory() / 1024 / 1024) as i64;
+        let os_reserve: i64 = 4096;
+        let available = (total_ram_mb - os_reserve).max(1024);
+
+        let want = if is_heavy_modded {
+            if total_ram_mb >= 32768 { 12288 }
+            else if total_ram_mb >= 24576 { 10240 }
+            else if total_ram_mb >= 16384 { 8192 }
+            else if total_ram_mb >= 12288 { 7168 }
+            else if total_ram_mb >= 8192 { 5632 }
+            else { total_ram_mb * 7 / 10 }
+        } else if mod_count >= 20 {
+            if total_ram_mb >= 16384 { 6144 } else if total_ram_mb >= 8192 { 4096 } else { 3072 }
+        } else {
+            if total_ram_mb >= 8192 { 3072 } else { 2048 }
+        };
+
+        let result = want.min(available);
+        self.emit_log(&format!(
+            "Luxmc Auto-RAM: {}MB alocados (RAM Total: {}MB, Tipo: {})",
+            result, total_ram_mb, if is_heavy_modded { "Modpack Pesado" } else { "Padrão" }
+        ));
+        result
+    }
+
     pub async fn launch(
         &self,
         detail: &VersionDetail,
@@ -1041,53 +1069,25 @@ impl GameLauncher {
             || profile.name.to_lowercase().contains("rlcraft")
             || profile.mod_count >= 80;
 
-        let ram_mb = {
-            let mut sys = sysinfo::System::new_all();
-            sys.refresh_memory();
-            let total_ram_mb = sys.total_memory() / 1024 / 1024;
-
-            let calculated = if is_heavy_modded {
-                if total_ram_mb >= 32768 {
-                    12288
-                } else if total_ram_mb >= 24576 {
-                    10240
-                } else if total_ram_mb >= 16384 {
-                    8192
-                } else if total_ram_mb >= 12288 {
-                    7168
-                } else if total_ram_mb >= 8192 {
-                    5632
-                } else {
-                    std::cmp::max(total_ram_mb * 7 / 10, 4096)
-                }
-            } else if profile.mod_count >= 20 || (profile.loader != "vanilla" && !profile.loader.is_empty()) {
-                if total_ram_mb >= 16384 {
-                    6144
-                } else if total_ram_mb >= 8192 {
-                    4096
-                } else {
-                    3072
-                }
+        let ram_mb = if let Some(manual) = profile.ram_mb {
+            if manual > 0 {
+                self.emit_log(&format!(
+                    "Luxmc RAM: {}MB definido manualmente pelo usuário",
+                    manual
+                ));
+                manual
             } else {
-                if total_ram_mb >= 8192 {
-                    3072
-                } else {
-                    2048
-                }
-            };
-
-            self.emit_log(&format!(
-                "Luxmc Auto-RAM: {}MB alocados automaticamente com base no hardware (RAM Total: {}MB, Tipo: {})",
-                calculated, total_ram_mb, if is_heavy_modded { "Modpack Pesado" } else { "Padrão" }
-            ));
-            calculated
+                self.compute_auto_ram(is_heavy_modded, profile.mod_count)
+            }
+        } else {
+            self.compute_auto_ram(is_heavy_modded, profile.mod_count)
         };
 
         // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags
         let generated_flags = if profile.auto_optimize {
-            crate::core::optimizer::generate_aikar_flags(ram_mb)
+            crate::core::optimizer::generate_aikar_flags(ram_mb.max(0) as u64)
         } else {
-            crate::core::optimizer::generate_standard_flags(ram_mb)
+            crate::core::optimizer::generate_standard_flags(ram_mb.max(0) as u64)
         };
 
         for flag in generated_flags {
