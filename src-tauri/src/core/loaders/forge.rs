@@ -359,26 +359,29 @@ pub async fn prepare_forge(
             let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
         }
 
-        let installer_to_run = match prepare_patched_installer(&installer_dest) {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!(error = %e, "Failed to patch Forge installer, using original");
-                installer_dest.clone()
-            }
-        };
-
         let java_bin = find_java_binary(libraries_dir, mc_version);
-        tracing::info!(java = %java_bin.display(), installer = %installer_to_run.display(), "Executing Forge installer");
+        tracing::info!(java = %java_bin.display(), installer = %installer_dest.display(), "Executing Forge installer");
         let _ = tokio::process::Command::new(&java_bin)
             .arg("-jar")
-            .arg(&installer_to_run)
+            .arg(&installer_dest)
             .arg("--installClient")
             .arg(data_dir)
             .output()
             .await;
 
-        if installer_to_run != installer_dest && installer_to_run.exists() {
-            let _ = tokio::fs::remove_file(&installer_to_run).await;
+        if !client_dest.exists() {
+            if let Ok(patched) = prepare_patched_installer(&installer_dest) {
+                if patched != installer_dest && patched.exists() {
+                    let _ = tokio::process::Command::new(&java_bin)
+                        .arg("-jar")
+                        .arg(&patched)
+                        .arg("--installClient")
+                        .arg(data_dir)
+                        .output()
+                        .await;
+                    let _ = tokio::fs::remove_file(&patched).await;
+                }
+            }
         }
     }
 

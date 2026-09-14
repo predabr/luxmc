@@ -129,7 +129,7 @@ pub async fn launch_game(
                             }
                         }
                     }
-                    if total_manifest_files > 10 && existing_jar_count < total_manifest_files.saturating_sub(5) {
+                    if total_manifest_files > 0 && existing_jar_count < total_manifest_files {
                         let missing = total_manifest_files.saturating_sub(existing_jar_count);
                         app.emit("launcher-log", format!(
                             "Modpack possui mods pendentes ({}/{} instalados). Reparando {} mods ausentes...",

@@ -472,6 +472,123 @@ pub async fn instance_cancel_import(state: State<'_, AppState>) -> AppResult<()>
     Ok(())
 }
 
+async fn download_from_modrinth_fallback(
+    http: &reqwest::Client,
+    file_name: &str,
+    display_name: Option<&str>,
+    file_path: &std::path::Path,
+    storage_path: &std::path::Path,
+) -> bool {
+    let clean_query = if let Some(dn) = display_name {
+        dn.trim()
+    } else {
+        file_name
+            .trim_end_matches(".jar")
+            .split('-')
+            .next()
+            .unwrap_or(file_name)
+    };
+
+    if clean_query.is_empty() {
+        return false;
+    }
+
+    let search_url = format!(
+        "https://api.modrinth.com/v2/search?query={}&limit=3",
+        urlencoding::encode(clean_query)
+    );
+
+    let resp = match http
+        .get(&search_url)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .timeout(std::time::Duration::from_secs(12))
+        .send()
+        .await
+    {
+        Ok(r) if r.status().is_success() => r,
+        _ => return false,
+    };
+
+    let hits: serde_json::Value = match resp.json().await {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+
+    let projects = match hits.get("hits").and_then(|h| h.as_array()) {
+        Some(arr) => arr,
+        None => return false,
+    };
+
+    for proj in projects {
+        let proj_id = match proj.get("project_id").and_then(|p| p.as_str()) {
+            Some(id) => id,
+            None => continue,
+        };
+
+        let ver_url = format!("https://api.modrinth.com/v2/project/{}/version", proj_id);
+        let ver_resp = match http
+            .get(&ver_url)
+            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+            .timeout(std::time::Duration::from_secs(12))
+            .send()
+            .await
+        {
+            Ok(r) if r.status().is_success() => r,
+            _ => continue,
+        };
+
+        let versions: serde_json::Value = match ver_resp.json().await {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        let ver_list = match versions.as_array() {
+            Some(v) => v,
+            None => continue,
+        };
+
+        for ver in ver_list {
+            if let Some(files) = ver.get("files").and_then(|f| f.as_array()) {
+                for file_entry in files {
+                    let dl_url = file_entry.get("url").and_then(|u| u.as_str()).unwrap_or("");
+                    let mr_filename = file_entry.get("filename").and_then(|f| f.as_str()).unwrap_or("");
+
+                    if dl_url.is_empty() {
+                        continue;
+                    }
+
+                    let is_match = mr_filename.eq_ignore_ascii_case(file_name)
+                        || mr_filename.to_lowercase().starts_with(&clean_query.to_lowercase())
+                        || file_entry.get("primary").and_then(|p| p.as_bool()).unwrap_or(false);
+
+                    if is_match {
+                        if let Ok(dl_resp) = http
+                            .get(dl_url)
+                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                            .timeout(std::time::Duration::from_secs(40))
+                            .send()
+                            .await
+                        {
+                            if dl_resp.status().is_success() {
+                                if let Ok(bytes) = dl_resp.bytes().await {
+                                    if bytes.len() > 200 && (bytes.starts_with(b"PK") || zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_ok()) {
+                                        let _ = tokio::fs::write(file_path, &bytes).await;
+                                        let _ = tokio::fs::write(storage_path, &bytes).await;
+                                        tracing::info!(mod_name = %clean_query, "Downloaded missing mod from Modrinth CDN fallback");
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
 async fn download_cf_mod_file(
     http: &reqwest::Client,
     cf_file: &CfFile,
@@ -496,8 +613,26 @@ async fn download_cf_mod_file(
 
     let p1 = cf_file.file_id / 1000;
     let p2 = cf_file.file_id % 1000;
+    let p2_pad = format!("{:03}", p2);
 
     let mut urls_to_try: Vec<String> = Vec::new();
+
+    urls_to_try.push(format!(
+        "https://www.curseforge.com/api/v1/mods/{}/files/{}/download",
+        project_id_str, file_id_str
+    ));
+
+    if let Ok(url) = crate::core::mods::curseforge::get_download_url(http, &project_id_str, &file_id_str).await {
+        if !url.is_empty() && !urls_to_try.contains(&url) {
+            urls_to_try.push(url);
+        }
+    }
+
+    if let Ok(details) = crate::core::mods::curseforge::get_mod_file_details(http, &project_id_str, &file_id_str).await {
+        if !details.url.is_empty() && !urls_to_try.contains(&details.url) {
+            urls_to_try.push(details.url);
+        }
+    }
 
     if let Some(info) = file_info {
         if let Some(ref dl) = info.download_url {
@@ -505,35 +640,21 @@ async fn download_cf_mod_file(
                 urls_to_try.push(dl.clone());
             }
         }
-        let edge = format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name));
-        if !urls_to_try.contains(&edge) { urls_to_try.push(edge); }
-        let edge_raw = format!("https://edge.forgecdn.net/files/{}/{}/{}", p1, p2, info.file_name.replace(' ', "%20"));
-        if !urls_to_try.contains(&edge_raw) { urls_to_try.push(edge_raw); }
-        let media = format!("https://mediafilez.forgecdn.net/files/{}/{}/{}", p1, p2, urlencoding::encode(&info.file_name));
-        if !urls_to_try.contains(&media) { urls_to_try.push(media); }
-        let media_raw = format!("https://mediafilez.forgecdn.net/files/{}/{}/{}", p1, p2, info.file_name.replace(' ', "%20"));
-        if !urls_to_try.contains(&media_raw) { urls_to_try.push(media_raw); }
+        for host in ["mediafilez.forgecdn.net", "media.forgecdn.net", "edge.forgecdn.net"] {
+            for sub in [format!("{}/{}", p1, p2), format!("{}/{}", p1, p2_pad)] {
+                let u1 = format!("https://{}/files/{}/{}", host, sub, urlencoding::encode(&info.file_name));
+                if !urls_to_try.contains(&u1) { urls_to_try.push(u1); }
+                let u2 = format!("https://{}/files/{}/{}", host, sub, info.file_name.replace(' ', "%20"));
+                if !urls_to_try.contains(&u2) { urls_to_try.push(u2); }
+            }
+        }
     }
 
     if let Some(name) = display_name {
         let guess = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(name));
         if !urls_to_try.contains(&guess) { urls_to_try.push(guess); }
-    }
-
-    if urls_to_try.is_empty() {
-        if let Ok(url) = crate::core::mods::curseforge::get_download_url(http, &project_id_str, &file_id_str).await {
-            if !url.is_empty() && !urls_to_try.contains(&url) {
-                urls_to_try.push(url);
-            }
-        }
-    }
-
-    if urls_to_try.is_empty() {
-        if let Ok(details) = crate::core::mods::curseforge::get_mod_file_details(http, &project_id_str, &file_id_str).await {
-            if !details.url.is_empty() && !urls_to_try.contains(&details.url) {
-                urls_to_try.push(details.url);
-            }
-        }
+        let guess_pad = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2_pad, urlencoding::encode(name));
+        if !urls_to_try.contains(&guess_pad) { urls_to_try.push(guess_pad); }
     }
 
     let filename = if let Some(info) = file_info {
@@ -564,7 +685,14 @@ async fn download_cf_mod_file(
             if attempt > 0 {
                 tokio::time::sleep(std::time::Duration::from_millis(250 * attempt as u64)).await;
             }
-            let resp = match http.get(try_url).timeout(std::time::Duration::from_secs(35)).send().await {
+            let resp = match http
+                .get(try_url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .header("Accept", "*/*")
+                .timeout(std::time::Duration::from_secs(35))
+                .send()
+                .await
+            {
                 Ok(r) if r.status().is_success() => r,
                 _ => continue,
             };
@@ -614,6 +742,22 @@ async fn download_cf_mod_file(
 
             return true;
         }
+    }
+
+    if download_from_modrinth_fallback(http, &filename, display_name, &file_path, &storage_path).await {
+        if let Ok(db) = crate::db::shared_db().await {
+            let mod_row = crate::db::schema::mods::ModRow {
+                profile_id: profile_id.to_string(),
+                project_id: project_id_str.clone(),
+                version_id: file_id_str.clone(),
+                file_name: filename.clone(),
+                sha1: String::new(),
+                source: "modrinth_fallback".into(),
+                installed_at: String::new(),
+            };
+            let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
+        }
+        return true;
     }
 
     tracing::warn!(
