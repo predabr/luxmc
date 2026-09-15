@@ -39,3 +39,19 @@ export async function listenP2PMessage(
 		callback(event.payload);
 	});
 }
+
+export interface UpnpPortMappingResult {
+	success: boolean;
+	externalIp?: string | null;
+	port: number;
+	message: string;
+}
+
+export async function upnpOpenPort(port: number, leaseDurationSecs?: number): Promise<UpnpPortMappingResult> {
+	return api.invoke<UpnpPortMappingResult>("upnp_open_port", { port, leaseDurationSecs });
+}
+
+export async function upnpClosePort(port: number): Promise<boolean> {
+	return api.invoke<boolean>("upnp_close_port", { port });
+}
+

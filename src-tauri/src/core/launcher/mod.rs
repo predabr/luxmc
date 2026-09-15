@@ -687,6 +687,12 @@ impl GameLauncher {
         // Ghost mode: immediately release unused launcher memory
         crate::commands::optimizer::optimizer_trim_memory();
 
+        if pid > 0 {
+            tokio::spawn(async move {
+                crate::core::linux::gamemode::request_gamemode_for_pid(pid).await;
+            });
+        }
+
         let start_time = std::time::Instant::now();
         let peak_ram_bytes = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
         let peak_ram_tracker = peak_ram_bytes.clone();
@@ -768,6 +774,9 @@ impl GameLauncher {
             match child.wait().await {
                 Ok(status) => {
                     let code = status.code().unwrap_or(-1);
+                    if pid > 0 {
+                        crate::core::linux::gamemode::release_gamemode_for_pid(pid).await;
+                    }
                     let duration_secs = start_time.elapsed().as_secs();
                     let peak_mb = peak_ram_bytes.load(std::sync::atomic::Ordering::Relaxed) / (1024 * 1024);
                     let msg = format!("Game process exited with code {}", code);

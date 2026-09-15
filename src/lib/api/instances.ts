@@ -359,6 +359,31 @@ export async function instanceWorldSnapshotDelete(
 	});
 }
 
+export interface WorldChunkInfo {
+	x: number;
+	z: number;
+	status?: string | null;
+	dataVersion?: number | null;
+}
+
+export interface RegionSummary {
+	regionFile: string;
+	totalChunksAllocated: number;
+	sampleChunks: WorldChunkInfo[];
+}
+
+export async function instanceWorldInspectRegion(
+	profileId: string,
+	folderName: string,
+	regionFile?: string
+): Promise<RegionSummary | null> {
+	return api.invoke<RegionSummary | null>("instance_world_inspect_region", {
+		profileId,
+		folderName,
+		regionFile
+	});
+}
+
 export async function instanceShieldScan(profileId: string): Promise<ShieldScanResult> {
 	return api.invoke<ShieldScanResult>("instance_shield_scan", { profileId });
 }

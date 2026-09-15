@@ -74,6 +74,15 @@ rfd = "0.15"
 regex = "1.11"
 toml = "0.8"
 discord-rich-presence = "1.1"
+memmap2 = "0.9"
+xxhash-rust = { version = "0.8", features = ["xxh3", "xxh64"] }
+fastanvil = "0.32"
+igd-next = "0.14"
+cacache = { version = "13.1", default-features = false, features = ["tokio-runtime"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "4", default-features = false, features = ["tokio"] }
+cgroups-rs = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"

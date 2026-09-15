@@ -10,6 +10,7 @@
 	import { instancesScreenshots, screenshotDelete, screenshotsOpenFolder } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import Panzoom, { type PanzoomObject } from "@panzoom/panzoom";
 
 	const { t } = useTranslation();
 
@@ -50,23 +51,60 @@
 		}
 	}
 
-	let zoom = $state(1);
+	let imgElement = $state<HTMLImageElement | null>(null);
+	let panzoomInstance: PanzoomObject | null = null;
+	let zoomScale = $state(1);
+
+	$effect(() => {
+		if (selectedImage && imgElement) {
+			panzoomInstance = Panzoom(imgElement, {
+				maxScale: 5,
+				minScale: 0.5,
+				contain: "outside"
+			});
+
+			const parent = imgElement.parentElement;
+			const onWheel = (e: WheelEvent) => {
+				if (panzoomInstance) {
+					e.preventDefault();
+					panzoomInstance.zoomWithWheel(e);
+					zoomScale = panzoomInstance.getScale();
+				}
+			};
+			parent?.addEventListener("wheel", onWheel, { passive: false });
+
+			return () => {
+				parent?.removeEventListener("wheel", onWheel);
+				panzoomInstance?.destroy();
+				panzoomInstance = null;
+			};
+		}
+	});
 
 	function zoomIn() {
-		zoom = Math.min(3, +(zoom + 0.25).toFixed(2));
+		if (panzoomInstance) {
+			panzoomInstance.zoomIn();
+			zoomScale = panzoomInstance.getScale();
+		}
 	}
 
 	function zoomOut() {
-		zoom = Math.max(0.5, +(zoom - 0.25).toFixed(2));
+		if (panzoomInstance) {
+			panzoomInstance.zoomOut();
+			zoomScale = panzoomInstance.getScale();
+		}
 	}
 
 	function resetZoom() {
-		zoom = 1;
+		if (panzoomInstance) {
+			panzoomInstance.reset();
+			zoomScale = 1;
+		}
 	}
 
 	function openImage(screenshot: { name: string; path: string; modified: string }) {
 		selectedImage = screenshot;
-		resetZoom();
+		zoomScale = 1;
 	}
 
 	$effect(() => {
@@ -248,7 +286,7 @@
 						<ZoomOut class="w-3.5 h-3.5" />
 					</button>
 					<button type="button" class="px-2 text-[10px] font-mono text-white/90 hover:text-white cursor-pointer" onclick={resetZoom} title="Resetar Zoom">
-						{Math.round(zoom * 100)}%
+						{Math.round(zoomScale * 100)}%
 					</button>
 					<button type="button" class="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10 cursor-pointer" onclick={zoomIn} title="Aumentar Zoom (+)">
 						<ZoomIn class="w-3.5 h-3.5" />
@@ -260,13 +298,13 @@
 			</div>
 		</div>
 
-		<div class="flex-1 w-full flex items-center justify-center overflow-hidden p-6" onclick={(e) => e.stopPropagation()}>
+		<div class="flex-1 w-full flex items-center justify-center overflow-hidden p-6 cursor-default" onclick={(e) => e.stopPropagation()}>
 			<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 			<img 
+				bind:this={imgElement}
 				src={selectedImage.dataUrl || convertFileSrc(selectedImage.path)} 
 				alt={selectedImage.name} 
-				class="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl transition-transform duration-150 ease-out" 
-				style="transform: scale({zoom});"
+				class="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl cursor-grab active:cursor-grabbing select-none" 
 				onclick={(e) => e.stopPropagation()} 
 			/>
 		</div>

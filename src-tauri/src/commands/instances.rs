@@ -2561,6 +2561,47 @@ pub async fn instance_world_snapshot_delete(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+pub async fn instance_world_inspect_region(
+    _state: State<'_, AppState>,
+    profileId: String,
+    folderName: String,
+    regionFile: Option<String>,
+) -> AppResult<Option<crate::core::minecraft::anvil::RegionSummary>> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+
+    let target_file = regionFile.unwrap_or_else(|| "r.0.0.mca".to_string());
+    let region_path = std::path::PathBuf::from(&row.game_dir)
+        .join("saves")
+        .join(&folderName)
+        .join("region")
+        .join(&target_file);
+
+    if region_path.is_file() {
+        Ok(crate::core::minecraft::anvil::inspect_region_file(&region_path))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn upnp_open_port(port: u16, leaseDurationSecs: Option<u32>) -> crate::core::network::upnp::UpnpPortMappingResult {
+    crate::core::network::upnp::open_port_upnp(port, leaseDurationSecs.unwrap_or(7200)).await
+}
+
+#[tauri::command]
+pub async fn upnp_close_port(port: u16) -> bool {
+    crate::core::network::upnp::close_port_upnp(port).await
+}
+
+
+#[tauri::command]
+#[allow(non_snake_case)]
 pub async fn instance_world_delete(
     _state: State<'_, AppState>,
     profileId: String,

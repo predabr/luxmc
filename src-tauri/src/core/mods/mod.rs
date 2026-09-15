@@ -615,3 +615,14 @@ impl ModrinthClient {
         })
     }
 }
+
+pub fn calculate_xxh3_bytes(data: &[u8]) -> u64 {
+    xxhash_rust::xxh3::xxh3_64(data)
+}
+
+pub fn calculate_xxh3_file_hash<P: AsRef<std::path::Path>>(path: P) -> Option<u64> {
+    let file = std::fs::File::open(path).ok()?;
+    let mmap = unsafe { memmap2::MmapOptions::new().map(&file).ok()? };
+    Some(xxhash_rust::xxh3::xxh3_64(&mmap[..]))
+}
+

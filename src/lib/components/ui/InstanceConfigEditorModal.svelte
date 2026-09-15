@@ -22,6 +22,7 @@
 	import type { InstanceMinecraftOptions } from "$lib/api/types";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import Button from "./Button.svelte";
+	import CodeEditor from "./CodeEditor.svelte";
 
 	type Props = {
 		open: boolean;
@@ -293,12 +294,9 @@
 						</Button>
 					</div>
 
-					<textarea 
-						bind:value={rawContent}
-						rows="12"
-						class="w-full flex-1 bg-bg-subtle border border-white/10 rounded-2xl p-3.5 font-mono text-xs text-white/90 leading-relaxed outline-none focus:border-brand-500 custom-scrollbar resize-none"
-						placeholder="Conteúdo do arquivo de configuração..."
-					></textarea>
+					<div class="w-full flex-1 min-h-[300px] overflow-hidden">
+						<CodeEditor bind:value={rawContent} />
+					</div>
 
 					<div class="pt-2 border-t border-white/5 flex items-center justify-end gap-2.5">
 						<Button variant="secondary" size="sm" onclick={onClose}>

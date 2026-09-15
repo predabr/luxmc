@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+pub mod anvil;
+
 use crate::error::AppResult;
 
 const VERSION_MANIFEST_URL: &str =
