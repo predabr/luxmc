@@ -48,6 +48,11 @@ const defaults: AppSettings = {
 	soundscapeVolume: 0.2,
 };
 
+let onSettingsChanged: (() => void) | null = null;
+export function registerSettingsListener(fn: () => void) {
+	onSettingsChanged = fn;
+}
+
 function createSettingsStore() {
 	let value = $state<AppSettings>({ ...defaults });
 
@@ -57,12 +62,15 @@ function createSettingsStore() {
 		},
 		set value(next: AppSettings) {
 			value = next;
+			if (onSettingsChanged) onSettingsChanged();
 		},
 		patch(p: Partial<AppSettings>) {
 			value = { ...value, ...p };
+			if (onSettingsChanged) onSettingsChanged();
 		},
 		reset() {
 			value = { ...defaults };
+			if (onSettingsChanged) onSettingsChanged();
 		}
 	};
 }

@@ -185,6 +185,13 @@ export function startSoundscape(mode: "overworld" | "cave" | "end" = "overworld"
 
 				chimeOsc.start(now);
 				chimeOsc.stop(now + 3.6);
+				chimeOsc.onended = () => {
+					try {
+						chimeOsc.disconnect();
+						chimeFilter.disconnect();
+						chimeGain.disconnect();
+					} catch {}
+				};
 			} catch {}
 		}, 4500);
 

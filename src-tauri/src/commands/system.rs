@@ -196,9 +196,6 @@ pub struct SystemSpecs {
 
 #[tauri::command]
 pub fn get_system_specs() -> SystemSpecs {
-    let mut sys = sysinfo::System::new_all();
-    sys.refresh_memory();
-
     let raw_name = sysinfo::System::name().unwrap_or_else(|| {
         if cfg!(target_os = "windows") {
             "Windows".to_string()
@@ -220,8 +217,7 @@ pub fn get_system_specs() -> SystemSpecs {
         std::env::consts::OS.to_string()
     });
 
-    let total_ram_mb = sys.total_memory() / 1024 / 1024;
-    let total_ram_mb = if total_ram_mb > 0 { total_ram_mb } else { 8192 };
+    let total_ram_mb = crate::core::optimizer::get_total_memory_mb() as u64;
 
     let gpu = crate::core::optimizer::detect_gpu();
 

@@ -40,7 +40,7 @@
 	const { t } = useTranslation();
 	let { children } = $props();
 	let initialized = $state(false);
-	let showSplash = $state(false);
+	let showSplash = $state(true);
 	let toastsInstance = $state<Toasts | null>(null);
 	let telemetryData = $state<GameTelemetrySummary | null>(null);
 	let showTelemetryModal = $state(false);
@@ -205,7 +205,7 @@
 					inGame: false
 				}).catch(() => {});
 			}
-			if (settings.value.soundscapesEnabled !== false && !appState.performanceMode) {
+			if (settings.value.soundscapesEnabled === true && !appState.performanceMode) {
 				startSoundscape("overworld");
 			}
 		}).catch(() => {});
@@ -218,7 +218,7 @@
 			unlistenTelemetry = unlisten;
 		}).catch(() => {});
 
-		if (settings.value.soundscapesEnabled !== false && !appState.performanceMode) {
+		if (settings.value.soundscapesEnabled === true && !appState.performanceMode) {
 			setTimeout(() => {
 				startSoundscape("overworld");
 			}, 1200);
@@ -292,11 +292,6 @@
 				inGame: false
 			}).catch(() => {});
 		}, 300);
-	});
-
-	$effect(() => {
-		JSON.stringify(settings.value);
-		schedulePersist();
 	});
 	// Easter Egg (Konami Code)
 	$effect(() => {

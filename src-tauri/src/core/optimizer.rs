@@ -98,6 +98,25 @@ pub fn detect_gpu() -> GpuInfo {
     }
 }
 
+pub fn get_total_memory_mb() -> i64 {
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(meminfo) = std::fs::read_to_string("/proc/meminfo") {
+            for line in meminfo.lines() {
+                if let Some(rest) = line.strip_prefix("MemTotal:") {
+                    let kb_str = rest.trim().split_whitespace().next().unwrap_or("");
+                    if let Ok(kb) = kb_str.parse::<i64>() {
+                        return (kb / 1024).max(1024);
+                    }
+                }
+            }
+        }
+    }
+    let mut sys = sysinfo::System::new();
+    sys.refresh_memory();
+    (sys.total_memory() / 1024 / 1024).max(1024) as i64
+}
+
 pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     let mut flags = Vec::new();
 
@@ -105,13 +124,11 @@ pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     flags.push(format!("-Xms{}M", initial_ram));
     flags.push(format!("-Xmx{}M", ram_mb));
 
-    // Core client-optimized G1GC flags: low 50ms pause target, pre-touch to eliminate frame drops
     flags.push("-XX:+UseG1GC".into());
     flags.push("-XX:+ParallelRefProcEnabled".into());
     flags.push("-XX:MaxGCPauseMillis=50".into());
     flags.push("-XX:+UnlockExperimentalVMOptions".into());
     flags.push("-XX:+DisableExplicitGC".into());
-    flags.push("-XX:+AlwaysPreTouch".into());
 
     // Dynamic region size and new generation sizing based on allocated memory
     if ram_mb <= 4096 {

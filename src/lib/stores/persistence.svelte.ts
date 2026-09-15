@@ -1,6 +1,6 @@
 import { browser } from "$app/environment";
 import { LazyStore } from "@tauri-apps/plugin-store";
-import { settings, type AppSettings, type ThemeName } from "./settings.svelte";
+import { settings, registerSettingsListener, type AppSettings, type ThemeName } from "./settings.svelte";
 import { profiles } from "./profiles.svelte";
 import { setupI18n, notifyLocaleChange, type Locale } from "$lib/i18n";
 
@@ -23,17 +23,20 @@ export async function bootstrapSettings() {
 	setupI18n(merged.language);
 }
 
+registerSettingsListener(() => schedulePersist());
+
 let lastSaved = "";
 export async function persistNow() {
 	if (!browser) return;
 	const s = getStore();
-	if (settings.value.activeProfileId !== profiles.activeId && profiles.activeId) {
-		settings.value.activeProfileId = profiles.activeId;
-	}
-	const currentStr = JSON.stringify(settings.value);
+	const toSave = {
+		...settings.value,
+		activeProfileId: profiles.activeId || settings.value.activeProfileId
+	};
+	const currentStr = JSON.stringify(toSave);
 	if (currentStr === lastSaved) return;
 	lastSaved = currentStr;
-	await s.set(STORE_KEY, settings.value);
+	await s.set(STORE_KEY, toSave);
 	await s.save();
 }
 

@@ -446,20 +446,18 @@ fn smart_modpack_ram(user_ram: Option<i64>, mod_count: usize) -> i64 {
         }
     }
 
-    let mut sys = sysinfo::System::new_all();
-    sys.refresh_memory();
-    let total = (sys.total_memory() / 1024 / 1024) as i64;
-    let os_reserve: i64 = 4096;
+    let total = crate::core::optimizer::get_total_memory_mb();
+    let os_reserve: i64 = 3072;
     let available = (total - os_reserve).max(1024);
 
     if mod_count >= 100 {
-        let want = if total >= 32768 { 12288 } else if total >= 24576 { 10240 } else if total >= 16384 { 8192 } else if total >= 12288 { 7168 } else if total >= 8192 { 5632 } else { total * 7 / 10 };
+        let want = if total >= 32768 { 10240 } else if total >= 24576 { 8192 } else if total >= 16384 { 6144 } else if total >= 12288 { 5120 } else if total >= 8192 { 4096 } else { (total * 6 / 10).max(2048) };
         want.min(available)
     } else if mod_count >= 20 {
-        let want = if total >= 16384 { 6144 } else if total >= 8192 { 4096 } else { 3072 };
+        let want = if total >= 16384 { 4096 } else if total >= 8192 { 3072 } else { 2048 };
         want.min(available)
     } else {
-        let want = if total >= 8192 { 3072 } else { 2048 };
+        let want = if total >= 8192 { 2560 } else { 2048 };
         want.min(available)
     }
 }
@@ -1113,6 +1111,10 @@ pub async fn instance_import_modpack(
             let current = completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
             let percent = ((current as f64 / total_files as f64) * 100.0) as u32;
 
+            if current % 16 == 0 {
+                crate::commands::optimizer::optimizer_trim_memory();
+            }
+
             let _ = app.emit("modpack-progress", serde_json::json!({
                 "phase": "downloading",
                 "current": current,
@@ -1124,6 +1126,7 @@ pub async fn instance_import_modpack(
     });
 
     files_stream.buffer_unordered(8).collect::<Vec<()>>().await;
+    crate::commands::optimizer::optimizer_trim_memory();
 
     for retry_pass in 0..3 {
         let current_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
@@ -1434,6 +1437,7 @@ pub async fn instance_repair_modpack(
     });
 
     stream.buffer_unordered(8).collect::<Vec<()>>().await;
+    crate::commands::optimizer::optimizer_trim_memory();
     let mut total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
 
     if total_repaired < total_missing {

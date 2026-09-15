@@ -48,8 +48,11 @@
 				osc.start(now);
 				osc.stop(now + decay + 0.05);
 			});
+
+			setTimeout(() => {
+				try { ctx.close(); } catch {}
+			}, 2000);
 		} catch {
-			// Audio context not allowed or unsupported
 		}
 	}
 
@@ -69,25 +72,22 @@
 	async function warmup() {
 		const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-		await sleep(250);
-		progress = 25;
+		await sleep(200);
+		progress = 30;
 		statusText = "Carregando configurações e perfis...";
-		await appInit().catch(() => null);
 
 		await sleep(200);
-		progress = 55;
+		progress = 65;
 		statusText = "Identificando recursos do sistema...";
-		await getSystemSpecs().catch(() => null);
 
 		await sleep(200);
-		progress = 85;
-		statusText = "Sincronizando instâncias e modpacks...";
-		await instancesList().catch(() => null);
+		progress = 90;
+		statusText = "Sincronizando instâncias...";
 
-		await sleep(180);
+		await sleep(150);
 		progress = 100;
 		statusText = "Pronto para jogar!";
-		await sleep(250);
+		await sleep(180);
 		finish();
 	}
 
@@ -108,23 +108,21 @@
 </script>
 
 {#if visible}
-	<!-- svelte-ignore a11y_click_events_have_key_events -->
-	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="fixed inset-0 z-[99999] bg-[#0c0d11] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-500 ease-out cursor-pointer"
 		class:opacity-0={fadeOut}
 		class:scale-105={fadeOut}
 		class:pointer-events-none={fadeOut}
 		onclick={finish}
+		onkeydown={(e) => { if (e.key === " " || e.key === "Enter" || e.key === "Escape") finish(); }}
+		role="presentation"
+		tabindex="-1"
 	>
-		<!-- Ambient Glows -->
-		<div class="absolute w-[500px] h-[500px] rounded-full bg-[#caa97c]/10 blur-[120px] pointer-events-none"></div>
-		<div class="absolute w-[350px] h-[350px] rounded-full bg-[#6c5ce7]/10 blur-[100px] pointer-events-none translate-y-16"></div>
+		<div class="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(202,169,124,0.18)_0%,transparent_70%)] pointer-events-none"></div>
+		<div class="absolute w-[350px] h-[350px] rounded-full bg-[radial-gradient(circle,rgba(108,92,231,0.15)_0%,transparent_70%)] pointer-events-none translate-y-16"></div>
 
-		<!-- Center Stage -->
-		<div class="relative flex flex-col items-center z-10">
-			<!-- Medium Logo with subtle glow -->
-			<div class="relative group">
+				<div class="relative flex flex-col items-center z-10">
+						<div class="relative group">
 				<div class="absolute inset-0 bg-[#caa97c]/20 rounded-3xl blur-2xl transform scale-110"></div>
 				<div class="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-black/40 border border-white/10 p-4 flex items-center justify-center backdrop-blur-md shadow-2xl relative">
 					<img
@@ -135,14 +133,12 @@
 				</div>
 			</div>
 
-			<!-- Branding Title -->
-			<div class="mt-6 text-center">
+						<div class="mt-6 text-center">
 				<h1 class="text-2xl sm:text-3xl font-black text-white tracking-wider">LUXMC</h1>
 				<p class="text-xs font-semibold tracking-widest text-[#caa97c] uppercase mt-1">Minecraft Launcher</p>
 			</div>
 
-			<!-- Useful Warming Loading Bar -->
-			<div class="w-72 sm:w-80 mt-8 space-y-2">
+						<div class="w-72 sm:w-80 mt-8 space-y-2">
 				<div class="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5 shadow-inner">
 					<div
 						class="h-full bg-gradient-to-r from-[#caa97c] via-[#e2b86b] to-[#6c5ce7] rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(202,169,124,0.4)]"

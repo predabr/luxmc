@@ -38,6 +38,8 @@ fn main() {
                             };
                             cmd.env("LD_PRELOAD", new_preload);
                             cmd.env("LUXMC_WAYLAND_PRELOADED", "1");
+                            cmd.env("MALLOC_ARENA_MAX", "2");
+                            cmd.env("MALLOC_TRIM_THRESHOLD_", "131072");
                             let _ = cmd.exec();
                         }
                     }

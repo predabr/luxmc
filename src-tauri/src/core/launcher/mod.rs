@@ -138,24 +138,32 @@ impl GameLauncher {
         }
     }
 
-    fn compute_auto_ram(&self, is_heavy_modded: bool, mod_count: i64) -> i64 {
-        let mut sys = sysinfo::System::new_all();
-        sys.refresh_memory();
-        let total_ram_mb = (sys.total_memory() / 1024 / 1024) as i64;
-        let os_reserve: i64 = 4096;
+    fn compute_auto_ram(&self, is_heavy_modded: bool, is_pvp: bool, mod_count: i64) -> i64 {
+        let total_ram_mb = crate::core::optimizer::get_total_memory_mb();
+        let os_reserve: i64 = 3072;
         let available = (total_ram_mb - os_reserve).max(1024);
 
+        if is_pvp {
+            let want = if mod_count > 10 { 3072 } else { 2048 };
+            let result = want.min(available);
+            self.emit_log(&format!(
+                "Luxmc Auto-RAM: {}MB alocados (PvP 1.7/1.8)",
+                result
+            ));
+            return result;
+        }
+
         let want = if is_heavy_modded {
-            if total_ram_mb >= 32768 { 12288 }
-            else if total_ram_mb >= 24576 { 10240 }
-            else if total_ram_mb >= 16384 { 8192 }
-            else if total_ram_mb >= 12288 { 7168 }
-            else if total_ram_mb >= 8192 { 5632 }
-            else { total_ram_mb * 7 / 10 }
+            if total_ram_mb >= 32768 { 10240 }
+            else if total_ram_mb >= 24576 { 8192 }
+            else if total_ram_mb >= 16384 { 6144 }
+            else if total_ram_mb >= 12288 { 5120 }
+            else if total_ram_mb >= 8192 { 4096 }
+            else { (total_ram_mb * 6 / 10).max(2048) }
         } else if mod_count >= 20 {
-            if total_ram_mb >= 16384 { 6144 } else if total_ram_mb >= 8192 { 4096 } else { 3072 }
+            if total_ram_mb >= 16384 { 4096 } else if total_ram_mb >= 8192 { 3072 } else { 2048 }
         } else {
-            if total_ram_mb >= 8192 { 3072 } else { 2048 }
+            if total_ram_mb >= 8192 { 2560 } else { 2048 }
         };
 
         let result = want.min(available);
@@ -1070,6 +1078,7 @@ impl GameLauncher {
             || profile.name.to_lowercase().contains("rlcraft")
             || profile.mod_count >= 80;
 
+        let is_pvp = profile.mc_version.starts_with("1.8") || profile.mc_version.starts_with("1.7");
         let ram_mb = if let Some(manual) = profile.ram_mb {
             if manual > 0 {
                 self.emit_log(&format!(
@@ -1078,10 +1087,10 @@ impl GameLauncher {
                 ));
                 manual
             } else {
-                self.compute_auto_ram(is_heavy_modded, profile.mod_count)
+                self.compute_auto_ram(is_heavy_modded, is_pvp, profile.mod_count)
             }
         } else {
-            self.compute_auto_ram(is_heavy_modded, profile.mod_count)
+            self.compute_auto_ram(is_heavy_modded, is_pvp, profile.mod_count)
         };
 
         // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags
