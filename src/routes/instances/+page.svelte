@@ -11,6 +11,7 @@
 	import InstanceGrid from "$lib/components/instances/InstanceGrid.svelte";
 	import InstanceFilters from "$lib/components/instances/InstanceFilters.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
+	import UniversalImporterModal from "$lib/components/instances/UniversalImporterModal.svelte";
 	import FilterableVersionSelect from "$lib/components/ui/FilterableVersionSelect.svelte";
 	import {
 		Plus,
@@ -68,6 +69,7 @@
 	const { t } = useTranslation();
 
 	let showCreate = $state(false);
+	let showUniversalImport = $state(false);
 	let showImport = $state(false);
 	let showImportMrpack = $state(false);
 	let showImportCode = $state(false);
@@ -679,6 +681,15 @@
 				<Button
 					variant="secondary"
 					size="sm"
+					onclick={() => showUniversalImport = true}
+				>
+					<FolderTree class="h-3.5 w-3.5 text-brand-400" />
+					Migrar Launchers
+				</Button>
+
+				<Button
+					variant="secondary"
+					size="sm"
 					onclick={() => showImportCode = true}
 				>
 					<Sparkles class="h-3.5 w-3.5 text-brand-400" />
@@ -724,6 +735,11 @@
 		{versionsLoading}
 		{systemRamMb}
 		onCreate={handleCreateInstance}
+	/>
+
+	<UniversalImporterModal
+		open={showUniversalImport}
+		onClose={() => showUniversalImport = false}
 	/>
 
 	{#if showImport}

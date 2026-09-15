@@ -49,7 +49,9 @@
 		ArrowUpCircle,
 		AlertCircle,
 		Keyboard,
-		HardDrive
+		HardDrive,
+		Skull,
+		Disc
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
@@ -61,6 +63,8 @@
 	import ModConflictModal from "$lib/components/instances/ModConflictModal.svelte";
 	import ModpackExportModal from "$lib/components/instances/ModpackExportModal.svelte";
 	import WorldBackupModal from "$lib/components/instances/WorldBackupModal.svelte";
+	import DeathDetectorModal from "$lib/components/instances/DeathDetectorModal.svelte";
+	import JukeboxModal from "$lib/components/instances/JukeboxModal.svelte";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -167,6 +171,8 @@
 	let showModpackExportModal = $state(false);
 	let showWorldBackupModal = $state(false);
 	let showKeybindEditorModal = $state(false);
+	let showDeathDetectorModal = $state(false);
+	let showJukeboxModal = $state(false);
 
 	const quickShaders = [
 		{
@@ -1386,6 +1392,24 @@
 						title="Ajustar Gamma / Fullbright, FOV e opções do jogo"
 					>
 						<Sliders class="w-3.5 h-3.5 text-[#caa97c]" /> Fullbright
+					</button>
+
+					<button 
+						type="button"
+						class="bg-[#222328] hover:bg-rose-500/20 text-white/90 hover:text-rose-300 px-3.5 py-2 rounded-full border border-white/15 hover:border-rose-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+						onclick={() => showDeathDetectorModal = true}
+						title="Ver coordenadas da última morte e restaurar inventário"
+					>
+						<Skull class="w-3.5 h-3.5 text-rose-400" /> Morte
+					</button>
+
+					<button 
+						type="button"
+						class="bg-[#222328] hover:bg-amber-500/20 text-white/90 hover:text-amber-300 px-3.5 py-2 rounded-full border border-white/15 hover:border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+						onclick={() => showJukeboxModal = true}
+						title="Tocar discos de música do Minecraft e pré-visualizar faixas"
+					>
+						<Disc class="w-3.5 h-3.5 text-amber-400" /> Jukebox
 					</button>
 
 					<button 
@@ -3018,4 +3042,22 @@
 	isOpen={showKeybindEditorModal}
 	profileId={instanceId}
 	onClose={() => showKeybindEditorModal = false}
+/>
+
+<DeathDetectorModal
+	open={showDeathDetectorModal}
+	profileId={instanceId}
+	onClose={() => showDeathDetectorModal = false}
+	onOpenSnapshots={() => {
+		showDeathDetectorModal = false;
+		if (worldsList && worldsList.length > 0) {
+			const w = worldsList[0];
+			selectedSnapshotWorld = { name: w.name, folder: w.folderName };
+		}
+	}}
+/>
+
+<JukeboxModal
+	open={showJukeboxModal}
+	onClose={() => showJukeboxModal = false}
 />

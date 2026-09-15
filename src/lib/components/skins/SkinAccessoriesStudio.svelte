@@ -63,6 +63,15 @@
 			icon: Sparkles,
 			badge: "Combate",
 			color: "text-rose-400 bg-rose-500/10 border-rose-500/30"
+		},
+		{
+			id: "jacket",
+			name: "Casaco Gamer Preto",
+			category: "Vestuário",
+			desc: "Jaqueta esportiva estilosa na camada de overlay do tronco e braços.",
+			icon: Sliders,
+			badge: "Novo",
+			color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
 		}
 	];
 
@@ -138,6 +147,13 @@
 				ctx.fillRect(56, 8, 8, 2);
 				ctx.fillStyle = "#bdc3c7";
 				ctx.fillRect(43, 8, 2, 2);
+			} else if (acc.id === "jacket") {
+				ctx.fillStyle = "#1e272e";
+				ctx.fillRect(20, 36, 8, 12);
+				ctx.fillRect(44, 36, 4, 12);
+				ctx.fillRect(52, 52, 4, 12);
+				ctx.fillStyle = "#00d2d3";
+				ctx.fillRect(23, 38, 2, 8);
 			}
 
 			const newSkinDataUrl = canvas.toDataURL("image/png");

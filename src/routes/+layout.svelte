@@ -239,6 +239,12 @@
 		}
 	});
 
+	$effect(() => {
+		if (appState.isGameRunning) {
+			stopSoundscape();
+		}
+	});
+
 	let rpcTimeout: ReturnType<typeof setTimeout> | null = null;
 	$effect(() => {
 		const currentPath = $page.url.pathname;

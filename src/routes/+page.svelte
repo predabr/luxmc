@@ -35,6 +35,7 @@
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import FavoriteServerWidget from "$lib/components/home/FavoriteServerWidget.svelte";
+	import FriendsRadarWidget from "$lib/components/home/FriendsRadarWidget.svelte";
 	import GamerCardModal from "$lib/components/profile/GamerCardModal.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -1217,24 +1218,7 @@
 									</section>
 
 								{:else if sec.id === 'newsFeed'}
-									<!-- Notícias & Atualizações -->
-									<section>
-										<div class="flex items-center justify-between mb-3">
-											<h2 class="text-xs font-bold text-white uppercase tracking-wider">{t("home.news")}</h2>
-											<a href="/news" class="text-xs text-[#caa97c] hover:underline font-bold">Ver Todas</a>
-										</div>
-										<div class="rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden shadow-md group cursor-pointer hover:border-white/20 transition-all">
-											<div class="h-44 w-full relative bg-gradient-to-r from-purple-950/60 via-[#18191c] to-amber-950/40">
-												<img src="https://images.unsplash.com/photo-1627856013091-fed6e4e30025?w=1000&auto=format&fit=crop&q=80" class="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" alt="News Banner" />
-												<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-[#18191c]/50 to-transparent"></div>
-												<div class="absolute bottom-4 left-5 right-5">
-													<span class="text-[10px] font-bold text-white/40 uppercase tracking-widest">27 DE AGO. DE 2026</span>
-													<h3 class="text-base font-extrabold text-white mt-1 group-hover:text-[#caa97c] transition-colors">New on Java Realms: Mischiefs & Secrets</h3>
-													<p class="text-xs text-white/60 mt-1 line-clamp-1">9 new and exciting maps have been released this month!</p>
-												</div>
-											</div>
-										</div>
-									</section>
+									<FriendsRadarWidget />
 
 								{:else if sec.id === 'tools'}
 									<!-- Ferramentas Rápidas & Organizador -->
