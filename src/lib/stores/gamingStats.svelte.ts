@@ -96,6 +96,11 @@ async function init() {
 
 function saveDaily() {
 	if (typeof window === "undefined") return;
+	const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+	for (const key of Object.keys(dailyMinutesMap)) {
+		const dayMs = new Date(key).getTime();
+		if (isNaN(dayMs) || dayMs < cutoff) delete dailyMinutesMap[key];
+	}
 	try {
 		localStorage.setItem(STORAGE_DAILY_PLAYTIME, JSON.stringify(dailyMinutesMap));
 	} catch {}

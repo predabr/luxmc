@@ -16,6 +16,10 @@ function getAudioContext(): AudioContext | null {
 	return audioCtx;
 }
 
+function disconnectNode(node: AudioNode) {
+	try { node.disconnect(); } catch {}
+}
+
 export function playSound(type: "click" | "launch" | "chime" | "warning" | "achievement" | "delete") {
 	try {
 		if (typeof window === "undefined") return;
@@ -31,6 +35,14 @@ export function playSound(type: "click" | "launch" | "chime" | "warning" | "achi
 		masterGain.gain.setValueAtTime(volume, now);
 		masterGain.connect(ctx.destination);
 
+		const allNodes: AudioNode[] = [masterGain];
+		let maxDuration = 0;
+
+		function track(node: AudioNode, duration: number) {
+			allNodes.push(node);
+			if (duration > maxDuration) maxDuration = duration;
+		}
+
 		if (type === "click") {
 			const osc = ctx.createOscillator();
 			const gain = ctx.createGain();
@@ -42,7 +54,9 @@ export function playSound(type: "click" | "launch" | "chime" | "warning" | "achi
 			osc.connect(gain);
 			gain.connect(masterGain);
 			osc.start(now);
-			osc.stop(now + 0.04);
+			osc.stop(now + 0.05);
+			track(osc, 0.05);
+			track(gain, 0.05);
 		} else if (type === "launch") {
 			const osc1 = ctx.createOscillator();
 			const osc2 = ctx.createOscillator();
@@ -60,8 +74,11 @@ export function playSound(type: "click" | "launch" | "chime" | "warning" | "achi
 			gain.connect(masterGain);
 			osc1.start(now);
 			osc2.start(now);
-			osc1.stop(now + 0.4);
-			osc2.stop(now + 0.4);
+			osc1.stop(now + 0.41);
+			osc2.stop(now + 0.41);
+			track(osc1, 0.41);
+			track(osc2, 0.41);
+			track(gain, 0.41);
 		} else if (type === "chime" || type === "achievement") {
 			const notes = type === "achievement" ? [523.25, 659.25, 783.99, 1046.5] : [440, 660, 880];
 			notes.forEach((freq, idx) => {
@@ -75,7 +92,9 @@ export function playSound(type: "click" | "launch" | "chime" | "warning" | "achi
 				osc.connect(gain);
 				gain.connect(masterGain);
 				osc.start(startTime);
-				osc.stop(startTime + 0.3);
+				osc.stop(startTime + 0.31);
+				track(osc, startTime - now + 0.31);
+				track(gain, startTime - now + 0.31);
 			});
 		} else if (type === "warning") {
 			const osc = ctx.createOscillator();
@@ -88,7 +107,9 @@ export function playSound(type: "click" | "launch" | "chime" | "warning" | "achi
 			osc.connect(gain);
 			gain.connect(masterGain);
 			osc.start(now);
-			osc.stop(now + 0.25);
+			osc.stop(now + 0.26);
+			track(osc, 0.26);
+			track(gain, 0.26);
 		} else if (type === "delete") {
 			const osc = ctx.createOscillator();
 			const gain = ctx.createGain();
@@ -100,19 +121,26 @@ export function playSound(type: "click" | "launch" | "chime" | "warning" | "achi
 			osc.connect(gain);
 			gain.connect(masterGain);
 			osc.start(now);
-			osc.stop(now + 0.14);
+			osc.stop(now + 0.15);
+			track(osc, 0.15);
+			track(gain, 0.15);
 		}
-	} catch {
-	}
+
+		const cleanupDelay = Math.ceil((maxDuration + 0.1) * 1000);
+		setTimeout(() => {
+			allNodes.forEach(disconnectNode);
+		}, cleanupDelay);
+	} catch {}
 }
 
 let soundscapeMasterGain: GainNode | null = null;
 let soundscapeInterval: number | null = null;
-let soundscapeNodes: AudioNode[] = [];
+let soundscapeBaseNodes: AudioNode[] = [];
+let soundscapeStopTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export function startSoundscape(mode: "overworld" | "cave" | "end" = "overworld") {
 	try {
-		stopSoundscape();
+		stopSoundscapeImmediate();
 		const ctx = getAudioContext();
 		if (!ctx) return;
 
@@ -150,11 +178,11 @@ export function startSoundscape(mode: "overworld" | "cave" | "end" = "overworld"
 			gain.connect(master);
 			osc.start();
 
-			soundscapeNodes.push(osc, gain, filter);
+			soundscapeBaseNodes.push(osc, gain, filter);
 		});
 
 		soundscapeInterval = window.setInterval(() => {
-			if (!soundscapeMasterGain) return;
+			if (!soundscapeMasterGain || !ctx) return;
 			try {
 				const now = ctx.currentTime;
 				const chimeOsc = ctx.createOscillator();
@@ -186,16 +214,38 @@ export function startSoundscape(mode: "overworld" | "cave" | "end" = "overworld"
 				chimeOsc.start(now);
 				chimeOsc.stop(now + 3.6);
 				chimeOsc.onended = () => {
-					try {
-						chimeOsc.disconnect();
-						chimeFilter.disconnect();
-						chimeGain.disconnect();
-					} catch {}
+					disconnectNode(chimeOsc);
+					disconnectNode(chimeFilter);
+					disconnectNode(chimeGain);
 				};
 			} catch {}
 		}, 4500);
 
 	} catch {}
+}
+
+function stopSoundscapeImmediate() {
+	if (soundscapeInterval) {
+		clearInterval(soundscapeInterval);
+		soundscapeInterval = null;
+	}
+	if (soundscapeStopTimeout) {
+		clearTimeout(soundscapeStopTimeout);
+		soundscapeStopTimeout = null;
+	}
+	soundscapeBaseNodes.forEach((node) => {
+		try {
+			if ("stop" in node && typeof (node as any).stop === "function") {
+				(node as any).stop();
+			}
+			disconnectNode(node);
+		} catch {}
+	});
+	soundscapeBaseNodes = [];
+	if (soundscapeMasterGain) {
+		try { soundscapeMasterGain.disconnect(); } catch {}
+		soundscapeMasterGain = null;
+	}
 }
 
 export function stopSoundscape() {
@@ -206,21 +256,20 @@ export function stopSoundscape() {
 		}
 		if (soundscapeMasterGain) {
 			soundscapeMasterGain.gain.linearRampToValueAtTime(0, (audioCtx?.currentTime || 0) + 1.0);
-			setTimeout(() => {
-				soundscapeNodes.forEach((node) => {
-					try {
-						if ("stop" in node && typeof (node as any).stop === "function") {
-							(node as any).stop();
-						}
-						node.disconnect();
-					} catch {}
-				});
-				soundscapeNodes = [];
-				soundscapeMasterGain?.disconnect();
-				soundscapeMasterGain = null;
+			soundscapeStopTimeout = setTimeout(() => {
+				soundscapeStopTimeout = null;
+				stopSoundscapeImmediate();
 			}, 1100);
 		}
 	} catch {}
+}
+
+export function destroyAudio() {
+	stopSoundscapeImmediate();
+	if (audioCtx) {
+		try { audioCtx.close(); } catch {}
+		audioCtx = null;
+	}
 }
 
 export function setSoundscapeVolume(volume: number) {
@@ -233,4 +282,3 @@ export function setSoundscapeVolume(volume: number) {
 export function isSoundscapeActive(): boolean {
 	return soundscapeMasterGain !== null;
 }
-

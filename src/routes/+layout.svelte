@@ -20,7 +20,7 @@
 	import ClientOverlayModal from "$lib/components/ui/ClientOverlayModal.svelte";
 	import type { GameTelemetrySummary } from "$lib/api/types";
 	import { listenGameTelemetry } from "$lib/api/events";
-	import { startSoundscape, stopSoundscape } from "$lib/utils/sound";
+	import { startSoundscape, stopSoundscape, destroyAudio } from "$lib/utils/sound";
 	import { bootstrapSettings, schedulePersist, startAutoPersist } from "$lib/stores/persistence.svelte";
 	import { setToastInstance } from "$lib/stores/toasts.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
@@ -248,6 +248,7 @@
 			if (unlistenTelemetry) unlistenTelemetry();
 			if (soundscapeTimer) clearTimeout(soundscapeTimer);
 			stopSoundscape();
+			destroyAudio();
 			clearInterval(trimInterval);
 			gamingStats.destroy();
 		};
@@ -326,6 +327,13 @@
 				inGame: false
 			}).catch(() => {});
 		}, 300);
+
+		return () => {
+			if (rpcTimeout) {
+				clearTimeout(rpcTimeout);
+				rpcTimeout = null;
+			}
+		};
 	});
 	// Easter Egg (Konami Code)
 	$effect(() => {

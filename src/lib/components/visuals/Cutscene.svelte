@@ -132,18 +132,16 @@
 				if (acc?.skinUrl || acc?.username) {
 					const username = acc.username || "Steve";
 					const skinUrl = acc.skinUrl || `https://minotar.net/skin/${username}`;
-					const avatarUrl = `https://mc-heads.net/avatar/${username}/100`;
-					const bodyUrl = `https://mc-heads.net/body/${username}/300`;
-					activeSkinStore.setSkin({
-						id: acc.uuid || username,
-						name: username,
-						url: bodyUrl,
-						skinUrl,
-						avatarUrl,
-						type: "steve"
-					});
-					const img = new Image();
-					img.src = avatarUrl;
+				const avatarUrl = `https://mc-heads.net/avatar/${username}/100`;
+				const bodyUrl = `https://mc-heads.net/body/${username}/300`;
+				activeSkinStore.setSkin({
+					id: acc.uuid || username,
+					name: username,
+					url: bodyUrl,
+					skinUrl,
+					avatarUrl,
+					type: "steve"
+				});
 				}
 			} catch {}
 		})();
