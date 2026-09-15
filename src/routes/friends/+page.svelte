@@ -32,6 +32,11 @@
 		type P2PMessagePayload
 	} from "$lib/api";
 
+	const MAX_FRIENDS = 20;
+	const MAX_MESSAGES_PER_FRIEND = 50;
+	const SAVE_DEBOUNCE_MS = 5000;
+	const MAX_GLOBAL_MESSAGES = 80;
+
 	type Message = {
 		id: string;
 		sender: "me" | "friend";
@@ -42,7 +47,7 @@
 	type Friend = {
 		id: string;
 		username: string;
-		address: string; // IP or IP:Port
+		address: string;
 		status: "online" | "playing" | "offline";
 		activity?: string;
 		unread?: number;
@@ -65,6 +70,7 @@
 	let isSending = $state(false);
 	let copied = $state(false);
 	let messagesContainer = $state<HTMLDivElement | null>(null);
+	let rv = $state(0);
 
 	function scrollToBottom(behavior: ScrollBehavior = "smooth") {
 		if (messagesContainer) {
@@ -73,6 +79,7 @@
 	}
 
 	$effect(() => {
+		void rv;
 		if (activeFriend?.messages.length) {
 			setTimeout(() => scrollToBottom("smooth"), 40);
 		}
@@ -103,6 +110,16 @@
 	};
 
 	let eventSource: EventSource | null = null;
+	let saveTimer: ReturnType<typeof setTimeout> | null = null;
+	let knownSenders = new Set<string>();
+	let msgIdSet = new Set<string>();
+
+	function trimMessages(msgs: Message[]): Message[] {
+		if (msgs.length > MAX_MESSAGES_PER_FRIEND) {
+			return msgs.slice(msgs.length - MAX_MESSAGES_PER_FRIEND);
+		}
+		return msgs;
+	}
 
 	function connectUniversalRelay() {
 		try {
@@ -124,25 +141,28 @@
 					if (!sender || !text) return;
 					if (sender.toLowerCase() === myUsername.toLowerCase()) return;
 
+					const msgId = payload.id || `${sender}-${Date.now()}`;
+					if (msgIdSet.has(msgId)) return;
+					msgIdSet.add(msgId);
+					if (msgIdSet.size > 500) {
+						const arr = [...msgIdSet];
+						msgIdSet = new Set(arr.slice(-250));
+					}
+
 					const target = (payload.target || "global").toLowerCase();
-					const msgId = payload.id || String(Date.now());
 					const timeStr = payload.time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 					if (target === "global") {
 						const globalCh = friends.find(f => f.id === "global");
-						if (globalCh && !globalCh.messages.some(m => m.id === msgId)) {
-						const globalMsg: Message = {
-							id: msgId,
-							sender: "friend",
-							text: `[${sender}] ${text}`,
-							time: timeStr
-						};
-						globalCh.messages.push(globalMsg);
-						if (globalCh.messages.length > 100) {
-							globalCh.messages.splice(0, globalCh.messages.length - 100);
-						}
-						friends = [...friends];
-							saveFriends();
+						if (globalCh) {
+							globalCh.messages = trimMessages([...globalCh.messages, {
+								id: msgId,
+								sender: "friend",
+								text: `[${sender}] ${text}`,
+								time: timeStr
+							}]);
+							rv++;
+							scheduleSave();
 						}
 					} else if (target === myUsername.toLowerCase()) {
 						let friend = friends.find(f => f.username.toLowerCase() === sender.toLowerCase());
@@ -152,40 +172,56 @@
 							text: text,
 							time: timeStr
 						};
-					if (!friend) {
-						friend = {
-							id: String(Date.now()),
-							username: sender,
-							address: "Universal",
-							status: "online",
-							activity: "Chat Universal",
-							messages: [dmMsg]
-						};
-						friends.push(friend);
-					} else if (!friend.messages.some(m => m.id === msgId)) {
-						friend.messages.push(dmMsg);
-						if (friend.messages.length > 100) {
-							friend.messages.splice(0, friend.messages.length - 100);
+						if (!friend) {
+							if (friends.length >= MAX_FRIENDS) {
+								const nonGlobal = friends.filter(f => f.id !== "global");
+								if (nonGlobal.length > 0) {
+									const oldest = nonGlobal[0];
+									friends = friends.filter(f => f.id !== oldest.id);
+								}
+							}
+							friend = {
+								id: String(Date.now()),
+								username: sender,
+								address: "Universal",
+								status: "online",
+								activity: "Chat Universal",
+								messages: [dmMsg]
+							};
+							friends = [...friends, friend];
+						} else if (!friend.messages.some(m => m.id === msgId)) {
+							friend.messages = trimMessages([...friend.messages, dmMsg]);
 						}
-					}
-					friends = [...friends];
-						saveFriends();
+						rv++;
+						scheduleSave();
 						toast(`💬 ${sender}: "${text}"`, "info");
 					}
-				} catch {
-					// Ignore invalid messages
-				}
+				} catch {}
 			};
 		} catch (e) {
 			console.warn("Relay init error:", e);
 		}
 	}
 
+	function scheduleSave() {
+		if (saveTimer) return;
+		saveTimer = setTimeout(() => {
+			saveTimer = null;
+			saveFriends();
+		}, SAVE_DEBOUNCE_MS);
+	}
+
 	onMount(async () => {
 		try {
 			const saved = localStorage.getItem("luxmc_p2p_friends");
 			if (saved) {
-				friends = JSON.parse(saved);
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed)) {
+					friends = parsed.slice(-MAX_FRIENDS).map((f: any) => ({
+						...f,
+						messages: Array.isArray(f.messages) ? f.messages.slice(-MAX_MESSAGES_PER_FRIEND) : []
+					}));
+				}
 			}
 		} catch (e) {
 			console.error(e);
@@ -216,12 +252,18 @@
 	onDestroy(() => {
 		if (unlistenMsg) unlistenMsg();
 		if (eventSource) eventSource.close();
+		eventSource = null;
+		if (saveTimer) {
+			clearTimeout(saveTimer);
+			saveTimer = null;
+		}
+		msgIdSet.clear();
+		knownSenders.clear();
+		saveFriends();
 	});
 
 	function handleIncomingMessage(payload: P2PMessagePayload) {
-		if (payload.sender.toLowerCase() === myUsername.toLowerCase()) {
-			return;
-		}
+		if (payload.sender.toLowerCase() === myUsername.toLowerCase()) return;
 		let friend = friends.find(f => f.username.toLowerCase() === payload.sender.toLowerCase());
 		const newMsg: Message = {
 			id: String(Date.now()),
@@ -231,6 +273,12 @@
 		};
 
 		if (!friend) {
+			if (friends.length >= MAX_FRIENDS) {
+				const nonGlobal = friends.filter(f => f.id !== "global");
+				if (nonGlobal.length > 0) {
+					friends = friends.filter(f => f.id !== nonGlobal[0].id);
+				}
+			}
 			friend = {
 				id: String(Date.now()),
 				username: payload.sender,
@@ -239,14 +287,13 @@
 				activity: "Conectado via P2P",
 				messages: [newMsg]
 			};
-			friends.push(friend);
+			friends = [...friends, friend];
 		} else {
-			friend.messages.push(newMsg);
+			friend.messages = trimMessages([...friend.messages, newMsg]);
 			friend.status = "online";
 		}
-		friends = [...friends];
-
-		saveFriends();
+		rv++;
+		scheduleSave();
 		toast(`💬 Mensagem de ${payload.sender}: "${payload.text}"`, "info");
 	}
 
@@ -266,7 +313,7 @@
 				}
 			]
 		};
-		friends.push(testFriend);
+		friends = [...friends, testFriend];
 		activeFriendId = testFriend.id;
 		saveFriends();
 		toast("Canal de teste local criado com sucesso!", "success");
@@ -292,6 +339,11 @@
 			return;
 		}
 
+		if (friends.length >= MAX_FRIENDS) {
+			toast(`Máximo de ${MAX_FRIENDS} amigos atingido. Remova algum para adicionar novos.`, "error");
+			return;
+		}
+
 		const newFriend: Friend = {
 			id: String(Date.now()),
 			username: name,
@@ -308,7 +360,7 @@
 			]
 		};
 
-		friends.push(newFriend);
+		friends = [...friends, newFriend];
 		activeFriendId = newFriend.id;
 		newFriendUsername = "";
 		newFriendAddress = "";
@@ -344,13 +396,10 @@
 			time: timeStr
 		};
 
-		activeFriend.messages.push(msg);
-		if (activeFriend.messages.length > 100) {
-			activeFriend.messages.splice(0, activeFriend.messages.length - 100);
-		}
-		friends = [...friends];
+		activeFriend.messages = trimMessages([...activeFriend.messages, msg]);
+		rv++;
 		newMessageText = "";
-		saveFriends();
+		scheduleSave();
 
 		if (activeFriend.id === "echo_local" || activeFriend.address === "127.0.0.1" || activeFriend.address.includes("localhost")) {
 			setTimeout(() => {
@@ -369,12 +418,9 @@
 						text: reply,
 						time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 					};
-					activeFriend.messages.push(replyMsg);
-					if (activeFriend.messages.length > 100) {
-						activeFriend.messages.splice(0, activeFriend.messages.length - 100);
-					}
-					friends = [...friends];
-					saveFriends();
+					activeFriend.messages = trimMessages([...activeFriend.messages, replyMsg]);
+					rv++;
+					scheduleSave();
 				}
 			}, 300);
 			isSending = false;
@@ -442,7 +488,6 @@
 	<div class="w-[340px] shrink-0 bg-[#141518] border border-white/5 rounded-3xl p-4 flex flex-col justify-between shadow-xl h-full min-h-0 overflow-hidden">
 		
 		<div class="space-y-3 flex-1 min-h-0 flex flex-col">
-			<!-- Header & My P2P Address Banner -->
 			<div class="space-y-2 shrink-0">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
@@ -493,7 +538,6 @@
 				</div>
 			</div>
 
-			<!-- Add Friend Modal -->
 			{#if showAddModal}
 				<div class="bg-[#1c1d22] border border-white/20 p-4 rounded-3xl space-y-3 shadow-xl shrink-0" in:fade={{ duration: 150 }}>
 					<span class="text-xs font-black text-white flex items-center gap-1.5">
@@ -519,7 +563,6 @@
 				</div>
 			{/if}
 
-			<!-- Search -->
 			<div class="relative shrink-0">
 				<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/40" />
 				<input 
@@ -530,7 +573,6 @@
 				/>
 			</div>
 
-			<!-- Friends List -->
 			<div class="space-y-1.5 overflow-y-auto flex-1 min-h-0 custom-scrollbar pr-1">
 				{#if filteredFriends.length === 0}
 					<div class="py-10 px-4 text-center">
@@ -552,7 +594,7 @@
 						</button>
 					</div>
 				{:else}
-					{#each filteredFriends as friend}
+					{#each filteredFriends as friend (friend.id)}
 						{@const isSelected = activeFriendId === friend.id}
 						<div 
 							class="w-full p-2.5 rounded-2xl flex items-center justify-between transition-all group cursor-pointer {isSelected ? 'bg-[#222328] border border-white/10' : 'hover:bg-white/5'}"
@@ -599,7 +641,6 @@
 
 		</div>
 
-		<!-- User Identity Card at Bottom -->
 		<div class="pt-3 border-t border-white/5 flex items-center justify-between shrink-0">
 			<div class="flex items-center gap-2.5">
 				<div class="h-9 w-9 rounded-xl bg-black/40 overflow-hidden border border-white/10 flex items-center justify-center font-black text-xs text-white shadow-inner relative">
@@ -629,7 +670,6 @@
 	<div class="flex-1 bg-[#141518] border border-white/5 rounded-3xl flex flex-col justify-between shadow-xl h-full min-h-0 overflow-hidden">
 		
 		{#if activeFriend}
-			<!-- Chat Header -->
 			<div class="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-[#111215]">
 				<div class="flex items-center gap-3">
 					<div class="h-10 w-10 rounded-xl bg-[#1c1d22] border border-white/10 flex items-center justify-center font-black text-sm text-brand-500 overflow-hidden shadow-inner relative">
@@ -668,7 +708,6 @@
 				</div>
 			</div>
 
-			<!-- Quick Invite Modal -->
 			{#if showInviteModal}
 				<div class="p-4 bg-[#18191f] border-b border-white/10 space-y-3" in:fade={{ duration: 150 }}>
 					<div class="flex items-center justify-between">
@@ -699,26 +738,25 @@
 						/>
 					</div>
 
-					<!-- Quick Presets -->
 					<div class="flex items-center justify-between gap-2 pt-1">
 						<div class="flex items-center gap-1.5">
 							<span class="text-[10px] text-white/40 font-bold uppercase">Predefinições:</span>
 							<button 
-								type="button" 
+								type="button"
 								class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white cursor-pointer"
 								onclick={() => { inviteServerName = "MushMC"; inviteServerAddress = "jogar.mush.com.br"; }}
 							>
 								MushMC
 							</button>
 							<button 
-								type="button" 
+								type="button"
 								class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white cursor-pointer"
 								onclick={() => { inviteServerName = "Hypixel Network"; inviteServerAddress = "jogar.redehypixel.net"; }}
 							>
 								Hypixel
 							</button>
 							<button 
-								type="button" 
+								type="button"
 								class="text-[10px] px-2 py-0.5 rounded-md bg-white/5 hover:bg-white/15 text-white/70 hover:text-white cursor-pointer"
 								onclick={() => { inviteServerName = "Mundo LAN Local"; inviteServerAddress = `${localIp}:25565`; }}
 							>
@@ -727,7 +765,7 @@
 						</div>
 
 						<button 
-							type="button" 
+							type="button"
 							class="px-4 py-1.5 rounded-xl font-black text-xs text-black bg-[#caa97c] hover:brightness-110 cursor-pointer shadow-md"
 							onclick={sendGameInvite}
 						>
@@ -737,9 +775,8 @@
 				</div>
 			{/if}
 
-			<!-- Message Feed -->
 			<div bind:this={messagesContainer} class="flex-1 min-h-0 p-6 overflow-y-auto custom-scrollbar space-y-4">
-				{#each activeFriend.messages as msg}
+				{#each activeFriend.messages as msg (msg.id)}
 					<div class="flex flex-col {msg.sender === 'me' ? 'items-end' : 'items-start'}">
 						{#if msg.text.includes("[CONVITE DE PARTIDA]")}
 							<div class="max-w-[85%] rounded-2xl p-4 bg-gradient-to-r from-[#20222a] to-[#18191f] border border-brand-500/30 shadow-lg space-y-2.5">
@@ -752,7 +789,7 @@
 								<p class="text-xs text-white/90 font-medium leading-relaxed">{msg.text.replace("🎮 [CONVITE DE PARTIDA] ", "")}</p>
 								<div class="flex items-center justify-between gap-2 pt-2 border-t border-white/5">
 									<button 
-										type="button" 
+										type="button"
 										class="text-[11px] font-bold text-black bg-[#caa97c] hover:brightness-110 px-3 py-1 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-sm"
 										onclick={() => {
 											const match = msg.text.match(/Endereço:\s*([^\s]+)/i);
@@ -781,7 +818,6 @@
 				{/each}
 			</div>
 
-			<!-- Message Input Bar -->
 			<div class="p-4 border-t border-white/5 bg-[#111215]">
 				<form 
 					class="flex items-center gap-2"

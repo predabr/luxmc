@@ -30,20 +30,20 @@ const DEFAULT_SECTIONS: LayoutSectionItem[] = [
 		width: "full"
 	},
 	{
-		id: "favoriteServer",
-		title: "Servidor Favorito & Ping",
-		description: "Monitor em tempo real do seu servidor com ping, jogadores e entrada rápida",
-		enabled: true,
-		icon: "signal",
-		width: "half"
-	},
-	{
 		id: "curatedPacks",
 		title: "Modpacks Recomendados",
 		description: "Coleções em destaque prontas para baixar e jogar",
 		enabled: true,
 		icon: "package",
 		width: "full"
+	},
+	{
+		id: "favoriteServer",
+		title: "Servidor Favorito & Ping",
+		description: "Monitor em tempo real do seu servidor com ping, jogadores e entrada rápida",
+		enabled: true,
+		icon: "signal",
+		width: "half"
 	},
 	{
 		id: "gamingStats",
