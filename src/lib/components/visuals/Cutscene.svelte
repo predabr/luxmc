@@ -1,66 +1,93 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { appInit, getSystemSpecs, instancesList } from "$lib/api";
+	import {
+		appInit,
+		getSystemSpecs,
+		instancesList,
+		discordSetActivity,
+		optimizerTrimMemory
+	} from "$lib/api";
+	import { account } from "$lib/stores/account.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
 
 	let { onComplete = () => {} }: { onComplete?: () => void } = $props();
 
 	let visible = $state(true);
 	let fadeOut = $state(false);
-	let progress = $state(10);
+	let progress = $state(0);
 	let statusText = $state("Inicializando subsistemas...");
 	let completed = false;
+	let skipped = false;
+	let stageIndex = $state(0);
+
+	const stages = [
+		{ label: "Detectando hardware e versões do Java...", target: 25 },
+		{ label: "Sincronizando instâncias e perfis locais...", target: 55 },
+		{ label: "Autenticando sessão e pré-carregando skins...", target: 80 },
+		{ label: "Inicializando Discord RPC e otimizando memória...", target: 95 },
+		{ label: "Pronto para jogar!", target: 100 }
+	];
+
+	let particles = $state<Array<{ x: number; y: number; size: number; delay: number; duration: number; opacity: number }>>([]);
+
+	function generateParticles() {
+		const arr: typeof particles = [];
+		for (let i = 0; i < 40; i++) {
+			arr.push({
+				x: Math.random() * 100,
+				y: Math.random() * 100,
+				size: Math.random() * 3 + 1,
+				delay: Math.random() * 5,
+				duration: Math.random() * 4 + 3,
+				opacity: Math.random() * 0.4 + 0.1
+			});
+		}
+		particles = arr;
+	}
 
 	function playHarmonicChime() {
 		try {
 			const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
 			if (!AudioContextClass) return;
 			const ctx = new AudioContextClass();
-			if (ctx.state === "suspended") {
-				void ctx.resume();
-			}
+			if (ctx.state === "suspended") void ctx.resume();
 			const now = ctx.currentTime;
 
 			const harmonics = [
-				{ freq: 528, gain: 0.25, decay: 1.5 },
-				{ freq: 660, gain: 0.18, decay: 1.3 },
-				{ freq: 792, gain: 0.14, decay: 1.1 },
-				{ freq: 1056, gain: 0.10, decay: 0.9 }
+				{ freq: 528, gain: 0.22, decay: 1.6 },
+				{ freq: 660, gain: 0.16, decay: 1.4 },
+				{ freq: 792, gain: 0.12, decay: 1.2 },
+				{ freq: 1056, gain: 0.08, decay: 1.0 },
+				{ freq: 1320, gain: 0.05, decay: 0.8 }
 			];
 
 			const masterGain = ctx.createGain();
-			masterGain.gain.setValueAtTime(0.7, now);
+			masterGain.gain.setValueAtTime(0.6, now);
 			masterGain.connect(ctx.destination);
 
-			harmonics.forEach(({ freq, gain, decay }) => {
+			harmonics.forEach(({ freq, gain, decay }, i) => {
 				const osc = ctx.createOscillator();
 				const noteGain = ctx.createGain();
-
 				osc.type = "sine";
-				osc.frequency.setValueAtTime(freq, now);
-
-				noteGain.gain.setValueAtTime(0.0001, now);
-				noteGain.gain.exponentialRampToValueAtTime(gain, now + 0.03);
-				noteGain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
-
+				osc.frequency.setValueAtTime(freq, now + i * 0.04);
+				noteGain.gain.setValueAtTime(0.0001, now + i * 0.04);
+				noteGain.gain.exponentialRampToValueAtTime(gain, now + i * 0.04 + 0.04);
+				noteGain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.04 + decay);
 				osc.connect(noteGain);
 				noteGain.connect(masterGain);
-
-				osc.start(now);
-				osc.stop(now + decay + 0.05);
+				osc.start(now + i * 0.04);
+				osc.stop(now + i * 0.04 + decay + 0.05);
 			});
 
-			setTimeout(() => {
-				try { ctx.close(); } catch {}
-			}, 2000);
-		} catch {
-		}
+			setTimeout(() => { try { ctx.close(); } catch {} }, 2500);
+		} catch {}
 	}
 
 	function finish() {
 		if (completed) return;
 		completed = true;
 		progress = 100;
-		statusText = "Pronto!";
+		statusText = "Pronto para jogar!";
 		playHarmonicChime();
 		fadeOut = true;
 		setTimeout(() => {
@@ -69,92 +96,224 @@
 		}, 450);
 	}
 
-	async function warmup() {
-		const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-		await sleep(200);
-		progress = 30;
-		statusText = "Carregando configurações e perfis...";
-
-		await sleep(200);
-		progress = 65;
-		statusText = "Identificando recursos do sistema...";
-
-		await sleep(200);
-		progress = 90;
-		statusText = "Sincronizando instâncias...";
-
-		await sleep(150);
-		progress = 100;
-		statusText = "Pronto para jogar!";
-		await sleep(180);
-		finish();
+	function updateStage(idx: number) {
+		if (skipped || completed) return;
+		stageIndex = idx;
+		statusText = stages[idx].label;
+		progress = stages[idx].target;
 	}
 
+	async function warmup() {
+		try { await appInit().catch(() => {}); } catch {}
+
+		const hardwarePromise = (async () => {
+			updateStage(0);
+			try {
+				await getSystemSpecs().catch(() => null);
+				await import("$lib/api").then(m => (m as any).javaScan?.()).catch(() => null);
+			} catch {}
+		})();
+
+		const instancesPromise = (async () => {
+			await hardwarePromise;
+			if (skipped || completed) return;
+			updateStage(1);
+			try {
+				await instancesList().catch(() => null);
+			} catch {}
+		})();
+
+		const authPromise = (async () => {
+			await instancesPromise;
+			if (skipped || completed) return;
+			updateStage(2);
+			try {
+				const acc = account.value;
+				if (acc?.skinUrl || acc?.username) {
+					const username = acc.username || "Steve";
+					const skinUrl = acc.skinUrl || `https://minotar.net/skin/${username}`;
+					const avatarUrl = `https://mc-heads.net/avatar/${username}/100`;
+					const bodyUrl = `https://mc-heads.net/body/${username}/300`;
+					activeSkinStore.setSkin({
+						id: acc.uuid || username,
+						name: username,
+						url: bodyUrl,
+						skinUrl,
+						avatarUrl,
+						type: "steve"
+					});
+					const img = new Image();
+					img.src = avatarUrl;
+				}
+			} catch {}
+		})();
+
+		const discordPromise = (async () => {
+			await authPromise;
+			if (skipped || completed) return;
+			updateStage(3);
+			try {
+				await discordSetActivity({
+					details: "No Launcher",
+					state: "Explorando o Luxmc",
+					largeImage: "luxmc_logo",
+					smallText: "Luxmc v1.7.1",
+					startTime: Math.floor(Date.now() / 1000)
+				}).catch(() => {});
+				optimizerTrimMemory().catch(() => {});
+			} catch {}
+		})();
+
+		await discordPromise;
+
+		if (!skipped && !completed) {
+			updateStage(4);
+			await new Promise(r => setTimeout(r, 350));
+			finish();
+		}
+	}
+
+	let keyHandler: ((e: KeyboardEvent) => void) | null = null;
+
 	onMount(() => {
+		generateParticles();
 		warmup();
 
-		const keyHandler = (e: KeyboardEvent) => {
+		keyHandler = (e: KeyboardEvent) => {
 			if (e.key === " " || e.key === "Enter" || e.key === "Escape") {
+				skipped = true;
 				finish();
 			}
 		};
-		window.addEventListener("keydown", keyHandler);
 
+		window.addEventListener("keydown", keyHandler);
 		return () => {
-			window.removeEventListener("keydown", keyHandler);
+			if (keyHandler) window.removeEventListener("keydown", keyHandler);
 		};
 	});
+
+	const circumference = 2 * Math.PI * 42;
+	const strokeDashoffset = $derived(circumference - (progress / 100) * circumference);
 </script>
 
 {#if visible}
 	<div
-		class="fixed inset-0 z-[99999] bg-[#0c0d11] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-500 ease-out cursor-pointer"
+		class="fixed inset-0 z-[99999] bg-[#08090c] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-500 ease-out cursor-pointer"
 		class:opacity-0={fadeOut}
-		class:scale-105={fadeOut}
+		class:scale-[1.03]={fadeOut}
 		class:pointer-events-none={fadeOut}
-		onclick={finish}
-		onkeydown={(e) => { if (e.key === " " || e.key === "Enter" || e.key === "Escape") finish(); }}
+		onclick={() => { skipped = true; finish(); }}
+		onkeydown={(e) => { if (e.key === " " || e.key === "Enter" || e.key === "Escape") { skipped = true; finish(); } }}
 		role="presentation"
 		tabindex="-1"
 	>
-		<div class="absolute w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle,rgba(202,169,124,0.18)_0%,transparent_70%)] pointer-events-none"></div>
-		<div class="absolute w-[350px] h-[350px] rounded-full bg-[radial-gradient(circle,rgba(108,92,231,0.15)_0%,transparent_70%)] pointer-events-none translate-y-16"></div>
+		{#each particles as p (p.x + p.y)}
+			<div
+				class="absolute rounded-full bg-[#caa97c] pointer-events-none animate-[particleFloat_var(--dur)_ease-in-out_infinite]"
+				style="left:{p.x}%;top:{p.y}%;width:{p.size}px;height:{p.size}px;opacity:{p.opacity};--dur:{p.duration}s;animation-delay:{p.delay}s;"
+			></div>
+		{/each}
 
-				<div class="relative flex flex-col items-center z-10">
-						<div class="relative group">
-				<div class="absolute inset-0 bg-[#caa97c]/20 rounded-3xl blur-2xl transform scale-110"></div>
-				<div class="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-black/40 border border-white/10 p-4 flex items-center justify-center backdrop-blur-md shadow-2xl relative">
+		<div class="absolute w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(202,169,124,0.12)_0%,transparent_70%)] pointer-events-none animate-[orbPulse_6s_ease-in-out_infinite]"></div>
+		<div class="absolute w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(108,92,231,0.10)_0%,transparent_70%)] pointer-events-none translate-y-12 animate-[orbPulse_8s_ease-in-out_infinite_reverse]"></div>
+		<div class="absolute w-[300px] h-[300px] rounded-full bg-[radial-gradient(circle,rgba(202,169,124,0.06)_0%,transparent_60%)] pointer-events-none -translate-y-20 animate-[orbPulse_5s_ease-in-out_infinite]"></div>
+
+		<div class="relative flex flex-col items-center z-10">
+			<div class="relative group">
+				<div class="absolute inset-0 bg-[#caa97c]/15 rounded-[2rem] blur-3xl transform scale-125 animate-[logoGlow_4s_ease-in-out_infinite]"></div>
+				<div class="w-32 h-32 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-[#0e0f13] to-[#08090c] border border-white/[0.08] p-5 flex items-center justify-center backdrop-blur-xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] relative overflow-hidden group-hover:scale-105 transition-transform duration-700">
+					<div class="absolute inset-0 bg-gradient-to-br from-[#caa97c]/10 via-transparent to-[#6c5ce7]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
 					<img
 						src="/logo.png"
 						alt="Luxmc Logo"
-						class="w-full h-full object-contain drop-shadow-[0_0_25px_rgba(202,169,124,0.45)]"
+						class="w-full h-full object-contain drop-shadow-[0_0_32px_rgba(202,169,124,0.4)] relative z-10"
 					/>
 				</div>
 			</div>
 
-						<div class="mt-6 text-center">
-				<h1 class="text-2xl sm:text-3xl font-black text-white tracking-wider">LUXMC</h1>
-				<p class="text-xs font-semibold tracking-widest text-[#caa97c] uppercase mt-1">Minecraft Launcher</p>
+			<div class="mt-7 text-center">
+				<h1 class="text-3xl sm:text-4xl font-black text-white tracking-[0.2em] bg-gradient-to-r from-white via-white/90 to-white/70 bg-clip-text text-transparent">LUXMC</h1>
+				<p class="text-[11px] font-bold tracking-[0.3em] text-[#caa97c]/80 uppercase mt-1.5">Minecraft Launcher</p>
 			</div>
 
-						<div class="w-72 sm:w-80 mt-8 space-y-2">
-				<div class="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5 shadow-inner">
+			<div class="relative mt-10">
+				<svg class="w-28 h-28 sm:w-32 sm:h-32 -rotate-90" viewBox="0 0 100 100">
+					<circle
+						cx="50" cy="50" r="42"
+						fill="none"
+						stroke="rgba(255,255,255,0.04)"
+						stroke-width="3"
+					/>
+					<circle
+						cx="50" cy="50" r="42"
+						fill="none"
+						stroke="url(#progressGradient)"
+						stroke-width="3"
+						stroke-linecap="round"
+						stroke-dasharray={circumference}
+						stroke-dashoffset={strokeDashoffset}
+						class="transition-all duration-700 ease-out"
+						style="filter: drop-shadow(0 0 8px rgba(202,169,124,0.4));"
+					/>
+					<defs>
+						<linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+							<stop offset="0%" stop-color="#caa97c" />
+							<stop offset="50%" stop-color="#e2b86b" />
+							<stop offset="100%" stop-color="#6c5ce7" />
+						</linearGradient>
+					</defs>
+				</svg>
+				<div class="absolute inset-0 flex items-center justify-center">
+					<span class="text-lg font-black text-white/90">{Math.round(progress)}%</span>
+				</div>
+			</div>
+
+			<div class="w-72 sm:w-80 mt-6 space-y-2.5">
+				<div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden border border-white/[0.06] p-px shadow-inner">
 					<div
-						class="h-full bg-gradient-to-r from-[#caa97c] via-[#e2b86b] to-[#6c5ce7] rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(202,169,124,0.4)]"
+						class="h-full bg-gradient-to-r from-[#caa97c] via-[#e2b86b] to-[#6c5ce7] rounded-full transition-all duration-700 ease-out relative"
 						style="width: {progress}%"
-					></div>
+					>
+						<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_ease-in-out_infinite]"></div>
+					</div>
 				</div>
 
 				<div class="flex items-center justify-between text-[11px] font-medium px-0.5">
-					<span class="text-white/60 truncate mr-2">{statusText}</span>
-					<span class="text-[#caa97c] font-bold shrink-0">{Math.round(progress)}%</span>
+					<span class="text-white/50 truncate mr-2 transition-all duration-300">{statusText}</span>
+					<span class="text-[#caa97c]/80 font-bold shrink-0 tabular-nums">{Math.round(progress)}%</span>
+				</div>
+
+				<div class="flex items-center gap-1.5 pt-1">
+					{#each stages as _, i}
+						<div class="h-0.5 flex-1 rounded-full transition-all duration-500 {i < stageIndex ? 'bg-[#caa97c]/60' : i === stageIndex ? 'bg-[#caa97c]/30' : 'bg-white/[0.04]'}"></div>
+					{/each}
 				</div>
 			</div>
 
-			<p class="text-[10px] text-white/30 mt-8 hover:text-white/50 transition-colors">
+			<p class="text-[10px] text-white/20 mt-8 hover:text-white/40 transition-colors duration-300 tracking-wider">
 				Clique ou pressione Espaço para pular
 			</p>
 		</div>
 	</div>
 {/if}
+
+<style>
+	@keyframes particleFloat {
+		0%, 100% { transform: translateY(0) translateX(0); opacity: var(--tw-opacity, 0.2); }
+		25% { transform: translateY(-20px) translateX(10px); opacity: 0.4; }
+		50% { transform: translateY(-40px) translateX(-5px); opacity: 0.15; }
+		75% { transform: translateY(-20px) translateX(-10px); opacity: 0.35; }
+	}
+	@keyframes orbPulse {
+		0%, 100% { transform: scale(1); opacity: 1; }
+		50% { transform: scale(1.15); opacity: 0.7; }
+	}
+	@keyframes logoGlow {
+		0%, 100% { opacity: 0.15; transform: scale(1.25); }
+		50% { opacity: 0.25; transform: scale(1.35); }
+	}
+	@keyframes shimmer {
+		0% { transform: translateX(-100%); }
+		100% { transform: translateX(200%); }
+	}
+</style>
