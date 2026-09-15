@@ -243,7 +243,7 @@
 	{:else if loading && screenshots.length === 0}
 		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
 			{#each Array(8) as _}
-				<div class="aspect-video w-full animate-pulse rounded-2xl bg-white/5 luxmc-glass border border-white/5"></div>
+				<div class="aspect-video w-full animate-pulse rounded-2xl bg-white/5 luxmc-glass border border-white/[0.06]"></div>
 			{/each}
 		</div>
 	{:else if screenshots.length === 0}
@@ -259,7 +259,7 @@
 			{#each screenshots as s}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div class="group relative overflow-hidden rounded-2xl bg-[#141518] border border-white/5 cursor-zoom-in break-inside-avoid shadow-lg transition-all hover:border-brand-500/30 hover:shadow-brand-500/5" onclick={() => selectedImage = s}>
+				<div class="group relative overflow-hidden rounded-2xl bg-[#111216] border border-white/[0.06] cursor-zoom-in break-inside-avoid shadow-sm transition-all duration-300 hover:border-white/[0.15] hover:shadow-brand-500/5" onclick={() => selectedImage = s}>
 					<img src={s.dataUrl || convertFileSrc(s.path)} alt={s.name} class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 					<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex flex-col justify-end p-4">
 						<p class="text-xs font-bold text-white truncate drop-shadow-md">{s.name}</p>

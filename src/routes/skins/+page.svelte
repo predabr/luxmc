@@ -1001,7 +1001,7 @@
 	<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-6">
 		
 		<!-- Header with Navigation Tabs -->
-		<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-1 border-b border-white/5 pb-4">
+		<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-1 border-b border-white/[0.06] pb-4">
 			<div>
 				<div class="flex items-center gap-3">
 					<h1 class="text-3xl font-extrabold text-white tracking-tight">Personalização</h1>
@@ -1009,13 +1009,13 @@
 						<Box class="w-3.5 h-3.5" /> 3D Volumétrico Real
 					</span>
 				</div>
-				<p class="text-white/50 text-xs mt-0.5">Guarda-roupa 3D, catálogo de 13 capas históricas e marketplace da comunidade Minecraft</p>
+				<p class="text-white/35 text-xs mt-0.5">Guarda-roupa 3D, catálogo de 13 capas históricas e marketplace da comunidade Minecraft</p>
 			</div>
 			
 			<div class="flex items-center gap-2">
 				<Button 
 					variant="secondary" 
-					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
+					class="border-white/[0.06] bg-[#0e0f12] hover:bg-[#282930] hover:border-white/[0.15] text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
 					onclick={() => fileInputEl.click()}
 				>
 					<Upload class="w-3.5 h-3.5 text-amber-400" />
@@ -1024,7 +1024,7 @@
 
 				<Button 
 					variant="secondary" 
-					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
+					class="border-white/[0.06] bg-[#0e0f12] hover:bg-[#282930] hover:border-white/[0.15] text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
 					onclick={() => capeFileInputEl.click()}
 				>
 					<Shield class="w-3.5 h-3.5 text-brand-400" />
@@ -1033,7 +1033,7 @@
 
 				<Button 
 					variant="secondary" 
-					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
+					class="border-white/[0.06] bg-[#0e0f12] hover:bg-[#282930] hover:border-white/[0.15] text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm"
 					onclick={() => setQuickAngle(175)}
 				>
 					<RotateCw class="w-3.5 h-3.5 text-blue-400" />
@@ -1042,7 +1042,7 @@
 
 				<Button 
 					variant="outline" 
-					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm" 
+					class="border-white/[0.06] bg-[#0e0f12] hover:bg-[#282930] hover:border-white/[0.15] text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm" 
 					onclick={() => downloadSkinFile(activeSkinStore.current.name || "skin", activeTextureUrl)}
 				>
 					<Download class="w-3.5 h-3.5 text-emerald-400" />
@@ -1051,7 +1051,7 @@
 				
 				<Button 
 					variant="outline" 
-					class="border-white/10 bg-[#1e1f24] hover:bg-[#282930] hover:border-white/20 text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm" 
+					class="border-white/[0.06] bg-[#0e0f12] hover:bg-[#282930] hover:border-white/[0.15] text-white gap-2 rounded-xl text-xs px-4 py-2 cursor-pointer transition-colors shadow-sm" 
 					onclick={() => toast("Personalização sincronizada com sucesso!", "success")}
 				>
 					<RefreshCw class="w-3.5 h-3.5" />
@@ -1061,7 +1061,7 @@
 		</div>
 
 		<!-- Main 4-Tab Navigator (Guarda-roupa / Acessórios 3D / Capas HD / Marketplace) -->
-		<div class="flex items-center gap-2 bg-[#121316] p-1.5 rounded-2xl border border-white/5 w-fit">
+		<div class="flex items-center gap-2 bg-[#121316] p-1.5 rounded-2xl border border-white/[0.06] w-fit">
 			<button 
 				type="button" 
 				class="flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'wardrobe' ? 'bg-[#caa97c] text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
@@ -1099,20 +1099,20 @@
 		<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start" class:hidden={activeTab === "marketplace"}>
 				
 				<!-- Left Column: 3D Stage & Rig Settings (5 cols) -->
-				<div class="lg:col-span-5 bg-[#18191c] border border-white/5 rounded-3xl p-5 flex flex-col items-center shadow-xl relative overflow-hidden">
+				<div class="lg:col-span-5 bg-[#111216] border border-white/[0.06] rounded-3xl p-5 flex flex-col items-center shadow-sm relative overflow-hidden">
 					<!-- Top Rig Quick-Toggles -->
-					<div class="w-full flex items-center justify-between pb-3 border-b border-white/5">
-						<div class="flex items-center gap-1.5 bg-[#121316] p-1 rounded-xl border border-white/5">
+					<div class="w-full flex items-center justify-between pb-3 border-b border-white/[0.06]">
+						<div class="flex items-center gap-1.5 bg-[#121316] p-1 rounded-xl border border-white/[0.06]">
 							<button 
 								type="button" 
-								class="px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {!isSlimModel ? 'bg-[#caa97c] text-black shadow-sm' : 'text-white/50 hover:text-white'}"
+								class="px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {!isSlimModel ? 'bg-[#caa97c] text-black shadow-sm' : 'text-white/35 hover:text-white'}"
 								onclick={() => setModelType(false)}
 							>
 								Classic (4px)
 							</button>
 							<button 
 								type="button" 
-								class="px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {isSlimModel ? 'bg-[#caa97c] text-black shadow-sm' : 'text-white/50 hover:text-white'}"
+								class="px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {isSlimModel ? 'bg-[#caa97c] text-black shadow-sm' : 'text-white/35 hover:text-white'}"
 								onclick={() => setModelType(true)}
 							>
 								Slim (3px)
@@ -1121,7 +1121,7 @@
 
 						<button 
 							type="button" 
-							class="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold border border-white/10 transition-colors cursor-pointer {autoRotate ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-white/5 text-white/60 hover:bg-white/10'}"
+							class="flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-semibold border border-white/[0.06] transition-colors cursor-pointer {autoRotate ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' : 'bg-white/5 text-white/60 hover:bg-white/10'}"
 							onclick={() => autoRotate = !autoRotate}
 						>
 							<RotateCw class="w-3 h-3 {autoRotate ? 'animate-spin' : ''}" />
@@ -1150,7 +1150,7 @@
 						<div class="absolute bottom-3 right-3 flex flex-col gap-1.5 z-20">
 							<button 
 								type="button" 
-								class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/10 flex items-center justify-center text-sm font-bold transition-all shadow-lg active:scale-95 cursor-pointer"
+								class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/[0.06] flex items-center justify-center text-sm font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
 								onclick={() => skinViewerRef?.zoomIn?.()}
 								title="Aproximar (Zoom +)"
 							>
@@ -1158,7 +1158,7 @@
 							</button>
 							<button 
 								type="button" 
-								class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/10 flex items-center justify-center text-sm font-bold transition-all shadow-lg active:scale-95 cursor-pointer"
+								class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/[0.06] flex items-center justify-center text-sm font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
 								onclick={() => skinViewerRef?.zoomOut?.()}
 								title="Afastar (Zoom -)"
 							>
@@ -1166,7 +1166,7 @@
 							</button>
 							<button 
 								type="button" 
-								class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/10 flex items-center justify-center text-xs font-bold transition-all shadow-lg active:scale-95 cursor-pointer"
+								class="w-8 h-8 rounded-xl bg-black/60 hover:bg-[#caa97c] hover:text-black text-white/80 border border-white/[0.06] flex items-center justify-center text-xs font-bold transition-all shadow-sm active:scale-95 cursor-pointer"
 								onclick={() => skinViewerRef?.resetView?.()}
 								title="Restaurar Visão Padrão"
 							>
@@ -1176,7 +1176,7 @@
 					</div>
 
 					<!-- Quick Angle Controls & Model Type -->
-					<div class="w-full flex items-center justify-between gap-2 z-10 pt-2 border-t border-white/5">
+					<div class="w-full flex items-center justify-between gap-2 z-10 pt-2 border-t border-white/[0.06]">
 						<div class="flex items-center gap-1.5">
 							<button type="button" class="px-2.5 py-1 rounded-lg bg-[#222328] hover:bg-[#2e2f38] text-[10px] font-semibold text-white/70 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(0)}>Frente</button>
 							<button type="button" class="px-2.5 py-1 rounded-lg bg-[#222328] hover:bg-[#2e2f38] text-[10px] font-semibold text-white/70 hover:text-white transition-all cursor-pointer" onclick={() => setQuickAngle(90)}>Lado D</button>
@@ -1185,17 +1185,17 @@
 						</div>
 
 						<!-- Steve (4px) vs Alex (3px) Toggle -->
-						<div class="flex items-center bg-[#141518] p-0.5 rounded-xl border border-white/5">
+						<div class="flex items-center bg-[#141518] p-0.5 rounded-xl border border-white/[0.06]">
 							<button 
 								type="button" 
-								class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {!isSlimModel ? 'bg-[#2e2f38] text-white font-bold shadow-sm' : 'text-white/40 hover:text-white'}"
+								class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {!isSlimModel ? 'bg-[#2e2f38] text-white font-bold shadow-sm' : 'text-white/35 hover:text-white'}"
 								onclick={() => { isSlimModel = false; activeSkinStore.setSkin({ type: 'steve' }); }}
 							>
 								Steve (4px)
 							</button>
 							<button 
 								type="button" 
-								class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {isSlimModel ? 'bg-[#2e2f38] text-white font-bold shadow-sm' : 'text-white/40 hover:text-white'}"
+								class="px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all cursor-pointer {isSlimModel ? 'bg-[#2e2f38] text-white font-bold shadow-sm' : 'text-white/35 hover:text-white'}"
 								onclick={() => { isSlimModel = true; activeSkinStore.setSkin({ type: 'alex' }); }}
 							>
 								Alex (3px)
@@ -1204,12 +1204,12 @@
 					</div>
 
 					<!-- Quick Cape Strip -->
-					<div class="w-full mt-3 p-2.5 bg-[#141518] rounded-2xl border border-white/5 flex items-center justify-between">
-						<span class="text-[10px] font-bold text-white/50 uppercase flex items-center gap-1">
+					<div class="w-full mt-3 p-2.5 bg-[#141518] rounded-2xl border border-white/[0.06] flex items-center justify-between">
+						<span class="text-[10px] font-bold text-white/35 uppercase flex items-center gap-1">
 							<Shield class="w-3.5 h-3.5 text-amber-400" /> Capa Ativa
 						</span>
 						<div class="flex items-center gap-1.5">
-							<span class="text-xs font-bold text-white capitalize bg-white/5 px-2.5 py-1 rounded-xl border border-white/5">
+							<span class="text-xs font-bold text-white capitalize bg-white/5 px-2.5 py-1 rounded-xl border border-white/[0.06]">
 								{selectedCape === "none" ? "Sem capa" : selectedCape}
 							</span>
 							<button 
@@ -1228,7 +1228,7 @@
 				<div class="lg:col-span-7 flex flex-col gap-6" class:hidden={activeTab !== "wardrobe"}>
 					
 					<!-- NameMC Integration Card -->
-					<div class="bg-gradient-to-r from-[#18191c] via-[#1c1d22] to-[#18191c] border border-white/10 rounded-3xl p-5 shadow-lg space-y-3 relative overflow-hidden">
+					<div class="bg-gradient-to-r from-[#18191c] via-[#1c1d22] to-[#18191c] border border-white/[0.06] rounded-3xl p-5 shadow-sm space-y-3 relative overflow-hidden">
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2.5">
 								<div class="h-8 w-8 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500">
@@ -1239,7 +1239,7 @@
 										Importador NameMC Skins
 										<span class="bg-brand-500/20 text-brand-500 text-[9px] font-black px-2 py-0.5 rounded-full border border-brand-500/30">API ATIVA</span>
 									</h3>
-									<p class="text-[10px] text-white/50">Carregue qualquer skin do mundo pelo Nickname do jogador</p>
+									<p class="text-[10px] text-white/35">Carregue qualquer skin do mundo pelo Nickname do jogador</p>
 								</div>
 							</div>
 
@@ -1255,12 +1255,12 @@
 
 						<div class="flex items-center gap-2">
 							<div class="relative flex-1">
-								<Search class="w-4 h-4 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
+								<Search class="w-4 h-4 text-white/35 absolute left-3.5 top-1/2 -translate-y-1/2" />
 								<input 
 									type="text" 
 									placeholder="Digite o nick no NameMC (ex: Dream, Techno, Felps, Authentic)..." 
 									bind:value={nameMcQuery}
-									class="w-full bg-[#121316] border border-white/10 rounded-full pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none focus:border-brand-500 transition-colors"
+									class="w-full bg-[#121316] border border-white/[0.06] rounded-full pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none focus:border-brand-500 transition-colors"
 									onkeydown={(e) => { if (e.key === "Enter") fetchNameMcSkin(); }}
 								/>
 							</div>
@@ -1285,7 +1285,7 @@
 						<div class="flex items-center justify-between mb-3">
 							<div class="flex items-center gap-2">
 								<h3 class="text-sm font-bold text-white">Skins Salvas & Customizadas</h3>
-								<span class="text-xs text-white/40 font-medium">({savedSkins.length})</span>
+								<span class="text-xs text-white/35 font-medium">({savedSkins.length})</span>
 							</div>
 							<span class="text-[11px] text-brand-500 font-medium flex items-center gap-1">
 								<Sparkles class="w-3 h-3" /> Sincronização em Tempo Real
@@ -1296,7 +1296,7 @@
 							<!-- Add Custom Skin Button -->
 							<button 
 								type="button" 
-								class="h-36 border-2 border-dashed border-white/10 hover:border-brand-500/70 rounded-2xl flex flex-col items-center justify-center gap-2 text-white/40 hover:text-white transition-all bg-[#18191c]/50 hover:bg-[#18191c] group shadow-sm cursor-pointer"
+								class="h-36 border-2 border-dashed border-white/[0.06] hover:border-brand-500/70 rounded-2xl flex flex-col items-center justify-center gap-2 text-white/35 hover:text-white transition-all bg-[#111216]/50 hover:bg-[#111216] group shadow-sm cursor-pointer"
 								onclick={() => fileInputEl.click()}
 							>
 								<div class="h-9 w-9 rounded-xl bg-white/5 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -1309,7 +1309,7 @@
 							{#each savedSkins as skin}
 								{@const isSelected = activeSkinStore.current.id === skin.id}
 								<div 
-									class="h-36 rounded-2xl bg-[#18191c] border-2 p-3 relative flex flex-col items-center justify-between transition-all group overflow-hidden {isSelected ? 'border-brand-500 bg-[#222328] shadow-[0_0_16px_rgba(226,184,107,0.25)]' : 'border-white/5 hover:border-white/20'}"
+									class="h-36 rounded-2xl bg-[#111216] border-2 p-3 relative flex flex-col items-center justify-between transition-all group overflow-hidden {isSelected ? 'border-brand-500 bg-[#222328] shadow-[0_0_16px_rgba(226,184,107,0.25)]' : 'border-white/[0.06] hover:border-white/[0.15]'}"
 								>
 									{#if isSelected}
 										<div class="absolute top-2.5 right-2.5 w-2.5 h-2.5 rounded-full bg-brand-500 shadow-sm animate-pulse"></div>
@@ -1330,7 +1330,7 @@
 										onclick={() => applySkin(skin)}
 									>
 										<div class="flex-1 flex items-center justify-center">
-											<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/5 shadow-md" loading="lazy" decoding="async" />
+											<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/[0.06] shadow-md" loading="lazy" decoding="async" />
 										</div>
 										<span class="text-xs font-bold text-white/80 group-hover:text-white truncate max-w-[90%]">{skin.name}</span>
 									</button>
@@ -1350,14 +1350,14 @@
 								{@const isSelected = activeSkinStore.current.id === skin.id}
 								<button 
 									type="button" 
-									class="h-36 rounded-2xl bg-[#18191c] border-2 p-3 flex flex-col items-center justify-between transition-all group cursor-pointer {isSelected ? 'border-brand-500 bg-[#222328] shadow-[0_0_12px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20 hover:bg-[#1e1f23]'}"
+									class="h-36 rounded-2xl bg-[#111216] border-2 p-3 flex flex-col items-center justify-between transition-all group cursor-pointer {isSelected ? 'border-brand-500 bg-[#222328] shadow-[0_0_12px_rgba(226,184,107,0.2)]' : 'border-white/[0.06] hover:border-white/[0.15] hover:bg-[#1e1f23]'}"
 									onclick={() => applySkin(skin)}
 								>
 									{#if isSelected}
 										<div class="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-brand-500 shadow-sm animate-pulse"></div>
 									{/if}
 									<div class="flex-1 flex items-center justify-center">
-										<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/5 shadow-md" loading="lazy" decoding="async" />
+										<img src={skin.avatarUrl || skin.url} alt={skin.name} class="h-16 w-16 rounded-xl object-cover group-hover:scale-105 transition-transform border border-white/[0.06] shadow-md" loading="lazy" decoding="async" />
 									</div>
 									<div class="text-center">
 										<span class="text-xs font-bold text-white/70 group-hover:text-white block">{skin.name}</span>
@@ -1373,13 +1373,13 @@
 				<!-- Right Column when activeTab === "capes": Capes Catalog -->
 				<div class="lg:col-span-7 flex flex-col gap-6" class:hidden={activeTab !== "capes"}>
 					<!-- Capes Banner -->
-					<div class="bg-gradient-to-r from-[#1b1c22] via-[#22232a] to-[#1b1c22] border border-white/10 rounded-3xl p-5 shadow-xl relative overflow-hidden flex items-center justify-between gap-4">
+					<div class="bg-gradient-to-r from-[#1b1c22] via-[#22232a] to-[#1b1c22] border border-white/[0.06] rounded-3xl p-5 shadow-sm relative overflow-hidden flex items-center justify-between gap-4">
 						<div class="space-y-1">
 							<div class="flex items-center gap-2">
 								<span class="px-2.5 py-0.5 rounded-full bg-brand-500/20 text-brand-400 text-[10px] font-black uppercase tracking-wider border border-brand-500/30 flex items-center gap-1">
 									<Sparkles class="w-3 h-3" /> Físicas & Volumétricas
 								</span>
-								<span class="text-white/40 text-[11px] font-mono">13 Modelos Incluídos</span>
+								<span class="text-white/35 text-[11px] font-mono">13 Modelos Incluídos</span>
 							</div>
 							<h2 class="text-base font-extrabold text-white">Catálogo Completo de Capas 3D</h2>
 							<p class="text-xs text-white/60 leading-relaxed">
@@ -1413,13 +1413,13 @@
 						{#if savedCapes.length > 0}
 							{#each savedCapes as cape (cape.id)}
 								{@const isCustomEquipped = selectedCape === "custom" && activeSkinStore.current.customCapeUrl === cape.capeUrl}
-								<div class="bg-[#18191c] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isCustomEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
+								<div class="bg-[#111216] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isCustomEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/[0.06] hover:border-white/[0.15]'}">
 									<div class="flex items-center justify-between gap-2 mb-2">
 										<span class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border bg-amber-500/20 text-amber-300 border-amber-500/30">
 											Personalizada
 										</span>
 										<div class="flex items-center gap-1.5">
-											<span class="text-[11px] font-medium text-white/40">Arquivo Local</span>
+											<span class="text-[11px] font-medium text-white/35">Arquivo Local</span>
 											<button
 												type="button"
 												class="p-1 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
@@ -1431,14 +1431,14 @@
 										</div>
 									</div>
 
-									<div class="h-24 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border border-white/10 flex items-center justify-center relative overflow-hidden my-2">
+									<div class="h-24 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border border-white/[0.06] flex items-center justify-center relative overflow-hidden my-2">
 										<div class="flex items-center gap-3 z-10">
-											<div class="w-10 h-16 rounded-md bg-black/50 border border-white/20 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+											<div class="w-10 h-16 rounded-md bg-black/50 border border-white/20 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
 												<img src={cape.capeUrl} alt={cape.name} class="w-full h-full object-contain [image-rendering:pixelated]" />
 											</div>
 											<div>
 												<h4 class="text-xs font-extrabold text-white">{cape.name}</h4>
-												<p class="text-[10px] text-white/50">Salva no Luxmc</p>
+												<p class="text-[10px] text-white/35">Salva no Luxmc</p>
 											</div>
 										</div>
 									</div>
@@ -1447,14 +1447,14 @@
 										Textura de capa personalizada salva localmente no computador.
 									</p>
 
-									<div class="mt-2 pt-2.5 border-t border-white/5 flex items-center justify-between">
+									<div class="mt-2 pt-2.5 border-t border-white/[0.06] flex items-center justify-between">
 										{#if isCustomEquipped}
 											<span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
 												<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Equipada
 											</span>
 											<button 
 												type="button" 
-												class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+												class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/35 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
 												onclick={() => selectCape("none")}
 											>
 												Desequipar
@@ -1480,22 +1480,22 @@
 							{/each}
 						{:else if activeSkinStore.current.customCapeUrl}
 							{@const isCustomEquipped = selectedCape === "custom"}
-							<div class="bg-[#18191c] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isCustomEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
+							<div class="bg-[#111216] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isCustomEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/[0.06] hover:border-white/[0.15]'}">
 								<div class="flex items-center justify-between gap-2 mb-2">
 									<span class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border bg-amber-500/20 text-amber-300 border-amber-500/30">
 										Personalizada
 									</span>
-									<span class="text-[11px] font-medium text-white/40">Arquivo Local</span>
+									<span class="text-[11px] font-medium text-white/35">Arquivo Local</span>
 								</div>
 
-								<div class="h-24 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border border-white/10 flex items-center justify-center relative overflow-hidden my-2">
+								<div class="h-24 rounded-2xl bg-gradient-to-br from-amber-500/20 to-yellow-600/10 border border-white/[0.06] flex items-center justify-center relative overflow-hidden my-2">
 									<div class="flex items-center gap-3 z-10">
-										<div class="w-10 h-16 rounded-md bg-black/50 border border-white/20 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+										<div class="w-10 h-16 rounded-md bg-black/50 border border-white/20 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
 											<img src={activeSkinStore.current.customCapeUrl} alt="Capa Customizada" class="w-full h-full object-contain [image-rendering:pixelated]" />
 										</div>
 										<div>
 											<h4 class="text-xs font-extrabold text-white">Sua Capa Personalizada</h4>
-											<p class="text-[10px] text-white/50">Arquivo PNG importado</p>
+											<p class="text-[10px] text-white/35">Arquivo PNG importado</p>
 										</div>
 									</div>
 								</div>
@@ -1504,14 +1504,14 @@
 									Sua textura de capa importada via arquivo do computador.
 								</p>
 
-								<div class="mt-2 pt-2.5 border-t border-white/5 flex items-center justify-between">
+								<div class="mt-2 pt-2.5 border-t border-white/[0.06] flex items-center justify-between">
 									{#if isCustomEquipped}
 										<span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
 											<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Equipada
 										</span>
 										<button 
 											type="button" 
-											class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+											class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/35 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
 											onclick={() => selectCape("none")}
 										>
 											Desequipar
@@ -1532,17 +1532,17 @@
 
 						{#each capeCatalog as cape}
 							{@const isEquipped = selectedCape === cape.id}
-							<div class="bg-[#18191c] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/5 hover:border-white/20'}">
+							<div class="bg-[#111216] border-2 rounded-3xl p-4 flex flex-col justify-between transition-all group relative overflow-hidden {isEquipped ? 'border-brand-500 bg-[#1f2026] shadow-[0_0_20px_rgba(226,184,107,0.2)]' : 'border-white/[0.06] hover:border-white/[0.15]'}">
 								<div class="flex items-center justify-between gap-2 mb-2">
 									<span class="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border {cape.badgeColor}">
 										{cape.rarity}
 									</span>
-									<span class="text-[11px] font-medium text-white/40">{cape.event}</span>
+									<span class="text-[11px] font-medium text-white/35">{cape.event}</span>
 								</div>
 
-								<div class="h-24 rounded-2xl bg-gradient-to-br {cape.borderGradient} border border-white/10 flex items-center justify-center relative overflow-hidden my-2">
+								<div class="h-24 rounded-2xl bg-gradient-to-br {cape.borderGradient} border border-white/[0.06] flex items-center justify-center relative overflow-hidden my-2">
 									<div class="flex items-center gap-3 z-10">
-										<div class="w-10 h-16 rounded-md bg-black/60 border border-white/20 flex items-center justify-center shadow-lg overflow-hidden shrink-0">
+										<div class="w-10 h-16 rounded-md bg-black/60 border border-white/20 flex items-center justify-center shadow-sm overflow-hidden shrink-0">
 											{#if getCapePreviewDataUrl(cape.id)}
 												<img src={getCapePreviewDataUrl(cape.id)} alt={cape.name} class="w-full h-full object-contain [image-rendering:pixelated]" />
 											{:else}
@@ -1551,7 +1551,7 @@
 										</div>
 										<div>
 											<h4 class="text-xs font-extrabold text-white">{cape.name}</h4>
-											<p class="text-[10px] text-white/50">{cape.event}</p>
+											<p class="text-[10px] text-white/35">{cape.event}</p>
 										</div>
 									</div>
 								</div>
@@ -1560,14 +1560,14 @@
 									{cape.description}
 								</p>
 
-								<div class="mt-2 pt-2.5 border-t border-white/5 flex items-center justify-between">
+								<div class="mt-2 pt-2.5 border-t border-white/[0.06] flex items-center justify-between">
 									{#if isEquipped}
 										<span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
 											<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400" /> Equipada
 										</span>
 										<button 
 											type="button" 
-											class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+											class="px-2.5 py-1 rounded-xl text-xs font-bold text-white/35 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
 											onclick={() => selectCape("none")}
 										>
 											Desequipar
@@ -1598,7 +1598,7 @@
 		{#if activeTab === "marketplace"}
 			<div class="space-y-6">
 				<!-- Filter Categories & Search Bar -->
-				<div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#18191c] p-4 rounded-3xl border border-white/5">
+				<div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-[#111216] p-4 rounded-3xl border border-white/[0.06]">
 					<!-- Category Pills -->
 					<div class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 md:pb-0">
 						{#each [
@@ -1621,12 +1621,12 @@
 
 					<!-- Search input inside Marketplace -->
 					<div class="relative min-w-[240px]">
-						<Search class="w-3.5 h-3.5 text-white/40 absolute left-3.5 top-1/2 -translate-y-1/2" />
+						<Search class="w-3.5 h-3.5 text-white/35 absolute left-3.5 top-1/2 -translate-y-1/2" />
 						<input 
 							type="text" 
 							placeholder="Buscar skin por nome, autor ou tag..." 
 							bind:value={marketplaceSearch}
-							class="w-full bg-[#121316] border border-white/10 rounded-full pl-9 pr-4 py-2 text-xs text-white outline-none focus:border-brand-500 transition-colors"
+							class="w-full bg-[#121316] border border-white/[0.06] rounded-full pl-9 pr-4 py-2 text-xs text-white outline-none focus:border-brand-500 transition-colors"
 						/>
 					</div>
 				</div>
@@ -1634,14 +1634,14 @@
 				<!-- Skins Grid -->
 				<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
 					{#each filteredMarketplaceSkins as skin}
-						<div class="bg-[#18191c] border border-white/5 hover:border-brand-500/40 rounded-3xl p-4 flex flex-col justify-between transition-all group hover:shadow-xl hover:-translate-y-0.5 relative overflow-hidden">
+						<div class="bg-[#111216] border border-white/[0.06] hover:border-brand-500/40 rounded-3xl p-4 flex flex-col justify-between transition-all group hover:shadow-sm hover:-translate-y-0.5 relative overflow-hidden">
 							
 							<!-- Top Badge Row -->
 							<div class="flex items-center justify-between gap-2 mb-3">
 								<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-brand-500/10 text-brand-400 border border-brand-500/20">
 									{skin.categoryLabel}
 								</span>
-								<div class="flex items-center gap-2 text-[11px] text-white/40 font-mono">
+								<div class="flex items-center gap-2 text-[11px] text-white/35 font-mono">
 									<span class="flex items-center gap-1"><Download class="w-3 h-3 text-emerald-400" /> {skin.downloads}</span>
 									<span class="flex items-center gap-1"><Heart class="w-3 h-3 text-rose-400" /> {skin.likes}</span>
 								</div>
@@ -1660,16 +1660,16 @@
 							</div>
 
 							<!-- Info & Action -->
-							<div class="space-y-2 mt-2 pt-3 border-t border-white/5">
+							<div class="space-y-2 mt-2 pt-3 border-t border-white/[0.06]">
 								<div>
 									<h4 class="text-sm font-bold text-white truncate">{skin.name}</h4>
-									<p class="text-[11px] text-white/40">Por <span class="text-white/70 font-medium">{skin.author}</span> • {skin.type === 'alex' ? 'Slim 3px' : 'Classic 4px'}</p>
+									<p class="text-[11px] text-white/35">Por <span class="text-white/70 font-medium">{skin.author}</span> • {skin.type === 'alex' ? 'Slim 3px' : 'Classic 4px'}</p>
 								</div>
 
 								<!-- Tags -->
 								<div class="flex flex-wrap gap-1">
 									{#each skin.tags.slice(0, 3) as tag}
-										<span class="text-[9px] px-2 py-0.5 rounded-md bg-white/5 text-white/50 font-medium">#{tag}</span>
+										<span class="text-[9px] px-2 py-0.5 rounded-md bg-white/5 text-white/35 font-medium">#{tag}</span>
 									{/each}
 								</div>
 
@@ -1685,7 +1685,7 @@
 									</button>
 									<button
 										type="button"
-										class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10 transition-colors cursor-pointer"
+										class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/[0.06] transition-colors cursor-pointer"
 										onclick={() => downloadSkinFile(skin.name, skin.skinUrl)}
 										title="Baixar arquivo .PNG da skin"
 									>

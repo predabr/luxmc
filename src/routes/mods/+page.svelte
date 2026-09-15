@@ -118,7 +118,7 @@
 		html = html.replace(
 			/<iframe[^>]*src=["'](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([\w-]+)[^"']*["'][^>]*>.*?<\/iframe>/gi,
 			(_m, vid) => `
-				<div class="my-5 rounded-2xl overflow-hidden border border-white/10 bg-black/60 shadow-xl max-w-2xl">
+				<div class="my-5 rounded-2xl overflow-hidden border border-white/[0.06] bg-black/60 shadow-xl max-w-2xl">
 					<div class="relative aspect-video w-full group">
 						<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" class="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt="YouTube Preview" loading="lazy" />
 						<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/10 transition-colors">
@@ -127,14 +127,14 @@
 							</div>
 						</a>
 					</div>
-					<div class="p-3 bg-[#18191c] flex items-center justify-between text-xs text-white/70 font-medium">
+					<div class="p-3 bg-[#111216] flex items-center justify-between text-xs text-white/70 font-medium">
 						<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Vídeo de Demonstração (YouTube)</span>
 						<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener" class="text-[#caa97c] hover:underline font-bold">Assistir no Navegador ↗</a>
 					</div>
 				</div>`
 		);
 		html = html.replace(/<video([^>]*)>([\s\S]*?)<\/video>/gi,
-			'<video$1 preload="metadata" controls playsinline class="rounded-xl max-w-full my-3 border border-white/10">$2</video>');
+			'<video$1 preload="metadata" controls playsinline class="rounded-xl max-w-full my-3 border border-white/[0.06]">$2</video>');
 		return html;
 	}
 
@@ -294,20 +294,20 @@
 			onInstallVersion={(verId) => promptInstall(selectedItem!, verId)}
 		>
 			{#if loadingDetails}
-				<div class="bg-[#18191c] border border-white/5 rounded-3xl p-12 flex flex-col items-center justify-center gap-3">
+				<div class="bg-[#111216] border border-white/[0.06] rounded-3xl p-12 flex flex-col items-center justify-center gap-3">
 					<Loader2 class="w-8 h-8 text-[#caa97c] animate-spin" />
-					<p class="text-xs text-white/40 font-medium">Carregando informações completas...</p>
+					<p class="text-xs text-white/35 font-medium">Carregando informações completas...</p>
 				</div>
 			{:else if modDetails}
 				{#if activeDetailTab === 'overview'}
-					<div class="bg-[#18191c] border border-white/5 rounded-3xl p-6 shadow-md overflow-hidden">
+					<div class="bg-[#111216] border border-white/[0.06] rounded-3xl p-6 shadow-sm overflow-hidden">
 						<div class="prose prose-invert max-w-none text-xs text-white/80 leading-relaxed font-sans [&_a]:text-[#caa97c] [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_img]:rounded-xl [&_img]:max-w-full">
 							{@html processDescription(modDetails.body, modDetails.bodyType === 'html')}
 						</div>
 					</div>
 				{:else if activeDetailTab === 'gallery'}
 					{#if modDetails.gallery.length === 0}
-						<div class="bg-[#18191c] border border-white/5 rounded-3xl p-12 text-center text-white/40 text-xs">
+						<div class="bg-[#111216] border border-white/[0.06] rounded-3xl p-12 text-center text-white/35 text-xs">
 							<p>Nenhuma screenshot disponível para este projeto.</p>
 						</div>
 					{:else}
@@ -315,15 +315,15 @@
 							{#each modDetails.gallery as img}
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div class="group relative bg-[#18191c] border border-white/10 rounded-2xl overflow-hidden cursor-pointer hover:border-[#caa97c]/50 transition-all shadow-md" onclick={() => lightboxImage = img}>
+								<div class="group relative bg-[#111216] border border-white/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-[#caa97c]/30 transition-all shadow-sm" onclick={() => lightboxImage = img}>
 									<div class="h-44 w-full bg-[#222328] overflow-hidden">
 										<img src={img.url} alt={img.title || "Screenshot"} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
 									</div>
 									{#if img.title}
-										<div class="p-3 bg-[#18191c]">
+										<div class="p-3 bg-[#111216]">
 											<h4 class="text-xs font-bold text-white truncate">{img.title}</h4>
 											{#if img.description}
-												<p class="text-[10px] text-white/40 line-clamp-1 mt-0.5">{img.description}</p>
+												<p class="text-[10px] text-white/35 line-clamp-1 mt-0.5">{img.description}</p>
 											{/if}
 										</div>
 									{/if}
@@ -345,7 +345,7 @@
 		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-1">
 			<header class="mb-4">
 				<h1 class="text-2xl font-bold text-white tracking-tight">Central de Conteúdo</h1>
-				<p class="text-xs text-white/40 mt-0.5 font-medium">Encontre e Instale modpacks, mods e recursos incríveis</p>
+				<p class="text-xs text-white/35 mt-0.5 font-medium">Encontre e Instale modpacks, mods e recursos incríveis</p>
 			</header>
 
 			<div class="relative w-full mb-4">
@@ -357,7 +357,7 @@
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="text-xs font-extrabold text-white">{selectedType}</span>
-					<span class="text-xs text-white/40 font-medium">({totalEstimate} resultados)</span>
+					<span class="text-xs text-white/35 font-medium">({totalEstimate} resultados)</span>
 					{#if loading}
 						<span class="text-[10px] text-[#a29bfe] font-mono font-medium flex items-center gap-1 ml-2">
 							<Loader2 class="w-3 h-3 animate-spin text-[#6c5ce7]" /> buscando...
@@ -366,13 +366,13 @@
 				</div>
 				<div class="flex items-center gap-2.5">
 					<div class="relative">
-						<button type="button" class="bg-[#181920] border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-xl text-xs font-semibold text-white/80 flex items-center gap-2 transition-all cursor-pointer shadow-sm" onclick={() => sortMenuOpen = !sortMenuOpen}>
+						<button type="button" class="bg-[#181920] border border-white/[0.06] hover:border-white/[0.15] px-3 py-1.5 rounded-xl text-xs font-semibold text-white/80 flex items-center gap-2 transition-all cursor-pointer shadow-sm" onclick={() => sortMenuOpen = !sortMenuOpen}>
 							<span>{currentSortLabel}</span>
-							<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform duration-200 {sortMenuOpen ? 'rotate-180' : ''}" />
+							<ChevronDown class="w-3.5 h-3.5 text-white/35 transition-transform duration-300 {sortMenuOpen ? 'rotate-180' : ''}" />
 						</button>
 						{#if sortMenuOpen}
 							<button type="button" aria-label="Fechar menu" class="fixed inset-0 z-20 cursor-default bg-transparent border-none p-0 outline-none" onclick={() => sortMenuOpen = false}></button>
-							<div class="absolute right-0 mt-1.5 w-52 bg-[#181920] border border-white/10 rounded-xl shadow-2xl py-1 z-30 divide-y divide-white/5">
+							<div class="absolute right-0 mt-1.5 w-52 bg-[#181920] border border-white/[0.06] rounded-xl shadow-2xl py-1 z-30 divide-y divide-white/5">
 								{#each sortOptions as opt}
 									<button type="button" class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer {selectedSort === opt.id ? 'bg-[#6c5ce7]/20 text-[#a29bfe] font-bold' : 'text-white/70 hover:bg-white/5 hover:text-white'}" onclick={() => { selectedSort = opt.id as any; sortMenuOpen = false; }}>
 										<span>{opt.label}</span>
@@ -382,9 +382,9 @@
 							</div>
 						{/if}
 					</div>
-					<div class="flex bg-[#131418] border border-white/10 rounded-xl p-0.5 gap-0.5">
-						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'grid' ? 'bg-[#6c5ce7] text-white shadow-sm' : 'text-white/40 hover:text-white'}" onclick={() => viewMode = 'grid'} title="Grade"><LayoutGrid class="w-3.5 h-3.5" /></button>
-						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'list' ? 'bg-[#6c5ce7] text-white shadow-sm' : 'text-white/40 hover:text-white'}" onclick={() => viewMode = 'list'} title="Lista"><List class="w-3.5 h-3.5" /></button>
+					<div class="flex bg-[#131418] border border-white/[0.06] rounded-xl p-0.5 gap-0.5">
+						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'grid' ? 'bg-[#6c5ce7] text-white shadow-sm' : 'text-white/35 hover:text-white'}" onclick={() => viewMode = 'grid'} title="Grade"><LayoutGrid class="w-3.5 h-3.5" /></button>
+						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'list' ? 'bg-[#6c5ce7] text-white shadow-sm' : 'text-white/35 hover:text-white'}" onclick={() => viewMode = 'list'} title="Lista"><List class="w-3.5 h-3.5" /></button>
 					</div>
 				</div>
 			</div>
@@ -404,14 +404,14 @@
 				<div class="flex-1 flex items-center justify-center py-20">
 					<div class="flex flex-col items-center gap-3">
 						<Loader2 class="w-8 h-8 text-[#6c5ce7] animate-spin" />
-						<p class="text-xs text-white/40 font-medium">Buscando em Modrinth e CurseForge...</p>
+						<p class="text-xs text-white/35 font-medium">Buscando em Modrinth e CurseForge...</p>
 					</div>
 				</div>
 			{:else if results.length === 0 && hasSearched}
 				<div class="flex-1 flex items-center justify-center py-20">
 					<div class="flex flex-col items-center gap-3">
 						<Search class="w-8 h-8 text-white/20" />
-						<p class="text-xs text-white/40 font-medium">Nenhum resultado encontrado</p>
+						<p class="text-xs text-white/35 font-medium">Nenhum resultado encontrado</p>
 						<p class="text-[10px] text-white/30">Tente outro termo ou altere os filtros</p>
 					</div>
 				</div>
@@ -433,22 +433,22 @@
 				{/if}
 
 				{#if results.length > 0}
-					<div class="flex items-center justify-between pt-3 pb-8 border-t border-white/5">
-						<div class="text-xs text-white/50 font-medium">
+					<div class="flex items-center justify-between pt-3 pb-8 border-t border-white/[0.06]">
+						<div class="text-xs text-white/35 font-medium">
 							Mostrando <span class="text-white font-bold">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalEstimateNumber)}</span> de <span class="text-white font-bold">{totalEstimate}</span>
 						</div>
 						<div class="flex items-center gap-1 text-xs">
-							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
+							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-white/35 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
 							{#each [1, 2, 3, 4] as p}
 								{#if totalPages >= p}
-									<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === p ? 'bg-[#282935] text-white border border-white/10 shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}" onclick={() => goToPage(p)}>{p}</button>
+									<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === p ? 'bg-[#282935] text-white border border-white/[0.06] shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}" onclick={() => goToPage(p)}>{p}</button>
 								{/if}
 							{/each}
 							{#if totalPages > 5}
-								<span class="px-1 text-white/40">...</span>
-								<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === totalPages ? 'bg-[#282935] text-white border border-white/10 shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
+								<span class="px-1 text-white/35">...</span>
+								<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === totalPages ? 'bg-[#282935] text-white border border-white/[0.06] shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
 							{/if}
-							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
+							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-white/35 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
 						</div>
 					</div>
 				{/if}

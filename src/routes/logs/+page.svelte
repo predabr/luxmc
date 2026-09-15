@@ -158,7 +158,7 @@
 		</div>
 	</div>
 
-	<div class="flex flex-1 flex-col overflow-hidden bg-[#141518] border border-white/5 rounded-3xl p-5 shadow-xl">
+	<div class="flex flex-1 flex-col overflow-hidden bg-[#111216] border border-white/[0.06] rounded-3xl p-5 shadow-sm">
 		<div class="mb-3 flex flex-col gap-3">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2">
@@ -166,7 +166,7 @@
 						<Terminal class="h-4 w-4" />
 					</div>
 					<span class="text-sm font-bold text-white/90">{t("logs.gameOutput")}</span>
-					<span class="text-xs font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded-full">{t("logs.linesCount", { count: filteredEntries.length })}</span>
+					<span class="text-xs font-mono text-white/35 bg-white/5 px-2 py-0.5 rounded-full">{t("logs.linesCount", { count: filteredEntries.length })}</span>
 				</div>
 			</div>
 
@@ -203,7 +203,7 @@
 
 		<div
 			bind:this={logContainer}
-			class="flex-1 overflow-y-auto rounded-2xl p-4 font-mono text-xs leading-relaxed bg-[#0c0d0f] border border-white/5 custom-scrollbar select-text shadow-inner"
+			class="flex-1 overflow-y-auto rounded-2xl p-4 font-mono text-xs leading-relaxed bg-[#0e0f12] border border-white/[0.06] custom-scrollbar select-text shadow-inner"
 			onscroll={(e) => {
 				const el = e.currentTarget;
 				const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
@@ -225,7 +225,7 @@
 			{/each}
 		</div>
 
-		<div class="mt-3 flex items-center justify-between border-t border-white/5 pt-3 text-[11px] text-white/40">
+		<div class="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[11px] text-white/35">
 			<div class="flex items-center gap-3">
 				<span>{t("logs.linesCountPlain", { count: filteredEntries.length })}</span>
 				{#if searchQuery.trim()}

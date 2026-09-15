@@ -279,7 +279,7 @@
 <div class="flex gap-6 h-full w-full select-none">
 
 	<!-- Left Categories Sidebar -->
-	<div class="w-[260px] shrink-0 bg-[#141518] border border-white/5 rounded-3xl p-4 flex flex-col justify-between shadow-xl">
+	<div class="w-[260px] shrink-0 bg-[#111216] border border-white/[0.06] rounded-3xl p-4 flex flex-col justify-between shadow-xl">
 		<div class="space-y-4">
 			<div class="px-3">
 				<h2 class="text-base font-extrabold text-white">Configurações</h2>
@@ -311,20 +311,20 @@
 		</div>
 
 		<!-- Bottom Brand Details matching Reference Image 4 -->
-		<div class="px-3 pt-3 text-[10px] text-white/30 font-medium leading-relaxed border-t border-white/5">
+		<div class="px-3 pt-3 text-[10px] text-white/30 font-medium leading-relaxed border-t border-white/[0.06]">
 			<div class="text-white/60 font-bold">Luxmc {systemSpecs.launcherVersion}</div>
 			<div>{systemSpecs.osDistro} · x86_64</div>
 		</div>
 	</div>
 
 	<!-- Right Main Settings Panel -->
-	<div class="flex-1 bg-[#141518] border border-white/5 rounded-3xl p-7 flex flex-col justify-between shadow-xl overflow-y-auto custom-scrollbar relative">
+	<div class="flex-1 bg-[#111216] border border-white/[0.06] rounded-3xl p-7 flex flex-col justify-between shadow-xl overflow-y-auto custom-scrollbar relative">
 
 		<div class="space-y-6">
 
 			<!-- SECTION 1: GERAL (Matching Reference Image 4) -->
 			{#if activeSection === 'geral'}
-				<div class="flex items-center justify-between border-b border-white/5 pb-4">
+				<div class="flex items-center justify-between border-b border-white/[0.06] pb-4">
 					<div class="flex items-center gap-3">
 						<div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[#c5a880]">
 							<SettingsIcon class="w-4 h-4" />
@@ -347,7 +347,7 @@
 					<!-- Grupo: Idioma -->
 					<div>
 						<div class="text-xs font-bold text-white mb-2">Idioma</div>
-						<div class="bg-[#18191c] border border-white/5 rounded-2xl p-3.5 flex items-center justify-between">
+						<div class="bg-[#111216] border border-white/[0.06] rounded-2xl p-3.5 flex items-center justify-between">
 							<div class="flex items-center gap-3">
 								<div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-white/40">
 									<Globe class="w-4 h-4" />
@@ -360,7 +360,7 @@
 							<select
 								bind:value={selectedLanguage}
 								onchange={() => setLocale(selectedLanguage === 'pt-BR' ? 'pt-BR' : 'en')}
-								class="bg-[#1c1d22] border border-white/10 rounded-xl px-4 py-2 text-xs text-white font-bold focus:outline-none focus:border-[#c5a880] cursor-pointer"
+								class="bg-[#1c1d22] border border-white/[0.06] rounded-xl px-4 py-2 text-xs text-white font-bold focus:outline-none focus:border-[#c5a880] cursor-pointer"
 							>
 								<option value="pt-BR">Português (Brasil)</option>
 								<option value="en">English (US)</option>
@@ -371,7 +371,7 @@
 					<!-- Grupo: Aplicação (Matching Reference Image 4 Switch design) -->
 					<div>
 						<div class="text-xs font-bold text-white mb-2">Aplicação</div>
-						<div class="bg-[#18191c] border border-white/5 rounded-2xl divide-y divide-white/5 overflow-hidden">
+						<div class="bg-[#111216] border border-white/[0.06] rounded-2xl divide-y divide-white/5 overflow-hidden">
 							{#each [
 								{ title: 'Minimizar para a Bandeja', desc: 'Manter a app em execução na bandeja ao fechar', val: minimizeToTray, toggle: () => minimizeToTray = !minimizeToTray },
 								{ title: 'Minimizar ao Iniciar', desc: 'Ocultar o launcher na bandeja do sistema quando uma instância é iniciada', val: minimizeOnLaunch, toggle: () => minimizeOnLaunch = !minimizeOnLaunch },
@@ -395,10 +395,10 @@
 										role="switch"
 										aria-label={opt.title}
 										aria-checked={opt.val}
-										class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+										class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 										onclick={opt.toggle}
 									>
-										<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+										<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 									</button>
 								</div>
 							{/each}
@@ -408,7 +408,7 @@
 
 			<!-- SECTION: APARÊNCIA -->
 			{:else if activeSection === 'aparencia'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Palette class="w-5 h-5 text-purple-400" /> Aparência & Estilo Visual
 					</h3>
@@ -419,7 +419,7 @@
 
 			<!-- SECTION 3: AMIGOS & DISCORD RPC -->
 			{:else if activeSection === 'amigos'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Users class="w-5 h-5 text-emerald-400" /> Amigos, P2P & Discord Rich Presence
 					</h3>
@@ -440,10 +440,10 @@
 						<button
 							type="button"
 							aria-label="Ativar ou desativar Discord Rich Presence"
-							class="w-11 h-6 rounded-full transition-all duration-200 relative flex items-center px-0.5 active:scale-90 {discordRpc ? 'bg-brand-500 shadow-[0_0_12px_rgba(226,184,107,0.4)]' : 'bg-[#2d2e34]'}"
+							class="w-11 h-6 rounded-full transition-all duration-300 relative flex items-center px-0.5 active:scale-90 {discordRpc ? 'bg-brand-500 shadow-[0_0_12px_rgba(226,184,107,0.4)]' : 'bg-[#2d2e34]'}"
 							onclick={toggleDiscordRpc}
 						>
-							<span class="w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {discordRpc ? 'translate-x-5' : 'translate-x-0'}"></span>
+							<span class="w-5 h-5 rounded-full bg-white transition-transform duration-300 shadow-md {discordRpc ? 'translate-x-5' : 'translate-x-0'}"></span>
 						</button>
 					</div>
 
@@ -459,7 +459,7 @@
 							{ title: 'Som de Notificação para Mensagens Diretas', desc: 'Toca um clique suave ao receber mensagens no chat P2P', val: friendMessageSound, toggle: () => friendMessageSound = !friendMessageSound },
 							{ title: 'Modo Não Perturbe Durante o Jogo', desc: 'Silencia notificações e mensagens enquanto o Minecraft estiver aberto', val: dndModeDuringGame, toggle: () => dndModeDuringGame = !dndModeDuringGame }
 						] as opt}
-							<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+							<div class="bg-[#1c1d22] border border-white/[0.06] rounded-2xl p-3 flex items-center justify-between hover:border-white/[0.15] transition-all">
 								<div>
 									<div class="text-xs font-bold text-white">{opt.title}</div>
 									<div class="text-[10px] text-white/40">{opt.desc}</div>
@@ -469,10 +469,10 @@
 									role="switch"
 									aria-label={opt.title}
 									aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -481,7 +481,7 @@
 					<!-- Test Discord Connection Button -->
 					<button
 						type="button"
-						class="w-full bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/10 text-xs font-bold flex items-center justify-between transition-all cursor-pointer shadow-sm group"
+						class="w-full bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/[0.06] text-xs font-bold flex items-center justify-between transition-all cursor-pointer shadow-sm group"
 						onclick={async () => {
 							try {
 								await discordSetActivity({
@@ -508,7 +508,7 @@
 
 			<!-- SECTION 4: JAVA & MEMÓRIA -->
 			{:else if activeSection === 'java'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Cpu class="w-5 h-5 text-blue-400" /> Java & Otimização de Memória
 					</h3>
@@ -519,7 +519,7 @@
 
 			<!-- SECTION 5: LINUX & GAMEMODE -->
 			{:else if activeSection === 'linux'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Terminal class="w-5 h-5 text-orange-400" /> Linux & Otimizações de Sistema
 					</h3>
@@ -528,10 +528,10 @@
 
 				<div class="space-y-4">
 					<!-- MangoHud Card Expandido -->
-					<div class="rounded-2xl border {enableMangoHud ? 'border-purple-500/30 bg-purple-500/5' : 'border-white/5 bg-[#1c1d22]'} overflow-hidden transition-all">
+					<div class="rounded-2xl border {enableMangoHud ? 'border-purple-500/30 bg-purple-500/5' : 'border-white/[0.06] bg-[#1c1d22]'} overflow-hidden transition-all">
 						<div class="p-4 flex items-center justify-between">
 							<div class="flex items-center gap-3">
-								<div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 {enableMangoHud ? 'bg-purple-500/15 border border-purple-500/25 text-purple-400' : 'bg-white/5 border border-white/10 text-white/40'}">
+								<div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 {enableMangoHud ? 'bg-purple-500/15 border border-purple-500/25 text-purple-400' : 'bg-white/5 border border-white/[0.06] text-white/40'}">
 									<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/></svg>
 								</div>
 								<div>
@@ -541,10 +541,10 @@
 							</div>
 							<button
 								type="button" role="switch" aria-label="MangoHud" aria-checked={enableMangoHud}
-								class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableMangoHud ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableMangoHud ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 								onclick={() => enableMangoHud = !enableMangoHud}
 							>
-								<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {enableMangoHud ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+								<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {enableMangoHud ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 							</button>
 						</div>
 						{#if enableMangoHud}
@@ -569,8 +569,8 @@
 					</div>
 
 					<!-- Wayland / XWayland Seletor -->
-					<div class="rounded-2xl border border-white/5 bg-[#1c1d22] p-4 space-y-3">
-						<div class="flex items-center gap-2 pb-2 border-b border-white/5">
+					<div class="rounded-2xl border border-white/[0.06] bg-[#1c1d22] p-4 space-y-3">
+						<div class="flex items-center gap-2 pb-2 border-b border-white/[0.06]">
 							<svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
 							<span class="text-xs font-bold text-white">Protocolo de Janela</span>
 						</div>
@@ -582,7 +582,7 @@
 								type="button"
 								onclick={() => nativeWayland = opt.id === "wayland_native"}
 								class="w-full flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer text-left
-									{opt.active ? 'border-blue-500/30 bg-blue-500/5' : 'border-white/5 hover:border-white/10 hover:bg-white/3'}"
+									{opt.active ? 'border-blue-500/30 bg-blue-500/5' : 'border-white/[0.06] hover:border-white/[0.15] hover:bg-white/3'}"
 							>
 								<div class="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0
 									{opt.active ? 'border-blue-400' : 'border-white/20'}">
@@ -613,17 +613,17 @@
 							{ title: 'Otimização de Memória Swap ZRAM', desc: 'Comprime páginas em memória RAM evitando acessos lentos ao SSD', val: zramOptimization, toggle: () => zramOptimization = !zramOptimization },
 							{ title: 'Prevenir Suspensão / Bloqueio de Tela em Jogo', desc: 'Impede que o monitor desligue automaticamente durante gameplays', val: preventSystemSleep, toggle: () => preventSystemSleep = !preventSystemSleep }
 						] as opt}
-							<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+							<div class="bg-[#1c1d22] border border-white/[0.06] rounded-2xl p-3 flex items-center justify-between hover:border-white/[0.15] transition-all">
 								<div>
 									<div class="text-xs font-bold text-white">{opt.title}</div>
 									<div class="text-[10px] text-white/40">{opt.desc}</div>
 								</div>
 								<button
 									type="button" role="switch" aria-label={opt.title} aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -632,7 +632,7 @@
 
 			<!-- SECTION 6: GRÁFICOS MINECRAFT -->
 			{:else if activeSection === 'graficos'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Monitor class="w-5 h-5 text-cyan-400" /> Gráficos & Renderização Minecraft
 					</h3>
@@ -658,24 +658,24 @@
 							role="switch"
 							aria-label="Alternar Vulkan"
 							aria-checked={enableVulkan}
-							class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableVulkan ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+							class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableVulkan ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 							onclick={() => {
 								enableVulkan = !enableVulkan;
 								toast(enableVulkan ? "Pipeline Vulkan Zink ativado!" : "Pipeline OpenGL padrão restaurado.", "info");
 							}}
 						>
-							<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {enableVulkan ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+							<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {enableVulkan ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 						</button>
 					</div>
 
 					<div class="grid grid-cols-2 gap-3">
 						<div>
 							<span class="text-xs font-bold text-white block mb-1.5">Largura da Janela (px)</span>
-							<input type="number" bind:value={defaultResWidth} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2 text-xs text-white focus:outline-none" />
+							<input type="number" bind:value={defaultResWidth} class="w-full bg-[#1c1d22] border border-white/[0.06] rounded-2xl px-4 py-2 text-xs text-white focus:outline-none" />
 						</div>
 						<div>
 							<span class="text-xs font-bold text-white block mb-1.5">Altura da Janela (px)</span>
-							<input type="number" bind:value={defaultResHeight} class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2 text-xs text-white focus:outline-none" />
+							<input type="number" bind:value={defaultResHeight} class="w-full bg-[#1c1d22] border border-white/[0.06] rounded-2xl px-4 py-2 text-xs text-white focus:outline-none" />
 						</div>
 					</div>
 
@@ -686,7 +686,7 @@
 							{ title: 'Carregamento Assíncrono de Chunks', desc: 'Evita quedas de quadros ao explorar o mapa em alta velocidade', val: asyncChunkLoading, toggle: () => asyncChunkLoading = !asyncChunkLoading },
 							{ title: 'Iluminação Dinâmica Rápida', desc: 'Tochas e itens na mão iluminam o ambiente com zero custo de FPS', val: dynamicLighting, toggle: () => dynamicLighting = !dynamicLighting }
 						] as opt}
-							<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+							<div class="bg-[#1c1d22] border border-white/[0.06] rounded-2xl p-3 flex items-center justify-between hover:border-white/[0.15] transition-all">
 								<div>
 									<div class="text-xs font-bold text-white">{opt.title}</div>
 									<div class="text-[10px] text-white/40">{opt.desc}</div>
@@ -696,10 +696,10 @@
 									role="switch"
 									aria-label={opt.title}
 									aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -708,7 +708,7 @@
 
 			<!-- SECTION 7: ARMAZENAMENTO & BACKUPS -->
 			{:else if activeSection === 'armazenamento'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<HardDrive class="w-5 h-5 text-rose-400" /> Armazenamento Real do Disco
 					</h3>
@@ -716,7 +716,7 @@
 				</div>
 
 				<div class="space-y-4">
-					<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-5 space-y-4 shadow-md">
+					<div class="bg-[#1c1d22] border border-white/[0.06] rounded-2xl p-5 space-y-4 shadow-md">
 						<div class="flex justify-between items-center text-xs font-bold text-white">
 							<span>Espaço Total Ocupado pelo Luxmc</span>
 							<span class="text-sm font-mono text-brand-500 font-black">{formatBytes(totalBytes)}</span>
@@ -727,7 +727,7 @@
 								<div class="text-xs text-white/40 py-2">Carregando métricas reais de disco...</div>
 							{:else}
 								{#each storageItems as item}
-									<div class="flex items-center justify-between text-xs py-1.5 border-b border-white/5 last:border-0">
+									<div class="flex items-center justify-between text-xs py-1.5 border-b border-white/[0.06] last:border-0">
 										<span class="font-medium text-white/70 capitalize">{item.category}</span>
 										<span class="font-mono font-bold text-white">{formatBytes(item.bytes)}</span>
 									</div>
@@ -738,7 +738,7 @@
 
 					<div class="grid grid-cols-2 gap-3">
 						<button
-							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow"
+							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/[0.06] text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow"
 							onclick={cleanStorageCache}
 							disabled={isCleaning}
 						>
@@ -746,7 +746,7 @@
 							{isCleaning ? 'Limpando...' : 'Limpar Cache de Downloads'}
 						</button>
 						<button
-							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow"
+							class="bg-[#1c1d22] hover:bg-white/10 active:scale-95 text-white p-3.5 rounded-2xl border border-white/[0.06] text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow"
 							onclick={() => toast("Backup compactado de todos os mundos salvo!", "success")}
 						>
 							Fazer Backup de Instâncias
@@ -759,7 +759,7 @@
 							{ title: 'Salvar Capturas de Tela em PNG Sem Perdas', desc: 'Mantém a máxima fidelidade gráfica em todas as screenshots (F2)', val: losslessPngScreenshots, toggle: () => losslessPngScreenshots = !losslessPngScreenshots },
 							{ title: 'Desduplicação de Bibliotecas via Hardlinks', desc: 'Compartilha arquivos idênticos entre versões economizando gigabytes de SSD', val: hardlinkDeduplication, toggle: () => hardlinkDeduplication = !hardlinkDeduplication }
 						] as opt}
-							<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+							<div class="bg-[#1c1d22] border border-white/[0.06] rounded-2xl p-3 flex items-center justify-between hover:border-white/[0.15] transition-all">
 								<div>
 									<div class="text-xs font-bold text-white">{opt.title}</div>
 									<div class="text-[10px] text-white/40">{opt.desc}</div>
@@ -769,10 +769,10 @@
 									role="switch"
 									aria-label={opt.title}
 									aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
-									<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+									<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 								</button>
 							</div>
 						{/each}
@@ -781,7 +781,7 @@
 
 			<!-- SECTION 8: PRIVACIDADE & SEGURANÇA -->
 			{:else if activeSection === 'privacidade'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Shield class="w-5 h-5 text-teal-400" /> Privacidade & Segurança
 					</h3>
@@ -797,7 +797,7 @@
 						{ title: 'Ocultar Endereço IP em Relatórios de Erro', desc: 'Remove informações de rede em relatórios gerados por crash', val: hideIpInLogs, toggle: () => hideIpInLogs = !hideIpInLogs },
 						{ title: 'Forçar Conexões Criptografadas (HTTPS Only)', desc: 'Bloqueia downloads de assets e mods em links não seguros', val: enforceHttpsOnly, toggle: () => enforceHttpsOnly = !enforceHttpsOnly }
 					] as opt}
-						<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+						<div class="bg-[#1c1d22] border border-white/[0.06] rounded-2xl p-3 flex items-center justify-between hover:border-white/[0.15] transition-all">
 							<div>
 								<div class="text-xs font-bold text-white">{opt.title}</div>
 								<div class="text-[10px] text-white/40">{opt.desc}</div>
@@ -807,10 +807,10 @@
 								role="switch"
 								aria-label={opt.title}
 								aria-checked={opt.val}
-								class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 								onclick={opt.toggle}
 							>
-								<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+								<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 							</button>
 						</div>
 					{/each}
@@ -818,7 +818,7 @@
 
 			<!-- SECTION 9: NOTIFICAÇÕES & SONS -->
 			{:else if activeSection === 'notificacoes'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Bell class="w-5 h-5 text-yellow-400" /> Notificações & Alertas
 					</h3>
@@ -833,7 +833,7 @@
 						{ title: 'Efeito Sonoro ao Iniciar o Minecraft', desc: 'Som sutil de inicialização ao disparar o jogo', val: gameLaunchChime, toggle: () => gameLaunchChime = !gameLaunchChime },
 						{ title: 'Sons Táteis de Clique na Interface', desc: 'Feedback sonoro leve ao navegar entre abas e botões', val: tactileClickSound, toggle: () => tactileClickSound = !tactileClickSound }
 					] as opt}
-						<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+						<div class="bg-[#1c1d22] border border-white/[0.06] rounded-2xl p-3 flex items-center justify-between hover:border-white/[0.15] transition-all">
 							<div>
 								<div class="text-xs font-bold text-white">{opt.title}</div>
 								<div class="text-[10px] text-white/40">{opt.desc}</div>
@@ -843,10 +843,10 @@
 								role="switch"
 								aria-label={opt.title}
 								aria-checked={opt.val}
-								class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
 								onclick={opt.toggle}
 							>
-								<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+								<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
 							</button>
 						</div>
 					{/each}
@@ -854,7 +854,7 @@
 
 			<!-- SECTION 10: SOBRE O LUXMC -->
 			{:else if activeSection === 'sobre'}
-				<div class="border-b border-white/5 pb-4">
+				<div class="border-b border-white/[0.06] pb-4">
 					<h3 class="text-lg font-extrabold text-white flex items-center gap-2">
 						<Info class="w-5 h-5 text-sky-400" /> Sobre o Luxmc Launcher
 					</h3>
@@ -862,12 +862,12 @@
 				</div>
 
 				<div class="space-y-4">
-					<div class="bg-gradient-to-br from-[#1c1d22] via-[#17181c] to-[#121316] border border-white/5 rounded-3xl p-6 flex items-center gap-6 shadow-xl relative overflow-hidden">
+					<div class="bg-gradient-to-br from-[#1c1d22] via-[#17181c] to-[#121316] border border-white/[0.06] rounded-3xl p-6 flex items-center gap-6 shadow-xl relative overflow-hidden">
 						<!-- Ambient subtle golden backlight -->
 						<div class="absolute -left-10 -top-10 w-48 h-48 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
 						<!-- Clean unconstrained 3D Logo Display in rounded-full container -->
-						<div class="h-24 w-24 rounded-full bg-black/40 border border-white/10 flex items-center justify-center p-3 shadow-xl shrink-0 relative group">
+						<div class="h-24 w-24 rounded-full bg-black/40 border border-white/[0.06] flex items-center justify-center p-3 shadow-xl shrink-0 relative group">
 							<img
 								src="/logo.png"
 								alt="Luxmc Logo Oficial 3D"
@@ -885,30 +885,30 @@
 								<span class="bg-emerald-500/15 text-emerald-400 text-[10px] font-bold px-3 py-1 rounded-full border border-emerald-500/30">{systemSpecs.osDistro}</span>
 								<span class="bg-blue-500/15 text-blue-400 text-[10px] font-bold px-3 py-1 rounded-full border border-blue-500/30">Motor Tokio Rust</span>
 								<span class="bg-brand-500/15 text-brand-500 text-[10px] font-bold px-3 py-1 rounded-full border border-brand-500/30">Otimização Vulkan</span>
-								<span class="bg-white/5 text-white/60 text-[10px] font-bold px-3 py-1 rounded-full border border-white/10">Licença MIT</span>
+								<span class="bg-white/5 text-white/60 text-[10px] font-bold px-3 py-1 rounded-full border border-white/[0.06]">Licença MIT</span>
 							</div>
 						</div>
 					</div>
 
-					<div class="bg-[#1c1d22] border border-white/5 rounded-3xl p-5 space-y-2.5 text-xs shadow-md">
+					<div class="bg-[#1c1d22] border border-white/[0.06] rounded-3xl p-5 space-y-2.5 text-xs shadow-md">
 						<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider mb-2">Especificações do Sistema & Launcher</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
+						<div class="flex justify-between py-1.5 border-b border-white/[0.06]">
 							<span class="text-white/60">Distribuição Linux:</span>
 							<span class="text-brand-500 font-mono font-bold">{systemSpecs.osDistro}</span>
 						</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
+						<div class="flex justify-between py-1.5 border-b border-white/[0.06]">
 							<span class="text-white/60">Kernel Linux & Arquitetura:</span>
 							<span class="text-white font-mono font-bold">{systemSpecs.kernelVersion} ({systemSpecs.arch})</span>
 						</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
+						<div class="flex justify-between py-1.5 border-b border-white/[0.06]">
 							<span class="text-white/60">Memória RAM do Sistema:</span>
 							<span class="text-white font-mono font-bold">{Math.round(systemSpecs.totalRamMb / 1024)} GB RAM</span>
 						</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
+						<div class="flex justify-between py-1.5 border-b border-white/[0.06]">
 							<span class="text-white/60">Versão do Launcher:</span>
 							<span class="text-white font-mono font-bold">{systemSpecs.launcherVersion}</span>
 						</div>
-						<div class="flex justify-between py-1.5 border-b border-white/5">
+						<div class="flex justify-between py-1.5 border-b border-white/[0.06]">
 							<span class="text-white/60">Motor do Backend:</span>
 							<span class="text-white font-mono font-bold">Tauri 2 + Tokio Rust Engine</span>
 						</div>
@@ -921,7 +921,7 @@
 					<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
 						<button
 							type="button"
-							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-brand-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all duration-200 shadow hover:shadow-brand-500/5 cursor-pointer group"
+							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-brand-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/[0.06] text-xs font-bold flex items-center justify-between transition-all duration-300 shadow hover:shadow-brand-500/5 cursor-pointer group"
 							onclick={() => updaterStore.check(true)}
 						>
 							<span class="flex items-center gap-2.5"><RefreshCw class="w-4 h-4 text-brand-500 {updaterStore.isChecking ? 'animate-spin' : 'group-hover:rotate-45 transition-transform'}" /> Checar Atualizações</span>
@@ -929,7 +929,7 @@
 						</button>
 						<button
 							type="button"
-							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-purple-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all duration-200 shadow hover:shadow-purple-500/5 cursor-pointer group"
+							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-purple-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/[0.06] text-xs font-bold flex items-center justify-between transition-all duration-300 shadow hover:shadow-purple-500/5 cursor-pointer group"
 							onclick={() => openUrl("https://github.com/predabr/luxmc")}
 						>
 							<span class="flex items-center gap-2.5"><ExternalLink class="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" /> Repositório GitHub</span>
@@ -937,7 +937,7 @@
 						</button>
 						<button
 							type="button"
-							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-amber-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/5 text-xs font-bold flex items-center justify-between transition-all duration-200 shadow hover:shadow-amber-500/5 cursor-pointer group"
+							class="bg-[#1c1d22] hover:bg-[#23242a] hover:border-amber-500/30 active:scale-95 text-white px-4 py-3.5 rounded-2xl border border-white/[0.06] text-xs font-bold flex items-center justify-between transition-all duration-300 shadow hover:shadow-amber-500/5 cursor-pointer group"
 							onclick={() => openUrl("https://github.com/predabr/luxmc/issues")}
 						>
 							<span class="flex items-center gap-2.5"><ExternalLink class="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" /> Reportar Erro / Issues</span>
@@ -946,8 +946,8 @@
 					</div>
 
 					<!-- Changelog History -->
-					<div class="bg-[#1c1d22] border border-white/5 rounded-3xl p-5 space-y-4 text-xs shadow-md">
-						<div class="flex items-center justify-between pb-2 border-b border-white/5">
+					<div class="bg-[#1c1d22] border border-white/[0.06] rounded-3xl p-5 space-y-4 text-xs shadow-md">
+						<div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
 							<div class="text-[11px] font-bold text-white/40 uppercase tracking-wider flex items-center gap-2">
 								<Terminal class="w-3.5 h-3.5 text-brand-500" /> Histórico de Versões & Changelog
 							</div>
@@ -956,7 +956,7 @@
 
 						<div class="space-y-3">
 							{#each changelogList as entry}
-								<div class="p-3.5 rounded-2xl bg-[#141518] border border-white/5 space-y-2.5">
+								<div class="p-3.5 rounded-2xl bg-[#111216] border border-white/[0.06] space-y-2.5">
 									<div class="flex items-center justify-between">
 										<div class="flex items-center gap-2">
 											<span class="font-black text-xs text-white bg-brand-500/20 text-brand-500 px-2 py-0.5 rounded-md border border-brand-500/30 font-mono">v{entry.version}</span>
@@ -982,7 +982,7 @@
 		</div>
 
 		<!-- Bottom Save Bar (No Collision) -->
-		<div class="pt-6 border-t border-white/5 flex items-center justify-between mt-6">
+		<div class="pt-6 border-t border-white/[0.06] flex items-center justify-between mt-6">
 			<span class="text-[11px] text-white/40">Todas as configurações são aplicadas imediatamente nas próximas sessões.</span>
 			<button
 				type="button"

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { fade, slide } from "svelte/transition";
+	import { fade, slide, fly } from "svelte/transition";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { 
@@ -31,9 +31,12 @@
 		Package,
 		ChevronDown,
 		Search,
-		Share2
+		Share2,
+		Trash2,
+		User
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
+	import Animate from "$lib/components/ui/Animate.svelte";
 	import FavoriteServerWidget from "$lib/components/home/FavoriteServerWidget.svelte";
 	import FriendsRadarWidget from "$lib/components/home/FriendsRadarWidget.svelte";
 	import NewsFeedWidget from "$lib/components/home/NewsFeedWidget.svelte";
@@ -46,6 +49,7 @@
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { layoutStore } from "$lib/stores/layout.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { playClick, playSuccess } from "$lib/utils/sounds";
 	import { 
 		authDevLogin, 
 		authOfflineLogin, 
@@ -72,7 +76,10 @@
 	let authTab = $state<"login" | "register">("login");
 	let mainAuthType = $state<"microsoft" | "offline">("microsoft");
 	let savedAccounts = $state<string[]>([]);
+	let savedAccountsMap = $state<Record<string, string>>({});
 	let isLoadingHome = $state(true);
+	let hoveredSavedAcc = $state<string | null>(null);
+	let isLoginTransitioning = $state(false);
 	let isLaunching = $state(false);
 	let launchStatusText = $state("");
 	let showQuickInstancePicker = $state(false);
@@ -97,12 +104,24 @@
 		return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 	}
 
+	function deleteSavedAccount(name: string) {
+		const accountsMapRaw = localStorage.getItem("luxmc_offline_passwords");
+		if (!accountsMapRaw) return;
+		const map: Record<string, string> = JSON.parse(accountsMapRaw);
+		delete map[name.toLowerCase()];
+		localStorage.setItem("luxmc_offline_passwords", JSON.stringify(map));
+		savedAccounts = Object.keys(map);
+		savedAccountsMap = map;
+		toast(`Conta "${name}" removida.`, "info");
+	}
+
 	onMount(() => {
 		const accountsMapRaw = localStorage.getItem("luxmc_offline_passwords");
 		if (accountsMapRaw) {
 			try {
 				const map = JSON.parse(accountsMapRaw);
 				savedAccounts = Object.keys(map);
+				savedAccountsMap = map;
 			} catch {}
 		}
 
@@ -197,6 +216,7 @@
 				type: "steve"
 			});
 			toast(t("home.welcomeToLuxmc", { name }), "success");
+			playSuccess();
 
 			account.value = newAcc;
 		} catch (e) {
@@ -252,6 +272,7 @@
 			});
 
 			toast(t("home.connectedAs", { username: acc.username }), "success");
+			playSuccess();
 
 			account.value = newAcc;
 		} catch (e) {
@@ -319,6 +340,7 @@
 				type: "steve"
 			});
 			toast(t("home.connectedAsDev", { username: acc.username }), "success");
+			playSuccess();
 			account.value = newAcc;
 		} catch (e) {
 			toast(t("home.devLoginErrorToast", { error: String(e) }), "error");
@@ -471,82 +493,89 @@
 </script>
 
 {#if !account.value}
-	<div class="flex h-full w-full items-center justify-center px-4 transition-all duration-500 {isEntering ? 'opacity-0 scale-95 blur-md pointer-events-none' : 'opacity-100 scale-100'}" in:fade={{ duration: 300 }}>
-		<div class="w-full max-w-md rounded-3xl bg-[#141518] border border-white/10 p-8 shadow-2xl flex flex-col items-center select-none relative overflow-hidden">
-			<div class="absolute -top-12 -right-12 w-48 h-48 bg-[#caa97c]/10 rounded-full blur-3xl pointer-events-none"></div>
-			<div class="absolute -bottom-12 -left-12 w-48 h-48 bg-[#6c5ce7]/10 rounded-full blur-3xl pointer-events-none"></div>
+	<div class="flex h-full w-full items-center justify-center px-4 transition-all duration-700 {isEntering ? 'opacity-0 scale-95 blur-md pointer-events-none' : 'opacity-100 scale-100'}" in:fade={{ duration: 400 }}>
+		<div class="w-full max-w-lg rounded-[2rem] bg-[#111216] border border-white/[0.08] p-8 sm:p-10 shadow-[0_32px_64px_rgba(0,0,0,0.6)] flex flex-col items-center select-none relative overflow-hidden">
+			<div class="absolute -top-20 -right-20 w-72 h-72 bg-[#caa97c]/[0.07] rounded-full blur-[100px] pointer-events-none animate-pulse" style="animation-duration:4s"></div>
+			<div class="absolute -bottom-20 -left-20 w-72 h-72 bg-[#6c5ce7]/[0.07] rounded-full blur-[100px] pointer-events-none animate-pulse" style="animation-duration:5s"></div>
+			<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#caa97c]/[0.03] rounded-full blur-[120px] pointer-events-none"></div>
 
-			<div class="flex flex-col items-center text-center">
-				<div class="h-24 w-24 rounded-3xl bg-black/50 border border-white/10 flex items-center justify-center p-3 shadow-2xl relative group">
-					<img src="/logo.png" alt="Luxmc 3D" class="w-full h-full object-contain drop-shadow-[0_0_24px_rgba(226,184,107,0.5)] group-hover:scale-105 transition-transform" />
+			<Animate delay={0.1} duration={0.6}>
+				<div class="flex flex-col items-center text-center relative z-10">
+					<div class="h-28 w-28 rounded-[1.75rem] bg-gradient-to-br from-[#1a1b21] to-[#111216] border border-white/[0.12] flex items-center justify-center p-3.5 shadow-[0_16px_48px_rgba(0,0,0,0.5),0_0_0_1px_rgba(202,169,124,0.1)] relative group">
+						<div class="absolute inset-0 rounded-[1.75rem] bg-gradient-to-br from-[#caa97c]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+						<img src="/logo.png" alt="Luxmc 3D" class="w-full h-full object-contain drop-shadow-[0_0_32px_rgba(202,169,124,0.4)] group-hover:scale-110 transition-transform duration-500 relative z-10" />
+					</div>
+					<h1 class="text-[1.75rem] font-black text-white tracking-tight mt-5 bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">Luxmc Launcher</h1>
+					<p class="text-[11px] text-white/40 mt-1.5 font-medium tracking-wide">{t("home.subTagline")}</p>
 				</div>
-				<h1 class="text-2xl font-black text-white tracking-tight mt-4">Luxmc Launcher</h1>
-				<p class="text-xs text-white/50 mt-1">{t("home.subTagline")}</p>
-			</div>
+			</Animate>
 
-			<div class="w-full space-y-4 mt-2">
+			<Animate delay={0.25} duration={0.6}>
+				<div class="w-full space-y-5 mt-7 relative z-10">
 				<!-- Segmented Auth Mode Selector -->
-				<div class="flex bg-[#121316] p-1.5 rounded-2xl border border-white/10 shadow-inner">
+				<div class="flex bg-[#0e0f12] p-1.5 rounded-2xl border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
 					<button 
 						type="button" 
-						class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 {mainAuthType === 'microsoft' ? 'bg-[#25262c] text-white shadow-md border border-[#6c5ce7]/40 shadow-[0_0_12px_rgba(108,92,231,0.15)]' : 'text-white/40 hover:text-white/70 border border-transparent'}"
+						class="flex-1 py-3 px-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 {mainAuthType === 'microsoft' ? 'bg-gradient-to-b from-[#25262e] to-[#1e1f26] text-white shadow-[0_4px_16px_rgba(0,0,0,0.3),0_0_0_1px_rgba(108,92,231,0.3)]' : 'text-white/30 hover:text-white/60 border border-transparent hover:bg-white/[0.03]'}"
 						onclick={() => mainAuthType = 'microsoft'}
 					>
-						<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none">
-							<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
-							<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
-							<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
-							<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
+						<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
+							<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1.5"/>
+							<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1.5"/>
+							<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1.5"/>
+							<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1.5"/>
 						</svg>
 						<span>Conta Microsoft</span>
 					</button>
 					<button 
 						type="button" 
-						class="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 {mainAuthType === 'offline' ? 'bg-[#25262c] text-[#caa97c] shadow-md border border-[#caa97c]/30 shadow-[0_0_12px_rgba(202,169,124,0.15)]' : 'text-white/40 hover:text-white/70 border border-transparent'}"
+						class="flex-1 py-3 px-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 {mainAuthType === 'offline' ? 'bg-gradient-to-b from-[#25262e] to-[#1e1f26] text-[#caa97c] shadow-[0_4px_16px_rgba(0,0,0,0.3),0_0_0_1px_rgba(202,169,124,0.25)]' : 'text-white/30 hover:text-white/60 border border-transparent hover:bg-white/[0.03]'}"
 						onclick={() => mainAuthType = 'offline'}
 					>
-						<Gamepad2 class="w-3.5 h-3.5 shrink-0" />
+						<Gamepad2 class="w-4 h-4 shrink-0" />
 						<span>Modo Offline</span>
 					</button>
 				</div>
 
 				{#if mainAuthType === 'microsoft'}
 					{#if isLoggingInMicrosoft}
-						<div class="w-full bg-[#18191c] border-2 border-[#6c5ce7]/50 rounded-3xl p-5 shadow-2xl relative overflow-hidden space-y-4" in:fade={{ duration: 200 }}>
-							<div class="absolute -right-8 -top-8 w-32 h-32 bg-[#6c5ce7]/20 rounded-full blur-2xl pointer-events-none"></div>
+						<div class="w-full bg-[#13141a] border border-[#6c5ce7]/30 rounded-3xl p-6 shadow-[0_24px_48px_rgba(0,0,0,0.4)] relative overflow-hidden space-y-5" in:fade={{ duration: 250 }}>
+							<div class="absolute -right-12 -top-12 w-48 h-48 bg-[#6c5ce7]/15 rounded-full blur-[60px] pointer-events-none"></div>
+							<div class="absolute -left-8 -bottom-8 w-32 h-32 bg-[#a29bfe]/10 rounded-full blur-[40px] pointer-events-none"></div>
 
-							<div class="flex items-center gap-3.5">
-								<div class="h-11 w-11 rounded-2xl bg-[#6c5ce7]/20 border border-[#6c5ce7]/40 flex items-center justify-center shrink-0 shadow-inner">
-									<Loader2 class="w-5 h-5 text-[#a29bfe] animate-spin" />
+							<div class="flex items-center gap-4">
+								<div class="h-14 w-14 rounded-2xl bg-gradient-to-br from-[#6c5ce7]/20 to-[#a29bfe]/10 border border-[#6c5ce7]/30 flex items-center justify-center shrink-0 shadow-inner relative">
+									<Loader2 class="w-6 h-6 text-[#a29bfe] animate-spin" />
+									<div class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-[#13141a] animate-ping"></div>
 								</div>
 								<div>
-									<div class="flex items-center gap-2">
-										<h3 class="text-xs font-black text-white">{t("home.msAuth")}</h3>
-										<span class="inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-											<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span> {t("home.msWaiting")}
+									<div class="flex items-center gap-2.5">
+										<h3 class="text-sm font-black text-white">{t("home.msAuth")}</h3>
+										<span class="inline-flex items-center gap-1 text-[9px] font-extrabold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+											<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> {t("home.msWaiting")}
 										</span>
 									</div>
-									<p class="text-[11px] text-white/50 mt-0.5">{t("home.msCompleteInBrowser")}</p>
+									<p class="text-[11px] text-white/45 mt-0.5">{t("home.msCompleteInBrowser")}</p>
 								</div>
 							</div>
 
-							<div class="space-y-2 py-1">
-								<div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden relative">
-									<div class="h-full bg-gradient-to-r from-[#6c5ce7] to-[#a29bfe] w-2/3 rounded-full animate-pulse"></div>
+							<div class="space-y-3 py-1">
+								<div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden relative">
+									<div class="h-full bg-gradient-to-r from-[#6c5ce7] via-[#a29bfe] to-[#6c5ce7] rounded-full animate-[shimmer_2s_ease-in-out_infinite]" style="width:65%;background-size:200% 100%"></div>
 								</div>
-								<p class="text-[11px] text-white/60 leading-relaxed">
+								<p class="text-[11px] text-white/50 leading-relaxed">
 									{t("home.msAccessDesc")}
 								</p>
 							</div>
 
-							<div class="flex items-center justify-between pt-2 border-t border-white/5">
-								<span class="text-[10px] text-white/40 flex items-center gap-1.5">
+							<div class="flex items-center justify-between pt-3 border-t border-white/[0.05]">
+								<span class="text-[10px] text-white/35 flex items-center gap-1.5">
 									<ExternalLink class="w-3 h-3 text-[#a29bfe]" />
 									{t("home.oauthWindowOpen")}
 								</span>
 								<button 
 									type="button" 
-									class="text-xs font-bold text-white/70 hover:text-white px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200 cursor-pointer"
+									class="text-xs font-bold text-white/60 hover:text-white px-4 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all duration-200 cursor-pointer"
 									onclick={() => { isLoggingInMicrosoft = false; }}
 								>
 									{t("home.cancel")}
@@ -554,48 +583,54 @@
 							</div>
 						</div>
 					{:else}
-						<div class="bg-[#18191c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-xl relative overflow-hidden" in:fade={{ duration: 200 }}>
-							<div class="absolute -right-8 -top-8 w-40 h-40 bg-[#6c5ce7]/15 rounded-full blur-3xl pointer-events-none"></div>
+						<div class="bg-[#13141a] border border-white/[0.08] rounded-3xl p-6 space-y-5 shadow-[0_16px_32px_rgba(0,0,0,0.3)] relative overflow-hidden" in:fade={{ duration: 250 }}>
+							<div class="absolute -right-12 -top-12 w-56 h-56 bg-[#6c5ce7]/[0.08] rounded-full blur-[80px] pointer-events-none"></div>
+							<div class="absolute -left-10 -bottom-10 w-40 h-40 bg-[#00a4ef]/[0.06] rounded-full blur-[60px] pointer-events-none"></div>
 
-							<div class="space-y-1">
-								<div class="flex items-center gap-2">
-									<span class="font-bold text-white text-sm">Minecraft Oficial</span>
-									<span class="bg-[#6c5ce7]/20 text-[#a29bfe] text-[9px] font-black px-2 py-0.5 rounded-full border border-[#6c5ce7]/30 uppercase tracking-wider">Original</span>
+							<div class="space-y-2 relative z-10">
+								<div class="flex items-center gap-3">
+									<div class="flex items-center gap-0.5">
+										<div class="w-2.5 h-2.5 rounded-full bg-[#f25022]"></div>
+										<div class="w-2.5 h-2.5 rounded-full bg-[#7fba00]"></div>
+										<div class="w-2.5 h-2.5 rounded-full bg-[#00a4ef]"></div>
+										<div class="w-2.5 h-2.5 rounded-full bg-[#ffb900]"></div>
+									</div>
+									<span class="font-extrabold text-white text-sm tracking-tight">Minecraft Oficial</span>
+									<span class="bg-[#6c5ce7]/15 text-[#a29bfe] text-[9px] font-black px-2.5 py-0.5 rounded-full border border-[#6c5ce7]/25 uppercase tracking-widest">Original</span>
 								</div>
-								<p class="text-xs text-white/50">Conecte sua conta Microsoft para skins oficiais, capas e servidores multijogador.</p>
+								<p class="text-[11px] text-white/40 leading-relaxed max-w-sm">Conecte sua conta Microsoft para skins oficiais, capas, realms e servidores multijogador.</p>
 							</div>
 
 							<button 
 								type="button" 
-								class="w-full rounded-2xl bg-gradient-to-r from-[#20222c] to-[#181a22] hover:from-[#2a2d3d] hover:to-[#20222e] border border-[#6c5ce7]/40 hover:border-[#6c5ce7] p-4 text-white flex items-center gap-3.5 transition-all duration-200 active:scale-[0.98] cursor-pointer shadow-xl hover:shadow-[0_0_20px_rgba(108,92,231,0.25)] relative overflow-hidden disabled:opacity-60"
-								onclick={handleMicrosoftLogin}
+								class="w-full rounded-2xl bg-gradient-to-r from-[#1a1b24] to-[#15161e] hover:from-[#22232e] hover:to-[#1c1d26] border border-[#6c5ce7]/30 hover:border-[#6c5ce7]/70 p-5 text-white flex items-center gap-4 transition-all duration-300 active:scale-[0.98] cursor-pointer shadow-[0_8px_24px_rgba(0,0,0,0.3)] hover:shadow-[0_12px_32px_rgba(108,92,231,0.2)] relative overflow-hidden disabled:opacity-50 group"
+								onclick={() => { playClick(); handleMicrosoftLogin(); }}
 								disabled={isLoggingIn || isLoggingInMicrosoft}
 							>
-								<div class="h-10 w-10 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0 shadow-inner">
+								<div class="absolute inset-0 bg-gradient-to-r from-[#6c5ce7]/0 via-[#6c5ce7]/5 to-[#6c5ce7]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+								<div class="h-12 w-12 rounded-xl bg-gradient-to-br from-black/80 to-black/40 border border-white/[0.12] flex items-center justify-center p-2.5 shrink-0 shadow-inner relative z-10">
 									<svg class="h-full w-full" viewBox="0 0 24 24" fill="none">
-										<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
-										<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
-										<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
-										<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
+										<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1.5"/>
+										<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1.5"/>
+										<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1.5"/>
+										<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1.5"/>
 									</svg>
 								</div>
-								<div class="text-left flex-1 min-w-0">
-									<div class="flex items-center gap-2">
-										<span class="font-bold text-white text-sm whitespace-nowrap">{t("home.signInWithMicrosoft")}</span>
-									</div>
-									<p class="text-[11px] text-white/50 font-medium truncate mt-0.5">{t("home.msOfficialAccount")}</p>
+								<div class="text-left flex-1 min-w-0 relative z-10">
+									<span class="font-bold text-white text-sm whitespace-nowrap">{t("home.signInWithMicrosoft")}</span>
+									<p class="text-[11px] text-white/40 font-medium truncate mt-0.5">{t("home.msOfficialAccount")}</p>
 								</div>
-								<ArrowRight class="w-5 h-5 text-white/40 group-hover:text-white group-hover:translate-x-0.5 transition-all shrink-0" />
+								<ArrowRight class="w-5 h-5 text-white/30 group-hover:text-white group-hover:translate-x-1 transition-all duration-300 shrink-0 relative z-10" />
 							</button>
 
-							<div class="pt-1 flex items-center justify-between text-[10px] text-white/40 border-t border-white/5">
-								<span class="flex items-center gap-1.5">
+							<div class="flex items-center justify-between pt-2.5 border-t border-white/[0.04]">
+								<span class="flex items-center gap-1.5 text-[10px] text-white/30">
 									<ShieldCheck class="w-3.5 h-3.5 text-emerald-400" />
 									Autenticação oficial via browser
 								</span>
 								<button
 									type="button"
-									class="hover:text-amber-400 transition-colors cursor-pointer underline underline-offset-2"
+									class="text-[10px] text-white/30 hover:text-amber-400 transition-colors cursor-pointer underline underline-offset-2 decoration-white/10 hover:decoration-amber-400/50"
 									onclick={() => showMsClientIdModal = true}
 								>
 									Azure ID
@@ -606,18 +641,18 @@
 
 				{:else}
 					<!-- Offline Login Box -->
-					<div class="bg-[#18191c] border border-white/10 rounded-3xl p-5 space-y-4 shadow-lg" in:fade={{ duration: 200 }}>
-						<div class="flex bg-[#121316] p-1 rounded-full border border-white/5">
+					<div class="bg-[#13141a] border border-white/[0.08] rounded-3xl p-6 space-y-5 shadow-[0_16px_32px_rgba(0,0,0,0.3)] relative" in:fade={{ duration: 250 }}>
+						<div class="flex bg-[#0e0f12] p-1 rounded-full border border-white/[0.05]">
 							<button 
 								type="button" 
-								class="flex-1 py-2 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'login' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20' : 'text-white/40 hover:text-white/70 border border-transparent'}"
+								class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'login' ? 'bg-[#1e1f26] text-[#caa97c] shadow-sm border border-[#caa97c]/15' : 'text-white/30 hover:text-white/60 border border-transparent'}"
 								onclick={() => authTab = 'login'}
 							>
 								{t("home.loginTab")}
 							</button>
 							<button 
 								type="button" 
-								class="flex-1 py-2 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'register' ? 'bg-[#25262c] text-[#caa97c] shadow-sm border border-[#caa97c]/20' : 'text-white/40 hover:text-white/70 border border-transparent'}"
+								class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'register' ? 'bg-[#1e1f26] text-[#caa97c] shadow-sm border border-[#caa97c]/15' : 'text-white/30 hover:text-white/60 border border-transparent'}"
 								onclick={() => authTab = 'register'}
 							>
 								{t("home.createAccountTab")}
@@ -625,35 +660,65 @@
 						</div>
 
 						{#if savedAccounts.length > 0 && authTab === 'login'}
-							<div class="flex flex-wrap items-center gap-1.5 pt-0.5" transition:slide={{ duration: 200 }}>
-								<span class="text-[10px] text-white/40 font-semibold shrink-0">{t("home.savedAccounts")}</span>
-								{#each savedAccounts as accName (accName)}
-									<button 
-										type="button" 
-										class="text-[10px] font-bold px-3 py-1 rounded-full border transition-all cursor-pointer hover:scale-105 active:scale-95 {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-[#caa97c] bg-[#caa97c]/20 text-[#caa97c]' : 'border-white/10 bg-white/5 text-white/60 hover:text-white hover:border-white/25 hover:bg-white/10'}"
-										onclick={() => { offlineName = accName; }}
-									>
-										{accName}
-									</button>
-								{/each}
+							<div class="space-y-2.5 pt-0.5" transition:slide={{ duration: 300 }}>
+								<div class="flex items-center gap-2">
+									<span class="text-[10px] text-white/35 font-bold uppercase tracking-widest">{t("home.savedAccounts")}</span>
+									<div class="flex-1 h-px bg-white/[0.04]"></div>
+								</div>
+								<div class="flex flex-wrap gap-2">
+									{#each savedAccounts as accName (accName)}
+										<div 
+											class="relative group"
+											role="presentation"
+										>
+											<button 
+												type="button" 
+												class="flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-2xl border transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-[0.98] {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-[#caa97c]/40 bg-[#caa97c]/10 shadow-[0_0_16px_rgba(202,169,124,0.12)]' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]'}"
+												onclick={() => { offlineName = accName; }}
+											>
+												<div class="h-7 w-7 rounded-lg overflow-hidden bg-[#1a1b21] border border-white/[0.1] shrink-0">
+													<img 
+														src="https://mc-heads.net/avatar/{accName}/56" 
+														alt={accName}
+														class="w-full h-full object-cover"
+														loading="lazy"
+													/>
+												</div>
+												<span class="text-[11px] font-bold {offlineName.toLowerCase() === accName.toLowerCase() ? 'text-[#caa97c]' : 'text-white/60 group-hover:text-white/80'} transition-colors">{accName}</span>
+											</button>
+											<button
+												type="button"
+												class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-[#2a1515] border border-red-500/30 text-red-400 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all duration-200 cursor-pointer z-10 shadow-md"
+												onclick={(e) => { e.stopPropagation(); deleteSavedAccount(accName); }}
+												title="Remover conta salva"
+											>
+												<Trash2 class="w-2.5 h-2.5" />
+											</button>
+										</div>
+									{/each}
+								</div>
 							</div>
 						{/if}
 
-						<div class="flex items-center gap-2 text-xs font-bold text-white/80">
-							<Gamepad2 class="w-4 h-4 text-[#caa97c]" />
+						<div class="flex items-center gap-2.5 text-xs font-bold text-white/70">
+							<div class="h-8 w-8 rounded-xl bg-[#caa97c]/10 border border-[#caa97c]/20 flex items-center justify-center">
+								<Gamepad2 class="w-4 h-4 text-[#caa97c]" />
+							</div>
 							<span>{authTab === 'login' ? t("home.accessOfflineAccount") : t("home.registerNewAccount")}</span>
 						</div>
 
 						<div class="space-y-3">
-							<input 
-								type="text" 
-								placeholder={t("home.gamertagPlaceholder")} 
-								aria-label="Gamertag"
-								bind:value={offlineName}
-								class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
-								maxlength="16"
-								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
-							/>
+							<div class="relative">
+								<input 
+									type="text" 
+									placeholder={t("home.gamertagPlaceholder")} 
+									aria-label="Gamertag"
+									bind:value={offlineName}
+									class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-4 py-3.5 text-xs font-bold text-white outline-none focus:border-[#caa97c]/50 focus:shadow-[0_0_0_3px_rgba(202,169,124,0.08)] transition-all duration-300 placeholder:text-white/20"
+									maxlength="16"
+									onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
+								/>
+							</div>
 
 							<div class="relative">
 								<input 
@@ -661,12 +726,12 @@
 									placeholder={t("home.accountPasswordPlaceholder")} 
 									aria-label="Senha"
 									bind:value={offlinePassword}
-									class="w-full bg-[#1e1f24] border border-white/10 rounded-full pl-5 pr-12 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
+									class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-12 py-3.5 text-xs font-bold text-white outline-none focus:border-[#caa97c]/50 focus:shadow-[0_0_0_3px_rgba(202,169,124,0.08)] transition-all duration-300 placeholder:text-white/20"
 									onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 								/>
 								<button
 									type="button"
-									class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-[#caa97c] p-1.5 transition-all duration-200 cursor-pointer"
+									class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#caa97c] p-1.5 transition-all duration-200 cursor-pointer"
 									onclick={() => (showPassword = !showPassword)}
 									title={showPassword ? t("home.hidePassword") : t("home.showPassword")}
 								>
@@ -685,7 +750,7 @@
 										placeholder={t("home.confirmPasswordPlaceholder")} 
 										aria-label="Confirmar senha"
 										bind:value={offlineConfirmPassword}
-										class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
+										class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-4 py-3.5 text-xs font-bold text-white outline-none focus:border-[#caa97c]/50 focus:shadow-[0_0_0_3px_rgba(202,169,124,0.08)] transition-all duration-300 placeholder:text-white/20"
 										onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 									/>
 								</div>
@@ -694,9 +759,8 @@
 
 						<button 
 							type="button" 
-							class="w-full h-11 rounded-xl hover:brightness-110 active:scale-[0.98] text-[#15171c] font-bold text-xs flex items-center justify-center gap-2 transition-all duration-200 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-							style="background-color: #caa97c;"
-							onclick={handleOfflineAuth}
+							class="w-full h-12 rounded-2xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] hover:from-[#e5cca8] hover:to-[#caa97c] text-[#111215] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all duration-300 shadow-[0_8px_24px_rgba(202,169,124,0.25)] hover:shadow-[0_12px_32px_rgba(202,169,124,0.4)] hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+							onclick={() => { playClick(); handleOfflineAuth(); }}
 							disabled={isLoggingIn || isLoggingInMicrosoft}
 						>
 							{#if isLoggingIn}
@@ -707,17 +771,17 @@
 						</button>
 					</div>
 
-					<div class="flex flex-col items-center gap-1.5 pt-1">
+					<div class="flex flex-col items-center gap-2 pt-1">
 						<button 
 							type="button" 
-							class="group px-3.5 py-2 rounded-2xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-amber-500/40 text-white/60 hover:text-white transition-all duration-300 flex items-center gap-2 cursor-pointer text-xs disabled:opacity-50"
+							class="group px-4 py-2.5 rounded-2xl bg-white/[0.02] hover:bg-white/[0.05] border border-white/[0.05] hover:border-amber-500/30 text-white/50 hover:text-white transition-all duration-300 flex items-center gap-2.5 cursor-pointer text-xs disabled:opacity-40"
 							onclick={handleDevLogin}
 							disabled={isLoggingIn || isLoggingInMicrosoft}
 						>
-							<span class="bg-amber-500/20 text-amber-300 text-[9px] font-black px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-wider">
+							<span class="bg-amber-500/15 text-amber-300 text-[9px] font-black px-2.5 py-0.5 rounded-full border border-amber-500/25 uppercase tracking-widest">
 								{t("home.devMode")}
 							</span>
-							<span class="font-semibold text-[11px] text-white/70 group-hover:text-white transition-colors">{t("home.devAccess")}</span>
+							<span class="font-semibold text-[11px] text-white/60 group-hover:text-white transition-colors">{t("home.devAccess")}</span>
 							{#if isLoggingIn}
 								<Loader2 class="w-3.5 h-3.5 animate-spin text-amber-400" />
 							{/if}
@@ -726,66 +790,69 @@
 				{/if}
 			</div>
 
-			<div class="text-[10px] text-white/30 text-center leading-relaxed">
+			<div class="text-[10px] text-white/20 text-center leading-relaxed mt-1">
 				{t("home.compatibleWith")}
 			</div>
+			</Animate>
 		</div>
 	</div>
 
 	{#if showMsClientIdModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" in:fade={{ duration: 150 }}>
-			<div class="w-full max-w-md rounded-3xl bg-[#18191c] border border-amber-500/30 p-6 shadow-2xl space-y-4">
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" in:fade={{ duration: 200 }}>
+			<div class="w-full max-w-md rounded-3xl bg-[#13141a] border border-amber-500/20 p-7 shadow-[0_32px_64px_rgba(0,0,0,0.6)] space-y-5 relative overflow-hidden" in:fly={{ y: 20, duration: 300 }}>
+				<div class="absolute -right-12 -top-12 w-48 h-48 bg-amber-500/[0.06] rounded-full blur-[80px] pointer-events-none"></div>
+
 				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-2.5">
-						<div class="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center">
-							<Lock class="w-4 h-4" />
+					<div class="flex items-center gap-3">
+						<div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center border border-amber-500/20">
+							<Lock class="w-4.5 h-4.5" />
 						</div>
 						<div>
 							<h3 class="text-sm font-black text-white">Configurar Microsoft Azure</h3>
-							<p class="text-[10px] text-white/50">Application (client) ID Requerido</p>
+							<p class="text-[10px] text-white/40">Application (client) ID Requerido</p>
 						</div>
 					</div>
 					<button 
 						type="button" 
-						class="w-7 h-7 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center text-xs transition-colors cursor-pointer"
+						class="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-white/40 hover:text-white flex items-center justify-center text-xs transition-all cursor-pointer border border-white/[0.06]"
 						onclick={() => showMsClientIdModal = false}
 					>
 						✕
 					</button>
 				</div>
 
-				<p class="text-xs text-white/70 leading-relaxed">
+				<p class="text-xs text-white/60 leading-relaxed">
 					Para autenticar com a Microsoft, insira o <span class="text-amber-400 font-bold">Application (client) ID</span> gerado no seu registro de aplicativo no Azure Portal (configurado para <em>Personal Microsoft accounts only</em>).
 				</p>
 
-				<div class="space-y-1.5">
-					<label for="ms-client-input" class="text-[11px] font-bold text-white/80 block">Client ID (UUID):</label>
+				<div class="space-y-2">
+					<label for="ms-client-input" class="text-[11px] font-bold text-white/70 block">Client ID (UUID):</label>
 					<input 
 						id="ms-client-input"
 						type="text" 
 						placeholder="9750ebbe-21e9-4a4d-b808-f451a3e0af7f" 
 						bind:value={msClientIdInput}
-						class="w-full bg-[#121316] border border-white/15 focus:border-amber-500 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-all"
+						class="w-full bg-[#0e0f12] border border-white/[0.08] focus:border-amber-500/50 rounded-2xl px-4 py-3 text-xs text-white font-mono outline-none transition-all focus:shadow-[0_0_0_3px_rgba(245,158,11,0.08)]"
 						onkeydown={(e) => { if (e.key === "Enter") saveAndLoginWithClientId(); }}
 					/>
 				</div>
 
-				<div class="p-3 rounded-2xl bg-white/5 border border-white/5 text-[10px] text-white/50 space-y-1">
-					<div class="font-bold text-white/70">Aviso do Azure Portal:</div>
+				<div class="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.04] text-[10px] text-white/45 space-y-1">
+					<div class="font-bold text-white/60">Aviso do Azure Portal:</div>
 					<div>Redirect URI configurado deve ser: <code class="text-amber-300 font-mono">http://localhost:8453/callback</code></div>
 				</div>
 
-				<div class="flex items-center gap-2 pt-2">
+				<div class="flex items-center gap-2.5 pt-1">
 					<button 
 						type="button" 
-						class="flex-1 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white font-bold text-xs transition-all cursor-pointer"
+						class="flex-1 py-3 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] text-white/60 hover:text-white font-bold text-xs transition-all cursor-pointer border border-white/[0.06]"
 						onclick={() => showMsClientIdModal = false}
 					>
 						Cancelar
 					</button>
 					<button 
 						type="button" 
-						class="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-1.5"
+						class="flex-1 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-black font-black text-xs transition-all cursor-pointer shadow-[0_4px_16px_rgba(245,158,11,0.25)] hover:shadow-[0_8px_24px_rgba(245,158,11,0.35)] disabled:opacity-50 flex items-center justify-center gap-1.5"
 						onclick={saveAndLoginWithClientId}
 						disabled={isSavingClientId}
 					>
@@ -918,17 +985,18 @@
 					{#each layoutStore.sections as sec (sec.id)}
 						{#if sec.enabled}
 							<div class="{sec.width === 'half' ? 'xl:col-span-6' : 'xl:col-span-12'} w-full transition-all duration-300">
-								{#if sec.id === 'hero'}
-									<!-- SKLauncher-inspired Hero Banner & Launch Block -->
-									<div class="relative rounded-3xl bg-[#141519] border border-white/10 shadow-2xl overflow-hidden" in:fade={{ duration: 250 }}>
-										{#if activeInstance?.banner}
-											<div 
-												class="absolute inset-0 bg-cover bg-center opacity-25 scale-105 filter blur-sm pointer-events-none"
-												style="background-image: url('{activeInstance.banner}');"
-											></div>
-										{/if}
-										<div class="absolute inset-0 bg-gradient-to-r from-[#111215] via-[#141519]/95 to-[#141519]/80 pointer-events-none"></div>
-										<div class="absolute -right-12 -top-12 w-64 h-64 bg-[#caa97c]/10 rounded-full blur-3xl pointer-events-none"></div>
+							{#if sec.id === 'hero'}
+								<!-- SKLauncher-inspired Hero Banner & Launch Block -->
+								<div class="relative rounded-3xl bg-[#111216] border border-white/[0.08] shadow-[0_24px_48px_rgba(0,0,0,0.4)] overflow-hidden" in:fade={{ duration: 300 }}>
+									{#if activeInstance?.banner}
+										<div 
+											class="absolute inset-0 bg-cover bg-center opacity-20 scale-105 blur-sm pointer-events-none"
+											style="background-image: url('{activeInstance.banner}');"
+										></div>
+									{/if}
+									<div class="absolute inset-0 bg-gradient-to-r from-[#0e0f12] via-[#111216]/95 to-[#111216]/80 pointer-events-none"></div>
+									<div class="absolute -right-16 -top-16 w-72 h-72 bg-[#caa97c]/[0.07] rounded-full blur-[100px] pointer-events-none"></div>
+									<div class="absolute -left-16 -bottom-16 w-56 h-56 bg-[#6c5ce7]/[0.05] rounded-full blur-[80px] pointer-events-none"></div>
 
 										<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 p-7 relative z-10">
 											<div class="space-y-2.5 max-w-xl">
@@ -1057,18 +1125,18 @@
 								{:else if sec.id === 'quickInstances'}
 									<!-- Quick Instances Carousel / Bar -->
 									<section>
-										<div class="flex items-center justify-between mb-3">
-											<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+										<div class="flex items-center justify-between mb-4">
+											<h2 class="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2.5">
 												<Boxes class="w-3.5 h-3.5 text-[#caa97c]" />
 												Minhas Instâncias
 											</h2>
-											<a href="/instances" class="text-xs text-[#caa97c] hover:underline font-bold">Ver Todas</a>
+											<a href="/instances" class="text-xs text-[#caa97c] hover:text-[#e0c49a] underline-offset-2 hover:underline font-bold transition-colors">Ver Todas</a>
 										</div>
 
 										{#if profiles.list.length === 0}
-											<div class="rounded-2xl bg-[#18191c] border border-white/5 p-6 flex flex-col items-center justify-center text-center">
-												<p class="text-xs text-white/50 mb-3">Nenhuma instância criada ainda.</p>
-												<a href="/instances" class="px-4 py-2 rounded-xl bg-[#caa97c] text-black text-xs font-bold hover:bg-[#ebd08f] transition-all">
+											<div class="rounded-3xl bg-[#111216] border border-white/[0.06] p-8 flex flex-col items-center justify-center text-center">
+												<p class="text-xs text-white/40 mb-4">Nenhuma instância criada ainda.</p>
+												<a href="/instances" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] text-[#111215] text-xs font-black hover:shadow-[0_8px_24px_rgba(202,169,124,0.3)] transition-all">
 													Criar Nova Instância
 												</a>
 											</div>
@@ -1077,14 +1145,14 @@
 												{#each profiles.list.slice(0, 4) as inst}
 													{@const isSelected = activeInstance?.id === inst.id}
 													<div 
-														class="flex items-center justify-between p-3 rounded-2xl bg-[#18191c] border {isSelected ? 'border-[#caa97c]/60 bg-[#1e1f26] shadow-[0_0_15px_rgba(202,169,124,0.15)]' : 'border-white/5 hover:border-white/20'} transition-all cursor-pointer group"
+														class="flex items-center justify-between p-3.5 rounded-2xl bg-[#111216] border {isSelected ? 'border-[#caa97c]/40 bg-gradient-to-br from-[#caa97c]/[0.08] to-transparent shadow-[0_0_24px_rgba(202,169,124,0.1)]' : 'border-white/[0.06] hover:border-white/[0.12]'} transition-all duration-300 cursor-pointer group"
 														onclick={() => { profiles.activeId = inst.id; }}
 														role="button"
 														tabindex="0"
 														onkeydown={(e) => { if (e.key === 'Enter') profiles.activeId = inst.id; }}
 													>
 														<div class="flex items-center gap-3 min-w-0">
-															<div class="h-10 w-10 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+															<div class="h-10 w-10 rounded-xl bg-[#0e0f12] border border-white/[0.08] overflow-hidden flex items-center justify-center shrink-0">
 																{#if inst.icon && (inst.icon.startsWith("http") || inst.icon.startsWith("/") || inst.icon.startsWith("data:"))}
 																	<img src={inst.icon} alt={inst.name} class="w-full h-full object-cover" />
 																{:else}
@@ -1093,17 +1161,17 @@
 															</div>
 															<div class="min-w-0">
 																<h4 class="font-bold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{inst.name}</h4>
-																<div class="flex items-center gap-1.5 text-[10px] text-white/40 font-mono mt-0.5">
+																<div class="flex items-center gap-1.5 text-[10px] text-white/35 font-mono mt-0.5">
 																	<span>{inst.mcVersion}</span>
-																	<span>•</span>
-																	<span class="uppercase text-[#caa97c]/80 font-bold">{inst.loader}</span>
+																	<span>·</span>
+																	<span class="uppercase text-[#caa97c]/70 font-bold">{inst.loader}</span>
 																</div>
 															</div>
 														</div>
 														<div class="shrink-0 ml-2">
 															<button
 																type="button"
-																class="h-8 w-8 rounded-xl flex items-center justify-center {isSelected ? 'bg-[#caa97c] text-black' : 'bg-white/5 hover:bg-white/10 text-white/70'} transition-all"
+																class="h-8 w-8 rounded-xl flex items-center justify-center {isSelected ? 'bg-gradient-to-r from-[#d8bc98] to-[#caa97c] text-[#111215]' : 'bg-white/[0.04] hover:bg-white/[0.08] text-white/60'} transition-all duration-300"
 																title="Jogar esta instância"
 																onclick={(e) => {
 																	e.stopPropagation();
@@ -1129,34 +1197,34 @@
 								{:else if sec.id === 'curatedPacks'}
 									<!-- Modpacks Recomendados -->
 									<section>
-										<div class="flex items-center justify-between mb-3">
-											<h2 class="text-xs font-bold text-white uppercase tracking-wider">{t("home.exploreContent")}</h2>
-											<a href="/mods" class="text-xs text-[#caa97c] hover:underline font-bold">{t("home.viewAll")}</a>
+										<div class="flex items-center justify-between mb-4">
+											<h2 class="text-xs font-bold text-white uppercase tracking-widest">{t("home.exploreContent")}</h2>
+											<a href="/mods" class="text-xs text-[#caa97c] hover:text-[#e0c49a] underline-offset-2 hover:underline font-bold transition-colors">{t("home.viewAll")}</a>
 										</div>
 
 										<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 											{#each modpacks as pack}
-												<a href="/mods" class="group rounded-2xl bg-[#18191c] border border-white/5 overflow-hidden hover:border-[#caa97c]/40 hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(0,0,0,0.4)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
-													<div class="h-32 w-full relative bg-[#222328] overflow-hidden">
-														<img src={pack.bgImg} class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-300" alt={pack.title} />
-														<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-transparent to-transparent"></div>
+												<a href="/mods" class="group rounded-3xl bg-[#111216] border border-white/[0.06] overflow-hidden hover:border-[#caa97c]/30 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,0,0,0.5)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
+													<div class="h-36 w-full relative bg-[#0e0f12] overflow-hidden">
+														<img src={pack.bgImg} class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" alt={pack.title} />
+														<div class="absolute inset-0 bg-gradient-to-t from-[#111216] via-transparent to-transparent"></div>
 														
-														<div class="absolute top-2.5 right-2.5 h-6 w-6 rounded-full bg-black/60 border border-white/10 flex items-center justify-center shadow-md">
+														<div class="absolute top-3 right-3 h-7 w-7 rounded-xl bg-black/60 border border-white/[0.12] flex items-center justify-center shadow-md">
 															<span class="font-black text-[10px] text-emerald-400">m</span>
 														</div>
 
-														<div class="absolute bottom-2 left-2.5 h-9 w-9 rounded-xl overflow-hidden bg-black/60 border border-white/10 flex items-center justify-center shadow-md p-0.5">
+														<div class="absolute bottom-3 left-3 h-10 w-10 rounded-xl overflow-hidden bg-black/60 border border-white/[0.12] flex items-center justify-center shadow-md p-0.5">
 															<img src={pack.iconImg} alt={pack.title} class="w-full h-full object-cover rounded-lg" />
 														</div>
 													</div>
-													<div class="p-4 pt-3 flex-1 flex flex-col justify-between">
+													<div class="p-5 pt-3 flex-1 flex flex-col justify-between">
 														<div>
 															<h3 class="font-extrabold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{pack.title}</h3>
-															<p class="text-[10px] text-white/40 mt-1 line-clamp-2 leading-relaxed">{pack.subtitle}</p>
+															<p class="text-[10px] text-white/35 mt-1.5 line-clamp-2 leading-relaxed">{pack.subtitle}</p>
 														</div>
-														<div class="flex justify-between items-center mt-3 pt-2 border-t border-white/5 text-[10px] font-medium text-white/40">
-															<span class="flex items-center gap-1"><Users class="w-3 h-3 text-white/30"/> {pack.author}</span>
-															<span class="flex items-center gap-1 font-mono"><Download class="w-3 h-3 text-white/30"/> {pack.downloads}</span>
+														<div class="flex justify-between items-center mt-3 pt-2.5 border-t border-white/[0.04] text-[10px] font-medium text-white/35">
+															<span class="flex items-center gap-1"><Users class="w-3 h-3 text-white/25"/> {pack.author}</span>
+															<span class="flex items-center gap-1 font-mono"><Download class="w-3 h-3 text-white/25"/> {pack.downloads}</span>
 														</div>
 													</div>
 												</a>
@@ -1167,30 +1235,30 @@
 								{:else if sec.id === 'gamingStats'}
 									<!-- Tempo de Jogo & Monitor -->
 									<section class="flex flex-col">
-										<div class="flex items-center justify-between mb-3">
-											<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+										<div class="flex items-center justify-between mb-4">
+											<h2 class="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2">
 												{t("home.yourPlayTime")}
 											</h2>
-											<span class="text-[10px] text-white/40 font-mono">{t("home.realTimeTracking")}</span>
+											<span class="text-[10px] text-white/30 font-mono">{t("home.realTimeTracking")}</span>
 										</div>
 
-										<div class="bg-[#18191c] border border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between hover:border-white/15 transition-all">
+										<div class="bg-[#111216] border border-white/[0.06] rounded-3xl p-6 shadow-sm flex flex-col justify-between hover:border-white/[0.12] transition-all duration-300">
 											<div class="mb-4">
 												<div class="text-2xl font-black text-white">{gamingStats.formattedLast7DaysTime || "0m"}</div>
-												<div class="text-[11px] text-white/40 mt-0.5">{t("home.last7Days")}</div>
+												<div class="text-[11px] text-white/35 mt-0.5">{t("home.last7Days")}</div>
 											</div>
 
-											<div class="my-4 py-3 border-y border-white/5 relative flex flex-col items-center justify-center">
+											<div class="my-4 py-3 border-y border-white/[0.04] relative flex flex-col items-center justify-center">
 												<div class="h-24 w-full flex items-end justify-between gap-2 px-1 pt-2">
 													{#each gamingStats.last7Days as day}
 														{@const heightPercent = gamingStats.maxMinutesInLast7 > 0 ? Math.max(8, Math.round((day.minutes / gamingStats.maxMinutesInLast7) * 100)) : 8}
 														<div class="flex-1 flex flex-col items-center gap-1 group relative h-full justify-end">
-															<div class="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-900 border border-white/10 text-[10px] text-white font-mono px-1.5 py-0.5 rounded shadow whitespace-nowrap pointer-events-none z-10">
+															<div class="absolute -top-6 opacity-0 group-hover:opacity-100 transition-opacity bg-[#0e0f12] border border-white/[0.08] text-[10px] text-white font-mono px-1.5 py-0.5 rounded shadow-lg whitespace-nowrap pointer-events-none z-10">
 																{day.formattedTime}
 															</div>
-															<div class="w-full bg-white/5 rounded-t-sm h-20 flex items-end overflow-hidden">
+															<div class="w-full bg-white/[0.03] rounded-t-sm h-20 flex items-end overflow-hidden">
 																<div
-																	class="w-full rounded-t-sm transition-all duration-500 {day.isToday ? 'bg-[#caa97c] shadow-[0_0_10px_rgba(202,169,124,0.3)]' : (day.minutes > 0 ? 'bg-white/40 group-hover:bg-white/70' : 'bg-white/10')}"
+																	class="w-full rounded-t-sm transition-all duration-500 {day.isToday ? 'bg-gradient-to-t from-[#b89560] to-[#caa97c] shadow-[0_0_12px_rgba(202,169,124,0.25)]' : (day.minutes > 0 ? 'bg-white/30 group-hover:bg-white/50' : 'bg-white/[0.06]')}"
 																	style="height: {day.minutes > 0 ? heightPercent + '%' : '6%'};"
 																></div>
 															</div>
@@ -1198,7 +1266,7 @@
 													{/each}
 												</div>
 
-												<div class="w-full flex justify-between items-center text-[10px] text-white/40 font-medium mt-3 pt-2 border-t border-white/5 px-2">
+												<div class="w-full flex justify-between items-center text-[10px] text-white/35 font-medium mt-3 pt-2 border-t border-white/[0.04] px-2">
 													{#each gamingStats.last7Days as day}
 														<span class="{day.isToday ? 'text-white font-bold' : ''}">{day.dayLabel}</span>
 													{/each}
@@ -1208,15 +1276,15 @@
 											<div class="grid grid-cols-3 gap-2 pt-2 text-center">
 												<div class="text-left">
 													<div class="text-xs font-black text-white">{gamingStats.formattedAverageSession || "0m"}</div>
-													<div class="text-[10px] text-white/40 mt-0.5">{t("home.averageSession")}</div>
+													<div class="text-[10px] text-white/35 mt-0.5">{t("home.averageSession")}</div>
 												</div>
 												<div class="text-left">
 													<div class="text-xs font-black text-white">{gamingStats.formattedLongestSession || "0m"}</div>
-													<div class="text-[10px] text-white/40 mt-0.5">{t("home.longestSession")}</div>
+													<div class="text-[10px] text-white/35 mt-0.5">{t("home.longestSession")}</div>
 												</div>
 												<div class="text-left">
 													<div class="text-xs font-black text-white">{gamingStats.daysPlayedInLast7} de 7</div>
-													<div class="text-[10px] text-white/40 mt-0.5">{t("home.daysPlayed")}</div>
+													<div class="text-[10px] text-white/35 mt-0.5">{t("home.daysPlayed")}</div>
 												</div>
 											</div>
 										</div>
@@ -1234,12 +1302,12 @@
 							{:else if sec.id === 'tools'}
 									<!-- Ferramentas Rápidas & Organizador -->
 									<section>
-										<div class="flex items-center justify-between mb-3">
-											<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+										<div class="flex items-center justify-between mb-4">
+											<h2 class="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2.5">
 												<Zap class="w-3.5 h-3.5 text-[#caa97c]" />
 												Atalhos & Ferramentas Rápidas
 											</h2>
-											<a href="/organizer" class="text-xs text-[#caa97c] hover:underline font-bold flex items-center gap-1">
+											<a href="/organizer" class="text-xs text-[#caa97c] hover:text-[#e0c49a] underline-offset-2 hover:underline font-bold flex items-center gap-1 transition-colors">
 												<SlidersHorizontal class="w-3 h-3" />
 												Personalizar
 											</a>
@@ -1249,70 +1317,70 @@
 											<button 
 												type="button"
 												onclick={() => goto("/organizer")}
-												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-[#caa97c]/50 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-[#caa97c]/30 hover:bg-gradient-to-br hover:from-[#caa97c]/[0.05] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
 											>
-												<div class="h-8 w-8 rounded-xl bg-[#caa97c]/10 border border-[#caa97c]/20 flex items-center justify-center text-[#caa97c] group-hover:scale-110 transition-transform">
+												<div class="h-9 w-9 rounded-xl bg-[#caa97c]/10 border border-[#caa97c]/15 flex items-center justify-center text-[#caa97c] group-hover:scale-110 transition-transform duration-300">
 													<SlidersHorizontal class="w-4 h-4" />
 												</div>
 												<div>
 													<h4 class="font-bold text-white text-xs group-hover:text-[#caa97c] transition-colors">Organizador</h4>
-													<p class="text-[10px] text-white/40 mt-0.5">Ajustar Layout</p>
+													<p class="text-[10px] text-white/35 mt-0.5">Ajustar Layout</p>
 												</div>
 											</button>
 
 											<button 
 												type="button"
 												onclick={() => showGamerCardModal = true}
-												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-purple-500/40 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-purple-500/30 hover:bg-gradient-to-br hover:from-purple-500/[0.05] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
 											>
-												<div class="h-8 w-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+												<div class="h-9 w-9 rounded-xl bg-purple-500/10 border border-purple-500/15 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform duration-300">
 													<Share2 class="w-4 h-4" />
 												</div>
 												<div>
 													<h4 class="font-bold text-white text-xs group-hover:text-purple-300 transition-colors">Card de Gamer</h4>
-													<p class="text-[10px] text-white/40 mt-0.5">Exportar Imagem</p>
+													<p class="text-[10px] text-white/35 mt-0.5">Exportar Imagem</p>
 												</div>
 											</button>
 
 											<button 
 												type="button"
 												onclick={() => openInstanceFolder()}
-												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-white/20 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-white/[0.15] hover:bg-gradient-to-br hover:from-white/[0.03] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
 											>
-												<div class="h-8 w-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/70 group-hover:scale-110 transition-transform">
+												<div class="h-9 w-9 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-white/60 group-hover:scale-110 transition-transform duration-300">
 													<FolderOpen class="w-4 h-4" />
 												</div>
 												<div>
 													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Pasta do Jogo</h4>
-													<p class="text-[10px] text-white/40 mt-0.5">Abrir .minecraft</p>
+													<p class="text-[10px] text-white/35 mt-0.5">Abrir .minecraft</p>
 												</div>
 											</button>
 
 											<button 
 												type="button"
 												onclick={() => goto("/mods")}
-												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-white/20 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-emerald-500/30 hover:bg-gradient-to-br hover:from-emerald-500/[0.05] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
 											>
-												<div class="h-8 w-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+												<div class="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300">
 													<Package class="w-4 h-4" />
 												</div>
 												<div>
 													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Mods & Shaders</h4>
-													<p class="text-[10px] text-white/40 mt-0.5">CurseForge / Modrinth</p>
+													<p class="text-[10px] text-white/35 mt-0.5">CurseForge / Modrinth</p>
 												</div>
 											</button>
 
 											<button 
 												type="button"
 												onclick={() => goto("/screenshots")}
-												class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-white/20 hover:bg-[#1f2026] text-left transition-all group cursor-pointer shadow-sm flex flex-col justify-between h-28"
+												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-sky-500/30 hover:bg-gradient-to-br hover:from-sky-500/[0.05] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
 											>
-												<div class="h-8 w-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform">
+												<div class="h-9 w-9 rounded-xl bg-sky-500/10 border border-sky-500/15 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform duration-300">
 													<Camera class="w-4 h-4" />
 												</div>
 												<div>
 													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Screenshots</h4>
-													<p class="text-[10px] text-white/40 mt-0.5">Galeria de Fotos</p>
+													<p class="text-[10px] text-white/35 mt-0.5">Galeria de Fotos</p>
 												</div>
 											</button>
 										</div>

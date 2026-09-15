@@ -771,7 +771,7 @@
 						</div>
 						<div class="w-36">
 							<label for="import-loader" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.loader")}</label>
-							<select id="import-loader" class="h-9 w-full rounded-md px-2 text-sm" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));" bind:value={importLoader}>
+							<select id="import-loader" class="h-9 w-full rounded-md px-2 text-sm transition-all duration-300" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));" bind:value={importLoader}>
 								<option value="fabric">Fabric</option>
 								<option value="forge">Forge</option>
 								<option value="neoforge">NeoForge</option>
@@ -850,7 +850,7 @@
 	/>
 
 	<!-- Bottom Bar -->
-	<div class="mt-4 mb-6 rounded-3xl bg-[#141518] border border-white/5 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+	<div class="mt-4 mb-6 rounded-3xl bg-[#111216] border border-white/[0.06] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
 		<div class="flex items-center gap-4">
 			<div class="w-10 h-10 rounded-full bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
 				<Boxes class="w-5 h-5 text-brand-500" />
@@ -858,18 +858,18 @@
 			<div>
 				<div class="text-xs font-black text-white flex items-center gap-2">
 					<span>Biblioteca Luxmc</span>
-					<span class="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-white/5 text-white/60 border border-white/10">
+					<span class="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-white/5 text-white/60 border border-white/[0.12]">
 						{filteredInstances.length} {filteredInstances.length === 1 ? 'Instância instalada' : 'Instâncias instaladas'}
 					</span>
 				</div>
-				<p class="text-[11px] text-white/40 mt-0.5">Gerencie suas versões com carregamento rápido e perfis isolados.</p>
+				<p class="text-[11px] text-white/35 mt-0.5">Gerencie suas versões com carregamento rápido e perfis isolados.</p>
 			</div>
 		</div>
 		<div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-			<button type="button" class="px-5 py-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/80 hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
+			<button type="button" class="px-5 py-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/[0.06] hover:border-white/[0.15] text-white/80 hover:text-white text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-2"
 				onclick={() => { if (profiles.active) openFolder(profiles.active.id); else toast("Nenhuma instância ativa selecionada", "info"); }}
 			>
-				<FolderOpen class="w-4 h-4 text-white/50" /> Abrir Pasta das Instâncias
+				<FolderOpen class="w-4 h-4 text-white/35" /> Abrir Pasta das Instâncias
 			</button>
 		</div>
 	</div>
@@ -877,13 +877,13 @@
 	<!-- Import Code Modal -->
 	{#if showImportCode}
 		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md" transition:fade={{ duration: 150 }}>
-			<div class="w-full max-w-md bg-[#141518] border border-brand-500/30 rounded-3xl p-6 shadow-2xl">
+			<div class="w-full max-w-md bg-[#111216] border border-brand-500/30 rounded-3xl p-6 shadow-2xl">
 				<div class="flex items-center justify-between mb-4">
 					<div class="flex items-center gap-2">
 						<Sparkles class="w-5 h-5 text-brand-500" />
 						<h3 class="text-sm font-black text-white">Importar Instância por Código</h3>
 					</div>
-					<button type="button" class="text-white/40 hover:text-white p-1 rounded-lg cursor-pointer" onclick={() => showImportCode = false}>
+					<button type="button" class="text-white/35 hover:text-white p-1 rounded-lg cursor-pointer" onclick={() => showImportCode = false}>
 						<X class="w-4 h-4" />
 					</button>
 				</div>
@@ -897,21 +897,21 @@
 						type="text" 
 						bind:value={shareCodeInput} 
 						placeholder="LUX-XXXXXX" 
-						class="w-full bg-[#1c1d22] border border-white/10 focus:border-brand-500 rounded-2xl px-4 py-3 text-sm text-white font-mono uppercase tracking-wider outline-none transition-colors"
+						class="w-full bg-[#0e0f12] border border-white/[0.06] focus:border-[#caa97c]/50 rounded-2xl px-4 py-3 text-sm text-white font-mono uppercase tracking-widest outline-none transition-all duration-300"
 					/>
 				</div>
 
 				<div class="flex items-center justify-end gap-3">
 					<button 
 						type="button" 
-						class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 transition-colors cursor-pointer"
+						class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 transition-all duration-300 cursor-pointer"
 						onclick={() => showImportCode = false}
 					>
 						Cancelar
 					</button>
 					<button 
 						type="button" 
-						class="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-black text-xs font-black transition-all flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer disabled:opacity-50"
+						class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] text-black text-xs font-black transition-all duration-300 flex items-center gap-2 shadow-sm shadow-brand-500/20 cursor-pointer disabled:opacity-50"
 						disabled={isImportingCode}
 						onclick={handleImportShareCode}
 					>
@@ -1064,14 +1064,14 @@
 					{:else}
 						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
 							{#each screenshots as shot}
-								<div class="overflow-hidden rounded-xl border border-white/10 bg-black/40 shadow-sm group">
+								<div class="overflow-hidden rounded-xl border border-white/[0.12] bg-black/40 shadow-sm group">
 									<div class="aspect-video overflow-hidden flex items-center justify-center bg-black/60">
 										<img src={convertFileSrc(shot.path)} alt={shot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
 									</div>
 									<div class="px-2.5 py-1.5 flex items-center justify-between">
 										<div class="min-w-0 flex-1">
 											<p class="truncate text-[11px] font-bold text-white/90">{shot.name}</p>
-											<p class="text-[10px] text-white/40">{new Date(shot.modified).toLocaleDateString()}</p>
+											<p class="text-[10px] text-white/35">{new Date(shot.modified).toLocaleDateString()}</p>
 										</div>
 									</div>
 								</div>
@@ -1116,9 +1116,9 @@
 		{#if editingInstance}
 			<div class="flex flex-col gap-4 text-xs select-none">
 				<div class="space-y-1.5">
-					<label for="edit-instance-name" class="block text-xs font-bold text-white/70 uppercase tracking-wider">{t("instances.name")}</label>
+					<label for="edit-instance-name" class="block text-xs font-bold text-white/70 uppercase tracking-widest">{t("instances.name")}</label>
 					<div class="flex items-center gap-3">
-						<div class="h-11 w-11 rounded-2xl bg-[#18191c] border border-white/10 flex items-center justify-center shrink-0 p-1">
+						<div class="h-11 w-11 rounded-2xl bg-[#0e0f12] border border-white/[0.12] flex items-center justify-center shrink-0 p-1">
 							<img src={getIconSrc(editIcon)} alt="Ícone" class="w-8 h-8 object-contain [image-rendering:pixelated]" />
 						</div>
 						<Input id="edit-instance-name" bind:value={editName} placeholder={t("instances.namePlaceholder")} />
@@ -1126,8 +1126,8 @@
 				</div>
 
 				<div class="space-y-1.5">
-					<span class="block text-xs font-bold text-white/70 uppercase tracking-wider">Ícone da Instância</span>
-					<div class="flex items-center gap-1.5 bg-[#18191c] p-1.5 rounded-2xl border border-white/10">
+					<span class="block text-xs font-bold text-white/70 uppercase tracking-widest">Ícone da Instância</span>
+					<div class="flex items-center gap-1.5 bg-[#0e0f12] p-1.5 rounded-2xl border border-white/[0.12]">
 						{#each [{ id: "grass_block", label: "Grama", src: "/grass_block.png" }, { id: "modpack_fo", label: "FO", src: "/modpack_fo_icon.png" }, { id: "modpack_better_mc", label: "BMC", src: "/modpack_bmc_icon.webp" }, { id: "modpack_cobblemon", label: "Cobblemon", src: "/modpack_cobblemon_icon.png" }, { id: "logo", label: "Logo", src: "/logo.png" }, { id: "grass_head", label: "Steve", src: "/grass_head.png" }] as ip}
 							<button type="button" class="w-8 h-8 rounded-xl p-1 transition-all cursor-pointer flex items-center justify-center {editIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-white/5 opacity-60 hover:opacity-100'}"
 								onclick={() => editIcon = ip.id} title={ip.label}
@@ -1139,11 +1139,11 @@
 				</div>
 
 				<div class="space-y-1.5">
-					<span class="block text-xs font-bold text-white/70 uppercase tracking-wider">{t("instances.version")}</span>
+					<span class="block text-xs font-bold text-white/70 uppercase tracking-widest">{t("instances.version")}</span>
 					<FilterableVersionSelect versions={availableVersions} bind:value={editVersion} loading={versionsLoading} />
 				</div>
 
-				<div class="bg-[#18191c] border border-emerald-500/20 rounded-2xl p-3.5 space-y-2">
+				<div class="bg-[#0e0f12] border border-emerald-500/20 rounded-2xl p-3.5 space-y-2">
 					<div class="flex items-center justify-between text-xs">
 						<div class="flex items-center gap-2.5">
 							<div class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
@@ -1151,22 +1151,22 @@
 							</div>
 							<div>
 								<span class="font-bold text-white block">Memória RAM 100% Automática</span>
-								<span class="text-[10px] text-white/50 block">Hardware: {Math.round(systemRamMb / 1024)} GB Totais</span>
+								<span class="text-[10px] text-white/35 block">Hardware: {Math.round(systemRamMb / 1024)} GB Totais</span>
 							</div>
 						</div>
 						<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">Auto Tuning</span>
 					</div>
-					<p class="text-[10px] text-white/40 leading-relaxed">
+					<p class="text-[10px] text-white/35 leading-relaxed">
 						O Luxmc aloca a quantidade ideal de RAM dinamicamente com base na quantidade de mods da instância e recursos livres do seu Linux.
 					</p>
 				</div>
 
 				<div class="space-y-1.5">
-					<label for="edit-jvm-args" class="block text-xs font-bold text-white/70 uppercase tracking-wider">Argumentos JVM Customizados</label>
+					<label for="edit-jvm-args" class="block text-xs font-bold text-white/70 uppercase tracking-widest">Argumentos JVM Customizados</label>
 					<input id="edit-jvm-args" type="text" bind:value={editJvmArgs} placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch"
-						class="w-full bg-[#18191c] border border-white/10 focus:border-brand-500 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-colors"
+						class="w-full bg-[#0e0f12] border border-white/[0.06] focus:border-[#caa97c]/50 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-all duration-300"
 					/>
-					<p class="text-[10px] text-white/40">Parâmetros extras passados diretamente para a máquina virtual Java.</p>
+					<p class="text-[10px] text-white/35">Parâmetros extras passados diretamente para a máquina virtual Java.</p>
 				</div>
 
 				<div class="flex justify-end gap-2 border-t pt-4" style="border-color: rgb(var(--border));">
@@ -1182,26 +1182,26 @@
 	<!-- Delete Confirmation Modal -->
 	{#if confirmDeleteInstance}
 		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4" transition:fade={{ duration: 150 }}>
-			<div class="w-full max-w-md bg-[#141518] border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4 select-none">
+			<div class="w-full max-w-md bg-[#111216] border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4 select-none">
 				<div class="flex items-center gap-3">
 					<div class="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
 						<Trash2 class="w-5 h-5" />
 					</div>
 					<div>
 						<h3 class="text-sm font-black text-white">Excluir Instância</h3>
-						<p class="text-[11px] text-white/50">Esta ação não poderá ser desfeita</p>
+						<p class="text-[11px] text-white/35">Esta ação não poderá ser desfeita</p>
 					</div>
 				</div>
-				<div class="bg-[#18191c] p-3.5 rounded-2xl border border-white/5 text-xs text-white/70 space-y-1.5">
+				<div class="bg-[#0e0f12] p-3.5 rounded-2xl border border-white/[0.06] text-xs text-white/70 space-y-1.5">
 					<p>Tem certeza que deseja apagar a instância <strong class="text-white">"{confirmDeleteInstance.name}"</strong>?</p>
-					<p class="text-[10px] text-white/40 font-mono break-all">Pasta: {confirmDeleteInstance.gameDir}</p>
+					<p class="text-[10px] text-white/35 font-mono break-all">Pasta: {confirmDeleteInstance.gameDir}</p>
 					<p class="text-[11px] text-red-400/90 font-medium">Todos os mundos, saves, mods e arquivos salvos serão removidos permanentemente do disco.</p>
 				</div>
 				<div class="flex justify-end gap-2.5 pt-2">
-					<button type="button" class="px-5 py-2.5 rounded-full text-xs font-bold text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+					<button type="button" class="px-5 py-2.5 rounded-full text-xs font-bold text-white/60 hover:text-white hover:bg-white/10 transition-all duration-300 cursor-pointer"
 						onclick={() => (confirmDeleteInstance = null)}
 					>Cancelar</button>
-					<button type="button" class="px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-white font-black text-xs transition-all active:scale-95 shadow-md cursor-pointer flex items-center gap-2"
+					<button type="button" class="px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-white font-black text-xs transition-all duration-300 active:scale-95 shadow-sm cursor-pointer flex items-center gap-2"
 						disabled={deleting}
 						onclick={async () => {
 							if (!confirmDeleteInstance) return;
