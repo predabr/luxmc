@@ -131,14 +131,17 @@
 					if (target === "global") {
 						const globalCh = friends.find(f => f.id === "global");
 						if (globalCh && !globalCh.messages.some(m => m.id === msgId)) {
-							const globalMsg: Message = {
-								id: msgId,
-								sender: "friend",
-								text: `[${sender}] ${text}`,
-								time: timeStr
-							};
-							globalCh.messages = [...globalCh.messages, globalMsg].slice(-100);
-							friends = [...friends];
+						const globalMsg: Message = {
+							id: msgId,
+							sender: "friend",
+							text: `[${sender}] ${text}`,
+							time: timeStr
+						};
+						globalCh.messages.push(globalMsg);
+						if (globalCh.messages.length > 100) {
+							globalCh.messages.splice(0, globalCh.messages.length - 100);
+						}
+						friends = [...friends];
 							saveFriends();
 						}
 					} else if (target === myUsername.toLowerCase()) {
@@ -149,20 +152,23 @@
 							text: text,
 							time: timeStr
 						};
-						if (!friend) {
-							friend = {
-								id: String(Date.now()),
-								username: sender,
-								address: "Universal",
-								status: "online",
-								activity: "Chat Universal",
-								messages: [dmMsg]
-							};
-							friends = [...friends, friend];
-						} else if (!friend.messages.some(m => m.id === msgId)) {
-							friend.messages = [...friend.messages, dmMsg].slice(-100);
-							friends = [...friends];
+					if (!friend) {
+						friend = {
+							id: String(Date.now()),
+							username: sender,
+							address: "Universal",
+							status: "online",
+							activity: "Chat Universal",
+							messages: [dmMsg]
+						};
+						friends.push(friend);
+					} else if (!friend.messages.some(m => m.id === msgId)) {
+						friend.messages.push(dmMsg);
+						if (friend.messages.length > 100) {
+							friend.messages.splice(0, friend.messages.length - 100);
 						}
+					}
+					friends = [...friends];
 						saveFriends();
 						toast(`💬 ${sender}: "${text}"`, "info");
 					}
@@ -233,12 +239,12 @@
 				activity: "Conectado via P2P",
 				messages: [newMsg]
 			};
-			friends = [...friends, friend];
+			friends.push(friend);
 		} else {
-			friend.messages = [...friend.messages, newMsg];
+			friend.messages.push(newMsg);
 			friend.status = "online";
-			friends = [...friends];
 		}
+		friends = [...friends];
 
 		saveFriends();
 		toast(`💬 Mensagem de ${payload.sender}: "${payload.text}"`, "info");
@@ -260,7 +266,7 @@
 				}
 			]
 		};
-		friends = [...friends, testFriend];
+		friends.push(testFriend);
 		activeFriendId = testFriend.id;
 		saveFriends();
 		toast("Canal de teste local criado com sucesso!", "success");
@@ -302,7 +308,7 @@
 			]
 		};
 
-		friends = [...friends, newFriend];
+		friends.push(newFriend);
 		activeFriendId = newFriend.id;
 		newFriendUsername = "";
 		newFriendAddress = "";
@@ -338,7 +344,10 @@
 			time: timeStr
 		};
 
-		activeFriend.messages = [...activeFriend.messages, msg].slice(-100);
+		activeFriend.messages.push(msg);
+		if (activeFriend.messages.length > 100) {
+			activeFriend.messages.splice(0, activeFriend.messages.length - 100);
+		}
 		friends = [...friends];
 		newMessageText = "";
 		saveFriends();
@@ -360,7 +369,10 @@
 						text: reply,
 						time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 					};
-					activeFriend.messages = [...activeFriend.messages, replyMsg].slice(-100);
+					activeFriend.messages.push(replyMsg);
+					if (activeFriend.messages.length > 100) {
+						activeFriend.messages.splice(0, activeFriend.messages.length - 100);
+					}
 					friends = [...friends];
 					saveFriends();
 				}

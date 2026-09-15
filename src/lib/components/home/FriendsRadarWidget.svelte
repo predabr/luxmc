@@ -36,47 +36,7 @@
 		p2pCode?: string;
 	};
 
-	let friends = $state<FriendStatus[]>([
-		{
-			id: "1",
-			name: "pedro_dev",
-			skinUrl: "https://mc-heads.net/avatar/MHF_Steve/48",
-			status: "in_server",
-			activity: "MushMC Network",
-			detail: "Jogando Bedwars 4v4 · Sala #12",
-			pingMs: 14,
-			serverAddress: "jogar.mush.com.br"
-		},
-		{
-			id: "2",
-			name: "Lucas_Miner",
-			skinUrl: "https://mc-heads.net/avatar/MHF_Alex/48",
-			status: "in_game",
-			activity: "Mundo LAN Privado",
-			detail: "Sobrevivendo no Better MC (Dia 34)",
-			pingMs: 22,
-			p2pCode: "LUX-7842"
-		},
-		{
-			id: "3",
-			name: "Kiro_PvP",
-			skinUrl: "https://mc-heads.net/avatar/Notch/48",
-			status: "in_server",
-			activity: "Hypixel Network",
-			detail: "SkyWars Ranked · 1.8.9",
-			pingMs: 118,
-			serverAddress: "mc.hypixel.net"
-		},
-		{
-			id: "4",
-			name: "AnaCraft",
-			skinUrl: "https://mc-heads.net/avatar/MHF_Herobrine/48",
-			status: "online",
-			activity: "No Launcher",
-			detail: "Customizando skins & shaders",
-			pingMs: 18
-		}
-	]);
+	let friends = $state<FriendStatus[]>([]);
 
 	let showDirectJoinModal = $state(false);
 	let showHostLanModal = $state(false);
@@ -221,46 +181,63 @@
 
 	<!-- Cards dos Amigos -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-		{#each friends as friend}
-			<div class="rounded-2xl bg-[#18191c] border border-white/5 hover:border-[#caa97c]/40 p-3.5 flex flex-col justify-between gap-3 transition-all hover:bg-[#1c1d22] shadow-sm group">
-				<div class="flex items-start justify-between gap-2">
-					<div class="flex items-center gap-2.5 min-w-0">
-						<div class="relative w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
-							<img src={friend.skinUrl} alt={friend.name} class="w-full h-full object-cover" />
-							<span class="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#18191c] {friend.status === 'in_game' || friend.status === 'in_server' ? 'bg-emerald-400' : 'bg-blue-400'}"></span>
-						</div>
-						<div class="min-w-0">
-							<div class="flex items-center gap-1.5">
-								<h3 class="text-xs font-bold text-white truncate">{friend.name}</h3>
+		{#if friends.length === 0}
+			<div class="col-span-full rounded-2xl bg-[#18191c] border border-white/5 p-6 flex flex-col items-center justify-center text-center">
+				<div class="w-10 h-10 rounded-xl bg-[#caa97c]/10 border border-[#caa97c]/20 flex items-center justify-center mb-3">
+					<Users class="w-5 h-5 text-[#caa97c]" />
+				</div>
+				<p class="text-xs font-semibold text-white/60 mb-1">Nenhum amigo conectado</p>
+				<p class="text-[10px] text-white/35 mb-3">Adicione amigos ou entre em servidores para vê-los aqui</p>
+				<button
+					type="button"
+					onclick={() => goto("/friends")}
+					class="px-3 py-1.5 rounded-xl bg-[#caa97c]/10 hover:bg-[#caa97c]/20 text-[#caa97c] text-[10px] font-bold border border-[#caa97c]/20 transition-all cursor-pointer"
+				>
+					Abrir Chat & Amigos
+				</button>
+			</div>
+		{:else}
+			{#each friends as friend}
+				<div class="rounded-2xl bg-[#18191c] border border-white/5 hover:border-[#caa97c]/40 p-3.5 flex flex-col justify-between gap-3 transition-all hover:bg-[#1c1d22] shadow-sm group">
+					<div class="flex items-start justify-between gap-2">
+						<div class="flex items-center gap-2.5 min-w-0">
+							<div class="relative w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
+								<img src={friend.skinUrl} alt={friend.name} class="w-full h-full object-cover" />
+								<span class="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#18191c] {friend.status === 'in_game' || friend.status === 'in_server' ? 'bg-emerald-400' : 'bg-blue-400'}"></span>
 							</div>
-							<p class="text-[11px] font-semibold text-[#caa97c] truncate mt-0.5">{friend.activity}</p>
+							<div class="min-w-0">
+								<div class="flex items-center gap-1.5">
+									<h3 class="text-xs font-bold text-white truncate">{friend.name}</h3>
+								</div>
+								<p class="text-[11px] font-semibold text-[#caa97c] truncate mt-0.5">{friend.activity}</p>
+							</div>
 						</div>
+
+						<span class="text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 shrink-0 flex items-center gap-1">
+							<Wifi class="w-2.5 h-2.5" />
+							{friend.pingMs}ms
+						</span>
 					</div>
 
-					<span class="text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 px-1.5 py-0.5 rounded-md border border-emerald-500/20 shrink-0 flex items-center gap-1">
-						<Wifi class="w-2.5 h-2.5" />
-						{friend.pingMs}ms
-					</span>
-				</div>
+					<div class="pt-2 border-t border-white/5 flex items-center justify-between">
+						<span class="text-[10px] text-white/40 truncate max-w-[150px]">{friend.detail}</span>
 
-				<div class="pt-2 border-t border-white/5 flex items-center justify-between">
-					<span class="text-[10px] text-white/40 truncate max-w-[150px]">{friend.detail}</span>
-
-					{#if friend.serverAddress || friend.p2pCode}
-						<button
-							type="button"
-							class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1 cursor-pointer"
-							onclick={() => handleQuickJoin(friend)}
-						>
-							<Play class="w-2.5 h-2.5 fill-current" />
-							Entrar
-						</button>
-					{:else}
-						<span class="text-[10px] font-semibold text-white/30">Online</span>
-					{/if}
+						{#if friend.serverAddress || friend.p2pCode}
+							<button
+								type="button"
+								class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1 cursor-pointer"
+								onclick={() => handleQuickJoin(friend)}
+							>
+								<Play class="w-2.5 h-2.5 fill-current" />
+								Entrar
+							</button>
+						{:else}
+							<span class="text-[10px] font-semibold text-white/30">Online</span>
+						{/if}
+					</div>
 				</div>
-			</div>
-		{/each}
+			{/each}
+		{/if}
 	</div>
 </section>
 

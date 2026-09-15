@@ -35,6 +35,7 @@
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
 	import { appInit, discordSetActivity, listenGameExit, crashDoctorDiagnose } from "$lib/api";
+	import { optimizerTrimMemory } from "$lib/api/instances";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
 	const { t } = useTranslation();
@@ -44,9 +45,6 @@
 	let toastsInstance = $state<Toasts | null>(null);
 	let telemetryData = $state<GameTelemetrySummary | null>(null);
 	let showTelemetryModal = $state(false);
-	$effect(() => {
-		if (toastsInstance) setToastInstance(toastsInstance);
-	});
 
 	const tabOrderMap: Record<string, number> = {
 		"/": 0,
@@ -174,6 +172,8 @@
 			initialized = true;
 		});
 
+		setToastInstance(toastsInstance!);
+
 		let unlistenGameExit: (() => void) | undefined;
 		listenGameExit((event) => {
 			gamingStats.onGameExit();
@@ -227,19 +227,32 @@
 		}
 
 		const stop = startAutoPersist();
+		
+		const trimInterval = window.setInterval(() => {
+			optimizerTrimMemory().catch(() => {});
+		}, 5 * 60 * 1000);
+
 		return () => {
 			stop();
 			if (unlistenGameExit) unlistenGameExit();
 			if (unlistenTelemetry) unlistenTelemetry();
 			stopSoundscape();
+			clearInterval(trimInterval);
 		};
 	});
 
+	let paletteDebounce: ReturnType<typeof setTimeout> | null = null;
 	$effect(() => {
 		const bannerOrIcon = profiles.active?.banner || profiles.active?.icon;
 		if (bannerOrIcon) {
-			applyAdaptivePalette(bannerOrIcon);
+			if (paletteDebounce) clearTimeout(paletteDebounce);
+			paletteDebounce = setTimeout(() => {
+				applyAdaptivePalette(bannerOrIcon);
+			}, 300);
 		}
+		return () => {
+			if (paletteDebounce) clearTimeout(paletteDebounce);
+		};
 	});
 
 	$effect(() => {

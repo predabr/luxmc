@@ -8,7 +8,6 @@
 		Shirt,
 		Boxes,
 		Plus,
-		Users,
 		Settings as SettingsIcon,
 		Github,
 		Zap,
@@ -37,7 +36,6 @@
 		{ href: "/instances", labelKey: "nav.instances", title: "Biblioteca", icon: Boxes },
 	];
 
-	const friendsActive = $derived($page.url.pathname.startsWith("/friends"));
 	const settingsActive = $derived($page.url.pathname.startsWith("/settings"));
 
 	function getAccountStatus(acc: typeof account.value) {
@@ -162,25 +160,8 @@
 		</div>
 	</nav>
 
-	<!-- Bottom Section: Friends, Settings -->
+	<!-- Bottom Section: GitHub, Client Suite, Settings -->
 	<div class="mt-auto w-full flex flex-col items-center gap-2 pt-2 border-t border-white/5">
-		<!-- Friends Route with Tooltip -->
-		<div class="relative group w-full flex justify-center">
-			<a
-				href="/friends"
-				onclick={(e) => {
-					e.preventDefault();
-					goto("/friends");
-				}}
-				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 cursor-pointer {friendsActive ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
-			>
-				<Users class="h-5 w-5 {friendsActive ? 'text-[#15171c]' : 'text-[#8a8d98] group-hover:text-white transition-colors'}" strokeWidth={friendsActive ? 2.2 : 1.8} />
-			</a>
-			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl">
-				Amigos
-			</div>
-		</div>
-
 		<!-- GitHub Repository Route with Tooltip -->
 		<div class="relative group w-full flex justify-center">
 			<button

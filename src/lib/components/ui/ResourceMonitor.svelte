@@ -8,7 +8,9 @@
 		ts: number;
 	};
 
-	let readings = $state<Reading[]>([]);
+	const MAX_READINGS = 60;
+	let readings = $state<Reading[]>(Array(MAX_READINGS).fill(null).map(() => ({ cpuPercent: 0, memMb: 0, ts: 0 })));
+	let idx = $state(0);
 	let pollHandle: number | null = $state(null);
 
 	async function tick(pid: number | null) {
@@ -16,7 +18,8 @@
 		try {
 			const sample = await sampleProcess(pid);
 			if (sample) {
-				readings = [...readings, sample].slice(-60);
+				readings[idx] = sample;
+				idx = (idx + 1) % MAX_READINGS;
 			}
 		} catch {}
 	}
@@ -31,18 +34,10 @@
 	};
 
 	let { pid, running }: Props = $props();
-	let lastRunning = $state(false);
 
-	$effect(() => {
-		const shouldRun = running && pid !== null;
-		if (shouldRun && !lastRunning) {
+	onMount(() => {
+		if (running && pid !== null) {
 			pollHandle = window.setInterval(() => tick(pid), 1000);
-			lastRunning = true;
-		}
-		if (!shouldRun && lastRunning) {
-			clearInterval(pollHandle!);
-			pollHandle = null;
-			lastRunning = false;
 		}
 	});
 
@@ -52,8 +47,13 @@
 		}
 	});
 
-	const current = $derived(readings.at(-1));
-	const max = $derived(Math.max(1024, ...readings.map((r) => r.memMb)));
+	const current = $derived.by(() => {
+		const i = idx === 0 ? MAX_READINGS - 1 : idx - 1;
+		const r = readings[i];
+		return (r && r.ts > 0) ? r : null;
+	});
+
+	const max = $derived(Math.max(1024, ...readings.filter(r => r.ts > 0).map((r) => r.memMb)));
 </script>
 
 <div

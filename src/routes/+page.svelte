@@ -36,6 +36,8 @@
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import FavoriteServerWidget from "$lib/components/home/FavoriteServerWidget.svelte";
 	import FriendsRadarWidget from "$lib/components/home/FriendsRadarWidget.svelte";
+	import NewsFeedWidget from "$lib/components/home/NewsFeedWidget.svelte";
+	import ScreenshotsWidget from "$lib/components/home/ScreenshotsWidget.svelte";
 	import GamerCardModal from "$lib/components/profile/GamerCardModal.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -1217,10 +1219,16 @@
 										</div>
 									</section>
 
-								{:else if sec.id === 'friendsRadar'}
-									<FriendsRadarWidget />
+							{:else if sec.id === 'friendsRadar'}
+								<FriendsRadarWidget />
 
-								{:else if sec.id === 'tools'}
+							{:else if sec.id === 'newsFeed'}
+								<NewsFeedWidget />
+
+							{:else if sec.id === 'screenshots'}
+								<ScreenshotsWidget />
+
+							{:else if sec.id === 'tools'}
 									<!-- Ferramentas Rápidas & Organizador -->
 									<section>
 										<div class="flex items-center justify-between mb-3">

@@ -1,4 +1,4 @@
-export type SectionId = "hero" | "quickInstances" | "favoriteServer" | "curatedPacks" | "gamingStats" | "friendsRadar" | "tools";
+export type SectionId = "hero" | "quickInstances" | "favoriteServer" | "curatedPacks" | "gamingStats" | "friendsRadar" | "newsFeed" | "screenshots" | "tools";
 export type LayoutPreset = "gamer" | "compact" | "full";
 
 export interface LayoutSectionItem {
@@ -60,6 +60,22 @@ const DEFAULT_SECTIONS: LayoutSectionItem[] = [
 		enabled: true,
 		icon: "radio",
 		width: "half"
+	},
+	{
+		id: "newsFeed",
+		title: "Notícias & Patch Notes",
+		description: "Últimas atualizações e release notes do Luxmc Launcher",
+		enabled: true,
+		icon: "newspaper",
+		width: "half"
+	},
+	{
+		id: "screenshots",
+		title: "Capturas de Tela Rápidas",
+		description: "Galeria de screenshots recentes do jogo",
+		enabled: true,
+		icon: "camera",
+		width: "full"
 	},
 	{
 		id: "tools",

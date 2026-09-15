@@ -28,6 +28,8 @@
 	let canvasEl: HTMLCanvasElement | null = $state(null);
 	let viewer: SkinViewer | null = null;
 	let resizeObserver: ResizeObserver | null = null;
+	let skinCache = new Map<string, HTMLCanvasElement | string>();
+	let loadGeneration = 0;
 
 	onMount(() => {
 		if (!canvasEl || !containerEl) return;
@@ -206,6 +208,10 @@
 	}
 
 	function loadAndHealSkin(src: string, isSlim: boolean): Promise<HTMLCanvasElement | string> {
+		const cacheKey = `${src}|${isSlim ? "slim" : "default"}`;
+		const cached = skinCache.get(cacheKey);
+		if (cached) return Promise.resolve(cached);
+
 		return new Promise((resolve) => {
 			if (typeof window === "undefined") {
 				resolve(src);
@@ -233,7 +239,6 @@
 
 					if (w === 64 && h === 32) {
 						ctx.drawImage(img, 0, 0);
-						// Mirror left leg from right leg
 						for (let dy = 0; dy < 4; dy++) {
 							for (let dx = 0; dx < 4; dx++) {
 								ctx.drawImage(canvas, 4 + dx, 16 + dy, 1, 1, 20 + (3 - dx), 48 + dy, 1, 1);
@@ -248,7 +253,6 @@
 								ctx.drawImage(canvas, 8 + dx, 20 + dy, 1, 1, 16 + (3 - dx), 52 + dy, 1, 1);
 							}
 						}
-						// Mirror left arm from right arm
 						for (let dy = 0; dy < 4; dy++) {
 							for (let dx = 0; dx < 4; dx++) {
 								ctx.drawImage(canvas, 44 + dx, 16 + dy, 1, 1, 36 + (3 - dx), 48 + dy, 1, 1);
@@ -268,6 +272,12 @@
 					}
 
 					healSkinCanvas(canvas, isSlim);
+
+					if (skinCache.size > 10) {
+						const firstKey = skinCache.keys().next().value;
+						if (firstKey) skinCache.delete(firstKey);
+					}
+					skinCache.set(cacheKey, canvas);
 					resolve(canvas);
 				} catch (err) {
 					console.warn("Failed to preprocess skin canvas:", err);
@@ -283,14 +293,15 @@
 
 	function updateSkin() {
 		if (!viewer) return;
+		const gen = ++loadGeneration;
 		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl : "https://minotar.net/skin/Steve";
 		loadAndHealSkin(targetSkin, slim).then((healedSrc) => {
-			if (!viewer) return;
+			if (!viewer || gen !== loadGeneration) return;
 			const res = viewer.loadSkin(healedSrc, { model: slim ? "slim" : "default" });
 			if (res && typeof (res as Promise<void>).then === "function") {
 				(res as Promise<void>)
 					.then(() => {
-						viewer?.playerObject.skin.setOuterLayerVisible(true);
+						if (gen === loadGeneration) viewer?.playerObject.skin.setOuterLayerVisible(true);
 					})
 					.catch((e: unknown) => {
 						console.warn("Failed to load skin in 3D viewer:", e);
@@ -326,25 +337,17 @@
 	$effect(() => {
 		const _s = skinUrl;
 		const _m = slim;
-		updateSkin();
-	});
-
-	$effect(() => {
 		const _c = cape;
 		const _u = customCapeUrl;
+		const _r = autoRotate;
+		const _a = active;
+
+		if (viewer) {
+			viewer.autoRotate = _r;
+			viewer.renderPaused = !_a;
+		}
+		updateSkin();
 		updateCape();
-	});
-
-	$effect(() => {
-		if (viewer) {
-			viewer.autoRotate = autoRotate;
-		}
-	});
-
-	$effect(() => {
-		if (viewer) {
-			viewer.renderPaused = !active;
-		}
 	});
 
 	export function setAngle(deg: number) {
