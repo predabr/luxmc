@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, onDestroy } from "svelte";
 	import { CheckCircle2, AlertCircle, Info, X, Bell } from "lucide-svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 
@@ -13,13 +14,18 @@
 	let toasts = $state<Toast[]>([]);
 	let counter = 0;
 	let dismissing = $state<Set<number>>(new Set());
+	const timers = new Map<number, ReturnType<typeof setTimeout>>();
+	let destroyed = false;
 
 	export function push(message: string, level: Toast["level"] = "info") {
+		if (destroyed) return;
 		const id = ++counter;
 		toasts = [...toasts, { id, message, level }];
-		setTimeout(() => {
-			dismiss(id);
+		const t1 = setTimeout(() => {
+			timers.delete(id);
+			if (!destroyed) dismiss(id);
 		}, 4000);
+		timers.set(id, t1);
 	}
 
 	function color(level: Toast["level"]) {
@@ -38,12 +44,21 @@
 	function dismiss(id: number) {
 		dismissing.add(id);
 		dismissing = dismissing;
-		setTimeout(() => {
+		const t2 = setTimeout(() => {
+			timers.delete(id);
+			if (destroyed) return;
 			toasts = toasts.filter((t) => t.id !== id);
 			dismissing.delete(id);
 			dismissing = dismissing;
 		}, 200);
+		timers.set(id + 0.5, t2);
 	}
+
+	onDestroy(() => {
+		destroyed = true;
+		timers.forEach((t) => clearTimeout(t));
+		timers.clear();
+	});
 </script>
 
 <div class="pointer-events-none fixed right-4 top-4 z-[200] flex w-80 flex-col gap-2">

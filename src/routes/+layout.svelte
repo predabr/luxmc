@@ -175,7 +175,11 @@
 		setToastInstance(toastsInstance!);
 
 		let unlistenGameExit: (() => void) | undefined;
-		listenGameExit((event) => {
+		let unlistenTelemetry: (() => void) | undefined;
+		let disposed = false;
+
+		const exitPromise = listenGameExit((event) => {
+			if (disposed) return;
 			gamingStats.onGameExit();
 			const lastProfileId = appState.activeGameDetails?.profileId || profiles.activeId || "";
 			appState.isGameRunning = false;
@@ -208,21 +212,26 @@
 			if (settings.value.soundscapesEnabled === true && !appState.performanceMode) {
 				startSoundscape("overworld");
 			}
-		}).then((unlisten) => {
+		});
+		exitPromise.then((unlisten) => {
+			if (disposed) { unlisten(); return; }
 			unlistenGameExit = unlisten;
 		}).catch(() => {});
 
-		let unlistenTelemetry: (() => void) | undefined;
-		listenGameTelemetry((summary) => {
+		const telemetryPromise = listenGameTelemetry((summary) => {
+			if (disposed) return;
 			telemetryData = summary;
 			showTelemetryModal = true;
-		}).then((unlisten) => {
+		});
+		telemetryPromise.then((unlisten) => {
+			if (disposed) { unlisten(); return; }
 			unlistenTelemetry = unlisten;
 		}).catch(() => {});
 
+		let soundscapeTimer: ReturnType<typeof setTimeout> | undefined;
 		if (settings.value.soundscapesEnabled === true && !appState.performanceMode) {
-			setTimeout(() => {
-				startSoundscape("overworld");
+			soundscapeTimer = setTimeout(() => {
+				if (!disposed) startSoundscape("overworld");
 			}, 1200);
 		}
 
@@ -233,11 +242,14 @@
 		}, 5 * 60 * 1000);
 
 		return () => {
+			disposed = true;
 			stop();
 			if (unlistenGameExit) unlistenGameExit();
 			if (unlistenTelemetry) unlistenTelemetry();
+			if (soundscapeTimer) clearTimeout(soundscapeTimer);
 			stopSoundscape();
 			clearInterval(trimInterval);
+			gamingStats.destroy();
 		};
 	});
 

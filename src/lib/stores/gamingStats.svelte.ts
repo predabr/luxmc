@@ -281,6 +281,13 @@ export const gamingStats = {
 			activeSessionMinutes = 0;
 			persistToDb();
 		}
+	},
+
+	destroy() {
+		if (activeInterval) {
+			clearInterval(activeInterval);
+			activeInterval = null;
+		}
 	}
 };
 

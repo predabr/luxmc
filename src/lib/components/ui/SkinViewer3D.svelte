@@ -88,6 +88,8 @@
 			viewer.dispose();
 			viewer = null;
 		}
+		skinCache.clear();
+		skinCache = new Map();
 	});
 
 	function healSkinCanvas(canvas: HTMLCanvasElement, isSlim: boolean) {
