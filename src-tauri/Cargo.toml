@@ -1,6 +1,6 @@
 [package]
 name = "luxmc"
-version = "1.7.0"
+version = "1.7.1"
 description = "Luxmc Minecraft Launcher."
 authors = ["Luxmc contributors"]
 edition = "2021"

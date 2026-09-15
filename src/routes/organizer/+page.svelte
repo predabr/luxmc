@@ -2,7 +2,7 @@
 	import { 
 		GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, RotateCcw, 
 		Check, Sparkles, LayoutGrid, Package, Boxes, Clock, 
-		Newspaper, Wrench, Play, MoveVertical, Smartphone, Monitor,
+		Radio, Wrench, Play, MoveVertical, Smartphone, Monitor,
 		Gamepad2, AlignJustify, Grid3x3, Signal
 	} from "lucide-svelte";
 	import { dndzone } from "svelte-dnd-action";
@@ -66,7 +66,7 @@
 			case "favoriteServer": return Signal;
 			case "curatedPacks": return Package;
 			case "gamingStats": return Clock;
-			case "newsFeed": return Newspaper;
+			case "friendsRadar": return Radio;
 			case "tools": return Wrench;
 			default: return LayoutGrid;
 		}
@@ -181,7 +181,7 @@
 						<div class="flex items-center gap-2 shrink-0">
 							
 							<!-- Width Toggle (for cards that support half-width) -->
-							{#if section.id === "gamingStats" || section.id === "newsFeed"}
+							{#if section.id === "gamingStats" || section.id === "friendsRadar"}
 								<button
 									type="button"
 									title={section.width === 'full' ? 'Mudar para meia largura (lado a lado)' : 'Mudar para largura total'}

@@ -312,18 +312,18 @@ html.density-spacious { font-size: 15px; }
 
 /* SKlauncher Reference Style Tokens */
 .nav-pill-active {
-  background: linear-gradient(135deg, #d8bc98 0%, #a4b2bc 50%, #8596a2 100%);
-  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.35);
+  background: linear-gradient(135deg, #d8bc98 0%, #c4a97c 100%);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.3), 0 2px 12px rgba(202,169,124,0.2);
   color: #15171c;
 }
 
 .nav-pill-inactive {
-  color: #8a8d98;
+  color: #6b7280;
 }
 
 .nav-pill-inactive:hover {
   color: #ffffff;
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255,255,255,0.07);
 }
 
 /* Reference Toggle Switch */

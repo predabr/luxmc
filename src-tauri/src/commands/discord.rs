@@ -1,23 +1,18 @@
 use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
-#[allow(unused_imports)]
+use std::io::{Read, Write};
 use std::sync::Mutex;
 
 #[cfg(unix)]
-use std::io::{Read, Write};
-#[cfg(unix)]
 use std::os::unix::net::UnixStream;
 
-#[cfg(unix)]
-static DISCORD_STREAM: Mutex<Option<UnixStream>> = Mutex::new(None);
-#[cfg(unix)]
-static CURRENT_CLIENT_ID: Mutex<Option<String>> = Mutex::new(None);
+#[cfg(windows)]
+use std::fs::OpenOptions;
 
-#[allow(dead_code)]
 const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
-#[allow(dead_code)]
-const LUXMC_ICON_URL: &str = "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
-#[allow(dead_code)]
+const LUXMC_ICON_URL: &str =
+    "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
+const LUXMC_VERSION: &str = "1.7.1";
 const MINECRAFT_GRASS_ASSET: &str = "grass";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,13 +30,91 @@ pub struct DiscordActivityArgs {
     pub client_id: Option<String>,
 }
 
+enum IpcStream {
+    #[cfg(unix)]
+    Unix(UnixStream),
+    #[cfg(windows)]
+    Pipe(std::fs::File),
+}
+
+impl IpcStream {
+    fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+        match self {
+            #[cfg(unix)]
+            IpcStream::Unix(s) => s.write_all(buf),
+            #[cfg(windows)]
+            IpcStream::Pipe(f) => f.write_all(buf),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        match self {
+            #[cfg(unix)]
+            IpcStream::Unix(s) => s.flush(),
+            #[cfg(windows)]
+            IpcStream::Pipe(f) => f.flush(),
+        }
+    }
+
+    fn read_exact(&mut self, buf: &mut [u8]) -> std::io::Result<()> {
+        match self {
+            #[cfg(unix)]
+            IpcStream::Unix(s) => s.read_exact(buf),
+            #[cfg(windows)]
+            IpcStream::Pipe(f) => f.read_exact(buf),
+        }
+    }
+
+    #[cfg(unix)]
+    fn set_read_timeout(&mut self, dur: Option<std::time::Duration>) -> std::io::Result<()> {
+        match self {
+            IpcStream::Unix(s) => s.set_read_timeout(dur),
+        }
+    }
+
+    #[cfg(windows)]
+    fn set_read_timeout(&mut self, _dur: Option<std::time::Duration>) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+struct DiscordConn {
+    stream: IpcStream,
+    client_id: String,
+}
+
+static DISCORD_CONN: Mutex<Option<DiscordConn>> = Mutex::new(None);
+
+fn send_frame(stream: &mut IpcStream, opcode: u32, payload: &str) -> std::io::Result<()> {
+    let len = payload.len() as u32;
+    let mut header = [0u8; 8];
+    header[0..4].copy_from_slice(&opcode.to_le_bytes());
+    header[4..8].copy_from_slice(&len.to_le_bytes());
+    stream.write_all(&header)?;
+    stream.write_all(payload.as_bytes())?;
+    stream.flush()
+}
+
+fn read_frame_header(stream: &mut IpcStream) -> std::io::Result<u32> {
+    let mut header = [0u8; 8];
+    stream.read_exact(&mut header)?;
+    Ok(u32::from_le_bytes([header[4], header[5], header[6], header[7]]))
+}
+
+fn drain_response(stream: &mut IpcStream) {
+    if let Ok(len) = read_frame_header(stream) {
+        let mut buf = vec![0u8; len as usize];
+        let _ = stream.read_exact(&mut buf);
+    }
+}
+
 #[cfg(unix)]
-fn get_socket_path() -> Option<std::path::PathBuf> {
+fn open_unix_stream() -> Option<IpcStream> {
     let runtime_dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
     let tmp_dir = std::env::var("TMPDIR").unwrap_or_else(|_| "/tmp".to_string());
     let home_dir = std::env::var("HOME").unwrap_or_default();
 
-    let candidates = vec![
+    let candidates = [
         std::path::PathBuf::from(&runtime_dir),
         std::path::PathBuf::from(&tmp_dir),
         std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.Discord"),
@@ -52,35 +125,80 @@ fn get_socket_path() -> Option<std::path::PathBuf> {
         std::path::PathBuf::from(&home_dir).join(".var/app/com.discordapp.Discord/config"),
         std::path::PathBuf::from(&home_dir).join(".var/app/de.vencord.Vesktop/config"),
         std::path::PathBuf::from(&home_dir).join(".config/discord"),
-        std::path::PathBuf::from(&home_dir).join("Library/Application Support/discord"),
     ];
 
-    let prefixes = vec!["discord-ipc-", "ipc-"];
-
-    for base in candidates {
-        for prefix in &prefixes {
-            for i in 0..10 {
-                let p = base.join(format!("{}{}", prefix, i));
-                if p.exists() {
-                    return Some(p);
+    for base in &candidates {
+        for prefix in &["discord-ipc-", "ipc-"] {
+            for i in 0..10u32 {
+                let path = base.join(format!("{}{}", prefix, i));
+                if path.exists() {
+                    if let Ok(stream) = UnixStream::connect(&path) {
+                        return Some(IpcStream::Unix(stream));
+                    }
                 }
             }
         }
     }
-
     None
 }
 
-#[cfg(unix)]
-fn send_frame(stream: &mut UnixStream, opcode: u32, payload: &str) -> std::io::Result<()> {
-    let len = payload.len() as u32;
-    let mut header = Vec::with_capacity(8);
-    header.extend_from_slice(&opcode.to_le_bytes());
-    header.extend_from_slice(&len.to_le_bytes());
-    stream.write_all(&header)?;
-    stream.write_all(payload.as_bytes())?;
-    stream.flush()?;
-    Ok(())
+#[cfg(windows)]
+fn open_windows_pipe() -> Option<IpcStream> {
+    for i in 0..10u32 {
+        let pipe_path = format!(r"\\.\pipe\discord-ipc-{}", i);
+        if let Ok(file) = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&pipe_path)
+        {
+            return Some(IpcStream::Pipe(file));
+        }
+    }
+    None
+}
+
+fn open_ipc_stream() -> Option<IpcStream> {
+    #[cfg(unix)]
+    {
+        open_unix_stream()
+    }
+    #[cfg(windows)]
+    {
+        open_windows_pipe()
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        None
+    }
+}
+
+fn handshake(stream: &mut IpcStream, client_id: &str) -> bool {
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_millis(300)));
+    let payload = serde_json::json!({ "v": 1, "client_id": client_id }).to_string();
+    if send_frame(stream, 0, &payload).is_err() {
+        return false;
+    }
+    drain_response(stream);
+    true
+}
+
+fn ensure_connection(guard: &mut Option<DiscordConn>, target_id: &str) {
+    let needs_reconnect = guard
+        .as_ref()
+        .map(|c| c.client_id != target_id)
+        .unwrap_or(true);
+
+    if needs_reconnect {
+        *guard = None;
+        if let Some(mut stream) = open_ipc_stream() {
+            if handshake(&mut stream, target_id) {
+                *guard = Some(DiscordConn {
+                    stream,
+                    client_id: target_id.to_string(),
+                });
+            }
+        }
+    }
 }
 
 #[tauri::command]
@@ -96,163 +214,112 @@ pub async fn discord_set_activity(
     inGame: Option<bool>,
     clientId: Option<String>,
 ) -> AppResult<bool> {
-    #[cfg(unix)]
-    {
-        let is_game = inGame.unwrap_or(false);
-        let custom_id = std::env::var("LUXMC_DISCORD_CLIENT_ID")
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty());
+    let is_game = inGame.unwrap_or(false);
 
-        let target_client_id = clientId
-            .or(custom_id)
-            .unwrap_or_else(|| MINECRAFT_CLIENT_ID.to_string());
+    let custom_env_id = std::env::var("LUXMC_DISCORD_CLIENT_ID")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
 
-        let mut stream_guard = DISCORD_STREAM.lock().unwrap_or_else(|e| e.into_inner());
-        let mut client_id_guard = CURRENT_CLIENT_ID.lock().unwrap_or_else(|e| e.into_inner());
+    let target_id = clientId
+        .or(custom_env_id)
+        .unwrap_or_else(|| MINECRAFT_CLIENT_ID.to_string());
 
-        let needs_new_connection = stream_guard.is_none()
-            || client_id_guard.as_deref() != Some(&target_client_id);
+    let mut guard = DISCORD_CONN.lock().unwrap_or_else(|e| e.into_inner());
+    ensure_connection(&mut guard, &target_id);
 
-        if needs_new_connection {
-            *stream_guard = None;
-            *client_id_guard = None;
+    let conn = match guard.as_mut() {
+        Some(c) => c,
+        None => return Ok(false),
+    };
 
-            if let Some(path) = get_socket_path() {
-                if let Ok(mut stream) = UnixStream::connect(path) {
-                    stream
-                        .set_read_timeout(Some(std::time::Duration::from_millis(200)))
-                        .ok();
-                    let handshake = serde_json::json!({
-                        "v": 1,
-                        "client_id": target_client_id
-                    })
-                    .to_string();
+    let _ = conn.stream.set_read_timeout(Some(std::time::Duration::from_millis(200)));
 
-                    if send_frame(&mut stream, 0, &handshake).is_ok() {
-                        let mut header = [0u8; 8];
-                        if stream.read_exact(&mut header).is_ok() {
-                            let resp_len =
-                                u32::from_le_bytes([header[4], header[5], header[6], header[7]])
-                                    as usize;
-                            let mut buf = vec![0u8; resp_len];
-                            let _ = stream.read_exact(&mut buf);
-                            *stream_guard = Some(stream);
-                            *client_id_guard = Some(target_client_id);
-                        }
-                    }
-                }
-            }
+    let now = startTime.unwrap_or_else(|| chrono::Utc::now().timestamp());
+
+    let det = details.unwrap_or_else(|| {
+        if is_game {
+            "Jogando Minecraft".to_string()
+        } else {
+            "No Menu Principal".to_string()
         }
+    });
 
-        if let Some(ref mut stream) = *stream_guard {
-            stream
-                .set_read_timeout(Some(std::time::Duration::from_millis(200)))
-                .ok();
-            let now = startTime.unwrap_or_else(|| chrono::Utc::now().timestamp());
-
-            let (def_details, def_state) = if is_game {
-                (
-                    "Jogando Minecraft".to_string(),
-                    "Luxmc Launcher".to_string(),
-                )
-            } else {
-                (
-                    "No Menu Principal".to_string(),
-                    "v1.3.0-BETA · Linux".to_string(),
-                )
-            };
-
-            let img = match largeImage.as_deref() {
-                Some("default") | Some("luxmc") | Some("") | None => LUXMC_ICON_URL.to_string(),
-                Some(val) => val.to_string(),
-            };
-
-            let txt = largeText.unwrap_or_else(|| {
-                if is_game {
-                    "Minecraft (Luxmc)".to_string()
-                } else {
-                    "Luxmc Launcher".to_string()
-                }
-            });
-
-            let det = details.unwrap_or(def_details);
-            let st = state.unwrap_or(def_state);
-
-            let mut assets = serde_json::json!({
-                "large_image": img,
-                "large_text": txt,
-            });
-
-            let (s_img, s_txt) = match smallImage.as_deref() {
-                Some("default") | Some("") => (
-                    Some(MINECRAFT_GRASS_ASSET.to_string()),
-                    smallText.or_else(|| Some("Minecraft Linux".to_string())),
-                ),
-                Some(val) => (Some(val.to_string()), smallText),
-                None => (
-                    Some(MINECRAFT_GRASS_ASSET.to_string()),
-                    smallText.or_else(|| Some(if is_game { "Minecraft" } else { "Minecraft Linux" }.to_string())),
-                ),
-            };
-
-            if let Some(s_img_val) = s_img {
-                assets["small_image"] = serde_json::Value::String(s_img_val);
-                if let Some(s_txt_val) = s_txt {
-                    assets["small_text"] = serde_json::Value::String(s_txt_val);
-                }
-            }
-
-            let act = serde_json::json!({
-                "cmd": "SET_ACTIVITY",
-                "args": {
-                    "pid": std::process::id(),
-                    "activity": {
-                        "name": "Luxmc Launcher",
-                        "state": st,
-                        "details": det,
-                        "timestamps": {
-                            "start": now
-                        },
-                        "assets": assets
-                    }
-                },
-                "nonce": format!("luxmc-rpc-{}", chrono::Utc::now().timestamp_millis())
-            })
-            .to_string();
-
-            if send_frame(stream, 1, &act).is_ok() {
-                let mut header = [0u8; 8];
-                let _ = stream.read_exact(&mut header);
-                return Ok(true);
-            } else {
-                *stream_guard = None;
-                *client_id_guard = None;
-            }
+    let st = state.unwrap_or_else(|| {
+        if is_game {
+            "Luxmc Launcher".to_string()
+        } else {
+            format!("Luxmc v{}", LUXMC_VERSION)
         }
+    });
+
+    let img = match largeImage.as_deref() {
+        Some("default") | Some("luxmc") | Some("") | None => LUXMC_ICON_URL.to_string(),
+        Some(val) => val.to_string(),
+    };
+
+    let txt = largeText.unwrap_or_else(|| {
+        if is_game {
+            "Minecraft via Luxmc".to_string()
+        } else {
+            format!("Luxmc Launcher v{}", LUXMC_VERSION)
+        }
+    });
+
+    let s_img = match smallImage.as_deref() {
+        Some("") | None => MINECRAFT_GRASS_ASSET.to_string(),
+        Some(val) => val.to_string(),
+    };
+
+    let s_txt = smallText.unwrap_or_else(|| {
+        if is_game {
+            "Minecraft".to_string()
+        } else {
+            format!("Luxmc v{}", LUXMC_VERSION)
+        }
+    });
+
+    let payload = serde_json::json!({
+        "cmd": "SET_ACTIVITY",
+        "args": {
+            "pid": std::process::id(),
+            "activity": {
+                "details": det,
+                "state": st,
+                "timestamps": { "start": now },
+                "assets": {
+                    "large_image": img,
+                    "large_text": txt,
+                    "small_image": s_img,
+                    "small_text": s_txt
+                }
+            }
+        },
+        "nonce": format!("{}", chrono::Utc::now().timestamp_millis())
+    })
+    .to_string();
+
+    if send_frame(&mut conn.stream, 1, &payload).is_ok() {
+        drain_response(&mut conn.stream);
+        Ok(true)
+    } else {
+        *guard = None;
+        Ok(false)
     }
-
-    Ok(false)
 }
 
 #[tauri::command]
 pub async fn discord_clear_activity() -> AppResult<()> {
-    #[cfg(unix)]
-    {
-        let mut guard = DISCORD_STREAM.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(ref mut stream) = *guard {
-            let act = serde_json::json!({
-                "cmd": "SET_ACTIVITY",
-                "args": {
-                    "pid": std::process::id(),
-                    "activity": null
-                },
-                "nonce": "1"
-            })
-            .to_string();
-            let _ = send_frame(stream, 1, &act);
-        }
-        *guard = None;
+    let mut guard = DISCORD_CONN.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(ref mut conn) = *guard {
+        let payload = serde_json::json!({
+            "cmd": "SET_ACTIVITY",
+            "args": { "pid": std::process::id(), "activity": null },
+            "nonce": "clear"
+        })
+        .to_string();
+        let _ = send_frame(&mut conn.stream, 1, &payload);
     }
+    *guard = None;
     Ok(())
 }

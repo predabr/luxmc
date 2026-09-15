@@ -1217,7 +1217,7 @@
 										</div>
 									</section>
 
-								{:else if sec.id === 'newsFeed'}
+								{:else if sec.id === 'friendsRadar'}
 									<FriendsRadarWidget />
 
 								{:else if sec.id === 'tools'}

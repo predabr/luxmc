@@ -1,239 +1,279 @@
 <script lang="ts">
-	import { Newspaper, RefreshCw, Sparkles, ArrowRight, Zap, ShieldCheck, Calendar, Server, Play, Loader2 } from "lucide-svelte";
+	import { Users, Server, Play, Loader2, Gamepad2, Circle, Clock, Plus, Radio, ArrowRight } from "lucide-svelte";
+	import { goto } from "$app/navigation";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
-	import { launchGame } from "$lib/api";
-	import { playSound } from "$lib/utils/sound";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
+	import { launchGame, authDevLogin } from "$lib/api";
 
 	let connectingServer = $state<string | null>(null);
 
 	const quickJoinServers = [
+		{ id: "mush", name: "MushMC", host: "jogar.mush.com.br", port: 25565, badge: "BR", desc: "Bed Wars · PvP · Duels" },
+		{ id: "hypixel", name: "Hypixel", host: "mc.hypixel.net", port: 25565, badge: "US", desc: "SkyBlock · BedWars" }
+	];
+
+	type FriendStatus = "in_server" | "in_game" | "online" | "idle";
+
+	type Friend = {
+		id: string;
+		name: string;
+		avatarUrl: string;
+		status: FriendStatus;
+		activity: string;
+		detail: string;
+		serverAddress?: string;
+		p2pCode?: string;
+		lastSeen?: string;
+	};
+
+	const friends: Friend[] = [
 		{
-			id: "mush",
-			name: "MushMC",
-			host: "jogar.mush.com.br",
-			port: 25565,
-			badge: "BR",
-			desc: "Bed Wars, PvP & Duels"
+			id: "1",
+			name: "pedro_dev",
+			avatarUrl: "https://mc-heads.net/avatar/MHF_Steve/40",
+			status: "in_server",
+			activity: "MushMC Network",
+			detail: "BedWars 4v4 · Sala #12",
+			serverAddress: "jogar.mush.com.br"
 		},
 		{
-			id: "hypixel",
-			name: "Hypixel Network",
-			host: "mc.hypixel.net",
-			port: 25565,
-			badge: "US",
-			desc: "SkyBlock, BedWars & Arcades"
+			id: "2",
+			name: "Lucas_Miner",
+			avatarUrl: "https://mc-heads.net/avatar/MHF_Alex/40",
+			status: "in_game",
+			activity: "Better MC 1.20",
+			detail: "Mundo LAN · Dia 34",
+			p2pCode: "LUX-7842"
+		},
+		{
+			id: "3",
+			name: "Kiro_PvP",
+			avatarUrl: "https://mc-heads.net/avatar/Notch/40",
+			status: "in_server",
+			activity: "Hypixel Network",
+			detail: "SkyWars Ranked · 1.8.9",
+			serverAddress: "mc.hypixel.net"
+		},
+		{
+			id: "4",
+			name: "AnaCraft",
+			avatarUrl: "https://mc-heads.net/avatar/MHF_Herobrine/40",
+			status: "online",
+			activity: "No Launcher",
+			detail: "Explorando shaders"
+		},
+		{
+			id: "5",
+			name: "GuiForge",
+			avatarUrl: "https://mc-heads.net/avatar/MHF_PigZombie/40",
+			status: "idle",
+			activity: "Offline",
+			detail: "",
+			lastSeen: "há 2 horas"
 		}
 	];
 
+	const statusConfig: Record<FriendStatus, { label: string; color: string; dot: string }> = {
+		in_server: { label: "Em Servidor", color: "text-emerald-400", dot: "bg-emerald-400" },
+		in_game:   { label: "Em Jogo",     color: "text-sky-400",     dot: "bg-sky-400" },
+		online:    { label: "Online",       color: "text-blue-400",    dot: "bg-blue-400" },
+		idle:      { label: "Offline",      color: "text-white/25",    dot: "bg-white/20" }
+	};
+
 	async function handleQuickJoin(host: string, port = 25565) {
-		const activeInstance = profiles.active || profiles.list[0] || null;
-		if (!activeInstance) {
-			toast("Crie ou selecione uma instância antes de conectar", "warning");
-			return;
-		}
-		if (!account.value) {
-			toast("Faça login em uma conta antes de conectar", "warning");
-			return;
-		}
-
+		const inst = profiles.active || profiles.list[0];
+		if (!inst) { toast("Selecione uma instância primeiro", "warning"); return; }
+		if (!account.value) { toast("Faça login primeiro", "warning"); return; }
 		connectingServer = host;
-		playSound("launch");
-
 		try {
 			await launchGame({
-				versionId: activeInstance.mcVersion,
-				accountId: account.value.id,
-				profileId: activeInstance.id,
-				enableVulkan: activeInstance.useVulkan ?? false,
-				skinUrl: account.value.skinUrl,
-				skinVariant: account.value.skinVariant,
-				capeUrl: account.value.capeUrl,
+				versionId: inst.mcVersion,
+				accountId: account.value.uuid,
+				profileId: inst.id,
+				enableVulkan: inst.useVulkan ?? false,
+				skinUrl: activeSkinStore.current.skinUrl || account.value.skinUrl || null,
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
+				capeUrl: activeSkinStore.current.customCapeUrl || account.value.capeUrl || null,
 				serverIp: host,
 				serverPort: port
 			});
-			toast(`🎮 Conectando diretamente ao ${host}...`, "success");
+			toast(`🎮 Conectando a ${host}...`, "success");
 		} catch (e) {
-			toast("Falha na conexão rápida: " + String(e), "error");
+			toast("Falha: " + String(e), "error");
 		} finally {
 			connectingServer = null;
 		}
 	}
 
-	const luxmcNews = [
-		{
-			id: "news-0",
-			title: "Minecraft 1.21.4: O Jardim Pálido e o Creaking",
-			date: "Hoje às 10:15",
-			tag: "OFICIAL",
-			desc: "Explore o bioma sombrio Pale Garden, a nova madeira pálida e enfrente o Creaking com suporte imediato no Luxmc.",
-			img: "/vanilla_banner.png"
-		},
-		{
-			id: "news-1",
-			title: "Luxmc v1.5.4-beta: Modpacks CurseForge, AppImage & Novo Organizador",
-			date: "Hoje às 19:30",
-			tag: "ATUALIZAÇÃO",
-			desc: "Resolução de inicialização de modpacks CurseForge, pastas no AppImage e personalizador total de layout.",
-			img: "/logo.png"
-		},
-		{
-			id: "news-2",
-			title: "Fabulously Optimized 1.21.4 Disponível",
-			date: "02 de Set, 2026",
-			tag: "MODPACK",
-			desc: "Otimização completa com Sodium 0.6, Iris Shaders e taxa máxima de FPS em placas AMD, Intel e Nvidia.",
-			img: "/modpack_fo.webp"
-		},
-		{
-			id: "news-3",
-			title: "Chat P2P Direto Entre PCs Ativado",
-			date: "28 de Ago, 2026",
-			tag: "REDE",
-			desc: "Conecte-se diretamente com seus amigos de LAN ou IP direto para trocar mensagens sem intermediários.",
-			img: "/news_1.jpg"
-		},
-		{
-			id: "news-4",
-			title: "Cobblemon 1.6 & Better MC Atualizados",
-			date: "24 de Ago, 2026",
-			tag: "MODS",
-			desc: "Centenas de novas criaturas, dimensões e masmorras prontas para jogar com um clique na Central de Conteúdo.",
-			img: "/modpack_cobblemon.webp"
+	async function joinFriend(friend: Friend) {
+		if (!friend.serverAddress && !friend.p2pCode) return;
+		const inst = profiles.active || profiles.list[0];
+		if (!inst) { toast("Selecione uma instância primeiro", "warning"); return; }
+		let accountId = account.value?.uuid;
+		if (!accountId) {
+			const dev = await authDevLogin().catch(() => null);
+			accountId = dev?.uuid ?? "";
 		}
-	];
-
-	function refreshNews() {
-		toast("Notícias do Luxmc atualizadas!", "success");
+		toast(`Entrando na partida de ${friend.name}...`, "info");
+		try {
+			await launchGame({
+				versionId: inst.mcVersion,
+				accountId,
+				profileId: inst.id,
+				enableVulkan: inst.useVulkan ?? false,
+				skinUrl: activeSkinStore.current.skinUrl || account.value?.skinUrl || null,
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
+				capeUrl: activeSkinStore.current.customCapeUrl || account.value?.capeUrl || null,
+				serverIp: friend.serverAddress || null,
+				serverPort: friend.serverAddress ? 25565 : null
+			});
+		} catch (e) {
+			toast("Erro ao entrar: " + String(e), "error");
+		}
 	}
+
+	const onlineFriends = $derived(friends.filter(f => f.status !== "idle"));
+	const offlineFriends = $derived(friends.filter(f => f.status === "idle"));
 </script>
 
-<aside class="w-[340px] shrink-0 h-full flex flex-col overflow-y-auto custom-scrollbar pr-1 pb-4 select-none space-y-5">
-	
-	<div class="space-y-3">
-		<div class="flex items-center justify-between pb-1 border-b border-white/5">
-			<h2 class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-				<Server class="w-3.5 h-3.5 text-brand-500" /> Conexão Rápida
+<aside class="w-[300px] shrink-0 h-full flex flex-col gap-5 overflow-y-auto custom-scrollbar pr-1 pb-6 select-none">
+
+	<div class="space-y-2.5">
+		<div class="flex items-center justify-between">
+			<h2 class="text-[11px] font-bold text-white/60 uppercase tracking-widest flex items-center gap-1.5">
+				<Server class="w-3 h-3 text-brand-500" /> Conexão Rápida
 			</h2>
 			<span class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
-				<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 1-Clique
+				<span class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span> 1-Clique
 			</span>
 		</div>
 
-		<div class="flex flex-col gap-2.5">
-			{#each quickJoinServers as srv}
-				<div class="flex items-center justify-between bg-[#18191c] hover:bg-[#1f2025] p-3 rounded-2xl transition-all border border-white/5 hover:border-brand-500/30 group shadow-sm">
-					<div class="flex items-center gap-2.5 min-w-0">
-						<div class="w-8 h-8 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center font-black text-xs text-brand-500 shrink-0 group-hover:scale-105 transition-transform">
-							{srv.badge}
-						</div>
-						<div class="min-w-0">
-							<h4 class="text-xs font-extrabold text-white group-hover:text-brand-500 transition-colors truncate">
-								{srv.name}
-							</h4>
-							<p class="text-[10px] text-white/40 truncate font-mono">
-								{srv.host}
-							</p>
-						</div>
+		{#each quickJoinServers as srv}
+			<div class="flex items-center justify-between bg-bg-elevated hover:bg-bg-subtle p-2.5 rounded-xl border border-white/5 hover:border-white/10 transition-all group">
+				<div class="flex items-center gap-2 min-w-0">
+					<div class="w-7 h-7 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center font-black text-[10px] text-brand-500 shrink-0">
+						{srv.badge}
 					</div>
-
-					<button
-						type="button"
-						class="px-3 py-1.5 rounded-xl bg-brand-500/10 hover:bg-brand-500 text-brand-500 hover:text-black font-black text-[11px] transition-all flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
-						disabled={connectingServer === srv.host}
-						onclick={() => handleQuickJoin(srv.host, srv.port)}
-						title={`Conectar diretamente ao ${srv.name}`}
-					>
-						{#if connectingServer === srv.host}
-							<Loader2 class="w-3 h-3 animate-spin" />
-						{:else}
-							<Play class="w-3 h-3 fill-current" />
-						{/if}
-						<span>Entrar</span>
-					</button>
+					<div class="min-w-0">
+						<h4 class="text-xs font-semibold text-white truncate">{srv.name}</h4>
+						<p class="text-[10px] text-white/35 truncate">{srv.desc}</p>
+					</div>
 				</div>
-			{/each}
-		</div>
+				<button
+					type="button"
+					class="px-2.5 py-1 rounded-lg bg-brand-500/10 hover:bg-brand-500 text-brand-500 hover:text-black font-bold text-[10px] transition-all flex items-center gap-1 shrink-0 cursor-pointer disabled:opacity-40"
+					disabled={connectingServer === srv.host}
+					onclick={() => handleQuickJoin(srv.host, srv.port)}
+				>
+					{#if connectingServer === srv.host}
+						<Loader2 class="w-2.5 h-2.5 animate-spin" />
+					{:else}
+						<Play class="w-2.5 h-2.5 fill-current" />
+					{/if}
+					<span>Entrar</span>
+				</button>
+			</div>
+		{/each}
 	</div>
 
-	<div class="space-y-3">
-		<div class="flex items-center justify-between pb-1 border-b border-white/5">
-			<h2 class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
-				<Newspaper class="w-3.5 h-3.5 text-brand-500" /> Notícias & Comunidade
+	<div class="space-y-2.5">
+		<div class="flex items-center justify-between">
+			<h2 class="text-[11px] font-bold text-white/60 uppercase tracking-widest flex items-center gap-1.5">
+				<Radio class="w-3 h-3 text-brand-500" /> Amigos
+				<span class="text-[9px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full">
+					{onlineFriends.length}
+				</span>
 			</h2>
-			<button 
+			<button
 				type="button"
-				class="text-white/40 hover:text-white transition-colors p-1.5 rounded-full hover:bg-white/10 cursor-pointer" 
-				title="Atualizar Notícias" 
-				onclick={refreshNews}
+				onclick={() => goto("/friends")}
+				class="text-[10px] text-white/35 hover:text-brand-400 flex items-center gap-1 transition-colors cursor-pointer"
 			>
-				<RefreshCw class="w-3.5 h-3.5" />
+				Ver todos <ArrowRight class="w-3 h-3" />
 			</button>
 		</div>
 
-		<div class="flex flex-col gap-3">
-			{#each luxmcNews as news}
-				<div 
-					class="flex flex-col gap-2 bg-[#18191c] hover:bg-[#1f2025] p-3 rounded-2xl transition-all border border-white/5 hover:border-white/15 cursor-pointer group shadow-sm"
-					onclick={() => toast(news.title, "info")}
-					role="button"
-					tabindex="0"
-					onkeydown={(e) => { if (e.key === 'Enter') toast(news.title, "info"); }}
-				>
-					<div class="flex gap-3 items-start">
-						<div class="w-20 h-16 rounded-xl bg-black/60 border border-white/5 overflow-hidden shrink-0 relative">
-							<img src={news.img} class="w-full h-full object-cover opacity-85 group-hover:scale-110 transition-transform duration-300" alt="News" />
-							<span class="absolute bottom-1 left-1 bg-black/80 text-[7px] font-black text-brand-500 px-2 py-0.5 rounded-full border border-white/10 uppercase">
-								{news.tag}
-							</span>
-						</div>
-						<div class="flex-1 min-w-0">
-							<h4 class="text-xs font-extrabold text-white leading-snug group-hover:text-brand-500 transition-colors">
-								{news.title}
-							</h4>
-							<span class="text-[9px] font-medium text-white/40 mt-1 flex items-center gap-1">
-								<Calendar class="w-2.5 h-2.5" /> {news.date}
-							</span>
-						</div>
+		<div class="flex flex-col gap-1.5">
+			{#each onlineFriends as friend (friend.id)}
+				{@const cfg = statusConfig[friend.status]}
+				<div class="flex items-center gap-2.5 p-2.5 rounded-xl bg-bg-elevated hover:bg-bg-subtle border border-white/5 hover:border-white/10 transition-all group cursor-default">
+					<div class="relative shrink-0">
+						<img
+							src={friend.avatarUrl}
+							alt={friend.name}
+							class="w-8 h-8 rounded-lg border border-white/10 [image-rendering:pixelated]"
+						/>
+						<span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#141518] {cfg.dot}"></span>
 					</div>
 
-					<p class="text-[11px] text-white/50 leading-relaxed line-clamp-2 pl-0.5">
-						{news.desc}
-					</p>
+					<div class="flex-1 min-w-0">
+						<div class="flex items-center gap-1.5">
+							<span class="text-xs font-semibold text-white truncate">{friend.name}</span>
+						</div>
+						<p class="text-[10px] {cfg.color} truncate font-medium">{friend.activity}</p>
+						{#if friend.detail}
+							<p class="text-[9px] text-white/30 truncate">{friend.detail}</p>
+						{/if}
+					</div>
+
+					{#if friend.status === "in_server" || friend.status === "in_game"}
+						<button
+							type="button"
+							onclick={() => joinFriend(friend)}
+							class="shrink-0 w-7 h-7 rounded-lg bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-black flex items-center justify-center transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+							title="Entrar na partida de {friend.name}"
+						>
+							<Play class="w-3 h-3 fill-current" />
+						</button>
+					{/if}
 				</div>
 			{/each}
+
+			{#if offlineFriends.length > 0}
+				<div class="pt-1">
+					<span class="text-[10px] text-white/25 uppercase tracking-wider font-semibold">Offline</span>
+				</div>
+				{#each offlineFriends as friend (friend.id)}
+					<div class="flex items-center gap-2.5 p-2 rounded-xl border border-transparent opacity-50">
+						<div class="relative shrink-0">
+							<img src={friend.avatarUrl} alt={friend.name} class="w-7 h-7 rounded-lg border border-white/5 [image-rendering:pixelated] grayscale" />
+							<span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-2 border-[#141518] bg-white/20"></span>
+						</div>
+						<div class="flex-1 min-w-0">
+							<span class="text-xs font-medium text-white/40 truncate block">{friend.name}</span>
+							{#if friend.lastSeen}
+								<span class="text-[9px] text-white/20 flex items-center gap-1">
+									<Clock class="w-2.5 h-2.5" />{friend.lastSeen}
+								</span>
+							{/if}
+						</div>
+					</div>
+				{/each}
+			{/if}
 		</div>
+
+		<button
+			type="button"
+			onclick={() => goto("/friends")}
+			class="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-white/5 hover:border-brand-500/30 text-white/30 hover:text-brand-400 text-[11px] font-medium transition-all cursor-pointer"
+		>
+			<Plus class="w-3 h-3" /> Adicionar Amigo & Gerenciar
+		</button>
 	</div>
 
-	<div class="space-y-3 pt-2">
-		<div class="rounded-2xl bg-gradient-to-br from-[#1c1d22] to-[#141518] border border-white/10 p-4 relative overflow-hidden group cursor-pointer hover:border-brand-500/40 transition-all shadow-md">
-			<div class="absolute -right-3 -top-3 w-16 h-16 bg-brand-500/10 rounded-full blur-xl group-hover:bg-brand-500/20 transition-all"></div>
-			
-			<div class="flex items-center justify-between relative z-10">
-				<h3 class="text-xs font-black text-white flex items-center gap-1.5">
-					<Zap class="w-3.5 h-3.5 text-brand-500" /> Luxmc Community
-				</h3>
-				<div class="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500 group-hover:text-black transition-all">
-					<ArrowRight class="w-3 h-3 -rotate-45" />
-				</div>
+	<div class="rounded-xl bg-bg-elevated border border-white/5 p-3 flex items-center justify-between hover:border-brand-500/30 transition-all cursor-pointer group" role="button" tabindex="0" onclick={() => goto("/friends")} onkeydown={(e) => { if (e.key === 'Enter') goto('/friends'); }}>
+		<div class="flex items-center gap-2.5">
+			<div class="w-7 h-7 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500">
+				<Gamepad2 class="w-3.5 h-3.5" />
 			</div>
-			<p class="text-[11px] text-white/60 mt-2 leading-relaxed relative z-10">
-				Launcher Linux 100% livre, rápido e com otimização gráfica para extrair o máximo de FPS no seu setup.
-			</p>
+			<div>
+				<h3 class="text-xs font-semibold text-white group-hover:text-brand-400 transition-colors">Luxmc P2P</h3>
+				<p class="text-[10px] text-white/35">Direct Join sem Hamachi</p>
+			</div>
 		</div>
-
-		<div class="flex items-center justify-center gap-5 text-white/30 pt-1 pb-2">
-			<a href="https://discord.com" target="_blank" class="hover:text-white transition-colors" title="Discord">
-				<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.893.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
-			</a>
-			<a href="https://x.com" target="_blank" class="hover:text-white transition-colors" title="X">
-				<svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-			</a>
-			<a href="https://youtube.com" target="_blank" class="hover:text-white transition-colors" title="YouTube">
-				<svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
-			</a>
-		</div>
+		<ArrowRight class="w-3.5 h-3.5 text-white/20 group-hover:text-brand-400 -rotate-45 transition-all" />
 	</div>
 
 </aside>

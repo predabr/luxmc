@@ -1,4 +1,4 @@
-export type SectionId = "hero" | "quickInstances" | "favoriteServer" | "curatedPacks" | "gamingStats" | "newsFeed" | "tools";
+export type SectionId = "hero" | "quickInstances" | "favoriteServer" | "curatedPacks" | "gamingStats" | "friendsRadar" | "tools";
 export type LayoutPreset = "gamer" | "compact" | "full";
 
 export interface LayoutSectionItem {
@@ -54,11 +54,11 @@ const DEFAULT_SECTIONS: LayoutSectionItem[] = [
 		width: "half"
 	},
 	{
-		id: "newsFeed",
-		title: "Notícias & Atualizações",
-		description: "Novidades do Minecraft, changelogs e artigos da comunidade",
+		id: "friendsRadar",
+		title: "Amigos & Radar P2P",
+		description: "Status em tempo real dos seus amigos — jogando, em servidor ou online",
 		enabled: true,
-		icon: "newspaper",
+		icon: "radio",
 		width: "half"
 	},
 	{
@@ -176,11 +176,11 @@ class LayoutStore {
 	applyPreset(preset: LayoutPreset) {
 		const clone = DEFAULT_SECTIONS.map((s) => ({ ...s }));
 		if (preset === "gamer") {
-			const order: SectionId[] = ["hero", "quickInstances", "favoriteServer", "gamingStats", "tools", "curatedPacks", "newsFeed"];
+			const order: SectionId[] = ["hero", "quickInstances", "favoriteServer", "gamingStats", "tools", "curatedPacks", "friendsRadar"];
 			this.sections = order.map((id) => {
 				const s = clone.find((c) => c.id === id)!;
 				if (id === "gamingStats") s.width = "half";
-				if (id === "newsFeed") { s.enabled = false; }
+				if (id === "friendsRadar") { s.enabled = false; }
 				if (id === "curatedPacks") { s.enabled = false; }
 				return s;
 			});

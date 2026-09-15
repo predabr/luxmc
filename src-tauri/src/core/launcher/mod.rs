@@ -2226,13 +2226,17 @@ async fn inject_player_skin(
 
         let u_clean = username.trim();
         let u_lower = u_clean.to_lowercase();
-        let optifine_users_clean = pack_dir.join(format!("assets/minecraft/optifine/users/{}.properties", u_clean));
-        let optifine_users_lower = pack_dir.join(format!("assets/minecraft/optifine/users/{}.properties", u_lower));
-        let optifine_prop_content = format!("cape=optifine/capes/{}.png\n", u_clean);
-        if let Some(p) = optifine_users_clean.parent() { let _ = tokio::fs::create_dir_all(p).await; }
-        let _ = tokio::fs::write(&optifine_users_clean, optifine_prop_content.as_bytes()).await;
-        let _ = tokio::fs::write(&optifine_users_lower, optifine_prop_content.as_bytes()).await;
 
+        let optifine_users_dir = pack_dir.join("assets/minecraft/optifine/users");
+        let _ = tokio::fs::create_dir_all(&optifine_users_dir).await;
+        let user_prop = format!("cape=optifine/capes/{}.png\n", u_clean);
+        let _ = tokio::fs::write(optifine_users_dir.join(format!("{}.properties", u_clean)), user_prop.as_bytes()).await;
+        let _ = tokio::fs::write(optifine_users_dir.join(format!("{}.properties", u_lower)), user_prop.as_bytes()).await;
+
+        let optifine_root_prop = pack_dir.join("assets/minecraft/optifine/cape.properties");
+        let root_prop = format!("users={}\n", u_clean);
+        if let Some(p) = optifine_root_prop.parent() { let _ = tokio::fs::create_dir_all(p).await; }
+        let _ = tokio::fs::write(&optifine_root_prop, root_prop.as_bytes()).await;
         let cape_paths = [
             pack_dir.join("assets/minecraft/textures/entity/cape.png"),
             pack_dir.join("assets/minecraft/textures/entity/player/cape.png"),
