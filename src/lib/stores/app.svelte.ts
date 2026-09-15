@@ -39,9 +39,10 @@ export const gameLogs = {
 			message,
 		};
 		if (logEntries.length >= 800) {
-			logEntries = [...logEntries.slice(150), newEntry];
+			logEntries.splice(0, 150);
+			logEntries.push(newEntry);
 		} else {
-			logEntries = [...logEntries, newEntry];
+			logEntries.push(newEntry);
 		}
 	},
 };

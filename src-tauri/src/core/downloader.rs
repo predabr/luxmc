@@ -824,18 +824,23 @@ async fn download_file_once(
     let total_size = resp.content_length().unwrap_or(entry.size);
 
     let mut stream = resp.bytes_stream();
+    let mut file = tokio::fs::File::create(path).await.map_err(|e| {
+        AppError::Internal(format!("failed to create file {}: {}", path.display(), e))
+    })?;
     let mut bytes_downloaded = 0u64;
-    let mut buffer = Vec::new();
     let start = Instant::now();
     let mut last_report = Instant::now();
 
     use futures_util::StreamExt;
+    use tokio::io::AsyncWriteExt;
 
     while let Some(chunk) = stream.next().await {
         let chunk =
             chunk.map_err(|e| AppError::Internal(format!("stream error for {}: {}", label, e)))?;
         bytes_downloaded += chunk.len() as u64;
-        buffer.extend_from_slice(&chunk);
+        file.write_all(&chunk).await.map_err(|e| {
+            AppError::Internal(format!("write error for {}: {}", label, e))
+        })?;
 
         if last_report.elapsed().as_millis() >= SPEED_UPDATE_INTERVAL_MS as u128 {
             let elapsed = start.elapsed().as_millis() as u64;
@@ -864,11 +869,15 @@ async fn download_file_once(
         }
     }
 
-    tokio::fs::write(path, &buffer).await?;
+    file.flush().await.map_err(|e| {
+        AppError::Internal(format!("flush error for {}: {}", label, e))
+    })?;
+    drop(file);
 
     if !entry.sha1.is_empty() {
+        let bytes = tokio::fs::read(path).await?;
         let mut hasher = Sha1::new();
-        hasher.update(&buffer);
+        hasher.update(&bytes);
         let computed = format!("{:x}", hasher.finalize());
         if computed != entry.sha1 {
             tokio::fs::remove_file(path).await?;

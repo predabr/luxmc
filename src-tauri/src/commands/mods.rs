@@ -1,4 +1,6 @@
 use std::collections::HashSet;
+use futures_util::StreamExt;
+use tokio::io::AsyncWriteExt;
 
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -451,18 +453,25 @@ pub async fn mods_install_with_deps(
 
             if let Some(file) = version.files.first() {
                 let resp = state.http.get(&file.url).send().await?.error_for_status()?;
-                let bytes = resp.bytes().await?;
                 let safe_dep_name = std::path::Path::new(&file.filename)
                     .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("mod.jar");
                 let file_path = mods_dir.join(safe_dep_name);
-                tokio::fs::write(&file_path, &bytes).await?;
+
+                let mut file_stream = resp.bytes_stream();
+                let mut dest_file = tokio::fs::File::create(&file_path).await?;
+                while let Some(chunk) = file_stream.next().await {
+                    let chunk = chunk?;
+                    dest_file.write_all(&chunk).await?;
+                }
+                dest_file.flush().await?;
+                drop(dest_file);
 
                 if let Some(ref prof) = profile {
                     let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
                     let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
-                    let _ = tokio::fs::write(prof_mods_dir.join(safe_dep_name), &bytes).await;
+                    let _ = tokio::fs::copy(&file_path, prof_mods_dir.join(safe_dep_name)).await;
                 }
 
                 let mod_row = ModRow {
@@ -710,9 +719,15 @@ pub async fn mods_update(
     };
 
     let resp = state.http.get(&file_url).send().await?.error_for_status()?;
-    let bytes = resp.bytes().await?;
     let file_path = mods_dir.join(&file_name);
-    tokio::fs::write(&file_path, &bytes).await?;
+    let mut file_stream = resp.bytes_stream();
+    let mut dest_file = tokio::fs::File::create(&file_path).await?;
+    while let Some(chunk) = file_stream.next().await {
+        let chunk = chunk?;
+        dest_file.write_all(&chunk).await?;
+    }
+    dest_file.flush().await?;
+    drop(dest_file);
 
     if let Some(ref prof) = profile {
         let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
@@ -723,7 +738,7 @@ pub async fn mods_update(
             let old_disabled_path = prof_mods_dir.join(format!("{}.disabled", old_mod.file_name));
             let _ = tokio::fs::remove_file(&old_disabled_path).await;
         }
-        let _ = tokio::fs::write(prof_mods_dir.join(&file_name), &bytes).await;
+        let _ = tokio::fs::copy(&file_path, prof_mods_dir.join(&file_name)).await;
     }
 
     let mod_row = crate::db::schema::mods::ModRow {

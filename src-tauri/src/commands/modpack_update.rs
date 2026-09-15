@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
 use tauri::State;
 
 use crate::error::{AppError, AppResult};
@@ -288,11 +289,15 @@ pub async fn modpack_update_atomic(
             .send().await
             .map_err(|e| AppError::Internal(format!("Erro ao baixar arquivo .mrpack: {e}")))?;
 
-        let bytes = mrpack_resp.bytes().await
-            .map_err(|e| AppError::Internal(format!("Erro ao ler bytes do .mrpack: {e}")))?;
-
+        let mut mrpack_stream = mrpack_resp.bytes_stream();
         let mrpack_path = backup_dir.join("update.mrpack");
-        tokio::fs::write(&mrpack_path, &bytes).await?;
+        let mut mrpack_file = tokio::fs::File::create(&mrpack_path).await
+            .map_err(|e| AppError::Internal(format!("Erro ao criar arquivo mrpack: {e}")))?;
+        while let Some(chunk) = mrpack_stream.next().await {
+            let chunk = chunk.map_err(|e| AppError::Internal(format!("Erro ao ler chunk do .mrpack: {e}")))?;
+            mrpack_file.write_all(&chunk).await?;
+        }
+        mrpack_file.flush().await?;
 
         let file = std::fs::File::open(&mrpack_path)?;
         let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
@@ -383,7 +388,7 @@ pub async fn modpack_update_atomic(
                     }));
                 }
             });
-            download_stream.buffer_unordered(8).collect::<Vec<()>>().await;
+            download_stream.buffer_unordered(4).for_each(|_| async {}).await;
         }
     } else {
         let key = crate::core::mods::curseforge::api_key();

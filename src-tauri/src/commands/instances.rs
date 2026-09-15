@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
+use futures_util::StreamExt;
 use tauri::{Emitter, State};
 use uuid::Uuid;
 
@@ -621,14 +623,28 @@ async fn download_from_modrinth_fallback(
                             .await
                         {
                             if dl_resp.status().is_success() {
-                                if let Ok(bytes) = dl_resp.bytes().await {
-                                    if bytes.len() > 200 && (bytes.starts_with(b"PK") || zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_ok()) {
-                                        let _ = tokio::fs::write(file_path, &bytes).await;
-                                        let _ = tokio::fs::write(storage_path, &bytes).await;
-                                        tracing::info!(mod_name = %clean_query, "Downloaded missing mod from Modrinth CDN fallback");
-                                        return true;
-                                    }
+                                let temp_path = file_path.with_extension("tmp");
+                                let mut file = match tokio::fs::File::create(&temp_path).await {
+                                    Ok(f) => f,
+                                    Err(_) => continue,
+                                };
+                                let mut downloaded = Vec::new();
+                                let mut stream = dl_resp.bytes_stream();
+                                while let Some(chunk) = stream.next().await {
+                                    let chunk = match chunk { Ok(c) => c, Err(_) => continue };
+                                    downloaded.extend_from_slice(&chunk);
+                                    let _ = file.write_all(&chunk).await;
                                 }
+                                let _ = file.flush().await;
+                                drop(file);
+
+                                if downloaded.len() > 200 && (downloaded.starts_with(b"PK") || zip::ZipArchive::new(std::io::Cursor::new(&downloaded)).is_ok()) {
+                                    let _ = tokio::fs::rename(&temp_path, file_path).await;
+                                    let _ = tokio::fs::copy(file_path, storage_path).await;
+                                    tracing::info!(mod_name = %clean_query, "Downloaded missing mod from Modrinth CDN fallback");
+                                    return true;
+                                }
+                                let _ = tokio::fs::remove_file(&temp_path).await;
                             }
                         }
                     }
@@ -772,20 +788,43 @@ pub(crate) async fn download_cf_mod_file(
                 _ => continue,
             };
 
-            let bytes = match resp.bytes().await {
-                Ok(b) if b.len() > 100 => b,
-                _ => continue,
+            let mut stream = resp.bytes_stream();
+            let temp_path = file_path.with_extension("tmp");
+            let mut file = match tokio::fs::File::create(&temp_path).await {
+                Ok(f) => f,
+                Err(_) => continue,
             };
+            let mut downloaded = Vec::new();
+            while let Some(chunk) = stream.next().await {
+                let chunk = match chunk {
+                    Ok(c) => c,
+                    Err(_) => {
+                        let _ = tokio::fs::remove_file(&temp_path).await;
+                        continue;
+                    }
+                };
+                downloaded.extend_from_slice(&chunk);
+                let _ = file.write_all(&chunk).await;
+            }
+            let _ = file.flush().await;
+            drop(file);
 
-            let is_valid = bytes.len() > 200 && (zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_ok() || bytes.starts_with(b"PK"));
+            if downloaded.len() < 200 {
+                let _ = tokio::fs::remove_file(&temp_path).await;
+                continue;
+            }
+
+            let is_valid = downloaded.len() > 200 && (zip::ZipArchive::new(std::io::Cursor::new(&downloaded)).is_ok() || downloaded.starts_with(b"PK"));
             if !is_valid {
+                let _ = tokio::fs::remove_file(&temp_path).await;
                 continue;
             }
 
-            if tokio::fs::write(&file_path, &bytes).await.is_err() {
+            if tokio::fs::rename(&temp_path, &file_path).await.is_err() {
+                let _ = tokio::fs::remove_file(&temp_path).await;
                 continue;
             }
-            let _ = tokio::fs::write(&storage_path, &bytes).await;
+            let _ = tokio::fs::copy(&file_path, &storage_path).await;
 
             let mut final_filename = filename.clone();
             if final_filename.starts_with(&project_id_str) {
@@ -1125,7 +1164,7 @@ pub async fn instance_import_modpack(
         }
     });
 
-    files_stream.buffer_unordered(8).collect::<Vec<()>>().await;
+    files_stream.buffer_unordered(4).for_each(|_| async {}).await;
     crate::commands::optimizer::optimizer_trim_memory();
 
     for retry_pass in 0..3 {
@@ -1203,7 +1242,7 @@ pub async fn instance_import_modpack(
                 }
             }
         });
-        retry_stream.buffer_unordered(4).collect::<Vec<()>>().await;
+        retry_stream.buffer_unordered(4).for_each(|_| async {}).await;
     }
 
     if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
@@ -1492,7 +1531,7 @@ pub async fn instance_repair_modpack(
                     }
                 }
             });
-            retry_stream.buffer_unordered(4).collect::<Vec<()>>().await;
+            retry_stream.buffer_unordered(4).for_each(|_| async {}).await;
             total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
         }
     }

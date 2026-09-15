@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+use tokio::io::AsyncWriteExt;
+use futures_util::StreamExt;
 
 use crate::core::mods::ModrinthClient;
 use crate::error::{AppError, AppResult};
@@ -347,8 +349,13 @@ pub async fn install_performance_pack(
                 let dest = mods_dir.join(&file.filename);
                 if !dest.exists() {
                     let resp = http.get(&file.url).send().await?.error_for_status()?;
-                    let bytes = resp.bytes().await?;
-                    tokio::fs::write(&dest, &bytes).await?;
+                    let mut file_stream = resp.bytes_stream();
+                    let mut dest_file = tokio::fs::File::create(&dest).await?;
+                    while let Some(chunk) = file_stream.next().await {
+                        let chunk = chunk?;
+                        dest_file.write_all(&chunk).await?;
+                    }
+                    dest_file.flush().await?;
                     installed.push(file.filename.clone());
                 } else {
                     installed.push(format!("{} (já instalado)", file.filename));
