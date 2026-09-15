@@ -648,6 +648,7 @@
 							<input 
 								type="text" 
 								placeholder={t("home.gamertagPlaceholder")} 
+								aria-label="Gamertag"
 								bind:value={offlineName}
 								class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
 								maxlength="16"
@@ -658,6 +659,7 @@
 								<input 
 									type={showPassword ? "text" : "password"} 
 									placeholder={t("home.accountPasswordPlaceholder")} 
+									aria-label="Senha"
 									bind:value={offlinePassword}
 									class="w-full bg-[#1e1f24] border border-white/10 rounded-full pl-5 pr-12 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
 									onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
@@ -681,6 +683,7 @@
 									<input 
 										type={showPassword ? "text" : "password"} 
 										placeholder={t("home.confirmPasswordPlaceholder")} 
+										aria-label="Confirmar senha"
 										bind:value={offlineConfirmPassword}
 										class="w-full bg-[#1e1f24] border border-white/10 rounded-full px-5 py-2.5 text-xs font-bold text-white outline-none focus:border-[#caa97c] focus:shadow-[0_0_0_3px_rgba(202,169,124,0.1)] transition-all duration-200 placeholder:text-white/30"
 										onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}

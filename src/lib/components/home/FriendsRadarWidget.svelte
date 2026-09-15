@@ -47,22 +47,27 @@
 	let hasCopiedCode = $state(false);
 
 	async function launchWithTarget(profile: (typeof profiles.list)[0], serverIp?: string, serverPort?: number) {
-		let accountId = account.value?.uuid;
-		if (!accountId) {
-			const dev = await authDevLogin().catch(() => null);
-			accountId = dev?.uuid || "dev-offline-player";
+		try {
+			let accountId = account.value?.uuid;
+			if (!accountId) {
+				const dev = await authDevLogin().catch(() => null);
+				accountId = dev?.uuid || "dev-offline-player";
+			}
+			return await launchGame({
+				versionId: profile.mcVersion || "1.21.4",
+				accountId,
+				profileId: profile.id,
+				enableVulkan: profile.useVulkan === true,
+				serverIp: serverIp || null,
+				serverPort: serverPort || null,
+				skinUrl: activeSkinStore.current.skinUrl || account.value?.skinUrl || null,
+				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
+				capeUrl: activeSkinStore.current.customCapeUrl || account.value?.capeUrl || null
+			});
+		} catch (e) {
+			toast("Falha ao iniciar o jogo: " + String(e), "error");
+			throw e;
 		}
-		return launchGame({
-			versionId: profile.mcVersion || "1.21.4",
-			accountId,
-			profileId: profile.id,
-			enableVulkan: profile.useVulkan === true,
-			serverIp: serverIp || null,
-			serverPort: serverPort || null,
-			skinUrl: activeSkinStore.current.skinUrl || account.value?.skinUrl || null,
-			skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
-			capeUrl: activeSkinStore.current.customCapeUrl || account.value?.capeUrl || null
-		});
 	}
 
 	async function handleQuickJoin(friend: FriendStatus) {
@@ -307,6 +312,7 @@
 					<input 
 						type="text" 
 						readonly 
+						aria-label="Link de convite gerado"
 						value={`luxmc://join/${hostResult.externalIp || 'meu-ip'}:${hostPort}`}
 						class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-white"
 					/>
