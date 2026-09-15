@@ -2203,25 +2203,44 @@ async fn inject_player_skin(
     };
 
     if !cape_bytes.is_empty() {
-        let normalized_cape_bytes = if let Ok(dyn_cape) = image::load_from_memory(&cape_bytes) {
+        let (normalized_cape_bytes, optifine_cape_bytes) = if let Ok(dyn_cape) = image::load_from_memory(&cape_bytes) {
             use image::GenericImageView;
             let (cw, ch) = dyn_cape.dimensions();
-            let cape_img = if cw == 64 && ch == 32 {
-                dyn_cape.to_rgba8()
-            } else if cw == ch * 2 {
-                dyn_cape.to_rgba8()
+            let cape_rgba = dyn_cape.to_rgba8();
+
+            let full_img = if (cw == 64 && ch == 32) || (cw == ch * 2) || (cw == ch) {
+                cape_rgba.clone()
             } else {
-                image::imageops::resize(&dyn_cape.to_rgba8(), 64, 32, image::imageops::FilterType::Nearest)
+                image::imageops::resize(&cape_rgba, 64, 32, image::imageops::FilterType::Nearest)
             };
-            let mut buf = Vec::new();
-            let mut cursor = std::io::Cursor::new(&mut buf);
-            if cape_img.write_to(&mut cursor, image::ImageFormat::Png).is_ok() {
-                buf
+
+            let mut full_buf = Vec::new();
+            let mut cursor = std::io::Cursor::new(&mut full_buf);
+            let full_bytes = if full_img.write_to(&mut cursor, image::ImageFormat::Png).is_ok() {
+                full_buf
             } else {
-                cape_bytes
-            }
+                cape_bytes.clone()
+            };
+
+            let opti_img = if cw == ch && cw > 0 {
+                image::imageops::crop_imm(&cape_rgba, 0, 0, cw, cw / 2).to_image()
+            } else if cw == ch * 2 {
+                cape_rgba
+            } else {
+                image::imageops::resize(&cape_rgba, 64, 32, image::imageops::FilterType::Nearest)
+            };
+
+            let mut opti_buf = Vec::new();
+            let mut opti_cursor = std::io::Cursor::new(&mut opti_buf);
+            let opti_bytes = if opti_img.write_to(&mut opti_cursor, image::ImageFormat::Png).is_ok() {
+                opti_buf
+            } else {
+                full_bytes.clone()
+            };
+
+            (full_bytes, opti_bytes)
         } else {
-            cape_bytes
+            (cape_bytes.clone(), cape_bytes)
         };
 
         let u_clean = username.trim();
@@ -2237,6 +2256,21 @@ async fn inject_player_skin(
         let root_prop = format!("users={}\n", u_clean);
         if let Some(p) = optifine_root_prop.parent() { let _ = tokio::fs::create_dir_all(p).await; }
         let _ = tokio::fs::write(&optifine_root_prop, root_prop.as_bytes()).await;
+
+        let optifine_capes = [
+            pack_dir.join("assets/minecraft/optifine/cape.png"),
+            pack_dir.join("assets/minecraft/optifine/cape/cape.png"),
+            pack_dir.join("assets/minecraft/optifine/capes/default.png"),
+            pack_dir.join(format!("assets/minecraft/optifine/capes/{}.png", u_clean)),
+            pack_dir.join(format!("assets/minecraft/optifine/capes/{}.png", u_lower)),
+        ];
+        for path in &optifine_capes {
+            if let Some(parent) = path.parent() {
+                let _ = tokio::fs::create_dir_all(parent).await;
+            }
+            let _ = tokio::fs::write(path, &optifine_cape_bytes).await;
+        }
+
         let cape_paths = [
             pack_dir.join("assets/minecraft/textures/entity/cape.png"),
             pack_dir.join("assets/minecraft/textures/entity/player/cape.png"),
@@ -2249,11 +2283,6 @@ async fn inject_player_skin(
             pack_dir.join("assets/minecraft/textures/entity/cape/cape.png"),
             pack_dir.join("assets/minecraft/textures/entity/player/wide/cape.png"),
             pack_dir.join("assets/minecraft/textures/entity/player/slim/cape.png"),
-            pack_dir.join("assets/minecraft/optifine/cape.png"),
-            pack_dir.join("assets/minecraft/optifine/cape/cape.png"),
-            pack_dir.join("assets/minecraft/optifine/capes/default.png"),
-            pack_dir.join(format!("assets/minecraft/optifine/capes/{}.png", u_clean)),
-            pack_dir.join(format!("assets/minecraft/optifine/capes/{}.png", u_lower)),
             pack_dir.join("assets/minecraft/textures/models/armor/cape.png"),
             pack_dir.join("assets/minecraft/textures/entity/player/wide/elytra.png"),
             pack_dir.join("assets/minecraft/textures/entity/player/slim/elytra.png"),
