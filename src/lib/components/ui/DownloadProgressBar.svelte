@@ -114,7 +114,7 @@
 		class="fixed bottom-4 right-6 z-50 select-none max-w-xl w-[calc(100%-110px)]"
 		transition:slide={{ duration: 250, axis: "y" }}
 	>
-		<div class="bg-[#14151a]/95 backdrop-blur-2xl border border-[#caa97c]/30 rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,0.8)] space-y-2.5 relative overflow-hidden">
+		<div class="bg-[#14151a] border border-[#caa97c]/30 rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,0.8)] space-y-2.5 relative overflow-hidden">
 			<!-- Subtle gold accent glow on top edge -->
 			<div class="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#caa97c]/50 to-transparent"></div>
 

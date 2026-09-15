@@ -86,7 +86,7 @@
 
 {#if layoutStore.isCompactMode}
 	<div 
-		class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-[#141518]/95 backdrop-blur-xl border border-white/15 px-5 py-3 rounded-full shadow-2xl shadow-black/80 select-none animate-in fade-in slide-in-from-bottom-4 duration-300"
+		class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-[#141518] border border-white/15 px-5 py-3 rounded-full shadow-2xl shadow-black/80 select-none animate-in fade-in slide-in-from-bottom-4 duration-300"
 		transition:fade={{ duration: 150 }}
 	>
 		<div class="flex items-center gap-3 pr-2 border-r border-white/10">
