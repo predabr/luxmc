@@ -19,6 +19,7 @@
 
 	export function push(message: string, level: Toast["level"] = "info") {
 		if (destroyed) return;
+		if (toasts.length >= 20) { toasts = toasts.slice(-15); }
 		const id = ++counter;
 		toasts = [...toasts, { id, message, level }];
 		const t1 = setTimeout(() => {

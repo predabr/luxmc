@@ -121,8 +121,14 @@ pub async fn skins_import_file(
     if !p.exists() {
         return Err(AppError::NotFound("Arquivo de skin não encontrado".into()));
     }
+    if p.metadata().map(|m| m.len() > 2 * 1024 * 1024).unwrap_or(false) {
+        return Err(AppError::InvalidState("Arquivo de skin muito grande (máximo 2MB)".into()));
+    }
 
     let bytes = tokio::fs::read(p).await?;
+    if bytes.len() > 2 * 1024 * 1024 {
+        return Err(AppError::InvalidState("Arquivo de skin muito grande (máximo 2MB)".into()));
+    }
     if bytes.len() < 8 || &bytes[0..8] != b"\x89PNG\r\n\x1a\n" {
         return Err(AppError::InvalidState("Arquivo selecionado não é uma imagem PNG válida".into()));
     }

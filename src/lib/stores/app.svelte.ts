@@ -21,7 +21,7 @@ export const appState = {
 export interface LogEntry {
 	id: number;
 	timestamp: Date;
-	stream: "stdout" | "stderr" | "system";
+	stream: "stdout" | "stderr" | "system" | "game";
 	message: string;
 }
 
@@ -31,18 +31,22 @@ let logIdCounter = 0;
 export const gameLogs = {
 	get entries() { return logEntries; },
 	clear() { logEntries = []; },
-	add(stream: "stdout" | "stderr" | "system", message: string) {
-		const newEntry: LogEntry = {
-			id: ++logIdCounter,
-			timestamp: new Date(),
-			stream,
-			message,
-		};
-		if (logEntries.length >= 800) {
-			logEntries.splice(0, 150);
-			logEntries.push(newEntry);
-		} else {
-			logEntries.push(newEntry);
+	add(stream: "stdout" | "stderr" | "system" | "game", message: string) {
+		const lines = message.split("\n");
+		for (const line of lines) {
+			const trimmed = line.length > 500 ? line.slice(0, 500) + "…" : line;
+			const newEntry: LogEntry = {
+				id: ++logIdCounter,
+				timestamp: new Date(),
+				stream,
+				message: trimmed,
+			};
+			if (logEntries.length >= 800) {
+				logEntries.splice(0, 150);
+				logEntries.push(newEntry);
+			} else {
+				logEntries.push(newEntry);
+			}
 		}
 	},
 };

@@ -205,14 +205,21 @@ pub async fn prepare_neoforge(
             .get(&installer_url)
             .send()
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to download NeoForge installer: {e}")))?;
-        let bytes = resp
+            .map_err(|e| AppError::Internal(format!("Failed to download NeoForge installer: {e}")))?
             .error_for_status()
-            .map_err(|e| AppError::Internal(format!("NeoForge installer not found: {e}")))?
-            .bytes()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to read NeoForge installer: {e}")))?;
-        tokio::fs::write(&installer_dest, &bytes).await?;
+            .map_err(|e| AppError::Internal(format!("NeoForge installer not found: {e}")))?;
+        {
+            use futures_util::StreamExt;
+            use tokio::io::AsyncWriteExt;
+            let mut stream = resp.bytes_stream();
+            let mut dest = tokio::fs::File::create(&installer_dest).await?;
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk
+                    .map_err(|e| AppError::Internal(format!("Failed to read NeoForge installer: {e}")))?;
+                dest.write_all(&chunk).await?;
+            }
+            dest.flush().await?;
+        }
     }
 
     let data_dir = libraries_dir.parent().unwrap_or(libraries_dir);
@@ -233,7 +240,10 @@ pub async fn prepare_neoforge(
             .arg(&installer_dest)
             .arg("--installClient")
             .arg(data_dir)
-            .output()
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
             .await;
     }
 

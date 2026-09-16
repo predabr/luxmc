@@ -36,11 +36,11 @@ pub async fn launch_logs_list(
     limit: Option<i64>,
 ) -> AppResult<Vec<LaunchLogSummary>> {
     let conn = db::shared_db().await?;
-    let limit = limit.unwrap_or(100);
+    let limit = limit.unwrap_or(100).clamp(1, 100);
     let rows = db::schema::launch_logs::list(&conn, limit).await?;
     let mut out = Vec::new();
     for r in rows {
-        let lines = db::schema::launch_logs::lines(&conn, r.id).await?;
+        let line_count = db::schema::launch_logs::count_lines(&conn, r.id).await?;
         out.push(LaunchLogSummary {
             id: r.id,
             profile_id: r.profile_id,
@@ -50,7 +50,7 @@ pub async fn launch_logs_list(
             exit_code: r.exit_code,
             summary: r.summary,
             error_classification: r.error_classification,
-            line_count: lines.len() as i64,
+            line_count,
         });
     }
     Ok(out)
@@ -84,7 +84,7 @@ pub async fn launch_logs_search(
     limit: Option<i64>,
 ) -> AppResult<Vec<LaunchLogLineDto>> {
     let conn = db::shared_db().await?;
-    let limit = limit.unwrap_or(200);
+    let limit = limit.unwrap_or(200).clamp(1, 500);
     let rows = db::schema::launch_logs::search(&conn, &query, &min_level, limit).await?;
     Ok(rows
         .into_iter()

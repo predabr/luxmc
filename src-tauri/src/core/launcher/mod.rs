@@ -3,6 +3,8 @@ use std::process::Stdio;
 use tauri::Emitter;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
+use tokio::sync::Mutex as TokioMutex;
+use std::sync::Arc;
 
 use crate::core::downloader::DownloadManager;
 use crate::core::java::JavaRuntimeManager;
@@ -721,46 +723,75 @@ impl GameLauncher {
         let stdout = child.stdout.take().unwrap();
         let stderr = child.stderr.take().unwrap();
 
-        let app_stdout = self.app.clone();
+        let log_buffer: Arc<TokioMutex<Vec<String>>> = Arc::new(TokioMutex::new(Vec::with_capacity(200)));
+        let lb_out = log_buffer.clone();
+        let lb_err = log_buffer.clone();
+
+        let last_stderr = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
+        let last_stderr_writer = last_stderr.clone();
+
+        let log_dir = game_dir.join("logs");
+        let log_file_path = log_dir.join("luxmc_game.log");
+        let _ = tokio::fs::create_dir_all(&log_dir).await;
+        let mut log_file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_file_path)
+            .await
+            .ok();
+        let mut log_file_err = if let Some(ref f) = log_file {
+            f.try_clone().await.ok()
+        } else {
+            None
+        };
+
         tokio::spawn(async move {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                tracing::info!(target: "game", "stdout: {}", line);
-                if let Some(ref app) = app_stdout {
-                    let _ = app.emit(
-                        "game-log",
-                        GameLogEntry {
-                            stream: "stdout".into(),
-                            message: line,
-                        },
-                    );
+                let mut line = line;
+                if line.len() > 2000 { line.truncate(2000); }
+                if let Some(ref mut f) = log_file {
+                    let _ = tokio::io::AsyncWriteExt::write_all(f, format!("{}\n", line).as_bytes()).await;
                 }
+                if lb_out.lock().await.len() < 200 { lb_out.lock().await.push(line); }
             }
         });
 
-        let last_stderr = std::sync::Arc::new(std::sync::Mutex::new(None::<String>));
-        let last_stderr_writer = last_stderr.clone();
-        let app_stderr = self.app.clone();
         tokio::spawn(async move {
             let reader = BufReader::new(stderr);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                tracing::error!(target: "game", "stderr: {}", line);
+                let mut line = line;
+                if line.len() > 2000 { line.truncate(2000); }
                 let trimmed = line.trim();
                 if !trimmed.is_empty() {
                     if let Ok(mut lock) = last_stderr_writer.lock() {
                         *lock = Some(trimmed.to_string());
                     }
                 }
-                if let Some(ref app) = app_stderr {
-                    let _ = app.emit(
-                        "game-log",
-                        GameLogEntry {
-                            stream: "stderr".into(),
-                            message: line,
-                        },
-                    );
+                if let Some(ref mut f) = log_file_err {
+                    let _ = tokio::io::AsyncWriteExt::write_all(f, format!("{}\n", line).as_bytes()).await;
+                }
+                if lb_err.lock().await.len() < 200 { lb_err.lock().await.push(line); }
+            }
+        });
+
+        // Batch flusher: emit accumulated logs every 500ms to avoid IPC flood
+        let app_flush = self.app.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_millis(500));
+            loop {
+                interval.tick().await;
+                let mut buf = log_buffer.lock().await;
+                if buf.is_empty() { continue; }
+                let batch: Vec<String> = std::mem::take(&mut *buf);
+                drop(buf);
+                if let Some(ref app) = app_flush {
+                    let _ = app.emit("game-log", GameLogEntry {
+                        stream: "game".into(),
+                        message: batch.join("\n"),
+                    });
                 }
             }
         });

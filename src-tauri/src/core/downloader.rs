@@ -655,9 +655,18 @@ impl DownloadManager {
                 )));
             }
             if !downloads.client.sha1.is_empty() {
-                let bytes = tokio::fs::read(&client_path).await?;
+                let file = tokio::fs::File::open(&client_path).await?;
+                let mut reader = tokio::io::BufReader::with_capacity(64 * 1024, file);
                 let mut hasher = Sha1::new();
-                hasher.update(&bytes);
+                let mut buf = vec![0u8; 64 * 1024];
+                loop {
+                    use tokio::io::AsyncReadExt;
+                    let n = reader.read(&mut buf).await?;
+                    if n == 0 {
+                        break;
+                    }
+                    hasher.update(&buf[..n]);
+                }
                 let computed = format!("{:x}", hasher.finalize());
                 if computed != downloads.client.sha1 {
                     return Err(AppError::Internal(format!(
@@ -875,9 +884,18 @@ async fn download_file_once(
     drop(file);
 
     if !entry.sha1.is_empty() {
-        let bytes = tokio::fs::read(path).await?;
+        let file = tokio::fs::File::open(path).await?;
+        let mut reader = tokio::io::BufReader::with_capacity(64 * 1024, file);
         let mut hasher = Sha1::new();
-        hasher.update(&bytes);
+        let mut buf = vec![0u8; 64 * 1024];
+        loop {
+            use tokio::io::AsyncReadExt;
+            let n = reader.read(&mut buf).await?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buf[..n]);
+        }
         let computed = format!("{:x}", hasher.finalize());
         if computed != entry.sha1 {
             tokio::fs::remove_file(path).await?;

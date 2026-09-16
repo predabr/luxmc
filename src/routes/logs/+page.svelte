@@ -21,6 +21,15 @@
 	let isSharing = $state(false);
 	let lastUpdate = $state<Date | null>(null);
 	let logContainer = $state<HTMLDivElement | null>(null);
+	let lastUiRefresh = 0;
+
+	function touchUpdate() {
+		const now = Date.now();
+		if (now - lastUiRefresh >= 500) {
+			lastUiRefresh = now;
+			lastUpdate = new Date();
+		}
+	}
 
 	const filteredEntries = $derived.by(() => {
 		if (!searchQuery.trim()) return gameLogs.entries;
@@ -34,7 +43,7 @@
 
 		unlistenGameLog = await listenGameLog((entry) => {
 			gameLogs.add(entry.stream as "stdout" | "stderr", entry.message);
-			lastUpdate = new Date();
+			touchUpdate();
 		});
 
 		unlistenGameExit = await listenGameExit((event) => {
@@ -49,7 +58,7 @@
 
 		unlistenLauncherLog = await listenLauncherLog((message) => {
 			gameLogs.add("system", message);
-			lastUpdate = new Date();
+			touchUpdate();
 		});
 	});
 

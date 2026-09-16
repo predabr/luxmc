@@ -338,14 +338,21 @@ pub async fn prepare_forge(
             .get(&installer_url)
             .send()
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to download Forge installer: {e}")))?;
-        let bytes = resp
+            .map_err(|e| AppError::Internal(format!("Failed to download Forge installer: {e}")))?
             .error_for_status()
-            .map_err(|e| AppError::Internal(format!("Forge installer not found ({full_version}): {e}")))?
-            .bytes()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to read Forge installer: {e}")))?;
-        tokio::fs::write(&installer_dest, &bytes).await?;
+            .map_err(|e| AppError::Internal(format!("Forge installer not found ({full_version}): {e}")))?;
+        {
+            use futures_util::StreamExt;
+            use tokio::io::AsyncWriteExt;
+            let mut stream = resp.bytes_stream();
+            let mut dest = tokio::fs::File::create(&installer_dest).await?;
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk
+                    .map_err(|e| AppError::Internal(format!("Failed to read Forge installer: {e}")))?;
+                dest.write_all(&chunk).await?;
+            }
+            dest.flush().await?;
+        }
     }
 
     let data_dir = libraries_dir.parent().unwrap_or(libraries_dir);
@@ -368,7 +375,10 @@ pub async fn prepare_forge(
             .arg(&installer_dest)
             .arg("--installClient")
             .arg(data_dir)
-            .output()
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
             .await;
 
         if !client_dest.exists() {
@@ -379,7 +389,10 @@ pub async fn prepare_forge(
                         .arg(&patched)
                         .arg("--installClient")
                         .arg(data_dir)
-                        .output()
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .status()
                         .await;
                     let _ = tokio::fs::remove_file(&patched).await;
                 }

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount, onDestroy } from "svelte";
 	import { Cpu, MemoryStick } from "lucide-svelte";
 
 	type Reading = {
@@ -11,7 +10,6 @@
 	const MAX_READINGS = 60;
 	let readings = $state<Reading[]>(Array(MAX_READINGS).fill(null).map(() => ({ cpuPercent: 0, memMb: 0, ts: 0 })));
 	let idx = $state(0);
-	let pollHandle: number | null = $state(null);
 
 	async function tick(pid: number | null) {
 		if (!pid) return;
@@ -35,16 +33,11 @@
 
 	let { pid, running }: Props = $props();
 
-	onMount(() => {
-		if (running && pid !== null) {
-			pollHandle = window.setInterval(() => tick(pid), 1000);
-		}
-	});
-
-	onDestroy(() => {
-		if (pollHandle !== null) {
-			clearInterval(pollHandle);
-		}
+	$effect(() => {
+		if (!running || pid === null) return;
+		const currentPid = pid;
+		const handle = window.setInterval(() => tick(currentPid), 1000);
+		return () => clearInterval(handle);
 	});
 
 	const current = $derived.by(() => {

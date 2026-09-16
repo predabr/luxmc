@@ -6,7 +6,7 @@ function getSound(name: string): Howl | null {
 	if (typeof window === "undefined") return null;
 	if (!sounds[name]) {
 		try {
-			sounds[name] = new Howl({ src: ["/sounds/${name}.mp3"], volume: 0.3 });
+			sounds[name] = new Howl({ src: [`/sounds/${name}.mp3`], volume: 0.3 });
 		} catch {
 			return null;
 		}

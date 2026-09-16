@@ -39,7 +39,21 @@ pub async fn create(db: &Db, profile_id: Option<&str>, version_id: &str) -> AppR
 	.bind(now)
 	.fetch_one(db.pool())
 	.await?;
-    Ok(row.try_get::<i64, _>("id")?)
+    let id = row.try_get::<i64, _>("id")?;
+    // Rotação: mantém só os 30 logs mais recentes para o banco não crescer sem limite.
+    let _ = sqlx::query(
+        "DELETE FROM launch_log_lines WHERE log_id NOT IN \
+         (SELECT id FROM launch_logs ORDER BY started_at DESC LIMIT 30)",
+    )
+    .execute(db.pool())
+    .await;
+    let _ = sqlx::query(
+        "DELETE FROM launch_logs WHERE id NOT IN \
+         (SELECT id FROM launch_logs ORDER BY started_at DESC LIMIT 30)",
+    )
+    .execute(db.pool())
+    .await;
+    Ok(id)
 }
 
 pub async fn finish(
@@ -97,12 +111,20 @@ pub async fn list(db: &Db, limit: i64) -> AppResult<Vec<LaunchLogRow>> {
 pub async fn lines(db: &Db, log_id: i64) -> AppResult<Vec<LaunchLogLine>> {
     let rows = sqlx::query_as::<_, LaunchLogLine>(
         "SELECT id, log_id, stream, level, message, ts FROM launch_log_lines \
-		 WHERE log_id = ? ORDER BY id ASC",
+		 WHERE log_id = ? ORDER BY id ASC LIMIT 5000",
     )
     .bind(log_id)
     .fetch_all(db.pool())
     .await?;
     Ok(rows)
+}
+
+pub async fn count_lines(db: &Db, log_id: i64) -> AppResult<i64> {
+    let row = sqlx::query("SELECT COUNT(*) AS n FROM launch_log_lines WHERE log_id = ?")
+        .bind(log_id)
+        .fetch_one(db.pool())
+        .await?;
+    Ok(row.try_get::<i64, _>("n").unwrap_or(0))
 }
 
 pub async fn search(

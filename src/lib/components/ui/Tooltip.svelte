@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Snippet } from "svelte";
+	import { onDestroy, type Snippet } from "svelte";
 
 	interface Props {
 		content: string;
@@ -32,6 +32,8 @@
 
 	const handleFocus = () => (visible = true);
 	const handleBlur = () => (visible = false);
+
+	onDestroy(() => clearTimeout(timeout));
 </script>
 
 <div
