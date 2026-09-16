@@ -7,7 +7,7 @@ use state::AppState;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub async fn run() {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -23,11 +23,9 @@ pub fn run() {
         tracing::warn!("CurseForge API: disabled (no API key found)");
     }
 
-    tauri::async_runtime::block_on(async {
-        if let Err(e) = db::shared_db().await {
-            tracing::error!(error = %e, "failed to initialise database");
-        }
-    });
+    if let Err(e) = db::shared_db().await {
+        tracing::error!(error = %e, "failed to initialise database");
+    }
 
     tauri::Builder::default()
         .setup(|app| {
