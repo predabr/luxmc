@@ -44,7 +44,7 @@ const defaults: AppSettings = {
 	accentTheme: "gold",
 	activeProfileId: null,
 	liveWallpaper: true,
-	soundscapesEnabled: true,
+	soundscapesEnabled: false,
 	soundscapeVolume: 0.2,
 };
 

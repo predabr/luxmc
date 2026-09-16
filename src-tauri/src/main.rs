@@ -90,6 +90,10 @@ fn main() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
         }
 
+        std::env::remove_var("GST_PLUGIN_SYSTEM_PATH_1_0");
+        std::env::remove_var("GST_PLUGIN_PATH_1_0");
+        std::env::remove_var("GST_PLUGIN_SCANNER_1_0");
+
         // Memory management: prevent glibc multi-arena memory fragmentation
         if std::env::var("MALLOC_ARENA_MAX").is_err() {
             std::env::set_var("MALLOC_ARENA_MAX", "2");
@@ -99,9 +103,5 @@ fn main() {
         }
     }
 
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .expect("failed to build tokio runtime");
-    runtime.block_on(luxmc_lib::run());
+    luxmc_lib::run();
 }

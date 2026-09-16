@@ -45,50 +45,11 @@
 		particles = arr;
 	}
 
-	function playHarmonicChime() {
-		try {
-			const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-			if (!AudioContextClass) return;
-			const ctx = new AudioContextClass();
-			if (ctx.state === "suspended") void ctx.resume();
-			const now = ctx.currentTime;
-
-			const harmonics = [
-				{ freq: 528, gain: 0.22, decay: 1.6 },
-				{ freq: 660, gain: 0.16, decay: 1.4 },
-				{ freq: 792, gain: 0.12, decay: 1.2 },
-				{ freq: 1056, gain: 0.08, decay: 1.0 },
-				{ freq: 1320, gain: 0.05, decay: 0.8 }
-			];
-
-			const masterGain = ctx.createGain();
-			masterGain.gain.setValueAtTime(0.6, now);
-			masterGain.connect(ctx.destination);
-
-			harmonics.forEach(({ freq, gain, decay }, i) => {
-				const osc = ctx.createOscillator();
-				const noteGain = ctx.createGain();
-				osc.type = "sine";
-				osc.frequency.setValueAtTime(freq, now + i * 0.04);
-				noteGain.gain.setValueAtTime(0.0001, now + i * 0.04);
-				noteGain.gain.exponentialRampToValueAtTime(gain, now + i * 0.04 + 0.04);
-				noteGain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.04 + decay);
-				osc.connect(noteGain);
-				noteGain.connect(masterGain);
-				osc.start(now + i * 0.04);
-				osc.stop(now + i * 0.04 + decay + 0.05);
-			});
-
-			setTimeout(() => { try { ctx.close(); } catch {} }, 2500);
-		} catch {}
-	}
-
 	function finish() {
 		if (completed) return;
 		completed = true;
 		progress = 100;
 		statusText = "Pronto para jogar!";
-		playHarmonicChime();
 		fadeOut = true;
 		setTimeout(() => {
 			visible = false;

@@ -4,10 +4,16 @@ let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext | null {
 	if (typeof window === "undefined") return null;
+	const s = settings.value as { soundEnabled?: boolean };
+	if (s && s.soundEnabled === false) return null;
 	if (!audioCtx) {
 		const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
 		if (AudioContextClass) {
-			audioCtx = new AudioContextClass();
+			try {
+				audioCtx = new AudioContextClass();
+			} catch {
+				return null;
+			}
 		}
 	}
 	if (audioCtx && audioCtx.state === "suspended") {
@@ -144,8 +150,8 @@ export function startSoundscape(mode: "overworld" | "cave" | "end" = "overworld"
 		const ctx = getAudioContext();
 		if (!ctx) return;
 
-		const s = settings.value as { soundscapeVolume?: number; soundEnabled?: boolean };
-		if (s?.soundEnabled === false) return;
+		const s = settings.value as { soundscapeVolume?: number; soundEnabled?: boolean; soundscapesEnabled?: boolean };
+		if (s?.soundEnabled === false || s?.soundscapesEnabled !== true) return;
 		const vol = typeof s?.soundscapeVolume === "number" ? Math.max(0, Math.min(1, s.soundscapeVolume)) : 0.25;
 
 		const master = ctx.createGain();
