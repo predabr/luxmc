@@ -5,9 +5,12 @@ export interface Profile {
 	mcVersion: string;
 	loader: "vanilla" | "fabric" | "forge" | "neoforge" | "quilt";
 	loaderVersion?: string;
-	javaPath?: string;
-	jvmArgs?: string;
+	javaPath?: string | null;
+	jvmArgs?: string | null;
 	resolution?: { width: number; height: number; fullscreen: boolean };
+	resolutionW?: number | null;
+	resolutionH?: number | null;
+	fullscreen?: boolean;
 	gameDir: string;
 	createdAt: number;
 	updatedAt: number;

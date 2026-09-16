@@ -1265,7 +1265,7 @@ impl GameLauncher {
         access_token: &str,
         user_type: &str,
         game_dir: &PathBuf,
-        _profile: &crate::db::models::ProfileRow,
+        profile: &crate::db::models::ProfileRow,
     ) -> Vec<String> {
         let mut args = Vec::new();
 
@@ -1277,6 +1277,9 @@ impl GameLauncher {
             .unwrap_or("legacy");
 
         let game_args_raw = detail.effective_game_args();
+
+        let res_w = profile.resolution_w.unwrap_or(854).to_string();
+        let res_h = profile.resolution_h.unwrap_or(480).to_string();
 
         for arg in &game_args_raw {
             let resolved = arg
@@ -1296,8 +1299,8 @@ impl GameLauncher {
                 .replace("${auth_xuid}", DEV_XUID)
                 .replace("${user_type}", user_type)
                 .replace("${version_type}", &detail.version_type)
-                .replace("${resolution_width}", "854")
-                .replace("${resolution_height}", "480")
+                .replace("${resolution_width}", &res_w)
+                .replace("${resolution_height}", &res_h)
                 .replace("${quickPlayPath}", "")
                 .replace("${quickPlaySingleplayer}", "")
                 .replace("${quickPlayMultiplayer}", "")
@@ -1326,6 +1329,21 @@ impl GameLauncher {
             args.push("{}".to_string());
         }
 
+        if let Some(w) = profile.resolution_w {
+            if !args.contains(&"--width".to_string()) {
+                args.push("--width".to_string());
+                args.push(w.to_string());
+            }
+        }
+        if let Some(h) = profile.resolution_h {
+            if !args.contains(&"--height".to_string()) {
+                args.push("--height".to_string());
+                args.push(h.to_string());
+            }
+        }
+        if profile.fullscreen && !args.contains(&"--fullscreen".to_string()) {
+            args.push("--fullscreen".to_string());
+        }
 
         args
     }

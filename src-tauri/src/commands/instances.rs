@@ -67,9 +67,30 @@ pub async fn instances_duplicate(_state: State<'_, AppState>, id: String) -> App
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {id} not found")))?;
 
     let now = chrono::Utc::now();
+    let new_name = format!("{} (copy)", existing.name);
+
+    let base_instances_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+        .map(|d| d.data_dir().join("instances"))
+        .unwrap_or_else(|| {
+            let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            std::path::PathBuf::from(format!("{}/.local/share/luxmc/instances", home))
+        });
+
+    let target_game_dir = base_instances_dir.join(&new_name);
+    let target_dir_str = target_game_dir.to_string_lossy().to_string();
+
+    let old_dir = std::path::PathBuf::from(&existing.game_dir);
+    if old_dir.exists() && old_dir.is_dir() {
+        let _ = tokio::fs::create_dir_all(&target_game_dir).await;
+        let mut copy_options = fs_extra::dir::CopyOptions::new();
+        copy_options.content_only = true;
+        copy_options.overwrite = true;
+        let _ = fs_extra::dir::copy(&old_dir, &target_game_dir, &copy_options);
+    }
+
     let row = ProfileRow {
         id: Uuid::new_v4().to_string(),
-        name: format!("{} (copy)", existing.name),
+        name: new_name,
         icon: existing.icon,
         mc_version: existing.mc_version,
         loader: existing.loader,
@@ -79,7 +100,7 @@ pub async fn instances_duplicate(_state: State<'_, AppState>, id: String) -> App
         resolution_w: existing.resolution_w,
         resolution_h: existing.resolution_h,
         fullscreen: existing.fullscreen,
-        game_dir: existing.game_dir,
+        game_dir: target_dir_str,
         created_at: now,
         updated_at: now,
         favorite: false,

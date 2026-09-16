@@ -8,10 +8,16 @@
 		AlertTriangle,
 		Sparkles,
 		Zap,
-		Cpu
+		Cpu,
+		FolderOpen,
+		ChevronDown,
+		ChevronUp,
+		Sliders
 	} from "lucide-svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { settings } from "$lib/stores/settings.svelte";
+	import { open } from "@tauri-apps/plugin-dialog";
 
 	const { t } = useTranslation();
 
@@ -33,6 +39,12 @@
 		autoOptimize: boolean;
 		useVulkan: boolean;
 		installPerfPack: boolean;
+		resolutionW?: number;
+		resolutionH?: number;
+		fullscreen?: boolean;
+		javaPath?: string;
+		jvmArgs?: string;
+		gameDir?: string;
 	}
 
 	let {
@@ -52,6 +64,13 @@
 	let newAutoOptimize = $state(true);
 	let newUseVulkan = $state(false);
 	let newInstallPerfPack = $state(true);
+	let showAdvanced = $state(false);
+	let customResW = $state(settings.value.defaultResWidth ?? 1920);
+	let customResH = $state(settings.value.defaultResHeight ?? 1080);
+	let customFullscreen = $state(settings.value.startFullscreen ?? true);
+	let customJavaPath = $state("");
+	let customJvmArgs = $state("");
+	let customGameDir = $state("");
 	let creating = $state(false);
 	let lastError = $state<string | null>(null);
 	let createSuccess = $state(false);
@@ -133,8 +152,6 @@
 		onClose?.();
 	}
 
-	let { open } = $state({ open: async () => null }) as any;
-
 	async function handleCreate() {
 		if (!newName.trim()) return;
 		creating = true;
@@ -149,7 +166,13 @@
 				ramGb: selectedRamGb,
 				autoOptimize: newAutoOptimize,
 				useVulkan: newUseVulkan,
-				installPerfPack: newInstallPerfPack
+				installPerfPack: newInstallPerfPack,
+				resolutionW: customResW,
+				resolutionH: customResH,
+				fullscreen: customFullscreen,
+				javaPath: customJavaPath.trim() || undefined,
+				jvmArgs: customJvmArgs.trim() || undefined,
+				gameDir: customGameDir.trim() || undefined,
 			});
 			createSuccess = true;
 			toast(t("instances.createdSuccess"), "success");
@@ -377,6 +400,116 @@
 						</label>
 					</div>
 				</div>
+			</div>
+
+			<!-- Step 4: Advanced SKlauncher-style Options Accordion -->
+			<div class="space-y-2 bg-[#18191c]/60 p-4 rounded-3xl border border-white/5">
+				<button
+					type="button"
+					class="w-full flex items-center justify-between text-left cursor-pointer"
+					onclick={() => showAdvanced = !showAdvanced}
+				>
+					<div class="flex items-center gap-2">
+						<Sliders class="w-4 h-4 text-brand-500" />
+						<span class="text-xs font-bold text-white uppercase tracking-wider">Configurações Avançadas da Instância</span>
+						<span class="text-[9px] text-white/40 font-mono">(Resolução, Java, Diretório)</span>
+					</div>
+					{#if showAdvanced}
+						<ChevronUp class="w-4 h-4 text-white/50" />
+					{:else}
+						<ChevronDown class="w-4 h-4 text-white/50" />
+					{/if}
+				</button>
+
+				{#if showAdvanced}
+					<div class="pt-3 space-y-4 border-t border-white/5 mt-2">
+						<!-- Resolução & Tela Cheia -->
+						<div class="space-y-2">
+							<span class="text-[11px] font-bold text-white/80 block">Resolução Inicial da Janela</span>
+							<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+								<div class="space-y-1">
+									<span class="text-[10px] text-white/50">Largura (px)</span>
+									<input type="number" bind:value={customResW} class="w-full h-10 px-3 rounded-xl bg-[#141518] border border-white/10 text-xs font-mono text-white outline-none focus:border-brand-500" />
+								</div>
+								<div class="space-y-1">
+									<span class="text-[10px] text-white/50">Altura (px)</span>
+									<input type="number" bind:value={customResH} class="w-full h-10 px-3 rounded-xl bg-[#141518] border border-white/10 text-xs font-mono text-white outline-none focus:border-brand-500" />
+								</div>
+								<div class="flex items-center pt-5">
+									<label class="flex items-center gap-2 cursor-pointer">
+										<input type="checkbox" bind:checked={customFullscreen} class="accent-brand-500 rounded" />
+										<span class="text-xs text-white/80 font-bold">Tela Cheia</span>
+									</label>
+								</div>
+							</div>
+						</div>
+
+						<!-- Java Executável -->
+						<div class="space-y-1.5">
+							<span class="text-[11px] font-bold text-white/80 block">Executável Java Customizado (Opcional)</span>
+							<div class="flex gap-2">
+								<input
+									type="text"
+									bind:value={customJavaPath}
+									placeholder="Auto-detectar Java recomendado para esta versão"
+									class="flex-1 h-10 px-3 rounded-xl bg-[#141518] border border-white/10 text-xs font-mono text-white outline-none focus:border-brand-500"
+								/>
+								<button
+									type="button"
+									class="px-3.5 h-10 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+									onclick={async () => {
+										const selected = await open({
+											title: "Selecionar Executável Java",
+											multiple: false,
+											directory: false
+										});
+										if (typeof selected === "string") customJavaPath = selected;
+									}}
+								>
+									<FolderOpen class="w-3.5 h-3.5" /> Procurar
+								</button>
+							</div>
+						</div>
+
+						<!-- Diretório Customizado do Jogo -->
+						<div class="space-y-1.5">
+							<span class="text-[11px] font-bold text-white/80 block">Diretório do Jogo Customizado (Opcional)</span>
+							<div class="flex gap-2">
+								<input
+									type="text"
+									bind:value={customGameDir}
+									placeholder="Padrão: diretório isolado da instância"
+									class="flex-1 h-10 px-3 rounded-xl bg-[#141518] border border-white/10 text-xs font-mono text-white outline-none focus:border-brand-500"
+								/>
+								<button
+									type="button"
+									class="px-3.5 h-10 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+									onclick={async () => {
+										const selected = await open({
+											title: "Selecionar Pasta da Instância",
+											multiple: false,
+											directory: true
+										});
+										if (typeof selected === "string") customGameDir = selected;
+									}}
+								>
+									<FolderOpen class="w-3.5 h-3.5" /> Procurar
+								</button>
+							</div>
+						</div>
+
+						<!-- Argumentos JVM adicionais -->
+						<div class="space-y-1.5">
+							<span class="text-[11px] font-bold text-white/80 block">Argumentos JVM Customizados (Opcional)</span>
+							<input
+								type="text"
+								bind:value={customJvmArgs}
+								placeholder="ex: -XX:+UseG1GC -XX:MaxGCPauseMillis=20"
+								class="w-full h-10 px-3 rounded-xl bg-[#141518] border border-white/10 text-xs font-mono text-white outline-none focus:border-brand-500"
+							/>
+						</div>
+					</div>
+				{/if}
 			</div>
 
 			<!-- Actions -->

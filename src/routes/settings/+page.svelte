@@ -72,6 +72,8 @@
 
 	// 1. Geral states (10)
 	let selectedLanguage = $state("pt-BR");
+	let launcherActionOnLaunch = $state<"keep_open" | "hide_reopen" | "close">(settings.value.launcherActionOnLaunch ?? "hide_reopen");
+	let showLogsOnLaunch = $state<"never" | "on_crash" | "always">(settings.value.showLogsOnLaunch ?? "on_crash");
 	let minimizeToTray = $state(true);
 	let minimizeOnLaunch = $state(true);
 	let reopenOnGameClose = $state(true);
@@ -113,9 +115,9 @@
 
 	// 6. Gráficos & Minecraft states (8)
 	let enableVulkan = $state(true);
-	let defaultResWidth = $state(1920);
-	let defaultResHeight = $state(1080);
-	let startFullscreen = $state(true);
+	let defaultResWidth = $state(settings.value.defaultResWidth ?? 1920);
+	let defaultResHeight = $state(settings.value.defaultResHeight ?? 1080);
+	let startFullscreen = $state(settings.value.startFullscreen ?? true);
 	let defaultFpsLimit = $state("144");
 	let enableVsync = $state(false);
 	let asyncChunkLoading = $state(true);
@@ -268,7 +270,12 @@
 			waylandNative: nativeWayland,
 			autoBackup: autoWorldBackup,
 			streamerMode: anonymousMode,
-			sfxVolume: soundVolume
+			sfxVolume: soundVolume,
+			launcherActionOnLaunch,
+			showLogsOnLaunch,
+			defaultResWidth,
+			defaultResHeight,
+			startFullscreen
 		});
 		localStorage.setItem("luxmc_enable_vulkan", String(enableVulkan));
 		schedulePersist();
@@ -365,6 +372,44 @@
 								<option value="pt-BR">Português (Brasil)</option>
 								<option value="en">English (US)</option>
 							</select>
+						</div>
+					</div>
+
+					<!-- Grupo: Comportamento ao Iniciar o Minecraft (SKlauncher Style) -->
+					<div>
+						<div class="text-xs font-bold text-white mb-2">Comportamento de Inicialização</div>
+						<div class="bg-[#111216] border border-white/[0.06] rounded-2xl divide-y divide-white/5 overflow-hidden">
+							<div class="p-3.5 flex items-center justify-between">
+								<div>
+									<div class="text-xs font-bold text-white">Ação ao Iniciar o Jogo</div>
+									<div class="text-[10px] text-white/40">O que o launcher deve fazer enquanto o Minecraft estiver aberto</div>
+								</div>
+								<select
+									bind:value={launcherActionOnLaunch}
+									onchange={saveSettings}
+									class="bg-[#1c1d22] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-emerald-500 cursor-pointer"
+								>
+									<option value="hide_reopen">Ocultar e reabrir ao fechar o jogo</option>
+									<option value="keep_open">Manter launcher aberto</option>
+									<option value="close">Fechar launcher completamente</option>
+								</select>
+							</div>
+
+							<div class="p-3.5 flex items-center justify-between">
+								<div>
+									<div class="text-xs font-bold text-white">Exibição do Console de Logs</div>
+									<div class="text-[10px] text-white/40">Quando abrir a janela de logs e diagnóstico de erros</div>
+								</div>
+								<select
+									bind:value={showLogsOnLaunch}
+									onchange={saveSettings}
+									class="bg-[#1c1d22] border border-white/[0.06] rounded-xl px-3 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-emerald-500 cursor-pointer"
+								>
+									<option value="on_crash">Abrir apenas se o jogo crashar</option>
+									<option value="always">Sempre abrir logs ao iniciar</option>
+									<option value="never">Nunca abrir logs automaticamente</option>
+								</select>
+							</div>
 						</div>
 					</div>
 

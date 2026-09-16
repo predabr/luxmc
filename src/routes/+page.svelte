@@ -59,6 +59,7 @@
 		discordSetActivity,
 		instancesOpenFolder
 	} from "$lib/api";
+	import { handlePostLaunchActions } from "$lib/utils/launcherLifecycle";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 
 	const { t } = useTranslation();
@@ -426,6 +427,7 @@
 
 			toast(`🎮 ${t("home.mcLaunched", { version: verId, pid: String(result.pid) })}`, "success");
 			profiles.setLastPlayed(targetProfile.id);
+			void handlePostLaunchActions();
 		} catch (e) {
 			console.error("Home launch error:", e);
 			toast(t("home.launchFailed", { error: String(e) }), "error");

@@ -61,6 +61,7 @@
 		type FileTreeEntry,
 		instanceImportShareCode
 	} from "$lib/api";
+	import { handlePostLaunchActions } from "$lib/utils/launcherLifecycle";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { achievements } from "$lib/stores/achievements.svelte";
@@ -291,16 +292,26 @@
 	async function handleCreateInstance(input: {
 		name: string; version: string; loader: string; icon: string;
 		ramGb: number; autoOptimize: boolean; useVulkan: boolean; installPerfPack: boolean;
+		resolutionW?: number; resolutionH?: number; fullscreen?: boolean;
+		javaPath?: string; jvmArgs?: string; gameDir?: string;
 	}) {
 		const p = await api.invoke<{
 			id: string; name: string; icon: string; mcVersion: string;
 			loader: string; loaderVersion: string | null; gameDir: string;
+			resolutionW: number | null; resolutionH: number | null; fullscreen: boolean;
+			javaPath: string | null; jvmArgs: string | null;
 			createdAt: string; updatedAt: string;
 		}>("profiles_create", {
 			input: {
 				name: input.name, mcVersion: input.version, loader: input.loader,
 				icon: input.icon, ramMb: input.ramGb * 1024,
 				autoOptimize: input.autoOptimize, useVulkan: input.useVulkan,
+				resolutionW: input.resolutionW ?? null,
+				resolutionH: input.resolutionH ?? null,
+				fullscreen: input.fullscreen ?? false,
+				javaPath: input.javaPath ?? null,
+				jvmArgs: input.jvmArgs ?? null,
+				gameDir: input.gameDir ?? null,
 			},
 		});
 
@@ -320,6 +331,12 @@
 			ramMb: input.ramGb * 1024,
 			autoOptimize: input.autoOptimize,
 			useVulkan: input.useVulkan,
+			resolution: p.resolutionW && p.resolutionH ? { width: p.resolutionW, height: p.resolutionH, fullscreen: p.fullscreen } : undefined,
+			resolutionW: p.resolutionW ?? undefined,
+			resolutionH: p.resolutionH ?? undefined,
+			fullscreen: p.fullscreen,
+			javaPath: p.javaPath ?? undefined,
+			jvmArgs: p.jvmArgs ?? undefined,
 		});
 		profiles.activeId = p.id;
 	}
@@ -381,6 +398,7 @@
 			}).catch(() => {});
 			profiles.setLastPlayed(p.id);
 			toast(`🎮 Minecraft ${verId} (${p.name}) iniciado! (PID: ${res.pid})`, "success");
+			void handlePostLaunchActions();
 		} catch (e) {
 			toast("Falha ao iniciar jogo: " + String(e), "error");
 		} finally {

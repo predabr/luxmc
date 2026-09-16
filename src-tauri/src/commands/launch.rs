@@ -179,12 +179,48 @@ pub async fn launch_game(
         }
     };
 
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+        .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
+    let data_dir = base_dir.data_dir().to_path_buf();
+
+    let local_ver_json = data_dir.join("versions").join(&request.version_id).join(format!("{}.json", request.version_id));
+    let local_clean_ver_json = data_dir.join("versions").join(clean_req_ver).join(format!("{}.json", clean_req_ver));
+
     app.emit(
         "launcher-log",
         format!("Fetching version detail for {}...", request.version_id),
     )
     .ok();
-    let detail = minecraft::fetch_version_detail(&state.http, &version_row.url).await?;
+    let detail = match minecraft::fetch_version_detail(&state.http, &version_row.url).await {
+        Ok(d) => {
+            let version_dir = data_dir.join("versions").join(&d.id);
+            if tokio::fs::create_dir_all(&version_dir).await.is_ok() {
+                let json_path = version_dir.join(format!("{}.json", d.id));
+                if let Ok(serialized) = serde_json::to_string(&d) {
+                    let _ = tokio::fs::write(&json_path, serialized).await;
+                }
+            }
+            d
+        }
+        Err(err) => {
+            if local_ver_json.exists() {
+                app.emit("launcher-log", "Modo offline ativo: carregando especificações locais da versão...").ok();
+                let content = tokio::fs::read_to_string(&local_ver_json).await
+                    .map_err(AppError::Io)?;
+                serde_json::from_str::<minecraft::VersionDetail>(&content)
+                    .map_err(AppError::Serde)?
+            } else if local_clean_ver_json.exists() {
+                app.emit("launcher-log", "Modo offline ativo: carregando especificações locais da versão base...").ok();
+                let content = tokio::fs::read_to_string(&local_clean_ver_json).await
+                    .map_err(AppError::Io)?;
+                serde_json::from_str::<minecraft::VersionDetail>(&content)
+                    .map_err(AppError::Serde)?
+            } else {
+                return Err(err);
+            }
+        }
+    };
+
     app.emit(
         "launcher-log",
         format!(
@@ -194,19 +230,30 @@ pub async fn launch_game(
     )
     .ok();
 
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
-    let data_dir = base_dir.data_dir().to_path_buf();
-
     app.emit("launcher-log", "Verifying download...").ok();
     let downloader =
         DownloadManager::new(state.http.clone(), data_dir.clone()).with_app(app.clone());
     let java = JavaRuntimeManager::new(state.http.clone(), data_dir.clone()).with_app(app.clone());
 
-    downloader.download_version(&detail).await?;
+    if let Err(e) = downloader.download_version(&detail).await {
+        let client_jar = data_dir.join("versions").join(&detail.id).join(format!("{}.jar", detail.id));
+        if client_jar.exists() {
+            app.emit("launcher-log", format!("Aviso de rede no download (modo offline): {}. Usando arquivos locais existentes.", e)).ok();
+        } else {
+            return Err(e);
+        }
+    }
+
     app.emit("launcher-log", "Download verified. Validating version...")
         .ok();
-    downloader.validate_version(&detail).await?;
+    if let Err(e) = downloader.validate_version(&detail).await {
+        let client_jar = data_dir.join("versions").join(&detail.id).join(format!("{}.jar", detail.id));
+        if client_jar.exists() {
+            app.emit("launcher-log", format!("Aviso de validação (modo offline): {}. Prosseguindo com arquivos locais.", e)).ok();
+        } else {
+            return Err(e);
+        }
+    }
     app.emit("launcher-log", "Version validated.").ok();
 
     let launcher = GameLauncher::new(downloader, java).with_app(app.clone());

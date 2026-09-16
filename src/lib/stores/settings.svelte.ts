@@ -31,7 +31,11 @@ export interface AppSettings {
 	liveWallpaper?: boolean;
 	soundscapesEnabled?: boolean;
 	soundscapeVolume?: number;
-	customMicrosoftClientId?: string;
+	launcherActionOnLaunch?: "keep_open" | "hide_reopen" | "close";
+	showLogsOnLaunch?: "never" | "on_crash" | "always";
+	defaultResWidth?: number;
+	defaultResHeight?: number;
+	startFullscreen?: boolean;
 }
 
 const defaults: AppSettings = {
@@ -46,6 +50,11 @@ const defaults: AppSettings = {
 	liveWallpaper: true,
 	soundscapesEnabled: false,
 	soundscapeVolume: 0.2,
+	launcherActionOnLaunch: "hide_reopen",
+	showLogsOnLaunch: "on_crash",
+	defaultResWidth: 1920,
+	defaultResHeight: 1080,
+	startFullscreen: true,
 };
 
 let onSettingsChanged: (() => void) | null = null;

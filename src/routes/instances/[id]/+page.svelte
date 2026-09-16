@@ -74,6 +74,7 @@
 	import { appState } from "$lib/stores/app.svelte";
 	import { open, save } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
+	import { handlePostLaunchActions } from "$lib/utils/launcherLifecycle";
 	import { 
 		launchGame, 
 		versionsCheckInstalled, 
@@ -298,6 +299,7 @@
 	let instanceWindowWidth = $state(1280);
 	let instanceWindowHeight = $state(720);
 	let instanceStartFullscreen = $state(false);
+	let instanceJavaPath = $state("");
 	let instanceEnableVulkanOpt = $state(false);
 	let instanceAutoOptimize = $state(true);
 	let gpuInfo = $state<GpuInfo | null>(null);
@@ -345,6 +347,10 @@
 			instanceEnableVulkanOpt = activeProfile.useVulkan === true;
 			instanceLoaderType = activeProfile.loader || "vanilla";
 			instanceLoaderVersion = activeProfile.loaderVersion || "";
+			instanceWindowWidth = activeProfile.resolutionW || activeProfile.resolution?.width || 1280;
+			instanceWindowHeight = activeProfile.resolutionH || activeProfile.resolution?.height || 720;
+			instanceStartFullscreen = activeProfile.fullscreen === true || activeProfile.resolution?.fullscreen === true;
+			instanceJavaPath = activeProfile.javaPath || "";
 		}
 	});
 
@@ -372,6 +378,11 @@
 			activeProfile.useVulkan = instanceEnableVulkanOpt;
 			(activeProfile as any).loader = instanceLoaderType;
 			(activeProfile as any).loaderVersion = instanceLoaderVersion;
+			activeProfile.resolutionW = instanceWindowWidth;
+			activeProfile.resolutionH = instanceWindowHeight;
+			activeProfile.fullscreen = instanceStartFullscreen;
+			activeProfile.resolution = { width: instanceWindowWidth, height: instanceWindowHeight, fullscreen: instanceStartFullscreen };
+			activeProfile.javaPath = instanceJavaPath || null;
 
 			try {
 				await profilesUpdate({
@@ -383,6 +394,10 @@
 					useVulkan: instanceEnableVulkanOpt,
 					loader: instanceLoaderType,
 					loaderVersion: instanceLoaderVersion || null,
+					resolutionW: instanceWindowWidth,
+					resolutionH: instanceWindowHeight,
+					fullscreen: instanceStartFullscreen,
+					javaPath: instanceJavaPath || null,
 				});
 				profiles.update(activeProfile.id, {
 					name: instanceNameInput,
@@ -392,6 +407,11 @@
 					useVulkan: instanceEnableVulkanOpt,
 					loader: instanceLoaderType as Profile["loader"],
 					loaderVersion: instanceLoaderVersion,
+					resolution: { width: instanceWindowWidth, height: instanceWindowHeight, fullscreen: instanceStartFullscreen },
+					resolutionW: instanceWindowWidth,
+					resolutionH: instanceWindowHeight,
+					fullscreen: instanceStartFullscreen,
+					javaPath: instanceJavaPath || null,
 				});
 				toast("Configurações salvas com sucesso!", "success");
 			} catch (e) {
@@ -1053,6 +1073,7 @@
 			downloadProgressPercent = 100;
 			launchStatusText = `Minecraft em execução (PID: ${result.pid})`;
 			toast(`🎮 Minecraft ${verId} iniciado com sucesso! (PID: ${result.pid})`, "success");
+			void handlePostLaunchActions();
 		} catch (e) {
 			console.error("Launch error:", e);
 			toast("Falha ao iniciar o jogo: " + String(e), "error");
@@ -2803,6 +2824,38 @@
 								<p class="text-[11px] text-white/50 leading-relaxed">
 									O Luxmc calcula e aloca dinamicamente a quantidade ótima de RAM ao iniciar com base no peso dos mods da instância e na memória livre do Linux, prevenindo travamentos e otimizando o Garbage Collector.
 								</p>
+							</div>
+
+							<!-- Executável Java Customizado -->
+							<div class="space-y-2 bg-[#18191f] border border-white/5 rounded-2xl p-4">
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-bold text-white/80">Executável Java do Perfil</span>
+									<span class="text-[10px] text-white/40">{instanceJavaPath ? 'Customizado' : 'Auto-detectar (Padrão)'}</span>
+								</div>
+								<div class="flex gap-2">
+									<input 
+										type="text" 
+										bind:value={instanceJavaPath} 
+										placeholder="Deixe vazio para usar a versão recomendada automaticamente" 
+										class="flex-1 bg-[#14151a] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-emerald-500" 
+									/>
+									<button 
+										type="button" 
+										class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+										onclick={async () => {
+											const selected = await open({
+												title: "Selecionar Executável Java",
+												multiple: false,
+												directory: false
+											});
+											if (typeof selected === "string") {
+												instanceJavaPath = selected;
+											}
+										}}
+									>
+										<FolderOpen class="w-3.5 h-3.5" /> Procurar
+									</button>
+								</div>
 							</div>
 
 							<!-- Custom JVM Arguments with Live OS-Safe Validator -->

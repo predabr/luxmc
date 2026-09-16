@@ -184,9 +184,21 @@
 			const lastProfileId = appState.activeGameDetails?.profileId || profiles.activeId || "";
 			appState.isGameRunning = false;
 			appState.activeGameDetails = null;
+
+			if (settings.value.launcherActionOnLaunch === "hide_reopen") {
+				import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+					const win = getCurrentWindow();
+					win.show().then(() => win.setFocus()).catch(() => {});
+				}).catch(() => {});
+			}
+
 			if (!event.success || event.code !== 0) {
 				const detail = event.errorMessage ? `\nMotivo: ${event.errorMessage}` : " Consulte a aba de Logs para detalhes.";
 				toast(`O Minecraft encerrou com código de saída ${event.code}.${detail}`, "error");
+
+				if (settings.value.showLogsOnLaunch === "on_crash") {
+					import("$app/navigation").then(({ goto }) => goto("/logs")).catch(() => {});
+				}
 
 				if (lastProfileId) {
 					crashDoctorDiagnose(lastProfileId, event.errorMessage).then((diagnosis) => {

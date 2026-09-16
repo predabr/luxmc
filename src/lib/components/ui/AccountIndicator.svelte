@@ -2,6 +2,7 @@
 	import { onMount } from "svelte";
 	import { LogOut, LogIn, User, Settings, CircleCheck, Users, Plus, Check } from "lucide-svelte";
 	import Button from "./Button.svelte";
+	import AccountLoginModal from "$lib/components/profile/AccountLoginModal.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { authAccounts, authSwitchAccount } from "$lib/api";
@@ -10,6 +11,7 @@
 	const { t } = useTranslation();
 
 	let showMenu = $state(false);
+	let showLoginModal = $state(false);
 	let savedAccounts = $state<Array<{
 		id: string;
 		username: string;
@@ -171,14 +173,17 @@
 				{/if}
 
 				<div class="p-2 space-y-1">
-					<a
-						href="/"
-						class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white/70 hover:text-white hover:bg-white/5 transition-colors"
-						onclick={() => (showMenu = false)}
+					<button
+						type="button"
+						class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer text-left"
+						onclick={() => {
+							showMenu = false;
+							showLoginModal = true;
+						}}
 					>
 						<Plus size={14} class="text-brand-500" />
 						Adicionar Outra Conta
-					</a>
+					</button>
 					<a
 						href="/settings"
 						class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white/70 hover:text-white hover:bg-white/5 transition-colors"
@@ -198,12 +203,19 @@
 			</div>
 		{/if}
 	{:else}
-		<a 
-			href="/"
-			class="flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-500 hover:bg-brand-400 text-black text-xs font-black transition-all shadow-sm active:scale-95"
+		<button 
+			type="button"
+			onclick={() => showLoginModal = true}
+			class="flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-500 hover:bg-brand-400 text-black text-xs font-black transition-all shadow-sm active:scale-95 cursor-pointer"
 		>
 			<LogIn size={14} />
 			<span>Entrar</span>
-		</a>
+		</button>
 	{/if}
+
+	<AccountLoginModal 
+		bind:isOpen={showLoginModal} 
+		onClose={() => showLoginModal = false} 
+		onAccountAdded={() => void loadAccounts()} 
+	/>
 </div>
