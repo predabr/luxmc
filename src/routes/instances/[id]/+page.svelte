@@ -1387,11 +1387,11 @@
 
 					<button 
 						type="button"
-						class="bg-[#222328] hover:bg-[#caa97c]/20 text-white/90 hover:text-[#caa97c] px-3.5 py-2 rounded-full border border-white/15 hover:border-[#caa97c]/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+						class="bg-[#222328] hover:bg-emerald-500/20 text-white/90 hover:text-emerald-400 px-3.5 py-2 rounded-full border border-white/15 hover:border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
 						onclick={() => showConfigEditor = true}
 						title="Ajustar Gamma / Fullbright, FOV e opções do jogo"
 					>
-						<Sliders class="w-3.5 h-3.5 text-[#caa97c]" /> Fullbright
+						<Sliders class="w-3.5 h-3.5 text-emerald-400" /> Fullbright
 					</button>
 
 					<button 
@@ -1892,7 +1892,7 @@
 							<HardDrive class="w-3.5 h-3.5 text-cyan-400" /> Backups de Saves ({worldsList.length})
 						</button>
 						<button class="bg-[#222328] hover:bg-white/10 text-white/90 hover:text-white px-3.5 py-1.5 rounded-full border border-white/15 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm" onclick={openInstanceFolder}>
-							<FolderOpen class="w-3.5 h-3.5 text-[#caa97c]" /> Abrir pasta saves/
+							<FolderOpen class="w-3.5 h-3.5 text-emerald-400" /> Abrir pasta saves/
 						</button>
 					</div>
 				</div>
@@ -2456,10 +2456,10 @@
 							</button>
 							<button 
 								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'otimizacao' ? 'bg-[#222328] text-[#caa97c] border border-[#caa97c]/30 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
+								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer {activeInstanceSection === 'otimizacao' ? 'bg-[#222328] text-emerald-400 border border-emerald-500/30 shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/5'}"
 								onclick={() => activeInstanceSection = 'otimizacao'}
 							>
-								<Zap class="w-4 h-4 text-[#caa97c]" /> Otimização Luxmc
+								<Zap class="w-4 h-4 text-emerald-400" /> Otimização Luxmc
 							</button>
 							<button 
 								type="button"
@@ -2590,7 +2590,7 @@
 						<div class="space-y-5">
 							<div>
 								<div class="flex items-center gap-2">
-									<Zap class="w-4 h-4 text-[#caa97c]" />
+									<Zap class="w-4 h-4 text-emerald-400" />
 									<h3 class="text-xs font-bold text-white uppercase tracking-wider">Sistema de Otimização Luxmc</h3>
 								</div>
 								<p class="text-[11px] text-white/40 mt-0.5">Tuning inteligente de JVM, detecção de hardware e aceleração gráfica Linux</p>
@@ -2643,7 +2643,7 @@
 									<button 
 										type="button"
 										aria-label="Alternar Flags Aikar"
-										class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceAutoOptimize ? 'bg-[#caa97c] shadow-[0_0_10px_rgba(202,169,124,0.35)]' : 'bg-[#2d2e34]'}"
+										class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceAutoOptimize ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.35)]' : 'bg-[#2d2e34]'}"
 										onclick={() => instanceAutoOptimize = !instanceAutoOptimize}
 									>
 										<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {instanceAutoOptimize ? 'translate-x-5' : 'translate-x-0'}"></span>
@@ -2656,7 +2656,7 @@
 										<span class="text-white/50">Flags aplicadas em tempo real:</span>
 										<span class="font-mono text-white/30">{generatedAikarFlags.length} parâmetros</span>
 									</div>
-									<div class="bg-black/50 p-2.5 rounded-xl border border-white/5 max-h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] text-[#caa97c] leading-relaxed break-all">
+									<div class="bg-black/50 p-2.5 rounded-xl border border-white/5 max-h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] text-emerald-400 leading-relaxed break-all">
 										{generatedAikarFlags.join(" ")}
 									</div>
 								</div>
@@ -2682,7 +2682,7 @@
 										<button 
 											type="button"
 											disabled={installingPerfPack}
-											class="px-3 py-1.5 bg-[#caa97c] hover:bg-[#d8bc98] disabled:opacity-50 text-black rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+											class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20"
 											onclick={handleInstallPerfPack}
 										>
 											{#if installingPerfPack}
@@ -2720,7 +2720,7 @@
 								<button 
 									type="button"
 									aria-label="Alternar Aceleração Vulkan"
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-[#caa97c] shadow-[0_0_10px_rgba(202,169,124,0.35)]' : 'bg-[#2d2e34]'}"
+									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.35)]' : 'bg-[#2d2e34]'}"
 									onclick={() => instanceEnableVulkanOpt = !instanceEnableVulkanOpt}
 								>
 									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {instanceEnableVulkanOpt ? 'translate-x-5' : 'translate-x-0'}"></span>
@@ -2769,15 +2769,15 @@
 								<p class="text-[11px] text-white/40 mt-0.5">Alocação de RAM, presets rápidos e validação de flags JVM</p>
 							</div>
 
-							<div class="flex items-center justify-between bg-[#1c1d22] border border-[#caa97c]/30 rounded-2xl p-4">
+							<div class="flex items-center justify-between bg-[#1c1d22] border border-emerald-500/30 rounded-2xl p-4">
 								<div>
-									<span class="text-xs font-bold text-[#caa97c] block">Luxmc Vulkan Zero-Lag Optimizer</span>
+									<span class="text-xs font-bold text-emerald-400 block">Luxmc Vulkan Zero-Lag Optimizer</span>
 									<span class="text-[10px] text-white/40 block mt-0.5">Otimização própria de renderização Mesa Zink e flags G1GC sem bugs visuais</span>
 								</div>
 								<button 
 									type="button"
 									aria-label="Alternar Otimização Vulkan"
-									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-[#caa97c] shadow-[0_0_10px_rgba(202,169,124,0.35)]' : 'bg-[#2d2e34]'}"
+									class="w-10 h-5 rounded-full transition-all duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.35)]' : 'bg-[#2d2e34]'}"
 									onclick={() => instanceEnableVulkanOpt = !instanceEnableVulkanOpt}
 								>
 									<span class="w-4 h-4 rounded-full bg-white transition-transform duration-200 shadow-md {instanceEnableVulkanOpt ? 'translate-x-5' : 'translate-x-0'}"></span>
@@ -2826,7 +2826,7 @@
 									type="text" 
 									bind:value={instanceJvmArgs} 
 									placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch" 
-									class="w-full bg-[#14151a] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-[#caa97c]" 
+									class="w-full bg-[#14151a] border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-emerald-500" 
 								/>
 
 								{#if jvmValidation && !jvmValidation.valid}
@@ -2841,7 +2841,7 @@
 										</ul>
 										<button 
 											type="button" 
-											class="text-[10px] font-bold text-black bg-[#caa97c] hover:bg-[#d8bc98] px-3 py-1 rounded-lg transition-all cursor-pointer mt-1"
+											class="text-[10px] font-bold text-black bg-emerald-500 hover:bg-emerald-400 px-3 py-1 rounded-lg transition-all cursor-pointer mt-1"
 											onclick={() => {
 												if (jvmValidation) {
 													instanceJvmArgs = jvmValidation.normalized;
@@ -2870,9 +2870,9 @@
 										disabled={isRepairing}
 									>
 										<div class="flex items-center justify-between w-full">
-											<RefreshCw class="w-4 h-4 text-[#caa97c] {isRepairing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}" />
+											<RefreshCw class="w-4 h-4 text-emerald-400 {isRepairing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}" />
 											{#if isRepairing}
-												<span class="text-[9px] text-[#caa97c] font-bold">Reparando...</span>
+												<span class="text-[9px] text-emerald-400 font-bold">Reparando...</span>
 											{/if}
 										</div>
 										<div class="mt-2">

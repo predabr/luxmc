@@ -766,7 +766,7 @@
 
 						<button 
 							type="button"
-							class="px-4 py-1.5 rounded-xl font-black text-xs text-black bg-[#caa97c] hover:brightness-110 cursor-pointer shadow-md"
+							class="px-4 py-1.5 rounded-xl font-black text-xs text-black bg-emerald-500 hover:bg-emerald-400 cursor-pointer shadow-md transition-colors"
 							onclick={sendGameInvite}
 						>
 							Enviar Convite Instantâneo
@@ -790,7 +790,7 @@
 								<div class="flex items-center justify-between gap-2 pt-2 border-t border-white/5">
 									<button 
 										type="button"
-										class="text-[11px] font-bold text-black bg-[#caa97c] hover:brightness-110 px-3 py-1 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-sm"
+										class="text-[11px] font-bold text-black bg-emerald-500 hover:bg-emerald-400 px-3 py-1 rounded-xl transition-all flex items-center gap-1 cursor-pointer shadow-sm"
 										onclick={() => {
 											const match = msg.text.match(/Endereço:\s*([^\s]+)/i);
 											const ip = match ? match[1] : "";

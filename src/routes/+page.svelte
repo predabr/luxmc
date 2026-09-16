@@ -38,10 +38,7 @@
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import Animate from "$lib/components/ui/Animate.svelte";
 	import FavoriteServerWidget from "$lib/components/home/FavoriteServerWidget.svelte";
-	import FriendsRadarWidget from "$lib/components/home/FriendsRadarWidget.svelte";
 	import NewsFeedWidget from "$lib/components/home/NewsFeedWidget.svelte";
-	import ScreenshotsWidget from "$lib/components/home/ScreenshotsWidget.svelte";
-	import GamerCardModal from "$lib/components/profile/GamerCardModal.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -83,7 +80,6 @@
 	let isLaunching = $state(false);
 	let launchStatusText = $state("");
 	let showQuickInstancePicker = $state(false);
-	let showGamerCardModal = $state(false);
 
 	const activeInstance = $derived(profiles.active || profiles.list[0] || null);
 
@@ -495,15 +491,15 @@
 {#if !account.value}
 	<div class="flex h-full w-full items-center justify-center px-4 transition-all duration-700 {isEntering ? 'opacity-0 scale-95 blur-md pointer-events-none' : 'opacity-100 scale-100'}" in:fade={{ duration: 400 }}>
 		<div class="w-full max-w-lg rounded-[2rem] bg-[#111216] border border-white/[0.08] p-8 sm:p-10 shadow-[0_32px_64px_rgba(0,0,0,0.6)] flex flex-col items-center select-none relative overflow-hidden">
-			<div class="absolute -top-20 -right-20 w-72 h-72 bg-[#caa97c]/[0.07] rounded-full blur-[100px] pointer-events-none animate-pulse" style="animation-duration:4s"></div>
+			<div class="absolute -top-20 -right-20 w-72 h-72 bg-emerald-500/[0.07] rounded-full blur-[100px] pointer-events-none animate-pulse" style="animation-duration:4s"></div>
 			<div class="absolute -bottom-20 -left-20 w-72 h-72 bg-[#6c5ce7]/[0.07] rounded-full blur-[100px] pointer-events-none animate-pulse" style="animation-duration:5s"></div>
-			<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#caa97c]/[0.03] rounded-full blur-[120px] pointer-events-none"></div>
+			<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-teal-500/[0.03] rounded-full blur-[120px] pointer-events-none"></div>
 
 			<Animate delay={0.1} duration={0.6}>
 				<div class="flex flex-col items-center text-center relative z-10">
-					<div class="h-28 w-28 rounded-[1.75rem] bg-gradient-to-br from-[#1a1b21] to-[#111216] border border-white/[0.12] flex items-center justify-center p-3.5 shadow-[0_16px_48px_rgba(0,0,0,0.5),0_0_0_1px_rgba(202,169,124,0.1)] relative group">
-						<div class="absolute inset-0 rounded-[1.75rem] bg-gradient-to-br from-[#caa97c]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-						<img src="/logo.png" alt="Luxmc 3D" class="w-full h-full object-contain drop-shadow-[0_0_32px_rgba(202,169,124,0.4)] group-hover:scale-110 transition-transform duration-500 relative z-10" />
+					<div class="h-28 w-28 rounded-[1.75rem] bg-gradient-to-br from-[#1a1b21] to-[#111216] border border-white/[0.12] flex items-center justify-center p-3.5 shadow-[0_16px_48px_rgba(0,0,0,0.5),0_0_0_1px_rgba(16,185,129,0.15)] relative group">
+						<div class="absolute inset-0 rounded-[1.75rem] bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+						<img src="/logo.png" alt="Luxmc 3D" class="w-full h-full object-contain drop-shadow-[0_0_32px_rgba(16,185,129,0.3)] group-hover:scale-110 transition-transform duration-500 relative z-10" />
 					</div>
 					<h1 class="text-[1.75rem] font-black text-white tracking-tight mt-5 bg-gradient-to-r from-white via-white to-white/70 bg-clip-text text-transparent">Luxmc Launcher</h1>
 					<p class="text-[11px] text-white/40 mt-1.5 font-medium tracking-wide">{t("home.subTagline")}</p>
@@ -529,7 +525,7 @@
 					</button>
 					<button 
 						type="button" 
-						class="flex-1 py-3 px-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 {mainAuthType === 'offline' ? 'bg-gradient-to-b from-[#25262e] to-[#1e1f26] text-[#caa97c] shadow-[0_4px_16px_rgba(0,0,0,0.3),0_0_0_1px_rgba(202,169,124,0.25)]' : 'text-white/30 hover:text-white/60 border border-transparent hover:bg-white/[0.03]'}"
+						class="flex-1 py-3 px-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center justify-center gap-2.5 {mainAuthType === 'offline' ? 'bg-gradient-to-b from-[#25262e] to-[#1e1f26] text-emerald-400 shadow-[0_4px_16px_rgba(0,0,0,0.3),0_0_0_1px_rgba(16,185,129,0.25)]' : 'text-white/30 hover:text-white/60 border border-transparent hover:bg-white/[0.03]'}"
 						onclick={() => mainAuthType = 'offline'}
 					>
 						<Gamepad2 class="w-4 h-4 shrink-0" />
@@ -645,14 +641,14 @@
 						<div class="flex bg-[#0e0f12] p-1 rounded-full border border-white/[0.05]">
 							<button 
 								type="button" 
-								class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'login' ? 'bg-[#1e1f26] text-[#caa97c] shadow-sm border border-[#caa97c]/15' : 'text-white/30 hover:text-white/60 border border-transparent'}"
+								class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'login' ? 'bg-[#1e1f26] text-emerald-400 shadow-sm border border-emerald-500/20' : 'text-white/30 hover:text-white/60 border border-transparent'}"
 								onclick={() => authTab = 'login'}
 							>
 								{t("home.loginTab")}
 							</button>
 							<button 
 								type="button" 
-								class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'register' ? 'bg-[#1e1f26] text-[#caa97c] shadow-sm border border-[#caa97c]/15' : 'text-white/30 hover:text-white/60 border border-transparent'}"
+								class="flex-1 py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer {authTab === 'register' ? 'bg-[#1e1f26] text-emerald-400 shadow-sm border border-emerald-500/20' : 'text-white/30 hover:text-white/60 border border-transparent'}"
 								onclick={() => authTab = 'register'}
 							>
 								{t("home.createAccountTab")}
@@ -673,7 +669,7 @@
 										>
 											<button 
 												type="button" 
-												class="flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-2xl border transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-[0.98] {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-[#caa97c]/40 bg-[#caa97c]/10 shadow-[0_0_16px_rgba(202,169,124,0.12)]' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]'}"
+												class="flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-2xl border transition-all duration-300 cursor-pointer hover:scale-[1.02] active:scale-[0.98] {offlineName.toLowerCase() === accName.toLowerCase() ? 'border-emerald-500/40 bg-emerald-500/10 shadow-[0_0_16px_rgba(16,185,129,0.12)]' : 'border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]'}"
 												onclick={() => { offlineName = accName; }}
 											>
 												<div class="h-7 w-7 rounded-lg overflow-hidden bg-[#1a1b21] border border-white/[0.1] shrink-0">
@@ -684,7 +680,7 @@
 														loading="lazy"
 													/>
 												</div>
-												<span class="text-[11px] font-bold {offlineName.toLowerCase() === accName.toLowerCase() ? 'text-[#caa97c]' : 'text-white/60 group-hover:text-white/80'} transition-colors">{accName}</span>
+												<span class="text-[11px] font-bold {offlineName.toLowerCase() === accName.toLowerCase() ? 'text-emerald-400' : 'text-white/60 group-hover:text-white/80'} transition-colors">{accName}</span>
 											</button>
 											<button
 												type="button"
@@ -701,8 +697,8 @@
 						{/if}
 
 						<div class="flex items-center gap-2.5 text-xs font-bold text-white/70">
-							<div class="h-8 w-8 rounded-xl bg-[#caa97c]/10 border border-[#caa97c]/20 flex items-center justify-center">
-								<Gamepad2 class="w-4 h-4 text-[#caa97c]" />
+							<div class="h-8 w-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+								<Gamepad2 class="w-4 h-4 text-emerald-400" />
 							</div>
 							<span>{authTab === 'login' ? t("home.accessOfflineAccount") : t("home.registerNewAccount")}</span>
 						</div>
@@ -714,7 +710,7 @@
 									placeholder={t("home.gamertagPlaceholder")} 
 									aria-label="Gamertag"
 									bind:value={offlineName}
-									class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-4 py-3.5 text-xs font-bold text-white outline-none focus:border-[#caa97c]/50 focus:shadow-[0_0_0_3px_rgba(202,169,124,0.08)] transition-all duration-300 placeholder:text-white/20"
+									class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-4 py-3.5 text-xs font-bold text-white outline-none focus:border-emerald-500/50 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.1)] transition-all duration-300 placeholder:text-white/20"
 									maxlength="16"
 									onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 								/>
@@ -726,12 +722,12 @@
 									placeholder={t("home.accountPasswordPlaceholder")} 
 									aria-label="Senha"
 									bind:value={offlinePassword}
-									class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-12 py-3.5 text-xs font-bold text-white outline-none focus:border-[#caa97c]/50 focus:shadow-[0_0_0_3px_rgba(202,169,124,0.08)] transition-all duration-300 placeholder:text-white/20"
+									class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-12 py-3.5 text-xs font-bold text-white outline-none focus:border-emerald-500/50 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.1)] transition-all duration-300 placeholder:text-white/20"
 									onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 								/>
 								<button
 									type="button"
-									class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-[#caa97c] p-1.5 transition-all duration-200 cursor-pointer"
+									class="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-emerald-400 p-1.5 transition-all duration-200 cursor-pointer"
 									onclick={() => (showPassword = !showPassword)}
 									title={showPassword ? t("home.hidePassword") : t("home.showPassword")}
 								>
@@ -750,7 +746,7 @@
 										placeholder={t("home.confirmPasswordPlaceholder")} 
 										aria-label="Confirmar senha"
 										bind:value={offlineConfirmPassword}
-										class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-4 py-3.5 text-xs font-bold text-white outline-none focus:border-[#caa97c]/50 focus:shadow-[0_0_0_3px_rgba(202,169,124,0.08)] transition-all duration-300 placeholder:text-white/20"
+										class="w-full bg-[#0e0f12] border border-white/[0.06] rounded-2xl pl-5 pr-4 py-3.5 text-xs font-bold text-white outline-none focus:border-emerald-500/50 focus:shadow-[0_0_0_3px_rgba(16,185,129,0.1)] transition-all duration-300 placeholder:text-white/20"
 										onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 									/>
 								</div>
@@ -759,7 +755,7 @@
 
 						<button 
 							type="button" 
-							class="w-full h-12 rounded-2xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] hover:from-[#e5cca8] hover:to-[#caa97c] text-[#111215] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all duration-300 shadow-[0_8px_24px_rgba(202,169,124,0.25)] hover:shadow-[0_12px_32px_rgba(202,169,124,0.4)] hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+							class="w-full h-12 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all duration-300 shadow-[0_8px_24px_rgba(16,185,129,0.25)] hover:shadow-[0_12px_32px_rgba(16,185,129,0.4)] hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 							onclick={() => { playClick(); handleOfflineAuth(); }}
 							disabled={isLoggingIn || isLoggingInMicrosoft}
 						>
@@ -884,7 +880,7 @@
 					class="flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-[#141518]/90 hover:bg-[#1c1d22] border border-white/5 hover:border-white/15 text-xs text-white/40 hover:text-white transition-all shadow-md group cursor-pointer"
 					title="Paleta de Comandos (Ctrl+K)"
 				>
-					<Search class="w-3.5 h-3.5 text-[#caa97c] group-hover:scale-110 transition-transform" />
+					<Search class="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
 					<span class="font-medium hidden sm:inline">Buscar instâncias, mods ou ações...</span>
 					<span class="font-medium sm:hidden">Buscar...</span>
 					<kbd class="text-[10px] font-mono text-white/20 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded-md">Ctrl+K</kbd>
@@ -923,7 +919,7 @@
 							<div class="h-7 w-52 bg-white/10 rounded-lg"></div>
 							<div class="h-3 w-40 bg-white/5 rounded-full"></div>
 						</div>
-						<div class="h-14 w-44 bg-[#caa97c]/20 rounded-2xl"></div>
+						<div class="h-14 w-44 bg-emerald-500/20 rounded-2xl"></div>
 					</div>
 
 					<div>
@@ -995,14 +991,14 @@
 										></div>
 									{/if}
 									<div class="absolute inset-0 bg-gradient-to-r from-[#0e0f12] via-[#111216]/95 to-[#111216]/80 pointer-events-none"></div>
-									<div class="absolute -right-16 -top-16 w-72 h-72 bg-[#caa97c]/[0.07] rounded-full blur-[100px] pointer-events-none"></div>
+									<div class="absolute -right-16 -top-16 w-72 h-72 bg-emerald-500/[0.07] rounded-full blur-[100px] pointer-events-none"></div>
 									<div class="absolute -left-16 -bottom-16 w-56 h-56 bg-[#6c5ce7]/[0.05] rounded-full blur-[80px] pointer-events-none"></div>
 
 										<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 p-7 relative z-10">
 											<div class="space-y-2.5 max-w-xl">
 												<div class="flex items-center gap-2">
 													<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)] animate-pulse"></span>
-													<span class="text-[11px] font-black uppercase tracking-widest text-[#caa97c]">{t("home.readyToPlay")}</span>
+													<span class="text-[11px] font-black uppercase tracking-widest text-emerald-400">{t("home.readyToPlay")}</span>
 												</div>
 												
 												<div class="relative">
@@ -1013,7 +1009,7 @@
 															class="flex items-center gap-3 text-left group cursor-pointer"
 															title="Clique para alternar a instância"
 														>
-															<h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight group-hover:text-[#caa97c] transition-colors">
+															<h1 class="text-2xl sm:text-3xl font-black text-white tracking-tight group-hover:text-emerald-400 transition-colors">
 																{activeInstance.name}
 															</h1>
 															<div class="p-1 rounded-lg bg-white/5 border border-white/10 text-white/50 group-hover:text-white transition-colors">
@@ -1040,7 +1036,7 @@
 																		profiles.activeId = p.id;
 																		showQuickInstancePicker = false;
 																	}}
-																	class="w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer {p.id === activeInstance?.id ? 'bg-[#caa97c]/15 text-white border border-[#caa97c]/30' : 'hover:bg-white/5 text-white/80'}"
+																	class="w-full flex items-center justify-between p-2 rounded-xl text-left transition-all cursor-pointer {p.id === activeInstance?.id ? 'bg-emerald-500/15 text-white border border-emerald-500/30' : 'hover:bg-white/5 text-white/80'}"
 																>
 																	<div class="flex items-center gap-2.5 min-w-0">
 																		<div class="w-8 h-8 rounded-lg bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
@@ -1074,7 +1070,7 @@
 														</span>
 														{#if gamingStats.formattedTotalTime}
 															<span class="flex items-center gap-1.5 text-[11px] text-white/50 bg-white/5 px-2.5 py-1 rounded-lg border border-white/5 font-mono">
-																<Clock class="w-3.5 h-3.5 text-[#caa97c]" />
+																<Clock class="w-3.5 h-3.5 text-emerald-400" />
 																{gamingStats.formattedTotalTime}
 															</span>
 														{/if}
@@ -1087,7 +1083,7 @@
 											<div class="flex items-center gap-3 w-full lg:w-auto shrink-0">
 												<button
 													type="button"
-													class="flex-1 lg:flex-initial h-16 px-10 rounded-2xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] hover:from-[#e5cca8] hover:to-[#caa97c] text-[#111215] font-black text-sm uppercase tracking-wider flex items-center justify-center gap-3.5 shadow-[0_8px_30px_rgba(202,169,124,0.35)] hover:shadow-[0_12px_45px_rgba(202,169,124,0.55)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed group"
+													class="flex-1 lg:flex-initial h-16 px-10 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white font-black text-sm uppercase tracking-wider flex items-center justify-center gap-3.5 shadow-[0_8px_30px_rgba(16,185,129,0.35)] hover:shadow-[0_12px_45px_rgba(16,185,129,0.55)] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed group"
 													onclick={() => handleHomePlay()}
 													disabled={isLaunching}
 												>
@@ -1102,22 +1098,12 @@
 
 												<a 
 													href="/instances" 
-													class="h-16 px-5 rounded-2xl bg-[#18191c] hover:bg-[#202127] border border-white/10 hover:border-white/20 text-white font-bold text-xs flex items-center gap-2.5 transition-all shadow-md group cursor-pointer shrink-0"
+													class="h-16 px-6 rounded-2xl bg-[#18191c] hover:bg-[#202127] border border-white/10 hover:border-emerald-500/40 text-white font-bold text-xs flex items-center gap-2.5 transition-all shadow-md group cursor-pointer shrink-0"
 													title={t("home.library")}
 												>
-													<Boxes class="w-4 h-4 text-[#caa97c] group-hover:scale-110 transition-transform" />
-													<span class="hidden sm:inline">{t("home.library")}</span>
+													<Boxes class="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+													<span>{t("home.library")}</span>
 												</a>
-
-												<button 
-													type="button"
-													onclick={() => showGamerCardModal = true}
-													class="h-16 px-4 rounded-2xl bg-[#18191c] hover:bg-[#202127] border border-white/10 hover:border-[#caa97c]/40 text-white font-bold text-xs flex items-center gap-2 transition-all shadow-md group cursor-pointer shrink-0"
-													title="Compartilhar Card de Gamer (estilo Spotify Wrapped / Discord)"
-												>
-													<Share2 class="w-4 h-4 text-[#caa97c] group-hover:scale-110 transition-transform" />
-													<span class="hidden md:inline">Gamer Card</span>
-												</button>
 											</div>
 										</div>
 									</div>
@@ -1127,16 +1113,16 @@
 									<section>
 										<div class="flex items-center justify-between mb-4">
 											<h2 class="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2.5">
-												<Boxes class="w-3.5 h-3.5 text-[#caa97c]" />
+												<Boxes class="w-3.5 h-3.5 text-emerald-400" />
 												Minhas Instâncias
 											</h2>
-											<a href="/instances" class="text-xs text-[#caa97c] hover:text-[#e0c49a] underline-offset-2 hover:underline font-bold transition-colors">Ver Todas</a>
+											<a href="/instances" class="text-xs text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline font-bold transition-colors">Ver Todas</a>
 										</div>
 
 										{#if profiles.list.length === 0}
 											<div class="rounded-3xl bg-[#111216] border border-white/[0.06] p-8 flex flex-col items-center justify-center text-center">
 												<p class="text-xs text-white/40 mb-4">Nenhuma instância criada ainda.</p>
-												<a href="/instances" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] text-[#111215] text-xs font-black hover:shadow-[0_8px_24px_rgba(202,169,124,0.3)] transition-all">
+												<a href="/instances" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-black text-xs font-black hover:shadow-[0_8px_24px_rgba(16,185,129,0.3)] transition-all">
 													Criar Nova Instância
 												</a>
 											</div>
@@ -1145,7 +1131,7 @@
 												{#each profiles.list.slice(0, 4) as inst}
 													{@const isSelected = activeInstance?.id === inst.id}
 													<div 
-														class="flex items-center justify-between p-3.5 rounded-2xl bg-[#111216] border {isSelected ? 'border-[#caa97c]/40 bg-gradient-to-br from-[#caa97c]/[0.08] to-transparent shadow-[0_0_24px_rgba(202,169,124,0.1)]' : 'border-white/[0.06] hover:border-white/[0.12]'} transition-all duration-300 cursor-pointer group"
+														class="flex items-center justify-between p-3.5 rounded-2xl bg-[#111216] border {isSelected ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/[0.08] to-transparent shadow-[0_0_24px_rgba(16,185,129,0.1)]' : 'border-white/[0.06] hover:border-white/[0.12]'} transition-all duration-300 cursor-pointer group"
 														onclick={() => { profiles.activeId = inst.id; }}
 														role="button"
 														tabindex="0"
@@ -1160,18 +1146,18 @@
 																{/if}
 															</div>
 															<div class="min-w-0">
-																<h4 class="font-bold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{inst.name}</h4>
+																<h4 class="font-bold text-white text-xs truncate group-hover:text-emerald-400 transition-colors">{inst.name}</h4>
 																<div class="flex items-center gap-1.5 text-[10px] text-white/35 font-mono mt-0.5">
 																	<span>{inst.mcVersion}</span>
 																	<span>·</span>
-																	<span class="uppercase text-[#caa97c]/70 font-bold">{inst.loader}</span>
+																	<span class="uppercase text-emerald-400/70 font-bold">{inst.loader}</span>
 																</div>
 															</div>
 														</div>
 														<div class="shrink-0 ml-2">
 															<button
 																type="button"
-																class="h-8 w-8 rounded-xl flex items-center justify-center {isSelected ? 'bg-gradient-to-r from-[#d8bc98] to-[#caa97c] text-[#111215]' : 'bg-white/[0.04] hover:bg-white/[0.08] text-white/60'} transition-all duration-300"
+																class="h-8 w-8 rounded-xl flex items-center justify-center {isSelected ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black' : 'bg-white/[0.04] hover:bg-white/[0.08] text-white/60'} transition-all duration-300"
 																title="Jogar esta instância"
 																onclick={(e) => {
 																	e.stopPropagation();
@@ -1199,12 +1185,12 @@
 									<section>
 										<div class="flex items-center justify-between mb-4">
 											<h2 class="text-xs font-bold text-white uppercase tracking-widest">{t("home.exploreContent")}</h2>
-											<a href="/mods" class="text-xs text-[#caa97c] hover:text-[#e0c49a] underline-offset-2 hover:underline font-bold transition-colors">{t("home.viewAll")}</a>
+											<a href="/mods" class="text-xs text-emerald-400 hover:text-emerald-300 underline-offset-2 hover:underline font-bold transition-colors">{t("home.viewAll")}</a>
 										</div>
 
 										<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 											{#each modpacks as pack}
-												<a href="/mods" class="group rounded-3xl bg-[#111216] border border-white/[0.06] overflow-hidden hover:border-[#caa97c]/30 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,0,0,0.5)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
+												<a href="/mods" class="group rounded-3xl bg-[#111216] border border-white/[0.06] overflow-hidden hover:border-emerald-500/30 hover:-translate-y-1 hover:shadow-[0_24px_48px_rgba(0,0,0,0.5)] transition-all duration-300 cursor-pointer flex flex-col justify-between">
 													<div class="h-36 w-full relative bg-[#0e0f12] overflow-hidden">
 														<img src={pack.bgImg} class="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" alt={pack.title} />
 														<div class="absolute inset-0 bg-gradient-to-t from-[#111216] via-transparent to-transparent"></div>
@@ -1219,7 +1205,7 @@
 													</div>
 													<div class="p-5 pt-3 flex-1 flex flex-col justify-between">
 														<div>
-															<h3 class="font-extrabold text-white text-xs truncate group-hover:text-[#caa97c] transition-colors">{pack.title}</h3>
+															<h3 class="font-extrabold text-white text-xs truncate group-hover:text-emerald-400 transition-colors">{pack.title}</h3>
 															<p class="text-[10px] text-white/35 mt-1.5 line-clamp-2 leading-relaxed">{pack.subtitle}</p>
 														</div>
 														<div class="flex justify-between items-center mt-3 pt-2.5 border-t border-white/[0.04] text-[10px] font-medium text-white/35">
@@ -1258,7 +1244,7 @@
 															</div>
 															<div class="w-full bg-white/[0.03] rounded-t-sm h-20 flex items-end overflow-hidden">
 																<div
-																	class="w-full rounded-t-sm transition-all duration-500 {day.isToday ? 'bg-gradient-to-t from-[#b89560] to-[#caa97c] shadow-[0_0_12px_rgba(202,169,124,0.25)]' : (day.minutes > 0 ? 'bg-white/30 group-hover:bg-white/50' : 'bg-white/[0.06]')}"
+																	class="w-full rounded-t-sm transition-all duration-500 {day.isToday ? 'bg-gradient-to-t from-emerald-600 to-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.25)]' : (day.minutes > 0 ? 'bg-white/30 group-hover:bg-white/50' : 'bg-white/[0.06]')}"
 																	style="height: {day.minutes > 0 ? heightPercent + '%' : '6%'};"
 																></div>
 															</div>
@@ -1290,102 +1276,9 @@
 										</div>
 									</section>
 
-							{:else if sec.id === 'friendsRadar'}
-								<FriendsRadarWidget />
-
 							{:else if sec.id === 'newsFeed'}
 								<NewsFeedWidget />
-
-							{:else if sec.id === 'screenshots'}
-								<ScreenshotsWidget />
-
-							{:else if sec.id === 'tools'}
-									<!-- Ferramentas Rápidas & Organizador -->
-									<section>
-										<div class="flex items-center justify-between mb-4">
-											<h2 class="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2.5">
-												<Zap class="w-3.5 h-3.5 text-[#caa97c]" />
-												Atalhos & Ferramentas Rápidas
-											</h2>
-											<a href="/organizer" class="text-xs text-[#caa97c] hover:text-[#e0c49a] underline-offset-2 hover:underline font-bold flex items-center gap-1 transition-colors">
-												<SlidersHorizontal class="w-3 h-3" />
-												Personalizar
-											</a>
-										</div>
-
-										<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-											<button 
-												type="button"
-												onclick={() => goto("/organizer")}
-												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-[#caa97c]/30 hover:bg-gradient-to-br hover:from-[#caa97c]/[0.05] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
-											>
-												<div class="h-9 w-9 rounded-xl bg-[#caa97c]/10 border border-[#caa97c]/15 flex items-center justify-center text-[#caa97c] group-hover:scale-110 transition-transform duration-300">
-													<SlidersHorizontal class="w-4 h-4" />
-												</div>
-												<div>
-													<h4 class="font-bold text-white text-xs group-hover:text-[#caa97c] transition-colors">Organizador</h4>
-													<p class="text-[10px] text-white/35 mt-0.5">Ajustar Layout</p>
-												</div>
-											</button>
-
-											<button 
-												type="button"
-												onclick={() => showGamerCardModal = true}
-												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-purple-500/30 hover:bg-gradient-to-br hover:from-purple-500/[0.05] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
-											>
-												<div class="h-9 w-9 rounded-xl bg-purple-500/10 border border-purple-500/15 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform duration-300">
-													<Share2 class="w-4 h-4" />
-												</div>
-												<div>
-													<h4 class="font-bold text-white text-xs group-hover:text-purple-300 transition-colors">Card de Gamer</h4>
-													<p class="text-[10px] text-white/35 mt-0.5">Exportar Imagem</p>
-												</div>
-											</button>
-
-											<button 
-												type="button"
-												onclick={() => openInstanceFolder()}
-												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-white/[0.15] hover:bg-gradient-to-br hover:from-white/[0.03] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
-											>
-												<div class="h-9 w-9 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-white/60 group-hover:scale-110 transition-transform duration-300">
-													<FolderOpen class="w-4 h-4" />
-												</div>
-												<div>
-													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Pasta do Jogo</h4>
-													<p class="text-[10px] text-white/35 mt-0.5">Abrir .minecraft</p>
-												</div>
-											</button>
-
-											<button 
-												type="button"
-												onclick={() => goto("/mods")}
-												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-emerald-500/30 hover:bg-gradient-to-br hover:from-emerald-500/[0.05] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
-											>
-												<div class="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-500/15 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300">
-													<Package class="w-4 h-4" />
-												</div>
-												<div>
-													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Mods & Shaders</h4>
-													<p class="text-[10px] text-white/35 mt-0.5">CurseForge / Modrinth</p>
-												</div>
-											</button>
-
-											<button 
-												type="button"
-												onclick={() => goto("/screenshots")}
-												class="p-4 rounded-2xl bg-[#111216] border border-white/[0.06] hover:border-sky-500/30 hover:bg-gradient-to-br hover:from-sky-500/[0.05] hover:to-transparent text-left transition-all duration-300 group cursor-pointer shadow-sm flex flex-col justify-between h-28"
-											>
-												<div class="h-9 w-9 rounded-xl bg-sky-500/10 border border-sky-500/15 flex items-center justify-center text-sky-400 group-hover:scale-110 transition-transform duration-300">
-													<Camera class="w-4 h-4" />
-												</div>
-												<div>
-													<h4 class="font-bold text-white text-xs group-hover:text-white transition-colors">Screenshots</h4>
-													<p class="text-[10px] text-white/35 mt-0.5">Galeria de Fotos</p>
-												</div>
-											</button>
-										</div>
-									</section>
-								{/if}
+							{/if}
 							</div>
 						{/if}
 					{/each}
@@ -1400,8 +1293,3 @@
 	</div>
 
 {/if}
-
-<GamerCardModal
-	isOpen={showGamerCardModal}
-	onClose={() => showGamerCardModal = false}
-/>

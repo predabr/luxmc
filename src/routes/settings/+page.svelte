@@ -288,7 +288,7 @@
 
 			<nav class="flex flex-col gap-1 overflow-y-auto max-h-[480px] custom-scrollbar pr-1">
 				{#each [
-					{ key: 'geral', label: 'Geral', icon: SettingsIcon, color: 'text-[#c5a880]' },
+					{ key: 'geral', label: 'Geral', icon: SettingsIcon, color: 'text-emerald-400' },
 					{ key: 'aparencia', label: 'Aparência', icon: Palette, color: 'text-purple-400' },
 					{ key: 'amigos', label: 'Amigos', icon: Users, color: 'text-emerald-400' },
 					{ key: 'java', label: 'Java', icon: Cpu, color: 'text-blue-400' },
@@ -301,10 +301,10 @@
 				] as item}
 					{@const active = activeSection === item.key}
 					<button
-						class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer active:scale-95 {active ? 'border border-[#c5a880]/35 bg-[#25211b]/60 text-[#d8bc98] shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5 border border-transparent'}"
+						class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all w-full text-left cursor-pointer active:scale-95 {active ? 'border border-emerald-500/35 bg-emerald-500/10 text-emerald-400 shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/5 border border-transparent'}"
 						onclick={() => activeSection = item.key as Section}
 					>
-						<item.icon class="w-4 h-4 {active ? 'text-[#c5a880]' : item.color}" /> {item.label}
+						<item.icon class="w-4 h-4 {active ? 'text-emerald-400' : item.color}" /> {item.label}
 					</button>
 				{/each}
 			</nav>
@@ -326,7 +326,7 @@
 			{#if activeSection === 'geral'}
 				<div class="flex items-center justify-between border-b border-white/[0.06] pb-4">
 					<div class="flex items-center gap-3">
-						<div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-[#c5a880]">
+						<div class="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-emerald-400">
 							<SettingsIcon class="w-4 h-4" />
 						</div>
 						<div>
@@ -360,7 +360,7 @@
 							<select
 								bind:value={selectedLanguage}
 								onchange={() => setLocale(selectedLanguage === 'pt-BR' ? 'pt-BR' : 'en')}
-								class="bg-[#1c1d22] border border-white/[0.06] rounded-xl px-4 py-2 text-xs text-white font-bold focus:outline-none focus:border-[#c5a880] cursor-pointer"
+								class="bg-[#1c1d22] border border-white/[0.06] rounded-xl px-4 py-2 text-xs text-white font-bold focus:outline-none focus:border-emerald-500 cursor-pointer"
 							>
 								<option value="pt-BR">Português (Brasil)</option>
 								<option value="en">English (US)</option>
@@ -389,13 +389,12 @@
 										<div class="text-[10px] text-white/40 mt-0.5">{opt.desc}</div>
 									</div>
 
-									<!-- Reference Image 4 Switch (ON: #c5a880 track + #181c24 thumb; OFF: #383a42 track + white thumb) -->
 									<button
 										type="button"
 										role="switch"
 										aria-label={opt.title}
 										aria-checked={opt.val}
-										class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+										class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 										onclick={opt.toggle}
 									>
 										<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
@@ -469,7 +468,7 @@
 									role="switch"
 									aria-label={opt.title}
 									aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
 									<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
@@ -541,7 +540,7 @@
 							</div>
 							<button
 								type="button" role="switch" aria-label="MangoHud" aria-checked={enableMangoHud}
-								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableMangoHud ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableMangoHud ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 								onclick={() => enableMangoHud = !enableMangoHud}
 							>
 								<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {enableMangoHud ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
@@ -620,7 +619,7 @@
 								</div>
 								<button
 									type="button" role="switch" aria-label={opt.title} aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
 									<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
@@ -658,7 +657,7 @@
 							role="switch"
 							aria-label="Alternar Vulkan"
 							aria-checked={enableVulkan}
-							class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableVulkan ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+							class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {enableVulkan ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 							onclick={() => {
 								enableVulkan = !enableVulkan;
 								toast(enableVulkan ? "Pipeline Vulkan Zink ativado!" : "Pipeline OpenGL padrão restaurado.", "info");
@@ -696,7 +695,7 @@
 									role="switch"
 									aria-label={opt.title}
 									aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
 									<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
@@ -769,7 +768,7 @@
 									role="switch"
 									aria-label={opt.title}
 									aria-checked={opt.val}
-									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+									class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 									onclick={opt.toggle}
 								>
 									<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
@@ -807,7 +806,7 @@
 								role="switch"
 								aria-label={opt.title}
 								aria-checked={opt.val}
-								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 								onclick={opt.toggle}
 							>
 								<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
@@ -843,7 +842,7 @@
 								role="switch"
 								aria-label={opt.title}
 								aria-checked={opt.val}
-								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+								class="w-11 h-6 rounded-full transition-colors duration-300 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.35)]' : 'bg-[#383a42]'}"
 								onclick={opt.toggle}
 							>
 								<span class="w-5 h-5 rounded-full transition-transform duration-300 shadow-md {opt.val ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
@@ -986,7 +985,7 @@
 			<span class="text-[11px] text-white/40">Todas as configurações são aplicadas imediatamente nas próximas sessões.</span>
 			<button
 				type="button"
-				class="bg-[#c5a880] hover:bg-[#d6b991] active:scale-95 text-[#14161a] font-bold text-xs px-6 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+				class="bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-black font-black text-xs px-6 py-2.5 rounded-xl shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer"
 				onclick={saveSettings}
 			>
 				<Check class="w-4 h-4 stroke-[3]" /> Guardar alterações

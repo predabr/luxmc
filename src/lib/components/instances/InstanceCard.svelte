@@ -123,8 +123,8 @@
 					class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-500"
 				/>
 				<div class="absolute inset-0 bg-gradient-to-t from-[#141518] via-transparent to-transparent"></div>
-				<div class="absolute top-2.5 right-2.5 bg-black/70 backdrop-blur-md text-[#caa97c] text-[10px] font-black uppercase px-2.5 py-1 rounded-full border border-white/10 shadow-lg flex items-center gap-1.5">
-					<span class="w-1.5 h-1.5 rounded-full bg-[#caa97c]"></span>
+				<div class="absolute top-2.5 right-2.5 bg-black/70 backdrop-blur-md text-emerald-400 text-[10px] font-black uppercase px-2.5 py-1 rounded-full border border-white/10 shadow-lg flex items-center gap-1.5">
+					<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
 					<span>{profile.loader.toUpperCase()} · {profile.mcVersion}</span>
 				</div>
 				<div class="absolute bottom-2.5 left-3 h-10 w-10 rounded-xl bg-[#14151a] border-2 border-white/15 p-0.5 shadow-xl flex items-center justify-center overflow-hidden">
@@ -225,7 +225,7 @@
 					<InstanceActionsMenu
 						bind:isOpen={menuOpen}
 						actions={[
-							{ label: "Duplicar Instância", icon: Copy, iconClass: "text-[#caa97c]", onClick: () => onDuplicate?.(profile.id) },
+							{ label: "Duplicar Instância", icon: Copy, iconClass: "text-emerald-400", onClick: () => onDuplicate?.(profile.id) },
 							{ label: "Capturas de Tela", icon: Image, iconClass: "text-sky-400", onClick: () => onScreenshots?.(profile.id) },
 							{ label: "Anotações", icon: StickyNote, iconClass: "text-amber-400", onClick: () => onNotes?.(profile.id) },
 							{ label: "Diagnóstico", icon: HeartPulse, iconClass: "text-emerald-400", onClick: () => onHealthCheck?.(profile.id) },
@@ -237,7 +237,7 @@
 
 				<button
 					type="button"
-					class="flex items-center gap-2 rounded-xl px-6 py-2.5 text-xs font-black text-black transition-all hover:brightness-105 active:scale-95 shadow-[0_4px_20px_rgba(202,169,124,0.35)] cursor-pointer bg-gradient-to-r from-[#caa97c] via-[#ddbe93] to-[#ebd095] disabled:opacity-60"
+					class="flex items-center gap-2 rounded-xl px-6 py-2.5 text-xs font-black text-white transition-all hover:brightness-105 active:scale-95 shadow-[0_4px_20px_rgba(16,185,129,0.35)] cursor-pointer bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-60"
 					onclick={(e) => { e.stopPropagation(); onQuickPlay?.(profile); }}
 					disabled={launchingInstanceId === profile.id}
 				>
@@ -300,7 +300,7 @@
 		<span class="truncate text-xs font-bold uppercase" style="color: rgb(var(--fg-muted));">{profile.loader}</span>
 		<div class="flex items-center justify-end gap-1.5">
 			<button
-				class="flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-xs font-black text-black transition-all hover:brightness-105 active:scale-95 shadow-[0_2px_10px_rgba(202,169,124,0.3)] cursor-pointer bg-gradient-to-r from-[#caa97c] via-[#ddbe93] to-[#ebd095] disabled:opacity-75"
+				class="flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-xs font-black text-white transition-all hover:brightness-105 active:scale-95 shadow-[0_2px_10px_rgba(16,185,129,0.3)] cursor-pointer bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-75"
 				onclick={(e) => { e.stopPropagation(); onQuickPlay?.(profile); }}
 				disabled={launchingInstanceId === profile.id}
 			>

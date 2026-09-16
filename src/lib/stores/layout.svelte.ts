@@ -1,4 +1,4 @@
-export type SectionId = "hero" | "quickInstances" | "favoriteServer" | "curatedPacks" | "gamingStats" | "friendsRadar" | "newsFeed" | "screenshots" | "tools";
+export type SectionId = "hero" | "quickInstances" | "favoriteServer" | "curatedPacks" | "gamingStats" | "newsFeed";
 export type LayoutPreset = "gamer" | "compact" | "full";
 
 export interface LayoutSectionItem {
@@ -54,35 +54,11 @@ const DEFAULT_SECTIONS: LayoutSectionItem[] = [
 		width: "half"
 	},
 	{
-		id: "friendsRadar",
-		title: "Amigos & Radar P2P",
-		description: "Status em tempo real dos seus amigos — jogando, em servidor ou online",
-		enabled: true,
-		icon: "radio",
-		width: "half"
-	},
-	{
 		id: "newsFeed",
 		title: "Notícias & Patch Notes",
 		description: "Últimas atualizações e release notes do Luxmc Launcher",
 		enabled: true,
 		icon: "newspaper",
-		width: "half"
-	},
-	{
-		id: "screenshots",
-		title: "Capturas de Tela Rápidas",
-		description: "Galeria de screenshots recentes do jogo",
-		enabled: true,
-		icon: "camera",
-		width: "full"
-	},
-	{
-		id: "tools",
-		title: "Ferramentas & Diagnósticos",
-		description: "Atalhos rápidos para pastas, otimizador e gerenciamento de arquivos",
-		enabled: true,
-		icon: "wrench",
 		width: "full"
 	}
 ];
@@ -192,11 +168,10 @@ class LayoutStore {
 	applyPreset(preset: LayoutPreset) {
 		const clone = DEFAULT_SECTIONS.map((s) => ({ ...s }));
 		if (preset === "gamer") {
-			const order: SectionId[] = ["hero", "quickInstances", "favoriteServer", "gamingStats", "tools", "curatedPacks", "friendsRadar"];
+			const order: SectionId[] = ["hero", "quickInstances", "favoriteServer", "gamingStats", "curatedPacks", "newsFeed"];
 			this.sections = order.map((id) => {
 				const s = clone.find((c) => c.id === id)!;
 				if (id === "gamingStats") s.width = "half";
-				if (id === "friendsRadar") { s.enabled = false; }
 				if (id === "curatedPacks") { s.enabled = false; }
 				return s;
 			});

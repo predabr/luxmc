@@ -58,7 +58,7 @@
 		class="relative mb-4 group transition-transform duration-200 active:scale-95 cursor-pointer"
 		onclick={() => showProfileModal = true}
 	>
-		<div class="h-11 w-11 rounded-[16px] overflow-hidden bg-[#1c1d22] border border-white/10 group-hover:border-[#d8bc98]/70 transition-all duration-200 shadow-md flex items-center justify-center p-0.5">
+		<div class="h-11 w-11 rounded-[16px] overflow-hidden bg-[#1c1d22] border border-white/10 group-hover:border-emerald-400/70 transition-all duration-200 shadow-md flex items-center justify-center p-0.5">
 			<img 
 				src={activeSkinStore.current.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "/logo.png")} 
 				alt="Avatar" 
@@ -85,7 +85,7 @@
 			{@const active = item.href === "/" ? $page.url.pathname === "/" : $page.url.pathname.startsWith(item.href)}
 			<div class="relative group w-full flex justify-center">
 				{#if active}
-					<span class="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-6 bg-[#caa97c] rounded-r-full shadow-[0_0_10px_#caa97c]"></span>
+					<span class="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-6 bg-emerald-400 rounded-r-full shadow-[0_0_10px_#34d399]"></span>
 				{/if}
 				<a
 					href={item.href}
@@ -95,7 +95,7 @@
 					}}
 					class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 cursor-pointer {active ? 'nav-pill-active scale-[1.02]' : 'nav-pill-inactive active:scale-95'}"
 				>
-					<item.icon class="h-5 w-5 {active ? 'text-[#15171c]' : 'text-[#8a8d98] group-hover:text-white transition-colors'}" strokeWidth={active ? 2.2 : 1.8} />
+					<item.icon class="h-5 w-5 {active ? 'text-[#0c0d11]' : 'text-[#8a8d98] group-hover:text-white transition-colors'}" strokeWidth={active ? 2.2 : 1.8} />
 				</a>
 
 				<!-- Smooth Tooltip -->
@@ -114,7 +114,7 @@
 					{@const active = $page.url.pathname === `/instances/${prof.id}` || ($page.url.pathname === "/instances" && profiles.activeId === prof.id)}
 					<div class="relative group w-full flex justify-center">
 						{#if active}
-							<span class="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#caa97c] rounded-r-full shadow-[0_0_8px_#caa97c]"></span>
+							<span class="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-5 bg-emerald-400 rounded-r-full shadow-[0_0_8px_#34d399]"></span>
 						{/if}
 						<a
 							href={`/instances/${prof.id}`}
@@ -122,7 +122,7 @@
 								e.preventDefault();
 								goto(`/instances/${prof.id}`);
 							}}
-							class="relative h-10 w-10 rounded-[14px] overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border cursor-pointer {active ? 'ring-2 ring-[#d8bc98] border-transparent shadow-lg scale-105' : 'border-white/10 bg-[#1c1d22] hover:border-white/30'}"
+							class="relative h-10 w-10 rounded-[14px] overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-95 border cursor-pointer {active ? 'ring-2 ring-emerald-400 border-transparent shadow-lg scale-105' : 'border-white/10 bg-[#1c1d22] hover:border-white/30'}"
 						>
 							{#if prof.icon && (prof.icon.startsWith("http") || prof.icon.startsWith("/") || prof.icon.startsWith("data:"))}
 								<img src={prof.icon} alt={prof.name} class="w-full h-full object-cover" />

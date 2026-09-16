@@ -2,7 +2,7 @@
 	import { 
 		GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, RotateCcw, 
 		Check, Sparkles, LayoutGrid, Package, Boxes, Clock, 
-		Radio, Wrench, Play, MoveVertical, Smartphone, Monitor,
+		Newspaper, Play, MoveVertical, Smartphone, Monitor,
 		Gamepad2, AlignJustify, Grid3x3, Signal
 	} from "lucide-svelte";
 	import { dndzone } from "svelte-dnd-action";
@@ -66,8 +66,7 @@
 			case "favoriteServer": return Signal;
 			case "curatedPacks": return Package;
 			case "gamingStats": return Clock;
-			case "friendsRadar": return Radio;
-			case "tools": return Wrench;
+			case "newsFeed": return Newspaper;
 			default: return LayoutGrid;
 		}
 	}
@@ -79,7 +78,7 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#141518]/80 backdrop-blur-xl border border-white/5 p-6 rounded-3xl shadow-xl">
 		<div class="space-y-1">
 			<div class="flex items-center gap-3">
-				<div class="p-2.5 rounded-2xl bg-[#caa97c]/10 text-[#caa97c] border border-[#caa97c]/20">
+				<div class="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
 					<LayoutGrid class="w-5 h-5" />
 				</div>
 				<div>
@@ -109,7 +108,7 @@
 				<RotateCcw class="w-3.5 h-3.5" />
 				<span>Redefinir</span>
 			</Button>
-			<a href="/" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-[#caa97c] hover:bg-[#d8bc98] text-[#111215] text-xs font-black transition-all shadow-lg hover:shadow-[#caa97c]/20">
+			<a href="/" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all shadow-lg hover:shadow-emerald-500/20">
 				<span>Ver no Início</span>
 				<Check class="w-3.5 h-3.5" />
 			</a>
@@ -123,33 +122,30 @@
 		<div class="lg:col-span-7 space-y-4">
 			<div class="flex items-center justify-between px-2">
 				<div class="flex items-center gap-2 text-xs font-bold text-white/70 uppercase tracking-wider">
-					<MoveVertical class="w-4 h-4 text-[#caa97c]" />
+					<MoveVertical class="w-4 h-4 text-emerald-400" />
 					<span>Seções do Dashboard ({layoutStore.sections.filter(s => s.enabled).length} ativas)</span>
 				</div>
 				<span class="text-[11px] text-white/40">Arraste ou use as setas</span>
 			</div>
 
-			<div
-				use:dndzone={{ items, flipDurationMs: 200, dropTargetStyle: {} }}
+			<!-- DnD Reorder Zone -->
+			<div 
+				use:dndzone={{ items, dragDisabled: false, flipDurationMs: 200 }}
 				onconsider={handleDndConsider}
 				onfinalize={handleDndFinalize}
-				class="space-y-3"
+				class="space-y-2.5 min-h-[300px]"
 			>
 				{#each items as section, index (section.id)}
 					{@const Icon = getSectionIcon(section.id)}
 					{@const isSelected = selectedPreview === section.id}
-
-					<!-- Draggable Section Card -->
-					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-					<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 					<div
 						onclick={() => selectedPreview = section.id}
 						onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') selectedPreview = section.id; }}
-						role="listitem"
+						role="button"
 						tabindex="0"
 						class="group relative flex items-center justify-between gap-4 p-4 rounded-2xl transition-all duration-200 cursor-grab active:cursor-grabbing border
 							border-white/5 hover:border-white/15 bg-[#16171b]
-							{isSelected ? 'ring-2 ring-[#caa97c]/50 bg-[#1a1b20]' : ''}
+							{isSelected ? 'ring-2 ring-emerald-500/50 bg-[#1a1b20]' : ''}
 							{!section.enabled ? 'opacity-60 bg-[#121316]' : 'shadow-md'}
 						"
 					>
@@ -159,7 +155,7 @@
 								<GripVertical class="w-4 h-4" />
 							</div>
 
-							<div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 {section.enabled ? 'bg-[#caa97c]/10 text-[#caa97c] border border-[#caa97c]/20' : 'bg-white/5 text-white/30 border border-white/5'}">
+							<div class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 {section.enabled ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-white/30 border border-white/5'}">
 								<Icon class="w-4 h-4" />
 							</div>
 
@@ -181,7 +177,7 @@
 						<div class="flex items-center gap-2 shrink-0">
 							
 							<!-- Width Toggle (for cards that support half-width) -->
-							{#if section.id === "gamingStats" || section.id === "friendsRadar"}
+							{#if section.id === "gamingStats" || section.id === "favoriteServer" || section.id === "newsFeed"}
 								<button
 									type="button"
 									title={section.width === 'full' ? 'Mudar para meia largura (lado a lado)' : 'Mudar para largura total'}
@@ -243,7 +239,7 @@
 		<div class="lg:col-span-5 space-y-4">
 			<div class="flex items-center justify-between px-2">
 				<div class="flex items-center gap-2 text-xs font-bold text-white/70 uppercase tracking-wider">
-					<Monitor class="w-4 h-4 text-[#caa97c]" />
+					<Monitor class="w-4 h-4 text-emerald-400" />
 					<span>Prévia em Tempo Real da Tela Inicial</span>
 				</div>
 				<span class="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">Sincronizado</span>
@@ -275,14 +271,14 @@
 								tabindex="0"
 								onkeydown={(e) => { if (e.key === 'Enter') selectedPreview = section.id; }}
 								class="p-3 rounded-xl border transition-all cursor-pointer relative overflow-hidden group
-									{isSelected ? 'border-[#caa97c] bg-[#caa97c]/10 ring-1 ring-[#caa97c]' : 'border-white/5 bg-[#18191c] hover:border-white/20'}
+									{isSelected ? 'border-emerald-500/60 bg-emerald-500/10 ring-1 ring-emerald-500/50' : 'border-white/5 bg-[#18191c] hover:border-white/20'}
 									{section.id === 'hero' ? 'min-h-[70px] bg-gradient-to-r from-[#18191c] via-[#212228] to-[#18191c]' : ''}
 								"
 							>
 								<div class="flex items-center justify-between">
 									<div class="flex items-center gap-2">
-										<Icon class="w-3.5 h-3.5 {isSelected ? 'text-[#caa97c]' : 'text-white/60'}" />
-										<span class="text-[11px] font-bold text-white group-hover:text-[#caa97c] transition-colors">{section.title}</span>
+										<Icon class="w-3.5 h-3.5 {isSelected ? 'text-emerald-400' : 'text-white/60'}" />
+										<span class="text-[11px] font-bold text-white group-hover:text-emerald-400 transition-colors">{section.title}</span>
 									</div>
 									<span class="text-[9px] font-mono text-white/30">{section.width === 'half' ? '50%' : '100%'}</span>
 								</div>
@@ -290,7 +286,7 @@
 								{#if section.id === 'hero'}
 									<div class="mt-2 flex items-center justify-between text-[10px] text-white/40">
 										<span>Instância Ativa: <strong class="text-white/70">Vanilla Perfected</strong></span>
-										<span class="bg-[#caa97c] text-[#111215] font-black px-2 py-0.5 rounded text-[9px]">JOGAR</span>
+										<span class="bg-emerald-400 text-black font-black px-2 py-0.5 rounded text-[9px]">JOGAR</span>
 									</div>
 								{:else if section.id === 'quickInstances'}
 									<div class="mt-2 grid grid-cols-3 gap-1.5">
@@ -314,7 +310,7 @@
 						<div class="h-48 flex flex-col items-center justify-center text-center p-6 text-white/30 gap-2">
 							<EyeOff class="w-8 h-8 opacity-40" />
 							<p class="text-xs">Todas as seções estão ocultas.</p>
-							<button onclick={resetLayout} class="text-[11px] text-[#caa97c] hover:underline font-bold mt-1 cursor-pointer">
+							<button onclick={resetLayout} class="text-[11px] text-emerald-400 hover:underline font-bold mt-1 cursor-pointer">
 								Restaurar Seções
 							</button>
 						</div>
@@ -323,7 +319,7 @@
 
 				<div class="pt-3 border-t border-white/5 flex items-center justify-between text-[10px] text-white/40">
 					<span>Mudanças salvas automaticamente</span>
-					<span class="text-[#caa97c] font-medium">Luxmc v1.5.4-beta</span>
+					<span class="text-emerald-400 font-medium">Luxmc v1.7.1</span>
 				</div>
 			</div>
 		</div>

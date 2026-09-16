@@ -42,14 +42,14 @@
 <section>
 	<div class="flex items-center justify-between mb-3">
 		<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-			<Newspaper class="w-3.5 h-3.5 text-[#caa97c]" />
+			<Newspaper class="w-3.5 h-3.5 text-emerald-400" />
 			Notícias & Patch Notes
 		</h2>
 		<a
 			href="https://github.com/predabr/luxmc/releases"
 			target="_blank"
 			rel="noopener noreferrer"
-			class="text-xs text-[#caa97c] hover:underline font-bold flex items-center gap-1"
+			class="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-bold flex items-center gap-1"
 		>
 			Ver Todas <ExternalLink class="w-3 h-3" />
 		</a>
@@ -68,7 +68,7 @@
 				href="https://github.com/predabr/luxmc/releases"
 				target="_blank"
 				rel="noopener noreferrer"
-				class="text-[10px] text-[#caa97c] hover:underline font-bold mt-1 inline-block"
+				class="text-[10px] text-emerald-400 hover:underline font-bold mt-1 inline-block"
 			>
 				Abrir no GitHub
 			</a>
@@ -80,18 +80,18 @@
 					href={release.url}
 					target="_blank"
 					rel="noopener noreferrer"
-					class="group rounded-2xl bg-[#18191c] border border-white/5 hover:border-[#caa97c]/30 p-3.5 transition-all hover:bg-[#1c1d22] cursor-pointer"
+					class="group rounded-2xl bg-[#18191c] border border-white/5 hover:border-emerald-500/30 p-3.5 transition-all hover:bg-[#1c1d22] cursor-pointer"
 				>
 					<div class="flex items-center justify-between gap-2">
 						<div class="flex items-center gap-2 min-w-0">
-							<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#caa97c]/10 text-[#caa97c] border border-[#caa97c]/20 shrink-0 font-mono">
+							<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0 font-mono">
 								{release.tag}
 							</span>
 							<span class="text-[10px] text-white/30 shrink-0">{release.publishedAt}</span>
 						</div>
-						<ArrowRight class="w-3 h-3 text-white/20 group-hover:text-[#caa97c] -rotate-45 transition-all shrink-0" />
+						<ArrowRight class="w-3 h-3 text-white/20 group-hover:text-emerald-400 -rotate-45 transition-all shrink-0" />
 					</div>
-					<h3 class="text-xs font-bold text-white mt-1.5 group-hover:text-[#caa97c] transition-colors truncate">
+					<h3 class="text-xs font-bold text-white mt-1.5 group-hover:text-emerald-400 transition-colors truncate">
 						{release.title}
 					</h3>
 					{#if release.body}

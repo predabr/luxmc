@@ -312,10 +312,10 @@ html.density-spacious { font-size: 15px; }
 
 /* SKlauncher Reference Style Tokens */
 .nav-pill-active {
-  background: linear-gradient(135deg, #d8bc98 0%, #c4a97c 100%);
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.3), 0 2px 12px rgba(202,169,124,0.35), 0 0 20px rgba(202,169,124,0.15);
-  color: #15171c;
-  border: 1px solid rgba(202,169,124,0.4);
+  background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%);
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.4), 0 4px 14px rgba(20, 184, 166, 0.35);
+  color: #0c0d11;
+  border: 1px solid rgba(45, 212, 191, 0.4);
 }
 
 .nav-pill-inactive {
@@ -328,13 +328,13 @@ html.density-spacious { font-size: 15px; }
 .nav-pill-inactive:hover {
   color: #ffffff;
   background-color: #1c1d22;
-  border-color: rgba(202,169,124,0.25);
-  box-shadow: 0 0 12px rgba(202,169,124,0.08);
+  border-color: rgba(45, 212, 191, 0.3);
+  box-shadow: 0 0 12px rgba(20, 184, 166, 0.15);
 }
 
 /* Reference Toggle Switch */
 .sk-toggle-track-on {
-  background-color: #c5a880;
+  background-color: #10b981;
 }
 
 .sk-toggle-track-off {

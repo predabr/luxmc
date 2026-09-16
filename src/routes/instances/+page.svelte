@@ -897,7 +897,7 @@
 						type="text" 
 						bind:value={shareCodeInput} 
 						placeholder="LUX-XXXXXX" 
-						class="w-full bg-[#0e0f12] border border-white/[0.06] focus:border-[#caa97c]/50 rounded-2xl px-4 py-3 text-sm text-white font-mono uppercase tracking-widest outline-none transition-all duration-300"
+						class="w-full bg-[#0e0f12] border border-white/[0.06] focus:border-emerald-500/50 rounded-2xl px-4 py-3 text-sm text-white font-mono uppercase tracking-widest outline-none transition-all duration-300"
 					/>
 				</div>
 
@@ -911,7 +911,7 @@
 					</button>
 					<button 
 						type="button" 
-						class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] text-black text-xs font-black transition-all duration-300 flex items-center gap-2 shadow-sm shadow-brand-500/20 cursor-pointer disabled:opacity-50"
+						class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-black text-xs font-black transition-all duration-300 flex items-center gap-2 shadow-sm shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
 						disabled={isImportingCode}
 						onclick={handleImportShareCode}
 					>
@@ -1164,7 +1164,7 @@
 				<div class="space-y-1.5">
 					<label for="edit-jvm-args" class="block text-xs font-bold text-white/70 uppercase tracking-widest">Argumentos JVM Customizados</label>
 					<input id="edit-jvm-args" type="text" bind:value={editJvmArgs} placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch"
-						class="w-full bg-[#0e0f12] border border-white/[0.06] focus:border-[#caa97c]/50 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-all duration-300"
+						class="w-full bg-[#0e0f12] border border-white/[0.06] focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-all duration-300"
 					/>
 					<p class="text-[10px] text-white/35">Parâmetros extras passados diretamente para a máquina virtual Java.</p>
 				</div>
