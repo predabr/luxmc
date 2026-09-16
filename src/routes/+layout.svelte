@@ -4,7 +4,7 @@
 	import { fade, fly } from "svelte/transition";
 	import { cubicOut } from "svelte/easing";
 	import { page } from "$app/stores";
-	import { beforeNavigate } from "$app/navigation";
+	import { beforeNavigate, afterNavigate } from "$app/navigation";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
 	import Toasts from "$lib/components/ui/Toasts.svelte";
 	import StatusBanner from "$lib/components/ui/StatusBanner.svelte";
@@ -239,7 +239,7 @@
 		
 		const trimInterval = window.setInterval(() => {
 			optimizerTrimMemory().catch(() => {});
-		}, 5 * 60 * 1000);
+		}, 60 * 1000);
 
 		return () => {
 			disposed = true;
@@ -354,14 +354,9 @@
 		window.addEventListener('keydown', handler);
 		return () => window.removeEventListener('keydown', handler);
 	});
-	$effect(() => {
-		const handleClientKeys = (e: KeyboardEvent) => {
-			if (e.code === "ShiftRight" || e.key === "Insert") {
-				clientMods.toggleMenu();
-			}
-		};
-		window.addEventListener("keydown", handleClientKeys);
-		return () => window.removeEventListener("keydown", handleClientKeys);
+
+	afterNavigate(() => {
+		optimizerTrimMemory().catch(() => {});
 	});
 </script>
 

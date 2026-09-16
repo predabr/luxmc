@@ -777,14 +777,29 @@ impl GameLauncher {
             }
         });
 
+        let is_game_active = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let is_game_active_flusher = is_game_active.clone();
+
         // Batch flusher: emit accumulated logs every 500ms to avoid IPC flood
         let app_flush = self.app.clone();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(std::time::Duration::from_millis(500));
-            loop {
+            while is_game_active_flusher.load(std::sync::atomic::Ordering::Relaxed) {
                 interval.tick().await;
                 let mut buf = log_buffer.lock().await;
                 if buf.is_empty() { continue; }
+                let batch: Vec<String> = std::mem::take(&mut *buf);
+                drop(buf);
+                if let Some(ref app) = app_flush {
+                    let _ = app.emit("game-log", GameLogEntry {
+                        stream: "game".into(),
+                        message: batch.join("\n"),
+                    });
+                }
+            }
+            // Final flush of any leftover logs after game exits
+            let mut buf = log_buffer.lock().await;
+            if !buf.is_empty() {
                 let batch: Vec<String> = std::mem::take(&mut *buf);
                 drop(buf);
                 if let Some(ref app) = app_flush {
@@ -801,9 +816,11 @@ impl GameLauncher {
         let profile_id = profile.id.clone();
         let profile_name = profile.name.clone();
         let last_stderr_reader = last_stderr.clone();
+        let is_game_active_waiter = is_game_active.clone();
         tokio::spawn(async move {
             match child.wait().await {
                 Ok(status) => {
+                    is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
                     let code = status.code().unwrap_or(-1);
                     if pid > 0 {
                         crate::core::linux::gamemode::release_gamemode_for_pid(pid).await;
@@ -843,6 +860,7 @@ impl GameLauncher {
                     }
                 }
                 Err(e) => {
+                    is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
                     let msg = format!("Game process error: {}", e);
                     tracing::error!(target: "launch", "{}", msg);
                     if let Some(ref app) = app_exit {

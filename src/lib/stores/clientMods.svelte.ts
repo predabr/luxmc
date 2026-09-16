@@ -1,79 +1,128 @@
 import { browser } from "$app/environment";
 
 export interface ClientModsConfig {
-	perspectiveMod: boolean;
-	perspectiveKey: string;
-	perspectiveSmooth: boolean;
-
-	cosmeticsEnabled: boolean;
-	animatedCapes: boolean;
-	threeDSkinLayers: boolean;
-	wingsEnabled: boolean;
-
-	tntTimer: boolean;
-	tntFlashColor: string;
-	tntShowTicks: boolean;
-
+	// Combate & HUD
+	armorHud: boolean;
+	bossbar: boolean;
+	comboDisplay: boolean;
+	coordinates: boolean;
+	cps: boolean;
+	directionHud: boolean;
+	fps: boolean;
 	keystrokes: boolean;
-	keystrokesShowMouse: boolean;
-	keystrokesShowCps: boolean;
-	keystrokesPosition: "top-left" | "top-right" | "bottom-left" | "bottom-right";
-
-	customCrosshair: boolean;
-	crosshairStyle: "cross" | "dot" | "circle" | "chevron";
-	crosshairColor: string;
-	crosshairSize: number;
-
-	fpsHud: boolean;
-	pingHud: boolean;
-	cpsHud: boolean;
-
+	memory: boolean;
+	packOverlay: boolean;
+	pingDisplay: boolean;
+	playTime: boolean;
+	potionCounter: boolean;
+	potionEffects: boolean;
+	reachDisplay: boolean;
+	scoreboard: boolean;
+	serverAddress: boolean;
+	speedometer: boolean;
+	timeDisplay: boolean;
 	toggleSprint: boolean;
-	toggleSneak: boolean;
-	armorStatusHud: boolean;
-	potionEffectsHud: boolean;
 
+	// Visual & Animações
+	twoDItems: boolean;
+	threeDSkinLayers: boolean;
+	animations: boolean;
+	autoFriend: boolean;
+	autoGG: boolean;
+	autoText: boolean;
+	blockOverlay: boolean;
+	chat: boolean;
+	cosmetics: boolean;
+	crosshair: boolean;
+	damageTint: boolean;
+	debugScreen: boolean;
+	discordRP: boolean;
+	emotes: boolean;
 	fullbright: boolean;
+	glintColorizer: boolean;
+	hitbox: boolean;
+	hitColor: boolean;
+	inputFix: boolean;
+	itemPhysics: boolean;
+	motionBlur: boolean;
+	nametags: boolean;
+	oldAnimations: boolean;
+	particles: boolean;
+	perspective: boolean;
+	shinyPots: boolean;
+	skins: boolean;
+	tab: boolean;
+	timeChanger: boolean;
+	tntTimer: boolean;
+	waveyCapes: boolean;
+	waypoints: boolean;
+	weatherChanger: boolean;
+	zoom: boolean;
 
+	// Otimização & Proteção
 	antiCrashGuard: boolean;
 	autoTrimMemory: boolean;
 	preflightModCheck: boolean;
+
+	[key: string]: any;
 }
 
 const DEFAULT_CONFIG: ClientModsConfig = {
-	perspectiveMod: true,
-	perspectiveKey: "v",
-	perspectiveSmooth: true,
-
-	cosmeticsEnabled: true,
-	animatedCapes: true,
-	threeDSkinLayers: true,
-	wingsEnabled: false,
-
-	tntTimer: true,
-	tntFlashColor: "#ffffff",
-	tntShowTicks: false,
-
+	armorHud: true,
+	bossbar: true,
+	comboDisplay: true,
+	coordinates: true,
+	cps: true,
+	directionHud: true,
+	fps: true,
 	keystrokes: true,
-	keystrokesShowMouse: true,
-	keystrokesShowCps: true,
-	keystrokesPosition: "top-left",
-
-	customCrosshair: false,
-	crosshairStyle: "cross",
-	crosshairColor: "#ffffff",
-	crosshairSize: 8,
-
-	fpsHud: true,
-	pingHud: true,
-	cpsHud: true,
-
+	memory: true,
+	packOverlay: false,
+	pingDisplay: true,
+	playTime: true,
+	potionCounter: true,
+	potionEffects: true,
+	reachDisplay: true,
+	scoreboard: true,
+	serverAddress: true,
+	speedometer: false,
+	timeDisplay: true,
 	toggleSprint: true,
-	toggleSneak: false,
-	armorStatusHud: true,
-	potionEffectsHud: true,
 
-	fullbright: false,
+	twoDItems: false,
+	threeDSkinLayers: true,
+	animations: true,
+	autoFriend: false,
+	autoGG: true,
+	autoText: false,
+	blockOverlay: true,
+	chat: true,
+	cosmetics: true,
+	crosshair: true,
+	damageTint: true,
+	debugScreen: false,
+	discordRP: true,
+	emotes: true,
+	fullbright: true,
+	glintColorizer: false,
+	hitbox: false,
+	hitColor: false,
+	inputFix: true,
+	itemPhysics: true,
+	motionBlur: false,
+	nametags: true,
+	oldAnimations: true,
+	particles: true,
+	perspective: true,
+	shinyPots: true,
+	skins: true,
+	tab: true,
+	timeChanger: false,
+	tntTimer: true,
+	waveyCapes: true,
+	waypoints: true,
+	weatherChanger: false,
+	zoom: true,
 
 	antiCrashGuard: true,
 	autoTrimMemory: true,
@@ -115,6 +164,13 @@ class ClientModsStore {
 
 	close() {
 		this.isMenuOpen = false;
+	}
+
+	toggle(key: keyof ClientModsConfig) {
+		if (typeof this.config[key] === "boolean") {
+			this.config[key] = !this.config[key] as any;
+			this.save();
+		}
 	}
 
 	update<K extends keyof ClientModsConfig>(key: K, value: ClientModsConfig[K]) {

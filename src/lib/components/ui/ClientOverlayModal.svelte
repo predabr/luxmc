@@ -1,49 +1,149 @@
 <script lang="ts">
 	import { fade, scale } from "svelte/transition";
 	import {
-		Eye,
-		Sparkles,
-		Bomb,
-		Keyboard,
-		Crosshair,
-		Gauge,
-		Footprints,
-		ShieldCheck,
-		Sun,
-		RotateCcw,
 		X,
+		Home,
+		PenTool,
+		Settings,
+		Info,
+		Search,
+		Shield,
+		Activity,
+		Crosshair,
+		Compass,
+		Zap,
+		Keyboard,
+		Cpu,
+		Image,
+		Wifi,
+		Clock,
+		FlaskConical,
+		Gauge,
+		ListOrdered,
+		Globe,
+		Sun,
+		Bomb,
+		Waves,
+		MapPin,
+		CloudRain,
+		ZoomIn,
+		Layers,
+		Eye,
+		Users,
+		MessageSquare,
+		Sparkles,
+		Heart,
+		Terminal,
+		Smile,
+		Wand2,
+		Palette,
 		Sliders,
 		Check,
-		Zap
+		RotateCcw
 	} from "lucide-svelte";
-	import { clientMods } from "$lib/stores/clientMods.svelte";
+	import { clientMods, type ClientModsConfig } from "$lib/stores/clientMods.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { playSound } from "$lib/utils/sound";
 
-	let activeTab = $state<"pvp" | "hud" | "visual" | "anticrash">("pvp");
+	let searchQuery = $state("");
+	let activeSection = $state<"all" | "hud" | "visual" | "combat" | "utility">("all");
+
+	type ModuleDef = {
+		key: keyof ClientModsConfig;
+		name: string;
+		icon: any;
+		category: "hud" | "visual" | "combat" | "utility";
+		desc?: string;
+	};
+
+	const ALL_MODULES: ModuleDef[] = [
+		// Screenshots 1-5 exact modules
+		{ key: "armorHud", name: "Armor HUD", icon: Shield, category: "hud", desc: "Status de armadura e durabilidade em tempo real" },
+		{ key: "bossbar", name: "Bossbar", icon: Activity, category: "hud", desc: "Barra de chefe customizável" },
+		{ key: "comboDisplay", name: "Combo Display", icon: Zap, category: "combat", desc: "Contador de golpes combinados consecutivos" },
+		{ key: "coordinates", name: "Coordinates", icon: Compass, category: "hud", desc: "Exibição limpa de X, Y, Z e bioma" },
+		{ key: "cps", name: "CPS", icon: Activity, category: "hud", desc: "Cliques por segundo no botão esquerdo e direito" },
+		{ key: "directionHud", name: "Direction Hud", icon: Compass, category: "hud", desc: "Bússola visual de orientação (N, S, E, W)" },
+		{ key: "fps", name: "FPS", icon: Gauge, category: "hud", desc: "Taxa de quadros por segundo em tempo real" },
+		{ key: "keystrokes", name: "Keystrokes", icon: Keyboard, category: "hud", desc: "Teclas W, A, S, D, LMB e RMB na tela" },
+		{ key: "memory", name: "Memory", icon: Cpu, category: "hud", desc: "Uso de memória RAM consumida pelo jogo" },
+		{ key: "packOverlay", name: "Pack Overlay", icon: Image, category: "visual", desc: "Exibição do ícone da textura ativa" },
+		{ key: "pingDisplay", name: "Ping Display", icon: Wifi, category: "hud", desc: "Latência em milissegundos para o servidor" },
+		{ key: "playTime", name: "Play Time", icon: Clock, category: "hud", desc: "Tempo decorrido na sessão atual" },
+		{ key: "potionCounter", name: "Potion Counter", icon: FlaskConical, category: "combat", desc: "Contador de poções no inventário" },
+		{ key: "potionEffects", name: "Potion Effects", icon: FlaskConical, category: "hud", desc: "Efeitos ativos com contagem regressiva" },
+		{ key: "reachDisplay", name: "Reach Display", icon: Activity, category: "combat", desc: "Distância do alcance do último golpe" },
+		{ key: "scoreboard", name: "Scoreboard", icon: ListOrdered, category: "hud", desc: "Placar do servidor com suporte a cores e fontes" },
+		{ key: "serverAddress", name: "Server Address", icon: Globe, category: "hud", desc: "Endereço do servidor em que está jogando" },
+		{ key: "speedometer", name: "Speedometer", icon: Gauge, category: "hud", desc: "Velocidade de movimento do jogador em blocos/s" },
+		{ key: "timeDisplay", name: "Time Display", icon: Clock, category: "hud", desc: "Relógio do mundo real e hora in-game" },
+		{ key: "toggleSprint", name: "Toggle Sprint", icon: Zap, category: "combat", desc: "Correr automaticamente sem segurar Ctrl" },
+
+		{ key: "twoDItems", name: "2D Items", icon: Image, category: "visual", desc: "Itens dropados renderizados no estilo clássico 2D" },
+		{ key: "threeDSkinLayers", name: "3D Skin Layers", icon: Layers, category: "visual", desc: "Camada externa da skin em relevo 3D" },
+		{ key: "animations", name: "Animations", icon: Sparkles, category: "visual", desc: "Animações fluidas de espada e transição" },
+		{ key: "autoFriend", name: "Auto Friend", icon: Users, category: "utility", desc: "Aceita pedidos de amizade de aliados" },
+		{ key: "autoGG", name: "AutoGG", icon: MessageSquare, category: "utility", desc: "Envia 'gg' automaticamente ao fim da partida" },
+		{ key: "autoText", name: "AutoText", icon: MessageSquare, category: "utility", desc: "Macros rápidas de chat para comandos" },
+		{ key: "blockOverlay", name: "Block Overlay", icon: Image, category: "visual", desc: "Destaque colorido no bloco mirado" },
+		{ key: "chat", name: "Chat", icon: MessageSquare, category: "hud", desc: "Histórico de chat customizável e sem delay" },
+		{ key: "cosmetics", name: "Cosmetics", icon: Wand2, category: "visual", desc: "Asas, bandanas e cosméticos visuais 3D" },
+		{ key: "crosshair", name: "Crosshair", icon: Crosshair, category: "visual", desc: "Mira personalizada (círculo, cruz ou ponto)" },
+		{ key: "damageTint", name: "Damage Tint", icon: Heart, category: "combat", desc: "Coloração avermelhada ao receber dano" },
+		{ key: "debugScreen", name: "Debug Screen", icon: Terminal, category: "hud", desc: "Tela F3 minimalista sem poluição visual" },
+		{ key: "discordRP", name: "Discord RP", icon: MessageSquare, category: "utility", desc: "Exibe status do jogo e servidor no Discord" },
+		{ key: "emotes", name: "Emotes", icon: Smile, category: "visual", desc: "Dança e gestos expressivos in-game" },
+		{ key: "fullbright", name: "Full Bright", icon: Sun, category: "visual", desc: "Brilho máximo em cavernas e ambientes escuros" },
+		{ key: "glintColorizer", name: "Glint Colorizer", icon: Palette, category: "visual", desc: "Personalização da cor de encantamento" },
+		{ key: "hitbox", name: "Hitbox", icon: Shield, category: "combat", desc: "Caixa de colisão dos alvos e entidades" },
+		{ key: "hitColor", name: "Hit Color", icon: Palette, category: "combat", desc: "Cor de piscar ao acertar o oponente" },
+		{ key: "inputFix", name: "InputFix", icon: Keyboard, category: "utility", desc: "Correção de caracteres especiais e acentos" },
+		{ key: "itemPhysics", name: "Item Physics", icon: Sparkles, category: "visual", desc: "Física realista para itens caídos no chão" },
+		{ key: "motionBlur", name: "Motion Blur", icon: Eye, category: "visual", desc: "Efeito de desfoque cinematográfico de movimento" },
+		{ key: "nametags", name: "Nametags", icon: Users, category: "visual", desc: "Nomes de jogadores legíveis e escalonados" },
+		{ key: "oldAnimations", name: "Old Animations", icon: Sparkles, category: "visual", desc: "Animações clássicas 1.7 de segurar espada (Blockhit)" },
+		{ key: "particles", name: "Particles", icon: Sparkles, category: "visual", desc: "Multiplicador de partículas de acerto crítico" },
+		{ key: "perspective", name: "Perspective", icon: Eye, category: "visual", desc: "Visão livre 360° em terceira pessoa sem virar o boneco" },
+		{ key: "shinyPots", name: "Shiny Pots", icon: FlaskConical, category: "combat", desc: "Frascos de poção com brilho e textura destacada" },
+		{ key: "skins", name: "Skins", icon: Layers, category: "visual", desc: "Renderização de skins em alta resolução" },
+		{ key: "tab", name: "Tab", icon: ListOrdered, category: "hud", desc: "Lista de jogadores Tab estilizada com ping" },
+		{ key: "timeChanger", name: "Time Changer", icon: Clock, category: "visual", desc: "Mude a hora do dia localmente (dia/noite)" },
+		{ key: "tntTimer", name: "TNT Timer", icon: Bomb, category: "combat", desc: "Contagem regressiva de explosão da TNT" },
+		{ key: "waveyCapes", name: "Wavey Capes", icon: Waves, category: "visual", desc: "Física ondulada para capas do jogador" },
+		{ key: "waypoints", name: "Waypoints", icon: MapPin, category: "utility", desc: "Marcadores de coordenadas e pontos de interesse" },
+		{ key: "weatherChanger", name: "Weather Changer", icon: CloudRain, category: "visual", desc: "Controle visual de chuva e neve" },
+		{ key: "zoom", name: "Zoom", icon: ZoomIn, category: "visual", desc: "Zoom suave estilo OptiFine" }
+	];
+
+	const filteredModules = $derived.by(() => {
+		let list = ALL_MODULES;
+		if (activeSection !== "all") {
+			list = list.filter((m) => m.category === activeSection);
+		}
+		if (!searchQuery.trim()) return list;
+		const q = searchQuery.toLowerCase().trim();
+		return list.filter((m) => m.name.toLowerCase().includes(q) || (m.desc && m.desc.toLowerCase().includes(q)));
+	});
 
 	function handleClose() {
 		clientMods.close();
 	}
 
-	function handleReset() {
-		clientMods.reset();
-		toast("Configurações do Cliente restauradas para o padrão.", "info");
+	function handleToggle(key: keyof ClientModsConfig) {
+		clientMods.toggle(key);
+		playSound("click");
 	}
 
-	function toggle(key: keyof typeof clientMods.config) {
-		const curr = clientMods.config[key];
-		if (typeof curr === "boolean") {
-			clientMods.update(key, !curr as any);
-			playSound("click");
-		}
+	function handleReset() {
+		clientMods.reset();
+		toast("Módulos restaurados para o padrão.", "info");
 	}
 </script>
 
 {#if clientMods.isMenuOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 select-none"
-		transition:fade={{ duration: 180 }}
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 select-none"
+		transition:fade={{ duration: 150 }}
 		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
 		onkeydown={(e) => { if (e.key === "Escape") handleClose(); }}
 		role="dialog"
@@ -51,396 +151,166 @@
 		tabindex="-1"
 	>
 		<div
-			class="relative flex flex-col w-full max-w-4xl h-[650px] max-h-[90vh] rounded-3xl bg-[#121316] border border-white/10 shadow-2xl shadow-black/80 overflow-hidden"
-			transition:scale={{ duration: 200, start: 0.95 }}
+			class="relative flex w-full max-w-5xl h-[680px] max-h-[92vh] rounded-3xl bg-[#0c0d10]/95 border border-white/10 shadow-2xl shadow-black/90 overflow-hidden"
+			transition:scale={{ duration: 180, start: 0.96 }}
 		>
-						<div class="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-[#16171b]">
-				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-700/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-						<Sliders class="w-5 h-5" />
-					</div>
-					<div>
-						<div class="flex items-center gap-2">
-							<h2 class="text-base font-bold text-white tracking-wide">Luxmc Client Suite</h2>
-							<span class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">PvP & Utility</span>
-						</div>
-						<p class="text-xs text-white/50">Atalho rápido de acesso in-game e launcher: <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-[10px]">RShift</kbd> ou <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-[10px]">Insert</kbd></p>
-					</div>
-				</div>
-
-				<div class="flex items-center gap-2">
-					<button
-						onclick={handleReset}
-						class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs text-white/60 hover:text-white transition-colors border border-white/5"
-						title="Restaurar padrões"
-					>
-						<RotateCcw class="w-3.5 h-3.5" />
-						<span>Padrão</span>
-					</button>
-
+			<!-- Left Navigation Bar (like CMClient) -->
+			<div class="flex flex-col items-center justify-between w-16 py-6 border-r border-white/5 bg-[#090a0d]">
+				<div class="flex flex-col items-center gap-6">
+					<!-- Close Button -->
 					<button
 						onclick={handleClose}
-						class="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
 						aria-label="Fechar"
+						title="Fechar"
 					>
 						<X class="w-5 h-5" />
 					</button>
+
+					<!-- Home Button -->
+					<button
+						onclick={() => { activeSection = "all"; }}
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'all' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
+						title="Todos os Módulos"
+					>
+						<Home class="w-5 h-5" />
+					</button>
+
+					<!-- HUD Positioning -->
+					<button
+						onclick={() => { activeSection = "hud"; }}
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'hud' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
+						title="Módulos de HUD"
+					>
+						<PenTool class="w-5 h-5" />
+					</button>
+
+					<!-- Visual Category -->
+					<button
+						onclick={() => { activeSection = "visual"; }}
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'visual' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
+						title="Visual & Animações"
+					>
+						<Eye class="w-5 h-5" />
+					</button>
+
+					<!-- Combat Category -->
+					<button
+						onclick={() => { activeSection = "combat"; }}
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'combat' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
+						title="Combate & PvP"
+					>
+						<Shield class="w-5 h-5" />
+					</button>
+				</div>
+
+				<div class="flex flex-col items-center gap-4">
+					<!-- Reset Defaults -->
+					<button
+						onclick={handleReset}
+						class="w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+						title="Restaurar padrões"
+					>
+						<RotateCcw class="w-4 h-4" />
+					</button>
+
+					<!-- Info / Tip -->
+					<div
+						class="w-9 h-9 rounded-xl flex items-center justify-center text-white/30"
+						title="No Minecraft 1.8.9, este menu abre com Shift Direito (RShift)"
+					>
+						<Info class="w-4 h-4" />
+					</div>
 				</div>
 			</div>
 
-						<div class="flex items-center gap-2 px-6 py-2.5 bg-[#0f1013] border-b border-white/5 overflow-x-auto custom-scrollbar">
-				<button
-					onclick={() => activeTab = "pvp"}
-					class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all {activeTab === 'pvp' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-white/60 hover:text-white hover:bg-white/5'}"
-				>
-					<Bomb class="w-4 h-4" />
-					<span>Combate & PvP</span>
-				</button>
-
-				<button
-					onclick={() => activeTab = "hud"}
-					class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all {activeTab === 'hud' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-white/60 hover:text-white hover:bg-white/5'}"
-				>
-					<Keyboard class="w-4 h-4" />
-					<span>Keystrokes & HUD</span>
-				</button>
-
-				<button
-					onclick={() => activeTab = "visual"}
-					class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all {activeTab === 'visual' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-white/60 hover:text-white hover:bg-white/5'}"
-				>
-					<Eye class="w-4 h-4" />
-					<span>Perspective & Visual</span>
-				</button>
-
-				<button
-					onclick={() => activeTab = "anticrash"}
-					class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all {activeTab === 'anticrash' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-white/60 hover:text-white hover:bg-white/5'}"
-				>
-					<ShieldCheck class="w-4 h-4" />
-					<span>Anti-Crash & Performance</span>
-				</button>
-			</div>
-
-						<div class="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-				{#if activeTab === "pvp"}
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
-								<Bomb class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">TNT Timer</h3>
-									<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400">PvP Essential</span>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Exibe uma contagem regressiva em segundos/ticks em cima de blocos de TNT acesos antes de explodirem.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("tntTimer")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.tntTimer ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar TNT Timer"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.tntTimer ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
+			<!-- Main Content Area -->
+			<div class="flex flex-1 flex-col overflow-hidden">
+				<!-- Top Bar with Search (CMClient style) -->
+				<div class="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-[#0e1014]">
+					<div class="flex items-center gap-3">
+						<span class="text-xs font-bold uppercase tracking-widest text-emerald-400">CMClient Suite</span>
+						<span class="text-white/20">/</span>
+						<span class="text-xs text-white/60">
+							{filteredModules.length} {filteredModules.length === 1 ? 'módulo' : 'módulos'}
+						</span>
 					</div>
 
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-								<Eye class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Perspective Mod (360° Freelook)</h3>
-									<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-500/20 text-sky-400">F5 Dinâmico</span>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Permite girar a câmera em 360 graus livremente ao redor do seu personagem sem alterar a direção para onde você anda.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("perspectiveMod")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.perspectiveMod ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Perspective Mod"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.perspectiveMod ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
+					<!-- Search input matching CMClient -->
+					<div class="relative w-72">
+						<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+						<input
+							type="text"
+							bind:value={searchQuery}
+							placeholder="Search..."
+							class="w-full pl-10 pr-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/40 focus:outline-none focus:border-emerald-400/50 transition-colors"
+						/>
+						{#if searchQuery}
+							<button
+								onclick={() => searchQuery = ""}
+								class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+							>
+								<X class="w-3.5 h-3.5" />
+							</button>
+						{/if}
 					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-								<Footprints class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Toggle Sprint (Auto-Corrida)</h3>
-									<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">Competitivo</span>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Mantém o sprint ativado automaticamente ao pressionar W, sem precisar dar toque duplo ou cansar o dedo.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("toggleSprint")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.toggleSprint ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Toggle Sprint"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.toggleSprint ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-								<Crosshair class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Mira Customizada (Crosshair)</h3>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Substitui a cruz tradicional por uma mira customizada (ponto central, círculo, chevron ou cruz com cor customizável).</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("customCrosshair")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.customCrosshair ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Mira Customizada"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.customCrosshair ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-				{:else if activeTab === "hud"}
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-								<Keyboard class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Keystrokes HUD</h3>
-									<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">WASD & Clicks</span>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Exibe as teclas WASD, barra de espaço e botões do mouse com efeito de clique animado na tela.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("keystrokes")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.keystrokes ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Keystrokes"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.keystrokes ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-								<Gauge class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Contador de FPS & Ping</h3>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Mostra a taxa de quadros e latência da conexão com o servidor no canto da tela de forma discreta.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("fpsHud")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.fpsHud ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar FPS & Ping"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.fpsHud ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-								<Zap class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Contador de CPS (Clicks Per Second)</h3>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Registra e exibe os cliques por segundo tanto do botão esquerdo (ataque) quanto direito (blockhit/ponte).</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("cpsHud")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.cpsHud ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar CPS Counter"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.cpsHud ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
-								<ShieldCheck class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Status de Armadura & Poções Ativas</h3>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Exibe durabilidade das 4 peças da armadura e tempo restante de Speed, Força, Resistência e outras poções.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("armorStatusHud")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.armorStatusHud ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Status de Armadura"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.armorStatusHud ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-				{:else if activeTab === "visual"}
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-								<Sparkles class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Camadas 3D da Skin & Cosméticos</h3>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Renderiza a jaqueta, chapéu, calças e mangas com volume tridimensional real de 1 pixel em vez de textura plana.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("threeDSkinLayers")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.threeDSkinLayers ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Camadas 3D da Skin"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.threeDSkinLayers ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-								<Sparkles class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Física Suave de Capas</h3>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Suaviza as curvas de movimentação da capa com física inercial realista durante corridas e saltos.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("animatedCapes")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.animatedCapes ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Capas Animadas"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.animatedCapes ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-								<Sun class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Fullbright (Gama 1000%)</h3>
-									<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400">Visão Noturna</span>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Ilumina todas as cavernas e noites como se estivesse de dia, sem precisar posicionar tochas.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("fullbright")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.fullbright ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Fullbright"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.fullbright ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-				{:else if activeTab === "anticrash"}
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-								<ShieldCheck class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Guarda Anti-Crash Ativo</h3>
-									<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400">Proteção Ativa</span>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Detecta e previne erros comuns de inicialização (OpenGL incompatível, drivers desatualizados, GLFW Wayland e flags JVM).</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("antiCrashGuard")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.antiCrashGuard ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Anti-Crash Guard"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.antiCrashGuard ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
-								<Gauge class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Auto-Limpeza de RAM em Segundo Plano</h3>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Reduz o consumo de RAM do launcher e do sistema enquanto o Minecraft estiver aberto, devolvendo memória ao SO.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("autoTrimMemory")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.autoTrimMemory ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Auto Trim Memory"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.autoTrimMemory ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-
-										<div class="p-5 rounded-2xl bg-[#16171b] border border-white/5 flex items-center justify-between">
-						<div class="flex items-center gap-4">
-							<div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-								<Zap class="w-6 h-6" />
-							</div>
-							<div>
-								<div class="flex items-center gap-2">
-									<h3 class="text-sm font-bold text-white">Auto-Verificação de Dependências Faltantes</h3>
-								</div>
-								<p class="text-xs text-white/50 mt-0.5">Verifica automaticamente se faltam bibliotecas obrigatórias (como Curios, GeckoLib, Balm) antes de dar play para evitar crashes.</p>
-							</div>
-						</div>
-						<button
-							onclick={() => toggle("preflightModCheck")}
-							class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors {clientMods.config.preflightModCheck ? 'bg-amber-500' : 'bg-white/10'}"
-							aria-label="Alternar Verificação de Dependências"
-						>
-							<span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform {clientMods.config.preflightModCheck ? 'translate-x-6' : 'translate-x-1'}"></span>
-						</button>
-					</div>
-				{/if}
-			</div>
-
-						<div class="flex items-center justify-between px-6 py-3.5 bg-[#16171b] border-t border-white/5 text-xs text-white/60">
-				<div class="flex items-center gap-2">
-					<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-					<span>Suporte universal: Vanilla, 1.8.9 PvP, Fabric, NeoForge, Forge e Quilt</span>
 				</div>
-				<button
-					onclick={handleClose}
-					class="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold transition-all shadow-md hover:scale-105"
-				>
-					<Check class="w-4 h-4" />
-					<span>Salvar & Aplicar</span>
-				</button>
+
+				<!-- Modules Grid (3 columns, CMClient pill buttons) -->
+				<div class="flex-1 overflow-y-auto custom-scrollbar p-8">
+					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+						{#each filteredModules as mod (mod.key)}
+							{@const isActive = !!clientMods.config[mod.key]}
+							<div
+								class="group relative flex items-center justify-between px-4 py-3 rounded-2xl border transition-all duration-200 cursor-pointer select-none {isActive ? 'border-white/70 bg-white/[0.07] shadow-lg shadow-black/40' : 'border-white/10 bg-[#121317]/60 hover:border-white/25 hover:bg-white/[0.03]'}"
+								onclick={() => handleToggle(mod.key)}
+								role="button"
+								tabindex="0"
+								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") handleToggle(mod.key); }}
+							>
+								<!-- Left: Icon + Separator + Label -->
+								<div class="flex items-center gap-3 min-w-0">
+									<div class="flex items-center justify-center w-6 h-6 shrink-0 {isActive ? 'text-white' : 'text-white/50 group-hover:text-white/80'}">
+										<mod.icon class="w-5 h-5" strokeWidth={1.8} />
+									</div>
+
+									<div class="h-4 w-px bg-white/15 shrink-0"></div>
+
+									<span class="text-sm font-medium truncate {isActive ? 'text-white font-semibold' : 'text-white/70 group-hover:text-white'}">
+										{mod.name}
+									</span>
+								</div>
+
+								<!-- Right: Settings Cog -->
+								<div class="flex items-center gap-1.5 shrink-0 pl-2">
+									<div class="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 group-hover:text-white/70 hover:!text-emerald-400 transition-colors">
+										<Settings class="w-3.5 h-3.5" />
+									</div>
+								</div>
+							</div>
+						{/each}
+					</div>
+
+					{#if filteredModules.length === 0}
+						<div class="flex flex-col items-center justify-center h-64 text-center">
+							<Search class="w-10 h-10 text-white/20 mb-3" />
+							<p class="text-white/60 font-medium">Nenhum módulo encontrado</p>
+							<p class="text-xs text-white/40 mt-1">Tente pesquisar por outro termo como "FPS", "Armor" ou "Zoom"</p>
+						</div>
+					{/if}
+				</div>
+
+				<!-- Bottom Status Bar -->
+				<div class="flex items-center justify-between px-8 py-3.5 border-t border-white/5 bg-[#090a0d] text-xs text-white/40">
+					<div class="flex items-center gap-2">
+						<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+						<span>No Minecraft 1.8.9 (CMClient), este menu abre in-game pressionando <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-[10px]">RShift</kbd></span>
+					</div>
+
+					<div class="flex items-center gap-4">
+						<span>PvP & FPS Suite v1.7.1</span>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>
