@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luxmc Skin Studio — Personalizador de Skins & Capas</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="../static/favicon.png">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="nav-brand">
+        <img src="../static/logo.png" alt="Luxmc" class="nav-logo">
+        <span>Luxmc</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="index.html#inicio" class="nav-link">Início</a></li>
+        <li><a href="index.html#register" class="nav-link">Criar Conta</a></li>
+        <li><a href="skins.html" class="nav-link active">Skins & Capas</a></li>
+        <li><a href="index.html#download" class="nav-link">Downloads</a></li>
+      </ul>
+      <a href="index.html#download" class="btn-primary">Baixar Launcher</a>
+    </div>
+  </nav>
+
+  <main class="container" style="padding-top: 120px; padding-bottom: 80px;">
+    <div class="section-header">
+      <div class="hero-badge" style="margin-bottom: 12px;">🎨 Studio Online</div>
+      <h1 class="section-title">Personalizador de Skins & Capas</h1>
+      <p class="section-desc">Escolha sua skin, adicione uma capa exclusiva e vincule ao seu Gamertag para usar no Luxmc Launcher.</p>
+    </div>
+
+    <div class="skin-studio-grid">
+      
+      <!-- Visualizer Card -->
+      <div class="auth-card" style="max-width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 480px; position: relative;">
+        <div style="position: absolute; top: 16px; left: 16px; font-size: 0.75rem; font-weight: 700; color: var(--emerald-light); background: rgba(16, 185, 129, 0.1); padding: 4px 10px; border-radius: 9999px;">
+          Visualização 3D
+        </div>
+
+        <div id="skinCanvasContainer" style="width: 240px; height: 320px; display: flex; align-items: center; justify-content: center;">
+          <img id="skinPreviewImg" src="https://mc-heads.net/body/Steve/260" alt="Preview da Skin" style="max-height: 100%; object-fit: contain; filter: drop-shadow(0 12px 24px rgba(0,0,0,0.5)); transition: all 0.3s ease;">
+        </div>
+
+        <div style="margin-top: 16px; display: flex; gap: 12px;">
+          <button type="button" class="btn-secondary" onclick="rotatePreview()" style="padding: 8px 16px; font-size: 0.8rem;">
+            🔄 Girar Visão
+          </button>
+          <button type="button" class="btn-secondary" onclick="resetSkinPreview()" style="padding: 8px 16px; font-size: 0.8rem;">
+            Restaurar Steve
+          </button>
+        </div>
+      </div>
+
+      <!-- Controls Card -->
+      <div class="auth-card" style="max-width: 100%;">
+        <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 16px;">Configurações da Skin</h3>
+
+        <div class="form-group">
+          <label class="form-label" for="skinPlayerName">Gamertag / Nickname</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="skinPlayerName" class="form-input" placeholder="Digite seu nickname..." value="Steve">
+            <button type="button" class="btn-primary" onclick="loadSkinFromNick()" style="padding: 10px 16px; shrink-0;">Carregar</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Modelo dos Braços</label>
+          <div style="display: flex; gap: 16px; margin-top: 6px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="radio" name="armModel" value="classic" checked onchange="updateArmModel('classic')">
+              <strong>Classic</strong> (Steve - 4px)
+            </label>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="radio" name="armModel" value="slim" onchange="updateArmModel('slim')">
+              <strong>Slim</strong> (Alex - 3px)
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Enviar Skin Personalizada (.png)</label>
+          <div style="border: 2px dashed var(--border-color); border-radius: 14px; padding: 20px; text-align: center; cursor: pointer; transition: border-color 0.2s ease;" onclick="document.getElementById('skinFileInput').click()">
+            <div style="font-size: 1.5rem; margin-bottom: 6px;">📁</div>
+            <span style="font-size: 0.85rem; color: var(--text-muted);">Clique para selecionar imagem PNG (64x64)</span>
+            <input type="file" id="skinFileInput" accept="image/png" style="display: none;" onchange="handleSkinUpload(event)">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="capeSelect">Escolha de Capa HD</label>
+          <select id="capeSelect" class="form-input" onchange="handleCapeChange(this.value)">
+            <option value="none">Nenhuma Capa</option>
+            <option value="gold" selected>Capa Dourada Luxmc Exclusiva</option>
+            <option value="migrator">Capa Oficial Migrator</option>
+            <option value="minecon">Capa Minecon Clássica</option>
+            <option value="optifine">Capa Optifine HD</option>
+          </select>
+        </div>
+
+        <button type="button" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 16px;" onclick="saveSkinOnline()">
+          Salvar no Perfil Luxmc
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Luxmc Launcher. Não afiliado à Mojang Studios ou Microsoft.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

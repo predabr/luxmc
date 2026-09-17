@@ -20,7 +20,6 @@
 	const defaults: Shortcut[] = [
 		{ id: "open-instances", label: "Go to Instances", combo: "g i" },
 		{ id: "open-news", label: "Go to News", combo: "g n" },
-		{ id: "open-organizer", label: "Go to Organizer", combo: "g o" },
 		{ id: "open-logs", label: "Go to Logs", combo: "g l" },
 		{ id: "open-settings", label: "Go to Settings", combo: "g ," },
 		{ id: "open-mods", label: "Go to Mods", combo: "g m" },
@@ -87,7 +86,6 @@
 		switch (id) {
 			case "open-instances": return t("shortcutsModal.goToInstances");
 			case "open-news": return t("shortcutsModal.goToNews");
-			case "open-organizer": return t("shortcutsModal.goToOrganizer");
 			case "open-logs": return t("shortcutsModal.goToLogs");
 			case "open-settings": return t("shortcutsModal.goToSettings");
 			case "open-mods": return t("shortcutsModal.goToMods");

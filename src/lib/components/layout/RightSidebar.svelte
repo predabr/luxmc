@@ -2,35 +2,41 @@
 	import { 
 		Users, 
 		UserPlus, 
-		Radio, 
-		Server, 
 		Play, 
 		Loader2, 
 		Trash2, 
-		Check, 
-		Copy, 
 		ExternalLink, 
-		Gamepad2, 
-		Circle
+		LogOut,
+		Search,
+		ChevronDown,
+		ChevronUp,
+		Mail,
+		UserCheck,
+		Sliders
 	} from "lucide-svelte";
-	import { goto } from "$app/navigation";
 	import { onMount } from "svelte";
+	import { slide, fade } from "svelte/transition";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { launchGame } from "$lib/api";
+	import { openUrl } from "@tauri-apps/plugin-opener";
 
-	let connectingServer = $state<string | null>(null);
 	let newFriendName = $state("");
 	let showAddInput = $state(false);
-	let directJoinCode = $state("");
+	let friendSearchQuery = $state("");
+	let showAccountMenu = $state(false);
+
+	let onlineExpanded = $state(true);
+	let offlineExpanded = $state(false);
+	let pendingExpanded = $state(false);
 
 	type Friend = {
 		id: string;
 		username: string;
-		status: "in_game" | "online" | "offline";
-		activity: string;
+		status: "in_game" | "online" | "offline" | "pending";
+		activity?: string;
 		serverIp?: string;
 		serverPort?: number;
 		lastSeen?: string;
@@ -41,36 +47,47 @@
 	const defaultInitialFriends: Friend[] = [
 		{
 			id: "f-1",
-			username: "pedro_dev",
-			status: "in_game",
-			activity: "MushMC · Bedwars",
-			serverIp: "jogar.mush.com.br",
-			serverPort: 25565
-		},
-		{
-			id: "f-2",
-			username: "AlexGamer",
+			username: "Stantios",
 			status: "online",
 			activity: "No Launcher"
 		},
 		{
+			id: "f-2",
+			username: "coolbot100s",
+			status: "online",
+			activity: "Wynncraft"
+		},
+		{
 			id: "f-3",
-			username: "CraftMaster",
+			username: "pedro_dev",
 			status: "offline",
-			activity: "Visto há 2h",
+			activity: "2h atrás",
 			lastSeen: "2h atrás"
+		},
+		{
+			id: "f-4",
+			username: "AlexGamer",
+			status: "offline",
+			activity: "ontem",
+			lastSeen: "ontem"
+		},
+		{
+			id: "f-5",
+			username: "CraftMaster",
+			status: "pending",
+			activity: "Pedido recebido"
 		}
 	];
 
 	function loadFriends() {
 		if (typeof window === "undefined") return;
 		try {
-			const saved = localStorage.getItem("luxmc_custom_friends_v2");
+			const saved = localStorage.getItem("luxmc_custom_friends_v3");
 			if (saved) {
 				friends = JSON.parse(saved);
 			} else {
 				friends = defaultInitialFriends;
-				localStorage.setItem("luxmc_custom_friends_v2", JSON.stringify(friends));
+				localStorage.setItem("luxmc_custom_friends_v3", JSON.stringify(friends));
 			}
 		} catch {
 			friends = defaultInitialFriends;
@@ -80,7 +97,7 @@
 	function saveFriends() {
 		if (typeof window === "undefined") return;
 		try {
-			localStorage.setItem("luxmc_custom_friends_v2", JSON.stringify(friends));
+			localStorage.setItem("luxmc_custom_friends_v3", JSON.stringify(friends));
 		} catch {}
 	}
 
@@ -114,242 +131,284 @@
 		toast(`${name} removido dos amigos.`, "info");
 	}
 
-	const onlineCount = $derived(friends.filter(f => f.status !== "offline").length);
+	const filteredFriends = $derived(
+		friends.filter(f => 
+			!friendSearchQuery || 
+			f.username.toLowerCase().includes(friendSearchQuery.toLowerCase())
+		)
+	);
 
-	const quickJoinServers = [
-		{ id: "mush", name: "MushMC", host: "jogar.mush.com.br", port: 25565, badge: "BR" },
-		{ id: "hypixel", name: "Hypixel", host: "mc.hypixel.net", port: 25565, badge: "US" }
-	];
+	const onlineFriends = $derived(filteredFriends.filter(f => f.status === "online" || f.status === "in_game"));
+	const offlineFriends = $derived(filteredFriends.filter(f => f.status === "offline"));
+	const pendingFriends = $derived(filteredFriends.filter(f => f.status === "pending"));
 
-	async function handleQuickJoin(host: string, port = 25565) {
-		const inst = profiles.active || profiles.list[0];
-		if (!inst) { toast("Selecione uma instância primeiro", "warning"); return; }
-		if (!account.value) { toast("Faça login primeiro", "warning"); return; }
-		connectingServer = host;
-		try {
-			await launchGame({
-				versionId: inst.mcVersion,
-				accountId: account.value.uuid,
-				profileId: inst.id,
-				enableVulkan: inst.useVulkan ?? false,
-				skinUrl: activeSkinStore.current.skinUrl || account.value.skinUrl || null,
-				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
-				capeUrl: activeSkinStore.current.customCapeUrl || account.value.capeUrl || null,
-				serverIp: host,
-				serverPort: port
-			});
-			toast(`🎮 Conectando a ${host}...`, "success");
-		} catch (e) {
-			toast("Falha ao entrar no servidor: " + String(e), "error");
-		} finally {
-			connectingServer = null;
+	function handleLogout() {
+		account.value = null;
+		if (typeof window !== "undefined") {
+			localStorage.removeItem("luxmc_current_account");
 		}
+		showAccountMenu = false;
+		toast("Você saiu da conta.", "info");
 	}
 
-	function handleDirectP2PJoin() {
-		const code = directJoinCode.trim();
-		if (!code) {
-			toast("Digite o código ou IP de convite do seu amigo", "warning");
-			return;
-		}
-		if (code.includes(":")) {
-			const [h, p] = code.split(":");
-			handleQuickJoin(h, parseInt(p, 10) || 25565);
-		} else {
-			handleQuickJoin(code, 25565);
-		}
-	}
+	const isMicrosoft = $derived(
+		Boolean(
+			account.value?.minecraftToken &&
+			!account.value?.id.startsWith("offline_") &&
+			!account.value?.id.startsWith("offline-")
+		)
+	);
 </script>
 
-<aside class="w-[310px] shrink-0 h-full flex flex-col gap-4 select-none pb-4">
+<aside class="w-[280px] shrink-0 flex flex-col gap-4 select-none pb-4">
 
-	<!-- Conexão Rápida Compacta -->
-	<div class="space-y-2 shrink-0">
-		<div class="flex items-center justify-between px-0.5">
-			<h3 class="text-[11px] font-bold text-white/50 uppercase tracking-wider flex items-center gap-1.5">
-				<Server class="w-3 h-3 text-emerald-400" /> Servidores Rápidos
-			</h3>
-			<span class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-				1-Clique
+	{#if account.value}
+		<div class="space-y-1.5 shrink-0 relative">
+			<span class="text-xs font-bold text-white/50 block">
+				Playing as
 			</span>
-		</div>
 
-		<div class="grid grid-cols-2 gap-2">
-			{#each quickJoinServers as srv}
-				<button
-					type="button"
-					class="flex items-center justify-between p-2 rounded-xl bg-[#141519] hover:bg-[#1c1e24] border border-white/5 hover:border-emerald-500/30 transition-all text-left group cursor-pointer disabled:opacity-50"
-					disabled={connectingServer === srv.host}
-					onclick={() => handleQuickJoin(srv.host, srv.port)}
-				>
-					<div class="flex items-center gap-2 min-w-0">
-						<span class="text-[9px] font-mono font-bold px-1 py-0.5 rounded bg-black/40 border border-white/10 text-emerald-400">
-							{srv.badge}
-						</span>
-						<span class="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
-							{srv.name}
-						</span>
-					</div>
-					{#if connectingServer === srv.host}
-						<Loader2 class="w-3 h-3 animate-spin text-emerald-400 shrink-0" />
-					{:else}
-						<Play class="w-2.5 h-2.5 fill-current text-white/40 group-hover:text-emerald-400 transition-colors shrink-0" />
-					{/if}
-				</button>
-			{/each}
-		</div>
-	</div>
-
-	<!-- Direct Join P2P Input -->
-	<div class="p-2.5 rounded-xl bg-[#141519] border border-white/5 space-y-2 shrink-0">
-		<div class="flex items-center justify-between">
-			<span class="text-[10px] font-bold text-white/60 flex items-center gap-1.5">
-				<Radio class="w-3 h-3 text-emerald-400" /> Direct Join P2P / IP
-			</span>
-		</div>
-		<div class="flex items-center gap-1.5">
-			<input
-				type="text"
-				bind:value={directJoinCode}
-				placeholder="IP:Porta ou código..."
-				class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white placeholder:text-white/25 outline-none focus:border-emerald-400 transition-colors font-mono"
-				onkeydown={(e) => { if (e.key === "Enter") handleDirectP2PJoin(); }}
-			/>
-			<button
-				type="button"
-				onclick={handleDirectP2PJoin}
-				class="px-2.5 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs transition-colors cursor-pointer shrink-0"
+			<div 
+				role="button"
+				tabindex="0"
+				onclick={() => showAccountMenu = !showAccountMenu}
+				onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") showAccountMenu = !showAccountMenu; }}
+				class="w-full bg-[#16171d] hover:bg-[#1c1d25] border border-white/5 rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-sm group"
 			>
-				Entrar
-			</button>
-		</div>
-	</div>
+				<div class="flex items-center gap-2.5 min-w-0">
+					<div class="w-9 h-9 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
+						<img 
+							src={activeSkinStore.current.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`} 
+							alt="Avatar" 
+							class="w-full h-full object-cover"
+						/>
+					</div>
+					<div class="min-w-0 text-left">
+						<div class="text-xs font-bold text-white truncate leading-tight group-hover:text-emerald-300 transition-colors">
+							{account.value.username}
+						</div>
+						<div class="text-[10px] text-white/40 truncate">
+							{isMicrosoft ? "Minecraft account" : "Offline account"}
+						</div>
+					</div>
+				</div>
 
-	<!-- Bloco de Amigos com Rolagem Própria -->
-	<div class="flex-1 flex flex-col min-h-0 bg-[#111216] border border-white/5 rounded-2xl p-3 shadow-inner">
-		
-		<!-- Cabeçalho de Amigos -->
-		<div class="flex items-center justify-between pb-2.5 border-b border-white/5 shrink-0">
-			<div class="flex items-center gap-2">
-				<Users class="w-3.5 h-3.5 text-emerald-400" />
-				<h2 class="text-xs font-bold text-white uppercase tracking-wider">Amizades</h2>
-				<span class="text-[10px] font-bold text-white/40 bg-white/5 px-2 py-0.5 rounded-full border border-white/5">
-					{onlineCount} online
-				</span>
+				<ChevronDown class="w-4 h-4 text-white/40 group-hover:text-white transition-transform {showAccountMenu ? 'rotate-180' : ''}" />
 			</div>
 
+			{#if showAccountMenu}
+				<div 
+					class="absolute top-full left-0 right-0 mt-1 bg-[#181920] border border-white/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
+					transition:slide={{ duration: 120 }}
+				>
+					<button
+						type="button"
+						onclick={handleLogout}
+						class="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer"
+					>
+						<LogOut class="w-3.5 h-3.5" /> Trocar de Conta / Sair
+					</button>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+	<div class="space-y-2.5 shrink-0">
+		<div class="flex items-center gap-1.5">
 			<button
 				type="button"
 				onclick={() => showAddInput = !showAddInput}
-				class="p-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 text-white/60 hover:text-emerald-300 transition-all cursor-pointer"
-				title="Adicionar Amigo"
+				class="p-1.5 rounded-xl bg-[#16171d] hover:bg-[#1f2029] text-white/60 hover:text-white border border-white/5 transition-colors cursor-pointer"
+				title="Add friend"
 			>
 				<UserPlus class="w-3.5 h-3.5" />
 			</button>
+
+			<div class="relative flex-1">
+				<Search class="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
+				<input
+					type="text"
+					bind:value={friendSearchQuery}
+					placeholder="Search friends..."
+					class="w-full bg-[#16171d] border border-white/5 rounded-xl pl-7 pr-2.5 py-1.5 text-xs text-white placeholder:text-white/25 outline-none focus:border-white/20 transition-all"
+				/>
+			</div>
+
+			<div class="relative">
+				<button
+					type="button"
+					class="p-1.5 rounded-xl bg-[#16171d] hover:bg-[#1f2029] text-white/60 hover:text-white border border-white/5 transition-colors cursor-pointer"
+					title="Friend requests"
+				>
+					<Mail class="w-3.5 h-3.5" />
+				</button>
+				{#if pendingFriends.length > 0}
+					<span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-black text-[9px] font-black flex items-center justify-center">
+						{pendingFriends.length}
+					</span>
+				{/if}
+			</div>
 		</div>
 
-		<!-- Input para Adicionar Amigo -->
 		{#if showAddInput}
-			<div class="pt-2 pb-1 shrink-0 flex items-center gap-1.5">
+			<div class="flex items-center gap-1.5" in:slide={{ duration: 120 }}>
 				<input
 					type="text"
 					bind:value={newFriendName}
-					placeholder="Gamertag do amigo..."
-					class="flex-1 bg-black/50 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white placeholder:text-white/25 outline-none focus:border-emerald-400 transition-colors"
+					placeholder="Gamertag..."
+					class="flex-1 bg-black/40 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white placeholder:text-white/25 outline-none focus:border-emerald-400"
 					onkeydown={(e) => { if (e.key === "Enter") addFriend(); }}
 				/>
 				<button
 					type="button"
 					onclick={addFriend}
-					class="px-2 py-1 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer shrink-0"
+					class="px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer"
 				>
-					OK
+					Add
 				</button>
 			</div>
 		{/if}
 
-		<!-- Lista de Amigos com Scroll Real -->
-		<div class="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 pt-2 pr-1">
-			{#if friends.length === 0}
-				<div class="py-8 text-center space-y-2">
-					<Users class="w-7 h-7 text-white/20 mx-auto" />
-					<p class="text-xs text-white/40">Nenhum amigo adicionado.</p>
-					<button
-						type="button"
-						onclick={() => showAddInput = true}
-						class="text-[11px] text-emerald-400 hover:underline font-bold"
-					>
-						+ Adicionar Primeiro Amigo
-					</button>
-				</div>
-			{:else}
-				{#each friends as friend (friend.id)}
-					{@const isOnline = friend.status === "online"}
-					{@const isInGame = friend.status === "in_game"}
-					
-					<div class="flex items-center justify-between p-2 rounded-xl bg-[#15161b] hover:bg-[#1a1c22] border border-white/5 hover:border-white/10 transition-all group">
-						<div class="flex items-center gap-2.5 min-w-0">
-							<div class="relative w-8 h-8 rounded-lg overflow-hidden bg-black/50 border border-white/10 shrink-0">
-								<img
-									src={`https://mc-heads.net/avatar/${friend.username}/64`}
-									alt={friend.username}
-									class="w-full h-full object-cover"
-									loading="lazy"
-								/>
-								<span
-									class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#15161b] {isInGame ? 'bg-purple-400 animate-pulse' : isOnline ? 'bg-emerald-400' : 'bg-neutral-500'}"
-								></span>
-							</div>
+		<div class="space-y-1 text-xs">
+			<div>
+				<button
+					type="button"
+					onclick={() => onlineExpanded = !onlineExpanded}
+					class="w-full flex items-center justify-between py-1 text-white/70 hover:text-white text-xs font-bold cursor-pointer"
+				>
+					<span>Online - {onlineFriends.length}</span>
+					<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform {onlineExpanded ? 'rotate-180' : ''}" />
+				</button>
 
-							<div class="min-w-0">
-								<h4 class="text-xs font-bold text-white truncate leading-tight group-hover:text-emerald-300 transition-colors">
-									{friend.username}
-								</h4>
-								<p class="text-[10px] text-white/40 truncate mt-0.5">
-									{friend.activity}
-								</p>
-							</div>
-						</div>
+				{#if onlineExpanded}
+					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ duration: 150 }}>
+						{#if onlineFriends.length === 0}
+							<p class="text-[11px] text-white/30 py-1">Nenhum amigo online</p>
+						{:else}
+							{#each onlineFriends as friend (friend.id)}
+								<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 transition-colors group">
+									<div class="flex items-center gap-2 min-w-0">
+										<div class="relative w-6 h-6 rounded-lg overflow-hidden bg-black/50 border border-white/10 shrink-0">
+											<img
+												src={`https://mc-heads.net/avatar/${friend.username}/64`}
+												alt={friend.username}
+												class="w-full h-full object-cover"
+												loading="lazy"
+											/>
+											<span class="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+										</div>
+										<span class="text-xs font-medium text-white truncate">{friend.username}</span>
+									</div>
 
-						<div class="flex items-center gap-1 shrink-0 ml-1">
-							{#if friend.serverIp}
+									<button
+										type="button"
+										class="opacity-0 group-hover:opacity-100 p-1 text-white/30 hover:text-red-400 transition-opacity cursor-pointer"
+										title="Remover"
+										onclick={() => removeFriend(friend.id, friend.username)}
+									>
+										<Trash2 class="w-3 h-3" />
+									</button>
+								</div>
+							{/each}
+						{/if}
+					</div>
+				{/if}
+			</div>
+
+			<div>
+				<button
+					type="button"
+					onclick={() => offlineExpanded = !offlineExpanded}
+					class="w-full flex items-center justify-between py-1 text-white/40 hover:text-white text-xs font-bold cursor-pointer"
+				>
+					<span>Offline - {offlineFriends.length}</span>
+					<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform {offlineExpanded ? 'rotate-180' : ''}" />
+				</button>
+
+				{#if offlineExpanded}
+					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ duration: 150 }}>
+						{#each offlineFriends as friend (friend.id)}
+							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 transition-colors group opacity-60 hover:opacity-100">
+								<div class="flex items-center gap-2 min-w-0">
+									<div class="w-6 h-6 rounded-lg overflow-hidden bg-black/50 border border-white/10 shrink-0">
+										<img
+											src={`https://mc-heads.net/avatar/${friend.username}/64`}
+											alt={friend.username}
+											class="w-full h-full object-cover grayscale"
+											loading="lazy"
+										/>
+									</div>
+									<span class="text-xs font-medium text-white truncate">{friend.username}</span>
+								</div>
+
 								<button
 									type="button"
-									class="p-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500 text-emerald-400 hover:text-black transition-colors cursor-pointer"
-									title="Conectar ao mesmo servidor/mundo"
-									onclick={() => handleQuickJoin(friend.serverIp!, friend.serverPort || 25565)}
+									class="opacity-0 group-hover:opacity-100 p-1 text-white/30 hover:text-red-400 transition-opacity cursor-pointer"
+									title="Remover"
+									onclick={() => removeFriend(friend.id, friend.username)}
 								>
-									<Play class="w-2.5 h-2.5 fill-current" />
+									<Trash2 class="w-3 h-3" />
 								</button>
-							{/if}
-							<button
-								type="button"
-								class="opacity-0 group-hover:opacity-100 p-1 rounded-lg bg-white/5 hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-all cursor-pointer"
-								title="Remover Amigo"
-								onclick={() => removeFriend(friend.id, friend.username)}
-							>
-								<Trash2 class="w-2.5 h-2.5" />
-							</button>
-						</div>
+							</div>
+						{/each}
 					</div>
-				{/each}
-			{/if}
-		</div>
+				{/if}
+			</div>
 
-		<!-- Rodapé do Card de Amizades -->
-		<div class="pt-2 mt-1 border-t border-white/5 flex items-center justify-between text-[10px] text-white/30 shrink-0">
-			<span class="flex items-center gap-1">
-				<Circle class="w-1.5 h-1.5 fill-emerald-400 text-emerald-400" /> Sistema P2P Ativo
-			</span>
-			<button
-				type="button"
-				onclick={() => goto("/friends")}
-				class="hover:text-white transition-colors cursor-pointer font-semibold"
-			>
-				Abrir Chat →
-			</button>
-		</div>
+			<div>
+				<button
+					type="button"
+					onclick={() => pendingExpanded = !pendingExpanded}
+					class="w-full flex items-center justify-between py-1 text-white/40 hover:text-white text-xs font-bold cursor-pointer"
+				>
+					<span>Pending - {pendingFriends.length}</span>
+					<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform {pendingExpanded ? 'rotate-180' : ''}" />
+				</button>
 
+				{#if pendingExpanded}
+					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ duration: 150 }}>
+						{#each pendingFriends as friend (friend.id)}
+							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 transition-colors">
+								<span class="text-xs text-white/70">{friend.username}</span>
+								<span class="text-[10px] text-amber-400">Pendente</span>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		</div>
+	</div>
+
+	<div class="space-y-2 shrink-0 pt-1">
+		<span class="text-xs font-bold text-white/50 block">
+			News
+		</span>
+
+		<div class="bg-[#16171d] border border-white/5 rounded-2xl overflow-hidden shadow-sm">
+			<div class="h-28 bg-[#1a2e26] relative overflow-hidden flex items-center justify-center p-3">
+				<div class="flex items-center gap-3">
+					<div class="space-y-2">
+						<div class="w-14 h-1.5 bg-emerald-400 rounded-full"></div>
+						<div class="w-14 h-1.5 bg-emerald-400/50 rounded-full"></div>
+					</div>
+					<div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
+						<Sliders class="w-4 h-4 text-emerald-400" />
+					</div>
+				</div>
+			</div>
+
+			<div class="p-3.5 space-y-1.5">
+				<h4 class="text-xs font-bold text-white leading-snug">
+					Sync settings across instances
+				</h4>
+				<p class="text-[11px] text-white/50 leading-relaxed">
+					Keep game options, servers, resource packs, and more the same across your instances.
+				</p>
+				<div class="pt-2 text-[10px] text-white/35">
+					September 7, 2026
+				</div>
+			</div>
+		</div>
 	</div>
 
 </aside>

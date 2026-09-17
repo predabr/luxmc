@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Luxmc Launcher — O Launcher de Minecraft mais rápido e fluido</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" type="image/png" href="../static/favicon.png">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="nav-brand">
+        <img src="../static/logo.png" alt="Luxmc" class="nav-logo">
+        <span>Luxmc</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#inicio" class="nav-link">Início</a></li>
+        <li><a href="#register" class="nav-link">Criar Conta</a></li>
+        <li><a href="skins.html" class="nav-link">Skins & Capas</a></li>
+        <li><a href="#recursos" class="nav-link">Recursos</a></li>
+        <li><a href="#download" class="nav-link">Downloads</a></li>
+      </ul>
+      <a href="#download" class="btn-primary">Baixar Launcher</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header id="inicio" class="hero">
+    <div class="hero-glow"></div>
+    <div class="container">
+      <div class="hero-badge">⚡ Performance & Estabilidade Extrema</div>
+      <h1 class="hero-title">O Minecraft Launcher mais rápido<br>para Linux & Windows</h1>
+      <p class="hero-subtitle">
+        Desenvolvido para máxima fluidez, sem microtravadas e com consumo otimizado de memória. 
+        Gerencie instâncias, mods do Modrinth e jogue com suas skins e capas personalizadas.
+      </p>
+      <div class="hero-actions">
+        <a href="#register" class="btn-primary">Criar Conta no Site</a>
+        <a href="#download" class="btn-secondary">Download AppImage (188 MB)</a>
+      </div>
+
+      <div class="hero-preview">
+        <img src="../static/screenshot.png" alt="Luxmc Preview" onerror="this.src='../static/home.png'">
+      </div>
+    </div>
+  </header>
+
+  <!-- Account Registration Section -->
+  <section id="register" class="register-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Crie sua Conta Luxmc</h2>
+        <p class="section-desc">
+          Cadastre seu Gamertag aqui no site para personalizar sua skin e capa. 
+          No aplicativo, basta digitar seu Nickname para entrar instantaneamente!
+        </p>
+      </div>
+
+      <div class="auth-card">
+        <form id="accountForm" onsubmit="handleWebRegister(event)">
+          <div class="form-group">
+            <label class="form-label" for="username">Gamertag / Nickname</label>
+            <input type="text" id="username" class="form-input" placeholder="Ex: SteveGamer" required maxlength="16" autocomplete="off">
+            <p class="form-help">Este é o nome que você usará para entrar no Luxmc Launcher.</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="email">E-mail</label>
+            <input type="email" id="email" class="form-input" placeholder="seu@email.com" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="password">Senha</label>
+            <input type="password" id="password" class="form-input" placeholder="••••••••" required minlength="4">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Modelo de Skin</label>
+            <div style="display: flex; gap: 12px; margin-top: 6px;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="radio" name="skinModel" value="classic" checked> Classic (Steve 4px)
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="radio" name="skinModel" value="slim"> Slim (Alex 3px)
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="capeChoice">Capa Inicial</label>
+            <select id="capeChoice" class="form-input">
+              <option value="none">Sem Capa</option>
+              <option value="luxmc_gold" selected>Capa Dourada Luxmc Exclusiva</option>
+              <option value="migrator">Capa Migrator Oficial</option>
+              <option value="minecon_2011">Minecon 2011 Clássica</option>
+              <option value="optifine">Capa Optifine HD</option>
+            </select>
+          </div>
+
+          <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">
+            Criar Conta & Ativar Skin
+          </button>
+        </form>
+
+        <div id="registerSuccess" style="display: none; margin-top: 24px; padding: 18px; border-radius: 14px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); text-align: center;">
+          <h4 style="color: #34d399; font-weight: 800; font-size: 1.1rem; margin-bottom: 6px;">🎉 Conta Criada com Sucesso!</h4>
+          <p style="font-size: 0.875rem; color: #e5e7eb; margin-bottom: 12px;">
+            Sua conta para <strong id="registeredUsername" style="color: #fff;"></strong> está pronta.
+          </p>
+          <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 10px; font-size: 0.825rem; color: #9ca3af; text-align: left;">
+            <strong>Como jogar agora:</strong><br>
+            1. Abra o <strong>Luxmc Launcher</strong> no seu computador.<br>
+            2. Na tela de login centralizada, selecione <strong>Modo Offline</strong>.<br>
+            3. Digite apenas o seu nickname (<code id="codeNick" style="color: #10b981; font-weight: bold;"></code>) e clique em <strong>Jogar</strong>!
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="recursos" class="features">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Projetado para Performance</h2>
+        <p class="section-desc">Cada detalhe foi otimizado para eliminar travamentos e garantir 100% de estabilidade.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🚀</div>
+          <h3 class="feature-title">Zero Lags & Microtravadas</h3>
+          <p class="feature-text">
+            Renderização acelerada via GPU, sem loops pesados de partículas ou filtros desnecessários. Respostas instantâneas a cada clique.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🎮</div>
+          <h3 class="feature-title">Design Jump In & Library</h3>
+          <p class="feature-text">
+            Inicie seus mundos recentes com 1 clique no "Jump In" e navegue por todas as suas instâncias de forma visual e intuitiva no estilo Modrinth.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🧩</div>
+          <h3 class="feature-title">Central de Mods Completa</h3>
+          <p class="feature-text">
+            Explore milhares de mods, modpacks, resource packs e shaders do Modrinth com resolução automática de dependências.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3 class="feature-title">Microsoft & Offline Híbrido</h3>
+          <p class="feature-text">
+            Suporte nativo para contas oficiais da Microsoft com autenticação segura no navegador, além de acesso offline direto com o seu nickname.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🎨</div>
+          <h3 class="feature-title">Personalizador de Skins 3D</h3>
+          <p class="feature-text">
+            Visualize sua skin em tempo real em um visualizador 3D interativo com suporte para modelos Steve e Alex e capas comemorativas.
+          </p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🐧</div>
+          <h3 class="feature-title">Linux-First & Vulkan Zink</h3>
+          <p class="feature-text">
+            Integração nativa com Wayland, GameMode, MangoHud e tradução OpenGL para Vulkan via Zink para máxima taxa de quadros (FPS).
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Downloads Section -->
+  <section id="download" class="download-section">
+    <div class="container">
+      <div class="section-header">
+        <h2 class="section-title">Baixe o Luxmc Launcher</h2>
+        <p class="section-desc">Escolha a versão compatível com a sua distribuição Linux ou sistema operacional.</p>
+      </div>
+
+      <div class="downloads-grid">
+        <div class="download-card">
+          <div class="download-icon">🐧</div>
+          <h3 style="font-weight: 700; font-size: 1.1rem;">Linux AppImage</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;">Compatível com Ubuntu, Fedora, Arch, Pop!_OS e qualquer distro.</p>
+          <span style="font-size: 0.75rem; color: var(--emerald-light); font-weight: 600;">188 MB · Portátil</span>
+          <button class="btn-primary" style="margin-top: 8px; width: 100%; justify-content: center;" onclick="alert('Download do AppImage iniciado! (Simulado)')">
+            Baixar .AppImage
+          </button>
+        </div>
+
+        <div class="download-card">
+          <div class="download-icon">📦</div>
+          <h3 style="font-weight: 700; font-size: 1.1rem;">Pacote .deb</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;">Instalador oficial para Debian, Ubuntu, Linux Mint e derivados.</p>
+          <span style="font-size: 0.75rem; color: var(--emerald-light); font-weight: 600;">180 MB · Instalador</span>
+          <button class="btn-secondary" style="margin-top: 8px; width: 100%; justify-content: center;" onclick="alert('Download do .deb iniciado! (Simulado)')">
+            Baixar .deb
+          </button>
+        </div>
+
+        <div class="download-card">
+          <div class="download-icon">🪟</div>
+          <h3 style="font-weight: 700; font-size: 1.1rem;">Windows Installer</h3>
+          <p style="color: var(--text-muted); font-size: 0.85rem;">Compatível com Windows 10 e Windows 11 64-bit.</p>
+          <span style="font-size: 0.75rem; color: var(--emerald-light); font-weight: 600;">195 MB · Executável</span>
+          <button class="btn-secondary" style="margin-top: 8px; width: 100%; justify-content: center;" onclick="alert('Download do Windows iniciado! (Simulado)')">
+            Baixar .exe
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 Luxmc Launcher. Não afiliado à Mojang Studios ou Microsoft.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

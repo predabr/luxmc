@@ -50,15 +50,13 @@
 		"/": 0,
 		"/news": 0.5,
 		"/mods": 1,
-		"/organizer": 2,
-		"/skins": 3,
-		"/instances": 4,
-		"/friends": 5,
-		"/teamwork-preview": 5.5,
-		"/screenshots": 6,
-		"/logs": 7,
-		"/logs-history": 7.1,
-		"/settings": 8
+		"/skins": 2,
+		"/instances": 3,
+		"/teamwork-preview": 3.5,
+		"/screenshots": 4,
+		"/logs": 5,
+		"/logs-history": 5.1,
+		"/settings": 6
 	};
 
 	function getRouteOrder(pathname: string): number {
@@ -312,9 +310,6 @@
 			} else if (currentPath === "/skins") {
 				details = "Personalizador de Skins 3D";
 				state = "Customizando Aparência";
-			} else if (currentPath === "/organizer") {
-				details = "Organizando o Layout";
-				state = "Personalizando Painéis";
 			} else if (currentPath === "/screenshots") {
 				details = "Galeria de Capturas de Tela";
 				state = "Visualizando Screenshots";
@@ -324,9 +319,6 @@
 			} else if (currentPath === "/settings") {
 				details = "Configurações do Launcher";
 				state = "Ajustando Preferências";
-			} else if (currentPath === "/friends") {
-				details = "Amigos & Chat P2P";
-				state = "Radar de Amigos Ativo";
 			}
 
 			discordSetActivity({
@@ -374,10 +366,9 @@
 
 <div class="fixed inset-0 z-[-2] bg-[#0c0c0e]">
 	{#if settings.value.theme === "default-dark" && !appState.performanceMode}
-		<!-- Clean high-performance GPU radial glow without expensive filter blur -->
 		<div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
 		<div class="absolute inset-0 opacity-15 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
-		{#if settings.value.liveWallpaper !== false}
+		{#if settings.value.liveWallpaper === true && !appState.performanceMode}
 			<LiveWallpaper />
 		{/if}
 	{:else}
@@ -391,14 +382,14 @@
 {#if showSplash || appState.showCutscene}
 	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; initialized = true; }} />
 {:else if !initialized}
-	<div class="flex h-full w-full items-center justify-center bg-black/50 backdrop-blur-xl" in:fade={{ duration: 300 }}>
+	<div class="flex h-full w-full items-center justify-center bg-black/70" in:fade={{ duration: 150 }}>
 		<div class="flex flex-col items-center gap-4">
 			<div class="h-10 w-10 border-4 border-t-brand-400 border-white/10 rounded-full animate-spin"></div>
 			<p class="text-sm font-medium text-white shadow-black drop-shadow-md">{t("app.loading")}</p>
 		</div>
 	</div>
 {:else if !account.value}
-	<div class="flex h-full w-full items-center justify-center bg-black/30 backdrop-blur-md" in:fade={{ duration: 800 }}>
+	<div class="flex h-full w-full items-center justify-center bg-[#0c0c0e]/90" in:fade={{ duration: 150 }}>
 		{@render children?.()}
 	</div>
 {:else}

@@ -4,13 +4,11 @@
 	import {
 		LayoutGrid,
 		Package,
-		SlidersHorizontal,
 		Shirt,
 		Boxes,
 		Plus,
 		Settings as SettingsIcon,
 		Github,
-		Zap,
 		Sliders
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
@@ -31,7 +29,6 @@
 	const items: Item[] = [
 		{ href: "/", labelKey: "nav.home", title: "Início", icon: LayoutGrid },
 		{ href: "/mods", labelKey: "nav.mods", title: "Central de Conteúdo", icon: Package },
-		{ href: "/organizer", labelKey: "nav.organizer", title: "Organizador", icon: SlidersHorizontal },
 		{ href: "/skins", labelKey: "nav.skins", title: "Personalização", icon: Shirt },
 		{ href: "/instances", labelKey: "nav.instances", title: "Biblioteca", icon: Boxes },
 	];
@@ -51,7 +48,6 @@
 
 <aside class="flex h-screen w-[70px] shrink-0 flex-col items-center py-4 bg-[#111215] border-r border-white/5 z-40 relative select-none shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
 	
-	<!-- Profile Avatar / Brand at Top (Squircle Frame matching reference) -->
 	<button 
 		type="button"
 		title="Meu Perfil ({accountStatus.label})" 
@@ -66,20 +62,17 @@
 			/>
 		</div>
 
-		<!-- Status Indicator Dot -->
 		<span 
 			class="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#111215] {accountStatus.dotColor} shadow-sm"
 			title={accountStatus.label}
 		></span>
 
-		<!-- Hover Floating Tooltip -->
 		<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl flex items-center gap-2">
 			<span>{account.value?.username || "Perfil de Jogador"}</span>
 			<span class="text-[10px] font-normal text-white/50">({accountStatus.label})</span>
 		</div>
 	</button>
 
-	<!-- Main Navigation Icons (Exact squircle & champagne gradient from Reference Image 3) -->
 	<nav class="flex-1 w-full flex flex-col items-center gap-2">
 		{#each items as item}
 			{@const active = item.href === "/" ? $page.url.pathname === "/" : $page.url.pathname.startsWith(item.href)}
@@ -98,7 +91,6 @@
 					<item.icon class="h-5 w-5 {active ? 'text-[#0c0d11]' : 'text-[#8a8d98] group-hover:text-white transition-colors'}" strokeWidth={active ? 2.2 : 1.8} />
 				</a>
 
-				<!-- Smooth Tooltip -->
 				<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl">
 					{item.title}
 				</div>
@@ -107,7 +99,6 @@
 		
 		<div class="w-7 h-[1px] bg-white/10 my-1"></div>
 		
-		<!-- Dynamic Created Instances List on Sidebar (Squircle styling) -->
 		{#if profiles.list.length > 0}
 			<div class="w-full flex flex-col items-center gap-2 overflow-y-auto max-h-[28vh] custom-scrollbar px-1 py-0.5">
 				{#each profiles.list as prof}
@@ -131,7 +122,6 @@
 							{/if}
 						</a>
 
-						<!-- Instance Tooltip with Name, Version & Loader -->
 						<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-2 rounded-xl border border-white/10 shadow-2xl flex flex-col gap-0.5">
 							<span class="text-white font-extrabold">{prof.name}</span>
 							<span class="text-[10px] text-white/50">{prof.mcVersion} • {prof.loader}</span>
@@ -142,7 +132,6 @@
 			<div class="w-7 h-[1px] bg-white/5 my-0.5"></div>
 		{/if}
 
-		<!-- Add Instance Button with Plus -->
 		<div class="relative group w-full flex justify-center mt-1">
 			<a
 				href="/instances?new=true"
@@ -160,9 +149,7 @@
 		</div>
 	</nav>
 
-	<!-- Bottom Section: GitHub, Client Suite, Settings -->
 	<div class="mt-auto w-full flex flex-col items-center gap-2 pt-2 border-t border-white/5">
-		<!-- GitHub Repository Route with Tooltip -->
 		<div class="relative group w-full flex justify-center">
 			<button
 				type="button"
@@ -193,7 +180,6 @@
 			</div>
 		</div>
 
-		<!-- Settings Route with Tooltip -->
 		<div class="relative group w-full flex justify-center">
 			<a
 				href="/settings"
@@ -211,7 +197,6 @@
 		</div>
 	</div>
 
-	<!-- Profile Modal -->
 	{#if showProfileModal}
 		<ProfileModal onClose={() => showProfileModal = false} />
 	{/if}

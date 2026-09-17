@@ -141,9 +141,9 @@
 							<Shirt class="w-4 h-4 text-pink-400" />
 							<span>Skins & Capas</span>
 						</Command.Item>
-						<Command.Item value="amigos friends p2p rede" on:select={() => navigate("/friends")} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors aria-selected:bg-white/10">
+						<Command.Item value="amigos friends p2p rede" on:select={() => navigate("/")} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors aria-selected:bg-white/10">
 							<Users class="w-4 h-4 text-blue-400" />
-							<span>Amigos & P2P</span>
+							<span>Amigos</span>
 						</Command.Item>
 						<Command.Item value="screenshots capturas fotos" on:select={() => navigate("/screenshots")} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors aria-selected:bg-white/10">
 							<Camera class="w-4 h-4 text-yellow-400" />
@@ -152,10 +152,6 @@
 						<Command.Item value="noticias news blog" on:select={() => navigate("/news")} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors aria-selected:bg-white/10">
 							<Newspaper class="w-4 h-4 text-amber-400" />
 							<span>Notícias</span>
-						</Command.Item>
-						<Command.Item value="organizador layout dashboard personalizar" on:select={() => navigate("/organizer")} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors aria-selected:bg-white/10">
-							<LayoutGrid class="w-4 h-4 text-brand-400" />
-							<span>Organizador de Layout</span>
 						</Command.Item>
 						<Command.Item value="logs registros historico erros" on:select={() => navigate("/logs")} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-white/80 hover:text-white hover:bg-white/10 cursor-pointer transition-colors aria-selected:bg-white/10">
 							<FileText class="w-4 h-4 text-orange-400" />

@@ -47,7 +47,7 @@ const defaults: AppSettings = {
 	language: "en",
 	accentTheme: "gold",
 	activeProfileId: null,
-	liveWallpaper: true,
+	liveWallpaper: false,
 	soundscapesEnabled: false,
 	soundscapeVolume: 0.2,
 	launcherActionOnLaunch: "hide_reopen",
