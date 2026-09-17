@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Luxmc Launcher — O Launcher de Minecraft mais rápido e fluido</title>
-  <meta name="description" content="O Launcher definitivo de Minecraft para Linux e Windows. Inspirado no Modrinth, com instalação automática de mods, visualizador de skins 3D e zero microtravadas.">
+  <meta name="description" content="O Launcher definitivo de Minecraft para Linux e Windows. Alta performance, navegação por mods do Modrinth, suporte nativo a Wayland e skins 3D com integração NameMC.">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/png" href="assets/favicon.png">
-  <meta name="theme-color" content="#1bd96a">
+  <meta name="theme-color" content="#060709">
 </head>
 <body>
 
@@ -17,25 +17,24 @@
       <a href="index.html" class="nav-brand">
         <img src="assets/logo.png" alt="Luxmc" class="nav-logo">
         <span>Luxmc</span>
-        <span class="nav-version-badge live-version-tag">v1.7.3</span>
       </a>
 
       <ul class="nav-links">
         <li><a href="#inicio" class="nav-link">Início</a></li>
-        <li><a href="#modrinth-explorer" class="nav-link">Mods & Modpacks</a></li>
+        <li><a href="#mods" class="nav-link">Mods & Modpacks</a></li>
         <li><a href="#recursos" class="nav-link">Recursos</a></li>
-        <li><a href="skins.html" class="nav-link">Studio 3D</a></li>
+        <li><a href="skins.html" class="nav-link">Skins & NameMC</a></li>
         <li><a href="#download" class="nav-link">Downloads</a></li>
       </ul>
 
       <div class="nav-actions">
-        <button type="button" class="btn-launcher" onclick="openLauncher('luxmc://open')" title="Abrir launcher já instalado">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          Abrir Launcher
-        </button>
+        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 8px 16px;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub
+        </a>
         <a href="#download" class="btn-primary">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Baixar Grátis
+          Baixar Launcher
         </a>
       </div>
     </div>
@@ -43,57 +42,43 @@
 
   <!-- Hero Section -->
   <header id="inicio" class="hero">
+    <div class="hero-backdrop-glow"></div>
     <div class="container">
-      <div class="hero-pill">
+      <div class="hero-pill animate-fade-in">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-        Inspirado no Ecossistema Modrinth · 100% Código Aberto
+        100% Código Aberto · Linux-First & Windows · Alta Performance
       </div>
 
-      <h1 class="hero-title">
+      <h1 class="hero-title animate-fade-in animate-delay-1">
         O Launcher de Minecraft mais rápido,<br>
-        <span class="gradient-text">fluido e elegante.</span>
+        <span class="gradient-text">fluido e estável.</span>
       </h1>
 
-      <p class="hero-subtitle">
-        Projetado em Rust, C# e Svelte 5 para máxima fluidez no Linux e Windows. 
-        Instalação instantânea de mods do Modrinth, sincronização de skins 3D em tempo real, 
-        suporte nativo a Wayland e zero vazamento de memória.
+      <p class="hero-subtitle animate-fade-in animate-delay-2">
+        Construído em Rust, C# e Svelte 5 para resposta instantânea em qualquer hardware. 
+        Navegação por mods do Modrinth, sincronização de skins com NameMC, suporte nativo 
+        a Wayland e zero vazamento de memória RAM.
       </p>
 
-      <div class="hero-actions">
+      <div class="hero-actions animate-fade-in animate-delay-3">
         <a id="primaryDownloadBtn" href="https://github.com/predabr/luxmc/releases/latest" class="btn-primary" style="padding: 13px 26px; font-size: 0.95rem;">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.003 2c-2.26 0-4.093 1.833-4.093 4.094 0 1.25.56 2.37 1.442 3.123-.393.18-.74.453-1.01.8-1.07 1.378-1.07 3.327-.01 4.717.37.48.86.83 1.42 1.03-.49.52-.79 1.21-.79 1.97 0 1.62 1.32 2.94 2.94 2.94 1.63 0 2.95-1.32 2.95-2.94 0-.76-.3-1.45-.79-1.97.56-.2 1.05-.55 1.42-1.03 1.06-1.39 1.06-3.339-.01-4.717-.27-.347-.617-.62-1.01-.8.882-.753 1.442-1.873 1.442-3.123 0-2.261-1.834-4.094-4.094-4.094z"/></svg>
           Baixar para Linux (.AppImage)
         </a>
-        <button type="button" class="btn-secondary" onclick="openLauncher('luxmc://open')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-          Abrir no Launcher
-        </button>
-        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-secondary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          GitHub
+        <a href="#mods" class="btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Explorar Mods
+        </a>
+        <a href="skins.html" class="btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
+          Studio 3D & NameMC
         </a>
       </div>
 
-      <!-- Modrinth-Style Interactive Search Bar -->
-      <div class="hero-search-wrapper">
-        <div class="hero-search-bar">
-          <svg class="hero-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="modSearchInput" class="hero-search-input" placeholder="Pesquise mods do Modrinth (ex: Sodium, Iris, Lithium, Fabric API)...">
-          <kbd class="hero-search-kbd">/</kbd>
-        </div>
-        <div class="hero-search-pills">
-          <button type="button" class="search-pill active" data-type="mod">Mods</button>
-          <button type="button" class="search-pill" data-type="modpack">Modpacks</button>
-          <button type="button" class="search-pill" data-type="shader">Shaders</button>
-          <button type="button" class="search-pill" data-type="resourcepack">Resource Packs</button>
-        </div>
-      </div>
-
       <!-- Stats Ribbon -->
-      <div class="stats-ribbon">
+      <div class="stats-ribbon animate-fade-in animate-delay-3">
         <div class="stat-item">
-          <div class="stat-value highlight">0ms</div>
+          <div class="stat-value">0ms</div>
           <div class="stat-label">Microtravadas</div>
         </div>
         <div class="stat-item">
@@ -101,48 +86,74 @@
           <div class="stat-label">Jogadores</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value highlight">&lt;100 MB</div>
+          <div class="stat-value">&lt;100 MB</div>
           <div class="stat-label">RAM em Repouso</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">100%</div>
-          <div class="stat-label">Código Aberto</div>
+          <div class="stat-value live-version-tag">v1.7.3</div>
+          <div class="stat-label">Última Versão Estável</div>
         </div>
       </div>
 
-      <!-- App Preview -->
-      <div class="hero-preview">
-        <img src="assets/home.png" alt="Luxmc Launcher Interface">
+      <!-- Window Mockup Interface Preview -->
+      <div class="window-mockup">
+        <div class="window-titlebar">
+          <div class="window-dots">
+            <span class="dot dot-close"></span>
+            <span class="dot dot-minimize"></span>
+            <span class="dot dot-maximize"></span>
+          </div>
+          <div class="window-title">Luxmc Launcher — Menu Principal</div>
+          <div class="window-badge">Pronto para Jogar</div>
+        </div>
+        <div class="window-content">
+          <img src="assets/home.png" alt="Luxmc Launcher Interface" loading="lazy">
+        </div>
       </div>
     </div>
   </header>
 
-  <!-- Modrinth Live Explorer Section -->
-  <section id="modrinth-explorer" class="section">
+  <!-- Modrinth Mods Section -->
+  <section id="mods" class="section reveal">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">Central de Conteúdo</span>
-        <h2 class="section-title">Navegue pelo Ecossistema Modrinth</h2>
+        <span class="section-tag">Downloads de Mods</span>
+        <h2 class="section-title">Explorador de Mods & Modpacks</h2>
         <p class="section-desc">
-          Pesquise e instale mods em tempo real. O Luxmc resolve dependências automaticamente 
-          e sincroniza com as suas instâncias locais.
+          Pesquise e baixe arquivos diretamente do ecossistema Modrinth para otimizar e enriquecer seu jogo.
         </p>
       </div>
 
+      <!-- Search Bar -->
+      <div class="mod-search-wrapper">
+        <div class="mod-search-bar">
+          <svg class="mod-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="modSearchInput" class="mod-search-input" placeholder="Pesquisar mods (ex: Sodium, Iris, Lithium, Fabric API, BetterMC)...">
+          <kbd class="mod-search-kbd">/</kbd>
+        </div>
+        <div class="mod-search-pills">
+          <button type="button" class="search-pill active" data-type="mod">Mods</button>
+          <button type="button" class="search-pill" data-type="modpack">Modpacks</button>
+          <button type="button" class="search-pill" data-type="shader">Shaders</button>
+          <button type="button" class="search-pill" data-type="resourcepack">Resource Packs</button>
+        </div>
+      </div>
+
+      <!-- Mods Grid -->
       <div id="modsGrid" class="mod-grid">
-        <!-- Filled dynamically by app.js -->
+        <!-- Injected dynamically by app.js with live direct download links -->
       </div>
     </div>
   </section>
 
-  <!-- Interactive Launcher Showcase -->
-  <section id="recursos" class="section" style="background: var(--bg-surface);">
+  <!-- Interactive Features Showcase -->
+  <section id="recursos" class="section reveal" style="background: var(--bg-surface);">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">Recursos Profissionais</span>
-        <h2 class="section-title">Tudo o que você sempre quis em um Launcher</h2>
+        <span class="section-tag">Arquitetura & Recursos</span>
+        <h2 class="section-title">Construído para Performance Real</h2>
         <p class="section-desc">
-          Inspirado na usabilidade moderna do Modrinth, com ferramentas de nível competitivo e estabilidade garantida.
+          Sem telas pesadas, sem propagandas e com ferramentas completas integradas.
         </p>
       </div>
 
@@ -157,7 +168,7 @@
         </button>
         <button type="button" class="showcase-tab" data-panel="panel-skins">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
-          Skins 3D & Capas HD
+          Skins 3D & NameMC
         </button>
         <button type="button" class="showcase-tab" data-panel="panel-settings">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -168,7 +179,7 @@
       <!-- Panel 1: Library -->
       <div id="panel-library" class="showcase-panel active">
         <div class="showcase-content">
-          <div class="showcase-badge">Velocidade Extrema</div>
+          <div class="showcase-badge">Início Instantâneo</div>
           <h3 class="showcase-title">Inicie qualquer instância com um único clique</h3>
           <p class="showcase-text">
             O recurso "Jump In" rastreia sua última instância jogada e tempo de jogo recente, 
@@ -176,15 +187,15 @@
           </p>
           <ul class="showcase-features">
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Isolamento 100% limpo entre mundos e versões
             </li>
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Estatísticas automáticas de horas jogadas
             </li>
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Compartilhamento por código (LUX-XXXX-YYYY)
             </li>
           </ul>
@@ -200,20 +211,20 @@
           <div class="showcase-badge">Ecossistema Completo</div>
           <h3 class="showcase-title">Modrinth & CurseForge unificados</h3>
           <p class="showcase-text">
-            Navegue por todo o catálogo de mods, resource packs e shaders do Modrinth e CurseForge 
-            em uma única interface limpa, com resolução automática de compatibilidade e dependências.
+            Navegue por todo o catálogo de mods, modpacks, resource packs e shaders do Modrinth 
+            e CurseForge em uma única interface limpa, com resolução automática de compatibilidade.
           </p>
           <ul class="showcase-features">
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              Instalação com 1 clique diretamente pelo site ou app
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Filtro rápido por fonte: Todos, Modrinth e CurseForge
             </li>
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              Atualizador de mods com detecção de incompatibilidades
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Atualizador de mods com resolução de dependências
             </li>
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Suporte a Fabric, NeoForge, Forge e Quilt
             </li>
           </ul>
@@ -235,15 +246,15 @@
           </p>
           <ul class="showcase-features">
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              Modo Classic (Steve) e Slim (Alex)
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Modo Classic (Steve 4px) e Slim (Alex 3px)
             </li>
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              Capas comemorativas em alta definição
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Integração direta com o catálogo do NameMC
             </li>
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Aplicação direta para contas Microsoft e Offline
             </li>
           </ul>
@@ -259,39 +270,39 @@
           <div class="showcase-badge">Controle Total</div>
           <h3 class="showcase-title">Configurações Pro no estilo GDLauncher</h3>
           <p class="showcase-text">
-            Presets de RAM de 1 clique (2G a 16G), flags JVM testadas para servidores pesados 
+            Presets rápidos de RAM (2G, 4G, 6G, 8G, 10G, 12G, 16G e Auto), flags JVM testadas para modpacks 
             (Aikar, ZGC, Shenandoah) e alternador de compatibilidade XWayland para eliminar erros GLFW no Linux.
           </p>
           <ul class="showcase-features">
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              Presets de RAM rápidos: 2G, 4G, 6G, 8G, 12G, 16G e Auto
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Atalhos rápidos de memória RAM de 1 clique
             </li>
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              Aceleração Vulkan via camada Zink
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Aceleração Vulkan via Zink e compatibilidade XWayland
             </li>
             <li class="showcase-feature-item">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
-              Integração nativa com GameMode e MangoHud
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Integração com GameMode e MangoHud
             </li>
           </ul>
         </div>
         <div class="showcase-image-wrap">
-          <img src="assets/home.png" alt="Configurações Pro no Luxmc">
+          <img src="assets/screenshot.png" alt="Configurações Pro no Luxmc">
         </div>
       </div>
     </div>
   </section>
 
   <!-- Downloads Hub Section -->
-  <section id="download" class="section">
+  <section id="download" class="section reveal">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">Instalação</span>
-        <h2 class="section-title">Baixe o Luxmc Launcher</h2>
+        <span class="section-tag">Downloads Oficiais</span>
+        <h2 class="section-title">Instale o Luxmc Launcher</h2>
         <p class="section-desc">
-          Escolha o instalador para o seu sistema operacional. Atualizações automáticas incluídas.
+          Atualizações sincronizadas diretamente com os lançamentos oficiais do GitHub.
         </p>
       </div>
 
@@ -301,10 +312,10 @@
           <div>
             <div class="download-icon">🐧</div>
             <h3 class="download-platform">Linux AppImage</h3>
-            <p class="download-desc">Universal e portátil. Roda em Ubuntu, Arch Linux, Fedora, Pop!_OS, Debian e qualquer distro moderna.</p>
+            <p class="download-desc">Universal e portátil. Compatível com Ubuntu, Arch Linux, Fedora, Pop!_OS, Debian e qualquer distro moderna.</p>
             <div class="download-meta">
               <span id="appImageSize">208 MB · Portátil</span>
-              <span class="live-version-tag" style="color: var(--brand-light)">v1.7.3 Estável</span>
+              <span class="live-version-tag" style="color: #ffffff; font-weight: 750;">v1.7.3</span>
             </div>
           </div>
           <div>
@@ -326,14 +337,14 @@
           <div>
             <div class="download-icon">🪟</div>
             <h3 class="download-platform">Windows 10 / 11</h3>
-            <p class="download-desc">Instalador nativo com suporte a modpacks NeoForge, drivers OpenGL e aceleração por hardware.</p>
+            <p class="download-desc">Instalador nativo com suporte a modpacks NeoForge, drivers OpenGL e aceleração gráfica por hardware.</p>
             <div class="download-meta">
               <span>195 MB · Executável</span>
-              <span style="color: var(--accent-cyan)">64-bit</span>
+              <span>64-bit</span>
             </div>
           </div>
           <div>
-            <a href="https://github.com/predabr/luxmc/releases/latest" class="btn-secondary" style="width: 100%;">
+            <a id="downloadExeLink" href="https://github.com/predabr/luxmc/releases/latest" class="btn-secondary" style="width: 100%;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.751"/></svg>
               Baixar Instalador Windows (.exe)
             </a>
@@ -345,10 +356,10 @@
           <div>
             <div class="download-icon">🏹</div>
             <h3 class="download-platform">Arch Linux & AUR</h3>
-            <p class="download-desc">Instale e gerencie atualizações do Luxmc diretamente pelo seu gerenciador de pacotes favorito.</p>
+            <p class="download-desc">Instale e gerencie atualizações do Luxmc diretamente pelo AUR no terminal.</p>
             <div class="download-meta">
               <span>AUR Repository</span>
-              <span style="color: var(--accent-gold)">luxmc-bin</span>
+              <span style="color: #ffffff;">luxmc-bin</span>
             </div>
           </div>
           <div>
@@ -371,28 +382,16 @@
             <p class="download-desc">Pacote nativo para distribuições baseadas em Debian, Linux Mint e Pop!_OS.</p>
             <div class="download-meta">
               <span>180 MB · Pacote .deb</span>
-              <span style="color: var(--text-secondary)">Debian x86_64</span>
+              <span>x86_64</span>
             </div>
           </div>
           <div>
-            <a href="https://github.com/predabr/luxmc/releases/latest" class="btn-secondary" style="width: 100%;">
+            <a id="downloadDebLink" href="https://github.com/predabr/luxmc/releases/latest" class="btn-secondary" style="width: 100%;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Baixar Pacote .deb
             </a>
           </div>
         </div>
-      </div>
-
-      <!-- Deep Link Integration Banner -->
-      <div class="deep-link-banner">
-        <div class="deep-link-info">
-          <h3>Já possui o Luxmc Launcher instalado?</h3>
-          <p>Você pode iniciar o launcher ou testar conexões e instalar mods com 1 clique diretamente pelo navegador.</p>
-        </div>
-        <button type="button" class="btn-primary" onclick="openLauncher('luxmc://open')" style="shrink-0; padding: 12px 24px;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          Abrir Luxmc Launcher
-        </button>
       </div>
     </div>
   </section>
@@ -413,8 +412,8 @@
           <h5>Navegação</h5>
           <ul class="footer-links">
             <li><a href="#inicio" class="footer-link">Início</a></li>
-            <li><a href="#modrinth-explorer" class="footer-link">Mods do Modrinth</a></li>
-            <li><a href="skins.html" class="footer-link">Studio 3D de Skins</a></li>
+            <li><a href="#mods" class="footer-link">Mods & Modpacks</a></li>
+            <li><a href="skins.html" class="footer-link">Skins & NameMC</a></li>
             <li><a href="#download" class="footer-link">Downloads</a></li>
           </ul>
         </div>
@@ -422,26 +421,26 @@
         <div class="footer-col">
           <h5>Comunidade</h5>
           <ul class="footer-links">
-            <li><a href="https://github.com/predabr/luxmc" target="_blank" class="footer-link">GitHub Oficial</a></li>
-            <li><a href="https://github.com/predabr/luxmc/releases" target="_blank" class="footer-link">Notas de Versão</a></li>
-            <li><a href="https://github.com/predabr/luxmc/issues" target="_blank" class="footer-link">Relatar Bug / Issue</a></li>
-            <li><a href="https://modrinth.com" target="_blank" class="footer-link">Modrinth API</a></li>
+            <li><a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub Oficial</a></li>
+            <li><a href="https://github.com/predabr/luxmc/releases" target="_blank" rel="noopener noreferrer" class="footer-link">Notas de Versão</a></li>
+            <li><a href="https://github.com/predabr/luxmc/issues" target="_blank" rel="noopener noreferrer" class="footer-link">Relatar Issue</a></li>
+            <li><a href="https://modrinth.com" target="_blank" rel="noopener noreferrer" class="footer-link">Modrinth</a></li>
           </ul>
         </div>
 
         <div class="footer-col">
-          <h5>Protocolo</h5>
+          <h5>Ecossistema</h5>
           <ul class="footer-links">
-            <li><a href="javascript:void(0)" onclick="openLauncher('luxmc://open')" class="footer-link">luxmc://open</a></li>
-            <li><a href="javascript:void(0)" onclick="openLauncher('luxmc://join/127.0.0.1:25565')" class="footer-link">luxmc://join</a></li>
-            <li><a href="javascript:void(0)" onclick="openLauncher('luxmc://install?mod=sodium')" class="footer-link">luxmc://install</a></li>
+            <li><a href="skins.html" class="footer-link">Estúdio 3D WebGL</a></li>
+            <li><a href="https://namemc.com" target="_blank" rel="noopener noreferrer" class="footer-link">NameMC</a></li>
+            <li><a href="#download" class="footer-link">Download AppImage</a></li>
           </ul>
         </div>
       </div>
 
       <div class="footer-bottom">
         <p>© 2026 Luxmc Launcher. Desenvolvido por predabr. Não afiliado à Mojang Studios ou Microsoft.</p>
-        <p>Inspirado no visual e na filosofia do Modrinth.</p>
+        <p>Design Minimalista em Preto e Branco.</p>
       </div>
     </div>
   </footer>

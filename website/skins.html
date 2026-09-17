@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Luxmc Skin Studio 3D — Personalizador de Skins & Capas</title>
-  <meta name="description" content="Personalize sua skin em 3D em tempo real. Compatível com modelos Steve (4px) e Alex (3px), capas comemorativas e integração direta com o Luxmc Launcher.">
+  <title>Luxmc Skin Studio 3D — Integração NameMC & Visualizador 3D</title>
+  <meta name="description" content="Personalize sua skin em 3D em tempo real. Integração com NameMC, suporte a modelos Steve (4px) e Alex (3px), capas comemorativas e sincronização com o Luxmc Launcher.">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/png" href="assets/favicon.png">
-  <meta name="theme-color" content="#1bd96a">
+  <meta name="theme-color" content="#060709">
   <!-- SkinView3D WebGL Library from jsdelivr CDN -->
   <script src="https://cdn.jsdelivr.net/npm/skinview3d@3.0.1/bundles/skinview3d.bundle.js"></script>
 </head>
@@ -19,25 +19,22 @@
       <a href="index.html" class="nav-brand">
         <img src="assets/logo.png" alt="Luxmc" class="nav-logo">
         <span>Luxmc</span>
-        <span class="nav-version-badge live-version-tag">v1.7.3</span>
       </a>
 
       <ul class="nav-links">
         <li><a href="index.html#inicio" class="nav-link">Início</a></li>
-        <li><a href="index.html#modrinth-explorer" class="nav-link">Mods & Modpacks</a></li>
+        <li><a href="index.html#mods" class="nav-link">Mods & Modpacks</a></li>
         <li><a href="index.html#recursos" class="nav-link">Recursos</a></li>
-        <li><a href="skins.html" class="nav-link active">Studio 3D</a></li>
+        <li><a href="skins.html" class="nav-link active">Skins & NameMC</a></li>
         <li><a href="index.html#download" class="nav-link">Downloads</a></li>
       </ul>
 
       <div class="nav-actions">
-        <button type="button" class="btn-launcher" onclick="openLauncher('luxmc://open')">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          Abrir Launcher
-        </button>
+        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 8px 16px;">
+          GitHub
+        </a>
         <a href="index.html#download" class="btn-primary">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Baixar Grátis
+          Baixar Launcher
         </a>
       </div>
     </div>
@@ -46,26 +43,28 @@
   <!-- Studio Header -->
   <main class="container" style="padding-top: 130px; padding-bottom: 90px;">
     <div class="section-header">
-      <span class="section-tag">WebGL 3D Engine</span>
-      <h1 class="section-title">Luxmc Skin & Cape Studio</h1>
+      <span class="section-tag">WebGL 3D Studio & NameMC</span>
+      <h1 class="section-title">Visualizador 3D & Catálogo de Skins</h1>
       <p class="section-desc">
-        Gire, configure animações, teste capas e vincule sua skin personalizada diretamente 
-        ao seu Gamertag para jogar online ou offline no Luxmc Launcher.
+        Explore skins da comunidade NameMC, teste animações em 3D em tempo real e 
+        vincule sua skin ao seu jogador no Luxmc Launcher.
       </p>
     </div>
 
     <!-- 3D Studio Workspace -->
     <div class="skin-studio-grid">
       
-      <!-- Left: 3D WebGL Viewport -->
+      <!-- Left: 3D WebGL Viewport (Zero Overlap) -->
       <div class="skin-viewport-card">
-        <div style="position: absolute; top: 16px; left: 16px; font-size: 0.75rem; font-weight: 750; color: var(--brand-light); background: rgba(27, 217, 106, 0.12); border: 1px solid rgba(27, 217, 106, 0.25); padding: 4px 12px; border-radius: 9999px; display: flex; align-items: center; gap: 6px;">
-          <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--brand);"></span>
-          Renderizador 3D Interativo
+        <div class="skin-viewport-header">
+          <div class="status-badge">Renderizador 3D Interativo</div>
+          <div id="currentModelBadge" style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); background: var(--bg-card); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);">
+            Steve (4px)
+          </div>
         </div>
 
         <div id="skinCanvasContainer" class="skin-canvas-container">
-          <canvas id="skinCanvas" width="360" height="420"></canvas>
+          <canvas id="skinCanvas" width="380" height="420"></canvas>
         </div>
 
         <div class="skin-viewport-controls">
@@ -87,20 +86,40 @@
         </div>
       </div>
 
-      <!-- Right: Skin & Cape Controls -->
+      <!-- Right: Skin, NameMC & Cape Controls -->
       <div class="skin-config-card">
-        <h3 style="font-size: 1.35rem; font-weight: 800; color: #fff; margin-bottom: 20px;">
+        <h3 style="font-size: 1.35rem; font-weight: 850; color: #fff; margin-bottom: 20px;">
           Configurações da Skin
         </h3>
 
-        <!-- Search by Minecraft Nick -->
+        <!-- Search by Minecraft / NameMC Nick -->
         <div class="form-group">
-          <label class="form-label" for="playerNickInput">Carregar Skin por Nickname de Jogador</label>
+          <label class="form-label" for="playerNickInput">Buscar Skin por Nickname (Mojang & NameMC)</label>
           <div style="display: flex; gap: 10px;">
-            <input type="text" id="playerNickInput" class="form-input" placeholder="Ex: Steve, Alex, Dream, Notch..." value="Steve">
-            <button type="button" class="btn-primary" onclick="loadSkinByNick()" style="shrink-0; padding: 10px 18px;">
-              Buscar
+            <input type="text" id="playerNickInput" class="form-input" placeholder="Ex: Technoblade, Dream, Mumbo, Steve..." value="Steve">
+            <button type="button" class="btn-primary" onclick="loadSkinByNick()" style="shrink-0; padding: 10px 20px;">
+              Carregar
             </button>
+          </div>
+          <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
+            <a id="nameMcProfileLink" href="https://namemc.com/profile/Steve" target="_blank" rel="noopener noreferrer" style="font-size: 0.78rem; color: var(--text-secondary); text-decoration: underline; display: flex; align-items: center; gap: 4px;">
+              <span>Ver perfil no NameMC</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
+          </div>
+        </div>
+
+        <!-- NameMC Trending Quick Skins -->
+        <div class="form-group">
+          <label class="form-label">Skins Populares do NameMC (1 Clique)</label>
+          <div class="namemc-quick-skins">
+            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Technoblade', 'classic')">🗡️ Technoblade</button>
+            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Dream', 'classic')">👑 Dream</button>
+            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Mumbo', 'classic')">⚙️ Mumbo Jumbo</button>
+            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('DanTDM', 'classic')">💎 DanTDM</button>
+            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Grian', 'classic')">🏰 Grian</button>
+            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Alex', 'slim')">🌿 Alex (Slim)</button>
+            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Steve', 'classic')">⛏️ Steve Padrão</button>
           </div>
         </div>
 
@@ -112,7 +131,7 @@
               <input type="radio" name="skinModel" value="classic" checked onchange="changeModel('classic')" style="display: none;">
               <div>
                 <div style="font-weight: 750; color: #fff;">Classic (Steve)</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Braços com 4 pixels</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Braços normais com 4 pixels</div>
               </div>
             </label>
 
@@ -128,14 +147,14 @@
 
         <!-- File Upload -->
         <div class="form-group">
-          <label class="form-label">Carregar Arquivo PNG do Computador</label>
+          <label class="form-label">Enviar Arquivo de Skin PNG (.png)</label>
           <div class="upload-dropzone" onclick="document.getElementById('skinFileInput').click()">
-            <div style="font-size: 1.8rem; margin-bottom: 6px;">🖼️</div>
-            <div style="font-size: 0.88rem; font-weight: 600; color: #fff; margin-bottom: 4px;">
-              Clique ou arraste uma skin PNG aqui
+            <div style="font-size: 1.6rem; margin-bottom: 6px;">📁</div>
+            <div style="font-size: 0.88rem; font-weight: 600; color: #fff; margin-bottom: 2px;">
+              Clique ou arraste seu arquivo .png
             </div>
-            <div style="font-size: 0.78rem; color: var(--text-muted);">
-              Formatos suportados: 64x64 ou 64x32 pixels
+            <div style="font-size: 0.76rem; color: var(--text-muted);">
+              Compatível com skins 64x64 e 64x32 clássicas
             </div>
             <input type="file" id="skinFileInput" accept="image/png" style="display: none;" onchange="handleSkinFileUpload(event)">
           </div>
@@ -145,8 +164,8 @@
         <div class="form-group">
           <label class="form-label" for="capeSelection">Escolha de Capa HD</label>
           <select id="capeSelection" class="form-input" onchange="changeCape(this.value)">
-            <option value="none">Sem Capa</option>
-            <option value="gold" selected>Capa Dourada Luxmc Oficial</option>
+            <option value="none">Nenhuma Capa</option>
+            <option value="stealth" selected>Capa Stealth Luxmc (Monochrome)</option>
             <option value="migrator">Capa Oficial Migrator (Mojang)</option>
             <option value="minecon2011">Minecon 2011 Clássica</option>
             <option value="optifine">Capa Optifine HD</option>
@@ -155,14 +174,21 @@
 
         <!-- Action Buttons -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px;">
-          <button type="button" class="btn-primary" onclick="linkSkinToLauncher()" style="padding: 12px 18px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            Vincular ao Launcher
-          </button>
-          <button type="button" class="btn-secondary" onclick="downloadCurrentSkin()" style="padding: 12px 18px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <button type="button" class="btn-primary" onclick="downloadCurrentSkin()" style="padding: 12px 18px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Baixar Skin (.png)
           </button>
+          <button type="button" class="btn-secondary" onclick="saveToLauncher()" style="padding: 12px 18px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            Salvar no Perfil
+          </button>
+        </div>
+
+        <!-- Integration Help Card -->
+        <div style="margin-top: 24px; padding: 18px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
+          <strong style="color: #fff; display: block; margin-bottom: 6px;">Como jogar com essa skin no Luxmc Launcher:</strong>
+          1. Se você joga no <strong>Modo Offline</strong>, basta colocar exatamente o mesmo nickname no launcher. A skin carrega direto pelo nosso backend.<br>
+          2. Se você tem <strong>Conta Microsoft</strong>, baixe o arquivo .png pelo botão acima e adicione no portal minecraft.net ou selecione na aba de Skins do Luxmc.
         </div>
       </div>
 
@@ -173,7 +199,7 @@
   <footer class="footer">
     <div class="container">
       <div class="footer-bottom" style="border: none; padding-top: 0;">
-        <p>© 2026 Luxmc Launcher · Desenvolvido por predabr · Estúdio de Skins 3D com skinview3d WebGL.</p>
+        <p>© 2026 Luxmc Launcher · Desenvolvido por predabr · Renderizador WebGL 3D integrado com NameMC.</p>
         <a href="index.html" class="footer-link">← Voltar para a Página Inicial</a>
       </div>
     </div>
@@ -183,12 +209,12 @@
   <script>
     let skinViewer = null;
     let currentSkinUrl = "https://mineskin.eu/skin/Steve";
-    let currentCapeKey = "gold";
+    let currentCapeKey = "stealth";
     let activeAnimation = "idle";
 
     const CAPES_MAP = {
       none: null,
-      gold: "https://textures.minecraft.net/texture/2340c0e03dd66cd11e113f5b7244580b348dd8905948b4915634f03693ec67",
+      stealth: "https://textures.minecraft.net/texture/2340c0e03dd66cd11e113f5b7244580b348dd8905948b4915634f03693ec67",
       migrator: "https://textures.minecraft.net/texture/2340c0e03dd66cd11e113f5b7244580b348dd8905948b4915634f03693ec67",
       minecon2011: "https://textures.minecraft.net/texture/95fdStarts9e4ff57d425bc54",
       optifine: "https://optifine.net/capes/Steve.png"
@@ -201,13 +227,12 @@
     function init3DSkinViewer() {
       const canvas = document.getElementById("skinCanvas");
       if (!canvas || typeof skinview3d === "undefined") {
-        console.warn("skinview3d is not available, falling back to basic preview.");
         return;
       }
 
       skinViewer = new skinview3d.SkinViewer({
         canvas: canvas,
-        width: 360,
+        width: 380,
         height: 420,
         skin: "https://mineskin.eu/skin/Steve",
         model: "default"
@@ -222,7 +247,6 @@
       control.enableZoom = true;
       control.enablePan = false;
 
-      // Start with idle walking animation
       skinViewer.animation = new skinview3d.IdleAnimation();
       skinViewer.animation.speed = 0.8;
       highlightAnimBtn("btnAnimIdle");
@@ -255,9 +279,9 @@
         const el = document.getElementById(id);
         if (el) {
           if (id === btnId) {
-            el.style.borderColor = "var(--brand)";
-            el.style.background = "rgba(27, 217, 106, 0.12)";
-            el.style.color = "var(--brand-light)";
+            el.style.borderColor = "#ffffff";
+            el.style.background = "#ffffff";
+            el.style.color = "#000000";
           } else {
             el.style.borderColor = "";
             el.style.background = "";
@@ -279,13 +303,28 @@
       if (skinViewer) {
         skinViewer.loadSkin(currentSkinUrl);
       }
-      showToast(`Skin do jogador "${nick}" carregada com sucesso!`);
+      const link = document.getElementById("nameMcProfileLink");
+      if (link) {
+        link.href = `https://namemc.com/profile/${encodeURIComponent(nick)}`;
+      }
+      showToast(`Skin do jogador "${nick}" carregada em 3D!`);
+    }
+
+    function quickLoadSkin(nick, model) {
+      const input = document.getElementById("playerNickInput");
+      if (input) input.value = nick;
+      changeModel(model);
+      loadSkinByNick();
     }
 
     function changeModel(model) {
       const isSlim = model === "slim";
       document.getElementById("labelModelClassic").classList.toggle("selected", !isSlim);
       document.getElementById("labelModelSlim").classList.toggle("selected", isSlim);
+      const badge = document.getElementById("currentModelBadge");
+      if (badge) {
+        badge.innerText = isSlim ? "Alex (3px)" : "Steve (4px)";
+      }
       if (skinViewer) {
         skinViewer.loadSkin(currentSkinUrl, { model: isSlim ? "slim" : "default" });
       }
@@ -315,13 +354,13 @@
         skinViewer.loadCape(null);
         showToast("Capa removida.");
       } else {
-        const capeUrl = CAPES_MAP[capeKey] || CAPES_MAP.gold;
+        const capeUrl = CAPES_MAP[capeKey] || CAPES_MAP.stealth;
         skinViewer.loadCape(capeUrl);
         showToast("Capa aplicada no visualizador 3D!");
       }
     }
 
-    function linkSkinToLauncher() {
+    function saveToLauncher() {
       const nick = document.getElementById("playerNickInput")?.value.trim() || "Steve";
       const model = document.querySelector('input[name="skinModel"]:checked')?.value || "classic";
       
@@ -333,21 +372,18 @@
         updatedAt: new Date().toISOString()
       };
       localStorage.setItem("luxmc_active_skin", JSON.stringify(payload));
-      
-      const deepLink = `luxmc://skin?name=${encodeURIComponent(nick)}&model=${encodeURIComponent(model)}`;
-      openLauncher(deepLink);
-      showToast(`Skin vinculada ao jogador "${nick}"! Abrindo Luxmc Launcher...`);
+      showToast(`Skin salva para o jogador "${nick}"! Basta entrar com este nickname no Luxmc.`);
     }
 
     function downloadCurrentSkin() {
       const link = document.createElement("a");
-      link.download = `skin_${Date.now()}.png`;
+      link.download = `luxmc_skin_${Date.now()}.png`;
       link.href = currentSkinUrl;
       link.target = "_blank";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      showToast("Download da skin iniciado!");
+      showToast("Download da skin (.png) iniciado!");
     }
   </script>
 </body>
