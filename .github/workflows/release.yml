@@ -38,7 +38,7 @@ jobs:
           version: 10
 
       - name: Install Dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Install System Dependencies (Validation)
         run: |
@@ -135,7 +135,7 @@ jobs:
           version: 10
 
       - name: Install pnpm Dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
