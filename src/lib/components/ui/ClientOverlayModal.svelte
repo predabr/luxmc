@@ -308,7 +308,7 @@
 					</div>
 
 					<div class="flex items-center gap-4">
-						<span>PvP & FPS Suite v1.7.2</span>
+						<span>PvP & FPS Suite v1.7.3</span>
 					</div>
 				</div>
 			</div>

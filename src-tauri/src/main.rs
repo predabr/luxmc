@@ -107,35 +107,35 @@ fn main() {
         // If the process working directory is not $APPDIR/usr, WebKitNetworkProcess and WebKitWebProcess fail to spawn:
         // "Unable to spawn a new child process: Falha ao criar processo filho ... (Arquivo ou diretório inexistente)".
         // Setting current_dir to usr guarantees WebKit finds its subprocesses inside the AppImage.
-        if let Ok(appdir) = std::env::var("APPDIR") {
-            let usr_dir = std::path::Path::new(&appdir).join("usr");
-            if usr_dir.is_dir() {
-                let _ = std::env::set_current_dir(&usr_dir);
-                let injected = usr_dir.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
-                if injected.is_dir() {
-                    std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
+        if std::env::var("LUXMC_CLEAN_HOST_TRIED").is_err() {
+            if let Ok(appdir) = std::env::var("APPDIR") {
+                let usr_dir = std::path::Path::new(&appdir).join("usr");
+                if usr_dir.is_dir() {
+                    let _ = std::env::set_current_dir(&usr_dir);
+                    let injected = usr_dir.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
+                    if injected.is_dir() {
+                        std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
+                    }
                 }
-            }
-        } else if let Ok(exe) = std::env::current_exe() {
-            if let Some(bin) = exe.parent() {
-                if let Some(usr) = bin.parent() {
-                    let network_proc = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess");
-                    if network_proc.is_file() {
-                        let _ = std::env::set_current_dir(usr);
-                        let injected = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
-                        if injected.is_dir() {
-                            std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
+            } else if let Ok(exe) = std::env::current_exe() {
+                if let Some(bin) = exe.parent() {
+                    if let Some(usr) = bin.parent() {
+                        let network_proc = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess");
+                        if network_proc.is_file() {
+                            let _ = std::env::set_current_dir(usr);
+                            let injected = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
+                            if injected.is_dir() {
+                                std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
+                            }
                         }
                     }
                 }
             }
         }
 
-        // WebKitGTK Linux GPU acceleration & stability:
-        // Do NOT disable WEBKIT_DISABLE_DMABUF_RENDERER unconditionally.
-        // Disabling DMA-BUF forces WebKitGTK into CPU software rasterization (10-20 FPS lag).
-        // Native GPU DMA-BUF achieves 60-144 FPS smooth rendering on AMD, Intel, and modern Mesa.
-        if std::env::var("LUXMC_SOFTWARE_RENDER").as_deref() == Ok("1") {
+        if std::env::var("LUXMC_SOFTWARE_RENDER").as_deref() == Ok("1")
+            || std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").as_deref() == Ok("1")
+        {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
         if std::env::var("WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS").is_err() {
@@ -145,9 +145,21 @@ fn main() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
         }
 
-        std::env::remove_var("GST_PLUGIN_SYSTEM_PATH_1_0");
-        std::env::remove_var("GST_PLUGIN_PATH_1_0");
-        std::env::remove_var("GST_PLUGIN_SCANNER_1_0");
+        if let Ok(appdir) = std::env::var("APPDIR") {
+            let gst_dir = std::path::Path::new(&appdir).join("usr/lib/x86_64-linux-gnu/gstreamer-1.0");
+            let gst_dir_alt = std::path::Path::new(&appdir).join("usr/lib/gstreamer-1.0");
+            if gst_dir.is_dir() {
+                std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir);
+                std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir);
+            } else if gst_dir_alt.is_dir() {
+                std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir_alt);
+                std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir_alt);
+            } else {
+                std::env::remove_var("GST_PLUGIN_SYSTEM_PATH_1_0");
+                std::env::remove_var("GST_PLUGIN_PATH_1_0");
+                std::env::remove_var("GST_PLUGIN_SCANNER_1_0");
+            }
+        }
 
         // Memory management: prevent glibc multi-arena memory fragmentation
         if std::env::var("MALLOC_ARENA_MAX").is_err() {
