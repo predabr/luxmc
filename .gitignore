@@ -9,6 +9,8 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 /src-tauri/target
+dist-electron
+release-electron
 *.log
 /logs
 /config

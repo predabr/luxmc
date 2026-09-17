@@ -4,6 +4,7 @@
   "description": "Linux-first Minecraft launcher.",
   "type": "module",
   "private": true,
+  "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -12,9 +13,43 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "tauri": "tauri",
+    "electron:compile": "node electron/build.js",
+    "electron:dev": "node electron/build.js && electron dist-electron/main.cjs",
+    "electron:build": "node scripts/build-electron-appimage.js",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"
+  },
+  "build": {
+    "appId": "io.github.luxmc.Luxmc",
+    "productName": "Luxmc",
+    "directories": {
+      "output": "release-electron"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "build/**/*",
+      "static/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "src-tauri/target/release/luxmc",
+        "to": "bin/luxmc"
+      }
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Game",
+      "icon": "src-tauri/icons/icon.png"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "src-tauri/icons/icon.ico"
+    }
   },
   "license": "SEE LICENSE IN LICENSE",
   "dependencies": {
@@ -92,6 +127,10 @@
     "@types/stats.js": "^0.17.3",
     "@types/three": "^0.185.4",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.1.0",
+    "electron": "^44.4.1",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
     "i18next": "^26.4.2",
     "jsdom": "^30.0.1",
     "postcss": "^8.4.49",

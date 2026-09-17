@@ -1,5 +1,6 @@
 mod commands;
 pub mod core;
+pub mod daemon;
 pub mod db;
 pub mod error;
 mod state;
