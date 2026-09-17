@@ -155,8 +155,7 @@ pub fn p2p_get_local_info() -> AppResult<P2PConnectionInfo> {
 static LISTENER_INITIALIZED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);
 
-#[tauri::command]
-pub async fn p2p_start_listener(app: tauri::AppHandle) -> AppResult<bool> {
+pub async fn p2p_start_listener_core(app: Option<tauri::AppHandle>) -> AppResult<bool> {
     if LISTENER_INITIALIZED.swap(true, std::sync::atomic::Ordering::SeqCst) {
         return Ok(true);
     }
@@ -192,7 +191,9 @@ pub async fn p2p_start_listener(app: tauri::AppHandle) -> AppResult<bool> {
                                 tracing::warn!("P2P payload fields too large");
                                 return;
                             }
-                            let _ = app_clone.emit("p2p-chat-message", payload);
+                            if let Some(ref a) = app_clone {
+                                let _ = a.emit("p2p-chat-message", payload);
+                            }
                         }
                     }
                     _ => {}
@@ -202,6 +203,11 @@ pub async fn p2p_start_listener(app: tauri::AppHandle) -> AppResult<bool> {
     });
 
     Ok(true)
+}
+
+#[tauri::command]
+pub async fn p2p_start_listener(app: tauri::AppHandle) -> AppResult<bool> {
+    p2p_start_listener_core(Some(app)).await
 }
 
 #[tauri::command]

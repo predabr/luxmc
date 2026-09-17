@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
-use tauri::State;
-
 use crate::db;
 use crate::error::AppResult;
-use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,7 +29,6 @@ pub struct LaunchLogLineDto {
 
 #[tauri::command]
 pub async fn launch_logs_list(
-    _state: State<'_, AppState>,
     limit: Option<i64>,
 ) -> AppResult<Vec<LaunchLogSummary>> {
     let conn = db::shared_db().await?;
@@ -58,7 +54,6 @@ pub async fn launch_logs_list(
 
 #[tauri::command]
 pub async fn launch_logs_get(
-    _state: State<'_, AppState>,
     id: i64,
 ) -> AppResult<Vec<LaunchLogLineDto>> {
     let conn = db::shared_db().await?;
@@ -78,7 +73,6 @@ pub async fn launch_logs_get(
 
 #[tauri::command]
 pub async fn launch_logs_search(
-    _state: State<'_, AppState>,
     query: String,
     min_level: String,
     limit: Option<i64>,
@@ -100,7 +94,7 @@ pub async fn launch_logs_search(
 }
 
 #[tauri::command]
-pub async fn launch_logs_clear(_state: State<'_, AppState>) -> AppResult<()> {
+pub async fn launch_logs_clear() -> AppResult<()> {
     let conn = db::shared_db().await?;
     sqlx::query("DELETE FROM launch_log_lines")
         .execute(conn.pool())

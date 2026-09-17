@@ -1,11 +1,9 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use tauri::State;
 use uuid::Uuid;
 
 use crate::db::models::ProfileRow;
 use crate::error::AppResult;
-use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -63,13 +61,13 @@ pub struct ProfileUpdate {
 }
 
 #[tauri::command]
-pub async fn profiles_list(_state: State<'_, AppState>) -> AppResult<Vec<ProfileRow>> {
+pub async fn profiles_list() -> AppResult<Vec<ProfileRow>> {
     let db = crate::db::shared_db().await?;
     crate::db::schema::profiles::list(&db).await
 }
 
 #[tauri::command]
-pub async fn profiles_get(_state: State<'_, AppState>, id: String) -> AppResult<ProfileRow> {
+pub async fn profiles_get(id: String) -> AppResult<ProfileRow> {
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&id)
@@ -81,7 +79,6 @@ pub async fn profiles_get(_state: State<'_, AppState>, id: String) -> AppResult<
 
 #[tauri::command]
 pub async fn profiles_create(
-    _state: State<'_, AppState>,
     input: ProfileCreate,
 ) -> AppResult<ProfileRow> {
     let db = crate::db::shared_db().await?;
@@ -128,7 +125,6 @@ pub async fn profiles_create(
 
 #[tauri::command]
 pub async fn profiles_update(
-    _state: State<'_, AppState>,
     input: ProfileUpdate,
 ) -> AppResult<ProfileRow> {
     let db = crate::db::shared_db().await?;
@@ -175,7 +171,7 @@ pub async fn profiles_update(
 }
 
 #[tauri::command]
-pub async fn profiles_delete(_state: State<'_, AppState>, id: String) -> AppResult<()> {
+pub async fn profiles_delete(id: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     if let Ok(Some(row)) = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&id)

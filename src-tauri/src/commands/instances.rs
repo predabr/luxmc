@@ -52,13 +52,13 @@ pub struct ScreenshotEntry {
 }
 
 #[tauri::command]
-pub async fn instances_list(_state: State<'_, AppState>) -> AppResult<Vec<ProfileRow>> {
+pub async fn instances_list() -> AppResult<Vec<ProfileRow>> {
     let db = crate::db::shared_db().await?;
     crate::db::schema::profiles::list(&db).await
 }
 
 #[tauri::command]
-pub async fn instances_duplicate(_state: State<'_, AppState>, id: String) -> AppResult<ProfileRow> {
+pub async fn instances_duplicate(id: String) -> AppResult<ProfileRow> {
     let db = crate::db::shared_db().await?;
     let existing = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&id)
@@ -213,7 +213,7 @@ pub fn open_url_safe(url: &str) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub async fn instances_open_folder(_state: State<'_, AppState>, id: String) -> AppResult<()> {
+pub async fn instances_open_folder(id: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&id)
@@ -228,7 +228,6 @@ pub async fn instances_open_folder(_state: State<'_, AppState>, id: String) -> A
 
 #[tauri::command]
 pub async fn instances_screenshots(
-    _state: State<'_, AppState>,
     id: String,
 ) -> AppResult<Vec<ScreenshotEntry>> {
     let db = crate::db::shared_db().await?;
@@ -355,7 +354,7 @@ pub async fn screenshot_delete(path: String) -> AppResult<()> {
 
 /// Open the screenshots folder in the system file manager.
 #[tauri::command]
-pub async fn screenshots_open_folder(_app: tauri::AppHandle, profile_id: String) -> AppResult<()> {
+pub async fn screenshots_open_folder(profile_id: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     let row =
         sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -499,10 +498,14 @@ fn smart_pvp_ram(user_ram: Option<i64>, mc_version: &str, mod_count: usize) -> i
     }
 }
 
-#[tauri::command]
-pub async fn instance_cancel_import(state: State<'_, AppState>) -> AppResult<()> {
+pub fn instance_cancel_import_core(state: &AppState) -> AppResult<()> {
     state.import_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn instance_cancel_import(state: State<'_, AppState>) -> AppResult<()> {
+    instance_cancel_import_core(&state)
 }
 
 async fn download_from_modrinth_fallback(
@@ -904,11 +907,9 @@ pub(crate) async fn download_cf_mod_file(
     false
 }
 
-#[tauri::command]
-#[allow(non_snake_case)]
-pub async fn instance_import_modpack(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
+pub async fn instance_import_modpack_core(
+    app: Option<tauri::AppHandle>,
+    state: &AppState,
     file_path: String,
     profile_name: String,
     mc_version: String,
@@ -1116,13 +1117,15 @@ pub async fn instance_import_modpack(
 
     let total_files = manifest.files.len() as u32;
 
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "phase": "downloading",
-        "current": 0,
-        "total": total_files,
-        "percent": 0,
-        "status": format!("Preparando download concorrente de {} mods...", total_files)
-    }));
+    if let Some(ref a) = app {
+        let _ = a.emit("modpack-progress", serde_json::json!({
+            "phase": "downloading",
+            "current": 0,
+            "total": total_files,
+            "percent": 0,
+            "status": format!("Preparando download concorrente de {} mods...", total_files)
+        }));
+    }
 
     use futures_util::StreamExt;
     let completed_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
@@ -1137,7 +1140,7 @@ pub async fn instance_import_modpack(
         let mods_dir = mods_dir.clone();
         let storage_mods_dir = storage_mods_dir.clone();
         let profile_id = profile_id.clone();
-        let app = app.clone();
+        let app_for_stream = app.clone();
         let completed = completed_count.clone();
         let ok_counter = mods_ok.clone();
         let fail_counter = mods_fail.clone();
@@ -1175,13 +1178,15 @@ pub async fn instance_import_modpack(
                 crate::commands::optimizer::optimizer_trim_memory();
             }
 
-            let _ = app.emit("modpack-progress", serde_json::json!({
-                "phase": "downloading",
-                "current": current,
-                "total": total_files,
-                "percent": percent,
-                "status": format!("Baixando mods ({}/{})...", current, total_files)
-            }));
+            if let Some(ref a) = app_for_stream {
+                let _ = a.emit("modpack-progress", serde_json::json!({
+                    "phase": "downloading",
+                    "current": current,
+                    "total": total_files,
+                    "percent": percent,
+                    "status": format!("Baixando mods ({}/{})...", current, total_files)
+                }));
+            }
         }
     });
 
@@ -1195,13 +1200,15 @@ pub async fn instance_import_modpack(
         }
 
         tracing::info!(pass = retry_pass + 1, failed = current_fail, "retrying failed modpack mods in resilient pass");
-        let _ = app.emit("modpack-progress", serde_json::json!({
-            "phase": "downloading",
-            "current": total_files.saturating_sub(current_fail),
-            "total": total_files,
-            "percent": 90 + retry_pass * 3,
-            "status": format!("Repassando {} mods pendentes (tentativa {}/3)...", current_fail, retry_pass + 1)
-        }));
+        if let Some(ref a) = app {
+            let _ = a.emit("modpack-progress", serde_json::json!({
+                "phase": "downloading",
+                "current": total_files.saturating_sub(current_fail),
+                "total": total_files,
+                "percent": 90 + retry_pass * 3,
+                "status": format!("Repassando {} mods pendentes (tentativa {}/3)...", current_fail, retry_pass + 1)
+            }));
+        }
 
         let mut existing_valid = std::collections::HashSet::new();
         if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
@@ -1295,13 +1302,15 @@ pub async fn instance_import_modpack(
     let final_ok = mods_ok.load(std::sync::atomic::Ordering::SeqCst);
     let final_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
 
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "phase": "complete",
-        "current": total_files,
-        "total": total_files,
-        "percent": 100,
-        "status": format!("{} mods instalados, {} falharam", final_ok, final_fail)
-    }));
+    if let Some(ref a) = app {
+        let _ = a.emit("modpack-progress", serde_json::json!({
+            "phase": "complete",
+            "current": total_files,
+            "total": total_files,
+            "percent": 100,
+            "status": format!("{} mods instalados, {} falharam", final_ok, final_fail)
+        }));
+    }
     tracing::info!(mods_ok = final_ok, mods_fail = final_fail, total = total_files, "curseforge modpack mod download summary");
 
     let now = chrono::Utc::now();
@@ -1339,9 +1348,23 @@ pub async fn instance_import_modpack(
 
 #[tauri::command]
 #[allow(non_snake_case)]
-pub async fn instance_repair_modpack(
+pub async fn instance_import_modpack(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
+    file_path: String,
+    profile_name: String,
+    mc_version: String,
+    loader: String,
+    icon: Option<String>,
+    ram_mb: Option<i64>,
+) -> AppResult<ProfileRow> {
+    instance_import_modpack_core(Some(app), &state, file_path, profile_name, mc_version, loader, icon, ram_mb).await
+}
+
+#[allow(non_snake_case)]
+pub async fn instance_repair_modpack_core(
+    app: Option<tauri::AppHandle>,
+    state: &AppState,
     profileId: String,
 ) -> AppResult<u32> {
     let db = crate::db::shared_db().await?;
@@ -1462,7 +1485,7 @@ pub async fn instance_repair_modpack(
         let mods_dir = mods_dir.clone();
         let storage_mods_dir = storage_mods_dir.clone();
         let profile_id = profileId.clone();
-        let app = app.clone();
+        let app_for_stream = app.clone();
         let completed = completed_count.clone();
         let repaired = repaired_count.clone();
         let mc_ver = row.mc_version.clone();
@@ -1487,12 +1510,14 @@ pub async fn instance_repair_modpack(
 
             let cur = completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
             let percent = ((cur as f64 / total_missing as f64) * 100.0) as u32;
-            let _ = app.emit("modpack-repair-progress", serde_json::json!({
-                "current": cur,
-                "total": total_missing,
-                "percent": percent,
-                "status": format!("Baixando mod ausente {}/{}...", cur, total_missing)
-            }));
+            if let Some(ref a) = app_for_stream {
+                let _ = a.emit("modpack-repair-progress", serde_json::json!({
+                    "current": cur,
+                    "total": total_missing,
+                    "percent": percent,
+                    "status": format!("Baixando mod ausente {}/{}...", cur, total_missing)
+                }));
+            }
         }
     });
 
@@ -1576,8 +1601,17 @@ pub async fn instance_repair_modpack(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+pub async fn instance_repair_modpack(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    profileId: String,
+) -> AppResult<u32> {
+    instance_repair_modpack_core(Some(app), &state, profileId).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
 pub async fn instance_health_check(
-    _state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<HealthCheckResult> {
     let db = crate::db::shared_db().await?;
@@ -1664,7 +1698,6 @@ pub async fn instance_health_check(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_file_tree(
-    _state: State<'_, AppState>,
     profileId: String,
     subPath: Option<String>,
 ) -> AppResult<Vec<FileTreeEntry>> {
@@ -1750,11 +1783,9 @@ pub async fn instance_file_tree(
     Ok(entries)
 }
 
-#[tauri::command]
-#[allow(non_snake_case)]
-pub async fn instance_import_mrpack(
-    app: tauri::AppHandle,
-    state: State<'_, AppState>,
+pub async fn instance_import_mrpack_core(
+    app: Option<tauri::AppHandle>,
+    state: &AppState,
     file_path: String,
     profile_name: String,
     icon: Option<String>,
@@ -1842,12 +1873,14 @@ pub async fn instance_import_mrpack(
 	let mut installed_mods_count = 0;
 
 	let total_mrpack_files = manifest.files.len() as u32;
-	let _ = app.emit("modpack-progress", serde_json::json!({
-		"phase": "downloading",
-		"current": 0,
-		"total": total_mrpack_files,
-		"status": format!("Preparando download de {} arquivos...", total_mrpack_files)
-	}));
+	if let Some(ref a) = app {
+		let _ = a.emit("modpack-progress", serde_json::json!({
+			"phase": "downloading",
+			"current": 0,
+			"total": total_mrpack_files,
+			"status": format!("Preparando download de {} arquivos...", total_mrpack_files)
+		}));
+	}
 
 	for (idx, mrpack_file) in manifest.files.iter().enumerate() {
 		let progress_pct = if total_mrpack_files > 0 {
@@ -1855,13 +1888,15 @@ pub async fn instance_import_mrpack(
 		} else {
 			0
 		};
-		let _ = app.emit("modpack-progress", serde_json::json!({
-			"phase": "downloading",
-			"current": idx + 1,
-			"total": total_mrpack_files,
-			"percent": progress_pct,
-			"status": format!("Baixando arquivo {}/{}...", idx + 1, total_mrpack_files)
-		}));
+		if let Some(ref a) = app {
+			let _ = a.emit("modpack-progress", serde_json::json!({
+				"phase": "downloading",
+				"current": idx + 1,
+				"total": total_mrpack_files,
+				"percent": progress_pct,
+				"status": format!("Baixando arquivo {}/{}...", idx + 1, total_mrpack_files)
+			}));
+		}
 
 		if let Some(env) = &mrpack_file.env {
 			if env.client.as_deref() == Some("unsupported") {
@@ -2016,8 +2051,20 @@ pub async fn instance_import_mrpack(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+pub async fn instance_import_mrpack(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    file_path: String,
+    profile_name: String,
+    icon: Option<String>,
+    ram_mb: Option<i64>,
+) -> AppResult<ProfileRow> {
+    instance_import_mrpack_core(Some(app), &state, file_path, profile_name, icon, ram_mb).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
 pub async fn instance_export(
-    _state: State<'_, AppState>,
     profileId: String,
     destPath: String,
 ) -> AppResult<String> {
@@ -2060,7 +2107,6 @@ pub async fn instance_export(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_set_notes(
-    _state: State<'_, AppState>,
     profileId: String,
     notes: Option<String>,
 ) -> AppResult<()> {
@@ -2086,7 +2132,6 @@ pub async fn instance_set_notes(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_set_favorite(
-    _state: State<'_, AppState>,
     profileId: String,
     favorite: bool,
 ) -> AppResult<()> {
@@ -2305,7 +2350,6 @@ pub struct WorldSnapshotInfo {
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_worlds_list(
-    _state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<Vec<WorldDetail>> {
     let db = crate::db::shared_db().await?;
@@ -2455,7 +2499,6 @@ pub async fn instance_worlds_list(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_world_snapshot_create(
-    _state: State<'_, AppState>,
     profileId: String,
     folderName: String,
     label: Option<String>,
@@ -2507,7 +2550,6 @@ pub async fn instance_world_snapshot_create(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_world_snapshots_list(
-    _state: State<'_, AppState>,
     profileId: String,
     folderName: String,
 ) -> AppResult<Vec<WorldSnapshotInfo>> {
@@ -2560,7 +2602,6 @@ pub async fn instance_world_snapshots_list(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_world_snapshot_restore(
-    _state: State<'_, AppState>,
     profileId: String,
     folderName: String,
     filename: String,
@@ -2597,7 +2638,6 @@ pub async fn instance_world_snapshot_restore(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_world_snapshot_delete(
-    _state: State<'_, AppState>,
     profileId: String,
     folderName: String,
     filename: String,
@@ -2622,7 +2662,6 @@ pub async fn instance_world_snapshot_delete(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_world_inspect_region(
-    _state: State<'_, AppState>,
     profileId: String,
     folderName: String,
     regionFile: Option<String>,
@@ -2663,7 +2702,6 @@ pub async fn upnp_close_port(port: u16) -> bool {
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_world_delete(
-    _state: State<'_, AppState>,
     profileId: String,
     folderName: String,
 ) -> AppResult<()> {
@@ -2707,7 +2745,6 @@ pub async fn instance_world_delete(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_mod_toggle(
-    _state: State<'_, AppState>,
     profileId: String,
     fileName: String,
     enabled: bool,
@@ -2751,7 +2788,6 @@ pub async fn instance_mod_toggle(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_mod_delete(
-    _state: State<'_, AppState>,
     profileId: String,
     fileName: String,
 ) -> AppResult<()> {
@@ -2793,7 +2829,6 @@ pub async fn instance_mod_delete(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_mod_add(
-    _state: State<'_, AppState>,
     profileId: String,
     sourcePath: String,
 ) -> AppResult<String> {
@@ -2829,7 +2864,6 @@ pub async fn instance_mod_add(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_mods_open_folder(
-    _state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
@@ -2847,7 +2881,6 @@ pub async fn instance_mods_open_folder(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_pack_add(
-    _state: State<'_, AppState>,
     profileId: String,
     packType: String,
     sourcePath: String,
@@ -2890,7 +2923,6 @@ pub async fn instance_pack_add(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_pack_delete(
-    _state: State<'_, AppState>,
     profileId: String,
     packType: String,
     fileName: String,
@@ -2919,7 +2951,6 @@ pub async fn instance_pack_delete(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_pack_open_folder(
-    _state: State<'_, AppState>,
     profileId: String,
     packType: String,
 ) -> AppResult<()> {
@@ -2941,22 +2972,20 @@ pub async fn instance_pack_open_folder(
     Ok(())
 }
 
-#[tauri::command]
-#[allow(non_snake_case)]
-pub async fn instance_install_quick_pack(
-    state: State<'_, AppState>,
-    profileId: String,
-    packType: String,
-    projectId: String,
+pub async fn instance_install_quick_pack_core(
+    http: &reqwest::Client,
+    profile_id: String,
+    pack_type: String,
+    project_id: String,
 ) -> AppResult<String> {
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
-        .bind(&profileId)
+        .bind(&profile_id)
         .fetch_optional(db.pool())
         .await?
-        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profile_id} not found")))?;
 
-    let folder_name = match packType.as_str() {
+    let folder_name = match pack_type.as_str() {
         "shaders" | "shaderpacks" => "shaderpacks",
         "datapacks" => "datapacks",
         _ => "resourcepacks",
@@ -2965,8 +2994,8 @@ pub async fn instance_install_quick_pack(
     let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
     tokio::fs::create_dir_all(&target_dir).await?;
 
-    let version_url = format!("https://api.modrinth.com/v2/project/{}/version", projectId);
-    let resp = state.http.get(&version_url)
+    let version_url = format!("https://api.modrinth.com/v2/project/{}/version", project_id);
+    let resp = http.get(&version_url)
         .header("User-Agent", "Luxmc/1.6.5")
         .timeout(std::time::Duration::from_secs(20))
         .send()
@@ -2999,7 +3028,7 @@ pub async fn instance_install_quick_pack(
     let (dl_url, filename) = download_info
         .ok_or_else(|| crate::error::AppError::NotFound("Arquivo para download não encontrado".into()))?;
 
-    let file_resp = state.http.get(&dl_url)
+    let file_resp = http.get(&dl_url)
         .header("User-Agent", "Luxmc/1.6.5")
         .timeout(std::time::Duration::from_secs(60))
         .send()
@@ -3013,4 +3042,15 @@ pub async fn instance_install_quick_pack(
     tokio::fs::write(&dest, &bytes).await?;
 
     Ok(filename)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_install_quick_pack(
+    state: State<'_, AppState>,
+    profileId: String,
+    packType: String,
+    projectId: String,
+) -> AppResult<String> {
+    instance_install_quick_pack_core(&state.http, profileId, packType, projectId).await
 }

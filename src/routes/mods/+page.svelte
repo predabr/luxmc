@@ -455,7 +455,7 @@
 			{/if}
 		</div>
 
-		<ModSearchBar bind:selectedSource bind:selectedType bind:selectedVersion bind:selectedLoader bind:selectedCategory bind:targetInstanceId />
+		<ModSearchBar bind:selectedSource bind:selectedType bind:selectedVersion bind:selectedLoader bind:selectedCategory />
 	{/if}
 </div>
 

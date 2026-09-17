@@ -107,6 +107,43 @@ pub fn jvm_arg_allowed_on_current_os(arg: &str) -> bool {
     !validate_platform_args(&[arg.to_string()]).contains(&0)
 }
 
+pub fn find_csharp_launcher() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("LUXMC_CSHARP_PATH") {
+        let pb = PathBuf::from(p);
+        if pb.is_file() {
+            return Some(pb);
+        }
+    }
+
+    let mut candidates = Vec::new();
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            candidates.push(parent.join("Luxmc.Launcher"));
+            candidates.push(parent.join("bin").join("Luxmc.Launcher"));
+            if let Some(grandparent) = parent.parent() {
+                candidates.push(grandparent.join("bin").join("Luxmc.Launcher"));
+                candidates.push(grandparent.join("dist-electron").join("bin").join("Luxmc.Launcher"));
+                candidates.push(grandparent.join("app.asar.unpacked").join("dist-electron").join("bin").join("Luxmc.Launcher"));
+            }
+        }
+    }
+
+    if let Some(dirs) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+        candidates.push(dirs.data_dir().join("bin").join("Luxmc.Launcher"));
+    }
+
+    candidates.push(PathBuf::from("/home/pedro/Documentos/Luxmc/dist-electron/bin/Luxmc.Launcher"));
+    candidates.push(PathBuf::from("/home/pedro/Documentos/Luxmc/src-csharp/Luxmc.Launcher/bin/Release/net8.0/linux-x64/publish/Luxmc.Launcher"));
+
+    for c in candidates {
+        if c.is_file() {
+            return Some(c);
+        }
+    }
+    None
+}
+
 pub struct GameLauncher {
     downloader: DownloadManager,
     java: JavaRuntimeManager,
@@ -551,11 +588,43 @@ impl GameLauncher {
         // === FASE 2: SPAWN ===
         self.emit_stage(LaunchStage::Spawning);
         tokio::fs::create_dir_all(game_dir).await.ok();
-        let mut cmd = Command::new(&java_path);
-        cmd.args(&safe_jvm_args)
-            .arg(main_class)
-            .args(&safe_game_args)
-            .current_dir(game_dir)
+        let csharp_launcher = find_csharp_launcher();
+        let mut cmd = if let Some(ref cs_bin) = csharp_launcher {
+            self.emit_log(&format!("Iniciando através do motor de lançamento C# (.NET 8): {}", cs_bin.display()));
+            let launch_payload = serde_json::json!({
+                "versionId": detail.id,
+                "gameDir": game_dir.to_string_lossy(),
+                "assetsDir": self.downloader.assets_dir().to_string_lossy(),
+                "assetIndex": detail.asset_index.as_ref().map(|a| a.id.clone()).unwrap_or_default(),
+                "javaPath": java_path.to_string_lossy(),
+                "mainClass": main_class,
+                "jvmArgs": safe_jvm_args,
+                "gameArgs": safe_game_args,
+                "username": username,
+                "uuid": uuid,
+                "accessToken": access_token,
+                "userType": user_type,
+                "memoryMb": profile.ram_mb,
+                "enableVulkan": profile.use_vulkan,
+                "serverIp": server_ip,
+                "serverPort": server_port,
+                "resolutionWidth": profile.resolution_w,
+                "resolutionHeight": profile.resolution_h
+            });
+            let payload_path = game_dir.join(".luxmc_launch.json");
+            let _ = tokio::fs::write(&payload_path, serde_json::to_string(&launch_payload).unwrap_or_default()).await;
+
+            let mut c = Command::new(cs_bin);
+            c.arg("launch").arg(&payload_path);
+            c
+        } else {
+            let mut c = Command::new(&java_path);
+            c.args(&safe_jvm_args)
+                .arg(main_class)
+                .args(&safe_game_args);
+            c
+        };
+        cmd.current_dir(game_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(true)
@@ -2106,8 +2175,27 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
             for x in x1..x2.min(final_w) {
                 let p = *canvas.get_pixel(x, y);
                 let is_ph = (p[0] == 45 && p[1] == 45 && p[2] == 45) || (p[0] == 40 && p[1] == 30 && p[2] == 25);
-                if p[3] < 200 || is_ph {
+                let is_arm_back = (x >= 51 * final_scale && x < 56 * final_scale && y >= 20 * final_scale && y < 32 * final_scale)
+                    || (x >= 43 * final_scale && x < 48 * final_scale && y >= 52 * final_scale && y < 64 * final_scale);
+                let is_black_arm = is_arm_back && (p[0] == 0 && p[1] == 0 && p[2] == 0);
+                if p[3] < 200 || is_ph || is_black_arm {
                     canvas.put_pixel(x, y, fallback_skin_tone);
+                }
+            }
+        }
+    }
+
+    let overlay_arm_zones = [
+        (40 * final_scale, 32 * final_scale, 56 * final_scale, 48 * final_scale),
+        (48 * final_scale, 48 * final_scale, 64 * final_scale, 64 * final_scale),
+    ];
+    for &(x1, y1, x2, y2) in &overlay_arm_zones {
+        for y in y1..y2.min(final_h) {
+            for x in x1..x2.min(final_w) {
+                let p = *canvas.get_pixel(x, y);
+                let is_ph = (p[0] == 45 && p[1] == 45 && p[2] == 45) || (p[0] == 40 && p[1] == 30 && p[2] == 25);
+                if is_ph {
+                    canvas.put_pixel(x, y, image::Rgba([0, 0, 0, 0]));
                 }
             }
         }

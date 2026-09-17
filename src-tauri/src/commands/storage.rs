@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::State;
-
 use crate::error::AppResult;
-use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -13,7 +10,7 @@ pub struct StorageBreakdown {
 }
 
 #[tauri::command]
-pub async fn storage_breakdown(_state: State<'_, AppState>) -> AppResult<Vec<StorageBreakdown>> {
+pub async fn storage_breakdown() -> AppResult<Vec<StorageBreakdown>> {
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .map(|d| d.data_dir().to_path_buf())
         .unwrap_or_else(|| std::path::PathBuf::from("/tmp/luxmc"));

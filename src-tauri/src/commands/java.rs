@@ -22,11 +22,14 @@ pub struct JavaScanResult {
 }
 
 #[tauri::command]
-pub async fn java_scan(state: State<'_, AppState>, app: tauri::AppHandle) -> AppResult<JavaScanResult> {
+pub async fn java_scan(state: State<'_, AppState>, _app: tauri::AppHandle) -> AppResult<JavaScanResult> {
+    java_scan_core(&state).await
+}
+
+pub async fn java_scan_core(state: &AppState) -> AppResult<JavaScanResult> {
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
-    let mgr = JavaRuntimeManager::new(state.http.clone(), base_dir.data_dir().to_path_buf())
-        .with_app(app);
+    let mgr = JavaRuntimeManager::new(state.http.clone(), base_dir.data_dir().to_path_buf());
 
     let mut runtimes = Vec::new();
     for major in [8u32, 17, 21] {

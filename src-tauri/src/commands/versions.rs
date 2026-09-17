@@ -16,10 +16,9 @@ pub struct VersionListResponse {
     pub latest_snapshot: String,
 }
 
-#[tauri::command]
-pub async fn versions_list(_state: State<'_, AppState>) -> AppResult<VersionListResponse> {
+pub async fn versions_list_core(http: &reqwest::Client) -> AppResult<VersionListResponse> {
     let db = crate::db::shared_db().await?;
-    let manifest = match minecraft::fetch_version_manifest(&_state.http).await {
+    let manifest = match minecraft::fetch_version_manifest(http).await {
         Ok(manifest) => manifest,
         Err(error) => {
             let cached = crate::db::schema::versions::list(&db).await?;
@@ -72,12 +71,49 @@ pub async fn versions_list(_state: State<'_, AppState>) -> AppResult<VersionList
 }
 
 #[tauri::command]
-pub async fn versions_detail(state: State<'_, AppState>, id: String) -> AppResult<VersionDetail> {
+pub async fn versions_list(state: State<'_, AppState>) -> AppResult<VersionListResponse> {
+    versions_list_core(&state.http).await
+}
+
+pub async fn versions_detail_core(http: &reqwest::Client, id: &str) -> AppResult<VersionDetail> {
     let db = crate::db::shared_db().await?;
-    let row = crate::db::schema::versions::get(&db, &id)
+    let row = crate::db::schema::versions::get(&db, id)
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("version {id} not found")))?;
-    minecraft::fetch_version_detail(&state.http, &row.url).await
+    minecraft::fetch_version_detail(http, &row.url).await
+}
+
+#[tauri::command]
+pub async fn versions_detail(state: State<'_, AppState>, id: String) -> AppResult<VersionDetail> {
+    versions_detail_core(&state.http, &id).await
+}
+
+pub async fn versions_download_core(
+    http: &reqwest::Client,
+    id: &str,
+) -> AppResult<()> {
+    let db = crate::db::shared_db().await?;
+    let row = crate::db::schema::versions::get(&db, id)
+        .await?
+        .ok_or_else(|| {
+            crate::error::AppError::NotFound(format!(
+                "version {id} not found in database. Try refreshing versions."
+            ))
+        })?;
+
+    let detail = minecraft::fetch_version_detail(http, &row.url).await?;
+
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
+        crate::error::AppError::InvalidState("could not determine data dir".into())
+    })?;
+    let data_dir = base_dir.data_dir().to_path_buf();
+
+    let major = detail.java_major_version();
+    let java = JavaRuntimeManager::new(http.clone(), data_dir.clone());
+    let _ = java.ensure_java(major).await;
+
+    let downloader = DownloadManager::new(http.clone(), data_dir);
+    downloader.download_version(&detail).await
 }
 
 #[tauri::command]
@@ -137,15 +173,19 @@ pub async fn versions_download(
     downloader.download_version(&detail).await
 }
 
-#[tauri::command]
-pub async fn versions_check_installed(_state: State<'_, AppState>, id: String) -> AppResult<bool> {
+pub async fn versions_check_installed_core(id: &str) -> AppResult<bool> {
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
     let client_jar = base_dir
         .data_dir()
         .join("versions")
-        .join(&id)
+        .join(id)
         .join(format!("{}.jar", id));
     Ok(client_jar.exists())
+}
+
+#[tauri::command]
+pub async fn versions_check_installed(id: String) -> AppResult<bool> {
+    versions_check_installed_core(&id).await
 }

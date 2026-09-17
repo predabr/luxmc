@@ -154,10 +154,8 @@
 			class="relative flex w-full max-w-5xl h-[680px] max-h-[92vh] rounded-3xl bg-[#0c0d10]/95 border border-white/10 shadow-2xl shadow-black/90 overflow-hidden"
 			transition:scale={{ duration: 180, start: 0.96 }}
 		>
-			<!-- Left Navigation Bar (like CMClient) -->
 			<div class="flex flex-col items-center justify-between w-16 py-6 border-r border-white/5 bg-[#090a0d]">
 				<div class="flex flex-col items-center gap-6">
-					<!-- Close Button -->
 					<button
 						onclick={handleClose}
 						class="w-10 h-10 rounded-2xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
@@ -167,7 +165,6 @@
 						<X class="w-5 h-5" />
 					</button>
 
-					<!-- Home Button -->
 					<button
 						onclick={() => { activeSection = "all"; }}
 						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'all' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
@@ -176,7 +173,6 @@
 						<Home class="w-5 h-5" />
 					</button>
 
-					<!-- HUD Positioning -->
 					<button
 						onclick={() => { activeSection = "hud"; }}
 						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'hud' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
@@ -185,7 +181,6 @@
 						<PenTool class="w-5 h-5" />
 					</button>
 
-					<!-- Visual Category -->
 					<button
 						onclick={() => { activeSection = "visual"; }}
 						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'visual' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
@@ -194,7 +189,6 @@
 						<Eye class="w-5 h-5" />
 					</button>
 
-					<!-- Combat Category -->
 					<button
 						onclick={() => { activeSection = "combat"; }}
 						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'combat' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
@@ -205,7 +199,6 @@
 				</div>
 
 				<div class="flex flex-col items-center gap-4">
-					<!-- Reset Defaults -->
 					<button
 						onclick={handleReset}
 						class="w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
@@ -214,29 +207,25 @@
 						<RotateCcw class="w-4 h-4" />
 					</button>
 
-					<!-- Info / Tip -->
 					<div
 						class="w-9 h-9 rounded-xl flex items-center justify-center text-white/30"
-						title="No Minecraft 1.8.9, este menu abre com Shift Direito (RShift)"
+						title="No Minecraft, este menu abre com Shift Direito"
 					>
 						<Info class="w-4 h-4" />
 					</div>
 				</div>
 			</div>
 
-			<!-- Main Content Area -->
 			<div class="flex flex-1 flex-col overflow-hidden">
-				<!-- Top Bar with Search (CMClient style) -->
 				<div class="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-[#0e1014]">
 					<div class="flex items-center gap-3">
-						<span class="text-xs font-bold uppercase tracking-widest text-emerald-400">CMClient Suite</span>
+						<span class="text-xs font-bold uppercase tracking-widest text-emerald-400">Luxmc Client</span>
 						<span class="text-white/20">/</span>
 						<span class="text-xs text-white/60">
 							{filteredModules.length} {filteredModules.length === 1 ? 'módulo' : 'módulos'}
 						</span>
 					</div>
 
-					<!-- Search input matching CMClient -->
 					<div class="relative w-72">
 						<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
 						<input
@@ -256,7 +245,6 @@
 					</div>
 				</div>
 
-				<!-- Modules Grid (3 columns, CMClient pill buttons) -->
 				<div class="flex-1 overflow-y-auto custom-scrollbar p-8">
 					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
 						{#each filteredModules as mod (mod.key)}
@@ -304,7 +292,7 @@
 				<div class="flex items-center justify-between px-8 py-3.5 border-t border-white/5 bg-[#090a0d] text-xs text-white/40">
 					<div class="flex items-center gap-2">
 						<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-						<span>No Minecraft 1.8.9 (CMClient), este menu abre in-game pressionando <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-[10px]">RShift</kbd></span>
+						<span>No Minecraft, este menu abre in-game pressionando <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-[10px]">Shift Direito</kbd></span>
 					</div>
 
 					<div class="flex items-center gap-4">

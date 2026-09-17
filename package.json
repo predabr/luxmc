@@ -18,7 +18,8 @@
     "electron:build": "node scripts/build-electron-appimage.js",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "deploy:website": "npx wrangler pages deploy website --project-name=luxmc"
   },
   "build": {
     "appId": "io.github.luxmc.Luxmc",
@@ -31,10 +32,16 @@
       "build/**/*",
       "static/**/*"
     ],
+    "asarUnpack": [
+      "dist-electron/bin/**/*"
+    ],
     "extraResources": [
       {
-        "from": "src-tauri/target/release/luxmc",
-        "to": "bin/luxmc"
+        "from": "dist-electron/bin",
+        "to": "bin",
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "linux": {

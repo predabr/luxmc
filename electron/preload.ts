@@ -33,3 +33,47 @@ const electronAPI: ElectronAPI = {
 };
 
 contextBridge.exposeInMainWorld("electronAPI", electronAPI);
+
+contextBridge.exposeInMainWorld("__TAURI_INTERNALS__", {
+  invoke: (cmd: string, args?: Record<string, any>) => {
+    if (cmd === "plugin:app|version") {
+      return Promise.resolve("1.7.3");
+    }
+    if (cmd === "plugin:event|listen") {
+      return Promise.resolve(1);
+    }
+    if (cmd === "plugin:event|unlisten") {
+      return Promise.resolve();
+    }
+    if (cmd === "plugin:store|load") {
+      return Promise.resolve(1);
+    }
+    if (cmd === "plugin:store|get") {
+      try {
+        const raw = localStorage.getItem(`luxmc_store_${args?.key || "app"}`);
+        if (raw !== null) {
+          return Promise.resolve([JSON.parse(raw), true]);
+        }
+      } catch {}
+      return Promise.resolve([null, false]);
+    }
+    if (cmd === "plugin:store|set") {
+      try {
+        localStorage.setItem(`luxmc_store_${args?.key || "app"}`, JSON.stringify(args?.value));
+      } catch {}
+      return Promise.resolve();
+    }
+    if (cmd === "plugin:store|save") {
+      return Promise.resolve();
+    }
+    return ipcRenderer.invoke("luxmc:invoke", { command: cmd, args });
+  },
+  transformCallback: (callback: any) => callback,
+  convertFileSrc: (filePath: string) => {
+    if (!filePath) return "";
+    return `app://luxmc/asset?path=${encodeURIComponent(filePath)}`;
+  },
+  metadata: {
+    currentWindow: { label: "main" },
+  },
+});

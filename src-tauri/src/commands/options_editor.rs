@@ -1,11 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::PathBuf;
-use tauri::State;
 
 use crate::db::models::ProfileRow;
 use crate::error::{AppError, AppResult};
-use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -35,7 +32,6 @@ pub struct ConfigFileInfo {
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_options_get(
-    _state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<InstanceMinecraftOptions> {
     let db = crate::db::shared_db().await?;
@@ -46,31 +42,42 @@ pub async fn instance_options_get(
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
 
     let options_path = PathBuf::from(&row.game_dir).join("options.txt");
-    let mut map = HashMap::new();
+    let mut gamma = 1.0;
+    let mut fov = 70.0;
+    let mut gui_scale = 0;
+    let mut render_distance = 12;
+    let mut simulation_distance = 12;
+    let mut max_fps = 120;
+    let mut vsync = true;
+    let mut fullscreen = false;
+    let mut auto_jump = false;
+    let mut bob_view = true;
+    let mut sound_master = 1.0;
+    let mut sound_music = 1.0;
 
-    if options_path.is_file() {
+    if options_path.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&options_path).await {
             for line in content.lines() {
-                let trimmed = line.trim();
-                if let Some((k, v)) = trimmed.split_once(':') {
-                    map.insert(k.trim().to_string(), v.trim().to_string());
+                if let Some((k, v)) = line.split_once(':') {
+                    match k.trim() {
+                        "gamma" => gamma = v.trim().parse().unwrap_or(gamma),
+                        "fov" => fov = v.trim().parse().unwrap_or(fov),
+                        "guiScale" => gui_scale = v.trim().parse().unwrap_or(gui_scale),
+                        "renderDistance" => render_distance = v.trim().parse().unwrap_or(render_distance),
+                        "simulationDistance" => simulation_distance = v.trim().parse().unwrap_or(simulation_distance),
+                        "maxFps" => max_fps = v.trim().parse().unwrap_or(max_fps),
+                        "enableVsync" => vsync = v.trim() == "true",
+                        "fullscreen" => fullscreen = v.trim() == "true",
+                        "autoJump" => auto_jump = v.trim() == "true",
+                        "bobView" => bob_view = v.trim() == "true",
+                        "soundCategory_master" => sound_master = v.trim().parse().unwrap_or(sound_master),
+                        "soundCategory_music" => sound_music = v.trim().parse().unwrap_or(sound_music),
+                        _ => {}
+                    }
                 }
             }
         }
     }
-
-    let gamma = map.get("gamma").and_then(|v| v.parse::<f64>().ok()).unwrap_or(1.0);
-    let fov = map.get("fov").and_then(|v| v.parse::<f64>().ok()).unwrap_or(70.0);
-    let render_distance = map.get("renderDistance").and_then(|v| v.parse::<i32>().ok()).unwrap_or(12);
-    let simulation_distance = map.get("simulationDistance").and_then(|v| v.parse::<i32>().ok()).unwrap_or(12);
-    let max_fps = map.get("maxFps").and_then(|v| v.parse::<i32>().ok()).unwrap_or(120);
-    let gui_scale = map.get("guiScale").and_then(|v| v.parse::<i32>().ok()).unwrap_or(0);
-    let fullscreen = map.get("fullscreen").map(|v| v == "true").unwrap_or(false);
-    let vsync = map.get("enableVsync").map(|v| v == "true").unwrap_or(false);
-    let auto_jump = map.get("autoJump").map(|v| v == "true").unwrap_or(false);
-    let bob_view = map.get("bobView").map(|v| v == "true").unwrap_or(true);
-    let sound_master = map.get("soundCategory_master").and_then(|v| v.parse::<f32>().ok()).unwrap_or(1.0);
-    let sound_music = map.get("soundCategory_music").and_then(|v| v.parse::<f32>().ok()).unwrap_or(0.5);
 
     Ok(InstanceMinecraftOptions {
         gamma,
@@ -91,7 +98,6 @@ pub async fn instance_options_get(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_options_set(
-    _state: State<'_, AppState>,
     profileId: String,
     options: InstanceMinecraftOptions,
 ) -> AppResult<()> {
@@ -167,7 +173,6 @@ pub async fn instance_options_set(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_config_read(
-    _state: State<'_, AppState>,
     profileId: String,
     relativePath: String,
 ) -> AppResult<ConfigFileInfo> {
@@ -207,7 +212,6 @@ pub async fn instance_config_read(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_config_write(
-    _state: State<'_, AppState>,
     profileId: String,
     relativePath: String,
     content: String,

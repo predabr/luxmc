@@ -98,16 +98,15 @@ pub async fn jvm_args_validate(input: String) -> AppResult<JvmValidationResult> 
     })
 }
 
-#[tauri::command]
-pub async fn java_runtime_status(
-    state: State<'_, AppState>,
+pub async fn java_runtime_status_core(
+    http: reqwest::Client,
     major: u32,
 ) -> AppResult<JavaRuntimeInfo> {
     use crate::core::java::JavaRuntimeManager;
 
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
-    let manager = JavaRuntimeManager::new(state.http.clone(), base_dir.data_dir().to_path_buf());
+    let manager = JavaRuntimeManager::new(http, base_dir.data_dir().to_path_buf());
     let path = manager.ensure_java(major).await.ok();
     let version = path
         .as_ref()
@@ -120,6 +119,14 @@ pub async fn java_runtime_status(
         path: path.map(|p| p.to_string_lossy().to_string()),
         version,
     })
+}
+
+#[tauri::command]
+pub async fn java_runtime_status(
+    state: State<'_, AppState>,
+    major: u32,
+) -> AppResult<JavaRuntimeInfo> {
+    java_runtime_status_core(state.http.clone(), major).await
 }
 
 #[tauri::command]
@@ -187,7 +194,6 @@ pub async fn crash_summary(lines: Vec<String>) -> AppResult<CrashSummary> {
 
 #[tauri::command]
 pub async fn instance_export_zip(
-    _state: State<'_, AppState>,
     profileId: String,
     outputPath: String,
 ) -> AppResult<String> {
@@ -258,7 +264,6 @@ pub struct InstanceShareManifest {
 
 #[tauri::command]
 pub async fn instance_export_share_code(
-    _state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<String> {
     let db = db::shared_db().await?;
@@ -340,7 +345,6 @@ pub async fn instance_export_share_code(
 
 #[tauri::command]
 pub async fn instance_import_share_code(
-    state: State<'_, AppState>,
     shareCode: String,
 ) -> AppResult<crate::db::models::ProfileRow> {
     let raw_trimmed = shareCode.trim();
@@ -414,7 +418,7 @@ pub async fn instance_import_share_code(
         use_vulkan: Some(false),
     };
 
-    let new_profile = crate::commands::profiles::profiles_create(state, input).await?;
+    let new_profile = crate::commands::profiles::profiles_create(input).await?;
     let game_dir = std::path::PathBuf::from(&new_profile.game_dir);
     let mods_dir = game_dir.join("mods");
     let _ = std::fs::create_dir_all(&mods_dir);
@@ -441,7 +445,6 @@ fn walkdir(dir: &std::path::Path) -> Vec<std::fs::DirEntry> {
 
 #[tauri::command]
 pub async fn instance_backup_saves(
-    _state: State<'_, AppState>,
     profileId: String,
     outputPath: String,
 ) -> AppResult<String> {
@@ -484,7 +487,6 @@ pub async fn instance_backup_saves(
 
 #[tauri::command]
 pub async fn instance_restore_saves(
-    _state: State<'_, AppState>,
     profileId: String,
     zipPath: String,
 ) -> AppResult<String> {
@@ -529,37 +531,47 @@ pub async fn instance_restore_saves(
     Ok(saves_dir.to_string_lossy().to_string())
 }
 
-#[tauri::command]
-pub async fn instance_repair(
-    state: State<'_, AppState>,
-    app: tauri::AppHandle,
-    profileId: String,
+pub async fn instance_repair_core(
+    app: Option<tauri::AppHandle>,
+    http: &reqwest::Client,
+    profile_id: String,
 ) -> AppResult<()> {
     let conn = db::shared_db().await?;
     let row: crate::db::models::ProfileRow = sqlx::query_as("SELECT * FROM profiles WHERE id = ?")
-        .bind(&profileId)
+        .bind(&profile_id)
         .fetch_optional(conn.pool())
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
+        .ok_or_else(|| AppError::NotFound(format!("profile {profile_id} not found")))?;
 
     use crate::core::minecraft;
     let version_row = crate::db::schema::versions::get(&conn, &row.mc_version)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("version {} not found", row.mc_version)))?;
-    let detail = minecraft::fetch_version_detail(&state.http, &version_row.url).await?;
+    let detail = minecraft::fetch_version_detail(http, &version_row.url).await?;
 
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
     let data_dir = base_dir.data_dir().to_path_buf();
-    let downloader = crate::core::downloader::DownloadManager::new(state.http.clone(), data_dir)
-        .with_app(app.clone());
+    let mut downloader = crate::core::downloader::DownloadManager::new(http.clone(), data_dir);
+    if let Some(a) = app {
+        downloader = downloader.with_app(a);
+    }
     downloader.download_version(&detail).await?;
     downloader.validate_version(&detail).await?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn instance_disk_usage(_state: State<'_, AppState>, profileId: String) -> AppResult<i64> {
+pub async fn instance_repair(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+    profileId: String,
+) -> AppResult<()> {
+    instance_repair_core(Some(app), &state.http, profileId).await
+}
+
+#[tauri::command]
+pub async fn instance_disk_usage(profileId: String) -> AppResult<i64> {
     let conn = db::shared_db().await?;
     let row: crate::db::models::ProfileRow = sqlx::query_as("SELECT * FROM profiles WHERE id = ?")
         .bind(&profileId)
@@ -580,27 +592,37 @@ pub async fn instance_disk_usage(_state: State<'_, AppState>, profileId: String)
     Ok(total)
 }
 
+pub async fn version_repair_core(
+    app: Option<tauri::AppHandle>,
+    http: &reqwest::Client,
+    version_id: String,
+) -> AppResult<()> {
+    let conn = db::shared_db().await?;
+    let version_row = crate::db::schema::versions::get(&conn, &version_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("version {version_id} not found")))?;
+
+    use crate::core::minecraft;
+    let detail = minecraft::fetch_version_detail(http, &version_row.url).await?;
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+        .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
+    let data_dir = base_dir.data_dir().to_path_buf();
+    let mut downloader = crate::core::downloader::DownloadManager::new(http.clone(), data_dir);
+    if let Some(a) = app {
+        downloader = downloader.with_app(a);
+    }
+    downloader.download_version(&detail).await?;
+    downloader.validate_version(&detail).await?;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn version_repair(
     state: State<'_, AppState>,
     app: tauri::AppHandle,
     versionId: String,
 ) -> AppResult<()> {
-    let conn = db::shared_db().await?;
-    let version_row = crate::db::schema::versions::get(&conn, &versionId)
-        .await?
-        .ok_or_else(|| AppError::NotFound(format!("version {versionId} not found")))?;
-
-    use crate::core::minecraft;
-    let detail = minecraft::fetch_version_detail(&state.http, &version_row.url).await?;
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
-    let data_dir = base_dir.data_dir().to_path_buf();
-    let downloader = crate::core::downloader::DownloadManager::new(state.http.clone(), data_dir)
-        .with_app(app.clone());
-    downloader.download_version(&detail).await?;
-    downloader.validate_version(&detail).await?;
-    Ok(())
+    version_repair_core(Some(app), &state.http, versionId).await
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -611,17 +633,15 @@ pub struct MclogsResponse {
     pub error: Option<String>,
 }
 
-#[tauri::command]
-pub async fn share_log_mclogs(
-    state: State<'_, AppState>,
+pub async fn share_log_mclogs_core(
+    http: &reqwest::Client,
     content: String,
 ) -> AppResult<String> {
     if content.trim().is_empty() {
         return Err(AppError::InvalidInput("Log content cannot be empty".into()));
     }
     let form = [("content", content.as_str())];
-    let resp = state
-        .http
+    let resp = http
         .post("https://api.mclo.gs/1/log")
         .form(&form)
         .send()
@@ -636,6 +656,14 @@ pub async fn share_log_mclogs(
     Err(AppError::Internal(
         data.error.unwrap_or_else(|| "Failed to upload log to mclo.gs".to_string()),
     ))
+}
+
+#[tauri::command]
+pub async fn share_log_mclogs(
+    state: State<'_, AppState>,
+    content: String,
+) -> AppResult<String> {
+    share_log_mclogs_core(&state.http, content).await
 }
 
 use std::io::Write;

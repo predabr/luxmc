@@ -29,7 +29,6 @@ pub async fn server_ping(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn server_add(
-    _state: State<'_, AppState>,
     host: String,
     port: u16,
     name: String,

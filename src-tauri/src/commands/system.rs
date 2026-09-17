@@ -81,6 +81,12 @@ async fn fetch_mojang_textures(uuid: &str) -> Option<(String, Option<String>, Op
 pub async fn app_init(
     state: State<'_, AppState>,
 ) -> Result<AppInitState, crate::error::AppError> {
+    app_init_core(&state).await
+}
+
+pub async fn app_init_core(
+    state: &AppState,
+) -> Result<AppInitState, crate::error::AppError> {
     let dev_mode = std::env::var("LUXMC_DEV_MODE").unwrap_or_default() == "1";
     let stress_test = std::env::var("LUXMC_STRESS_TEST").unwrap_or_default() == "1";
     let db = crate::db::shared_db().await?;

@@ -10,7 +10,14 @@ pub async fn crash_doctor_diagnose(
     profileId: String,
     logContent: Option<String>,
 ) -> AppResult<CrashDiagnosis> {
-    if let Some(text) = logContent.filter(|t| !t.trim().is_empty()) {
+    crash_doctor_diagnose_core(profileId, logContent).await
+}
+
+pub async fn crash_doctor_diagnose_core(
+    profile_id: String,
+    log_content: Option<String>,
+) -> AppResult<CrashDiagnosis> {
+    if let Some(text) = log_content.filter(|t| !t.trim().is_empty()) {
         let diagnosis = analyze_crash_text(&text);
         if diagnosis.has_error {
             return Ok(diagnosis);
@@ -19,10 +26,10 @@ pub async fn crash_doctor_diagnose(
 
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
-        .bind(&profileId)
+        .bind(&profile_id)
         .fetch_optional(db.pool())
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("Instância {profileId} não encontrada")))?;
+        .ok_or_else(|| AppError::NotFound(format!("Instância {profile_id} não encontrada")))?;
 
     let game_dir = std::path::PathBuf::from(&row.game_dir);
     Ok(diagnose_instance(&game_dir))

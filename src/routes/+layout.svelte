@@ -339,11 +339,18 @@
 			}
 		};
 	});
-	// Easter Egg (Konami Code)
 	$effect(() => {
 		const konami = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 		let pos = 0;
 		const handler = (e: KeyboardEvent) => {
+			if (e.code === "ShiftRight") {
+				const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+				if (tag !== "input" && tag !== "textarea") {
+					e.preventDefault();
+					clientMods.toggleMenu();
+					return;
+				}
+			}
 			if (e.key === konami[pos]) {
 				pos++;
 				if (pos === konami.length) {

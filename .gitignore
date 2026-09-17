@@ -15,3 +15,5 @@ release-electron
 /logs
 /config
 options.txt
+src-csharp/**/bin
+src-csharp/**/obj

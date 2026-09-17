@@ -32,9 +32,8 @@ pub async fn skins_list() -> AppResult<Vec<SavedSkinRow>> {
     Ok(list)
 }
 
-#[tauri::command]
-pub async fn skins_save(
-    state: State<'_, AppState>,
+pub async fn skins_save_core(
+    http: &reqwest::Client,
     request: SaveSkinRequest,
 ) -> AppResult<SavedSkinRow> {
     let db = crate::db::shared_db().await?;
@@ -59,7 +58,7 @@ pub async fn skins_save(
             Vec::new()
         }
     } else if request.skin_url.starts_with("http://") || request.skin_url.starts_with("https://") {
-        if let Ok(resp) = state.http.get(&request.skin_url).send().await {
+        if let Ok(resp) = http.get(&request.skin_url).send().await {
             resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
         } else {
             Vec::new()
@@ -93,6 +92,14 @@ pub async fn skins_save(
 
     crate::db::schema::skins::upsert(&db, &row).await?;
     Ok(row)
+}
+
+#[tauri::command]
+pub async fn skins_save(
+    state: State<'_, AppState>,
+    request: SaveSkinRequest,
+) -> AppResult<SavedSkinRow> {
+    skins_save_core(&state.http, request).await
 }
 
 #[tauri::command]
@@ -211,9 +218,8 @@ pub async fn capes_list() -> AppResult<Vec<crate::db::schema::skins::SavedCapeRo
     Ok(list)
 }
 
-#[tauri::command]
-pub async fn capes_save(
-    state: State<'_, AppState>,
+pub async fn capes_save_core(
+    http: &reqwest::Client,
     request: SaveCapeRequest,
 ) -> AppResult<crate::db::schema::skins::SavedCapeRow> {
     let db = crate::db::shared_db().await?;
@@ -237,7 +243,7 @@ pub async fn capes_save(
             Vec::new()
         }
     } else if request.cape_url.starts_with("http://") || request.cape_url.starts_with("https://") {
-        if let Ok(resp) = state.http.get(&request.cape_url).send().await {
+        if let Ok(resp) = http.get(&request.cape_url).send().await {
             resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
         } else {
             Vec::new()
@@ -264,6 +270,14 @@ pub async fn capes_save(
 
     crate::db::schema::skins::upsert_cape(&db, &row).await?;
     Ok(row)
+}
+
+#[tauri::command]
+pub async fn capes_save(
+    state: State<'_, AppState>,
+    request: SaveCapeRequest,
+) -> AppResult<crate::db::schema::skins::SavedCapeRow> {
+    capes_save_core(&state.http, request).await
 }
 
 #[tauri::command]

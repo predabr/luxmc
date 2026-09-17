@@ -77,10 +77,14 @@ pub async fn auth_set_client_id(client_id: String) -> AppResult<()> {
     Ok(())
 }
 
-#[tauri::command]
-pub async fn auth_begin(state: State<'_, AppState>) -> AppResult<PendingAuth> {
+pub async fn auth_begin_core(state: &AppState) -> AppResult<PendingAuth> {
     let client_id = get_configured_client_id().await;
     Ok(state.auth.begin_with_client_id(Some(&client_id)))
+}
+
+#[tauri::command]
+pub async fn auth_begin(state: State<'_, AppState>) -> AppResult<PendingAuth> {
+    auth_begin_core(&state).await
 }
 
 #[tauri::command]
@@ -139,9 +143,8 @@ pub async fn auth_login(
     Ok(account)
 }
 
-#[tauri::command]
-pub async fn auth_complete(
-    state: State<'_, AppState>,
+pub async fn auth_complete_core(
+    state: &AppState,
     code: String,
     state_token: String,
     verifier: String,
@@ -152,7 +155,26 @@ pub async fn auth_complete(
         .auth
         .login_with_code_and_client_id(&code, &verifier, Some(&client_id))
         .await?;
-    save_account(&state, &account).await?;
+    save_account(state, &account).await?;
+    Ok(account)
+}
+
+#[tauri::command]
+pub async fn auth_complete(
+    state: State<'_, AppState>,
+    code: String,
+    state_token: String,
+    verifier: String,
+) -> AppResult<AuthAccount> {
+    auth_complete_core(&state, code, state_token, verifier).await
+}
+
+pub async fn auth_refresh_core(
+    state: &AppState,
+    refresh_token: String,
+) -> AppResult<AuthAccount> {
+    let account = state.auth.refresh_account(&refresh_token).await?;
+    save_account(state, &account).await?;
     Ok(account)
 }
 
@@ -162,9 +184,7 @@ pub async fn auth_refresh(
     state: State<'_, AppState>,
     refreshToken: String,
 ) -> AppResult<AuthAccount> {
-    let account = state.auth.refresh_account(&refreshToken).await?;
-    save_account(&state, &account).await?;
-    Ok(account)
+    auth_refresh_core(&state, refreshToken).await
 }
 
 async fn set_active_account_id(account_id: &str) -> AppResult<()> {
@@ -175,33 +195,36 @@ async fn set_active_account_id(account_id: &str) -> AppResult<()> {
         .fetch_optional(conn.pool())
         .await
     {
-        row.try_get::<String, _>("value").unwrap_or_default()
+        let raw: String = row.try_get("value").unwrap_or_default();
+        serde_json::from_str::<serde_json::Value>(&raw).unwrap_or(serde_json::json!({}))
     } else {
-        String::new()
+        serde_json::json!({})
     };
 
-    let mut map: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&current_val).unwrap_or_default();
-    map.insert("activeAccountId".into(), serde_json::Value::String(account_id.to_string()));
+    let mut obj = match current_val {
+        serde_json::Value::Object(m) => m,
+        _ => serde_json::Map::new(),
+    };
 
-    let serialized = serde_json::to_string(&map).map_err(|e| AppError::Internal(e.to_string()))?;
-    sqlx::query("INSERT INTO app_settings (key, value) VALUES ('app', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
-        .bind(serialized)
+    obj.insert("activeAccountId".into(), serde_json::Value::String(account_id.to_string()));
+    let new_raw = serde_json::to_string(&serde_json::Value::Object(obj)).unwrap_or_default();
+
+    let _ = sqlx::query("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('app', ?)")
+        .bind(new_raw)
         .execute(conn.pool())
-        .await
-        .map_err(|e| AppError::Internal(format!("Failed to save activeAccountId: {e}")))?;
+        .await;
 
     Ok(())
 }
 
 #[tauri::command]
-pub async fn auth_accounts(_state: State<'_, AppState>) -> AppResult<Vec<AccountRow>> {
+pub async fn auth_accounts() -> AppResult<Vec<AccountRow>> {
     let db = crate::db::shared_db().await?;
     crate::db::schema::accounts::list(&db).await
 }
 
 #[tauri::command]
 pub async fn auth_switch_account(
-    _state: State<'_, AppState>,
     uuid: String,
 ) -> AppResult<AuthAccount> {
     let db = crate::db::shared_db().await?;
@@ -224,7 +247,7 @@ pub async fn auth_switch_account(
 }
 
 #[tauri::command]
-pub async fn auth_remove(_state: State<'_, AppState>, uuid: String) -> AppResult<()> {
+pub async fn auth_remove(uuid: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     if let Ok(Some(_row)) = crate::db::schema::accounts::get_by_uuid(&db, &uuid).await {
         crate::db::schema::accounts::delete(&db, &uuid).await?;
@@ -233,9 +256,25 @@ pub async fn auth_remove(_state: State<'_, AppState>, uuid: String) -> AppResult
             let _ = set_active_account_id(&next_acc.id).await;
         }
     } else {
-        crate::db::schema::accounts::delete(&db, &uuid).await?;
+        let _ = crate::db::schema::accounts::delete(&db, &uuid).await;
     }
     Ok(())
+}
+
+pub async fn auth_dev_login_core(state: &AppState) -> AppResult<AuthAccount> {
+    let account = AuthAccount {
+        id: uuid::Uuid::new_v4().to_string(),
+        username: "DevPlayer".into(),
+        uuid: uuid::Uuid::new_v4().to_string(),
+        access_token: "dev-offline-token".into(),
+        refresh_token: "".into(),
+        expires_at: 0,
+        skin_url: None,
+        skin_variant: None,
+        cape_url: None,
+    };
+    save_account(state, &account).await?;
+    Ok(account)
 }
 
 #[tauri::command]

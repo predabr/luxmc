@@ -134,21 +134,35 @@
 			}
 		}
 
-		const isTrulyEmpty = (a: number) => a < 10;
+		const armWidth = isSlim ? 3 : 4;
+		const rBackStartX = isSlim ? 51 : 52;
+		const lBackStartX = isSlim ? 43 : 44;
+
+		const isArmBackPixel = (x: number, y: number) => {
+			return (x >= rBackStartX * scale && x < (rBackStartX + armWidth) * scale && y >= 20 * scale && y < 32 * scale)
+				|| (x >= lBackStartX * scale && x < (lBackStartX + armWidth) * scale && y >= 52 * scale && y < 64 * scale);
+		};
+
+		const needsHealing = (r: number, g: number, b: number, a: number, x: number, y: number) => {
+			if (a < 200) return true;
+			if ((r === 45 && g === 45 && b === 45) || (r === 40 && g === 30 && b === 25)) return true;
+			if (isArmBackPixel(x, y) && (r === 0 && g === 0 && b === 0)) return true;
+			return false;
+		};
 
 		const healRegion = (startX: number, startY: number, width: number, height: number, mirrorX: number, mirrorY: number, altX: number, altY: number) => {
 			for (let dy = 0; dy < height * scale; dy++) {
 				for (let dx = 0; dx < width * scale; dx++) {
 					const bx = startX * scale + dx;
 					const by = startY * scale + dy;
-					const [, , , a] = getPixel(bx, by);
-					if (!isTrulyEmpty(a)) continue;
+					const [br, bg, bb, ba] = getPixel(bx, by);
+					if (!needsHealing(br, bg, bb, ba, bx, by)) continue;
 					const [or, og, ob, oa] = getPixel(mirrorX * scale + dx, mirrorY * scale + dy);
-					if (oa > 10) {
+					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
 						setPixel(bx, by, or, og, ob, 255);
 					} else if (altX >= 0) {
 						const [ar, ag, ab, aa] = getPixel(altX * scale + dx, altY * scale + dy);
-						if (aa > 10) {
+						if (aa > 50 && !(ar === 0 && ag === 0 && ab === 0)) {
 							setPixel(bx, by, ar, ag, ab, 255);
 						} else {
 							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
@@ -159,10 +173,6 @@
 				}
 			}
 		};
-
-		const armWidth = isSlim ? 3 : 4;
-		const rBackStartX = isSlim ? 51 : 52;
-		const lBackStartX = isSlim ? 43 : 44;
 
 		healRegion(24, 8, 8, 8, 8, 8, 24, 8);
 
@@ -196,11 +206,29 @@
 					const idx = (y * w + x) * 4;
 					const isPlaceholder = (data[idx] === 45 && data[idx + 1] === 45 && data[idx + 2] === 45)
 						|| (data[idx] === 40 && data[idx + 1] === 30 && data[idx + 2] === 25);
-					if (data[idx + 3] < 10 || isPlaceholder) {
+					const isBlackArmBack = isArmBackPixel(x, y) && (data[idx] === 0 && data[idx + 1] === 0 && data[idx + 2] === 0);
+					if (data[idx + 3] < 200 || isPlaceholder || isBlackArmBack) {
 						data[idx] = fallbackR;
 						data[idx + 1] = fallbackG;
 						data[idx + 2] = fallbackB;
 						data[idx + 3] = 255;
+					}
+				}
+			}
+		}
+
+		const overlayArmRects = [
+			[40 * scale, 32 * scale, 56 * scale, 48 * scale],
+			[48 * scale, 48 * scale, 64 * scale, 64 * scale],
+		];
+		for (const [x1, y1, x2, y2] of overlayArmRects) {
+			for (let y = y1; y < Math.min(y2, h); y++) {
+				for (let x = x1; x < Math.min(x2, w); x++) {
+					const idx = (y * w + x) * 4;
+					const isPlaceholder = (data[idx] === 45 && data[idx + 1] === 45 && data[idx + 2] === 45)
+						|| (data[idx] === 40 && data[idx + 1] === 30 && data[idx + 2] === 25);
+					if (isPlaceholder) {
+						data[idx + 3] = 0;
 					}
 				}
 			}

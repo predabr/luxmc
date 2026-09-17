@@ -3,11 +3,8 @@ use std::collections::HashSet;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
-use tauri::State;
-
 use crate::db::models::ProfileRow;
 use crate::error::{AppError, AppResult};
-use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -139,7 +136,6 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_shield_scan(
-    _state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<ShieldScanResult> {
     let db = crate::db::shared_db().await?;

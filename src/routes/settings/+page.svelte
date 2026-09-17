@@ -66,6 +66,27 @@
 	let javaPathInput = $state(settings.value.javaPath || "");
 	let jvmArgsInput = $state(settings.value.jvmArgs || "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646");
 	let useVulkan = $state(false);
+	let waylandNative = $state(settings.value.waylandNative ?? false);
+
+	const ramPresets = [2, 4, 6, 8, 10, 12, 16];
+
+	function setRamPreset(gb: number) {
+		maxRamGb = gb;
+		saveJava();
+	}
+
+	function setJvmPreset(preset: "g1gc" | "aikar" | "zgc" | "shenandoah") {
+		if (preset === "g1gc") {
+			jvmArgsInput = "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646";
+		} else if (preset === "aikar") {
+			jvmArgsInput = "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1";
+		} else if (preset === "zgc") {
+			jvmArgsInput = "-XX:+UseZGC -XX:+UnlockExperimentalVMOptions -XX:+ZGenerational";
+		} else if (preset === "shenandoah") {
+			jvmArgsInput = "-XX:+UseShenandoahGC -XX:+UnlockExperimentalVMOptions -XX:ShenandoahGCHeuristics=adaptive";
+		}
+		saveJava();
+	}
 
 	let preLaunchCmd = $state("");
 	let postExitCmd = $state("");
@@ -126,8 +147,9 @@
 	function saveJava() {
 		settings.patch({
 			maxRamMb: maxRamGb * 1024,
-			javaPath: javaPathInput || undefined,
-			jvmArgs: jvmArgsInput || undefined
+			javaPath: javaPathInput ? javaPathInput.trim() : undefined,
+			jvmArgs: jvmArgsInput ? jvmArgsInput.trim() : undefined,
+			waylandNative: waylandNative
 		});
 		if (typeof window !== "undefined") {
 			localStorage.setItem("luxmc_enable_vulkan", String(useVulkan));
@@ -502,38 +524,107 @@
 					</div>
 				</div>
 
-				<div class="flex items-center justify-between py-5 gap-6">
-					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Maximum Memory Allocation</h3>
-						<p class="text-xs text-white/50 leading-relaxed">RAM allocated to Minecraft instances (Current: {maxRamGb} GB)</p>
+				<div class="py-5 space-y-3">
+					<div class="flex items-center justify-between gap-6">
+						<div class="space-y-1 max-w-xl">
+							<h3 class="text-sm font-bold text-white">Alocação Máxima de Memória (RAM)</h3>
+							<p class="text-xs text-white/50 leading-relaxed">Quantidade de memória dedicada às instâncias do Minecraft (Atual: {maxRamGb} GB)</p>
+						</div>
+						<div class="flex items-center gap-3">
+							<input
+								type="range"
+								min={2}
+								max={16}
+								step={1}
+								bind:value={maxRamGb}
+								onchange={saveJava}
+								class="w-36 accent-blue-500 cursor-pointer"
+							/>
+							<span class="text-xs font-mono font-bold text-white bg-[#181920] px-3 py-1.5 rounded-xl border border-white/10 min-w-[70px] text-center">
+								{maxRamGb} GB
+							</span>
+						</div>
 					</div>
-					<div class="flex items-center gap-3">
+					<div class="flex flex-wrap items-center gap-2 pt-1">
+						<span class="text-[11px] font-semibold text-white/40 mr-1">Atalhos rápidos:</span>
+						{#each ramPresets as preset}
+							<button
+								type="button"
+								onclick={() => setRamPreset(preset)}
+								class="px-3 py-1 rounded-lg text-xs font-mono font-bold border transition-all cursor-pointer {maxRamGb === preset ? 'bg-blue-600 border-blue-500 text-white shadow-md' : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white'}"
+							>
+								{preset}G
+							</button>
+						{/each}
+						<button
+							type="button"
+							onclick={() => setRamPreset(6)}
+							class="px-3 py-1 rounded-lg text-xs font-sans font-bold border transition-all cursor-pointer {maxRamGb === 6 ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10 hover:text-white'}"
+						>
+							Auto (6G)
+						</button>
+					</div>
+				</div>
+
+				<div class="py-5 space-y-3">
+					<div class="flex items-center justify-between gap-6">
+						<div class="space-y-1 max-w-xl">
+							<h3 class="text-sm font-bold text-white">Argumentos JVM</h3>
+							<p class="text-xs text-white/50 leading-relaxed">Flags personalizadas do Java e parâmetros do Garbage Collector (GC)</p>
+						</div>
 						<input
-							type="range"
-							min={2}
-							max={16}
-							step={1}
-							bind:value={maxRamGb}
+							type="text"
+							bind:value={jvmArgsInput}
 							onchange={saveJava}
-							class="w-36 accent-blue-500 cursor-pointer"
+							class="bg-[#181920] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder:text-white/30 outline-none w-80 focus:border-blue-500"
 						/>
-						<span class="text-xs font-mono font-bold text-white bg-[#181920] px-3 py-1.5 rounded-xl border border-white/10 min-w-[70px] text-center">
-							{maxRamGb} GB
-						</span>
+					</div>
+					<div class="flex flex-wrap items-center gap-2 pt-1">
+						<span class="text-[11px] font-semibold text-white/40 mr-1">Presets recomendados:</span>
+						<button
+							type="button"
+							onclick={() => setJvmPreset('g1gc')}
+							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+						>
+							G1GC Padrão
+						</button>
+						<button
+							type="button"
+							onclick={() => setJvmPreset('aikar')}
+							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+						>
+							Aikar's Flags (Modpacks)
+						</button>
+						<button
+							type="button"
+							onclick={() => setJvmPreset('zgc')}
+							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+						>
+							ZGC (Java 17+ / Baixa Latência)
+						</button>
+						<button
+							type="button"
+							onclick={() => setJvmPreset('shenandoah')}
+							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+						>
+							Shenandoah GC
+						</button>
 					</div>
 				</div>
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">JVM Arguments</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Custom Java Virtual Machine flags and GC optimization parameters</p>
+						<h3 class="text-sm font-bold text-white">Modo Wayland Nativo (Linux)</h3>
+						<p class="text-xs text-white/50 leading-relaxed">Quando desativado, força compatibilidade XWayland para evitar o erro GLFW 65548 ao carregar ícones</p>
 					</div>
-					<input
-						type="text"
-						bind:value={jvmArgsInput}
-						onchange={saveJava}
-						class="bg-[#181920] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder:text-white/30 outline-none w-72 focus:border-blue-500"
-					/>
+					<button
+						type="button"
+						aria-label="Toggle Wayland Mode"
+						onclick={() => { waylandNative = !waylandNative; saveJava(); }}
+						class="w-12 h-6 rounded-full transition-colors relative cursor-pointer {waylandNative ? 'bg-blue-600' : 'bg-white/15'}"
+					>
+						<span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform {waylandNative ? 'translate-x-6' : ''}"></span>
+					</button>
 				</div>
 
 				<div class="flex items-center justify-between py-5 gap-6">

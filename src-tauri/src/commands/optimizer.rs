@@ -20,9 +20,8 @@ pub fn optimizer_get_perf_pack(loader: String, mc_version: String) -> Performanc
     get_performance_pack_info(&loader, &mc_version)
 }
 
-#[tauri::command]
-pub async fn optimizer_install_perf_pack(
-    state: State<'_, AppState>,
+pub async fn optimizer_install_perf_pack_core(
+    http: &reqwest::Client,
     instance_id: String,
 ) -> AppResult<Vec<String>> {
     let db = crate::db::shared_db().await?;
@@ -36,7 +35,7 @@ pub async fn optimizer_install_perf_pack(
 
     let game_dir = std::path::PathBuf::from(&profile.game_dir);
     let installed = install_performance_pack(
-        &state.http,
+        http,
         &game_dir,
         &profile.loader,
         &profile.mc_version,
@@ -58,6 +57,14 @@ pub async fn optimizer_install_perf_pack(
     }
 
     Ok(installed)
+}
+
+#[tauri::command]
+pub async fn optimizer_install_perf_pack(
+    state: State<'_, AppState>,
+    instance_id: String,
+) -> AppResult<Vec<String>> {
+    optimizer_install_perf_pack_core(&state.http, instance_id).await
 }
 
 #[tauri::command]

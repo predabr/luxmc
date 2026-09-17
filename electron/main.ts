@@ -1,13 +1,61 @@
-import { app, BrowserWindow, ipcMain, shell, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, shell, dialog, protocol, net } from "electron";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 import { spawn, ChildProcess } from "child_process";
 import * as readline from "readline";
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "app",
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true,
+    },
+  },
+]);
 
 let mainWindow: BrowserWindow | null = null;
 let sidecarProcess: ChildProcess | null = null;
 let nextRequestId = 1;
 const pendingRequests = new Map<number, { resolve: (val: unknown) => void; reject: (err: unknown) => void }>();
+
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient("luxmc", process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient("luxmc");
+}
+
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", (_event, commandLine) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+      const deepLink = commandLine.find((arg) => arg.startsWith("luxmc://"));
+      if (deepLink) {
+        mainWindow.webContents.send("deep-link", deepLink);
+      }
+    }
+  });
+}
+
+function ensureExecutable(filePath: string) {
+  if (process.platform !== "win32") {
+    try {
+      fs.chmodSync(filePath, 0o755);
+    } catch {
+      // Squashfs or read-only mount
+    }
+  }
+}
 
 function findSidecarBinary(): string | null {
   const isDev = !app.isPackaged;
@@ -17,23 +65,96 @@ function findSidecarBinary(): string | null {
     const devPaths = [
       path.join(__dirname, "../src-tauri/target/release", binaryName),
       path.join(__dirname, "../src-tauri/target/debug", binaryName),
+      path.join(__dirname, "bin", binaryName),
     ];
     for (const p of devPaths) {
-      if (fs.existsSync(p)) return p;
+      if (fs.existsSync(p)) {
+        ensureExecutable(p);
+        return p;
+      }
     }
   } else {
     const prodPaths = [
-      path.join(__dirname, "bin", binaryName),
       path.join(process.resourcesPath, "bin", binaryName),
+      path.join(process.resourcesPath, "app.asar.unpacked", "dist-electron", "bin", binaryName),
       path.join(process.resourcesPath, binaryName),
+      path.join(path.dirname(app.getPath("exe")), "resources", "bin", binaryName),
       path.join(path.dirname(app.getPath("exe")), binaryName),
+      path.join(os.homedir(), ".local/share/luxmc/bin", binaryName),
     ];
     for (const p of prodPaths) {
-      if (fs.existsSync(p)) return p;
+      if (fs.existsSync(p)) {
+        ensureExecutable(p);
+        return p;
+      }
     }
   }
 
   return null;
+}
+
+function findCsharpLauncher(): string | null {
+  const binaryName = process.platform === "win32" ? "Luxmc.Launcher.exe" : "Luxmc.Launcher";
+  const isDev = !app.isPackaged;
+
+  if (isDev) {
+    const candidates = [
+      path.join(__dirname, "../src-csharp/Luxmc.Launcher/bin/Release/net8.0/linux-x64/publish", binaryName),
+      path.join(__dirname, "bin", binaryName),
+      path.join(__dirname, "../dist-electron/bin", binaryName),
+      path.join(os.homedir(), ".local/share/luxmc/bin", binaryName),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        ensureExecutable(c);
+        return c;
+      }
+    }
+  } else {
+    const candidates = [
+      path.join(process.resourcesPath, "bin", binaryName),
+      path.join(process.resourcesPath, "app.asar.unpacked", "dist-electron", "bin", binaryName),
+      path.join(process.resourcesPath, binaryName),
+      path.join(path.dirname(app.getPath("exe")), "resources", "bin", binaryName),
+      path.join(path.dirname(app.getPath("exe")), binaryName),
+      path.join(os.homedir(), ".local/share/luxmc/bin", binaryName),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        ensureExecutable(c);
+        return c;
+      }
+    }
+  }
+  return null;
+}
+
+function executeCsharpCommand(subcommand: string, inputArgs: string[]): Promise<any> {
+  const launcherBin = findCsharpLauncher();
+  if (!launcherBin) {
+    return Promise.reject(new Error("C# Luxmc.Launcher binary not found"));
+  }
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn(launcherBin, [subcommand, ...inputArgs]);
+    let out = "";
+    let err = "";
+
+    proc.stdout.on("data", (d) => { out += d.toString(); });
+    proc.stderr.on("data", (d) => { err += d.toString(); });
+
+    proc.on("close", (code) => {
+      if (code === 0) {
+        try {
+          resolve(JSON.parse(out.trim()));
+        } catch {
+          resolve(out.trim());
+        }
+      } else {
+        reject(new Error(err.trim() || out.trim() || `Exit code ${code}`));
+      }
+    });
+  });
 }
 
 function startSidecar() {
@@ -44,11 +165,13 @@ function startSidecar() {
   }
 
   try {
+    const csharpBin = findCsharpLauncher();
     sidecarProcess = spawn(binaryPath, ["--daemon"], {
       stdio: ["pipe", "pipe", "pipe"],
       env: {
         ...process.env,
         LUXMC_ELECTRON_MODE: "1",
+        ...(csharpBin ? { LUXMC_CSHARP_PATH: csharpBin } : {}),
       },
     });
 
@@ -151,14 +274,10 @@ function createWindow() {
 
   if (isDev) {
     mainWindow.loadURL(devUrl).catch(() => {
-      const prodPath = path.join(__dirname, "../build/index.html");
-      if (fs.existsSync(prodPath) && mainWindow) {
-        mainWindow.loadFile(prodPath);
-      }
+      mainWindow?.loadURL("app://luxmc/");
     });
   } else {
-    const prodPath = path.join(__dirname, "../build/index.html");
-    mainWindow.loadFile(prodPath);
+    mainWindow.loadURL("app://luxmc/");
   }
 }
 
@@ -226,11 +345,50 @@ ipcMain.handle("luxmc:invoke", async (_event, { command, args }: { command: stri
     return null;
   }
 
+  if (command === "csharp_validate" || command === "validate_instance") {
+    const targetDir = (args?.path as string) || (args?.instanceDir as string) || process.cwd();
+    return executeCsharpCommand("validate", [targetDir]);
+  }
+
+  if (command === "csharp_diagnose" || command === "diagnose_crash") {
+    const logContent = (args?.log as string) || (args?.content as string) || "";
+    return executeCsharpCommand("diagnose", [logContent]);
+  }
+
+  if (command === "csharp_gc_tune" || command === "gc_tune") {
+    const ram = (args?.ramMb as number) || 4096;
+    return executeCsharpCommand("gc-tune", [ram.toString()]);
+  }
+
+  if (command === "csharp_version") {
+    return executeCsharpCommand("version", []);
+  }
+
   // Forward command to the native Rust + C++ daemon
   return sendToSidecar(command, args);
 });
 
 app.whenReady().then(() => {
+  protocol.handle("app", (req) => {
+    const parsed = new URL(req.url);
+    let pathname = decodeURIComponent(parsed.pathname);
+
+    if (parsed.searchParams.has("path")) {
+      const assetPath = parsed.searchParams.get("path");
+      if (assetPath && fs.existsSync(assetPath)) {
+        return net.fetch(`file://${assetPath}`);
+      }
+    }
+
+    if (pathname.startsWith("/")) pathname = pathname.slice(1);
+    const buildDir = path.join(__dirname, "../build");
+    let target = path.join(buildDir, pathname || "index.html");
+    if (!fs.existsSync(target) || (fs.existsSync(target) && fs.statSync(target).isDirectory())) {
+      target = path.join(buildDir, "index.html");
+    }
+    return net.fetch(`file://${target}`);
+  });
+
   startSidecar();
   createWindow();
 

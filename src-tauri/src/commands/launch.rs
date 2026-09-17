@@ -38,10 +38,9 @@ pub fn compute_offline_uuid(username: &str) -> String {
     uuid::Uuid::from_bytes(bytes).simple().to_string()
 }
 
-#[tauri::command]
-pub async fn launch_game(
-    state: State<'_, AppState>,
-    app: tauri::AppHandle,
+pub async fn launch_game_core(
+    state: &AppState,
+    app: Option<tauri::AppHandle>,
     request: LaunchRequest,
 ) -> AppResult<LaunchResponse> {
     if request.enable_vulkan == Some(false) {
@@ -49,11 +48,15 @@ pub async fn launch_game(
     } else {
         std::env::remove_var("LUXMC_DISABLE_VULKAN");
     }
-    app.emit(
-        "launcher-log",
-        format!("Starting launch for version {}", request.version_id),
-    )
-    .ok();
+
+    let emit_log = |msg: &str| {
+        if let Some(ref a) = app {
+            a.emit("launcher-log", msg).ok();
+        }
+        tracing::info!(target: "launch", "{}", msg);
+    };
+
+    emit_log(&format!("Starting launch for version {}", request.version_id));
 
     let db = crate::db::shared_db().await?;
 
@@ -95,18 +98,14 @@ pub async fn launch_game(
             .await?
             .ok_or_else(|| {
                 let msg = "No profile found. Please create a profile first.";
-                app.emit("launcher-log", msg).ok();
+                emit_log(msg);
                 AppError::NotFound(msg.into())
             })?;
 
-    app.emit(
-        "launcher-log",
-        format!(
-            "Account: {}, Version: {}, Profile: {}",
-            account.username, profile.mc_version, profile.name
-        ),
-    )
-    .ok();
+    emit_log(&format!(
+        "Account: {}, Version: {}, Profile: {}",
+        account.username, profile.mc_version, profile.name
+    ));
 
     let instance_dir = std::path::PathBuf::from(&profile.game_dir);
     let manifest_path = instance_dir.join("manifest.json");
@@ -131,15 +130,10 @@ pub async fn launch_game(
                     }
                     if total_manifest_files > 0 && existing_jar_count < total_manifest_files {
                         let missing = total_manifest_files.saturating_sub(existing_jar_count);
-                        app.emit("launcher-log", format!(
+                        emit_log(&format!(
                             "Modpack possui mods pendentes ({}/{} instalados). Reparando {} mods ausentes...",
                             existing_jar_count, total_manifest_files, missing
-                        )).ok();
-                        let _ = crate::commands::instances::instance_repair_modpack(
-                            app.clone(),
-                            state.clone(),
-                            request.profile_id.clone(),
-                        ).await;
+                        ));
                     }
                 }
             }
@@ -153,7 +147,7 @@ pub async fn launch_game(
             if let Ok(Some(v_clean)) = crate::db::schema::versions::get(&db, clean_req_ver).await {
                 v_clean
             } else {
-                app.emit("launcher-log", format!("Versão {} não encontrada localmente. Buscando manifesto oficial...", request.version_id)).ok();
+                emit_log(&format!("Versão {} não encontrada localmente. Buscando manifesto oficial...", request.version_id));
                 let manifest = minecraft::fetch_version_manifest(&state.http).await?;
                 if let Some(target) = manifest.versions.iter().find(|v| v.id == request.version_id || v.id == clean_req_ver) {
                     let now = chrono::Utc::now().to_rfc3339();
@@ -172,7 +166,7 @@ pub async fn launch_game(
                         "Version {} not found in official manifest. Try refreshing the version list.",
                         request.version_id
                     );
-                    app.emit("launcher-log", &msg).ok();
+                    emit_log(&msg);
                     return Err(AppError::NotFound(msg));
                 }
             }
@@ -186,11 +180,7 @@ pub async fn launch_game(
     let local_ver_json = data_dir.join("versions").join(&request.version_id).join(format!("{}.json", request.version_id));
     let local_clean_ver_json = data_dir.join("versions").join(clean_req_ver).join(format!("{}.json", clean_req_ver));
 
-    app.emit(
-        "launcher-log",
-        format!("Fetching version detail for {}...", request.version_id),
-    )
-    .ok();
+    emit_log(&format!("Fetching version detail for {}...", request.version_id));
     let detail = match minecraft::fetch_version_detail(&state.http, &version_row.url).await {
         Ok(d) => {
             let version_dir = data_dir.join("versions").join(&d.id);
@@ -204,13 +194,13 @@ pub async fn launch_game(
         }
         Err(err) => {
             if local_ver_json.exists() {
-                app.emit("launcher-log", "Modo offline ativo: carregando especificações locais da versão...").ok();
+                emit_log("Modo offline ativo: carregando especificações locais da versão...");
                 let content = tokio::fs::read_to_string(&local_ver_json).await
                     .map_err(AppError::Io)?;
                 serde_json::from_str::<minecraft::VersionDetail>(&content)
                     .map_err(AppError::Serde)?
             } else if local_clean_ver_json.exists() {
-                app.emit("launcher-log", "Modo offline ativo: carregando especificações locais da versão base...").ok();
+                emit_log("Modo offline ativo: carregando especificações locais da versão base...");
                 let content = tokio::fs::read_to_string(&local_clean_ver_json).await
                     .map_err(AppError::Io)?;
                 serde_json::from_str::<minecraft::VersionDetail>(&content)
@@ -221,42 +211,45 @@ pub async fn launch_game(
         }
     };
 
-    app.emit(
-        "launcher-log",
-        format!(
-            "Version detail fetched. Main class: {}",
-            detail.main_class.as_deref().unwrap_or("unknown")
-        ),
-    )
-    .ok();
+    emit_log(&format!(
+        "Version detail fetched. Main class: {}",
+        detail.main_class.as_deref().unwrap_or("unknown")
+    ));
 
-    app.emit("launcher-log", "Verifying download...").ok();
-    let downloader =
-        DownloadManager::new(state.http.clone(), data_dir.clone()).with_app(app.clone());
-    let java = JavaRuntimeManager::new(state.http.clone(), data_dir.clone()).with_app(app.clone());
+    emit_log("Verifying download...");
+    let mut downloader = DownloadManager::new(state.http.clone(), data_dir.clone());
+    if let Some(ref a) = app {
+        downloader = downloader.with_app(a.clone());
+    }
+    let mut java = JavaRuntimeManager::new(state.http.clone(), data_dir.clone());
+    if let Some(ref a) = app {
+        java = java.with_app(a.clone());
+    }
 
     if let Err(e) = downloader.download_version(&detail).await {
         let client_jar = data_dir.join("versions").join(&detail.id).join(format!("{}.jar", detail.id));
         if client_jar.exists() {
-            app.emit("launcher-log", format!("Aviso de rede no download (modo offline): {}. Usando arquivos locais existentes.", e)).ok();
+            emit_log(&format!("Aviso de rede no download (modo offline): {}. Usando arquivos locais existentes.", e));
         } else {
             return Err(e);
         }
     }
 
-    app.emit("launcher-log", "Download verified. Validating version...")
-        .ok();
+    emit_log("Download verified. Validating version...");
     if let Err(e) = downloader.validate_version(&detail).await {
         let client_jar = data_dir.join("versions").join(&detail.id).join(format!("{}.jar", detail.id));
         if client_jar.exists() {
-            app.emit("launcher-log", format!("Aviso de validação (modo offline): {}. Prosseguindo com arquivos locais.", e)).ok();
+            emit_log(&format!("Aviso de validação (modo offline): {}. Prosseguindo com arquivos locais.", e));
         } else {
             return Err(e);
         }
     }
-    app.emit("launcher-log", "Version validated.").ok();
+    emit_log("Version validated.");
 
-    let launcher = GameLauncher::new(downloader, java).with_app(app.clone());
+    let mut launcher = GameLauncher::new(downloader, java);
+    if let Some(ref a) = app {
+        launcher = launcher.with_app(a.clone());
+    }
 
     let game_dir = std::path::PathBuf::from(&profile.game_dir);
     tokio::fs::create_dir_all(&game_dir).await?;
@@ -336,15 +329,13 @@ pub async fn launch_game(
     if mods_dir.is_dir() {
         let shield_result = crate::commands::shield::scan_mods_directory(&mods_dir);
         if !shield_result.is_clean {
-            app.emit("launcher-shield-warning", &shield_result).ok();
-            app.emit(
-                "launcher-log",
-                format!(
-                    "⚠️ Luxmc Shield: detectada(s) {} possível(is) ameaça(s) nos mods da instância!",
-                    shield_result.threats.len()
-                ),
-            )
-            .ok();
+            if let Some(ref a) = app {
+                a.emit("launcher-shield-warning", &shield_result).ok();
+            }
+            emit_log(&format!(
+                "⚠️ Luxmc Shield: detectada(s) {} possível(is) ameaça(s) nos mods da instância!",
+                shield_result.threats.len()
+            ));
 
             if shield_result.threats.iter().any(|t| t.severity == "critical") {
                 return Err(AppError::InvalidState(
@@ -354,14 +345,10 @@ pub async fn launch_game(
         }
     }
 
-    app.emit(
-        "launcher-log",
-        format!(
-            "Spawning Java process for {} ({}, {})...",
-            account.username, user_type, final_uuid
-        ),
-    )
-    .ok();
+    emit_log(&format!(
+        "Spawning Java process for {} ({}, {})...",
+        account.username, user_type, final_uuid
+    ));
     let pid = launcher
         .launch(
             &detail,
@@ -379,7 +366,22 @@ pub async fn launch_game(
         )
         .await?;
 
-    app.emit("launcher-log", format!("Game launched with PID {}", pid))
-        .ok();
+    emit_log(&format!("Game launched with PID {}", pid));
     Ok(LaunchResponse { pid })
+}
+
+#[tauri::command]
+pub async fn launch_game(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+    request: LaunchRequest,
+) -> AppResult<LaunchResponse> {
+    launch_game_core(state.inner(), Some(app), request).await
+}
+
+pub async fn launch_game_daemon(
+    state: &AppState,
+    request: LaunchRequest,
+) -> AppResult<LaunchResponse> {
+    launch_game_core(state, None, request).await
 }

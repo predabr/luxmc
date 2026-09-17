@@ -1,14 +1,10 @@
 #![allow(non_snake_case)]
 
-use tauri::State;
-
 use crate::db;
 use crate::error::AppResult;
-use crate::state::AppState;
 
 #[tauri::command]
 pub async fn launch_log_open(
-    _state: State<'_, AppState>,
     profileId: Option<String>,
     versionId: String,
 ) -> AppResult<i64> {
@@ -19,7 +15,6 @@ pub async fn launch_log_open(
 
 #[tauri::command]
 pub async fn launch_log_append(
-    _state: State<'_, AppState>,
     logId: i64,
     stream: String,
     level: String,
@@ -34,7 +29,6 @@ pub async fn launch_log_append(
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn launch_log_close(
-    _state: State<'_, AppState>,
     logId: i64,
     exitCode: Option<i64>,
     summary: Option<String>,

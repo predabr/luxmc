@@ -47,23 +47,22 @@ fn dedup_results(mut combined: Vec<ModSearchResult>) -> Vec<ModSearchResult> {
 }
 
 #[tauri::command]
-#[allow(non_snake_case)]
-pub async fn mods_search(
-    state: State<'_, AppState>,
+pub async fn mods_search_core(
+    state: &AppState,
     query: String,
-    mcVersion: String,
+    mc_version: String,
     limit: Option<u32>,
     offset: Option<u32>,
-    contentType: Option<String>,
-    sortBy: Option<String>,
+    content_type: Option<String>,
+    sort_by: Option<String>,
     loader: Option<String>,
     category: Option<String>,
     source: Option<String>,
 ) -> AppResult<Vec<ModSearchResult>> {
     let limit = limit.unwrap_or(21);
     let offset = offset.unwrap_or(0);
-    let content_type = contentType.unwrap_or_else(|| "mod".to_string());
-    let sort = sortBy.as_deref().unwrap_or("downloads");
+    let content_type = content_type.unwrap_or_else(|| "mod".to_string());
+    let sort = sort_by.as_deref().unwrap_or("downloads");
 
     let modrinth_client = ModrinthClient::new(state.http.clone());
 
@@ -71,7 +70,7 @@ pub async fn mods_search(
     let (modrinth_results, curseforge_results) = match src.as_str() {
         "modrinth" => {
             let m = modrinth_client
-                .search_mods(&query, &mcVersion, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
+                .search_mods(&query, &mc_version, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
                 .await
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "Modrinth search failed");
@@ -80,7 +79,7 @@ pub async fn mods_search(
             (m, Vec::new())
         }
         "curseforge" => {
-            let c = curseforge::search_mods(&state.http, &query, &mcVersion, &content_type, loader.as_deref(), limit, offset, Some(sort))
+            let c = curseforge::search_mods(&state.http, &query, &mc_version, &content_type, loader.as_deref(), limit, offset, Some(sort))
                 .await
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "CurseForge search failed");
@@ -92,7 +91,7 @@ pub async fn mods_search(
             tokio::join!(
                 async {
                     modrinth_client
-                        .search_mods(&query, &mcVersion, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
+                        .search_mods(&query, &mc_version, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
                         .await
                         .unwrap_or_else(|e| {
                             tracing::warn!(error = %e, "Modrinth search failed");
@@ -100,7 +99,7 @@ pub async fn mods_search(
                         })
                 },
                 async {
-                    curseforge::search_mods(&state.http, &query, &mcVersion, &content_type, loader.as_deref(), limit, offset, Some(sort))
+                    curseforge::search_mods(&state.http, &query, &mc_version, &content_type, loader.as_deref(), limit, offset, Some(sort))
                         .await
                         .unwrap_or_else(|e| {
                             tracing::warn!(error = %e, "CurseForge search failed");
@@ -134,6 +133,23 @@ pub async fn mods_search(
 
 #[tauri::command]
 #[allow(non_snake_case)]
+pub async fn mods_search(
+    state: State<'_, AppState>,
+    query: String,
+    mcVersion: String,
+    limit: Option<u32>,
+    offset: Option<u32>,
+    contentType: Option<String>,
+    sortBy: Option<String>,
+    loader: Option<String>,
+    category: Option<String>,
+    source: Option<String>,
+) -> AppResult<Vec<ModSearchResult>> {
+    mods_search_core(&state, query, mcVersion, limit, offset, contentType, sortBy, loader, category, source).await
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
 pub async fn mods_search_typed(
     state: State<'_, AppState>,
     query: String,
@@ -149,6 +165,28 @@ pub async fn mods_search_typed(
     mods_search(state, query, mcVersion, limit, offset, Some(contentType), sortBy, loader, category, source).await
 }
 
+pub async fn mods_versions_core(
+    state: &AppState,
+    project_id: String,
+    mc_version: String,
+    source: Option<String>,
+) -> AppResult<Vec<ModVersion>> {
+    let src = source.as_deref().unwrap_or("modrinth");
+    tracing::info!(project_id = %project_id, mc_version = %mc_version, source = %src, "mods_versions called");
+
+    let result = match src {
+        "curseforge" => {
+            curseforge::get_mod_versions(&state.http, &project_id, &mc_version).await
+        }
+        _ => {
+            let modrinth_client = ModrinthClient::new(state.http.clone());
+            modrinth_client.get_mod_versions(&project_id, &mc_version).await
+        }
+    };
+
+    result
+}
+
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn mods_versions(
@@ -157,33 +195,21 @@ pub async fn mods_versions(
     mcVersion: String,
     source: Option<String>,
 ) -> AppResult<Vec<ModVersion>> {
+    mods_versions_core(&state, projectId, mcVersion, source).await
+}
+
+pub async fn mods_project_details_core(
+    state: &AppState,
+    project_id: String,
+    source: Option<String>,
+) -> AppResult<ModProjectDetails> {
     let src = source.as_deref().unwrap_or("modrinth");
-    tracing::info!(project_id = %projectId, mc_version = %mcVersion, source = %src, "mods_versions called");
-
-    let result = match src {
-        "curseforge" => {
-            curseforge::get_mod_versions(&state.http, &projectId, &mcVersion).await
-        }
-        _ => {
-            let modrinth_client = ModrinthClient::new(state.http.clone());
-            modrinth_client.get_mod_versions(&projectId, &mcVersion).await
-        }
-    };
-
-    match &result {
-        Ok(versions) => {
-            tracing::info!(count = versions.len(), source = %src, "mods_versions returned");
-            for v in versions.iter().take(3) {
-                tracing::info!(id = %v.id, name = %v.name, files = v.files.len(), "  version");
-                for f in v.files.iter().take(2) {
-                    tracing::info!(url = %f.url, filename = %f.filename, "    file");
-                }
-            }
-        }
-        Err(e) => tracing::error!(error = %e, source = %src, "mods_versions failed"),
+    if src == "curseforge" {
+        curseforge::get_mod_details(&state.http, &project_id).await
+    } else {
+        let client = ModrinthClient::new(state.http.clone());
+        client.get_project_details(&project_id).await
     }
-
-    result
 }
 
 #[tauri::command]
@@ -193,24 +219,17 @@ pub async fn mods_project_details(
     projectId: String,
     source: Option<String>,
 ) -> AppResult<ModProjectDetails> {
-    let src = source.as_deref().unwrap_or("modrinth");
-    if src == "curseforge" {
-        curseforge::get_mod_details(&state.http, &projectId).await
-    } else {
-        let client = ModrinthClient::new(state.http.clone());
-        client.get_project_details(&projectId).await
-    }
+    mods_project_details_core(&state, projectId, source).await
 }
 
 #[tauri::command]
 #[allow(non_snake_case)]
-pub async fn mods_list(_state: State<'_, AppState>, profileId: String) -> AppResult<Vec<ModRow>> {
+pub async fn mods_list(profileId: String) -> AppResult<Vec<ModRow>> {
     let db = crate::db::shared_db().await?;
     crate::db::schema::mods::list_by_profile(&db, &profileId).await
 }
 
-#[tauri::command]
-pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest) -> AppResult<()> {
+pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> AppResult<()> {
     tracing::info!(profile_id = %request.profile_id, project_id = %request.project_id, version_id = %request.version_id, source = %request.source, content_type = ?request.content_type, "mods_install called");
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
@@ -402,9 +421,12 @@ pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest
 }
 
 #[tauri::command]
-#[allow(non_snake_case)]
-pub async fn mods_install_with_deps(
-    state: State<'_, AppState>,
+pub async fn mods_install(state: State<'_, AppState>, request: ModInstallRequest) -> AppResult<()> {
+    mods_install_core(&state, request).await
+}
+
+pub async fn mods_install_with_deps_core(
+    state: &AppState,
     request: ModInstallRequest,
 ) -> AppResult<Vec<String>> {
     let client = ModrinthClient::new(state.http.clone());
@@ -428,13 +450,13 @@ pub async fn mods_install_with_deps(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
+
     let mods_dir = base_dir.data_dir().join("mods").join(&resolved_profile_id);
     tokio::fs::create_dir_all(&mods_dir).await?;
-
     let source = request.source.clone();
 
     let mut depth = 0;
-    while !to_install.is_empty() && depth < 3 {
+    while !to_install.is_empty() && depth < 5 {
         let batch = std::mem::take(&mut to_install);
         depth += 1;
 
@@ -526,9 +548,16 @@ pub async fn mods_install_with_deps(
 }
 
 #[tauri::command]
+pub async fn mods_install_with_deps(
+    state: State<'_, AppState>,
+    request: ModInstallRequest,
+) -> AppResult<Vec<String>> {
+    mods_install_with_deps_core(&state, request).await
+}
+
+#[tauri::command]
 #[allow(non_snake_case)]
 pub async fn mods_remove(
-    _state: State<'_, AppState>,
     profileId: String,
     projectId: String,
 ) -> AppResult<()> {
@@ -572,22 +601,20 @@ pub async fn mods_remove(
     Ok(())
 }
 
-#[tauri::command]
-#[allow(non_snake_case)]
-pub async fn mods_check_updates(
-    state: State<'_, AppState>,
-    profileId: String,
+pub async fn mods_check_updates_core(
+    state: &AppState,
+    profile_id: String,
 ) -> AppResult<Vec<ModUpdate>> {
     let db = crate::db::shared_db().await?;
-    let installed = crate::db::schema::mods::list_by_profile(&db, &profileId).await?;
+    let installed = crate::db::schema::mods::list_by_profile(&db, &profile_id).await?;
 
     let profile =
         sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
-            .bind(&profileId)
+            .bind(&profile_id)
             .fetch_optional(db.pool())
             .await?
             .ok_or_else(|| {
-                crate::error::AppError::NotFound(format!("profile {profileId} not found"))
+                crate::error::AppError::NotFound(format!("profile {profile_id} not found"))
             })?;
 
     let client = ModrinthClient::new(state.http.clone());
@@ -620,6 +647,7 @@ pub async fn mods_check_updates(
             }
             continue;
         }
+
         if let Ok(Some((latest_id, latest_num, download_url))) = client
             .get_latest_version(&mod_row.project_id, &profile.mc_version, &loaders)
             .await
@@ -649,26 +677,33 @@ pub async fn mods_check_updates(
 
 #[tauri::command]
 #[allow(non_snake_case)]
-pub async fn mods_update(
+pub async fn mods_check_updates(
     state: State<'_, AppState>,
-    projectId: String,
-    versionId: String,
     profileId: String,
+) -> AppResult<Vec<ModUpdate>> {
+    mods_check_updates_core(&state, profileId).await
+}
+
+pub async fn mods_update_core(
+    state: &AppState,
+    project_id: String,
+    version_id: String,
+    profile_id: String,
 ) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
 
     let old = sqlx::query_as::<_, crate::db::schema::mods::ModRow>(
         "SELECT * FROM mods WHERE profile_id = ? AND project_id = ?",
     )
-    .bind(&profileId)
-    .bind(&projectId)
+    .bind(&profile_id)
+    .bind(&project_id)
     .fetch_optional(db.pool())
     .await?;
 
     let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>(
         "SELECT * FROM profiles WHERE id = ?",
     )
-    .bind(&profileId)
+    .bind(&profile_id)
     .fetch_optional(db.pool())
     .await?;
 
@@ -680,7 +715,7 @@ pub async fn mods_update(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let mods_dir = base_dir.data_dir().join("mods").join(&profileId);
+    let mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
     tokio::fs::create_dir_all(&mods_dir).await?;
 
     if let Some(ref old_mod) = old {
@@ -690,10 +725,10 @@ pub async fn mods_update(
 
     let (file_url, file_name, file_sha1) = match source.as_str() {
         "curseforge" => {
-            let versions = curseforge::get_mod_versions(&state.http, &projectId, "").await?;
+            let versions = curseforge::get_mod_versions(&state.http, &project_id, "").await?;
             let version = versions
                 .iter()
-                .find(|v| v.id == versionId)
+                .find(|v| v.id == version_id)
                 .ok_or_else(|| {
                     crate::error::AppError::NotFound("CurseForge mod version not found".into())
                 })?;
@@ -704,10 +739,10 @@ pub async fn mods_update(
         }
         _ => {
             let client = ModrinthClient::new(state.http.clone());
-            let versions = client.get_mod_versions(&projectId, "").await?;
+            let versions = client.get_mod_versions(&project_id, "").await?;
             let version = versions
                 .iter()
-                .find(|v| v.id == versionId)
+                .find(|v| v.id == version_id)
                 .ok_or_else(|| {
                     crate::error::AppError::NotFound("Modrinth mod version not found".into())
                 })?;
@@ -742,9 +777,9 @@ pub async fn mods_update(
     }
 
     let mod_row = crate::db::schema::mods::ModRow {
-        profile_id: profileId,
-        project_id: projectId,
-        version_id: versionId,
+        profile_id: profile_id.clone(),
+        project_id: project_id.clone(),
+        version_id: version_id.clone(),
         file_name,
         sha1: file_sha1,
         source,
@@ -755,12 +790,21 @@ pub async fn mods_update(
 
 #[tauri::command]
 #[allow(non_snake_case)]
-pub async fn mods_download_to_temp(
+pub async fn mods_update(
     state: State<'_, AppState>,
+    projectId: String,
+    versionId: String,
+    profileId: String,
+) -> AppResult<()> {
+    mods_update_core(&state, projectId, versionId, profileId).await
+}
+
+pub async fn mods_download_to_temp_core(
+    state: &AppState,
     url: String,
-    fileName: String,
+    file_name: String,
 ) -> AppResult<String> {
-    tracing::info!(url = %url, filename = %fileName, "mods_download_to_temp");
+    tracing::info!(url = %url, filename = %file_name, "mods_download_to_temp");
 
     if !url.starts_with("https://") {
         return Err(crate::error::AppError::InvalidInput("Only HTTPS URLs are allowed".into()));
@@ -782,7 +826,7 @@ pub async fn mods_download_to_temp(
     let temp_dir = base_dir.cache_dir().join("modpacks");
     tokio::fs::create_dir_all(&temp_dir).await?;
 
-    let clean_name = std::path::Path::new(&fileName)
+    let clean_name = std::path::Path::new(&file_name)
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("package.zip");
@@ -808,6 +852,16 @@ pub async fn mods_download_to_temp(
 
     tracing::info!(path = %target_path.display(), size = total_bytes, "mods_download_to_temp done");
     Ok(target_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn mods_download_to_temp(
+    state: State<'_, AppState>,
+    url: String,
+    fileName: String,
+) -> AppResult<String> {
+    mods_download_to_temp_core(&state, url, fileName).await
 }
 
 #[tauri::command]
@@ -844,9 +898,13 @@ pub async fn curseforge_remove_key() -> Result<(), String> {
     Ok(())
 }
 
+pub async fn curseforge_validate_key_core(http: &reqwest::Client) -> Result<bool, String> {
+    crate::core::mods::curseforge::validate_key(http).await
+}
+
 #[tauri::command]
 pub async fn curseforge_validate_key(state: State<'_, AppState>) -> Result<bool, String> {
-    crate::core::mods::curseforge::validate_key(&state.http).await
+    curseforge_validate_key_core(&state.http).await
 }
 
 pub fn extract_mod_name_from_jar(jar_path: &std::path::Path) -> Option<String> {
@@ -1097,9 +1155,8 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
     None
 }
 
-#[tauri::command]
-pub async fn mods_resolve_names(
-    state: State<'_, AppState>,
+pub async fn mods_resolve_names_core(
+    state: &AppState,
     profile_id: String,
 ) -> AppResult<u32> {
     let db = crate::db::shared_db().await?;
@@ -1196,8 +1253,15 @@ pub async fn mods_resolve_names(
 }
 
 #[tauri::command]
-pub async fn mods_resolve_icons(
+pub async fn mods_resolve_names(
     state: State<'_, AppState>,
+    profile_id: String,
+) -> AppResult<u32> {
+    mods_resolve_names_core(&state, profile_id).await
+}
+
+pub async fn mods_resolve_icons_core(
+    state: &AppState,
     profile_id: String,
 ) -> AppResult<u32> {
     let db = crate::db::shared_db().await?;
@@ -1296,4 +1360,12 @@ pub async fn mods_resolve_icons(
     }
 
     Ok(resolved_count)
+}
+
+#[tauri::command]
+pub async fn mods_resolve_icons(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> AppResult<u32> {
+    mods_resolve_icons_core(&state, profile_id).await
 }
