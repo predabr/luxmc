@@ -10,6 +10,7 @@
   <meta name="theme-color" content="#060709">
 </head>
 <body>
+  <canvas id="bgCanvas"></canvas>
 
   <!-- Navbar -->
   <nav class="navbar">
@@ -21,9 +22,11 @@
 
       <ul class="nav-links">
         <li><a href="#inicio" class="nav-link">Início</a></li>
-        <li><a href="#mods" class="nav-link">Mods & Modpacks</a></li>
+        <li><a href="#mods" class="nav-link">Mods</a></li>
         <li><a href="#recursos" class="nav-link">Recursos</a></li>
+        <li><a href="#comparativo" class="nav-link">Comparativo</a></li>
         <li><a href="skins.html" class="nav-link">Skins & NameMC</a></li>
+        <li><a href="#faq" class="nav-link">FAQ</a></li>
         <li><a href="#download" class="nav-link">Downloads</a></li>
       </ul>
 
@@ -82,8 +85,8 @@
           <div class="stat-label">Microtravadas</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value">+15.000</div>
-          <div class="stat-label">Jogadores</div>
+          <div class="stat-value" style="font-size: 1.35rem;">Beta Aberto</div>
+          <div class="stat-label">Desenvolvimento Ativo</div>
         </div>
         <div class="stat-item">
           <div class="stat-value">&lt;100 MB</div>
@@ -295,6 +298,146 @@
     </div>
   </section>
 
+  <!-- Comparison Section -->
+  <section id="comparativo" class="section reveal">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Performance & Transparência</span>
+        <h2 class="section-title">Como o Luxmc se Compara</h2>
+        <p class="section-desc">
+          Compare a arquitetura e eficiência do Luxmc frente a outros launchers do ecossistema.
+        </p>
+      </div>
+
+      <div class="comparison-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Recurso / Métrica</th>
+              <th class="col-luxmc">Luxmc (Beta)</th>
+              <th>Launcher Oficial</th>
+              <th>Prism Launcher</th>
+              <th>CurseForge App</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Memória RAM em repouso</td>
+              <td class="col-luxmc">&lt; 100 MB</td>
+              <td>~450 MB (CEF/Electron)</td>
+              <td>~160 MB (Qt)</td>
+              <td>~650 MB (Overwolf)</td>
+            </tr>
+            <tr>
+              <td>Tempo de Abertura</td>
+              <td class="col-luxmc">&lt; 0.4s (Instantâneo)</td>
+              <td>~4.0s</td>
+              <td>~1.5s</td>
+              <td>~8.0s</td>
+            </tr>
+            <tr>
+              <td>Suporte Nativo a Wayland</td>
+              <td class="col-luxmc"><span class="badge-check">✓ Nativo (Zero Crash)</span></td>
+              <td><span class="badge-cross">Parcial / XWayland</span></td>
+              <td><span class="badge-check">✓ Suportado</span></td>
+              <td><span class="badge-cross">✕ Não Suporta</span></td>
+            </tr>
+            <tr>
+              <td>Catálogo Modrinth Integrado</td>
+              <td class="col-luxmc"><span class="badge-check">✓ Direto com 1 clique</span></td>
+              <td><span class="badge-cross">✕ Inexistente</span></td>
+              <td><span class="badge-check">✓ Integrado</span></td>
+              <td><span class="badge-cross">✕ Inexistente</span></td>
+            </tr>
+            <tr>
+              <td>Visualizador 3D de Skins + NameMC</td>
+              <td class="col-luxmc"><span class="badge-check">✓ WebGL + Cura 4px/3px</span></td>
+              <td><span class="badge-cross">✕ Básico estático</span></td>
+              <td><span class="badge-cross">✕ Básico</span></td>
+              <td><span class="badge-cross">✕ Inexistente</span></td>
+            </tr>
+            <tr>
+              <td>Sessão Microsoft Persistente</td>
+              <td class="col-luxmc"><span class="badge-check">✓ Token perpétuo em BG</span></td>
+              <td><span class="badge-check">✓ Suportado</span></td>
+              <td><span class="badge-check">✓ Suportado</span></td>
+              <td><span class="badge-cross">✕ Desloga frequente</span></td>
+            </tr>
+            <tr>
+              <td>Anúncios ou Telemetria Invasiva</td>
+              <td class="col-luxmc"><span class="badge-check">✓ Zero (100% Livre)</span></td>
+              <td><span class="badge-cross">Telemetria MS</span></td>
+              <td><span class="badge-check">✓ Zero</span></td>
+              <td><span class="badge-cross">Propagandas & Rastreio</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Changelog / Version Highlights -->
+  <section id="changelog" class="section reveal" style="background: var(--bg-surface);">
+    <div class="container">
+      <div class="changelog-card spotlight-card">
+        <div class="changelog-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+              <span class="changelog-badge">Lançamento Mais Recente</span>
+              <span class="live-version-tag" style="font-weight: 800; color: #ffffff;">v1.7.3</span>
+            </div>
+            <h3 style="font-size: 1.4rem; font-weight: 850; color: #ffffff;">Notas de Engenharia & Correções</h3>
+          </div>
+          <a href="https://github.com/predabr/luxmc/releases" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;">
+            Ver todas no GitHub →
+          </a>
+        </div>
+
+        <div class="changelog-grid">
+          <div class="changelog-item">
+            <div class="changelog-item-header">
+              <span class="changelog-tag">Linux / Wayland</span>
+              <h4 class="changelog-item-title">Eliminação do Erro GLFW 65548</h4>
+            </div>
+            <p class="changelog-item-desc">
+              Tratamento automático de janelas e ícones no Wayland nativo para AppImage. Elimina falhas de inicialização em distros como Ubuntu 24.04 e Arch Linux.
+            </p>
+          </div>
+
+          <div class="changelog-item">
+            <div class="changelog-item-header">
+              <span class="changelog-tag">Windows / Gráficos</span>
+              <h4 class="changelog-item-title">Modpacks NeoForge & OpenGL WGL</h4>
+            </div>
+            <p class="changelog-item-desc">
+              Inicialização limpa de contexto OpenGL (WGL) no Windows para modpacks complexos como All The Mods 11, evitando o crash de driver inexistente.
+            </p>
+          </div>
+
+          <div class="changelog-item">
+            <div class="changelog-item-header">
+              <span class="changelog-tag">Autenticação</span>
+              <h4 class="changelog-item-title">Login Microsoft Perpétuo</h4>
+            </div>
+            <p class="changelog-item-desc">
+              Renovação assíncrona e contínua do refresh_token em segundo plano. Sua conta permanece autenticada até que você decida sair manualmente.
+            </p>
+          </div>
+
+          <div class="changelog-item">
+            <div class="changelog-item-header">
+              <span class="changelog-tag">Desempenho</span>
+              <h4 class="changelog-item-title">Zero Consumo Residual de RAM</h4>
+            </div>
+            <p class="changelog-item-desc">
+              Motor de ping de servidores reescrito com isolamento de buffers e gerenciamento de favicons, mantendo o consumo total do app abaixo de 100 MB.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Downloads Hub Section -->
   <section id="download" class="section reveal">
     <div class="container">
@@ -302,21 +445,44 @@
         <span class="section-tag">Downloads Oficiais</span>
         <h2 class="section-title">Instale o Luxmc Launcher</h2>
         <p class="section-desc">
-          Atualizações sincronizadas diretamente com os lançamentos oficiais do GitHub.
+          Selecione seu sistema operacional. As versões são compiladas nativamente e distribuídas pelo GitHub.
         </p>
       </div>
 
       <div class="downloads-grid">
-        <!-- Linux AppImage (Featured) -->
-        <div class="download-card featured">
+        <!-- Linux AppImage -->
+        <div id="card-linux" class="download-card spotlight-card featured">
           <div>
-            <div class="download-icon">🐧</div>
-            <h3 class="download-platform">Linux AppImage</h3>
-            <p class="download-desc">Universal e portátil. Compatível com Ubuntu, Arch Linux, Fedora, Pop!_OS, Debian e qualquer distro moderna.</p>
-            <div class="download-meta">
-              <span id="appImageSize">208 MB · Portátil</span>
-              <span class="live-version-tag" style="color: #ffffff; font-weight: 750;">v1.7.3</span>
+            <div class="download-card-header">
+              <div class="download-icon-box">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12.003 2c-2.26 0-4.093 1.833-4.093 4.094 0 1.25.56 2.37 1.442 3.123-.393.18-.74.453-1.01.8-1.07 1.378-1.07 3.327-.01 4.717.37.48.86.83 1.42 1.03-.49.52-.79 1.21-.79 1.97 0 1.62 1.32 2.94 2.94 2.94 1.63 0 2.95-1.32 2.95-2.94 0-.76-.3-1.45-.79-1.97.56-.2 1.05-.55 1.42-1.03 1.06-1.39 1.06-3.339-.01-4.717-.27-.347-.617-.62-1.01-.8.882-.753 1.442-1.873 1.442-3.123 0-2.261-1.834-4.094-4.094-4.094z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="download-platform">Linux AppImage</h3>
+                <span id="appImageSize" style="font-size: 0.78rem; color: var(--text-muted);">Portátil · 208 MB</span>
+              </div>
             </div>
+            <p class="download-desc">Universal, portátil e pronto para rodar. Suporte de primeira classe a Wayland nativo e compatibilidade XWayland.</p>
+            <ul class="download-meta-list">
+              <li class="download-meta-item">
+                <span>Distribuições</span>
+                <span>Ubuntu, Arch, Fedora, Debian</span>
+              </li>
+              <li class="download-meta-item">
+                <span>Display Server</span>
+                <span>Wayland Nativo + XWayland</span>
+              </li>
+              <li class="download-meta-item">
+                <span>Aceleração</span>
+                <span>GameMode & MangoHud</span>
+              </li>
+              <li class="download-meta-item">
+                <span>Instalação</span>
+                <span>Sem dependências externas</span>
+              </li>
+            </ul>
           </div>
           <div>
             <a id="downloadAppImageLink" href="https://github.com/predabr/luxmc/releases/latest/download/Luxmc-1.7.3.AppImage" class="btn-primary" style="width: 100%;">
@@ -332,38 +498,74 @@
           </div>
         </div>
 
-        <!-- Windows Executable -->
-        <div id="download-windows" class="download-card">
+        <!-- Windows 10 / 11 Executable -->
+        <div id="card-windows" class="download-card spotlight-card">
           <div>
-            <div class="download-icon">🪟</div>
-            <h3 class="download-platform">Windows 10 / 11</h3>
-            <p class="download-desc">Instalador nativo com suporte a modpacks NeoForge, drivers OpenGL e aceleração gráfica por hardware.</p>
-            <div class="download-meta">
-              <span>195 MB · Executável</span>
-              <span>64-bit</span>
+            <div class="download-card-header">
+              <div class="download-icon-box">
+                <svg width="26" height="26" viewBox="0 0 88 88" fill="currentColor">
+                  <path d="M0 12.56L35.73 7.69V42.66H0V12.56ZM0 45.34H35.73V80.31L0 75.44V45.34ZM39.06 7.23L88 0V42.66H39.06V7.23ZM39.06 45.34H88V88L39.06 80.77V45.34Z"/>
+                </svg>
+              </div>
+              <div>
+                <h3 class="download-platform">Windows 10 / 11</h3>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">64-bit Installer (.exe)</span>
+              </div>
             </div>
+            <p class="download-desc">Instalador nativo otimizado para Windows com suporte a modpacks NeoForge, drivers OpenGL WGL e aceleração por hardware.</p>
+            <ul class="download-meta-list">
+              <li class="download-meta-item">
+                <span>Compatibilidade</span>
+                <span>Windows 10 / 11 (x86_64)</span>
+              </li>
+              <li class="download-meta-item">
+                <span>Modpacks Pesados</span>
+                <span>NeoForge, Forge & Fabric</span>
+              </li>
+              <li class="download-meta-item">
+                <span>Drivers Gráficos</span>
+                <span>OpenGL Direto / WGL Fix</span>
+              </li>
+              <li class="download-meta-item">
+                <span>Runtimes Java</span>
+                <span>Detecção Automática (8-21)</span>
+              </li>
+            </ul>
           </div>
           <div>
-            <a id="downloadExeLink" href="https://github.com/predabr/luxmc/releases/latest" class="btn-secondary" style="width: 100%;">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.751"/></svg>
-              Baixar Instalador Windows (.exe)
+            <a id="downloadExeLink" href="https://github.com/predabr/luxmc/releases/latest" class="btn-primary" style="width: 100%;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Baixar Instalador (.exe)
             </a>
           </div>
         </div>
 
         <!-- Arch Linux AUR -->
-        <div class="download-card">
+        <div class="download-card spotlight-card">
           <div>
-            <div class="download-icon">🏹</div>
-            <h3 class="download-platform">Arch Linux & AUR</h3>
-            <p class="download-desc">Instale e gerencie atualizações do Luxmc diretamente pelo AUR no terminal.</p>
-            <div class="download-meta">
-              <span>AUR Repository</span>
-              <span style="color: #ffffff;">luxmc-bin</span>
+            <div class="download-card-header">
+              <div class="download-icon-box">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m4 20 8-16 8 16"/><line x1="6.5" y1="15" x2="17.5" y2="15"/></svg>
+              </div>
+              <div>
+                <h3 class="download-platform">Arch Linux (AUR)</h3>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">Pacote Comunitário</span>
+              </div>
             </div>
+            <p class="download-desc">Instale e receba atualizações contínuas do Luxmc diretamente pelo repositório AUR com seu helper favorito.</p>
+            <ul class="download-meta-list">
+              <li class="download-meta-item">
+                <span>Pacote</span>
+                <span>luxmc-bin</span>
+              </li>
+              <li class="download-meta-item">
+                <span>Manutenção</span>
+                <span>Atualização Automática</span>
+              </li>
+            </ul>
           </div>
           <div>
-            <div class="code-box" style="margin-bottom: 12px;">
+            <div class="code-box" style="margin-bottom: 10px;">
               <code>yay -S luxmc-bin</code>
               <button type="button" class="copy-btn" onclick="copyCode('yay -S luxmc-bin', this)">Copiar</button>
             </div>
@@ -375,21 +577,99 @@
         </div>
 
         <!-- Linux .deb -->
-        <div class="download-card">
+        <div class="download-card spotlight-card">
           <div>
-            <div class="download-icon">📦</div>
-            <h3 class="download-platform">Debian & Ubuntu (.deb)</h3>
-            <p class="download-desc">Pacote nativo para distribuições baseadas em Debian, Linux Mint e Pop!_OS.</p>
-            <div class="download-meta">
-              <span>180 MB · Pacote .deb</span>
-              <span>x86_64</span>
+            <div class="download-card-header">
+              <div class="download-icon-box">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              </div>
+              <div>
+                <h3 class="download-platform">Debian & Ubuntu (.deb)</h3>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">Pacote Nativo dpkg</span>
+              </div>
             </div>
+            <p class="download-desc">Pacote compilado para distribuições baseadas em Debian, Linux Mint, Pop!_OS e Zorin OS.</p>
+            <ul class="download-meta-list">
+              <li class="download-meta-item">
+                <span>Formato</span>
+                <span>x86_64 (.deb)</span>
+              </li>
+              <li class="download-meta-item">
+                <span>Instalação</span>
+                <span>sudo dpkg -i luxmc*.deb</span>
+              </li>
+            </ul>
           </div>
           <div>
             <a id="downloadDebLink" href="https://github.com/predabr/luxmc/releases/latest" class="btn-secondary" style="width: 100%;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Baixar Pacote .deb
             </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Section -->
+  <section id="faq" class="section reveal">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Perguntas Frequentes</span>
+        <h2 class="section-title">Tudo o que você precisa saber</h2>
+        <p class="section-desc">
+          Respostas claras sobre estabilidade, compatibilidade e arquitetura técnica do Luxmc.
+        </p>
+      </div>
+
+      <div class="faq-grid">
+        <div class="faq-item">
+          <button type="button" class="faq-question">
+            <span>Por que o Luxmc consome menos de 100 MB de RAM?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            Enquanto outros launchers usam Electron completo (empacotando navegadores Chromium pesados que consomem 400 MB a 700 MB apenas para abrir uma janela), o Luxmc é construído sobre o framework Tauri v2 em Rust compilado nativamente e interface reativa com Svelte 5 runes. O resultado é velocidade instantânea e pegada de memória mínima.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button type="button" class="faq-question">
+            <span>Preciso de uma conta Microsoft original para jogar?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            O Luxmc oferece suporte duplo: você pode fazer login com sua conta Microsoft oficial via OAuth seguro ou criar perfis locais/offline instantaneamente com qualquer apelido. Em ambos os casos, a sincronização de skins 3D com o NameMC funciona sem restrições.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button type="button" class="faq-question">
+            <span>Como o Luxmc resolve problemas gráficos no Linux e Wayland?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            O launcher inclui configurações dedicadas no estilo GDLauncher para forçar XWayland quando drivers proprietários NVIDIA exigirem, flags de aceleração Vulkan via Zink e prevenção de falhas de ícones GLFW, garantindo compatibilidade sólida em distros como Ubuntu, Fedora e Arch Linux.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button type="button" class="faq-question">
+            <span>Posso instalar modpacks do CurseForge e Modrinth?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            Sim! O Luxmc tem um navegador integrado que conecta tanto à API do Modrinth quanto ao ecossistema CurseForge, resolvendo automaticamente versões de modloaders (Fabric, NeoForge, Forge e Quilt) e suas respectivas dependências.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button type="button" class="faq-question">
+            <span>O Luxmc é totalmente gratuito e de código aberto?</span>
+            <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div class="faq-answer">
+            Sim, 100%. O código-fonte está integralmente publicado no GitHub sob licença aberta. Não coletamos dados de telemetria invasivos, não exibimos anúncios nem instalamos softwares secundários em sua máquina.
           </div>
         </div>
       </div>
@@ -413,6 +693,9 @@
           <ul class="footer-links">
             <li><a href="#inicio" class="footer-link">Início</a></li>
             <li><a href="#mods" class="footer-link">Mods & Modpacks</a></li>
+            <li><a href="#recursos" class="footer-link">Recursos</a></li>
+            <li><a href="#comparativo" class="footer-link">Comparativo</a></li>
+            <li><a href="#faq" class="footer-link">FAQ Técnico</a></li>
             <li><a href="skins.html" class="footer-link">Skins & NameMC</a></li>
             <li><a href="#download" class="footer-link">Downloads</a></li>
           </ul>

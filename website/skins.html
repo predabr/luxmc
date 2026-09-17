@@ -12,6 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/skinview3d@3.0.1/bundles/skinview3d.bundle.js"></script>
 </head>
 <body>
+  <canvas id="bgCanvas"></canvas>
 
   <!-- Navbar -->
   <nav class="navbar">
@@ -23,9 +24,11 @@
 
       <ul class="nav-links">
         <li><a href="index.html#inicio" class="nav-link">Início</a></li>
-        <li><a href="index.html#mods" class="nav-link">Mods & Modpacks</a></li>
+        <li><a href="index.html#mods" class="nav-link">Mods</a></li>
         <li><a href="index.html#recursos" class="nav-link">Recursos</a></li>
+        <li><a href="index.html#comparativo" class="nav-link">Comparativo</a></li>
         <li><a href="skins.html" class="nav-link active">Skins & NameMC</a></li>
+        <li><a href="index.html#faq" class="nav-link">FAQ</a></li>
         <li><a href="index.html#download" class="nav-link">Downloads</a></li>
       </ul>
 
@@ -55,7 +58,7 @@
     <div class="skin-studio-grid">
       
       <!-- Left: 3D WebGL Viewport (Zero Overlap) -->
-      <div class="skin-viewport-card">
+      <div class="skin-viewport-card spotlight-card">
         <div class="skin-viewport-header">
           <div class="status-badge">Renderizador 3D Interativo</div>
           <div id="currentModelBadge" style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); background: var(--bg-card); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);">
@@ -87,7 +90,7 @@
       </div>
 
       <!-- Right: Skin, NameMC & Cape Controls -->
-      <div class="skin-config-card">
+      <div class="skin-config-card spotlight-card">
         <h3 style="font-size: 1.35rem; font-weight: 850; color: #fff; margin-bottom: 20px;">
           Configurações da Skin
         </h3>
@@ -385,6 +388,95 @@
       document.body.removeChild(link);
       showToast("Download da skin (.png) iniciado!");
     }
+
+    // Particle Animation & Spotlight
+    function initBackgroundParticles() {
+      const canvas = document.getElementById("bgCanvas");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      let width = (canvas.width = window.innerWidth);
+      let height = (canvas.height = window.innerHeight);
+      window.addEventListener("resize", () => {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+      }, { passive: true });
+      const count = Math.min(50, Math.floor(window.innerWidth / 26));
+      const particles = [];
+      const mouse = { x: -1000, y: -1000, active: false };
+      window.addEventListener("mousemove", (e) => {
+        mouse.x = e.clientX;
+        mouse.y = e.clientY;
+        mouse.active = true;
+      }, { passive: true });
+      window.addEventListener("mouseleave", () => { mouse.active = false; }, { passive: true });
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          radius: Math.random() * 1.5 + 0.8,
+          alpha: Math.random() * 0.35 + 0.15
+        });
+      }
+      function frame() {
+        ctx.clearRect(0, 0, width, height);
+        for (let i = 0; i < particles.length; i++) {
+          const p = particles[i];
+          if (mouse.active) {
+            const dx = mouse.x - p.x;
+            const dy = mouse.y - p.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 130) {
+              const force = (130 - dist) / 130;
+              p.x -= (dx / dist) * force * 1.6;
+              p.y -= (dy / dist) * force * 1.6;
+            }
+          }
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0) p.x = width;
+          if (p.x > width) p.x = 0;
+          if (p.y < 0) p.y = height;
+          if (p.y > height) p.y = 0;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+          ctx.fill();
+          for (let j = i + 1; j < particles.length; j++) {
+            const p2 = particles[j];
+            const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+            if (dist < 95) {
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * (1 - dist / 95)})`;
+              ctx.lineWidth = 0.6;
+              ctx.stroke();
+            }
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function initSpotlightCards() {
+      const cards = document.querySelectorAll(".spotlight-card");
+      cards.forEach(card => {
+        card.addEventListener("mousemove", (e) => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          card.style.setProperty("--mouse-x", `${x}px`);
+          card.style.setProperty("--mouse-y", `${y}px`);
+        });
+      });
+    }
+
+    initBackgroundParticles();
+    initSpotlightCards();
   </script>
 </body>
 </html>

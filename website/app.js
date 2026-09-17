@@ -1,10 +1,11 @@
-// Luxmc Website - Dynamic GitHub Releases, Modrinth Explorer & Scroll Animations
+// Luxmc Website - GitHub Releases Sync, Dynamic Modrinth Explorer & Fluid Animations
 
 const GITHUB_REPO = "predabr/luxmc";
 const MODRINTH_API = "https://api.modrinth.com/v2";
 
 let currentCategory = "mod";
 let searchDebounce = null;
+let detectedOS = "linux";
 
 const FALLBACK_MODS = [
   {
@@ -64,32 +65,167 @@ const FALLBACK_MODS = [
 ];
 
 document.addEventListener("DOMContentLoaded", () => {
+  initBackgroundParticles();
+  initSpotlightCards();
   initOSDetection();
   initGitHubRelease();
   initModrinthExplorer();
   initShowcaseTabs();
+  initFAQ();
   initScrollAnimations();
   initNavbarScroll();
   initKeyboardShortcuts();
 });
 
-// Detect user OS and adjust primary download button
+// Interactive background particles responding to mouse movement
+function initBackgroundParticles() {
+  const canvas = document.getElementById("bgCanvas");
+  if (!canvas) return;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  let width = (canvas.width = window.innerWidth);
+  let height = (canvas.height = window.innerHeight);
+
+  window.addEventListener("resize", () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  }, { passive: true });
+
+  const count = Math.min(55, Math.floor(window.innerWidth / 24));
+  const particles = [];
+  const mouse = { x: -1000, y: -1000, active: false };
+
+  window.addEventListener("mousemove", (e) => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    mouse.active = true;
+  }, { passive: true });
+
+  window.addEventListener("mouseleave", () => {
+    mouse.active = false;
+  }, { passive: true });
+
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      radius: Math.random() * 1.5 + 0.8,
+      alpha: Math.random() * 0.35 + 0.15
+    });
+  }
+
+  function frame() {
+    ctx.clearRect(0, 0, width, height);
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+
+      if (mouse.active) {
+        const dx = mouse.x - p.x;
+        const dy = mouse.y - p.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 130) {
+          const force = (130 - dist) / 130;
+          p.x -= (dx / dist) * force * 1.6;
+          p.y -= (dy / dist) * force * 1.6;
+        }
+      }
+
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < 0) p.x = width;
+      if (p.x > width) p.x = 0;
+      if (p.y < 0) p.y = height;
+      if (p.y > height) p.y = 0;
+
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
+      ctx.fill();
+
+      for (let j = i + 1; j < particles.length; j++) {
+        const p2 = particles[j];
+        const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+        if (dist < 95) {
+          ctx.beginPath();
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * (1 - dist / 95)})`;
+          ctx.lineWidth = 0.6;
+          ctx.stroke();
+        }
+      }
+    }
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+}
+
+// Cursor Spotlight effect for cards
+function initSpotlightCards() {
+  const cards = document.querySelectorAll(".spotlight-card");
+  cards.forEach(card => {
+    if (card._hasSpotlight) return;
+    card._hasSpotlight = true;
+    card.addEventListener("mousemove", (e) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      card.style.setProperty("--mouse-x", `${x}px`);
+      card.style.setProperty("--mouse-y", `${y}px`);
+    });
+  });
+}
+
+// Detect user OS and adjust download buttons & highlights
 function initOSDetection() {
   const ua = navigator.userAgent || "";
   const btn = document.getElementById("primaryDownloadBtn");
-  const meta = document.getElementById("primaryDownloadMeta");
+  const linuxCard = document.getElementById("card-linux");
+  const windowsCard = document.getElementById("card-windows");
 
-  let isWindows = ua.includes("Win");
+  const isWindows = ua.includes("Win");
+  detectedOS = isWindows ? "windows" : "linux";
 
-  if (btn) {
-    if (isWindows) {
-      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.751"/></svg> Baixar para Windows (.exe)`;
-      btn.href = "#download-windows";
-      if (meta) meta.innerText = "Windows 10 / 11 64-bit · Instalador oficial";
-    } else {
+  if (isWindows) {
+    if (windowsCard) {
+      windowsCard.classList.add("is-detected");
+      const badge = document.createElement("div");
+      badge.className = "os-detected-badge";
+      badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Seu Sistema Operacional Detectado (Windows)`;
+      const header = windowsCard.querySelector(".download-card-header");
+      if (header && !windowsCard.querySelector(".os-detected-badge")) {
+        header.parentNode.insertBefore(badge, header);
+      }
+    }
+    if (linuxCard) {
+      linuxCard.classList.remove("featured");
+    }
+    if (btn) {
+      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 88 88" fill="currentColor"><path d="M0 12.56L35.73 7.69V42.66H0V12.56ZM0 45.34H35.73V80.31L0 75.44V45.34ZM39.06 7.23L88 0V42.66H39.06V7.23ZM39.06 45.34H88V88L39.06 80.77V45.34Z"/></svg> Baixar para Windows (.exe)`;
+      btn.href = "https://github.com/" + GITHUB_REPO + "/releases/latest";
+    }
+  } else {
+    if (linuxCard) {
+      linuxCard.classList.add("is-detected");
+      const badge = document.createElement("div");
+      badge.className = "os-detected-badge";
+      badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Seu Sistema Operacional Detectado (Linux)`;
+      const header = linuxCard.querySelector(".download-card-header");
+      if (header && !linuxCard.querySelector(".os-detected-badge")) {
+        header.parentNode.insertBefore(badge, header);
+      }
+    }
+    if (btn) {
       btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.003 2c-2.26 0-4.093 1.833-4.093 4.094 0 1.25.56 2.37 1.442 3.123-.393.18-.74.453-1.01.8-1.07 1.378-1.07 3.327-.01 4.717.37.48.86.83 1.42 1.03-.49.52-.79 1.21-.79 1.97 0 1.62 1.32 2.94 2.94 2.94 1.63 0 2.95-1.32 2.95-2.94 0-.76-.3-1.45-.79-1.97.56-.2 1.05-.55 1.42-1.03 1.06-1.39 1.06-3.339-.01-4.717-.27-.347-.617-.62-1.01-.8.882-.753 1.442-1.873 1.442-3.123 0-2.261-1.834-4.094-4.094-4.094z"/></svg> Baixar para Linux (.AppImage)`;
       btn.href = `https://github.com/${GITHUB_REPO}/releases/latest/download/Luxmc-1.7.3.AppImage`;
-      if (meta) meta.innerText = "Universal Linux · Sem dependências extras";
     }
   }
 }
@@ -109,13 +245,15 @@ async function initGitHubRelease() {
     const appImage = data.assets?.find(a => a.name.endsWith(".AppImage"));
     if (appImage) {
       const link = document.getElementById("downloadAppImageLink");
-      if (link) {
-        link.href = appImage.browser_download_url;
+      if (link) link.href = appImage.browser_download_url;
+      if (detectedOS === "linux") {
+        const btn = document.getElementById("primaryDownloadBtn");
+        if (btn) btn.href = appImage.browser_download_url;
       }
       const meta = document.getElementById("appImageSize");
       if (meta) {
         const sizeMb = (appImage.size / (1024 * 1024)).toFixed(0);
-        meta.innerText = `${sizeMb} MB · Portátil`;
+        meta.innerText = `Portátil · ${sizeMb} MB`;
       }
     }
 
@@ -129,6 +267,10 @@ async function initGitHubRelease() {
     if (exe) {
       const link = document.getElementById("downloadExeLink");
       if (link) link.href = exe.browser_download_url;
+      if (detectedOS === "windows") {
+        const btn = document.getElementById("primaryDownloadBtn");
+        if (btn) btn.href = exe.browser_download_url;
+      }
     }
   } catch (e) {
     console.debug("GitHub API fetch fallback:", e);
@@ -217,7 +359,7 @@ function renderModCards(mods) {
     const downloadUrl = `https://modrinth.com/mod/${encodeURIComponent(slug)}/versions`;
 
     return `
-      <div class="project-card reveal active">
+      <div class="project-card spotlight-card reveal active">
         <div>
           <div class="project-header">
             <img src="${escapeHtml(icon)}" alt="${escapeHtml(title)}" class="project-icon" onerror="this.src='assets/logo.png'">
@@ -244,6 +386,8 @@ function renderModCards(mods) {
       </div>
     `;
   }).join("");
+
+  initSpotlightCards();
 }
 
 function formatNumber(num) {
@@ -278,6 +422,23 @@ function initShowcaseTabs() {
   });
 }
 
+// Interactive FAQ Accordion
+function initFAQ() {
+  const items = document.querySelectorAll(".faq-item");
+  items.forEach(item => {
+    const question = item.querySelector(".faq-question");
+    if (!question) return;
+
+    question.addEventListener("click", () => {
+      const isOpen = item.classList.contains("open");
+      items.forEach(other => {
+        if (other !== item) other.classList.remove("open");
+      });
+      item.classList.toggle("open", !isOpen);
+    });
+  });
+}
+
 // Scroll-triggered reveal animations
 function initScrollAnimations() {
   const reveals = document.querySelectorAll(".reveal");
@@ -294,8 +455,8 @@ function initScrollAnimations() {
       }
     });
   }, {
-    threshold: 0.1,
-    rootMargin: "0px 0px -40px 0px"
+    threshold: 0.08,
+    rootMargin: "0px 0px -30px 0px"
   });
 
   reveals.forEach(el => observer.observe(el));
