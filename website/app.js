@@ -67,6 +67,7 @@ const FALLBACK_MODS = [
 document.addEventListener("DOMContentLoaded", () => {
   initBackgroundParticles();
   initSpotlightCards();
+  initMockupTabs();
   initOSDetection();
   initGitHubRelease();
   initModrinthExplorer();
@@ -420,6 +421,60 @@ function initShowcaseTabs() {
       }
     });
   });
+}
+
+// Interactive Window Mockup tabs & live crossfade
+function initMockupTabs() {
+  const btns = document.querySelectorAll(".mockup-nav-btn");
+  const img = document.getElementById("mockupDisplayImg");
+  const badge = document.getElementById("mockupTitleBadge");
+  if (!btns.length || !img) return;
+
+  let currentIndex = 0;
+  let autoTimer = null;
+  let userInteracted = false;
+
+  function setMockup(index, manual = false) {
+    if (manual) userInteracted = true;
+    btns.forEach(b => b.classList.remove("active"));
+    const btn = btns[index];
+    if (!btn) return;
+    btn.classList.add("active");
+
+    const newSrc = btn.dataset.mockup;
+    const title = btn.dataset.title || "Menu Principal";
+
+    img.style.opacity = "0.2";
+    img.style.transform = "scale(0.995)";
+    setTimeout(() => {
+      img.src = newSrc;
+      img.style.opacity = "1";
+      img.style.transform = "scale(1)";
+      if (badge) badge.innerText = title;
+    }, 120);
+
+    currentIndex = index;
+  }
+
+  btns.forEach((btn, idx) => {
+    btn.addEventListener("click", () => {
+      clearInterval(autoTimer);
+      setMockup(idx, true);
+    });
+  });
+
+  // Auto rotate every 6s if user hasn't clicked
+  autoTimer = setInterval(() => {
+    if (!userInteracted) {
+      const next = (currentIndex + 1) % btns.length;
+      setMockup(next);
+    }
+  }, 6000);
+
+  const mockupContainer = document.querySelector(".window-mockup");
+  if (mockupContainer) {
+    mockupContainer.addEventListener("mouseenter", () => clearInterval(autoTimer));
+  }
 }
 
 // Interactive FAQ Accordion

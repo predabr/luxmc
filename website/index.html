@@ -48,7 +48,10 @@
     <div class="hero-backdrop-glow"></div>
     <div class="container">
       <div class="hero-pill animate-fade-in">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span class="radar-wrapper">
+          <span class="radar-ping"></span>
+          <span class="radar-dot"></span>
+        </span>
         100% Código Aberto · Linux-First & Windows · Alta Performance
       </div>
 
@@ -98,19 +101,49 @@
         </div>
       </div>
 
-      <!-- Window Mockup Interface Preview -->
-      <div class="window-mockup">
+      <!-- Interactive Window Mockup Interface Preview -->
+      <div class="window-mockup spotlight-card">
         <div class="window-titlebar">
           <div class="window-dots">
             <span class="dot dot-close"></span>
             <span class="dot dot-minimize"></span>
             <span class="dot dot-maximize"></span>
           </div>
-          <div class="window-title">Luxmc Launcher — Menu Principal</div>
-          <div class="window-badge">Pronto para Jogar</div>
+
+          <div class="mockup-tab-nav">
+            <button type="button" class="mockup-nav-btn active" data-mockup="assets/home.png" data-title="Menu Principal">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+              <span>Início</span>
+            </button>
+            <button type="button" class="mockup-nav-btn" data-mockup="assets/instances.png" data-title="Instâncias & Perfis">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+              <span>Instâncias</span>
+            </button>
+            <button type="button" class="mockup-nav-btn" data-mockup="assets/mods.png" data-title="Central de Mods & Packs">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 9.4 7.55 4.24a1.79 1.79 0 0 0-2.5 1.48v12.56a1.79 1.79 0 0 0 2.5 1.48L16.5 14.6a1.79 1.79 0 0 0 0-3.2z"/></svg>
+              <span>Mods</span>
+            </button>
+            <button type="button" class="mockup-nav-btn" data-mockup="assets/servers.png" data-title="Lista de Servidores">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              <span>Servidores</span>
+            </button>
+            <button type="button" class="mockup-nav-btn" data-mockup="assets/skins.png" data-title="Skins 3D & Capas">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
+              <span>Skins 3D</span>
+            </button>
+            <button type="button" class="mockup-nav-btn" data-mockup="assets/screenshot.png" data-title="Configurações Pro">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Ajustes</span>
+            </button>
+          </div>
+
+          <div class="window-badge">
+            <span class="live-dot-ping"></span>
+            <span id="mockupTitleBadge">Menu Principal</span>
+          </div>
         </div>
         <div class="window-content">
-          <img src="assets/home.png" alt="Luxmc Launcher Interface" loading="lazy">
+          <img id="mockupDisplayImg" src="assets/home.png" alt="Luxmc Launcher Interface" loading="lazy">
         </div>
       </div>
     </div>
@@ -153,11 +186,133 @@
   <section id="recursos" class="section reveal" style="background: var(--bg-surface);">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">Arquitetura & Recursos</span>
-        <h2 class="section-title">Construído para Performance Real</h2>
+        <span class="section-tag">Engenharia & Performance</span>
+        <h2 class="section-title">Arquitetura de Próxima Geração</h2>
         <p class="section-desc">
-          Sem telas pesadas, sem propagandas e com ferramentas completas integradas.
+          Projetado do zero para responder instantaneamente, sem navegadores embutidos e com integração nativa ao sistema.
         </p>
+      </div>
+
+      <!-- Modern Bento Grid Architecture -->
+      <div class="bento-grid" style="margin-bottom: 70px;">
+        <!-- Bento 1: Rust + Tauri 2 Core (Span 2 col) -->
+        <div class="bento-card bento-span-2 spotlight-card">
+          <div>
+            <div class="bento-badge">Tauri v2 + Rust Core</div>
+            <h3 class="bento-title">Consumo de Memória 5x Menor que Launchers Electron</h3>
+            <p class="bento-desc">
+              Enquanto outros launchers empacotam um navegador Chromium pesado devorando de 400 MB a 700 MB de RAM apenas para exibir um menu, o Luxmc é compilado nativamente em Rust com interface reativa em Svelte 5 runes.
+            </p>
+          </div>
+          
+          <!-- Live Interactive Benchmark Meter -->
+          <div class="benchmark-container">
+            <div class="benchmark-item">
+              <div class="benchmark-info">
+                <span class="benchmark-name">Luxmc Launcher (Rust Nativo)</span>
+                <span class="benchmark-val highlight">&lt; 85 MB</span>
+              </div>
+              <div class="benchmark-bar-track">
+                <div class="benchmark-bar-fill luxmc-fill" style="width: 14%;"></div>
+              </div>
+            </div>
+
+            <div class="benchmark-item">
+              <div class="benchmark-info">
+                <span class="benchmark-name">Prism Launcher (C++/Qt)</span>
+                <span class="benchmark-val">~ 165 MB</span>
+              </div>
+              <div class="benchmark-bar-track">
+                <div class="benchmark-bar-fill" style="width: 28%;"></div>
+              </div>
+            </div>
+
+            <div class="benchmark-item">
+              <div class="benchmark-info">
+                <span class="benchmark-name">Launcher Oficial (Mojang/CEF)</span>
+                <span class="benchmark-val">~ 480 MB</span>
+              </div>
+              <div class="benchmark-bar-track">
+                <div class="benchmark-bar-fill" style="width: 72%;"></div>
+              </div>
+            </div>
+
+            <div class="benchmark-item">
+              <div class="benchmark-info">
+                <span class="benchmark-name">CurseForge App (Overwolf)</span>
+                <span class="benchmark-val">~ 680 MB</span>
+              </div>
+              <div class="benchmark-bar-track">
+                <div class="benchmark-bar-fill" style="width: 95%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bento 2: Wayland Native & GLFW Fix (1 col) -->
+        <div class="bento-card spotlight-card">
+          <div>
+            <div class="bento-badge">Linux-First</div>
+            <h3 class="bento-title">Wayland Puro & Zero Crash GLFW</h3>
+            <p class="bento-desc">
+              Suporte nativo ao protocolo Wayland sem bordas borradas ou cursor desalinhado. Tratamento em tempo de execução para o erro GLFW 65548 e suporte a Zink Vulkan.
+            </p>
+          </div>
+          <div class="bento-preview-box">
+            <div class="bento-toggle-row">
+              <span>Fractional Scaling 125%/150%</span>
+              <span class="status-pill-green">Nativo</span>
+            </div>
+            <div class="bento-toggle-row">
+              <span>Eliminação GLFW 65548</span>
+              <span class="status-pill-green">Ativo</span>
+            </div>
+            <div class="bento-toggle-row">
+              <span>GameMode & MangoHud</span>
+              <span class="status-pill-green">Suportado</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bento 3: NameMC 3D Engine & Pixel Fix (1 col) -->
+        <div class="bento-card spotlight-card">
+          <div>
+            <div class="bento-badge">WebGL Studio 3D</div>
+            <h3 class="bento-title">Cura de Textura de Braços & NameMC</h3>
+            <p class="bento-desc">
+              Motor 3D que corrige automaticamente artefatos pretos e pixels ocos em modelos Alex (3px) e Steve (4px), com sincronização instantânea de skins e capas.
+            </p>
+          </div>
+          <div style="margin-top: 20px;">
+            <a href="skins.html" class="btn-secondary" style="width: 100%; font-size: 0.82rem; padding: 10px 14px;">
+              Abrir Studio 3D & Capas →
+            </a>
+          </div>
+        </div>
+
+        <!-- Bento 4: Windows OpenGL WGL & Modpacks (Span 2 col) -->
+        <div class="bento-card bento-span-2 spotlight-card">
+          <div>
+            <div class="bento-badge">Windows 10 / 11</div>
+            <h3 class="bento-title">NeoForge & Modpacks Pesados Sem Erro Gráfico</h3>
+            <p class="bento-desc">
+              Eliminamos a falha de driver OpenGL (WGL) ao inicializar modpacks modernos como All The Mods 11 e BetterMC. O launcher detecta a GPU e inicializa os contextos gráficos com aceleração por hardware.
+            </p>
+          </div>
+          <div class="bento-chips-row">
+            <span class="bento-chip">NeoForge 21+</span>
+            <span class="bento-chip">Fabric Loader</span>
+            <span class="bento-chip">Forge Clássico</span>
+            <span class="bento-chip">Quilt</span>
+            <span class="bento-chip">Java 8 a 21 Auto</span>
+            <span class="bento-chip">Aikar Flags</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-header" style="margin-bottom: 36px;">
+        <span class="section-tag">Explorar Módulos</span>
+        <h3 class="section-title" style="font-size: 1.85rem;">Conheça os Recursos por Dentro</h3>
       </div>
 
       <div class="showcase-tabs">
@@ -314,7 +469,7 @@
           <thead>
             <tr>
               <th>Recurso / Métrica</th>
-              <th class="col-luxmc">Luxmc (Beta)</th>
+              <th class="col-luxmc">Luxmc (Beta) <span class="col-luxmc-chip">Recomendado</span></th>
               <th>Launcher Oficial</th>
               <th>Prism Launcher</th>
               <th>CurseForge App</th>
