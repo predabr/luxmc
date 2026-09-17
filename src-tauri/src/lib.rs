@@ -177,6 +177,7 @@ pub async fn run() {
             commands::optimizer::optimizer_install_perf_pack,
             commands::optimizer::optimizer_detect_gpu,
             commands::optimizer::optimizer_trim_memory,
+            commands::optimizer::optimizer_native_cpu_profile,
             commands::instances::instance_world_snapshot_create,
             commands::instances::instance_world_snapshots_list,
             commands::instances::instance_world_snapshot_restore,

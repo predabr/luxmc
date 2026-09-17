@@ -418,6 +418,17 @@ export async function optimizerTrimMemory(): Promise<boolean> {
 	return api.invoke<boolean>("optimizer_trim_memory");
 }
 
+export async function optimizerNativeCpuProfile(): Promise<{
+	cores: number;
+	avx2: boolean;
+	avx512: boolean;
+	sse42: boolean;
+	aes: boolean;
+	engine: string;
+}> {
+	return api.invoke("optimizer_native_cpu_profile");
+}
+
 export async function instanceInstallQuickPack(
 	profileId: string,
 	packType: string,

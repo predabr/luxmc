@@ -67,36 +67,11 @@ pub fn optimizer_detect_gpu() -> GpuInfo {
 
 #[tauri::command]
 pub fn optimizer_trim_memory() -> bool {
-    #[cfg(target_os = "linux")]
-    {
-        extern "C" {
-            fn malloc_trim(pad: usize) -> i32;
-        }
-        unsafe {
-            malloc_trim(0);
-        }
-        true
-    }
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::raw::c_void;
-        extern "system" {
-            fn GetCurrentProcess() -> *mut c_void;
-            fn SetProcessWorkingSetSize(
-                hProcess: *mut c_void,
-                dwMinimumWorkingSetSize: usize,
-                dwMaximumWorkingSetSize: usize,
-            ) -> i32;
-        }
-        unsafe {
-            let handle = GetCurrentProcess();
-            SetProcessWorkingSetSize(handle, usize::MAX, usize::MAX);
-        }
-        true
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "windows")))]
-    {
-        false
-    }
+    crate::core::native_cpp::trim_memory_native()
+}
+
+#[tauri::command]
+pub fn optimizer_native_cpu_profile() -> crate::core::native_cpp::NativeCpuProfile {
+    crate::core::native_cpp::get_cpu_profile()
 }
 

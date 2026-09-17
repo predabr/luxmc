@@ -78,6 +78,7 @@ jobs:
   generate-changelog:
     name: Generate Changelog
     runs-on: ubuntu-22.04
+    continue-on-error: true
     outputs:
       changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
@@ -86,75 +87,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get Previous Tag
-        id: prev_tag
-        run: |
-          if git describe --tags --abbrev=0 HEAD^ 2>/dev/null; then
-            echo "tag=$(git describe --tags --abbrev=0 HEAD^)" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Generate Changelog
         id: changelog
+        shell: bash
         run: |
-          PREV_TAG="${{ steps.prev_tag.outputs.tag }}"
-          if [ -z "$PREV_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s (%h)" HEAD)
-          else
-            COMMITS=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD)
-          fi
-
-          # Group by type
-          FEATS=""
-          FIXES=""
-          CHORES=""
-          OTHERS=""
-
-          while IFS= read -r line; do
-            MSG=$(echo "$line" | sed 's/^- //')
-            if echo "$MSG" | grep -qE "^feat"; then
-              FEATS="$FEATS$MSG"$'\n'
-            elif echo "$MSG" | grep -qE "^fix"; then
-              FIXES="$FIXES$MSG"$'\n'
-            elif echo "$MSG" | grep -qE "^chore|^refactor|^docs|^test|^ci|^build"; then
-              CHORES="$CHORES$MSG"$'\n'
-            else
-              OTHERS="$OTHERS$MSG"$'\n'
-            fi
-          done <<< "$COMMITS"
-
+          set +e
+          COMMITS=$(git log -n 30 --pretty=format:"- %s (%h)" 2>/dev/null || echo "- Release update")
           {
             echo "changelog<<CHANGELOG_EOF"
-            if [ -n "$FEATS" ]; then
-              echo "### ✨ Features"
-              echo "$FEATS"
-              echo ""
-            fi
-            if [ -n "$FIXES" ]; then
-              echo "### 🐛 Bug Fixes"
-              echo "$FIXES"
-              echo ""
-            fi
-            if [ -n "$CHORES" ]; then
-              echo "### 🧹 Maintenance"
-              echo "$CHORES"
-              echo ""
-            fi
-            if [ -n "$OTHERS" ]; then
-              echo "### 📦 Other Changes"
-              echo "$OTHERS"
-              echo ""
-            fi
-            if [ -z "$FEATS" ] && [ -z "$FIXES" ] && [ -z "$CHORES" ] && [ -z "$OTHERS" ]; then
-              echo "_No changes recorded._"
-            fi
+            echo "### 🚀 Luxmc Release"
+            echo "$COMMITS"
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"
 
   build:
     name: Build (${{ matrix.platform }}-${{ matrix.target }})
-    needs: [validate, generate-changelog]
+    needs: [validate]
     runs-on: ${{ matrix.platform }}
     defaults:
       run:
@@ -327,7 +275,7 @@ jobs:
 
   upload-release:
     name: Upload to Release
-    needs: [build, generate-changelog]
+    needs: [build]
     runs-on: ubuntu-22.04
     permissions:
       contents: write
