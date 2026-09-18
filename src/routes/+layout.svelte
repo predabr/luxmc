@@ -151,11 +151,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.7.3",
+					state: "Luxmc v1.7.4",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.7.3",
+					smallText: "Luxmc v1.7.4",
 					inGame: false
 				}).catch(() => {});
 			}
@@ -211,11 +211,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.7.3",
+					state: "Luxmc v1.7.4",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.7.3",
+					smallText: "Luxmc v1.7.4",
 					inGame: false
 				}).catch(() => {});
 			}
@@ -293,14 +293,14 @@
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
 			let details = "No Menu Principal";
-			let state = "Luxmc v1.7.3";
+			let state = "Luxmc v1.7.4";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
 				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
 				details = "Gerenciando Instâncias";
-				state = "Luxmc v1.7.3";
+				state = "Luxmc v1.7.4";
 			} else if (currentPath.startsWith("/instances/")) {
 				details = "Configurando Instância";
 				state = "Ajustando Mods & Versões";
@@ -326,7 +326,7 @@
 				state,
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
-				smallText: "Luxmc v1.7.3",
+				smallText: "Luxmc v1.7.4",
 				smallImage: "grass",
 				inGame: false
 			}).catch(() => {});
@@ -371,15 +371,13 @@
 	});
 </script>
 
-<div class="fixed inset-0 z-[-2] bg-[#0c0c0e]">
-	{#if settings.value.theme === "default-dark" && !appState.performanceMode}
+<div class="fixed inset-0 z-[-2] transition-all duration-500" style={themeStore.currentBackgroundStyle}>
+	{#if themeStore.theme !== "light" && !appState.performanceMode}
 		<div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
 		<div class="absolute inset-0 opacity-15 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
-		{#if settings.value.liveWallpaper === true && !appState.performanceMode}
+		{#if settings.value.liveWallpaper === true}
 			<LiveWallpaper />
 		{/if}
-	{:else}
-		<div class="absolute inset-0 bg-black/60"></div>
 	{/if}
 </div>
 <Toasts bind:this={toastsInstance} />

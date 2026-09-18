@@ -226,19 +226,28 @@ function initOSDetection() {
     }
     if (btn) {
       btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.003 2c-2.26 0-4.093 1.833-4.093 4.094 0 1.25.56 2.37 1.442 3.123-.393.18-.74.453-1.01.8-1.07 1.378-1.07 3.327-.01 4.717.37.48.86.83 1.42 1.03-.49.52-.79 1.21-.79 1.97 0 1.62 1.32 2.94 2.94 2.94 1.63 0 2.95-1.32 2.95-2.94 0-.76-.3-1.45-.79-1.97.56-.2 1.05-.55 1.42-1.03 1.06-1.39 1.06-3.339-.01-4.717-.27-.347-.617-.62-1.01-.8.882-.753 1.442-1.873 1.442-3.123 0-2.261-1.834-4.094-4.094-4.094z"/></svg> Baixar para Linux (.AppImage)`;
-      btn.href = `https://github.com/${GITHUB_REPO}/releases/latest/download/Luxmc-1.7.3.AppImage`;
+      btn.href = `https://github.com/${GITHUB_REPO}/releases/latest/download/Luxmc-1.7.4.AppImage`;
     }
   }
 }
 
-// Live GitHub release fetch - syncs immediately when app updates on GitHub
+// Live GitHub release fetch - uses Cloudflare Pages edge endpoint or fallback to GitHub
 async function initGitHubRelease() {
   try {
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
-    if (!res.ok) return;
-    const data = await res.json();
+    let data = null;
+    try {
+      const edgeRes = await fetch("/api/latest-release");
+      if (edgeRes.ok) data = await edgeRes.json();
+    } catch {}
+
+    if (!data || !data.tag_name) {
+      const ghRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+      if (ghRes.ok) data = await ghRes.json();
+    }
+
+    if (!data) return;
     
-    const tag = data.tag_name || "v1.7.3";
+    const tag = data.tag_name || "v1.7.4";
     document.querySelectorAll(".live-version-tag").forEach(el => {
       el.textContent = tag;
     });
@@ -256,12 +265,21 @@ async function initGitHubRelease() {
         const sizeMb = (appImage.size / (1024 * 1024)).toFixed(0);
         meta.innerText = `Portátil · ${sizeMb} MB`;
       }
+      const codeSnippet = document.getElementById("appImageCodeSnippet");
+      if (codeSnippet) {
+        codeSnippet.textContent = `chmod +x ${appImage.name} && ./${appImage.name}`;
+      }
     }
 
     const deb = data.assets?.find(a => a.name.endsWith(".deb"));
     if (deb) {
       const link = document.getElementById("downloadDebLink");
       if (link) link.href = deb.browser_download_url;
+      const meta = document.getElementById("debSize");
+      if (meta) {
+        const sizeMb = (deb.size / (1024 * 1024)).toFixed(0);
+        meta.innerText = `Instalador .deb · ${sizeMb} MB`;
+      }
     }
 
     const exe = data.assets?.find(a => a.name.endsWith(".exe"));
@@ -271,6 +289,11 @@ async function initGitHubRelease() {
       if (detectedOS === "windows") {
         const btn = document.getElementById("primaryDownloadBtn");
         if (btn) btn.href = exe.browser_download_url;
+      }
+      const meta = document.getElementById("exeSize");
+      if (meta) {
+        const sizeMb = (exe.size / (1024 * 1024)).toFixed(0);
+        meta.innerText = `Instalador .exe · ${sizeMb} MB`;
       }
     }
   } catch (e) {

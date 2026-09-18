@@ -477,7 +477,6 @@
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2.5">
 					<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.tabs.appearance")}</h2>
-					<span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-400 text-black">PRO</span>
 				</div>
 				<span class="text-xs text-white/50">{t("settings.accentColorHint")}</span>
 			</div>

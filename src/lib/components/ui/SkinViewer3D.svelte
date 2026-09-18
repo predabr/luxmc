@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount, onDestroy } from "svelte";
-	import { SkinViewer, WalkingAnimation } from "skinview3d";
+	import { SkinViewer, IdleAnimation, WalkingAnimation, RunningAnimation, FlyingAnimation } from "skinview3d";
 	import type { CapeType } from "$lib/stores/skin.svelte";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
+
+	type AnimationType = "idle" | "walk" | "run" | "fly" | "none";
 
 	type Props = {
 		skinUrl?: string;
@@ -10,6 +12,7 @@
 		customCapeUrl?: string;
 		slim?: boolean;
 		autoRotate?: boolean;
+		animation?: AnimationType;
 		className?: string;
 		active?: boolean;
 	};
@@ -20,6 +23,7 @@
 		customCapeUrl = "",
 		slim = false,
 		autoRotate = true,
+		animation = "walk",
 		className = "",
 		active = true
 	}: Props = $props();
@@ -31,6 +35,25 @@
 	let skinCache = new Map<string, HTMLCanvasElement | string>();
 	let loadGeneration = 0;
 
+	function applyAnimation(anim: AnimationType) {
+		if (!viewer) return;
+		if (anim === "idle") {
+			viewer.animation = new IdleAnimation();
+			viewer.animation.speed = 0.8;
+		} else if (anim === "walk") {
+			viewer.animation = new WalkingAnimation();
+			viewer.animation.speed = 0.8;
+		} else if (anim === "run") {
+			viewer.animation = new RunningAnimation();
+			viewer.animation.speed = 0.9;
+		} else if (anim === "fly") {
+			viewer.animation = new FlyingAnimation();
+			viewer.animation.speed = 0.8;
+		} else {
+			viewer.animation = null;
+		}
+	}
+
 	onMount(() => {
 		if (!canvasEl || !containerEl) return;
 
@@ -41,13 +64,23 @@
 			canvas: canvasEl,
 			width,
 			height,
-			model: slim ? "slim" : "default"
+			model: slim ? "slim" : "default",
+			enableControls: true
 		});
+
+		if (viewer.controls) {
+			viewer.controls.enableRotate = true;
+			viewer.controls.enableZoom = true;
+			viewer.controls.enablePan = false;
+		}
+
+		viewer.camera.position.set(20, 15, 45);
+		viewer.camera.lookAt(0, 0, 0);
 
 		updateSkin();
 		viewer.autoRotate = autoRotate;
 		viewer.autoRotateSpeed = 0.5;
-		viewer.animation = new WalkingAnimation();
+		applyAnimation(animation);
 		viewer.playerObject.rotation.y = (20 * Math.PI) / 180;
 		viewer.playerObject.skin.setOuterLayerVisible(true);
 
@@ -226,10 +259,12 @@
 		const _u = customCapeUrl;
 		const _r = autoRotate;
 		const _a = active;
+		const _anim = animation;
 
 		if (viewer) {
 			viewer.autoRotate = _r;
 			viewer.renderPaused = !_a;
+			applyAnimation(_anim);
 		}
 		updateSkin();
 		updateCape();
@@ -255,11 +290,15 @@
 	}
 
 	export function resetView() {
-		if (viewer) {
-			viewer.resetCameraPose();
-			viewer.zoom = 1;
-			viewer.playerObject.rotation.y = (20 * Math.PI) / 180;
-		}
+		resetCamera();
+	}
+
+	export function resetCamera() {
+		if (!viewer) return;
+		viewer.camera.position.set(20, 15, 45);
+		viewer.camera.lookAt(0, 0, 0);
+		viewer.zoom = 1;
+		viewer.playerObject.rotation.y = (20 * Math.PI) / 180;
 	}
 </script>
 

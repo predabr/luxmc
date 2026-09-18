@@ -58,7 +58,6 @@
 	import WorldSnapshotsModal from "$lib/components/ui/WorldSnapshotsModal.svelte";
 	import InstanceConfigEditorModal from "$lib/components/ui/InstanceConfigEditorModal.svelte";
 	import P2PHostModal from "$lib/components/ui/P2PHostModal.svelte";
-	import ShaderSplitViewer from "$lib/components/ui/ShaderSplitViewer.svelte";
 	import KeybindEditorModal from "$lib/components/instances/KeybindEditorModal.svelte";
 	import ModConflictModal from "$lib/components/instances/ModConflictModal.svelte";
 	import ModpackExportModal from "$lib/components/instances/ModpackExportModal.svelte";
@@ -708,13 +707,11 @@
 		isScanningShield = true;
 		try {
 			shieldResult = await instanceShieldScan(instanceId);
-			if (shieldResult.isClean) {
-				toast(`Luxmc Shield: ${shieldResult.totalScanned} mods verificados. 0 ameaças detectadas!`, "success");
-			} else {
+			if (!shieldResult.isClean && shieldResult.threats.length > 0) {
 				toast(`⚠️ Luxmc Shield detectou ${shieldResult.threats.length} ameaça(s) nos mods!`, "error");
 			}
-		} catch (e) {
-			toast("Erro ao executar Luxmc Shield: " + String(e), "error");
+		} catch {
+			// Silent scan: do not show error toast when clean or idle
 		} finally {
 			isScanningShield = false;
 		}
@@ -1384,18 +1381,6 @@
 
 					<button 
 						type="button"
-						class="bg-white/10 hover:bg-amber-500/25 text-white hover:text-amber-200 px-4 py-2.5 rounded-2xl border border-white/20 hover:border-amber-400/50 text-xs font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shadow-lg shadow-black/40 active:scale-95"
-						onclick={() => showKeybindEditorModal = true}
-						title="Gerenciar controles e detectar conflitos de teclas fora do jogo"
-					>
-						<span class="p-1 rounded-lg bg-amber-500/20 border border-amber-400/30 text-amber-400">
-							<Keyboard class="w-3.5 h-3.5" />
-						</span>
-						<span>Controles</span>
-					</button>
-
-					<button 
-						type="button"
 						class="bg-white/10 hover:bg-purple-500/25 text-white hover:text-purple-200 px-4 py-2.5 rounded-2xl border border-white/20 hover:border-purple-400/50 text-xs font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shadow-lg shadow-black/40 active:scale-95"
 						onclick={() => showModpackExportModal = true}
 						title="Exportar modpack limpo em .mrpack ou .zip"
@@ -1420,18 +1405,6 @@
 
 					<button 
 						type="button"
-						class="bg-white/10 hover:bg-emerald-500/25 text-white hover:text-emerald-200 px-4 py-2.5 rounded-2xl border border-white/20 hover:border-emerald-400/50 text-xs font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shadow-lg shadow-black/40 active:scale-95"
-						onclick={() => showConfigEditor = true}
-						title="Ajustar Gamma / Fullbright, FOV e opções do jogo"
-					>
-						<span class="p-1 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-emerald-400">
-							<Sliders class="w-3.5 h-3.5" />
-						</span>
-						<span>Fullbright</span>
-					</button>
-
-					<button 
-						type="button"
 						class="bg-white/10 hover:bg-rose-500/25 text-white hover:text-rose-200 px-4 py-2.5 rounded-2xl border border-white/20 hover:border-rose-400/50 text-xs font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shadow-lg shadow-black/40 active:scale-95"
 						onclick={() => showDeathDetectorModal = true}
 						title="Ver coordenadas da última morte e restaurar inventário"
@@ -1443,20 +1416,9 @@
 					</button>
 
 					<button 
-						type="button"
-						class="bg-white/10 hover:bg-amber-500/25 text-white hover:text-amber-200 px-4 py-2.5 rounded-2xl border border-white/20 hover:border-amber-400/50 text-xs font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shadow-lg shadow-black/40 active:scale-95"
-						onclick={() => showJukeboxModal = true}
-						title="Tocar discos de música do Minecraft e pré-visualizar faixas"
-					>
-						<span class="p-1 rounded-lg bg-amber-500/20 border border-amber-400/30 text-amber-400">
-							<Disc class="w-3.5 h-3.5" />
-						</span>
-						<span>Jukebox</span>
-					</button>
-
-					<button 
 						class="bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 rounded-2xl border border-white/25 hover:border-white/40 text-xs font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer shadow-lg shadow-black/40 active:scale-95"
 						onclick={openInstanceFolder}
+						title="Abrir pasta .minecraft da instância"
 					>
 						<span class="p-1 rounded-lg bg-white/15 text-white">
 							<FolderOpen class="w-3.5 h-3.5" />
@@ -1600,14 +1562,6 @@
 					<div class="flex items-center gap-2 flex-wrap">
 						{#if subTab === 'mods'}
 							<button 
-								type="button"
-								class="bg-[#222328] hover:bg-amber-500/20 text-white/90 hover:text-amber-300 px-3.5 py-2 rounded-full border border-white/15 hover:border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-								onclick={checkDoctorConflictsManual}
-								title="Verificar preventivamente se há mods conflitantes antes de jogar"
-							>
-								<ShieldAlert class="w-3.5 h-3.5 text-amber-400" /> Checar Conflitos
-							</button>
-							<button 
 								class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
 								onclick={handleOpenModsFolder}
 							>
@@ -1621,16 +1575,6 @@
 							>
 								<RefreshCw class="w-3.5 h-3.5 {isCheckingUpdates ? 'animate-spin' : ''}" />
 								{isCheckingUpdates ? 'Checando...' : 'Atualizar Mods'}
-							</button>
-							<button 
-								type="button"
-								class="bg-[#222328] hover:bg-white/10 text-white/80 hover:text-white px-4 py-2 rounded-full border border-brand-500/20 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-								onclick={handleRepairModpack}
-								disabled={isRepairingModpack}
-								title="Verificar integridade e baixar mods faltantes do modpack"
-							>
-								<Sparkles class="w-3.5 h-3.5 text-brand-500 {isRepairingModpack ? 'animate-spin' : ''}" />
-								{isRepairingModpack ? 'Reparando...' : 'Reparar Modpack'}
 							</button>
 							<a 
 								href="/mods"
@@ -1664,40 +1608,23 @@
 				</div>
 
 				{#if subTab === 'mods'}
-					<!-- Luxmc Shield Security Card -->
-					<div class="bg-[#141518] border border-white/5 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 mb-4 shadow-sm">
-						<div class="flex items-center gap-2.5">
-							<div class="w-8 h-8 rounded-xl flex items-center justify-center {shieldResult ? (shieldResult.isClean ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30') : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}">
-								{#if shieldResult && !shieldResult.isClean}
-									<ShieldAlert class="w-4 h-4" />
-								{:else}
-									<ShieldCheck class="w-4 h-4" />
-								{/if}
-							</div>
-							<div>
-								<div class="text-xs font-bold text-white flex items-center gap-2">
-									Luxmc Shield (Anti-Malware)
-									{#if shieldResult}
-										<span class="px-2 py-0.5 rounded-full text-[10px] font-black {shieldResult.isClean ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}">
-											{shieldResult.isClean ? '100% Seguro' : `${shieldResult.threats.length} Ameaça(s)!`}
-										</span>
-									{/if}
+					{#if shieldResult && !shieldResult.isClean}
+						<div class="bg-red-500/15 border border-red-500/40 rounded-2xl p-4 flex items-center justify-between gap-3 mb-4 text-red-200 shadow-md">
+							<div class="flex items-center gap-3">
+								<div class="w-9 h-9 rounded-xl bg-red-500/20 text-red-400 border border-red-500/30 flex items-center justify-center shrink-0">
+									<ShieldAlert class="w-5 h-5" />
 								</div>
-								<div class="text-[10px] text-white/40">
-									{shieldResult ? `${shieldResult.totalScanned} jars inspecionados em ${shieldResult.scanTimeMs}ms (hashes CVE + bytecode)` : 'Proteção ativa contra Fracturiser, BleedingPipe e stealers de sessão'}
+								<div>
+									<div class="text-xs font-black text-red-100 flex items-center gap-2">
+										Luxmc Shield · {shieldResult.threats.length} Ameaça(s) Crítica(s) Detectada(s)!
+									</div>
+									<div class="text-[11px] text-red-200/80 mt-0.5">
+										Foram encontrados arquivos maliciosos ou suspeitos de roubo de sessão / CVEs. Desative ou remova os mods indicados.
+									</div>
 								</div>
 							</div>
 						</div>
-						<button 
-							type="button" 
-							class="px-3.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-							disabled={isScanningShield}
-							onclick={runShieldScan}
-						>
-							<RefreshCw class="w-3 h-3 {isScanningShield ? 'animate-spin' : ''}" />
-							{isScanningShield ? 'Escaneando...' : 'Escanear Mods'}
-						</button>
-					</div>
+					{/if}
 
 					{#if instanceMods.length === 0}
 						<div class="bg-[#18191c] border border-white/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
@@ -1794,12 +1721,7 @@
 					{/if}
 				{:else}
 					{#if subTab === 'shaders'}
-						<div class="mb-4">
-							<ShaderSplitViewer />
-						</div>
-					{/if}
-					{#if subTab === 'shaders' || subTab === 'resourcepacks'}
-						<!-- Seção 1-Clique de Packs Populares Curados -->
+						<!-- Seção 1-Clique de Shaders Populares Curados -->
 						<div class="bg-[#141518] border border-white/5 rounded-3xl p-5 mb-6 shadow-sm space-y-4">
 							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
 								<div class="flex items-center gap-2.5">
@@ -1808,12 +1730,10 @@
 									</div>
 									<div>
 										<h4 class="text-xs font-black text-white uppercase tracking-wider">
-											{subTab === 'shaders' ? 'Shaders Populares · 1 Clique' : 'Texturas Aclamadas · 1 Clique'}
+											Shaders Populares · 1 Clique
 										</h4>
 										<p class="text-[11px] text-white/40 mt-0.5">
-											{subTab === 'shaders'
-												? 'Baixe e instale instantaneamente os melhores shaders sem precisar abrir o navegador'
-												: 'Baixe e instale pacotes de textura populares direto para a pasta sem sair do launcher'}
+											Baixe e instale instantaneamente os melhores shaders sem precisar abrir o navegador
 										</p>
 									</div>
 								</div>
@@ -1827,7 +1747,7 @@
 							</div>
 
 							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-								{#each (subTab === 'shaders' ? quickShaders : quickResourcePacks) as pack}
+								{#each quickShaders as pack}
 									{@const isInstalled = currentPacksList.some(p => pack.checkMatch(p.name.toLowerCase()))}
 									<div class="bg-[#1a1b20] hover:bg-[#202127] border border-white/5 hover:border-white/15 p-4 rounded-2xl flex flex-col justify-between gap-3.5 transition-all group shadow-sm hover:shadow-md relative overflow-hidden">
 										<div class="space-y-2">
@@ -1890,7 +1810,7 @@
 								{subTab === 'resourcepacks' ? 'Nenhum pacote de textura instalado' : subTab === 'shaders' ? 'Nenhum shader instalado' : 'Nenhum datapack instalado'}
 							</h3>
 							<p class="text-xs text-white/40 mt-1 max-w-sm">
-								{subTab === 'resourcepacks' || subTab === 'shaders' ? 'Utilize o instalador em 1 clique acima para baixar os melhores pacotes com um único clique.' : 'Adicione datapacks para modificar o comportamento do jogo.'}
+								{subTab === 'shaders' ? 'Utilize o instalador em 1 clique acima para baixar os melhores shaders.' : subTab === 'resourcepacks' ? 'Clique em Adicionar .ZIP acima ou importe pacotes de textura do seu computador.' : 'Adicione datapacks para modificar o comportamento do jogo.'}
 							</p>
 						</div>
 					{:else}

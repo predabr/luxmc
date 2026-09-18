@@ -37,7 +37,7 @@ contextBridge.exposeInMainWorld("electronAPI", electronAPI);
 contextBridge.exposeInMainWorld("__TAURI_INTERNALS__", {
   invoke: (cmd: string, args?: Record<string, any>) => {
     if (cmd === "plugin:app|version") {
-      return Promise.resolve("1.7.3");
+      return Promise.resolve("1.7.4");
     }
     if (cmd === "plugin:event|listen") {
       return Promise.resolve(1);

@@ -463,29 +463,32 @@
 {#if !account.value}
 
 	<div 
-		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none bg-cover bg-center overflow-hidden"
-		style="background-image: url('/bg_night.jpg');"
+		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none bg-[#0c0c0e] overflow-hidden"
 	>
-		<div class="absolute inset-0 bg-black/65 backdrop-blur-[2px] pointer-events-none"></div>
+		<!-- Cosmic background mesh and glow -->
+		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.18),rgba(255,255,255,0))] pointer-events-none"></div>
+		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-blue-500/10 blur-[130px] rounded-full pointer-events-none"></div>
 
 		<div 
-			class="w-full max-w-md bg-[#121318]/95 border border-white/10 rounded-3xl p-7 shadow-[0_32px_80px_rgba(0,0,0,0.85)] relative z-10 space-y-5"
+			class="w-full max-w-md bg-[#14151a]/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-[0_32px_90px_rgba(0,0,0,0.85)] relative z-10 space-y-6"
 			in:fly={{ y: 20, duration: 300 }}
 		>
-			<div class="flex flex-col items-center text-center space-y-2.5">
-				<div class="w-16 h-16 rounded-2xl bg-[#1a1b22] border border-white/10 p-2.5 shadow-lg flex items-center justify-center">
-					<img src="/logo.png" alt="Luxmc" class="w-full h-full object-contain" />
+			<div class="flex flex-col items-center text-center space-y-3">
+				<div class="w-16 h-16 rounded-2xl bg-gradient-to-b from-[#1e2029] to-[#121318] border border-white/15 p-2.5 shadow-2xl flex items-center justify-center relative group">
+					<div class="absolute inset-0 bg-blue-500/20 rounded-2xl blur-lg pointer-events-none group-hover:bg-blue-500/30 transition-all"></div>
+					<img src="/logo.png" alt="Luxmc" class="w-full h-full object-contain relative z-10" />
 				</div>
 				<div>
 					<h1 class="text-xl font-black text-white tracking-tight">Luxmc Launcher</h1>
+					<p class="text-xs text-white/40 mt-0.5">Selecione o método de autenticação</p>
 				</div>
 			</div>
 
-			<div class="flex rounded-xl bg-black/40 border border-white/5 p-1">
+			<div class="flex rounded-2xl bg-black/50 border border-white/10 p-1">
 				<button
 					type="button"
 					onclick={() => loginTab = "microsoft"}
-					class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/50 hover:text-white'}"
+					class="flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-blue-600 text-white shadow-md' : 'text-white/50 hover:text-white'}"
 				>
 					<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
 						<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
@@ -499,7 +502,7 @@
 				<button
 					type="button"
 					onclick={() => loginTab = "offline"}
-					class="flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-emerald-500 text-black shadow-md' : 'text-white/50 hover:text-white'}"
+					class="flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-white/15 text-white shadow-md border border-white/10' : 'text-white/50 hover:text-white'}"
 				>
 					<User class="w-3.5 h-3.5" />
 					<span>Modo Offline</span>
@@ -507,48 +510,62 @@
 			</div>
 
 			{#if loginTab === "microsoft"}
-				<div class="flex flex-col items-center text-center space-y-4 pt-1" in:fade={{ duration: 150 }}>
-					<h2 class="text-base font-bold text-white">Sign in with Microsoft</h2>
-
-					<div class="w-20 h-20 rounded-2xl bg-[#181a24] border border-white/10 flex items-center justify-center shadow-inner">
-						<svg class="w-10 h-10" viewBox="0 0 24 24" fill="none">
-							<rect x="2" y="2" width="9" height="9" fill="#f25022" rx="1.5"/>
-							<rect x="13" y="2" width="9" height="9" fill="#7fba00" rx="1.5"/>
-							<rect x="2" y="13" width="9" height="9" fill="#00a4ef" rx="1.5"/>
-							<rect x="13" y="13" width="9" height="9" fill="#ffb900" rx="1.5"/>
-						</svg>
+				<div class="flex flex-col items-center text-center space-y-5 pt-1" in:fade={{ duration: 150 }}>
+					<div class="space-y-1">
+						<h2 class="text-base font-bold text-white">Conta Microsoft Oficial</h2>
+						<p class="text-xs text-white/50 max-w-xs leading-relaxed">
+							Autenticação segura via OAuth2. É necessário possuir o Minecraft original na conta.
+						</p>
 					</div>
 
-					<p class="text-xs text-white/55 max-w-xs leading-relaxed">
-						Sign in with your Microsoft Account. You need to own Minecraft to be able to log-in.
-					</p>
-
 					{#if isLoggingInMicrosoft}
-						<div class="w-full bg-[#181a24] border border-white/10 rounded-xl p-4 text-center space-y-2">
-							<Loader2 class="w-6 h-6 text-blue-400 animate-spin mx-auto" />
-							<p class="text-xs font-bold text-white">Autenticando no navegador...</p>
+						<!-- Futuristic Holographic Auth Portal -->
+						<div class="w-full bg-[#181a24]/90 border border-blue-500/30 rounded-2xl p-6 text-center space-y-4 shadow-xl relative overflow-hidden">
+							<div class="relative w-16 h-16 mx-auto flex items-center justify-center">
+								<div class="absolute inset-0 rounded-full border-2 border-blue-500/20 animate-ping pointer-events-none"></div>
+								<div class="w-14 h-14 rounded-full border-2 border-dashed border-blue-400 animate-spin flex items-center justify-center"></div>
+								<Loader2 class="w-6 h-6 text-blue-400 animate-spin absolute" />
+							</div>
+
+							<div class="space-y-1">
+								<p class="text-xs font-black text-white tracking-wide">Aguardando no Navegador...</p>
+								<p class="text-[11px] text-white/40 leading-relaxed">
+									Conclua a autorização na janela segura da Microsoft que se abriu.
+								</p>
+							</div>
+
 							<button 
 								type="button" 
 								onclick={() => isLoggingInMicrosoft = false}
-								class="text-[11px] font-bold text-white/40 hover:text-white cursor-pointer"
+								class="px-4 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-white/60 hover:text-white cursor-pointer transition-colors"
 							>
 								Cancelar
 							</button>
 						</div>
 					{:else}
-						<div class="w-full space-y-1.5">
+						<div class="w-20 h-20 rounded-2xl bg-[#181a24] border border-white/10 flex items-center justify-center shadow-inner relative group">
+							<div class="absolute inset-0 bg-blue-500/10 rounded-2xl blur-md pointer-events-none"></div>
+							<svg class="w-10 h-10 relative z-10" viewBox="0 0 24 24" fill="none">
+								<rect x="2" y="2" width="9" height="9" fill="#f25022" rx="1.5"/>
+								<rect x="13" y="2" width="9" height="9" fill="#7fba00" rx="1.5"/>
+								<rect x="2" y="13" width="9" height="9" fill="#00a4ef" rx="1.5"/>
+								<rect x="13" y="13" width="9" height="9" fill="#ffb900" rx="1.5"/>
+							</svg>
+						</div>
+
+						<div class="w-full space-y-2">
 							<button
 								type="button"
-								class="w-full py-3.5 rounded-xl bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-blue-500/25 cursor-pointer disabled:opacity-50"
+								class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-blue-600/25 cursor-pointer disabled:opacity-50"
 								onclick={() => { playClick(); handleMicrosoftLogin(); }}
 								disabled={isLoggingIn || isLoggingInMicrosoft}
 							>
 								<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
 									<path d="M1 1h10v10H1V1zm12 0h10v10H13V1zM1 13h10v10H1V13zm12 0h10v10H13V13z"/>
 								</svg>
-								<span>Sign In</span>
+								<span>Entrar com Microsoft</span>
 							</button>
-							<span class="text-[11px] text-white/40 font-medium block">☆ Recommended</span>
+							<span class="text-[11px] text-white/40 font-medium block">Conexão oficial criptografada</span>
 						</div>
 					{/if}
 
@@ -558,7 +575,7 @@
 							class="text-[11px] text-white/40 hover:text-blue-400 transition-colors cursor-pointer"
 							onclick={() => showMsClientIdModal = true}
 						>
-							Having trouble with browser sign-in? Configurar Azure ID
+							Problemas com o login? Configurar Azure ID
 						</button>
 					</div>
 				</div>
@@ -568,22 +585,28 @@
 				<div class="space-y-4 pt-1" in:fade={{ duration: 150 }}>
 					<div class="text-center space-y-1">
 						<h2 class="text-base font-bold text-white">Entrar com Nickname</h2>
-						<p class="text-xs text-white/50">Crie sua conta no site para personalizar skin e capa.</p>
+						<p class="text-xs text-white/50">Jogue instantaneamente com qualquer nome.</p>
 					</div>
 
 					<div class="space-y-1.5">
 						<label for="offline-nick-input" class="text-[11px] font-bold text-white/60 block text-left">
-							Nickname / Gamertag:
+							Nickname do Jogador:
 						</label>
-						<div class="relative">
-							<User class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+						<div class="relative flex items-center">
+							<div class="w-7 h-7 rounded-lg bg-black/40 border border-white/10 overflow-hidden absolute left-2.5 flex items-center justify-center pointer-events-none">
+								<img 
+									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`} 
+									alt="Avatar" 
+									class="w-full h-full object-cover" 
+								/>
+							</div>
 							<input 
 								id="offline-nick-input"
 								type="text" 
 								placeholder="Ex: SteveGamer" 
 								bind:value={offlineName}
 								maxlength="16"
-								class="w-full bg-black/40 border border-white/10 focus:border-emerald-500/60 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-white outline-none transition-all placeholder:text-white/20"
+								class="w-full bg-black/40 border border-white/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-white outline-none transition-all placeholder:text-white/20"
 								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 							/>
 						</div>
@@ -591,25 +614,25 @@
 
 					<button 
 						type="button" 
-						class="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-[0_4px_16px_rgba(16,185,129,0.3)] hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+						class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/25 hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50"
 						onclick={() => { playClick(); handleOfflineAuth(); }}
 						disabled={isLoggingIn || isLoggingInMicrosoft}
 					>
 						{#if isLoggingIn}
-							<Loader2 class="w-4 h-4 animate-spin text-black" /> Entrando...
+							<Loader2 class="w-4 h-4 animate-spin text-white" /> Entrando...
 						{:else}
 							<Play class="w-3.5 h-3.5 fill-current" /> Jogar Offline
 						{/if}
 					</button>
 
 					{#if savedAccounts.length > 0}
-						<div class="space-y-1.5 pt-1 border-t border-white/5">
+						<div class="space-y-2 pt-1 border-t border-white/5">
 							<span class="text-[10px] font-bold text-white/40 uppercase tracking-wider block text-left">
 								Contas recentes:
 							</span>
 							<div class="flex flex-wrap gap-1.5">
 								{#each savedAccounts as accName (accName)}
-									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
+									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
 										<button 
 											type="button" 
 											onclick={() => handleOfflineAuth(accName)}
@@ -620,7 +643,7 @@
 												alt={accName} 
 												class="w-4 h-4 rounded object-cover" 
 											/>
-											<span class="text-xs font-bold text-white/80 group-hover:text-emerald-400 transition-colors">{accName}</span>
+											<span class="text-xs font-bold text-white/80 group-hover:text-blue-300 transition-colors">{accName}</span>
 										</button>
 										<button 
 											type="button" 
@@ -642,10 +665,10 @@
 			<div class="pt-2 border-t border-white/5 flex flex-col items-center gap-2">
 				<button 
 					type="button" 
-					onclick={() => openUrl("https://luxmc.dev")}
-					class="text-[11px] text-white/50 hover:text-emerald-400 transition-colors flex items-center gap-1 cursor-pointer"
+					onclick={() => openUrl("https://luxmc-r92.pages.dev/#skin-studio")}
+					class="text-[11px] text-white/50 hover:text-blue-400 transition-colors flex items-center gap-1 cursor-pointer"
 				>
-					Criar conta e gerenciar skins no site oficial <ExternalLink class="w-3 h-3" />
+					Personalizar skins e capas no Studio 3D Web <ExternalLink class="w-3 h-3" />
 				</button>
 
 				<div class="flex items-center justify-between w-full pt-1">

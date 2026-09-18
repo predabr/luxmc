@@ -206,7 +206,7 @@
 				<div class="flex items-center gap-1.5">
 					<button
 						type="button"
-						class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white bg-white/[0.03] hover:bg-white/10 border border-white/5 transition-all cursor-pointer shadow-sm active:scale-95"
+						class="h-8 w-8 rounded-xl flex items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-all cursor-pointer shadow-sm active:scale-95"
 						onclick={(e) => { e.stopPropagation(); onEdit?.(profile); }}
 						aria-label={t("instances.edit")}
 						title="Configurar Instância"
@@ -215,7 +215,7 @@
 					</button>
 					<button
 						type="button"
-						class="h-8 w-8 rounded-xl flex items-center justify-center text-white/50 hover:text-white bg-white/[0.03] hover:bg-white/10 border border-white/5 transition-all cursor-pointer shadow-sm active:scale-95"
+						class="h-8 w-8 rounded-xl flex items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-all cursor-pointer shadow-sm active:scale-95"
 						onclick={(e) => { e.stopPropagation(); onOpenFolder?.(profile.id); }}
 						aria-label={t("instances.openFolder")}
 						title="Abrir Pasta de Arquivos"

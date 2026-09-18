@@ -45,61 +45,29 @@
 	};
 
 	let friends = $state<Friend[]>([]);
+	let showPendingDropdown = $state(false);
 
-	const defaultInitialFriends: Friend[] = [
-		{
-			id: "f-1",
-			username: "Stantios",
-			status: "online",
-			activity: "No Launcher"
-		},
-		{
-			id: "f-2",
-			username: "coolbot100s",
-			status: "online",
-			activity: "Wynncraft"
-		},
-		{
-			id: "f-3",
-			username: "pedro_dev",
-			status: "offline",
-			activity: "2h atrás",
-			lastSeen: "2h atrás"
-		},
-		{
-			id: "f-4",
-			username: "AlexGamer",
-			status: "offline",
-			activity: "ontem",
-			lastSeen: "ontem"
-		},
-		{
-			id: "f-5",
-			username: "CraftMaster",
-			status: "pending",
-			activity: "Pedido recebido"
-		}
-	];
+	const defaultInitialFriends: Friend[] = [];
 
 	function loadFriends() {
 		if (typeof window === "undefined") return;
 		try {
-			const saved = localStorage.getItem("luxmc_custom_friends_v3");
+			const saved = localStorage.getItem("luxmc_custom_friends_v4");
 			if (saved) {
 				friends = JSON.parse(saved);
 			} else {
-				friends = defaultInitialFriends;
-				localStorage.setItem("luxmc_custom_friends_v3", JSON.stringify(friends));
+				friends = [];
+				localStorage.setItem("luxmc_custom_friends_v4", JSON.stringify(friends));
 			}
 		} catch {
-			friends = defaultInitialFriends;
+			friends = [];
 		}
 	}
 
 	function saveFriends() {
 		if (typeof window === "undefined") return;
 		try {
-			localStorage.setItem("luxmc_custom_friends_v3", JSON.stringify(friends));
+			localStorage.setItem("luxmc_custom_friends_v4", JSON.stringify(friends));
 		} catch {}
 	}
 
@@ -256,15 +224,77 @@
 			<div class="relative">
 				<button
 					type="button"
-					class="p-1.5 rounded-xl bg-[#16171d] hover:bg-[#1f2029] text-white/60 hover:text-white border border-white/5 transition-colors cursor-pointer"
-					title="Friend requests"
+					onclick={() => showPendingDropdown = !showPendingDropdown}
+					class="p-1.5 rounded-xl {showPendingDropdown ? 'bg-blue-600 text-white shadow-md' : 'bg-[#16171d] hover:bg-[#1f2029] text-white/60 hover:text-white'} border border-white/5 transition-colors cursor-pointer"
+					title="Solicitações de Amizade"
 				>
 					<Mail class="w-3.5 h-3.5" />
 				</button>
 				{#if pendingFriends.length > 0}
-					<span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 text-black text-[9px] font-black flex items-center justify-center">
+					<span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-blue-500 text-white text-[9px] font-black flex items-center justify-center pointer-events-none">
 						{pendingFriends.length}
 					</span>
+				{/if}
+
+				{#if showPendingDropdown}
+					<div 
+						class="absolute right-0 top-full mt-2 w-64 bg-[#18191c] border border-white/10 rounded-2xl shadow-2xl p-3 z-50 space-y-2.5 backdrop-blur-xl"
+						transition:slide={{ duration: 150 }}
+					>
+						<div class="flex items-center justify-between border-b border-white/5 pb-2">
+							<span class="text-xs font-black text-white">Solicitações ({pendingFriends.length})</span>
+							<button 
+								type="button" 
+								onclick={() => showPendingDropdown = false}
+								class="text-white/40 hover:text-white text-[10px] font-bold cursor-pointer"
+							>
+								✕
+							</button>
+						</div>
+
+						{#if pendingFriends.length === 0}
+							<div class="text-center py-4 text-white/40 text-xs">
+								Nenhum convite pendente
+							</div>
+						{:else}
+							<div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+								{#each pendingFriends as friend (friend.id)}
+									<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#141518] border border-white/5">
+										<div class="flex items-center gap-2 min-w-0">
+											<div class="w-6 h-6 rounded-lg bg-black/40 overflow-hidden shrink-0 border border-white/10">
+												<img
+													src={`https://mc-heads.net/avatar/${friend.username}/64`}
+													alt={friend.username}
+													class="w-full h-full object-cover"
+													loading="lazy"
+												/>
+											</div>
+											<span class="text-xs font-bold text-white truncate max-w-[90px]">{friend.username}</span>
+										</div>
+
+										<div class="flex items-center gap-1 shrink-0">
+											<button
+												type="button"
+												onclick={() => acceptFriend(friend)}
+												class="p-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-black transition-colors cursor-pointer"
+												title="Aceitar convite"
+											>
+												<Check class="w-3 h-3 stroke-[3]" />
+											</button>
+											<button
+												type="button"
+												onclick={() => declineFriend(friend)}
+												class="p-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white transition-colors cursor-pointer"
+												title="Recusar convite"
+											>
+												<X class="w-3 h-3 stroke-[3]" />
+											</button>
+										</div>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
 				{/if}
 			</div>
 		</div>
@@ -446,7 +476,7 @@
 			<div class="h-24 bg-gradient-to-br from-emerald-900/40 to-[#10121a] relative overflow-hidden flex items-center justify-between p-3.5 border-b border-white/5">
 				<div class="space-y-1 z-10">
 					<span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">Atualização</span>
-					<div class="text-xs font-black text-white group-hover:text-emerald-300 transition-colors">Luxmc v1.7.3 Oficial</div>
+					<div class="text-xs font-black text-white group-hover:text-emerald-300 transition-colors">Luxmc v1.7.4 Oficial</div>
 				</div>
 				<div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-md">
 					<Sliders class="w-4 h-4" />

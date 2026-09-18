@@ -26,44 +26,77 @@
 		return n.toString();
 	}
 
+	function getModGradient(title: string): string {
+		let hash = 0;
+		for (let i = 0; i < title.length; i++) {
+			hash = (hash << 5) - hash + title.charCodeAt(i);
+			hash |= 0;
+		}
+		const gradients = [
+			"from-blue-600/30 via-indigo-950/60 to-[#0f1013]",
+			"from-purple-600/30 via-violet-950/60 to-[#0f1013]",
+			"from-emerald-600/30 via-teal-950/60 to-[#0f1013]",
+			"from-amber-600/30 via-orange-950/60 to-[#0f1013]",
+			"from-rose-600/30 via-pink-950/60 to-[#0f1013]",
+			"from-cyan-600/30 via-sky-950/60 to-[#0f1013]",
+		];
+		const idx = Math.abs(hash) % gradients.length;
+		return gradients[idx];
+	}
+
 	const isModpack = $derived(contentType === "Modpack");
 	const btnClass = $derived(
 		isModpack
-			? "bg-[#caa97c] hover:bg-[#b89565] text-black shadow-[#caa97c]/20"
-			: "bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white shadow-[#6c5ce7]/20"
+			? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20 font-bold"
+			: "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 font-bold"
 	);
-	const bannerSrc = $derived(item.bannerUrl || item.iconUrl || "/vanilla_banner.png");
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="group bg-[#18191c] hover:bg-[#1e1f25] border border-white/5 hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between shadow-lg hover:shadow-xl hover:shadow-[#6c5ce7]/10 hover:scale-[1.02] cursor-pointer active:scale-[0.98] [content-visibility:auto] [contain-intrinsic-size:300px_280px]"
+	class="group bg-[#18191c] hover:bg-[#1e1f25] border border-white/5 hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between shadow-lg hover:shadow-xl hover:shadow-blue-500/10 hover:scale-[1.02] cursor-pointer active:scale-[0.98] [content-visibility:auto] [contain-intrinsic-size:300px_280px]"
 	onclick={() => onOpenDetails(item)}
 >
-	<!-- Top Banner Image -->
-	<div class="relative w-full h-36 bg-[#0f1013] overflow-hidden">
-		<LazyImage
-			src={bannerSrc}
-			alt={item.title}
-			class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 {item.bannerUrl ? '' : 'blur-[1px] opacity-80'}"
-			fallback="/vanilla_banner.png"
-		/>
+	<!-- Top Banner Image / Ambient Mesh -->
+	<div class="relative w-full h-32 bg-[#0d0e12] overflow-hidden">
+		{#if item.bannerUrl}
+			<LazyImage
+				src={item.bannerUrl}
+				alt={item.title}
+				class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+			/>
+			<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-black/20 to-transparent"></div>
+		{:else}
+			<!-- Dynamic Ambient Glow Backdrop with Icon Reflection -->
+			<div class="w-full h-full bg-gradient-to-br {getModGradient(item.title)} relative flex items-center justify-center overflow-hidden">
+				{#if item.iconUrl}
+					<img 
+						src={item.iconUrl} 
+						alt="" 
+						class="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-150 transform group-hover:scale-175 transition-transform duration-700" 
+						aria-hidden="true"
+					/>
+				{/if}
+				<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/60 pointer-events-none"></div>
+				<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-transparent to-black/30"></div>
+			</div>
+		{/if}
 
 		<div class="absolute top-2.5 right-2.5 z-10">
 			<SourceBadge source={item.source} />
 		</div>
 
 		<!-- Square Icon Thumbnail Box (Bottom Left) -->
-		<div class="absolute bottom-2.5 left-3 h-12 w-12 rounded-xl bg-[#14151a] border-2 border-[#202129] p-0.5 shadow-xl flex items-center justify-center overflow-hidden shrink-0">
+		<div class="absolute bottom-2.5 left-3 h-12 w-12 rounded-2xl bg-[#14151a]/90 backdrop-blur-md border border-white/15 p-1 shadow-2xl flex items-center justify-center overflow-hidden shrink-0 z-10 group-hover:border-white/30 transition-all">
 			{#if item.iconUrl}
 				<LazyImage
 					src={item.iconUrl}
 					alt={item.title}
-					class="w-full h-full object-cover rounded-lg"
+					class="w-full h-full object-cover rounded-xl"
 				/>
 			{:else}
-				<div class="w-full h-full rounded-lg bg-white/5 flex items-center justify-center text-white/40 text-[10px] font-black">
+				<div class="w-full h-full rounded-xl bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center text-white/70 text-xs font-black">
 					{item.title.slice(0, 2).toUpperCase()}
 				</div>
 			{/if}

@@ -96,7 +96,7 @@
           <div class="stat-label">RAM em Repouso</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value live-version-tag">v1.7.3</div>
+          <div class="stat-value live-version-tag">v1.7.4</div>
           <div class="stat-label">Última Versão Estável</div>
         </div>
       </div>
@@ -539,7 +539,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
               <span class="changelog-badge">Lançamento Mais Recente</span>
-              <span class="live-version-tag" style="font-weight: 800; color: #ffffff;">v1.7.3</span>
+              <span class="live-version-tag" style="font-weight: 800; color: #ffffff;">v1.7.4</span>
             </div>
             <h3 style="font-size: 1.4rem; font-weight: 850; color: #ffffff;">Notas de Engenharia & Correções</h3>
           </div>
@@ -640,14 +640,14 @@
             </ul>
           </div>
           <div>
-            <a id="downloadAppImageLink" href="https://github.com/predabr/luxmc/releases/latest/download/Luxmc-1.7.3.AppImage" class="btn-primary" style="width: 100%;">
+            <a id="downloadAppImageLink" href="/download/linux" class="btn-primary" style="width: 100%;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Baixar .AppImage
             </a>
             <div style="margin-top: 12px;">
               <div class="code-box">
-                <code>chmod +x Luxmc-1.7.3.AppImage && ./Luxmc-1.7.3.AppImage</code>
-                <button type="button" class="copy-btn" onclick="copyCode('chmod +x Luxmc-1.7.3.AppImage && ./Luxmc-1.7.3.AppImage', this)">Copiar</button>
+                <code id="appImageCodeSnippet">chmod +x Luxmc_*.AppImage && ./Luxmc_*.AppImage</code>
+                <button type="button" class="copy-btn" onclick="copyCode(document.getElementById('appImageCodeSnippet')?.textContent || 'chmod +x Luxmc_*.AppImage && ./Luxmc_*.AppImage', this)">Copiar</button>
               </div>
             </div>
           </div>
@@ -688,7 +688,7 @@
             </ul>
           </div>
           <div>
-            <a id="downloadExeLink" href="https://github.com/predabr/luxmc/releases/latest" class="btn-primary" style="width: 100%;">
+            <a id="downloadExeLink" href="/download/windows" class="btn-primary" style="width: 100%;">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Baixar Instalador (.exe)
             </a>

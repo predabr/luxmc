@@ -16,10 +16,17 @@ export interface AccentOption {
 	rgbDark: string;
 }
 
+export interface BackgroundOption {
+	id: string;
+	name: string;
+	preview: string;
+	style: string;
+}
+
 export const THEMES: Record<string, ThemeOption> = {
 	dark: {
 		id: "dark",
-		name: "Tema Escuro (Preto Profundo)",
+		name: "Tema Escuro (Obsidiana)",
 		bg: "10 10 12",
 		bgElevated: "18 18 22",
 		border: "32 32 38",
@@ -36,13 +43,13 @@ export const THEMES: Record<string, ThemeOption> = {
 };
 
 export const ACCENTS: Record<string, AccentOption> = {
-	gold: {
-		id: "gold",
-		name: "Dourado Luxmc",
-		hex: "#e2b86b",
-		rgb: "226 184 107",
-		rgbLight: "240 205 140",
-		rgbDark: "195 152 75"
+	blue: {
+		id: "blue",
+		name: "Azul Diamante",
+		hex: "#3b82f6",
+		rgb: "59 130 246",
+		rgbLight: "96 165 250",
+		rgbDark: "37 99 235"
 	},
 	cyan: {
 		id: "cyan",
@@ -60,49 +67,59 @@ export const ACCENTS: Record<string, AccentOption> = {
 		rgbLight: "52 211 153",
 		rgbDark: "5 150 105"
 	},
-	rose: {
-		id: "rose",
-		name: "Rosa Neon",
-		hex: "#f43f5e",
-		rgb: "244 63 94",
-		rgbLight: "251 113 133",
-		rgbDark: "225 29 72"
+	purple: {
+		id: "purple",
+		name: "Ametista",
+		hex: "#a855f7",
+		rgb: "168 85 247",
+		rgbLight: "192 132 252",
+		rgbDark: "147 51 234"
+	}
+};
+
+export const BACKGROUNDS: Record<string, BackgroundOption> = {
+	obsidian: {
+		id: "obsidian",
+		name: "Preto Obsidiana",
+		preview: "#0c0c0e",
+		style: "background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%), #0c0c0e;"
 	},
-	violet: {
-		id: "violet",
-		name: "Violeta Elétrico",
-		hex: "#8b5cf6",
-		rgb: "139 92 246",
-		rgbLight: "167 139 250",
-		rgbDark: "124 58 237"
+	cosmos: {
+		id: "cosmos",
+		name: "Cosmos Profundo",
+		preview: "#08090f",
+		style: "background: radial-gradient(circle at 20% -10%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 110%, rgba(168, 85, 247, 0.12) 0%, transparent 50%), #05060a;"
 	},
-	orange: {
-		id: "orange",
-		name: "Lava Flame",
-		hex: "#f97316",
-		rgb: "249 115 22",
-		rgbLight: "251 146 60",
-		rgbDark: "234 88 12"
+	night: {
+		id: "night",
+		name: "Minecraft Noite",
+		preview: "#0a1128",
+		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.85), rgba(10, 12, 18, 0.95)), url('/bg_night.jpg'); background-size: cover; background-position: center;"
 	},
-	blue: {
-		id: "blue",
-		name: "Azul Diamante",
-		hex: "#3b82f6",
-		rgb: "59 130 246",
-		rgbLight: "96 165 250",
-		rgbDark: "37 99 235"
+	day: {
+		id: "day",
+		name: "Minecraft Dia",
+		preview: "#1e3a5f",
+		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.85), rgba(10, 12, 18, 0.95)), url('/bg_day.jpg'); background-size: cover; background-position: center;"
+	},
+	aurora: {
+		id: "aurora",
+		name: "Aurora Boreal",
+		preview: "#04151f",
+		style: "background: radial-gradient(ellipse at 50% -20%, rgba(56, 189, 248, 0.2) 0%, transparent 65%), radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.15) 0%, transparent 60%), #06090e;"
 	}
 };
 
 let activeTheme = $state("dark");
-let activeAccent = $state("gold");
+let activeAccent = $state("blue");
+let activeBackground = $state("obsidian");
 
-function applyThemeVariables(tId: string, aId: string) {
+function applyThemeVariables(tId: string, aId: string, bgId: string) {
 	if (typeof document === "undefined") return;
 	const root = document.documentElement;
 
 	const t = THEMES[tId] || THEMES.dark;
-	const a = ACCENTS[aId] || ACCENTS.gold;
+	const a = ACCENTS[aId] || ACCENTS.blue;
 
 	root.style.setProperty("--bg", t.bg);
 	root.style.setProperty("--bg-elevated", t.bgElevated);
@@ -133,7 +150,6 @@ function applyThemeVariables(tId: string, aId: string) {
 	root.style.setProperty("--brand-600", a.rgbDark);
 	root.style.setProperty("--accent-color", a.hex);
 
-	// Remove all accent classes and add active accent
 	Object.keys(ACCENTS).forEach((k) => root.classList.remove(`accent-${k}`));
 	root.classList.add(`accent-${a.id}`);
 }
@@ -141,9 +157,17 @@ function applyThemeVariables(tId: string, aId: string) {
 export const themeStore = {
 	get theme() { return activeTheme; },
 	get accent() { return activeAccent; },
+	get background() { return activeBackground; },
 
 	get currentAccentData() {
-		return ACCENTS[activeAccent] || ACCENTS.gold;
+		return ACCENTS[activeAccent] || ACCENTS.blue;
+	},
+
+	get currentBackgroundStyle() {
+		if (activeTheme === "light") {
+			return "background-color: #f1f3f7;";
+		}
+		return BACKGROUNDS[activeBackground]?.style || BACKGROUNDS.obsidian.style;
 	},
 
 	setTheme(tId: string) {
@@ -156,7 +180,7 @@ export const themeStore = {
 			if (typeof window !== "undefined") {
 				localStorage.setItem("luxmc_theme", resolved);
 			}
-			applyThemeVariables(activeTheme, activeAccent);
+			applyThemeVariables(activeTheme, activeAccent, activeBackground);
 		}
 	},
 
@@ -166,7 +190,17 @@ export const themeStore = {
 			if (typeof window !== "undefined") {
 				localStorage.setItem("luxmc_accent", aId);
 			}
-			applyThemeVariables(activeTheme, activeAccent);
+			applyThemeVariables(activeTheme, activeAccent, activeBackground);
+		}
+	},
+
+	setBackground(bgId: string) {
+		if (BACKGROUNDS[bgId]) {
+			activeBackground = bgId;
+			if (typeof window !== "undefined") {
+				localStorage.setItem("luxmc_background", bgId);
+			}
+			applyThemeVariables(activeTheme, activeAccent, activeBackground);
 		}
 	},
 
@@ -174,11 +208,13 @@ export const themeStore = {
 		if (typeof window === "undefined") return;
 		const savedTheme = localStorage.getItem("luxmc_theme");
 		const savedAccent = localStorage.getItem("luxmc_accent");
+		const savedBg = localStorage.getItem("luxmc_background");
 		if (savedTheme) {
 			if (savedTheme === "light" || savedTheme === "default-light") activeTheme = "light";
 			else if (savedTheme === "dark" || savedTheme === "default-dark") activeTheme = "dark";
 		}
 		if (savedAccent && ACCENTS[savedAccent]) activeAccent = savedAccent;
-		applyThemeVariables(activeTheme, activeAccent);
+		if (savedBg && BACKGROUNDS[savedBg]) activeBackground = savedBg;
+		applyThemeVariables(activeTheme, activeAccent, activeBackground);
 	}
 };

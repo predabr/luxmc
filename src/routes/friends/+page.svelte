@@ -24,13 +24,7 @@
 		addedAt?: string;
 	};
 
-	const defaultFriends: Friend[] = [
-		{ id: "f-1", username: "Spect3r", status: "online", activity: "Jogando no Hypixel", serverIp: "mc.hypixel.net" },
-		{ id: "f-2", username: "ViperKing", status: "in_game", activity: "Mundo Sobrevivência 1.21", serverIp: "127.0.0.1:25565" },
-		{ id: "f-3", username: "LunarPlayer", status: "offline", activity: "Visto há 2 horas" },
-		{ id: "f-4", username: "EnderGamer99", status: "pending", activity: "Enviou convite de amizade" },
-		{ id: "f-5", username: "ShadowCrafter", status: "pending", activity: "Enviou convite de amizade" }
-	];
+	const defaultFriends: Friend[] = [];
 
 	let friends = $state<Friend[]>([]);
 	let activeTab = $state<"all" | "online" | "pending" | "add" | "p2p">("all");
@@ -42,22 +36,22 @@
 	function loadFriends() {
 		if (typeof window === "undefined") return;
 		try {
-			const saved = localStorage.getItem("luxmc_custom_friends_v3");
+			const saved = localStorage.getItem("luxmc_custom_friends_v4");
 			if (saved) {
 				friends = JSON.parse(saved);
 			} else {
-				friends = defaultFriends;
-				localStorage.setItem("luxmc_custom_friends_v3", JSON.stringify(friends));
+				friends = [];
+				localStorage.setItem("luxmc_custom_friends_v4", JSON.stringify(friends));
 			}
 		} catch {
-			friends = defaultFriends;
+			friends = [];
 		}
 	}
 
 	function saveFriends() {
 		if (typeof window === "undefined") return;
 		try {
-			localStorage.setItem("luxmc_custom_friends_v3", JSON.stringify(friends));
+			localStorage.setItem("luxmc_custom_friends_v4", JSON.stringify(friends));
 		} catch {}
 	}
 

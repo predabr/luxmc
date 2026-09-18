@@ -29,16 +29,36 @@
 		highlights: string[];
 		version?: string;
 		link?: string;
+		image: string;
 	};
 
 	const officialNews: LauncherArticle[] = [
 		{
-			id: "v1.7.3",
-			title: "Luxmc v1.7.3 — Obsidian Performance & Paridade Total",
+			id: "v1.7.4",
+			title: "Luxmc v1.7.4 — Correção Definitiva de Modpacks & CDN Resiliente",
 			tag: "Oficial",
 			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
 			date: "18 de Setembro, 2026",
+			version: "v1.7.4",
+			image: "/news_1.jpg",
+			summary: "Atualização com foco dedicado na estabilidade total do CurseForge e Modrinth, eliminação do bug de exclusão de mods, importação nativa de .mrpack e reparo automático no lançamento.",
+			highlights: [
+				"Correção definitiva da importação de modpacks CurseForge com preservação de 100% dos arquivos .jar",
+				"Download concorrente com pool de 6 workers e espelhos de CDN resilientes (Edge, Mediafilez)",
+				"Importação completa de modpacks Modrinth (.mrpack) com extração integral de overrides",
+				"Detecção inteligente de versão e arquitetura entre NeoForge e Forge clássico",
+				"Reparo automático de mods faltantes antes do lançamento da instância"
+			],
+			link: "https://luxmc-r92.pages.dev/#releases"
+		},
+		{
+			id: "v1.7.3",
+			title: "Luxmc v1.7.3 — Obsidian Performance & Paridade Total",
+			tag: "Oficial",
+			tagColor: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+			date: "18 de Setembro, 2026",
 			version: "v1.7.3",
+			image: "/news_1.jpg",
 			summary: "Atualização essencial focada na estabilidade da inicialização, paridade completa com Wayland/X11, novo sistema de amizades P2P com aceitação de convites em tempo real e visual de alto contraste.",
 			highlights: [
 				"Correção de inicialização direta do Minecraft Vanilla e Modpacks com tratamento de resolução adaptativa",
@@ -53,9 +73,10 @@
 			id: "v1.7.2",
 			title: "Lançamento do Portal Web e Studio 3D no Cloudflare Pages",
 			tag: "Ecossistema",
-			tagColor: "text-blue-400 bg-blue-500/10 border-blue-500/30",
+			tagColor: "text-sky-400 bg-sky-500/10 border-sky-500/30",
 			date: "17 de Setembro, 2026",
 			version: "v1.7.2",
+			image: "/news_2.jpg",
 			summary: "O Luxmc agora possui um portal web moderno em luxmc-r92.pages.dev com estúdio tridimensional de skins, catálogo de modificações e downloads rápidos para Linux e Windows.",
 			highlights: [
 				"Visualizador e customizador 3D em tempo real na nuvem",
@@ -72,6 +93,7 @@
 			tagColor: "text-purple-400 bg-purple-500/10 border-purple-500/30",
 			date: "14 de Setembro, 2026",
 			version: "v1.7.0",
+			image: "/news_3.jpg",
 			summary: "Jogue com seus amigos em qualquer mundo de Minecraft sem precisar de portas manuais no roteador, Hamachi ou programas de terceiros.",
 			highlights: [
 				"Mapeamento dinâmico de portas UPnP residencial com zero configuração",
@@ -87,6 +109,7 @@
 			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
 			date: "10 de Setembro, 2026",
 			version: "v1.6.5",
+			image: "/news_4.jpg",
 			summary: "Inclusão de rotinas automáticas de redução de consumo de memória. O Luxmc libera memória ociosa assim que o jogo é lançado, garantindo FPS máximo.",
 			highlights: [
 				"Chamada de malloc_trim e liberação de cache em background",
@@ -163,42 +186,51 @@
 		<!-- Featured Article -->
 		{#if officialNews.length > 0}
 			{@const featured = officialNews[0]}
-			<div class="p-6 md:p-8 rounded-3xl bg-gradient-to-br from-[#131622] via-[#10121a] to-[#0d0e14] border border-emerald-500/30 shadow-2xl relative overflow-hidden group">
-				<div class="absolute -right-16 -top-16 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-				
-				<div class="relative z-10 space-y-4">
-					<div class="flex items-center gap-2.5 flex-wrap">
-						<span class="text-xs font-extrabold px-3 py-1 rounded-full {featured.tagColor}">
-							{featured.tag}
-						</span>
-						<span class="text-xs font-mono font-bold bg-white/10 px-2.5 py-0.5 rounded-full text-white/90">
-							{featured.version}
-						</span>
-						<span class="text-xs text-white/40 flex items-center gap-1">
-							<Calendar class="w-3.5 h-3.5" />
-							{featured.date}
-						</span>
-					</div>
+			<div class="rounded-3xl bg-[#14151a] border border-blue-500/30 shadow-2xl relative overflow-hidden group flex flex-col lg:flex-row">
+				<div class="lg:w-1/2 h-56 lg:h-auto relative overflow-hidden">
+					<img 
+						src={featured.image} 
+						alt={featured.title} 
+						class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+					/>
+					<div class="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-transparent via-[#14151a]/60 to-[#14151a]"></div>
+				</div>
 
-					<h2 class="text-xl md:text-2xl font-black text-white group-hover:text-emerald-300 transition-colors">
-						{featured.title}
-					</h2>
+				<div class="lg:w-1/2 p-6 md:p-8 relative z-10 space-y-4 flex flex-col justify-between">
+					<div class="space-y-3">
+						<div class="flex items-center gap-2.5 flex-wrap">
+							<span class="text-xs font-extrabold px-3 py-1 rounded-full {featured.tagColor}">
+								{featured.tag}
+							</span>
+							<span class="text-xs font-mono font-bold bg-white/10 px-2.5 py-0.5 rounded-full text-white/90">
+								{featured.version}
+							</span>
+							<span class="text-xs text-white/40 flex items-center gap-1">
+								<Calendar class="w-3.5 h-3.5" />
+								{featured.date}
+							</span>
+						</div>
 
-					<p class="text-xs md:text-sm text-white/70 leading-relaxed max-w-3xl">
-						{featured.summary}
-					</p>
+						<h2 class="text-xl md:text-2xl font-black text-white group-hover:text-blue-300 transition-colors">
+							{featured.title}
+						</h2>
 
-					<div class="pt-2">
-						<h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2.5 flex items-center gap-1.5">
-							<Sparkles class="w-3.5 h-3.5" /> Principais Destaques:
-						</h3>
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-							{#each featured.highlights as hl}
-								<div class="flex items-start gap-2 text-xs text-white/80 bg-white/[0.03] border border-white/5 p-2.5 rounded-xl">
-									<CheckCircle2 class="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-									<span>{hl}</span>
-								</div>
-							{/each}
+						<p class="text-xs md:text-sm text-white/70 leading-relaxed">
+							{featured.summary}
+						</p>
+
+						<div class="pt-2">
+							<h3 class="text-xs font-bold uppercase tracking-wider text-blue-400 mb-2.5 flex items-center gap-1.5">
+								<Sparkles class="w-3.5 h-3.5" /> Principais Destaques:
+							</h3>
+							<div class="grid grid-cols-1 gap-2">
+								{#each featured.highlights.slice(0, 3) as hl}
+									<div class="flex items-start gap-2 text-xs text-white/80 bg-white/[0.03] border border-white/5 p-2.5 rounded-xl">
+										<CheckCircle2 class="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+										<span>{hl}</span>
+									</div>
+								{/each}
+							</div>
 						</div>
 					</div>
 
@@ -206,7 +238,7 @@
 						<button
 							type="button"
 							onclick={() => openWebsite(featured.link)}
-							class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all shadow-lg shadow-emerald-500/20 active:scale-95 cursor-pointer"
+							class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition-all shadow-lg shadow-blue-600/20 active:scale-95 cursor-pointer"
 						>
 							<span>Ver Notas Completas</span>
 							<ExternalLink class="w-3.5 h-3.5" />
@@ -218,38 +250,52 @@
 
 		<!-- Other Updates Grid -->
 		<div class="space-y-3 pt-2">
-			<h3 class="text-xs font-bold uppercase tracking-wider text-white/50">Histórico de Versões do Luxmc</h3>
+			<h3 class="text-xs font-bold uppercase tracking-wider text-white/50">Histórico de Atualizações</h3>
 
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 				{#each officialNews.slice(1) as article (article.id)}
-					<div class="p-5 rounded-3xl bg-[#111218] border border-white/10 hover:border-white/25 transition-all flex flex-col justify-between gap-4 shadow-lg group">
-						<div class="space-y-2.5">
-							<div class="flex items-center justify-between gap-2">
-								<span class="text-[10px] font-bold px-2 py-0.5 rounded-md {article.tagColor}">
+					<div class="rounded-3xl bg-[#14151a] border border-white/10 hover:border-blue-500/30 transition-all flex flex-col justify-between overflow-hidden shadow-lg group">
+						<div class="w-full h-36 relative overflow-hidden bg-[#0e0f13]">
+							<img 
+								src={article.image} 
+								alt={article.title} 
+								class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+							/>
+							<div class="absolute inset-0 bg-gradient-to-t from-[#14151a] via-transparent to-transparent"></div>
+							<div class="absolute top-3 left-3">
+								<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full {article.tagColor} backdrop-blur-md">
 									{article.tag}
 								</span>
-								<span class="text-[10px] text-white/40">{article.date}</span>
 							</div>
-
-							<h4 class="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors leading-snug">
-								{article.title}
-							</h4>
-
-							<p class="text-xs text-white/50 leading-relaxed line-clamp-3">
-								{article.summary}
-							</p>
 						</div>
 
-						<div class="pt-2 border-t border-white/5 flex items-center justify-between">
-							<span class="text-[10px] font-mono font-bold text-white/30">{article.version}</span>
-							<button
-								type="button"
-								onclick={() => openWebsite(article.link)}
-								class="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 cursor-pointer transition-colors"
-							>
-								<span>Detalhes</span>
-								<ExternalLink class="w-3 h-3" />
-							</button>
+						<div class="p-5 flex flex-col justify-between flex-1 gap-4">
+							<div class="space-y-2">
+								<div class="flex items-center justify-between text-[10px] text-white/40">
+									<span class="font-mono font-bold text-white/50">{article.version}</span>
+									<span>{article.date}</span>
+								</div>
+
+								<h4 class="text-xs font-bold text-white group-hover:text-blue-300 transition-colors leading-snug line-clamp-2">
+									{article.title}
+								</h4>
+
+								<p class="text-[11px] text-white/50 leading-relaxed line-clamp-3">
+									{article.summary}
+								</p>
+							</div>
+
+							<div class="pt-2 border-t border-white/5 flex items-center justify-between">
+								<span class="text-[10px] text-white/40">Luxmc Launcher</span>
+								<button
+									type="button"
+									onclick={() => openWebsite(article.link)}
+									class="text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
+								>
+									<span>Detalhes</span>
+									<ExternalLink class="w-3 h-3" />
+								</button>
+							</div>
 						</div>
 					</div>
 				{/each}
