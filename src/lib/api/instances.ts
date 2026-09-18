@@ -190,14 +190,7 @@ export async function instanceImportModpack(
 	loader: string,
 	icon?: string,
 	ramMb?: number
-): Promise<{
-	id: string;
-	name: string;
-	mcVersion: string;
-	loader: string;
-	gameDir: string;
-	icon?: string;
-}> {
+): Promise<ProfileRow> {
 	return api.invoke("instance_import_modpack", { filePath, profileName, mcVersion, loader, icon, ramMb });
 }
 
@@ -210,14 +203,7 @@ export async function instanceImportMrpack(
 	profileName: string,
 	icon?: string,
 	ramMb?: number
-): Promise<{
-	id: string;
-	name: string;
-	mcVersion: string;
-	loader: string;
-	gameDir: string;
-	icon?: string;
-}> {
+): Promise<ProfileRow> {
 	return api.invoke("instance_import_mrpack", { filePath, profileName, icon, ramMb });
 }
 

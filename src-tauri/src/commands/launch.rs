@@ -107,6 +107,10 @@ pub async fn launch_game_core(
         account.username, profile.mc_version, profile.name
     ));
 
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+        .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
+    let data_dir = base_dir.data_dir().to_path_buf();
+
     let instance_dir = std::path::PathBuf::from(&profile.game_dir);
     let manifest_path = instance_dir.join("manifest.json");
     if manifest_path.exists() {
@@ -134,6 +138,36 @@ pub async fn launch_game_core(
                             "Modpack possui mods pendentes ({}/{} instalados). Reparando {} mods ausentes...",
                             existing_jar_count, total_manifest_files, missing
                         ));
+
+                        let storage_mods_dir = data_dir.join("mods").join(&profile.id);
+                        let cf_files: Vec<crate::commands::instances::CfFile> = files.iter().filter_map(|f| {
+                            let pid = f.get("projectID").or_else(|| f.get("projectId")).and_then(|v| v.as_u64())?;
+                            let fid = f.get("fileID").or_else(|| f.get("fileId")).and_then(|v| v.as_u64())?;
+                            Some(crate::commands::instances::CfFile { project_id: pid, file_id: fid })
+                        }).collect();
+
+                        let file_ids: Vec<u64> = cf_files.iter().map(|f| f.file_id).collect();
+                        let file_infos = crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids).await;
+
+                        let mut repaired = 0;
+                        for cf_file in &cf_files {
+                            let fi = file_infos.get(&cf_file.file_id);
+                            let ok = crate::commands::instances::download_cf_mod_file(
+                                &state.http,
+                                cf_file,
+                                fi,
+                                None,
+                                &mods_dir,
+                                &storage_mods_dir,
+                                &profile.id,
+                                Some(&profile.mc_version),
+                                Some(&profile.loader),
+                            ).await;
+                            if ok {
+                                repaired += 1;
+                            }
+                        }
+                        emit_log(&format!("Reparo de modpack concluído: {} mods recuperados.", repaired));
                     }
                 }
             }
@@ -172,10 +206,6 @@ pub async fn launch_game_core(
             }
         }
     };
-
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
-    let data_dir = base_dir.data_dir().to_path_buf();
 
     let local_ver_json = data_dir.join("versions").join(&request.version_id).join(format!("{}.json", request.version_id));
     let local_clean_ver_json = data_dir.join("versions").join(clean_req_ver).join(format!("{}.json", clean_req_ver));

@@ -282,25 +282,47 @@ impl ModrinthClient {
         project_id: &str,
         mc_version: &str,
     ) -> AppResult<Vec<ModVersion>> {
-        let url = if mc_version.trim().is_empty() || mc_version == "Qualquer Versão" {
-            format!(
-                "{}/project/{}/version?loaders=[\"fabric\",\"forge\",\"neoforge\",\"quilt\"]",
-                MODRINTH_API, project_id
-            )
-        } else {
-            format!(
-                "{}/project/{}/version?game_versions=[\"{}\"]&loaders=[\"fabric\",\"forge\",\"neoforge\",\"quilt\"]",
-                MODRINTH_API, project_id, mc_version
-            )
-        };
-        let resp: Vec<serde_json::Value> = self
-            .http
-            .get(&url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
+        let clean_ver = mc_version.trim();
+        let has_ver = !clean_ver.is_empty()
+            && clean_ver != "Qualquer Versão"
+            && !clean_ver.eq_ignore_ascii_case("all");
+
+        let mut candidate_urls = Vec::new();
+        let gv_json = format!("[\"{}\"]", clean_ver);
+        if has_ver {
+            let encoded_gv = urlencoding::encode(&gv_json);
+            candidate_urls.push(format!(
+                "{}/project/{}/version?game_versions={}",
+                MODRINTH_API, project_id, encoded_gv
+            ));
+        }
+        candidate_urls.push(format!("{}/project/{}/version", MODRINTH_API, project_id));
+
+        let mut resp_json: Option<Vec<serde_json::Value>> = None;
+        for url in candidate_urls {
+            for attempt in 0..3 {
+                if attempt > 0 {
+                    tokio::time::sleep(std::time::Duration::from_millis(300 * attempt as u64)).await;
+                }
+                if let Ok(resp) = self.http.get(&url).timeout(std::time::Duration::from_secs(20)).send().await {
+                    if resp.status().is_success() {
+                        if let Ok(json) = resp.json::<Vec<serde_json::Value>>().await {
+                            if !json.is_empty() || !has_ver {
+                                resp_json = Some(json);
+                                break;
+                            }
+                        }
+                    } else if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                        tokio::time::sleep(std::time::Duration::from_millis(1000 * (attempt + 1) as u64)).await;
+                    }
+                }
+            }
+            if resp_json.as_ref().map_or(false, |arr| !arr.is_empty()) {
+                break;
+            }
+        }
+
+        let resp = resp_json.unwrap_or_default();
 
         let mut versions = Vec::new();
         for v in resp {

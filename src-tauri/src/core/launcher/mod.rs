@@ -275,9 +275,21 @@ impl GameLauncher {
             let is_neoforge_version = profile.loader_version.as_deref().map(|v| {
                 v.starts_with("20.") || v.starts_with("21.") || v.starts_with("22.") || v.contains("neoforge")
             }).unwrap_or(false);
-            let name_indicates_neoforge = profile.name.to_lowercase().contains("neoforge") || profile.name.to_lowercase().contains("all the mods") || profile.name.to_lowercase().contains("atm");
-            let name_indicates_forge = profile.name.to_lowercase().contains("forge") && !name_indicates_neoforge;
-            if is_neoforge_version || name_indicates_neoforge {
+            let is_mc_neoforge_era = profile.mc_version.starts_with("1.20.2")
+                || profile.mc_version.starts_with("1.20.3")
+                || profile.mc_version.starts_with("1.20.4")
+                || profile.mc_version.starts_with("1.20.5")
+                || profile.mc_version.starts_with("1.20.6")
+                || profile.mc_version.starts_with("1.21")
+                || profile.mc_version.starts_with("1.22")
+                || profile.mc_version.starts_with("2");
+
+            let name_indicates_neoforge = profile.name.to_lowercase().contains("neoforge")
+                || (is_mc_neoforge_era && (profile.name.to_lowercase().contains("all the mods") || profile.name.to_lowercase().contains("atm")));
+            let name_indicates_forge = profile.name.to_lowercase().contains("forge")
+                || (!is_mc_neoforge_era && (profile.name.to_lowercase().contains("all the mods") || profile.name.to_lowercase().contains("atm")));
+
+            if is_neoforge_version || (name_indicates_neoforge && !is_forge_version) {
                 self.emit_log("Auto-correcting loader from 'fabric' to 'neoforge' based on modpack metadata");
                 loader = "neoforge".to_string();
                 if let Ok(db) = crate::db::shared_db().await {

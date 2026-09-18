@@ -835,19 +835,107 @@ pub async fn mods_download_to_temp_core(
     }
     let target_path = temp_dir.join(clean_name);
 
-    let resp = state.http.get(&url).send().await?.error_for_status()?;
+    let mut urls_to_try = vec![url.clone()];
+    if url.contains("edge.forgecdn.net") {
+        urls_to_try.push(url.replace("edge.forgecdn.net", "mediafilez.forgecdn.net"));
+        urls_to_try.push(url.replace("edge.forgecdn.net", "media.forgecdn.net"));
+    } else if url.contains("mediafilez.forgecdn.net") {
+        urls_to_try.push(url.replace("mediafilez.forgecdn.net", "edge.forgecdn.net"));
+        urls_to_try.push(url.replace("mediafilez.forgecdn.net", "media.forgecdn.net"));
+    }
+
+    let cf_key = crate::core::mods::curseforge::api_key();
+    let mut downloaded_ok = false;
+    let mut total_bytes: usize = 0;
+    let mut last_error = None;
 
     use futures_util::StreamExt;
-    let mut stream = resp.bytes_stream();
-    let mut file = tokio::fs::File::create(&target_path).await?;
-    let mut total_bytes: usize = 0;
-    while let Some(chunk) = stream.next().await {
-        let bytes = chunk.map_err(|e| {
-            tracing::error!(url = %url, error = %e, "download stream error");
-            crate::error::AppError::Http(e)
-        })?;
-        total_bytes += bytes.len();
-        tokio::io::AsyncWriteExt::write_all(&mut file, &bytes).await?;
+    for try_url in urls_to_try {
+        for attempt in 0..3 {
+            if attempt > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(300 * attempt as u64)).await;
+            }
+
+            let mut req = state
+                .http
+                .get(&try_url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .header("Accept", "*/*")
+                .timeout(std::time::Duration::from_secs(45));
+
+            if let Some(ref k) = cf_key {
+                if try_url.contains("curseforge.com") {
+                    req = req.header("x-api-key", k);
+                }
+            }
+
+            let resp = match req.send().await {
+                Ok(r) if r.status().is_success() => r,
+                Ok(r) => {
+                    last_error = Some(crate::error::AppError::InvalidState(format!(
+                        "HTTP {} for url: {}",
+                        r.status(),
+                        try_url
+                    )));
+                    continue;
+                }
+                Err(e) => {
+                    last_error = Some(crate::error::AppError::Http(e));
+                    continue;
+                }
+            };
+
+            let mut stream = resp.bytes_stream();
+            let temp_dest = target_path.with_extension("dl_tmp");
+            let mut file = match tokio::fs::File::create(&temp_dest).await {
+                Ok(f) => f,
+                Err(e) => {
+                    last_error = Some(crate::error::AppError::Io(e));
+                    continue;
+                }
+            };
+
+            let mut bytes_written = 0;
+            let mut stream_err = false;
+            while let Some(chunk) = stream.next().await {
+                match chunk {
+                    Ok(b) => {
+                        bytes_written += b.len();
+                        if tokio::io::AsyncWriteExt::write_all(&mut file, &b).await.is_err() {
+                            stream_err = true;
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        last_error = Some(crate::error::AppError::Http(e));
+                        stream_err = true;
+                        break;
+                    }
+                }
+            }
+            let _ = tokio::io::AsyncWriteExt::flush(&mut file).await;
+            drop(file);
+
+            if stream_err || bytes_written < 100 {
+                let _ = tokio::fs::remove_file(&temp_dest).await;
+                continue;
+            }
+
+            if tokio::fs::rename(&temp_dest, &target_path).await.is_ok() {
+                total_bytes = bytes_written;
+                downloaded_ok = true;
+                break;
+            }
+        }
+        if downloaded_ok {
+            break;
+        }
+    }
+
+    if !downloaded_ok {
+        return Err(last_error.unwrap_or_else(|| {
+            crate::error::AppError::InvalidState(format!("Falha ao baixar pacote de {}", url))
+        }));
     }
 
     tracing::info!(path = %target_path.display(), size = total_bytes, "mods_download_to_temp done");

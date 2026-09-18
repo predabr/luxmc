@@ -200,12 +200,12 @@ pub async fn search_mods(
     };
 
     let game_id = 432;
-    let class_id = match content_type.to_lowercase().as_str() {
-        "modpack" => 4471,
-        "resource pack" | "resourcepack" => 12,
-        "shader" => 6552,
-        "data pack" | "datapack" => 6945,
-        "world" => 17,
+    let class_id = match content_type.to_lowercase().replace(' ', "").as_str() {
+        "modpack" | "modpacks" => 4471,
+        "resourcepack" | "resourcepacks" => 12,
+        "shader" | "shaders" => 6552,
+        "datapack" | "datapacks" => 6945,
+        "world" | "worlds" => 17,
         _ => 6,
     };
 
@@ -386,26 +386,50 @@ pub async fn get_mod_versions(
     };
 
     let url = format!(
-        "{}/mods/{}/files?{}",
+        "{}/mods/{}/files?pageSize=50{}",
         CURSEFORGE_API, project_id, version_param
     );
 
-    let resp = http
-        .get(&url)
-        .header("x-api-key", &key)
-        .timeout(Duration::from_secs(15))
-        .send()
-        .await?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        tracing::warn!(
-            status = %status,
-            project_id = %project_id,
-            "CurseForge get_mod_versions failed"
-        );
-        return Ok(Vec::new());
+    let mut last_err = None;
+    let mut resp_opt = None;
+    for attempt in 0..3 {
+        if attempt > 0 {
+            tokio::time::sleep(Duration::from_millis(400 * attempt as u64)).await;
+        }
+        match http
+            .get(&url)
+            .header("x-api-key", &key)
+            .timeout(Duration::from_secs(25))
+            .send()
+            .await
+        {
+            Ok(r) if r.status().is_success() => {
+                resp_opt = Some(r);
+                break;
+            }
+            Ok(r) => {
+                let status = r.status();
+                tracing::warn!(status = %status, project_id = %project_id, attempt, "CurseForge get_mod_versions attempt status not ok");
+                if status == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                    tokio::time::sleep(Duration::from_millis(1500 * (attempt + 1) as u64)).await;
+                }
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, project_id = %project_id, attempt, "CurseForge get_mod_versions attempt error");
+                last_err = Some(e);
+            }
+        }
     }
+
+    let resp = match resp_opt {
+        Some(r) => r,
+        None => {
+            if let Some(e) = last_err {
+                tracing::error!(error = %e, project_id = %project_id, "CurseForge get_mod_versions failed after retries");
+            }
+            return Ok(Vec::new());
+        }
+    };
 
     let body: serde_json::Value = resp.json().await?;
 

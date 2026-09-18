@@ -102,12 +102,20 @@
 	function sanitizeHtml(html: string): string {
 		return html
 			.replace(/<script[\s\S]*?<\/script>/gi, '')
-			.replace(/<iframe[\s\S]*?<\/iframe>/gi, (_m, _o, _c) => {
+			.replace(/<object[\s\S]*?<\/object>/gi, '')
+			.replace(/<embed[\s\S]*?<\/embed>/gi, '')
+			.replace(/<applet[\s\S]*?<\/applet>/gi, '')
+			.replace(/<base[^>]*>/gi, '')
+			.replace(/<form[\s\S]*?<\/form>/gi, '')
+			.replace(/<input[^>]*>/gi, '')
+			.replace(/<button[\s\S]*?<\/button>/gi, '')
+			.replace(/<iframe[\s\S]*?<\/iframe>/gi, (_m) => {
 				return _m.includes('youtube.com/embed') || _m.includes('youtu.be/') ? _m : '';
 			})
 			.replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
 			.replace(/\son\w+\s*=\s*\S+/gi, '')
 			.replace(/javascript:/gi, '')
+			.replace(/vbscript:/gi, '')
 			.replace(/data:text\/html/gi, '');
 	}
 
@@ -180,8 +188,16 @@
 
 	function closeDetails() { selectedItem = null; modDetails = null; modVersionsList = []; }
 
+	function isItemModpack(item: ModSearchResultItem): boolean {
+		if (selectedType === "Modpack") return true;
+		const lowerTitle = item.title.toLowerCase();
+		if (lowerTitle.includes("modpack") || lowerTitle.includes(" [pack]") || lowerTitle.includes(" pack ")) return true;
+		if (item.categories?.some(c => c.toLowerCase().includes("modpack") || c.toLowerCase().includes("modpacks"))) return true;
+		return false;
+	}
+
 	function promptInstall(item: ModSearchResultItem, versionId?: string) {
-		if (selectedType === "Modpack") { openModpackInstall(item); return; }
+		if (isItemModpack(item)) { openModpackInstall(item); return; }
 		if (profiles.list.length === 0) { toast("Crie uma instância primeiro para instalar mods!", "error"); return; }
 		itemToInstall = { item, versionId };
 		chosenInstanceId = targetInstanceId || profiles.activeId || profiles.list[0]?.id || "";
@@ -205,9 +221,19 @@
 				modpackProgressPercent = ev.payload.percent ?? 0;
 			});
 			let versions = await modsVersions(item.sourceId, "", item.source);
-			if (versions.length === 0) { toast(`Nenhuma versão disponível para "${item.title}"`, "error"); isInstallingModpack = false; return; }
+			if (versions.length === 0) {
+				const ver = selectedVersion === "Qualquer Versão" ? "" : selectedVersion;
+				if (ver) {
+					versions = await modsVersions(item.sourceId, ver, item.source);
+				}
+			}
+			if (versions.length === 0) {
+				toast(`Nenhuma versão encontrada para "${item.title}". Verifique a conexão com o ${item.source === "curseforge" ? "CurseForge" : "Modrinth"}.`, "error");
+				isInstallingModpack = false;
+				return;
+			}
 			const f = versions[0].files[0];
-			if (!f?.url) { toast("Arquivo de download não disponível.", "error"); isInstallingModpack = false; return; }
+			if (!f?.url) { toast("Arquivo de download não disponível para este modpack.", "error"); isInstallingModpack = false; return; }
 			modpackProgressText = `Baixando pacote (${f.filename})...`;
 			modpackProgressPercent = -1;
 			const tempPath = await modsDownloadToTemp(f.url, f.filename);
@@ -222,13 +248,23 @@
 				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", detectedLoader, iconUrl, modpackRamMb)
 				: await instanceImportMrpack(tempPath, name, iconUrl, modpackRamMb);
 			profiles.add({
-				id: cp.id, name: cp.name, icon: iconUrl || "default", mcVersion: cp.mcVersion,
+				id: cp.id,
+				name: cp.name,
+				icon: iconUrl || "default",
+				mcVersion: cp.mcVersion,
 				loader: (cp.loader || detectedLoader || "fabric") as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
-				gameDir: cp.gameDir, ramMb: modpackRamMb, createdAt: Date.now(), updatedAt: Date.now(),
+				loaderVersion: cp.loaderVersion ?? undefined,
+				gameDir: cp.gameDir,
+				ramMb: modpackRamMb,
+				createdAt: Date.now(),
+				updatedAt: Date.now(),
 			});
-			profiles.activeId = cp.id; targetInstanceId = cp.id;
+			profiles.activeId = cp.id;
+			targetInstanceId = cp.id;
+			await profiles.refresh();
 			toast(`Instância "${name}" criada com sucesso!`, "success");
-			showModpackInstallModal = false; modpackToInstall = null;
+			showModpackInstallModal = false;
+			modpackToInstall = null;
 		} catch (e) {
 			toast(`Erro ao criar instância: ${e instanceof Error ? e.message : String(e)}`, "error");
 		} finally {
@@ -289,9 +325,9 @@
 			isInstalled={installedIds.has(id)}
 			contentType={selectedType}
 			onBack={closeDetails}
-			onInstall={() => selectedType === 'Modpack' ? openModpackInstall(selectedItem!) : promptInstall(selectedItem!)}
+			onInstall={() => (selectedItem && isItemModpack(selectedItem)) ? openModpackInstall(selectedItem) : promptInstall(selectedItem!)}
 			onOpenGuide={() => showInstallGuide = true}
-			onInstallVersion={(verId) => promptInstall(selectedItem!, verId)}
+			onInstallVersion={(verId) => (selectedItem && isItemModpack(selectedItem)) ? openModpackInstall(selectedItem) : promptInstall(selectedItem!, verId)}
 		>
 			{#if loadingDetails}
 				<div class="bg-[#111216] border border-white/[0.06] rounded-3xl p-12 flex flex-col items-center justify-center gap-3">
