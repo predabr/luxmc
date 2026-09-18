@@ -24,6 +24,10 @@
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { appDataDir } from "@tauri-apps/api/path";
+	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
+	import ThemeSection from "$lib/components/settings/ThemeSection.svelte";
+
+	const { t } = useTranslation();
 
 	type SettingsTab =
 		| "general"
@@ -188,7 +192,7 @@
 			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'general' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 		>
 			<Home class="w-4 h-4" />
-			<span>General</span>
+			<span>{t("settings.tabs.general")}</span>
 		</button>
 
 		<button
@@ -197,7 +201,7 @@
 			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'accounts' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 		>
 			<Users class="w-4 h-4" />
-			<span>Accounts</span>
+			<span>{t("settings.tabs.accounts")}</span>
 		</button>
 
 		<button
@@ -206,7 +210,7 @@
 			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'language' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 		>
 			<Globe class="w-4 h-4" />
-			<span>Language</span>
+			<span>{t("settings.tabs.language")}</span>
 		</button>
 
 		<button
@@ -215,8 +219,8 @@
 			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap relative {activeTab === 'appearance' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 		>
 			<Palette class="w-4 h-4" />
-			<span>Appearance</span>
-			<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-400 text-black ml-0.5">BETA</span>
+			<span>{t("settings.tabs.appearance")}</span>
+			<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-400 text-black ml-0.5">PRO</span>
 		</button>
 
 		<button
@@ -225,7 +229,7 @@
 			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'java' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 		>
 			<Coffee class="w-4 h-4" />
-			<span>Java</span>
+			<span>{t("settings.tabs.java")}</span>
 		</button>
 
 		<button
@@ -234,7 +238,7 @@
 			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'commands' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 		>
 			<Terminal class="w-4 h-4" />
-			<span>Custom Commands</span>
+			<span>{t("settings.tabs.commands")}</span>
 		</button>
 
 		<button
@@ -243,7 +247,7 @@
 			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'privacy' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 		>
 			<ShieldCheck class="w-4 h-4" />
-			<span>Privacy</span>
+			<span>{t("settings.tabs.privacy")}</span>
 		</button>
 
 		<button
@@ -252,21 +256,21 @@
 			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'runtime' ? 'bg-[#2563eb] text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
 		>
 			<FolderOpen class="w-4 h-4" />
-			<span>Runtime Path</span>
+			<span>{t("settings.tabs.runtime")}</span>
 		</button>
 
 	</div>
 
 	{#if activeTab === "general"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-white tracking-tight">General</h2>
+			<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.general")}</h2>
 
 			<div class="bg-[#111216] border border-white/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
 				
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Release Channel</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Select the preferred release channel</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.releaseChannel")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.releaseChannelDesc")}</p>
 					</div>
 					<select
 						bind:value={releaseChannel}
@@ -280,8 +284,8 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Concurrent Downloads</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Select the number of concurrent downloads. If you have a slow connection, select at most 3</p>
+						<h3 class="text-sm font-bold text-white">Downloads Simultâneos</h3>
+						<p class="text-xs text-white/50 leading-relaxed">Número de conexões paralelas ao baixar mods e bibliotecas</p>
 					</div>
 					<select
 						bind:value={concurrentDownloads}
@@ -296,25 +300,25 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Game Resolution</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Select the game resolution. This will be used to launch the game. Default means the launcher will not specify a value and the game will launch with the default resolution .</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.gameResolution")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.gameResolutionDesc")}</p>
 					</div>
 					<select
 						bind:value={gameResolution}
 						onchange={saveGeneral}
 						class="bg-[#181920] border border-white/10 rounded-xl px-4 py-2 text-xs font-semibold text-white outline-none focus:border-blue-500 cursor-pointer min-w-[140px]"
 					>
-						<option value="default">Default ↕</option>
+						<option value="default">Padrão ↕</option>
 						<option value="1920x1080">1920x1080 ↕</option>
 						<option value="1280x720">1280x720 ↕</option>
-						<option value="fullscreen">Fullscreen ↕</option>
+						<option value="fullscreen">Tela Cheia ↕</option>
 					</select>
 				</div>
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Discord Integration</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Enable or disable Discord integration. This displays what you are playing in Discord.</p>
+						<h3 class="text-sm font-bold text-white">Discord Rich Presence</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.discordRpcDesc")}</p>
 					</div>
 					<button
 						type="button"
@@ -328,24 +332,24 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Launcher Action on Game Launch</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Action to take when launching an instance. Beware that quitting the launcher will prevent it from keeping track of played time.</p>
+						<h3 class="text-sm font-bold text-white">Ação do Launcher ao Iniciar</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.launcherActionDesc")}</p>
 					</div>
 					<select
 						bind:value={launcherAction}
 						onchange={saveGeneral}
 						class="bg-[#181920] border border-white/10 rounded-xl px-4 py-2 text-xs font-semibold text-white outline-none focus:border-blue-500 cursor-pointer min-w-[150px]"
 					>
-						<option value="keep_open">None (Keep open) ↕</option>
-						<option value="hide_reopen">Hide and reopen ↕</option>
-						<option value="close">Close launcher ↕</option>
+						<option value="keep_open">{t("settings.launcherActionNone")} ↕</option>
+						<option value="hide_reopen">{t("settings.launcherActionHide")} ↕</option>
+						<option value="close">{t("settings.launcherActionClose")} ↕</option>
 					</select>
 				</div>
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Show Window Close Warning on Game Launch</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Show warning prompt before closing the launcher while instances are running</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.closeWarningTitle")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.closeWarningDesc")}</p>
 					</div>
 					<button
 						type="button"
@@ -359,8 +363,8 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Ultra Performance Mode</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Disables background canvas effects and heavy transitions for maximum responsiveness on Linux</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.perfModeTitle")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.perfModeDesc")}</p>
 					</div>
 					<button
 						type="button"
@@ -377,7 +381,7 @@
 
 	{:else if activeTab === "accounts"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-white tracking-tight">Accounts</h2>
+			<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.accountsTitle")}</h2>
 
 			<div class="bg-[#111216] border border-white/5 rounded-3xl p-6 shadow-sm space-y-6">
 				<div class="flex items-center justify-between p-4 rounded-2xl bg-[#16171d] border border-white/5">
@@ -391,125 +395,113 @@
 						</div>
 						<div>
 							<h3 class="text-sm font-bold text-white">{currentUsername}</h3>
-							<p class="text-xs text-white/50">{isMicrosoft ? "Conta Microsoft Oficial" : "Conta Offline / Luxmc"}</p>
+							<p class="text-xs text-white/50">{isMicrosoft ? "Conta Microsoft Online" : "Conta Offline / Luxmc"}</p>
 						</div>
 					</div>
 
 					<a
 						href="/"
-						class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold border border-white/10 transition-all cursor-pointer"
+						class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold border border-white/10 transition-all cursor-pointer shadow-sm active:scale-95"
 					>
-						Trocar Conta
+						{t("settings.switchAccount")}
 					</a>
 				</div>
 
-				<div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 leading-relaxed space-y-1">
-					<p class="font-bold">Gerenciamento no site oficial:</p>
-					<p class="text-white/60">Para cadastrar uma nova conta ou atualizar sua skin offline, acesse o portal da web em <a href="https://luxmc.app" target="_blank" class="text-blue-400 underline">luxmc.app</a>.</p>
+				<div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 leading-relaxed space-y-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+					<div class="space-y-1">
+						<p class="font-bold">Gerenciamento no site oficial:</p>
+						<p class="text-white/60">Para cadastrar uma nova conta, trocar sua skin ou gerenciar amigos, acesse o portal web oficial do Luxmc.</p>
+					</div>
+					<button
+						type="button"
+						onclick={() => openUrl("https://luxmc-r92.pages.dev")}
+						class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-2 active:scale-95 shadow-md"
+					>
+						<span>Abrir Portal Web</span>
+						<ExternalLink class="w-3.5 h-3.5" />
+					</button>
 				</div>
 			</div>
 		</div>
 
 	{:else if activeTab === "language"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-white tracking-tight">Language</h2>
+			<div>
+				<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.languageTitle")}</h2>
+				<p class="text-xs text-white/50 mt-1">{t("settings.languageDesc")}</p>
+			</div>
 
-			<div class="bg-[#111216] border border-white/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
-				<div class="flex items-center justify-between py-5 gap-6">
-					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Launcher Language</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Select your preferred language for the launcher user interface</p>
+			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+				<button
+					type="button"
+					onclick={() => handleLangChange("pt-BR")}
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-95 text-left {currentLang === 'pt-BR' ? 'border-emerald-500 bg-[#1a231e] ring-2 ring-emerald-500/30 shadow-lg' : 'border-white/5 bg-[#14151a] hover:border-white/20'}"
+				>
+					<div class="flex items-center gap-3.5">
+						<span class="text-2xl">🇧🇷</span>
+						<div>
+							<div class="text-sm font-bold text-white">Português (Brasil)</div>
+							<div class="text-[11px] text-white/40">Idioma nativo da comunidade Luxmc</div>
+						</div>
 					</div>
-					<select
-						bind:value={currentLang}
-						onchange={() => handleLangChange(currentLang)}
-						class="bg-[#181920] border border-white/10 rounded-xl px-4 py-2 text-xs font-semibold text-white outline-none focus:border-blue-500 cursor-pointer min-w-[180px]"
-					>
-						<option value="pt-BR">Português (Brasil) ↕</option>
-						<option value="en">English ↕</option>
-					</select>
-				</div>
+					{#if currentLang === "pt-BR"}
+						<div class="w-6 h-6 rounded-full bg-emerald-500 text-black flex items-center justify-center shrink-0">
+							<Check class="w-4 h-4 stroke-[3]" />
+						</div>
+					{/if}
+				</button>
+
+				<button
+					type="button"
+					onclick={() => handleLangChange("en")}
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-95 text-left {currentLang === 'en' ? 'border-emerald-500 bg-[#1a231e] ring-2 ring-emerald-500/30 shadow-lg' : 'border-white/5 bg-[#14151a] hover:border-white/20'}"
+				>
+					<div class="flex items-center gap-3.5">
+						<span class="text-2xl">🇺🇸</span>
+						<div>
+							<div class="text-sm font-bold text-white">English</div>
+							<div class="text-[11px] text-white/40">Global language</div>
+						</div>
+					</div>
+					{#if currentLang === "en"}
+						<div class="w-6 h-6 rounded-full bg-emerald-500 text-black flex items-center justify-center shrink-0">
+							<Check class="w-4 h-4 stroke-[3]" />
+						</div>
+					{/if}
+				</button>
 			</div>
 		</div>
 
 	{:else if activeTab === "appearance"}
 		<div class="space-y-6">
-			<div class="flex items-center gap-2">
-				<h2 class="text-2xl font-bold text-white tracking-tight">Appearance</h2>
-				<span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-amber-400 text-black">BETA</span>
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2.5">
+					<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.tabs.appearance")}</h2>
+					<span class="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-emerald-400 text-black">PRO</span>
+				</div>
+				<span class="text-xs text-white/50">{t("settings.accentColorHint")}</span>
 			</div>
 
-			<div class="bg-[#111216] border border-white/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
-				
-				<div class="flex items-center justify-between py-5 gap-6">
-					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Launcher Theme</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Select base color theme</p>
-					</div>
-					<select
-						bind:value={selectedTheme}
-						onchange={() => handleThemeChange(selectedTheme)}
-						class="bg-[#181920] border border-white/10 rounded-xl px-4 py-2 text-xs font-semibold text-white outline-none focus:border-blue-500 cursor-pointer min-w-[160px]"
-					>
-						<option value="default-dark">Default Dark ↕</option>
-						<option value="default-light">Default Light ↕</option>
-					</select>
-				</div>
-
-				<div class="flex items-center justify-between py-5 gap-6">
-					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Accent Color</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Primary highlight and focus accent color</p>
-					</div>
-					<select
-						bind:value={selectedAccent}
-						onchange={() => handleAccentChange(selectedAccent)}
-						class="bg-[#181920] border border-white/10 rounded-xl px-4 py-2 text-xs font-semibold text-white outline-none focus:border-blue-500 cursor-pointer min-w-[160px]"
-					>
-						<option value="emerald">Emerald Green ↕</option>
-						<option value="blue">Sapphire Blue ↕</option>
-						<option value="gold">Champagne Gold ↕</option>
-						<option value="violet">Amethyst Violet ↕</option>
-						<option value="rose">Rose Quartz ↕</option>
-						<option value="cyan">Cyan Aqua ↕</option>
-						<option value="orange">Sunset Orange ↕</option>
-					</select>
-				</div>
-
-				<div class="flex items-center justify-between py-5 gap-6">
-					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Interface Density</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Density of UI spacing and typography</p>
-					</div>
-					<select
-						bind:value={density}
-						onchange={() => handleDensityChange(density)}
-						class="bg-[#181920] border border-white/10 rounded-xl px-4 py-2 text-xs font-semibold text-white outline-none focus:border-blue-500 cursor-pointer min-w-[160px]"
-					>
-						<option value="compact">Compact ↕</option>
-						<option value="comfortable">Comfortable ↕</option>
-						<option value="spacious">Spacious ↕</option>
-					</select>
-				</div>
-
+			<div class="bg-[#111216] border border-white/5 rounded-3xl p-6 shadow-sm">
+				<ThemeSection onSave={() => schedulePersist()} />
 			</div>
 		</div>
 
 	{:else if activeTab === "java"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-white tracking-tight">Java</h2>
+			<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.tabs.java")}</h2>
 
 			<div class="bg-[#111216] border border-white/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
 				
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Java Runtime Path</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Path to the Java executable. Leave blank to let Luxmc automatically detect and manage runtimes.</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.javaPath")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.javaPathHint")}</p>
 					</div>
 					<div class="flex items-center gap-2">
 						<input
 							type="text"
-							placeholder="Auto-detect (Recommended)"
+							placeholder={t("settings.javaPathAuto")}
 							bind:value={javaPathInput}
 							onchange={saveJava}
 							class="bg-[#181920] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder:text-white/30 outline-none w-56"
@@ -519,7 +511,7 @@
 							onclick={browseJavaPath}
 							class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold border border-white/10 cursor-pointer"
 						>
-							Browse
+							{t("settings.browse")}
 						</button>
 					</div>
 				</div>
@@ -527,7 +519,7 @@
 				<div class="py-5 space-y-3">
 					<div class="flex items-center justify-between gap-6">
 						<div class="space-y-1 max-w-xl">
-							<h3 class="text-sm font-bold text-white">Alocação Máxima de Memória (RAM)</h3>
+							<h3 class="text-sm font-bold text-white">{t("settings.ramAllocation")}</h3>
 							<p class="text-xs text-white/50 leading-relaxed">Quantidade de memória dedicada às instâncias do Minecraft (Atual: {maxRamGb} GB)</p>
 						</div>
 						<div class="flex items-center gap-3">
@@ -546,7 +538,7 @@
 						</div>
 					</div>
 					<div class="flex flex-wrap items-center gap-2 pt-1">
-						<span class="text-[11px] font-semibold text-white/40 mr-1">Atalhos rápidos:</span>
+						<span class="text-[11px] font-semibold text-white/40 mr-1">{t("settings.ramPresets")}:</span>
 						{#each ramPresets as preset}
 							<button
 								type="button"
@@ -569,7 +561,7 @@
 				<div class="py-5 space-y-3">
 					<div class="flex items-center justify-between gap-6">
 						<div class="space-y-1 max-w-xl">
-							<h3 class="text-sm font-bold text-white">Argumentos JVM</h3>
+							<h3 class="text-sm font-bold text-white">{t("settings.jvmFlags")}</h3>
 							<p class="text-xs text-white/50 leading-relaxed">Flags personalizadas do Java e parâmetros do Garbage Collector (GC)</p>
 						</div>
 						<input
@@ -580,42 +572,42 @@
 						/>
 					</div>
 					<div class="flex flex-wrap items-center gap-2 pt-1">
-						<span class="text-[11px] font-semibold text-white/40 mr-1">Presets recomendados:</span>
+						<span class="text-[11px] font-semibold text-white/40 mr-1">Presets:</span>
 						<button
 							type="button"
 							onclick={() => setJvmPreset('g1gc')}
 							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
 						>
-							G1GC Padrão
+							{t("settings.flagsG1GC")}
 						</button>
 						<button
 							type="button"
 							onclick={() => setJvmPreset('aikar')}
 							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
 						>
-							Aikar's Flags (Modpacks)
+							{t("settings.flagsAikar")}
 						</button>
 						<button
 							type="button"
 							onclick={() => setJvmPreset('zgc')}
 							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
 						>
-							ZGC (Java 17+ / Baixa Latência)
+							{t("settings.flagsZGC")}
 						</button>
 						<button
 							type="button"
 							onclick={() => setJvmPreset('shenandoah')}
 							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
 						>
-							Shenandoah GC
+							{t("settings.flagsShenandoah")}
 						</button>
 					</div>
 				</div>
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Modo Wayland Nativo (Linux)</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Quando desativado, força compatibilidade XWayland para evitar o erro GLFW 65548 ao carregar ícones</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.waylandTitle")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.waylandDesc")}</p>
 					</div>
 					<button
 						type="button"
@@ -629,8 +621,8 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Vulkan Hardware Acceleration (Zink)</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Use Vulkan translation layers for higher FPS and lower CPU overhead on Linux drivers</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.vulkanTitle")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.vulkanDesc")}</p>
 					</div>
 					<button
 						type="button"
@@ -647,18 +639,18 @@
 
 	{:else if activeTab === "commands"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-white tracking-tight">Custom Commands</h2>
+			<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.tabs.commands")}</h2>
 
 			<div class="bg-[#111216] border border-white/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
 				
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Pre-Launch Command</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Command to run before Minecraft launches</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.preLaunchTitle")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.preLaunchDesc")}</p>
 					</div>
 					<input
 						type="text"
-						placeholder="e.g. notify-send 'Launching Minecraft'"
+						placeholder="ex: notify-send 'Iniciando Minecraft'"
 						bind:value={preLaunchCmd}
 						class="bg-[#181920] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder:text-white/30 outline-none w-72"
 					/>
@@ -666,12 +658,12 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Game Wrapper Command</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Wrapper command placed before the Java executable (e.g. gamemoderun, mangohud)</p>
+						<h3 class="text-sm font-bold text-white">Comando Envoltório (Game Wrapper)</h3>
+						<p class="text-xs text-white/50 leading-relaxed">Comando envoltório inserido antes do executável Java (ex: gamemoderun, mangohud)</p>
 					</div>
 					<input
 						type="text"
-						placeholder="e.g. gamemoderun"
+						placeholder="ex: gamemoderun"
 						bind:value={gameWrapper}
 						class="bg-[#181920] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder:text-white/30 outline-none w-72"
 					/>
@@ -679,12 +671,12 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Post-Exit Command</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Command to run after Minecraft terminates</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.postExitTitle")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.postExitDesc")}</p>
 					</div>
 					<input
 						type="text"
-						placeholder="e.g. sync"
+						placeholder="ex: sync"
 						bind:value={postExitCmd}
 						class="bg-[#181920] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono placeholder:text-white/30 outline-none w-72"
 					/>
@@ -695,14 +687,14 @@
 
 	{:else if activeTab === "privacy"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-white tracking-tight">Privacy</h2>
+			<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.tabs.privacy")}</h2>
 
 			<div class="bg-[#111216] border border-white/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
 				
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Crash Diagnostics</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Enable Crash Doctor to diagnose crash logs locally without uploading private data</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.telemetryTitle")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.telemetryDesc")}</p>
 					</div>
 					<button
 						type="button"
@@ -716,15 +708,15 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-white">Clear Cache & Temporary Files</h3>
-						<p class="text-xs text-white/50 leading-relaxed">Delete cached assets, temp files, and downloaded installers to reclaim disk space</p>
+						<h3 class="text-sm font-bold text-white">{t("settings.clearCache")}</h3>
+						<p class="text-xs text-white/50 leading-relaxed">{t("settings.clearCacheDesc")}</p>
 					</div>
 					<button
 						type="button"
 						onclick={handleClearCache}
 						class="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-all cursor-pointer"
 					>
-						Limpar Cache
+						{t("settings.clearCache")}
 					</button>
 				</div>
 
@@ -733,12 +725,12 @@
 
 	{:else if activeTab === "runtime"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-white tracking-tight">Runtime Path</h2>
+			<h2 class="text-2xl font-bold text-white tracking-tight">{t("settings.tabs.runtime")}</h2>
 
 			<div class="bg-[#111216] border border-white/5 rounded-3xl px-6 py-6 shadow-sm space-y-4">
 				<div class="space-y-1 max-w-xl">
-					<h3 class="text-sm font-bold text-white">Launcher Storage Directory</h3>
-					<p class="text-xs text-white/50 leading-relaxed">Where game instances, libraries, assets, and config files are stored</p>
+					<h3 class="text-sm font-bold text-white">{t("settings.runtimeTitle")}</h3>
+					<p class="text-xs text-white/50 leading-relaxed">Diretório onde instâncias, mods, bibliotecas, assets e arquivos de configuração são armazenados</p>
 				</div>
 
 				<div class="flex items-center gap-3">

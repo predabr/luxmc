@@ -2,10 +2,11 @@ import type { CapeType } from "$lib/stores/skin.svelte";
 
 export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) {
 	ctx.imageSmoothingEnabled = false;
+	ctx.clearRect(0, 0, 64, 32);
 
 	if (type === "migrator") {
 		ctx.fillStyle = "#5c0818";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#40040f";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#690a1c";
@@ -32,7 +33,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(14, 13, 6, 1);
 	} else if (type === "optifine") {
 		ctx.fillStyle = "#b51a1a";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#8a1010";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#c92020";
@@ -48,7 +49,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(18, 8, 2, 1);
 	} else if (type === "minecon2011") {
 		ctx.fillStyle = "#7a1212";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#520a0a";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#931717";
@@ -63,7 +64,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(20, 6, 1, 3);
 	} else if (type === "minecon2012") {
 		ctx.fillStyle = "#111833";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#090d1c";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#19244c";
@@ -80,7 +81,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(20, 6, 1, 3);
 	} else if (type === "minecon2013") {
 		ctx.fillStyle = "#1b4725";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#0f2b16";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#225930";
@@ -94,7 +95,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(15, 8, 4, 2);
 	} else if (type === "minecon2015") {
 		ctx.fillStyle = "#18383c";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#0d2023";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#1f474d";
@@ -108,8 +109,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(18, 11, 2, 2);
 	} else if (type === "minecon2016") {
 		ctx.fillStyle = "#130a21";
-		ctx.fillRect(0, 0, 64, 32);
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#090412";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#1c0e30";
@@ -123,7 +123,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(19, 7, 1, 1);
 	} else if (type === "cherry") {
 		ctx.fillStyle = "#f472b6";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#db2777";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#fbcfe8";
@@ -138,7 +138,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(19, 7, 1, 1);
 	} else if (type === "vanilla") {
 		ctx.fillStyle = "#1e1b4b";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#0f0e26";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#312e81";
@@ -150,7 +150,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(16, 7, 2, 4);
 	} else if (type === "tiktok") {
 		ctx.fillStyle = "#09090b";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#000000";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#18181b";
@@ -164,7 +164,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(15, 6, 3, 5);
 	} else if (type === "twitch") {
 		ctx.fillStyle = "#581c87";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#3b0764";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#7e22ce";
@@ -178,7 +178,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(18, 7, 1, 2);
 	} else if (type === "luxmc") {
 		ctx.fillStyle = "#090d16";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#04060a";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#0f172a";
@@ -200,7 +200,7 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 	} else {
 		// Default mojang
 		ctx.fillStyle = "#8b0e17";
-		ctx.fillRect(0, 0, 64, 32);
+		ctx.fillRect(0, 0, 22, 17);
 		ctx.fillStyle = "#63070e";
 		ctx.fillRect(1, 1, 10, 16);
 		ctx.fillStyle = "#a8121d";

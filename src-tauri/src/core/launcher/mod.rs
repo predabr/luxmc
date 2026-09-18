@@ -115,6 +115,10 @@ pub fn find_csharp_launcher() -> Option<PathBuf> {
         }
     }
 
+    if std::env::var("LUXMC_USE_CSHARP_LAUNCHER").is_err() {
+        return None;
+    }
+
     let mut candidates = Vec::new();
 
     if let Ok(exe) = std::env::current_exe() {
@@ -132,9 +136,6 @@ pub fn find_csharp_launcher() -> Option<PathBuf> {
     if let Some(dirs) = directories::ProjectDirs::from("io", "github", "Luxmc") {
         candidates.push(dirs.data_dir().join("bin").join("Luxmc.Launcher"));
     }
-
-    candidates.push(PathBuf::from("/home/pedro/Documentos/Luxmc/dist-electron/bin/Luxmc.Launcher"));
-    candidates.push(PathBuf::from("/home/pedro/Documentos/Luxmc/src-csharp/Luxmc.Launcher/bin/Release/net8.0/linux-x64/publish/Luxmc.Launcher"));
 
     for c in candidates {
         if c.is_file() {
@@ -598,18 +599,19 @@ impl GameLauncher {
                 "assetIndex": detail.asset_index.as_ref().map(|a| a.id.clone()).unwrap_or_default(),
                 "javaPath": java_path.to_string_lossy(),
                 "mainClass": main_class,
+                "classpath": classpath.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<_>>(),
                 "jvmArgs": safe_jvm_args,
                 "gameArgs": safe_game_args,
                 "username": username,
                 "uuid": uuid,
                 "accessToken": access_token,
                 "userType": user_type,
-                "memoryMb": profile.ram_mb,
+                "memoryMb": profile.ram_mb.unwrap_or(4096),
                 "enableVulkan": profile.use_vulkan,
                 "serverIp": server_ip,
                 "serverPort": server_port,
-                "resolutionWidth": profile.resolution_w,
-                "resolutionHeight": profile.resolution_h
+                "resolutionWidth": profile.resolution_w.unwrap_or(1280),
+                "resolutionHeight": profile.resolution_h.unwrap_or(720)
             });
             let payload_path = game_dir.join(".luxmc_launch.json");
             let _ = tokio::fs::write(&payload_path, serde_json::to_string(&launch_payload).unwrap_or_default()).await;
@@ -699,7 +701,10 @@ impl GameLauncher {
             cmd.env("_JAVA_AWT_WM_NONREPARENTING", "1");
             if std::env::var("DISPLAY").is_ok() {
                 cmd.env("GLFW_PLATFORM", "x11");
-            } else if std::env::var("WAYLAND_DISPLAY").is_err() {
+            } else if std::env::var("WAYLAND_DISPLAY").is_ok() {
+                cmd.env("DISPLAY", ":0");
+                cmd.env("GLFW_PLATFORM", "x11");
+            } else {
                 cmd.env("DISPLAY", ":0");
                 cmd.env("GLFW_PLATFORM", "x11");
             }

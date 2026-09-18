@@ -53,10 +53,10 @@ public class LaunchRequest
     public int? ServerPort { get; set; }
 
     [JsonPropertyName("memoryMb")]
-    public int MemoryMb { get; set; } = 4096;
+    public int? MemoryMb { get; set; } = 4096;
 
     [JsonPropertyName("minMemoryMb")]
-    public int MinMemoryMb { get; set; } = 1024;
+    public int? MinMemoryMb { get; set; } = 1024;
 
     [JsonPropertyName("enableVulkan")]
     public bool? EnableVulkan { get; set; }
@@ -71,10 +71,10 @@ public class LaunchRequest
     public string? CapeUrl { get; set; }
 
     [JsonPropertyName("resolutionWidth")]
-    public int ResolutionWidth { get; set; } = 1280;
+    public int? ResolutionWidth { get; set; } = 1280;
 
     [JsonPropertyName("resolutionHeight")]
-    public int ResolutionHeight { get; set; } = 720;
+    public int? ResolutionHeight { get; set; } = 720;
 
     [JsonPropertyName("isDemo")]
     public bool IsDemo { get; set; } = false;

@@ -8,7 +8,8 @@
 		Boxes,
 		Plus,
 		Settings as SettingsIcon,
-		Github
+		Github,
+		Globe
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { account } from "$lib/stores/account.svelte";
@@ -148,6 +149,21 @@
 	</nav>
 
 	<div class="mt-auto w-full flex flex-col items-center gap-2 pt-2 border-t border-white/5">
+		<div class="relative group w-full flex justify-center">
+			<button
+				type="button"
+				onclick={() => openUrl("https://luxmc-r92.pages.dev")}
+				class="relative h-11 w-11 rounded-[16px] flex items-center justify-center transition-all duration-200 cursor-pointer nav-pill-inactive active:scale-95 group-hover:border-emerald-500/30"
+				aria-label="Portal Web & Studio 3D"
+			>
+				<Globe class="h-5 w-5 text-[#8a8d98] group-hover:text-emerald-400 transition-colors" strokeWidth={1.8} />
+			</button>
+			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-[#1e1f24] text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-white/10 shadow-2xl flex items-center gap-1.5">
+				<span>Portal Web & Studio 3D</span>
+				<span class="text-[10px] text-emerald-400 font-mono">pages.dev</span>
+			</div>
+		</div>
+
 		<div class="relative group w-full flex justify-center">
 			<button
 				type="button"

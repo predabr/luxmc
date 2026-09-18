@@ -119,14 +119,14 @@
 			
 			<button
 				type="button"
-				onclick={() => openUrl("https://luxmc.app/skins")}
-				class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#14151a] hover:bg-[#1c1d24] border border-white/5 text-white text-xs font-bold transition-all group cursor-pointer shadow-md"
+				onclick={() => openUrl("https://luxmc-r92.pages.dev/#skin-studio")}
+				class="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#14151a] hover:bg-[#1c1d24] border border-white/5 hover:border-emerald-500/30 text-white text-xs font-bold transition-all group cursor-pointer shadow-md"
 			>
 				<div class="flex items-center gap-2.5">
 					<Sparkles class="w-4 h-4 text-emerald-400 group-hover:rotate-12 transition-transform" />
-					<span>Descubra mais skins no site oficial</span>
+					<span>Abrir no Studio 3D Web oficial</span>
 				</div>
-				<ExternalLink class="w-3.5 h-3.5 text-white/40 group-hover:text-white transition-colors" />
+				<ExternalLink class="w-3.5 h-3.5 text-white/40 group-hover:text-emerald-400 transition-colors" />
 			</button>
 
 			<div class="w-full h-[460px] rounded-3xl bg-[#111216] border border-white/5 relative overflow-hidden shadow-inner flex flex-col items-center justify-center p-2">
@@ -180,11 +180,11 @@
 
 				<button
 					type="button"
-					onclick={() => openUrl("https://luxmc.app/skins")}
-					class="px-5 py-2.5 rounded-xl bg-[#525fde] hover:bg-[#4350ce] text-white text-xs font-bold transition-all shadow-lg hover:shadow-[#525fde]/25 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95"
+					onclick={() => openUrl("https://luxmc-r92.pages.dev/#skin-studio")}
+					class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all shadow-lg hover:shadow-emerald-500/25 cursor-pointer flex items-center gap-2 shrink-0 active:scale-95"
 				>
-					<span>Defina a sua skin em luxmc.app</span>
-					<ExternalLink class="w-3.5 h-3.5" />
+					<span>Abrir Studio 3D no Site</span>
+					<ExternalLink class="w-3.5 h-3.5 text-black" />
 				</button>
 			</div>
 

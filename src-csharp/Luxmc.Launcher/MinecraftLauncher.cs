@@ -41,7 +41,7 @@ public class MinecraftLauncher
 
         // 1. Optimized JVM Flags
         int javaMajor = DetectJavaMajorVersion(javaExe);
-        var jvmFlags = GCTuner.GenerateOptimizedJvmFlags(request.MemoryMb, request.MinMemoryMb, javaMajor);
+        var jvmFlags = GCTuner.GenerateOptimizedJvmFlags(request.MemoryMb ?? 4096, request.MinMemoryMb ?? 1024, javaMajor);
         foreach (var flag in jvmFlags)
         {
             if (flag.StartsWith("-Xmx") && hasXmxInJvm) continue;
@@ -146,12 +146,12 @@ public class MinecraftLauncher
             }
         }
 
-        if (!HasGameArg("--width") && request.ResolutionWidth > 0 && request.ResolutionHeight > 0)
+        if (!HasGameArg("--width") && request.ResolutionWidth.GetValueOrDefault() > 0 && request.ResolutionHeight.GetValueOrDefault() > 0)
         {
             argsList.Add("--width");
-            argsList.Add(request.ResolutionWidth.ToString());
+            argsList.Add(request.ResolutionWidth!.Value.ToString());
             argsList.Add("--height");
-            argsList.Add(request.ResolutionHeight.ToString());
+            argsList.Add(request.ResolutionHeight!.Value.ToString());
         }
 
         if (!HasGameArg("--demo") && request.IsDemo)

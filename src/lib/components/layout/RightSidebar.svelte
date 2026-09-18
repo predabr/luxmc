@@ -12,7 +12,9 @@
 		ChevronUp,
 		Mail,
 		UserCheck,
-		Sliders
+		Sliders,
+		Check,
+		X
 	} from "lucide-svelte";
 	import { onMount } from "svelte";
 	import { slide, fade } from "svelte/transition";
@@ -129,6 +131,23 @@
 		friends = friends.filter(f => f.id !== id);
 		saveFriends();
 		toast(`${name} removido dos amigos.`, "info");
+	}
+
+	function acceptFriend(friend: Friend) {
+		friends = friends.map(f => {
+			if (f.id === friend.id) {
+				return { ...f, status: "online", activity: "Online no Luxmc" };
+			}
+			return f;
+		});
+		saveFriends();
+		toast(`Convite de amizade de ${friend.username} aceito!`, "success");
+	}
+
+	function declineFriend(friend: Friend) {
+		friends = friends.filter(f => f.id !== friend.id);
+		saveFriends();
+		toast(`Convite de ${friend.username} recusado.`, "info");
 	}
 
 	const filteredFriends = $derived(
@@ -361,18 +380,53 @@
 					onclick={() => pendingExpanded = !pendingExpanded}
 					class="w-full flex items-center justify-between py-1 text-white/40 hover:text-white text-xs font-bold cursor-pointer"
 				>
-					<span>Pending - {pendingFriends.length}</span>
+					<span>Solicitações - {pendingFriends.length}</span>
 					<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform {pendingExpanded ? 'rotate-180' : ''}" />
 				</button>
 
 				{#if pendingExpanded}
-					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ duration: 150 }}>
-						{#each pendingFriends as friend (friend.id)}
-							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 transition-colors">
-								<span class="text-xs text-white/70">{friend.username}</span>
-								<span class="text-[10px] text-amber-400">Pendente</span>
-							</div>
-						{/each}
+					<div class="space-y-1.5 pt-1 pb-1" transition:slide={{ duration: 150 }}>
+						{#if pendingFriends.length === 0}
+							<p class="text-[11px] text-white/30 py-1">Nenhuma solicitação pendente</p>
+						{:else}
+							{#each pendingFriends as friend (friend.id)}
+								<div class="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-white/20 transition-colors">
+									<div class="flex items-center gap-2 min-w-0">
+										<div class="w-6 h-6 rounded-lg overflow-hidden bg-black/50 border border-white/10 shrink-0">
+											<img
+												src={`https://mc-heads.net/avatar/${friend.username}/64`}
+												alt={friend.username}
+												class="w-full h-full object-cover"
+												loading="lazy"
+											/>
+										</div>
+										<div class="min-w-0">
+											<span class="text-xs font-bold text-white truncate block">{friend.username}</span>
+											<span class="text-[10px] text-amber-400 font-medium block">Pendente</span>
+										</div>
+									</div>
+
+									<div class="flex items-center gap-1.5 shrink-0">
+										<button
+											type="button"
+											onclick={() => acceptFriend(friend)}
+											class="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer shadow-sm active:scale-95"
+											title="Aceitar convite"
+										>
+											<Check class="w-3 h-3" />
+										</button>
+										<button
+											type="button"
+											onclick={() => declineFriend(friend)}
+											class="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 border border-rose-500/30 transition-all cursor-pointer shadow-sm active:scale-95"
+											title="Recusar convite"
+										>
+											<X class="w-3 h-3" />
+										</button>
+									</div>
+								</div>
+							{/each}
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -380,35 +434,35 @@
 	</div>
 
 	<div class="space-y-2 shrink-0 pt-1">
-		<span class="text-xs font-bold text-white/50 block">
-			News
-		</span>
+		<div class="flex items-center justify-between">
+			<span class="text-xs font-bold text-white/50 block">Notícias Luxmc</span>
+			<a href="/news" class="text-[10px] font-semibold text-emerald-400 hover:underline">Ver todas</a>
+		</div>
 
-		<div class="bg-[#16171d] border border-white/5 rounded-2xl overflow-hidden shadow-sm">
-			<div class="h-28 bg-[#1a2e26] relative overflow-hidden flex items-center justify-center p-3">
-				<div class="flex items-center gap-3">
-					<div class="space-y-2">
-						<div class="w-14 h-1.5 bg-emerald-400 rounded-full"></div>
-						<div class="w-14 h-1.5 bg-emerald-400/50 rounded-full"></div>
-					</div>
-					<div class="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center">
-						<Sliders class="w-4 h-4 text-emerald-400" />
-					</div>
+		<a
+			href="/news"
+			class="group block bg-[#16171d] border border-white/10 hover:border-emerald-500/30 rounded-2xl overflow-hidden shadow-md transition-all cursor-pointer"
+		>
+			<div class="h-24 bg-gradient-to-br from-emerald-900/40 to-[#10121a] relative overflow-hidden flex items-center justify-between p-3.5 border-b border-white/5">
+				<div class="space-y-1 z-10">
+					<span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">Atualização</span>
+					<div class="text-xs font-black text-white group-hover:text-emerald-300 transition-colors">Luxmc v1.7.3 Oficial</div>
+				</div>
+				<div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-md">
+					<Sliders class="w-4 h-4" />
 				</div>
 			</div>
 
 			<div class="p-3.5 space-y-1.5">
-				<h4 class="text-xs font-bold text-white leading-snug">
-					Sync settings across instances
-				</h4>
-				<p class="text-[11px] text-white/50 leading-relaxed">
-					Keep game options, servers, resource packs, and more the same across your instances.
+				<p class="text-[11px] text-white/60 leading-relaxed line-clamp-2">
+					Lançamento de alta performance para Linux e Windows com integração web e estabilidade total.
 				</p>
-				<div class="pt-2 text-[10px] text-white/35">
-					September 7, 2026
+				<div class="flex items-center justify-between pt-1 text-[10px] text-white/35">
+					<span>18 de Setembro, 2026</span>
+					<span class="text-emerald-400 font-bold group-hover:translate-x-0.5 transition-transform">Ler mais →</span>
 				</div>
 			</div>
-		</div>
+		</a>
 	</div>
 
 </aside>

@@ -147,10 +147,14 @@ export const themeStore = {
 	},
 
 	setTheme(tId: string) {
-		if (THEMES[tId]) {
-			activeTheme = tId;
+		let resolved: string | null = null;
+		if (tId === "dark" || tId === "default-dark") resolved = "dark";
+		else if (tId === "light" || tId === "default-light") resolved = "light";
+
+		if (resolved) {
+			activeTheme = resolved;
 			if (typeof window !== "undefined") {
-				localStorage.setItem("luxmc_theme", tId);
+				localStorage.setItem("luxmc_theme", resolved);
 			}
 			applyThemeVariables(activeTheme, activeAccent);
 		}
@@ -170,7 +174,10 @@ export const themeStore = {
 		if (typeof window === "undefined") return;
 		const savedTheme = localStorage.getItem("luxmc_theme");
 		const savedAccent = localStorage.getItem("luxmc_accent");
-		if (savedTheme && THEMES[savedTheme]) activeTheme = savedTheme;
+		if (savedTheme) {
+			if (savedTheme === "light" || savedTheme === "default-light") activeTheme = "light";
+			else if (savedTheme === "dark" || savedTheme === "default-dark") activeTheme = "dark";
+		}
 		if (savedAccent && ACCENTS[savedAccent]) activeAccent = savedAccent;
 		applyThemeVariables(activeTheme, activeAccent);
 	}

@@ -92,151 +92,6 @@
 		skinCache = new Map();
 	});
 
-	function healSkinCanvas(canvas: HTMLCanvasElement, isSlim: boolean) {
-		const ctx = canvas.getContext("2d", { willReadFrequently: true });
-		if (!ctx) return;
-		const w = canvas.width;
-		const h = canvas.height;
-		if (w <= 0 || h <= 0) return;
-		const scale = Math.max(1, Math.floor(w / 64));
-		const imgData = ctx.getImageData(0, 0, w, h);
-		const data = imgData.data;
-
-		const getPixel = (x: number, y: number): [number, number, number, number] => {
-			if (x < 0 || x >= w || y < 0 || y >= h) return [0, 0, 0, 0];
-			const idx = (y * w + x) * 4;
-			return [data[idx], data[idx + 1], data[idx + 2], data[idx + 3]];
-		};
-
-		const setPixel = (x: number, y: number, r: number, g: number, b: number, a = 255) => {
-			if (x < 0 || x >= w || y < 0 || y >= h) return;
-			const idx = (y * w + x) * 4;
-			data[idx] = r;
-			data[idx + 1] = g;
-			data[idx + 2] = b;
-			data[idx + 3] = a;
-		};
-
-		let fallbackR = 210, fallbackG = 165, fallbackB = 130;
-		const samplePoints = [
-			[24 * scale, 24 * scale],
-			[22 * scale, 22 * scale],
-			[12 * scale, 12 * scale],
-			[26 * scale, 26 * scale]
-		];
-		for (const [sx, sy] of samplePoints) {
-			const [r, g, b, a] = getPixel(sx, sy);
-			if (a > 200 && (r > 60 || g > 60 || b > 60)) {
-				fallbackR = r;
-				fallbackG = g;
-				fallbackB = b;
-				break;
-			}
-		}
-
-		const armWidth = isSlim ? 3 : 4;
-		const rBackStartX = isSlim ? 51 : 52;
-		const lBackStartX = isSlim ? 43 : 44;
-
-		const isArmBackPixel = (x: number, y: number) => {
-			return (x >= rBackStartX * scale && x < (rBackStartX + armWidth) * scale && y >= 20 * scale && y < 32 * scale)
-				|| (x >= lBackStartX * scale && x < (lBackStartX + armWidth) * scale && y >= 52 * scale && y < 64 * scale);
-		};
-
-		const needsHealing = (r: number, g: number, b: number, a: number, x: number, y: number) => {
-			if (a < 200) return true;
-			if ((r === 45 && g === 45 && b === 45) || (r === 40 && g === 30 && b === 25)) return true;
-			if (isArmBackPixel(x, y) && (r === 0 && g === 0 && b === 0)) return true;
-			return false;
-		};
-
-		const healRegion = (startX: number, startY: number, width: number, height: number, mirrorX: number, mirrorY: number, altX: number, altY: number) => {
-			for (let dy = 0; dy < height * scale; dy++) {
-				for (let dx = 0; dx < width * scale; dx++) {
-					const bx = startX * scale + dx;
-					const by = startY * scale + dy;
-					const [br, bg, bb, ba] = getPixel(bx, by);
-					if (!needsHealing(br, bg, bb, ba, bx, by)) continue;
-					const [or, og, ob, oa] = getPixel(mirrorX * scale + dx, mirrorY * scale + dy);
-					if (oa > 50 && !(or === 0 && og === 0 && ob === 0)) {
-						setPixel(bx, by, or, og, ob, 255);
-					} else if (altX >= 0) {
-						const [ar, ag, ab, aa] = getPixel(altX * scale + dx, altY * scale + dy);
-						if (aa > 50 && !(ar === 0 && ag === 0 && ab === 0)) {
-							setPixel(bx, by, ar, ag, ab, 255);
-						} else {
-							setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-						}
-					} else {
-						setPixel(bx, by, fallbackR, fallbackG, fallbackB, 255);
-					}
-				}
-			}
-		};
-
-		healRegion(24, 8, 8, 8, 8, 8, 24, 8);
-
-		healRegion(rBackStartX, 20, armWidth, 12, 44, 20, 36, 20);
-
-		healRegion(lBackStartX, 52, armWidth, 12, 36, 52, 44, 52);
-
-		const rHandStartX = isSlim ? 47 : 48;
-		healRegion(rHandStartX, 16, armWidth, 4, 44, 32, 44, 32);
-
-		const lHandStartX = isSlim ? 39 : 40;
-		healRegion(lHandStartX, 48, armWidth, 4, 36, 48, 36, 48);
-
-		healRegion(32, 20, 8, 12, 20, 20, 20, 20);
-
-		healRegion(12, 20, 4, 12, 0, 20, 4, 20);
-
-		healRegion(28, 52, 4, 12, 16, 52, 20, 52);
-
-		const baseRects = [
-			[0 * scale, 0 * scale, 32 * scale, 16 * scale],
-			[16 * scale, 16 * scale, 40 * scale, 32 * scale],
-			[40 * scale, 16 * scale, 56 * scale, 32 * scale],
-			[0 * scale, 16 * scale, 16 * scale, 32 * scale],
-			[16 * scale, 48 * scale, 32 * scale, 64 * scale],
-			[32 * scale, 48 * scale, 48 * scale, 64 * scale]
-		];
-		for (const [x1, y1, x2, y2] of baseRects) {
-			for (let y = y1; y < Math.min(y2, h); y++) {
-				for (let x = x1; x < Math.min(x2, w); x++) {
-					const idx = (y * w + x) * 4;
-					const isPlaceholder = (data[idx] === 45 && data[idx + 1] === 45 && data[idx + 2] === 45)
-						|| (data[idx] === 40 && data[idx + 1] === 30 && data[idx + 2] === 25);
-					const isBlackArmBack = isArmBackPixel(x, y) && (data[idx] === 0 && data[idx + 1] === 0 && data[idx + 2] === 0);
-					if (data[idx + 3] < 200 || isPlaceholder || isBlackArmBack) {
-						data[idx] = fallbackR;
-						data[idx + 1] = fallbackG;
-						data[idx + 2] = fallbackB;
-						data[idx + 3] = 255;
-					}
-				}
-			}
-		}
-
-		const overlayArmRects = [
-			[40 * scale, 32 * scale, 56 * scale, 48 * scale],
-			[48 * scale, 48 * scale, 64 * scale, 64 * scale],
-		];
-		for (const [x1, y1, x2, y2] of overlayArmRects) {
-			for (let y = y1; y < Math.min(y2, h); y++) {
-				for (let x = x1; x < Math.min(x2, w); x++) {
-					const idx = (y * w + x) * 4;
-					const isPlaceholder = (data[idx] === 45 && data[idx + 1] === 45 && data[idx + 2] === 45)
-						|| (data[idx] === 40 && data[idx + 1] === 30 && data[idx + 2] === 25);
-					if (isPlaceholder) {
-						data[idx + 3] = 0;
-					}
-				}
-			}
-		}
-
-		ctx.putImageData(imgData, 0, 0);
-	}
-
 	function loadAndHealSkin(src: string, isSlim: boolean): Promise<HTMLCanvasElement | string> {
 		const cacheKey = `${src}|${isSlim ? "slim" : "default"}`;
 		const cached = skinCache.get(cacheKey);
@@ -260,15 +115,17 @@
 					const canvas = document.createElement("canvas");
 					canvas.width = 64;
 					canvas.height = 64;
-					const ctx = canvas.getContext("2d", { willReadFrequently: true });
+					const ctx = canvas.getContext("2d");
 					if (!ctx) {
 						resolve(src);
 						return;
 					}
 					ctx.imageSmoothingEnabled = false;
 
-					if (w === 64 && h === 32) {
+					if (h === 32) {
+						// Standard 64x32 to 64x64 expansion for legacy Minecraft skins
 						ctx.drawImage(img, 0, 0);
+
 						for (let dy = 0; dy < 4; dy++) {
 							for (let dx = 0; dx < 4; dx++) {
 								ctx.drawImage(canvas, 4 + dx, 16 + dy, 1, 1, 20 + (3 - dx), 48 + dy, 1, 1);
@@ -300,8 +157,6 @@
 					} else {
 						ctx.drawImage(img, 0, 0, 64, 64);
 					}
-
-					healSkinCanvas(canvas, isSlim);
 
 					if (skinCache.size > 10) {
 						const firstKey = skinCache.keys().next().value;

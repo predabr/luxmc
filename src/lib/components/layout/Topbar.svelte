@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { Sun, Moon, Globe, Gauge, Zap } from "lucide-svelte";
+	import { Sun, Moon, Globe, Gauge, Zap, ExternalLink } from "lucide-svelte";
+	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { account } from "$lib/stores/account.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { setLocale } from "$lib/stores/persistence.svelte";
@@ -53,6 +54,17 @@
 				<Gauge class="h-4 w-4" />
 				PERFORMANCE OFF
 			{/if}
+		</button>
+
+		<button
+			type="button"
+			onclick={() => openUrl("https://luxmc-r92.pages.dev")}
+			class="flex h-9 items-center gap-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 bg-white/5 hover:bg-white/10 hover:border-emerald-500/30 border border-white/5 text-white/80 hover:text-white cursor-pointer active:scale-95 shadow-sm"
+			title="Abrir Portal Web & Studio 3D (luxmc-r92.pages.dev)"
+		>
+			<Globe class="h-3.5 w-3.5 text-emerald-400" />
+			<span>Site & 3D</span>
+			<ExternalLink class="h-3 w-3 text-white/40" />
 		</button>
 
 		<div class="h-5 w-px bg-white/10 mx-1"></div>
