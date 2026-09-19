@@ -237,7 +237,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: "Luxmc ${{ github.ref_name }}"
           releaseBody: "See the assets below to download and install Luxmc."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: --target ${{ matrix.target }}
 

@@ -1,5 +1,5 @@
 export const repository = "predabr/luxmc";
-export const fallback = `https://github.com/${repository}/releases/latest`;
+export const fallback = `https://github.com/${repository}/releases`;
 
 export function assetFor(assets, platform) {
   const extensions = { linux: ".appimage", appimage: ".appimage", windows: ".exe", exe: ".exe", deb: ".deb", debian: ".deb", ubuntu: ".deb", tar: ".tar.gz", "tar.gz": ".tar.gz", archive: ".tar.gz", mac: ".dmg", macos: ".dmg", dmg: ".dmg", jar: ".jar", universal: ".jar" };
