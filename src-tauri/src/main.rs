@@ -6,62 +6,7 @@ fn main() {
     {
         use std::os::unix::process::CommandExt;
 
-        // Priority 1: Prevent AppImage WebKitGTK / Mesa runaway memory leak (+1 GB/s).
-        // linuxdeploy bundles 2022 Ubuntu 22.04 WebKitGTK and libraries into AppImages.
-        // On modern Linux distros (Arch, Fedora, Ubuntu 24+, etc.), this ancient WebKitGTK
-        // enters a runaway memory allocation loop with modern Mesa GPU drivers.
-        // If the host system has native WebKitGTK (which all modern Linux desktops have),
-        // we strip the bundled AppImage library paths from LD_LIBRARY_PATH and re-exec,
-        // using the host's native WebKitGTK, Mesa, and GLib.
-        // This keeps memory rock-solid at ~140 MB with 0 leaks.
-        if std::env::var("LUXMC_CLEAN_HOST_TRIED").is_err() && std::env::var("APPDIR").is_ok() {
-            let host_webkit_candidates = [
-                "/usr/lib/libwebkit2gtk-4.1.so.0",
-                "/usr/lib64/libwebkit2gtk-4.1.so.0",
-                "/usr/lib/x86_64-linux-gnu/libwebkit2gtk-4.1.so.0",
-            ];
-
-            if host_webkit_candidates.iter().any(|p| std::path::Path::new(p).exists()) {
-                if let Ok(exe) = std::env::current_exe() {
-                    let mut cmd = std::process::Command::new(exe);
-                    cmd.args(std::env::args().skip(1));
-
-                    let appdir = std::env::var("APPDIR").unwrap_or_default();
-                    let current_ld = std::env::var("LD_LIBRARY_PATH").unwrap_or_default();
-                    let filtered_ld = current_ld
-                        .split(':')
-                        .filter(|p| !p.trim().is_empty() && (appdir.is_empty() || !p.contains(&appdir)))
-                        .collect::<Vec<_>>()
-                        .join(":");
-
-                    if filtered_ld.trim().is_empty() {
-                        cmd.env_remove("LD_LIBRARY_PATH");
-                    } else {
-                        cmd.env("LD_LIBRARY_PATH", filtered_ld);
-                    }
-
-                    cmd.env_remove("WEBKIT_INJECTED_BUNDLE_PATH");
-                    cmd.env_remove("GST_PLUGIN_SYSTEM_PATH_1_0");
-                    cmd.env_remove("GST_PLUGIN_PATH_1_0");
-                    cmd.env_remove("GST_PLUGIN_SCANNER_1_0");
-
-                    let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
-                        || std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland");
-                    if is_wayland {
-                        cmd.env_remove("GDK_BACKEND");
-                    }
-
-                    cmd.env("LUXMC_CLEAN_HOST_TRIED", "1");
-                    cmd.env("LUXMC_WAYLAND_PRELOADED", "1");
-                    cmd.env("MALLOC_ARENA_MAX", "2");
-                    cmd.env("MALLOC_TRIM_THRESHOLD_", "131072");
-
-                    let _ = cmd.exec();
-                }
-            }
-        }
-
-        // Fix for Linux Wayland EGL_BAD_PARAMETER crash in AppImages (fallback path when host WebKit is absent):
+        // Fix for Linux Wayland EGL_BAD_PARAMETER crash in AppImages:
         // Bundled libwayland-client (from Ubuntu 22.04 build environment) causes EGL initialization
         // to abort with "Could not create default EGL display: EGL_BAD_PARAMETER" on modern Linux.
         // Preloading the host system's native libwayland-client resolves the display conflict.
@@ -107,35 +52,35 @@ fn main() {
         // If the process working directory is not $APPDIR/usr, WebKitNetworkProcess and WebKitWebProcess fail to spawn:
         // "Unable to spawn a new child process: Falha ao criar processo filho ... (Arquivo ou diretório inexistente)".
         // Setting current_dir to usr guarantees WebKit finds its subprocesses inside the AppImage.
-        if std::env::var("LUXMC_CLEAN_HOST_TRIED").is_err() {
-            if let Ok(appdir) = std::env::var("APPDIR") {
-                let usr_dir = std::path::Path::new(&appdir).join("usr");
-                if usr_dir.is_dir() {
-                    let _ = std::env::set_current_dir(&usr_dir);
-                    let injected = usr_dir.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
-                    if injected.is_dir() {
-                        std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
-                    }
+        if let Ok(appdir) = std::env::var("APPDIR") {
+            let usr_dir = std::path::Path::new(&appdir).join("usr");
+            if usr_dir.is_dir() {
+                let _ = std::env::set_current_dir(&usr_dir);
+                let injected = usr_dir.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
+                if injected.is_dir() {
+                    std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
                 }
-            } else if let Ok(exe) = std::env::current_exe() {
-                if let Some(bin) = exe.parent() {
-                    if let Some(usr) = bin.parent() {
-                        let network_proc = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess");
-                        if network_proc.is_file() {
-                            let _ = std::env::set_current_dir(usr);
-                            let injected = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
-                            if injected.is_dir() {
-                                std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
-                            }
+            }
+        } else if let Ok(exe) = std::env::current_exe() {
+            if let Some(bin) = exe.parent() {
+                if let Some(usr) = bin.parent() {
+                    let network_proc = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess");
+                    if network_proc.is_file() {
+                        let _ = std::env::set_current_dir(usr);
+                        let injected = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
+                        if injected.is_dir() {
+                            std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
                         }
                     }
                 }
             }
         }
 
-        if std::env::var("LUXMC_SOFTWARE_RENDER").as_deref() == Ok("1")
-            || std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").as_deref() == Ok("1")
-        {
+        // WebKitGTK DMA-BUF renderer causes runaway memory allocation loops (+1 GB/s)
+        // on Mesa drivers with bundled WebKitGTK, and causes SIGSEGV crashes in libgbm.so/dri_gbm.so
+        // on modern Linux (Mesa 24+ / Wayland / AMD / Intel / NVIDIA).
+        // Disabling DMA-BUF renderer keeps memory stable at ~150-250 MB and prevents blank/grey screens.
+        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         }
         if std::env::var("__NV_DISABLE_EXPLICIT_SYNC").is_err() {
