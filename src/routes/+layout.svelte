@@ -430,7 +430,7 @@
 	<div class="flex h-full w-full overflow-hidden" in:fade={{ duration: 100 }}>
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-w-0 flex-1 flex-col relative z-10">
-			<main class="flex-1 overflow-x-hidden overflow-y-auto px-6 py-6 scroll-smooth custom-scrollbar relative">
+			<main class="flex-1 overflow-x-hidden overflow-y-auto px-6 py-6 custom-scrollbar relative">
 				{#key page.url.pathname}
 					<div
 						class="mx-auto max-w-[1600px] min-h-full flex flex-col w-full"

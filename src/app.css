@@ -313,7 +313,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 }
 
 @layer components {
-  .surface-glass { @apply rounded-2xl border border-fg/[0.08] bg-bg-elevated/80 shadow-soft backdrop-blur-2xl; }
+  .surface-glass { @apply rounded-2xl border border-fg/[0.08] bg-bg-elevated shadow-soft; }
   .page-eyebrow { @apply text-[10px] font-bold uppercase tracking-[0.2em] text-brand-400; }
   .page-title { @apply text-3xl font-bold tracking-tight text-fg; }
   .page-description { @apply mt-2 text-sm leading-relaxed text-fg-muted; }
@@ -321,6 +321,13 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   .section-tab { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold text-fg-muted hover:bg-fg/5 hover:text-fg; }
   .section-tab[aria-selected="true"] { @apply bg-brand-500/15 text-brand-300 shadow-soft; }
 }
+
+*, *::before, *::after {
+  --tw-backdrop-blur: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .lux-accent-text { color: rgb(var(--brand-400)); }
 .lux-accent-bg { background-color: rgb(var(--brand-500)); }
 .lux-accent-border { border-color: rgb(var(--brand-500)); }

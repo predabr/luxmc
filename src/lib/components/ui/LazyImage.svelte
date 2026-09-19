@@ -29,7 +29,7 @@
 
 <div class="relative {klass}">
   {#if !loaded}
-    <div class="absolute inset-0 animate-pulse bg-bg-subtle rounded"></div>
+    <div class="absolute inset-0 bg-bg-subtle rounded"></div>
   {/if}
   <img
     bind:this={imgEl}

@@ -142,8 +142,8 @@
 </article>
 
 {#snippet selection()}
-    {#if selectionMode}<button type="button" role="checkbox" aria-checked={isSelected} aria-label={`Selecionar ${profile.name}`} class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/15 bg-bg-overlay/60 text-brand-400 backdrop-blur-xl" onclick={() => onToggleSelect?.(profile.id)}>{#if isSelected}<Check class="h-4 w-4" />{/if}</button>
-    {:else}<button type="button" class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/10 bg-bg-overlay/40 text-fg-muted backdrop-blur-xl hover:text-warning" aria-label={`Favoritar ${profile.name}`} aria-pressed={!!profile.favorite} onclick={handleFavorite}><Star class="h-4 w-4 {profile.favorite ? 'fill-warning text-warning' : ''}" /></button>{/if}
+    {#if selectionMode}<button type="button" role="checkbox" aria-checked={isSelected} aria-label={`Selecionar ${profile.name}`} class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/15 bg-bg-elevated text-brand-400" onclick={() => onToggleSelect?.(profile.id)}>{#if isSelected}<Check class="h-4 w-4" />{/if}</button>
+    {:else}<button type="button" class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/10 bg-bg-elevated text-fg-muted hover:text-warning" aria-label={`Favoritar ${profile.name}`} aria-pressed={!!profile.favorite} onclick={handleFavorite}><Star class="h-4 w-4 {profile.favorite ? 'fill-warning text-warning' : ''}" /></button>{/if}
 {/snippet}
 {#snippet controls()}
     <div class="flex items-center gap-1"><button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`Configurar ${profile.name}`} onclick={() => onEdit?.(profile)}><Pencil class="h-4 w-4" /></button><InstanceActionsMenu bind:isOpen={menuOpen} {actions} /></div>

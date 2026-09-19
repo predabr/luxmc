@@ -30,18 +30,18 @@
 	});
 </script>
 
-<article class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated/80 shadow-soft backdrop-blur-2xl transition-all duration-200 hover:-translate-y-1 hover:border-brand-500/30 hover:shadow-elevated">
+<article class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-elevated">
 	<div class="relative h-40 bg-bg-subtle rounded-t-2xl">
 		{#if item.bannerUrl}
-			<LazyImage src={item.bannerUrl} alt="" class="h-full w-full rounded-t-2xl object-cover transition-transform duration-500 group-hover:scale-105" />
+			<LazyImage src={item.bannerUrl} alt="" class="h-full w-full rounded-t-2xl object-cover transition-transform duration-300 group-hover:scale-105" />
 		{:else}
-			<div class="absolute inset-0 overflow-hidden rounded-t-2xl"><div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated"></div><div class="absolute h-32 w-40 rounded-full bg-brand-400/20 blur-2xl" style:left={`${ambient.x}%`} style:top={`${ambient.y}%`} style:transform={`rotate(${ambient.rotate}deg)`}></div><div class="absolute bottom-0 left-0 h-24 w-36 rounded-full bg-info/15 blur-2xl"></div></div>
-			{#if item.iconUrl}<img src={item.iconUrl} alt="" loading="lazy" class="absolute inset-0 h-full w-full scale-150 object-cover opacity-40 blur-2xl" />{/if}
-			<div class="absolute -right-8 top-4 h-28 w-40 rounded-full bg-brand-500/20 blur-3xl"></div>
+			<div class="absolute inset-0 overflow-hidden rounded-t-2xl">
+				<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-60"></div>
+			</div>
 		{/if}
 		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/10 to-transparent"></div>
 		<div class="absolute right-3 top-3"><SourceBadge source={item.source} /></div>
-		<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated/90 p-1 shadow-elevated backdrop-blur-xl transition-transform duration-200 group-hover:-translate-y-1">
+		<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
 			{#if item.iconUrl}<LazyImage src={item.iconUrl} alt="" class="h-full w-full rounded-xl object-cover" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
 		</div>
 	</div>

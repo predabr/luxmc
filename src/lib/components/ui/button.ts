@@ -1,7 +1,7 @@
 import { type VariantProps, tv } from "tailwind-variants";
 
 const primary = "border border-brand-400/40 bg-gradient-to-r from-brand-600 to-indigo-600 text-brand-foreground shadow-button hover:from-brand-500 hover:to-indigo-500 hover:shadow-button-hover active:bg-brand-600";
-const secondary = "border border-fg/10 bg-bg-subtle/70 text-fg backdrop-blur-xl hover:border-brand-500/30 hover:bg-brand-500/10 active:bg-brand-500/15";
+const secondary = "border border-fg/10 bg-bg-subtle text-fg hover:border-brand-500/30 hover:bg-brand-500/10 active:bg-brand-500/15";
 export const button = tv({
     base: "relative inline-flex shrink-0 items-center justify-center gap-2 overflow-hidden rounded-xl font-semibold transition-all duration-200 ease-out select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none aria-disabled:pointer-events-none aria-disabled:opacity-40 active:scale-[0.97]",
     variants: {

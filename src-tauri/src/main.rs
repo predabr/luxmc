@@ -6,13 +6,10 @@ fn main() {
     {
         use std::os::unix::process::CommandExt;
 
-        // Fix for Linux Wayland EGL_BAD_PARAMETER crash in AppImages:
-        // Bundled libwayland-client (from Ubuntu 22.04 build environment) causes EGL initialization
-        // to abort with "Could not create default EGL display: EGL_BAD_PARAMETER" on modern Linux.
-        // Preloading the host system's native libwayland-client resolves the display conflict.
         if std::env::var("LUXMC_WAYLAND_PRELOADED").is_err() {
-            let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
-                || std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland");
+            let is_wayland = (std::env::var("WAYLAND_DISPLAY").is_ok()
+                || std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland"))
+                && std::env::var("GDK_BACKEND").as_deref() != Ok("x11");
 
             if is_wayland {
                 let candidates = [
@@ -47,11 +44,6 @@ fn main() {
             }
         }
 
-        // Fix for linuxdeploy relative WebKit subprocess path bug:
-        // linuxdeploy patches libwebkit2gtk with relative paths (././/lib/x86_64-linux-gnu/webkit2gtk-4.1).
-        // If the process working directory is not $APPDIR/usr, WebKitNetworkProcess and WebKitWebProcess fail to spawn:
-        // "Unable to spawn a new child process: Falha ao criar processo filho ... (Arquivo ou diretório inexistente)".
-        // Setting current_dir to usr guarantees WebKit finds its subprocesses inside the AppImage.
         if let Ok(appdir) = std::env::var("APPDIR") {
             let usr_dir = std::path::Path::new(&appdir).join("usr");
             if usr_dir.is_dir() {

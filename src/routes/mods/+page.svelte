@@ -402,8 +402,7 @@
 
 	{:else}
 		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-1">
-			<header class="relative mb-6 overflow-hidden rounded-2xl border border-fg/[0.08] bg-bg-elevated/80 p-6 backdrop-blur-2xl">
-                <div class="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-brand-500/10 blur-3xl"></div>
+			<header class="relative mb-6 overflow-hidden rounded-2xl border border-fg/[0.08] bg-bg-elevated p-6 shadow-soft">
                 <p class="page-eyebrow mb-3">Descubra · Instale · Explore</p>
                 <h1 class="page-title">Seu Minecraft, sem limites.</h1>
                 <p class="page-description">Mods, modpacks e novos mundos. Tudo em um só lugar.</p>
