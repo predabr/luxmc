@@ -5,12 +5,26 @@ let poll;
 let generation = 0;
 
 async function api(action, body = {}, area = "account") {
-  const response = await fetch(`/api/${area}/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" });
+  let response;
+  try {
+    response = await fetch(`/api/${area}/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" });
+  } catch (err) {
+    throw new Error("Falha na conexão com o servidor. Verifique se sua internet está ativa.");
+  }
   let result;
-  try { result = await response.json(); } catch { throw new Error("O serviço de contas requer o portal Cloudflare Pages ativo (D1 e Functions)."); }
+  try {
+    result = await response.json();
+  } catch {
+    throw Object.assign(new Error("A API de contas não retornou JSON. Verifique se o Cloudflare Pages (Functions + D1) está ativo e faça um novo deploy."), { status: response.status });
+  }
   if (!response.ok) {
     if (result.account) { current = result.account; fillPreferences(); }
-    throw Object.assign(new Error(result.error || "Não foi possível concluir."), { status: response.status });
+    let msg = result.error;
+    if (!msg) {
+      if (response.status === 503) msg = "Serviço indisponível (503). Verifique se o binding SOCIAL_DB e a variável AUTH_PEPPER foram configurados na Cloudflare e faça um novo deploy.";
+      else msg = `Erro no servidor (${response.status}). Tente novamente em instantes.`;
+    }
+    throw Object.assign(new Error(msg), { status: response.status });
   }
   return result;
 }
