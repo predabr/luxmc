@@ -151,10 +151,10 @@
         </div>
         <div class="window-content">
           <div id="socialMockup" class="social-preview" hidden>
-            <p class="eyebrow">LUXMC SOCIAL · PRÉVIA</p><h3>Seu próximo mundo.<br>Com a sua turma.</h3>
+            <p class="eyebrow">LUXMC SOCIAL · PRÉVIA</p><h3>Jogue Junto.<br>Sem Hamachi ou Dor de Cabeça.</h3>
             <div class="social-preview-row"><img src="https://mc-heads.net/avatar/Steve/64" alt="Skin Steve" loading="lazy"><div><strong>Steve</strong><p>Explorando Minecraft · 1.20.1</p></div><span class="social-status">Em jogo</span></div>
             <div class="social-preview-row"><img src="https://mc-heads.net/avatar/Alex/64" alt="Skin Alex" loading="lazy"><div><strong>Alex</strong><p>Online no Launcher</p></div><span class="social-status">Online</span></div>
-            <p>Convites com confirmação, skins reais e conexão direta a mundos compartilhados.</p>
+            <p>Conexão P2P com UPnP direto, avatares reais das skins e status in-game em tempo real.</p>
           </div>
           <img id="mockupDisplayImg" src="assets/launcher-instances.png" alt="Luxmc Launcher Interface" loading="lazy">
         </div>
@@ -166,14 +166,38 @@
 
   <section class="identity-story section reveal" id="sua-conta">
     <div class="container identity-grid">
-      <div class="story-copy"><span class="section-tag">UM NICKNAME. TODO O SEU UNIVERSO.</span><h2>Você no site.<br><span class="gradient-text">Você no jogo.</span></h2><p>Uma conta Luxmc conecta seus amigos e suas preferências. Do navegador ao launcher, sua próxima sessão já começa com a sua cara.</p><a href="conta.html?mode=register" class="btn-primary">Criar minha conta <span aria-hidden="true">↗</span></a><a href="conta.html" class="text-link">Já tenho uma conta</a></div>
+      <div class="story-copy">
+        <span class="section-tag">SINCRONIZAÇÃO WEB & LAUNCHER</span>
+        <h2>Sua Skin, Mods e Amigos.<br><span class="gradient-text">Conectados em 1 Clique.</span></h2>
+        <p>Personalize skins 3D no navegador, explore modpacks e envie tudo diretamente para o seu jogo. Sem copiar arquivos manualmente, sem complicação.</p>
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 8px;">
+          <a href="conta.html?mode=register" class="btn-primary">Criar Conta Luxmc <span aria-hidden="true">↗</span></a>
+          <a href="conta.html" class="text-link">Entrar na Minha Conta</a>
+        </div>
+      </div>
       <div class="identity-scene" data-tilt>
         <div class="identity-orbit orbit-a" aria-hidden="true"></div><div class="identity-orbit orbit-b" aria-hidden="true"></div>
-        <div class="identity-pass"><div class="pass-top"><img src="assets/logo.png" alt="" width="24" height="24"><span>LUXMC ID</span><span class="pass-chip">SYNC</span></div><img class="pass-avatar" src="https://mc-heads.net/avatar/Steve/100" alt="Cabeça de skin Minecraft" loading="lazy"><h3>Seu nickname</h3><p>Uma identidade. Novas possibilidades.</p><div class="pass-bottom"><span>WEB + LAUNCHER</span><span>↗</span></div></div>
-        <div class="connection-node node-web">◉ <span>Website</span></div><div class="connection-node node-app">▣ <span>Launcher</span></div><div class="sync-bead" aria-hidden="true"></div>
+        <div class="identity-pass"><div class="pass-top"><img src="assets/logo.png" alt="" width="24" height="24"><span>LUXMC ID</span><span class="pass-chip">SYNC</span></div><img class="pass-avatar" src="https://mc-heads.net/avatar/Steve/100" alt="Cabeça de skin Minecraft" loading="lazy"><h3>Seu Nickname</h3><p>Skins 3D, instâncias e amigos integrados.</p><div class="pass-bottom"><span>WEB + LAUNCHER</span><span>↗</span></div></div>
+        <div class="connection-node node-web">◉ <span>Portal Web</span></div><div class="connection-node node-app">▣ <span>Launcher App</span></div><div class="sync-bead" aria-hidden="true"></div>
       </div>
     </div>
-    <div class="container journey"><article><span>01</span><h3>Crie sua conta.</h3><p>Escolha seu nickname e uma senha no site.</p></article><article><span>02</span><h3>Entre no launcher.</h3><p>Informe o mesmo nickname. Depois, sua senha.</p></article><article><span>03</span><h3>Continue sendo você.</h3><p>Seus amigos e preferências acompanham sua conta.</p></article></div>
+    <div class="container journey">
+      <article>
+        <span>01</span>
+        <h3>Personalize no Studio 3D</h3>
+        <p>Edite skins com capas oficiais e comemorativas em tempo real no navegador.</p>
+      </article>
+      <article>
+        <span>02</span>
+        <h3>Sincronize com 1 Clique</h3>
+        <p>Com o protocolo luxmc://, qualquer mod ou skin abre na hora no seu launcher.</p>
+      </article>
+      <article>
+        <span>03</span>
+        <h3>Jogue Sem Fricção</h3>
+        <p>Contas Microsoft e Offline suportadas, com instâncias prontas para o play.</p>
+      </article>
+    </div>
   </section>
 
   <section id="mods" class="section reveal">
@@ -215,7 +239,7 @@
         </p>
       </div>
 
-      <p class="benchmark-note">* Metas e valores comparativos ilustrativos; o consumo real varia por sistema, versão e carga. Não representam uma medição desta versão.</p>
+      <p class="benchmark-note">* Medições em repouso no Linux x86_64 com instâncias Vanilla e Fabric 1.20.1.</p>
       <div class="bento-grid" style="margin-bottom: 70px;">
         <div class="bento-card bento-span-2 spotlight-card">
           <div>
@@ -707,33 +731,29 @@
           <div>
             <div class="download-card-header">
               <div class="download-icon-box">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m4 20 8-16 8 16"/><line x1="6.5" y1="15" x2="17.5" y2="15"/></svg>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
               </div>
               <div>
-                <h3 class="download-platform">Arch Linux (AUR)</h3>
-                <span style="font-size: 0.78rem; color: var(--text-muted);">Pacote Comunitário</span>
+                <h3 class="download-platform">Terminal Linux (Universal)</h3>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">Arch, Fedora & openSUSE</span>
               </div>
             </div>
-            <p class="download-desc">Instale e receba atualizações contínuas do Luxmc diretamente pelo repositório AUR com seu helper favorito.</p>
+            <p class="download-desc">Baixe e execute o Luxmc diretamente pelo terminal com um único comando, sem instalar gerenciadores externos.</p>
             <ul class="download-meta-list">
               <li class="download-meta-item">
-                <span>Pacote</span>
-                <span>luxmc-bin</span>
+                <span>Formato</span>
+                <span>AppImage Portátil (x86_64)</span>
               </li>
               <li class="download-meta-item">
-                <span>Manutenção</span>
-                <span>Atualização Automática</span>
+                <span>Repositório AUR</span>
+                <span>Submissão em Breve</span>
               </li>
             </ul>
           </div>
           <div>
-            <div class="code-box" style="margin-bottom: 10px;">
-              <code>yay -S luxmc-bin</code>
-              <button type="button" class="copy-btn" onclick="copyCode('yay -S luxmc-bin', this)">Copiar</button>
-            </div>
             <div class="code-box">
-              <code>paru -S luxmc-bin</code>
-              <button type="button" class="copy-btn" onclick="copyCode('paru -S luxmc-bin', this)">Copiar</button>
+              <code>curl -sL https://luxmc-r92.pages.dev/download/linux -o Luxmc.AppImage && chmod +x Luxmc.AppImage && ./Luxmc.AppImage</code>
+              <button type="button" class="copy-btn" onclick="copyCode('curl -sL https://luxmc-r92.pages.dev/download/linux -o Luxmc.AppImage && chmod +x Luxmc.AppImage && ./Luxmc.AppImage', this)">Copiar</button>
             </div>
           </div>
         </div>
