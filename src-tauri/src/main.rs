@@ -7,9 +7,8 @@ fn main() {
         use std::os::unix::process::CommandExt;
 
         if std::env::var("LUXMC_WAYLAND_PRELOADED").is_err() {
-            let is_wayland = (std::env::var("WAYLAND_DISPLAY").is_ok()
-                || std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland"))
-                && std::env::var("GDK_BACKEND").as_deref() != Ok("x11");
+            let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
+                || std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland");
 
             if is_wayland {
                 let candidates = [
@@ -68,12 +67,8 @@ fn main() {
             }
         }
 
-        if std::env::var("LUXMC_SOFTWARE_RENDER").as_deref() == Ok("1") {
+        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-            std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
-        }
-        if std::env::var("WEBKIT_FORCE_COMPOSITING_MODE").is_err() {
-            std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
         }
         if std::env::var("__NV_DISABLE_EXPLICIT_SYNC").is_err() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
