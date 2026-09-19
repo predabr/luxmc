@@ -76,6 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initScrollAnimations();
   initNavbarScroll();
   initKeyboardShortcuts();
+  initCookieConsent();
 });
 
 function initBackgroundParticles() {
@@ -649,3 +650,27 @@ document.addEventListener("click", event => {
   event.preventDefault();
   openLuxmc(link.href);
 });
+
+function initCookieConsent() {
+  if (typeof localStorage === "undefined" || localStorage.getItem("luxmc_cookie_consent")) return;
+  const banner = document.createElement("div");
+  banner.id = "cookieConsent";
+  banner.className = "cookie-banner";
+  banner.setAttribute("role", "dialog");
+  banner.setAttribute("aria-label", "Consentimento de cookies e privacidade");
+  banner.innerHTML = `
+    <p>Utilizamos cookies e tecnologias essenciais para viabilizar e aprimorar sua experiência. Ao continuar navegando, você concorda com a nossa <a href="privacidade.html">Política de Privacidade</a>.</p>
+    <div class="cookie-actions">
+      <button type="button" class="btn-accept" id="btnAcceptCookie">Concordar e Fechar</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+  document.getElementById("btnAcceptCookie")?.addEventListener("click", () => {
+    localStorage.setItem("luxmc_cookie_consent", "true");
+    banner.style.opacity = "0";
+    banner.style.transform = "translateY(12px)";
+    banner.style.transition = "opacity 0.25s ease, transform 0.25s ease";
+    setTimeout(() => banner.remove(), 250);
+  });
+}
+
