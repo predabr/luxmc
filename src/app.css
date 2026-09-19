@@ -325,8 +325,7 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 .lux-accent-bg { background-color: rgb(var(--brand-500)); }
 .lux-accent-border { border-color: rgb(var(--brand-500)); }
 .lux-accent-glow { box-shadow: var(--shadow-glow); }
-button { border-radius: var(--radius-lg); transition-duration: 180ms; }
-button:not(:disabled):hover { filter: brightness(1.06); }
+button { border-radius: var(--radius-lg); transition-duration: 150ms; }
 
 .nav-pill-active { background: rgb(var(--brand-500) / 0.16); color: rgb(var(--brand-400)); border-color: rgb(var(--brand-500) / 0.25); box-shadow: inset 0 1px 0 rgb(var(--surface-shine) / 0.06); }
 .nav-pill-inactive { background: transparent; border-color: transparent; color: rgb(var(--fg-muted)); }

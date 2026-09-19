@@ -63,14 +63,6 @@ pub async fn run() {
                 }
             }
 
-            tokio::spawn(async {
-                let mut interval = tokio::time::interval(std::time::Duration::from_secs(12));
-                loop {
-                    interval.tick().await;
-                    crate::commands::optimizer::optimizer_trim_memory();
-                }
-            });
-
             Ok(())
         })
         .plugin(tauri_plugin_shell::init())

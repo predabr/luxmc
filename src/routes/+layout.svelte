@@ -283,10 +283,6 @@
 
 		const stop = startAutoPersist();
 		
-		const trimInterval = window.setInterval(() => {
-			optimizerTrimMemory().catch(() => {});
-		}, 60 * 1000);
-
 		return () => {
 			disposed = true;
 			stop();
@@ -296,7 +292,6 @@
 			if (soundscapeTimer) clearTimeout(soundscapeTimer);
 			stopSoundscape();
 			destroyAudio();
-			clearInterval(trimInterval);
 			gamingStats.destroy();
 		};
 	});
@@ -403,9 +398,6 @@
 		return () => window.removeEventListener('keydown', handler);
 	});
 
-	afterNavigate(() => {
-		optimizerTrimMemory().catch(() => {});
-	});
 </script>
 
 <div class="fixed inset-0 z-[-2] transition-all duration-500" style={themeStore.currentBackgroundStyle}>
@@ -441,10 +433,10 @@
 			<main class="flex-1 overflow-x-hidden overflow-y-auto px-6 py-6 scroll-smooth custom-scrollbar relative">
 				{#key page.url.pathname}
 					<div
-						class="mx-auto max-w-[1600px] min-h-full flex flex-col w-full will-change-transform"
+						class="mx-auto max-w-[1600px] min-h-full flex flex-col w-full"
 						in:fly={{
-							x: appState.performanceMode ? 0 : slideDirection * 65,
-							duration: appState.performanceMode ? 0 : 220,
+							x: appState.performanceMode || !settings.value.animations ? 0 : slideDirection * 40,
+							duration: appState.performanceMode || !settings.value.animations ? 0 : 160,
 							opacity: 0,
 							easing: cubicOut
 						}}

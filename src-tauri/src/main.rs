@@ -76,12 +76,12 @@ fn main() {
             }
         }
 
-        // WebKitGTK DMA-BUF renderer causes runaway memory allocation loops (+1 GB/s)
-        // on Mesa drivers with bundled WebKitGTK, and causes SIGSEGV crashes in libgbm.so/dri_gbm.so
-        // on modern Linux (Mesa 24+ / Wayland / AMD / Intel / NVIDIA).
-        // Disabling DMA-BUF renderer keeps memory stable at ~150-250 MB and prevents blank/grey screens.
-        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+        if std::env::var("LUXMC_SOFTWARE_RENDER").as_deref() == Ok("1") {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+            std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
+        }
+        if std::env::var("WEBKIT_FORCE_COMPOSITING_MODE").is_err() {
+            std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
         }
         if std::env::var("__NV_DISABLE_EXPLICIT_SYNC").is_err() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
