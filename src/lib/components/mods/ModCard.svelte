@@ -23,18 +23,52 @@
 		for (const character of item.title) hash = (Math.imul(hash, 31) + character.charCodeAt(0)) | 0;
 		return ["from-brand-500/30 via-info/10", "from-purple-500/30 via-brand-500/10", "from-success/30 via-info/10", "from-warning/30 via-brand-500/10"][Math.abs(hash) % 4];
 	});
+
+	const curatedBanners: Record<string, string> = {
+		rlcraft: "https://media.forgecdn.net/attachments/267/928/rlcraft-banner.png",
+		"skyfactory 4": "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
+		"skyfactory-4": "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
+		skyfactory: "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
+		"zombie invade": "https://media.forgecdn.net/attachments/403/328/banner.png",
+		"all the mods": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
+		"better mc": "/modpack_better_mc.webp",
+		cobblemon: "/modpack_cobblemon.webp",
+		"fabulously optimized": "/modpack_fo.webp",
+		pixelmon: "https://media.forgecdn.net/attachments/305/760/banner.png",
+		dawncraft: "https://media.forgecdn.net/attachments/474/883/banner.png",
+		"medieval mc": "https://media.forgecdn.net/attachments/418/850/banner.png",
+		sevtech: "https://media.forgecdn.net/attachments/231/13/banner.png",
+		stoneblock: "https://media.forgecdn.net/attachments/251/72/banner.png"
+	};
+
+	const effectiveBanner = $derived.by(() => {
+		if (item.bannerUrl) return item.bannerUrl;
+		const lowerTitle = item.title.toLowerCase();
+		const lowerSlug = item.slug.toLowerCase();
+		for (const [key, banner] of Object.entries(curatedBanners)) {
+			if (lowerTitle.includes(key) || lowerSlug.includes(key)) {
+				return banner;
+			}
+		}
+		return null;
+	});
 </script>
 
 <article class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-elevated">
-	<div class="relative h-40 bg-bg-subtle rounded-t-2xl">
-		{#if item.bannerUrl}
-			<LazyImage src={item.bannerUrl} alt="" class="h-full w-full rounded-t-2xl object-cover transition-transform duration-300 group-hover:scale-105" />
+	<div class="relative h-40 bg-bg-subtle rounded-t-2xl overflow-hidden">
+		{#if effectiveBanner}
+			<LazyImage src={effectiveBanner} alt="" class="h-full w-full rounded-t-2xl object-cover transition-transform duration-500 group-hover:scale-105" />
+		{:else if item.iconUrl}
+			<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-surface">
+				<img src={item.iconUrl} alt="" class="h-full w-full object-cover scale-125 blur-sm opacity-50 transition-transform duration-500 group-hover:scale-135" />
+				<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-60"></div>
+			</div>
 		{:else}
 			<div class="absolute inset-0 overflow-hidden rounded-t-2xl">
 				<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-60"></div>
 			</div>
 		{/if}
-		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/10 to-transparent"></div>
+		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent"></div>
 		<div class="absolute right-3 top-3"><SourceBadge source={item.source} /></div>
 		<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
 			{#if item.iconUrl}<LazyImage src={item.iconUrl} alt="" class="h-full w-full rounded-xl object-cover" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}

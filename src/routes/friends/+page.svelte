@@ -82,12 +82,33 @@
 
 	function handleAddFriend() {
 		return perform(async () => {
-			const target = selectedFriend || (suggestions.length === 1 ? suggestions[0] : null);
-			if (!target) throw new Error("Selecione o jogador nos resultados da busca.");
-			await friendsState.action("invite", target.id);
-			toast(`Convite enviado para ${target.username}.`, "success");
+			const query = newFriendUsername.trim();
+			if (!query) throw new Error("Digite o nickname do jogador.");
+
+			let target = selectedFriend || (suggestions.length > 0 ? suggestions[0] : null);
+			if (!target && friendsState.me) {
+				try {
+					const found = await friendsState.search(query);
+					if (found.length > 0) target = found[0];
+				} catch {}
+			}
+
+			if (target) {
+				await friendsState.action("invite", target.id);
+				toast(`Convite enviado para ${target.username}!`, "success");
+			} else {
+				if (!localContacts.includes(query)) {
+					localContacts = [...localContacts, query];
+					try {
+						localStorage.setItem("luxmc_custom_friends_v4", JSON.stringify(localContacts.map(u => ({ username: u }))));
+					} catch {}
+				}
+				toast(`Amigo ${query} adicionado à sua lista!`, "success");
+			}
+
 			newFriendUsername = "";
-			activeTab = "pending";
+			selectedFriend = null;
+			activeTab = "all";
 		});
 	}
 
@@ -137,8 +158,25 @@
     </header>
 
 	<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-bg-elevated/80 p-4">
-		<p class="text-xs text-fg-muted">{friendsState.me ? `Seu código: ${friendsState.me.username}#${friendsState.me.id.slice(0, 8)}` : "Conecte seu perfil para buscar jogadores e receber convites."}</p>
-		<button type="button" class="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-brand-foreground hover:bg-brand-400 disabled:opacity-50" onclick={() => friendsState.connect()} disabled={friendsState.busy || !account.value}>{friendsState.busy ? "Conectando..." : friendsState.me ? "Reconectar" : "Conectar rede social"}</button>
+		<div class="flex items-center gap-3">
+			<p class="text-xs text-fg-muted">{friendsState.me ? `Seu código: ` : "Conecte seu perfil para buscar jogadores e receber convites."}</p>
+			{#if friendsState.me}
+				<span class="font-mono text-xs font-bold text-fg bg-bg-subtle px-2 py-0.5 rounded-lg border border-fg/10">{friendsState.me.username}#{friendsState.me.id.slice(0, 8)}</span>
+				<button
+					type="button"
+					title="Copiar código para compartilhar com amigos"
+					class="px-2.5 py-1 rounded-lg bg-fg/10 hover:bg-fg/20 text-fg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+					onclick={() => {
+						navigator.clipboard.writeText(`${friendsState.me?.username}#${friendsState.me?.id.slice(0, 8)}`);
+						toast("Código de amigo copiado!", "success");
+					}}
+				>
+					<Copy class="w-3 h-3" />
+					<span>Copiar</span>
+				</button>
+			{/if}
+		</div>
+		<button type="button" class="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-brand-foreground hover:bg-brand-400 disabled:opacity-50 cursor-pointer" onclick={() => friendsState.connect()} disabled={friendsState.busy || !account.value}>{friendsState.busy ? "Conectando..." : friendsState.me ? "Reconectar" : "Conectar rede social"}</button>
 		{#if friendsState.error}<p class="w-full text-xs text-warning" role="status">{friendsState.error}</p>{/if}
 	</div>
     {#if localContacts.length}
@@ -300,8 +338,8 @@
 				<button
 					type="button"
 					onclick={handleAddFriend}
-					disabled={working || (!selectedFriend && suggestions.length !== 1)}
-					class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-brand-foreground text-xs font-black transition-all shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-[0.98]"
+					disabled={working || !newFriendUsername.trim()}
+					class="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-brand-foreground text-xs font-black transition-all shadow-lg shadow-brand-500/20 cursor-pointer active:scale-[0.98]"
 				>
 					Adicionar Amigo
 				</button>

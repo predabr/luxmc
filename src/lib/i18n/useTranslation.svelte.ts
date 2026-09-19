@@ -15,9 +15,9 @@ export function useTranslation() {
 			void _ver;
 			return i18nT(key, { lng: currentLng, ...params });
 		},
-		get currentLanguage(): "en" | "pt-BR" {
+		get currentLanguage(): import("$lib/i18n").Locale {
 			void globalLocaleVersion;
-			return (settings.value.language as "en" | "pt-BR") || getLocale();
+			return (settings.value.language as import("$lib/i18n").Locale) || getLocale();
 		}
 	};
 }

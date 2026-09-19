@@ -34,30 +34,21 @@
 	<div
 		role="status"
 		aria-live="polite"
-		class="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs"
-		style="border-color: rgb(var(--warning) / 0.3); background: rgb(var(--warning) / 0.08); color: rgb(var(--warning));"
+		class="fixed bottom-4 right-4 z-50 flex items-center justify-between gap-3 rounded-2xl border px-4 py-2.5 text-xs shadow-2xl bg-bg-elevated/95 backdrop-blur-md"
+		style="border-color: rgb(var(--warning) / 0.4); color: rgb(var(--warning));"
 	>
 		<span class="flex items-center gap-2">
-			<WifiOff class="h-3.5 w-3.5" />
+			<WifiOff class="h-4 w-4" />
 			<span>
 				<strong>{t("statusBanner.offlineMode")}</strong> {t("statusBanner.offlineText")}
 			</span>
 		</span>
 		<button
 			type="button"
-			class="rounded px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors hover:bg-fg/5"
-			style="border: 1px solid rgb(var(--warning) / 0.3);"
+			class="rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors hover:bg-fg/10 border border-warning/30 cursor-pointer"
 			onclick={dismiss}
 		>
 			{t("statusBanner.dismiss")}
 		</button>
-	</div>
-{:else if online}
-	<div
-		class="flex items-center gap-2 text-[10px]"
-		style="color: rgb(var(--fg-subtle));"
-	>
-		<Wifi class="h-3 w-3" />
-		<span>{t("statusBanner.online")}</span>
 	</div>
 {/if}

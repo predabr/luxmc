@@ -34,20 +34,70 @@
 
 	const officialNews: LauncherArticle[] = [
 		{
+			id: "mc-1-21-5-pale-garden",
+			title: "Minecraft Drop Oficial: The Pale Garden & The Creaking",
+			tag: "Minecraft Oficial",
+			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+			date: "Setembro, 2026",
+			image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop",
+			summary: "A Mojang Studios revelou o aguardado drop oficial com o misterioso bioma Pale Garden, o aterrorizante Creaking que só se move quando você não está olhando, e novos blocos de madeira e resina.",
+			highlights: [
+				"Novo bioma Pale Garden: atmosfera cinzenta e silenciosa onde as copas das árvores bloqueiam a luz",
+				"Mob The Creaking: imune a ataques frontais enquanto mantiver contato visual; destrua o Coração do Creaking na árvore para derrotá-lo",
+				"Nova madeira Pale Oak (Carvalho Pálido) com conjunto completo de tábuas, cercas, portas e barcos",
+				"Novo recurso: Resina encontrada nas árvores do Pale Garden para fabricação de tijolos e ornamentos",
+				"Compatibilidade nativa imediata no Luxmc para snapshots e lançamentos oficiais"
+			],
+			link: "https://www.minecraft.net"
+		},
+		{
+			id: "modrinth-api-v3",
+			title: "Modrinth API v3 & Novos Servidores de CDN na América do Sul",
+			tag: "Mods & Comunidade",
+			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+			date: "Setembro, 2026",
+			image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop",
+			summary: "A plataforma Modrinth expandiu sua rede de borda com servidores dedicados em São Paulo (GRU), garantindo downloads de modpacks e shaders até 4 vezes mais rápidos no Luxmc.",
+			highlights: [
+				"Baixa latência para jogadores do Brasil e América Latina",
+				"Pesquisa instantânea de Shaders e Texturas pelo catálogo integrado",
+				"Distribuição automatizada de arquivos .mrpack com verificação de integridade SHA-512",
+				"Catálogo com mais de 80.000 modificações atualizadas diariamente"
+			],
+			link: "https://modrinth.com"
+		},
+		{
+			id: "sodium-iris-vulkan",
+			title: "Sodium 0.6 & Iris Shaders: Salto Gráfico com Multi-Draw no Linux",
+			tag: "Desempenho & Gráficos",
+			tagColor: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
+			date: "Setembro, 2026",
+			image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=800&auto=format&fit=crop",
+			summary: "O motor de renderização Sodium e o carregador Iris Shaders receberam otimizações profundas de OpenGL Multi-Draw e Zink Vulkan, alcançando 144+ FPS estáveis mesmo em mundos pesados.",
+			highlights: [
+				"Pipeline gráfico reconstruído para placas AMD, Intel e Nvidia",
+				"Redução de até 60% na carga de CPU durante a renderização de chunks distantes",
+				"Compatibilidade total com pacotes famosos como Complimentary Reimagined e BSL",
+				"Renderização fluida em monitores de alta taxa de atualização (144Hz a 360Hz)"
+			],
+			link: "https://modrinth.com/mod/sodium"
+		},
+		{
 			id: "v1.7.5",
-			title: "Luxmc v1.7.5 — Inicialização Ultrarrápida, Ícone Tux Linux & Portal Renovado",
+			title: "Luxmc v1.7.5 — GPU Acceleration, Suporte ao Espanhol & Modo Streamer",
 			tag: "Oficial",
 			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
 			date: "19 de Setembro, 2026",
 			version: "v1.7.5",
 			image: "/news_1.jpg",
-			summary: "Atualização com inicialização sem congelamento de tela, substituição do ícone Linux pelo mascote oficial Tux o Pinguim, novo Gamer Card 3D e backend de contas resiliente.",
+			summary: "Nova versão trazendo aceleração de hardware nativa no WebKit, clique integral nos cards da biblioteca, novo idioma Espanhol (Español), painel de privacidade completo e capas de modpack dinâmicas.",
 			highlights: [
-				"Inicialização protegida com timeout máximo na tela de splash, garantindo 0 congelamento em tela cinza",
-				"Novo ícone oficial do Linux (Tux o Pinguim) no site e no launcher",
-				"Remoção completa de imagens genéricas/IA de fundo por degradês modernos estilo obsidian",
-				"Sincronização web/launcher com cartão gamer HUD atualizado e status em tempo real",
-				"Correção de tratamento de erros no portal de contas Cloudflare D1"
+				"Composição por GPU ativada com DMA-BUF / EGL sem travamentos ou lag de interface",
+				"Biblioteca responsiva: clique em qualquer lugar do card para abrir a instância",
+				"Novo idioma Espanhol (Español) integrado em toda a interface",
+				"Painel de Privacidade avançado com Modo Streamer e discrição no Discord Rich Presence",
+				"Tratamento automático de capas e banners para todos os modpacks CurseForge e Modrinth",
+				"Adicionar amigo simplificado com auto-busca e salvamento instantâneo"
 			],
 			link: "https://luxmc-r92.pages.dev/#releases"
 		},

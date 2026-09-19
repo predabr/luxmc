@@ -10,7 +10,7 @@
 	let { selectedLanguage, onLanguageChange }: Props = $props();
 
 	function handleChange() {
-		setLocale(selectedLanguage === 'pt-BR' ? 'pt-BR' : 'en');
+		setLocale(selectedLanguage === 'pt-BR' ? 'pt-BR' : selectedLanguage === 'es' ? 'es' : 'en');
 		onLanguageChange(selectedLanguage);
 	}
 </script>
@@ -34,6 +34,7 @@
 		>
 			<option value="pt-BR">Português (Brasil)</option>
 			<option value="en">English (US)</option>
+			<option value="es">Español</option>
 		</select>
 	</div>
 </div>

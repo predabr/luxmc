@@ -294,18 +294,24 @@ pub async fn search_mods(
             let downloads = m.get("downloadCount").and_then(|d| d.as_u64()).unwrap_or(0);
 
             let logo = m.get("logo").and_then(|l| l.as_object());
+            let logo_url = logo
+                .and_then(|l| l.get("url"))
+                .and_then(|u| u.as_str())
+                .map(|s| s.to_string());
             let icon_url = logo
                 .and_then(|l| l.get("thumbnailUrl"))
                 .and_then(|u| u.as_str())
-                .map(|s| s.to_string());
+                .map(|s| s.to_string())
+                .or_else(|| logo_url.clone());
 
             let banner_url = m
                 .get("screenshots")
                 .and_then(|s| s.as_array())
                 .and_then(|arr| arr.first())
-                .and_then(|sc| sc.get("url"))
+                .and_then(|sc| sc.get("url").or_else(|| sc.get("thumbnailUrl")))
                 .and_then(|u| u.as_str())
-                .map(|s| s.to_string());
+                .map(|s| s.to_string())
+                .or_else(|| logo_url);
 
             let author = m
                 .get("authors")

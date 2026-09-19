@@ -2,17 +2,19 @@ import { browser } from "$app/environment";
 import i18next, { type i18n as I18nInstance } from "i18next";
 import en from "./en.json";
 import ptBR from "./pt-BR.json";
+import es from "./es.json";
 
 const resources = {
 	en: { translation: en },
-	"pt-BR": { translation: ptBR }
+	"pt-BR": { translation: ptBR },
+	es: { translation: es }
 } as const;
 
 export type Locale = keyof typeof resources;
 
-export const LOCALES: Locale[] = ["en", "pt-BR"];
+export const LOCALES: Locale[] = ["en", "pt-BR", "es"];
 
-let _locale: "en" | "pt-BR" = "en";
+let _locale: Locale = "en";
 
 let localeListeners: Array<() => void> = [];
 
@@ -33,6 +35,7 @@ export function detectInitialLocale(): Locale {
 	if (stored && stored in resources) return stored;
 	const nav = browser ? navigator.language : "en";
 	if (nav.toLowerCase().startsWith("pt")) return "pt-BR";
+	if (nav.toLowerCase().startsWith("es")) return "es";
 	return "en";
 }
 
@@ -58,7 +61,7 @@ export function setupI18n(initial: Locale = detectInitialLocale()): I18nInstance
 	return i18next;
 }
 
-export function getLocale(): "en" | "pt-BR" {
+export function getLocale(): Locale {
 	return _locale;
 }
 

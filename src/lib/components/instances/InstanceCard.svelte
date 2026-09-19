@@ -106,7 +106,27 @@
     ]);
 </script>
 
-<article class="surface-glass group relative transition-all duration-200 hover:border-brand-500/30 hover:shadow-elevated {viewMode === 'grid' ? 'flex flex-col hover:-translate-y-1' : 'flex flex-wrap items-center gap-4 p-4'}" style:box-shadow={isActive ? "0 0 0 1px rgb(var(--brand-500) / 0.3)" : undefined}>
+<div
+	role="button"
+	tabindex="0"
+	class="surface-glass group relative cursor-pointer transition-all duration-200 hover:border-brand-500/30 hover:shadow-elevated {viewMode === 'grid' ? 'flex flex-col hover:-translate-y-1' : 'flex flex-wrap items-center gap-4 p-4'}"
+	style:box-shadow={isActive ? "0 0 0 1px rgb(var(--brand-500) / 0.3)" : undefined}
+	onclick={(e) => {
+		const target = e.target as HTMLElement | null;
+		if (target?.closest('button, a, input, select, textarea, [role="checkbox"], [role="menu"]')) return;
+		if (selectionMode) onToggleSelect?.(profile.id);
+		else onSelect?.(profile.id);
+	}}
+	onkeydown={(e) => {
+		if (e.key === "Enter" || e.key === " ") {
+			const target = e.target as HTMLElement | null;
+			if (target?.closest('button, a, input, select, textarea, [role="checkbox"], [role="menu"]')) return;
+			e.preventDefault();
+			if (selectionMode) onToggleSelect?.(profile.id);
+			else onSelect?.(profile.id);
+		}
+	}}
+>
     {#if tagColor}<span class="absolute bottom-5 left-0 top-5 w-0.5 rounded-full" style:background={colorOptions.find(color => color.value === tagColor)?.color || 'rgb(var(--brand-500))'}></span>{/if}
     {#if viewMode === 'grid'}
         <div class="relative h-40 overflow-hidden rounded-t-2xl">
@@ -121,7 +141,7 @@
         <img src={getIconSrc(profile.icon)} alt="" class="h-12 w-12 rounded-xl border border-fg/10 bg-bg-subtle p-1 object-cover" />
     {/if}
     <div class={viewMode === 'grid' ? 'flex flex-1 flex-col p-5 pt-1' : 'min-w-32 flex-1'}>
-        <div class="flex items-center gap-2"><h3 class="min-w-0 flex-1 truncate text-base font-semibold text-fg"><button type="button" class="text-left after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-brand-500" onclick={() => selectionMode ? onToggleSelect?.(profile.id) : onSelect?.(profile.id)}>{profile.name}</button></h3>{#if isActive}<span class="shrink-0 rounded-full bg-brand-500/10 px-2 py-1 text-[9px] font-bold text-brand-300">SELECIONADA</span>{/if}</div>
+        <div class="flex items-center gap-2"><h3 class="min-w-0 flex-1 truncate text-base font-semibold text-fg"><button type="button" class="text-left hover:text-brand-400 transition-colors focus-visible:outline-none focus-visible:underline" onclick={() => selectionMode ? onToggleSelect?.(profile.id) : onSelect?.(profile.id)}>{profile.name}</button></h3>{#if isActive}<span class="shrink-0 rounded-full bg-brand-500/10 px-2 py-1 text-[9px] font-bold text-brand-300">SELECIONADA</span>{/if}</div>
         <p class="mt-1 text-xs text-fg-subtle">Minecraft {profile.mcVersion}{#if profile.loaderVersion} · {profile.loaderVersion}{/if}</p>
         {#if profile.notes}<p class="mt-2 line-clamp-1 text-xs text-fg-muted">{profile.notes}</p>{/if}
         {#if viewMode === 'grid'}
@@ -139,7 +159,7 @@
         <div class="hidden sm:block"><LoaderBadge loader={profile.loader} /></div>
         <div class="relative z-10 flex items-center gap-2">{@render controls()}</div>
     {/if}
-</article>
+</div>
 
 {#snippet selection()}
     {#if selectionMode}<button type="button" role="checkbox" aria-checked={isSelected} aria-label={`Selecionar ${profile.name}`} class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/15 bg-bg-elevated text-brand-400" onclick={() => onToggleSelect?.(profile.id)}>{#if isSelected}<Check class="h-4 w-4" />{/if}</button>

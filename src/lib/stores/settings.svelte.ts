@@ -7,7 +7,7 @@ export interface AppSettings {
 	animations: boolean;
 	blur: boolean;
 	sidebarPosition: "left" | "right";
-	language: "en" | "pt-BR";
+	language: "en" | "pt-BR" | "es";
 	accentTheme: AccentTheme;
 	activeProfileId: string | null;
 	javaPath?: string;
@@ -17,6 +17,8 @@ export interface AppSettings {
 	showCrashLogs?: boolean;
 	autoCheckUpdates?: boolean;
 	discordRpc?: boolean;
+	hideDiscordDetails?: boolean;
+	anonymousTelemetry?: boolean;
 	performanceMode?: boolean;
 	customBackground?: string;
 	jvmArgs?: string;

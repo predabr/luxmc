@@ -60,7 +60,7 @@
 		)
 	);
 
-	let currentLang = $state<"pt-BR" | "en">(settings.value.language === "pt-BR" ? "pt-BR" : "en");
+	let currentLang = $state<"pt-BR" | "en" | "es">(settings.value.language === "pt-BR" ? "pt-BR" : settings.value.language === "es" ? "es" : "en");
 
 	let selectedTheme = $state(settings.value.theme || "default-dark");
 	let selectedAccent = $state(settings.value.accentTheme || "emerald");
@@ -96,7 +96,9 @@
 	let postExitCmd = $state("");
 	let gameWrapper = $state(settings.value.gamemode ? "gamemoderun" : "");
 
-	let anonymousTelemetry = $state(true);
+	let streamerMode = $state(settings.value.streamerMode ?? false);
+	let hideDiscordDetails = $state(settings.value.hideDiscordDetails ?? false);
+	let anonymousTelemetry = $state(settings.value.anonymousTelemetry ?? true);
 
 	let runtimePath = $state("~/.local/share/luxmc");
 
@@ -120,7 +122,16 @@
 		schedulePersist();
 	}
 
-	function handleLangChange(lang: "pt-BR" | "en") {
+	function savePrivacy() {
+		settings.patch({
+			streamerMode,
+			hideDiscordDetails,
+			anonymousTelemetry,
+		});
+		schedulePersist();
+	}
+
+	function handleLangChange(lang: "pt-BR" | "en" | "es") {
 		currentLang = lang;
 		setLocale(lang);
 		settings.patch({ language: lang });
@@ -178,7 +189,11 @@
 	}
 
 	async function handleClearCache() {
-		toast("Cache de downloads e instaladores limpo com sucesso!", "success");
+		try {
+			const keys = ["luxmc_cache_mods", "luxmc_cache_search", "luxmc_temp_skins"];
+			for (const k of keys) localStorage.removeItem(k);
+		} catch {}
+		toast(t("settings.cacheCleared") || "Cache limpo com sucesso!", "success");
 	}
 </script>
 
@@ -431,11 +446,11 @@
 				<p class="text-xs text-fg/50 mt-1">{t("settings.languageDesc")}</p>
 			</div>
 
-			<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				<button
 					type="button"
 					onclick={() => handleLangChange("pt-BR")}
-					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-[0.98] text-left {currentLang === 'pt-BR' ? 'border-emerald-500 bg-bg-subtle ring-2 ring-emerald-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-[0.98] text-left {currentLang === 'pt-BR' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
 				>
 					<div class="flex items-center gap-3.5">
 						<span class="text-2xl">🇧🇷</span>
@@ -445,7 +460,7 @@
 						</div>
 					</div>
 					{#if currentLang === "pt-BR"}
-						<div class="w-6 h-6 rounded-full bg-emerald-500 text-brand-foreground flex items-center justify-center shrink-0">
+						<div class="w-6 h-6 rounded-full bg-brand-500 text-brand-foreground flex items-center justify-center shrink-0">
 							<Check class="w-4 h-4 stroke-[3]" />
 						</div>
 					{/if}
@@ -454,7 +469,7 @@
 				<button
 					type="button"
 					onclick={() => handleLangChange("en")}
-					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-[0.98] text-left {currentLang === 'en' ? 'border-emerald-500 bg-bg-subtle ring-2 ring-emerald-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-[0.98] text-left {currentLang === 'en' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
 				>
 					<div class="flex items-center gap-3.5">
 						<span class="text-2xl">🇺🇸</span>
@@ -464,7 +479,26 @@
 						</div>
 					</div>
 					{#if currentLang === "en"}
-						<div class="w-6 h-6 rounded-full bg-emerald-500 text-brand-foreground flex items-center justify-center shrink-0">
+						<div class="w-6 h-6 rounded-full bg-brand-500 text-brand-foreground flex items-center justify-center shrink-0">
+							<Check class="w-4 h-4 stroke-[3]" />
+						</div>
+					{/if}
+				</button>
+
+				<button
+					type="button"
+					onclick={() => handleLangChange("es")}
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-[0.98] text-left {currentLang === 'es' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+				>
+					<div class="flex items-center gap-3.5">
+						<span class="text-2xl">🇪🇸</span>
+						<div>
+							<div class="text-sm font-bold text-fg">Español</div>
+							<div class="text-[11px] text-fg/40">Comunidad hispanohablante</div>
+						</div>
+					</div>
+					{#if currentLang === "es"}
+						<div class="w-6 h-6 rounded-full bg-brand-500 text-brand-foreground flex items-center justify-center shrink-0">
 							<Check class="w-4 h-4 stroke-[3]" />
 						</div>
 					{/if}
@@ -686,10 +720,50 @@
 
 	{:else if activeTab === "privacy"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.tabs.privacy")}</h2>
+			<div>
+				<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.tabs.privacy")}</h2>
+				<p class="text-xs text-fg/50 mt-1">Gerencie a visibilidade dos seus dados, modo de transmissão e telemetria</p>
+			</div>
 
 			<div class="bg-bg-elevated border border-fg/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
 				
+				<div class="flex items-center justify-between py-5 gap-6">
+					<div class="space-y-1 max-w-xl">
+						<div class="flex items-center gap-2">
+							<ShieldCheck class="w-4 h-4 text-brand-400" />
+							<h3 class="text-sm font-bold text-fg">{t("settings.streamerModeTitle")}</h3>
+						</div>
+						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.streamerModeDesc")}</p>
+					</div>
+					<button
+						type="button"
+						role="switch"
+						aria-checked={streamerMode}
+						aria-label="Alternar Modo Streamer"
+						onclick={() => { streamerMode = !streamerMode; savePrivacy(); }}
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {streamerMode ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+					>
+						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {streamerMode ? 'translate-x-6' : ''}"></span>
+					</button>
+				</div>
+
+				<div class="flex items-center justify-between py-5 gap-6">
+					<div class="space-y-1 max-w-xl">
+						<h3 class="text-sm font-bold text-fg">{t("settings.discordPrivacyTitle")}</h3>
+						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.discordPrivacyDesc")}</p>
+					</div>
+					<button
+						type="button"
+						role="switch"
+						aria-checked={hideDiscordDetails}
+						aria-label="Alternar Ocultar Detalhes do Discord"
+						onclick={() => { hideDiscordDetails = !hideDiscordDetails; savePrivacy(); }}
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {hideDiscordDetails ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+					>
+						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {hideDiscordDetails ? 'translate-x-6' : ''}"></span>
+					</button>
+				</div>
+
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
 						<h3 class="text-sm font-bold text-fg">{t("settings.telemetryTitle")}</h3>
@@ -697,11 +771,13 @@
 					</div>
 					<button
 						type="button"
-						aria-label="Toggle Crash Diagnostics"
-						onclick={() => anonymousTelemetry = !anonymousTelemetry}
-						class="w-12 h-6 rounded-full transition-colors relative cursor-pointer {anonymousTelemetry ? 'bg-blue-600' : 'bg-fg/15'}"
+						role="switch"
+						aria-checked={anonymousTelemetry}
+						aria-label="Alternar Telemetria Anônima"
+						onclick={() => { anonymousTelemetry = !anonymousTelemetry; savePrivacy(); }}
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {anonymousTelemetry ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
 					>
-						<span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-fg transition-transform {anonymousTelemetry ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {anonymousTelemetry ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -713,9 +789,10 @@
 					<button
 						type="button"
 						onclick={handleClearCache}
-						class="px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-all cursor-pointer"
+						class="px-5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-all cursor-pointer shadow-sm active:scale-[0.98] flex items-center gap-2"
 					>
-						{t("settings.clearCache")}
+						<Trash2 class="w-3.5 h-3.5" />
+						<span>{t("settings.clearCache")}</span>
 					</button>
 				</div>
 
