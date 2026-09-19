@@ -187,7 +187,7 @@ pub async fn auth_refresh(
     auth_refresh_core(&state, refreshToken).await
 }
 
-async fn set_active_account_id(account_id: &str) -> AppResult<()> {
+pub(crate) async fn set_active_account_id(account_id: &str) -> AppResult<()> {
     let conn = crate::db::shared_db().await?;
     use sqlx::Row;
 
@@ -231,6 +231,7 @@ pub async fn auth_switch_account(
     let row = crate::db::schema::accounts::get_by_uuid(&db, &uuid)
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Account with uuid {} not found", uuid)))?;
+    if row.id.starts_with("luxmc:") { super::lux_account::lux_account_sync(row.id.clone(), None, None).await?; }
     let _ = crate::db::schema::accounts::touch_account(&db, &row.id).await;
     let _ = set_active_account_id(&row.id).await;
     Ok(AuthAccount {
@@ -389,12 +390,6 @@ pub async fn auth_change_skin(
 
     let norm_variant = if variant == "slim" || variant == "alex" { "slim" } else { "classic" };
 
-    let mut updated = account.clone();
-    updated.skin_url = Some(skin_url.clone());
-    updated.skin_variant = Some(norm_variant.to_string());
-    updated.updated_at = chrono::Utc::now();
-    crate::db::schema::accounts::upsert(&db, &updated).await?;
-
     let token_str = account.access_token.as_deref().unwrap_or("");
     let is_real_msa = !token_str.is_empty()
         && !token_str.starts_with("offline")
@@ -403,27 +398,18 @@ pub async fn auth_change_skin(
         && token_str.len() > 100;
 
     if is_real_msa {
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(35)).build()?;
         if skin_url.starts_with("http://") || skin_url.starts_with("https://") {
             let body = serde_json::json!({
                 "variant": norm_variant,
                 "url": skin_url
             });
 
-            let res = client
+            client
                 .post("https://api.minecraftservices.com/minecraft/profile/skins")
                 .bearer_auth(token_str)
                 .json(&body)
-                .send()
-                .await;
-
-            if let Ok(resp) = res {
-                if !resp.status().is_success() {
-                    let status = resp.status();
-                    let err_text = resp.text().await.unwrap_or_default();
-                    tracing::warn!(status = %status, err = %err_text, "Failed to sync skin URL with Mojang API");
-                }
-            }
+                .send().await?.error_for_status()?;
         } else {
             let skin_bytes: Vec<u8> = if skin_url.starts_with("data:image/") {
                 if let Some(comma_pos) = skin_url.find(',') {
@@ -448,23 +434,23 @@ pub async fn auth_change_skin(
                     .text("variant", norm_variant.to_string())
                     .part("file", part);
 
-                let res = client
+                client
                     .post("https://api.minecraftservices.com/minecraft/profile/skins")
                     .bearer_auth(token_str)
                     .multipart(form)
-                    .send()
-                    .await;
-
-                if let Ok(resp) = res {
-                    if !resp.status().is_success() {
-                        let status = resp.status();
-                        let err_text = resp.text().await.unwrap_or_default();
-                        tracing::warn!(status = %status, err = %err_text, "Failed to sync multipart skin with Mojang API");
-                    }
-                }
+                    .send().await?.error_for_status()?;
+            } else {
+                return Err(AppError::InvalidInput("Arquivo de skin PNG inválido".into()));
             }
         }
     }
+
+    let mut updated = account.clone();
+    updated.skin_url = Some(skin_url.clone());
+    updated.skin_variant = Some(norm_variant.to_string());
+    updated.updated_at = chrono::Utc::now();
+    crate::db::schema::accounts::upsert(&db, &updated).await?;
+
 
     Ok(())
 }

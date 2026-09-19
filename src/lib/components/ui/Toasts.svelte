@@ -32,11 +32,11 @@
 	function color(level: Toast["level"]) {
 		switch (level) {
 			case "success":
-				return { color: "rgb(74, 222, 128)", Icon: CheckCircle2 };
+				return { color: "rgb(var(--success))", Icon: CheckCircle2 };
 			case "error":
-				return { color: "rgb(248, 113, 113)", Icon: AlertCircle };
+				return { color: "rgb(var(--danger))", Icon: AlertCircle };
 			case "warning":
-				return { color: "rgb(250, 204, 21)", Icon: AlertCircle };
+				return { color: "rgb(var(--warning))", Icon: AlertCircle };
 			default:
 				return { color: "rgb(94, 214, 198)", Icon: Info };
 		}
@@ -75,7 +75,7 @@
 			<p class="flex-1">{toastItem.message}</p>
 			<button
 				type="button"
-				class="grid h-5 w-5 place-items-center rounded transition-colors hover:bg-white/5"
+				class="grid h-5 w-5 place-items-center rounded transition-colors hover:bg-fg/5"
 				style="color: rgb(var(--fg-subtle));"
 				onclick={() => dismiss(toastItem.id)}
 				aria-label={t("common.close")}

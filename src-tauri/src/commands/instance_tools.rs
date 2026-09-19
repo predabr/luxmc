@@ -490,7 +490,6 @@ pub async fn instance_restore_saves(
     profileId: String,
     zipPath: String,
 ) -> AppResult<String> {
-    use std::io::Read;
     let conn = db::shared_db().await?;
     let row: crate::db::models::ProfileRow = sqlx::query_as("SELECT * FROM profiles WHERE id = ?")
         .bind(&profileId)
@@ -505,9 +504,14 @@ pub async fn instance_restore_saves(
     let mut archive = zip::ZipArchive::new(file)
         .map_err(|e| AppError::InvalidState(format!("invalid zip: {e}")))?;
 
+    let mut extracted_size = 0u64;
     for i in 0..archive.len() {
         let mut entry = archive.by_index(i)?;
-        let raw_name = entry.name().to_string();
+        let raw_name = entry.name().replace('\\', "/");
+        extracted_size = extracted_size.saturating_add(entry.size());
+        if entry.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 || entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
+            return Err(AppError::InvalidInput("Arquivo de backup inseguro ou grande demais".into()));
+        }
         let stripped = raw_name
             .strip_prefix("saves/")
             .or_else(|| Some(raw_name.as_str()))
@@ -515,16 +519,15 @@ pub async fn instance_restore_saves(
         if stripped.is_empty() {
             continue;
         }
-        let out_path = saves_dir.join(stripped);
+        let out_path = crate::core::mods::pack_download::destination(&saves_dir, stripped)?;
         if entry.is_dir() {
             std::fs::create_dir_all(&out_path)?;
         } else {
             if let Some(parent) = out_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            let mut buffer = Vec::new();
-            entry.read_to_end(&mut buffer)?;
-            std::fs::write(&out_path, &buffer)?;
+            let mut output = std::fs::File::create(&out_path)?;
+            std::io::copy(&mut entry, &mut output)?;
         }
     }
 

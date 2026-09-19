@@ -241,8 +241,8 @@ function stopSoundscapeImmediate() {
 	}
 	soundscapeBaseNodes.forEach((node) => {
 		try {
-			if ("stop" in node && typeof (node as any).stop === "function") {
-				(node as any).stop();
+			if ("stop" in node && typeof node.stop === "function") {
+				node.stop();
 			}
 			disconnectNode(node);
 		} catch {}

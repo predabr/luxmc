@@ -51,7 +51,7 @@
 	type ModuleDef = {
 		key: keyof ClientModsConfig;
 		name: string;
-		icon: any;
+		icon: typeof import("lucide-svelte").Circle;
 		category: "hud" | "visual" | "combat" | "utility";
 		desc?: string;
 	};
@@ -142,7 +142,7 @@
 
 {#if clientMods.isMenuOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 select-none"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md p-4 select-none"
 		transition:fade={{ duration: 150 }}
 		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
 		onkeydown={(e) => { if (e.key === "Escape") handleClose(); }}
@@ -151,14 +151,14 @@
 		tabindex="-1"
 	>
 		<div
-			class="relative flex w-full max-w-5xl h-[680px] max-h-[92vh] rounded-3xl bg-[#0c0d10]/95 border border-white/10 shadow-2xl shadow-black/90 overflow-hidden"
+			class="relative flex w-full max-w-5xl h-[680px] max-h-[92vh] rounded-3xl bg-bg/95 border border-fg/10 shadow-2xl shadow-black/90 overflow-hidden"
 			transition:scale={{ duration: 180, start: 0.96 }}
 		>
-			<div class="flex flex-col items-center justify-between w-16 py-6 border-r border-white/5 bg-[#090a0d]">
+			<div class="flex flex-col items-center justify-between w-16 py-6 border-r border-fg/5 bg-bg">
 				<div class="flex flex-col items-center gap-6">
 					<button
 						onclick={handleClose}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors"
 						aria-label="Fechar"
 						title="Fechar"
 					>
@@ -167,7 +167,7 @@
 
 					<button
 						onclick={() => { activeSection = "all"; }}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'all' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'all' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
 						title="Todos os Módulos"
 					>
 						<Home class="w-5 h-5" />
@@ -175,7 +175,7 @@
 
 					<button
 						onclick={() => { activeSection = "hud"; }}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'hud' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'hud' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
 						title="Módulos de HUD"
 					>
 						<PenTool class="w-5 h-5" />
@@ -183,7 +183,7 @@
 
 					<button
 						onclick={() => { activeSection = "visual"; }}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'visual' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'visual' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
 						title="Visual & Animações"
 					>
 						<Eye class="w-5 h-5" />
@@ -191,7 +191,7 @@
 
 					<button
 						onclick={() => { activeSection = "combat"; }}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'combat' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-white/50 hover:text-white hover:bg-white/10'}"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'combat' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
 						title="Combate & PvP"
 					>
 						<Shield class="w-5 h-5" />
@@ -201,14 +201,14 @@
 				<div class="flex flex-col items-center gap-4">
 					<button
 						onclick={handleReset}
-						class="w-9 h-9 rounded-xl flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"
+						class="w-9 h-9 rounded-xl flex items-center justify-center text-fg/40 hover:text-fg hover:bg-fg/10 transition-colors"
 						title="Restaurar padrões"
 					>
 						<RotateCcw class="w-4 h-4" />
 					</button>
 
 					<div
-						class="w-9 h-9 rounded-xl flex items-center justify-center text-white/30"
+						class="w-9 h-9 rounded-xl flex items-center justify-center text-fg/30"
 						title="No Minecraft, este menu abre com Shift Direito"
 					>
 						<Info class="w-4 h-4" />
@@ -217,27 +217,27 @@
 			</div>
 
 			<div class="flex flex-1 flex-col overflow-hidden">
-				<div class="flex items-center justify-between px-8 py-4 border-b border-white/5 bg-[#0e1014]">
+				<div class="flex items-center justify-between px-8 py-4 border-b border-fg/5 bg-bg-elevated">
 					<div class="flex items-center gap-3">
 						<span class="text-xs font-bold uppercase tracking-widest text-emerald-400">Luxmc Client</span>
-						<span class="text-white/20">/</span>
-						<span class="text-xs text-white/60">
+						<span class="text-fg/20">/</span>
+						<span class="text-xs text-fg/60">
 							{filteredModules.length} {filteredModules.length === 1 ? 'módulo' : 'módulos'}
 						</span>
 					</div>
 
 					<div class="relative w-72">
-						<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+						<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40" />
 						<input
 							type="text"
 							bind:value={searchQuery}
 							placeholder="Search..."
-							class="w-full pl-10 pr-4 py-2 rounded-2xl bg-white/5 border border-white/10 text-sm text-white placeholder-white/40 focus:outline-none focus:border-emerald-400/50 transition-colors"
+							class="w-full pl-10 pr-4 py-2 rounded-2xl bg-fg/5 border border-fg/10 text-sm text-fg placeholder-fg/40 focus:outline-none focus:border-emerald-400/50 transition-colors"
 						/>
 						{#if searchQuery}
 							<button
 								onclick={() => searchQuery = ""}
-								class="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+								class="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg"
 							>
 								<X class="w-3.5 h-3.5" />
 							</button>
@@ -250,7 +250,7 @@
 						{#each filteredModules as mod (mod.key)}
 							{@const isActive = !!clientMods.config[mod.key]}
 							<div
-								class="group relative flex items-center justify-between px-4 py-3 rounded-2xl border transition-all duration-200 cursor-pointer select-none {isActive ? 'border-white/70 bg-white/[0.07] shadow-lg shadow-black/40' : 'border-white/10 bg-[#121317]/60 hover:border-white/25 hover:bg-white/[0.03]'}"
+								class="group relative flex items-center justify-between px-4 py-3 rounded-2xl border transition-all duration-200 cursor-pointer select-none {isActive ? 'border-fg/70 bg-fg/[0.07] shadow-lg shadow-black/40' : 'border-fg/10 bg-bg-elevated/60 hover:border-fg/25 hover:bg-fg/[0.03]'}"
 								onclick={() => handleToggle(mod.key)}
 								role="button"
 								tabindex="0"
@@ -258,20 +258,20 @@
 							>
 								<!-- Left: Icon + Separator + Label -->
 								<div class="flex items-center gap-3 min-w-0">
-									<div class="flex items-center justify-center w-6 h-6 shrink-0 {isActive ? 'text-white' : 'text-white/50 group-hover:text-white/80'}">
+									<div class="flex items-center justify-center w-6 h-6 shrink-0 {isActive ? 'text-fg' : 'text-fg/50 group-hover:text-fg/80'}">
 										<mod.icon class="w-5 h-5" strokeWidth={1.8} />
 									</div>
 
-									<div class="h-4 w-px bg-white/15 shrink-0"></div>
+									<div class="h-4 w-px bg-fg/15 shrink-0"></div>
 
-									<span class="text-sm font-medium truncate {isActive ? 'text-white font-semibold' : 'text-white/70 group-hover:text-white'}">
+									<span class="text-sm font-medium truncate {isActive ? 'text-fg font-semibold' : 'text-fg/70 group-hover:text-fg'}">
 										{mod.name}
 									</span>
 								</div>
 
 								<!-- Right: Settings Cog -->
 								<div class="flex items-center gap-1.5 shrink-0 pl-2">
-									<div class="w-6 h-6 rounded-lg flex items-center justify-center text-white/30 group-hover:text-white/70 hover:!text-emerald-400 transition-colors">
+									<div class="w-6 h-6 rounded-lg flex items-center justify-center text-fg/30 group-hover:text-fg/70 hover:!text-emerald-400 transition-colors">
 										<Settings class="w-3.5 h-3.5" />
 									</div>
 								</div>
@@ -281,18 +281,18 @@
 
 					{#if filteredModules.length === 0}
 						<div class="flex flex-col items-center justify-center h-64 text-center">
-							<Search class="w-10 h-10 text-white/20 mb-3" />
-							<p class="text-white/60 font-medium">Nenhum módulo encontrado</p>
-							<p class="text-xs text-white/40 mt-1">Tente pesquisar por outro termo como "FPS", "Armor" ou "Zoom"</p>
+							<Search class="w-10 h-10 text-fg/20 mb-3" />
+							<p class="text-fg/60 font-medium">Nenhum módulo encontrado</p>
+							<p class="text-xs text-fg/40 mt-1">Tente pesquisar por outro termo como "FPS", "Armor" ou "Zoom"</p>
 						</div>
 					{/if}
 				</div>
 
 				<!-- Bottom Status Bar -->
-				<div class="flex items-center justify-between px-8 py-3.5 border-t border-white/5 bg-[#090a0d] text-xs text-white/40">
+				<div class="flex items-center justify-between px-8 py-3.5 border-t border-fg/5 bg-bg text-xs text-fg/40">
 					<div class="flex items-center gap-2">
 						<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-						<span>No Minecraft, este menu abre in-game pressionando <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-white font-mono text-[10px]">Shift Direito</kbd></span>
+						<span>No Minecraft, este menu abre in-game pressionando <kbd class="px-1.5 py-0.5 rounded bg-fg/10 text-fg font-mono text-[10px]">Shift Direito</kbd></span>
 					</div>
 
 					<div class="flex items-center gap-4">

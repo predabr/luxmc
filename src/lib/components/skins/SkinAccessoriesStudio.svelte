@@ -22,7 +22,7 @@
 		name: string;
 		category: string;
 		desc: string;
-		icon: any;
+		icon: typeof import("lucide-svelte").Circle;
 		badge: string;
 		color: string;
 	};
@@ -181,13 +181,13 @@
 </script>
 
 <div class="space-y-4">
-	<div class="flex items-center justify-between border-b border-white/5 pb-3">
+	<div class="flex items-center justify-between border-b border-fg/5 pb-3">
 		<div>
-			<h3 class="text-xs font-black text-white uppercase tracking-wider flex items-center gap-2">
+			<h3 class="text-xs font-black text-fg uppercase tracking-wider flex items-center gap-2">
 				<Sparkles class="w-3.5 h-3.5 text-brand-400" />
 				Estúdio de Acessórios 3D
 			</h3>
-			<p class="text-[11px] text-white/40 mt-0.5">
+			<p class="text-[11px] text-fg/40 mt-0.5">
 				Estampe acessórios visuais diretamente na 2ª camada da sua skin sem precisar de softwares de edição
 			</p>
 		</div>
@@ -196,7 +196,7 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
 		{#each accessories as acc}
 			{@const Icon = acc.icon}
-			<div class="p-4 rounded-2xl bg-[#18191c] border border-white/5 hover:border-white/15 transition-all flex flex-col justify-between group shadow-sm">
+			<div class="p-4 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-all flex flex-col justify-between group shadow-sm">
 				<div class="space-y-2">
 					<div class="flex items-center justify-between">
 						<div class="w-9 h-9 rounded-xl flex items-center justify-center {acc.color} shadow-sm">
@@ -208,14 +208,14 @@
 					</div>
 
 					<div>
-						<h4 class="text-xs font-bold text-white group-hover:text-amber-300 transition-colors">{acc.name}</h4>
-						<p class="text-[10px] text-white/40 leading-relaxed mt-1">{acc.desc}</p>
+						<h4 class="text-xs font-bold text-fg group-hover:text-amber-300 transition-colors">{acc.name}</h4>
+						<p class="text-[10px] text-fg/40 leading-relaxed mt-1">{acc.desc}</p>
 					</div>
 				</div>
 
 				<button
 					type="button"
-					class="mt-4 w-full py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 {selectedAccessory === acc.id ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10'}"
+					class="mt-4 w-full py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] {selectedAccessory === acc.id ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10'}"
 					onclick={() => applyAccessory(acc)}
 					disabled={isApplying}
 				>

@@ -292,3 +292,20 @@ pub async fn capes_delete(id: String) -> AppResult<()> {
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn minecraft_uuid(username: String) -> AppResult<Option<String>> {
+    if username.is_empty() || username.len() > 16 || !username.bytes().all(|value| value.is_ascii_alphanumeric() || value == b'_') {
+        return Err(AppError::InvalidInput("Nickname inválido".into()));
+    }
+    let response = reqwest::Client::new()
+        .get(format!("https://api.mojang.com/users/profiles/minecraft/{username}"))
+        .timeout(std::time::Duration::from_secs(8)).send().await?;
+    if response.status() == reqwest::StatusCode::NOT_FOUND || response.status() == reqwest::StatusCode::NO_CONTENT {
+        return Ok(None);
+    }
+    #[derive(Deserialize)]
+    struct Identity { id: String }
+    let identity = response.error_for_status()?.json::<Identity>().await?;
+    Ok(uuid::Uuid::parse_str(&identity.id).ok().map(|value| value.simple().to_string()))
+}

@@ -64,23 +64,23 @@
 </script>
 
 {#if isOpen && conflictsResult && conflictsResult.hasConflicts}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none" in:fade={{ duration: 150 }}>
-		<div class="w-full max-w-lg rounded-3xl bg-[#141518] border border-rose-500/30 p-6 shadow-2xl space-y-5" in:scale={{ start: 0.95, duration: 200 }}>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/85 backdrop-blur-md select-none" in:fade={{ duration: 150 }}>
+		<div class="w-full max-w-lg rounded-3xl bg-bg-elevated border border-rose-500/30 p-6 shadow-2xl space-y-5" in:scale={{ start: 0.95, duration: 200 }}>
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-white/10 pb-4">
+			<div class="flex items-center justify-between border-b border-fg/10 pb-4">
 				<div class="flex items-center gap-3">
 					<div class="w-11 h-11 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
 						<ShieldAlert class="w-6 h-6" />
 					</div>
 					<div>
-						<h3 class="text-base font-black text-white">Incompatibilidade Detectada!</h3>
+						<h3 class="text-base font-black text-fg">Incompatibilidade Detectada!</h3>
 						<p class="text-xs text-rose-300/80">Evite que o jogo feche antes de abrir</p>
 					</div>
 				</div>
 
 				<button
 					type="button"
-					class="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+					class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
 					onclick={onClose}
 				>
 					<X class="w-5 h-5" />
@@ -88,24 +88,24 @@
 			</div>
 
 			<!-- Description -->
-			<p class="text-xs text-white/60 leading-relaxed">
+			<p class="text-xs text-fg/60 leading-relaxed">
 				O Luxmc analisou seus mods e encontrou conflitos conhecidos que causam travamentos imediatos na inicialização do Minecraft. Recomendamos desativar o mod conflitante:
 			</p>
 
 			<!-- Conflicts List -->
 			<div class="space-y-3 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
 				{#each conflictsResult.conflicts as c}
-					<div class="p-4 rounded-2xl bg-[#18191c] border border-rose-500/20 space-y-2.5">
+					<div class="p-4 rounded-2xl bg-bg-elevated border border-rose-500/20 space-y-2.5">
 						<div class="flex items-center justify-between">
 							<span class="text-xs font-black text-rose-300">{c.title}</span>
-							<span class="text-[10px] font-mono text-white/40 bg-white/5 px-2 py-0.5 rounded">Crash Crítico</span>
+							<span class="text-[10px] font-mono text-fg/40 bg-fg/5 px-2 py-0.5 rounded">Crash Crítico</span>
 						</div>
-						<p class="text-[11px] text-white/50 leading-relaxed">{c.description}</p>
+						<p class="text-[11px] text-fg/50 leading-relaxed">{c.description}</p>
 						<div class="flex items-center justify-between pt-1">
 							<span class="text-[10px] font-bold text-emerald-400">{c.recommendedAction}</span>
 							<button
 								type="button"
-								class="px-4 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-sm"
+								class="px-4 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] shadow-sm"
 								onclick={() => handleFixConflict(c)}
 								disabled={resolving}
 							>
@@ -124,10 +124,10 @@
 			</div>
 
 			<!-- Actions -->
-			<div class="flex items-center justify-between pt-2 border-t border-white/10">
+			<div class="flex items-center justify-between pt-2 border-t border-fg/10">
 				<button
 					type="button"
-					class="text-xs text-white/40 hover:text-white transition-colors cursor-pointer hover:underline"
+					class="text-xs text-fg/40 hover:text-fg transition-colors cursor-pointer hover:underline"
 					onclick={onProceedAnyway}
 				>
 					Ignorar e Iniciar Mesmo Assim
@@ -135,7 +135,7 @@
 
 				<button
 					type="button"
-					class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-black font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-95"
+					class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-brand-foreground font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-[0.98]"
 					onclick={handleFixAll}
 					disabled={resolving}
 				>

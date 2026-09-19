@@ -52,6 +52,7 @@ pub fn set_cached_key(key: String) {
     *guard = Some((key, Instant::now()));
 }
 
+
 pub const DEFAULT_CURSEFORGE_KEY: &str = "$2a$10$ZAl3a4/dJg9zsqJ2FJ.S/O0eEnOCDlPfAH81irnXt9GwXIsELgPuq";
 
 fn clear_cached_key() {
@@ -124,6 +125,7 @@ pub fn api_key() -> Option<String> {
         }
     }
 
+
     if let Some(env_val) = option_env!("CURSEFORGE_API_KEY") {
         let trimmed = env_val.trim().to_string();
         if is_valid_curseforge_key(&trimmed) {
@@ -149,9 +151,7 @@ pub fn store_key(key: &str) -> Result<(), String> {
             MIN_KEY_LENGTH, MAX_KEY_LENGTH
         ));
     }
-    if let Ok(entry) = keyring_entry() {
-        let _ = entry.set_password(trimmed);
-    }
+    keyring_entry()?.set_password(trimmed).map_err(|error| format!("Não foi possível salvar a chave no keyring: {error}"))?;
     set_cached_key(trimmed.to_string());
     Ok(())
 }
@@ -889,6 +889,10 @@ pub struct CurseForgeFileInfo {
     pub mod_id: u64,
     pub file_name: String,
     pub download_url: Option<String>,
+    #[serde(default)]
+    pub size: Option<u64>,
+    #[serde(default)]
+    pub sha1: Option<String>,
 }
 
 pub async fn get_files_batch(
@@ -927,6 +931,8 @@ pub async fn get_files_batch(
                                         mod_id,
                                         file_name,
                                         download_url,
+                                        size: item.get("fileLength").and_then(|v| v.as_u64()),
+                                        sha1: item.get("hashes").and_then(|v| v.as_array()).and_then(|hashes| hashes.iter().find(|h| h.get("algo").and_then(|v| v.as_u64()) == Some(1))).and_then(|h| h.get("value")).and_then(|v| v.as_str()).map(str::to_owned),
                                     });
                                 }
                             }
@@ -968,6 +974,8 @@ pub async fn get_files_batch(
                                         mod_id,
                                         file_name,
                                         download_url,
+                                        size: item.get("fileLength").and_then(|v| v.as_u64()),
+                                        sha1: item.get("hashes").and_then(|v| v.as_array()).and_then(|hashes| hashes.iter().find(|h| h.get("algo").and_then(|v| v.as_u64()) == Some(1))).and_then(|h| h.get("value")).and_then(|v| v.as_str()).map(str::to_owned),
                                     });
                                 }
                             }

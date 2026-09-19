@@ -2,7 +2,7 @@
 	interface Props {
 		label: string;
 		value: string | number;
-		icon?: any;
+		icon?: typeof import("lucide-svelte").Circle;
 		highlight?: boolean;
 		trend?: 'up' | 'down' | 'stable';
 		change?: string;

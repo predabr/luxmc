@@ -91,7 +91,7 @@
 
       <!-- Right: Skin, NameMC & Cape Controls -->
       <div class="skin-config-card spotlight-card">
-        <h3 style="font-size: 1.35rem; font-weight: 850; color: #fff; margin-bottom: 20px;">
+        <h3 style="font-size: 1.35rem; font-weight: 850; color: var(--text-main); margin-bottom: 20px;">
           Configurações da Skin
         </h3>
 
@@ -133,7 +133,7 @@
             <label id="labelModelClassic" class="model-radio-label selected">
               <input type="radio" name="skinModel" value="classic" checked onchange="changeModel('classic')" style="display: none;">
               <div>
-                <div style="font-weight: 750; color: #fff;">Classic (Steve)</div>
+                <div style="font-weight: 750; color: var(--text-main);">Classic (Steve)</div>
                 <div style="font-size: 0.75rem; color: var(--text-muted);">Braços normais com 4 pixels</div>
               </div>
             </label>
@@ -141,7 +141,7 @@
             <label id="labelModelSlim" class="model-radio-label">
               <input type="radio" name="skinModel" value="slim" onchange="changeModel('slim')" style="display: none;">
               <div>
-                <div style="font-weight: 750; color: #fff;">Slim (Alex)</div>
+                <div style="font-weight: 750; color: var(--text-main);">Slim (Alex)</div>
                 <div style="font-size: 0.75rem; color: var(--text-muted);">Braços finos com 3 pixels</div>
               </div>
             </label>
@@ -153,7 +153,7 @@
           <label class="form-label">Enviar Arquivo de Skin PNG (.png)</label>
           <div class="upload-dropzone" onclick="document.getElementById('skinFileInput').click()">
             <div style="font-size: 1.6rem; margin-bottom: 6px;">📁</div>
-            <div style="font-size: 0.88rem; font-weight: 600; color: #fff; margin-bottom: 2px;">
+            <div style="font-size: 0.88rem; font-weight: 600; color: var(--text-main); margin-bottom: 2px;">
               Clique ou arraste seu arquivo .png
             </div>
             <div style="font-size: 0.76rem; color: var(--text-muted);">
@@ -183,15 +183,15 @@
           </button>
           <button type="button" class="btn-secondary" onclick="saveToLauncher()" style="padding: 12px 18px;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            Salvar no Perfil
+            Usar no Launcher
           </button>
         </div>
 
         <!-- Integration Help Card -->
         <div style="margin-top: 24px; padding: 18px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
-          <strong style="color: #fff; display: block; margin-bottom: 6px;">Como jogar com essa skin no Luxmc Launcher:</strong>
-          1. Se você joga no <strong>Modo Offline</strong>, basta colocar exatamente o mesmo nickname no launcher. A skin carrega direto pelo nosso backend.<br>
-          2. Se você tem <strong>Conta Microsoft</strong>, baixe o arquivo .png pelo botão acima e adicione no portal minecraft.net ou selecione na aba de Skins do Luxmc.
+          <strong style="color: var(--text-main); display: block; margin-bottom: 6px;">Como jogar com essa skin no Luxmc Launcher:</strong>
+          1. Clique em <strong>Usar no Launcher</strong> para abrir esta textura na aba Skins do Luxmc.<br>
+          2. Confira o modelo e aplique à sua conta Microsoft ou Offline. Para arquivos locais, baixe o PNG e importe no launcher.
         </div>
       </div>
 
@@ -224,7 +224,15 @@
     };
 
     window.addEventListener("DOMContentLoaded", () => {
-      init3DSkinViewer();
+      try { init3DSkinViewer(); } catch { showToast("Visualização 3D indisponível. Você ainda pode escolher e enviar sua skin."); }
+      const params = new URLSearchParams(location.search);
+      const nick = params.get("nick");
+      if (nick && /^[a-zA-Z0-9_]{1,16}$/.test(nick)) {
+        document.getElementById("playerNickInput").value = nick;
+        loadSkinByNick();
+      }
+      const model = params.get("model");
+      if (model) changeModel(model === "alex" || model === "slim" ? "slim" : "classic");
     });
 
     function init3DSkinViewer() {
@@ -245,7 +253,7 @@
       skinViewer.camera.position.y = 15;
       skinViewer.camera.position.z = 45;
 
-      const control = skinview3d.createOrbitControls(skinViewer);
+      const control = skinViewer.controls;
       control.enableRotate = true;
       control.enableZoom = true;
       control.enablePan = false;
@@ -282,9 +290,9 @@
         const el = document.getElementById(id);
         if (el) {
           if (id === btnId) {
-            el.style.borderColor = "#ffffff";
-            el.style.background = "#ffffff";
-            el.style.color = "#000000";
+            el.style.borderColor = "var(--text-main)";
+            el.style.background = "var(--text-main)";
+            el.style.color = "var(--bg-base)";
           } else {
             el.style.borderColor = "";
             el.style.background = "";
@@ -322,6 +330,8 @@
 
     function changeModel(model) {
       const isSlim = model === "slim";
+      const radio = document.querySelector(`input[name="skinModel"][value="${isSlim ? "slim" : "classic"}"]`);
+      if (radio) radio.checked = true;
       document.getElementById("labelModelClassic").classList.toggle("selected", !isSlim);
       document.getElementById("labelModelSlim").classList.toggle("selected", isSlim);
       const badge = document.getElementById("currentModelBadge");
@@ -364,18 +374,12 @@
     }
 
     function saveToLauncher() {
-      const nick = document.getElementById("playerNickInput")?.value.trim() || "Steve";
       const model = document.querySelector('input[name="skinModel"]:checked')?.value || "classic";
-      
-      const payload = {
-        nick: nick,
-        model: model,
-        skinUrl: currentSkinUrl,
-        cape: currentCapeKey,
-        updatedAt: new Date().toISOString()
-      };
-      localStorage.setItem("luxmc_active_skin", JSON.stringify(payload));
-      showToast(`Skin salva para o jogador "${nick}"! Basta entrar com este nickname no Luxmc.`);
+      if (!currentSkinUrl.startsWith("https://")) {
+        showToast("Para uma skin enviada do computador, baixe o PNG e use Importar no Studio do launcher.");
+        return;
+      }
+      openLuxmc(`luxmc://skin/apply?${new URLSearchParams({ url: currentSkinUrl, model })}`);
     }
 
     function downloadCurrentSkin() {

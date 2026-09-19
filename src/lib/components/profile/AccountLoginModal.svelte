@@ -1,4 +1,5 @@
 <script lang="ts">
+    import LuxAccountForm from "./LuxAccountForm.svelte";
 	import { fade, scale } from "svelte/transition";
 	import { 
 		User, 
@@ -24,7 +25,7 @@
 		onAccountAdded?: (acc: AuthAccount) => void;
 	} = $props();
 
-	let tab = $state<"offline" | "microsoft">("offline");
+	let tab = $state<"luxmc" | "offline" | "microsoft">("luxmc");
 	let offlineUsername = $state("");
 	let isLoggingIn = $state(false);
 	let errorMsg = $state<string | null>(null);
@@ -109,7 +110,7 @@
 {#if isOpen}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div 
-		class="fixed inset-0 z-[10001] flex items-center justify-center bg-black/75 backdrop-blur-md p-4 select-none"
+		class="fixed inset-0 z-[10001] flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md p-4 select-none"
 		in:fade={{ duration: 150 }}
 		out:fade={{ duration: 120 }}
 		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
@@ -118,24 +119,24 @@
 		tabindex="-1"
 	>
 		<div 
-			class="w-full max-w-md rounded-3xl bg-[#141518] border border-white/10 shadow-2xl overflow-hidden flex flex-col"
+			class="w-full max-w-md rounded-3xl bg-bg-elevated border border-fg/10 shadow-2xl overflow-hidden flex flex-col"
 			in:scale={{ start: 0.95, duration: 180 }}
 			out:scale={{ start: 0.95, duration: 120 }}
 		>
 			<!-- Header -->
-			<div class="p-5 border-b border-white/5 bg-[#18191c] flex items-center justify-between">
+			<div class="p-5 border-b border-fg/5 bg-bg-elevated flex items-center justify-between">
 				<div class="flex items-center gap-2.5">
 					<div class="w-8 h-8 rounded-xl bg-brand-500/10 border border-brand-500/30 flex items-center justify-center text-brand-500">
 						<Gamepad2 class="w-4 h-4" />
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-white">Adicionar Conta</h3>
-						<p class="text-[10px] text-white/40">Selecione o tipo de conta para jogar</p>
+						<h3 class="text-sm font-black text-fg">Adicionar Conta</h3>
+						<p class="text-[10px] text-fg/40">Selecione o tipo de conta para jogar</p>
 					</div>
 				</div>
 				<button 
 					type="button" 
-					class="w-7 h-7 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-xs"
+					class="w-7 h-7 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/50 hover:text-fg flex items-center justify-center transition-colors cursor-pointer text-xs"
 					onclick={handleClose}
 				>
 					✕
@@ -144,10 +145,11 @@
 
 			<!-- Tab Switcher (Offline vs Microsoft) -->
 			<div class="p-4">
-				<div class="grid grid-cols-2 gap-2 p-1 bg-[#18191c] rounded-2xl border border-white/5">
+				<div class="grid grid-cols-3 gap-2 p-1 bg-bg-elevated rounded-2xl border border-fg/5">
+                    <button type="button" class="rounded-xl px-3 py-2 text-xs font-bold {tab === 'luxmc' ? 'bg-brand-500 text-brand-foreground' : 'text-fg-muted'}" onclick={() => tab = "luxmc"}>Luxmc</button>
 					<button 
 						type="button"
-						class="py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {tab === 'offline' ? 'bg-brand-500 text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+						class="py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {tab === 'offline' ? 'bg-brand-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 						onclick={() => { tab = 'offline'; errorMsg = null; }}
 					>
 						<User class="w-3.5 h-3.5" />
@@ -155,7 +157,7 @@
 					</button>
 					<button 
 						type="button"
-						class="py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {tab === 'microsoft' ? 'bg-emerald-500 text-black shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+						class="py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {tab === 'microsoft' ? 'bg-emerald-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 						onclick={() => { tab = 'microsoft'; errorMsg = null; }}
 					>
 						<ShieldCheck class="w-3.5 h-3.5" />
@@ -164,10 +166,12 @@
 				</div>
 
 				<!-- Offline Tab Body -->
-				{#if tab === 'offline'}
+				{#if tab === 'luxmc'}
+                    <LuxAccountForm onAuthenticated={(value) => { onAccountAdded?.(value); handleClose(); }} />
+                {:else if tab === 'offline'}
 					<form onsubmit={(e) => { e.preventDefault(); handleOfflineLogin(); }} class="space-y-4 pt-4">
 						<div class="space-y-1.5">
-							<label for="offline-nick" class="text-xs font-bold text-white/70 block">Nickname (Nome de Jogador)</label>
+							<label for="offline-nick" class="text-xs font-bold text-fg/70 block">Nickname (Nome de Jogador)</label>
 							<div class="relative">
 								<input 
 									id="offline-nick"
@@ -175,10 +179,10 @@
 									bind:value={offlineUsername}
 									placeholder="ex: Steve_123, ProMiner"
 									maxlength="16"
-									class="w-full h-11 px-4 rounded-xl bg-[#1c1d22] border border-white/10 text-xs font-bold text-white outline-none focus:border-brand-500 transition-all placeholder:text-white/30"
+									class="w-full h-11 px-4 rounded-xl bg-bg-subtle border border-fg/10 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-all placeholder:text-fg/30"
 								/>
 							</div>
-							<p class="text-[10px] text-white/40">Gera um UUID oficial da Mojang para servidores offline / piratas.</p>
+							<p class="text-[10px] text-fg/40">Perfil local, sem sincronização com o site.</p>
 						</div>
 
 						{#if errorMsg}
@@ -191,10 +195,10 @@
 						<button 
 							type="submit"
 							disabled={isLoggingIn || !offlineUsername.trim()}
-							class="w-full h-11 rounded-xl bg-brand-500 hover:bg-[#ebd095] disabled:opacity-50 text-black font-black text-xs transition-all shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+							class="w-full h-11 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-brand-foreground font-black text-xs transition-all shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
 						>
 							{#if isLoggingIn}
-								<div class="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin"></div>
+								<div class="w-4 h-4 rounded-full border-2 border-bg-overlay border-t-transparent animate-spin"></div>
 								Entrando...
 							{:else}
 								<Check class="w-4 h-4 stroke-[3]" />
@@ -209,7 +213,7 @@
 							<span class="text-xs font-bold text-emerald-400 block flex items-center gap-1.5">
 								<ShieldCheck class="w-4 h-4" /> Autenticação Oficial Microsoft
 							</span>
-							<p class="text-[10px] text-white/60 leading-relaxed">
+							<p class="text-[10px] text-fg/60 leading-relaxed">
 								Acesse servidores oficiais da Mojang (Hypixel, Realms) e sincronize sua skin original com segurança.
 							</p>
 						</div>
@@ -225,10 +229,10 @@
 							type="button"
 							disabled={isLoggingIn}
 							onclick={handleMicrosoftLogin}
-							class="w-full h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-black text-xs transition-all shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+							class="w-full h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-brand-foreground font-black text-xs transition-all shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
 						>
 							{#if isLoggingIn}
-								<div class="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin"></div>
+								<div class="w-4 h-4 rounded-full border-2 border-bg-overlay border-t-transparent animate-spin"></div>
 								Aguardando login no navegador...
 							{:else}
 								<LogIn class="w-4 h-4" />

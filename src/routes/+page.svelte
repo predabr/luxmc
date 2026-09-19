@@ -1,4 +1,7 @@
 <script lang="ts">
+    import LuxAccountForm from "$lib/components/profile/LuxAccountForm.svelte";
+    let localProfile = $state(false);
+    import { appState } from "$lib/stores/app.svelte";
 	import { fade, slide, fly } from "svelte/transition";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
@@ -158,7 +161,7 @@
 
 		isLoggingIn = true;
 		try {
-			const backendAcc = await authOfflineLogin(name).catch(() => null);
+			const backendAcc = await authOfflineLogin(name);
 			const skinUrl = backendAcc?.skinUrl || `https://minotar.net/skin/${name}`;
 			const newAcc = {
 				id: backendAcc?.id || ("offline_" + Date.now()),
@@ -332,7 +335,9 @@
 				serverPort: serverPort || null
 			});
 
-			gamingStats.onGameStart();
+			gamingStats.onGameStart(targetProfile.id);
+            appState.isGameRunning = true;
+            appState.activeGameDetails = { profileId: targetProfile.id, name: targetProfile.name, version: verId, loader: targetProfile.loader };
 			profiles.setLastPlayed(targetProfile.id);
 
 			discordSetActivity({
@@ -463,32 +468,32 @@
 {#if !account.value}
 
 	<div 
-		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none bg-[#0c0c0e] overflow-hidden"
+		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none bg-bg overflow-hidden"
 	>
 		<!-- Cosmic background mesh and glow -->
-		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.18),rgba(255,255,255,0))] pointer-events-none"></div>
+		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
 		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-blue-500/10 blur-[130px] rounded-full pointer-events-none"></div>
 
 		<div 
-			class="w-full max-w-md bg-[#14151a]/95 backdrop-blur-2xl border border-white/10 rounded-3xl p-8 shadow-[0_32px_90px_rgba(0,0,0,0.85)] relative z-10 space-y-6"
+			class="w-full max-w-md bg-bg-elevated/95 backdrop-blur-2xl border border-fg/10 rounded-3xl p-8 shadow-elevated relative z-10 space-y-6"
 			in:fly={{ y: 20, duration: 300 }}
 		>
 			<div class="flex flex-col items-center text-center space-y-3">
-				<div class="w-16 h-16 rounded-2xl bg-gradient-to-b from-[#1e2029] to-[#121318] border border-white/15 p-2.5 shadow-2xl flex items-center justify-center relative group">
+				<div class="w-16 h-16 rounded-2xl bg-gradient-to-b from-bg-subtle to-bg-elevated border border-fg/15 p-2.5 shadow-2xl flex items-center justify-center relative group">
 					<div class="absolute inset-0 bg-blue-500/20 rounded-2xl blur-lg pointer-events-none group-hover:bg-blue-500/30 transition-all"></div>
 					<img src="/logo.png" alt="Luxmc" class="w-full h-full object-contain relative z-10" />
 				</div>
 				<div>
-					<h1 class="text-xl font-black text-white tracking-tight">Luxmc Launcher</h1>
-					<p class="text-xs text-white/40 mt-0.5">Selecione o método de autenticação</p>
+					<h1 class="text-xl font-black text-fg tracking-tight">Luxmc Launcher</h1>
+					<p class="text-xs text-fg/40 mt-0.5">Selecione o método de autenticação</p>
 				</div>
 			</div>
 
-			<div class="flex rounded-2xl bg-black/50 border border-white/10 p-1">
+			<div class="flex rounded-2xl bg-bg-overlay/50 border border-fg/10 p-1">
 				<button
 					type="button"
 					onclick={() => loginTab = "microsoft"}
-					class="flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-blue-600 text-white shadow-md' : 'text-white/50 hover:text-white'}"
+					class="flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-blue-600 text-fg shadow-md' : 'text-fg/50 hover:text-fg'}"
 				>
 					<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
 						<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
@@ -502,25 +507,25 @@
 				<button
 					type="button"
 					onclick={() => loginTab = "offline"}
-					class="flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-white/15 text-white shadow-md border border-white/10' : 'text-white/50 hover:text-white'}"
+					class="flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-fg/15 text-fg shadow-md border border-fg/10' : 'text-fg/50 hover:text-fg'}"
 				>
 					<User class="w-3.5 h-3.5" />
-					<span>Modo Offline</span>
+					<span>Conta Luxmc</span>
 				</button>
 			</div>
 
 			{#if loginTab === "microsoft"}
 				<div class="flex flex-col items-center text-center space-y-5 pt-1" in:fade={{ duration: 150 }}>
 					<div class="space-y-1">
-						<h2 class="text-base font-bold text-white">Conta Microsoft Oficial</h2>
-						<p class="text-xs text-white/50 max-w-xs leading-relaxed">
+						<h2 class="text-base font-bold text-fg">Conta Microsoft Oficial</h2>
+						<p class="text-xs text-fg/50 max-w-xs leading-relaxed">
 							Autenticação segura via OAuth2. É necessário possuir o Minecraft original na conta.
 						</p>
 					</div>
 
 					{#if isLoggingInMicrosoft}
 						<!-- Futuristic Holographic Auth Portal -->
-						<div class="w-full bg-[#181a24]/90 border border-blue-500/30 rounded-2xl p-6 text-center space-y-4 shadow-xl relative overflow-hidden">
+						<div class="w-full bg-bg-subtle/90 border border-blue-500/30 rounded-2xl p-6 text-center space-y-4 shadow-xl relative overflow-hidden">
 							<div class="relative w-16 h-16 mx-auto flex items-center justify-center">
 								<div class="absolute inset-0 rounded-full border-2 border-blue-500/20 animate-ping pointer-events-none"></div>
 								<div class="w-14 h-14 rounded-full border-2 border-dashed border-blue-400 animate-spin flex items-center justify-center"></div>
@@ -528,8 +533,8 @@
 							</div>
 
 							<div class="space-y-1">
-								<p class="text-xs font-black text-white tracking-wide">Aguardando no Navegador...</p>
-								<p class="text-[11px] text-white/40 leading-relaxed">
+								<p class="text-xs font-black text-fg tracking-wide">Aguardando no Navegador...</p>
+								<p class="text-[11px] text-fg/40 leading-relaxed">
 									Conclua a autorização na janela segura da Microsoft que se abriu.
 								</p>
 							</div>
@@ -537,13 +542,13 @@
 							<button 
 								type="button" 
 								onclick={() => isLoggingInMicrosoft = false}
-								class="px-4 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-[11px] font-bold text-white/60 hover:text-white cursor-pointer transition-colors"
+								class="px-4 py-1.5 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/10 text-[11px] font-bold text-fg/60 hover:text-fg cursor-pointer transition-colors"
 							>
 								Cancelar
 							</button>
 						</div>
 					{:else}
-						<div class="w-20 h-20 rounded-2xl bg-[#181a24] border border-white/10 flex items-center justify-center shadow-inner relative group">
+						<div class="w-20 h-20 rounded-2xl bg-bg-subtle border border-fg/10 flex items-center justify-center shadow-inner relative group">
 							<div class="absolute inset-0 bg-blue-500/10 rounded-2xl blur-md pointer-events-none"></div>
 							<svg class="w-10 h-10 relative z-10" viewBox="0 0 24 24" fill="none">
 								<rect x="2" y="2" width="9" height="9" fill="#f25022" rx="1.5"/>
@@ -556,7 +561,7 @@
 						<div class="w-full space-y-2">
 							<button
 								type="button"
-								class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-blue-600/25 cursor-pointer disabled:opacity-50"
+								class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-blue-600/25 cursor-pointer disabled:opacity-50"
 								onclick={() => { playClick(); handleMicrosoftLogin(); }}
 								disabled={isLoggingIn || isLoggingInMicrosoft}
 							>
@@ -565,14 +570,14 @@
 								</svg>
 								<span>Entrar com Microsoft</span>
 							</button>
-							<span class="text-[11px] text-white/40 font-medium block">Conexão oficial criptografada</span>
+							<span class="text-[11px] text-fg/40 font-medium block">Conexão oficial criptografada</span>
 						</div>
 					{/if}
 
 					<div class="pt-1">
 						<button
 							type="button"
-							class="text-[11px] text-white/40 hover:text-blue-400 transition-colors cursor-pointer"
+							class="text-[11px] text-fg/40 hover:text-blue-400 transition-colors cursor-pointer"
 							onclick={() => showMsClientIdModal = true}
 						>
 							Problemas com o login? Configurar Azure ID
@@ -582,18 +587,23 @@
 
 			{:else}
 
+				{#if !localProfile}
+                    <LuxAccountForm />
+                    <button type="button" class="text-xs text-fg-muted hover:text-fg" onclick={() => localProfile = true}>Usar perfil local sem sincronização</button>
+                {:else}
+                    <button type="button" class="text-xs text-brand-400" onclick={() => localProfile = false}>Voltar à conta Luxmc</button>
 				<div class="space-y-4 pt-1" in:fade={{ duration: 150 }}>
 					<div class="text-center space-y-1">
-						<h2 class="text-base font-bold text-white">Entrar com Nickname</h2>
-						<p class="text-xs text-white/50">Jogue instantaneamente com qualquer nome.</p>
+						<h2 class="text-base font-bold text-fg">Entrar com Nickname</h2>
+						<p class="text-xs text-fg/50">Jogue instantaneamente com qualquer nome.</p>
 					</div>
 
 					<div class="space-y-1.5">
-						<label for="offline-nick-input" class="text-[11px] font-bold text-white/60 block text-left">
+						<label for="offline-nick-input" class="text-[11px] font-bold text-fg/60 block text-left">
 							Nickname do Jogador:
 						</label>
 						<div class="relative flex items-center">
-							<div class="w-7 h-7 rounded-lg bg-black/40 border border-white/10 overflow-hidden absolute left-2.5 flex items-center justify-center pointer-events-none">
+							<div class="w-7 h-7 rounded-lg bg-bg-overlay/40 border border-fg/10 overflow-hidden absolute left-2.5 flex items-center justify-center pointer-events-none">
 								<img 
 									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`} 
 									alt="Avatar" 
@@ -606,7 +616,7 @@
 								placeholder="Ex: SteveGamer" 
 								bind:value={offlineName}
 								maxlength="16"
-								class="w-full bg-black/40 border border-white/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-white outline-none transition-all placeholder:text-white/20"
+								class="w-full bg-bg-overlay/40 border border-fg/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-fg outline-none transition-all placeholder:text-fg/20"
 								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 							/>
 						</div>
@@ -614,25 +624,25 @@
 
 					<button 
 						type="button" 
-						class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/25 hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+						class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/25 hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50"
 						onclick={() => { playClick(); handleOfflineAuth(); }}
 						disabled={isLoggingIn || isLoggingInMicrosoft}
 					>
 						{#if isLoggingIn}
-							<Loader2 class="w-4 h-4 animate-spin text-white" /> Entrando...
+							<Loader2 class="w-4 h-4 animate-spin text-fg" /> Entrando...
 						{:else}
 							<Play class="w-3.5 h-3.5 fill-current" /> Jogar Offline
 						{/if}
 					</button>
 
 					{#if savedAccounts.length > 0}
-						<div class="space-y-2 pt-1 border-t border-white/5">
-							<span class="text-[10px] font-bold text-white/40 uppercase tracking-wider block text-left">
+						<div class="space-y-2 pt-1 border-t border-fg/5">
+							<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block text-left">
 								Contas recentes:
 							</span>
 							<div class="flex flex-wrap gap-1.5">
 								{#each savedAccounts as accName (accName)}
-									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-all group">
+									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/5 transition-all group">
 										<button 
 											type="button" 
 											onclick={() => handleOfflineAuth(accName)}
@@ -643,12 +653,12 @@
 												alt={accName} 
 												class="w-4 h-4 rounded object-cover" 
 											/>
-											<span class="text-xs font-bold text-white/80 group-hover:text-blue-300 transition-colors">{accName}</span>
+											<span class="text-xs font-bold text-fg/80 group-hover:text-blue-300 transition-colors">{accName}</span>
 										</button>
 										<button 
 											type="button" 
 											onclick={() => deleteSavedAccount(accName)}
-											class="opacity-0 group-hover:opacity-100 text-white/30 hover:text-red-400 transition-opacity cursor-pointer p-0.5"
+											class="opacity-0 group-hover:opacity-100 text-fg/30 hover:text-red-400 transition-opacity cursor-pointer p-0.5"
 											title="Remover"
 										>
 											<Trash2 class="w-2.5 h-2.5" />
@@ -660,13 +670,14 @@
 					{/if}
 				</div>
 
+				{/if}
 			{/if}
 
-			<div class="pt-2 border-t border-white/5 flex flex-col items-center gap-2">
+			<div class="pt-2 border-t border-fg/5 flex flex-col items-center gap-2">
 				<button 
 					type="button" 
 					onclick={() => openUrl("https://luxmc-r92.pages.dev/#skin-studio")}
-					class="text-[11px] text-white/50 hover:text-blue-400 transition-colors flex items-center gap-1 cursor-pointer"
+					class="text-[11px] text-fg/50 hover:text-blue-400 transition-colors flex items-center gap-1 cursor-pointer"
 				>
 					Personalizar skins e capas no Studio 3D Web <ExternalLink class="w-3 h-3" />
 				</button>
@@ -674,14 +685,14 @@
 				<div class="flex items-center justify-between w-full pt-1">
 					<button
 						type="button"
-						class="text-[10px] text-white/30 hover:text-amber-400 transition-colors cursor-pointer"
+						class="text-[10px] text-fg/30 hover:text-amber-400 transition-colors cursor-pointer"
 						onclick={() => showMsClientIdModal = true}
 					>
 						Configurar Azure ID
 					</button>
 					<button
 						type="button"
-						class="text-[10px] text-white/30 hover:text-white transition-colors cursor-pointer"
+						class="text-[10px] text-fg/30 hover:text-fg transition-colors cursor-pointer"
 						onclick={handleDevLogin}
 					>
 						Acesso Desenvolvedor
@@ -692,23 +703,23 @@
 	</div>
 
 	{#if showMsClientIdModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" in:fade={{ duration: 150 }}>
-			<div class="w-full max-w-md rounded-3xl bg-[#13141a] border border-amber-500/30 p-6 shadow-2xl space-y-4" in:fly={{ y: 20, duration: 200 }}>
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-sm" in:fade={{ duration: 150 }}>
+			<div class="w-full max-w-md rounded-3xl bg-bg-elevated border border-amber-500/30 p-6 shadow-2xl space-y-4" in:fly={{ y: 20, duration: 200 }}>
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2.5">
 						<Lock class="w-4 h-4 text-amber-400" />
-						<h3 class="text-sm font-bold text-white">Configurar Microsoft Azure</h3>
+						<h3 class="text-sm font-bold text-fg">Configurar Microsoft Azure</h3>
 					</div>
 					<button 
 						type="button" 
-						class="text-white/40 hover:text-white text-xs cursor-pointer"
+						class="text-fg/40 hover:text-fg text-xs cursor-pointer"
 						onclick={() => showMsClientIdModal = false}
 					>
 						✕
 					</button>
 				</div>
 
-				<p class="text-xs text-white/60 leading-relaxed">
+				<p class="text-xs text-fg/60 leading-relaxed">
 					Insira o <span class="text-amber-400 font-bold">Client ID</span> do seu registro de aplicativo no Azure Portal (Redirect URI: <code class="text-amber-300">http://localhost:8453/callback</code>).
 				</p>
 
@@ -716,20 +727,20 @@
 					type="text" 
 					placeholder="9750ebbe-21e9-4a4d-b808-f451a3e0af7f" 
 					bind:value={msClientIdInput}
-					class="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none focus:border-amber-500/50"
+					class="w-full bg-bg-overlay/40 border border-fg/10 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-amber-500/50"
 				/>
 
 				<div class="flex items-center gap-2 pt-1">
 					<button 
 						type="button" 
-						class="flex-1 py-2 rounded-xl bg-white/5 text-white/60 text-xs font-bold hover:bg-white/10 cursor-pointer"
+						class="flex-1 py-2 rounded-xl bg-fg/5 text-fg/60 text-xs font-bold hover:bg-fg/10 cursor-pointer"
 						onclick={() => showMsClientIdModal = false}
 					>
 						Cancelar
 					</button>
 					<button 
 						type="button" 
-						class="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold cursor-pointer"
+						class="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-brand-foreground text-xs font-bold cursor-pointer"
 						onclick={saveAndLoginWithClientId}
 						disabled={isSavingClientId}
 					>
@@ -748,10 +759,10 @@
 
 			<header class="flex items-center justify-between gap-4 py-1">
 				<div class="flex items-center gap-3">
-					<div class="flex items-center gap-1 bg-[#121318] border border-white/5 rounded-xl p-1 shadow-sm">
+					<div class="flex items-center gap-1 bg-bg-elevated border border-fg/5 rounded-xl p-1 shadow-sm">
 						<button 
 							type="button" 
-							class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+							class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
 							title="Voltar"
 							onclick={() => history.back()}
 						>
@@ -759,7 +770,7 @@
 						</button>
 						<button 
 							type="button" 
-							class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+							class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
 							title="Avançar"
 							onclick={() => history.forward()}
 						>
@@ -767,14 +778,14 @@
 						</button>
 					</div>
 
-					<div class="flex items-center gap-2 text-xs font-bold text-white/70">
-						<span class="text-white/30">▷</span>
-						<span class="text-white">Home</span>
+					<div class="flex items-center gap-2 text-xs font-bold text-fg/70">
+						<span class="text-fg/30">▷</span>
+						<span class="text-fg">Home</span>
 					</div>
 				</div>
 
 				<div class="flex items-center gap-2">
-					<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#121318] border border-white/5 text-[11px] text-white/60">
+					<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-bg-elevated border border-fg/5 text-[11px] text-fg/60">
 						{#if isLaunching}
 							<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
 							<span class="text-amber-300 font-bold">{launchStatusText || "Iniciando..."}</span>
@@ -791,25 +802,25 @@
 					<button 
 						type="button" 
 						onclick={() => jumpInExpanded = !jumpInExpanded}
-						class="flex items-center gap-2 text-sm font-black text-white uppercase tracking-wider hover:text-emerald-400 transition-colors cursor-pointer"
+						class="flex items-center gap-2 text-sm font-black text-fg uppercase tracking-wider hover:text-emerald-400 transition-colors cursor-pointer"
 					>
 						<span>Jump in</span>
 						{#if jumpInExpanded}
-							<ChevronUp class="w-4 h-4 text-white/40" />
+							<ChevronUp class="w-4 h-4 text-fg/40" />
 						{:else}
-							<ChevronDown class="w-4 h-4 text-white/40" />
+							<ChevronDown class="w-4 h-4 text-fg/40" />
 						{/if}
 					</button>
 				</div>
 
 				{#if jumpInExpanded}
 					{#if jumpInInstances.length === 0}
-						<div class="p-6 rounded-2xl bg-[#121318] border border-white/5 text-center space-y-2">
-							<p class="text-xs text-white/40">Nenhuma instância encontrada para início rápido.</p>
+						<div class="p-6 rounded-2xl bg-bg-elevated border border-fg/5 text-center space-y-2">
+							<p class="text-xs text-fg/40">Nenhuma instância encontrada para início rápido.</p>
 							<button 
 								type="button" 
 								onclick={() => showCreateModal = true}
-								class="px-4 py-2 rounded-xl bg-emerald-500 text-black text-xs font-bold hover:bg-emerald-400 transition-colors cursor-pointer"
+								class="px-4 py-2 rounded-xl bg-emerald-500 text-brand-foreground text-xs font-bold hover:bg-emerald-400 transition-colors cursor-pointer"
 							>
 								+ Criar Primeira Instância
 							</button>
@@ -817,9 +828,9 @@
 					{:else}
 						<div class="space-y-2" transition:slide={{ duration: 180 }}>
 							{#each jumpInInstances as inst (inst.id)}
-								<div class="flex items-center justify-between p-3 rounded-2xl bg-[#121318] hover:bg-[#16171f] border border-white/5 hover:border-white/10 transition-all group shadow-sm">
+								<div class="flex items-center justify-between p-3 rounded-2xl bg-bg-elevated hover:bg-bg-elevated border border-fg/5 hover:border-fg/10 transition-all group shadow-sm">
 									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="w-12 h-12 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0 p-1 flex items-center justify-center">
+										<div class="w-12 h-12 rounded-xl overflow-hidden bg-bg-overlay/40 border border-fg/10 shrink-0 p-1 flex items-center justify-center">
 											<img 
 												src={inst.icon || "/grass_block.png"} 
 												alt={inst.name}
@@ -830,7 +841,7 @@
 
 										<div class="min-w-0 space-y-0.5">
 											<div class="flex items-center gap-2">
-												<h3 class="text-sm font-bold text-white truncate leading-tight group-hover:text-emerald-300 transition-colors">
+												<h3 class="text-sm font-bold text-fg truncate leading-tight group-hover:text-emerald-300 transition-colors">
 													{inst.name}
 												</h3>
 												{#if !inst.lastPlayed}
@@ -840,7 +851,7 @@
 												{/if}
 											</div>
 
-											<div class="flex items-center gap-2 text-[11px] text-white/40">
+											<div class="flex items-center gap-2 text-[11px] text-fg/40">
 												<span class="px-2 py-0.5 rounded-md font-bold uppercase text-[9px] border {getLoaderBadgeColor(inst.loader)}">
 													{inst.loader} {inst.mcVersion}
 												</span>
@@ -858,7 +869,7 @@
 											type="button"
 											onclick={() => handleLaunch(inst)}
 											disabled={isLaunching && launchingProfileId === inst.id}
-											class="px-5 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-50"
+											class="px-5 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-brand-foreground font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
 											title="Jogar Instância"
 										>
 											{#if isLaunching && launchingProfileId === inst.id}
@@ -877,29 +888,31 @@
 													e.stopPropagation();
 													activeContextMenuId = activeContextMenuId === inst.id ? null : inst.id;
 												}}
-												class="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+												aria-label={`Opções de ${inst.name}`}
+                                                aria-expanded={activeContextMenuId === inst.id}
+                                                class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
 											>
 												<MoreVertical class="w-4 h-4" />
 											</button>
 
 											{#if activeContextMenuId === inst.id}
 												<div 
-													class="absolute right-0 top-10 w-44 rounded-xl bg-[#1c1d25] border border-white/10 shadow-2xl py-1 z-30 space-y-0.5"
+													class="absolute right-0 top-10 w-44 rounded-xl bg-bg-subtle border border-fg/10 shadow-2xl py-1 z-30 space-y-0.5"
 													transition:fly={{ y: -6, duration: 120 }}
 												>
 													<button
 														type="button"
 														onclick={() => goto(`/instances/${inst.id}`)}
-														class="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer"
+														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer"
 													>
-														<Settings class="w-3.5 h-3.5 text-white/60" /> Detalhes & Mods
+														<Settings class="w-3.5 h-3.5 text-fg/60" /> Detalhes & Mods
 													</button>
 													<button
 														type="button"
 														onclick={() => instancesOpenFolder(inst.id)}
-														class="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer"
+														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer"
 													>
-														<FolderOpen class="w-3.5 h-3.5 text-white/60" /> Abrir Pasta
+														<FolderOpen class="w-3.5 h-3.5 text-fg/60" /> Abrir Pasta
 													</button>
 													<button
 														type="button"
@@ -920,40 +933,40 @@
 			</section>
 
 			<div class="flex items-center justify-center py-1">
-				<div class="w-12 h-1 bg-white/10 rounded-full"></div>
+				<div class="w-12 h-1 bg-fg/10 rounded-full"></div>
 			</div>
 
 			<section class="space-y-4 pb-8">
 				
 				<div class="space-y-3">
-					<h2 class="text-lg font-black text-white tracking-tight">
+					<h2 class="text-lg font-black text-fg tracking-tight">
 						Library
 					</h2>
 
 					<div class="flex items-center gap-2.5">
 						<div class="relative flex-1">
-							<Search class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
+							<Search class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-fg/30" />
 							<input 
 								type="text" 
 								placeholder="Search" 
 								bind:value={searchQuery}
-								class="w-full bg-[#121318] border border-white/5 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder:text-white/30 outline-none focus:border-white/20 transition-all"
+								class="w-full bg-bg-elevated border border-fg/5 rounded-xl pl-9 pr-3 py-2 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-fg/20 transition-all"
 							/>
 						</div>
 
 						<button 
 							type="button" 
 							onclick={() => showNewGroupPrompt = true}
-							class="px-3.5 py-2 rounded-xl bg-[#121318] hover:bg-[#181920] text-white/70 hover:text-white border border-white/5 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+							class="px-3.5 py-2 rounded-xl bg-bg-elevated hover:bg-bg-elevated text-fg/70 hover:text-fg border border-fg/5 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
 						>
-							<FolderPlus class="w-3.5 h-3.5 text-white/50" />
+							<FolderPlus class="w-3.5 h-3.5 text-fg/50" />
 							<span>+ New group</span>
 						</button>
 
 						<button 
 							type="button" 
 							onclick={() => showCreateModal = true}
-							class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md shrink-0"
+							class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md shrink-0"
 						>
 							<Plus class="w-4 h-4 stroke-[3]" />
 							<span>+ New instance</span>
@@ -961,61 +974,61 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="flex items-center gap-1 bg-[#121318] border border-white/5 rounded-xl px-2.5 py-1">
-							<span class="text-white/40 text-xs">⇅</span>
+						<div class="flex items-center gap-1 bg-bg-elevated border border-fg/5 rounded-xl px-2.5 py-1">
+							<span class="text-fg/40 text-xs">⇅</span>
 							<select 
 								bind:value={sortBy}
-								class="bg-transparent text-xs text-white/70 outline-none cursor-pointer pr-1"
+								class="bg-transparent text-xs text-fg/70 outline-none cursor-pointer pr-1"
 							>
-								<option value="lastPlayed" class="bg-[#181920]">Last played</option>
-								<option value="name" class="bg-[#181920]">Name</option>
-								<option value="version" class="bg-[#181920]">Version</option>
+								<option value="lastPlayed" class="bg-bg-elevated">Last played</option>
+								<option value="name" class="bg-bg-elevated">Name</option>
+								<option value="version" class="bg-bg-elevated">Version</option>
 							</select>
 						</div>
 
-						<div class="flex items-center gap-1 bg-[#121318] border border-white/5 rounded-xl px-2.5 py-1">
-							<span class="text-white/40 text-xs">⊞</span>
+						<div class="flex items-center gap-1 bg-bg-elevated border border-fg/5 rounded-xl px-2.5 py-1">
+							<span class="text-fg/40 text-xs">⊞</span>
 							<select 
 								bind:value={selectedGroup}
-								class="bg-transparent text-xs text-white/70 outline-none cursor-pointer pr-1"
+								class="bg-transparent text-xs text-fg/70 outline-none cursor-pointer pr-1"
 							>
-								<option value="all" class="bg-[#181920]">Custom group</option>
+								<option value="all" class="bg-bg-elevated">Custom group</option>
 								{#each customGroups as grp}
-									<option value={grp} class="bg-[#181920]">{grp}</option>
+									<option value={grp} class="bg-bg-elevated">{grp}</option>
 								{/each}
 							</select>
 						</div>
 
 						<button 
 							type="button"
-							class="flex items-center gap-1 bg-[#121318] hover:bg-[#181920] border border-white/5 rounded-xl px-3 py-1.5 text-xs text-white/60 hover:text-white transition-colors cursor-pointer"
+							class="flex items-center gap-1 bg-bg-elevated hover:bg-bg-elevated border border-fg/5 rounded-xl px-3 py-1.5 text-xs text-fg/60 hover:text-fg transition-colors cursor-pointer"
 						>
-							<Filter class="w-3 h-3 text-white/40" />
+							<Filter class="w-3 h-3 text-fg/40" />
 							<span>Add filter</span>
 						</button>
 					</div>
 				</div>
 
 				{#if showNewGroupPrompt}
-					<div class="p-3.5 rounded-2xl bg-[#161720] border border-emerald-500/30 flex items-center gap-2.5" in:slide={{ duration: 150 }}>
+					<div class="p-3.5 rounded-2xl bg-bg-elevated border border-emerald-500/30 flex items-center gap-2.5" in:slide={{ duration: 150 }}>
 						<input 
 							type="text" 
 							placeholder="Nome do novo grupo..."
 							bind:value={newGroupName}
-							class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white outline-none focus:border-emerald-400"
+							class="flex-1 bg-bg-overlay/40 border border-fg/10 rounded-xl px-3 py-1.5 text-xs text-fg outline-none focus:border-emerald-400"
 							onkeydown={(e) => { if (e.key === "Enter") handleAddGroup(); }}
 						/>
 						<button 
 							type="button" 
 							onclick={handleAddGroup}
-							class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold cursor-pointer"
+							class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground text-xs font-bold cursor-pointer"
 						>
 							Adicionar
 						</button>
 						<button 
 							type="button" 
 							onclick={() => showNewGroupPrompt = false}
-							class="px-3 py-1.5 rounded-xl bg-white/5 text-white/50 hover:text-white text-xs cursor-pointer"
+							class="px-3 py-1.5 rounded-xl bg-fg/5 text-fg/50 hover:text-fg text-xs cursor-pointer"
 						>
 							Cancelar
 						</button>
@@ -1023,9 +1036,9 @@
 				{/if}
 
 				{#if filteredProfiles.length === 0}
-					<div class="p-12 rounded-3xl bg-[#121318] border border-white/5 text-center space-y-3">
-						<Layers class="w-8 h-8 text-white/20 mx-auto" />
-						<p class="text-sm text-white/40">Nenhuma instância encontrada para os filtros aplicados.</p>
+					<div class="p-12 rounded-3xl bg-bg-elevated border border-fg/5 text-center space-y-3">
+						<Layers class="w-8 h-8 text-fg/20 mx-auto" />
+						<p class="text-sm text-fg/40">Nenhuma instância encontrada para os filtros aplicados.</p>
 						<button 
 							type="button" 
 							onclick={() => { searchQuery = ""; selectedGroup = "all"; }}
@@ -1040,12 +1053,12 @@
 							<div 
 								role="button"
 								tabindex="0"
-								class="rounded-2xl bg-[#121318] hover:bg-[#161720] border border-white/5 hover:border-white/15 transition-all p-3 flex flex-col justify-between group relative shadow-sm cursor-pointer min-h-[160px]"
+								class="rounded-2xl bg-bg-elevated hover:bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-all p-3 flex flex-col justify-between group relative shadow-sm cursor-pointer min-h-[160px]"
 								onclick={() => goto(`/instances/${inst.id}`)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
 							>
 								<div class="w-full flex-1 flex items-center justify-center relative my-1">
-									<div class="w-16 h-16 rounded-2xl bg-black/40 border border-white/10 p-2 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
+									<div class="w-16 h-16 rounded-2xl bg-bg-overlay/40 border border-fg/10 p-2 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
 										<img 
 											src={inst.icon || "/grass_block.png"} 
 											alt={inst.name}
@@ -1060,7 +1073,7 @@
 											e.stopPropagation();
 											handleLaunch(inst);
 										}}
-										class="absolute bottom-0 right-3 w-9 h-9 rounded-full bg-emerald-500 hover:bg-emerald-400 text-black flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
+										class="absolute bottom-0 right-3 w-9 h-9 rounded-full bg-emerald-500 hover:bg-emerald-400 text-brand-foreground flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
 										title="Play"
 									>
 										<Play class="w-3.5 h-3.5 fill-current ml-0.5" />
@@ -1068,10 +1081,10 @@
 								</div>
 
 								<div class="w-full space-y-0.5 text-center mt-2">
-									<h3 class="text-xs font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
+									<h3 class="text-xs font-bold text-fg group-hover:text-emerald-300 transition-colors truncate">
 										{inst.name}
 									</h3>
-									<p class="text-[10px] text-white/40 truncate">
+									<p class="text-[10px] text-fg/40 truncate">
 										{inst.loader} {inst.mcVersion}
 									</p>
 								</div>

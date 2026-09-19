@@ -75,7 +75,7 @@
 		</div>
 	</Card>
 {:else if viewMode === "grid"}
-	<div in:fade={{ duration: 150 }} class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+	<div in:fade={{ duration: 150 }} class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
 		{#each instances as p (p.id)}
 			<InstanceCard
 				profile={p}
@@ -103,14 +103,7 @@
 		{/each}
 	</div>
 {:else}
-	<div in:fade={{ duration: 150 }} class="flex flex-col gap-1">
-		<div class="grid grid-cols-[auto_1fr_8rem_6rem_5.5rem] gap-3 border-b px-4 py-2 text-xs font-medium" style="border-color: rgb(var(--border)); color: rgb(var(--fg-subtle));">
-			<span></span>
-			<span>{t("instances.sortName")}</span>
-			<span>{t("instances.sortVersion")}</span>
-			<span>{t("instances.loader")}</span>
-			<span class="text-right">{t("instances.actions")}</span>
-		</div>
+	<div in:fade={{ duration: 150 }} class="flex flex-col gap-3">
 		{#each instances as p (p.id)}
 			<InstanceCard
 				profile={p}

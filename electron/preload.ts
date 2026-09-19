@@ -35,7 +35,7 @@ const electronAPI: ElectronAPI = {
 contextBridge.exposeInMainWorld("electronAPI", electronAPI);
 
 contextBridge.exposeInMainWorld("__TAURI_INTERNALS__", {
-  invoke: (cmd: string, args?: Record<string, any>) => {
+  invoke: (cmd: string, args?: Record<string, unknown>) => {
     if (cmd === "plugin:app|version") {
       return Promise.resolve("1.7.4");
     }
@@ -68,7 +68,7 @@ contextBridge.exposeInMainWorld("__TAURI_INTERNALS__", {
     }
     return ipcRenderer.invoke("luxmc:invoke", { command: cmd, args });
   },
-  transformCallback: (callback: any) => callback,
+  transformCallback: (callback: (payload: unknown) => void) => callback,
   convertFileSrc: (filePath: string) => {
     if (!filePath) return "";
     return `app://luxmc/asset?path=${encodeURIComponent(filePath)}`;

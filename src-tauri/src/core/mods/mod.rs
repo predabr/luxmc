@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use crate::error::AppResult;
 
 pub mod curseforge;
+pub mod pack_download;
 
 const MODRINTH_API: &str = "https://api.modrinth.com/v2";
 

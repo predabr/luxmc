@@ -69,17 +69,17 @@
 <Modal isOpen={open} {onClose} title="Detector de Morte & Resgate de Inventário">
 	<div class="flex flex-col gap-4 text-xs">
 		{#if loading}
-			<div class="py-10 flex flex-col items-center justify-center gap-2 text-white/50">
+			<div class="py-10 flex flex-col items-center justify-center gap-2 text-fg/50">
 				<Compass class="w-6 h-6 animate-spin text-rose-400" />
 				<span>Lendo registros de sobrevivência e coordenadas...</span>
 			</div>
 		{:else if !deathInfo?.hasDeath}
-			<div class="py-8 flex flex-col items-center justify-center gap-2 text-center bg-bg-subtle rounded-2xl border border-white/5 p-6">
+			<div class="py-8 flex flex-col items-center justify-center gap-2 text-center bg-bg-subtle rounded-2xl border border-fg/5 p-6">
 				<div class="w-10 h-10 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
 					<Check class="w-5 h-5" />
 				</div>
-				<h4 class="text-white font-bold text-sm">Você está vivo e seguro!</h4>
-				<p class="text-white/50 text-[11px] max-w-xs">
+				<h4 class="text-fg font-bold text-sm">Você está vivo e seguro!</h4>
+				<p class="text-fg/50 text-[11px] max-w-xs">
 					Nenhuma mensagem recente de morte foi encontrada nos registros desta sessão.
 				</p>
 			</div>
@@ -90,20 +90,20 @@
 					<span>Última Morte Registrada</span>
 				</div>
 
-				<div class="bg-black/40 rounded-xl p-3 border border-white/5 font-mono text-white/90">
+				<div class="bg-bg-overlay/40 rounded-xl p-3 border border-fg/5 font-mono text-fg/90">
 					"{deathInfo.deathMessage}"
 				</div>
 
-				<div class="grid grid-cols-2 gap-2 text-white/80">
-					<div class="bg-bg-subtle rounded-xl p-2.5 border border-white/5 flex flex-col gap-0.5">
-						<span class="text-[10px] text-white/40 font-semibold uppercase">Coordenadas</span>
+				<div class="grid grid-cols-2 gap-2 text-fg/80">
+					<div class="bg-bg-subtle rounded-xl p-2.5 border border-fg/5 flex flex-col gap-0.5">
+						<span class="text-[10px] text-fg/40 font-semibold uppercase">Coordenadas</span>
 						<span class="font-mono text-xs font-bold text-amber-300">
 							X: {Math.round(deathInfo.x ?? 0)} · Y: {Math.round(deathInfo.y ?? 64)} · Z: {Math.round(deathInfo.z ?? 0)}
 						</span>
 					</div>
 
-					<div class="bg-bg-subtle rounded-xl p-2.5 border border-white/5 flex flex-col gap-0.5">
-						<span class="text-[10px] text-white/40 font-semibold uppercase">Dimensão</span>
+					<div class="bg-bg-subtle rounded-xl p-2.5 border border-fg/5 flex flex-col gap-0.5">
+						<span class="text-[10px] text-fg/40 font-semibold uppercase">Dimensão</span>
 						<span class="font-mono text-xs font-bold text-purple-300 capitalize">
 							{deathInfo.dimension}
 						</span>
@@ -142,7 +142,7 @@
 			</div>
 		{/if}
 
-		<div class="flex items-center justify-end pt-2 border-t border-white/5">
+		<div class="flex items-center justify-end pt-2 border-t border-fg/5">
 			<Button variant="secondary" size="sm" onclick={onClose}>
 				Fechar
 			</Button>

@@ -29,12 +29,12 @@
 
 {#if tooltip}
 	<Tooltip content={tooltip} position={tooltipPosition}>
-		<Button {variant} size="icon" {loading} {disabled} {onclick} class={klass}>
+		<Button aria-label={tooltip || "Ação"} {variant} size="icon" {loading} {disabled} {onclick} class={klass}>
 			{#if children}{@render children()}{/if}
 		</Button>
 	</Tooltip>
 {:else}
-	<Button {variant} size="icon" {loading} {disabled} {onclick} class={klass}>
+	<Button aria-label={tooltip || "Ação"} {variant} size="icon" {loading} {disabled} {onclick} class={klass}>
 		{#if children}{@render children()}{/if}
 	</Button>
 {/if}

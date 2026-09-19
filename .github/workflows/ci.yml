@@ -18,7 +18,11 @@ env:
 jobs:
   validate:
     name: Validate
-    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -34,9 +38,10 @@ jobs:
           version: 10
 
       - name: Install Dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Install System Dependencies (Validation)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -63,13 +68,32 @@ jobs:
       - name: Frontend Lint (svelte-check)
         run: pnpm check
 
+      - name: Frontend tests
+        run: pnpm test:run
+
+      - name: Website tests
+        run: pnpm test:website
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level=low
+
       - name: Frontend Build
         run: pnpm build
 
       - name: Rust Compilation Check
         working-directory: src-tauri
-        run: cargo check
+        run: cargo check --locked
+
+      - name: Tauri native compilation
+        run: pnpm tauri build --no-bundle
 
       - name: Rust Tests
         working-directory: src-tauri
-        run: cargo test
+        run: cargo test --locked
+
+      - name: Rust dependency audit
+        if: runner.os == 'Linux'
+        working-directory: src-tauri
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit

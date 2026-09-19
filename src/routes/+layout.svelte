@@ -1,9 +1,11 @@
 <script lang="ts">
 	import "../app.css";
-	import { onMount } from "svelte";
+	import { listenDeepLinks } from "$lib/api/deepLinks";
+	import { handleDeepLink } from "$lib/utils/handleDeepLink";
+	import { onMount, untrack } from "svelte";
 	import { fade, fly } from "svelte/transition";
 	import { cubicOut } from "svelte/easing";
-	import { page } from "$app/stores";
+	import { page } from "$app/state";
 	import { beforeNavigate, afterNavigate } from "$app/navigation";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
 	import Toasts from "$lib/components/ui/Toasts.svelte";
@@ -25,6 +27,21 @@
 	import { setToastInstance } from "$lib/stores/toasts.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { account } from "$lib/stores/account.svelte";
+	import { cloudAccount } from "$lib/stores/cloudAccount.svelte";
+    import { friendsState } from "$lib/stores/friends.svelte";
+	$effect(() => {
+        const id = account.value?.id;
+        untrack(() => {
+            friendsState.disconnect(); cloudAccount.disconnect();
+            if (id?.startsWith("luxmc:")) { cloudAccount.connect(id); void friendsState.connect(); }
+        });
+        return () => { cloudAccount.disconnect(); friendsState.disconnect(); };
+    });
+    $effect(() => {
+        const ready = cloudAccount.ready;
+        const { theme, accentTheme, language, animations } = settings.value;
+        if (ready) untrack(() => cloudAccount.schedule({ theme, accentTheme, language, animations }));
+    });
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -39,7 +56,7 @@
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
 	const { t } = useTranslation();
-	let { children } = $props();
+	let { children }: { children: import("svelte").Snippet } = $props();
 	let initialized = $state(false);
 	let showSplash = $state(true);
 	let toastsInstance = $state<Toasts | null>(null);
@@ -83,7 +100,7 @@
 		const initTimer = setTimeout(() => {
 			initialized = true;
 		}, 2500);
-		appInit().then((init) => {
+		const ready = appInit().then((init) => {
 			clearTimeout(initTimer);
 			initialized = true;
 			appState.devMode = init.devMode;
@@ -142,6 +159,7 @@
 				modCount: p.modCount,
 				diskUsage: p.diskUsage,
 				ramMb: p.ramMb ?? undefined,
+                autoOptimize: p.autoOptimize, useVulkan: p.useVulkan, launchCount: p.launchCount,
 				group: p.instanceGroup ?? undefined,
 			}));
 			if (init.activeProfileId) {
@@ -175,6 +193,23 @@
 		let unlistenGameExit: (() => void) | undefined;
 		let unlistenTelemetry: (() => void) | undefined;
 		let disposed = false;
+        let unlistenDeepLinks: (() => void) | undefined;
+        let linkQueue = Promise.resolve();
+        void ready.then(async () => {
+            if (disposed) return;
+            const stop = await listenDeepLinks(urls => {
+                for (const url of urls) {
+                    linkQueue = linkQueue.then(async () => {
+                        if (disposed) return;
+                        showSplash = false;
+                        appState.showCutscene = false;
+                        await handleDeepLink(url);
+                    }).catch(error => { toast(`Não foi possível abrir o link: ${String(error)}`, "error"); });
+                }
+            });
+            if (disposed) stop(); else unlistenDeepLinks = stop;
+        }).catch(error => { if (!disposed) toast(`Integração com o portal indisponível: ${String(error)}`, "error"); });
+
 
 		const exitPromise = listenGameExit((event) => {
 			if (disposed) return;
@@ -255,6 +290,7 @@
 			disposed = true;
 			stop();
 			if (unlistenGameExit) unlistenGameExit();
+            unlistenDeepLinks?.();
 			if (unlistenTelemetry) unlistenTelemetry();
 			if (soundscapeTimer) clearTimeout(soundscapeTimer);
 			stopSoundscape();
@@ -286,7 +322,7 @@
 
 	let rpcTimeout: ReturnType<typeof setTimeout> | null = null;
 	$effect(() => {
-		const currentPath = $page.url.pathname;
+		const currentPath = page.url.pathname;
 		if (settings.value.discordRpc === false) return;
 		if (appState.isGameRunning) return;
 
@@ -374,7 +410,7 @@
 <div class="fixed inset-0 z-[-2] transition-all duration-500" style={themeStore.currentBackgroundStyle}>
 	{#if themeStore.theme !== "light" && !appState.performanceMode}
 		<div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
-		<div class="absolute inset-0 opacity-15 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
+		<div class="absolute inset-0 opacity-10 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--ambient-accent, var(--brand-500))) 0%, transparent 55%);"></div>
 		{#if settings.value.liveWallpaper === true}
 			<LiveWallpaper />
 		{/if}
@@ -387,14 +423,14 @@
 {#if showSplash || appState.showCutscene}
 	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; initialized = true; }} />
 {:else if !initialized}
-	<div class="flex h-full w-full items-center justify-center bg-black/70" in:fade={{ duration: 150 }}>
+	<div class="flex h-full w-full items-center justify-center bg-bg-overlay/70" in:fade={{ duration: 150 }}>
 		<div class="flex flex-col items-center gap-4">
-			<div class="h-10 w-10 border-4 border-t-brand-400 border-white/10 rounded-full animate-spin"></div>
-			<p class="text-sm font-medium text-white shadow-black drop-shadow-md">{t("app.loading")}</p>
+			<div class="h-10 w-10 border-4 border-t-brand-400 border-fg/10 rounded-full animate-spin"></div>
+			<p class="text-sm font-medium text-fg shadow-black drop-shadow-md">{t("app.loading")}</p>
 		</div>
 	</div>
 {:else if !account.value}
-	<div class="flex h-full w-full items-center justify-center bg-[#0c0c0e]/90" in:fade={{ duration: 150 }}>
+	<div class="flex h-full w-full items-center justify-center bg-bg/90" in:fade={{ duration: 150 }}>
 		{@render children?.()}
 	</div>
 {:else}
@@ -402,7 +438,7 @@
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-w-0 flex-1 flex-col relative z-10">
 			<main class="flex-1 overflow-x-hidden overflow-y-auto px-6 py-6 scroll-smooth custom-scrollbar relative">
-				{#key $page.url.pathname}
+				{#key page.url.pathname}
 					<div
 						class="mx-auto max-w-[1600px] min-h-full flex flex-col w-full will-change-transform"
 						in:fly={{

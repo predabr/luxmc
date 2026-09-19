@@ -25,7 +25,7 @@
 		<p class="text-sm font-medium fg-muted uppercase tracking-wide">{label}</p>
 	{/if}
 	<div class={`flex items-center justify-between p-3 rounded-lg border border-border transition-all ${
-		variant === 'code' ? 'bg-black/20 font-mono text-sm' : 'bg-bg-elevated'
+		variant === 'code' ? 'bg-bg-overlay/20 font-mono text-sm' : 'bg-bg-elevated'
 	}`}>
 		<span class="truncate fg-muted">{value}</span>
 		<button

@@ -34,10 +34,9 @@
 		}
 
 		try {
-			const mod = await import("node-vibrant");
-			const VibrantLib = (mod as { default?: unknown }).default ?? mod;
-			const builder = (VibrantLib as { from: (src: string) => { getPalette: () => Promise<Record<string, { rgb: number[] } | null>> } }).from(url);
-			const palette = await builder.getPalette();
+			const { Vibrant } = await import("$lib/utils/vibrant");
+			const palette = await Vibrant.from(url).getPalette();
+			if (url !== lastSrc) return;
 			const swatch = palette["Vibrant"] ?? palette["Muted"] ?? palette["DarkVibrant"];
 			if (swatch) {
 				const [r, g, b] = swatch.rgb;

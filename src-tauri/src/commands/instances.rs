@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use tokio::io::AsyncWriteExt;
 use futures_util::StreamExt;
 use tauri::{Emitter, State};
 use uuid::Uuid;
@@ -372,6 +371,8 @@ pub async fn screenshots_open_folder(profile_id: String) -> AppResult<()> {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct CfManifest {
+    #[serde(flatten)]
+    pub(crate) extra: std::collections::HashMap<String, serde_json::Value>,
     #[serde(default)]
     pub(crate) minecraft: CfMinecraft,
     #[serde(default)]
@@ -384,28 +385,32 @@ pub(crate) struct CfManifest {
 pub(crate) struct CfMinecraft {
     #[serde(default)]
     pub(crate) version: String,
-    #[serde(default, alias = "modLoaders")]
+    #[serde(default, rename = "modLoaders", alias = "mod_loaders")]
     pub(crate) mod_loaders: Vec<CfModLoader>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct CfModLoader {
     #[serde(default)]
+    pub(crate) primary: bool,
+    #[serde(default)]
     pub(crate) id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct CfFile {
-    #[serde(alias = "projectID", alias = "projectId")]
+    #[serde(rename = "projectID", alias = "projectId", alias = "project_id")]
     pub(crate) project_id: u64,
-    #[serde(alias = "fileID", alias = "fileId")]
+    #[serde(rename = "fileID", alias = "fileId", alias = "file_id")]
     pub(crate) file_id: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 struct MrpackManifest {
+    #[serde(flatten)]
+    extra: std::collections::HashMap<String, serde_json::Value>,
     #[serde(default)]
     format_version: u32,
     #[serde(default)]
@@ -424,7 +429,7 @@ struct MrpackManifest {
     dependencies: std::collections::HashMap<String, serde_json::Value>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 struct MrpackFile {
@@ -439,7 +444,7 @@ struct MrpackFile {
     file_size: Option<u64>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 struct MrpackEnv {
@@ -449,7 +454,7 @@ struct MrpackEnv {
     server: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 struct MrpackMod {
@@ -508,406 +513,118 @@ pub async fn instance_cancel_import(state: State<'_, AppState>) -> AppResult<()>
     instance_cancel_import_core(&state)
 }
 
-async fn download_from_modrinth_fallback(
+pub(crate) async fn download_cf_mod_file(
     http: &reqwest::Client,
-    file_name: &str,
-    display_name: Option<&str>,
-    file_path: &std::path::Path,
-    storage_path: &std::path::Path,
-    mc_version: Option<&str>,
-    loader: Option<&str>,
+    cf_file: &CfFile,
+    file_info: Option<&crate::core::mods::curseforge::CurseForgeFileInfo>,
+    _display_name: Option<&str>,
+    mods_dir: &std::path::Path,
+    storage_mods_dir: &std::path::Path,
+    profile_id: &str,
+    _mc_version: Option<&str>,
+    _loader: Option<&str>,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
 ) -> bool {
-    let raw_source = display_name.unwrap_or(file_name);
-    let without_ext = raw_source.trim_end_matches(".jar");
-    let clean_query = {
-        let no_brackets = without_ext.replace(['(', '[', '{', ')', ']', '}'], " ");
-        let mut words: Vec<&str> = Vec::new();
-        for w in no_brackets.split_whitespace() {
-            let lower = w.to_lowercase();
-            if lower == "api" || lower == "forge" || lower == "fabric" || lower == "neoforge" || lower == "quilt" || lower == "mod" || lower.starts_with('v') && lower[1..].chars().all(|c| c.is_ascii_digit() || c == '.') || lower.chars().all(|c| c.is_ascii_digit() || c == '.') {
-                continue;
-            }
-            words.push(w);
-        }
-        if words.is_empty() {
-            without_ext.split(&['-', '_'][..]).next().unwrap_or(without_ext).trim().to_string()
+    use crate::core::mods::{curseforge, pack_download as pack};
+    use sha1::Digest;
+
+    let result: AppResult<()> = async {
+        let metadata_path = mods_dir.parent().unwrap_or(mods_dir)
+            .join(".luxmc").join("curseforge").join(format!("{}.json", cf_file.file_id));
+        let cached = tokio::fs::read(&metadata_path).await.ok()
+            .and_then(|bytes| serde_json::from_slice::<curseforge::CurseForgeFileInfo>(&bytes).ok());
+        let info = if let Some(info) = file_info.cloned().or(cached) {
+            info
         } else {
-            words.join(" ")
-        }
-    };
-
-    if clean_query.is_empty() || clean_query.len() < 2 {
-        return false;
-    }
-
-    let search_urls = {
-        let mut urls = Vec::new();
-        if let (Some(mc), Some(ld)) = (mc_version, loader) {
-            let facets = format!("[[\"project_type:mod\"],[\"versions:{}\"],[\"categories:{}\"]]", mc, ld.to_lowercase());
-            urls.push(format!(
-                "https://api.modrinth.com/v2/search?query={}&facets={}&limit=4",
-                urlencoding::encode(&clean_query),
-                urlencoding::encode(&facets)
-            ));
-        }
-        urls.push(format!(
-            "https://api.modrinth.com/v2/search?query={}&limit=4",
-            urlencoding::encode(&clean_query)
-        ));
-        urls
-    };
-
-    let mut projects_found = Vec::new();
-    for s_url in search_urls {
-        if let Ok(resp) = http
-            .get(&s_url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .timeout(std::time::Duration::from_secs(10))
-            .send()
-            .await
+            curseforge::get_files_batch(http, &[cf_file.file_id]).await.remove(&cf_file.file_id)
+                .ok_or_else(|| crate::error::AppError::InvalidState(format!(
+                    "Metadados indisponíveis para CurseForge {}/{}. Configure a chave de API.", cf_file.project_id, cf_file.file_id)))?
+        };
+        if info.id != cf_file.file_id || info.mod_id != cf_file.project_id
+            || info.file_name.contains(['/', '\\'])
         {
-            if resp.status().is_success() {
-                if let Ok(hits) = resp.json::<serde_json::Value>().await {
-                    if let Some(arr) = hits.get("hits").and_then(|h| h.as_array()) {
-                        if !arr.is_empty() {
-                            projects_found = arr.clone();
-                            break;
-                        }
-                    }
+            return Err(crate::error::AppError::InvalidInput("Invalid CurseForge file metadata".into()));
+        }
+        let path = pack::destination(mods_dir, &info.file_name)?;
+        let disabled = pack::destination(mods_dir, &format!("{}.disabled", info.file_name))?;
+        let root = mods_dir.parent().unwrap_or(mods_dir);
+        if let Ok(bytes) = tokio::fs::read(root.join(".luxmc/overrides.json")).await {
+            let overrides: Vec<MrpackFile> = serde_json::from_slice(&bytes)?;
+            if let Some(file) = overrides.iter().find(|file| file.path == format!("mods/{}", info.file_name)) {
+                ensure_mrpack_file(&pack::client()?, root, file, None).await?;
+                pack::atomic_write(&metadata_path, &serde_json::to_vec(&info)?).await?;
+                return Ok(());
+            }
+        }
+        let valid = |bytes: &[u8]| pack::verify(bytes, info.size, info.sha1.as_deref(), None)
+            && zip::ZipArchive::new(std::io::Cursor::new(bytes)).is_ok();
+        for existing in [&path, &disabled] {
+            if let Ok(bytes) = tokio::fs::read(existing).await {
+                if valid(&bytes) {
+                    let mut persisted = info.clone();
+                    persisted.sha1 = Some(format!("{:x}", sha1::Sha1::digest(&bytes)));
+                    persisted.size = Some(bytes.len() as u64);
+                    pack::atomic_write(&metadata_path, &serde_json::to_vec(&persisted)?).await?;
+                    return Ok(());
                 }
             }
         }
-    }
-
-    if projects_found.is_empty() {
-        return false;
-    }
-
-    let query_lower = clean_query.to_lowercase();
-    for proj in projects_found {
-        let proj_id = match proj.get("project_id").and_then(|p| p.as_str()) {
-            Some(id) => id,
-            None => continue,
-        };
-
-        let proj_title = proj.get("title").and_then(|t| t.as_str()).unwrap_or("");
-        let proj_slug = proj.get("slug").and_then(|s| s.as_str()).unwrap_or("");
-        let title_match = proj_title.to_lowercase().contains(&query_lower) || proj_slug.to_lowercase().contains(&query_lower);
-
-        let ver_url = if let (Some(mc), Some(ld)) = (mc_version, loader) {
-            format!(
-                "https://api.modrinth.com/v2/project/{}/version?game_versions=[\"{}\"]&loaders=[\"{}\"]",
-                proj_id, mc, ld.to_lowercase()
-            )
-        } else {
-            format!("https://api.modrinth.com/v2/project/{}/version", proj_id)
-        };
-
-        let ver_resp = match http
-            .get(&ver_url)
-            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .timeout(std::time::Duration::from_secs(12))
-            .send()
-            .await
-        {
-            Ok(r) if r.status().is_success() => r,
-            _ => continue,
-        };
-
-        let versions: serde_json::Value = match ver_resp.json().await {
-            Ok(v) => v,
-            Err(_) => continue,
-        };
-
-        let ver_list = match versions.as_array() {
-            Some(v) => v,
-            None => continue,
-        };
-
-        for ver in ver_list {
-            if let Some(files) = ver.get("files").and_then(|f| f.as_array()) {
-                for file_entry in files {
-                    let dl_url = file_entry.get("url").and_then(|u| u.as_str()).unwrap_or("");
-                    let mr_filename = file_entry.get("filename").and_then(|f| f.as_str()).unwrap_or("");
-
-                    if dl_url.is_empty() {
-                        continue;
-                    }
-
-                    let is_match = mr_filename.eq_ignore_ascii_case(file_name)
-                        || mr_filename.to_lowercase().starts_with(&query_lower)
-                        || (title_match && file_entry.get("primary").and_then(|p| p.as_bool()).unwrap_or(false));
-
-                    if is_match {
-                        if let Ok(dl_resp) = http
-                            .get(dl_url)
-                            .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                            .timeout(std::time::Duration::from_secs(40))
-                            .send()
-                            .await
-                        {
-                            if dl_resp.status().is_success() {
-                                let temp_path = file_path.with_extension("tmp");
-                                let mut file = match tokio::fs::File::create(&temp_path).await {
-                                    Ok(f) => f,
-                                    Err(_) => continue,
-                                };
-                                let mut downloaded = Vec::new();
-                                let mut stream = dl_resp.bytes_stream();
-                                while let Some(chunk) = stream.next().await {
-                                    let chunk = match chunk { Ok(c) => c, Err(_) => continue };
-                                    downloaded.extend_from_slice(&chunk);
-                                    let _ = file.write_all(&chunk).await;
+        let mut urls = Vec::new();
+        if let Some(url) = info.download_url.as_ref().filter(|url| !url.is_empty()) {
+            urls.extend(pack::mirrors(url)?);
+        }
+        for host in ["edge.forgecdn.net", "mediafilez.forgecdn.net", "media.forgecdn.net"] {
+            let url = format!("https://{host}/files/{}/{}/{}", cf_file.file_id / 1000,
+                cf_file.file_id % 1000, urlencoding::encode(&info.file_name));
+            if !urls.contains(&url) { urls.push(url); }
+        }
+        if let Some(hash) = &info.sha1 {
+            if let Ok(response) = http.get(format!("https://api.modrinth.com/v2/version_file/{hash}?algorithm=sha1"))
+                .timeout(std::time::Duration::from_secs(35)).send().await {
+                if response.status().is_success() {
+                    if let Ok(data) = response.json::<serde_json::Value>().await {
+                        if let Some(files) = data.get("files").and_then(|v| v.as_array()) {
+                            for file in files {
+                                if file.get("hashes").and_then(|v| v.get("sha1")).and_then(|v| v.as_str()) == Some(hash.as_str()) {
+                                    if let Some(url) = file.get("url").and_then(|v| v.as_str()) { urls.push(url.to_owned()); }
                                 }
-                                let _ = file.flush().await;
-                                drop(file);
-
-                                if downloaded.len() > 200 && (downloaded.starts_with(b"PK") || zip::ZipArchive::new(std::io::Cursor::new(&downloaded)).is_ok()) {
-                                    let _ = tokio::fs::rename(&temp_path, file_path).await;
-                                    let _ = tokio::fs::copy(file_path, storage_path).await;
-                                    tracing::info!(mod_name = %clean_query, "Downloaded missing mod from Modrinth CDN fallback");
-                                    return true;
-                                }
-                                let _ = tokio::fs::remove_file(&temp_path).await;
                             }
                         }
                     }
                 }
             }
         }
-    }
-
-    false
-}
-
-pub(crate) async fn download_cf_mod_file(
-    http: &reqwest::Client,
-    cf_file: &CfFile,
-    file_info: Option<&crate::core::mods::curseforge::CurseForgeFileInfo>,
-    display_name: Option<&str>,
-    mods_dir: &std::path::Path,
-    storage_mods_dir: &std::path::Path,
-    profile_id: &str,
-    mc_version: Option<&str>,
-    loader: Option<&str>,
-) -> bool {
-    let project_id_str = cf_file.project_id.to_string();
-    let file_id_str = cf_file.file_id.to_string();
-
-    let single_info;
-    let file_info = match file_info {
-        Some(info) => Some(info),
-        None => {
-            let single = crate::core::mods::curseforge::get_files_batch(http, &[cf_file.file_id]).await;
-            single_info = single.get(&cf_file.file_id).cloned();
-            single_info.as_ref()
-        }
-    };
-
-    let p1 = cf_file.file_id / 1000;
-    let p2 = cf_file.file_id % 1000;
-    let p2_pad = format!("{:03}", p2);
-
-    let mut urls_to_try: Vec<String> = Vec::new();
-
-    urls_to_try.push(format!(
-        "https://www.curseforge.com/api/v1/mods/{}/files/{}/download",
-        project_id_str, file_id_str
-    ));
-
-    if let Ok(url) = crate::core::mods::curseforge::get_download_url(http, &project_id_str, &file_id_str).await {
-        if !url.is_empty() && !urls_to_try.contains(&url) {
-            urls_to_try.push(url);
-        }
-    }
-
-    let mut resolved_filename = file_info.map(|i| i.file_name.clone());
-
-    if let Ok(details) = crate::core::mods::curseforge::get_mod_file_details(http, &project_id_str, &file_id_str).await {
-        if !details.url.is_empty() && !urls_to_try.contains(&details.url) {
-            urls_to_try.push(details.url);
-        }
-        if resolved_filename.is_none() && !details.filename.is_empty() {
-            resolved_filename = Some(details.filename);
-        }
-    }
-
-    let cdn_name_ref = resolved_filename.as_deref().or_else(|| file_info.map(|i| i.file_name.as_str()));
-    if let Some(name_for_cdn) = cdn_name_ref {
-        for host in ["mediafilez.forgecdn.net", "media.forgecdn.net", "edge.forgecdn.net"] {
-            for sub in [format!("{}/{}", p1, p2), format!("{}/{}", p1, p2_pad)] {
-                let u1 = format!("https://{}/files/{}/{}", host, sub, urlencoding::encode(name_for_cdn));
-                if !urls_to_try.contains(&u1) { urls_to_try.push(u1); }
-                let u2 = format!("https://{}/files/{}/{}", host, sub, name_for_cdn.replace(' ', "%20"));
-                if !urls_to_try.contains(&u2) { urls_to_try.push(u2); }
-            }
-        }
-    }
-
-    if let Some(info) = file_info {
-        if let Some(ref dl) = info.download_url {
-            if !dl.is_empty() && !urls_to_try.contains(dl) {
-                urls_to_try.push(dl.clone());
-            }
-        }
-    }
-
-    urls_to_try.push(format!("https://curse.nikky.moe/api/v2/pack/file/{}", file_id_str));
-    urls_to_try.push(format!("https://cf.way2muchnoise.eu/file/{}", file_id_str));
-    urls_to_try.push(format!("https://cursemeta.dries007.net/{}/{}", project_id_str, file_id_str));
-    urls_to_try.push(format!("https://api.cfwidget.com/mc-mods/minecraft/{}", project_id_str));
-    urls_to_try.push(format!("https://www.curseforge.com/minecraft/mc-mods/{}/files/{}", project_id_str, file_id_str));
-
-    if let Some(name) = display_name {
-        let guess = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2, urlencoding::encode(name));
-        if !urls_to_try.contains(&guess) { urls_to_try.push(guess); }
-        let guess_pad = format!("https://edge.forgecdn.net/files/{}/{}/{}.jar", p1, p2_pad, urlencoding::encode(name));
-        if !urls_to_try.contains(&guess_pad) { urls_to_try.push(guess_pad); }
-    }
-
-    let filename = if let Some(ref r_name) = resolved_filename {
-        r_name.clone()
-    } else if let Some(info) = file_info {
-        info.file_name.clone()
-    } else if let Some(name) = display_name {
-        let safe = name.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' }).collect::<String>();
-        format!("{}.jar", safe)
-    } else {
-        format!("{}_{}.jar", project_id_str, file_id_str)
-    };
-
-    let file_path = mods_dir.join(&filename);
-    let storage_path = storage_mods_dir.join(&filename);
-
-    if file_path.exists() {
-        if let Ok(meta) = std::fs::metadata(&file_path) {
-            if meta.len() > 200 {
-                if let Ok(f) = std::fs::File::open(&file_path) {
-                    if zip::ZipArchive::new(std::io::BufReader::new(f)).is_ok() {
-                        return true;
-                    }
-                }
-            }
-        }
-        let _ = tokio::fs::remove_file(&file_path).await;
-    }
-
-    if let Some(p) = file_path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
-    if let Some(p) = storage_path.parent() { let _ = tokio::fs::create_dir_all(p).await; }
-
-    for try_url in &urls_to_try {
+        let client = pack::client()?;
         for attempt in 0..3 {
-            if attempt > 0 {
-                tokio::time::sleep(std::time::Duration::from_millis(250 * attempt as u64)).await;
-            }
-            let mut req = http
-                .get(try_url)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .header("Accept", "*/*")
-                .timeout(std::time::Duration::from_secs(35));
-            if let Some(key) = crate::core::mods::curseforge::api_key() {
-                if try_url.contains("curseforge.com") {
-                    req = req.header("x-api-key", key);
+            pack::cancelled(cancel)?;
+            pack::backoff(attempt, cancel).await?;
+            for url in &urls {
+                pack::cancelled(cancel)?;
+                let Ok(bytes) = pack::bytes(&client, url, cancel).await else { continue };
+                if !valid(&bytes) { continue; }
+                let target = if disabled.exists() { &disabled } else { &path };
+                pack::atomic_write(target, &bytes).await?;
+                let storage = pack::destination(storage_mods_dir, &info.file_name)?;
+                pack::atomic_write(&storage, &bytes).await?;
+                let mut persisted = info.clone();
+                persisted.sha1 = Some(format!("{:x}", sha1::Sha1::digest(&bytes)));
+                persisted.size = Some(bytes.len() as u64);
+                pack::atomic_write(&metadata_path, &serde_json::to_vec(&persisted)?).await?;
+                if let Ok(db) = crate::db::shared_db().await {
+                    let row = crate::db::schema::mods::ModRow {
+                        profile_id: profile_id.to_string(), project_id: cf_file.project_id.to_string(),
+                        version_id: cf_file.file_id.to_string(), file_name: info.file_name.clone(),
+                        sha1: persisted.sha1.unwrap_or_default(), source: "curseforge".into(), installed_at: String::new(),
+                    };
+                    let _ = crate::db::schema::mods::upsert(&db, &row).await;
                 }
+                return Ok(());
             }
-            let resp = match req.send().await {
-                Ok(r) if r.status().is_success() => r,
-                _ => continue,
-            };
-
-            let mut stream = resp.bytes_stream();
-            let temp_path = file_path.with_extension("tmp");
-            let mut file = match tokio::fs::File::create(&temp_path).await {
-                Ok(f) => f,
-                Err(_) => continue,
-            };
-            let mut downloaded = Vec::new();
-            while let Some(chunk) = stream.next().await {
-                let chunk = match chunk {
-                    Ok(c) => c,
-                    Err(_) => {
-                        let _ = tokio::fs::remove_file(&temp_path).await;
-                        continue;
-                    }
-                };
-                downloaded.extend_from_slice(&chunk);
-                let _ = file.write_all(&chunk).await;
-            }
-            let _ = file.flush().await;
-            drop(file);
-
-            if downloaded.len() < 200 {
-                let _ = tokio::fs::remove_file(&temp_path).await;
-                continue;
-            }
-
-            let is_valid = downloaded.len() > 200 && (zip::ZipArchive::new(std::io::Cursor::new(&downloaded)).is_ok() || downloaded.starts_with(b"PK"));
-            if !is_valid {
-                let _ = tokio::fs::remove_file(&temp_path).await;
-                continue;
-            }
-
-            if tokio::fs::rename(&temp_path, &file_path).await.is_err() {
-                let _ = tokio::fs::remove_file(&temp_path).await;
-                continue;
-            }
-            let _ = tokio::fs::copy(&file_path, &storage_path).await;
-
-            let mut final_filename = filename.clone();
-            if final_filename.starts_with(&project_id_str) {
-                if let Some(real_name) = crate::commands::mods::extract_mod_name_from_jar(&file_path) {
-                    let safe = real_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
-                    let new_filename = format!("{}.jar", safe);
-                    let new_path = mods_dir.join(&new_filename);
-                    let new_storage_path = storage_mods_dir.join(&new_filename);
-                    if new_path != file_path {
-                        let _ = tokio::fs::rename(&file_path, &new_path).await;
-                        let _ = tokio::fs::rename(&storage_path, &new_storage_path).await;
-                        final_filename = new_filename;
-                    }
-                }
-            }
-
-            if let Ok(db) = crate::db::shared_db().await {
-                let mod_row = crate::db::schema::mods::ModRow {
-                    profile_id: profile_id.to_string(),
-                    project_id: project_id_str.clone(),
-                    version_id: file_id_str.clone(),
-                    file_name: final_filename,
-                    sha1: String::new(),
-                    source: "curseforge".into(),
-                    installed_at: String::new(),
-                };
-                let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
-            }
-
-            return true;
         }
-    }
-
-    if download_from_modrinth_fallback(http, &filename, display_name, &file_path, &storage_path, mc_version, loader).await {
-        if let Ok(db) = crate::db::shared_db().await {
-            let mod_row = crate::db::schema::mods::ModRow {
-                profile_id: profile_id.to_string(),
-                project_id: project_id_str.clone(),
-                version_id: file_id_str.clone(),
-                file_name: filename.clone(),
-                sha1: String::new(),
-                source: "modrinth_fallback".into(),
-                installed_at: String::new(),
-            };
-            let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
-        }
-        return true;
-    }
-
-    tracing::warn!(
-        project_id = %project_id_str,
-        file_id = %file_id_str,
-        name = display_name.unwrap_or("unknown"),
-        "CurseForge file could not be downloaded automatically (author distribution restricted)"
-    );
-    false
+        Err(crate::error::AppError::InvalidState(format!("Falha ao baixar {} (CurseForge {})", info.file_name, cf_file.file_id)))
+    }.await;
+    if let Err(error) = &result { tracing::warn!(%error, "CurseForge download failed"); }
+    result.is_ok()
 }
 
 pub async fn instance_import_modpack_core(
@@ -920,6 +637,7 @@ pub async fn instance_import_modpack_core(
     icon: Option<String>,
     ram_mb: Option<i64>,
 ) -> AppResult<ProfileRow> {
+    let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     tracing::info!(file_path = %file_path, profile_name = %profile_name, mc_version = %mc_version, loader = %loader, "instance_import_modpack called");
     let file = std::fs::File::open(&file_path).map_err(|e| {
@@ -946,7 +664,7 @@ pub async fn instance_import_modpack_core(
                 manifest_idx = Some(i);
                 root_prefix = String::new();
                 break;
-            } else if clean.ends_with("/manifest.json") && clean.matches('/').count() == 1 {
+            } else if clean.ends_with("/manifest.json")  {
                 if let Some(prefix) = clean.strip_suffix("manifest.json") {
                     manifest_idx = Some(i);
                     root_prefix = prefix.to_string();
@@ -965,6 +683,7 @@ pub async fn instance_import_modpack_core(
             tracing::error!(error = %e, "failed to read manifest entry");
             crate::error::AppError::InvalidState(format!("failed to read manifest entry: {e}"))
         })?;
+        if entry.size() > 8 * 1024 * 1024 { return Err(crate::error::AppError::InvalidInput("Manifest exceeds 8 MiB".into())); }
         serde_json::from_reader(entry).map_err(|e| {
             tracing::error!(error = %e, "failed to parse manifest.json");
             crate::error::AppError::InvalidState(format!("invalid manifest: {e}"))
@@ -979,14 +698,12 @@ pub async fn instance_import_modpack_core(
         .trim_matches('\'')
         .trim_matches('"')
         .to_string();
-    let manifest_loader_type = manifest.minecraft.mod_loaders.first().map(|ml| {
+    let primary_loader = manifest.minecraft.mod_loaders.iter().find(|loader| loader.primary).or_else(|| manifest.minecraft.mod_loaders.first());
+    let manifest_loader_type = primary_loader.map(|ml| {
         let parts: Vec<&str> = ml.id.split('-').collect();
         parts[0].trim().to_lowercase()
     });
-    let loader_version = manifest
-        .minecraft
-        .mod_loaders
-        .first()
+    let loader_version = primary_loader
         .map(|ml| {
             let parts: Vec<&str> = ml.id.split('-').collect();
             if parts.len() > 1 {
@@ -1017,9 +734,9 @@ pub async fn instance_import_modpack_core(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let instance_dir = base_dir.data_dir().join("instances").join(&profile_name);
-    let _ = tokio::fs::create_dir_all(&instance_dir).await;
-    let _ = tokio::fs::write(instance_dir.join("manifest.json"), serde_json::to_vec_pretty(&manifest).unwrap_or_default()).await;
+    let instance_dir = base_dir.data_dir().join("instances").join(&profile_id);
+    tokio::fs::create_dir_all(&instance_dir).await?;
+    tokio::fs::write(instance_dir.join("manifest.json"), serde_json::to_vec_pretty(&manifest)?).await?;
     let mods_dir = instance_dir.join("mods");
     tokio::fs::create_dir_all(&mods_dir).await?;
 
@@ -1048,8 +765,11 @@ pub async fn instance_import_modpack_core(
     let shaderpacks_prefix = format!("{}shaderpacks/", root_prefix).to_lowercase();
     let mods_prefix = format!("{}mods/", root_prefix).to_lowercase();
 
+    let mut override_paths = std::collections::HashSet::new();
     let mut extracted_count = 0;
+    let mut extracted_size = 0u64;
     for i in 0..archive.len() {
+        crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
         if let Ok(mut file) = archive.by_index(i) {
             let raw_name = file.name().replace('\\', "/");
             let clean_name = raw_name.trim_start_matches('/');
@@ -1086,30 +806,27 @@ pub async fn instance_import_modpack_core(
             };
 
             if let Some(rel) = rel_str {
-                let rel_path = std::path::Path::new(rel);
-                if rel.is_empty()
-                    || rel_path.is_absolute()
-                    || rel.contains("..")
-                    || rel.contains(':')
-                {
-                    continue;
+                if rel.is_empty() { continue; }
+                validate_pack_entry(rel)?;
+                let outpath = crate::core::mods::pack_download::destination(&instance_dir, rel)?;
+                extracted_size = extracted_size.saturating_add(file.size());
+                if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000)
+                    || file.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 {
+                    return Err(crate::error::AppError::InvalidInput("Unsafe pack archive entry".into()));
                 }
-                let outpath = instance_dir.join(rel_path);
                 if file.is_dir() || clean_name.ends_with('/') {
-                    let _ = std::fs::create_dir_all(&outpath);
+                    std::fs::create_dir_all(&outpath)?;
                 } else {
-                    if let Some(p) = outpath.parent() {
-                        let _ = std::fs::create_dir_all(p);
-                    }
-                    if let Ok(mut outfile) = std::fs::File::create(&outpath) {
-                        if std::io::copy(&mut file, &mut outfile).is_ok() {
-                            extracted_count += 1;
-                        }
-                    }
+                    if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
+                    let mut output = std::fs::File::create(&outpath)?;
+                    std::io::copy(&mut file, &mut output)?;
+                    extracted_count += 1;
+                    override_paths.insert(rel.to_owned());
                 }
             }
         }
     }
+    record_override_jars(&instance_dir, &override_paths).await?;
     tracing::info!(extracted = extracted_count, "overrides extraction completed");
 
     let project_ids: Vec<u64> = manifest.files.iter().map(|f| f.project_id).collect();
@@ -1166,6 +883,7 @@ pub async fn instance_import_modpack_core(
                 &profile_id,
                 Some(&mc_ver),
                 Some(&ld),
+                Some(&cancel),
             ).await;
 
             if ok {
@@ -1196,84 +914,9 @@ pub async fn instance_import_modpack_core(
     files_stream.buffer_unordered(4).for_each(|_| async {}).await;
     crate::commands::optimizer::optimizer_trim_memory();
 
-    for retry_pass in 0..3 {
-        let current_fail = mods_fail.load(std::sync::atomic::Ordering::SeqCst);
-        if current_fail == 0 || state.import_cancel.load(std::sync::atomic::Ordering::SeqCst) {
-            break;
-        }
-
-        tracing::info!(pass = retry_pass + 1, failed = current_fail, "retrying failed modpack mods in resilient pass");
-        if let Some(ref a) = app {
-            let _ = a.emit("modpack-progress", serde_json::json!({
-                "phase": "downloading",
-                "current": total_files.saturating_sub(current_fail),
-                "total": total_files,
-                "percent": 90 + retry_pass * 3,
-                "status": format!("Repassando {} mods pendentes (tentativa {}/3)...", current_fail, retry_pass + 1)
-            }));
-        }
-
-        let mut existing_valid = std::collections::HashSet::new();
-        if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
-            while let Ok(Some(entry)) = entries.next_entry().await {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if let Ok(meta) = entry.metadata().await {
-                    if meta.len() > 200 {
-                        if let Ok(f) = std::fs::File::open(entry.path()) {
-                            if zip::ZipArchive::new(std::io::BufReader::new(f)).is_ok() {
-                                existing_valid.insert(name);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let pending: Vec<CfFile> = manifest.files.iter().filter(|f| {
-            let f_id = f.file_id;
-            let p_id_str = f.project_id.to_string();
-            let f_id_str = f_id.to_string();
-            let fi = file_infos.get(&f_id);
-            let expected_name = fi.map(|i| i.file_name.clone()).unwrap_or_default();
-            !existing_valid.contains(&expected_name) && !existing_valid.iter().any(|e| e.contains(&format!("{}_{}", p_id_str, f_id_str)))
-        }).cloned().collect();
-
-        if pending.is_empty() {
-            mods_fail.store(0, std::sync::atomic::Ordering::SeqCst);
-            break;
-        }
-
-        let retry_stream = futures_util::stream::iter(pending).map(|cf_file| {
-            let http = state.http.clone();
-            let file_info = file_infos.get(&cf_file.file_id).cloned();
-            let display_name = mod_names.get(&cf_file.project_id).cloned();
-            let mods_dir = mods_dir.clone();
-            let storage_mods_dir = storage_mods_dir.clone();
-            let profile_id = profile_id.clone();
-            let mc_ver = mc_version.clone();
-            let ld = loader.clone();
-            let ok_counter = mods_ok.clone();
-            let fail_counter = mods_fail.clone();
-
-            async move {
-                let ok = download_cf_mod_file(
-                    &http,
-                    &cf_file,
-                    file_info.as_ref(),
-                    display_name.as_deref(),
-                    &mods_dir,
-                    &storage_mods_dir,
-                    &profile_id,
-                    Some(&mc_ver),
-                    Some(&ld),
-                ).await;
-                if ok {
-                    ok_counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                    let _ = fail_counter.fetch_update(std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst, |f| Some(f.saturating_sub(1)));
-                }
-            }
-        });
-        retry_stream.buffer_unordered(4).for_each(|_| async {}).await;
+    crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
+    if mods_fail.load(std::sync::atomic::Ordering::SeqCst) > 0 {
+        return Err(crate::error::AppError::InvalidState(format!("Importação incompleta: {} arquivos pendentes. Verifique a chave CurseForge e tente novamente.", mods_fail.load(std::sync::atomic::Ordering::SeqCst))));
     }
 
     let final_ok = mods_ok.load(std::sync::atomic::Ordering::SeqCst);
@@ -1320,6 +963,7 @@ pub async fn instance_import_modpack_core(
 
     let db = crate::db::shared_db().await?;
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;
+    index_pack_mods(&profile_row).await?;
     Ok(profile_row)
 }
 
@@ -1351,229 +995,18 @@ pub async fn instance_repair_modpack_core(
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
-    let instance_dir = std::path::PathBuf::from(&row.game_dir);
-    let manifest_path = instance_dir.join("manifest.json");
-
-    if !manifest_path.exists() {
-        if let Some(proj) = directories::ProjectDirs::from("io", "github", "Luxmc") {
-            let modpack_cache = proj.cache_dir().join("modpacks");
-            if let Ok(mut rd) = tokio::fs::read_dir(&modpack_cache).await {
-                while let Ok(Some(entry)) = rd.next_entry().await {
-                    let p = entry.path();
-                    if p.extension().map_or(false, |e| e == "zip") {
-                        if let Ok(f) = std::fs::File::open(&p) {
-                            if let Ok(mut zip_arch) = zip::ZipArchive::new(std::io::BufReader::new(f)) {
-                                for i in 0..zip_arch.len() {
-                                    if let Ok(mut zf) = zip_arch.by_index(i) {
-                                        if zf.name().ends_with("manifest.json") {
-                                            let mut buf = Vec::new();
-                                            if std::io::copy(&mut zf, &mut buf).is_ok() {
-                                                let _ = std::fs::write(&manifest_path, &buf);
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if manifest_path.exists() { break; }
-                }
-            }
-        }
+    let root = std::path::Path::new(&row.game_dir);
+    let mods_dir = root.join("mods");
+    let before: std::collections::HashMap<_, _> = std::fs::read_dir(&mods_dir).into_iter().flatten().filter_map(Result::ok)
+        .filter_map(|entry| entry.metadata().ok().map(|meta| (entry.file_name(), (meta.len(), meta.modified().ok())))).collect();
+    heal_modpack(state, &row).await?;
+    let repaired = std::fs::read_dir(&mods_dir)?.filter_map(Result::ok).filter(|entry| {
+        entry.metadata().ok().is_some_and(|meta| before.get(&entry.file_name()) != Some(&(meta.len(), meta.modified().ok())))
+    }).count() as u32;
+    if let Some(app) = app {
+        let _ = app.emit("modpack-progress", serde_json::json!({ "phase": "complete", "percent": 100, "current": repaired, "total": repaired, "status": format!("{repaired} arquivos recuperados") }));
     }
-
-    if !manifest_path.exists() {
-        return Err(crate::error::AppError::NotFound(
-            "Arquivo manifest.json do modpack não foi encontrado nesta instância.".into(),
-        ));
-    }
-
-    let manifest_content = tokio::fs::read_to_string(&manifest_path).await?;
-    let manifest: CfManifest = serde_json::from_str(&manifest_content).map_err(|e| {
-        crate::error::AppError::InvalidState(format!("manifest.json inválido: {e}"))
-    })?;
-
-    let mods_dir = instance_dir.join("mods");
-    tokio::fs::create_dir_all(&mods_dir).await?;
-
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
-        crate::error::AppError::InvalidState("could not determine data dir".into())
-    })?;
-    let storage_mods_dir = base_dir.data_dir().join("mods").join(&profileId);
-    let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
-
-    let mut existing_files = std::collections::HashSet::new();
-    if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if name.ends_with(".jar") || name.ends_with(".jar.disabled") {
-                if let Ok(meta) = entry.metadata().await {
-                    if meta.len() > 100 {
-                        existing_files.insert(name);
-                    }
-                }
-            }
-        }
-    }
-
-    let project_ids: Vec<u64> = manifest.files.iter().map(|f| f.project_id).collect();
-    let file_ids: Vec<u64> = manifest.files.iter().map(|f| f.file_id).collect();
-    let mod_names = crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids).await;
-    let file_infos = crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids).await;
-
-    let mut missing_files = Vec::new();
-    for cf_file in &manifest.files {
-        let file_info = file_infos.get(&cf_file.file_id);
-        let project_id_str = cf_file.project_id.to_string();
-        let file_id_str = cf_file.file_id.to_string();
-
-        let filename = if let Some(info) = file_info {
-            info.file_name.clone()
-        } else if let Some(display_name) = mod_names.get(&cf_file.project_id) {
-            let safe = display_name.chars().map(|c| if c.is_alphanumeric() || c == ' ' || c == '-' || c == '_' { c } else { '_' }).collect::<String>();
-            format!("{}.jar", safe)
-        } else {
-            format!("{}_{}.jar", project_id_str, file_id_str)
-        };
-
-        let exists = existing_files.contains(&filename)
-            || existing_files.contains(&format!("{}.disabled", filename))
-            || existing_files.iter().any(|f| f.contains(&format!("{}_{}", project_id_str, file_id_str)));
-
-        if !exists {
-            missing_files.push(cf_file.clone());
-        }
-    }
-
-    if missing_files.is_empty() {
-        return Ok(0);
-    }
-
-    let total_missing = missing_files.len() as u32;
-    let completed_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
-    let repaired_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
-
-    use futures_util::StreamExt;
-    let stream = futures_util::stream::iter(missing_files.clone()).map(|cf_file| {
-        let http = state.http.clone();
-        let file_info = file_infos.get(&cf_file.file_id).cloned();
-        let display_name = mod_names.get(&cf_file.project_id).cloned();
-        let mods_dir = mods_dir.clone();
-        let storage_mods_dir = storage_mods_dir.clone();
-        let profile_id = profileId.clone();
-        let app_for_stream = app.clone();
-        let completed = completed_count.clone();
-        let repaired = repaired_count.clone();
-        let mc_ver = row.mc_version.clone();
-        let ld = row.loader.clone();
-
-        async move {
-            let ok = download_cf_mod_file(
-                &http,
-                &cf_file,
-                file_info.as_ref(),
-                display_name.as_deref(),
-                &mods_dir,
-                &storage_mods_dir,
-                &profile_id,
-                Some(&mc_ver),
-                Some(&ld),
-            ).await;
-
-            if ok {
-                repaired.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            }
-
-            let cur = completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            let percent = ((cur as f64 / total_missing as f64) * 100.0) as u32;
-            if let Some(ref a) = app_for_stream {
-                let _ = a.emit("modpack-repair-progress", serde_json::json!({
-                    "current": cur,
-                    "total": total_missing,
-                    "percent": percent,
-                    "status": format!("Baixando mod ausente {}/{}...", cur, total_missing)
-                }));
-            }
-        }
-    });
-
-    stream.buffer_unordered(8).collect::<Vec<()>>().await;
-    crate::commands::optimizer::optimizer_trim_memory();
-    let mut total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
-
-    if total_repaired < total_missing {
-        let mut still_missing = Vec::new();
-        let mut check_existing = std::collections::HashSet::new();
-        if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
-            while let Ok(Some(entry)) = entries.next_entry().await {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if let Ok(meta) = entry.metadata().await {
-                    if meta.len() > 100 {
-                        check_existing.insert(name);
-                    }
-                }
-            }
-        }
-        for cf in &missing_files {
-            let p_str = cf.project_id.to_string();
-            let f_str = cf.file_id.to_string();
-            let fi = file_infos.get(&cf.file_id);
-            let expected = fi.map(|i| i.file_name.clone()).unwrap_or_default();
-            if !check_existing.contains(&expected) && !check_existing.iter().any(|e| e.contains(&format!("{}_{}", p_str, f_str))) {
-                still_missing.push(cf.clone());
-            }
-        }
-
-        if !still_missing.is_empty() {
-            let retry_stream = futures_util::stream::iter(still_missing).map(|cf_file| {
-                let http = state.http.clone();
-                let file_info = file_infos.get(&cf_file.file_id).cloned();
-                let display_name = mod_names.get(&cf_file.project_id).cloned();
-                let mods_dir = mods_dir.clone();
-                let storage_mods_dir = storage_mods_dir.clone();
-                let profile_id = profileId.clone();
-                let repaired = repaired_count.clone();
-                let mc_ver = row.mc_version.clone();
-                let ld = row.loader.clone();
-
-                async move {
-                    let ok = download_cf_mod_file(
-                        &http,
-                        &cf_file,
-                        file_info.as_ref(),
-                        display_name.as_deref(),
-                        &mods_dir,
-                        &storage_mods_dir,
-                        &profile_id,
-                        Some(&mc_ver),
-                        Some(&ld),
-                    ).await;
-                    if ok {
-                        repaired.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                    }
-                }
-            });
-            retry_stream.buffer_unordered(4).for_each(|_| async {}).await;
-            total_repaired = repaired_count.load(std::sync::atomic::Ordering::SeqCst);
-        }
-    }
-
-    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
-        .bind(&profileId)
-        .fetch_one(db.pool())
-        .await
-        .unwrap_or((0,));
-
-    let ram_boost = smart_modpack_ram(row.ram_mb, manifest.files.len());
-    let _ = sqlx::query("UPDATE profiles SET mod_count = ?, ram_mb = ? WHERE id = ?")
-        .bind(std::cmp::max(count.0, manifest.files.len() as i64))
-        .bind(ram_boost)
-        .bind(&profileId)
-        .execute(db.pool())
-        .await;
-
-    Ok(total_repaired)
+    Ok(repaired)
 }
 
 #[tauri::command]
@@ -1760,6 +1193,150 @@ pub async fn instance_file_tree(
     Ok(entries)
 }
 
+async fn record_override_jars(root: &std::path::Path, paths: &std::collections::HashSet<String>) -> AppResult<()> {
+    use crate::core::mods::pack_download as pack;
+    use sha2::Digest;
+    let mut files = Vec::new();
+    for path in paths.iter().filter(|path| path.to_lowercase().ends_with(".jar")) {
+        let source = pack::destination(root, path)?;
+        let bytes = tokio::fs::read(source).await?;
+        let target = pack::destination(&root.join(".luxmc/overrides"), path)?;
+        pack::atomic_write(&target, &bytes).await?;
+        files.push(MrpackFile {
+            path: path.clone(), hashes: [("sha512".to_string(), format!("{:x}", sha2::Sha512::digest(&bytes)))].into_iter().collect(),
+            env: None, downloads: Vec::new(), file_size: Some(bytes.len() as u64),
+        });
+    }
+    pack::atomic_write(&root.join(".luxmc/overrides.json"), &serde_json::to_vec(&files)?).await
+}
+
+fn validate_pack_entry(path: &str) -> AppResult<()> {
+    let normalized = path.replace('\\', "/").to_lowercase();
+    let first = normalized.split('/').next().unwrap_or_default();
+    if [".luxmc", "manifest.json", "modrinth.index.json"].contains(&first) {
+        return Err(crate::error::AppError::InvalidInput("Pack attempts to overwrite launcher metadata".into()));
+    }
+    crate::core::mods::pack_download::relative_path(path)?;
+    Ok(())
+}
+
+async fn ensure_mrpack_file(
+    http: &reqwest::Client,
+    root: &std::path::Path,
+    file: &MrpackFile,
+    cancel: Option<&std::sync::atomic::AtomicBool>,
+) -> AppResult<()> {
+    use crate::core::mods::pack_download as pack;
+    pack::cancelled(cancel)?;
+    if file.env.as_ref().and_then(|env| env.client.as_deref()) == Some("unsupported") { return Ok(()); }
+    let path = pack::destination(root, &file.path)?;
+    let sha1 = file.hashes.get("sha1").map(String::as_str);
+    let sha512 = file.hashes.get("sha512").map(String::as_str);
+    if sha1.is_none() && sha512.is_none() {
+        return Err(crate::error::AppError::InvalidInput(format!("Hash ausente: {}", file.path)));
+    }
+    let valid = |bytes: &[u8]| pack::verify(bytes, file.file_size, sha1, sha512);
+    let disabled = pack::destination(root, &format!("{}.disabled", file.path))?;
+    for existing in [&path, &disabled] {
+        if let Ok(bytes) = tokio::fs::read(existing).await {
+            if valid(&bytes) { return Ok(()); }
+        }
+    }
+    let target = if disabled.exists() { &disabled } else { &path };
+    let cache = pack::destination(&root.join(".luxmc/overrides"), &file.path)?;
+    if let Ok(bytes) = tokio::fs::read(cache).await {
+        if valid(&bytes) { pack::atomic_write(target, &bytes).await?; return Ok(()); }
+    }
+    for attempt in 0..3 {
+        pack::cancelled(cancel)?;
+        pack::backoff(attempt, cancel).await?;
+        for url in &file.downloads {
+            let Ok(bytes) = pack::bytes(http, url, cancel).await else { continue };
+            if valid(&bytes) {
+                pack::cancelled(cancel)?;
+                pack::atomic_write(target, &bytes).await?;
+                return Ok(());
+            }
+        }
+    }
+    pack::cancelled(cancel)?;
+    Err(crate::error::AppError::InvalidState(format!("Arquivo ausente ou inválido: {}", file.path)))
+}
+
+async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
+    let db = crate::db::shared_db().await?;
+    let root = std::path::Path::new(&profile.game_dir);
+    let cf = root.join("manifest.json");
+    if cf.exists() {
+        let manifest: CfManifest = serde_json::from_slice(&tokio::fs::read(cf).await?)?;
+        for file in manifest.files {
+            let info: crate::core::mods::curseforge::CurseForgeFileInfo = serde_json::from_slice(
+                &tokio::fs::read(root.join(format!(".luxmc/curseforge/{}.json", file.file_id))).await?)?;
+            crate::db::schema::mods::upsert(&db, &crate::db::schema::mods::ModRow {
+                profile_id: profile.id.clone(), project_id: file.project_id.to_string(), version_id: file.file_id.to_string(),
+                file_name: info.file_name, sha1: info.sha1.unwrap_or_default(), source: "curseforge".into(), installed_at: String::new(),
+            }).await?;
+        }
+    }
+    let mr = root.join("modrinth.index.json");
+    if mr.exists() {
+        let manifest: MrpackManifest = serde_json::from_slice(&tokio::fs::read(mr).await?)?;
+        for file in manifest.files {
+            if !file.path.starts_with("mods/") || !file.path.ends_with(".jar") || file.env.as_ref().and_then(|env| env.client.as_deref()) == Some("unsupported") { continue; }
+            for url in &file.downloads {
+                let Ok(url) = reqwest::Url::parse(url) else { continue };
+                if url.host_str() != Some("cdn.modrinth.com") { continue; }
+                let parts: Vec<_> = url.path_segments().into_iter().flatten().collect();
+                if parts.len() < 5 || parts[0] != "data" || parts[2] != "versions" { continue; }
+                crate::db::schema::mods::upsert(&db, &crate::db::schema::mods::ModRow {
+                    profile_id: profile.id.clone(), project_id: parts[1].to_owned(), version_id: parts[3].to_owned(),
+                    file_name: file.path.trim_start_matches("mods/").to_owned(), sha1: file.hashes.get("sha1").cloned().unwrap_or_default(),
+                    source: "modrinth".into(), installed_at: String::new(),
+                }).await?;
+                break;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppResult<()> {
+    use crate::core::mods::pack_download as pack;
+    let root = std::path::Path::new(&profile.game_dir);
+    let override_index = root.join(".luxmc/overrides.json");
+    if override_index.exists() {
+        let files: Vec<MrpackFile> = serde_json::from_slice(&tokio::fs::read(override_index).await?)?;
+        let client = pack::client()?;
+        for file in files { ensure_mrpack_file(&client, root, &file, None).await?; }
+    }
+    let mr_path = root.join("modrinth.index.json");
+    if mr_path.exists() {
+        let manifest: MrpackManifest = serde_json::from_slice(&tokio::fs::read(mr_path).await?)?;
+        let client = pack::client()?;
+        let results = futures_util::stream::iter(manifest.files)
+            .map(|file| {
+                let client = client.clone();
+                let root = root.to_path_buf();
+                async move { ensure_mrpack_file(&client, &root, &file, None).await }
+            })
+            .buffer_unordered(6).collect::<Vec<_>>().await;
+        for result in results { result?; }
+    }
+    let cf_path = root.join("manifest.json");
+    if cf_path.exists() {
+        let manifest: CfManifest = serde_json::from_slice(&tokio::fs::read(cf_path).await?)?;
+        let storage = root.join(".luxmc").join("mods");
+        for file in &manifest.files {
+            if !download_cf_mod_file(&state.http, file, None, None, &root.join("mods"), &storage,
+                &profile.id, Some(&profile.mc_version), Some(&profile.loader), None).await {
+                return Err(crate::error::AppError::InvalidState(format!(
+                    "Lançamento interrompido: não foi possível recuperar CurseForge {}/{}", file.project_id, file.file_id)));
+            }
+        }
+    }
+    Ok(())
+}
+
 pub async fn instance_import_mrpack_core(
     app: Option<tauri::AppHandle>,
     state: &AppState,
@@ -1768,6 +1345,7 @@ pub async fn instance_import_mrpack_core(
     icon: Option<String>,
     ram_mb: Option<i64>,
 ) -> AppResult<ProfileRow> {
+    let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     tracing::info!(file_path = %file_path, profile_name = %profile_name, "instance_import_mrpack called");
     let file = std::fs::File::open(&file_path).map_err(|e| {
@@ -1788,7 +1366,7 @@ pub async fn instance_import_mrpack_core(
                 manifest_idx = Some(i);
                 root_prefix = String::new();
                 break;
-            } else if clean.ends_with("/modrinth.index.json") && clean.matches('/').count() == 1 {
+            } else if clean.ends_with("/modrinth.index.json")  {
                 if let Some(prefix) = clean.strip_suffix("modrinth.index.json") {
                     manifest_idx = Some(i);
                     root_prefix = prefix.to_string();
@@ -1801,10 +1379,11 @@ pub async fn instance_import_mrpack_core(
         crate::error::AppError::NotFound("modrinth.index.json not found in mrpack".into())
     })?;
 
-    let manifest: MrpackManifest = {
+    let mut manifest: MrpackManifest = {
         let entry = archive.by_index(manifest_idx).map_err(|e| {
             crate::error::AppError::InvalidState(format!("failed to read modrinth.index.json entry: {e}"))
         })?;
+        if entry.size() > 8 * 1024 * 1024 { return Err(crate::error::AppError::InvalidInput("Manifest exceeds 8 MiB".into())); }
         serde_json::from_reader(entry).map_err(|e| {
             crate::error::AppError::InvalidState(format!("invalid mrpack manifest: {e}"))
         })?
@@ -1828,224 +1407,98 @@ pub async fn instance_import_mrpack_core(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let instance_dir = base_dir.data_dir().join("instances").join(&profile_name);
+    let instance_dir = base_dir.data_dir().join("instances").join(&profile_id);
     let mods_dir = instance_dir.join("mods");
     tokio::fs::create_dir_all(&mods_dir).await?;
 
     let storage_mods_dir = base_dir.data_dir().join("mods").join(&profile_id);
     let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
 
-    let overrides_prefix = format!("{}overrides/", root_prefix).to_lowercase();
-    let client_overrides_prefix = format!("{}client-overrides/", root_prefix).to_lowercase();
-
-    for i in 0..archive.len() {
-        if let Ok(mut file) = archive.by_index(i) {
-            let raw_name = file.name().replace('\\', "/");
-            let clean_name = raw_name.trim_start_matches('/');
-            let lower_name = clean_name.to_lowercase();
-
-            let rel_str = if lower_name.starts_with(&overrides_prefix) {
-                clean_name.get(overrides_prefix.len()..)
-            } else if lower_name.starts_with(&client_overrides_prefix) {
-                clean_name.get(client_overrides_prefix.len()..)
-            } else {
-                None
-            };
-
-            if let Some(rel) = rel_str {
-                let rel_path = std::path::Path::new(rel);
-                if rel.is_empty()
-                    || rel_path.is_absolute()
-                    || rel.contains("..")
-                    || rel.contains(':')
-                {
-                    continue;
-                }
-                let outpath = instance_dir.join(rel_path);
-                if file.is_dir() || clean_name.ends_with('/') {
-                    let _ = std::fs::create_dir_all(&outpath);
-                } else {
-                    if let Some(p) = outpath.parent() {
-                        let _ = std::fs::create_dir_all(p);
-                    }
-                    if let Ok(mut outfile) = std::fs::File::create(&outpath) {
-                        let _ = std::io::copy(&mut file, &mut outfile);
-                    }
-                }
-            }
+    use crate::core::mods::pack_download as pack;
+    let db = crate::db::shared_db().await?;
+    let client = crate::core::mods::ModrinthClient::new(state.http.clone());
+    if manifest.files.is_empty() && !manifest.mods.is_empty() {
+        for entry in &manifest.mods {
+            pack::cancelled(Some(&state.import_cancel))?;
+            if entry.env.get("client").and_then(|value| value.as_str()) == Some("unsupported") { continue; }
+            let project = entry.project_id.as_deref().ok_or_else(|| crate::error::AppError::InvalidInput("Missing project ID".into()))?;
+            let version = entry.version_id.as_deref().ok_or_else(|| crate::error::AppError::InvalidInput("Missing version ID".into()))?;
+            let detail = client.get_version_detail(project, version, &mc_version).await?;
+            let file = detail.files.first().ok_or_else(|| crate::error::AppError::InvalidInput("Missing mod file".into()))?;
+            manifest.files.push(MrpackFile {
+                path: entry.path.clone().unwrap_or_else(|| format!("mods/{}", entry.file_name.as_deref().unwrap_or(&file.filename))),
+                hashes: [("sha1".to_string(), file.sha1.clone())].into_iter().collect(),
+                env: None, downloads: vec![file.url.clone()], file_size: Some(file.size),
+            });
         }
     }
-
-    let client = crate::core::mods::ModrinthClient::new(state.http.clone());
-    let db = crate::db::shared_db().await?;
-
-    let total_mrpack_files = manifest.files.len() as u32;
-    if let Some(ref a) = app {
-        let _ = a.emit("modpack-progress", serde_json::json!({
-            "phase": "downloading",
-            "current": 0,
-            "total": total_mrpack_files,
-            "percent": 0,
-            "status": format!("Preparando download concorrente de {} arquivos...", total_mrpack_files)
-        }));
+    pack::atomic_write(&instance_dir.join(".luxmc/source-modrinth.index.json"), &serde_json::to_vec(&manifest)?).await?;
+    let mut paths = std::collections::HashSet::new();
+    for file in &manifest.files {
+        validate_pack_entry(&file.path)?;
+        let path = pack::relative_path(&file.path)?;
+        if !paths.insert(path.to_string_lossy().to_lowercase()) {
+            return Err(crate::error::AppError::InvalidInput(format!("Duplicate pack path: {}", file.path)));
+        }
     }
-
-    use futures_util::StreamExt;
-    let completed_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
-    let mods_installed_count = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
-
-    let files_stream = futures_util::stream::iter(manifest.files.clone()).map(|mrpack_file| {
-        let http = state.http.clone();
-        let cancel = state.import_cancel.clone();
-        let instance_dir = instance_dir.clone();
-        let storage_mods_dir = storage_mods_dir.clone();
-        let profile_id = profile_id.clone();
-        let app_for_stream = app.clone();
-        let completed = completed_count.clone();
-        let mods_count = mods_installed_count.clone();
-        let total = total_mrpack_files;
-        let db = db.clone();
-
+    let total_mrpack_files = manifest.files.len() as u32;
+    let download_client = pack::client()?;
+    let completed = std::sync::atomic::AtomicU32::new(0);
+    let results = futures_util::stream::iter(manifest.files.clone()).map(|file| {
+        let http = &download_client;
+        let root = &instance_dir;
+        let completed = &completed;
+        let app = &app;
         async move {
-            if cancel.load(std::sync::atomic::Ordering::SeqCst) {
-                return;
-            }
-
-            if let Some(env) = &mrpack_file.env {
-                if env.client.as_deref() == Some("unsupported") {
-                    completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                    return;
-                }
-            }
-
-            if mrpack_file.downloads.is_empty() {
-                completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                return;
-            }
-
-            let clean_path = mrpack_file.path.replace('\\', "/");
-            let outpath = instance_dir.join(&clean_path);
-            if let Some(parent) = outpath.parent() {
-                let _ = tokio::fs::create_dir_all(parent).await;
-            }
-
-            let mut success = false;
-            for url in &mrpack_file.downloads {
-                for attempt in 0..3 {
-                    if attempt > 0 {
-                        tokio::time::sleep(std::time::Duration::from_millis(250 * attempt as u64)).await;
-                    }
-                    if let Ok(resp) = http.get(url).timeout(std::time::Duration::from_secs(35)).send().await {
-                        if resp.status().is_success() {
-                            if let Ok(bytes) = resp.bytes().await {
-                                if !bytes.is_empty() {
-                                    if tokio::fs::write(&outpath, &bytes).await.is_ok() {
-                                        success = true;
-                                        if clean_path.starts_with("mods/") || clean_path.ends_with(".jar") {
-                                            mods_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                                            let filename = std::path::Path::new(&clean_path)
-                                                .file_name()
-                                                .and_then(|n| n.to_str())
-                                                .unwrap_or("mod.jar");
-                                            let _ = tokio::fs::write(storage_mods_dir.join(filename), &bytes).await;
-
-                                            let sha1 = mrpack_file
-                                                .hashes
-                                                .get("sha1")
-                                                .cloned()
-                                                .unwrap_or_default();
-
-                                            let mod_row = crate::db::schema::mods::ModRow {
-                                                profile_id: profile_id.clone(),
-                                                project_id: filename.to_string(),
-                                                version_id: String::new(),
-                                                file_name: filename.to_string(),
-                                                sha1,
-                                                source: "modrinth".into(),
-                                                installed_at: String::new(),
-                                            };
-                                            let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
-                                        }
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                if success {
-                    break;
-                }
-            }
-
+            let result = ensure_mrpack_file(http, root, &file, Some(&state.import_cancel)).await;
             let current = completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            let percent = if total > 0 {
-                ((current as f64 / total as f64) * 100.0) as u32
-            } else {
-                100
-            };
-
-            if current % 16 == 0 {
-                crate::commands::optimizer::optimizer_trim_memory();
-            }
-
-            if let Some(ref a) = app_for_stream {
-                let _ = a.emit("modpack-progress", serde_json::json!({
-                    "phase": "downloading",
-                    "current": current,
-                    "total": total,
-                    "percent": percent,
-                    "status": format!("Baixando arquivos ({}/{})...", current, total)
+            if let Some(app) = app {
+                let _ = app.emit("modpack-progress", serde_json::json!({
+                    "phase": "downloading", "current": current, "total": total_mrpack_files,
+                    "percent": current * 100 / total_mrpack_files.max(1),
+                    "status": format!("Verificando arquivos ({current}/{total_mrpack_files})")
                 }));
             }
+            result
         }
-    });
+    }).buffer_unordered(6).collect::<Vec<_>>().await;
+    pack::cancelled(Some(&state.import_cancel))?;
+    for result in results { result?; }
 
-    files_stream.buffer_unordered(6).for_each(|_| async {}).await;
-    crate::commands::optimizer::optimizer_trim_memory();
-
-    let mut installed_mods_count = mods_installed_count.load(std::sync::atomic::Ordering::SeqCst) as usize;
-
-    if manifest.files.is_empty() && !manifest.mods.is_empty() {
-        for mrpack_mod in &manifest.mods {
-            if state.import_cancel.load(std::sync::atomic::Ordering::SeqCst) {
-                break;
+    let mut overridden = std::collections::HashSet::new();
+    let mut extracted_size = 0u64;
+    for folder in ["overrides", "client-overrides"] {
+        let prefix = format!("{root_prefix}{folder}/");
+        for i in 0..archive.len() {
+            pack::cancelled(Some(&state.import_cancel))?;
+            let mut file = archive.by_index(i)?;
+            let name = file.name().replace('\\', "/");
+            let Some(relative) = name.strip_prefix(&prefix).filter(|value| !value.is_empty()) else { continue };
+            validate_pack_entry(relative)?;
+            let outpath = pack::destination(&instance_dir, relative)?;
+            if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
+                return Err(crate::error::AppError::InvalidInput("Symlinks are not allowed in packs".into()));
             }
-            if let (Some(project_id), Some(version_id)) =
-                (&mrpack_mod.project_id, &mrpack_mod.version_id)
-            {
-                let version_detail = client
-                    .get_version_detail(project_id, version_id, &mc_version)
-                    .await;
-                if let Ok(version) = version_detail {
-                    if let Some(file) = version.files.first() {
-                        if let Ok(resp) = state.http.get(&file.url).timeout(std::time::Duration::from_secs(35)).send().await {
-                            if resp.status().is_success() {
-                                if let Ok(bytes) = resp.bytes().await {
-                                    installed_mods_count += 1;
-                                    let filename = mrpack_mod.file_name.as_deref().unwrap_or(&file.filename);
-                                    let file_path = mods_dir.join(filename);
-                                    let _ = tokio::fs::write(&file_path, &bytes).await;
-                                    let _ = tokio::fs::write(storage_mods_dir.join(filename), &bytes).await;
-
-                                    let mod_row = crate::db::schema::mods::ModRow {
-                                        profile_id: profile_id.clone(),
-                                        project_id: project_id.clone(),
-                                        version_id: version_id.clone(),
-                                        file_name: filename.to_string(),
-                                        sha1: file.sha1.clone(),
-                                        source: "modrinth".into(),
-                                        installed_at: String::new(),
-                                    };
-                                    let _ = crate::db::schema::mods::upsert(&db, &mod_row).await;
-                                }
-                            }
-                        }
-                    }
-                }
+            extracted_size = extracted_size.saturating_add(file.size());
+            if file.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 {
+                return Err(crate::error::AppError::InvalidInput("Pack extraction limit exceeded".into()));
+            }
+            if file.is_dir() || name.ends_with('/') {
+                std::fs::create_dir_all(outpath)?;
+            } else {
+                if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
+                let mut output = std::fs::File::create(&outpath)?;
+                std::io::copy(&mut file, &mut output)?;
+                overridden.insert(relative.to_owned());
             }
         }
     }
+    record_override_jars(&instance_dir, &overridden).await?;
+    manifest.files.retain(|file| !overridden.contains(&file.path.replace('\\', "/")));
+    pack::atomic_write(&instance_dir.join("modrinth.index.json"), &serde_json::to_vec_pretty(&manifest)?).await?;
+    let installed_mods_count = std::fs::read_dir(&mods_dir)?.filter_map(Result::ok)
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "jar")).count();
+    pack::cancelled(Some(&state.import_cancel))?;
 
     let (loader, loader_version) = if let Some(v) = manifest
         .dependencies
@@ -2119,6 +1572,7 @@ pub async fn instance_import_mrpack_core(
     };
 
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;
+    index_pack_mods(&profile_row).await?;
     Ok(profile_row)
 }
 
@@ -3126,4 +2580,77 @@ pub async fn instance_install_quick_pack(
     projectId: String,
 ) -> AppResult<String> {
     instance_install_quick_pack_core(&state.http, profileId, packType, projectId).await
+}
+
+#[cfg(test)]
+mod modpack_integrity_tests {
+    use super::*;
+    use sha2::Digest;
+
+    fn root() -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!("luxmc-pack-test-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    fn entry(path: &str, bytes: &[u8]) -> MrpackFile {
+        MrpackFile {
+            path: path.into(), hashes: [("sha512".into(), format!("{:x}", sha2::Sha512::digest(bytes)))].into_iter().collect(),
+            env: None, downloads: Vec::new(), file_size: Some(bytes.len() as u64),
+        }
+    }
+
+    #[tokio::test]
+    async fn preserves_disabled_mods_and_restores_override_bytes() {
+        let root = root();
+        let bytes = b"the exact override jar bytes";
+        std::fs::create_dir_all(root.join("mods")).unwrap();
+        std::fs::write(root.join("mods/a.jar"), bytes).unwrap();
+        record_override_jars(&root, &["mods/a.jar".into()].into_iter().collect()).await.unwrap();
+        std::fs::rename(root.join("mods/a.jar"), root.join("mods/a.jar.disabled")).unwrap();
+        let client = crate::core::mods::pack_download::client().unwrap();
+        ensure_mrpack_file(&client, &root, &entry("mods/a.jar", bytes), None).await.unwrap();
+        assert!(!root.join("mods/a.jar").exists());
+        std::fs::write(root.join("mods/a.jar.disabled"), b"").unwrap();
+        ensure_mrpack_file(&client, &root, &entry("mods/a.jar", bytes), None).await.unwrap();
+        assert_eq!(std::fs::read(root.join("mods/a.jar.disabled")).unwrap(), bytes);
+        assert!(!root.join("mods/a.jar").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn unrelated_jars_cannot_satisfy_a_missing_manifest_entry() {
+        let root = root();
+        std::fs::create_dir_all(root.join("mods")).unwrap();
+        std::fs::write(root.join("mods/library-extra.jar"), b"unrelated").unwrap();
+        std::fs::write(root.join("mods/library-helper.jar"), b"unrelated").unwrap();
+        let client = crate::core::mods::pack_download::client().unwrap();
+        assert!(ensure_mrpack_file(&client, &root, &entry("mods/library.jar", b"expected"), None).await.is_err());
+        assert!(root.join("mods/library-extra.jar").exists());
+        assert!(root.join("mods/library-helper.jar").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancellation_prevents_writes_and_reserved_metadata_is_rejected() {
+        let root = root();
+        let cancel = std::sync::atomic::AtomicBool::new(true);
+        let client = crate::core::mods::pack_download::client().unwrap();
+        assert!(ensure_mrpack_file(&client, &root, &entry("mods/a.jar", b"valid"), Some(&cancel)).await.is_err());
+        assert!(!root.join("mods").exists());
+        for path in [".luxmc/overrides.json", "manifest.json", "MODRINTH.INDEX.JSON", "mods/../../escape"] {
+            assert!(validate_pack_entry(path).is_err());
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn curseforge_manifest_roundtrip_preserves_ids_and_loader() {
+        let manifest: CfManifest = serde_json::from_str(r#"{"minecraft":{"version":"1.20.1","modLoaders":[{"id":"forge-47.2.0"}]},"files":[{"projectID":42,"fileID":1234}]}"#).unwrap();
+        let serialized = serde_json::to_value(&manifest).unwrap();
+        assert_eq!(serialized["files"][0]["projectID"], 42);
+        let legacy: CfManifest = serde_json::from_str(r#"{"minecraft":{"mod_loaders":[{"id":"fabric-0.16.0"}]},"files":[{"project_id":42,"file_id":1234}]}"#).unwrap();
+        assert_eq!(legacy.files[0].file_id, 1234);
+        assert_eq!(legacy.minecraft.mod_loaders[0].id, "fabric-0.16.0");
+    }
 }

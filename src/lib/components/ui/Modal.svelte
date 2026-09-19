@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { focusTrap } from '$lib/utils/focusTrap';
 	import { fade } from 'svelte/transition';
 	import { X } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
@@ -24,14 +25,15 @@
 	}
 
 	function handleBackdropKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape') onClose();
+		if (e.key === 'Escape') { e.stopPropagation(); onClose(); }
 	}
 </script>
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md"
 		role="dialog"
+        use:focusTrap
 		aria-modal="true"
 		aria-labelledby={titleId}
 		tabindex="-1"
@@ -40,7 +42,7 @@
 		transition:fade={{ duration: 200 }}
 	>
 		<div
-			class={`bg-bg-elevated border border-border rounded-lg shadow-2xl ${maxWidth} w-full mx-4`}
+			class={`bg-bg-elevated/95 border border-fg/10 rounded-2xl shadow-elevated backdrop-blur-2xl ${maxWidth} w-full mx-4 max-h-[90vh] overflow-y-auto`}
 			style="animation: modalIn 200ms ease-out forwards;"
 		>
 			<div class="flex items-center justify-between border-b border-border p-6">
@@ -50,7 +52,7 @@
 						type="button"
 						aria-label={t("common.close")}
 						onclick={onClose}
-						class="rounded-lg p-2 transition-colors hover:bg-bg-hover"
+						class="rounded-lg p-2 transition-colors hover:bg-brand-500/10 hover:text-brand-400"
 					>
 						<X size={20} />
 					</button>

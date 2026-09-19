@@ -35,9 +35,15 @@
 
 	$effect(() => {
 		if (isOpen) {
-			setTimeout(renderGamerCard, 100);
+			const timer = setTimeout(renderGamerCard, 100);
+            return () => clearTimeout(timer);
 		}
 	});
+
+	function color(token: string, opacity = 1): string {
+		const channels = getComputedStyle(document.documentElement).getPropertyValue(`--${token}`).trim();
+		return `rgb(${channels} / ${opacity})`;
+	}
 
 	function renderGamerCard() {
 		if (!canvasElem) return;
@@ -52,43 +58,43 @@
 		canvasElem.height = height;
 
 		const bgGradient = ctx.createLinearGradient(0, 0, width, height);
-		bgGradient.addColorStop(0, "#16171b");
-		bgGradient.addColorStop(0.5, "#101114");
-		bgGradient.addColorStop(1, "#0a0b0d");
+		bgGradient.addColorStop(0, color("bg-subtle"));
+		bgGradient.addColorStop(0.5, color("bg-elevated"));
+		bgGradient.addColorStop(1, color("bg"));
 		ctx.fillStyle = bgGradient;
 		ctx.fillRect(0, 0, width, height);
 
 		const glowA = ctx.createRadialGradient(0, 0, 10, 0, 0, 350);
-		glowA.addColorStop(0, "rgba(202, 169, 124, 0.25)");
-		glowA.addColorStop(1, "rgba(202, 169, 124, 0)");
+		glowA.addColorStop(0, color("brand-400", 0.25));
+		glowA.addColorStop(1, color("brand-400", 0));
 		ctx.fillStyle = glowA;
 		ctx.fillRect(0, 0, width, height);
 
 		const glowB = ctx.createRadialGradient(width, height, 10, width, height, 380);
-		glowB.addColorStop(0, "rgba(108, 92, 231, 0.2)");
-		glowB.addColorStop(1, "rgba(108, 92, 231, 0)");
+		glowB.addColorStop(0, color("brand-600", 0.2));
+		glowB.addColorStop(1, color("brand-600", 0));
 		ctx.fillStyle = glowB;
 		ctx.fillRect(0, 0, width, height);
 
-		ctx.strokeStyle = "rgba(255, 255, 255, 0.12)";
+		ctx.strokeStyle = color("fg", 0.12);
 		ctx.lineWidth = 2;
 		ctx.strokeRect(1, 1, width - 2, height - 2);
 
-		ctx.strokeStyle = "rgba(202, 169, 124, 0.25)";
+		ctx.strokeStyle = color("brand-400", 0.25);
 		ctx.lineWidth = 1;
 		ctx.strokeRect(12, 12, width - 24, height - 24);
 
-		ctx.fillStyle = "#caa97c";
+		ctx.fillStyle = color("brand-400");
 		ctx.font = "900 13px system-ui, sans-serif";
 		ctx.fillText("LUXMC LAUNCHER", 40, 50);
 
-		ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+		ctx.fillStyle = color("fg", 0.4);
 		ctx.font = "700 11px system-ui, sans-serif";
 		ctx.fillText("OFFICIAL GAMER PASSPORT", 195, 50);
 
-		ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+		ctx.fillStyle = color("bg-overlay", 0.4);
 		ctx.fillRect(40, 80, 140, 140);
-		ctx.strokeStyle = "rgba(202, 169, 124, 0.5)";
+		ctx.strokeStyle = color("brand-400", 0.5);
 		ctx.lineWidth = 2;
 		ctx.strokeRect(40, 80, 140, 140);
 
@@ -106,25 +112,25 @@
 
 		function finalizeCard() {
 			if (!ctx) return;
-			ctx.fillStyle = "#ffffff";
+			ctx.fillStyle = color("fg");
 			ctx.font = "900 28px system-ui, sans-serif";
 			ctx.fillText(username, 210, 120);
 
-			ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+			ctx.fillStyle = color("fg", 0.5);
 			ctx.font = "600 13px system-ui, sans-serif";
 			const isOnlineAcc = account.value?.minecraftToken && !account.value?.id.startsWith("offline_");
 			ctx.fillText(isOnlineAcc ? "🛡️ Conta Microsoft Oficial" : "⚡ Jogador Luxmc", 210, 145);
 
-			ctx.fillStyle = "rgba(255, 255, 255, 0.1)";
+			ctx.fillStyle = color("fg", 0.1);
 			ctx.fillRect(210, 165, 540, 4);
-			ctx.fillStyle = "#caa97c";
+			ctx.fillStyle = color("brand-400");
 			ctx.fillRect(210, 165, 340, 4);
 
-			drawStatBox(ctx, 40, 250, 220, 120, "TEMPO TOTAL", totalTime, "Horas de diversão no launcher", "#caa97c");
-			drawStatBox(ctx, 290, 250, 220, 120, "INSTÂNCIA ATIVA", activeProfileName, "Perfil mais jogado", "#60a5fa");
-			drawStatBox(ctx, 540, 250, 220, 120, "CONQUISTAS", `${unlockedCount} / ${totalAchievements}`, "Desafios desbloqueados", "#34d399");
+			drawStatBox(ctx, 40, 250, 220, 120, "TEMPO TOTAL", totalTime, "Horas de diversão no launcher", color("brand-400"));
+			drawStatBox(ctx, 290, 250, 220, 120, "INSTÂNCIA ATIVA", activeProfileName, "Perfil mais jogado", color("brand-300"));
+			drawStatBox(ctx, 540, 250, 220, 120, "CONQUISTAS", `${unlockedCount} / ${totalAchievements}`, "Desafios desbloqueados", color("success"));
 
-			ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+			ctx.fillStyle = color("fg", 0.3);
 			ctx.font = "500 11px system-ui, sans-serif";
 			ctx.fillText("Gerado pelo Luxmc Launcher · Linux-First Gaming · github.com/predabr/luxmc", 40, 415);
 
@@ -135,43 +141,42 @@
 		}
 	}
 
-	function drawStatBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, label: string, value: string, sub: string, color: string) {
-		ctx.fillStyle = "rgba(25, 26, 31, 0.85)";
+	function drawStatBox(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, label: string, value: string, sub: string, accent: string) {
+		ctx.fillStyle = color("bg-subtle", 0.85);
 		ctx.fillRect(x, y, w, h);
-		ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+		ctx.strokeStyle = color("fg", 0.08);
 		ctx.lineWidth = 1;
 		ctx.strokeRect(x, y, w, h);
 
-		ctx.fillStyle = color;
+		ctx.fillStyle = accent;
 		ctx.font = "800 10px system-ui, sans-serif";
 		ctx.fillText(label, x + 16, y + 28);
 
-		ctx.fillStyle = "#ffffff";
+		ctx.fillStyle = color("fg");
 		ctx.font = "900 18px system-ui, sans-serif";
 		const truncVal = value.length > 18 ? value.slice(0, 17) + "..." : value;
 		ctx.fillText(truncVal, x + 16, y + 62);
 
-		ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+		ctx.fillStyle = color("fg", 0.4);
 		ctx.font = "500 10px system-ui, sans-serif";
 		ctx.fillText(sub, x + 16, y + 92);
 	}
 
 	async function handleCopyCard() {
-		if (!canvasElem) return;
-		try {
-			canvasElem.toBlob(async (blob) => {
-				if (!blob) return;
-				const item = new ClipboardItem({ "image/png": blob });
-				await navigator.clipboard.write([item]);
-				copied = true;
-				playSound("click");
-				toast("Card de Gamer copiado para a área de transferência!", "success");
-				setTimeout(() => copied = false, 2500);
-			});
-		} catch (e) {
-			toast("Não foi possível copiar diretamente. Clique em Baixar Imagem.", "warning");
-		}
-	}
+        if (!canvasElem) return;
+        try {
+            const blob = await new Promise<Blob>((resolve, reject) => {
+                canvasElem!.toBlob(value => value ? resolve(value) : reject(new Error("PNG indisponível")), "image/png");
+            });
+            await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+            copied = true;
+            playSound("click");
+            toast("Card de Gamer copiado para a área de transferência!", "success");
+            setTimeout(() => copied = false, 2500);
+        } catch {
+            toast("Não foi possível copiar diretamente. Clique em Baixar Imagem.", "warning");
+        }
+    }
 
 	function handleDownloadCard() {
 		if (!cardDataUrl) return;
@@ -185,48 +190,42 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none" in:fade={{ duration: 150 }}>
-		<div class="w-full max-w-4xl rounded-3xl bg-[#141518] border border-white/15 p-7 shadow-2xl space-y-6 relative overflow-hidden" in:scale={{ start: 0.95, duration: 200 }}>
-			<!-- Ambient background lights -->
-			<div class="absolute -top-20 -left-20 w-64 h-64 bg-[#caa97c]/15 rounded-full blur-3xl pointer-events-none"></div>
-			<div class="absolute -bottom-20 -right-20 w-64 h-64 bg-[#6c5ce7]/15 rounded-full blur-3xl pointer-events-none"></div>
-
-			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-white/10 pb-4 relative z-10">
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/85 backdrop-blur-md select-none" in:fade={{ duration: 150 }}>
+		<div class="w-full max-w-4xl rounded-3xl bg-bg-elevated border border-fg/15 p-7 shadow-2xl space-y-6 relative overflow-hidden" in:scale={{ start: 0.95, duration: 200 }}>
+			<div class="absolute -top-20 -left-20 w-64 h-64 bg-brand-400/15 rounded-full blur-3xl pointer-events-none"></div>
+			<div class="absolute -bottom-20 -right-20 w-64 h-64 bg-brand-500/15 rounded-full blur-3xl pointer-events-none"></div>
+			<div class="flex items-center justify-between border-b border-fg/10 pb-4 relative z-10">
 				<div class="flex items-center gap-3">
-					<div class="w-10 h-10 rounded-2xl bg-[#caa97c]/15 border border-[#caa97c]/30 flex items-center justify-center text-[#caa97c]">
+					<div class="w-10 h-10 rounded-2xl bg-brand-400/15 border border-brand-400/30 flex items-center justify-center text-brand-400">
 						<Sparkles class="w-5 h-5" />
 					</div>
 					<div>
-						<h2 class="text-base font-black text-white tracking-tight">Card de Gamer Compartilhável</h2>
-						<p class="text-xs text-white/50">Mostre suas conquistas, horas jogadas e sua skin para amigos no Discord e redes sociais</p>
+						<h2 class="text-base font-black text-fg tracking-tight">Card de Gamer Compartilhável</h2>
+						<p class="text-xs text-fg/50">Mostre suas conquistas, horas jogadas e sua skin para amigos no Discord e redes sociais</p>
 					</div>
 				</div>
 
 				<button
 					type="button"
-					class="p-2 rounded-xl text-white/50 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+					class="p-2 rounded-xl text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
 					onclick={onClose}
+					aria-label="Fechar card de jogador"
 				>
 					<X class="w-5 h-5" />
 				</button>
 			</div>
-
-			<!-- Canvas Preview Area -->
 			<div class="flex flex-col items-center justify-center relative z-10">
-				<div class="w-full max-w-[800px] overflow-hidden rounded-2xl shadow-2xl border border-white/15 bg-black/50">
+				<div class="w-full max-w-[800px] overflow-hidden rounded-2xl shadow-2xl border border-fg/15 bg-bg-overlay/50">
 					<canvas bind:this={canvasElem} class="w-full h-auto block"></canvas>
 				</div>
 			</div>
-
-			<!-- Actions -->
-			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-white/10 relative z-10">
-				<span class="text-xs text-white/40 font-mono">Resolução Nativa: 800 x 450 px (PNG HD)</span>
+			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-fg/10 relative z-10">
+				<span class="text-xs text-fg/40 font-mono">Resolução Nativa: 800 x 450 px (PNG HD)</span>
 
 				<div class="flex items-center gap-3 w-full sm:w-auto justify-end">
 					<button
 						type="button"
-						class="px-5 py-2.5 rounded-2xl bg-[#202127] hover:bg-[#282a32] text-white/80 hover:text-white font-bold text-xs border border-white/10 flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-sm"
+						class="px-5 py-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle text-fg/80 hover:text-fg font-bold text-xs border border-fg/10 flex items-center gap-2 transition-all cursor-pointer active:scale-[0.98] shadow-sm"
 						onclick={handleDownloadCard}
 						disabled={isGenerating}
 					>
@@ -236,7 +235,7 @@
 
 					<button
 						type="button"
-						class="px-7 py-2.5 rounded-2xl bg-gradient-to-r from-[#d8bc98] via-[#caa97c] to-[#b89560] hover:from-[#e5cca8] hover:to-[#caa97c] text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer active:scale-95 shadow-lg shadow-[#caa97c]/20"
+						class="px-7 py-2.5 rounded-2xl bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 hover:from-brand-400 hover:to-brand-400 text-brand-foreground font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer active:scale-[0.98] shadow-lg shadow-glow"
 						onclick={handleCopyCard}
 						disabled={isGenerating}
 					>

@@ -6,7 +6,7 @@
 	interface Props {
 		title: string;
 		defaultOpen?: boolean;
-		icon?: any;
+		icon?: typeof import("lucide-svelte").Circle;
 		children?: Snippet;
 	}
 

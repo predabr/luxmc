@@ -113,11 +113,11 @@
 
 {#if open}
 	<div 
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md"
 		transition:fade={{ duration: 180 }}
 	>
 		<div 
-			class="relative w-full max-w-lg bg-bg-elevated border border-white/10 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 max-h-[85vh]"
+			class="relative w-full max-w-lg bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 max-h-[85vh]"
 			transition:scale={{ start: 0.95, duration: 200 }}
 		>
 			<!-- Top glow -->
@@ -130,13 +130,13 @@
 						<Archive class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-base font-bold text-white">Time Machine de Mundos</h3>
-						<p class="text-xs text-white/50">{worldName} ({folderName})</p>
+						<h3 class="text-base font-bold text-fg">Time Machine de Mundos</h3>
+						<p class="text-xs text-fg/50">{worldName} ({folderName})</p>
 					</div>
 				</div>
 				<button 
 					type="button" 
-					class="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+					class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
 					onclick={onClose}
 					aria-label="Fechar"
 				>
@@ -145,12 +145,12 @@
 			</div>
 
 			<!-- Create Snapshot Bar -->
-			<div class="flex items-center gap-2 bg-bg-subtle p-2 rounded-2xl border border-white/5">
+			<div class="flex items-center gap-2 bg-bg-subtle p-2 rounded-2xl border border-fg/5">
 				<input 
 					type="text" 
 					placeholder="Identificador do Snapshot (ex: Antes do Wither)..." 
 					bind:value={newLabel}
-					class="flex-1 bg-transparent px-3 py-1.5 text-xs text-white placeholder-white/30 outline-none"
+					class="flex-1 bg-transparent px-3 py-1.5 text-xs text-fg placeholder-fg/30 outline-none"
 				/>
 				<Button 
 					variant="primary" 
@@ -167,25 +167,25 @@
 			<!-- Snapshot list -->
 			<div class="flex-1 overflow-y-auto space-y-2.5 custom-scrollbar pr-1 min-h-[160px]">
 				{#if loading}
-					<div class="flex items-center justify-center py-12 text-white/40 text-xs">
+					<div class="flex items-center justify-center py-12 text-fg/40 text-xs">
 						Carregando snapshots do mundo...
 					</div>
 				{:else if snapshots.length === 0}
-					<div class="flex flex-col items-center justify-center py-12 text-center text-white/40">
+					<div class="flex flex-col items-center justify-center py-12 text-center text-fg/40">
 						<Archive class="w-10 h-10 mb-2 opacity-30" />
-						<div class="text-xs font-bold text-white/60">Nenhum snapshot gravado</div>
+						<div class="text-xs font-bold text-fg/60">Nenhum snapshot gravado</div>
 						<div class="text-[11px] mt-1">Crie seu primeiro ponto de restauração instantâneo com compressão zstd!</div>
 					</div>
 				{:else}
 					{#each snapshots as snap}
-						<div class="bg-bg-subtle border border-white/5 hover:border-white/10 rounded-2xl p-3.5 flex items-center justify-between transition-all group">
+						<div class="bg-bg-subtle border border-fg/5 hover:border-fg/10 rounded-2xl p-3.5 flex items-center justify-between transition-all group">
 							<div class="flex items-center gap-3 min-w-0">
 								<div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
 									<Clock class="w-4 h-4" />
 								</div>
 								<div class="min-w-0">
-									<div class="text-xs font-bold text-white truncate">{snap.label}</div>
-									<div class="flex items-center gap-2 mt-0.5 text-[10px] text-white/40">
+									<div class="text-xs font-bold text-fg truncate">{snap.label}</div>
+									<div class="flex items-center gap-2 mt-0.5 text-[10px] text-fg/40">
 										<span>{formatDate(snap.createdAt)}</span>
 										<span>·</span>
 										<span>{(snap.sizeBytes / (1024 * 1024)).toFixed(2)} MB (zstd)</span>
@@ -206,7 +206,7 @@
 								</button>
 								<button 
 									type="button"
-									class="p-2 rounded-xl text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+									class="p-2 rounded-xl text-fg/40 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
 									onclick={() => handleDelete(snap.filename)}
 									title="Excluir snapshot"
 									aria-label="Excluir snapshot"
@@ -220,7 +220,7 @@
 			</div>
 
 			<!-- Footer info -->
-			<div class="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-white/40">
+			<div class="pt-2 border-t border-fg/5 flex items-center justify-between text-[11px] text-fg/40">
 				<span>Algoritmo: Zstandard level 3</span>
 				<Button variant="secondary" size="sm" onclick={onClose}>
 					Fechar

@@ -1,6 +1,7 @@
 <script lang="ts">
+    import { toast } from "$lib/stores/toasts.svelte";
+    import { openPortal } from "$lib/api/deepLinks";
 	import { Sun, Moon, Globe, Gauge, Zap, ExternalLink } from "lucide-svelte";
-	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { account } from "$lib/stores/account.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { setLocale } from "$lib/stores/persistence.svelte";
@@ -29,12 +30,12 @@
 	<div class="flex items-center gap-3 min-w-0">
 		{#if account.value}
 			<div class="flex items-center gap-2.5 text-sm">
-				<span class="text-white/60 font-medium">Logged in as</span>
-				<span class="font-bold text-white drop-shadow-md">{account.value.username}</span>
+				<span class="text-fg/60 font-medium">Logged in as</span>
+				<span class="font-bold text-fg drop-shadow-md">{account.value.username}</span>
 			</div>
 		{:else}
 			<div class="flex flex-col gap-0.5">
-				<span class="text-sm font-bold text-white tracking-tight">Luxmc</span>
+				<span class="text-sm font-bold text-fg tracking-tight">Luxmc</span>
 				<span class="text-[10px] uppercase font-bold text-brand-300">Ultimate Edition</span>
 			</div>
 		{/if}
@@ -44,7 +45,7 @@
 		<button
 			onclick={togglePerformance}
 			class="flex h-9 items-center gap-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 border"
-			style={appState.performanceMode ? "background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: rgb(248, 113, 113);" : "background: rgba(255, 255, 255, 0.05); border-color: transparent; color: rgba(255, 255, 255, 0.6);"}
+			style={appState.performanceMode ? "background: rgb(var(--danger) / 0.15); border-color: rgb(var(--danger) / 0.3); color: rgb(var(--danger));" : "background: rgb(var(--fg) / 0.05); border-color: transparent; color: rgb(var(--fg) / 0.6);"}
 			title="Toggle Performance Mode"
 		>
 			{#if appState.performanceMode}
@@ -58,20 +59,20 @@
 
 		<button
 			type="button"
-			onclick={() => openUrl("https://luxmc-r92.pages.dev")}
-			class="flex h-9 items-center gap-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 bg-white/5 hover:bg-white/10 hover:border-emerald-500/30 border border-white/5 text-white/80 hover:text-white cursor-pointer active:scale-95 shadow-sm"
+			onclick={() => { void openPortal().catch(error => toast(String(error), "error")); }}
+			class="flex h-9 items-center gap-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 bg-fg/5 hover:bg-fg/10 hover:border-emerald-500/30 border border-fg/5 text-fg/80 hover:text-fg cursor-pointer active:scale-[0.98] shadow-sm"
 			title="Abrir Portal Web & Studio 3D (luxmc-r92.pages.dev)"
 		>
 			<Globe class="h-3.5 w-3.5 text-emerald-400" />
 			<span>Site & 3D</span>
-			<ExternalLink class="h-3 w-3 text-white/40" />
+			<ExternalLink class="h-3 w-3 text-fg/40" />
 		</button>
 
-		<div class="h-5 w-px bg-white/10 mx-1"></div>
+		<div class="h-5 w-px bg-fg/10 mx-1"></div>
 
 		<button
 			onclick={toggleLanguage}
-			class="flex h-9 items-center gap-1.5 px-2.5 rounded-lg text-xs font-bold transition-all duration-200 hover:bg-white/10 text-white/60 hover:text-white"
+			class="flex h-9 items-center gap-1.5 px-2.5 rounded-lg text-xs font-bold transition-all duration-200 hover:bg-fg/10 text-fg/60 hover:text-fg"
 			title={settings.value.language === "en" ? t("settings.switchToPortuguese") : t("settings.switchToEnglish")}
 		>
 			<Globe class="h-4 w-4" />
@@ -80,7 +81,7 @@
 
 		<button
 			onclick={cycleTheme}
-			class="flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 hover:bg-white/10 text-white/60 hover:text-white"
+			class="flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 hover:bg-fg/10 text-fg/60 hover:text-fg"
 		>
 			{#if settings.value.theme === "default-dark"}
 				<Moon class="h-4 w-4" />
@@ -89,7 +90,7 @@
 			{/if}
 		</button>
 
-		<div class="h-5 w-px bg-white/10 mx-1"></div>
+		<div class="h-5 w-px bg-fg/10 mx-1"></div>
 
 		<div class="ml-1">
 			<AccountIndicator />

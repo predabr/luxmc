@@ -10,7 +10,7 @@
 
 <div class="mx-auto flex h-full max-w-6xl flex-col gap-4">
 	<header class="flex items-center gap-2">
-		<History class="h-5 w-5" style="color: rgb(45, 212, 191);" />
+		<History class="h-5 w-5" style="color: rgb(var(--brand-400));" />
 		<Heading>{t("logs.historyTitle")}</Heading>
 	</header>
 	<p class="text-xs" style="color: rgb(var(--fg-muted));">

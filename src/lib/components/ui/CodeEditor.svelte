@@ -28,25 +28,25 @@
 
 		const theme = EditorView.theme({
 			"&": {
-				backgroundColor: "#0d0e12",
-				color: "#e2e8f0",
+				backgroundColor: "rgb(var(--bg-elevated))",
+				color: "rgb(var(--fg))",
 				height: "100%",
 				fontSize: "12px",
 				fontFamily: "monospace"
 			},
 			".cm-content": {
-				caretColor: "#caa97c"
+				caretColor: "rgb(var(--brand-400))"
 			},
 			"&.cm-focused .cm-cursor": {
-				borderLeftColor: "#caa97c"
+				borderLeftColor: "rgb(var(--brand-400))"
 			},
 			"&.cm-focused .cm-selectionBackground, ::selection": {
-				backgroundColor: "rgba(202, 169, 124, 0.25)"
+				backgroundColor: "rgb(var(--brand-500) / 0.25)"
 			},
 			".cm-gutters": {
-				backgroundColor: "#090a0d",
-				color: "#64748b",
-				borderRight: "1px solid rgba(255, 255, 255, 0.05)"
+				backgroundColor: "rgb(var(--bg))",
+				color: "rgb(var(--fg-subtle))",
+				borderRight: "1px solid rgb(var(--fg) / 0.05)"
 			}
 		});
 
@@ -86,7 +86,7 @@
 
 <div 
 	bind:this={container} 
-	class="w-full h-full min-h-[280px] rounded-2xl overflow-hidden border border-white/10"
+	class="w-full h-full min-h-[280px] rounded-2xl overflow-hidden border border-fg/10"
 ></div>
 
 <style>

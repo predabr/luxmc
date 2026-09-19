@@ -6,6 +6,7 @@ pub struct AppState {
     pub http: reqwest::Client,
     pub auth: AuthService,
     pub import_cancel: Arc<AtomicBool>,
+    pub import_lock: tokio::sync::Mutex<()>,
 }
 
 impl Default for AppState {
@@ -15,6 +16,6 @@ impl Default for AppState {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         let auth = AuthService::new(http.clone());
-        Self { http, auth, import_cancel: Arc::new(AtomicBool::new(false)) }
+        Self { http, auth, import_cancel: Arc::new(AtomicBool::new(false)), import_lock: tokio::sync::Mutex::new(()) }
     }
 }

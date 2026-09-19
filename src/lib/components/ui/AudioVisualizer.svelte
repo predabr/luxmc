@@ -18,11 +18,14 @@
 	$effect(() => {
 		if (!container || !url) return;
 
+		const colors = getComputedStyle(document.documentElement);
+        const accent = colors.getPropertyValue("--brand-400").trim();
+        const foreground = colors.getPropertyValue("--fg").trim();
 		const ws = WaveSurfer.create({
 			container,
-			waveColor: "#caa97c40",
-			progressColor: "#caa97c",
-			cursorColor: "#ffffff",
+			waveColor: `rgb(${accent} / 0.25)`,
+			progressColor: `rgb(${accent})`,
+			cursorColor: `rgb(${foreground})`,
 			barWidth: 2,
 			barGap: 3,
 			barRadius: 2,
@@ -75,10 +78,10 @@
 	}
 </script>
 
-<div class="bg-bg-subtle border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
-	<div class="flex items-center justify-between text-xs font-semibold text-white/80">
+<div class="bg-bg-subtle border border-fg/10 rounded-2xl p-4 flex flex-col gap-3">
+	<div class="flex items-center justify-between text-xs font-semibold text-fg/80">
 		<span>{title}</span>
-		<span class="font-mono text-white/50">{formatTime(currentTime)} / {formatTime(duration)}</span>
+		<span class="font-mono text-fg/50">{formatTime(currentTime)} / {formatTime(duration)}</span>
 	</div>
 
 	<div bind:this={container} class="w-full h-12"></div>
@@ -100,7 +103,7 @@
 
 		<button
 			type="button"
-			class="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-xs transition cursor-pointer"
+			class="p-1.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/70 text-xs transition cursor-pointer"
 			onclick={restart}
 			aria-label="Reiniciar áudio"
 		>

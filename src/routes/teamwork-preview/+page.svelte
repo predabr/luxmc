@@ -123,7 +123,7 @@
 
 <div class="p-6 md:p-8 space-y-8 max-w-7xl mx-auto">
 	<!-- Hero Card -->
-	<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-subtle to-bg border border-white/10 p-7 shadow-2xl">
+	<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-subtle to-bg border border-fg/10 p-7 shadow-2xl">
 		<div class="absolute -right-10 -top-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
 		<div class="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
 			<div class="flex items-center gap-4">
@@ -132,19 +132,19 @@
 				</div>
 				<div>
 					<div class="flex items-center gap-2">
-						<h1 class="text-2xl font-black text-white tracking-tight">Teamwork & Squad Preview</h1>
-						<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-black shadow-md">
+						<h1 class="text-2xl font-black text-fg tracking-tight">Teamwork & Squad Preview</h1>
+						<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-brand-foreground shadow-md">
 							P2P Host
 						</span>
 					</div>
-					<p class="text-xs text-white/50 mt-1">Conexão direta P2P sem portas abertas, inspeção de equipe e sincronização</p>
+					<p class="text-xs text-fg/50 mt-1">Conexão direta P2P sem portas abertas, inspeção de equipe e sincronização</p>
 				</div>
 			</div>
 
 			<div class="flex items-center gap-3">
 				<button
 					type="button"
-					class="px-5 py-2.5 rounded-full text-xs font-bold bg-bg-overlay hover:bg-white/10 text-white/80 hover:text-white border border-white/10 transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+					class="px-5 py-2.5 rounded-full text-xs font-bold bg-bg-overlay hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10 transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98]"
 					onclick={refreshHost}
 					disabled={loadingHost}
 				>
@@ -157,24 +157,24 @@
 
 	<!-- P2P Room Generation Card -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-		<div class="lg:col-span-2 bg-bg-elevated border border-white/10 rounded-3xl p-6 shadow-md space-y-5">
+		<div class="lg:col-span-2 bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-md space-y-5">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">
 					<div class="w-10 h-10 rounded-xl bg-brand-500/15 text-brand-500 border border-brand-500/25 flex items-center justify-center">
 						<Radio class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-sm font-bold text-white">Criar Sala Multiplayer P2P</h3>
-						<p class="text-xs text-white/40">Gera um link seguro para qualquer amigo entrar no seu mundo</p>
+						<h3 class="text-sm font-bold text-fg">Criar Sala Multiplayer P2P</h3>
+						<p class="text-xs text-fg/40">Gera um link seguro para qualquer amigo entrar no seu mundo</p>
 					</div>
 				</div>
 
 				<div class="flex items-center gap-2">
-					<span class="text-xs text-white/50">Porta LAN:</span>
+					<span class="text-xs text-fg/50">Porta LAN:</span>
 					<input
 						type="number"
 						bind:value={hostPort}
-						class="w-20 bg-bg-subtle border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white font-mono text-center outline-none focus:border-brand-500"
+						class="w-20 bg-bg-subtle border border-fg/10 rounded-xl px-2.5 py-1 text-xs text-fg font-mono text-center outline-none focus:border-brand-500"
 						onchange={refreshHost}
 					/>
 				</div>
@@ -182,16 +182,16 @@
 
 			{#if hostInfo}
 				<div class="space-y-3">
-					<div class="bg-bg-subtle border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-inner">
+					<div class="bg-bg-subtle border border-fg/10 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-inner">
 						<div class="min-w-0 flex-1">
-							<span class="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Link de Convite P2P</span>
+							<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block">Link de Convite P2P</span>
 							<span class="font-mono text-xs text-emerald-400 font-semibold truncate block mt-0.5">
 								{hostInfo.shareLink}
 							</span>
 						</div>
 						<button
 							type="button"
-							class="px-4 py-2 rounded-full text-xs font-bold bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+							class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg border border-fg/10 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
 							onclick={copyShareLink}
 						>
 							{#if copiedLink}
@@ -204,16 +204,16 @@
 						</button>
 					</div>
 
-					<div class="bg-bg-subtle border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-inner">
+					<div class="bg-bg-subtle border border-fg/10 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-inner">
 						<div class="min-w-0 flex-1">
-							<span class="text-[10px] font-bold text-white/40 uppercase tracking-wider block">Endereço Direto (IP:Porta)</span>
-							<span class="font-mono text-xs text-white/80 truncate block mt-0.5">
+							<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block">Endereço Direto (IP:Porta)</span>
+							<span class="font-mono text-xs text-fg/80 truncate block mt-0.5">
 								{hostInfo.directAddress}
 							</span>
 						</div>
 						<button
 							type="button"
-							class="px-4 py-2 rounded-full text-xs font-bold bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+							class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg border border-fg/10 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
 							onclick={copyDirect}
 						>
 							{#if copiedDirect}
@@ -229,12 +229,12 @@
 			{/if}
 
 			<!-- Join Room -->
-			<div class="pt-4 border-t border-white/5 flex items-center gap-3">
+			<div class="pt-4 border-t border-fg/5 flex items-center gap-3">
 				<input
 					type="text"
 					bind:value={joinInput}
 					placeholder="Cole aqui o link luxmc://host/... ou IP:Porta de um amigo"
-					class="flex-1 bg-bg-subtle border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder:text-white/30 outline-none focus:border-brand-500 transition-colors"
+					class="flex-1 bg-bg-subtle border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500 transition-colors"
 				/>
 				<Button
 					variant="primary"
@@ -248,30 +248,30 @@
 		</div>
 
 		<!-- Status & Security Card -->
-		<div class="bg-bg-elevated border border-white/10 rounded-3xl p-6 shadow-md flex flex-col justify-between gap-4">
+		<div class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-md flex flex-col justify-between gap-4">
 			<div>
 				<div class="flex items-center gap-2.5 text-emerald-400">
 					<ShieldCheck class="w-5 h-5" />
 					<h4 class="text-xs font-black uppercase tracking-wider">Túnel P2P Criptografado</h4>
 				</div>
-				<p class="text-xs text-white/50 mt-2 leading-relaxed">
+				<p class="text-xs text-fg/50 mt-2 leading-relaxed">
 					As conexões diretas entre hosts utilizam hole-punching UDP de baixa latência. Nenhuma porta precisa ser aberta no roteador.
 				</p>
 			</div>
 
-			<div class="space-y-2 pt-4 border-t border-white/5">
+			<div class="space-y-2 pt-4 border-t border-fg/5">
 				<div class="flex items-center justify-between text-xs">
-					<span class="text-white/40">Status do Túnel:</span>
+					<span class="text-fg/40">Status do Túnel:</span>
 					<span class="font-bold text-emerald-400 flex items-center gap-1">
 						<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Ativo
 					</span>
 				</div>
 				<div class="flex items-center justify-between text-xs">
-					<span class="text-white/40">Descoberta LAN:</span>
-					<span class="font-bold text-white/80">Multicast 224.0.2.60</span>
+					<span class="text-fg/40">Descoberta LAN:</span>
+					<span class="font-bold text-fg/80">Multicast 224.0.2.60</span>
 				</div>
 				<div class="flex items-center justify-between text-xs">
-					<span class="text-white/40">Latência Média:</span>
+					<span class="text-fg/40">Latência Média:</span>
 					<span class="font-mono font-bold text-emerald-400">~15-35 ms</span>
 				</div>
 			</div>
@@ -282,11 +282,11 @@
 	<div class="space-y-4">
 		<div class="flex items-center justify-between">
 			<div>
-				<h3 class="text-sm font-bold text-white flex items-center gap-2">
+				<h3 class="text-sm font-bold text-fg flex items-center gap-2">
 					<Users class="w-4 h-4 text-emerald-400" />
 					Escalação da Equipe (Party Lineup)
 				</h3>
-				<p class="text-xs text-white/40 mt-0.5">Jogadores prontos para entrar no mesmo mundo multiplayer</p>
+				<p class="text-xs text-fg/40 mt-0.5">Jogadores prontos para entrar no mesmo mundo multiplayer</p>
 			</div>
 			<span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
 				{partyMembers.length} Jogadores Prontos
@@ -295,16 +295,16 @@
 
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 			{#each partyMembers as member}
-				<div class="bg-bg-elevated border border-white/5 hover:border-white/15 rounded-2xl p-4 flex items-center justify-between transition-all group shadow-sm">
+				<div class="bg-bg-elevated border border-fg/5 hover:border-fg/15 rounded-2xl p-4 flex items-center justify-between transition-all group shadow-sm">
 					<div class="flex items-center gap-3.5 min-w-0">
-						<div class="h-12 w-12 rounded-xl bg-black/40 border border-white/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
+						<div class="h-12 w-12 rounded-xl bg-bg-overlay/40 border border-fg/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
 							<img src={member.avatar} alt={member.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
 						</div>
 						<div class="min-w-0">
 							<div class="flex items-center gap-2">
-								<h5 class="text-xs font-bold text-white truncate">{member.name}</h5>
+								<h5 class="text-xs font-bold text-fg truncate">{member.name}</h5>
 							</div>
-							<div class="text-[10px] text-white/40 mt-0.5 flex items-center gap-1.5">
+							<div class="text-[10px] text-fg/40 mt-0.5 flex items-center gap-1.5">
 								<span class="text-brand-500 font-semibold">{member.role}</span>
 								<span>·</span>
 								<span class="font-mono text-emerald-400">{member.ping === 0 ? 'Host' : `${member.ping}ms`}</span>

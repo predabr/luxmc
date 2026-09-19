@@ -48,8 +48,8 @@ describe("themeStore", () => {
     expect(THEMES).toHaveProperty("light");
   });
 
-  it("ACCENTS has all 7 accents", () => {
-    expect(Object.keys(ACCENTS)).toHaveLength(7);
+  it("ACCENTS preserves the legacy accents and adds purple", () => {
+    expect(Object.keys(ACCENTS)).toHaveLength(8);
     expect(ACCENTS).toHaveProperty("gold");
     expect(ACCENTS).toHaveProperty("cyan");
     expect(ACCENTS).toHaveProperty("emerald");

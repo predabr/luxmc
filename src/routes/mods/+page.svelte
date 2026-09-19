@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { sanitizeHtml } from "$lib/utils/sanitizeHtml";
+	import { onMount, untrack } from "svelte";
+	import { deepLinks } from "$lib/stores/deepLinks.svelte";
+	import type { DeepLinkAction } from "$lib/utils/deepLink";
 	import {
 		Search, LayoutGrid, List, Loader2, AlertTriangle,
 		Check, ChevronLeft, ChevronRight, ChevronDown
@@ -8,11 +11,11 @@
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import {
 		modsSearch, modsVersions, modsInstall, modsProjectDetails,
-		modsDownloadToTemp, instanceImportMrpack, instanceImportModpack,
+		modsDownloadToTemp, instanceImportMrpack, instanceImportModpack, instanceCancelImport,
 		curseforgeStatus,
 		type ModProjectDetails, type ModVersion, type ModSearchResultItem
 	} from "$lib/api";
-	import { listen } from "@tauri-apps/api/event";
+	import { listen } from "$lib/api/client";
 	import { marked } from "marked";
 	import ModCard from "$lib/components/mods/ModCard.svelte";
 	import ModCardList from "$lib/components/mods/ModCardList.svelte";
@@ -37,6 +40,7 @@
 	let modpackInstanceName = $state("");
 	let modpackRamMb = $state(4096);
 	let isInstallingModpack = $state(false);
+    let cancelRequested = $state(false);
 	let modpackProgressText = $state("");
 	let modpackProgressPercent = $state(0);
 
@@ -99,51 +103,31 @@
 		try { return marked.parse(content) as string; } catch { return content; }
 	}
 
-	function sanitizeHtml(html: string): string {
-		return html
-			.replace(/<script[\s\S]*?<\/script>/gi, '')
-			.replace(/<object[\s\S]*?<\/object>/gi, '')
-			.replace(/<embed[\s\S]*?<\/embed>/gi, '')
-			.replace(/<applet[\s\S]*?<\/applet>/gi, '')
-			.replace(/<base[^>]*>/gi, '')
-			.replace(/<form[\s\S]*?<\/form>/gi, '')
-			.replace(/<input[^>]*>/gi, '')
-			.replace(/<button[\s\S]*?<\/button>/gi, '')
-			.replace(/<iframe[\s\S]*?<\/iframe>/gi, (_m) => {
-				return _m.includes('youtube.com/embed') || _m.includes('youtu.be/') ? _m : '';
-			})
-			.replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '')
-			.replace(/\son\w+\s*=\s*\S+/gi, '')
-			.replace(/javascript:/gi, '')
-			.replace(/vbscript:/gi, '')
-			.replace(/data:text\/html/gi, '');
-	}
 
 	function processDescription(body: string, isHtml: boolean): string {
 		if (!body) return "";
 		let html = isHtml ? body : renderMarkdown(body);
-		html = sanitizeHtml(html);
 		html = html.replace(
 			/<iframe[^>]*src=["'](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([\w-]+)[^"']*["'][^>]*>.*?<\/iframe>/gi,
 			(_m, vid) => `
-				<div class="my-5 rounded-2xl overflow-hidden border border-white/[0.06] bg-black/60 shadow-xl max-w-2xl">
+				<div class="my-5 rounded-2xl overflow-hidden border border-fg/[0.06] bg-bg-overlay/60 shadow-xl max-w-2xl">
 					<div class="relative aspect-video w-full group">
 						<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" class="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt="YouTube Preview" loading="lazy" />
-						<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center bg-black/30 hover:bg-black/10 transition-colors">
-							<div class="w-16 h-12 rounded-2xl bg-red-600/90 text-white flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-red-600 transition-transform">
+						<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center bg-bg-overlay/30 hover:bg-bg-overlay/10 transition-colors">
+							<div class="w-16 h-12 rounded-2xl bg-red-600/90 text-fg flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-red-600 transition-transform">
 								<svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
 							</div>
 						</a>
 					</div>
-					<div class="p-3 bg-[#111216] flex items-center justify-between text-xs text-white/70 font-medium">
+					<div class="p-3 bg-bg-elevated flex items-center justify-between text-xs text-fg/70 font-medium">
 						<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Vídeo de Demonstração (YouTube)</span>
-						<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener" class="text-[#caa97c] hover:underline font-bold">Assistir no Navegador ↗</a>
+						<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener" class="text-brand-500 hover:underline font-bold">Assistir no Navegador ↗</a>
 					</div>
 				</div>`
 		);
 		html = html.replace(/<video([^>]*)>([\s\S]*?)<\/video>/gi,
-			'<video$1 preload="metadata" controls playsinline class="rounded-xl max-w-full my-3 border border-white/[0.06]">$2</video>');
-		return html;
+			'<video$1 preload="metadata" controls playsinline class="rounded-xl max-w-full my-3 border border-fg/[0.06]">$2</video>');
+		return sanitizeHtml(html);
 	}
 
 	async function doSearch(page = 1) {
@@ -171,6 +155,35 @@
 	onMount(() => {
 		curseforgeStatus().then(s => { curseforgeActive = s; }).catch(() => { curseforgeActive = true; });
 	});
+
+    $effect(() => {
+        const request = deepLinks.install;
+        if (!request || isInstallingModpack || showInstancePickerModal || showModpackInstallModal) return;
+        untrack(() => { deepLinks.install = null; void openLinkedProject(request); });
+    });
+
+    async function openLinkedProject(request: Extract<DeepLinkAction, { kind: "install" }>): Promise<void> {
+        try {
+            const details = await modsProjectDetails(request.id, request.source);
+            const item: ModSearchResultItem = {
+                sourceId: details.id, source: request.source, slug: details.slug,
+                title: details.title, description: details.description, downloads: details.downloads,
+                iconUrl: details.iconUrl, bannerUrl: details.gallery[0]?.url ?? null,
+                author: details.author?.name ?? null, categories: details.categories, versions: details.gameVersions
+            };
+            selectedSource = request.source;
+            selectedType = request.content === "modpack" ? "Modpack" : "Mod";
+            if (request.content === "modpack") { openModpackInstall(item); return; }
+            const compatible = profiles.list.filter(profile =>
+                (!details.gameVersions.length || details.gameVersions.includes(profile.mcVersion)) &&
+                (!details.loaders.length || details.loaders.includes(profile.loader)));
+            targetInstanceId = compatible.find(profile => profile.id === profiles.activeId)?.id ?? compatible[0]?.id ?? "";
+            if (!targetInstanceId) throw new Error("Crie uma instância com versão e loader compatíveis com este mod.");
+            itemToInstall = { item };
+            chosenInstanceId = targetInstanceId;
+            showInstancePickerModal = true;
+        } catch (error) { toast(`Não foi possível carregar o projeto: ${String(error)}`, "error"); }
+    }
 
 	async function openDetails(item: ModSearchResultItem) {
 		selectedItem = item; modDetails = null; modVersionsList = [];
@@ -212,7 +225,8 @@
 	async function confirmModpackInstall() {
 		if (!modpackToInstall || isInstallingModpack) return;
 		const item = modpackToInstall; const name = modpackInstanceName.trim() || item.title;
-		isInstallingModpack = true; modpackProgressText = "Buscando arquivos do modpack...";
+		cancelRequested = false;
+        isInstallingModpack = true; modpackProgressText = "Buscando arquivos do modpack...";
 		modpackProgressPercent = 0;
 		let unlisten: (() => void) | null = null;
 		try {
@@ -232,11 +246,14 @@
 				isInstallingModpack = false;
 				return;
 			}
-			const f = versions[0].files[0];
+			const extension = item.source === "curseforge" ? ".zip" : ".mrpack";
+            const f = versions.flatMap(version => version.files).find(file => file.url && file.filename.toLowerCase().endsWith(extension));
 			if (!f?.url) { toast("Arquivo de download não disponível para este modpack.", "error"); isInstallingModpack = false; return; }
 			modpackProgressText = `Baixando pacote (${f.filename})...`;
 			modpackProgressPercent = -1;
-			const tempPath = await modsDownloadToTemp(f.url, f.filename);
+			if (cancelRequested) throw new Error("Importação cancelada");
+            const tempPath = await modsDownloadToTemp(f.url, f.filename);
+            if (cancelRequested) throw new Error("Importação cancelada");
 			modpackProgressText = "Configurando nova instância e extraindo mods...";
 			modpackProgressPercent = 0;
 			const iconUrl = item.iconUrl || "";
@@ -266,12 +283,18 @@
 			showModpackInstallModal = false;
 			modpackToInstall = null;
 		} catch (e) {
-			toast(`Erro ao criar instância: ${e instanceof Error ? e.message : String(e)}`, "error");
+			toast(cancelRequested ? "Importação cancelada." : `Erro ao criar instância: ${e instanceof Error ? e.message : String(e)}`, cancelRequested ? "info" : "error");
 		} finally {
 			if (unlisten) unlisten();
 			isInstallingModpack = false; modpackProgressText = ""; modpackProgressPercent = 0;
 		}
 	}
+
+    async function cancelModpackInstall(): Promise<void> {
+        if (cancelRequested) return;
+        cancelRequested = true;
+        try { await instanceCancelImport(); } catch (error) { cancelRequested = false; toast(String(error), "error"); }
+    }
 
 	async function confirmInstanceInstall() {
 		if (!itemToInstall) return;
@@ -330,20 +353,20 @@
 			onInstallVersion={(verId) => (selectedItem && isItemModpack(selectedItem)) ? openModpackInstall(selectedItem) : promptInstall(selectedItem!, verId)}
 		>
 			{#if loadingDetails}
-				<div class="bg-[#111216] border border-white/[0.06] rounded-3xl p-12 flex flex-col items-center justify-center gap-3">
-					<Loader2 class="w-8 h-8 text-[#caa97c] animate-spin" />
-					<p class="text-xs text-white/35 font-medium">Carregando informações completas...</p>
+				<div class="bg-bg-elevated border border-fg/[0.06] rounded-3xl p-12 flex flex-col items-center justify-center gap-3">
+					<Loader2 class="w-8 h-8 text-brand-500 animate-spin" />
+					<p class="text-xs text-fg/35 font-medium">Carregando informações completas...</p>
 				</div>
 			{:else if modDetails}
 				{#if activeDetailTab === 'overview'}
-					<div class="bg-[#111216] border border-white/[0.06] rounded-3xl p-6 shadow-sm overflow-hidden">
-						<div class="prose prose-invert max-w-none text-xs text-white/80 leading-relaxed font-sans [&_a]:text-[#caa97c] [&_h1]:text-white [&_h2]:text-white [&_h3]:text-white [&_img]:rounded-xl [&_img]:max-w-full">
+					<div class="bg-bg-elevated border border-fg/[0.06] rounded-3xl p-6 shadow-sm overflow-hidden">
+						<div class="prose prose-invert max-w-none text-xs text-fg/80 leading-relaxed font-sans [&_a]:text-brand-500 [&_h1]:text-fg [&_h2]:text-fg [&_h3]:text-fg [&_img]:rounded-xl [&_img]:max-w-full">
 							{@html processDescription(modDetails.body, modDetails.bodyType === 'html')}
 						</div>
 					</div>
 				{:else if activeDetailTab === 'gallery'}
 					{#if modDetails.gallery.length === 0}
-						<div class="bg-[#111216] border border-white/[0.06] rounded-3xl p-12 text-center text-white/35 text-xs">
+						<div class="bg-bg-elevated border border-fg/[0.06] rounded-3xl p-12 text-center text-fg/35 text-xs">
 							<p>Nenhuma screenshot disponível para este projeto.</p>
 						</div>
 					{:else}
@@ -351,15 +374,15 @@
 							{#each modDetails.gallery as img}
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div class="group relative bg-[#111216] border border-white/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-[#caa97c]/30 transition-all shadow-sm" onclick={() => lightboxImage = img}>
-									<div class="h-44 w-full bg-[#222328] overflow-hidden">
+								<div class="group relative bg-bg-elevated border border-fg/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/30 transition-all shadow-sm" onclick={() => lightboxImage = img}>
+									<div class="h-44 w-full bg-bg-subtle overflow-hidden">
 										<img src={img.url} alt={img.title || "Screenshot"} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
 									</div>
 									{#if img.title}
-										<div class="p-3 bg-[#111216]">
-											<h4 class="text-xs font-bold text-white truncate">{img.title}</h4>
+										<div class="p-3 bg-bg-elevated">
+											<h4 class="text-xs font-bold text-fg truncate">{img.title}</h4>
 											{#if img.description}
-												<p class="text-[10px] text-white/35 line-clamp-1 mt-0.5">{img.description}</p>
+												<p class="text-[10px] text-fg/35 line-clamp-1 mt-0.5">{img.description}</p>
 											{/if}
 										</div>
 									{/if}
@@ -379,48 +402,51 @@
 
 	{:else}
 		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-1">
-			<header class="mb-4">
-				<h1 class="text-2xl font-bold text-white tracking-tight">Central de Conteúdo</h1>
-				<p class="text-xs text-white/35 mt-0.5 font-medium">Encontre e Instale modpacks, mods e recursos incríveis</p>
-			</header>
+			<header class="relative mb-6 overflow-hidden rounded-2xl border border-fg/[0.08] bg-bg-elevated/80 p-6 backdrop-blur-2xl">
+                <div class="pointer-events-none absolute -right-12 -top-16 h-48 w-48 rounded-full bg-brand-500/10 blur-3xl"></div>
+                <p class="page-eyebrow mb-3">Descubra · Instale · Explore</p>
+                <h1 class="page-title">Seu Minecraft, sem limites.</h1>
+                <p class="page-description">Mods, modpacks e novos mundos. Tudo em um só lugar.</p>
+                <div class="mt-5 flex items-center gap-3 text-[10px] font-semibold text-fg-muted"><span class="rounded-full border border-success/20 bg-success/5 px-3 py-1.5">Modrinth</span><span class="rounded-full border border-orange-500/20 bg-orange-500/5 px-3 py-1.5">CurseForge</span></div>
+            </header>
 
 			<div class="relative w-full mb-4">
-				<Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-				<input type="text" bind:value={searchQuery} placeholder={`Search ${selectedType.toLowerCase()}...`}
-					class="w-full bg-[#131418] border border-white/[0.08] focus:border-[#6c5ce7]/60 rounded-2xl py-3 pl-11 pr-4 text-xs text-white placeholder-white/30 focus:outline-none transition-all shadow-inner" />
+				<Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30" />
+				<input type="text" bind:value={searchQuery} placeholder={`Buscar ${selectedType.toLowerCase()}…`}
+					class="w-full bg-bg-elevated border border-fg/[0.08] focus:border-brand-500/60 rounded-2xl py-3 pl-11 pr-4 text-xs text-fg placeholder-fg/30 focus:outline-none transition-all shadow-inner" />
 			</div>
 
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
-					<span class="text-xs font-extrabold text-white">{selectedType}</span>
-					<span class="text-xs text-white/35 font-medium">({totalEstimate} resultados)</span>
+					<span class="text-xs font-extrabold text-fg">{selectedType}</span>
+					<span class="text-xs text-fg/35 font-medium">({results.length} nesta página)</span>
 					{#if loading}
-						<span class="text-[10px] text-[#a29bfe] font-mono font-medium flex items-center gap-1 ml-2">
-							<Loader2 class="w-3 h-3 animate-spin text-[#6c5ce7]" /> buscando...
+						<span class="text-[10px] text-brand-500 font-mono font-medium flex items-center gap-1 ml-2">
+							<Loader2 class="w-3 h-3 animate-spin text-brand-500" /> buscando...
 						</span>
 					{/if}
 				</div>
 				<div class="flex items-center gap-2.5">
 					<div class="relative">
-						<button type="button" class="bg-[#181920] border border-white/[0.06] hover:border-white/[0.15] px-3 py-1.5 rounded-xl text-xs font-semibold text-white/80 flex items-center gap-2 transition-all cursor-pointer shadow-sm" onclick={() => sortMenuOpen = !sortMenuOpen}>
+						<button type="button" class="bg-bg-elevated border border-fg/[0.06] hover:border-fg/[0.15] px-3 py-1.5 rounded-xl text-xs font-semibold text-fg/80 flex items-center gap-2 transition-all cursor-pointer shadow-sm" onclick={() => sortMenuOpen = !sortMenuOpen}>
 							<span>{currentSortLabel}</span>
-							<ChevronDown class="w-3.5 h-3.5 text-white/35 transition-transform duration-300 {sortMenuOpen ? 'rotate-180' : ''}" />
+							<ChevronDown class="w-3.5 h-3.5 text-fg/35 transition-transform duration-300 {sortMenuOpen ? 'rotate-180' : ''}" />
 						</button>
 						{#if sortMenuOpen}
 							<button type="button" aria-label="Fechar menu" class="fixed inset-0 z-20 cursor-default bg-transparent border-none p-0 outline-none" onclick={() => sortMenuOpen = false}></button>
-							<div class="absolute right-0 mt-1.5 w-52 bg-[#181920] border border-white/[0.06] rounded-xl shadow-2xl py-1 z-30 divide-y divide-white/5">
+							<div class="absolute right-0 mt-1.5 w-52 bg-bg-elevated border border-fg/[0.06] rounded-xl shadow-2xl py-1 z-30 divide-y divide-white/5">
 								{#each sortOptions as opt}
-									<button type="button" class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer {selectedSort === opt.id ? 'bg-[#6c5ce7]/20 text-[#a29bfe] font-bold' : 'text-white/70 hover:bg-white/5 hover:text-white'}" onclick={() => { selectedSort = opt.id as any; sortMenuOpen = false; }}>
+									<button type="button" class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer {selectedSort === opt.id ? 'bg-brand-500/20 text-brand-500 font-bold' : 'text-fg/70 hover:bg-fg/5 hover:text-fg'}" onclick={() => { selectedSort = opt.id; sortMenuOpen = false; }}>
 										<span>{opt.label}</span>
-										{#if selectedSort === opt.id}<Check class="w-3.5 h-3.5 text-[#6c5ce7]" />{/if}
+										{#if selectedSort === opt.id}<Check class="w-3.5 h-3.5 text-brand-500" />{/if}
 									</button>
 								{/each}
 							</div>
 						{/if}
 					</div>
-					<div class="flex bg-[#131418] border border-white/[0.06] rounded-xl p-0.5 gap-0.5">
-						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'grid' ? 'bg-[#6c5ce7] text-white shadow-sm' : 'text-white/35 hover:text-white'}" onclick={() => viewMode = 'grid'} title="Grade"><LayoutGrid class="w-3.5 h-3.5" /></button>
-						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'list' ? 'bg-[#6c5ce7] text-white shadow-sm' : 'text-white/35 hover:text-white'}" onclick={() => viewMode = 'list'} title="Lista"><List class="w-3.5 h-3.5" /></button>
+					<div class="flex bg-bg-elevated border border-fg/[0.06] rounded-xl p-0.5 gap-0.5">
+						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'grid' ? 'bg-brand-500 text-fg shadow-sm' : 'text-fg/35 hover:text-fg'}" onclick={() => viewMode = 'grid'} title="Grade"><LayoutGrid class="w-3.5 h-3.5" /></button>
+						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'list' ? 'bg-brand-500 text-fg shadow-sm' : 'text-fg/35 hover:text-fg'}" onclick={() => viewMode = 'list'} title="Lista"><List class="w-3.5 h-3.5" /></button>
 					</div>
 				</div>
 			</div>
@@ -439,16 +465,16 @@
 			{#if loading && results.length === 0}
 				<div class="flex-1 flex items-center justify-center py-20">
 					<div class="flex flex-col items-center gap-3">
-						<Loader2 class="w-8 h-8 text-[#6c5ce7] animate-spin" />
-						<p class="text-xs text-white/35 font-medium">Buscando em Modrinth e CurseForge...</p>
+						<Loader2 class="w-8 h-8 text-brand-500 animate-spin" />
+						<p class="text-xs text-fg/35 font-medium">Buscando em Modrinth e CurseForge...</p>
 					</div>
 				</div>
 			{:else if results.length === 0 && hasSearched}
 				<div class="flex-1 flex items-center justify-center py-20">
 					<div class="flex flex-col items-center gap-3">
-						<Search class="w-8 h-8 text-white/20" />
-						<p class="text-xs text-white/35 font-medium">Nenhum resultado encontrado</p>
-						<p class="text-[10px] text-white/30">Tente outro termo ou altere os filtros</p>
+						<Search class="w-8 h-8 text-fg/20" />
+						<p class="text-xs text-fg/35 font-medium">Nenhum resultado encontrado</p>
+						<p class="text-[10px] text-fg/30">Tente outro termo ou altere os filtros</p>
 					</div>
 				</div>
 			{:else}
@@ -469,22 +495,22 @@
 				{/if}
 
 				{#if results.length > 0}
-					<div class="flex items-center justify-between pt-3 pb-8 border-t border-white/[0.06]">
-						<div class="text-xs text-white/35 font-medium">
-							Mostrando <span class="text-white font-bold">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalEstimateNumber)}</span> de <span class="text-white font-bold">{totalEstimate}</span>
+					<div class="flex items-center justify-between pt-3 pb-8 border-t border-fg/[0.06]">
+						<div class="text-xs text-fg/35 font-medium">
+							Mostrando <span class="text-fg font-bold">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalEstimateNumber)}</span> de <span class="text-fg font-bold">{totalEstimate}</span>
 						</div>
 						<div class="flex items-center gap-1 text-xs">
-							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-white/35 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
+							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-fg/35 hover:text-fg hover:bg-fg/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
 							{#each [1, 2, 3, 4] as p}
 								{#if totalPages >= p}
-									<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === p ? 'bg-[#282935] text-white border border-white/[0.06] shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}" onclick={() => goToPage(p)}>{p}</button>
+									<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === p ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(p)}>{p}</button>
 								{/if}
 							{/each}
 							{#if totalPages > 5}
-								<span class="px-1 text-white/35">...</span>
-								<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === totalPages ? 'bg-[#282935] text-white border border-white/[0.06] shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
+								<span class="px-1 text-fg/35">...</span>
+								<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === totalPages ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
 							{/if}
-							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-white/35 hover:text-white hover:bg-white/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
+							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-fg/35 hover:text-fg hover:bg-fg/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
 						</div>
 					</div>
 				{/if}
@@ -504,7 +530,7 @@
 {/if}
 
 {#if showModpackInstallModal && modpackToInstall}
-	<ModpackInstaller modpack={modpackToInstall} bind:instanceName={modpackInstanceName} bind:ramMb={modpackRamMb} isInstalling={isInstallingModpack} progressText={modpackProgressText} progressPercent={modpackProgressPercent} onConfirm={confirmModpackInstall} onClose={() => { if (!isInstallingModpack) showModpackInstallModal = false; }} />
+	<ModpackInstaller modpack={modpackToInstall} bind:instanceName={modpackInstanceName} bind:ramMb={modpackRamMb} isInstalling={isInstallingModpack} progressText={modpackProgressText} progressPercent={modpackProgressPercent} onConfirm={confirmModpackInstall} onCancel={cancelModpackInstall} cancelling={cancelRequested} onClose={() => { if (!isInstallingModpack) showModpackInstallModal = false; }} />
 {/if}
 
 {#if showInstancePickerModal && itemToInstall}

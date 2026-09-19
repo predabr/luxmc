@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sua conta · Luxmc</title><meta name="description" content="Seu nickname, seus amigos e suas preferências. Uma conta Luxmc para o site e o launcher.">
+  <link rel="icon" href="assets/favicon.png"><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="experience.css"><link rel="stylesheet" href="account.css">
+</head>
+<body class="experience account-page">
+  <nav class="account-top"><a class="nav-brand" href="index.html"><img src="assets/logo.png" class="nav-logo" alt=""><span>Luxmc</span></a><a href="index.html#download" class="text-link">Baixar launcher ↗</a></nav>
+  <main class="account-shell">
+    <aside class="account-art"><div class="art-scenery"></div><div class="art-heading"><span class="section-tag">SEU UNIVERSO, CONECTADO.</span><h1>Uma conta.<br><span class="gradient-text">Infinitas histórias.</span></h1><p>Do primeiro login à próxima aventura.<br>Leve seus amigos e seu estilo com você.</p></div><div class="art-footer"><span class="orbit-dot"></span><span>SITE + LAUNCHER · LUXMC ID</span></div></aside>
+    <section class="account-panel" aria-label="Conta Luxmc">
+      <div id="authPanel">
+        <div class="account-eyebrow">BEM-VINDO AO LUXMC</div><h2 id="authTitle">Bom ter você de volta.</h2><p class="account-description" id="authDescription">Seu próximo mundo está esperando.</p>
+        <div class="account-tabs" role="tablist" aria-label="Acesso à conta"><button type="button" role="tab" aria-selected="true" data-mode="login">Entrar</button><button type="button" role="tab" aria-selected="false" data-mode="register">Criar conta</button></div>
+        <form id="authForm">
+          <label for="nickname">Nickname</label><div class="nickname-field"><img id="nickAvatar" src="https://mc-heads.net/avatar/Steve/64" alt="" width="28" height="28"><input id="nickname" name="username" autocomplete="username" required minlength="3" maxlength="16" pattern="[A-Za-z0-9_]{3,16}" placeholder="Seu nome no Minecraft"></div>
+          <div id="recoveryField" hidden><label for="recoveryCode">Código de recuperação</label><input id="recoveryCode" name="recoveryCode" autocomplete="off" maxlength="64" placeholder="Código recebido ao criar a conta"></div>
+          <label id="passwordLabel" for="password">Senha</label><div class="password-field"><input id="password" name="password" type="password" autocomplete="current-password" required minlength="8" maxlength="128" placeholder="Pelo menos 8 caracteres"><button type="button" id="revealPassword" aria-label="Mostrar senha" aria-pressed="false">Mostrar</button></div>
+          <div id="confirmField" hidden><label for="confirmPassword">Confirme a senha</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="Digite novamente"></div>
+          <p id="authError" class="form-error" role="alert" hidden></p>
+          <button type="submit" class="btn-primary auth-submit" id="authSubmit">Entrar na minha conta <span aria-hidden="true">→</span></button>
+        </form>
+        <button type="button" class="recovery-link" data-mode="recover">Esqueci minha senha</button>
+        <p class="auth-note">Use esta mesma conta em <strong>Conta Luxmc</strong> no launcher. Contas Microsoft continuam disponíveis para quem joga nos servidores oficiais.</p>
+      </div>
+      <div id="dashboard" hidden>
+        <div class="dashboard-heading"><img id="accountAvatar" alt="Sua skin" width="64" height="64"><div><span class="account-eyebrow">SUA CONTA LUXMC</span><h2 id="accountNickname"></h2><p class="sync-label"><span class="orbit-dot"></span> Site e launcher conectados</p></div></div>
+        <div id="recoveryNotice" class="recovery-notice" hidden><h3>Guarde seu código de recuperação.</h3><p>Ele aparece somente agora. Você precisará dele se esquecer a senha.</p><textarea id="generatedRecovery" readonly aria-label="Código de recuperação" rows="3"></textarea><div><button type="button" id="copyRecovery" class="btn-secondary">Copiar código</button><button type="button" id="savedRecovery" class="btn-secondary">Guardei meu código</button></div></div>
+        <div class="dashboard-tabs"><button type="button" data-panel="preferences" class="active">Preferências</button><button type="button" data-panel="friends">Amigos</button><button type="button" data-panel="security">Segurança</button></div>
+        <form id="preferencesForm" data-dashboard-panel="preferences"><h3>Do seu jeito. Em todo lugar.</h3><p class="account-description">Estas preferências acompanham sua conta no launcher.</p><div class="preference-row"><label for="theme">Aparência</label><select id="theme"><option value="default-dark">Obsidian escuro</option><option value="default-light">Claro</option></select></div><div class="preference-row"><label for="accentTheme">Cor de destaque</label><select id="accentTheme"><option value="blue">Azul diamante</option><option value="cyan">Ciano</option><option value="emerald">Esmeralda</option><option value="violet">Violeta</option><option value="rose">Rosa</option><option value="gold">Dourado</option><option value="orange">Laranja</option></select></div><div class="preference-row"><label for="language">Idioma</label><select id="language"><option value="pt-BR">Português</option><option value="en">English</option></select></div><div class="preference-row"><label for="animations">Animações no launcher</label><input id="animations" type="checkbox" checked></div><button type="submit" class="btn-primary auth-submit">Salvar e sincronizar ↗</button></form>
+        <section data-dashboard-panel="friends" hidden><h3>A próxima aventura é em grupo.</h3><p class="account-description">Os mesmos amigos do seu launcher.</p><form id="friendSearch"><label for="friendNickname">Buscar jogador</label><div class="friend-search"><input id="friendNickname" minlength="3" maxlength="64" required placeholder="Nickname"><button class="btn-secondary" type="submit">Buscar</button></div></form><div id="searchResults" aria-live="polite"></div><div id="friendsList" aria-live="polite"></div></section>
+        <section data-dashboard-panel="security" hidden><h3>Sua conta, sob seu controle.</h3><p class="account-description">Alterar a senha encerra as sessões nos outros dispositivos.</p><form id="passwordForm"><label for="currentPassword">Senha atual</label><input id="currentPassword" type="password" autocomplete="current-password" required maxlength="128"><label for="newPassword">Nova senha</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required><button class="btn-primary auth-submit" type="submit">Atualizar senha</button></form></section>
+        <p id="dashboardMessage" class="dashboard-message" role="status" aria-live="polite"></p><div class="dashboard-footer"><a href="index.html#download" class="text-link">Abrir um novo mundo ↗</a><button type="button" id="logoutButton">Sair da conta</button></div>
+      </div>
+    </section>
+  </main>
+  <footer class="account-bottom"><span>Luxmc · Feito para a sua próxima aventura.</span><a href="index.html">Voltar ao início</a></footer>
+  <script type="module" src="account.js"></script>
+</body>
+</html>

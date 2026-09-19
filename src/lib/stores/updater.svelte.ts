@@ -149,7 +149,7 @@ export const updaterStore = {
 			});
 
 			await appPerformUpdate(downloadUrl);
-		} catch (err: any) {
+		} catch (err: unknown) {
 			console.error("Falha ao instalar atualização automaticamente:", err);
 			toast("Não foi possível atualizar automaticamente. Abrindo página de download...", "warning");
 			await openUrl(releaseUrl || "https://github.com/predabr/luxmc/releases/latest");

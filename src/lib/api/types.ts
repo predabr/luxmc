@@ -1,4 +1,11 @@
 export interface ProfileRow {
+	favorite?: boolean;
+	notes?: string | null;
+	lastPlayed?: string | null;
+	launchCount?: number;
+	modCount?: number;
+	diskUsage?: number;
+	instanceGroup?: string | null;
 	id: string;
 	name: string;
 	icon: string;

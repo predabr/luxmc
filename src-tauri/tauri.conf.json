@@ -25,16 +25,40 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' asset: http://asset.localhost https: data: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' ipc: http://ipc.localhost https: asset: http://asset.localhost; media-src 'self' asset: http://asset.localhost https: blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'",
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": {
+          "allow": [
+            "**/*.png",
+            "**/*.jpg",
+            "**/*.jpeg",
+            "**/*.webp",
+            "**/*.gif",
+            "**/*.bmp",
+            "**/*.ico",
+            "**/*.mp3",
+            "**/*.ogg",
+            "**/*.wav",
+            "**/*.mp4",
+            "**/*.webm"
+          ],
+          "deny": [
+            "**/social/**"
+          ],
+          "requireLiteralLeadingDot": false
+        }
       }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "appimage", "deb", "dmg"],
+    "targets": [
+      "nsis",
+      "appimage",
+      "deb",
+      "dmg"
+    ],
     "category": "Game",
     "shortDescription": "Linux-first Minecraft launcher.",
     "longDescription": "Luxmc is a modern, Linux-first Minecraft launcher built with Tauri and SvelteKit.",
@@ -49,7 +73,11 @@
     ],
     "linux": {
       "deb": {
-        "depends": ["libgtk-3-0", "libwebkit2gtk-4.1-0", "libappindicator3-1"]
+        "depends": [
+          "libgtk-3-0",
+          "libwebkit2gtk-4.1-0",
+          "libappindicator3-1"
+        ]
       },
       "appimage": {
         "bundleMediaFramework": true
@@ -67,6 +95,15 @@
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.13"
+    }
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "luxmc"
+        ]
+      }
     }
   }
 }

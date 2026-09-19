@@ -135,19 +135,19 @@
 
 <div class="mx-auto flex h-full max-w-5xl flex-col gap-6 select-none overflow-y-auto custom-scrollbar pb-12">
 	<!-- Header -->
-	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-5">
+	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-fg/10 pb-5">
 		<div class="flex items-center gap-3">
 			<div class="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
 				<Newspaper class="h-6 w-6" />
 			</div>
 			<div>
-				<h1 class="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+				<h1 class="text-2xl font-black text-fg tracking-tight flex items-center gap-2.5">
 					Notícias do Luxmc
 					<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
 						Oficial
 					</span>
 				</h1>
-				<p class="text-xs text-white/50 mt-0.5">Notas de atualização, novos recursos, melhorias do launcher e avisos da comunidade</p>
+				<p class="text-xs text-fg/50 mt-0.5">Notas de atualização, novos recursos, melhorias do launcher e avisos da comunidade</p>
 			</div>
 		</div>
 
@@ -155,28 +155,28 @@
 			<button
 				type="button"
 				onclick={() => openWebsite("https://luxmc-r92.pages.dev")}
-				class="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/15 transition-all cursor-pointer shadow-md active:scale-95"
+				class="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold border border-fg/15 transition-all cursor-pointer shadow-md active:scale-[0.98]"
 			>
 				<Globe class="w-4 h-4 text-emerald-400" />
 				<span>Visitar Site Oficial</span>
-				<ExternalLink class="w-3 h-3 text-white/40" />
+				<ExternalLink class="w-3 h-3 text-fg/40" />
 			</button>
 		</div>
 	</header>
 
 	<!-- Tabs -->
-	<div class="flex items-center gap-2 p-1.5 rounded-2xl bg-[#111218] border border-white/10 w-fit">
+	<div class="flex items-center gap-2 p-1.5 rounded-2xl bg-bg-elevated border border-fg/10 w-fit">
 		<button
 			type="button"
 			onclick={() => selectedTab = "news"}
-			class="px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {selectedTab === 'news' ? 'bg-white/15 text-white shadow-sm' : 'text-white/60 hover:text-white'}"
+			class="px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {selectedTab === 'news' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 		>
 			Atualizações do Launcher ({officialNews.length})
 		</button>
 		<button
 			type="button"
 			onclick={() => selectedTab = "changelog"}
-			class="px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {selectedTab === 'changelog' ? 'bg-white/15 text-white shadow-sm' : 'text-white/60 hover:text-white'}"
+			class="px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {selectedTab === 'changelog' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 		>
 			Changelog Técnico
 		</button>
@@ -186,14 +186,14 @@
 		<!-- Featured Article -->
 		{#if officialNews.length > 0}
 			{@const featured = officialNews[0]}
-			<div class="rounded-3xl bg-[#14151a] border border-blue-500/30 shadow-2xl relative overflow-hidden group flex flex-col lg:flex-row">
+			<div class="rounded-3xl bg-bg-elevated border border-blue-500/30 shadow-2xl relative overflow-hidden group flex flex-col lg:flex-row">
 				<div class="lg:w-1/2 h-56 lg:h-auto relative overflow-hidden">
 					<img 
 						src={featured.image} 
 						alt={featured.title} 
 						class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
 					/>
-					<div class="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-transparent via-[#14151a]/60 to-[#14151a]"></div>
+					<div class="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-transparent via-bg-elevated/60 to-bg-elevated"></div>
 				</div>
 
 				<div class="lg:w-1/2 p-6 md:p-8 relative z-10 space-y-4 flex flex-col justify-between">
@@ -202,20 +202,20 @@
 							<span class="text-xs font-extrabold px-3 py-1 rounded-full {featured.tagColor}">
 								{featured.tag}
 							</span>
-							<span class="text-xs font-mono font-bold bg-white/10 px-2.5 py-0.5 rounded-full text-white/90">
+							<span class="text-xs font-mono font-bold bg-fg/10 px-2.5 py-0.5 rounded-full text-fg/90">
 								{featured.version}
 							</span>
-							<span class="text-xs text-white/40 flex items-center gap-1">
+							<span class="text-xs text-fg/40 flex items-center gap-1">
 								<Calendar class="w-3.5 h-3.5" />
 								{featured.date}
 							</span>
 						</div>
 
-						<h2 class="text-xl md:text-2xl font-black text-white group-hover:text-blue-300 transition-colors">
+						<h2 class="text-xl md:text-2xl font-black text-fg group-hover:text-blue-300 transition-colors">
 							{featured.title}
 						</h2>
 
-						<p class="text-xs md:text-sm text-white/70 leading-relaxed">
+						<p class="text-xs md:text-sm text-fg/70 leading-relaxed">
 							{featured.summary}
 						</p>
 
@@ -225,7 +225,7 @@
 							</h3>
 							<div class="grid grid-cols-1 gap-2">
 								{#each featured.highlights.slice(0, 3) as hl}
-									<div class="flex items-start gap-2 text-xs text-white/80 bg-white/[0.03] border border-white/5 p-2.5 rounded-xl">
+									<div class="flex items-start gap-2 text-xs text-fg/80 bg-fg/[0.03] border border-fg/5 p-2.5 rounded-xl">
 										<CheckCircle2 class="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
 										<span>{hl}</span>
 									</div>
@@ -238,7 +238,7 @@
 						<button
 							type="button"
 							onclick={() => openWebsite(featured.link)}
-							class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition-all shadow-lg shadow-blue-600/20 active:scale-95 cursor-pointer"
+							class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-black transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] cursor-pointer"
 						>
 							<span>Ver Notas Completas</span>
 							<ExternalLink class="w-3.5 h-3.5" />
@@ -250,18 +250,18 @@
 
 		<!-- Other Updates Grid -->
 		<div class="space-y-3 pt-2">
-			<h3 class="text-xs font-bold uppercase tracking-wider text-white/50">Histórico de Atualizações</h3>
+			<h3 class="text-xs font-bold uppercase tracking-wider text-fg/50">Histórico de Atualizações</h3>
 
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 				{#each officialNews.slice(1) as article (article.id)}
-					<div class="rounded-3xl bg-[#14151a] border border-white/10 hover:border-blue-500/30 transition-all flex flex-col justify-between overflow-hidden shadow-lg group">
-						<div class="w-full h-36 relative overflow-hidden bg-[#0e0f13]">
+					<div class="rounded-3xl bg-bg-elevated border border-fg/10 hover:border-blue-500/30 transition-all flex flex-col justify-between overflow-hidden shadow-lg group">
+						<div class="w-full h-36 relative overflow-hidden bg-bg">
 							<img 
 								src={article.image} 
 								alt={article.title} 
 								class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
 							/>
-							<div class="absolute inset-0 bg-gradient-to-t from-[#14151a] via-transparent to-transparent"></div>
+							<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent"></div>
 							<div class="absolute top-3 left-3">
 								<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full {article.tagColor} backdrop-blur-md">
 									{article.tag}
@@ -271,22 +271,22 @@
 
 						<div class="p-5 flex flex-col justify-between flex-1 gap-4">
 							<div class="space-y-2">
-								<div class="flex items-center justify-between text-[10px] text-white/40">
-									<span class="font-mono font-bold text-white/50">{article.version}</span>
+								<div class="flex items-center justify-between text-[10px] text-fg/40">
+									<span class="font-mono font-bold text-fg/50">{article.version}</span>
 									<span>{article.date}</span>
 								</div>
 
-								<h4 class="text-xs font-bold text-white group-hover:text-blue-300 transition-colors leading-snug line-clamp-2">
+								<h4 class="text-xs font-bold text-fg group-hover:text-blue-300 transition-colors leading-snug line-clamp-2">
 									{article.title}
 								</h4>
 
-								<p class="text-[11px] text-white/50 leading-relaxed line-clamp-3">
+								<p class="text-[11px] text-fg/50 leading-relaxed line-clamp-3">
 									{article.summary}
 								</p>
 							</div>
 
-							<div class="pt-2 border-t border-white/5 flex items-center justify-between">
-								<span class="text-[10px] text-white/40">Luxmc Launcher</span>
+							<div class="pt-2 border-t border-fg/5 flex items-center justify-between">
+								<span class="text-[10px] text-fg/40">Luxmc Launcher</span>
 								<button
 									type="button"
 									onclick={() => openWebsite(article.link)}
@@ -307,7 +307,7 @@
 			{#snippet header()}
 				<div class="flex items-center gap-2">
 					<Sliders class="h-4 w-4 text-emerald-400" />
-					<span class="font-medium text-white">Changelog Oficial do Projeto</span>
+					<span class="font-medium text-fg">Changelog Oficial do Projeto</span>
 				</div>
 			{/snippet}
 			<ChangelogPanel />

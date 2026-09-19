@@ -28,7 +28,7 @@ export const THEMES: Record<string, ThemeOption> = {
 		id: "dark",
 		name: "Tema Escuro (Obsidiana)",
 		bg: "10 10 12",
-		bgElevated: "18 18 22",
+		bgElevated: "17 18 22",
 		border: "32 32 38",
 		previewColor: "#0a0a0c"
 	},
@@ -43,6 +43,10 @@ export const THEMES: Record<string, ThemeOption> = {
 };
 
 export const ACCENTS: Record<string, AccentOption> = {
+	gold: { id: "gold", name: "Ouro", hex: "#e2b86b", rgb: "226 184 107", rgbLight: "242 211 156", rgbDark: "180 139 64" },
+	rose: { id: "rose", name: "Rosa", hex: "#f43f5e", rgb: "244 63 94", rgbLight: "251 113 133", rgbDark: "225 29 72" },
+	violet: { id: "violet", name: "Violeta", hex: "#8b5cf6", rgb: "139 92 246", rgbLight: "167 139 250", rgbDark: "124 58 237" },
+	orange: { id: "orange", name: "Laranja", hex: "#f97316", rgb: "249 115 22", rgbLight: "251 146 60", rgbDark: "234 88 12" },
 	blue: {
 		id: "blue",
 		name: "Azul Diamante",
@@ -145,6 +149,13 @@ function applyThemeVariables(tId: string, aId: string, bgId: string) {
 		root.style.colorScheme = "dark";
 	}
 
+    const base = a.rgb.split(" ").map(Number);
+    for (const [shade, amount] of [[50, 0.95], [100, 0.88], [200, 0.72], [300, 0.48]] as const) {
+        root.style.setProperty(`--brand-${shade}`, base.map(channel => Math.round(channel + (255 - channel) * amount)).join(" "));
+    }
+    for (const [shade, amount] of [[700, 0.76], [800, 0.6], [900, 0.42], [950, 0.26]] as const) {
+        root.style.setProperty(`--brand-${shade}`, base.map(channel => Math.round(channel * amount)).join(" "));
+    }
 	root.style.setProperty("--brand-500", a.rgb);
 	root.style.setProperty("--brand-400", a.rgbLight);
 	root.style.setProperty("--brand-600", a.rgbDark);

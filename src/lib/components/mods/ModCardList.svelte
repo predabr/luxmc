@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Download, Users, Loader2, Check, PackagePlus } from "lucide-svelte";
 	import LazyImage from "$lib/components/ui/LazyImage.svelte";
+	import { button } from "$lib/components/ui/button";
 	import SourceBadge from "./SourceBadge.svelte";
 	import type { ModSearchResultItem } from "$lib/api";
 
@@ -27,73 +28,23 @@
 	}
 
 	const isModpack = $derived(contentType === "Modpack");
-	const btnClass = $derived(
-		isModpack
-			? "bg-[#caa97c] hover:bg-[#b89565] text-black shadow-[#caa97c]/20"
-			: "bg-[#6c5ce7] hover:bg-[#5b4cdb] text-white shadow-[#6c5ce7]/20"
-	);
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-	class="group bg-[#18191c] hover:bg-[#1e1f25] border border-white/5 hover:border-white/20 rounded-2xl p-3 flex items-center justify-between gap-4 transition-all duration-200 shadow-md cursor-pointer active:scale-[0.99]"
-	onclick={() => onOpenDetails(item)}
->
-	<!-- Left Icon & Info -->
-	<div class="flex items-center gap-3.5 min-w-0 flex-1">
-		<div class="h-12 w-12 rounded-xl bg-[#101115] border border-white/10 p-0.5 shrink-0 overflow-hidden flex items-center justify-center">
-			{#if item.iconUrl}
-				<LazyImage
-					src={item.iconUrl}
-					alt={item.title}
-					class="w-full h-full object-cover rounded-lg"
-				/>
-			{:else}
-				<div class="w-full h-full rounded-lg bg-white/5 flex items-center justify-center text-white/40 text-xs font-black">
-					{item.title.slice(0, 2).toUpperCase()}
-				</div>
-			{/if}
-		</div>
-
-		<div class="min-w-0 flex-1">
-			<div class="flex items-center gap-2.5">
-				<h3 class="font-bold text-white text-xs truncate group-hover:text-[#a29bfe] transition-colors">{item.title}</h3>
-				<span class="text-[10px] text-white/40 flex items-center gap-1 font-mono">
-					<Download class="w-2.5 h-2.5" /> {formatDownloads(item.downloads)}
-				</span>
-				<span class="text-[10px] text-white/30">•</span>
-				<span class="text-[10px] text-white/40 flex items-center gap-1">
-					<Users class="w-2.5 h-2.5" /> {item.author || item.slug}
-				</span>
-			</div>
-			<p class="text-[11px] text-white/40 truncate mt-0.5">{item.description}</p>
-		</div>
-	</div>
-
-	<!-- Right: Source Badge & Install Button -->
-	<div class="flex items-center gap-3 shrink-0">
-		<SourceBadge source={item.source} />
-
-		<button
-			type="button"
-			class="{btnClass} active:scale-95 text-xs font-semibold px-4 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 cursor-pointer"
-			onclick={(e) => { e.stopPropagation(); onInstall(item); }}
-			disabled={isInstalling || isInstalled}
-		>
-			{#if isInstalling}
-				<Loader2 class="w-3 h-3 animate-spin" />
-				<span>Instalando</span>
-			{:else if isInstalled}
-				<Check class="w-3 h-3 text-emerald-300" />
-				<span>Instalado</span>
-			{:else if isModpack}
-				<PackagePlus class="w-3 h-3" />
-				<span>Criar Instância</span>
-			{:else}
-				<Download class="w-3 h-3" />
-				<span>Instalar</span>
-			{/if}
-		</button>
-	</div>
-</div>
+<article class="surface-glass group relative flex flex-wrap items-center gap-4 p-4 transition-colors duration-200 hover:border-brand-500/30">
+    <div class="flex min-w-48 flex-1 items-center gap-4">
+        <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-fg/10 bg-brand-500/10 shadow-elevated">
+            {#if item.iconUrl}<LazyImage src={item.iconUrl} alt="" class="h-full w-full object-cover" />{:else}<PackagePlus class="h-7 w-7 text-brand-400" />{/if}
+        </div>
+        <div class="min-w-0 flex-1">
+            <h3 class="truncate text-sm font-semibold text-fg group-hover:text-brand-400"><button type="button" class="text-left after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-brand-500" onclick={() => onOpenDetails(item)}>{item.title}</button></h3>
+            <p class="mt-1 line-clamp-1 text-xs text-fg-muted">{item.description}</p>
+            <div class="mt-2 flex items-center gap-4 text-[10px] text-fg-subtle"><span class="flex items-center gap-1"><Download class="h-3 w-3" />{formatDownloads(item.downloads)}</span><span class="flex items-center gap-1"><Users class="h-3 w-3" />{item.author || item.slug}</span></div>
+        </div>
+    </div>
+    <div class="relative z-10 flex items-center gap-3">
+        <SourceBadge source={item.source} />
+        <button type="button" class={button({variant: isInstalled ? 'secondary' : 'primary', size:'sm'})} onclick={() => onInstall(item)} disabled={isInstalling || isInstalled} aria-busy={isInstalling}>
+            {#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />Instalando{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />Instalado{:else if isModpack}<PackagePlus class="h-3.5 w-3.5" />Criar instância{:else}<Download class="h-3.5 w-3.5" />Instalar{/if}
+        </button>
+    </div>
+</article>

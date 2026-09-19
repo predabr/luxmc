@@ -34,7 +34,7 @@
 		{
 			id: "amber",
 			nameKey: "amberHearth",
-			preview: ["rgb(245, 158, 11)", "rgb(217, 119, 6)", "rgb(252, 211, 77)"],
+			preview: ["rgb(245, 158, 11)", "rgb(217, 119, 6)", "rgb(var(--warning))"],
 			accent: "gold",
 		},
 		{

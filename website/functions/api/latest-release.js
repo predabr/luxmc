@@ -1,43 +1,11 @@
-export async function onRequest(context) {
-  const GITHUB_REPO = "predabr/luxmc";
+import { latestRelease } from "../../lib/releases.js";
+
+export async function onRequest({ request }) {
+  const headers = { "Content-Type": "application/json", "X-Content-Type-Options": "nosniff" };
+  if (request && !["GET", "HEAD"].includes(request.method)) return new Response(JSON.stringify({ error: "Method not allowed" }), { status: 405, headers });
   try {
-    const res = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
-      headers: {
-        "User-Agent": "Luxmc-Cloudflare-Pages/1.0",
-        "Accept": "application/vnd.github.v3+json"
-      },
-      cf: {
-        cacheTtl: 300,
-        cacheEverything: true
-      }
-    });
-
-    if (!res.ok) {
-      return new Response(JSON.stringify({ error: "Failed to fetch upstream release", status: res.status }), {
-        status: res.status,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-          "Cache-Control": "public, max-age=60"
-        }
-      });
-    }
-
-    const data = await res.json();
-    return new Response(JSON.stringify(data), {
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600"
-      }
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*"
-      }
-    });
+    return new Response(JSON.stringify(await latestRelease()), { headers: { ...headers, "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=600" } });
+  } catch {
+    return new Response(JSON.stringify({ error: "Release metadata temporarily unavailable" }), { status: 502, headers: { ...headers, "Cache-Control": "no-store" } });
   }
 }

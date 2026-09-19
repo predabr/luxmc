@@ -4,7 +4,7 @@
 		title: string;
 		description?: string;
 		time: string;
-		icon?: any;
+		icon?: typeof import("lucide-svelte").Circle;
 		color?: 'primary' | 'success' | 'warning' | 'error';
 	}
 
@@ -26,7 +26,7 @@
 	{#each items as item, idx (item.id)}
 		<div class="flex gap-4">
 			<div class="flex flex-col items-center">
-				<div class={`w-10 h-10 rounded-full ${colorMap[item.color ?? 'primary']} flex items-center justify-center text-white`}>
+				<div class={`w-10 h-10 rounded-full ${colorMap[item.color ?? 'primary']} flex items-center justify-center text-fg`}>
 					{#if item.icon}
 						<item.icon size={20} />
 					{:else}

@@ -64,7 +64,7 @@ export interface ClientModsConfig {
 	autoTrimMemory: boolean;
 	preflightModCheck: boolean;
 
-	[key: string]: any;
+	[key: string]: boolean;
 }
 
 const DEFAULT_CONFIG: ClientModsConfig = {
@@ -168,7 +168,7 @@ class ClientModsStore {
 
 	toggle(key: keyof ClientModsConfig) {
 		if (typeof this.config[key] === "boolean") {
-			this.config[key] = !this.config[key] as any;
+			this.config[key] = !this.config[key];
 			this.save();
 		}
 	}

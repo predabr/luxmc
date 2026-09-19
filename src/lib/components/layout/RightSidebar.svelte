@@ -17,6 +17,8 @@
 		X
 	} from "lucide-svelte";
 	import { onMount } from "svelte";
+    import { appState } from "$lib/stores/app.svelte";
+    import { settings } from "$lib/stores/settings.svelte";
 	import { slide, fade } from "svelte/transition";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -34,90 +36,27 @@
 	let offlineExpanded = $state(false);
 	let pendingExpanded = $state(false);
 
-	type Friend = {
-		id: string;
-		username: string;
-		status: "in_game" | "online" | "offline" | "pending";
-		activity?: string;
-		serverIp?: string;
-		serverPort?: number;
-		lastSeen?: string;
-	};
-
-	let friends = $state<Friend[]>([]);
+	import MinecraftAvatar from "$lib/components/ui/MinecraftAvatar.svelte";
+	import { friendsState } from "$lib/stores/friends.svelte";
+	import type { Friend } from "$lib/api/social";
+	import { goto } from "$app/navigation";
+	import { joinWorld } from "$lib/utils/directJoin";
+	const friends = $derived(friendsState.list);
 	let showPendingDropdown = $state(false);
+	let collapsed = $state(false);
+	onMount(() => { collapsed = window.innerWidth < 1200; });
 
-	const defaultInitialFriends: Friend[] = [];
-
-	function loadFriends() {
-		if (typeof window === "undefined") return;
-		try {
-			const saved = localStorage.getItem("luxmc_custom_friends_v4");
-			if (saved) {
-				friends = JSON.parse(saved);
-			} else {
-				friends = [];
-				localStorage.setItem("luxmc_custom_friends_v4", JSON.stringify(friends));
-			}
-		} catch {
-			friends = [];
-		}
+	function addFriend() { void goto("/friends"); }
+	async function removeFriend(id: string, _name: string) {
+		try { await friendsState.action("remove", id); } catch (error) { toast(String(error), "error"); }
 	}
-
-	function saveFriends() {
-		if (typeof window === "undefined") return;
-		try {
-			localStorage.setItem("luxmc_custom_friends_v4", JSON.stringify(friends));
-		} catch {}
+	async function acceptFriend(friend: Friend) {
+		try { await friendsState.action("accept", friend.id); } catch (error) { toast(String(error), "error"); }
 	}
-
-	onMount(() => {
-		loadFriends();
-	});
-
-	function addFriend() {
-		const name = newFriendName.trim();
-		if (!name) return;
-		if (friends.some(f => f.username.toLowerCase() === name.toLowerCase())) {
-			toast("Amigo já adicionado", "info");
-			return;
-		}
-		const newF: Friend = {
-			id: "f-" + Date.now(),
-			username: name,
-			status: "online",
-			activity: "Online recentemente"
-		};
-		friends = [newF, ...friends];
-		saveFriends();
-		newFriendName = "";
-		showAddInput = false;
-		toast(`${name} adicionado à lista de amigos!`, "success");
+	function declineFriend(friend: Friend) { return removeFriend(friend.id, friend.username); }
+	async function joinFriend(friend: Friend) {
+		try { await joinWorld(`${friend.serverIp}:${friend.serverPort || 25565}`, friend); } catch (error) { toast(String(error), "error"); }
 	}
-
-	function removeFriend(id: string, name: string) {
-		friends = friends.filter(f => f.id !== id);
-		saveFriends();
-		toast(`${name} removido dos amigos.`, "info");
-	}
-
-	function acceptFriend(friend: Friend) {
-		friends = friends.map(f => {
-			if (f.id === friend.id) {
-				return { ...f, status: "online", activity: "Online no Luxmc" };
-			}
-			return f;
-		});
-		saveFriends();
-		toast(`Convite de amizade de ${friend.username} aceito!`, "success");
-	}
-
-	function declineFriend(friend: Friend) {
-		friends = friends.filter(f => f.id !== friend.id);
-		saveFriends();
-		toast(`Convite de ${friend.username} recusado.`, "info");
-	}
-
 	const filteredFriends = $derived(
 		friends.filter(f => 
 			!friendSearchQuery || 
@@ -125,11 +64,12 @@
 		)
 	);
 
-	const onlineFriends = $derived(filteredFriends.filter(f => f.status === "online" || f.status === "in_game"));
+	const onlineFriends = $derived(filteredFriends.filter(f => f.status === "online" || f.status === "in_game").toSorted((a, b) => Number(friendsState.favourites.includes(b.id)) - Number(friendsState.favourites.includes(a.id))));
 	const offlineFriends = $derived(filteredFriends.filter(f => f.status === "offline"));
-	const pendingFriends = $derived(filteredFriends.filter(f => f.status === "pending"));
+	const pendingFriends = $derived(filteredFriends.filter(f => f.status === "pending" && f.incoming));
 
 	function handleLogout() {
+		friendsState.disconnect();
 		account.value = null;
 		if (typeof window !== "undefined") {
 			localStorage.removeItem("luxmc_current_account");
@@ -147,12 +87,15 @@
 	);
 </script>
 
-<aside class="w-[280px] shrink-0 flex flex-col gap-4 select-none pb-4">
+<aside class="shrink-0 flex flex-col gap-4 select-none pb-4 transition-all duration-200 {collapsed ? 'w-12' : 'w-[280px]'}">
+	<button type="button" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-bg-elevated/80 p-3 text-fg-muted hover:text-fg" onclick={() => collapsed = !collapsed} aria-label={collapsed ? "Expandir amigos" : "Minimizar amigos"} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">Amigos</span>{/if}</button>
+	{#if !collapsed}
+	{#if !friendsState.me}<a href="/friends" class="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-xs text-brand-300">Conectar à rede social</a>{/if}
 
 	{#if account.value}
 		<div class="space-y-1.5 shrink-0 relative">
-			<span class="text-xs font-bold text-white/50 block">
-				Playing as
+			<span class="text-xs font-bold text-fg/50 block">
+				Jogando como
 			</span>
 
 			<div 
@@ -160,10 +103,10 @@
 				tabindex="0"
 				onclick={() => showAccountMenu = !showAccountMenu}
 				onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") showAccountMenu = !showAccountMenu; }}
-				class="w-full bg-[#16171d] hover:bg-[#1c1d25] border border-white/5 rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-sm group"
+				class="w-full bg-bg-elevated hover:bg-bg-subtle border border-fg/5 rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-sm group"
 			>
 				<div class="flex items-center gap-2.5 min-w-0">
-					<div class="w-9 h-9 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
+					<div class="w-9 h-9 rounded-xl overflow-hidden bg-bg-overlay/40 border border-fg/10 shrink-0">
 						<img 
 							src={activeSkinStore.current.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`} 
 							alt="Avatar" 
@@ -171,21 +114,21 @@
 						/>
 					</div>
 					<div class="min-w-0 text-left">
-						<div class="text-xs font-bold text-white truncate leading-tight group-hover:text-emerald-300 transition-colors">
+						<div class="text-xs font-bold text-fg truncate leading-tight group-hover:text-emerald-300 transition-colors">
 							{account.value.username}
 						</div>
-						<div class="text-[10px] text-white/40 truncate">
+						<div class="text-[10px] text-fg/40 truncate">
 							{isMicrosoft ? "Minecraft account" : "Offline account"}
 						</div>
 					</div>
 				</div>
 
-				<ChevronDown class="w-4 h-4 text-white/40 group-hover:text-white transition-transform {showAccountMenu ? 'rotate-180' : ''}" />
+				<ChevronDown class="w-4 h-4 text-fg/40 group-hover:text-fg transition-transform {showAccountMenu ? 'rotate-180' : ''}" />
 			</div>
 
 			{#if showAccountMenu}
 				<div 
-					class="absolute top-full left-0 right-0 mt-1 bg-[#181920] border border-white/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
+					class="absolute top-full left-0 right-0 mt-1 bg-bg-elevated border border-fg/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
 					transition:slide={{ duration: 120 }}
 				>
 					<button
@@ -200,24 +143,28 @@
 		</div>
 	{/if}
 
+    <a href="/settings" class="surface-glass flex items-center gap-3 p-3 text-xs text-fg-muted hover:border-brand-500/30">
+        <span class="h-2 w-2 rounded-full {settings.value.discordRpc !== false ? 'bg-success' : 'bg-fg-subtle'}"></span>
+        <span><span class="block text-[10px] font-semibold text-fg">Discord Rich Presence</span><span class="mt-1 block text-[10px]">{settings.value.discordRpc === false ? 'Desativado' : appState.isGameRunning ? `Jogando ${appState.activeGameDetails?.name || 'Minecraft'}` : 'Atividade do launcher habilitada'}</span></span>
+    </a>
 	<div class="space-y-2.5 shrink-0">
 		<div class="flex items-center gap-1.5">
 			<button
 				type="button"
 				onclick={() => showAddInput = !showAddInput}
-				class="p-1.5 rounded-xl bg-[#16171d] hover:bg-[#1f2029] text-white/60 hover:text-white border border-white/5 transition-colors cursor-pointer"
+				class="p-1.5 rounded-xl bg-bg-elevated hover:bg-bg-subtle text-fg/60 hover:text-fg border border-fg/5 transition-colors cursor-pointer"
 				title="Add friend"
 			>
 				<UserPlus class="w-3.5 h-3.5" />
 			</button>
 
 			<div class="relative flex-1">
-				<Search class="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" />
+				<Search class="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-fg/30" />
 				<input
 					type="text"
 					bind:value={friendSearchQuery}
-					placeholder="Search friends..."
-					class="w-full bg-[#16171d] border border-white/5 rounded-xl pl-7 pr-2.5 py-1.5 text-xs text-white placeholder:text-white/25 outline-none focus:border-white/20 transition-all"
+					placeholder="Buscar amigos…"
+					class="w-full bg-bg-elevated border border-fg/5 rounded-xl pl-7 pr-2.5 py-1.5 text-xs text-fg placeholder:text-fg/25 outline-none focus:border-fg/20 transition-all"
 				/>
 			</div>
 
@@ -225,58 +172,51 @@
 				<button
 					type="button"
 					onclick={() => showPendingDropdown = !showPendingDropdown}
-					class="p-1.5 rounded-xl {showPendingDropdown ? 'bg-blue-600 text-white shadow-md' : 'bg-[#16171d] hover:bg-[#1f2029] text-white/60 hover:text-white'} border border-white/5 transition-colors cursor-pointer"
+					class="p-1.5 rounded-xl {showPendingDropdown ? 'bg-blue-600 text-fg shadow-md' : 'bg-bg-elevated hover:bg-bg-subtle text-fg/60 hover:text-fg'} border border-fg/5 transition-colors cursor-pointer"
 					title="Solicitações de Amizade"
 				>
 					<Mail class="w-3.5 h-3.5" />
 				</button>
 				{#if pendingFriends.length > 0}
-					<span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-blue-500 text-white text-[9px] font-black flex items-center justify-center pointer-events-none">
+					<span class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-blue-500 text-fg text-[9px] font-black flex items-center justify-center pointer-events-none">
 						{pendingFriends.length}
 					</span>
 				{/if}
 
 				{#if showPendingDropdown}
 					<div 
-						class="absolute right-0 top-full mt-2 w-64 bg-[#18191c] border border-white/10 rounded-2xl shadow-2xl p-3 z-50 space-y-2.5 backdrop-blur-xl"
+						class="absolute right-0 top-full mt-2 w-64 bg-bg-elevated border border-fg/10 rounded-2xl shadow-2xl p-3 z-50 space-y-2.5 backdrop-blur-xl"
 						transition:slide={{ duration: 150 }}
 					>
-						<div class="flex items-center justify-between border-b border-white/5 pb-2">
-							<span class="text-xs font-black text-white">Solicitações ({pendingFriends.length})</span>
+						<div class="flex items-center justify-between border-b border-fg/5 pb-2">
+							<span class="text-xs font-black text-fg">Solicitações ({pendingFriends.length})</span>
 							<button 
 								type="button" 
 								onclick={() => showPendingDropdown = false}
-								class="text-white/40 hover:text-white text-[10px] font-bold cursor-pointer"
+								class="text-fg/40 hover:text-fg text-[10px] font-bold cursor-pointer"
 							>
 								✕
 							</button>
 						</div>
 
 						{#if pendingFriends.length === 0}
-							<div class="text-center py-4 text-white/40 text-xs">
+							<div class="text-center py-4 text-fg/40 text-xs">
 								Nenhum convite pendente
 							</div>
 						{:else}
 							<div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
 								{#each pendingFriends as friend (friend.id)}
-									<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#141518] border border-white/5">
+									<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-bg-elevated border border-fg/5">
 										<div class="flex items-center gap-2 min-w-0">
-											<div class="w-6 h-6 rounded-lg bg-black/40 overflow-hidden shrink-0 border border-white/10">
-												<img
-													src={`https://mc-heads.net/avatar/${friend.username}/64`}
-													alt={friend.username}
-													class="w-full h-full object-cover"
-													loading="lazy"
-												/>
-											</div>
-											<span class="text-xs font-bold text-white truncate max-w-[90px]">{friend.username}</span>
+											<MinecraftAvatar username={friend.username} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+											<span class="text-xs font-bold text-fg truncate max-w-[90px]">{friend.username}</span>
 										</div>
 
 										<div class="flex items-center gap-1 shrink-0">
 											<button
 												type="button"
 												onclick={() => acceptFriend(friend)}
-												class="p-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-black transition-colors cursor-pointer"
+												class="p-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-brand-foreground transition-colors cursor-pointer"
 												title="Aceitar convite"
 											>
 												<Check class="w-3 h-3 stroke-[3]" />
@@ -284,7 +224,7 @@
 											<button
 												type="button"
 												onclick={() => declineFriend(friend)}
-												class="p-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white transition-colors cursor-pointer"
+												class="p-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-fg transition-colors cursor-pointer"
 												title="Recusar convite"
 											>
 												<X class="w-3 h-3 stroke-[3]" />
@@ -305,13 +245,13 @@
 					type="text"
 					bind:value={newFriendName}
 					placeholder="Gamertag..."
-					class="flex-1 bg-black/40 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white placeholder:text-white/25 outline-none focus:border-emerald-400"
+					class="flex-1 bg-bg-overlay/40 border border-fg/10 rounded-xl px-2.5 py-1 text-xs text-fg placeholder:text-fg/25 outline-none focus:border-emerald-400"
 					onkeydown={(e) => { if (e.key === "Enter") addFriend(); }}
 				/>
 				<button
 					type="button"
 					onclick={addFriend}
-					class="px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs cursor-pointer"
+					class="px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground font-bold text-xs cursor-pointer"
 				>
 					Add
 				</button>
@@ -323,35 +263,28 @@
 				<button
 					type="button"
 					onclick={() => onlineExpanded = !onlineExpanded}
-					class="w-full flex items-center justify-between py-1 text-white/70 hover:text-white text-xs font-bold cursor-pointer"
+					class="w-full flex items-center justify-between py-1 text-fg/70 hover:text-fg text-xs font-bold cursor-pointer"
 				>
 					<span>Online - {onlineFriends.length}</span>
-					<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform {onlineExpanded ? 'rotate-180' : ''}" />
+					<ChevronDown class="w-3.5 h-3.5 text-fg/40 transition-transform {onlineExpanded ? 'rotate-180' : ''}" />
 				</button>
 
 				{#if onlineExpanded}
 					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ duration: 150 }}>
 						{#if onlineFriends.length === 0}
-							<p class="text-[11px] text-white/30 py-1">Nenhum amigo online</p>
+							<p class="text-[11px] text-fg/30 py-1">Nenhum amigo online</p>
 						{:else}
 							{#each onlineFriends as friend (friend.id)}
-								<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 transition-colors group">
+								<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group">
 									<div class="flex items-center gap-2 min-w-0">
-										<div class="relative w-6 h-6 rounded-lg overflow-hidden bg-black/50 border border-white/10 shrink-0">
-											<img
-												src={`https://mc-heads.net/avatar/${friend.username}/64`}
-												alt={friend.username}
-												class="w-full h-full object-cover"
-												loading="lazy"
-											/>
-											<span class="absolute bottom-0 right-0 w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-										</div>
-										<span class="text-xs font-medium text-white truncate">{friend.username}</span>
+										<MinecraftAvatar username={friend.username} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+										<div class="min-w-0"><span class="text-xs font-medium text-fg truncate block">{friend.username}</span>
+											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class="text-[10px] font-bold text-brand-400 hover:text-brand-300">ENTRAR NO MUNDO</button>{/if}</div>
 									</div>
 
 									<button
 										type="button"
-										class="opacity-0 group-hover:opacity-100 p-1 text-white/30 hover:text-red-400 transition-opacity cursor-pointer"
+										class="opacity-0 group-hover:opacity-100 p-1 text-fg/30 hover:text-red-400 transition-opacity cursor-pointer"
 										title="Remover"
 										onclick={() => removeFriend(friend.id, friend.username)}
 									>
@@ -368,31 +301,25 @@
 				<button
 					type="button"
 					onclick={() => offlineExpanded = !offlineExpanded}
-					class="w-full flex items-center justify-between py-1 text-white/40 hover:text-white text-xs font-bold cursor-pointer"
+					class="w-full flex items-center justify-between py-1 text-fg/40 hover:text-fg text-xs font-bold cursor-pointer"
 				>
 					<span>Offline - {offlineFriends.length}</span>
-					<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform {offlineExpanded ? 'rotate-180' : ''}" />
+					<ChevronDown class="w-3.5 h-3.5 text-fg/40 transition-transform {offlineExpanded ? 'rotate-180' : ''}" />
 				</button>
 
 				{#if offlineExpanded}
 					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ duration: 150 }}>
 						{#each offlineFriends as friend (friend.id)}
-							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-white/5 transition-colors group opacity-60 hover:opacity-100">
+							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group opacity-60 hover:opacity-100">
 								<div class="flex items-center gap-2 min-w-0">
-									<div class="w-6 h-6 rounded-lg overflow-hidden bg-black/50 border border-white/10 shrink-0">
-										<img
-											src={`https://mc-heads.net/avatar/${friend.username}/64`}
-											alt={friend.username}
-											class="w-full h-full object-cover grayscale"
-											loading="lazy"
-										/>
-									</div>
-									<span class="text-xs font-medium text-white truncate">{friend.username}</span>
+									<MinecraftAvatar username={friend.username} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+									<div class="min-w-0"><span class="text-xs font-medium text-fg truncate block">{friend.username}</span>
+											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class="text-[10px] font-bold text-brand-400 hover:text-brand-300">ENTRAR NO MUNDO</button>{/if}</div>
 								</div>
 
 								<button
 									type="button"
-									class="opacity-0 group-hover:opacity-100 p-1 text-white/30 hover:text-red-400 transition-opacity cursor-pointer"
+									class="opacity-0 group-hover:opacity-100 p-1 text-fg/30 hover:text-red-400 transition-opacity cursor-pointer"
 									title="Remover"
 									onclick={() => removeFriend(friend.id, friend.username)}
 								>
@@ -408,30 +335,23 @@
 				<button
 					type="button"
 					onclick={() => pendingExpanded = !pendingExpanded}
-					class="w-full flex items-center justify-between py-1 text-white/40 hover:text-white text-xs font-bold cursor-pointer"
+					class="w-full flex items-center justify-between py-1 text-fg/40 hover:text-fg text-xs font-bold cursor-pointer"
 				>
 					<span>Solicitações - {pendingFriends.length}</span>
-					<ChevronDown class="w-3.5 h-3.5 text-white/40 transition-transform {pendingExpanded ? 'rotate-180' : ''}" />
+					<ChevronDown class="w-3.5 h-3.5 text-fg/40 transition-transform {pendingExpanded ? 'rotate-180' : ''}" />
 				</button>
 
 				{#if pendingExpanded}
 					<div class="space-y-1.5 pt-1 pb-1" transition:slide={{ duration: 150 }}>
 						{#if pendingFriends.length === 0}
-							<p class="text-[11px] text-white/30 py-1">Nenhuma solicitação pendente</p>
+							<p class="text-[11px] text-fg/30 py-1">Nenhuma solicitação pendente</p>
 						{:else}
 							{#each pendingFriends as friend (friend.id)}
-								<div class="flex items-center justify-between p-2 rounded-xl bg-white/[0.04] border border-white/10 hover:border-white/20 transition-colors">
+								<div class="flex items-center justify-between p-2 rounded-xl bg-fg/[0.04] border border-fg/10 hover:border-fg/20 transition-colors">
 									<div class="flex items-center gap-2 min-w-0">
-										<div class="w-6 h-6 rounded-lg overflow-hidden bg-black/50 border border-white/10 shrink-0">
-											<img
-												src={`https://mc-heads.net/avatar/${friend.username}/64`}
-												alt={friend.username}
-												class="w-full h-full object-cover"
-												loading="lazy"
-											/>
-										</div>
+										<MinecraftAvatar username={friend.username} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
 										<div class="min-w-0">
-											<span class="text-xs font-bold text-white truncate block">{friend.username}</span>
+											<span class="text-xs font-bold text-fg truncate block">{friend.username}</span>
 											<span class="text-[10px] text-amber-400 font-medium block">Pendente</span>
 										</div>
 									</div>
@@ -440,7 +360,7 @@
 										<button
 											type="button"
 											onclick={() => acceptFriend(friend)}
-											class="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer shadow-sm active:scale-95"
+											class="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
 											title="Aceitar convite"
 										>
 											<Check class="w-3 h-3" />
@@ -448,7 +368,7 @@
 										<button
 											type="button"
 											onclick={() => declineFriend(friend)}
-											class="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 border border-rose-500/30 transition-all cursor-pointer shadow-sm active:scale-95"
+											class="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 border border-rose-500/30 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
 											title="Recusar convite"
 										>
 											<X class="w-3 h-3" />
@@ -465,18 +385,18 @@
 
 	<div class="space-y-2 shrink-0 pt-1">
 		<div class="flex items-center justify-between">
-			<span class="text-xs font-bold text-white/50 block">Notícias Luxmc</span>
+			<span class="text-xs font-bold text-fg/50 block">Notícias Luxmc</span>
 			<a href="/news" class="text-[10px] font-semibold text-emerald-400 hover:underline">Ver todas</a>
 		</div>
 
 		<a
 			href="/news"
-			class="group block bg-[#16171d] border border-white/10 hover:border-emerald-500/30 rounded-2xl overflow-hidden shadow-md transition-all cursor-pointer"
+			class="group block bg-bg-elevated border border-fg/10 hover:border-emerald-500/30 rounded-2xl overflow-hidden shadow-md transition-all cursor-pointer"
 		>
-			<div class="h-24 bg-gradient-to-br from-emerald-900/40 to-[#10121a] relative overflow-hidden flex items-center justify-between p-3.5 border-b border-white/5">
+			<div class="h-24 bg-gradient-to-br from-emerald-900/40 to-bg-elevated relative overflow-hidden flex items-center justify-between p-3.5 border-b border-fg/5">
 				<div class="space-y-1 z-10">
 					<span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">Atualização</span>
-					<div class="text-xs font-black text-white group-hover:text-emerald-300 transition-colors">Luxmc v1.7.4 Oficial</div>
+					<div class="text-xs font-black text-fg group-hover:text-emerald-300 transition-colors">Luxmc v1.7.4 Oficial</div>
 				</div>
 				<div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-md">
 					<Sliders class="w-4 h-4" />
@@ -484,10 +404,10 @@
 			</div>
 
 			<div class="p-3.5 space-y-1.5">
-				<p class="text-[11px] text-white/60 leading-relaxed line-clamp-2">
+				<p class="text-[11px] text-fg/60 leading-relaxed line-clamp-2">
 					Lançamento de alta performance para Linux e Windows com integração web e estabilidade total.
 				</p>
-				<div class="flex items-center justify-between pt-1 text-[10px] text-white/35">
+				<div class="flex items-center justify-between pt-1 text-[10px] text-fg/35">
 					<span>18 de Setembro, 2026</span>
 					<span class="text-emerald-400 font-bold group-hover:translate-x-0.5 transition-transform">Ler mais →</span>
 				</div>
@@ -495,4 +415,5 @@
 		</a>
 	</div>
 
+	{/if}
 </aside>

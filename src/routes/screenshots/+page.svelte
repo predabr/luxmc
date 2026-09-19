@@ -243,12 +243,12 @@
 	{:else if loading && screenshots.length === 0}
 		<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
 			{#each Array(8) as _}
-				<div class="aspect-video w-full animate-pulse rounded-2xl bg-white/5 luxmc-glass border border-white/[0.06]"></div>
+				<div class="aspect-video w-full animate-pulse rounded-2xl bg-fg/5 luxmc-glass border border-fg/[0.06]"></div>
 			{/each}
 		</div>
 	{:else if screenshots.length === 0}
 		<Card class="flex flex-col items-center justify-center py-20 text-center luxmc-glass">
-			<div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white/5">
+			<div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-fg/5">
 				<Camera class="h-8 w-8 text-fg-subtle" />
 			</div>
 			<h3 class="mb-2 text-lg font-bold text-fg">{t("screenshots.noScreenshotsFound")}</h3>
@@ -259,13 +259,13 @@
 			{#each screenshots as s}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div class="group relative overflow-hidden rounded-2xl bg-[#111216] border border-white/[0.06] cursor-zoom-in break-inside-avoid shadow-sm transition-all duration-300 hover:border-white/[0.15] hover:shadow-brand-500/5" onclick={() => selectedImage = s}>
+				<div class="group relative overflow-hidden rounded-2xl bg-bg-elevated border border-fg/[0.06] cursor-zoom-in break-inside-avoid shadow-sm transition-all duration-300 hover:border-fg/[0.15] hover:shadow-brand-500/5" onclick={() => selectedImage = s}>
 					<img src={s.dataUrl || convertFileSrc(s.path)} alt={s.name} class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
-					<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex flex-col justify-end p-4">
-						<p class="text-xs font-bold text-white truncate drop-shadow-md">{s.name}</p>
+					<div class="absolute inset-0 bg-gradient-to-t from-bg-overlay/80 via-bg-overlay/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex flex-col justify-end p-4">
+						<p class="text-xs font-bold text-fg truncate drop-shadow-md">{s.name}</p>
 						<p class="text-[10px] text-brand-500 font-medium">{new Date(s.modified).toLocaleString()}</p>
 					</div>
-					<button class="absolute top-3 right-3 p-2 bg-red-500/20 text-red-300 rounded-xl opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all backdrop-blur-md cursor-pointer" onclick={(e) => { e.stopPropagation(); confirmDelete(s); }}>
+					<button class="absolute top-3 right-3 p-2 bg-red-500/20 text-red-300 rounded-xl opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-fg transition-all backdrop-blur-md cursor-pointer" onclick={(e) => { e.stopPropagation(); confirmDelete(s); }}>
 						<Trash2 class="h-4 w-4" />
 					</button>
 				</div>
@@ -277,22 +277,22 @@
 {#if selectedImage}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4 select-none" onclick={() => selectedImage = null} transition:fade={{duration: 200}}>
+	<div class="fixed inset-0 z-[100] bg-bg-overlay/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4 select-none" onclick={() => selectedImage = null} transition:fade={{duration: 200}}>
 		<div class="absolute top-6 left-6 right-6 flex items-center justify-between z-10" onclick={(e) => e.stopPropagation()}>
-			<span class="text-xs font-bold text-white/80 truncate max-w-sm drop-shadow">{selectedImage.name}</span>
+			<span class="text-xs font-bold text-fg/80 truncate max-w-sm drop-shadow">{selectedImage.name}</span>
 			<div class="flex items-center gap-2">
-				<div class="flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full px-2 py-1 border border-white/10">
-					<button type="button" class="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10 cursor-pointer" onclick={zoomOut} title="Diminuir Zoom (-)">
+				<div class="flex items-center gap-1 bg-fg/10 backdrop-blur-md rounded-full px-2 py-1 border border-fg/10">
+					<button type="button" class="p-1.5 text-fg/70 hover:text-fg rounded-full hover:bg-fg/10 cursor-pointer" onclick={zoomOut} title="Diminuir Zoom (-)">
 						<ZoomOut class="w-3.5 h-3.5" />
 					</button>
-					<button type="button" class="px-2 text-[10px] font-mono text-white/90 hover:text-white cursor-pointer" onclick={resetZoom} title="Resetar Zoom">
+					<button type="button" class="px-2 text-[10px] font-mono text-fg/90 hover:text-fg cursor-pointer" onclick={resetZoom} title="Resetar Zoom">
 						{Math.round(zoomScale * 100)}%
 					</button>
-					<button type="button" class="p-1.5 text-white/70 hover:text-white rounded-full hover:bg-white/10 cursor-pointer" onclick={zoomIn} title="Aumentar Zoom (+)">
+					<button type="button" class="p-1.5 text-fg/70 hover:text-fg rounded-full hover:bg-fg/10 cursor-pointer" onclick={zoomIn} title="Aumentar Zoom (+)">
 						<ZoomIn class="w-3.5 h-3.5" />
 					</button>
 				</div>
-				<button type="button" aria-label="Fechar visualização" class="p-2.5 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors cursor-pointer" onclick={() => selectedImage = null}>
+				<button type="button" aria-label="Fechar visualização" class="p-2.5 bg-fg/10 hover:bg-fg/20 rounded-full text-fg transition-colors cursor-pointer" onclick={() => selectedImage = null}>
 					<X class="h-4 w-4" />
 				</button>
 			</div>
@@ -312,14 +312,14 @@
 		<div class="absolute bottom-6 flex flex-wrap items-center gap-3 z-10" onclick={(e) => e.stopPropagation()}>
 			<button 
 				type="button"
-				class="px-4 py-2 rounded-full bg-brand-500 hover:bg-brand-400 text-black text-xs font-black flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer transition-all"
+				class="px-4 py-2 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-black flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer transition-all"
 				onclick={() => copyImage(selectedImage!)}
 			>
 				<Copy class="h-3.5 w-3.5" /> Copiar Imagem (Ctrl+C)
 			</button>
 			<button 
 				type="button"
-				class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border border-white/10"
+				class="px-4 py-2 rounded-full bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border border-fg/10"
 				onclick={() => copyToClipboard(selectedImage!.path)}
 			>
 				<Copy class="h-3.5 w-3.5" /> Copiar Caminho

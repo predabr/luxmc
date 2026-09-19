@@ -9,7 +9,7 @@
 		value?: string;
 		onChange?: (value: string) => void;
 		onSearch?: (value: string) => void;
-		icon?: any;
+		icon?: typeof import("lucide-svelte").Circle;
 		size?: 'sm' | 'md' | 'lg';
 		clearable?: boolean;
 	}

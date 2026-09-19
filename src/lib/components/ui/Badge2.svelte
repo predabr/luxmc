@@ -15,7 +15,7 @@
 		warning: 'bg-yellow-500/20 border border-yellow-500/50 text-yellow-600 dark:text-yellow-400',
 		error: 'bg-red-500/20 border border-red-500/50 text-red-600 dark:text-red-400',
 		info: 'bg-blue-500/20 border border-blue-500/50 text-blue-600 dark:text-blue-400',
-		brand: 'bg-brand text-white',
+		brand: 'bg-brand text-fg',
 	};
 
 	const sizeClasses = {

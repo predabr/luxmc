@@ -40,7 +40,7 @@
 	const statusConfig = $derived.by(() => {
 		switch (accountStatus) {
 			case "online":
-				return { color: "rgb(34, 197, 94)", label: t("accountIndicator.online"), Icon: CircleCheck };
+				return { color: "rgb(var(--success))", label: t("accountIndicator.online"), Icon: CircleCheck };
 			case "offline":
 				return { color: "rgb(95, 105, 130)", label: t("accountIndicator.offline"), Icon: User };
 		}
@@ -99,31 +99,31 @@
 		{@const status = statusConfig}
 		<button
 			onclick={toggleMenu}
-			class="flex items-center gap-2 h-9 px-2.5 rounded-full bg-[#18191c] border border-white/10 hover:border-brand-500/50 hover:bg-[#202127] transition-all cursor-pointer shadow-sm"
+			class="flex items-center gap-2 h-9 px-2.5 rounded-full bg-bg-elevated border border-fg/10 hover:border-brand-500/50 hover:bg-bg-subtle transition-all cursor-pointer shadow-sm"
 			title={account.value.username}
 		>
 			<span class="relative inline-flex">
 				<img
 					src={skinUrl}
 					alt={account.value.username}
-					class="w-6 h-6 rounded-md border border-white/10 object-cover bg-black/40"
+					class="w-6 h-6 rounded-md border border-fg/10 object-cover bg-bg-overlay/40"
 					onerror={handleSkinError}
 				/>
 				<span
-					class="absolute -bottom-0.5 -right-0.5 inline-block h-2 w-2 rounded-full ring-2 ring-[#18191c]"
+					class="absolute -bottom-0.5 -right-0.5 inline-block h-2 w-2 rounded-full ring-2 ring-border"
 					style="background: {status.color};"
 					aria-label={status.label}
 				></span>
 			</span>
-			<span class="text-xs font-bold text-white truncate max-w-[120px]">{account.value.username}</span>
+			<span class="text-xs font-bold text-fg truncate max-w-[120px]">{account.value.username}</span>
 		</button>
 
 		{#if showMenu}
-			<div class="absolute top-11 right-0 w-64 rounded-2xl bg-[#141518] border border-white/10 shadow-2xl z-50 animate-fade-in overflow-hidden">
-				<div class="p-3.5 border-b border-white/5 bg-[#18191c]/80">
+			<div class="absolute top-11 right-0 w-64 rounded-2xl bg-bg-elevated border border-fg/10 shadow-2xl z-50 animate-fade-in overflow-hidden">
+				<div class="p-3.5 border-b border-fg/5 bg-bg-elevated/80">
 					<div class="flex items-center justify-between">
-						<span class="text-[10px] text-white/40 uppercase tracking-wider font-extrabold">{t("accountIndicator.account")}</span>
-						<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-white/5 text-white/60">
+						<span class="text-[10px] text-fg/40 uppercase tracking-wider font-extrabold">{t("accountIndicator.account")}</span>
+						<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-fg/5 text-fg/60">
 							{account.value.minecraftToken && !account.value.minecraftToken.startsWith('luxmc-') && account.value.minecraftToken.length > 50 ? 'Microsoft' : 'Offline'}
 						</span>
 					</div>
@@ -131,11 +131,11 @@
 						<img 
 							src={skinUrl} 
 							alt={account.value.username} 
-							class="w-8 h-8 rounded-lg border border-white/10 object-cover bg-black/30"
+							class="w-8 h-8 rounded-lg border border-fg/10 object-cover bg-bg-overlay/30"
 							onerror={handleSkinError}
 						/>
 						<div class="min-w-0">
-							<p class="text-xs text-white font-black truncate">{account.value.username}</p>
+							<p class="text-xs text-fg font-black truncate">{account.value.username}</p>
 							<div class="flex items-center gap-1.5 text-[10px] mt-0.5" style="color: {status.color};">
 								<status.Icon size={12} />
 								<span>{status.label}</span>
@@ -146,13 +146,13 @@
 
 				<!-- Saved accounts list -->
 				{#if savedAccounts.length > 1}
-					<div class="p-2 border-b border-white/5 max-h-36 overflow-y-auto custom-scrollbar">
-						<div class="text-[9px] font-extrabold text-white/40 uppercase px-2 py-1">Trocar Conta</div>
+					<div class="p-2 border-b border-fg/5 max-h-36 overflow-y-auto custom-scrollbar">
+						<div class="text-[9px] font-extrabold text-fg/40 uppercase px-2 py-1">Trocar Conta</div>
 						{#each savedAccounts as acc}
 							{@const isActive = acc.username.toLowerCase() === account.value.username.toLowerCase()}
 							<button 
 								type="button"
-								class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer {isActive ? 'bg-brand-500/10 text-brand-500 font-bold border border-brand-500/20' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+								class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer {isActive ? 'bg-brand-500/10 text-brand-500 font-bold border border-brand-500/20' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 								onclick={() => handleSwitchAccount(acc)}
 							>
 								<div class="flex items-center gap-2 min-w-0">
@@ -175,7 +175,7 @@
 				<div class="p-2 space-y-1">
 					<button
 						type="button"
-						class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white/70 hover:text-white hover:bg-white/5 transition-colors cursor-pointer text-left"
+						class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-fg/70 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer text-left"
 						onclick={() => {
 							showMenu = false;
 							showLoginModal = true;
@@ -186,7 +186,7 @@
 					</button>
 					<a
 						href="/settings"
-						class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-white/70 hover:text-white hover:bg-white/5 transition-colors"
+						class="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-fg/70 hover:text-fg hover:bg-fg/5 transition-colors"
 						onclick={() => (showMenu = false)}
 					>
 						<Settings size={14} />
@@ -206,7 +206,7 @@
 		<button 
 			type="button"
 			onclick={() => showLoginModal = true}
-			class="flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-500 hover:bg-brand-400 text-black text-xs font-black transition-all shadow-sm active:scale-95 cursor-pointer"
+			class="flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-black transition-all shadow-sm active:scale-[0.98] cursor-pointer"
 		>
 			<LogIn size={14} />
 			<span>Entrar</span>

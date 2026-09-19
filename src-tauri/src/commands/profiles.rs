@@ -83,7 +83,7 @@ pub async fn profiles_create(
 ) -> AppResult<ProfileRow> {
     let db = crate::db::shared_db().await?;
     let now = Utc::now();
-    let profile_name = input.name.clone();
+    let id = Uuid::new_v4().to_string();
     let game_dir = input.game_dir.unwrap_or_else(|| {
         let base = directories::ProjectDirs::from("io", "github", "Luxmc")
             .map(|d| d.data_dir().to_string_lossy().to_string())
@@ -91,10 +91,10 @@ pub async fn profiles_create(
                 let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
                 format!("{}/.local/share/luxmc", home)
             });
-        format!("{}/instances/{}", base, profile_name)
+        format!("{}/instances/{}", base, id)
     });
     let row = ProfileRow {
-        id: Uuid::new_v4().to_string(),
+        id,
         name: input.name,
         icon: input.icon.unwrap_or_else(|| "grass_block".into()),
         mc_version: input.mc_version,

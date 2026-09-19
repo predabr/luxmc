@@ -71,7 +71,7 @@
 			updateStage(0);
 			try {
 				await getSystemSpecs().catch(() => null);
-				await import("$lib/api").then(m => (m as any).javaScan?.()).catch(() => null);
+				await import("$lib/api").then(m => m.javaScan()).catch(() => null);
 			} catch {}
 		})();
 
@@ -157,7 +157,7 @@
 
 {#if visible}
 	<div
-		class="fixed inset-0 z-[99999] bg-[#08090c] flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-500 ease-out cursor-pointer"
+		class="fixed inset-0 z-[99999] bg-bg flex flex-col items-center justify-center select-none overflow-hidden transition-all duration-500 ease-out cursor-pointer"
 		class:opacity-0={fadeOut}
 		class:scale-[1.03]={fadeOut}
 		class:pointer-events-none={fadeOut}
@@ -168,31 +168,31 @@
 	>
 		{#each particles as p (p.x + p.y)}
 			<div
-				class="absolute rounded-full bg-[#caa97c] pointer-events-none animate-[particleFloat_var(--dur)_ease-in-out_infinite]"
+				class="absolute rounded-full bg-brand-400 pointer-events-none animate-[particleFloat_var(--dur)_ease-in-out_infinite]"
 				style="left:{p.x}%;top:{p.y}%;width:{p.size}px;height:{p.size}px;opacity:{p.opacity};--dur:{p.duration}s;animation-delay:{p.delay}s;"
 			></div>
 		{/each}
 
-		<div class="absolute w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgba(202,169,124,0.12)_0%,transparent_70%)] pointer-events-none animate-[orbPulse_6s_ease-in-out_infinite]"></div>
-		<div class="absolute w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgba(108,92,231,0.10)_0%,transparent_70%)] pointer-events-none translate-y-12 animate-[orbPulse_8s_ease-in-out_infinite_reverse]"></div>
-		<div class="absolute w-[300px] h-[300px] rounded-full bg-[radial-gradient(circle,rgba(202,169,124,0.06)_0%,transparent_60%)] pointer-events-none -translate-y-20 animate-[orbPulse_5s_ease-in-out_infinite]"></div>
+		<div class="absolute w-[600px] h-[600px] rounded-full bg-[radial-gradient(circle,rgb(var(--brand-400)_/_0.12)_0%,transparent_70%)] pointer-events-none animate-[orbPulse_6s_ease-in-out_infinite]"></div>
+		<div class="absolute w-[400px] h-[400px] rounded-full bg-[radial-gradient(circle,rgb(var(--brand-600)/0.10)_0%,transparent_70%)] pointer-events-none translate-y-12 animate-[orbPulse_8s_ease-in-out_infinite_reverse]"></div>
+		<div class="absolute w-[300px] h-[300px] rounded-full bg-[radial-gradient(circle,rgb(var(--brand-400)_/_0.06)_0%,transparent_60%)] pointer-events-none -translate-y-20 animate-[orbPulse_5s_ease-in-out_infinite]"></div>
 
 		<div class="relative flex flex-col items-center z-10">
 			<div class="relative group">
-				<div class="absolute inset-0 bg-[#caa97c]/15 rounded-[2rem] blur-3xl transform scale-125 animate-[logoGlow_4s_ease-in-out_infinite]"></div>
-				<div class="w-32 h-32 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-[#0e0f13] to-[#08090c] border border-white/[0.08] p-5 flex items-center justify-center backdrop-blur-xl shadow-[0_24px_64px_rgba(0,0,0,0.6)] relative overflow-hidden group-hover:scale-105 transition-transform duration-700">
-					<div class="absolute inset-0 bg-gradient-to-br from-[#caa97c]/10 via-transparent to-[#6c5ce7]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+				<div class="absolute inset-0 bg-brand-400/15 rounded-[2rem] blur-3xl transform scale-125 animate-[logoGlow_4s_ease-in-out_infinite]"></div>
+				<div class="w-32 h-32 sm:w-36 sm:h-36 rounded-[2rem] bg-gradient-to-br from-bg to-bg border border-fg/[0.08] p-5 flex items-center justify-center backdrop-blur-xl shadow-elevated relative overflow-hidden group-hover:scale-105 transition-transform duration-700">
+					<div class="absolute inset-0 bg-gradient-to-br from-brand-400/10 via-transparent to-brand-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
 					<img
 						src="/logo.png"
 						alt="Luxmc Logo"
-						class="w-full h-full object-contain drop-shadow-[0_0_32px_rgba(202,169,124,0.4)] relative z-10"
+						class="w-full h-full object-contain drop-shadow-[0_0_32px_rgb(var(--brand-400)_/_0.4)] relative z-10"
 					/>
 				</div>
 			</div>
 
 			<div class="mt-7 text-center">
-				<h1 class="text-3xl sm:text-4xl font-black text-white tracking-[0.2em] bg-gradient-to-r from-white via-white/90 to-white/70 bg-clip-text text-transparent">LUXMC</h1>
-				<p class="text-[11px] font-bold tracking-[0.3em] text-[#caa97c]/80 uppercase mt-1.5">Minecraft Launcher</p>
+				<h1 class="text-3xl sm:text-4xl font-black text-fg tracking-[0.2em] bg-gradient-to-r from-fg via-fg/90 to-fg/70 bg-clip-text text-transparent">LUXMC</h1>
+				<p class="text-[11px] font-bold tracking-[0.3em] text-brand-400/80 uppercase mt-1.5">Minecraft Launcher</p>
 			</div>
 
 			<div class="relative mt-10">
@@ -200,7 +200,7 @@
 					<circle
 						cx="50" cy="50" r="42"
 						fill="none"
-						stroke="rgba(255,255,255,0.04)"
+						stroke="rgb(var(--fg) / 0.04)"
 						stroke-width="3"
 					/>
 					<circle
@@ -212,7 +212,7 @@
 						stroke-dasharray={circumference}
 						stroke-dashoffset={strokeDashoffset}
 						class="transition-all duration-700 ease-out"
-						style="filter: drop-shadow(0 0 8px rgba(202,169,124,0.4));"
+						style="filter: drop-shadow(0 0 8px rgb(var(--brand-400) / 0.4));"
 					/>
 					<defs>
 						<linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -223,33 +223,33 @@
 					</defs>
 				</svg>
 				<div class="absolute inset-0 flex items-center justify-center">
-					<span class="text-lg font-black text-white/90">{Math.round(progress)}%</span>
+					<span class="text-lg font-black text-fg/90">{Math.round(progress)}%</span>
 				</div>
 			</div>
 
 			<div class="w-72 sm:w-80 mt-6 space-y-2.5">
-				<div class="h-1.5 w-full bg-white/[0.04] rounded-full overflow-hidden border border-white/[0.06] p-px shadow-inner">
+				<div class="h-1.5 w-full bg-fg/[0.04] rounded-full overflow-hidden border border-fg/[0.06] p-px shadow-inner">
 					<div
-						class="h-full bg-gradient-to-r from-[#caa97c] via-[#e2b86b] to-[#6c5ce7] rounded-full transition-all duration-700 ease-out relative"
+						class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-500 rounded-full transition-all duration-700 ease-out relative"
 						style="width: {progress}%"
 					>
-						<div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_2s_ease-in-out_infinite]"></div>
+						<div class="absolute inset-0 bg-gradient-to-r from-transparent via-fg/20 to-transparent animate-[shimmer_2s_ease-in-out_infinite]"></div>
 					</div>
 				</div>
 
 				<div class="flex items-center justify-between text-[11px] font-medium px-0.5">
-					<span class="text-white/50 truncate mr-2 transition-all duration-300">{statusText}</span>
-					<span class="text-[#caa97c]/80 font-bold shrink-0 tabular-nums">{Math.round(progress)}%</span>
+					<span class="text-fg/50 truncate mr-2 transition-all duration-300">{statusText}</span>
+					<span class="text-brand-400/80 font-bold shrink-0 tabular-nums">{Math.round(progress)}%</span>
 				</div>
 
 				<div class="flex items-center gap-1.5 pt-1">
 					{#each stages as _, i}
-						<div class="h-0.5 flex-1 rounded-full transition-all duration-500 {i < stageIndex ? 'bg-[#caa97c]/60' : i === stageIndex ? 'bg-[#caa97c]/30' : 'bg-white/[0.04]'}"></div>
+						<div class="h-0.5 flex-1 rounded-full transition-all duration-500 {i < stageIndex ? 'bg-brand-400/60' : i === stageIndex ? 'bg-brand-400/30' : 'bg-fg/[0.04]'}"></div>
 					{/each}
 				</div>
 			</div>
 
-			<p class="text-[10px] text-white/20 mt-8 hover:text-white/40 transition-colors duration-300 tracking-wider">
+			<p class="text-[10px] text-fg/20 mt-8 hover:text-fg/40 transition-colors duration-300 tracking-wider">
 				Clique ou pressione Espaço para pular
 			</p>
 		</div>

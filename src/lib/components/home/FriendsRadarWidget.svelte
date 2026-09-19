@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { parseJoinAddress } from "$lib/utils/directJoin";
 	import { 
 		Radio, 
 		Users, 
@@ -87,41 +88,23 @@
 		} else if (friend.p2pCode) {
 			toast(`Conectando ao mundo P2P de ${friend.name} (${friend.p2pCode})...`, "info");
 			try {
-				await launchWithTarget(targetProfile);
+				const target = parseJoinAddress(friend.p2pCode);
+                await launchWithTarget(targetProfile, target.host, target.port);
 			} catch (e) {
 				toast(`Erro ao conectar: ${e}`, "error");
 			}
 		}
 	}
 
-	async function handleDirectJoinSubmit() {
-		if (!directJoinCode.trim()) {
-			toast("Insira um código de convite ou link válido.", "error");
-			return;
-		}
-
-		const clean = directJoinCode.trim().replace("luxmc://join/", "");
-		const targetProfile = profiles.active || profiles.list[0];
-		if (!targetProfile) {
-			toast("Nenhuma instância ativa selecionada.", "error");
-			return;
-		}
-
-		toast(`Decodificando convite ${clean} e conectando direto...`, "info");
-		showDirectJoinModal = false;
-
-		try {
-			if (clean.includes(":")) {
-				const [host, portStr] = clean.split(":");
-				const port = parseInt(portStr) || 25565;
-				await launchWithTarget(targetProfile, host, port);
-			} else {
-				await launchWithTarget(targetProfile);
-			}
-		} catch (e) {
-			toast(`Erro ao entrar no mundo: ${e}`, "error");
-		}
-	}
+    async function handleDirectJoinSubmit() {
+        try {
+            const { host, port } = parseJoinAddress(directJoinCode);
+            const targetProfile = profiles.active || profiles.list[0];
+            if (!targetProfile) throw new Error("Selecione uma instância primeiro.");
+            await launchWithTarget(targetProfile, host, port);
+            showDirectJoinModal = false;
+        } catch (error) { toast(String(error), "error"); }
+    }
 
 	async function handleStartHost() {
 		isHosting = true;
@@ -154,11 +137,11 @@
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
 			<div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
-			<h2 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-				<Radio class="w-3.5 h-3.5 text-[#caa97c]" />
+			<h2 class="text-xs font-bold text-fg uppercase tracking-wider flex items-center gap-1.5">
+				<Radio class="w-3.5 h-3.5 text-brand-400" />
 				Radar de Amigos (Ghost Ping)
 			</h2>
-			<span class="text-[10px] bg-white/5 text-white/50 px-2 py-0.5 rounded-full font-mono font-semibold border border-white/5">
+			<span class="text-[10px] bg-fg/5 text-fg/50 px-2 py-0.5 rounded-full font-mono font-semibold border border-fg/5">
 				{friends.filter(f => f.status !== 'idle').length} online
 			</span>
 		</div>
@@ -166,7 +149,7 @@
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
-				class="text-[11px] font-bold text-[#caa97c] hover:text-[#e2b86b] transition flex items-center gap-1 bg-[#caa97c]/10 hover:bg-[#caa97c]/20 px-2.5 py-1 rounded-xl border border-[#caa97c]/20 cursor-pointer"
+				class="text-[11px] font-bold text-brand-400 hover:text-brand-400 transition flex items-center gap-1 bg-brand-400/10 hover:bg-brand-400/20 px-2.5 py-1 rounded-xl border border-brand-400/20 cursor-pointer"
 				onclick={() => showDirectJoinModal = true}
 			>
 				<ExternalLink class="w-3 h-3" />
@@ -175,7 +158,7 @@
 
 			<button
 				type="button"
-				class="text-[11px] font-bold text-white/70 hover:text-white transition flex items-center gap-1 bg-white/5 hover:bg-white/10 px-2.5 py-1 rounded-xl border border-white/5 cursor-pointer"
+				class="text-[11px] font-bold text-fg/70 hover:text-fg transition flex items-center gap-1 bg-fg/5 hover:bg-fg/10 px-2.5 py-1 rounded-xl border border-fg/5 cursor-pointer"
 				onclick={() => showHostLanModal = true}
 			>
 				<Share2 class="w-3 h-3 text-emerald-400" />
@@ -187,34 +170,34 @@
 	<!-- Cards dos Amigos -->
 	<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
 		{#if friends.length === 0}
-			<div class="col-span-full rounded-2xl bg-[#18191c] border border-white/5 p-6 flex flex-col items-center justify-center text-center">
-				<div class="w-10 h-10 rounded-xl bg-[#caa97c]/10 border border-[#caa97c]/20 flex items-center justify-center mb-3">
-					<Users class="w-5 h-5 text-[#caa97c]" />
+			<div class="col-span-full rounded-2xl bg-bg-elevated border border-fg/5 p-6 flex flex-col items-center justify-center text-center">
+				<div class="w-10 h-10 rounded-xl bg-brand-400/10 border border-brand-400/20 flex items-center justify-center mb-3">
+					<Users class="w-5 h-5 text-brand-400" />
 				</div>
-				<p class="text-xs font-semibold text-white/60 mb-1">Nenhum amigo conectado</p>
-				<p class="text-[10px] text-white/35 mb-3">Adicione amigos ou entre em servidores para vê-los aqui</p>
+				<p class="text-xs font-semibold text-fg/60 mb-1">Nenhum amigo conectado</p>
+				<p class="text-[10px] text-fg/35 mb-3">Adicione amigos ou entre em servidores para vê-los aqui</p>
 				<button
 					type="button"
 					onclick={() => goto("/friends")}
-					class="px-3 py-1.5 rounded-xl bg-[#caa97c]/10 hover:bg-[#caa97c]/20 text-[#caa97c] text-[10px] font-bold border border-[#caa97c]/20 transition-all cursor-pointer"
+					class="px-3 py-1.5 rounded-xl bg-brand-400/10 hover:bg-brand-400/20 text-brand-400 text-[10px] font-bold border border-brand-400/20 transition-all cursor-pointer"
 				>
 					Abrir Chat & Amigos
 				</button>
 			</div>
 		{:else}
 			{#each friends as friend}
-				<div class="rounded-2xl bg-[#18191c] border border-white/5 hover:border-[#caa97c]/40 p-3.5 flex flex-col justify-between gap-3 transition-all hover:bg-[#1c1d22] shadow-sm group">
+				<div class="rounded-2xl bg-bg-elevated border border-fg/5 hover:border-brand-400/40 p-3.5 flex flex-col justify-between gap-3 transition-all hover:bg-bg-subtle shadow-sm group">
 					<div class="flex items-start justify-between gap-2">
 						<div class="flex items-center gap-2.5 min-w-0">
-							<div class="relative w-10 h-10 rounded-xl overflow-hidden bg-black/40 border border-white/10 shrink-0">
+							<div class="relative w-10 h-10 rounded-xl overflow-hidden bg-bg-overlay/40 border border-fg/10 shrink-0">
 								<img src={friend.skinUrl} alt={friend.name} class="w-full h-full object-cover" />
-								<span class="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[#18191c] {friend.status === 'in_game' || friend.status === 'in_server' ? 'bg-emerald-400' : 'bg-blue-400'}"></span>
+								<span class="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full border-2 border-border {friend.status === 'in_game' || friend.status === 'in_server' ? 'bg-emerald-400' : 'bg-blue-400'}"></span>
 							</div>
 							<div class="min-w-0">
 								<div class="flex items-center gap-1.5">
-									<h3 class="text-xs font-bold text-white truncate">{friend.name}</h3>
+									<h3 class="text-xs font-bold text-fg truncate">{friend.name}</h3>
 								</div>
-								<p class="text-[11px] font-semibold text-[#caa97c] truncate mt-0.5">{friend.activity}</p>
+								<p class="text-[11px] font-semibold text-brand-400 truncate mt-0.5">{friend.activity}</p>
 							</div>
 						</div>
 
@@ -224,8 +207,8 @@
 						</span>
 					</div>
 
-					<div class="pt-2 border-t border-white/5 flex items-center justify-between">
-						<span class="text-[10px] text-white/40 truncate max-w-[150px]">{friend.detail}</span>
+					<div class="pt-2 border-t border-fg/5 flex items-center justify-between">
+						<span class="text-[10px] text-fg/40 truncate max-w-[150px]">{friend.detail}</span>
 
 						{#if friend.serverAddress || friend.p2pCode}
 							<button
@@ -237,7 +220,7 @@
 								Entrar
 							</button>
 						{:else}
-							<span class="text-[10px] font-semibold text-white/30">Online</span>
+							<span class="text-[10px] font-semibold text-fg/30">Online</span>
 						{/if}
 					</div>
 				</div>
@@ -249,22 +232,22 @@
 <!-- Modal: Entrar com Código Direct Join -->
 <Modal isOpen={showDirectJoinModal} onClose={() => showDirectJoinModal = false} title="Conectar Direto a Amigo (Direct Join)">
 	<div class="flex flex-col gap-4 text-xs">
-		<p class="text-white/70 leading-relaxed">
-			Insira o código de convite (ex: <code class="text-[#caa97c] font-mono">LUX-7842</code>) ou link gerado pelo launcher do seu amigo para entrar diretamente no mundo dele sem precisar de mods adicionais ou Hamachi.
+		<p class="text-fg/70 leading-relaxed">
+			Insira o código de convite (ex: <code class="text-brand-400 font-mono">192.168.1.100:25565</code>) ou link gerado pelo launcher do seu amigo para entrar diretamente no mundo dele sem precisar de mods adicionais ou Hamachi.
 		</p>
 
 		<div class="flex flex-col gap-1.5">
-			<label for="direct-join-code-input" class="text-white/60 font-semibold">Código ou Link de Convite:</label>
+			<label for="direct-join-code-input" class="text-fg/60 font-semibold">Código ou Link de Convite:</label>
 			<input 
 				id="direct-join-code-input"
 				type="text" 
 				bind:value={directJoinCode}
-				placeholder="Ex: luxmc://join/192.168.1.100:25565 ou LUX-7842"
-				class="w-full bg-bg-subtle border border-white/10 rounded-xl px-3.5 py-2 text-white font-mono outline-none focus:border-[#caa97c]"
+				placeholder="Ex: luxmc://join/192.168.1.100:25565 ou 192.168.1.100:25565"
+				class="w-full bg-bg-subtle border border-fg/10 rounded-xl px-3.5 py-2 text-fg font-mono outline-none focus:border-brand-400"
 			/>
 		</div>
 
-		<div class="flex items-center justify-end gap-2 pt-2 border-t border-white/5">
+		<div class="flex items-center justify-end gap-2 pt-2 border-t border-fg/5">
 			<Button variant="secondary" size="sm" onclick={() => showDirectJoinModal = false}>
 				Cancelar
 			</Button>
@@ -279,18 +262,18 @@
 <!-- Modal: Abrir Mundo LAN via UPnP -->
 <Modal isOpen={showHostLanModal} onClose={() => showHostLanModal = false} title="Hospedar Mundo para Amigos (UPnP)">
 	<div class="flex flex-col gap-4 text-xs">
-		<p class="text-white/70 leading-relaxed">
+		<p class="text-fg/70 leading-relaxed">
 			O Luxmc usa o protocolo UPnP nativo para abrir automaticamente uma porta no seu roteador residencial. Seus amigos poderão entrar no seu mundo diretamente pela internet sem configurar nada!
 		</p>
 
 		<div class="flex items-center gap-3">
 			<div class="flex-1 flex flex-col gap-1.5">
-				<label for="host-port-input" class="text-white/60 font-semibold">Porta LAN do Minecraft:</label>
+				<label for="host-port-input" class="text-fg/60 font-semibold">Porta LAN do Minecraft:</label>
 				<input 
 					id="host-port-input"
 					type="number" 
 					bind:value={hostPort}
-					class="w-full bg-bg-subtle border border-white/10 rounded-xl px-3.5 py-2 text-white font-mono outline-none"
+					class="w-full bg-bg-subtle border border-fg/10 rounded-xl px-3.5 py-2 text-fg font-mono outline-none"
 				/>
 			</div>
 
@@ -307,14 +290,14 @@
 					<Check class="w-4 h-4" />
 					Porta {hostPort} aberta com sucesso!
 				</div>
-				<p class="text-white/80">Envie este link para seu amigo colar no launcher dele:</p>
+				<p class="text-fg/80">Envie este link para seu amigo colar no launcher dele:</p>
 				<div class="flex items-center gap-2">
 					<input 
 						type="text" 
 						readonly 
 						aria-label="Link de convite gerado"
 						value={`luxmc://join/${hostResult.externalIp || 'meu-ip'}:${hostPort}`}
-						class="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-white"
+						class="flex-1 bg-bg-overlay/40 border border-fg/10 rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-fg"
 					/>
 					<Button variant="secondary" size="sm" onclick={copyGeneratedLink}>
 						{#if hasCopiedCode}
@@ -329,7 +312,7 @@
 			</div>
 		{/if}
 
-		<div class="flex items-center justify-end pt-2 border-t border-white/5">
+		<div class="flex items-center justify-end pt-2 border-t border-fg/5">
 			<Button variant="secondary" size="sm" onclick={() => showHostLanModal = false}>
 				Fechar
 			</Button>

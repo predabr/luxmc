@@ -142,9 +142,9 @@
 	let colorPickerId = $state<string | null>(null);
 
 	const colorOptions = [
-		{ value: "red", color: "rgb(239, 68, 68)" },
+		{ value: "red", color: "rgb(var(--danger))" },
 		{ value: "blue", color: "rgb(59, 130, 246)" },
-		{ value: "green", color: "rgb(34, 197, 94)" },
+		{ value: "green", color: "rgb(var(--success))" },
 		{ value: "yellow", color: "rgb(234, 179, 8)" },
 		{ value: "purple", color: "rgb(168, 85, 247)" },
 		{ value: "orange", color: "rgb(249, 115, 22)" },
@@ -180,15 +180,15 @@
 	}
 
 	function formatTimeAgo(timestamp: number): string {
-		if (!timestamp) return "Never";
+		if (!timestamp) return "Ainda não jogada";
 		const diff = Date.now() - timestamp;
 		const minutes = Math.floor(diff / 60000);
-		if (minutes < 1) return "Just now";
-		if (minutes < 60) return `${minutes}m ago`;
+		if (minutes < 1) return "Agora";
+		if (minutes < 60) return `há ${minutes} min`;
 		const hours = Math.floor(minutes / 60);
-		if (hours < 24) return `${hours}h ago`;
+		if (hours < 24) return `há ${hours} h`;
 		const days = Math.floor(hours / 24);
-		return `${days}d ago`;
+		return `há ${days} d`;
 	}
 
 	function getIconSrc(iconStr?: string): string {
@@ -373,7 +373,8 @@
 				skinVariant: activeSkinStore.current.type === "alex" ? "slim" : "classic",
 				capeUrl: effectiveCape
 			});
-			gamingStats.onGameStart();
+			gamingStats.onGameStart(p.id);
+            appState.activeGameDetails = { profileId: p.id, name: p.name, version: verId, loader: p.loader };
 			appState.isGameRunning = true;
 			const pNameLower = p.name.toLowerCase();
 			const modpackCover = (p.icon && (p.icon.startsWith("http://") || p.icon.startsWith("https://")))
@@ -561,11 +562,11 @@
 		} finally { fileTreeLoading = false; }
 	}
 
-	async function navigateFileTree(subPath: string) {
+	async function navigateFileTree(subPath: string | null) {
 		if (!fileBrowserId) return;
 		fileTreeLoading = true;
 		fileTreePath = subPath;
-		try { fileTree = await instanceFileTree(fileBrowserId, subPath); } catch (e) {
+		try { fileTree = await instanceFileTree(fileBrowserId, subPath ?? undefined); } catch (e) {
 			toast(t("instances.failedFileTree", { error: String(e) }), "error");
 			fileTree = [];
 		} finally { fileTreeLoading = false; }
@@ -671,10 +672,10 @@
 	}
 </script>
 
-<div class="mx-auto flex h-full max-w-6xl flex-col gap-6">
-	<div class="sticky top-0 z-20 flex items-center justify-between rounded-2xl px-1 py-2" style="background: linear-gradient(to bottom, rgb(var(--bg)) 80%, transparent); backdrop-filter: blur(8px);">
-		<Heading>{t("instances.title")}</Heading>
-		<div class="flex gap-2">
+<div class="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-6">
+	<div class="flex flex-wrap items-end justify-between gap-5 pb-2">
+		<div class="shrink-0"><p class="page-eyebrow mb-2">Biblioteca pessoal</p><h1 class="page-title">Suas instâncias<span class="ml-3 text-lg font-medium text-fg-subtle">{profiles.list.length}</span></h1><p class="page-description">Cada mundo, do seu jeito.</p></div>
+		<div class="flex flex-wrap items-center gap-2">
 			{#if selectionMode && selectedIds.size > 0}
 				<Button variant="danger" size="sm" onclick={bulkDelete}>
 					<Trash2 class="h-4 w-4" />
@@ -695,7 +696,7 @@
 				</Button>
 			{/if}
 
-			<div class="flex items-center gap-2">
+			<div class="flex flex-wrap items-center gap-2">
 				<Button
 					variant="secondary"
 					size="sm"
@@ -867,46 +868,44 @@
 		onHealthCheck={checkHealth}
 	/>
 
-	<!-- Bottom Bar -->
-	<div class="mt-4 mb-6 rounded-3xl bg-[#111216] border border-white/[0.06] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+	<div class="mt-4 mb-6 rounded-3xl bg-bg-elevated border border-fg/[0.06] p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
 		<div class="flex items-center gap-4">
 			<div class="w-10 h-10 rounded-full bg-brand-500/10 border border-brand-500/20 flex items-center justify-center shrink-0">
 				<Boxes class="w-5 h-5 text-brand-500" />
 			</div>
 			<div>
-				<div class="text-xs font-black text-white flex items-center gap-2">
+				<div class="text-xs font-black text-fg flex items-center gap-2">
 					<span>Biblioteca Luxmc</span>
-					<span class="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-white/5 text-white/60 border border-white/[0.12]">
+					<span class="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-fg/5 text-fg/60 border border-fg/[0.12]">
 						{filteredInstances.length} {filteredInstances.length === 1 ? 'Instância instalada' : 'Instâncias instaladas'}
 					</span>
 				</div>
-				<p class="text-[11px] text-white/35 mt-0.5">Gerencie suas versões com carregamento rápido e perfis isolados.</p>
+				<p class="text-[11px] text-fg/35 mt-0.5">Gerencie suas versões com carregamento rápido e perfis isolados.</p>
 			</div>
 		</div>
 		<div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-			<button type="button" class="px-5 py-2.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/[0.06] hover:border-white/[0.15] text-white/80 hover:text-white text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-2"
+			<button type="button" class="px-5 py-2.5 rounded-full bg-fg/5 hover:bg-fg/10 border border-fg/[0.06] hover:border-fg/[0.15] text-fg/80 hover:text-fg text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-2"
 				onclick={() => { if (profiles.active) openFolder(profiles.active.id); else toast("Nenhuma instância ativa selecionada", "info"); }}
 			>
-				<FolderOpen class="w-4 h-4 text-white/35" /> Abrir Pasta das Instâncias
+				<FolderOpen class="w-4 h-4 text-fg/35" /> Abrir Pasta das Instâncias
 			</button>
 		</div>
 	</div>
 
-	<!-- Import Code Modal -->
 	{#if showImportCode}
-		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md" transition:fade={{ duration: 150 }}>
-			<div class="w-full max-w-md bg-[#111216] border border-brand-500/30 rounded-3xl p-6 shadow-2xl">
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md" transition:fade={{ duration: 150 }}>
+			<div class="w-full max-w-md bg-bg-elevated border border-brand-500/30 rounded-3xl p-6 shadow-2xl">
 				<div class="flex items-center justify-between mb-4">
 					<div class="flex items-center gap-2">
 						<Sparkles class="w-5 h-5 text-brand-500" />
-						<h3 class="text-sm font-black text-white">Importar Instância por Código</h3>
+						<h3 class="text-sm font-black text-fg">Importar Instância por Código</h3>
 					</div>
-					<button type="button" class="text-white/35 hover:text-white p-1 rounded-lg cursor-pointer" onclick={() => showImportCode = false}>
+					<button type="button" class="text-fg/35 hover:text-fg p-1 rounded-lg cursor-pointer" onclick={() => showImportCode = false}>
 						<X class="w-4 h-4" />
 					</button>
 				</div>
 
-				<p class="text-xs text-white/60 mb-4 leading-relaxed">
+				<p class="text-xs text-fg/60 mb-4 leading-relaxed">
 					Cole o código de compartilhamento recebido (ex: <span class="font-mono text-brand-400">LUX-XXXXXX</span>) para importar a instância automaticamente.
 				</p>
 
@@ -915,21 +914,21 @@
 						type="text" 
 						bind:value={shareCodeInput} 
 						placeholder="LUX-XXXXXX" 
-						class="w-full bg-[#0e0f12] border border-white/[0.06] focus:border-emerald-500/50 rounded-2xl px-4 py-3 text-sm text-white font-mono uppercase tracking-widest outline-none transition-all duration-300"
+						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-2xl px-4 py-3 text-sm text-fg font-mono uppercase tracking-widest outline-none transition-all duration-300"
 					/>
 				</div>
 
 				<div class="flex items-center justify-end gap-3">
 					<button 
 						type="button" 
-						class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-bold text-white/70 transition-all duration-300 cursor-pointer"
+						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-xs font-bold text-fg/70 transition-all duration-300 cursor-pointer"
 						onclick={() => showImportCode = false}
 					>
 						Cancelar
 					</button>
 					<button 
 						type="button" 
-						class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-black text-xs font-black transition-all duration-300 flex items-center gap-2 shadow-sm shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
+						class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-brand-foreground text-xs font-black transition-all duration-300 flex items-center gap-2 shadow-sm shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
 						disabled={isImportingCode}
 						onclick={handleImportShareCode}
 					>
@@ -941,9 +940,8 @@
 		</div>
 	{/if}
 
-	<!-- Health Check Modal -->
 	{#if healthCheckId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeHealthCheck(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeHealthCheck(); }}
 			role="dialog" aria-modal="true" aria-label={t("health.title")} tabindex="-1"
@@ -960,39 +958,39 @@
 				</div>
 				{#if healthChecking}
 					<div class="flex items-center justify-center py-8">
-						<div class="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" style="border-color: rgb(45, 212, 191); border-top-color: transparent;"></div>
+						<div class="h-6 w-6 animate-spin rounded-full border-2 border-t-transparent" style="border-color: rgb(var(--brand-500)); border-top-color: transparent;"></div>
 						<span class="ml-2 text-sm" style="color: rgb(var(--fg-muted));">{t("health.checking")}</span>
 					</div>
 				{:else if healthResult}
 					<div class="flex flex-col gap-3">
 						<div class="flex items-center gap-2 rounded-lg px-3 py-2" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg));">
-							{#if healthResult.clientJar}<Check class="h-4 w-4" style="color: rgb(74, 222, 128);" />{:else}<HeartPulse class="h-4 w-4" style="color: rgb(248, 113, 113);" />{/if}
+							{#if healthResult.clientJar}<Check class="h-4 w-4" style="color: rgb(var(--success));" />{:else}<HeartPulse class="h-4 w-4" style="color: rgb(var(--danger));" />{/if}
 							<span class="text-sm">{t("health.clientJar")}</span>
-							<span class="ml-auto text-xs" style="color: {healthResult.clientJar ? 'rgb(74, 222, 128)' : 'rgb(248, 113, 113)'};">
+							<span class="ml-auto text-xs" style="color: {healthResult.clientJar ? 'rgb(var(--success))' : 'rgb(var(--danger))'};">
 								{healthResult.clientJar ? t("health.present") : t("health.missing")}
 							</span>
 						</div>
 						<div class="flex items-center gap-2 rounded-lg px-3 py-2" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg));">
-							{#if healthResult.natives}<Check class="h-4 w-4" style="color: rgb(74, 222, 128);" />{:else}<HeartPulse class="h-4 w-4" style="color: rgb(250, 204, 21);" />{/if}
+							{#if healthResult.natives}<Check class="h-4 w-4" style="color: rgb(var(--success));" />{:else}<HeartPulse class="h-4 w-4" style="color: rgb(var(--warning));" />{/if}
 							<span class="text-sm">{t("health.natives")}</span>
-							<span class="ml-auto text-xs" style="color: {healthResult.natives ? 'rgb(74, 222, 128)' : 'rgb(250, 204, 21)'};">
+							<span class="ml-auto text-xs" style="color: {healthResult.natives ? 'rgb(var(--success))' : 'rgb(var(--warning))'};">
 								{healthResult.natives ? t("health.present") : t("health.missing")}
 							</span>
 						</div>
 						<div class="flex items-center gap-2 rounded-lg px-3 py-2" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg));">
-							{#if healthResult.modsOk}<Check class="h-4 w-4" style="color: rgb(74, 222, 128);" />{:else}<HeartPulse class="h-4 w-4" style="color: rgb(250, 204, 21);" />{/if}
+							{#if healthResult.modsOk}<Check class="h-4 w-4" style="color: rgb(var(--success));" />{:else}<HeartPulse class="h-4 w-4" style="color: rgb(var(--warning));" />{/if}
 							<span class="text-sm">{t("health.mods")}</span>
-							<span class="ml-auto text-xs" style="color: {healthResult.modsOk ? 'rgb(74, 222, 128)' : 'rgb(250, 204, 21)'};">
+							<span class="ml-auto text-xs" style="color: {healthResult.modsOk ? 'rgb(var(--success))' : 'rgb(var(--warning))'};">
 								{healthResult.modsOk ? t("health.present") : t("health.missing")}
 							</span>
 						</div>
 						{#if healthResult.issues.length > 0}
-							<div class="rounded-lg px-3 py-2" style="border: 1px solid rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.1);">
-								<p class="text-xs font-medium" style="color: rgb(248, 113, 113);">{t("health.issuesFound")}</p>
-								{#each healthResult.issues as issue}<p class="mt-1 text-xs" style="color: rgb(252, 165, 165);">- {issue}</p>{/each}
+							<div class="rounded-lg px-3 py-2" style="border: 1px solid rgb(var(--danger) / 0.3); background: rgb(var(--danger) / 0.1);">
+								<p class="text-xs font-medium" style="color: rgb(var(--danger));">{t("health.issuesFound")}</p>
+								{#each healthResult.issues as issue}<p class="mt-1 text-xs" style="color: rgb(var(--danger));">- {issue}</p>{/each}
 							</div>
 						{:else}
-							<div class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm" style="border: 1px solid rgba(34, 197, 94, 0.3); background: rgba(34, 197, 94, 0.1); color: rgb(74, 222, 128);">
+							<div class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm" style="border: 1px solid rgb(var(--success) / 0.3); background: rgb(var(--success) / 0.1); color: rgb(var(--success));">
 								<Check class="h-4 w-4" /> {t("health.healthy")}
 							</div>
 						{/if}
@@ -1002,9 +1000,8 @@
 		</div>
 	{/if}
 
-	<!-- File Browser Modal -->
 	{#if fileBrowserId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeFileBrowser(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeFileBrowser(); }}
 			role="dialog" aria-modal="true" aria-label={t("files.title")} tabindex="-1"
@@ -1020,7 +1017,7 @@
 					</button>
 				</div>
 				{#if fileTreePath}
-					<button class="mb-2 text-left text-xs" style="color: rgb(45, 212, 191);" onclick={() => navigateFileTree(null as any)}>
+					<button class="mb-2 text-left text-xs" style="color: rgb(var(--brand-500));" onclick={() => navigateFileTree(null)}>
 						.. / {fileTreePath}
 					</button>
 				{/if}
@@ -1038,7 +1035,7 @@
 								<button class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors"
 									onclick={() => { if (entry.isDir) { navigateFileTree(fileTreePath ? `${fileTreePath}/${entry.name}` : entry.name); } }}
 								>
-									{#if entry.isDir}<FolderOpen class="h-4 w-4 shrink-0" style="color: rgb(45, 212, 191);" />{:else}<span class="h-4 w-4 shrink-0"></span>{/if}
+									{#if entry.isDir}<FolderOpen class="h-4 w-4 shrink-0" style="color: rgb(var(--brand-500));" />{:else}<span class="h-4 w-4 shrink-0"></span>{/if}
 									<span class="truncate">{entry.name}</span>
 									{#if !entry.isDir}
 										<span class="ml-auto text-xs" style="color: rgb(var(--fg-subtle));">
@@ -1054,9 +1051,8 @@
 		</div>
 	{/if}
 
-	<!-- Screenshots Modal -->
 	{#if screenshotsId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeScreenshots(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeScreenshots(); }}
 			role="dialog" aria-modal="true" aria-label={t("screenshots.title")} tabindex="-1"
@@ -1082,14 +1078,14 @@
 					{:else}
 						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
 							{#each screenshots as shot}
-								<div class="overflow-hidden rounded-xl border border-white/[0.12] bg-black/40 shadow-sm group">
-									<div class="aspect-video overflow-hidden flex items-center justify-center bg-black/60">
+								<div class="overflow-hidden rounded-xl border border-fg/[0.12] bg-bg-overlay/40 shadow-sm group">
+									<div class="aspect-video overflow-hidden flex items-center justify-center bg-bg-overlay/60">
 										<img src={convertFileSrc(shot.path)} alt={shot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
 									</div>
 									<div class="px-2.5 py-1.5 flex items-center justify-between">
 										<div class="min-w-0 flex-1">
-											<p class="truncate text-[11px] font-bold text-white/90">{shot.name}</p>
-											<p class="text-[10px] text-white/35">{new Date(shot.modified).toLocaleDateString()}</p>
+											<p class="truncate text-[11px] font-bold text-fg/90">{shot.name}</p>
+											<p class="text-[10px] text-fg/35">{new Date(shot.modified).toLocaleDateString()}</p>
 										</div>
 									</div>
 								</div>
@@ -1101,9 +1097,8 @@
 		</div>
 	{/if}
 
-	<!-- Notes Modal -->
 	{#if notesId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeNotes(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeNotes(); }}
 			role="dialog" aria-modal="true" aria-label={t("instances.notes")} tabindex="-1"
@@ -1129,14 +1124,13 @@
 		</div>
 	{/if}
 
-	<!-- Edit Instance Modal -->
 	<Modal isOpen={editingInstance !== null} onClose={() => (editingInstance = null)} title={t("instances.edit")} maxWidth="max-w-xl">
 		{#if editingInstance}
 			<div class="flex flex-col gap-4 text-xs select-none">
 				<div class="space-y-1.5">
-					<label for="edit-instance-name" class="block text-xs font-bold text-white/70 uppercase tracking-widest">{t("instances.name")}</label>
+					<label for="edit-instance-name" class="block text-xs font-bold text-fg/70 uppercase tracking-widest">{t("instances.name")}</label>
 					<div class="flex items-center gap-3">
-						<div class="h-11 w-11 rounded-2xl bg-[#0e0f12] border border-white/[0.12] flex items-center justify-center shrink-0 p-1">
+						<div class="h-11 w-11 rounded-2xl bg-bg-elevated border border-fg/[0.12] flex items-center justify-center shrink-0 p-1">
 							<img src={getIconSrc(editIcon)} alt="Ícone" class="w-8 h-8 object-contain [image-rendering:pixelated]" />
 						</div>
 						<Input id="edit-instance-name" bind:value={editName} placeholder={t("instances.namePlaceholder")} />
@@ -1144,10 +1138,10 @@
 				</div>
 
 				<div class="space-y-1.5">
-					<span class="block text-xs font-bold text-white/70 uppercase tracking-widest">Ícone da Instância</span>
-					<div class="flex items-center gap-1.5 bg-[#0e0f12] p-1.5 rounded-2xl border border-white/[0.12]">
+					<span class="block text-xs font-bold text-fg/70 uppercase tracking-widest">Ícone da Instância</span>
+					<div class="flex items-center gap-1.5 bg-bg-elevated p-1.5 rounded-2xl border border-fg/[0.12]">
 						{#each [{ id: "grass_block", label: "Grama", src: "/grass_block.png" }, { id: "modpack_fo", label: "FO", src: "/modpack_fo_icon.png" }, { id: "modpack_better_mc", label: "BMC", src: "/modpack_bmc_icon.webp" }, { id: "modpack_cobblemon", label: "Cobblemon", src: "/modpack_cobblemon_icon.png" }, { id: "logo", label: "Logo", src: "/logo.png" }, { id: "grass_head", label: "Steve", src: "/grass_head.png" }] as ip}
-							<button type="button" class="w-8 h-8 rounded-xl p-1 transition-all cursor-pointer flex items-center justify-center {editIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-white/5 opacity-60 hover:opacity-100'}"
+							<button type="button" class="w-8 h-8 rounded-xl p-1 transition-all cursor-pointer flex items-center justify-center {editIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-fg/5 opacity-60 hover:opacity-100'}"
 								onclick={() => editIcon = ip.id} title={ip.label}
 							>
 								<img src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
@@ -1157,34 +1151,34 @@
 				</div>
 
 				<div class="space-y-1.5">
-					<span class="block text-xs font-bold text-white/70 uppercase tracking-widest">{t("instances.version")}</span>
+					<span class="block text-xs font-bold text-fg/70 uppercase tracking-widest">{t("instances.version")}</span>
 					<FilterableVersionSelect versions={availableVersions} bind:value={editVersion} loading={versionsLoading} />
 				</div>
 
-				<div class="bg-[#0e0f12] border border-emerald-500/20 rounded-2xl p-3.5 space-y-2">
+				<div class="bg-bg-elevated border border-emerald-500/20 rounded-2xl p-3.5 space-y-2">
 					<div class="flex items-center justify-between text-xs">
 						<div class="flex items-center gap-2.5">
 							<div class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
 								<Cpu class="w-3.5 h-3.5" />
 							</div>
 							<div>
-								<span class="font-bold text-white block">Memória RAM 100% Automática</span>
-								<span class="text-[10px] text-white/35 block">Hardware: {Math.round(systemRamMb / 1024)} GB Totais</span>
+								<span class="font-bold text-fg block">Memória RAM 100% Automática</span>
+								<span class="text-[10px] text-fg/35 block">Hardware: {Math.round(systemRamMb / 1024)} GB Totais</span>
 							</div>
 						</div>
 						<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">Auto Tuning</span>
 					</div>
-					<p class="text-[10px] text-white/35 leading-relaxed">
+					<p class="text-[10px] text-fg/35 leading-relaxed">
 						O Luxmc aloca a quantidade ideal de RAM dinamicamente com base na quantidade de mods da instância e recursos livres do seu Linux.
 					</p>
 				</div>
 
 				<div class="space-y-1.5">
-					<label for="edit-jvm-args" class="block text-xs font-bold text-white/70 uppercase tracking-widest">Argumentos JVM Customizados</label>
+					<label for="edit-jvm-args" class="block text-xs font-bold text-fg/70 uppercase tracking-widest">Argumentos JVM Customizados</label>
 					<input id="edit-jvm-args" type="text" bind:value={editJvmArgs} placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch"
-						class="w-full bg-[#0e0f12] border border-white/[0.06] focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-xs text-white font-mono outline-none transition-all duration-300"
+						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none transition-all duration-300"
 					/>
-					<p class="text-[10px] text-white/35">Parâmetros extras passados diretamente para a máquina virtual Java.</p>
+					<p class="text-[10px] text-fg/35">Parâmetros extras passados diretamente para a máquina virtual Java.</p>
 				</div>
 
 				<div class="flex justify-end gap-2 border-t pt-4" style="border-color: rgb(var(--border));">
@@ -1197,29 +1191,28 @@
 		{/if}
 	</Modal>
 
-	<!-- Delete Confirmation Modal -->
 	{#if confirmDeleteInstance}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4" transition:fade={{ duration: 150 }}>
-			<div class="w-full max-w-md bg-[#111216] border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4 select-none">
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md p-4" transition:fade={{ duration: 150 }}>
+			<div class="w-full max-w-md bg-bg-elevated border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4 select-none">
 				<div class="flex items-center gap-3">
 					<div class="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
 						<Trash2 class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-white">Excluir Instância</h3>
-						<p class="text-[11px] text-white/35">Esta ação não poderá ser desfeita</p>
+						<h3 class="text-sm font-black text-fg">Excluir Instância</h3>
+						<p class="text-[11px] text-fg/35">Esta ação não poderá ser desfeita</p>
 					</div>
 				</div>
-				<div class="bg-[#0e0f12] p-3.5 rounded-2xl border border-white/[0.06] text-xs text-white/70 space-y-1.5">
-					<p>Tem certeza que deseja apagar a instância <strong class="text-white">"{confirmDeleteInstance.name}"</strong>?</p>
-					<p class="text-[10px] text-white/35 font-mono break-all">Pasta: {confirmDeleteInstance.gameDir}</p>
+				<div class="bg-bg-elevated p-3.5 rounded-2xl border border-fg/[0.06] text-xs text-fg/70 space-y-1.5">
+					<p>Tem certeza que deseja apagar a instância <strong class="text-fg">"{confirmDeleteInstance.name}"</strong>?</p>
+					<p class="text-[10px] text-fg/35 font-mono break-all">Pasta: {confirmDeleteInstance.gameDir}</p>
 					<p class="text-[11px] text-red-400/90 font-medium">Todos os mundos, saves, mods e arquivos salvos serão removidos permanentemente do disco.</p>
 				</div>
 				<div class="flex justify-end gap-2.5 pt-2">
-					<button type="button" class="px-5 py-2.5 rounded-full text-xs font-bold text-white/60 hover:text-white hover:bg-white/10 transition-all duration-300 cursor-pointer"
+					<button type="button" class="px-5 py-2.5 rounded-full text-xs font-bold text-fg/60 hover:text-fg hover:bg-fg/10 transition-all duration-300 cursor-pointer"
 						onclick={() => (confirmDeleteInstance = null)}
 					>Cancelar</button>
-					<button type="button" class="px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-white font-black text-xs transition-all duration-300 active:scale-95 shadow-sm cursor-pointer flex items-center gap-2"
+					<button type="button" class="px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-fg font-black text-xs transition-all duration-300 active:scale-[0.98] shadow-sm cursor-pointer flex items-center gap-2"
 						disabled={deleting}
 						onclick={async () => {
 							if (!confirmDeleteInstance) return;

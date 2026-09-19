@@ -4,7 +4,7 @@
 	interface Tab {
 		id: string;
 		label: string;
-		icon?: any;
+		icon?: typeof import("lucide-svelte").Circle;
 	}
 
 	interface Props {

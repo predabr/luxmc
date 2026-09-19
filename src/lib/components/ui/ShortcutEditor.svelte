@@ -124,7 +124,7 @@
 				{#if recordingId === s.id}
 					<input
 						class="h-7 w-40 rounded-md px-2 text-[11px] font-mono outline-none"
-						style="border: 1px solid rgb(45, 212, 191); background: rgb(var(--bg-subtle)); color: rgb(var(--fg));"
+						style="border: 1px solid rgb(var(--brand-400)); background: rgb(var(--bg-subtle)); color: rgb(var(--fg));"
 						placeholder={t("shortcutsModal.pressCombo")}
 						aria-label={t("shortcutsModal.pressCombo")}
 						use:focusOnMount

@@ -804,142 +804,37 @@ pub async fn mods_download_to_temp_core(
     url: String,
     file_name: String,
 ) -> AppResult<String> {
-    tracing::info!(url = %url, filename = %file_name, "mods_download_to_temp");
-
-    if !url.starts_with("https://") {
-        return Err(crate::error::AppError::InvalidInput("Only HTTPS URLs are allowed".into()));
-    }
-    let url_lower = url.to_lowercase();
-    let blocked_hosts = ["localhost", "127.0.0.1", "0.0.0.0", "::1"];
-    for host in &blocked_hosts {
-        if url_lower.contains(&format!("https://{}/", host)) || url_lower.contains(&format!("https://{}:", host)) {
-            return Err(crate::error::AppError::InvalidInput("Internal network URLs are not allowed".into()));
-        }
-    }
-    if url_lower.contains("https://10.") || url_lower.contains("https://192.168.") {
-        return Err(crate::error::AppError::InvalidInput("Internal network URLs are not allowed".into()));
-    }
-
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
-        crate::error::AppError::InvalidState("could not determine cache dir".into())
-    })?;
-    let temp_dir = base_dir.cache_dir().join("modpacks");
-    tokio::fs::create_dir_all(&temp_dir).await?;
-
-    let clean_name = std::path::Path::new(&file_name)
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("package.zip");
-    if clean_name.is_empty() || clean_name == "." || clean_name == ".." {
+    use crate::core::mods::pack_download as pack;
+    let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
+    state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
+    let urls = pack::mirrors(&url)?;
+    if file_name.contains(['/', '\\']) {
         return Err(crate::error::AppError::InvalidInput("Invalid filename".into()));
     }
-    let target_path = temp_dir.join(clean_name);
-
-    let mut urls_to_try = vec![url.clone()];
-    if url.contains("edge.forgecdn.net") {
-        urls_to_try.push(url.replace("edge.forgecdn.net", "mediafilez.forgecdn.net"));
-        urls_to_try.push(url.replace("edge.forgecdn.net", "media.forgecdn.net"));
-    } else if url.contains("mediafilez.forgecdn.net") {
-        urls_to_try.push(url.replace("mediafilez.forgecdn.net", "edge.forgecdn.net"));
-        urls_to_try.push(url.replace("mediafilez.forgecdn.net", "media.forgecdn.net"));
-    }
-
-    let cf_key = crate::core::mods::curseforge::api_key();
-    let mut downloaded_ok = false;
-    let mut total_bytes: usize = 0;
-    let mut last_error = None;
-
-    use futures_util::StreamExt;
-    for try_url in urls_to_try {
-        for attempt in 0..3 {
-            if attempt > 0 {
-                tokio::time::sleep(std::time::Duration::from_millis(300 * attempt as u64)).await;
-            }
-
-            let mut req = state
-                .http
-                .get(&try_url)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                .header("Accept", "*/*")
-                .timeout(std::time::Duration::from_secs(45));
-
-            if let Some(ref k) = cf_key {
-                if try_url.contains("curseforge.com") {
-                    req = req.header("x-api-key", k);
-                }
-            }
-
-            let resp = match req.send().await {
-                Ok(r) if r.status().is_success() => r,
-                Ok(r) => {
-                    last_error = Some(crate::error::AppError::InvalidState(format!(
-                        "HTTP {} for url: {}",
-                        r.status(),
-                        try_url
-                    )));
-                    continue;
-                }
-                Err(e) => {
-                    last_error = Some(crate::error::AppError::Http(e));
-                    continue;
-                }
-            };
-
-            let mut stream = resp.bytes_stream();
-            let temp_dest = target_path.with_extension("dl_tmp");
-            let mut file = match tokio::fs::File::create(&temp_dest).await {
-                Ok(f) => f,
-                Err(e) => {
-                    last_error = Some(crate::error::AppError::Io(e));
-                    continue;
-                }
-            };
-
-            let mut bytes_written = 0;
-            let mut stream_err = false;
-            while let Some(chunk) = stream.next().await {
-                match chunk {
-                    Ok(b) => {
-                        bytes_written += b.len();
-                        if tokio::io::AsyncWriteExt::write_all(&mut file, &b).await.is_err() {
-                            stream_err = true;
-                            break;
-                        }
+    let base = directories::ProjectDirs::from("io", "github", "Luxmc")
+        .ok_or_else(|| crate::error::AppError::InvalidState("could not determine cache dir".into()))?;
+    let directory = base.cache_dir().join("modpacks").join(uuid::Uuid::new_v4().to_string());
+    let target = pack::destination(&directory, &file_name)?;
+    let client = pack::client()?;
+    let mut last_error = crate::error::AppError::InvalidState("Download failed".into());
+    for attempt in 0..3 {
+        pack::backoff(attempt, Some(&state.import_cancel)).await?;
+        for url in &urls {
+            match pack::bytes(&client, url, Some(&state.import_cancel)).await {
+                Ok(bytes) => {
+                    if zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_err() {
+                        last_error = crate::error::AppError::InvalidInput("Invalid pack archive".into());
+                        continue;
                     }
-                    Err(e) => {
-                        last_error = Some(crate::error::AppError::Http(e));
-                        stream_err = true;
-                        break;
-                    }
+                    pack::atomic_write(&target, &bytes).await?;
+                    return Ok(target.to_string_lossy().into_owned());
                 }
+                Err(error) => last_error = error,
             }
-            let _ = tokio::io::AsyncWriteExt::flush(&mut file).await;
-            drop(file);
-
-            if stream_err || bytes_written < 100 {
-                let _ = tokio::fs::remove_file(&temp_dest).await;
-                continue;
-            }
-
-            if tokio::fs::rename(&temp_dest, &target_path).await.is_ok() {
-                total_bytes = bytes_written;
-                downloaded_ok = true;
-                break;
-            }
-        }
-        if downloaded_ok {
-            break;
+            pack::cancelled(Some(&state.import_cancel))?;
         }
     }
-
-    if !downloaded_ok {
-        return Err(last_error.unwrap_or_else(|| {
-            crate::error::AppError::InvalidState(format!("Falha ao baixar pacote de {}", url))
-        }));
-    }
-
-    tracing::info!(path = %target_path.display(), size = total_bytes, "mods_download_to_temp done");
-    Ok(target_path.to_string_lossy().to_string())
+    Err(last_error)
 }
 
 #[tauri::command]
@@ -1456,4 +1351,19 @@ pub async fn mods_resolve_icons(
     profile_id: String,
 ) -> AppResult<u32> {
     mods_resolve_icons_core(&state, profile_id).await
+}
+
+#[cfg(test)]
+mod download_cancellation_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn concurrent_download_cannot_reset_import_cancellation() {
+        let state = AppState::default();
+        let _guard = state.import_lock.lock().await;
+        state.import_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+        let result = mods_download_to_temp_core(&state, "https://cdn.modrinth.com/test.mrpack".into(), "test.mrpack".into()).await;
+        assert!(result.is_err());
+        assert!(state.import_cancel.load(std::sync::atomic::Ordering::SeqCst));
+    }
 }

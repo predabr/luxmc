@@ -17,3 +17,7 @@ release-electron
 options.txt
 src-csharp/**/bin
 src-csharp/**/obj
+
+.wrangler/
+.dev.vars
+.dev.vars.*

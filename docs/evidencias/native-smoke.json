@@ -1,0 +1,45 @@
+{
+  "root": "/tmp/luxmc-native-smoke-6M4vBF",
+  "results": [
+    {
+      "name": "isolated profile paths",
+      "detail": "path traversal and duplicate names cannot share gameDir"
+    },
+    {
+      "name": "real Modrinth import",
+      "detail": "⚠️ 5.4.1 for 1.20.1; 51 files verified by hash"
+    },
+    {
+      "name": "auto-heal",
+      "detail": "zero-byte JAR restored with matching hash; disabled JAR stays disabled"
+    },
+    {
+      "name": "real CurseForge import",
+      "detail": "⚠️ 5.4.1 for 1.20.1 (CurseForge); 46 manifest entries, 48 JARs preserved"
+    },
+    {
+      "name": "nested mrpack roots",
+      "detail": "Windows separators normalized; client-overrides wins recursively"
+    },
+    {
+      "name": "cancel and concurrent import",
+      "detail": "second import rejected; cancellation leaves no incomplete profile"
+    },
+    {
+      "name": "native launch",
+      "detail": "Smoke Fabulously Optimized; JVM pid 346363; prelaunch repaired zero-byte JAR"
+    },
+    {
+      "name": "Minecraft startup",
+      "detail": "Smoke Fabulously Optimized; renderer/resources initialized"
+    },
+    {
+      "name": "native launch",
+      "detail": "Smoke CurseForge; JVM pid 347653; prelaunch repaired zero-byte JAR"
+    },
+    {
+      "name": "Minecraft startup",
+      "detail": "Smoke CurseForge; renderer/resources initialized"
+    }
+  ]
+}

@@ -31,6 +31,7 @@
 	let containerEl: HTMLDivElement | null = $state(null);
 	let canvasEl: HTMLCanvasElement | null = $state(null);
 	let viewer: SkinViewer | null = null;
+    let unavailable = $state(false);
 	let resizeObserver: ResizeObserver | null = null;
 	let skinCache = new Map<string, HTMLCanvasElement | string>();
 	let loadGeneration = 0;
@@ -60,13 +61,15 @@
 		const width = containerEl.clientWidth || 300;
 		const height = containerEl.clientHeight || 400;
 
-		viewer = new SkinViewer({
+		try {
+        viewer = new SkinViewer({
 			canvas: canvasEl,
 			width,
 			height,
 			model: slim ? "slim" : "default",
 			enableControls: true
 		});
+        } catch { unavailable = true; return; }
 
 		if (viewer.controls) {
 			viewer.controls.enableRotate = true;
@@ -84,7 +87,6 @@
 		viewer.playerObject.rotation.y = (20 * Math.PI) / 180;
 		viewer.playerObject.skin.setOuterLayerVisible(true);
 
-		// Balanced lighting: ambient + camera light + backlight so the back and arms are brightly rendered
 		viewer.globalLight.intensity = 2.4;
 		viewer.cameraLight.intensity = 0.9;
 		try {
@@ -308,6 +310,12 @@
 	role="region"
 	aria-label="Visualizador 3D de Skin"
 >
-	<canvas bind:this={canvasEl} class="w-full h-full block"></canvas>
-	<div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-6 bg-black/40 rounded-full blur-sm pointer-events-none"></div>
+	<canvas bind:this={canvasEl} class="w-full h-full block" class:invisible={unavailable}></canvas>
+    {#if unavailable}
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center" role="status">
+            <img src={skinUrl || "/grass_head.png"} alt="Textura da skin selecionada" class="h-32 w-32 object-contain [image-rendering:pixelated]" />
+            <p class="max-w-xs text-sm text-fg-muted">A prévia 3D precisa de aceleração gráfica. Você pode continuar escolhendo e aplicando skins.</p>
+        </div>
+    {/if}
+	<div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-6 bg-bg-overlay/40 rounded-full blur-sm pointer-events-none"></div>
 </div>

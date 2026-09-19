@@ -1,0 +1,91 @@
+:root {
+  --exp-ink: var(--text-main);
+  --exp-glass: color-mix(in srgb, var(--bg-card) 82%, transparent);
+  --exp-line: color-mix(in srgb, var(--text-main) 12%, transparent);
+  --exp-blue: var(--brand-secondary);
+  --exp-sky: var(--accent-blue);
+  --exp-shadow: 0 32px 100px color-mix(in srgb, var(--bg-base) 80%, transparent);
+  --exp-frost: 0 0 90px var(--brand-glow-strong);
+  --exp-space: clamp(24px, 5vw, 80px);
+}
+[hidden] { display: none !important; }
+.experience { overflow-x: clip; }
+.reading-progress { position: fixed; z-index: 1100; height: 2px; top: 0; left: 0; width: 100%; background: var(--exp-blue); transform: scaleX(0); transform-origin: left; box-shadow: 0 0 18px var(--exp-blue); }
+.experience .navbar { top: 18px; left: 50%; width: min(1320px, calc(100% - 48px)); transform: translateX(-50%); border: 1px solid var(--exp-line); border-radius: 20px; background: var(--exp-glass); backdrop-filter: blur(24px); }
+.experience .navbar .container { padding: 14px 22px; width: 100%; }
+.experience .nav-links { gap: 22px; }
+.experience .nav-links li:nth-child(4), .experience .nav-links li:nth-child(6) { display: none; }
+.account-nav { display: inline-flex; align-items: center; gap: 12px; color: var(--text-main); font-size: 12px; font-weight: 650; white-space: nowrap; }
+.account-nav span { color: var(--exp-blue); }
+.experience .nav-actions > a[aria-label="GitHub"] { display: none; }
+.experience .hero { position: relative; padding: 170px 0 70px; isolation: isolate; overflow: visible; }
+.hero-world { position: absolute; inset: 0 0 auto; height: 1100px; z-index: -2; background: linear-gradient(to bottom, var(--bg-base), transparent 35%, var(--bg-base) 95%), linear-gradient(90deg, var(--bg-base), transparent 40%, var(--bg-base)), url('assets/bg_night.jpg') center 30% / cover; opacity: .4; mask-image: linear-gradient(to bottom, var(--bg-base) 75%, transparent); }
+.aurora { position: absolute; z-index: -1; width: 40vw; height: 25vw; border-radius: 50%; filter: blur(95px); opacity: .24; pointer-events: none; animation: aurora-drift 13s ease-in-out infinite alternate; }
+.aurora-one { top: 140px; left: -10%; background: var(--brand); }
+.aurora-two { top: 360px; right: -5%; background: var(--exp-sky); animation-delay: -6s; }
+.experience .hero > .container { display: flex; flex-direction: column; gap: 0; perspective: 1500px; }
+.experience .hero-copy { text-align: center; position: relative; z-index: 2; max-width: 900px; }
+.experience .hero-copy .hero-pill { font-size: 10px; letter-spacing: .16em; border-color: var(--exp-line); background: var(--exp-glass); padding: 10px 18px; margin: 0 auto 24px; }
+.experience .hero-copy .hero-title { font-size: clamp(48px, 6.8vw, 96px); line-height: 1.06; letter-spacing: -.065em; font-weight: 800; margin-bottom: 25px; }
+.experience .gradient-text { background: linear-gradient(110deg, var(--text-main) 8%, var(--exp-blue) 45%, var(--exp-sky) 65%, var(--text-main) 90%); background-size: 220% 100%; background-clip: text; -webkit-text-fill-color: transparent; animation: spectral-shift 10s ease-in-out infinite alternate; }
+.experience .hero-copy .hero-subtitle { margin: 0 auto 28px; max-width: 570px; font-size: 16px; line-height: 1.8; color: var(--text-secondary); }
+.experience .hero-copy .hero-actions { display: flex; justify-content: center; gap: 12px; }
+.experience .hero-copy .hero-download { flex-basis: auto; width: auto; min-height: 54px; font-size: 13px; padding: 0 24px; }
+.experience .hero-copy .hero-actions .btn-secondary { padding: 15px 22px; font-size: 12px; border: 1px solid var(--exp-line); background: var(--exp-glass); }
+.experience .hero-copy .hero-actions > a:nth-child(3) { display: none; }
+.experience .hero-release { margin-top: 17px; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .02em; }
+.experience .hero .window-mockup { order: 2; margin: 64px auto 0; width: min(1040px, 100%); transform: perspective(1500px) rotateX(8deg); border: 1px solid var(--border-hover); border-radius: 18px; box-shadow: var(--exp-shadow), var(--exp-frost); overflow: visible; transition: transform 350ms ease; }
+.experience .window-body { overflow: hidden; border-radius: 0 0 18px 18px; }
+.experience .hero .window-titlebar { background: var(--bg-card); border-radius: 18px 18px 0 0; flex-wrap: nowrap; padding: 14px 18px; }
+.experience .hero .mockup-tab-nav { width: auto; order: 0; flex: 1; justify-content: center; }
+.experience .window-body img { display: block; width: 100%; }
+.floating-tag { position: absolute; display: flex; align-items: center; gap: 12px; padding: 15px 20px; border: 1px solid var(--border-hover); background: var(--exp-glass); backdrop-filter: blur(24px); box-shadow: var(--exp-shadow); border-radius: 16px; z-index: 3; font-size: 11px; font-weight: 600; animation: float-card 7s ease-in-out infinite; pointer-events: none; }
+.tag-left { left: -65px; top: 34%; }.tag-right { right: -52px; bottom: 18%; animation-delay: -3s; }
+.orbit-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-emerald); box-shadow: 0 0 14px var(--accent-emerald); }
+.tag-right > span { color: var(--exp-blue); font-size: 22px; }
+.experience .hero .stats-ribbon { order: 3; border: 0; background: transparent; margin: 38px auto 0; max-width: 1000px; }
+.experience .stats-ribbon .stat-item { border-right-color: var(--exp-line); padding: 12px 35px; }
+.experience .hero .stats-ribbon .stat-value { font-size: 20px; letter-spacing: -.03em; }
+.experience .hero .stats-ribbon .stat-label { font-size: 9px; letter-spacing: .05em; }
+.ecosystem-track { border-block: 1px solid var(--exp-line); overflow: hidden; padding: 26px var(--exp-space); color: var(--text-muted); mask-image: linear-gradient(90deg, transparent, var(--bg-base) 8%, var(--bg-base) 92%, transparent); }
+.ecosystem-track > div { display: flex; justify-content: space-around; align-items: center; gap: 48px; min-width: 800px; }
+.ecosystem-track span { font-size: 11px; font-weight: 800; letter-spacing: .14em; white-space: nowrap; }
+.experience .section { padding: 110px 0; }
+.experience .section-title { font-size: clamp(30px, 4vw, 52px); letter-spacing: -.045em; line-height: 1.12; }
+.experience .section-header { max-width: 760px; margin-bottom: 45px; }
+.experience .section-tag { font-size: 10px; letter-spacing: .16em; color: var(--exp-blue); }
+.identity-story { overflow: hidden; }
+.identity-grid { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 70px; }
+.story-copy h2 { font-size: clamp(35px, 4.4vw, 62px); line-height: 1.1; letter-spacing: -.045em; margin: 20px 0; }
+.story-copy p { color: var(--text-secondary); font-size: 15px; line-height: 1.9; max-width: 440px; margin-bottom: 28px; }
+.text-link { font-size: 12px; color: var(--text-secondary); margin-left: 18px; white-space: nowrap; }
+.identity-scene { position: relative; min-height: 440px; display: grid; place-items: center; perspective: 1000px; }
+.identity-pass { width: 275px; padding: 25px; border-radius: 24px; border: 1px solid var(--border-hover); background: radial-gradient(at top right, var(--brand-glow-strong), transparent 65%), var(--exp-glass); box-shadow: var(--exp-shadow); backdrop-filter: blur(28px); transform: rotate(-7deg); animation: passport-float 9s ease-in-out infinite; position: relative; z-index: 2; }
+.pass-top,.pass-bottom { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: .12em; }.pass-top { color: var(--text-secondary); }.pass-chip { margin-left: auto; border: 1px solid var(--brand-glow-strong); padding: 4px 7px; border-radius: 5px; color: var(--exp-blue); }
+.pass-avatar { width: 76px; height: 76px; border-radius: 18px; margin: 28px 0 15px; image-rendering: pixelated; border: 1px solid var(--border-hover); }.identity-pass h3 { font-size: 24px; letter-spacing: -.045em; }.identity-pass p { margin-top: 8px; font-size: 10px; color: var(--text-secondary); }.pass-bottom { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--exp-line); justify-content: space-between; color: var(--text-muted); }
+.identity-orbit { position: absolute; width: 350px; height: 350px; border: 1px dashed var(--exp-line); border-radius: 50%; animation: orbit-turn 50s linear infinite; }.orbit-b { width: 430px; height: 430px; animation-direction: reverse; border-style: solid; opacity: .45; }
+.connection-node { position: absolute; padding: 12px 18px; border-radius: 12px; border: 1px solid var(--exp-line); background: var(--bg-card); font-size: 12px; color: var(--exp-blue); z-index: 3; animation: float-card 8s ease-in-out infinite; }.connection-node span { color: var(--text-secondary); margin-left: 8px; }.node-web { top: 60px; right: 0; }.node-app { bottom: 45px; left: 5px; animation-delay: -4s; }.sync-bead { position: absolute; width: 8px; height: 8px; background: var(--exp-blue); border-radius: 50%; box-shadow: 0 0 24px var(--exp-blue); animation: bead-orbit 12s linear infinite; }
+.journey { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 45px; }.journey article { border-top: 1px solid var(--exp-line); padding: 25px 24px 0 0; position: relative; }.journey article::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--exp-blue); position: absolute; top: -3px; left: 0; }.journey article > span { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--exp-blue); }.journey h3 { margin: 15px 0 10px; font-size: 16px; }.journey p { color: var(--text-muted); font-size: 12px; line-height: 1.7; }
+.experience .bento-card,.experience .download-card,.experience .mod-card { transition: transform 250ms, border-color 250ms, box-shadow 250ms; }.experience .bento-card:hover,.experience .download-card:hover,.experience .mod-card:hover { transform: translateY(-6px); border-color: var(--brand-secondary); box-shadow: var(--exp-shadow); }
+.experience .bento-grid { gap: 18px; }.experience .bento-card { background: radial-gradient(ellipse at 100% 0, var(--brand-glow), transparent 65%), var(--bg-card); border: 1px solid var(--exp-line); padding: 32px; }
+.experience .btn-primary { position: relative; overflow: hidden; border-radius: 12px; background: var(--brand); border: 1px solid var(--brand-secondary); color: var(--text-main); box-shadow: 0 6px 24px var(--brand-glow-strong); transition: transform 180ms, box-shadow 180ms; }.experience .btn-primary::after { content: ''; position: absolute; inset: -100% -40%; background: linear-gradient(105deg, transparent 40%, var(--exp-line) 50%, transparent 60%); transform: translateX(-80%); animation: button-shimmer 7s ease-in-out infinite; pointer-events: none; }.experience .btn-primary:hover { transform: translateY(-2px); box-shadow: var(--exp-frost); }.experience .btn-primary:active { transform: scale(.98); }
+.experience .reveal.active .journey article { animation: entry-rise .8s both; }.experience .journey article:nth-child(2) { animation-delay: .12s; }.experience .journey article:nth-child(3) { animation-delay: .24s; }
+.experience .scroll-child { opacity: 0; transform: translateY(25px); transition: opacity 650ms, transform 650ms; transition-delay: var(--stagger, 0ms); }.experience .scroll-child.entered { opacity: 1; transform: none; }
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline: 2px solid var(--exp-blue); outline-offset: 4px; }
+.motion-paused *, .motion-paused *::after { animation-play-state: paused !important; }
+@keyframes aurora-drift { to { transform: translate(80px, 70px) scale(1.25); } }
+@keyframes spectral-shift { to { background-position: 100% 0; } }
+@keyframes float-card { 50% { translate: 0 -12px; } }
+@keyframes passport-float { 50% { transform: translateY(-14px) rotate(-3deg); } }
+@keyframes orbit-turn { to { rotate: 360deg; } }
+@keyframes bead-orbit { from { transform: rotate(0deg) translateX(176px); } to { transform: rotate(360deg) translateX(176px); } }
+@keyframes button-shimmer { 0%, 75% { transform: translateX(-80%); } 100% { transform: translateX(80%); } }
+@keyframes entry-rise { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: none; } }
+@media (max-width: 1050px) { .experience .nav-links { display: none; }.floating-tag { display: none; }.identity-grid { gap: 30px; }.identity-orbit { max-width: 100%; }.node-web { right: -10px; } }
+@media (max-width: 700px) {
+  .experience .navbar { top: 10px; width: calc(100% - 24px); border-radius: 15px; }.experience .navbar .container { padding: 12px; }.experience .nav-brand span { font-size: 18px; }.experience .nav-actions { gap: 15px; }.experience .nav-actions > .btn-primary { display: none; }
+  .experience .hero { padding-top: 132px; }.experience .hero-copy .hero-title { font-size: clamp(38px, 10vw, 62px); }.experience .hero-copy .hero-pill { font-size: 8px; letter-spacing: .1em; }.experience .hero-copy .hero-subtitle { font-size: 13px; padding-inline: 8px; }.experience .hero-copy .hero-actions { flex-direction: column; width: 100%; gap: 10px; }.experience .hero-copy .hero-download { width: 100%; min-height: 52px; }.experience .hero .window-mockup { margin-top: 40px; transform: none; }.experience .hero .window-titlebar { flex-wrap: wrap; padding: 10px; }.experience .hero .mockup-tab-nav { order: 3; justify-content: flex-start; width: 100%; flex-basis: 100%; }.experience .hero .stats-ribbon { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }.experience .stats-ribbon .stat-item { padding: 10px; }
+  .experience .section { padding: 70px 0; }.identity-grid { grid-template-columns: 1fr; }.story-copy { text-align: center; }.story-copy p { margin-inline: auto; }.story-copy h2 { font-size: 40px; }.identity-scene { min-height: 410px; }.identity-pass { width: 240px; }.identity-orbit { width: 300px; height: 300px; }.orbit-b { width: 350px; height: 350px; }.journey { grid-template-columns: 1fr; gap: 24px; }.journey article { padding-top: 20px; }.node-app { left: 0; }.node-web { right: 0; }.text-link { display: block; margin: 15px 0 0; }.ecosystem-track > div { justify-content: flex-start; animation: ecosystem-slide 24s ease-in-out infinite alternate; }
+}
+@keyframes ecosystem-slide { to { transform: translateX(-470px); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }.experience .scroll-child { opacity: 1; transform: none; }.experience .hero .window-mockup { transform: none; } }

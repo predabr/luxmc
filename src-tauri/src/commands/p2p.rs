@@ -118,8 +118,7 @@ pub async fn p2p_get_host_link(port: Option<u16>) -> AppResult<HostLinkInfo> {
     let share_addr = public_address.clone().unwrap_or_else(|| direct_address.clone());
     let share_link = format!("luxmc://join/{}", share_addr);
 
-    let code_num = (target_port as u32).wrapping_mul(17) % 9000 + 1000;
-    let share_code = format!("LUX-{}", code_num);
+    let share_code = share_addr;
 
     Ok(HostLinkInfo {
         local_ip,

@@ -42,14 +42,14 @@
 
 <div class="space-y-3">
 	<!-- Performance Mode -->
-	<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-all">
 		<div class="flex items-center gap-3">
-			<div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-orange-400">
+			<div class="w-9 h-9 rounded-xl bg-fg/5 flex items-center justify-center text-orange-400">
 				<Zap class="w-4 h-4" />
 			</div>
 			<div>
-				<div class="text-xs font-bold text-white">Modo Desempenho</div>
-				<div class="text-[10px] text-white/40">Remove efeitos visuais pesados para melhorar FPS</div>
+				<div class="text-xs font-bold text-fg">Modo Desempenho</div>
+				<div class="text-[10px] text-fg/40">Remove efeitos visuais pesados para melhorar FPS</div>
 			</div>
 		</div>
 		<button
@@ -57,22 +57,22 @@
 			role="switch"
 			aria-label="Modo desempenho"
 			aria-checked={performanceMode}
-			class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {performanceMode ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+			class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {performanceMode ? 'bg-brand-400' : 'bg-bg-subtle'}"
 			onclick={() => onPerformanceModeChange(!performanceMode)}
 		>
-			<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {performanceMode ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+			<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {performanceMode ? 'translate-x-5 bg-bg-subtle' : 'translate-x-0 bg-fg'}"></span>
 		</button>
 	</div>
 
 	<!-- Discord RPC -->
-	<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3 flex items-center justify-between hover:border-white/10 transition-all">
+	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-all">
 		<div class="flex items-center gap-3">
-			<div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-indigo-400">
+			<div class="w-9 h-9 rounded-xl bg-fg/5 flex items-center justify-center text-indigo-400">
 				<Gamepad2 class="w-4 h-4" />
 			</div>
 			<div>
-				<div class="text-xs font-bold text-white">Discord Rich Presence</div>
-				<div class="text-[10px] text-white/40">Mostra seu status no Discord enquanto joga</div>
+				<div class="text-xs font-bold text-fg">Discord Rich Presence</div>
+				<div class="text-[10px] text-fg/40">Mostra seu status no Discord enquanto joga</div>
 			</div>
 		</div>
 		<button
@@ -80,10 +80,10 @@
 			role="switch"
 			aria-label="Discord Rich Presence"
 			aria-checked={discordRpc}
-			class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {discordRpc ? 'bg-[#c5a880]' : 'bg-[#383a42]'}"
+			class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {discordRpc ? 'bg-brand-400' : 'bg-bg-subtle'}"
 			onclick={toggleDiscordRpc}
 		>
-			<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {discordRpc ? 'translate-x-5 bg-[#181c24]' : 'translate-x-0 bg-white'}"></span>
+			<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {discordRpc ? 'translate-x-5 bg-bg-subtle' : 'translate-x-0 bg-fg'}"></span>
 		</button>
 	</div>
 </div>

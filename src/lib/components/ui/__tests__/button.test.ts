@@ -5,27 +5,27 @@ describe("button", () => {
   it("renders with default variant", () => {
     const classes = button();
     expect(classes).toContain("inline-flex");
-    expect(classes).toContain("font-bold");
+    expect(classes).toContain("font-semibold");
   });
 
   it("renders with solid variant", () => {
     const classes = button({ variant: "solid" });
-    expect(classes).toContain("bg-gradient-to-b");
+    expect(classes).toContain("bg-gradient-to-r");
   });
 
   it("renders with primary variant", () => {
     const classes = button({ variant: "primary" });
-    expect(classes).toContain("from-brand-500");
+    expect(classes).toContain("bg-gradient-to-r");
   });
 
   it("renders with danger variant", () => {
     const classes = button({ variant: "danger" });
-    expect(classes).toContain("to-danger");
+    expect(classes).toContain("bg-danger/10");
   });
 
   it("renders with sm size", () => {
     const classes = button({ size: "sm" });
-    expect(classes).toContain("h-8");
+    expect(classes).toContain("h-9");
   });
 
   it("renders with lg size", () => {

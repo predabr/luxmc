@@ -27,6 +27,11 @@ export interface Profile {
 	banner?: string;
 }
 
+function savedBanner(id: string): string | undefined {
+    if (typeof localStorage === "undefined") return undefined;
+    try { return localStorage.getItem(`luxmc_banner_${id}`) || undefined; } catch { return undefined; }
+}
+
 function createProfileStore() {
 	let list = $state<Profile[]>([]);
 	let activeId = $state<string | null>(null);
@@ -39,7 +44,7 @@ function createProfileStore() {
 			return activeId;
 		},
 		set list(next: Profile[]) {
-			list = next;
+			list = next.map(profile => ({ ...profile, banner: savedBanner(profile.id) || profile.banner }));
 		},
 		set activeId(id: string | null) {
 			activeId = id;
@@ -69,12 +74,20 @@ function createProfileStore() {
 				p.id === id ? { ...p, lastPlayed: Date.now() } : p
 			);
 		},
-		async refresh() {
+		setBanner(id: string, value: string) {
+            if (value && new URL(value).protocol !== "https:") throw new Error("Use uma imagem HTTPS.");
+            if (value) localStorage.setItem(`luxmc_banner_${id}`, value);
+            else localStorage.removeItem(`luxmc_banner_${id}`);
+            list = list.map(profile => profile.id === id ? { ...profile, banner: value || undefined } : profile);
+        },
+        async refresh() {
 			try {
 				const { profilesList } = await import("$lib/api/instances");
 				const rows = await profilesList();
 				list = rows.map((p) => ({
+					...list.find(existing => existing.id === p.id),
 					id: p.id,
+                    banner: savedBanner(p.id),
 					name: p.name,
 					icon: p.icon,
 					mcVersion: p.mcVersion,
@@ -86,7 +99,11 @@ function createProfileStore() {
 					gameDir: p.gameDir,
 					createdAt: new Date(p.createdAt).getTime(),
 					updatedAt: new Date(p.updatedAt).getTime(),
-					favorite: false,
+					favorite: p.favorite ?? false,
+					ramMb: p.ramMb ?? undefined, modCount: p.modCount, diskUsage: p.diskUsage,
+					autoOptimize: p.autoOptimize, useVulkan: p.useVulkan,
+					notes: p.notes ?? undefined, group: p.instanceGroup ?? undefined,
+					lastPlayed: p.lastPlayed ? new Date(p.lastPlayed).getTime() : undefined, launchCount: p.launchCount,
 				}));
 			} catch {
 			}

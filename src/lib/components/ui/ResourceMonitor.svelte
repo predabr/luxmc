@@ -64,7 +64,7 @@
 			</p>
 			<div
 				class="mt-1 h-1 w-full overflow-hidden rounded-full"
-				style="background: rgba(255,255,255,0.04);"
+				style="background: rgb(var(--fg) / 0.04);"
 			>
 				<div
 					class="h-full"
@@ -84,7 +84,7 @@
 			</p>
 			<div
 				class="mt-1 h-1 w-full overflow-hidden rounded-full"
-				style="background: rgba(255,255,255,0.04);"
+				style="background: rgb(var(--fg) / 0.04);"
 			>
 				<div
 					class="h-full"

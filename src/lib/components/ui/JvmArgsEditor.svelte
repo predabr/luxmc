@@ -87,7 +87,7 @@
 				style="border: 1px solid rgb(var(--border)); color: {ramMb === preset
 					? 'rgb(var(--brand-400))'
 					: 'rgb(var(--fg-muted))'}; background: {ramMb === preset
-					? 'rgba(45, 212, 191, 0.1)'
+					? 'rgb(var(--brand-400) / 0.1)'
 					: 'transparent'};"
 				onclick={() => {
 					pickRam(preset);
@@ -107,7 +107,7 @@
 		{#if value}
 			<button
 				type="button"
-				class="grid h-6 w-6 place-items-center rounded transition-colors hover:bg-white/5"
+				class="grid h-6 w-6 place-items-center rounded transition-colors hover:bg-fg/5"
 				style="color: rgb(var(--fg-subtle));"
 				onclick={clear}
 				aria-label={t("jvmEditor.clearArgs")}
@@ -133,7 +133,7 @@
 	{:else if validation && validation.rejected.length > 0}
 		<div
 			class="rounded-md px-3 py-2 text-[11px]"
-			style="border: 1px solid rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.08); color: rgb(252, 165, 165);"
+			style="border: 1px solid rgb(var(--danger) / 0.3); background: rgb(var(--danger) / 0.08); color: rgb(var(--danger));"
 		>
 			<div class="mb-1 flex items-center gap-1.5 font-medium">
 				<ShieldAlert class="h-3 w-3" />
@@ -144,7 +144,7 @@
 			{/each}
 		</div>
 	{:else if validation && validation.valid}
-		<p class="flex items-center gap-1.5 text-[11px]" style="color: rgb(74, 222, 128);">
+		<p class="flex items-center gap-1.5 text-[11px]" style="color: rgb(var(--success));">
 			<Sparkles class="h-3 w-3" />
 			{t("jvmEditor.allValid")}
 		</p>

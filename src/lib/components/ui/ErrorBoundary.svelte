@@ -28,7 +28,7 @@
       <h3 class="text-lg font-semibold text-fg">Algo deu errado</h3>
       <p class="text-sm text-fg-muted">{error.message}</p>
       <button 
-        class="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 transition-colors"
+        class="rounded-xl bg-brand-500 px-4 py-2 text-sm font-semibold text-fg hover:bg-brand-600 transition-colors"
         onclick={() => error = null}
       >
         Tentar novamente

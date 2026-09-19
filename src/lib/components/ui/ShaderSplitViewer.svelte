@@ -78,7 +78,7 @@
 
 <svelte:window onpointermove={onPointerMove} onpointerup={onPointerUp} />
 
-<div class="bg-bg-elevated border border-white/5 rounded-3xl p-5 flex flex-col gap-4 shadow-xl">
+<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-5 flex flex-col gap-4 shadow-xl">
 	<!-- Top info & selector -->
 	<div class="flex flex-wrap items-center justify-between gap-3">
 		<div class="flex items-center gap-2.5">
@@ -86,17 +86,17 @@
 				<Sparkles class="w-4 h-4" />
 			</div>
 			<div>
-				<h4 class="text-xs font-bold text-white">Comparador Visual de Shaders (Split-View)</h4>
-				<p class="text-[10px] text-white/40">Arraste o controle central para comparar Vanilla vs Shader</p>
+				<h4 class="text-xs font-bold text-fg">Comparador Visual de Shaders (Split-View)</h4>
+				<p class="text-[10px] text-fg/40">Arraste o controle central para comparar Vanilla vs Shader</p>
 			</div>
 		</div>
 
 		<!-- Presets Selector -->
-		<div class="flex items-center bg-bg-subtle p-1 rounded-xl border border-white/5 gap-1">
+		<div class="flex items-center bg-bg-subtle p-1 rounded-xl border border-fg/5 gap-1">
 			{#each presets as preset, idx}
 				<button 
 					type="button" 
-					class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer {selectedIdx === idx ? 'bg-bg-overlay text-white shadow-sm border border-white/10' : 'text-white/40 hover:text-white'}"
+					class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer {selectedIdx === idx ? 'bg-bg-overlay text-fg shadow-sm border border-fg/10' : 'text-fg/40 hover:text-fg'}"
 					onclick={() => selectedIdx = idx}
 				>
 					{preset.name}
@@ -110,7 +110,7 @@
 		bind:this={containerEl}
 		onpointerdown={onPointerDown}
 		onkeydown={onKeyDown}
-		class="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden select-none cursor-ew-resize border border-white/10 shadow-inner group"
+		class="relative w-full h-64 md:h-80 rounded-2xl overflow-hidden select-none cursor-ew-resize border border-fg/10 shadow-inner group"
 		role="slider"
 		aria-label="Comparação de Shaders"
 		aria-valuenow={splitPercent}
@@ -120,7 +120,7 @@
 	>
 		<!-- Right Image: Shader Enhanced -->
 		<div class="absolute inset-0 bg-cover bg-center" style="background-image: url('{currentPreset.afterImg}'); filter: saturate(1.2) contrast(1.05);">
-			<div class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-black text-purple-300 border border-purple-500/30">
+			<div class="absolute top-3 right-3 bg-bg-overlay/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-black text-purple-300 border border-purple-500/30">
 				COM SHADER
 			</div>
 		</div>
@@ -130,28 +130,28 @@
 			class="absolute inset-0 bg-cover bg-center overflow-hidden" 
 			style="clip-path: polygon(0 0, {splitPercent}% 0, {splitPercent}% 100%, 0 100%); background-image: url('{currentPreset.beforeImg}'); filter: brightness(0.9) contrast(0.95);"
 		>
-			<div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-black text-white/70 border border-white/10">
+			<div class="absolute top-3 left-3 bg-bg-overlay/60 backdrop-blur-md px-2.5 py-1 rounded-lg text-[10px] font-black text-fg/70 border border-fg/10">
 				PADRÃO (VANILLA)
 			</div>
 		</div>
 
 		<!-- Divider line -->
 		<div 
-			class="absolute top-0 bottom-0 w-0.5 bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] pointer-events-none"
+			class="absolute top-0 bottom-0 w-0.5 bg-fg shadow-elevated pointer-events-none"
 			style="left: {splitPercent}%;"
 		>
 			<!-- Draggable thumb handle -->
-			<div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white text-black shadow-xl flex items-center justify-center font-bold text-xs">
+			<div class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-fg text-brand-foreground shadow-xl flex items-center justify-center font-bold text-xs">
 				⇄
 			</div>
 		</div>
 	</div>
 
 	<!-- Features footer -->
-	<div class="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-white/5 text-xs">
+	<div class="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-fg/5 text-xs">
 		<div class="flex flex-wrap items-center gap-2">
 			{#each currentPreset.features as feat}
-				<span class="px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/5 text-[10px] text-white/60 flex items-center gap-1 font-medium">
+				<span class="px-2.5 py-0.5 rounded-lg bg-fg/5 border border-fg/5 text-[10px] text-fg/60 flex items-center gap-1 font-medium">
 					<Check class="w-3 h-3 text-emerald-400" /> {feat}
 				</span>
 			{/each}

@@ -1,4 +1,4 @@
-import { Vibrant } from "node-vibrant/browser";
+import { Vibrant } from "./vibrant";
 
 let lastExtractedUrl = "";
 
@@ -16,11 +16,8 @@ export async function applyAdaptivePalette(imageUrl: string | null | undefined) 
 
 		const vibrantSwatch = palette.Vibrant || palette.LightVibrant || palette.DarkVibrant;
 		if (vibrantSwatch) {
-			const hex = vibrantSwatch.hex;
-			const rgb = vibrantSwatch.rgb.join(", ");
-			root.style.setProperty("--brand-500", hex);
-			root.style.setProperty("--brand-glow", `rgba(${rgb}, 0.25)`);
-			root.style.setProperty("--brand-glow-strong", `rgba(${rgb}, 0.4)`);
+			const channels = vibrantSwatch.rgb.map(Math.round).join(" ");
+			if (lastExtractedUrl === imageUrl) root.style.setProperty("--ambient-accent", channels);
 		}
 	} catch {
 	}

@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { api } from "./client";
 
 export async function launchGame(request: {
@@ -42,9 +43,10 @@ export async function fetchVersionsDirect(): Promise<{
 	latestSnapshot: string;
 }> {
 	const resp = await fetch("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
-	const data = await resp.json();
+	if (!resp.ok) throw new Error(`Falha ao carregar versões: HTTP ${resp.status}`);
+	const data = z.object({ latest: z.object({ release: z.string(), snapshot: z.string() }), versions: z.array(z.object({ id: z.string(), type: z.string(), releaseTime: z.string() })) }).parse(await resp.json());
 	return {
-		versions: data.versions.map((v: any) => ({
+		versions: data.versions.map((v) => ({
 			id: v.id,
 			versionType: v.type,
 			releaseTime: v.releaseTime,

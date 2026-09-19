@@ -167,15 +167,15 @@
 		</div>
 	</div>
 
-	<div class="flex flex-1 flex-col overflow-hidden bg-[#111216] border border-white/[0.06] rounded-3xl p-5 shadow-sm">
+	<div class="flex flex-1 flex-col overflow-hidden bg-bg-elevated border border-fg/[0.06] rounded-3xl p-5 shadow-sm">
 		<div class="mb-3 flex flex-col gap-3">
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-2">
 					<div class="w-7 h-7 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500">
 						<Terminal class="h-4 w-4" />
 					</div>
-					<span class="text-sm font-bold text-white/90">{t("logs.gameOutput")}</span>
-					<span class="text-xs font-mono text-white/35 bg-white/5 px-2 py-0.5 rounded-full">{t("logs.linesCount", { count: filteredEntries.length })}</span>
+					<span class="text-sm font-bold text-fg/90">{t("logs.gameOutput")}</span>
+					<span class="text-xs font-mono text-fg/35 bg-fg/5 px-2 py-0.5 rounded-full">{t("logs.linesCount", { count: filteredEntries.length })}</span>
 				</div>
 			</div>
 
@@ -187,7 +187,7 @@
 						class="flex-1"
 					>
 						{#snippet leadingIcon()}
-							<Search class="h-3.5 w-3.5 text-white/40" />
+							<Search class="h-3.5 w-3.5 text-fg/40" />
 						{/snippet}
 					</Input>
 				</div>
@@ -212,7 +212,7 @@
 
 		<div
 			bind:this={logContainer}
-			class="flex-1 overflow-y-auto rounded-2xl p-4 font-mono text-xs leading-relaxed bg-[#0e0f12] border border-white/[0.06] custom-scrollbar select-text shadow-inner"
+			class="flex-1 overflow-y-auto rounded-2xl p-4 font-mono text-xs leading-relaxed bg-bg border border-fg/[0.06] custom-scrollbar select-text shadow-inner"
 			onscroll={(e) => {
 				const el = e.currentTarget;
 				const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
@@ -220,21 +220,21 @@
 			}}
 		>
 		{#each filteredEntries as entry (entry.id)}
-			<div class="flex gap-2 py-0.5 hover:bg-white/[0.02] rounded px-1 {getLineClass(entry)}">
-				<span class="w-16 shrink-0 text-right text-white/30 text-[10px]">
+			<div class="flex gap-2 py-0.5 hover:bg-fg/[0.02] rounded px-1 {getLineClass(entry)}">
+				<span class="w-16 shrink-0 text-right text-fg/30 text-[10px]">
 					{getRelativeTime(entry.timestamp)}
 				</span>
 				<span class="w-14 shrink-0 text-right font-bold text-[11px] {getStreamTagClass(entry)}">
 					[{entry.stream}]
 				</span>
-				<span class="break-all text-white/80">{entry.message}</span>
+				<span class="break-all text-fg/80">{entry.message}</span>
 			</div>
 			{:else}
-				<p class="p-8 text-center text-white/30">{t("logs.noLogs")}</p>
+				<p class="p-8 text-center text-fg/30">{t("logs.noLogs")}</p>
 			{/each}
 		</div>
 
-		<div class="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3 text-[11px] text-white/35">
+		<div class="mt-3 flex items-center justify-between border-t border-fg/[0.06] pt-3 text-[11px] text-fg/35">
 			<div class="flex items-center gap-3">
 				<span>{t("logs.linesCountPlain", { count: filteredEntries.length })}</span>
 				{#if searchQuery.trim()}
@@ -249,7 +249,7 @@
 					<span>{t("logs.lastUpdate", { time: lastUpdate.toLocaleTimeString() })}</span>
 				{/if}
 				<button
-					class="flex items-center gap-1 rounded-lg px-2 py-1 transition-all cursor-pointer {autoScroll ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-white/40 hover:text-white hover:bg-white/5'}"
+					class="flex items-center gap-1 rounded-lg px-2 py-1 transition-all cursor-pointer {autoScroll ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-fg/40 hover:text-fg hover:bg-fg/5'}"
 					onclick={() => {
 						autoScroll = !autoScroll;
 						if (autoScroll) scrollToBottom();

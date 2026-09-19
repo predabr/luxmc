@@ -6,6 +6,7 @@ pub mod error;
 mod state;
 use state::AppState;
 use tauri::Manager;
+use tauri_plugin_deep_link::DeepLinkExt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
@@ -29,7 +30,27 @@ pub async fn run() {
     }
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
+        .manage(commands::deep_links::PendingLinks::default())
         .setup(|app| {
+            let handle = app.handle().clone();
+            app.deep_link().on_open_url(move |event| {
+                commands::deep_links::enqueue(&handle, event.urls().into_iter().map(|url| url.to_string()).collect());
+            });
+            if let Some(urls) = app.deep_link().get_current()? {
+                commands::deep_links::enqueue(app.handle(), urls.into_iter().map(|url| url.to_string()).collect());
+            }
+            #[cfg(any(target_os = "linux", target_os = "windows"))]
+            if let Err(error) = app.deep_link().register_all() {
+                tracing::warn!(%error, "Não foi possível registrar luxmc://");
+            }
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.maximize();
                 if let Ok(dyn_img) = image::load_from_memory(include_bytes!("../icons/icon.png")) {
@@ -59,6 +80,10 @@ pub async fn run() {
         .plugin(tauri_plugin_fs::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
+            commands::deep_links::deep_links_take,
+            commands::deep_links::open_portal,
+            commands::skins::minecraft_uuid,
+            commands::social::social_request,
             commands::system::ping,
             commands::system::app_info,
             commands::system::app_init,
@@ -75,6 +100,9 @@ pub async fn run() {
             commands::auth::auth_remove,
             commands::auth::auth_dev_login,
             commands::auth::auth_offline_login,
+            commands::lux_account::lux_account_login,
+            commands::lux_account::lux_account_sync,
+            commands::lux_account::lux_account_logout,
             commands::auth::auth_get_client_id,
             commands::auth::auth_get_tenant_id,
             commands::auth::auth_set_client_id,

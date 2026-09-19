@@ -1,5 +1,8 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+    import { button } from "$lib/components/ui/button";
+	import { onMount, untrack } from "svelte";
+	import { deepLinks } from "$lib/stores/deepLinks.svelte";
+	import { authChangeSkin } from "$lib/api/auth";
 	import { 
 		RefreshCw, 
 		Upload, 
@@ -92,6 +95,18 @@
 		}
 	});
 
+
+    $effect(() => {
+        const skin = deepLinks.skin;
+        if (!skin) return;
+        untrack(() => {
+            previewSkinUrl = skin.url;
+            skinType = skin.model === "slim" ? "alex" : "steve";
+            deepLinks.skin = null;
+            toast("Skin recebida do portal. Confira o visual e aplique à conta.", "info");
+        });
+    });
+
 	function handleSearchNick() {
 		const nick = searchNick.trim();
 		if (!nick) {
@@ -156,10 +171,24 @@
 		}
 	}
 
-	function handleApplyToAccount() {
+	async function handleApplyToAccount(): Promise<void> {
+        if (isUpdating) return;
+        if (!account.value) { toast("Selecione uma conta primeiro.", "error"); return; }
 		isUpdating = true;
 		try {
-			const finalSkin = currentSkinUrl;
+			let finalSkin = currentSkinUrl;
+            if (!finalSkin.startsWith("https://") && !finalSkin.startsWith("http://") && !finalSkin.startsWith("data:")) {
+                const response = await fetch(finalSkin);
+                if (!response.ok) throw new Error("Não foi possível ler a textura local.");
+                const blob = await response.blob();
+                finalSkin = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("PNG inválido"));
+                    reader.onerror = () => reject(new Error("Falha ao ler o PNG"));
+                    reader.readAsDataURL(blob);
+                });
+            }
+            await authChangeSkin(account.value.id, skinType === "alex" ? "slim" : "classic", finalSkin);
 			const hasCape = selectedCape !== "none";
 			const capeUrl = selectedCape === "custom" 
 				? customCapeDataUrl 
@@ -194,11 +223,11 @@
 		}
 	}
 
-	function handleSyncWithWeb() {
+	async function handleSyncWithWeb(): Promise<void> {
 		const nick = searchNick.trim() || username;
 		const webUrl = `https://luxmc-r92.pages.dev/skins.html?nick=${encodeURIComponent(nick)}&model=${skinType}&cape=${selectedCape}`;
-		openUrl(webUrl);
-		toast("Abrindo Estúdio de Skins sincronizado no navegador...", "info");
+		try { await openUrl(webUrl); toast("Abrindo Estúdio de Skins sincronizado no navegador...", "info"); }
+        catch (error) { toast(String(error), "error"); }
 	}
 </script>
 
@@ -208,12 +237,12 @@
 	<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 		<div>
 			<div class="flex items-center gap-2.5">
-				<h1 class="text-2xl font-black text-white tracking-tight">Personalização 3D de Skins & Capas</h1>
+				<h1 class="text-2xl font-black text-fg tracking-tight">Personalização 3D de Skins & Capas</h1>
 				<span class="text-[10px] font-black uppercase tracking-wider text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full">
-					Paridade Web
+					Studio 3D
 				</span>
 			</div>
-			<p class="text-xs text-white/50 mt-1">
+			<p class="text-xs text-fg/50 mt-1">
 				Troque skins e capas facilmente para contas Microsoft ou Offline. Suporta visualização 3D em tempo real.
 			</p>
 		</div>
@@ -222,7 +251,7 @@
 			<button
 				type="button"
 				onclick={handleSyncWithWeb}
-				class="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 active:scale-95 text-white/80 hover:text-white text-xs font-bold border border-white/10 transition-all cursor-pointer shadow-sm"
+				class="flex items-center gap-2 px-4 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 active:scale-[0.98] text-fg/80 hover:text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer shadow-sm"
 				title="Sincronizar com o Estúdio 3D do site oficial"
 			>
 				<Share2 class="w-3.5 h-3.5 text-blue-400" />
@@ -233,7 +262,7 @@
 				type="button"
 				onclick={handleApplyToAccount}
 				disabled={isUpdating}
-				class="flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-xs font-black transition-all cursor-pointer shadow-lg shadow-blue-600/25 disabled:opacity-50"
+				class={button({ variant: "primary", size: "sm" })}
 			>
 				{#if isUpdating}
 					<RefreshCw class="w-3.5 h-3.5 animate-spin" />
@@ -252,11 +281,11 @@
 		<!-- Left: 3D Viewport & Visual Controls -->
 		<div class="lg:col-span-5 flex flex-col gap-3">
 			
-			<div class="w-full h-[480px] rounded-3xl bg-[#111216] border border-white/10 relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-2">
+			<div class="w-full h-[480px] rounded-3xl bg-bg-elevated border border-fg/10 relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-2">
 				
 				<!-- Top Viewport Floating Controls -->
 				<div class="absolute top-3 left-3 right-3 flex items-center justify-between z-10 pointer-events-none">
-					<div class="bg-black/60 backdrop-blur-md border border-white/10 rounded-xl px-2.5 py-1 text-[10px] font-bold text-white/60 pointer-events-auto flex items-center gap-1.5">
+					<div class="bg-bg-overlay/60 backdrop-blur-md border border-fg/10 rounded-xl px-2.5 py-1 text-[10px] font-bold text-fg/60 pointer-events-auto flex items-center gap-1.5">
 						<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
 						Arraste para girar
 					</div>
@@ -265,7 +294,7 @@
 						<button
 							type="button"
 							onclick={() => isRotating = !isRotating}
-							class="p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all cursor-pointer"
+							class="p-2 rounded-xl bg-bg-overlay/60 hover:bg-bg-overlay/80 backdrop-blur-md border border-fg/10 text-fg/70 hover:text-fg transition-all cursor-pointer"
 							title={isRotating ? "Pausar rotação automática" : "Ativar rotação automática"}
 						>
 							{#if isRotating}
@@ -278,7 +307,7 @@
 						<button
 							type="button"
 							onclick={() => viewerRef?.resetCamera()}
-							class="p-2 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all cursor-pointer"
+							class="p-2 rounded-xl bg-bg-overlay/60 hover:bg-bg-overlay/80 backdrop-blur-md border border-fg/10 text-fg/70 hover:text-fg transition-all cursor-pointer"
 							title="Redefinir câmera"
 						>
 							<RotateCcw class="w-3.5 h-3.5" />
@@ -298,19 +327,19 @@
 				/>
 
 				<!-- Bottom Viewport Controls (Steve/Alex & Upload) -->
-				<div class="absolute bottom-3 left-3 right-3 flex items-center justify-between bg-black/70 backdrop-blur-md border border-white/10 rounded-2xl p-1.5 shadow-xl z-10">
+				<div class="absolute bottom-3 left-3 right-3 flex items-center justify-between bg-bg-overlay/70 backdrop-blur-md border border-fg/10 rounded-2xl p-1.5 shadow-xl z-10">
 					<div class="flex items-center gap-1">
 						<button
 							type="button"
 							onclick={() => skinType = "steve"}
-							class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {skinType === 'steve' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+							class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {skinType === 'steve' ? 'bg-blue-600 text-fg shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 						>
 							Steve (4px)
 						</button>
 						<button
 							type="button"
 							onclick={() => skinType = "alex"}
-							class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {skinType === 'alex' ? 'bg-blue-600 text-white shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+							class="px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer {skinType === 'alex' ? 'bg-blue-600 text-fg shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 						>
 							Alex (3px)
 						</button>
@@ -320,7 +349,7 @@
 						type="button"
 						onclick={handleLocalUpload}
 						title="Carregar arquivo PNG local de skin"
-						class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer active:scale-95"
+						class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold transition-all cursor-pointer active:scale-[0.98]"
 					>
 						<Upload class="w-3.5 h-3.5 text-blue-400" />
 						<span>Carregar .PNG</span>
@@ -329,8 +358,8 @@
 			</div>
 
 			<!-- Animation Selector Toolbar -->
-			<div class="bg-[#141518] border border-white/5 rounded-2xl p-2.5 flex items-center justify-between gap-1 shadow-sm">
-				<span class="text-[10px] font-black uppercase tracking-wider text-white/40 px-2">Animação:</span>
+			<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-2.5 flex items-center justify-between gap-1 shadow-sm">
+				<span class="text-[10px] font-black uppercase tracking-wider text-fg/40 px-2">Animação:</span>
 				<div class="flex items-center gap-1 flex-1 justify-end">
 					{#each [
 						{ id: "idle", label: "Parado" },
@@ -341,8 +370,8 @@
 					] as anim}
 						<button
 							type="button"
-							onclick={() => activeAnimation = anim.id as any}
-							class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {activeAnimation === anim.id ? 'bg-white text-black font-black shadow-sm' : 'text-white/60 hover:text-white hover:bg-white/5'}"
+							onclick={() => activeAnimation = anim.id as typeof activeAnimation}
+							class="px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer {activeAnimation === anim.id ? 'bg-fg text-brand-foreground font-black shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 						>
 							{anim.label}
 						</button>
@@ -355,15 +384,15 @@
 		<div class="lg:col-span-7 flex flex-col gap-4">
 			
 			<!-- Nickname Search Box -->
-			<div class="p-5 rounded-3xl bg-[#141518] border border-white/5 shadow-xl space-y-3.5">
+			<div class="p-5 rounded-3xl bg-bg-elevated border border-fg/5 shadow-xl space-y-3.5">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<Search class="w-4 h-4 text-blue-400" />
-						<h3 class="text-xs font-extrabold text-white uppercase tracking-wider">
+						<h3 class="text-xs font-extrabold text-fg uppercase tracking-wider">
 							Buscar Skin por Nickname
 						</h3>
 					</div>
-					<span class="text-[10px] text-white/40 font-mono">Mojang / NameMC / Mineskin</span>
+					<span class="text-[10px] text-fg/40 font-mono">Mojang / NameMC / Mineskin</span>
 				</div>
 
 				<div class="flex items-center gap-2">
@@ -373,14 +402,14 @@
 							placeholder="Ex: Technoblade, Dream, MumboJumbo..."
 							bind:value={searchNick}
 							onkeydown={(e) => e.key === 'Enter' && handleSearchNick()}
-							class="w-full bg-[#1c1d22] border border-white/10 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-white/30 focus:outline-none focus:border-blue-500 transition-colors font-medium"
+							class="w-full bg-bg-subtle border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg placeholder-fg/30 focus:outline-none focus:border-blue-500 transition-colors font-medium"
 						/>
 					</div>
 					<button
 						type="button"
 						onclick={handleSearchNick}
 						disabled={isSearchingNick}
-						class="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2 shrink-0"
+						class="px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg font-black text-xs transition-all shadow-md active:scale-[0.98] disabled:opacity-50 cursor-pointer flex items-center gap-2 shrink-0"
 					>
 						{#if isSearchingNick}
 							<RefreshCw class="w-3.5 h-3.5 animate-spin" />
@@ -394,12 +423,12 @@
 
 				<!-- Quick Popular Skins Badges -->
 				<div class="flex items-center gap-1.5 flex-wrap pt-1">
-					<span class="text-[10px] text-white/40 font-bold mr-1">Populares:</span>
+					<span class="text-[10px] text-fg/40 font-bold mr-1">Populares:</span>
 					{#each popularSkins as s}
 						<button
 							type="button"
 							onclick={() => handleQuickSelectSkin(s)}
-							class="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 text-[11px] font-bold text-white/70 hover:text-white transition-all cursor-pointer active:scale-95"
+							class="px-2.5 py-1 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/5 hover:border-fg/20 text-[11px] font-bold text-fg/70 hover:text-fg transition-all cursor-pointer active:scale-[0.98]"
 						>
 							{s.name}
 						</button>
@@ -408,11 +437,11 @@
 			</div>
 
 			<!-- Capes Studio -->
-			<div class="p-5 rounded-3xl bg-[#141518] border border-white/5 shadow-xl space-y-3.5">
+			<div class="p-5 rounded-3xl bg-bg-elevated border border-fg/5 shadow-xl space-y-3.5">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
 						<Layers class="w-4 h-4 text-amber-400" />
-						<h3 class="text-xs font-extrabold text-white uppercase tracking-wider">
+						<h3 class="text-xs font-extrabold text-fg uppercase tracking-wider">
 							Capas Exclusivas & Oficiais
 						</h3>
 					</div>
@@ -441,9 +470,9 @@
 									selectedCape = c.id;
 								}
 							}}
-							class="p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col items-center text-center gap-2 relative overflow-hidden group {isSelected ? 'bg-blue-600/15 border-blue-500 shadow-md' : 'bg-[#1a1b20] hover:bg-[#202127] border-white/5 hover:border-white/15'}"
+							class="p-2.5 rounded-2xl border transition-all cursor-pointer flex flex-col items-center text-center gap-2 relative overflow-hidden group {isSelected ? 'bg-blue-600/15 border-blue-500 shadow-md' : 'bg-bg-elevated hover:bg-bg-subtle border-fg/5 hover:border-fg/15'}"
 						>
-							<div class="w-10 h-16 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+							<div class="w-10 h-16 rounded-lg bg-bg-overlay/40 border border-fg/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
 								{#if previewUrl}
 									<img 
 										src={previewUrl} 
@@ -459,15 +488,15 @@
 								{:else if c.id === "custom"}
 									<Upload class="w-5 h-5 text-blue-400/60 group-hover:text-blue-400" />
 								{:else}
-									<span class="text-[10px] text-white/30 font-bold uppercase">OFF</span>
+									<span class="text-[10px] text-fg/30 font-bold uppercase">OFF</span>
 								{/if}
 							</div>
 
 							<div class="min-w-0 w-full">
-								<span class="text-[11px] font-black truncate block text-white group-hover:text-blue-300 transition-colors">
+								<span class="text-[11px] font-black truncate block text-fg group-hover:text-blue-300 transition-colors">
 									{c.name}
 								</span>
-								<span class="text-[9px] text-white/40 truncate block mt-0.5">
+								<span class="text-[9px] text-fg/40 truncate block mt-0.5">
 									{c.desc}
 								</span>
 							</div>
@@ -481,19 +510,19 @@
 			</div>
 
 			<!-- Active Player Info & Mode Note -->
-			<div class="p-4 rounded-2xl bg-[#111216] border border-white/5 flex items-center justify-between text-xs text-white/60">
+			<div class="p-4 rounded-2xl bg-bg-elevated border border-fg/5 flex items-center justify-between text-xs text-fg/60">
 				<div class="flex items-center gap-3">
 					<div class="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-400 border border-blue-500/30 flex items-center justify-center font-black">
 						{username.slice(0, 1).toUpperCase()}
 					</div>
 					<div>
-						<div class="font-bold text-white flex items-center gap-2">
+						<div class="font-bold text-fg flex items-center gap-2">
 							{username}
 							<span class="text-[10px] font-semibold px-2 py-0.2 rounded-full {isMicrosoft ? 'bg-sky-500/15 text-sky-300 border border-sky-500/30' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'}">
 								{isMicrosoft ? 'Conta Microsoft' : 'Conta Offline'}
 							</span>
 						</div>
-						<div class="text-[10px] text-white/40 mt-0.5">
+						<div class="text-[10px] text-fg/40 mt-0.5">
 							Modelo: {skinType === "alex" ? "Slim (3px)" : "Clássico (4px)"} · Capa: {capeList.find(c => c.id === selectedCape)?.name || "Nenhuma"}
 						</div>
 					</div>
@@ -502,7 +531,7 @@
 				<button
 					type="button"
 					onclick={handleApplyToAccount}
-					class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all cursor-pointer active:scale-95"
+					class={button({ variant: "primary", size: "sm" })} disabled={isUpdating}
 				>
 					Aplicar
 				</button>

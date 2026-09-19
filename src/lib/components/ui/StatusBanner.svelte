@@ -35,7 +35,7 @@
 		role="status"
 		aria-live="polite"
 		class="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs"
-		style="border-color: rgba(250, 204, 21, 0.3); background: rgba(250, 204, 21, 0.08); color: rgb(252, 211, 77);"
+		style="border-color: rgb(var(--warning) / 0.3); background: rgb(var(--warning) / 0.08); color: rgb(var(--warning));"
 	>
 		<span class="flex items-center gap-2">
 			<WifiOff class="h-3.5 w-3.5" />
@@ -45,8 +45,8 @@
 		</span>
 		<button
 			type="button"
-			class="rounded px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors hover:bg-white/5"
-			style="border: 1px solid rgba(250, 204, 21, 0.3);"
+			class="rounded px-2 py-0.5 text-[10px] uppercase tracking-wide transition-colors hover:bg-fg/5"
+			style="border: 1px solid rgb(var(--warning) / 0.3);"
 			onclick={dismiss}
 		>
 			{t("statusBanner.dismiss")}

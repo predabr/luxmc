@@ -1,17 +1,12 @@
 <script lang="ts">
-	import { Download, Users, Loader2, Check, PackagePlus } from "lucide-svelte";
+	import { Download, Users, Loader2, Check, PackagePlus, Box } from "lucide-svelte";
 	import LazyImage from "$lib/components/ui/LazyImage.svelte";
 	import SourceBadge from "./SourceBadge.svelte";
+    import LoaderBadge from "$lib/components/instances/LoaderBadge.svelte";
+	import { button } from "$lib/components/ui/button";
 	import type { ModSearchResultItem } from "$lib/api";
 
-	let {
-		item,
-		isInstalling = false,
-		isInstalled = false,
-		contentType = "Mod",
-		onOpenDetails,
-		onInstall
-	}: {
+	let { item, isInstalling = false, isInstalled = false, contentType = "Mod", onOpenDetails, onInstall }: {
 		item: ModSearchResultItem;
 		isInstalling?: boolean;
 		isInstalled?: boolean;
@@ -19,133 +14,49 @@
 		onOpenDetails: (item: ModSearchResultItem) => void;
 		onInstall: (item: ModSearchResultItem) => void;
 	} = $props();
-
-	function formatDownloads(n: number): string {
-		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-		return n.toString();
-	}
-
-	function getModGradient(title: string): string {
-		let hash = 0;
-		for (let i = 0; i < title.length; i++) {
-			hash = (hash << 5) - hash + title.charCodeAt(i);
-			hash |= 0;
-		}
-		const gradients = [
-			"from-blue-600/30 via-indigo-950/60 to-[#0f1013]",
-			"from-purple-600/30 via-violet-950/60 to-[#0f1013]",
-			"from-emerald-600/30 via-teal-950/60 to-[#0f1013]",
-			"from-amber-600/30 via-orange-950/60 to-[#0f1013]",
-			"from-rose-600/30 via-pink-950/60 to-[#0f1013]",
-			"from-cyan-600/30 via-sky-950/60 to-[#0f1013]",
-		];
-		const idx = Math.abs(hash) % gradients.length;
-		return gradients[idx];
-	}
-
+	const loaders = $derived(item.categories.filter(category => ["fabric", "forge", "neoforge", "quilt"].includes(category.toLowerCase())));
+	const downloads = $derived(new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(item.downloads));
 	const isModpack = $derived(contentType === "Modpack");
-	const btnClass = $derived(
-		isModpack
-			? "bg-amber-500 hover:bg-amber-400 text-black shadow-amber-500/20 font-bold"
-			: "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20 font-bold"
-	);
+    const ambient = $derived.by(() => {
+        let hash = 0;
+        for (const character of item.title) hash = (Math.imul(hash, 31) + character.charCodeAt(0)) >>> 0;
+        return { x: 15 + hash % 55, y: 10 + (hash >>> 6) % 50, rotate: hash % 90 - 45 };
+    });
+    const latest = $derived([...item.versions].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0]);
+	const mesh = $derived.by(() => {
+		let hash = 0;
+		for (const character of item.title) hash = (Math.imul(hash, 31) + character.charCodeAt(0)) | 0;
+		return ["from-brand-500/30 via-info/10", "from-purple-500/30 via-brand-500/10", "from-success/30 via-info/10", "from-warning/30 via-brand-500/10"][Math.abs(hash) % 4];
+	});
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-	class="group bg-[#18191c] hover:bg-[#1e1f25] border border-white/5 hover:border-white/20 rounded-2xl overflow-hidden transition-all duration-300 flex flex-col justify-between shadow-lg hover:shadow-xl hover:shadow-blue-500/10 hover:scale-[1.02] cursor-pointer active:scale-[0.98] [content-visibility:auto] [contain-intrinsic-size:300px_280px]"
-	onclick={() => onOpenDetails(item)}
->
-	<!-- Top Banner Image / Ambient Mesh -->
-	<div class="relative w-full h-32 bg-[#0d0e12] overflow-hidden">
+<article class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated/80 shadow-soft backdrop-blur-2xl transition-all duration-200 hover:-translate-y-1 hover:border-brand-500/30 hover:shadow-elevated">
+	<div class="relative h-40 bg-bg-subtle rounded-t-2xl">
 		{#if item.bannerUrl}
-			<LazyImage
-				src={item.bannerUrl}
-				alt={item.title}
-				class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-			/>
-			<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-black/20 to-transparent"></div>
+			<LazyImage src={item.bannerUrl} alt="" class="h-full w-full rounded-t-2xl object-cover transition-transform duration-500 group-hover:scale-105" />
 		{:else}
-			<!-- Dynamic Ambient Glow Backdrop with Icon Reflection -->
-			<div class="w-full h-full bg-gradient-to-br {getModGradient(item.title)} relative flex items-center justify-center overflow-hidden">
-				{#if item.iconUrl}
-					<img 
-						src={item.iconUrl} 
-						alt="" 
-						class="absolute inset-0 w-full h-full object-cover blur-2xl opacity-40 scale-150 transform group-hover:scale-175 transition-transform duration-700" 
-						aria-hidden="true"
-					/>
-				{/if}
-				<div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 via-transparent to-black/60 pointer-events-none"></div>
-				<div class="absolute inset-0 bg-gradient-to-t from-[#18191c] via-transparent to-black/30"></div>
-			</div>
+			<div class="absolute inset-0 overflow-hidden rounded-t-2xl"><div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated"></div><div class="absolute h-32 w-40 rounded-full bg-brand-400/20 blur-2xl" style:left={`${ambient.x}%`} style:top={`${ambient.y}%`} style:transform={`rotate(${ambient.rotate}deg)`}></div><div class="absolute bottom-0 left-0 h-24 w-36 rounded-full bg-info/15 blur-2xl"></div></div>
+			{#if item.iconUrl}<img src={item.iconUrl} alt="" loading="lazy" class="absolute inset-0 h-full w-full scale-150 object-cover opacity-40 blur-2xl" />{/if}
+			<div class="absolute -right-8 top-4 h-28 w-40 rounded-full bg-brand-500/20 blur-3xl"></div>
 		{/if}
-
-		<div class="absolute top-2.5 right-2.5 z-10">
-			<SourceBadge source={item.source} />
-		</div>
-
-		<!-- Square Icon Thumbnail Box (Bottom Left) -->
-		<div class="absolute bottom-2.5 left-3 h-12 w-12 rounded-2xl bg-[#14151a]/90 backdrop-blur-md border border-white/15 p-1 shadow-2xl flex items-center justify-center overflow-hidden shrink-0 z-10 group-hover:border-white/30 transition-all">
-			{#if item.iconUrl}
-				<LazyImage
-					src={item.iconUrl}
-					alt={item.title}
-					class="w-full h-full object-cover rounded-xl"
-				/>
-			{:else}
-				<div class="w-full h-full rounded-xl bg-gradient-to-br from-white/10 to-white/5 flex items-center justify-center text-white/70 text-xs font-black">
-					{item.title.slice(0, 2).toUpperCase()}
-				</div>
-			{/if}
+		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/10 to-transparent"></div>
+		<div class="absolute right-3 top-3"><SourceBadge source={item.source} /></div>
+		<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated/90 p-1 shadow-elevated backdrop-blur-xl transition-transform duration-200 group-hover:-translate-y-1">
+			{#if item.iconUrl}<LazyImage src={item.iconUrl} alt="" class="h-full w-full rounded-xl object-cover" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
 		</div>
 	</div>
-
-	<!-- Card Bottom: Details -->
-	<div class="p-3.5 flex-1 flex flex-col justify-between">
-		<div>
-			<div class="flex items-center justify-between gap-2">
-				<h3 class="font-bold text-white text-xs truncate flex-1 group-hover:text-[#a29bfe] transition-colors" title={item.title}>
-					{item.title}
-				</h3>
-				<span class="text-[11px] text-white/50 flex items-center gap-1 shrink-0 font-medium">
-					<Download class="w-2.5 h-2.5 text-white/40" />
-					{formatDownloads(item.downloads)}
-				</span>
-			</div>
-			<p class="text-[11px] text-white/40 mt-1.5 line-clamp-2 leading-relaxed h-8">
-				{item.description}
-			</p>
-		</div>
-
-		<div class="flex items-center justify-between mt-3 pt-2.5 border-t border-white/[0.06]">
-			<div class="flex items-center gap-1 text-[11px] text-white/40 truncate max-w-[55%]">
-				<Users class="w-3 h-3 text-white/30 shrink-0" />
-				<span class="truncate font-medium">{item.author || item.slug}</span>
-			</div>
-
-			<button
-				type="button"
-				class="{btnClass} active:scale-95 text-xs font-semibold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md disabled:opacity-50 cursor-pointer shrink-0"
-				onclick={(e) => { e.stopPropagation(); onInstall(item); }}
-				disabled={isInstalling || isInstalled}
-			>
-				{#if isInstalling}
-					<Loader2 class="w-3 h-3 animate-spin" />
-					<span>Instalando</span>
-				{:else if isInstalled}
-					<Check class="w-3 h-3 text-emerald-300" />
-					<span>Instalado</span>
-				{:else if isModpack}
-					<PackagePlus class="w-3 h-3" />
-					<span>Criar</span>
-				{:else}
-					<Download class="w-3 h-3" />
-					<span>Instalar</span>
-				{/if}
+	<div class="flex flex-1 flex-col gap-3 p-5 pt-7">
+		<h3 class="truncate text-base font-bold text-fg group-hover:text-brand-400">
+			<button type="button" class="text-left after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-brand-500" onclick={() => onOpenDetails(item)}>{item.title}</button>
+		</h3>
+		<p class="line-clamp-2 min-h-8 text-xs leading-relaxed text-fg-muted">{item.description}</p>
+		<div class="flex items-center gap-1.5 text-xs text-fg-subtle"><Users class="h-3 w-3" /><span class="truncate">{item.author || item.slug}</span></div>
+		{#if loaders.length}<div class="flex flex-wrap gap-1.5">{#each loaders as loader}<LoaderBadge {loader} />{/each}</div>{/if}
+		<div class="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
+			<div class="space-y-1 text-xs text-fg-muted"><span class="flex items-center gap-1"><Download class="h-3 w-3" />{downloads}</span>{#if latest}<span class="block text-[10px] text-fg-subtle">MC {latest}</span>{/if}</div>
+			<button type="button" class={button({ variant: isInstalled ? "secondary" : "primary", size: "sm", class: "relative z-10" })} onclick={() => onInstall(item)} disabled={isInstalling || isInstalled} aria-label={`${isInstalled ? "Instalado" : "Instalar"}: ${item.title}`}>
+				{#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />Instalando{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />Instalado{:else if isModpack}<PackagePlus class="h-3.5 w-3.5" />Criar{:else}<Download class="h-3.5 w-3.5" />Instalar{/if}
 			</button>
 		</div>
 	</div>
-</div>
+</article>

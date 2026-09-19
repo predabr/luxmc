@@ -111,68 +111,8 @@ pub async fn launch_game_core(
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
     let data_dir = base_dir.data_dir().to_path_buf();
 
-    let instance_dir = std::path::PathBuf::from(&profile.game_dir);
-    let manifest_path = instance_dir.join("manifest.json");
-    if manifest_path.exists() {
-        if let Ok(manifest_content) = tokio::fs::read_to_string(&manifest_path).await {
-            if let Ok(manifest) = serde_json::from_str::<serde_json::Value>(&manifest_content) {
-                if let Some(files) = manifest.get("files").and_then(|f| f.as_array()) {
-                    let total_manifest_files = files.len();
-                    let mods_dir = instance_dir.join("mods");
-                    let mut existing_jar_count = 0;
-                    if let Ok(mut rd) = tokio::fs::read_dir(&mods_dir).await {
-                        while let Ok(Some(entry)) = rd.next_entry().await {
-                            let name = entry.file_name().to_string_lossy().to_string();
-                            if name.ends_with(".jar") || name.ends_with(".jar.disabled") {
-                                if let Ok(meta) = entry.metadata().await {
-                                    if meta.len() > 100 {
-                                        existing_jar_count += 1;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if total_manifest_files > 0 && existing_jar_count < total_manifest_files {
-                        let missing = total_manifest_files.saturating_sub(existing_jar_count);
-                        emit_log(&format!(
-                            "Modpack possui mods pendentes ({}/{} instalados). Reparando {} mods ausentes...",
-                            existing_jar_count, total_manifest_files, missing
-                        ));
-
-                        let storage_mods_dir = data_dir.join("mods").join(&profile.id);
-                        let cf_files: Vec<crate::commands::instances::CfFile> = files.iter().filter_map(|f| {
-                            let pid = f.get("projectID").or_else(|| f.get("projectId")).and_then(|v| v.as_u64())?;
-                            let fid = f.get("fileID").or_else(|| f.get("fileId")).and_then(|v| v.as_u64())?;
-                            Some(crate::commands::instances::CfFile { project_id: pid, file_id: fid })
-                        }).collect();
-
-                        let file_ids: Vec<u64> = cf_files.iter().map(|f| f.file_id).collect();
-                        let file_infos = crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids).await;
-
-                        let mut repaired = 0;
-                        for cf_file in &cf_files {
-                            let fi = file_infos.get(&cf_file.file_id);
-                            let ok = crate::commands::instances::download_cf_mod_file(
-                                &state.http,
-                                cf_file,
-                                fi,
-                                None,
-                                &mods_dir,
-                                &storage_mods_dir,
-                                &profile.id,
-                                Some(&profile.mc_version),
-                                Some(&profile.loader),
-                            ).await;
-                            if ok {
-                                repaired += 1;
-                            }
-                        }
-                        emit_log(&format!("Reparo de modpack concluído: {} mods recuperados.", repaired));
-                    }
-                }
-            }
-        }
-    }
+    emit_log("Verificando integridade dos arquivos do modpack...");
+    crate::commands::instances::heal_modpack(state, &profile).await?;
 
     let clean_req_ver = request.version_id.split('-').next().unwrap_or(&request.version_id);
     let version_row = match crate::db::schema::versions::get(&db, &request.version_id).await? {

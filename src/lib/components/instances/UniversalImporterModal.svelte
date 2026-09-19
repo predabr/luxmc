@@ -91,7 +91,7 @@
 <Modal isOpen={open} {onClose} title="Importador Universal em 1 Clique">
 	<div class="flex flex-col gap-4 text-xs">
 		<div class="flex items-center justify-between">
-			<p class="text-white/70 leading-relaxed max-w-md">
+			<p class="text-fg/70 leading-relaxed max-w-md">
 				O Luxmc varre seu computador procurando instâncias do <strong>Prism Launcher</strong>, <strong>CurseForge</strong>, <strong>Lunar Client</strong> e <strong>Badlion</strong> para você migrar com 1 clique sem precisar rebaixar nada.
 			</p>
 			<Button variant="secondary" size="sm" disabled={loading} onclick={scanLaunchers}>
@@ -101,34 +101,34 @@
 		</div>
 
 		{#if loading}
-			<div class="py-12 flex flex-col items-center justify-center gap-2 text-white/50">
-				<RefreshCw class="w-6 h-6 animate-spin text-[#caa97c]" />
+			<div class="py-12 flex flex-col items-center justify-center gap-2 text-fg/50">
+				<RefreshCw class="w-6 h-6 animate-spin text-brand-400" />
 				<span>Varrendo discos do sistema...</span>
 			</div>
 		{:else if detected.length === 0}
-			<div class="py-10 flex flex-col items-center justify-center gap-2 text-center bg-bg-subtle rounded-2xl border border-white/5 p-6">
-				<HardDrive class="w-8 h-8 text-white/30" />
-				<h4 class="text-white font-bold text-sm">Nenhum launcher externo encontrado</h4>
-				<p class="text-white/50 text-[11px] max-w-xs">
+			<div class="py-10 flex flex-col items-center justify-center gap-2 text-center bg-bg-subtle rounded-2xl border border-fg/5 p-6">
+				<HardDrive class="w-8 h-8 text-fg/30" />
+				<h4 class="text-fg font-bold text-sm">Nenhum launcher externo encontrado</h4>
+				<p class="text-fg/50 text-[11px] max-w-xs">
 					Não encontramos pastas padrão do Prism, CurseForge, Lunar ou Badlion no seu sistema.
 				</p>
 			</div>
 		{:else}
 			<div class="flex flex-col gap-2.5 max-h-[380px] overflow-y-auto custom-scrollbar pr-1">
 				{#each detected as inst}
-					<div class="bg-bg-subtle border border-white/10 hover:border-[#caa97c]/40 rounded-2xl p-3.5 flex items-center justify-between gap-3 transition">
+					<div class="bg-bg-subtle border border-fg/10 hover:border-brand-400/40 rounded-2xl p-3.5 flex items-center justify-between gap-3 transition">
 						<div class="flex items-center gap-3 min-w-0">
-							<div class="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-								<Boxes class="w-5 h-5 text-[#caa97c]" />
+							<div class="w-10 h-10 rounded-xl bg-fg/5 border border-fg/10 flex items-center justify-center shrink-0">
+								<Boxes class="w-5 h-5 text-brand-400" />
 							</div>
 							<div class="min-w-0">
 								<div class="flex items-center gap-2">
-									<h4 class="text-white font-bold text-xs truncate">{inst.name}</h4>
-									<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#caa97c]/15 text-[#caa97c] border border-[#caa97c]/30 shrink-0">
+									<h4 class="text-fg font-bold text-xs truncate">{inst.name}</h4>
+									<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-400/15 text-brand-400 border border-brand-400/30 shrink-0">
 										{inst.launcher}
 									</span>
 								</div>
-								<div class="flex items-center gap-3 text-[11px] text-white/50 mt-1 font-mono">
+								<div class="flex items-center gap-3 text-[11px] text-fg/50 mt-1 font-mono">
 									<span>MC {inst.mcVersion}</span>
 									<span>·</span>
 									<span class="capitalize">{inst.loader}</span>
@@ -163,7 +163,7 @@
 			</div>
 		{/if}
 
-		<div class="flex items-center justify-end pt-3 border-t border-white/5">
+		<div class="flex items-center justify-end pt-3 border-t border-fg/5">
 			<Button variant="secondary" size="sm" onclick={onClose}>
 				Fechar
 			</Button>

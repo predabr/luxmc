@@ -10,10 +10,10 @@
 	let visible = $state(true);
 
 	const typeClasses: Record<NonNullable<Props['type']>, string> = {
-		success: 'bg-green-500/90 text-white',
-		error: 'bg-red-500/90 text-white',
-		info: 'bg-blue-500/90 text-white',
-		warning: 'bg-yellow-500/90 text-white',
+		success: 'bg-green-500/90 text-fg',
+		error: 'bg-red-500/90 text-fg',
+		info: 'bg-blue-500/90 text-fg',
+		warning: 'bg-yellow-500/90 text-fg',
 	};
 
 	$effect(() => {

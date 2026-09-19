@@ -1,3 +1,4 @@
+import { appState } from "./app.svelte";
 import { gamingStatsGet, gamingStatsSave } from "$lib/api/skins";
 
 const STORAGE_TOTAL_PLAYTIME_MINS = "luxmc_total_playtime_minutes";
@@ -23,6 +24,8 @@ function getTodayKey(): string {
 	return `${year}-${month}-${day}`;
 }
 
+let instanceMinutes = $state<Record<string, number>>({});
+let sessionProfileId: string | null = null;
 let totalMinutes = $state(0);
 let lastSessionMinutes = $state(0);
 let longestSessionMinutesState = $state(0);
@@ -35,6 +38,7 @@ let activeInterval: ReturnType<typeof setInterval> | null = null;
 
 async function init() {
 	if (typeof window === "undefined") return;
+	try { const saved: unknown = JSON.parse(localStorage.getItem("luxmc_instance_minutes") || "{}"); if (saved && typeof saved === "object" && !Array.isArray(saved)) instanceMinutes = Object.fromEntries(Object.entries(saved).filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] >= 0)); } catch { instanceMinutes = {}; }
 	const savedTotal = localStorage.getItem(STORAGE_TOTAL_PLAYTIME_MINS);
 	const savedLast = localStorage.getItem(STORAGE_LAST_SESSION_MINS);
 	const savedLongest = localStorage.getItem(STORAGE_LONGEST_SESSION_MINS);
@@ -241,7 +245,10 @@ export const gamingStats = {
 		return `${h}h ${m}m`;
 	},
 
-	onGameStart() {
+	profileMinutes(id: string) { return Math.floor((instanceMinutes[id] || 0) + (sessionProfileId === id ? activeSessionMinutes : 0)); },
+	onGameStart(profileId?: string) {
+		if (activeGameStartTime) return;
+		sessionProfileId = profileId || appState.activeGameDetails?.profileId || null;
 		activeGameStartTime = Date.now();
 		activeSessionMinutes = 1;
 		totalLaunches += 1;
@@ -269,6 +276,11 @@ export const gamingStats = {
 		if (activeGameStartTime) {
 			const elapsed = Math.max(1, Math.round((Date.now() - activeGameStartTime) / 60000));
 			totalMinutes += elapsed;
+			if (sessionProfileId) {
+				instanceMinutes[sessionProfileId] = (instanceMinutes[sessionProfileId] || 0) + elapsed;
+				try { localStorage.setItem("luxmc_instance_minutes", JSON.stringify(instanceMinutes)); } catch {}
+			}
+			sessionProfileId = null;
 			lastSessionMinutes = elapsed;
 			longestSessionMinutesState = Math.max(longestSessionMinutesState, elapsed);
 

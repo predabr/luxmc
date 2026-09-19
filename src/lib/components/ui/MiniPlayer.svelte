@@ -86,11 +86,11 @@
 
 {#if layoutStore.isCompactMode}
 	<div 
-		class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-[#141518] border border-white/15 px-5 py-3 rounded-full shadow-2xl shadow-black/80 select-none animate-in fade-in slide-in-from-bottom-4 duration-300"
+		class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-bg-elevated border border-fg/15 px-5 py-3 rounded-full shadow-2xl shadow-black/80 select-none animate-in fade-in slide-in-from-bottom-4 duration-300"
 		transition:fade={{ duration: 150 }}
 	>
-		<div class="flex items-center gap-3 pr-2 border-r border-white/10">
-			<div class="w-9 h-9 rounded-full bg-black/60 border border-white/10 overflow-hidden flex items-center justify-center shrink-0">
+		<div class="flex items-center gap-3 pr-2 border-r border-fg/10">
+			<div class="w-9 h-9 rounded-full bg-bg-overlay/60 border border-fg/10 overflow-hidden flex items-center justify-center shrink-0">
 				{#if account.value?.skinUrl}
 					<img src={account.value.skinUrl} alt="Skin" class="w-full h-full object-cover scale-150" />
 				{:else}
@@ -98,10 +98,10 @@
 				{/if}
 			</div>
 			<div class="flex flex-col">
-				<span class="text-xs font-black text-white truncate max-w-[140px]">
+				<span class="text-xs font-black text-fg truncate max-w-[140px]">
 					{activeInstance?.name ?? "Nenhuma instância"}
 				</span>
-				<span class="text-[10px] text-white/40 font-mono">
+				<span class="text-[10px] text-fg/40 font-mono">
 					{activeInstance ? `${activeInstance.mcVersion} · ${activeInstance.loader}` : "Modo Compacto"}
 				</span>
 			</div>
@@ -110,7 +110,7 @@
 		<div class="flex items-center gap-2">
 			<button 
 				type="button"
-				class="bg-brand-500 hover:bg-brand-400 text-black font-black text-xs px-5 py-2 rounded-full transition-all flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer disabled:opacity-50"
+				class="bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs px-5 py-2 rounded-full transition-all flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer disabled:opacity-50"
 				disabled={isLaunching || !activeInstance}
 				onclick={handlePlay}
 			>
@@ -125,7 +125,7 @@
 
 			<button 
 				type="button"
-				class="bg-white/5 hover:bg-white/10 text-white/80 hover:text-white p-2 rounded-full transition-all cursor-pointer border border-white/5"
+				class="bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg p-2 rounded-full transition-all cursor-pointer border border-fg/5"
 				title="Conectar ao MushMC"
 				disabled={isLaunching || !activeInstance}
 				onclick={handleQuickJoin}
@@ -135,7 +135,7 @@
 
 			<button 
 				type="button"
-				class="bg-white/5 hover:bg-white/10 text-white/80 hover:text-white p-2 rounded-full transition-all cursor-pointer border border-white/5"
+				class="bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg p-2 rounded-full transition-all cursor-pointer border border-fg/5"
 				title="Restaurar visualização completa"
 				onclick={() => { layoutStore.isCompactMode = false; playSound("click"); }}
 			>

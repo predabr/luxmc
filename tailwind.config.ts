@@ -80,7 +80,9 @@ const config: Config = {
 			boxShadow: {
 				soft: "var(--shadow-soft)",
 				elevated: "var(--shadow-elevated)",
-				glow: "0 0 30px -5px rgb(var(--brand-500) / 0.45)"
+				glow: "var(--shadow-glow)",
+                button: "var(--shadow-button)",
+                "button-hover": "var(--shadow-button-hover)"
 			},
 			keyframes: {
 				"fade-in": {

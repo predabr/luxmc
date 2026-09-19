@@ -10,23 +10,8 @@ import type {
 	ProfileRow,
 } from "./types";
 
-export async function profilesList(): Promise<Array<{
-	id: string;
-	name: string;
-	icon: string;
-	mcVersion: string;
-	loader: string;
-	loaderVersion: string | null;
-	javaPath: string | null;
-	jvmArgs: string | null;
-	resolutionW: number | null;
-	resolutionH: number | null;
-	fullscreen: boolean;
-	gameDir: string;
-	createdAt: string;
-	updatedAt: string;
-}>> {
-	return api.invoke("profiles_list");
+export async function profilesList(): Promise<ProfileRow[]> {
+	return api.invoke<ProfileRow[]>("profiles_list");
 }
 
 export async function profilesGet(id: string): Promise<{

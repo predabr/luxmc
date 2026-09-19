@@ -1,0 +1,23 @@
+{
+  "portal": {
+    "result": "passed",
+    "pageErrors": [],
+    "viewports": [
+      "1440x1000",
+      "390x844"
+    ]
+  },
+  "launcher": {
+    "result": "passed",
+    "pageErrors": [],
+    "nativeResponses": "simulated",
+    "actions": [
+      "initial modpack link",
+      "mod link and compatible instance",
+      "slim skin preview",
+      "auth_change_skin payload",
+      "server launch payload",
+      "friend launch and compatible instance"
+    ]
+  }
+}

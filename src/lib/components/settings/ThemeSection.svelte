@@ -44,7 +44,7 @@
 	function selectAccent(aId: string) {
 		themeStore.setAccent(aId);
 		settings.patch({
-			accentTheme: aId as any
+			accentTheme: aId as import("$lib/stores/settings.svelte").AccentTheme
 		});
 		schedulePersist();
 		toast(`Destaque alterado para ${ACCENTS[aId]?.name ?? aId}`, "success");
@@ -106,18 +106,18 @@
 	<div>
 		<div class="flex items-center gap-2 mb-2.5">
 			<Palette class="w-4 h-4 text-brand-500" />
-			<span class="text-xs font-bold text-white uppercase tracking-wider">Modo de Exibição</span>
+			<span class="text-xs font-bold text-fg uppercase tracking-wider">Modo de Exibição</span>
 		</div>
 		<div class="grid grid-cols-2 gap-3">
 			{#each Object.values(THEMES) as th}
 				<button
 					type="button"
-					class="p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-95 cursor-pointer {currentTheme === th.id ? 'border-brand-500 bg-[#222328] shadow-lg ring-2 ring-brand-500/30' : 'border-white/5 bg-[#1c1d22] hover:border-white/20'}"
+					class="p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer {currentTheme === th.id ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
 					onclick={() => selectTheme(th.id)}
 				>
 					<div class="flex items-center gap-3">
-						<div class="w-5 h-5 rounded-full border border-white/20 shrink-0 shadow-inner" style="background-color: {th.previewColor};"></div>
-						<span class="text-xs font-bold text-white truncate">{th.name}</span>
+						<div class="w-5 h-5 rounded-full border border-fg/20 shrink-0 shadow-inner" style="background-color: {th.previewColor};"></div>
+						<span class="text-xs font-bold text-fg truncate">{th.name}</span>
 					</div>
 					{#if currentTheme === th.id}
 						<Check class="w-4 h-4 text-brand-500 stroke-[3]" />
@@ -131,23 +131,23 @@
 	<div>
 		<div class="flex items-center gap-2 mb-2.5">
 			<Image class="w-4 h-4 text-brand-500" />
-			<span class="text-xs font-bold text-white uppercase tracking-wider">Plano de Fundo do Launcher</span>
+			<span class="text-xs font-bold text-fg uppercase tracking-wider">Plano de Fundo do Launcher</span>
 		</div>
 		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
 			{#each Object.values(BACKGROUNDS) as bg}
 				<button
 					type="button"
-					class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-95 cursor-pointer {currentBackground === bg.id ? 'border-brand-500 bg-[#222328] shadow-lg ring-2 ring-brand-500/30' : 'border-white/5 bg-[#1c1d22] hover:border-white/20'}"
+					class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-[0.98] cursor-pointer {currentBackground === bg.id ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
 					onclick={() => selectBackground(bg.id)}
 				>
-					<div class="w-full h-12 rounded-xl border border-white/10 shadow-inner flex items-center justify-center relative overflow-hidden" style="background-color: {bg.preview};">
+					<div class="w-full h-12 rounded-xl border border-fg/10 shadow-inner flex items-center justify-center relative overflow-hidden" style="background-color: {bg.preview};">
 						{#if currentBackground === bg.id}
-							<div class="w-6 h-6 rounded-full bg-brand-500 text-black flex items-center justify-center shadow-md">
+							<div class="w-6 h-6 rounded-full bg-brand-500 text-brand-foreground flex items-center justify-center shadow-md">
 								<Check class="w-3.5 h-3.5 stroke-[3]" />
 							</div>
 						{/if}
 					</div>
-					<span class="text-[11px] font-bold text-white/90 truncate">{bg.name}</span>
+					<span class="text-[11px] font-bold text-fg/90 truncate">{bg.name}</span>
 				</button>
 			{/each}
 		</div>
@@ -157,17 +157,17 @@
 	<div>
 		<div class="flex items-center gap-2 mb-2.5">
 			<Sparkles class="w-4 h-4 text-brand-500" />
-			<span class="text-xs font-bold text-white uppercase tracking-wider">Cor de Destaque</span>
+			<span class="text-xs font-bold text-fg uppercase tracking-wider">Cor de Destaque</span>
 		</div>
 		<div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
 			{#each Object.values(ACCENTS) as ac}
 				<button
 					type="button"
-					class="p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer {currentAccent === ac.id ? 'border-brand-500 bg-[#222328] shadow-md ring-2 ring-brand-500/40' : 'border-white/5 bg-[#1c1d22] hover:border-white/20'}"
+					class="p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer {currentAccent === ac.id ? 'border-brand-500 bg-bg-subtle shadow-md ring-2 ring-brand-500/40' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
 					onclick={() => selectAccent(ac.id)}
 				>
 					<div class="w-4 h-4 rounded-full shadow-md shrink-0 flex items-center justify-center" style="background-color: {ac.hex};"></div>
-					<span class="text-xs font-bold text-white/90 truncate">{ac.name}</span>
+					<span class="text-xs font-bold text-fg/90 truncate">{ac.name}</span>
 					{#if currentAccent === ac.id}
 						<Check class="w-3.5 h-3.5 text-brand-500 stroke-[3] ml-auto" />
 					{/if}
@@ -177,7 +177,7 @@
 	</div>
 
 	<!-- Efeitos & Otimizações Visuais -->
-	<div class="space-y-2 pt-2 border-t border-white/5">
+	<div class="space-y-2 pt-2 border-t border-fg/5">
 		{#each [
 			{ title: 'Aura Mística Neon & Sombras', desc: 'Glow dinâmico e sombras holográficas com aceleração GPU', val: mysticAuraGlow, toggle: () => mysticAuraGlow = !mysticAuraGlow },
 			{ title: 'Live Wallpaper Interativo 3D', desc: 'Campo volumétrico dinâmico de partículas no plano de fundo', val: liveWallpaper, toggle: toggleLiveWallpaper },
@@ -186,29 +186,29 @@
 			{ title: 'Animações Fluidas de 144Hz / Alta Taxa de Quadros', desc: 'Transições magnéticas aceleradas com curvas cúbicas suaves', val: smoothAnimations, toggle: toggleAnimations },
 			{ title: 'Modo Ultra Desempenho (Desativa Efeitos)', desc: 'Remove sombras e desfoques para economizar bateria e GPU integrada', val: performanceMode, toggle: togglePerformanceMode }
 		] as opt}
-			<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3.5 flex items-center justify-between hover:border-white/10 transition-all">
+			<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex items-center justify-between hover:border-fg/10 transition-all">
 				<div>
-					<div class="text-xs font-bold text-white">{opt.title}</div>
-					<div class="text-[10px] text-white/40">{opt.desc}</div>
+					<div class="text-xs font-bold text-fg">{opt.title}</div>
+					<div class="text-[10px] text-fg/40">{opt.desc}</div>
 				</div>
 				<button
 					type="button"
 					role="switch"
 					aria-label={opt.title}
 					aria-checked={opt.val}
-					class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-brand-500 shadow-md shadow-brand-500/40' : 'bg-[#383a42]'}"
+					class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {opt.val ? 'bg-brand-500 shadow-md shadow-brand-500/40' : 'bg-bg-subtle'}"
 					onclick={opt.toggle}
 				>
-					<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-black' : 'translate-x-0 bg-white'}"></span>
+					<span class="w-5 h-5 rounded-full transition-transform duration-200 shadow-md {opt.val ? 'translate-x-5 bg-bg-overlay' : 'translate-x-0 bg-fg'}"></span>
 				</button>
 			</div>
 		{/each}
 
 		{#if soundscapesEnabled}
-			<div class="bg-[#1c1d22] border border-white/5 rounded-2xl p-3.5 flex items-center justify-between hover:border-white/10 transition-all">
+			<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex items-center justify-between hover:border-fg/10 transition-all">
 				<div>
-					<div class="text-xs font-bold text-white">Volume da Atmosfera Acústica</div>
-					<div class="text-[10px] text-white/40">Intensidade do sintetizador de ambiente ({Math.round(soundscapeVolume * 100)}%)</div>
+					<div class="text-xs font-bold text-fg">Volume da Atmosfera Acústica</div>
+					<div class="text-[10px] text-fg/40">Intensidade do sintetizador de ambiente ({Math.round(soundscapeVolume * 100)}%)</div>
 				</div>
 				<input
 					type="range"

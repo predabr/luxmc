@@ -19,6 +19,7 @@
 		block = false,
 		href,
 		loading = false,
+		disabled = false,
 		children,
 		class: klass = "",
 		...rest
@@ -28,14 +29,26 @@
 </script>
 
 {#if href}
-	<a {href} class={classes} {...rest as HTMLAnchorAttributes}>
+	<a
+        {...rest as HTMLAnchorAttributes}
+        href={disabled || loading ? undefined : href}
+        class={classes}
+        aria-disabled={disabled || loading}
+        aria-busy={loading}
+        tabindex={disabled || loading ? -1 : rest.tabindex}
+        onclick={(event) => {
+            if (disabled || loading) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+            (rest as HTMLAnchorAttributes).onclick?.(event);
+        }}
+    >
 		{#if children}{@render children()}{/if}
 	</a>
 {:else}
 	<button
 		class={classes}
-		disabled={loading || (rest as HTMLButtonAttributes).disabled}
 		{...rest as HTMLButtonAttributes}
+        disabled={loading || disabled}
+        aria-busy={loading}
 	>
 		{#if loading}
 			<span

@@ -13,7 +13,7 @@
 
 {#if isOpen}
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+		class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/30"
 		role="status"
 		aria-live="polite"
 		aria-label={message}

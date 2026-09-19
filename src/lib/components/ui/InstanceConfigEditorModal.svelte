@@ -103,11 +103,11 @@
 
 {#if open}
 	<div 
-		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md"
 		transition:fade={{ duration: 180 }}
 	>
 		<div 
-			class="relative w-full max-w-xl bg-bg-elevated border border-white/10 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 max-h-[90vh]"
+			class="relative w-full max-w-xl bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 max-h-[90vh]"
 			transition:scale={{ start: 0.95, duration: 200 }}
 		>
 			<!-- Top Aura -->
@@ -120,13 +120,13 @@
 						<Sliders class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-base font-bold text-white">Editor Visual de Configurações</h3>
-						<p class="text-xs text-white/50">Ajuste Gamma / Fullbright, Render Distance e arquivos de configuração</p>
+						<h3 class="text-base font-bold text-fg">Editor Visual de Configurações</h3>
+						<p class="text-xs text-fg/50">Ajuste Gamma / Fullbright, Render Distance e arquivos de configuração</p>
 					</div>
 				</div>
 				<button 
 					type="button" 
-					class="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+					class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
 					onclick={onClose}
 					aria-label="Fechar"
 				>
@@ -135,17 +135,17 @@
 			</div>
 
 			<!-- Tab switch -->
-			<div class="flex bg-bg-subtle p-1 rounded-2xl border border-white/5">
+			<div class="flex bg-bg-subtle p-1 rounded-2xl border border-fg/5">
 				<button 
 					type="button"
-					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer {activeTab === 'visual' ? 'bg-bg-overlay text-white shadow-sm' : 'text-white/40 hover:text-white'}"
+					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer {activeTab === 'visual' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
 					onclick={() => activeTab = 'visual'}
 				>
 					Ajustes Visuais Rápidos
 				</button>
 				<button 
 					type="button"
-					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer {activeTab === 'raw' ? 'bg-bg-overlay text-white shadow-sm' : 'text-white/40 hover:text-white'}"
+					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer {activeTab === 'raw' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
 					onclick={() => activeTab = 'raw'}
 				>
 					Editor de Código / Arquivo
@@ -155,9 +155,9 @@
 			{#if activeTab === "visual"}
 				<div class="flex-1 overflow-y-auto space-y-4 custom-scrollbar pr-1">
 					<!-- Fullbright / Gamma Slider -->
-					<div class="bg-bg-subtle border border-white/5 rounded-2xl p-4 flex flex-col gap-2.5">
+					<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-4 flex flex-col gap-2.5">
 						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-2 text-xs font-bold text-white">
+							<div class="flex items-center gap-2 text-xs font-bold text-fg">
 								<Sun class="w-4 h-4 text-amber-400" />
 								Brilho & Gamma (Fullbright)
 							</div>
@@ -173,7 +173,7 @@
 							bind:value={options.gamma}
 							class="w-full accent-amber-400 cursor-pointer"
 						/>
-						<div class="flex justify-between text-[10px] text-white/40 font-semibold">
+						<div class="flex justify-between text-[10px] text-fg/40 font-semibold">
 							<span>Sombrio (0%)</span>
 							<span>Padrão Claro (100%)</span>
 							<span>Visão Noturna / Fullbright (500%)</span>
@@ -181,9 +181,9 @@
 					</div>
 
 					<!-- FOV Slider -->
-					<div class="bg-bg-subtle border border-white/5 rounded-2xl p-4 flex flex-col gap-2.5">
+					<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-4 flex flex-col gap-2.5">
 						<div class="flex items-center justify-between">
-							<div class="flex items-center gap-2 text-xs font-bold text-white">
+							<div class="flex items-center gap-2 text-xs font-bold text-fg">
 								<Eye class="w-4 h-4 text-emerald-400" />
 								Campo de Visão (FOV)
 							</div>
@@ -203,8 +203,8 @@
 
 					<!-- Render & Simulation Distance -->
 					<div class="grid grid-cols-2 gap-3">
-						<div class="bg-bg-subtle border border-white/5 rounded-2xl p-3.5 flex flex-col gap-2">
-							<div class="flex items-center justify-between text-xs font-bold text-white">
+						<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex flex-col gap-2">
+							<div class="flex items-center justify-between text-xs font-bold text-fg">
 								<span>Renderização</span>
 								<span class="text-blue-400">{options.renderDistance} chunks</span>
 							</div>
@@ -218,8 +218,8 @@
 							/>
 						</div>
 
-						<div class="bg-bg-subtle border border-white/5 rounded-2xl p-3.5 flex flex-col gap-2">
-							<div class="flex items-center justify-between text-xs font-bold text-white">
+						<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex flex-col gap-2">
+							<div class="flex items-center justify-between text-xs font-bold text-fg">
 								<span>Limite de FPS</span>
 								<span class="text-purple-400">{options.maxFps >= 260 ? 'Ilimitado' : `${options.maxFps} FPS`}</span>
 							</div>
@@ -238,7 +238,7 @@
 					<div class="grid grid-cols-3 gap-2.5">
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.vsync ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-bg-subtle border-white/5 text-white/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.vsync ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.vsync = !options.vsync}
 						>
 							<span>VSync</span>
@@ -247,7 +247,7 @@
 
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.autoJump ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-bg-subtle border-white/5 text-white/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.autoJump ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.autoJump = !options.autoJump}
 						>
 							<span>Pulo Automático</span>
@@ -256,7 +256,7 @@
 
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.bobView ? 'bg-blue-500/15 border-blue-500/30 text-blue-300' : 'bg-bg-subtle border-white/5 text-white/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.bobView ? 'bg-blue-500/15 border-blue-500/30 text-blue-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.bobView = !options.bobView}
 						>
 							<span>Balanço da Câmera</span>
@@ -266,7 +266,7 @@
 				</div>
 
 				<!-- Actions -->
-				<div class="pt-3 border-t border-white/5 flex items-center justify-end gap-2.5">
+				<div class="pt-3 border-t border-fg/5 flex items-center justify-end gap-2.5">
 					<Button variant="secondary" size="sm" onclick={onClose}>
 						Cancelar
 					</Button>
@@ -278,12 +278,12 @@
 			{:else}
 				<div class="flex flex-col gap-3 flex-1 overflow-hidden">
 					<div class="flex items-center gap-2">
-						<label for="config-file-path" class="text-xs font-semibold text-white/60 shrink-0">Arquivo:</label>
+						<label for="config-file-path" class="text-xs font-semibold text-fg/60 shrink-0">Arquivo:</label>
 						<input 
 							id="config-file-path"
 							type="text" 
 							bind:value={rawFilePath}
-							class="flex-1 bg-bg-subtle border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white font-mono outline-none"
+							class="flex-1 bg-bg-subtle border border-fg/10 rounded-xl px-3 py-1.5 text-xs text-fg font-mono outline-none"
 						/>
 						<Button variant="secondary" size="sm" onclick={async () => {
 							const c = await instanceConfigRead(profileId, rawFilePath);
@@ -298,7 +298,7 @@
 						<CodeEditor bind:value={rawContent} />
 					</div>
 
-					<div class="pt-2 border-t border-white/5 flex items-center justify-end gap-2.5">
+					<div class="pt-2 border-t border-fg/5 flex items-center justify-end gap-2.5">
 						<Button variant="secondary" size="sm" onclick={onClose}>
 							Fechar
 						</Button>

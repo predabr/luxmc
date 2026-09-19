@@ -1,0 +1,53 @@
+{
+  "npm": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 789,
+    "devDependencies": 0,
+    "optionalDependencies": 0,
+    "totalDependencies": 789
+  },
+  "rust": {
+    "found": false,
+    "count": 0,
+    "list": []
+  },
+  "maintenanceWarnings": {
+    "unmaintained": [
+      {
+        "package": "paste",
+        "advisory": "RUSTSEC-2024-0436"
+      },
+      {
+        "package": "proc-macro-error",
+        "advisory": "RUSTSEC-2024-0370"
+      },
+      {
+        "package": "unic-char-property",
+        "advisory": "RUSTSEC-2025-0081"
+      },
+      {
+        "package": "unic-char-range",
+        "advisory": "RUSTSEC-2025-0075"
+      },
+      {
+        "package": "unic-common",
+        "advisory": "RUSTSEC-2025-0080"
+      },
+      {
+        "package": "unic-ucd-ident",
+        "advisory": "RUSTSEC-2025-0100"
+      },
+      {
+        "package": "unic-ucd-version",
+        "advisory": "RUSTSEC-2025-0098"
+      }
+    ]
+  },
+  "glib": "Path dependency patched with upstream PR1343; validated by a dedicated regression test. Registry audit alone does not validate a vendored patch."
+}

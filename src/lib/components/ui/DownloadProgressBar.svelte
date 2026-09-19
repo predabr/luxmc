@@ -114,9 +114,9 @@
 		class="fixed bottom-4 right-6 z-50 select-none max-w-xl w-[calc(100%-110px)]"
 		transition:slide={{ duration: 250, axis: "y" }}
 	>
-		<div class="bg-[#14151a] border border-[#caa97c]/30 rounded-2xl p-4 shadow-[0_12px_40px_rgba(0,0,0,0.8)] space-y-2.5 relative overflow-hidden">
+		<div class="bg-bg-elevated border border-brand-400/30 rounded-2xl p-4 shadow-elevated space-y-2.5 relative overflow-hidden">
 			<!-- Subtle gold accent glow on top edge -->
-			<div class="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#caa97c]/50 to-transparent"></div>
+			<div class="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-brand-400/50 to-transparent"></div>
 
 			<!-- Main Top Row: Icon + Title + Metrics + Close -->
 			<div class="flex items-center justify-between text-xs gap-3">
@@ -128,24 +128,24 @@
 							<CheckCircle2 class="w-4 h-4" />
 						</div>
 					{:else}
-						<div class="h-8 w-8 rounded-xl bg-[#caa97c]/15 border border-[#caa97c]/30 text-[#caa97c] flex items-center justify-center shrink-0 shadow-sm">
+						<div class="h-8 w-8 rounded-xl bg-brand-400/15 border border-brand-400/30 text-brand-400 flex items-center justify-center shrink-0 shadow-sm">
 							<Download class="w-4 h-4 animate-bounce" />
 						</div>
 					{/if}
 
 					<div class="min-w-0">
 						<div class="flex items-center gap-2">
-							<p class="font-extrabold text-white text-xs truncate tracking-tight">
+							<p class="font-extrabold text-fg text-xs truncate tracking-tight">
 								{phaseTitle}
 							</p>
 							{#if !isComplete && progress.total > 0}
-								<span class="text-[10px] font-mono px-2 py-0.2 rounded-full bg-white/5 border border-white/10 text-white/50">
+								<span class="text-[10px] font-mono px-2 py-0.2 rounded-full bg-fg/5 border border-fg/10 text-fg/50">
 									{progress.completed}/{progress.total}
 								</span>
 							{/if}
 						</div>
 						{#if progress.currentFile}
-							<p class="text-[10px] text-white/40 truncate font-mono mt-0.5 max-w-sm">
+							<p class="text-[10px] text-fg/40 truncate font-mono mt-0.5 max-w-sm">
 								{progress.currentFile}
 							</p>
 						{/if}
@@ -155,26 +155,26 @@
 				<!-- Right: Speed, ETA & Percentage & Dismiss -->
 				<div class="flex items-center gap-2.5 shrink-0">
 					{#if speedText && !isComplete}
-						<div class="hidden sm:flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-lg bg-[#caa97c]/10 text-[#caa97c] border border-[#caa97c]/20 font-bold">
-							<Zap class="w-3 h-3 text-[#caa97c]" />
+						<div class="hidden sm:flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-lg bg-brand-400/10 text-brand-400 border border-brand-400/20 font-bold">
+							<Zap class="w-3 h-3 text-brand-400" />
 							<span>{speedText}</span>
 						</div>
 					{/if}
 
 					{#if etaText && !isComplete}
-						<div class="hidden md:flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-lg bg-white/5 text-white/50 border border-white/5">
-							<Clock class="w-3 h-3 text-white/40" />
+						<div class="hidden md:flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-lg bg-fg/5 text-fg/50 border border-fg/5">
+							<Clock class="w-3 h-3 text-fg/40" />
 							<span>{etaText}</span>
 						</div>
 					{/if}
 
-					<span class="font-black text-[#caa97c] text-sm font-mono min-w-[36px] text-right">
+					<span class="font-black text-brand-400 text-sm font-mono min-w-[36px] text-right">
 						{percent}%
 					</span>
 
 					<button 
 						type="button"
-						class="w-6 h-6 rounded-lg text-white/30 hover:text-white hover:bg-white/10 flex items-center justify-center transition-colors cursor-pointer"
+						class="w-6 h-6 rounded-lg text-fg/30 hover:text-fg hover:bg-fg/10 flex items-center justify-center transition-colors cursor-pointer"
 						onclick={() => isVisible = false}
 						title="Ocultar barra"
 					>
@@ -184,12 +184,12 @@
 			</div>
 
 			<!-- Liquid Gold Progress Track -->
-			<div class="w-full h-2 bg-black/40 rounded-full overflow-hidden p-0.5 border border-white/5">
+			<div class="w-full h-2 bg-bg-overlay/40 rounded-full overflow-hidden p-0.5 border border-fg/5">
 				<div 
-					class="h-full bg-gradient-to-r from-[#b38e5d] via-[#ecd6a8] to-[#caa97c] rounded-full transition-all duration-200 ease-out relative shadow-[0_0_12px_rgba(202,169,124,0.4)]"
+					class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-all duration-200 ease-out relative shadow-elevated"
 					style="width: {percent}%"
 				>
-					<div class="absolute inset-0 bg-white/25 animate-pulse"></div>
+					<div class="absolute inset-0 bg-fg/25 animate-pulse"></div>
 				</div>
 			</div>
 		</div>

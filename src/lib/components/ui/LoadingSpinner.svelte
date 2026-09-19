@@ -4,7 +4,7 @@
   const sizes = { sm: "h-4 w-4", md: "h-6 w-6", lg: "h-8 w-8" };
   const colors = {
     brand: "border-brand-500",
-    white: "border-white",
+    white: "border-fg",
     muted: "border-fg-muted"
   };
 </script>

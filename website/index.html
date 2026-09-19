@@ -6,13 +6,14 @@
   <title>Luxmc Launcher — O Launcher de Minecraft mais rápido e fluido</title>
   <meta name="description" content="O Launcher definitivo de Minecraft para Linux e Windows. Alta performance, navegação por mods do Modrinth, suporte nativo a Wayland e skins 3D com integração NameMC.">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="experience.css">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <meta name="theme-color" content="#060709">
 </head>
-<body>
+<body class="experience">
+  <div class="reading-progress" aria-hidden="true"></div>
   <canvas id="bgCanvas"></canvas>
 
-  <!-- Navbar -->
   <nav class="navbar">
     <div class="container">
       <a href="index.html" class="nav-brand">
@@ -25,13 +26,14 @@
         <li><a href="#mods" class="nav-link">Mods</a></li>
         <li><a href="#recursos" class="nav-link">Recursos</a></li>
         <li><a href="#comparativo" class="nav-link">Comparativo</a></li>
-        <li><a href="skins.html" class="nav-link">Skins & NameMC</a></li>
+        <li><a href="skins.html" class="nav-link">Skins</a></li>
         <li><a href="#faq" class="nav-link">FAQ</a></li>
         <li><a href="#download" class="nav-link">Downloads</a></li>
       </ul>
 
       <div class="nav-actions">
-        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 8px 16px;">
+        <a href="conta.html" class="account-nav" data-account-link>Minha conta <span aria-hidden="true">↗</span></a>
+        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" aria-label="GitHub" class="btn-secondary" style="padding: 8px 16px;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           GitHub
         </a>
@@ -43,31 +45,32 @@
     </div>
   </nav>
 
-  <!-- Hero Section -->
   <header id="inicio" class="hero">
+    <div class="hero-world" aria-hidden="true"></div>
+    <div class="aurora aurora-one" aria-hidden="true"></div>
+    <div class="aurora aurora-two" aria-hidden="true"></div>
     <div class="hero-backdrop-glow"></div>
     <div class="container">
+      <div class="hero-copy">
       <div class="hero-pill animate-fade-in">
         <span class="radar-wrapper">
           <span class="radar-ping"></span>
           <span class="radar-dot"></span>
         </span>
-        100% Código Aberto · Linux-First & Windows · Alta Performance
+        SEU PRÓXIMO MUNDO COMEÇA AQUI
       </div>
 
       <h1 class="hero-title animate-fade-in animate-delay-1">
-        O Launcher de Minecraft mais rápido,<br>
-        <span class="gradient-text">fluido e estável.</span>
+        Muito além<br>
+        <span class="gradient-text">do primeiro bloco.</span>
       </h1>
 
       <p class="hero-subtitle animate-fade-in animate-delay-2">
-        Construído em Rust, C# e Svelte 5 para resposta instantânea em qualquer hardware. 
-        Navegação por mods do Modrinth, sincronização de skins com NameMC, suporte nativo 
-        a Wayland e zero vazamento de memória RAM.
+        Seu mundo tem mods. Tem histórias. Tem amigos.<br>Faltava um launcher à altura da sua próxima aventura.
       </p>
 
       <div class="hero-actions animate-fade-in animate-delay-3">
-        <a id="primaryDownloadBtn" href="https://github.com/predabr/luxmc/releases/latest" class="btn-primary" style="padding: 13px 26px; font-size: 0.95rem;">
+        <a id="primaryDownloadBtn" href="/download/linux" class="btn-primary hero-download">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.003 2c-2.26 0-4.093 1.833-4.093 4.094 0 1.25.56 2.37 1.442 3.123-.393.18-.74.453-1.01.8-1.07 1.378-1.07 3.327-.01 4.717.37.48.86.83 1.42 1.03-.49.52-.79 1.21-.79 1.97 0 1.62 1.32 2.94 2.94 2.94 1.63 0 2.95-1.32 2.95-2.94 0-.76-.3-1.45-.79-1.97.56-.2 1.05-.55 1.42-1.03 1.06-1.39 1.06-3.339-.01-4.717-.27-.347-.617-.62-1.01-.8.882-.753 1.442-1.873 1.442-3.123 0-2.261-1.834-4.094-4.094-4.094z"/></svg>
           Baixar para Linux (.AppImage)
         </a>
@@ -81,11 +84,13 @@
         </a>
       </div>
 
-      <!-- Stats Ribbon -->
+      <p class="hero-release"><span class="live-version-tag">Consultando versão</span><span aria-hidden="true"> · </span><span id="heroReleaseSize">Download pela Cloudflare</span></p>
+      </div>
+
       <div class="stats-ribbon animate-fade-in animate-delay-3">
         <div class="stat-item">
-          <div class="stat-value">0ms</div>
-          <div class="stat-label">Microtravadas</div>
+          <div class="stat-value">Nativo</div>
+          <div class="stat-label">Rust + C#</div>
         </div>
         <div class="stat-item">
           <div class="stat-value" style="font-size: 1.35rem;">Beta Aberto</div>
@@ -93,16 +98,17 @@
         </div>
         <div class="stat-item">
           <div class="stat-value">&lt;100 MB</div>
-          <div class="stat-label">RAM em Repouso</div>
+          <div class="stat-label">Meta de RAM em repouso*</div>
         </div>
         <div class="stat-item">
-          <div class="stat-value live-version-tag">v1.7.4</div>
-          <div class="stat-label">Última Versão Estável</div>
+          <div class="stat-value live-version-tag">Consultando...</div>
+          <div class="stat-label">Versão publicada</div>
         </div>
       </div>
 
-      <!-- Interactive Window Mockup Interface Preview -->
-      <div class="window-mockup spotlight-card">
+      <div class="window-mockup spotlight-card" data-tilt>
+        <div class="floating-tag tag-left" aria-hidden="true"><span class="orbit-dot"></span> Seu universo, organizado.</div>
+        <div class="floating-tag tag-right" aria-hidden="true"><span>✦</span> Feito para jogar junto.</div>
         <div class="window-titlebar">
           <div class="window-dots">
             <span class="dot dot-close"></span>
@@ -111,18 +117,19 @@
           </div>
 
           <div class="mockup-tab-nav">
-            <button type="button" class="mockup-nav-btn active" data-mockup="assets/home.png" data-title="Menu Principal">
+            <button type="button" class="mockup-nav-btn" data-mockup="assets/home.png" data-title="Menu Principal">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
               <span>Início</span>
             </button>
-            <button type="button" class="mockup-nav-btn" data-mockup="assets/instances.png" data-title="Instâncias & Perfis">
+            <button type="button" class="mockup-nav-btn active" data-mockup="assets/launcher-instances.png" data-title="Instâncias & Perfis">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
               <span>Instâncias</span>
             </button>
-            <button type="button" class="mockup-nav-btn" data-mockup="assets/mods.png" data-title="Central de Mods & Packs">
+            <button type="button" class="mockup-nav-btn" data-mockup="assets/launcher-mods.png" data-title="Central de Mods & Packs">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 9.4 7.55 4.24a1.79 1.79 0 0 0-2.5 1.48v12.56a1.79 1.79 0 0 0 2.5 1.48L16.5 14.6a1.79 1.79 0 0 0 0-3.2z"/></svg>
               <span>Mods</span>
             </button>
+            <button type="button" class="mockup-nav-btn" data-mockup="friends" data-title="Amigos & Rede"><span>Amigos</span></button>
             <button type="button" class="mockup-nav-btn" data-mockup="assets/servers.png" data-title="Lista de Servidores">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
               <span>Servidores</span>
@@ -139,17 +146,36 @@
 
           <div class="window-badge">
             <span class="live-dot-ping"></span>
-            <span id="mockupTitleBadge">Menu Principal</span>
+            <span id="mockupTitleBadge">Instâncias & Perfis</span>
           </div>
         </div>
         <div class="window-content">
-          <img id="mockupDisplayImg" src="assets/home.png" alt="Luxmc Launcher Interface" loading="lazy">
+          <div id="socialMockup" class="social-preview" hidden>
+            <p class="eyebrow">LUXMC SOCIAL · PRÉVIA</p><h3>Seu próximo mundo.<br>Com a sua turma.</h3>
+            <div class="social-preview-row"><img src="https://mc-heads.net/avatar/Steve/64" alt="Skin Steve" loading="lazy"><div><strong>Steve</strong><p>Explorando Minecraft · 1.20.1</p></div><span class="social-status">Em jogo</span></div>
+            <div class="social-preview-row"><img src="https://mc-heads.net/avatar/Alex/64" alt="Skin Alex" loading="lazy"><div><strong>Alex</strong><p>Online no Launcher</p></div><span class="social-status">Online</span></div>
+            <p>Convites com confirmação, skins reais e conexão direta a mundos compartilhados.</p>
+          </div>
+          <img id="mockupDisplayImg" src="assets/launcher-instances.png" alt="Luxmc Launcher Interface" loading="lazy">
         </div>
       </div>
     </div>
   </header>
 
-  <!-- Modrinth Mods Section -->
+  <div class="ecosystem-track" aria-label="Ecossistemas compatíveis"><div><span>MINECRAFT JAVA</span><span>MODRINTH</span><span>CURSEFORGE</span><span>FABRIC</span><span>FORGE</span><span>NEOFORGE</span><span>QUILT</span></div></div>
+
+  <section class="identity-story section reveal" id="sua-conta">
+    <div class="container identity-grid">
+      <div class="story-copy"><span class="section-tag">UM NICKNAME. TODO O SEU UNIVERSO.</span><h2>Você no site.<br><span class="gradient-text">Você no jogo.</span></h2><p>Uma conta Luxmc conecta seus amigos e suas preferências. Do navegador ao launcher, sua próxima sessão já começa com a sua cara.</p><a href="conta.html?mode=register" class="btn-primary">Criar minha conta <span aria-hidden="true">↗</span></a><a href="conta.html" class="text-link">Já tenho uma conta</a></div>
+      <div class="identity-scene" data-tilt>
+        <div class="identity-orbit orbit-a" aria-hidden="true"></div><div class="identity-orbit orbit-b" aria-hidden="true"></div>
+        <div class="identity-pass"><div class="pass-top"><img src="assets/logo.png" alt="" width="24" height="24"><span>LUXMC ID</span><span class="pass-chip">SYNC</span></div><img class="pass-avatar" src="https://mc-heads.net/avatar/Steve/100" alt="Cabeça de skin Minecraft" loading="lazy"><h3>Seu nickname</h3><p>Uma identidade. Novas possibilidades.</p><div class="pass-bottom"><span>WEB + LAUNCHER</span><span>↗</span></div></div>
+        <div class="connection-node node-web">◉ <span>Website</span></div><div class="connection-node node-app">▣ <span>Launcher</span></div><div class="sync-bead" aria-hidden="true"></div>
+      </div>
+    </div>
+    <div class="container journey"><article><span>01</span><h3>Crie sua conta.</h3><p>Escolha seu nickname e uma senha no site.</p></article><article><span>02</span><h3>Entre no launcher.</h3><p>Informe o mesmo nickname. Depois, sua senha.</p></article><article><span>03</span><h3>Continue sendo você.</h3><p>Seus amigos e preferências acompanham sua conta.</p></article></div>
+  </section>
+
   <section id="mods" class="section reveal">
     <div class="container">
       <div class="section-header">
@@ -160,7 +186,6 @@
         </p>
       </div>
 
-      <!-- Search Bar -->
       <div class="mod-search-wrapper">
         <div class="mod-search-bar">
           <svg class="mod-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -175,14 +200,11 @@
         </div>
       </div>
 
-      <!-- Mods Grid -->
       <div id="modsGrid" class="mod-grid">
-        <!-- Injected dynamically by app.js with live direct download links -->
-      </div>
+        </div>
     </div>
   </section>
 
-  <!-- Interactive Features Showcase -->
   <section id="recursos" class="section reveal" style="background: var(--bg-surface);">
     <div class="container">
       <div class="section-header">
@@ -193,9 +215,8 @@
         </p>
       </div>
 
-      <!-- Modern Bento Grid Architecture -->
+      <p class="benchmark-note">* Metas e valores comparativos ilustrativos; o consumo real varia por sistema, versão e carga. Não representam uma medição desta versão.</p>
       <div class="bento-grid" style="margin-bottom: 70px;">
-        <!-- Bento 1: Rust + Tauri 2 Core (Span 2 col) -->
         <div class="bento-card bento-span-2 spotlight-card">
           <div>
             <div class="bento-badge">Tauri v2 + Rust Core</div>
@@ -205,7 +226,6 @@
             </p>
           </div>
           
-          <!-- Live Interactive Benchmark Meter -->
           <div class="benchmark-container">
             <div class="benchmark-item">
               <div class="benchmark-info">
@@ -249,7 +269,6 @@
           </div>
         </div>
 
-        <!-- Bento 2: Wayland Native & GLFW Fix (1 col) -->
         <div class="bento-card spotlight-card">
           <div>
             <div class="bento-badge">Linux-First</div>
@@ -274,7 +293,6 @@
           </div>
         </div>
 
-        <!-- Bento 3: NameMC 3D Engine & Pixel Fix (1 col) -->
         <div class="bento-card spotlight-card">
           <div>
             <div class="bento-badge">WebGL Studio 3D</div>
@@ -290,7 +308,6 @@
           </div>
         </div>
 
-        <!-- Bento 4: Windows OpenGL WGL & Modpacks (Span 2 col) -->
         <div class="bento-card bento-span-2 spotlight-card">
           <div>
             <div class="bento-badge">Windows 10 / 11</div>
@@ -334,7 +351,6 @@
         </button>
       </div>
 
-      <!-- Panel 1: Library -->
       <div id="panel-library" class="showcase-panel active">
         <div class="showcase-content">
           <div class="showcase-badge">Início Instantâneo</div>
@@ -363,7 +379,6 @@
         </div>
       </div>
 
-      <!-- Panel 2: Mods -->
       <div id="panel-mods" class="showcase-panel">
         <div class="showcase-content">
           <div class="showcase-badge">Ecossistema Completo</div>
@@ -392,7 +407,6 @@
         </div>
       </div>
 
-      <!-- Panel 3: Skins -->
       <div id="panel-skins" class="showcase-panel">
         <div class="showcase-content">
           <div class="showcase-badge">Personalização em Tempo Real</div>
@@ -422,7 +436,6 @@
         </div>
       </div>
 
-      <!-- Panel 4: Settings -->
       <div id="panel-settings" class="showcase-panel">
         <div class="showcase-content">
           <div class="showcase-badge">Controle Total</div>
@@ -453,7 +466,6 @@
     </div>
   </section>
 
-  <!-- Comparison Section -->
   <section id="comparativo" class="section reveal">
     <div class="container">
       <div class="section-header">
@@ -531,7 +543,6 @@
     </div>
   </section>
 
-  <!-- Changelog / Version Highlights -->
   <section id="changelog" class="section reveal" style="background: var(--bg-surface);">
     <div class="container">
       <div class="changelog-card spotlight-card">
@@ -539,9 +550,9 @@
           <div>
             <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
               <span class="changelog-badge">Lançamento Mais Recente</span>
-              <span class="live-version-tag" style="font-weight: 800; color: #ffffff;">v1.7.4</span>
+              <span class="live-version-tag" style="font-weight: 800; color: var(--text-main);">v1.7.4</span>
             </div>
-            <h3 style="font-size: 1.4rem; font-weight: 850; color: #ffffff;">Notas de Engenharia & Correções</h3>
+            <h3 style="font-size: 1.4rem; font-weight: 850; color: var(--text-main);">Notas de Engenharia & Correções</h3>
           </div>
           <a href="https://github.com/predabr/luxmc/releases" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;">
             Ver todas no GitHub →
@@ -585,7 +596,7 @@
               <h4 class="changelog-item-title">Zero Consumo Residual de RAM</h4>
             </div>
             <p class="changelog-item-desc">
-              Motor de ping de servidores reescrito com isolamento de buffers e gerenciamento de favicons, mantendo o consumo total do app abaixo de 100 MB.
+              Motor de ping de servidores reescrito com isolamento de buffers e gerenciamento de favicons, buscando reduzir o consumo de memória do aplicativo.
             </p>
           </div>
         </div>
@@ -593,7 +604,6 @@
     </div>
   </section>
 
-  <!-- Downloads Hub Section -->
   <section id="download" class="section reveal">
     <div class="container">
       <div class="section-header">
@@ -605,7 +615,6 @@
       </div>
 
       <div class="downloads-grid">
-        <!-- Linux AppImage -->
         <div id="card-linux" class="download-card spotlight-card featured">
           <div>
             <div class="download-card-header">
@@ -616,7 +625,7 @@
               </div>
               <div>
                 <h3 class="download-platform">Linux AppImage</h3>
-                <span id="appImageSize" style="font-size: 0.78rem; color: var(--text-muted);">Portátil · 208 MB</span>
+                <span id="appImageSize" style="font-size: 0.78rem; color: var(--text-muted);">Portátil · consultando tamanho</span>
               </div>
             </div>
             <p class="download-desc">Universal, portátil e pronto para rodar. Suporte de primeira classe a Wayland nativo e compatibilidade XWayland.</p>
@@ -653,7 +662,6 @@
           </div>
         </div>
 
-        <!-- Windows 10 / 11 Executable -->
         <div id="card-windows" class="download-card spotlight-card">
           <div>
             <div class="download-card-header">
@@ -695,7 +703,6 @@
           </div>
         </div>
 
-        <!-- Arch Linux AUR -->
         <div class="download-card spotlight-card">
           <div>
             <div class="download-card-header">
@@ -731,7 +738,6 @@
           </div>
         </div>
 
-        <!-- Linux .deb -->
         <div class="download-card spotlight-card">
           <div>
             <div class="download-card-header">
@@ -766,7 +772,6 @@
     </div>
   </section>
 
-  <!-- FAQ Section -->
   <section id="faq" class="section reveal">
     <div class="container">
       <div class="section-header">
@@ -780,11 +785,11 @@
       <div class="faq-grid">
         <div class="faq-item">
           <button type="button" class="faq-question">
-            <span>Por que o Luxmc consome menos de 100 MB de RAM?</span>
+            <span>Como o Luxmc reduz o consumo de RAM?</span>
             <svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="faq-answer">
-            Enquanto outros launchers usam Electron completo (empacotando navegadores Chromium pesados que consomem 400 MB a 700 MB apenas para abrir uma janela), o Luxmc é construído sobre o framework Tauri v2 em Rust compilado nativamente e interface reativa com Svelte 5 runes. O resultado é velocidade instantânea e pegada de memória mínima.
+            O Luxmc combina um backend Rust com uma interface Svelte. A edição Tauri utiliza a WebView do sistema; também existe uma distribuição Electron. Menos de 100 MB em repouso é uma meta da edição nativa: o consumo real depende da distribuição, do sistema e dos recursos em uso.
           </div>
         </div>
 
@@ -831,7 +836,6 @@
     </div>
   </section>
 
-  <!-- Footer -->
   <footer class="footer">
     <div class="container">
       <div class="footer-grid">
@@ -851,7 +855,7 @@
             <li><a href="#recursos" class="footer-link">Recursos</a></li>
             <li><a href="#comparativo" class="footer-link">Comparativo</a></li>
             <li><a href="#faq" class="footer-link">FAQ Técnico</a></li>
-            <li><a href="skins.html" class="footer-link">Skins & NameMC</a></li>
+            <li><a href="skins.html" class="footer-link">Skins</a></li>
             <li><a href="#download" class="footer-link">Downloads</a></li>
           </ul>
         </div>
@@ -884,5 +888,6 @@
   </footer>
 
   <script src="app.js"></script>
+  <script type="module" src="experience.js"></script>
 </body>
 </html>

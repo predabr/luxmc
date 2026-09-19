@@ -93,6 +93,11 @@ async fn dispatch_command(
     state: Arc<AppState>,
 ) -> Result<Value, String> {
     match cmd {
+        "social_request" => {
+            let account_id = args.get("accountId").and_then(|v| v.as_str()).ok_or("Missing account ID")?.to_owned();
+            let request = serde_json::from_value(args.get("request").cloned().ok_or("Missing request")?).map_err(|e| e.to_string())?;
+            crate::commands::social::social_request_core(account_id, request).await.map_err(|e| e.to_string())
+        },
         "ping" => Ok(Value::String("pong".into())),
         "app_info" => Ok(serde_json::to_value(crate::commands::system::app_info()).map_err(|e| e.to_string())?),
         "optimizer_trim_memory" => {
@@ -649,6 +654,24 @@ async fn dispatch_command(
             let accounts = crate::db::schema::accounts::list(&db).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(accounts).map_err(|e| e.to_string())?)
         },
+        "lux_account_login" => {
+            let username = args.get("username").and_then(|v| v.as_str()).ok_or("Missing nickname")?.to_owned();
+            let password = args.get("password").and_then(|v| v.as_str()).ok_or("Missing password")?.to_owned();
+            let account = crate::commands::lux_account::lux_account_login(username, password).await.map_err(|e| e.to_string())?;
+            serde_json::to_value(account).map_err(|e| e.to_string())
+        },
+        "lux_account_sync" => {
+            let id = args.get("accountId").and_then(|v| v.as_str()).ok_or("Missing account")?.to_owned();
+            let prefs = args.get("preferences").filter(|v| !v.is_null()).cloned().map(serde_json::from_value).transpose().map_err(|e| e.to_string())?;
+            let revision = args.get("revision").and_then(|v| v.as_i64());
+            let account = crate::commands::lux_account::lux_account_sync(id, prefs, revision).await.map_err(|e| e.to_string())?;
+            serde_json::to_value(account).map_err(|e| e.to_string())
+        },
+        "lux_account_logout" => {
+            let id = args.get("accountId").and_then(|v| v.as_str()).ok_or("Missing account")?.to_owned();
+            crate::commands::lux_account::lux_account_logout(id).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::json!(null))
+        },
         "auth_offline_login" => {
             let username = args.get("username").and_then(|v| v.as_str()).unwrap_or("Player");
             let account = crate::commands::auth::auth_offline_login(username.to_string()).await.map_err(|e| e.to_string())?;
@@ -696,6 +719,11 @@ async fn dispatch_command(
         "auth_get_tenant_id" => {
             let res = crate::commands::auth::auth_get_tenant_id().await;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
+        },
+        "minecraft_uuid" => {
+            let username = args.get("username").and_then(|value| value.as_str()).unwrap_or_default().to_owned();
+            let result = crate::commands::skins::minecraft_uuid(username).await.map_err(|error| error.to_string())?;
+            serde_json::to_value(result).map_err(|error| error.to_string())
         },
         "auth_change_skin" => {
             let uuid = args.get("uuid").and_then(|v| v.as_str()).unwrap_or("").to_string();

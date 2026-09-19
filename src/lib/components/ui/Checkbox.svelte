@@ -31,7 +31,7 @@
 			class="sr-only"
 		/>
 		{#if checked || indeterminate}
-			<Check size={16} class="text-white" />
+			<Check size={16} class="text-fg" />
 		{/if}
 	</div>
 	<span class="select-none">{label}</span>

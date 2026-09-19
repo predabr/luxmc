@@ -13,7 +13,7 @@
 		animate?: Record<string, number>;
 		duration?: number;
 		delay?: number;
-		children?: any;
+		children?: import("svelte").Snippet;
 	} = $props();
 
 	let el: HTMLElement;

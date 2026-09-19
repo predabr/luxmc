@@ -1,10 +1,10 @@
-// Luxmc Website - GitHub Releases Sync, Dynamic Modrinth Explorer & Fluid Animations
 
 const GITHUB_REPO = "predabr/luxmc";
 const MODRINTH_API = "https://api.modrinth.com/v2";
 
 let currentCategory = "mod";
 let searchDebounce = null;
+let searchController = null;
 let detectedOS = "linux";
 
 const FALLBACK_MODS = [
@@ -78,10 +78,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initKeyboardShortcuts();
 });
 
-// Interactive background particles responding to mouse movement
 function initBackgroundParticles() {
   const canvas = document.getElementById("bgCanvas");
-  if (!canvas) return;
+  if (!canvas || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
@@ -129,7 +128,7 @@ function initBackgroundParticles() {
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 130) {
+        if (dist > 0 && dist < 130) {
           const force = (130 - dist) / 130;
           p.x -= (dx / dist) * force * 1.6;
           p.y -= (dy / dist) * force * 1.6;
@@ -149,18 +148,7 @@ function initBackgroundParticles() {
       ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
       ctx.fill();
 
-      for (let j = i + 1; j < particles.length; j++) {
-        const p2 = particles[j];
-        const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-        if (dist < 95) {
-          ctx.beginPath();
-          ctx.moveTo(p.x, p.y);
-          ctx.lineTo(p2.x, p2.y);
-          ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * (1 - dist / 95)})`;
-          ctx.lineWidth = 0.6;
-          ctx.stroke();
-        }
-      }
+
     }
 
     requestAnimationFrame(frame);
@@ -169,7 +157,6 @@ function initBackgroundParticles() {
   requestAnimationFrame(frame);
 }
 
-// Cursor Spotlight effect for cards
 function initSpotlightCards() {
   const cards = document.querySelectorAll(".spotlight-card");
   cards.forEach(card => {
@@ -185,7 +172,6 @@ function initSpotlightCards() {
   });
 }
 
-// Detect user OS and adjust download buttons & highlights
 function initOSDetection() {
   const ua = navigator.userAgent || "";
   const btn = document.getElementById("primaryDownloadBtn");
@@ -211,7 +197,7 @@ function initOSDetection() {
     }
     if (btn) {
       btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 88 88" fill="currentColor"><path d="M0 12.56L35.73 7.69V42.66H0V12.56ZM0 45.34H35.73V80.31L0 75.44V45.34ZM39.06 7.23L88 0V42.66H39.06V7.23ZM39.06 45.34H88V88L39.06 80.77V45.34Z"/></svg> Baixar para Windows (.exe)`;
-      btn.href = "https://github.com/" + GITHUB_REPO + "/releases/latest";
+      btn.href = "/download/windows";
     }
   } else {
     if (linuxCard) {
@@ -226,39 +212,39 @@ function initOSDetection() {
     }
     if (btn) {
       btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.003 2c-2.26 0-4.093 1.833-4.093 4.094 0 1.25.56 2.37 1.442 3.123-.393.18-.74.453-1.01.8-1.07 1.378-1.07 3.327-.01 4.717.37.48.86.83 1.42 1.03-.49.52-.79 1.21-.79 1.97 0 1.62 1.32 2.94 2.94 2.94 1.63 0 2.95-1.32 2.95-2.94 0-.76-.3-1.45-.79-1.97.56-.2 1.05-.55 1.42-1.03 1.06-1.39 1.06-3.339-.01-4.717-.27-.347-.617-.62-1.01-.8.882-.753 1.442-1.873 1.442-3.123 0-2.261-1.834-4.094-4.094-4.094z"/></svg> Baixar para Linux (.AppImage)`;
-      btn.href = `https://github.com/${GITHUB_REPO}/releases/latest/download/Luxmc-1.7.4.AppImage`;
+      btn.href = "/download/linux";
     }
   }
 }
 
-// Live GitHub release fetch - uses Cloudflare Pages edge endpoint or fallback to GitHub
 async function initGitHubRelease() {
   try {
     let data = null;
     try {
-      const edgeRes = await fetch("/api/latest-release");
+      const edgeRes = await fetch("/api/latest-release", { signal: AbortSignal.timeout(10000) });
       if (edgeRes.ok) data = await edgeRes.json();
     } catch {}
 
     if (!data || !data.tag_name) {
-      const ghRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`);
+      const ghRes = await fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, { signal: AbortSignal.timeout(10000) });
       if (ghRes.ok) data = await ghRes.json();
     }
 
-    if (!data) return;
+    if (!data) throw new Error("Release indisponível");
     
-    const tag = data.tag_name || "v1.7.4";
+    const tag = typeof data.tag_name === "string" ? data.tag_name : "Versão indisponível";
     document.querySelectorAll(".live-version-tag").forEach(el => {
       el.textContent = tag;
     });
 
-    const appImage = data.assets?.find(a => a.name.endsWith(".AppImage"));
+    const { assetFor } = await import("./lib/releases.js");
+    const appImage = assetFor(data.assets, "linux");
     if (appImage) {
       const link = document.getElementById("downloadAppImageLink");
-      if (link) link.href = appImage.browser_download_url;
+      if (link) link.href = "/download/linux";
       if (detectedOS === "linux") {
         const btn = document.getElementById("primaryDownloadBtn");
-        if (btn) btn.href = appImage.browser_download_url;
+        if (btn) btn.href = "/download/linux";
       }
       const meta = document.getElementById("appImageSize");
       if (meta) {
@@ -267,14 +253,14 @@ async function initGitHubRelease() {
       }
       const codeSnippet = document.getElementById("appImageCodeSnippet");
       if (codeSnippet) {
-        codeSnippet.textContent = `chmod +x ${appImage.name} && ./${appImage.name}`;
+        codeSnippet.textContent = `chmod +x -- ${shellQuote(appImage.name)} && ${shellQuote("./" + appImage.name)}`;
       }
     }
 
-    const deb = data.assets?.find(a => a.name.endsWith(".deb"));
+    const deb = assetFor(data.assets, "deb");
     if (deb) {
       const link = document.getElementById("downloadDebLink");
-      if (link) link.href = deb.browser_download_url;
+      if (link) link.href = "/download/deb";
       const meta = document.getElementById("debSize");
       if (meta) {
         const sizeMb = (deb.size / (1024 * 1024)).toFixed(0);
@@ -282,13 +268,13 @@ async function initGitHubRelease() {
       }
     }
 
-    const exe = data.assets?.find(a => a.name.endsWith(".exe"));
+    const exe = assetFor(data.assets, "windows");
     if (exe) {
       const link = document.getElementById("downloadExeLink");
-      if (link) link.href = exe.browser_download_url;
+      if (link) link.href = "/download/windows";
       if (detectedOS === "windows") {
         const btn = document.getElementById("primaryDownloadBtn");
-        if (btn) btn.href = exe.browser_download_url;
+        if (btn) btn.href = "/download/windows";
       }
       const meta = document.getElementById("exeSize");
       if (meta) {
@@ -296,12 +282,15 @@ async function initGitHubRelease() {
         meta.innerText = `Instalador .exe · ${sizeMb} MB`;
       }
     }
+    const heroAsset = detectedOS === "windows" ? exe : appImage;
+    const heroSize = document.getElementById("heroReleaseSize");
+    if (heroSize && heroAsset) heroSize.textContent = `${(heroAsset.size / (1024 * 1024)).toFixed(1)} MB · Download direto`;
   } catch (e) {
+    document.querySelectorAll(".live-version-tag").forEach(el => { el.textContent = "Releases no GitHub"; });
     console.debug("GitHub API fetch fallback:", e);
   }
 }
 
-// Modrinth API search and live download
 async function initModrinthExplorer() {
   const input = document.getElementById("modSearchInput");
   const pills = document.querySelectorAll(".search-pill");
@@ -328,6 +317,9 @@ async function initModrinthExplorer() {
 }
 
 async function performModSearch(query) {
+  searchController?.abort();
+  const controller = new AbortController();
+  searchController = controller;
   const container = document.getElementById("modsGrid");
   if (!container) return;
 
@@ -339,18 +331,19 @@ async function performModSearch(query) {
   try {
     let facets = `[["project_type:${currentCategory}"]]`;
     const url = `${MODRINTH_API}/search?query=${encodeURIComponent(query)}&limit=6&facets=${encodeURIComponent(facets)}`;
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]) });
     if (!res.ok) throw new Error("Modrinth API error");
     const data = await res.json();
 
-    if (data.hits && data.hits.length > 0) {
-      renderModCards(data.hits);
-      return;
-    }
+    if (controller.signal.aborted) return;
+    renderModCards(Array.isArray(data.hits) ? data.hits : []);
+    return;
   } catch (e) {
     console.debug("Using fallback mods data:", e);
   }
 
+  if (controller.signal.aborted) return;
+  if (currentCategory !== "mod") { renderModCards([]); return; }
   let filtered = FALLBACK_MODS;
   if (query) {
     filtered = FALLBACK_MODS.filter(m => 
@@ -378,9 +371,9 @@ function renderModCards(mods) {
     const author = mod.author || "Community";
     const desc = mod.description || "";
     const icon = mod.icon_url || "assets/logo.png";
-    const downloads = formatNumber(mod.downloads || 1500000);
+    const downloads = formatNumber(mod.downloads || 0);
     const categories = (mod.categories || []).slice(0, 3);
-    const downloadUrl = `https://modrinth.com/mod/${encodeURIComponent(slug)}/versions`;
+    const downloadUrl = `https://modrinth.com/${["mod", "modpack", "resourcepack", "shader"].includes(currentCategory) ? currentCategory : "mod"}/${encodeURIComponent(slug)}/versions`;
 
     return `
       <div class="project-card spotlight-card reveal active">
@@ -402,9 +395,10 @@ function renderModCards(mods) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>${downloads}</span>
           </div>
+          ${["mod", "modpack"].includes(currentCategory) ? `<a class="btn-download-mod" data-luxmc href="luxmc://install/${currentCategory}?id=${encodeURIComponent(mod.project_id || slug)}&amp;source=modrinth">Instalar no Luxmc</a>` : ""}
           <a href="${downloadUrl}" target="_blank" rel="noopener noreferrer" class="btn-download-mod">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Baixar (.jar)
+            Ver versões
           </a>
         </div>
       </div>
@@ -412,6 +406,10 @@ function renderModCards(mods) {
   }).join("");
 
   initSpotlightCards();
+}
+
+function shellQuote(value) {
+  return "'" + String(value).replaceAll("'", "'\"'\"'") + "'";
 }
 
 function formatNumber(num) {
@@ -426,7 +424,6 @@ function escapeHtml(str) {
   }[m]));
 }
 
-// Feature Showcase tab switcher with crossfade
 function initShowcaseTabs() {
   const tabs = document.querySelectorAll(".showcase-tab");
   const panels = document.querySelectorAll(".showcase-panel");
@@ -446,23 +443,23 @@ function initShowcaseTabs() {
   });
 }
 
-// Interactive Window Mockup tabs & live crossfade
 function initMockupTabs() {
   const btns = document.querySelectorAll(".mockup-nav-btn");
   const img = document.getElementById("mockupDisplayImg");
   const badge = document.getElementById("mockupTitleBadge");
   if (!btns.length || !img) return;
 
-  let currentIndex = 0;
+  let currentIndex = Math.max(0, Array.from(btns).findIndex(button => button.classList.contains("active")));
   let autoTimer = null;
   let userInteracted = false;
 
   function setMockup(index, manual = false) {
     if (manual) userInteracted = true;
-    btns.forEach(b => b.classList.remove("active"));
+    btns.forEach(b => { b.classList.remove("active"); b.setAttribute("aria-pressed", "false"); });
     const btn = btns[index];
     if (!btn) return;
     btn.classList.add("active");
+    btn.setAttribute("aria-pressed", "true");
 
     const newSrc = btn.dataset.mockup;
     const title = btn.dataset.title || "Menu Principal";
@@ -470,7 +467,10 @@ function initMockupTabs() {
     img.style.opacity = "0.2";
     img.style.transform = "scale(0.995)";
     setTimeout(() => {
-      img.src = newSrc;
+      const social = document.getElementById("socialMockup");
+      img.hidden = newSrc === "friends";
+      if (social) social.hidden = newSrc !== "friends";
+      if (newSrc !== "friends") img.src = newSrc;
       img.style.opacity = "1";
       img.style.transform = "scale(1)";
       if (badge) badge.innerText = title;
@@ -488,7 +488,7 @@ function initMockupTabs() {
 
   // Auto rotate every 6s if user hasn't clicked
   autoTimer = setInterval(() => {
-    if (!userInteracted) {
+    if (!userInteracted && !document.hidden && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       const next = (currentIndex + 1) % btns.length;
       setMockup(next);
     }
@@ -500,7 +500,6 @@ function initMockupTabs() {
   }
 }
 
-// Interactive FAQ Accordion
 function initFAQ() {
   const items = document.querySelectorAll(".faq-item");
   items.forEach(item => {
@@ -517,7 +516,6 @@ function initFAQ() {
   });
 }
 
-// Scroll-triggered reveal animations
 function initScrollAnimations() {
   const reveals = document.querySelectorAll(".reveal");
   if (!("IntersectionObserver" in window)) {
@@ -540,7 +538,6 @@ function initScrollAnimations() {
   reveals.forEach(el => observer.observe(el));
 }
 
-// Navbar shadow on scroll
 function initNavbarScroll() {
   const navbar = document.querySelector(".navbar");
   if (!navbar) return;
@@ -553,7 +550,6 @@ function initNavbarScroll() {
   }, { passive: true });
 }
 
-// Keyboard shortcuts
 function initKeyboardShortcuts() {
   window.addEventListener("keydown", (e) => {
     if (e.key === "/" && document.activeElement?.tagName !== "INPUT") {
@@ -567,7 +563,6 @@ function initKeyboardShortcuts() {
   });
 }
 
-// Copy Code to Clipboard
 function copyCode(text, btnElement) {
   navigator.clipboard.writeText(text).then(() => {
     const orig = btnElement.innerText;
@@ -583,7 +578,6 @@ function copyCode(text, btnElement) {
   });
 }
 
-// Toast notification
 function showToast(msg) {
   let toast = document.getElementById("siteToast");
   if (!toast) {
@@ -592,10 +586,66 @@ function showToast(msg) {
     toast.className = "site-toast";
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span style="color: #ffffff">⚡</span> ${msg}`;
+  toast.textContent = `⚡ ${msg}`;
   toast.classList.add("show");
   clearTimeout(toast._timeout);
   toast._timeout = setTimeout(() => {
     toast.classList.remove("show");
   }, 3200);
 }
+
+let launcherAttemptCleanup;
+function openLuxmc(value) {
+  let url;
+  try {
+    url = new URL(value);
+    if (url.protocol !== "luxmc:" || !["install", "skin", "join"].includes(url.hostname) || value.length > 8192) throw new Error("Link inválido");
+  } catch { return; }
+  launcherAttemptCleanup?.();
+  document.getElementById("launcherFallback")?.close();
+  let timer;
+  const cleanup = () => {
+    clearTimeout(timer);
+    document.removeEventListener("visibilitychange", hidden);
+    window.removeEventListener("pagehide", cleanup);
+    window.removeEventListener("blur", cleanup);
+  };
+  const hidden = () => { if (document.hidden) cleanup(); };
+  launcherAttemptCleanup = cleanup;
+  document.addEventListener("visibilitychange", hidden);
+  window.addEventListener("pagehide", cleanup, { once: true });
+  window.addEventListener("blur", cleanup, { once: true });
+  timer = setTimeout(() => {
+    cleanup();
+    if (!document.hidden) showLauncherFallback();
+  }, 1500);
+  window.location.href = url.href;
+}
+
+function showLauncherFallback() {
+  let modal = document.getElementById("launcherFallback");
+  if (!modal) {
+    modal = document.createElement("dialog");
+    modal.id = "launcherFallback";
+    modal.className = "launcher-fallback";
+    modal.setAttribute("aria-labelledby", "launcherFallbackTitle");
+    modal.innerHTML = `<form method="dialog"><button class="btn-secondary" aria-label="Fechar" autofocus>Fechar</button></form>
+      <h2 id="launcherFallbackTitle">Continue no Luxmc Launcher</h2>
+      <p>O Luxmc não respondeu. Se ainda não estiver instalado, baixe agora para usar a instalação em 1 clique. Se já estiver, permita a abertura do aplicativo no navegador.</p>
+      <a class="btn-primary" id="launcherFallbackDownload">Baixar Luxmc</a>`;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", event => { if (event.target === modal) { const box = modal.getBoundingClientRect(); if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) modal.close(); } });
+  }
+  const windows = /windows/i.test(navigator.userAgent);
+  const link = modal.querySelector("#launcherFallbackDownload");
+  link.href = windows ? "/download/windows" : "/download/linux";
+  link.textContent = windows ? "Baixar para Windows" : "Baixar AppImage para Linux";
+  if (!modal.open) modal.showModal();
+}
+
+document.addEventListener("click", event => {
+  const link = event.target instanceof Element ? event.target.closest("a[data-luxmc]") : null;
+  if (!link || event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  openLuxmc(link.href);
+});

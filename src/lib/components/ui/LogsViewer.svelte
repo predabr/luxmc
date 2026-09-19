@@ -69,8 +69,8 @@
 	onMount(loadList);
 
 	function levelColor(level: string): string {
-		if (level === "ERROR") return "rgb(248, 113, 113)";
-		if (level === "WARN") return "rgb(250, 204, 21)";
+		if (level === "ERROR") return "rgb(var(--danger))";
+		if (level === "WARN") return "rgb(var(--warning))";
 		return "rgb(145, 155, 180)";
 	}
 </script>
@@ -113,7 +113,7 @@
 		<button
 			type="button"
 			class="grid h-8 w-8 place-items-center rounded-md"
-			style="border: 1px solid rgb(var(--border)); color: rgb(248, 113, 113);"
+			style="border: 1px solid rgb(var(--border)); color: rgb(var(--danger));"
 			onclick={clearAll}
 			aria-label={t("logs.clearAll")}
 		>
@@ -122,7 +122,7 @@
 	</div>
 
 	{#if error}
-		<p class="text-xs" style="color: rgb(248, 113, 113);">{error}</p>
+		<p class="text-xs" style="color: rgb(var(--danger));">{error}</p>
 	{/if}
 
 	<div class="grid flex-1 grid-cols-1 gap-3 md:grid-cols-[20rem_1fr]">
@@ -142,7 +142,7 @@
 								type="button"
 								class="flex w-full flex-col gap-1 border-b px-3 py-2 text-left text-xs transition-colors"
 								style="border-color: rgb(var(--border)); background: {selected?.id === s.id
-									? 'rgba(45, 212, 191, 0.08)'
+									? 'rgb(var(--brand-400) / 0.08)'
 									: 'transparent'};"
 								onclick={() => pickSummary(s)}
 							>
@@ -150,8 +150,8 @@
 									<span class="font-medium" style="color: rgb(var(--fg));">{s.versionId}</span>
 									<span
 										style="color: {s.exitCode === 0
-											? 'rgb(74, 222, 128)'
-											: 'rgb(248, 113, 113)'};"
+											? 'rgb(var(--success))'
+											: 'rgb(var(--danger))'};"
 									>
 										{t("logs.exit", { code: s.exitCode ?? "?" })}
 									</span>
@@ -161,7 +161,7 @@
 									<span>{t("logs.linesCountPlain", { count: s.lineCount })}</span>
 								</span>
 								{#if s.errorClassification}
-									<span class="text-[10px] font-medium" style="color: rgb(250, 204, 21);">
+									<span class="text-[10px] font-medium" style="color: rgb(var(--warning));">
 										{s.errorClassification}
 									</span>
 								{/if}
@@ -174,7 +174,7 @@
 
 		<div
 			class="flex min-h-0 flex-col overflow-hidden rounded-md"
-			style="border: 1px solid rgb(var(--border)); background: rgb(8, 9, 14);"
+			style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg-overlay));"
 		>
 			<div
 				class="flex items-center justify-between border-b px-3 py-1.5 text-[11px]"
@@ -190,7 +190,7 @@
 				{#if selected}
 					<button
 						type="button"
-						class="grid h-6 w-6 place-items-center rounded transition-colors hover:bg-white/5"
+						class="grid h-6 w-6 place-items-center rounded transition-colors hover:bg-fg/5"
 						onclick={() => {
 							selected = null;
 							lines = [];

@@ -1,3 +1,4 @@
+mod loader_selection;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tauri::Emitter;
@@ -262,94 +263,7 @@ impl GameLauncher {
         let mut extra_jvm_args = Vec::new();
         let mut extra_game_args = Vec::new();
 
-        let mut loader = profile.loader.trim().to_lowercase();
-        if loader == "fabric" {
-            let is_forge_version = profile.loader_version.as_deref().map(|v| {
-                v.starts_with("47.") || v.starts_with("48.") || v.starts_with("49.") || v.starts_with("50.") ||
-                v.starts_with("40.") || v.starts_with("41.") || v.starts_with("42.") || v.starts_with("43.") ||
-                v.starts_with("36.") || v.starts_with("37.") || v.starts_with("38.") || v.starts_with("39.") ||
-                v.starts_with("31.") || v.starts_with("32.") || v.starts_with("33.") || v.starts_with("34.") || v.starts_with("35.") ||
-                v.starts_with("14.") || v.starts_with("12.") || v.starts_with("10.") || v.starts_with("9.") || v.starts_with("7.") ||
-                v.contains("forge")
-            }).unwrap_or(false);
-            let is_neoforge_version = profile.loader_version.as_deref().map(|v| {
-                v.starts_with("20.") || v.starts_with("21.") || v.starts_with("22.") || v.contains("neoforge")
-            }).unwrap_or(false);
-            let is_mc_neoforge_era = profile.mc_version.starts_with("1.20.2")
-                || profile.mc_version.starts_with("1.20.3")
-                || profile.mc_version.starts_with("1.20.4")
-                || profile.mc_version.starts_with("1.20.5")
-                || profile.mc_version.starts_with("1.20.6")
-                || profile.mc_version.starts_with("1.21")
-                || profile.mc_version.starts_with("1.22")
-                || profile.mc_version.starts_with("2");
-
-            let name_indicates_neoforge = profile.name.to_lowercase().contains("neoforge")
-                || (is_mc_neoforge_era && (profile.name.to_lowercase().contains("all the mods") || profile.name.to_lowercase().contains("atm")));
-            let name_indicates_forge = profile.name.to_lowercase().contains("forge")
-                || (!is_mc_neoforge_era && (profile.name.to_lowercase().contains("all the mods") || profile.name.to_lowercase().contains("atm")));
-
-            if is_neoforge_version || (name_indicates_neoforge && !is_forge_version) {
-                self.emit_log("Auto-correcting loader from 'fabric' to 'neoforge' based on modpack metadata");
-                loader = "neoforge".to_string();
-                if let Ok(db) = crate::db::shared_db().await {
-                    let mut updated_profile = profile.clone();
-                    updated_profile.loader = "neoforge".to_string();
-                    let _ = crate::db::schema::profiles::upsert(&db, &updated_profile).await;
-                }
-            } else if is_forge_version || name_indicates_forge {
-                self.emit_log("Auto-correcting loader from 'fabric' to 'forge' based on modpack metadata");
-                loader = "forge".to_string();
-                if let Ok(db) = crate::db::shared_db().await {
-                    let mut updated_profile = profile.clone();
-                    updated_profile.loader = "forge".to_string();
-                    let _ = crate::db::schema::profiles::upsert(&db, &updated_profile).await;
-                }
-            }
-        }
-
-        if loader == "vanilla" || loader.is_empty() {
-            let mods_dir = game_dir.join("mods");
-            if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
-                let mut has_jars = false;
-                while let Ok(Some(entry)) = entries.next_entry().await {
-                    if let Some(ext) = entry.path().extension() {
-                        if ext == "jar" {
-                            has_jars = true;
-                            break;
-                        }
-                    }
-                }
-                if has_jars {
-                    let mod_names: Vec<String> = {
-                        let mut names = Vec::new();
-                        let mut entries2 = tokio::fs::read_dir(&mods_dir).await.ok();
-                        if let Some(ref mut e) = entries2 {
-                            while let Ok(Some(entry)) = e.next_entry().await {
-                                if let Some(name) = entry.path().file_name().map(|n| n.to_string_lossy().to_lowercase()) {
-                                    if name.ends_with(".jar") {
-                                        names.push(name);
-                                    }
-                                }
-                            }
-                        }
-                        names
-                    };
-                    let has_neoforge = mod_names.iter().any(|n| n.contains("neoforge") || n.contains("rftools") || n.contains("mekanism"));
-                    let has_forge = mod_names.iter().any(|n| (n.contains("forge") && !n.contains("neoforge")) || n.contains("fml"));
-                    if has_neoforge {
-                        self.emit_log("Detected NeoForge-related mods; automatically enabling NeoForge loader for this session");
-                        loader = "neoforge".to_string();
-                    } else if has_forge {
-                        self.emit_log("Detected Forge-related mods; automatically enabling Forge loader for this session");
-                        loader = "forge".to_string();
-                    } else {
-                        self.emit_log("Detected mods in mods/ directory; automatically enabling Fabric loader for this session");
-                        loader = "fabric".to_string();
-                    }
-                }
-            }
-        }
+        let (loader, loader_version) = loader_selection::resolve(&game_dir, &profile.loader, profile.loader_version.as_deref())?;
 
         if loader == "fabric" || loader == "quilt" || loader == "neoforge" || loader == "forge" {
             if loader == "fabric" {
@@ -367,7 +281,7 @@ impl GameLauncher {
                 &self.downloader.libraries_dir(),
                 &loader,
                 &profile.mc_version,
-                profile.loader_version.as_deref(),
+                loader_version.as_deref(),
             ).await {
                 Ok(prep) => {
                     self.emit_log(&format!("{} loader ready: mainClass = {}", loader, prep.main_class));
@@ -1238,7 +1152,11 @@ impl GameLauncher {
         };
 
         // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags
-        let generated_flags = if profile.auto_optimize {
+        let custom_collector = profile.jvm_args.as_deref().is_some_and(|args|
+            args.split_whitespace().any(|arg| matches!(arg, "-XX:+UseZGC" | "-XX:+UseShenandoahGC" | "-XX:+UseParallelGC" | "-XX:+UseSerialGC")));
+        let generated_flags = if custom_collector {
+            vec![format!("-Xms{}M", ram_mb.min(1024)), format!("-Xmx{}M", ram_mb)]
+        } else if profile.auto_optimize {
             crate::core::optimizer::generate_aikar_flags(ram_mb.max(0) as u64)
         } else {
             crate::core::optimizer::generate_standard_flags(ram_mb.max(0) as u64)

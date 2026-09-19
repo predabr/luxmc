@@ -45,7 +45,7 @@ const defaults: AppSettings = {
 	blur: true,
 	sidebarPosition: "left",
 	language: "en",
-	accentTheme: "gold",
+	accentTheme: "blue",
 	activeProfileId: null,
 	liveWallpaper: false,
 	soundscapesEnabled: false,

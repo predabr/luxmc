@@ -33,3 +33,8 @@ pub mod world_backup;
 pub mod death_tracker;
 pub mod importer;
 
+pub mod social;
+
+pub mod lux_account;
+
+pub mod deep_links;

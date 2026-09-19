@@ -72,3 +72,15 @@ export async function capesDelete(id: string): Promise<void> {
 	return api.invoke("capes_delete", { id });
 }
 
+
+const uuidRequests = new Map<string, Promise<string | null>>();
+export async function minecraftUuid(username: string): Promise<string | null> {
+    const key = username.toLowerCase();
+    if (!/^[a-zA-Z0-9_]{1,16}$/.test(key)) return null;
+    const existing = uuidRequests.get(key);
+    if (existing) return existing;
+    const request = api.invoke<string | null>("minecraft_uuid", { username }).catch(error => { uuidRequests.delete(key); throw error; });
+    if (uuidRequests.size >= 256) uuidRequests.clear();
+    uuidRequests.set(key, request);
+    return request;
+}

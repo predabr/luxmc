@@ -47,6 +47,8 @@ export async function appInit(): Promise<{
 		diskUsage: number;
 		ramMb: number | null;
 		instanceGroup: string | null;
+        autoOptimize?: boolean;
+        useVulkan?: boolean;
 	}>;
 	activeProfileId: string | null;
 	stressTest?: boolean;
@@ -103,4 +105,14 @@ export async function writeTextFile(path: string, contents: string): Promise<voi
 
 export async function deleteFileOrDir(path: string): Promise<void> {
 	return api.invoke("delete_file_or_dir", { path });
+}
+
+export async function openPortalAccount(mode: "login" | "register" | "recover"): Promise<void> {
+    const url = `https://luxmc-r92.pages.dev/conta.html?mode=${mode}`;
+    if (typeof window !== "undefined" && window.electronAPI) {
+        await api.invoke<boolean>("open_url", { url });
+    } else {
+        const { openUrl } = await import("@tauri-apps/plugin-opener");
+        await openUrl(url);
+    }
 }
