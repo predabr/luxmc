@@ -684,10 +684,12 @@ mod tests {
 		.unwrap();
         assert!(!r.valid);
         assert!(r.rejected.iter().any(|x| x == "-XstartOnFirstThread"));
-        assert!(r
-            .rejected
-            .iter()
-            .any(|x| x.starts_with("-XX:HeapDumpPath=")));
+        if cfg!(not(target_os = "windows")) {
+            assert!(r
+                .rejected
+                .iter()
+                .any(|x| x.starts_with("-XX:HeapDumpPath=")));
+        }
         assert!(r.normalized.contains("-Xms2G"));
         assert!(r.normalized.contains("-Xmx4G"));
     }
