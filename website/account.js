@@ -15,7 +15,7 @@ async function api(action, body = {}, area = "account") {
   try {
     result = await response.json();
   } catch {
-    throw Object.assign(new Error("A API de contas não retornou JSON. Verifique se o Cloudflare Pages (Functions + D1) está ativo e faça um novo deploy."), { status: response.status });
+    throw Object.assign(new Error(`O servidor retornou uma resposta não-JSON (${response.status}). Verifique se as Funções e o D1 estão vinculados no Cloudflare Pages e faça um novo deploy.`), { status: response.status });
   }
   if (!response.ok) {
     if (result.account) { current = result.account; fillPreferences(); }
