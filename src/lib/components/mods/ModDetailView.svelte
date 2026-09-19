@@ -76,7 +76,7 @@
 
 	<!-- Hero Card -->
 	<div class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-xl relative overflow-hidden shrink-0">
-		<div class="absolute -right-16 -top-16 w-64 h-64 bg-brand-400/5 rounded-full blur-3xl pointer-events-none"></div>
+		<div class="absolute -right-16 -top-16 w-64 h-64 bg-[radial-gradient(circle_at_center,rgb(var(--brand-400)/0.1),transparent_70%)] rounded-full pointer-events-none"></div>
 		<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10 w-full">
 			<div class="flex items-start sm:items-center gap-5 min-w-0 flex-1">
 				<div class="w-20 h-20 shrink-0 rounded-2xl bg-bg-subtle border border-fg/15 p-1 overflow-hidden shadow-2xl flex items-center justify-center">

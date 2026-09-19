@@ -281,7 +281,7 @@
 							/>
 							<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent"></div>
 							<div class="absolute top-3 left-3">
-								<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full {article.tagColor} backdrop-blur-md">
+								<span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full {article.tagColor}">
 									{article.tag}
 								</span>
 							</div>

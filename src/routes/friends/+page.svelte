@@ -136,7 +136,7 @@
         <div class="flex gap-2"><button type="button" class={button({ variant: 'secondary' })} onclick={() => activeTab = 'p2p'}><Radio class="h-4 w-4" />Hospedar mundo</button><button type="button" class={button({ variant: 'primary' })} onclick={() => activeTab = 'add'}><UserPlus class="h-4 w-4" />Adicionar amigo</button></div>
     </header>
 
-	<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-bg-elevated/80 p-4 backdrop-blur-2xl">
+	<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-bg-elevated/80 p-4">
 		<p class="text-xs text-fg-muted">{friendsState.me ? `Seu código: ${friendsState.me.username}#${friendsState.me.id.slice(0, 8)}` : "Conecte seu perfil para buscar jogadores e receber convites."}</p>
 		<button type="button" class="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-brand-foreground hover:bg-brand-400 disabled:opacity-50" onclick={() => friendsState.connect()} disabled={friendsState.busy || !account.value}>{friendsState.busy ? "Conectando..." : friendsState.me ? "Reconectar" : "Conectar rede social"}</button>
 		{#if friendsState.error}<p class="w-full text-xs text-warning" role="status">{friendsState.error}</p>{/if}

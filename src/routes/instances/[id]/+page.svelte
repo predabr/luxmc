@@ -1272,7 +1272,7 @@
 
 		{#if modpackUpdate?.hasUpdate || isUpdatingModpack}
 			<div class="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-bg-elevated border border-amber-500/30 rounded-3xl p-5 shadow-xl relative overflow-hidden">
-				<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+				<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-[radial-gradient(circle_at_center,rgb(245_158_11/0.15),transparent_70%)] rounded-full pointer-events-none"></div>
 				<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
 					<div class="flex items-start gap-3.5">
 						<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-brand-foreground font-black shadow-lg shrink-0">
@@ -2136,7 +2136,7 @@
 {#if showHostModal && hostLinkInfo}
 	<div class="fixed inset-0 z-50 bg-bg-overlay/80 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
 		<div class="max-w-md w-full bg-bg-elevated border border-brand-500/30 rounded-3xl p-6 shadow-2xl space-y-5 relative overflow-hidden select-none">
-			<div class="absolute -top-10 -right-10 w-36 h-36 bg-brand-500/15 rounded-full blur-2xl pointer-events-none"></div>
+			<div class="absolute -top-10 -right-10 w-36 h-36 bg-[radial-gradient(circle_at_center,rgb(var(--brand-500)/0.15),transparent_70%)] rounded-full pointer-events-none"></div>
 
 			<div class="flex items-center justify-between">
 				<div class="flex items-center gap-3">

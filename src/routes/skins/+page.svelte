@@ -285,7 +285,7 @@
 				
 				<!-- Top Viewport Floating Controls -->
 				<div class="absolute top-3 left-3 right-3 flex items-center justify-between z-10 pointer-events-none">
-					<div class="bg-bg-overlay/60 backdrop-blur-md border border-fg/10 rounded-xl px-2.5 py-1 text-[10px] font-bold text-fg/60 pointer-events-auto flex items-center gap-1.5">
+					<div class="bg-bg-overlay/85 border border-fg/10 rounded-xl px-2.5 py-1 text-[10px] font-bold text-fg/60 pointer-events-auto flex items-center gap-1.5 shadow-sm">
 						<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
 						Arraste para girar
 					</div>
@@ -294,7 +294,7 @@
 						<button
 							type="button"
 							onclick={() => isRotating = !isRotating}
-							class="p-2 rounded-xl bg-bg-overlay/60 hover:bg-bg-overlay/80 backdrop-blur-md border border-fg/10 text-fg/70 hover:text-fg transition-all cursor-pointer"
+							class="p-2 rounded-xl bg-bg-overlay/80 hover:bg-bg-overlay border border-fg/10 text-fg/70 hover:text-fg transition-all cursor-pointer shadow-sm"
 							title={isRotating ? "Pausar rotação automática" : "Ativar rotação automática"}
 						>
 							{#if isRotating}
@@ -307,7 +307,7 @@
 						<button
 							type="button"
 							onclick={() => viewerRef?.resetCamera()}
-							class="p-2 rounded-xl bg-bg-overlay/60 hover:bg-bg-overlay/80 backdrop-blur-md border border-fg/10 text-fg/70 hover:text-fg transition-all cursor-pointer"
+							class="p-2 rounded-xl bg-bg-overlay/80 hover:bg-bg-overlay border border-fg/10 text-fg/70 hover:text-fg transition-all cursor-pointer shadow-sm"
 							title="Redefinir câmera"
 						>
 							<RotateCcw class="w-3.5 h-3.5" />
@@ -327,7 +327,7 @@
 				/>
 
 				<!-- Bottom Viewport Controls (Steve/Alex & Upload) -->
-				<div class="absolute bottom-3 left-3 right-3 flex items-center justify-between bg-bg-overlay/70 backdrop-blur-md border border-fg/10 rounded-2xl p-1.5 shadow-xl z-10">
+				<div class="absolute bottom-3 left-3 right-3 flex items-center justify-between bg-bg-overlay/90 border border-fg/10 rounded-2xl p-1.5 shadow-xl z-10">
 					<div class="flex items-center gap-1">
 						<button
 							type="button"

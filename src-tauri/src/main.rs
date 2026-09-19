@@ -67,8 +67,16 @@ fn main() {
             }
         }
 
-        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
+        if std::env::var("LUXMC_SOFTWARE_RENDER").map(|v| v == "1" || v == "true").unwrap_or(false) {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+            std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
+        } else {
+            if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").as_deref() == Ok("1") {
+                std::env::remove_var("WEBKIT_DISABLE_DMABUF_RENDERER");
+            }
+            if std::env::var("WEBKIT_FORCE_COMPOSITING_MODE").is_err() {
+                std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
+            }
         }
         if std::env::var("__NV_DISABLE_EXPLICIT_SYNC").is_err() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");

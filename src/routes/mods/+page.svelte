@@ -479,14 +479,14 @@
 			{:else}
 				{#if viewMode === 'grid'}
 					<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-6">
-						{#each results as item}
+						{#each results as item (item.source + ':' + item.sourceId)}
 							{@const id = `${item.source}:${item.sourceId}`}
 							<ModCard {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
 						{/each}
 					</div>
 				{:else}
 					<div class="space-y-2.5 pb-6">
-						{#each results as item}
+						{#each results as item (item.source + ':' + item.sourceId)}
 							{@const id = `${item.source}:${item.sourceId}`}
 							<ModCardList {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
 						{/each}

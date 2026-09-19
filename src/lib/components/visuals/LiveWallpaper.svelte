@@ -22,9 +22,15 @@
 	let mouseX = 0;
 	let mouseY = 0;
 
+	let mouseMoveScheduled = false;
 	function handleMouseMove(e: MouseEvent) {
-		mouseX = (e.clientX / (window.innerWidth || 1) - 0.5) * 40;
-		mouseY = (e.clientY / (window.innerHeight || 1) - 0.5) * 40;
+		if (mouseMoveScheduled) return;
+		mouseMoveScheduled = true;
+		requestAnimationFrame(() => {
+			mouseX = (e.clientX / (window.innerWidth || 1) - 0.5) * 40;
+			mouseY = (e.clientY / (window.innerHeight || 1) - 0.5) * 40;
+			mouseMoveScheduled = false;
+		});
 	}
 
 	function shouldRun() {

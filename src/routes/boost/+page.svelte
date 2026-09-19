@@ -144,7 +144,7 @@
 <div class="space-y-6 pb-12">
 	<!-- Hero Header -->
 	<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-subtle to-bg border border-fg/10 p-7 shadow-2xl">
-		<div class="absolute -right-10 -top-10 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
+		<div class="absolute -right-10 -top-10 w-80 h-80 bg-[radial-gradient(circle_at_center,rgb(var(--brand-500)/0.15),transparent_70%)] rounded-full pointer-events-none"></div>
 		<div class="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
 			<div class="flex items-center gap-4">
 				<div class="h-14 w-14 rounded-2xl bg-brand-500/20 text-brand-500 border border-brand-500/30 flex items-center justify-center shadow-lg shadow-brand-500/10">

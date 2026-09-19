@@ -18,7 +18,7 @@
     <div class="relative h-44 overflow-hidden sm:h-52">
         <img src={banner} alt="" class="h-full w-full object-cover" />
         <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/30 to-bg-overlay/10"></div>
-        <div class="absolute left-6 top-5 flex items-center gap-2"><LoaderBadge loader={profile?.loader || 'vanilla'} /><span class="rounded-full border border-fg/10 bg-bg-overlay/60 px-3 py-1 text-xs text-fg backdrop-blur-xl">Minecraft {profile?.mcVersion || '—'}</span></div>
+        <div class="absolute left-6 top-5 flex items-center gap-2"><LoaderBadge loader={profile?.loader || 'vanilla'} /><span class="rounded-full border border-fg/10 bg-bg-overlay/60 px-3 py-1 text-xs text-fg">Minecraft {profile?.mcVersion || '—'}</span></div>
         <button type="button" class={button({ variant: 'secondary', size: 'sm', class: 'absolute right-5 top-5 bg-bg-overlay/50' })} onclick={onSettings}><ImagePlus class="h-3.5 w-3.5" />Personalizar</button>
     </div>
     <div class="relative -mt-12 px-6 pb-6 sm:px-7">

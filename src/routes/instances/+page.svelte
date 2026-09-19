@@ -893,7 +893,7 @@
 	</div>
 
 	{#if showImportCode}
-		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md" transition:fade={{ duration: 150 }}>
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80" transition:fade={{ duration: 150 }}>
 			<div class="w-full max-w-md bg-bg-elevated border border-brand-500/30 rounded-3xl p-6 shadow-2xl">
 				<div class="flex items-center justify-between mb-4">
 					<div class="flex items-center gap-2">
@@ -941,7 +941,7 @@
 	{/if}
 
 	{#if healthCheckId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ duration: 150 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeHealthCheck(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeHealthCheck(); }}
 			role="dialog" aria-modal="true" aria-label={t("health.title")} tabindex="-1"
@@ -1001,7 +1001,7 @@
 	{/if}
 
 	{#if fileBrowserId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ duration: 150 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeFileBrowser(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeFileBrowser(); }}
 			role="dialog" aria-modal="true" aria-label={t("files.title")} tabindex="-1"
@@ -1052,7 +1052,7 @@
 	{/if}
 
 	{#if screenshotsId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ duration: 150 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeScreenshots(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeScreenshots(); }}
 			role="dialog" aria-modal="true" aria-label={t("screenshots.title")} tabindex="-1"
@@ -1098,7 +1098,7 @@
 	{/if}
 
 	{#if notesId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/60 backdrop-blur-sm" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ duration: 150 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeNotes(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeNotes(); }}
 			role="dialog" aria-modal="true" aria-label={t("instances.notes")} tabindex="-1"
@@ -1192,7 +1192,7 @@
 	</Modal>
 
 	{#if confirmDeleteInstance}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md p-4" transition:fade={{ duration: 150 }}>
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80 p-4" transition:fade={{ duration: 150 }}>
 			<div class="w-full max-w-md bg-bg-elevated border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4 select-none">
 				<div class="flex items-center gap-3">
 					<div class="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">

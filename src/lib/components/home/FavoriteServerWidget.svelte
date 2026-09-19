@@ -114,7 +114,7 @@
 
 <div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-elevated to-bg-elevated border border-fg/10 p-5 shadow-xl transition-all duration-300 hover:border-fg/20 group">
 	<!-- Background subtle ambient glow based on status -->
-	<div class="absolute -right-12 -top-12 w-44 h-44 rounded-full blur-3xl pointer-events-none transition-colors duration-500 {status?.online ? 'bg-emerald-500/10' : 'bg-rose-500/10'}"></div>
+	<div class="absolute -right-12 -top-12 w-44 h-44 rounded-full pointer-events-none transition-colors duration-500 {status?.online ? 'bg-[radial-gradient(circle_at_center,rgb(16_185_129/0.15),transparent_70%)]' : 'bg-[radial-gradient(circle_at_center,rgb(244_63_94/0.15),transparent_70%)]'}"></div>
 
 	<div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
 		<!-- Left: Icon & Server Info -->

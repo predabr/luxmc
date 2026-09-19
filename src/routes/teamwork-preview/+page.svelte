@@ -124,7 +124,7 @@
 <div class="p-6 md:p-8 space-y-8 max-w-7xl mx-auto">
 	<!-- Hero Card -->
 	<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-subtle to-bg border border-fg/10 p-7 shadow-2xl">
-		<div class="absolute -right-10 -top-10 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+		<div class="absolute -right-10 -top-10 w-80 h-80 bg-[radial-gradient(circle_at_center,rgb(16_185_129/0.15),transparent_70%)] rounded-full pointer-events-none"></div>
 		<div class="flex flex-col md:flex-row md:items-center justify-between gap-5 relative z-10">
 			<div class="flex items-center gap-4">
 				<div class="h-14 w-14 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center shadow-lg shadow-emerald-500/10">

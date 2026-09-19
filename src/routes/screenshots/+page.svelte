@@ -265,7 +265,7 @@
 						<p class="text-xs font-bold text-fg truncate drop-shadow-md">{s.name}</p>
 						<p class="text-[10px] text-brand-500 font-medium">{new Date(s.modified).toLocaleString()}</p>
 					</div>
-					<button class="absolute top-3 right-3 p-2 bg-red-500/20 text-red-300 rounded-xl opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-fg transition-all backdrop-blur-md cursor-pointer" onclick={(e) => { e.stopPropagation(); confirmDelete(s); }}>
+					<button class="absolute top-3 right-3 p-2 bg-red-500/20 text-red-300 rounded-xl opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-fg transition-all cursor-pointer" onclick={(e) => { e.stopPropagation(); confirmDelete(s); }}>
 						<Trash2 class="h-4 w-4" />
 					</button>
 				</div>
@@ -277,11 +277,11 @@
 {#if selectedImage}
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<!-- svelte-ignore a11y_no_static_element_interactions -->
-	<div class="fixed inset-0 z-[100] bg-bg-overlay/95 backdrop-blur-2xl flex flex-col items-center justify-center p-4 select-none" onclick={() => selectedImage = null} transition:fade={{duration: 200}}>
+	<div class="fixed inset-0 z-[100] bg-bg-overlay/95 flex flex-col items-center justify-center p-4 select-none" onclick={() => selectedImage = null} transition:fade={{duration: 200}}>
 		<div class="absolute top-6 left-6 right-6 flex items-center justify-between z-10" onclick={(e) => e.stopPropagation()}>
 			<span class="text-xs font-bold text-fg/80 truncate max-w-sm drop-shadow">{selectedImage.name}</span>
 			<div class="flex items-center gap-2">
-				<div class="flex items-center gap-1 bg-fg/10 backdrop-blur-md rounded-full px-2 py-1 border border-fg/10">
+				<div class="flex items-center gap-1 bg-fg/10 rounded-full px-2 py-1 border border-fg/10">
 					<button type="button" class="p-1.5 text-fg/70 hover:text-fg rounded-full hover:bg-fg/10 cursor-pointer" onclick={zoomOut} title="Diminuir Zoom (-)">
 						<ZoomOut class="w-3.5 h-3.5" />
 					</button>

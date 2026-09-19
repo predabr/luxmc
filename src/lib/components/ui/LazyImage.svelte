@@ -15,7 +15,6 @@
   
   let loaded = $state(false);
   let error = $state(false);
-  let imgEl: HTMLImageElement;
   
   function handleLoad() {
     loaded = true;
@@ -27,16 +26,15 @@
   }
 </script>
 
-<div class="relative {klass}">
+<div class="relative h-full w-full overflow-hidden">
   {#if !loaded}
     <div class="absolute inset-0 bg-bg-subtle rounded"></div>
   {/if}
   <img
-    bind:this={imgEl}
     {src}
     {alt}
     {loading}
-    class="transition-opacity duration-300 {loaded ? 'opacity-100' : 'opacity-0'} {klass}"
+    class="h-full w-full transition-opacity duration-200 {loaded ? 'opacity-100' : 'opacity-0'} {klass}"
     onload={handleLoad}
     onerror={handleError}
   />
@@ -44,7 +42,7 @@
     <img
       src={fallback}
       {alt}
-      class="absolute inset-0 {klass}"
+      class="absolute inset-0 h-full w-full {klass}"
     />
   {/if}
 </div>

@@ -472,15 +472,15 @@
 	>
 		<!-- Cosmic background mesh and glow -->
 		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
-		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-blue-500/10 blur-[130px] rounded-full pointer-events-none"></div>
+		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(59_130_246/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
 
 		<div 
-			class="w-full max-w-md bg-bg-elevated/95 backdrop-blur-2xl border border-fg/10 rounded-3xl p-8 shadow-elevated relative z-10 space-y-6"
-			in:fly={{ y: 20, duration: 300 }}
+			class="w-full max-w-md bg-bg-elevated border border-fg/10 rounded-3xl p-8 shadow-elevated relative z-10 space-y-6"
+			in:fly={{ y: 20, duration: 200 }}
 		>
 			<div class="flex flex-col items-center text-center space-y-3">
 				<div class="w-16 h-16 rounded-2xl bg-gradient-to-b from-bg-subtle to-bg-elevated border border-fg/15 p-2.5 shadow-2xl flex items-center justify-center relative group">
-					<div class="absolute inset-0 bg-blue-500/20 rounded-2xl blur-lg pointer-events-none group-hover:bg-blue-500/30 transition-all"></div>
+					<div class="absolute inset-0 bg-blue-500/15 rounded-2xl pointer-events-none group-hover:bg-blue-500/25 transition-all"></div>
 					<img src="/logo.png" alt="Luxmc" class="w-full h-full object-contain relative z-10" />
 				</div>
 				<div>
@@ -549,7 +549,7 @@
 						</div>
 					{:else}
 						<div class="w-20 h-20 rounded-2xl bg-bg-subtle border border-fg/10 flex items-center justify-center shadow-inner relative group">
-							<div class="absolute inset-0 bg-blue-500/10 rounded-2xl blur-md pointer-events-none"></div>
+							<div class="absolute inset-0 bg-blue-500/10 rounded-2xl pointer-events-none"></div>
 							<svg class="w-10 h-10 relative z-10" viewBox="0 0 24 24" fill="none">
 								<rect x="2" y="2" width="9" height="9" fill="#f25022" rx="1.5"/>
 								<rect x="13" y="2" width="9" height="9" fill="#7fba00" rx="1.5"/>

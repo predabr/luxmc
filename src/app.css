@@ -328,6 +328,25 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
   -webkit-backdrop-filter: none !important;
 }
 
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--fg) / 0.15) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgb(var(--fg) / 0.15);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--fg) / 0.3);
+}
+
 .lux-accent-text { color: rgb(var(--brand-400)); }
 .lux-accent-bg { background-color: rgb(var(--brand-500)); }
 .lux-accent-border { border-color: rgb(var(--brand-500)); }

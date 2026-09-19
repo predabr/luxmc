@@ -17,11 +17,6 @@
 	const loaders = $derived(item.categories.filter(category => ["fabric", "forge", "neoforge", "quilt"].includes(category.toLowerCase())));
 	const downloads = $derived(new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(item.downloads));
 	const isModpack = $derived(contentType === "Modpack");
-    const ambient = $derived.by(() => {
-        let hash = 0;
-        for (const character of item.title) hash = (Math.imul(hash, 31) + character.charCodeAt(0)) >>> 0;
-        return { x: 15 + hash % 55, y: 10 + (hash >>> 6) % 50, rotate: hash % 90 - 45 };
-    });
     const latest = $derived([...item.versions].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0]);
 	const mesh = $derived.by(() => {
 		let hash = 0;
