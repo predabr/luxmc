@@ -7,7 +7,7 @@ let generation = 0;
 async function api(action, body = {}, area = "account") {
   const response = await fetch(`/api/${area}/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" });
   let result;
-  try { result = await response.json(); } catch { throw new Error("O serviço de contas ainda não está disponível. Tente novamente em instantes."); }
+  try { result = await response.json(); } catch { throw new Error("O serviço de contas requer o portal Cloudflare Pages ativo (D1 e Functions)."); }
   if (!response.ok) {
     if (result.account) { current = result.account; fillPreferences(); }
     throw Object.assign(new Error(result.error || "Não foi possível concluir."), { status: response.status });
@@ -107,4 +107,4 @@ $("#friendSearch").addEventListener("submit", async event => {
   event.preventDefault(); try { const result = await api("search", { query: $("#friendNickname").value.trim() }, "social"); $("#searchResults").replaceChildren(...result.users.map(friend => friendRow(friend, true))); if (!result.users.length) message("Nenhum jogador encontrado."); } catch (error) { message(error.message, true); }
 });
 setMode(new URLSearchParams(location.search).get("mode") || "login");
-api("me").then(result => showAccount(result.account)).catch(error => { if (error.status !== 401) { $("#authError").textContent = error.message; $("#authError").hidden = false; } });
+api("me").then(result => showAccount(result.account)).catch(() => {});

@@ -99,6 +99,7 @@
 		void bootstrapSettings();
 		const initTimer = setTimeout(() => {
 			initialized = true;
+			showSplash = false;
 		}, 2500);
 		const ready = appInit().then((init) => {
 			clearTimeout(initTimer);
@@ -169,11 +170,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.7.4",
+					state: "Luxmc v1.7.5",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.7.4",
+					smallText: "Luxmc v1.7.5",
 					inGame: false
 				}).catch(() => {});
 			}
@@ -246,11 +247,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.7.4",
+					state: "Luxmc v1.7.5",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.7.4",
+					smallText: "Luxmc v1.7.5",
 					inGame: false
 				}).catch(() => {});
 			}
@@ -329,14 +330,14 @@
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
 			let details = "No Menu Principal";
-			let state = "Luxmc v1.7.4";
+			let state = "Luxmc v1.7.5";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
 				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
 				details = "Gerenciando Instâncias";
-				state = "Luxmc v1.7.4";
+				state = "Luxmc v1.7.5";
 			} else if (currentPath.startsWith("/instances/")) {
 				details = "Configurando Instância";
 				state = "Ajustando Mods & Versões";
@@ -362,7 +363,7 @@
 				state,
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
-				smallText: "Luxmc v1.7.4",
+				smallText: "Luxmc v1.7.5",
 				smallImage: "grass",
 				inGame: false
 			}).catch(() => {});

@@ -34,6 +34,24 @@
 
 	const officialNews: LauncherArticle[] = [
 		{
+			id: "v1.7.5",
+			title: "Luxmc v1.7.5 — Inicialização Ultrarrápida, Ícone Tux Linux & Portal Renovado",
+			tag: "Oficial",
+			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+			date: "19 de Setembro, 2026",
+			version: "v1.7.5",
+			image: "/news_1.jpg",
+			summary: "Atualização com inicialização sem congelamento de tela, substituição do ícone Linux pelo mascote oficial Tux o Pinguim, novo Gamer Card 3D e backend de contas resiliente.",
+			highlights: [
+				"Inicialização protegida com timeout máximo na tela de splash, garantindo 0 congelamento em tela cinza",
+				"Novo ícone oficial do Linux (Tux o Pinguim) no site e no launcher",
+				"Remoção completa de imagens genéricas/IA de fundo por degradês modernos estilo obsidian",
+				"Sincronização web/launcher com cartão gamer HUD atualizado e status em tempo real",
+				"Correção de tratamento de erros no portal de contas Cloudflare D1"
+			],
+			link: "https://luxmc-r92.pages.dev/#releases"
+		},
+		{
 			id: "v1.7.4",
 			title: "Luxmc v1.7.4 — Correção Definitiva de Modpacks & CDN Resiliente",
 			tag: "Oficial",

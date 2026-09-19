@@ -116,14 +116,15 @@
 					details: "No Launcher",
 					state: "Explorando o Luxmc",
 					largeImage: "luxmc_logo",
-					smallText: "Luxmc v1.7.4",
+					smallText: "Luxmc v1.7.5",
 					startTime: Math.floor(Date.now() / 1000)
 				}).catch(() => {});
 				optimizerTrimMemory().catch(() => {});
 			} catch {}
 		})();
 
-		await discordPromise;
+		const maxWait = new Promise<void>(r => setTimeout(r, 2200));
+		await Promise.race([discordPromise, maxWait]);
 
 		if (!skipped && !completed) {
 			updateStage(4);
@@ -137,6 +138,7 @@
 	onMount(() => {
 		generateParticles();
 		warmup();
+		const forceTimer = setTimeout(() => { if (!completed) { skipped = true; finish(); } }, 2800);
 
 		keyHandler = (e: KeyboardEvent) => {
 			if (e.key === " " || e.key === "Enter" || e.key === "Escape") {
