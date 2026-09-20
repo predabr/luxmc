@@ -15,8 +15,18 @@ use crate::error::AppResult;
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "1.7.6";
+const LAUNCHER_VERSION: &str = "1.7.7";
 static CLIENT_AGENT_JAR: &[u8] = include_bytes!("../../../assets/luxmc-client-agent.jar");
+static ACTIVE_CAPE_BYTES: tokio::sync::RwLock<Vec<u8>> = tokio::sync::RwLock::const_new(Vec::new());
+
+pub async fn set_active_cape_bytes(bytes: Vec<u8>) {
+    let mut lock = ACTIVE_CAPE_BYTES.write().await;
+    *lock = bytes;
+}
+
+pub async fn get_active_cape_bytes() -> Vec<u8> {
+    ACTIVE_CAPE_BYTES.read().await.clone()
+}
 
 /// Pipeline state machine. Every transition is emitted to the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -406,7 +416,17 @@ impl GameLauncher {
             None
         };
 
-        if is_msa && !has_explicit_custom_skin && effective_cape.is_none() {
+        let has_explicit_custom_cape = effective_cape
+            .as_deref()
+            .filter(|c| !c.trim().is_empty())
+            .map(|c| {
+                let trimmed = c.trim();
+                !trimmed.starts_with("https://textures.minecraft.net/")
+                    && !trimmed.starts_with("http://textures.minecraft.net/")
+            })
+            .unwrap_or(false);
+
+        if is_msa && !has_explicit_custom_skin && !has_explicit_custom_cape {
             self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
             let _ = clean_skin_injection(game_dir).await;
         } else {
@@ -434,11 +454,12 @@ impl GameLauncher {
             if let Some((skin_source, variant)) = skin_info {
                 self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
                 let _ = inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), &profile.mc_version).await;
-            } else if !is_msa || effective_cape.is_some() {
+            } else if !is_msa || has_explicit_custom_cape {
                 let default_source = format!("https://minotar.net/skin/{}", username);
                 let _ = inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), &profile.mc_version).await;
             }
         }
+
 
         self.emit_stage(LaunchStage::ResolvingArgs);
         let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
@@ -522,7 +543,7 @@ impl GameLauncher {
             );
         }
 
-        let is_modpack = profile.loader == "forge"
+        let _is_modpack = profile.loader == "forge"
             || profile.loader == "neoforge"
             || profile.loader == "fabric"
             || profile.loader == "quilt"
@@ -540,19 +561,14 @@ impl GameLauncher {
             self.resolve_duplicate_mods(game_dir);
         }
 
-        let is_modpack_effective = is_modpack || has_mods;
-
-        if !is_modpack_effective {
-            let agent_path = game_dir.join("luxmc-client-agent.jar");
-            if let Err(e) = std::fs::write(&agent_path, CLIENT_AGENT_JAR) {
-                self.emit_log(&format!("Aviso: Não foi possível extrair Luxmc Client Agent: {}", e));
-            } else {
-                safe_jvm_args.push(format!("-javaagent:{}", agent_path.to_string_lossy()));
-                self.emit_log("Luxmc Client PvP Agent anexado (Right Shift menu in-game ativo)");
-            }
+        let agent_path = game_dir.join("luxmc-client-agent.jar");
+        if let Err(e) = std::fs::write(&agent_path, CLIENT_AGENT_JAR) {
+            self.emit_log(&format!("Aviso: Não foi possível extrair Luxmc Client Agent: {}", e));
         } else {
-            self.emit_log("Instância de modpack detectada. Luxmc Client Agent isolado para preservar 100% de integridade.");
+            safe_jvm_args.push(format!("-javaagent:{}", agent_path.to_string_lossy()));
+            self.emit_log("Luxmc Client Agent anexado (Right Shift menu in-game ativo)");
         }
+
 
         let cmd_display = format!(
             "{} {} {} {}",
@@ -803,16 +819,10 @@ impl GameLauncher {
             while let Ok(Some(line)) = lines.next_line().await {
                 if line.contains("[LUXMC_CLIENT] TOGGLE_OVERLAY") {
                     if let Some(ref app) = app_for_overlay {
-                        use tauri::Manager;
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.unminimize();
-                            let _ = window.show();
-                            let _ = window.set_always_on_top(true);
-                            let _ = window.set_focus();
-                        }
-                        let _ = app.emit("luxmc-toggle-overlay", ());
+                        crate::commands::system::trigger_overlay_toggle(app);
                     }
                 }
+
                 let mut line = line;
                 if line.len() > 2000 { line.truncate(2000); }
                 if let Some(ref mut f) = log_file {
@@ -1327,30 +1337,86 @@ impl GameLauncher {
     fn resolve_duplicate_mods(&self, game_dir: &std::path::Path) {
         let mods_dir = game_dir.join("mods");
         let Ok(entries) = std::fs::read_dir(&mods_dir) else { return; };
-        let mut jar_files: Vec<(std::path::PathBuf, String, u64, std::time::SystemTime)> = Vec::new();
+
+        let overrides_set: std::collections::HashSet<String> = {
+            let overrides_json = game_dir.join(".luxmc/overrides.json");
+            if let Ok(bytes) = std::fs::read(overrides_json) {
+                if let Ok(files) = serde_json::from_slice::<Vec<serde_json::Value>>(&bytes) {
+                    files.into_iter().filter_map(|f| {
+                        f.get("path")
+                            .and_then(|p| p.as_str())
+                            .and_then(|s| s.strip_prefix("mods/"))
+                            .map(|s| s.to_lowercase())
+                    }).collect()
+                } else {
+                    std::collections::HashSet::new()
+                }
+            } else {
+                std::collections::HashSet::new()
+            }
+        };
+
+        struct ModCandidate {
+            path: std::path::PathBuf,
+            clean_jar_name: String,
+            is_currently_disabled: bool,
+            is_override: bool,
+            version_numbers: Vec<u64>,
+            size: u64,
+            mtime: std::time::SystemTime,
+        }
+
+        let mut all_files: Vec<ModCandidate> = Vec::new();
 
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() && path.extension().map_or(false, |e| e == "jar") {
+            if path.is_file() {
                 let fname = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                if fname.ends_with(".disabled") {
-                    continue;
+                let is_jar = fname.ends_with(".jar");
+                let is_disabled = fname.ends_with(".jar.disabled") || fname.ends_with(".disabled");
+                if is_jar || is_disabled {
+                    let clean_jar_name = if is_disabled {
+                        fname.strip_suffix(".disabled").unwrap_or(&fname).to_string()
+                    } else {
+                        fname.clone()
+                    };
+
+                    let meta = std::fs::metadata(&path).ok();
+                    let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+                    let mtime = meta.and_then(|m| m.modified().ok()).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+
+                    let clean_lower = clean_jar_name.to_lowercase();
+                    let is_override = overrides_set.contains(&clean_lower) || {
+                        let stem = clean_lower.strip_suffix(".jar").unwrap_or(&clean_lower);
+                        overrides_set.iter().any(|o| o.contains(stem))
+                    };
+
+                    let re = regex::Regex::new(r"\d+").unwrap();
+                    let version_numbers: Vec<u64> = re.find_iter(&clean_jar_name)
+                        .filter_map(|m| m.as_str().parse::<u64>().ok())
+                        .collect();
+
+                    all_files.push(ModCandidate {
+                        path,
+                        clean_jar_name,
+                        is_currently_disabled: is_disabled,
+                        is_override,
+                        version_numbers,
+                        size,
+                        mtime,
+                    });
                 }
-                let meta = std::fs::metadata(&path).ok();
-                let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
-                let mtime = meta.and_then(|m| m.modified().ok()).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-                jar_files.push((path, fname, size, mtime));
             }
         }
 
-        if jar_files.len() < 2 {
+        if all_files.len() < 2 {
             return;
         }
 
-        let mut groups: std::collections::HashMap<String, Vec<(std::path::PathBuf, String, u64, std::time::SystemTime)>> = std::collections::HashMap::new();
+        let mut groups: std::collections::HashMap<String, Vec<ModCandidate>> = std::collections::HashMap::new();
 
-        for item in jar_files {
-            let stem = item.1.strip_suffix(".jar").unwrap_or(&item.1).to_lowercase();
+        for item in all_files {
+            let stem = item.clean_jar_name.strip_suffix(".jar").unwrap_or(&item.clean_jar_name).to_lowercase();
             let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();
             let non_version_parts: Vec<&str> = parts
                 .into_iter()
@@ -1370,16 +1436,34 @@ impl GameLauncher {
 
         for (base, mut list) in groups {
             if list.len() > 1 {
-                list.sort_by(|a, b| b.3.cmp(&a.3).then_with(|| b.2.cmp(&a.2)));
-                let keep = &list[0];
-                for duplicate in &list[1..] {
-                    let disabled_name = format!("{}.disabled", duplicate.1);
-                    let disabled_path = mods_dir.join(disabled_name);
-                    if std::fs::rename(&duplicate.0, &disabled_path).is_ok() {
+                list.sort_by(|a, b| {
+                    b.is_override.cmp(&a.is_override)
+                        .then_with(|| b.version_numbers.cmp(&a.version_numbers))
+                        .then_with(|| b.size.cmp(&a.size))
+                        .then_with(|| b.mtime.cmp(&a.mtime))
+                });
+
+                let winner = &list[0];
+                if winner.is_currently_disabled {
+                    let active_winner_path = mods_dir.join(&winner.clean_jar_name);
+                    if std::fs::rename(&winner.path, &active_winner_path).is_ok() {
                         self.emit_log(&format!(
-                            "Conflito de mod evitado ({base}): desativando duplicata '{}' em favor da versão mais recente '{}'",
-                            duplicate.1, keep.1
+                            "Reativando versão mais recente do mod ({base}): '{}' (restaurado de .disabled)",
+                            winner.clean_jar_name
                         ));
+                    }
+                }
+
+                for duplicate in &list[1..] {
+                    if !duplicate.is_currently_disabled {
+                        let disabled_name = format!("{}.disabled", duplicate.clean_jar_name);
+                        let disabled_path = mods_dir.join(&disabled_name);
+                        if std::fs::rename(&duplicate.path, &disabled_path).is_ok() {
+                            self.emit_log(&format!(
+                                "Conflito de mod evitado ({base}): desativando duplicata '{}' em favor da versão mais recente '{}'",
+                                duplicate.clean_jar_name, winner.clean_jar_name
+                            ));
+                        }
                     }
                 }
             }
@@ -2484,7 +2568,10 @@ async fn inject_player_skin(
             (cape_bytes.clone(), cape_bytes)
         };
 
+        set_active_cape_bytes(normalized_cape_bytes.clone()).await;
+
         let u_clean = username.trim();
+
         let u_lower = u_clean.to_lowercase();
 
         let optifine_users_dir = pack_dir.join("assets/minecraft/optifine/users");

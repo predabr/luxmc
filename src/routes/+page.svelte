@@ -348,7 +348,7 @@
 				largeText: targetProfile.name,
 				largeImage: targetProfile.icon || "grass",
 				smallImage: targetProfile.loader === "fabric" ? "fabric" : "grass",
-				smallText: `Luxmc v1.7.6`,
+				smallText: `Luxmc v1.7.7`,
 				startTime: Math.floor(Date.now() / 1000),
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },

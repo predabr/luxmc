@@ -132,6 +132,18 @@ pub async fn app_init_core(
             if is_expired {
                 let client_id = crate::commands::auth::get_configured_client_id().await;
                 if let Ok(refreshed) = state.auth.refresh_account_with_client_id(&acc.refresh_token, Some(&client_id)).await {
+                    let is_custom_cape = acc.cape_url.as_deref().map(|c| {
+                        let trimmed = c.trim();
+                        !trimmed.is_empty()
+                            && !trimmed.starts_with("https://textures.minecraft.net/")
+                            && !trimmed.starts_with("http://textures.minecraft.net/")
+                    }).unwrap_or(false);
+                    let effective_cape = if is_custom_cape {
+                        acc.cape_url.clone()
+                    } else {
+                        refreshed.cape_url.or_else(|| acc.cape_url.clone())
+                    };
+
                     let updated_row = AccountRow {
                         id: refreshed.id.clone(),
                         username: refreshed.username.clone(),
@@ -143,7 +155,7 @@ pub async fn app_init_core(
                         updated_at: chrono::Utc::now(),
                         skin_url: refreshed.skin_url.or_else(|| acc.skin_url.clone()),
                         skin_variant: refreshed.skin_variant.or_else(|| acc.skin_variant.clone()),
-                        cape_url: refreshed.cape_url.or_else(|| acc.cape_url.clone()),
+                        cape_url: effective_cape,
                     };
                     let _ = crate::db::schema::accounts::upsert(&db, &updated_row).await;
                     account = Some(updated_row);
@@ -153,7 +165,14 @@ pub async fn app_init_core(
     }
 
     if let Some(ref mut acc) = account {
-        if (acc.skin_url.is_none() || acc.cape_url.is_none()) && !acc.uuid.is_empty() {
+        let is_custom_cape = acc.cape_url.as_deref().map(|c| {
+            let trimmed = c.trim();
+            !trimmed.is_empty()
+                && !trimmed.starts_with("https://textures.minecraft.net/")
+                && !trimmed.starts_with("http://textures.minecraft.net/")
+        }).unwrap_or(false);
+
+        if (acc.skin_url.is_none() || (acc.cape_url.is_none() && !is_custom_cape)) && !acc.uuid.is_empty() {
             if let Some((skin_url, skin_variant, cape_url)) = fetch_mojang_textures(&acc.uuid).await {
                 if acc.skin_url.is_none() {
                     acc.skin_url = Some(skin_url);
@@ -161,7 +180,7 @@ pub async fn app_init_core(
                 if acc.skin_variant.is_none() && skin_variant.is_some() {
                     acc.skin_variant = skin_variant;
                 }
-                if acc.cape_url.is_none() && cape_url.is_some() {
+                if !is_custom_cape && acc.cape_url.is_none() && cape_url.is_some() {
                     acc.cape_url = cape_url;
                 }
             }
@@ -239,11 +258,47 @@ pub fn get_system_specs() -> SystemSpecs {
     }
 }
 
+static LAST_OVERLAY_TOGGLE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+pub fn trigger_overlay_toggle(app: &tauri::AppHandle) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    let mut prev = LAST_OVERLAY_TOGGLE.load(std::sync::atomic::Ordering::SeqCst);
+    loop {
+        if now.saturating_sub(prev) < 500 {
+            return;
+        }
+        match LAST_OVERLAY_TOGGLE.compare_exchange_weak(
+            prev,
+            now,
+            std::sync::atomic::Ordering::SeqCst,
+            std::sync::atomic::Ordering::SeqCst,
+        ) {
+            Ok(_) => break,
+            Err(actual) => prev = actual,
+        }
+    }
+
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_always_on_top(true);
+        let _ = window.set_focus();
+    }
+    use tauri::Emitter;
+    let _ = app.emit("luxmc-toggle-overlay", ());
+}
+
 #[tauri::command]
 pub fn client_overlay_close(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_always_on_top(false);
+        let _ = window.minimize();
     }
     Ok(())
 }
+

@@ -38,6 +38,14 @@
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
+			id: "luxmc-v1-7-7",
+			title: "Luxmc v1.7.7: Capas In-Game & Suporte All The Mods 10",
+			body: "Capas salvas in-game, resolução inteligente de dependências ATM10 e Right Shift em mods.",
+			publishedAt: "Hoje",
+			tag: "v1.7.7",
+			url: "/news"
+		},
+		{
 			id: "luxmc-v1-7-6",
 			title: "Luxmc v1.7.6: Barra Sincronizada & NeoForge ATM10",
 			body: "Barra lateral translúcida conectada ao wallpaper, correções gráficas e performance extrema.",
@@ -45,6 +53,7 @@
 			tag: "v1.7.6",
 			url: "/news"
 		},
+
 		{
 			id: "luxmc-v1-7-5",
 			title: "Luxmc v1.7.5: Aceleração GPU & Modo Streamer",

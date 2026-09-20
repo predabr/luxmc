@@ -83,10 +83,29 @@
 			link: "https://modrinth.com/mod/sodium"
 		},
 		{
+			id: "v1.7.7",
+			title: "Luxmc v1.7.7 — Capas In-Game, Resolução Inteligente ATM10 & Shift Direito em Mods",
+			tag: "Oficial",
+			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+			date: "20 de Setembro, 2026",
+			version: "v1.7.7",
+			image: "/news_1.jpg",
+			summary: "Correção definitiva da colisão de dependências do modpack All The Mods 10 (ATM10), persistência de capas customizadas in-game e suporte a Shift Direito em instâncias com mods.",
+			highlights: [
+				"Resolução inteligente de mods com prioridade a overrides e semver para ATM10",
+				"Persistência de capas do launcher (Enderman Minecon, Luxmc) in-game para contas MSA",
+				"Menu in-game com Shift Direito habilitado em instâncias modded (NeoForge, Forge, Fabric, Quilt)",
+				"Debounce atômico de 500ms prevenindo saída acidental do modo tela cheia",
+				"Correção de miniaturas quebradas na visualização de mods da instância"
+			],
+			link: "https://luxmc-r92.pages.dev/#destaques"
+		},
+		{
 			id: "v1.7.6",
 			title: "Luxmc v1.7.6 — Barra Lateral Translúcida, Suporte NeoForge ATM10 & Zero GLFW Crash",
 			tag: "Oficial",
 			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+
 			date: "20 de Setembro, 2026",
 			version: "v1.7.6",
 			image: "/news_1.jpg",

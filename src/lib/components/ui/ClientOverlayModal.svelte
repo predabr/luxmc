@@ -43,6 +43,7 @@
 		LayoutTemplate
 	} from "lucide-svelte";
 	import { clientMods, type ClientModsConfig } from "$lib/stores/clientMods.svelte";
+	import { appState } from "$lib/stores/app.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { playSound } from "$lib/utils/sound";
 	import { clientOverlayClose } from "$lib/api";
@@ -130,9 +131,11 @@
 
 	async function handleClose() {
 		clientMods.close();
-		try {
-			await clientOverlayClose();
-		} catch {}
+		if (appState.isGameRunning) {
+			try {
+				await clientOverlayClose();
+			} catch {}
+		}
 	}
 
 	function handleToggle(key: keyof ClientModsConfig) {
@@ -330,8 +333,9 @@
 					</div>
 
 					<div class="flex items-center gap-4">
-						<span>PvP & FPS Suite v1.7.6</span>
+						<span>PvP & FPS Suite v1.7.7</span>
 					</div>
+
 				</div>
 			</div>
 		</div>

@@ -47,12 +47,13 @@
 	import { appState } from "$lib/stores/app.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
-	import { activeSkinStore } from "$lib/stores/skin.svelte";
+	import { activeSkinStore, type CapeType } from "$lib/stores/skin.svelte";
+	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { crashDoctor } from "$lib/stores/crashDoctor.svelte";
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
-	import { appInit, discordSetActivity, listenGameExit, crashDoctorDiagnose, clientOverlayClose } from "$lib/api";
+	import { appInit, discordSetActivity, listenGameExit, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
@@ -107,6 +108,39 @@
 			initialized = true;
 			appState.devMode = init.devMode;
 			if (init.account) {
+				let savedSkinData: { hasCape?: boolean; capeType?: CapeType; customCapeUrl?: string } | null = null;
+				if (typeof window !== "undefined") {
+					try {
+						const raw = localStorage.getItem("luxmc_active_skin_data");
+						if (raw) savedSkinData = JSON.parse(raw);
+					} catch {}
+				}
+
+				const currentSkin = activeSkinStore.current;
+				const savedCapeType = savedSkinData?.capeType ?? currentSkin.capeType;
+				const savedHasCape = savedSkinData?.hasCape ?? currentSkin.hasCape;
+				const savedCustomCapeUrl = savedSkinData?.customCapeUrl ?? currentSkin.customCapeUrl;
+
+				const hasUserChosenCape = Boolean(savedHasCape && savedCapeType && savedCapeType !== "none");
+				let capeType: CapeType = "none";
+				let hasCape = false;
+				let customCapeUrl = "";
+				let effectiveCapeUrl: string | null = null;
+
+				if (hasUserChosenCape && savedCapeType) {
+					hasCape = true;
+					capeType = savedCapeType;
+					customCapeUrl = savedCustomCapeUrl || "";
+					effectiveCapeUrl = savedCapeType === "custom"
+						? (customCapeUrl || init.account.capeUrl || null)
+						: (getFullCapeDataUrl(savedCapeType) || null);
+				} else if (init.account.capeUrl) {
+					hasCape = true;
+					capeType = "custom";
+					customCapeUrl = init.account.capeUrl;
+					effectiveCapeUrl = init.account.capeUrl;
+				}
+
 				account.value = {
 					id: init.account.id,
 					username: init.account.username,
@@ -115,7 +149,7 @@
 					expiresAt: init.account.expiresAt ? new Date(init.account.expiresAt).getTime() : 0,
 					skinUrl: init.account.skinUrl ?? null,
 					skinVariant: init.account.skinVariant ?? null,
-					capeUrl: init.account.capeUrl ?? null,
+					capeUrl: effectiveCapeUrl,
 				};
 				if (typeof window !== "undefined") {
 					try {
@@ -130,10 +164,13 @@
 					skinUrl,
 					avatarUrl: `https://mc-heads.net/avatar/${init.account.username}/100`,
 					type: init.account.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve",
-					hasCape: Boolean(init.account.capeUrl),
-					capeType: init.account.capeUrl ? "custom" : "none",
-					customCapeUrl: init.account.capeUrl || ""
+					hasCape,
+					capeType,
+					customCapeUrl
 				});
+				if (hasUserChosenCape && effectiveCapeUrl && effectiveCapeUrl !== init.account.capeUrl) {
+					void authSetAccountCape(init.account.id, effectiveCapeUrl).catch(() => {});
+				}
 			} else if (typeof window !== "undefined") {
 				const saved = localStorage.getItem("luxmc_current_account");
 				if (saved) {
@@ -171,13 +208,14 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.7.6",
+					state: "Luxmc v1.7.7",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.7.6",
+					smallText: "Luxmc v1.7.7",
 					inGame: false
 				}).catch(() => {});
+
 			}
 			if (typeof window !== "undefined" && (init.stressTest || window.location.search.includes("test_leak=1"))) {
 				showSplash = false;
@@ -240,14 +278,15 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.7.6",
+					state: "Luxmc v1.7.7",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.7.6",
+					smallText: "Luxmc v1.7.7",
 					inGame: false
 				}).catch(() => {});
 			}
+
 			if (settings.value.soundscapesEnabled === true && !appState.performanceMode) {
 				startSoundscape("overworld");
 			}
@@ -273,7 +312,9 @@
 				if (disposed) return;
 				clientMods.toggleMenu();
 				if (!clientMods.isMenuOpen) {
-					clientOverlayClose().catch(() => {});
+					if (appState.isGameRunning) {
+						clientOverlayClose().catch(() => {});
+					}
 				}
 			}).then((unlisten) => {
 				if (disposed) unlisten();
@@ -333,14 +374,14 @@
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
 			let details = "No Menu Principal";
-			let state = "Luxmc v1.7.6";
+			let state = "Luxmc v1.7.7";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
 				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
 				details = "Gerenciando Instâncias";
-				state = "Luxmc v1.7.6";
+				state = "Luxmc v1.7.7";
 			} else if (currentPath.startsWith("/instances/")) {
 				details = "Configurando Instância";
 				state = "Ajustando Mods & Versões";
@@ -366,7 +407,7 @@
 				state,
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
-				smallText: "Luxmc v1.7.6",
+				smallText: "Luxmc v1.7.7",
 				inGame: false,
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
@@ -392,7 +433,9 @@
 					e.preventDefault();
 					clientMods.toggleMenu();
 					if (!clientMods.isMenuOpen) {
-						clientOverlayClose().catch(() => {});
+						if (appState.isGameRunning) {
+							clientOverlayClose().catch(() => {});
+						}
 					}
 					return;
 				}

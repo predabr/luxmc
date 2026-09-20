@@ -12,7 +12,7 @@ public class Program
             {
                 app = "Luxmc.Launcher",
                 engine = ".NET 8 Core Engine",
-                version = "1.7.6",
+                version = "1.7.7",
                 commands = new[] { "launch", "validate", "diagnose", "gc-tune", "version" }
             }));
             return 0;
@@ -82,7 +82,7 @@ public class Program
 
                 case "version":
                 {
-                    Console.WriteLine("Luxmc.Launcher 1.7.6 (.NET 8.0 Native AOT / Single-File)");
+                    Console.WriteLine("Luxmc.Launcher 1.7.7 (.NET 8.0 Native AOT / Single-File)");
                     return 0;
                 }
 

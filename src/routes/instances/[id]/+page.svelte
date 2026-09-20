@@ -1211,7 +1211,7 @@
 				largeText: activeProfile?.name || `Minecraft ${verId}`,
 				largeImage: modpackCover,
 				smallImage: activeProfile?.loader === "fabric" ? "fabric" : (activeProfile?.loader === "forge" ? "curse" : "grass"),
-				smallText: `Luxmc v1.7.6`,
+				smallText: `Luxmc v1.7.7`,
 				startTime: Math.floor(Date.now() / 1000),
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
@@ -1636,19 +1636,18 @@
 								<div class="bg-bg-elevated/90 hover:bg-bg-subtle border border-fg/5 hover:border-fg/15 p-3.5 rounded-2xl flex items-center justify-between transition-all group shadow-sm hover:shadow-md {isDisabled ? 'opacity-50' : ''}" style="content-visibility: auto;">
 									<div class="flex items-center gap-3.5 min-w-0">
 										<div class="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-md relative {isDisabled ? 'grayscale opacity-60' : ''}">
+											<div class="w-full h-full bg-gradient-to-br {badge.theme} border border-fg/10 flex flex-col items-center justify-center shadow-inner select-none">
+												<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
+												<span class="text-[7px] font-bold opacity-70 tracking-widest uppercase">MOD</span>
+											</div>
 											{#if mod.icon}
 												<img
 													src={mod.icon}
 													alt={displayName}
 													loading="lazy"
-													class="w-full h-full object-cover rounded-2xl border border-fg/10 [image-rendering:pixelated]"
+													class="absolute inset-0 w-full h-full object-cover rounded-2xl border border-fg/10 [image-rendering:pixelated]"
 													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
 												/>
-											{:else}
-												<div class="w-full h-full bg-gradient-to-br {badge.theme} border flex flex-col items-center justify-center shadow-inner select-none">
-													<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
-													<span class="text-[7px] font-bold opacity-70 tracking-widest uppercase">MOD</span>
-												</div>
 											{/if}
 										</div>
 										<div class="min-w-0">

@@ -102,3 +102,8 @@ export async function authSetClientId(clientId: string): Promise<void> {
 export async function authChangeSkin(uuid: string, variant: string, skinUrl: string): Promise<void> {
 	return api.invoke("auth_change_skin", { uuid, variant, skinUrl });
 }
+
+export async function authSetAccountCape(uuid: string, capeUrl: string | null): Promise<void> {
+	return api.invoke("auth_set_account_cape", { uuid, capeUrl });
+}
+

@@ -523,7 +523,7 @@ async fn dispatch_command(
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let project_id = args.get("projectId").or_else(|| args.get("project_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let version_id = args.get("versionId").or_else(|| args.get("version_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let res = crate::commands::mods::mods_update_core(&state, profile_id, project_id, version_id).await.map_err(|e| e.to_string())?;
+            let res = crate::commands::mods::mods_update_core(&state, project_id, version_id, profile_id).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "mods_download_to_temp" => {

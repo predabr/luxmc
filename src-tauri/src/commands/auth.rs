@@ -354,6 +354,20 @@ pub async fn auth_offline_login(username: String) -> AppResult<AuthAccount> {
 
 async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
+    let existing_row = crate::db::schema::accounts::get_by_uuid(&db, &account.uuid).await.ok().flatten();
+    let is_custom_cape = existing_row.as_ref().and_then(|r| r.cape_url.as_deref()).map(|c| {
+        let trimmed = c.trim();
+        !trimmed.is_empty()
+            && !trimmed.starts_with("https://textures.minecraft.net/")
+            && !trimmed.starts_with("http://textures.minecraft.net/")
+    }).unwrap_or(false);
+
+    let preserved_cape = if is_custom_cape {
+        existing_row.as_ref().and_then(|r| r.cape_url.clone())
+    } else {
+        account.cape_url.clone()
+    };
+
     let row = AccountRow {
         id: account.id.clone(),
         username: account.username.clone(),
@@ -367,7 +381,7 @@ async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<()>
         updated_at: chrono::Utc::now(),
         skin_url: account.skin_url.clone(),
         skin_variant: account.skin_variant.clone(),
-        cape_url: account.cape_url.clone(),
+        cape_url: preserved_cape,
     };
     crate::db::schema::accounts::upsert(&db, &row).await?;
     let _ = set_active_account_id(&account.id).await;
@@ -451,7 +465,27 @@ pub async fn auth_change_skin(
     updated.updated_at = chrono::Utc::now();
     crate::db::schema::accounts::upsert(&db, &updated).await?;
 
-
     Ok(())
 }
+
+#[tauri::command]
+pub async fn auth_set_account_cape(
+    uuid: String,
+    cape_url: Option<String>,
+) -> AppResult<()> {
+    let db = crate::db::shared_db().await?;
+    let res = sqlx::query("UPDATE accounts SET cape_url = ?, updated_at = ? WHERE uuid = ? OR id = ?")
+        .bind(&cape_url)
+        .bind(chrono::Utc::now())
+        .bind(&uuid)
+        .bind(&uuid)
+        .execute(db.pool())
+        .await?;
+
+    if res.rows_affected() == 0 {
+        return Err(AppError::NotFound(format!("Account not found: {}", uuid)));
+    }
+    Ok(())
+}
+
 

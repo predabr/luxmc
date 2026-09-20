@@ -2,7 +2,7 @@
     import { button } from "$lib/components/ui/button";
 	import { onMount, untrack } from "svelte";
 	import { deepLinks } from "$lib/stores/deepLinks.svelte";
-	import { authChangeSkin } from "$lib/api/auth";
+	import { authChangeSkin, authSetAccountCape } from "$lib/api/auth";
 	import { 
 		RefreshCw, 
 		Upload, 
@@ -213,7 +213,14 @@
 					skinVariant: skinType === "alex" ? "slim" : "classic",
 					capeUrl: hasCape ? capeUrl : null
 				};
+				if (typeof window !== "undefined") {
+					try {
+						localStorage.setItem("luxmc_current_account", JSON.stringify(account.value));
+					} catch {}
+				}
+				await authSetAccountCape(account.value.id, hasCape ? capeUrl : null).catch(() => {});
 			}
+
 
 			toast("Skin e capa aplicadas com sucesso! Seu Minecraft já usará este visual.", "success");
 		} catch (e) {

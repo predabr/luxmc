@@ -253,13 +253,19 @@ class ClientModsStore {
 		}
 	}
 
+	private lastToggleTime = 0;
+
 	toggleMenu() {
+		const now = Date.now();
+		if (now - this.lastToggleTime < 500) return;
+		this.lastToggleTime = now;
 		this.isMenuOpen = !this.isMenuOpen;
 		if (!this.isMenuOpen) {
 			this.selectedModuleForConfig = null;
 			this.isPreviewingHud = false;
 		}
 	}
+
 
 	open() {
 		this.isMenuOpen = true;

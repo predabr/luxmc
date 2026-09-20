@@ -67,24 +67,32 @@ pub async fn run() {
             tauri::async_runtime::spawn(async move {
                 if let Ok(listener) = tokio::net::TcpListener::bind("127.0.0.1:49152").await {
                     while let Ok((mut socket, _)) = listener.accept().await {
-                        use tokio::io::AsyncReadExt;
-                        use tauri::Emitter;
-                        let mut buf = [0u8; 64];
+                        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+                        let mut buf = [0u8; 1024];
                         if let Ok(n) = socket.read(&mut buf).await {
                             let msg = String::from_utf8_lossy(&buf[..n]);
-                            if msg.contains("TOGGLE") {
-                                if let Some(window) = handle_overlay.get_webview_window("main") {
-                                    let _ = window.unminimize();
-                                    let _ = window.show();
-                                    let _ = window.set_always_on_top(true);
-                                    let _ = window.set_focus();
+                            if msg.starts_with("GET /cape") || msg.starts_with("GET /optifine") {
+                                let cape_bytes = crate::core::launcher::get_active_cape_bytes().await;
+                                if !cape_bytes.is_empty() {
+                                    let header = format!(
+                                        "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+                                        cape_bytes.len()
+                                    );
+                                    let _ = socket.write_all(header.as_bytes()).await;
+                                    let _ = socket.write_all(&cape_bytes).await;
+                                } else {
+                                    let header = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                                    let _ = socket.write_all(header.as_bytes()).await;
                                 }
-                                let _ = handle_overlay.emit("luxmc-toggle-overlay", ());
+                                let _ = socket.flush().await;
+                            } else if msg.contains("TOGGLE") {
+                                crate::commands::system::trigger_overlay_toggle(&handle_overlay);
                             }
                         }
                     }
                 }
             });
+
 
             Ok(())
         })
@@ -123,6 +131,7 @@ pub async fn run() {
             commands::auth::auth_get_tenant_id,
             commands::auth::auth_set_client_id,
             commands::auth::auth_change_skin,
+            commands::auth::auth_set_account_cape,
             commands::profiles::profiles_list,
             commands::profiles::profiles_get,
             commands::profiles::profiles_create,

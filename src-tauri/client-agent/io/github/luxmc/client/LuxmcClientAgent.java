@@ -12,7 +12,7 @@ public class LuxmcClientAgent {
     private static long lastToggleTime = 0;
 
     public static void premain(String agentArgs, Instrumentation inst) {
-        System.out.println("[LUXMC_CLIENT] Luxmc Client PvP Suite initialized (v1.7.6)");
+        System.out.println("[LUXMC_CLIENT] Luxmc Client PvP Suite initialized (v1.7.7)");
         System.out.println("[LUXMC_CLIENT] In-game menu hotkey: Right Shift (Shift Direito)");
 
         Thread hookThread = new Thread(new Runnable() {
@@ -106,13 +106,14 @@ public class LuxmcClientAgent {
             }
 
             long now = System.currentTimeMillis();
-            if (isDown && !wasRightShiftDown && (now - lastToggleTime > 250)) {
+            if (isDown && !wasRightShiftDown && (now - lastToggleTime > 500)) {
                 lastToggleTime = now;
                 wasRightShiftDown = true;
                 triggerToggle();
             } else if (!isDown) {
                 wasRightShiftDown = false;
             }
+
         }
     }
 

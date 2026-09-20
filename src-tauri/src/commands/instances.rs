@@ -549,11 +549,28 @@ pub(crate) async fn download_cf_mod_file(
         let disabled = pack::destination(mods_dir, &format!("{}.disabled", info.file_name))?;
         let root = mods_dir.parent().unwrap_or(mods_dir);
         if let Ok(bytes) = tokio::fs::read(root.join(".luxmc/overrides.json")).await {
-            let overrides: Vec<MrpackFile> = serde_json::from_slice(&bytes)?;
-            if let Some(file) = overrides.iter().find(|file| file.path == format!("mods/{}", info.file_name)) {
-                ensure_mrpack_file(&pack::client()?, root, file, None).await?;
-                pack::atomic_write(&metadata_path, &serde_json::to_vec(&info)?).await?;
-                return Ok(());
+            if let Ok(overrides) = serde_json::from_slice::<Vec<MrpackFile>>(&bytes) {
+                let info_stem = info.file_name.strip_suffix(".jar").unwrap_or(&info.file_name).to_lowercase();
+                let info_parts: Vec<&str> = info_stem.split(&['-', '_'][..]).collect();
+                let info_base: String = info_parts.into_iter().take_while(|p| !p.chars().any(|c| c.is_ascii_digit())).collect::<Vec<_>>().join("-");
+                if let Some(file) = overrides.iter().find(|file| {
+                    if file.path == format!("mods/{}", info.file_name) {
+                        return true;
+                    }
+                    if !info_base.is_empty() && info_base.len() >= 3 {
+                        if let Some(over_name) = file.path.strip_prefix("mods/") {
+                            let over_stem = over_name.strip_suffix(".jar").unwrap_or(over_name).to_lowercase();
+                            let over_parts: Vec<&str> = over_stem.split(&['-', '_'][..]).collect();
+                            let over_base: String = over_parts.into_iter().take_while(|p| !p.chars().any(|c| c.is_ascii_digit())).collect::<Vec<_>>().join("-");
+                            return over_base == info_base;
+                        }
+                    }
+                    false
+                }) {
+                    ensure_mrpack_file(&pack::client()?, root, file, None).await?;
+                    pack::atomic_write(&metadata_path, &serde_json::to_vec(&info)?).await?;
+                    return Ok(());
+                }
             }
         }
         let valid = |bytes: &[u8]| pack::verify(bytes, info.size, info.sha1.as_deref(), None)
