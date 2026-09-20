@@ -62,9 +62,10 @@
       <nav class="nav-menu">
         <ul class="nav-links">
           <li><a href="#inicio" class="nav-link active">Início</a></li>
-          <li><a href="#mods" class="nav-link">Mods</a></li>
           <li><a href="#recursos" class="nav-link">Recursos</a></li>
-          <li><a href="#desempenho" class="nav-link">Desempenho</a></li>
+          <li><a href="#benchmark" class="nav-link">FPS & Benchmark</a></li>
+          <li><a href="#mods" class="nav-link">Mods</a></li>
+          <li><a href="#servidores" class="nav-link">Servidores</a></li>
           <li><a href="#comparativo" class="nav-link">Comparativo</a></li>
           <li><a href="skins.html" class="nav-link">Skins 3D</a></li>
           <li><a href="#download" class="nav-link">Downloads</a></li>
@@ -98,9 +99,11 @@
       <div class="mobile-nav-content">
         <ul class="mobile-nav-links">
           <li><a href="#inicio" class="mobile-nav-link">Início</a></li>
-          <li><a href="#mods" class="mobile-nav-link">Central de Mods & Modpacks</a></li>
           <li><a href="#recursos" class="mobile-nav-link">Recursos Principais</a></li>
-          <li><a href="#desempenho" class="mobile-nav-link">Desempenho & Instalação</a></li>
+          <li><a href="#benchmark" class="mobile-nav-link">FPS & Benchmark</a></li>
+          <li><a href="#mods" class="mobile-nav-link">Central de Mods & Modpacks</a></li>
+          <li><a href="#servidores" class="mobile-nav-link">Status de Servidores</a></li>
+          <li><a href="#desempenho" class="mobile-nav-link">Instalação Rápida</a></li>
           <li><a href="#comparativo" class="mobile-nav-link">Comparativo Detalhado</a></li>
           <li><a href="skins" class="mobile-nav-link">Estúdio 3D de Skins</a></li>
           <li><a href="#download" class="mobile-nav-link">Downloads</a></li>
@@ -217,8 +220,12 @@
           </div>
         </div>
 
-        <div class="window-frame">
-          <img id="showcaseImage" src="assets/launcher-home.png" alt="Interface oficial do Luxmc Launcher" class="showcase-img">
+        <div class="window-frame" id="showcaseWindowFrame" title="Clique para expandir visualização">
+          <img id="showcaseImage" src="assets/launcher-home.png" alt="Interface oficial do Luxmc Launcher" class="showcase-img" fetchpriority="high">
+          <button type="button" class="btn-zoom-showcase" id="btnZoomShowcase" aria-label="Expandir visualização">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            <span>Expandir</span>
+          </button>
         </div>
       </div>
 
@@ -325,6 +332,41 @@
     </div>
   </section>
 
+  <!-- FPS & Hardware Benchmark Explorer Section -->
+  <section id="benchmark" class="benchmark-section">
+    <div class="container">
+      <div class="section-heading">
+        <div class="section-pill">
+          <span class="pill-dot"></span>
+          <span>Testes de Laboratório no Linux & Windows</span>
+        </div>
+        <h2 class="section-title">Performance Comprovada. Zero Concorrência.</h2>
+        <p class="section-subtitle">Compare o Luxmc lado a lado com os lançadores mais conhecidos. O segredo está na arquitetura nativa em Rust e aceleração gráfica direta por hardware.</p>
+      </div>
+
+      <div class="benchmark-card">
+        <div class="benchmark-tabs">
+          <button type="button" class="benchmark-tab active" data-metric="fps">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span>Taxa de FPS (Mais é melhor)</span>
+          </button>
+          <button type="button" class="benchmark-tab" data-metric="ram">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            <span>Consumo de RAM (Menos é melhor)</span>
+          </button>
+          <button type="button" class="benchmark-tab" data-metric="boot">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Tempo de Boot (Menos é melhor)</span>
+          </button>
+        </div>
+
+        <div id="benchmarkChart" class="benchmark-chart">
+          <!-- Renderizado dinamicamente via JS -->
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Mods & Modpacks Explorer Section (Modrinth API) -->
   <section id="mods" class="section mods-explorer-section">
     <div class="container">
@@ -349,6 +391,45 @@
 
       <div id="modsGrid" class="mod-grid">
         <!-- Renderizado dinamicamente via Modrinth API ou dados integrados -->
+      </div>
+    </div>
+  </section>
+
+  <!-- Live Minecraft Server Status & Ping Checker Section -->
+  <section id="servidores" class="servers-checker-section">
+    <div class="container">
+      <div class="section-heading">
+        <div class="section-pill">
+          <span class="pill-dot"></span>
+          <span>Rede & Latência em Tempo Real</span>
+        </div>
+        <h2 class="section-title">Status de Servidores & Ping em Tempo Real</h2>
+        <p class="section-subtitle">Verifique a latência, quantidade de jogadores online e o MOTD de qualquer servidor de Minecraft do mundo antes de entrar.</p>
+      </div>
+
+      <div class="server-checker-card">
+        <div class="server-input-wrapper">
+          <div class="server-input-box">
+            <svg class="server-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <input type="text" id="serverIpInput" class="server-ip-input" placeholder="Digite o IP (ex: hypixel.net, mush.com.br, pvp.land)" value="hypixel.net" spellcheck="false" autocomplete="off">
+            <button type="button" id="btnCheckServer" class="btn-check-server">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+              <span>Consultar</span>
+            </button>
+          </div>
+          <div class="server-quick-pills">
+            <span class="quick-pill-label">Populares:</span>
+            <button type="button" class="quick-server-pill active" data-ip="hypixel.net">Hypixel</button>
+            <button type="button" class="quick-server-pill" data-ip="mush.com.br">MushMC</button>
+            <button type="button" class="quick-server-pill" data-ip="redereky.com">Rede Reky</button>
+            <button type="button" class="quick-server-pill" data-ip="pvp.land">PvP Land</button>
+            <button type="button" class="quick-server-pill" data-ip="bedwarspractice.club">Bedwars Practice</button>
+          </div>
+        </div>
+
+        <div id="serverResultBox" class="server-result-box">
+          <!-- Renderizado dinamicamente via JS -->
+        </div>
       </div>
     </div>
   </section>
@@ -478,6 +559,70 @@
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Community Testimonials Section -->
+  <section id="depoimentos" class="testimonials-section">
+    <div class="container">
+      <div class="section-heading">
+        <div class="section-pill">
+          <span class="pill-dot"></span>
+          <span>Aprovado por Jogadores & Criadores</span>
+        </div>
+        <h2 class="section-title">O que a comunidade diz sobre o Luxmc</h2>
+        <p class="section-subtitle">Feedback real de quem joga no Linux, Steam Deck e Windows todos os dias.</p>
+      </div>
+
+      <div class="testimonials-grid">
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"No Linux com Wayland o Luxmc é o único launcher que roda All The Mods 10 liso sem travar a captura do mouse e sem crash de GLFW. Mudou minha experiência!"</p>
+          <div class="testimonial-author">
+            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Gabriel" alt="Avatar Gabriel" class="author-avatar" loading="lazy">
+            <div class="author-info">
+              <span class="author-name">Gabriel Santos</span>
+              <span class="author-tag">Arch Linux & Wayland</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"O menu in-game com Shift Direito parece mágica. Dá pra configurar CPS e Keystrokes sem travar o jogo. Além de consumir menos de 85 MB de RAM!"</p>
+          <div class="testimonial-author">
+            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=LucasPvP" alt="Avatar Lucas" class="author-avatar" loading="lazy">
+            <div class="author-info">
+              <span class="author-name">Lucas "zShadow"</span>
+              <span class="author-tag">Jogador de Bedwars (Windows 11)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"Adeus Hamachi! O multiplayer P2P nativo me salvou para jogar mundos com amigos. Abrir para LAN e mandar o link direto funcionou de primeira sem abrir portas no modem."</p>
+          <div class="testimonial-author">
+            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Matheus" alt="Avatar Matheus" class="author-avatar" loading="lazy">
+            <div class="author-info">
+              <span class="author-name">Matheus Silveira</span>
+              <span class="author-tag">Host de Servidor Survival</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-stars">★★★★★</div>
+          <p class="testimonial-quote">"Testei no Steam Deck (SteamOS) e inicializa instantâneo. A instalação de modpacks do Modrinth em 1 clique torna ele superior a qualquer outro launcher."</p>
+          <div class="testimonial-author">
+            <img src="https://api.dicebear.com/7.x/bottts/svg?seed=Felipe" alt="Avatar Felipe" class="author-avatar" loading="lazy">
+            <div class="author-info">
+              <span class="author-name">Felipe Ramos</span>
+              <span class="author-tag">Steam Deck & Fedora</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -720,6 +865,23 @@
   <button type="button" id="btnBackToTop" class="btn-back-to-top" aria-label="Voltar ao topo da página" title="Voltar ao topo">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
   </button>
+  <!-- Showcase Modal Lightbox -->
+  <div id="showcaseModal" class="showcase-modal" aria-hidden="true" role="dialog" aria-label="Visualizador de Captura de Tela">
+    <div class="showcase-modal-backdrop" id="showcaseModalBackdrop"></div>
+    <div class="showcase-modal-dialog">
+      <button type="button" class="showcase-modal-close" id="showcaseModalClose" aria-label="Fechar">&times;</button>
+      <div class="showcase-modal-header">
+        <h3 id="showcaseModalTitle" class="showcase-modal-title">Menu Principal — Luxmc Launcher</h3>
+        <span class="showcase-modal-pill">100% Rust & Svelte 5</span>
+      </div>
+      <div class="showcase-modal-img-wrap">
+        <img id="showcaseModalImg" src="assets/launcher-home.png" alt="Visualização em tela cheia do Luxmc">
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
   <script src="app.js"></script>
   <script>

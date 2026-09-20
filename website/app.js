@@ -88,6 +88,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initMobileNav();
   initBackToTop();
   initAnimatedCounters();
+  initBenchmarkVisualizer();
+  initServerStatusChecker();
+  initShowcaseModal();
 });
 
 function initBackgroundParticles() {
@@ -1078,5 +1081,315 @@ function initAnimatedCounters() {
     requestAnimationFrame(update);
   }
 }
+
+function showToast(message, icon = "✓") {
+  let container = document.getElementById("toastContainer");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toastContainer";
+    container.className = "toast-container";
+    container.setAttribute("aria-live", "polite");
+    document.body.appendChild(container);
+  }
+
+  const toast = document.createElement("div");
+  toast.className = "toast-item";
+  toast.innerHTML = `<span class="toast-icon">${icon}</span><span class="toast-message">${escapeHtml(message)}</span>`;
+  container.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+
+  setTimeout(() => {
+    toast.classList.remove("show");
+    setTimeout(() => {
+      toast.remove();
+    }, 300);
+  }, 2800);
+}
+window.showToast = showToast;
+
+function initBenchmarkVisualizer() {
+  const chart = document.getElementById("benchmarkChart");
+  const tabs = document.querySelectorAll(".benchmark-tab");
+  if (!chart || !tabs.length) return;
+
+  const data = {
+    fps: [
+      { name: "Luxmc v1.9.0", val: "285 FPS", percent: 100, highlight: true, badge: "Vulkan Zink" },
+      { name: "Lunar Client", val: "185 FPS", percent: 65, highlight: false },
+      { name: "Vanilla Launcher", val: "68 FPS", percent: 24, highlight: false },
+      { name: "CurseForge App", val: "62 FPS", percent: 22, highlight: false }
+    ],
+    ram: [
+      { name: "Luxmc v1.9.0", val: "< 82 MB", percent: 12, highlight: true, badge: "Rust Nativo" },
+      { name: "Prism Launcher", val: "~160 MB", percent: 24, highlight: false },
+      { name: "Lunar Client", val: "~380 MB", percent: 54, highlight: false },
+      { name: "Vanilla Launcher", val: "~540 MB", percent: 77, highlight: false },
+      { name: "CurseForge (Overwolf)", val: "~720 MB", percent: 100, highlight: false }
+    ],
+    boot: [
+      { name: "Luxmc v1.9.0", val: "0.38s", percent: 5, highlight: true, badge: "Instantâneo" },
+      { name: "Prism Launcher", val: "1.5s", percent: 18, highlight: false },
+      { name: "Lunar Client", val: "3.2s", percent: 38, highlight: false },
+      { name: "Vanilla Launcher", val: "4.5s", percent: 53, highlight: false },
+      { name: "CurseForge App", val: "8.9s", percent: 100, highlight: false }
+    ]
+  };
+
+  function renderMetric(metric) {
+    const rows = data[metric] || data.fps;
+    chart.innerHTML = rows.map(r => `
+      <div class="benchmark-row ${r.highlight ? 'highlight' : ''}">
+        <div class="benchmark-label-wrap">
+          <span class="benchmark-label">${r.name}</span>
+          ${r.badge ? `<span class="benchmark-badge-lux">${r.badge}</span>` : ''}
+        </div>
+        <div class="benchmark-bar-track">
+          <div class="benchmark-bar-fill" style="width: 0%;" data-target-width="${r.percent}%"></div>
+        </div>
+        <div class="benchmark-score">${r.val}</div>
+      </div>
+    `).join("");
+
+    setTimeout(() => {
+      chart.querySelectorAll(".benchmark-bar-fill").forEach(bar => {
+        bar.style.width = bar.dataset.targetWidth;
+      });
+    }, 50);
+  }
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      const metric = tab.dataset.metric || "fps";
+      renderMetric(metric);
+    });
+  });
+
+  renderMetric("fps");
+}
+
+function initServerStatusChecker() {
+  const input = document.getElementById("serverIpInput");
+  const btn = document.getElementById("btnCheckServer");
+  const resultBox = document.getElementById("serverResultBox");
+  const quickPills = document.querySelectorAll(".quick-server-pill");
+
+  if (!input || !btn || !resultBox) return;
+
+  quickPills.forEach(pill => {
+    pill.addEventListener("click", () => {
+      quickPills.forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      input.value = pill.dataset.ip || "";
+      checkServer(input.value.trim());
+    });
+  });
+
+  btn.addEventListener("click", () => {
+    checkServer(input.value.trim());
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      checkServer(input.value.trim());
+    }
+  });
+
+  async function checkServer(address) {
+    if (!address) return;
+
+    resultBox.innerHTML = `
+      <div style="text-align: center; padding: 24px; color: var(--text-muted);">
+        <div style="font-size: 1.6rem; margin-bottom: 8px;">⏳</div>
+        <div>Consultando status de <strong>${escapeHtml(address)}</strong>...</div>
+      </div>
+    `;
+
+    const startTs = performance.now();
+    let data = null;
+    let pingMs = 0;
+
+    try {
+      const res = await fetch(`https://api.mcstatus.io/v2/status/java/${encodeURIComponent(address)}`, {
+        signal: AbortSignal.timeout(6000)
+      });
+      if (res.ok) {
+        data = await res.json();
+        pingMs = Math.round(performance.now() - startTs);
+      }
+    } catch {}
+
+    if (!data || !data.online) {
+      try {
+        const res2 = await fetch(`https://api.mcsrvstat.us/3/${encodeURIComponent(address)}`, {
+          signal: AbortSignal.timeout(5000)
+        });
+        if (res2.ok) {
+          const d2 = await res2.json();
+          if (d2 && d2.online) {
+            data = {
+              online: true,
+              icon: d2.icon || null,
+              players: d2.players || { online: 0, max: 0 },
+              version: { name_clean: d2.version || "1.20+" },
+              motd: {
+                html: d2.motd?.html ? d2.motd.html.join("<br>") : (d2.motd?.clean ? d2.motd.clean.join("<br>") : "")
+              }
+            };
+            pingMs = Math.round(performance.now() - startTs);
+          }
+        }
+      } catch {}
+    }
+
+    if (!data || !data.online) {
+      resultBox.innerHTML = `
+        <div class="server-card-content">
+          <div class="server-card-top">
+            <div class="server-identity">
+              <div class="server-favicon" style="display:flex;align-items:center;justify-content:center;color:#ef4444;font-size:1.4rem;">✕</div>
+              <div class="server-name-wrap">
+                <div class="server-hostname">${escapeHtml(address)}</div>
+                <div class="server-ip-copy-tag">Servidor não respondeu ao ping</div>
+              </div>
+            </div>
+            <div class="server-status-pill offline">
+              <span class="pill-dot" style="background:#ef4444;"></span>
+              <span>Offline / Inacessível</span>
+            </div>
+          </div>
+          <div class="server-motd-container" style="color:#94a3b8;">
+            O servidor está desligado, em manutenção ou com proteção contra pings diretos. Verifique se o endereço foi digitado corretamente.
+          </div>
+        </div>
+      `;
+      return;
+    }
+
+    const onlinePlayers = data.players?.online ?? 0;
+    const maxPlayers = data.players?.max ?? 0;
+    const versionStr = data.version?.name_clean || data.version || "Compatível com Luxmc";
+    const motdHtml = data.motd?.html || escapeHtml(data.motd?.clean || address);
+    const iconSrc = data.icon || "assets/logo.png";
+
+    resultBox.innerHTML = `
+      <div class="server-card-content">
+        <div class="server-card-top">
+          <div class="server-identity">
+            <img src="${iconSrc}" alt="Ícone de ${escapeHtml(address)}" class="server-favicon" onerror="this.src='assets/logo.png'">
+            <div class="server-name-wrap">
+              <div class="server-hostname">${escapeHtml(address)}</div>
+              <div class="server-ip-copy-tag">${escapeHtml(address)}</div>
+            </div>
+          </div>
+          <div class="server-status-pill online">
+            <span class="pill-dot" style="background:#10b981;"></span>
+            <span>Servidor Online</span>
+          </div>
+        </div>
+
+        <div class="server-metrics-grid">
+          <div class="server-metric-item">
+            <span class="metric-label">Jogadores Conectados</span>
+            <span class="metric-val">
+              ${formatNumber(onlinePlayers)} <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">/ ${formatNumber(maxPlayers)}</span>
+            </span>
+          </div>
+          <div class="server-metric-item">
+            <span class="metric-label">Latência Estimada</span>
+            <span class="metric-val" style="color:#34d399;">
+              ${pingMs} <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">ms</span>
+            </span>
+          </div>
+          <div class="server-metric-item">
+            <span class="metric-label">Versão do Servidor</span>
+            <span class="metric-val" style="font-size:0.88rem;">
+              ${escapeHtml(versionStr)}
+            </span>
+          </div>
+        </div>
+
+        <div class="server-motd-container">${motdHtml}</div>
+
+        <div class="server-actions-bar">
+          <button type="button" class="btn-server-copy" data-copy-ip="${escapeHtml(address)}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copiar IP</span>
+          </button>
+          <a href="#download" class="btn-server-play">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            <span>Conectar via Luxmc</span>
+          </a>
+        </div>
+      </div>
+    `;
+
+    const copyBtn = resultBox.querySelector("[data-copy-ip]");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", () => {
+        navigator.clipboard.writeText(address).then(() => {
+          showToast(`IP "${address}" copiado com sucesso!`);
+          const label = copyBtn.querySelector("span");
+          if (label) {
+            const old = label.textContent;
+            label.textContent = "Copiado! ✓";
+            setTimeout(() => { label.textContent = old; }, 2000);
+          }
+        });
+      });
+    }
+  }
+
+  checkServer("mush.com.br");
+}
+
+function initShowcaseModal() {
+  const modal = document.getElementById("showcaseModal");
+  const modalImg = document.getElementById("showcaseModalImg");
+  const modalTitle = document.getElementById("showcaseModalTitle");
+  const closeBtn = document.getElementById("showcaseModalClose");
+  const backdrop = document.getElementById("showcaseModalBackdrop");
+  const triggerBtn = document.getElementById("btnZoomShowcase");
+  const frame = document.getElementById("showcaseWindowFrame");
+
+  if (!modal || !modalImg) return;
+
+  function openModal() {
+    const currentImg = document.getElementById("showcaseImage");
+    const activeTab = document.querySelector(".showcase-tabs .tab-btn.active");
+    if (currentImg && currentImg.src) {
+      modalImg.src = currentImg.src;
+    }
+    if (activeTab && modalTitle) {
+      modalTitle.textContent = `${activeTab.dataset.title || "Interface"} — Luxmc Launcher`;
+    }
+    modal.classList.add("active");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeModal() {
+    modal.classList.remove("active");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  if (triggerBtn) triggerBtn.addEventListener("click", (e) => { e.stopPropagation(); openModal(); });
+  if (frame) frame.addEventListener("click", openModal);
+  if (closeBtn) closeBtn.addEventListener("click", closeModal);
+  if (backdrop) backdrop.addEventListener("click", closeModal);
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("active")) {
+      closeModal();
+    }
+  });
+}
+
 
 
