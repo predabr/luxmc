@@ -17,7 +17,8 @@ export async function discordSetActivity(
 			smallImage: detailsOrOptions.smallImage,
 			startTime: detailsOrOptions.startTime,
 			inGame: detailsOrOptions.inGame,
-			clientId: detailsOrOptions.clientId
+			clientId: detailsOrOptions.clientId,
+			buttons: detailsOrOptions.buttons
 		});
 	}
 	return api.invoke<boolean>("discord_set_activity", { details: detailsOrOptions, state, largeText, largeImage });

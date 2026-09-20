@@ -348,8 +348,12 @@
 				largeText: targetProfile.name,
 				largeImage: targetProfile.icon || "grass",
 				smallImage: targetProfile.loader === "fabric" ? "fabric" : "grass",
-				smallText: `Luxmc · ${targetProfile.loader}`,
-				startTime: Math.floor(Date.now() / 1000)
+				smallText: `Luxmc v1.7.6`,
+				startTime: Math.floor(Date.now() / 1000),
+				buttons: [
+					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
+					{ label: "Site Oficial", url: "https://luxmc-r92.pages.dev" }
+				]
 			}).catch(() => {});
 
 			toast(`🎮 Minecraft ${verId} iniciado! (PID: ${result.pid})`, "success");

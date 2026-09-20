@@ -13,10 +13,13 @@
 		ExternalLink,
 		RefreshCw,
 		Trash2,
-		AlertCircle
+		AlertCircle,
+		Download,
+		Sparkles
 	} from "lucide-svelte";
 	import { settings, type AppSettings } from "$lib/stores/settings.svelte";
 	import { appState } from "$lib/stores/app.svelte";
+	import { updaterStore } from "$lib/stores/updater.svelte";
 	import { themeStore, THEMES, ACCENTS } from "$lib/stores/theme.svelte";
 	import { setLocale, schedulePersist } from "$lib/stores/persistence.svelte";
 	import { account } from "$lib/stores/account.svelte";
@@ -278,7 +281,72 @@
 
 	{#if activeTab === "general"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.general")}</h2>
+			<div class="flex items-center justify-between">
+				<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.general")}</h2>
+				<span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-fg/5 text-fg/60 border border-fg/10">
+					Versão 1.7.6
+				</span>
+			</div>
+
+			<div class="bg-gradient-to-r from-brand-500/10 via-bg-elevated to-blue-500/10 border border-brand-500/20 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+				<div class="space-y-1.5">
+					<div class="flex items-center gap-2">
+						<span class="text-xs font-bold uppercase tracking-wider text-brand-400 flex items-center gap-1.5">
+							<Sparkles class="w-3.5 h-3.5" /> Atualizador Automático Integrado
+						</span>
+						{#if updaterStore.updateAvailable}
+							<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
+								Nova Versão Disponível
+							</span>
+						{:else}
+							<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-fg/5 text-fg/60 border border-fg/10">
+								Sistema Atualizado
+							</span>
+						{/if}
+					</div>
+					<h3 class="text-base font-bold text-fg">
+						{#if updaterStore.updateAvailable}
+							Luxmc v{updaterStore.newVersion || "1.7.6"} pronto para instalar
+						{:else}
+							Você está executando a versão mais recente do Luxmc (v1.7.6)
+						{/if}
+					</h3>
+					<p class="text-xs text-fg/50">
+						{#if updaterStore.lastChecked}
+							Última verificação: {new Date(updaterStore.lastChecked).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+						{:else}
+							Verificação rápida e automática de novas versões e correções
+						{/if}
+					</p>
+				</div>
+
+				<div class="flex items-center gap-3 shrink-0">
+					{#if updaterStore.updateAvailable}
+						<button
+							type="button"
+							onclick={() => updaterStore.downloadAndInstall()}
+							disabled={updaterStore.isDownloading}
+							class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg-deep font-bold text-xs transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
+						>
+							{#if updaterStore.isDownloading}
+								<RefreshCw class="w-4 h-4 animate-spin" /> Baixando {updaterStore.downloadProgress}%
+							{:else}
+								<Download class="w-4 h-4" /> Atualizar Agora
+							{/if}
+						</button>
+					{:else}
+						<button
+							type="button"
+							onclick={() => updaterStore.check(true)}
+							disabled={updaterStore.isChecking}
+							class="px-4 py-2.5 rounded-xl bg-bg border border-fg/10 hover:border-brand-500/40 text-fg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer"
+						>
+							<RefreshCw class="w-4 h-4 {updaterStore.isChecking ? 'animate-spin text-brand-400' : 'text-fg/60'}" />
+							{updaterStore.isChecking ? "Verificando..." : "Verificar Atualizações"}
+						</button>
+					{/if}
+				</div>
+			</div>
 
 			<div class="bg-bg-elevated border border-fg/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
 				
@@ -332,8 +400,11 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-fg">Discord Rich Presence</h3>
-						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.discordRpcDesc")}</p>
+						<div class="flex items-center gap-2">
+							<h3 class="text-sm font-bold text-fg">Discord Rich Presence</h3>
+							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">v1.7.6</span>
+						</div>
+						<p class="text-xs text-fg/50 leading-relaxed">Exibe seu status, mundo, modpack e tempo de jogo no Discord com botões de conexão direta</p>
 					</div>
 					<button
 						type="button"

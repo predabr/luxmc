@@ -233,14 +233,6 @@
 				if (settings.value.showLogsOnLaunch === "on_crash") {
 					import("$app/navigation").then(({ goto }) => goto("/logs")).catch(() => {});
 				}
-
-				if (lastProfileId) {
-					crashDoctorDiagnose(lastProfileId, event.errorMessage).then((diagnosis) => {
-						if (diagnosis && diagnosis.hasError) {
-							crashDoctor.open(diagnosis, lastProfileId);
-						}
-					}).catch(() => {});
-				}
 			} else {
 				achievements.unlock("primeira_noite");
 			}
@@ -267,7 +259,7 @@
 		const telemetryPromise = listenGameTelemetry((summary) => {
 			if (disposed) return;
 			telemetryData = summary;
-			showTelemetryModal = true;
+			showTelemetryModal = false;
 		});
 		telemetryPromise.then((unlisten) => {
 			if (disposed) { unlisten(); return; }
@@ -359,8 +351,11 @@
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallText: "Luxmc v1.7.6",
-				smallImage: "grass",
-				inGame: false
+				inGame: false,
+				buttons: [
+					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
+					{ label: "Site Oficial", url: "https://luxmc-r92.pages.dev" }
+				]
 			}).catch(() => {});
 		}, 300);
 

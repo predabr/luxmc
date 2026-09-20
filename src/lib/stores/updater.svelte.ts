@@ -44,9 +44,11 @@ function isNewerVersion(current: string, latest: string): boolean {
 	return false;
 }
 
+let lastChecked = $state<string | null>(null);
+
 function resolveAssetUrl(assets: GitHubAsset[]): string {
 	if (!assets || assets.length === 0) return "";
-	const ua = typeof navigator !== "undefined" ? navigator.userAgent.toLowerCase() : "";
+	const ua = typeof navigator !== "undefined" ? (navigator.userAgent + " " + (navigator.platform || "")).toLowerCase() : "";
 	const isWin = ua.includes("win");
 	const isMac = ua.includes("mac");
 
@@ -59,14 +61,12 @@ function resolveAssetUrl(assets: GitHubAsset[]): string {
 		const dmg = assets.find((a) => a.name.toLowerCase().endsWith(".dmg"));
 		if (dmg) return dmg.browser_download_url;
 	} else {
-		// Linux default
 		const appImage = assets.find((a) => a.name.toLowerCase().endsWith(".appimage"));
 		if (appImage) return appImage.browser_download_url;
 		const deb = assets.find((a) => a.name.toLowerCase().endsWith(".deb"));
 		if (deb) return deb.browser_download_url;
 	}
 
-	// Fallback to first executable asset
 	const fallback = assets.find((a) =>
 		a.name.toLowerCase().endsWith(".appimage") ||
 		a.name.toLowerCase().endsWith(".exe") ||
@@ -85,8 +85,19 @@ export const updaterStore = {
 	get downloadUrl() { return downloadUrl; },
 	get isChecking() { return isChecking; },
 	get isUpdating() { return isUpdating; },
+	get isDownloading() { return isUpdating; },
 	get progressPercent() { return progressPercent; },
+	get downloadProgress() { return progressPercent; },
 	get statusText() { return statusText; },
+	get lastChecked() { return lastChecked; },
+	get newVersion() { return latestVersion; },
+	get updateAvailable() {
+		return Boolean(latestVersion && currentVersion && isNewerVersion(currentVersion, latestVersion));
+	},
+
+	async downloadAndInstall() {
+		return this.startUpdate();
+	},
 
 	async check(interactive = false) {
 		if (isChecking) return;
@@ -102,6 +113,7 @@ export const updaterStore = {
 			}
 
 			const data = await res.json();
+			lastChecked = new Date().toLocaleTimeString();
 			const tag: string = data.tag_name || "";
 			latestVersion = tag.replace(/^v/i, "");
 			releaseUrl = data.html_url || "https://github.com/predabr/luxmc/releases/latest";

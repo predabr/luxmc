@@ -87,7 +87,7 @@
 	);
 </script>
 
-<aside class="shrink-0 flex flex-col gap-4 select-none pb-4 transition-all duration-200 {collapsed ? 'w-12' : 'w-[280px]'}">
+<aside class="shrink-0 flex flex-col gap-4 select-none pb-8 h-full overflow-y-auto custom-scrollbar transition-all duration-200 {collapsed ? 'w-12' : 'w-[280px]'}">
 	<button type="button" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-bg-elevated/80 p-3 text-fg-muted hover:text-fg" onclick={() => collapsed = !collapsed} aria-label={collapsed ? "Expandir amigos" : "Minimizar amigos"} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">Amigos</span>{/if}</button>
 	{#if !collapsed}
 	{#if !friendsState.me}<a href="/friends" class="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-xs text-brand-300">Conectar à rede social</a>{/if}

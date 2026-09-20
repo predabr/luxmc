@@ -776,6 +776,7 @@ async fn dispatch_command(
             let start_time = args.get("startTime").and_then(|v| v.as_i64());
             let in_game = args.get("inGame").and_then(|v| v.as_bool());
             let client_id = args.get("clientId").and_then(|v| v.as_str()).map(|s| s.to_string());
+            let buttons: Option<Vec<crate::commands::discord::DiscordButton>> = args.get("buttons").and_then(|v| serde_json::from_value(v.clone()).ok());
             let _ = crate::commands::discord::discord_set_activity(
                 details,
                 act_state,
@@ -786,6 +787,7 @@ async fn dispatch_command(
                 start_time,
                 in_game,
                 client_id,
+                buttons,
             ).await;
             Ok(Value::Bool(true))
         },

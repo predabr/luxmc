@@ -31,6 +31,11 @@
 		skyfactory: "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
 		"zombie invade": "https://media.forgecdn.net/attachments/403/328/banner.png",
 		"all the mods": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
+		"all the mods 10": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
+		"all the mods 9": "https://media.forgecdn.net/attachments/542/374/banner.png",
+		"atm10": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
+		"atm9": "https://media.forgecdn.net/attachments/542/374/banner.png",
+		"atm8": "https://media.forgecdn.net/attachments/542/374/banner.png",
 		"better mc": "/modpack_better_mc.webp",
 		cobblemon: "/modpack_cobblemon.webp",
 		"fabulously optimized": "/modpack_fo.webp",
@@ -38,7 +43,21 @@
 		dawncraft: "https://media.forgecdn.net/attachments/474/883/banner.png",
 		"medieval mc": "https://media.forgecdn.net/attachments/418/850/banner.png",
 		sevtech: "https://media.forgecdn.net/attachments/231/13/banner.png",
-		stoneblock: "https://media.forgecdn.net/attachments/251/72/banner.png"
+		stoneblock: "https://media.forgecdn.net/attachments/251/72/banner.png",
+		prominence: "https://media.forgecdn.net/attachments/625/441/prominence_banner.png",
+		"vault hunters": "https://media.forgecdn.net/attachments/420/55/vh3_banner.png",
+		"create astral": "https://media.forgecdn.net/attachments/460/320/banner.png",
+		"create chronicles": "https://media.forgecdn.net/attachments/584/104/banner.png",
+		"roguelike adventures": "https://media.forgecdn.net/attachments/478/924/rad2_banner.png",
+		"rad 2": "https://media.forgecdn.net/attachments/478/924/rad2_banner.png",
+		"simply optimized": "https://cdn.modrinth.com/data/bKUGbHwI/images/b07cbde1b24bf20a320ff7b57b98df9ad01b54a7.png",
+		"crucial 2": "https://media.forgecdn.net/attachments/348/591/banner.png",
+		valhelsia: "https://media.forgecdn.net/attachments/490/182/valhelsia5_banner.png",
+		enigmatica: "https://media.forgecdn.net/attachments/440/120/banner.png",
+		nomifactory: "https://media.forgecdn.net/attachments/380/740/banner.png",
+		tekkit: "https://media.forgecdn.net/attachments/220/80/banner.png",
+		gtnh: "https://media.forgecdn.net/attachments/310/220/banner.png",
+		gregtech: "https://media.forgecdn.net/attachments/310/220/banner.png"
 	};
 
 	let bannerFailed = $state(false);

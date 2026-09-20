@@ -12,8 +12,15 @@ use std::fs::OpenOptions;
 const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
 const LUXMC_ICON_URL: &str =
     "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
-const LUXMC_VERSION: &str = "1.7.1";
+const LUXMC_VERSION: &str = "1.7.6";
 const MINECRAFT_GRASS_ASSET: &str = "grass";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscordButton {
+    pub label: String,
+    pub url: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +35,7 @@ pub struct DiscordActivityArgs {
     pub start_time: Option<i64>,
     pub in_game: Option<bool>,
     pub client_id: Option<String>,
+    pub buttons: Option<Vec<DiscordButton>>,
 }
 
 enum IpcStream {
@@ -114,18 +122,29 @@ fn open_unix_stream() -> Option<IpcStream> {
     let tmp_dir = std::env::var("TMPDIR").unwrap_or_else(|_| "/tmp".to_string());
     let home_dir = std::env::var("HOME").unwrap_or_default();
 
-    let candidates = [
+    let mut candidates = vec![
         std::path::PathBuf::from(&runtime_dir),
         std::path::PathBuf::from(&tmp_dir),
         std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.Discord"),
         std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.DiscordCanary"),
+        std::path::PathBuf::from(&runtime_dir).join("app/com.discordapp.DiscordPTB"),
         std::path::PathBuf::from(&runtime_dir).join("app/de.vencord.Vesktop"),
+        std::path::PathBuf::from(&runtime_dir).join("app/dev.vencord.Vesktop"),
         std::path::PathBuf::from("/tmp"),
         std::path::PathBuf::from("/tmp/app/com.discordapp.Discord"),
         std::path::PathBuf::from(&home_dir).join(".var/app/com.discordapp.Discord/config"),
         std::path::PathBuf::from(&home_dir).join(".var/app/de.vencord.Vesktop/config"),
         std::path::PathBuf::from(&home_dir).join(".config/discord"),
     ];
+
+    if let Ok(entries) = std::fs::read_dir("/run/user") {
+        for entry in entries.flatten() {
+            candidates.push(entry.path());
+            candidates.push(entry.path().join("snap.discord"));
+            candidates.push(entry.path().join("app/com.discordapp.Discord"));
+            candidates.push(entry.path().join("app/de.vencord.Vesktop"));
+        }
+    }
 
     for base in &candidates {
         for prefix in &["discord-ipc-", "ipc-"] {
@@ -213,6 +232,7 @@ pub async fn discord_set_activity(
     startTime: Option<i64>,
     inGame: Option<bool>,
     clientId: Option<String>,
+    buttons: Option<Vec<DiscordButton>>,
 ) -> AppResult<bool> {
     let is_game = inGame.unwrap_or(false);
 
@@ -279,21 +299,33 @@ pub async fn discord_set_activity(
         }
     });
 
+    let mut activity_obj = serde_json::json!({
+        "details": det,
+        "state": st,
+        "timestamps": { "start": now },
+        "assets": {
+            "large_image": img,
+            "large_text": txt,
+            "small_image": s_img,
+            "small_text": s_txt
+        }
+    });
+
+    if let Some(btns) = buttons {
+        if !btns.is_empty() {
+            activity_obj["buttons"] = serde_json::json!(btns);
+        }
+    } else {
+        activity_obj["buttons"] = serde_json::json!([
+            { "label": "Baixar Luxmc", "url": "https://luxmc-r92.pages.dev" }
+        ]);
+    }
+
     let payload = serde_json::json!({
         "cmd": "SET_ACTIVITY",
         "args": {
             "pid": std::process::id(),
-            "activity": {
-                "details": det,
-                "state": st,
-                "timestamps": { "start": now },
-                "assets": {
-                    "large_image": img,
-                    "large_text": txt,
-                    "small_image": s_img,
-                    "small_text": s_txt
-                }
-            }
+            "activity": activity_obj
         },
         "nonce": format!("{}", chrono::Utc::now().timestamp_millis())
     })
@@ -304,6 +336,18 @@ pub async fn discord_set_activity(
         Ok(true)
     } else {
         *guard = None;
+        if let Some(mut stream) = open_ipc_stream() {
+            if handshake(&mut stream, &target_id) {
+                if send_frame(&mut stream, 1, &payload).is_ok() {
+                    drain_response(&mut stream);
+                    *guard = Some(DiscordConn {
+                        stream,
+                        client_id: target_id,
+                    });
+                    return Ok(true);
+                }
+            }
+        }
         Ok(false)
     }
 }

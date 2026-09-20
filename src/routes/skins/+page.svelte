@@ -279,7 +279,7 @@
 	<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 		
 		<!-- Left: 3D Viewport & Visual Controls -->
-		<div class="lg:col-span-5 flex flex-col gap-3">
+		<div class="lg:col-span-5 flex flex-col gap-3 lg:sticky lg:top-4 z-10">
 			
 			<div class="w-full h-[480px] rounded-3xl bg-bg-elevated border border-fg/10 relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-2">
 				

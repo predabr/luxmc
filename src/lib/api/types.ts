@@ -221,9 +221,13 @@ export interface P2PMessagePayload {
 
 export interface HostLinkInfo {
 	localIp: string;
+	publicIp?: string | null;
 	port: number;
 	shareLink: string;
 	directAddress: string;
+	publicAddress?: string | null;
+	shareCode: string;
+	motd?: string | null;
 }
 
 export interface WorldPlayerItem {
@@ -319,6 +323,7 @@ export interface DiscordActivityOptions {
 	startTime?: number;
 	inGame?: boolean;
 	clientId?: string;
+	buttons?: { label: string; url: string }[];
 }
 
 export interface GpuInfo {

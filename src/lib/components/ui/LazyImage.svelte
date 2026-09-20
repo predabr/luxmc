@@ -38,11 +38,11 @@
     onload={handleLoad}
     onerror={handleError}
   />
-  {#if error && fallback}
+  {#if error}
     <img
-      src={fallback}
+      src={fallback || "/grass_block.png"}
       {alt}
-      class="absolute inset-0 h-full w-full {klass}"
+      class="absolute inset-0 h-full w-full object-contain p-1 {klass}"
     />
   {/if}
 </div>

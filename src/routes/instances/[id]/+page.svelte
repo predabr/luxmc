@@ -1073,15 +1073,22 @@
 				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_fo.webp"
 				: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
 
+			const loaderText = activeProfile?.loader ? activeProfile.loader.toUpperCase() : "Vanilla";
+			const modCountText = instanceMods.length > 0 ? ` (${instanceMods.length} mods)` : "";
+
 			discordSetActivity({
 				inGame: true,
 				details: activeProfile?.name || "Minecraft",
-				state: `Minecraft ${verId} · ${activeProfile?.loader ? activeProfile.loader.toUpperCase() : "Vanilla"}`,
+				state: `Minecraft ${verId} · ${loaderText}${modCountText}`,
 				largeText: activeProfile?.name || `Minecraft ${verId}`,
 				largeImage: modpackCover,
 				smallImage: activeProfile?.loader === "fabric" ? "fabric" : (activeProfile?.loader === "forge" ? "curse" : "grass"),
-				smallText: `Luxmc · ${activeProfile?.loader || "Vanilla"}`,
-				startTime: Math.floor(Date.now() / 1000)
+				smallText: `Luxmc v1.7.6`,
+				startTime: Math.floor(Date.now() / 1000),
+				buttons: [
+					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
+					{ label: "Site Oficial", url: "https://luxmc-r92.pages.dev" }
+				]
 			}).catch(() => {});
 
 			downloadProgressPercent = 100;
