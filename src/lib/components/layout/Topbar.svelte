@@ -1,11 +1,12 @@
 <script lang="ts">
     import { toast } from "$lib/stores/toasts.svelte";
     import { openPortal } from "$lib/api/deepLinks";
-	import { Sun, Moon, Globe, Gauge, Zap, ExternalLink } from "lucide-svelte";
+	import { Sun, Moon, Globe, Gauge, Zap, ExternalLink, Sparkles } from "lucide-svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { setLocale } from "$lib/stores/persistence.svelte";
 	import { appState } from "$lib/stores/app.svelte";
+	import { updaterStore } from "$lib/stores/updater.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import AccountIndicator from "$lib/components/ui/AccountIndicator.svelte";
 
@@ -43,6 +44,20 @@
 	</div>
 
 	<div class="flex items-center gap-2 ml-auto">
+		{#if updaterStore.updateAvailable}
+			<button
+				type="button"
+				onclick={() => {
+					updaterStore.showModal = true;
+				}}
+				class="flex h-9 items-center gap-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 animate-pulse shadow-sm cursor-pointer active:scale-95"
+				title={`Nova versão v${updaterStore.latestVersion} disponível. Clique para atualizar!`}
+			>
+				<Sparkles class="h-3.5 w-3.5 text-emerald-300" />
+				<span>Luxmc v{updaterStore.latestVersion} disponível [Atualizar]</span>
+			</button>
+		{/if}
+
 		<button
 			onclick={togglePerformance}
 			class="flex h-9 items-center gap-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 border"

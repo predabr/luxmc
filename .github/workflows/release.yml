@@ -345,6 +345,31 @@ jobs:
             fi
           done
 
+          echo "Generating and uploading latest.json for Tauri auto-updater..."
+          CLEAN_VER="${TAG_NAME#v}"
+          node -e "
+            const fs = require('fs');
+            const tag = process.env.TAG_NAME;
+            const clean = tag.replace(/^v/i, '');
+            const manifest = {
+              version: tag,
+              notes: 'Luxmc ' + tag + ' - Atualização oficial de alta performance',
+              pub_date: new Date().toISOString(),
+              platforms: {
+                'linux-x86_64': {
+                  signature: '',
+                  url: 'https://github.com/predabr/luxmc/releases/download/' + tag + '/Luxmc_' + clean + '_amd64.AppImage'
+                },
+                'windows-x86_64': {
+                  signature: '',
+                  url: 'https://github.com/predabr/luxmc/releases/download/' + tag + '/Luxmc_' + clean + '_x64-setup.exe'
+                }
+              }
+            };
+            fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
+          "
+          gh release upload "$TAG_NAME" latest.json --clobber || true
+
   build-jar:
     name: Build Universal Luxmc.jar
     needs: upload-release

@@ -104,25 +104,50 @@ export const updaterStore = {
 		isChecking = true;
 		try {
 			currentVersion = await getVersion();
-			const res = await fetch("https://api.github.com/repos/predabr/luxmc/releases/latest");
-			if (!res.ok) {
-				if (interactive) {
-					toast("Não foi possível verificar novas versões no momento.", "warning");
+			lastChecked = new Date().toLocaleTimeString();
+
+			let foundUpdate = false;
+
+			try {
+				const latestRes = await fetch("https://github.com/predabr/luxmc/releases/latest/download/latest.json");
+				if (latestRes.ok) {
+					const manifest = await latestRes.json();
+					if (manifest && manifest.version) {
+						latestVersion = manifest.version.replace(/^v/i, "");
+						releaseNotes = manifest.notes || "Atualização oficial de alta performance e correções.";
+						releaseUrl = "https://github.com/predabr/luxmc/releases/latest";
+						
+						const ua = typeof navigator !== "undefined" ? (navigator.userAgent + " " + (navigator.platform || "")).toLowerCase() : "";
+						const platformKey = ua.includes("win") ? "windows-x86_64" : ua.includes("mac") ? (ua.includes("arm") ? "darwin-aarch64" : "darwin-x86_64") : "linux-x86_64";
+						
+						if (manifest.platforms && manifest.platforms[platformKey] && manifest.platforms[platformKey].url) {
+							downloadUrl = manifest.platforms[platformKey].url;
+						}
+						foundUpdate = true;
+					}
 				}
-				return;
+			} catch {
+				foundUpdate = false;
 			}
 
-			const data = await res.json();
-			lastChecked = new Date().toLocaleTimeString();
-			const tag: string = data.tag_name || "";
-			latestVersion = tag.replace(/^v/i, "");
-			releaseUrl = data.html_url || "https://github.com/predabr/luxmc/releases/latest";
-			releaseNotes = data.body || "Atualização de melhorias e performance!";
+			if (!foundUpdate) {
+				const res = await fetch("https://api.github.com/repos/predabr/luxmc/releases/latest");
+				if (res.ok) {
+					const data = await res.json();
+					const tag: string = data.tag_name || "";
+					latestVersion = tag.replace(/^v/i, "");
+					releaseUrl = data.html_url || "https://github.com/predabr/luxmc/releases/latest";
+					releaseNotes = data.body || "Atualização de melhorias e performance!";
+					downloadUrl = resolveAssetUrl(data.assets || []);
+					foundUpdate = true;
+				}
+			}
 
 			const newer = isNewerVersion(currentVersion, latestVersion);
 			if (newer) {
-				downloadUrl = resolveAssetUrl(data.assets || []);
-				showModal = true;
+				if (interactive) {
+					showModal = true;
+				}
 			} else if (interactive) {
 				toast(`Você já está na versão mais recente do Luxmc (v${currentVersion})!`, "success");
 			}
