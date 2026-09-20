@@ -38,11 +38,11 @@
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
-			id: "luxmc-v1-9-1",
-			title: "Luxmc v1.9.1: Correção de Inicialização & Novo Visual",
-			body: "Inicialização ultrarrápida restaurada, novo visual e máxima estabilidade.",
+			id: "luxmc-v1-9-2",
+			title: "Luxmc v1.9.2: Pacotes .RPM & Correção de Modpacks",
+			body: "Suporte a .rpm para Fedora/RHEL, inicialização de modpacks corrigida e skins 3D perfeitas.",
 			publishedAt: "Hoje",
-			tag: "v1.9.1",
+			tag: "v1.9.2",
 			url: "/news"
 		},
 		{

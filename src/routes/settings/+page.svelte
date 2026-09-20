@@ -285,7 +285,7 @@
 			<div class="flex items-center justify-between">
 				<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.general")}</h2>
 				<span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-fg/5 text-fg/60 border border-fg/10">
-					Versão 1.9.1
+					Versão 1.9.2
 				</span>
 			</div>
 
@@ -307,9 +307,9 @@
 					</div>
 					<h3 class="text-base font-bold text-fg">
 						{#if updaterStore.updateAvailable}
-							Luxmc v{updaterStore.newVersion || "1.9.1"} pronto para instalar
+							Luxmc v{updaterStore.newVersion || "1.9.2"} pronto para instalar
 						{:else}
-							Você está executando a versão mais recente do Luxmc (v1.9.1)
+							Você está executando a versão mais recente do Luxmc (v1.9.2)
 						{/if}
 					</h3>
 					<p class="text-xs text-fg/50">
@@ -403,7 +403,7 @@
 					<div class="space-y-1 max-w-xl">
 						<div class="flex items-center gap-2">
 							<h3 class="text-sm font-bold text-fg">Discord Rich Presence</h3>
-							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">v1.9.1</span>
+							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">v1.9.2</span>
 						</div>
 						<p class="text-xs text-fg/50 leading-relaxed">Exibe seu status, mundo, modpack e tempo de jogo no Discord com botões de conexão direta</p>
 					</div>

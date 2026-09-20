@@ -386,7 +386,7 @@
 
 		<div class="space-y-2 max-h-[340px] overflow-y-auto custom-scrollbar pr-0.5">
 			{#each [
-				{ tag: "Atualização", title: "Luxmc v1.9.1 Oficial", desc: "Correção de crash no startup, visual refinado e desempenho máximo.", date: "Setembro, 2026", image: "/news_1.jpg" },
+				{ tag: "Atualização", title: "Luxmc v1.9.2 Oficial", desc: "Pacotes .RPM, modpacks NeoForge corrigidos e skins 3D perfeitas.", date: "Setembro, 2026", image: "/news_1.jpg" },
 				{ tag: "Recurso", title: "Personalizador de Skins 3D", desc: "Novo viewer 3D com física de caminhada, capas e animações.", date: "Setembro, 2026", image: "/news_2.jpg" },
 				{ tag: "Melhoria", title: "Sidebar com Glow Dinâmico", desc: "Barra lateral agora reflete o gradiente do wallpaper escolhido.", date: "Setembro, 2026", image: "/news_3.jpg" },
 				{ tag: "Site", title: "Portal Web Atualizado", desc: "Benchmarks interativos, depoimentos e lightbox de screenshots.", date: "Setembro, 2026", image: "/news_4.jpg" },

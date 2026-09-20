@@ -208,14 +208,13 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.9.1",
+					state: "Luxmc v1.9.2",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.9.1",
+					smallText: "Luxmc v1.9.2",
 					inGame: false
 				}).catch(() => {});
-
 			}
 			if (typeof window !== "undefined" && (init.stressTest || window.location.search.includes("test_leak=1"))) {
 				showSplash = false;
@@ -278,11 +277,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.9.1",
+					state: "Luxmc v1.9.2",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.9.1",
+					smallText: "Luxmc v1.9.2",
 					inGame: false
 				}).catch(() => {});
 			}
@@ -374,14 +373,14 @@
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
 			let details = "No Menu Principal";
-			let state = "Luxmc v1.9.1";
+			let state = "Luxmc v1.9.2";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
 				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
 				details = "Gerenciando Instâncias";
-				state = "Luxmc v1.9.0";
+				state = "Luxmc v1.9.2";
 			} else if (currentPath.startsWith("/instances/")) {
 				details = "Configurando Instância";
 				state = "Ajustando Mods & Versões";
@@ -407,7 +406,7 @@
 				state,
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
-				smallText: "Luxmc v1.9.1",
+				smallText: "Luxmc v1.9.2",
 				inGame: false,
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },

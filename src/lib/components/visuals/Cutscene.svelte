@@ -116,7 +116,7 @@
 					details: "No Launcher",
 					state: "Explorando o Luxmc",
 					largeImage: "luxmc_logo",
-					smallText: "Luxmc v1.9.1",
+					smallText: "Luxmc v1.9.2",
 					startTime: Math.floor(Date.now() / 1000)
 				}).catch(() => {});
 				optimizerTrimMemory().catch(() => {});

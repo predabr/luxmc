@@ -1211,7 +1211,7 @@
 				largeText: activeProfile?.name || `Minecraft ${verId}`,
 				largeImage: modpackCover,
 				smallImage: activeProfile?.loader === "fabric" ? "fabric" : (activeProfile?.loader === "forge" ? "curse" : "grass"),
-				smallText: `Luxmc v1.9.1`,
+				smallText: `Luxmc v1.9.2`,
 				startTime: Math.floor(Date.now() / 1000),
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },

@@ -82,7 +82,7 @@ pub fn client() -> AppResult<reqwest::Client> {
     Ok(reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .timeout(Duration::from_secs(35))
-        .user_agent("Luxmc/1.9.1")
+        .user_agent("Luxmc/1.9.2")
         .build()?)
 }
 
