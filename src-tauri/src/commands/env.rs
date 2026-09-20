@@ -95,7 +95,7 @@ fn disk_free_bytes(path: &std::path::Path) -> Option<u64> {
 }
 
 fn java_version() -> Option<String> {
-    let output = std::process::Command::new("java")
+    let output = crate::core::process::std_command("java")
         .arg("-version")
         .stderr(std::process::Stdio::piped())
         .output()

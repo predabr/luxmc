@@ -110,7 +110,7 @@ pub async fn java_runtime_status_core(
     let path = manager.ensure_java(major).await.ok();
     let version = path
         .as_ref()
-        .and_then(|p| std::process::Command::new(p).arg("-version").output().ok())
+        .and_then(|p| crate::core::process::std_command(p).arg("-version").output().ok())
         .map(|out| String::from_utf8_lossy(&out.stderr).to_string());
 
     Ok(JavaRuntimeInfo {

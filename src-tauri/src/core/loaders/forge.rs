@@ -370,7 +370,7 @@ pub async fn prepare_forge(
 
         let java_bin = find_java_binary(libraries_dir, mc_version);
         tracing::info!(java = %java_bin.display(), installer = %installer_dest.display(), "Executing Forge installer");
-        let _ = tokio::process::Command::new(&java_bin)
+        let _ = crate::core::process::tokio_command(&java_bin)
             .arg("-jar")
             .arg(&installer_dest)
             .arg("--installClient")
@@ -384,7 +384,7 @@ pub async fn prepare_forge(
         if !client_dest.exists() {
             if let Ok(patched) = prepare_patched_installer(&installer_dest) {
                 if patched != installer_dest && patched.exists() {
-                    let _ = tokio::process::Command::new(&java_bin)
+                    let _ = crate::core::process::tokio_command(&java_bin)
                         .arg("-jar")
                         .arg(&patched)
                         .arg("--installClient")

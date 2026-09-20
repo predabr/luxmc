@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use tauri::Emitter;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
 use tokio::sync::Mutex as TokioMutex;
 use std::sync::Arc;
 
@@ -604,11 +603,26 @@ impl GameLauncher {
             let payload_path = game_dir.join(".luxmc_launch.json");
             let _ = tokio::fs::write(&payload_path, serde_json::to_string(&launch_payload).unwrap_or_default()).await;
 
-            let mut c = Command::new(cs_bin);
+            let mut c = crate::core::process::tokio_command(cs_bin);
             c.arg("launch").arg(&payload_path);
             c
         } else {
-            let mut c = Command::new(&java_path);
+            let effective_java = if cfg!(windows) {
+                if java_path.file_name().map_or(false, |f| f == "java.exe") {
+                    let javaw_path = java_path.with_file_name("javaw.exe");
+                    if javaw_path.exists() {
+                        javaw_path
+                    } else {
+                        java_path.clone()
+                    }
+                } else {
+                    java_path.clone()
+                }
+            } else {
+                java_path.clone()
+            };
+
+            let mut c = crate::core::process::tokio_command(&effective_java);
             c.args(&safe_jvm_args)
                 .arg(main_class)
                 .args(&safe_game_args);

@@ -5,17 +5,17 @@ describe("button", () => {
   it("renders with default variant", () => {
     const classes = button();
     expect(classes).toContain("inline-flex");
-    expect(classes).toContain("font-semibold");
+    expect(classes).toContain("font-extrabold");
   });
 
   it("renders with solid variant", () => {
     const classes = button({ variant: "solid" });
-    expect(classes).toContain("bg-gradient-to-r");
+    expect(classes).toContain("bg-[#1bd96a]");
   });
 
   it("renders with primary variant", () => {
     const classes = button({ variant: "primary" });
-    expect(classes).toContain("bg-gradient-to-r");
+    expect(classes).toContain("bg-[#1bd96a]");
   });
 
   it("renders with danger variant", () => {

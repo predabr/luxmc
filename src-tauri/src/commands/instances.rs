@@ -179,6 +179,20 @@ pub fn open_folder_safe(path: &std::path::Path) -> AppResult<()> {
         }
     }
 
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("explorer.exe");
+        cmd.arg(path);
+        cmd.creation_flags(0x08000000);
+        if let Ok(mut child) = cmd.spawn() {
+            tokio::spawn(async move {
+                let _ = child.wait();
+            });
+            return Ok(());
+        }
+    }
+
     open::that_detached(path).map_err(crate::error::AppError::Io)?;
     Ok(())
 }
@@ -200,6 +214,20 @@ pub fn open_url_safe(url: &str) -> AppResult<()> {
         xdg_cmd.arg(url);
         scrub_appimage_env(&mut xdg_cmd);
         if let Ok(mut child) = xdg_cmd.spawn() {
+            tokio::spawn(async move {
+                let _ = child.wait();
+            });
+            return Ok(());
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        let mut cmd = std::process::Command::new("rundll32.exe");
+        cmd.args(["url.dll,FileProtocolHandler", url]);
+        cmd.creation_flags(0x08000000);
+        if let Ok(mut child) = cmd.spawn() {
             tokio::spawn(async move {
                 let _ = child.wait();
             });

@@ -118,7 +118,7 @@ impl JavaRuntimeManager {
     }
 
     fn verify_binary(&self, path: &std::path::Path, expected_major: u32) -> bool {
-        if let Ok(output) = std::process::Command::new(path)
+        if let Ok(output) = crate::core::process::std_command(path)
             .arg("-version")
             .stderr(std::process::Stdio::piped())
             .output()
@@ -181,7 +181,7 @@ impl JavaRuntimeManager {
 
     fn find_system_java(&self, major: u32) -> AppResult<PathBuf> {
         let check_binary = |path: &std::path::Path, expected_major: u32| -> bool {
-            if let Ok(output) = std::process::Command::new(path)
+            if let Ok(output) = crate::core::process::std_command(path)
                 .arg("-version")
                 .stderr(std::process::Stdio::piped())
                 .output()
@@ -212,7 +212,7 @@ impl JavaRuntimeManager {
                 }
             }
 
-            if let Ok(path_out) = std::process::Command::new("where.exe")
+            if let Ok(path_out) = crate::core::process::std_command("where.exe")
                 .arg("java")
                 .output()
             {
@@ -264,7 +264,7 @@ impl JavaRuntimeManager {
                 }
             }
 
-            if let Ok(path_out) = std::process::Command::new("which").arg("java").output() {
+            if let Ok(path_out) = crate::core::process::std_command("which").arg("java").output() {
                 let path_str = String::from_utf8_lossy(&path_out.stdout).trim().to_string();
                 if !path_str.is_empty() {
                     let pb = PathBuf::from(path_str);

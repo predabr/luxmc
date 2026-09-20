@@ -105,7 +105,7 @@ pub async fn java_uninstall(major: u32) -> AppResult<()> {
 }
 
 fn get_version_string(path: &std::path::Path) -> Option<String> {
-    std::process::Command::new(path)
+    crate::core::process::std_command(path)
         .arg("-version")
         .stderr(std::process::Stdio::piped())
         .output()

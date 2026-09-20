@@ -235,7 +235,7 @@ pub async fn prepare_neoforge(
         }
 
         let java_bin = find_java_binary(libraries_dir, mc_version);
-        let _ = tokio::process::Command::new(&java_bin)
+        let _ = crate::core::process::tokio_command(&java_bin)
             .arg("-jar")
             .arg(&installer_dest)
             .arg("--installClient")
