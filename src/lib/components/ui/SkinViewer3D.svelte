@@ -34,6 +34,7 @@
     let unavailable = $state(false);
 	let resizeObserver: ResizeObserver | null = null;
 	let skinCache = new Map<string, HTMLCanvasElement | string>();
+	let capeCache = new Map<string, HTMLCanvasElement | string>();
 	let loadGeneration = 0;
 
 	function applyAnimation(anim: AnimationType) {
@@ -125,6 +126,8 @@
 		}
 		skinCache.clear();
 		skinCache = new Map();
+		capeCache.clear();
+		capeCache = new Map();
 	});
 
 	function loadAndHealSkin(src: string, isSlim: boolean): Promise<HTMLCanvasElement | string> {
@@ -232,19 +235,135 @@
 		});
 	}
 
+	function loadAndHealCape(src: string): Promise<HTMLCanvasElement | string> {
+		if (!src) return Promise.resolve(src);
+		const cached = capeCache.get(src);
+		if (cached) return Promise.resolve(cached);
+
+		return new Promise((resolve) => {
+			if (typeof window === "undefined") {
+				resolve(src);
+				return;
+			}
+			const img = new window.Image();
+			img.crossOrigin = "anonymous";
+			img.onload = () => {
+				try {
+					const w = img.naturalWidth || img.width;
+					const h = img.naturalHeight || img.height;
+					if (w <= 0 || h <= 0) {
+						resolve(src);
+						return;
+					}
+
+					// Standard OptiFine cape: 22x17 -> place at (0,0) on 64x32 canvas without stretching
+					if (w === 22 && h === 17) {
+						const canvas = document.createElement("canvas");
+						canvas.width = 64;
+						canvas.height = 32;
+						const ctx = canvas.getContext("2d");
+						if (ctx) {
+							ctx.imageSmoothingEnabled = false;
+							ctx.drawImage(img, 0, 0);
+							capeCache.set(src, canvas);
+							resolve(canvas);
+							return;
+						}
+					}
+
+					// HD OptiFine cape: 44x34 -> place at (0,0) on 128x64 canvas
+					if (w === 44 && h === 34) {
+						const canvas = document.createElement("canvas");
+						canvas.width = 128;
+						canvas.height = 64;
+						const ctx = canvas.getContext("2d");
+						if (ctx) {
+							ctx.imageSmoothingEnabled = false;
+							ctx.drawImage(img, 0, 0);
+							capeCache.set(src, canvas);
+							resolve(canvas);
+							return;
+						}
+					}
+
+					// Square cape: crop top half
+					if (w === h && w > 0) {
+						const canvas = document.createElement("canvas");
+						canvas.width = w;
+						canvas.height = w / 2;
+						const ctx = canvas.getContext("2d");
+						if (ctx) {
+							ctx.imageSmoothingEnabled = false;
+							ctx.drawImage(img, 0, 0, w, w / 2, 0, 0, w, w / 2);
+							capeCache.set(src, canvas);
+							resolve(canvas);
+							return;
+						}
+					}
+
+					capeCache.set(src, src);
+					resolve(src);
+				} catch {
+					resolve(src);
+				}
+			};
+			img.onerror = () => resolve(src);
+			img.src = src;
+		});
+	}
+
+	function applyCrispCapeTexture() {
+		try {
+			const capeMesh = (viewer?.playerObject as any)?.cape?.mesh;
+			if (capeMesh) {
+				const mat = Array.isArray(capeMesh.material) ? capeMesh.material[0] : capeMesh.material;
+				if (mat && mat.map) {
+					mat.map.magFilter = 1003; // NearestFilter
+					mat.map.minFilter = 1003; // NearestFilter
+					mat.map.generateMipmaps = false;
+					mat.map.needsUpdate = true;
+				}
+			}
+		} catch {}
+	}
+
 	function updateCape() {
 		if (!viewer) return;
 		if (cape === "custom" && customCapeUrl) {
 			viewer.playerObject.backEquipment = "cape";
-			viewer.loadCape(customCapeUrl, { backEquipment: "cape" }).catch((e) => {
-				console.warn("Failed to load custom cape in 3D viewer:", e);
+			loadAndHealCape(customCapeUrl).then((healed) => {
+				if (!viewer) return;
+				const res = viewer.loadCape(healed as any, { backEquipment: "cape" });
+				if (res && typeof (res as Promise<void>).then === "function") {
+					(res as Promise<void>)
+						.then(() => {
+							applyCrispCapeTexture();
+						})
+						.catch((e: unknown) => {
+							console.warn("Failed to load custom cape in 3D viewer:", e);
+						});
+				} else {
+					applyCrispCapeTexture();
+				}
 			});
 		} else if (cape !== "none") {
 			const fullUrl = getFullCapeDataUrl(cape);
 			if (fullUrl) {
 				viewer.playerObject.backEquipment = "cape";
-				viewer.loadCape(fullUrl, { backEquipment: "cape" }).catch((e) => {
-					console.warn("Failed to load cape in 3D viewer:", e);
+				loadAndHealCape(fullUrl).then((healed) => {
+					if (!viewer) return;
+					const res = viewer.loadCape(healed as any, { backEquipment: "cape" });
+					if (res && typeof (res as Promise<void>).then === "function") {
+						(res as Promise<void>)
+							.then(() => {
+								applyCrispCapeTexture();
+							})
+							.catch((e: unknown) => {
+								console.warn("Failed to load cape in 3D viewer:", e);
+							});
+					} else {
+						applyCrispCapeTexture();
+					}
 				});
 			} else {
 				viewer.resetCape();

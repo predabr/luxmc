@@ -63,6 +63,29 @@ pub async fn run() {
                 }
             }
 
+            let handle_overlay = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Ok(listener) = tokio::net::TcpListener::bind("127.0.0.1:49152").await {
+                    while let Ok((mut socket, _)) = listener.accept().await {
+                        use tokio::io::AsyncReadExt;
+                        use tauri::Emitter;
+                        let mut buf = [0u8; 64];
+                        if let Ok(n) = socket.read(&mut buf).await {
+                            let msg = String::from_utf8_lossy(&buf[..n]);
+                            if msg.contains("TOGGLE") {
+                                if let Some(window) = handle_overlay.get_webview_window("main") {
+                                    let _ = window.unminimize();
+                                    let _ = window.show();
+                                    let _ = window.set_always_on_top(true);
+                                    let _ = window.set_focus();
+                                }
+                                let _ = handle_overlay.emit("luxmc-toggle-overlay", ());
+                            }
+                        }
+                    }
+                }
+            });
+
             Ok(())
         })
         .plugin(tauri_plugin_shell::init())
@@ -80,6 +103,7 @@ pub async fn run() {
             commands::system::app_info,
             commands::system::app_init,
             commands::system::get_system_specs,
+            commands::system::client_overlay_close,
             commands::env::env_check,
             commands::settings::settings_get,
             commands::settings::settings_set,

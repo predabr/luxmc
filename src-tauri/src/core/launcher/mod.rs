@@ -15,7 +15,8 @@ use crate::error::AppResult;
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "1.6.5";
+const LAUNCHER_VERSION: &str = "1.7.6";
+static CLIENT_AGENT_JAR: &[u8] = include_bytes!("../../../assets/luxmc-client-agent.jar");
 
 /// Pipeline state machine. Every transition is emitted to the UI.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
@@ -474,7 +475,7 @@ impl GameLauncher {
                 ));
             }
         }
-        let safe_jvm_args: Vec<String> = jvm_args
+        let mut safe_jvm_args: Vec<String> = jvm_args
             .iter()
             .enumerate()
             .filter_map(|(idx, a)| {
@@ -515,6 +516,34 @@ impl GameLauncher {
                 !safe_jvm_args.iter().any(|a| a == "-XstartOnFirstThread"),
                 "validate_platform_args failed: -XstartOnFirstThread leaked into the spawn"
             );
+        }
+
+        let is_modpack = profile.loader == "forge"
+            || profile.loader == "neoforge"
+            || profile.loader == "fabric"
+            || profile.loader == "quilt"
+            || profile.mod_count > 0;
+
+        let has_mods = if let Ok(entries) = std::fs::read_dir(game_dir.join("mods")) {
+            entries.filter_map(|e| e.ok()).any(|e| {
+                e.path().extension().map_or(false, |ext| ext == "jar")
+            })
+        } else {
+            false
+        };
+
+        let is_modpack_effective = is_modpack || has_mods;
+
+        if !is_modpack_effective {
+            let agent_path = game_dir.join("luxmc-client-agent.jar");
+            if let Err(e) = std::fs::write(&agent_path, CLIENT_AGENT_JAR) {
+                self.emit_log(&format!("Aviso: Não foi possível extrair Luxmc Client Agent: {}", e));
+            } else {
+                safe_jvm_args.push(format!("-javaagent:{}", agent_path.to_string_lossy()));
+                self.emit_log("Luxmc Client PvP Agent anexado (Right Shift menu in-game ativo)");
+            }
+        } else {
+            self.emit_log("Instância de modpack detectada. Luxmc Client Agent isolado para preservar 100% de integridade.");
         }
 
         let cmd_display = format!(
@@ -759,10 +788,23 @@ impl GameLauncher {
             None
         };
 
+        let app_for_overlay = self.app.clone();
         tokio::spawn(async move {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
+                if line.contains("[LUXMC_CLIENT] TOGGLE_OVERLAY") {
+                    if let Some(ref app) = app_for_overlay {
+                        use tauri::Manager;
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.unminimize();
+                            let _ = window.show();
+                            let _ = window.set_always_on_top(true);
+                            let _ = window.set_focus();
+                        }
+                        let _ = app.emit("luxmc-toggle-overlay", ());
+                    }
+                }
                 let mut line = line;
                 if line.len() > 2000 { line.truncate(2000); }
                 if let Some(ref mut f) = log_file {
@@ -2312,10 +2354,24 @@ async fn inject_player_skin(
             let (cw, ch) = dyn_cape.dimensions();
             let cape_rgba = dyn_cape.to_rgba8();
 
-            let full_img = if (cw == 64 && ch == 32) || (cw == ch * 2) || (cw == ch) {
+            let full_img = if cw == 22 && ch == 17 {
+                let mut canvas = image::RgbaImage::new(64, 32);
+                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
+                canvas
+            } else if cw == 44 && ch == 34 {
+                let mut canvas = image::RgbaImage::new(128, 64);
+                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
+                canvas
+            } else if (cw == 64 && ch == 32) || (cw == ch * 2) {
                 cape_rgba.clone()
+            } else if cw == ch && cw > 0 {
+                image::imageops::crop_imm(&cape_rgba, 0, 0, cw, cw / 2).to_image()
             } else {
-                image::imageops::resize(&cape_rgba, 64, 32, image::imageops::FilterType::Nearest)
+                let target_w = (cw.max(64) + 63) / 64 * 64;
+                let target_h = target_w / 2;
+                let mut canvas = image::RgbaImage::new(target_w, target_h);
+                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
+                canvas
             };
 
             let mut full_buf = Vec::new();
@@ -2326,12 +2382,24 @@ async fn inject_player_skin(
                 cape_bytes.clone()
             };
 
-            let opti_img = if cw == ch && cw > 0 {
+            let opti_img = if cw == 22 && ch == 17 {
+                let mut canvas = image::RgbaImage::new(64, 32);
+                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
+                canvas
+            } else if cw == 44 && ch == 34 {
+                let mut canvas = image::RgbaImage::new(128, 64);
+                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
+                canvas
+            } else if cw == ch && cw > 0 {
                 image::imageops::crop_imm(&cape_rgba, 0, 0, cw, cw / 2).to_image()
             } else if cw == ch * 2 {
                 cape_rgba
             } else {
-                image::imageops::resize(&cape_rgba, 64, 32, image::imageops::FilterType::Nearest)
+                let target_w = (cw.max(64) + 63) / 64 * 64;
+                let target_h = target_w / 2;
+                let mut canvas = image::RgbaImage::new(target_w, target_h);
+                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
+                canvas
             };
 
             let mut opti_buf = Vec::new();

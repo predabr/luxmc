@@ -238,3 +238,12 @@ pub fn get_system_specs() -> SystemSpecs {
         gpu_supports_zink: gpu.supports_zink,
     }
 }
+
+#[tauri::command]
+pub fn client_overlay_close(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.set_always_on_top(false);
+    }
+    Ok(())
+}

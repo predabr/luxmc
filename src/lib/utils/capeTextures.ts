@@ -303,6 +303,7 @@ export function getCapePreviewDataUrl(type: CapeType): string {
 	const fullCtx = fullCanvas.getContext("2d");
 	if (!fullCtx) return "";
 
+	fullCtx.imageSmoothingEnabled = false;
 	drawCapeToCanvas(fullCtx, type);
 
 	// The back face of the cape in standard MC UV is at x=12, y=1, w=10, h=16
@@ -327,6 +328,7 @@ export function getFullCapeDataUrl(type: CapeType): string {
 	const ctx = canvas.getContext("2d");
 	if (!ctx) return "";
 
+	ctx.imageSmoothingEnabled = false;
 	drawCapeToCanvas(ctx, type);
 	const dataUrl = canvas.toDataURL("image/png");
 	fullCache.set(type, dataUrl);

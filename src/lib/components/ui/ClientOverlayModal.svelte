@@ -39,11 +39,15 @@
 		Palette,
 		Sliders,
 		Check,
-		RotateCcw
+		RotateCcw,
+		LayoutTemplate
 	} from "lucide-svelte";
 	import { clientMods, type ClientModsConfig } from "$lib/stores/clientMods.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { playSound } from "$lib/utils/sound";
+	import { clientOverlayClose } from "$lib/api";
+	import ClientModuleConfigModal from "./ClientModuleConfigModal.svelte";
+	import ClientHudPreview from "./ClientHudPreview.svelte";
 
 	let searchQuery = $state("");
 	let activeSection = $state<"all" | "hud" | "visual" | "combat" | "utility">("all");
@@ -57,7 +61,6 @@
 	};
 
 	const ALL_MODULES: ModuleDef[] = [
-		// Screenshots 1-5 exact modules
 		{ key: "armorHud", name: "Armor HUD", icon: Shield, category: "hud", desc: "Status de armadura e durabilidade em tempo real" },
 		{ key: "bossbar", name: "Bossbar", icon: Activity, category: "hud", desc: "Barra de chefe customizável" },
 		{ key: "comboDisplay", name: "Combo Display", icon: Zap, category: "combat", desc: "Contador de golpes combinados consecutivos" },
@@ -125,12 +128,20 @@
 		return list.filter((m) => m.name.toLowerCase().includes(q) || (m.desc && m.desc.toLowerCase().includes(q)));
 	});
 
-	function handleClose() {
+	async function handleClose() {
 		clientMods.close();
+		try {
+			await clientOverlayClose();
+		} catch {}
 	}
 
 	function handleToggle(key: keyof ClientModsConfig) {
 		clientMods.toggle(key);
+		playSound("click");
+	}
+
+	function openModuleSettings(key: string | keyof ClientModsConfig) {
+		clientMods.selectedModuleForConfig = String(key);
 		playSound("click");
 	}
 
@@ -154,6 +165,7 @@
 			class="relative flex w-full max-w-5xl h-[680px] max-h-[92vh] rounded-3xl bg-bg/95 border border-fg/10 shadow-2xl shadow-black/90 overflow-hidden"
 			transition:scale={{ duration: 180, start: 0.96 }}
 		>
+			<!-- Left Navigation Bar -->
 			<div class="flex flex-col items-center justify-between w-16 py-6 border-r border-fg/5 bg-bg">
 				<div class="flex flex-col items-center gap-6">
 					<button
@@ -216,7 +228,9 @@
 				</div>
 			</div>
 
+			<!-- Main Content -->
 			<div class="flex flex-1 flex-col overflow-hidden">
+				<!-- Header Bar -->
 				<div class="flex items-center justify-between px-8 py-4 border-b border-fg/5 bg-bg-elevated">
 					<div class="flex items-center gap-3">
 						<span class="text-xs font-bold uppercase tracking-widest text-emerald-400">Luxmc Client</span>
@@ -226,25 +240,37 @@
 						</span>
 					</div>
 
-					<div class="relative w-72">
-						<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40" />
-						<input
-							type="text"
-							bind:value={searchQuery}
-							placeholder="Search..."
-							class="w-full pl-10 pr-4 py-2 rounded-2xl bg-fg/5 border border-fg/10 text-sm text-fg placeholder-fg/40 focus:outline-none focus:border-emerald-400/50 transition-colors"
-						/>
-						{#if searchQuery}
-							<button
-								onclick={() => searchQuery = ""}
-								class="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg"
-							>
-								<X class="w-3.5 h-3.5" />
-							</button>
-						{/if}
+					<div class="flex items-center gap-3">
+						<button
+							onclick={() => { clientMods.isPreviewingHud = true; }}
+							class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-fg/5 border border-fg/10 text-xs font-medium text-fg/70 hover:text-emerald-400 hover:border-emerald-500/30 hover:bg-emerald-500/10 transition-all"
+							title="Visualizar HUD como aparece no jogo"
+						>
+							<LayoutTemplate class="w-3.5 h-3.5" />
+							<span>Editar / Ver HUD</span>
+						</button>
+
+						<div class="relative w-64">
+							<Search class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40" />
+							<input
+								type="text"
+								bind:value={searchQuery}
+								placeholder="Buscar módulo..."
+								class="w-full pl-10 pr-4 py-1.5 rounded-2xl bg-fg/5 border border-fg/10 text-sm text-fg placeholder-fg/40 focus:outline-none focus:border-emerald-400/50 transition-colors"
+							/>
+							{#if searchQuery}
+								<button
+									onclick={() => searchQuery = ""}
+									class="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg"
+								>
+									<X class="w-3.5 h-3.5" />
+								</button>
+							{/if}
+						</div>
 					</div>
 				</div>
 
+				<!-- Modules Grid -->
 				<div class="flex-1 overflow-y-auto custom-scrollbar p-8">
 					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
 						{#each filteredModules as mod (mod.key)}
@@ -271,9 +297,17 @@
 
 								<!-- Right: Settings Cog -->
 								<div class="flex items-center gap-1.5 shrink-0 pl-2">
-									<div class="w-6 h-6 rounded-lg flex items-center justify-center text-fg/30 group-hover:text-fg/70 hover:!text-emerald-400 transition-colors">
+									<button
+										type="button"
+										onclick={(e) => {
+											e.stopPropagation();
+											openModuleSettings(mod.key);
+										}}
+										class="w-7 h-7 rounded-lg flex items-center justify-center text-fg/30 hover:text-emerald-400 hover:bg-fg/10 transition-colors"
+										title="Configurações de {mod.name}"
+									>
 										<Settings class="w-3.5 h-3.5" />
-									</div>
+									</button>
 								</div>
 							</div>
 						{/each}
@@ -302,4 +336,15 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+{#if clientMods.selectedModuleForConfig}
+	<ClientModuleConfigModal
+		moduleKey={clientMods.selectedModuleForConfig}
+		onClose={() => { clientMods.selectedModuleForConfig = null; }}
+	/>
+{/if}
+
+{#if clientMods.isPreviewingHud}
+	<ClientHudPreview onClose={() => { clientMods.isPreviewingHud = false; }} />
 {/if}

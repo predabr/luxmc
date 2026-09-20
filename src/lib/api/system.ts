@@ -116,3 +116,7 @@ export async function openPortalAccount(mode: "login" | "register" | "recover"):
         await openUrl(url);
     }
 }
+
+export async function clientOverlayClose(): Promise<void> {
+	return api.invoke("client_overlay_close");
+}

@@ -52,7 +52,7 @@
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
-	import { appInit, discordSetActivity, listenGameExit, crashDoctorDiagnose } from "$lib/api";
+	import { appInit, discordSetActivity, listenGameExit, crashDoctorDiagnose, clientOverlayClose } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
@@ -267,6 +267,20 @@
 			unlistenTelemetry = unlisten;
 		}).catch(() => {});
 
+		let unlistenOverlayToggle: (() => void) | undefined;
+		import("@tauri-apps/api/event").then(({ listen }) => {
+			listen("luxmc-toggle-overlay", () => {
+				if (disposed) return;
+				clientMods.toggleMenu();
+				if (!clientMods.isMenuOpen) {
+					clientOverlayClose().catch(() => {});
+				}
+			}).then((unlisten) => {
+				if (disposed) unlisten();
+				else unlistenOverlayToggle = unlisten;
+			});
+		}).catch(() => {});
+
 		let soundscapeTimer: ReturnType<typeof setTimeout> | undefined;
 		if (settings.value.soundscapesEnabled === true && !appState.performanceMode) {
 			soundscapeTimer = setTimeout(() => {
@@ -282,6 +296,7 @@
 			if (unlistenGameExit) unlistenGameExit();
             unlistenDeepLinks?.();
 			if (unlistenTelemetry) unlistenTelemetry();
+			if (unlistenOverlayToggle) unlistenOverlayToggle();
 			if (soundscapeTimer) clearTimeout(soundscapeTimer);
 			stopSoundscape();
 			destroyAudio();
@@ -376,6 +391,9 @@
 				if (tag !== "input" && tag !== "textarea") {
 					e.preventDefault();
 					clientMods.toggleMenu();
+					if (!clientMods.isMenuOpen) {
+						clientOverlayClose().catch(() => {});
+					}
 					return;
 				}
 			}

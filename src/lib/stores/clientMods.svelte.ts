@@ -129,11 +129,105 @@ const DEFAULT_CONFIG: ClientModsConfig = {
 	preflightModCheck: true,
 };
 
+export interface ArmorHudSettings {
+	orientation: "vertical" | "horizontal";
+	durabilityMode: "percent" | "numeric" | "bar" | "none";
+	warningLowDurability: boolean;
+	showMainHand: boolean;
+	showOffHand: boolean;
+	showItemCount: boolean;
+	scale: number;
+	position: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+}
+
+export interface KeystrokesSettings {
+	showCps: boolean;
+	showSpace: boolean;
+	showMouse: boolean;
+	colorMode: "chroma" | "white" | "emerald" | "cyan";
+	opacity: number;
+}
+
+export interface CpsSettings {
+	showRight: boolean;
+	colorMode: "chroma" | "white" | "emerald";
+	suffix: string;
+}
+
+export interface ToggleSprintSettings {
+	text: string;
+	style: "text" | "icon";
+	color: string;
+}
+
+export interface DirectionHudSettings {
+	style: "bar" | "compact";
+	showBiome: boolean;
+}
+
+export interface PotionEffectsSettings {
+	showDuration: boolean;
+	blinkOnExpire: boolean;
+	compactMode: boolean;
+}
+
+export interface ClientModuleSettings {
+	armorHud: ArmorHudSettings;
+	keystrokes: KeystrokesSettings;
+	cps: CpsSettings;
+	toggleSprint: ToggleSprintSettings;
+	directionHud: DirectionHudSettings;
+	potionEffects: PotionEffectsSettings;
+}
+
+export const DEFAULT_MODULE_SETTINGS: ClientModuleSettings = {
+	armorHud: {
+		orientation: "vertical",
+		durabilityMode: "percent",
+		warningLowDurability: true,
+		showMainHand: true,
+		showOffHand: true,
+		showItemCount: true,
+		scale: 1.0,
+		position: "bottom-right"
+	},
+	keystrokes: {
+		showCps: true,
+		showSpace: true,
+		showMouse: true,
+		colorMode: "emerald",
+		opacity: 0.75
+	},
+	cps: {
+		showRight: true,
+		colorMode: "emerald",
+		suffix: "CPS"
+	},
+	toggleSprint: {
+		text: "[Correndo (Ativo)]",
+		style: "text",
+		color: "#34d399"
+	},
+	directionHud: {
+		style: "bar",
+		showBiome: true
+	},
+	potionEffects: {
+		showDuration: true,
+		blinkOnExpire: true,
+		compactMode: false
+	}
+};
+
 const STORAGE_KEY = "luxmc_client_mods_config";
+const MODULE_SETTINGS_KEY = "luxmc_client_module_settings";
 
 class ClientModsStore {
 	config = $state<ClientModsConfig>({ ...DEFAULT_CONFIG });
+	moduleSettings = $state<ClientModuleSettings>({ ...DEFAULT_MODULE_SETTINGS });
 	isMenuOpen = $state<boolean>(false);
+	selectedModuleForConfig = $state<string | null>(null);
+	isPreviewingHud = $state<boolean>(false);
 
 	constructor() {
 		if (browser) {
@@ -141,6 +235,10 @@ class ClientModsStore {
 				const saved = localStorage.getItem(STORAGE_KEY);
 				if (saved) {
 					this.config = { ...DEFAULT_CONFIG, ...JSON.parse(saved) };
+				}
+				const savedModSettings = localStorage.getItem(MODULE_SETTINGS_KEY);
+				if (savedModSettings) {
+					this.moduleSettings = { ...DEFAULT_MODULE_SETTINGS, ...JSON.parse(savedModSettings) };
 				}
 			} catch {}
 		}
@@ -150,12 +248,17 @@ class ClientModsStore {
 		if (browser) {
 			try {
 				localStorage.setItem(STORAGE_KEY, JSON.stringify(this.config));
+				localStorage.setItem(MODULE_SETTINGS_KEY, JSON.stringify(this.moduleSettings));
 			} catch {}
 		}
 	}
 
 	toggleMenu() {
 		this.isMenuOpen = !this.isMenuOpen;
+		if (!this.isMenuOpen) {
+			this.selectedModuleForConfig = null;
+			this.isPreviewingHud = false;
+		}
 	}
 
 	open() {
@@ -164,6 +267,8 @@ class ClientModsStore {
 
 	close() {
 		this.isMenuOpen = false;
+		this.selectedModuleForConfig = null;
+		this.isPreviewingHud = false;
 	}
 
 	toggle(key: keyof ClientModsConfig) {
@@ -178,8 +283,20 @@ class ClientModsStore {
 		this.save();
 	}
 
+	updateModuleSetting<M extends keyof ClientModuleSettings, K extends keyof ClientModuleSettings[M]>(
+		moduleKey: M,
+		settingKey: K,
+		val: ClientModuleSettings[M][K]
+	) {
+		this.moduleSettings[moduleKey][settingKey] = val;
+		this.save();
+	}
+
 	reset() {
 		this.config = { ...DEFAULT_CONFIG };
+		this.moduleSettings = { ...DEFAULT_MODULE_SETTINGS };
+		this.selectedModuleForConfig = null;
+		this.isPreviewingHud = false;
 		this.save();
 	}
 }
