@@ -71,11 +71,34 @@ pub async fn run() {
                         let mut buf = [0u8; 1024];
                         if let Ok(n) = socket.read(&mut buf).await {
                             let msg = String::from_utf8_lossy(&buf[..n]);
-                            if msg.starts_with("GET /cape") || msg.starts_with("GET /optifine") {
-                                let cape_bytes = crate::core::launcher::get_active_cape_bytes().await;
+                            let is_cape_request = msg.starts_with("GET ") 
+                                && (msg.contains("/cape") || msg.contains("/optifine") || msg.contains("luxmc_cape") || msg.contains("/capes/"));
+                            if is_cape_request {
+                                let mut cape_bytes = crate::core::launcher::get_active_cape_bytes().await;
+                                if cape_bytes.is_empty() {
+                                    if let Ok(db) = crate::db::shared_db().await {
+                                        use sqlx::Row;
+                                        if let Ok(Some(row)) = sqlx::query("SELECT cape_url FROM accounts WHERE cape_url IS NOT NULL AND cape_url != '' ORDER BY updated_at DESC LIMIT 1")
+                                            .fetch_optional(db.pool())
+                                            .await
+                                        {
+                                            if let Ok(Some(raw_cape)) = row.try_get::<Option<String>, _>("cape_url") {
+                                                if raw_cape.starts_with("data:image/") {
+                                                    if let Some(pos) = raw_cape.find(',') {
+                                                        use base64::Engine;
+                                                        if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(&raw_cape[pos + 1..]) {
+                                                            cape_bytes = decoded;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
                                 if !cape_bytes.is_empty() {
                                     let header = format!(
-                                        "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nConnection: close\r\n\r\n",
+                                        "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n",
                                         cape_bytes.len()
                                     );
                                     let _ = socket.write_all(header.as_bytes()).await;

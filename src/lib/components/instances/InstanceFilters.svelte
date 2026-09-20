@@ -4,7 +4,8 @@
 		ArrowUpDown,
 		LayoutGrid,
 		List,
-		Group
+		Group,
+		ChevronDown
 	} from "lucide-svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 
@@ -58,10 +59,10 @@
 		/>
 	</div>
 
-	<div class="flex items-center gap-1.5 bg-bg-elevated border border-fg/10 rounded-full px-3.5 h-10">
-		<ArrowUpDown class="h-3.5 w-3.5 text-fg/40" />
+	<div class="relative flex items-center gap-1.5 bg-bg-elevated border border-fg/10 rounded-full pl-3.5 pr-8 h-10">
+		<ArrowUpDown class="h-3.5 w-3.5 text-fg/40 shrink-0 pointer-events-none" />
 		<select
-			class="bg-transparent text-xs font-bold text-fg outline-none cursor-pointer pr-1"
+			class="appearance-none bg-transparent border-0 text-xs font-bold text-fg outline-none cursor-pointer pr-1"
 			bind:value={sortBy}
 			onchange={() => onSortChange?.(sortBy)}
 		>
@@ -70,12 +71,13 @@
 			<option value="date" class="bg-bg-elevated">{t("instances.sortDate")}</option>
 			<option value="lastPlayed" class="bg-bg-elevated">{t("instances.sortLastPlayed")}</option>
 		</select>
+		<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
 	</div>
 
-	<div class="flex items-center gap-1.5 bg-bg-elevated border border-fg/10 rounded-full px-3.5 h-10">
-		<Group class="h-3.5 w-3.5 text-fg/40" />
+	<div class="relative flex items-center gap-1.5 bg-bg-elevated border border-fg/10 rounded-full pl-3.5 pr-8 h-10">
+		<Group class="h-3.5 w-3.5 text-fg/40 shrink-0 pointer-events-none" />
 		<select
-			class="bg-transparent text-xs font-bold text-fg outline-none cursor-pointer pr-1"
+			class="appearance-none bg-transparent border-0 text-xs font-bold text-fg outline-none cursor-pointer pr-1"
 			bind:value={groupFilter}
 			onchange={() => onGroupChange?.(groupFilter)}
 		>
@@ -83,6 +85,7 @@
 				<option value={g} class="bg-bg-elevated">{getGroupLabel(g)}</option>
 			{/each}
 		</select>
+		<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
 	</div>
 
 	<div class="flex items-center gap-1 p-1 bg-bg-elevated border border-fg/10 rounded-full h-10">

@@ -485,6 +485,46 @@ pub async fn auth_set_account_cape(
     if res.rows_affected() == 0 {
         return Err(AppError::NotFound(format!("Account not found: {}", uuid)));
     }
+
+    if let Some(ref cu) = cape_url {
+        if cu.starts_with("data:image/") {
+            if let Some(pos) = cu.find(',') {
+                use base64::Engine;
+                if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(&cu[pos + 1..]) {
+                    crate::core::launcher::set_active_cape_bytes(bytes).await;
+                }
+            }
+        }
+    } else {
+        crate::core::launcher::set_active_cape_bytes(Vec::new()).await;
+    }
+
+    // If MSA account has access token, attempt to sync with Mojang's official cape API
+    let acc_opt = crate::db::schema::accounts::get_by_id(&db, &uuid).await.ok().flatten();
+    if let Some(acc) = acc_opt {
+        if let Some(token) = acc.access_token.filter(|t| !t.is_empty() && !t.starts_with("offline") && t.len() > 100) {
+            let http = reqwest::Client::new();
+            if cape_url.is_none() {
+                let _ = http.delete("https://api.minecraftservices.com/minecraft/profile/capes/active")
+                    .bearer_auth(&token)
+                    .send()
+                    .await;
+            } else if let Ok(resp) = http.get("https://api.minecraftservices.com/minecraft/profile").bearer_auth(&token).send().await {
+                if let Ok(val) = resp.json::<serde_json::Value>().await {
+                    if let Some(capes) = val.get("capes").and_then(|c| c.as_array()) {
+                        if let Some(first_cape_id) = capes.first().and_then(|c| c.get("id")).and_then(|i| i.as_str()) {
+                            let _ = http.put("https://api.minecraftservices.com/minecraft/profile/capes/active")
+                                .bearer_auth(&token)
+                                .json(&serde_json::json!({ "capeId": first_cape_id }))
+                                .send()
+                                .await;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     Ok(())
 }
 

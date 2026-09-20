@@ -418,12 +418,7 @@ impl GameLauncher {
 
         let has_explicit_custom_cape = effective_cape
             .as_deref()
-            .filter(|c| !c.trim().is_empty())
-            .map(|c| {
-                let trimmed = c.trim();
-                !trimmed.starts_with("https://textures.minecraft.net/")
-                    && !trimmed.starts_with("http://textures.minecraft.net/")
-            })
+            .map(|c| !c.trim().is_empty())
             .unwrap_or(false);
 
         if is_msa && !has_explicit_custom_skin && !has_explicit_custom_cape {

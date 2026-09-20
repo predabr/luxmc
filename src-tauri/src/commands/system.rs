@@ -281,13 +281,6 @@ pub fn trigger_overlay_toggle(app: &tauri::AppHandle) {
         }
     }
 
-    use tauri::Manager;
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.unminimize();
-        let _ = window.show();
-        let _ = window.set_always_on_top(true);
-        let _ = window.set_focus();
-    }
     use tauri::Emitter;
     let _ = app.emit("luxmc-toggle-overlay", ());
 }

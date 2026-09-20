@@ -133,7 +133,7 @@
 			<Image class="w-4 h-4 text-brand-500" />
 			<span class="text-xs font-bold text-fg uppercase tracking-wider">Plano de Fundo do Launcher</span>
 		</div>
-		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
+		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
 			{#each Object.values(BACKGROUNDS) as bg}
 				<button
 					type="button"

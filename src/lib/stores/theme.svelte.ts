@@ -84,33 +84,45 @@ export const ACCENTS: Record<string, AccentOption> = {
 export const BACKGROUNDS: Record<string, BackgroundOption> = {
 	obsidian: {
 		id: "obsidian",
-		name: "Preto Obsidiana",
+		name: "Fortaleza de Obsidiana",
 		preview: "#0c0c0e",
 		style: "background: radial-gradient(circle at 50% -10%, rgba(59, 130, 246, 0.14) 0%, transparent 65%), radial-gradient(circle at 85% 110%, rgba(59, 130, 246, 0.08) 0%, transparent 60%), #090a0f;"
 	},
 	cosmos: {
 		id: "cosmos",
-		name: "Cosmos Profundo",
+		name: "Vazio Celestial do The End",
 		preview: "#08090f",
 		style: "background: radial-gradient(circle at 20% -10%, rgba(59, 130, 246, 0.22) 0%, transparent 55%), radial-gradient(circle at 80% 110%, rgba(168, 85, 247, 0.18) 0%, transparent 55%), #05060b;"
 	},
 	night: {
 		id: "night",
-		name: "Minecraft Noite",
+		name: "Noite Estrelada na Taiga",
 		preview: "#0a1128",
 		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.82), rgba(10, 12, 18, 0.94)), url('/bg_night.jpg'); background-size: cover; background-position: center;"
 	},
 	day: {
 		id: "day",
-		name: "Minecraft Dia",
+		name: "Alvorada nos Picos Congelados",
 		preview: "#1e3a5f",
 		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.82), rgba(10, 12, 18, 0.94)), url('/bg_day.jpg'); background-size: cover; background-position: center;"
 	},
 	aurora: {
 		id: "aurora",
-		name: "Aurora Boreal",
+		name: "Aurora Boreal Ártica",
 		preview: "#04151f",
 		style: "background: radial-gradient(ellipse at 50% -20%, rgba(56, 189, 248, 0.25) 0%, transparent 70%), radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.2) 0%, transparent 65%), #040810;"
+	},
+	sakura: {
+		id: "sakura",
+		name: "Bosque das Cerejeiras",
+		preview: "#1a0b14",
+		style: "background: radial-gradient(circle at 30% -10%, rgba(244, 63, 94, 0.22) 0%, transparent 60%), radial-gradient(circle at 80% 110%, rgba(251, 113, 133, 0.15) 0%, transparent 60%), #0c070a;"
+	},
+	lush: {
+		id: "lush",
+		name: "Cavernas Exuberantes",
+		preview: "#06140e",
+		style: "background: radial-gradient(circle at 40% -10%, rgba(16, 185, 129, 0.22) 0%, transparent 60%), radial-gradient(circle at 75% 100%, rgba(52, 211, 153, 0.15) 0%, transparent 55%), #050d09;"
 	}
 };
 

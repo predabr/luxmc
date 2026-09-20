@@ -835,13 +835,21 @@
 							{#each jumpInInstances as inst (inst.id)}
 								<div class="flex items-center justify-between p-3 rounded-2xl bg-bg-elevated hover:bg-bg-elevated border border-fg/5 hover:border-fg/10 transition-all group shadow-sm">
 									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="w-12 h-12 rounded-xl overflow-hidden bg-bg-overlay/40 border border-fg/10 shrink-0 p-1 flex items-center justify-center">
-											<img 
-												src={inst.icon || "/grass_block.png"} 
-												alt={inst.name}
-												class="w-full h-full object-contain"
-												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
-											/>
+										<div class="w-12 h-12 rounded-xl overflow-hidden bg-bg-overlay/60 border border-fg/10 shrink-0 flex items-center justify-center shadow-inner">
+											{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
+												<img 
+													src={inst.icon} 
+													alt={inst.name}
+													class="w-full h-full object-cover"
+													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-8 h-8 object-contain [image-rendering:pixelated] drop-shadow'; }}
+												/>
+											{:else}
+												<img 
+													src="/grass_block.png" 
+													alt={inst.name}
+													class="w-8 h-8 object-contain [image-rendering:pixelated] drop-shadow"
+												/>
+											{/if}
 										</div>
 
 										<div class="min-w-0 space-y-0.5">
@@ -1067,13 +1075,21 @@
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
 							>
 								<div class="w-full flex-1 flex items-center justify-center relative my-1">
-									<div class="w-16 h-16 rounded-2xl bg-bg-overlay/40 border border-fg/10 p-2 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105">
-										<img 
-											src={inst.icon || "/grass_block.png"} 
-											alt={inst.name}
-											class="w-full h-full object-contain"
-											onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
-										/>
+									<div class="w-16 h-16 rounded-2xl bg-bg-overlay/60 border border-fg/10 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105 shadow-inner">
+										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
+											<img 
+												src={inst.icon} 
+												alt={inst.name}
+												class="w-full h-full object-cover"
+												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-10 h-10 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
+											/>
+										{:else}
+											<img 
+												src="/grass_block.png" 
+												alt={inst.name}
+												class="w-10 h-10 object-contain [image-rendering:pixelated] drop-shadow-md"
+											/>
+										{/if}
 									</div>
 
 									<button
