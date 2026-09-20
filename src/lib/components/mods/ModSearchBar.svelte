@@ -44,7 +44,7 @@
 <aside class="w-64 shrink-0 h-full bg-bg-elevated border border-fg/5 rounded-3xl p-5 overflow-y-auto custom-scrollbar flex flex-col justify-between shadow-2xl">
 	<div class="space-y-5">
 		<div class="flex items-center gap-2 text-xs font-bold text-fg uppercase tracking-wider">
-			<Filter class="w-3.5 h-3.5 text-brand-500" /> Filtros
+			<Filter class="w-3.5 h-3.5 text-[#1bd96a]" /> Filtros
 		</div>
 		<div>
 			<div class="text-[11px] font-bold text-fg/40 uppercase tracking-wider mb-2">FONTE</div>
@@ -58,10 +58,10 @@
 				</button>
 				<button
 					type="button"
-					class="py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'modrinth' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/50 hover:text-fg'}"
+					class="py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'modrinth' ? 'bg-[#1bd96a]/15 text-[#1bd96a] shadow-sm border border-[#1bd96a]/30' : 'text-fg/50 hover:text-fg'}"
 					onclick={() => selectedSource = 'modrinth'}
 				>
-					<span class="text-success font-black text-xs">m</span> Modrinth
+					<span class="text-[#1bd96a] font-black text-xs">m</span> Modrinth
 				</button>
 				<button
 					type="button"
@@ -78,7 +78,7 @@
 				{#each contentTypeItems as item}
 					<button
 						type="button"
-						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 {selectedType === item.id ? 'bg-brand-500 text-fg font-bold shadow-md shadow-button' : 'bg-bg-elevated text-fg/60 border border-fg/5 hover:bg-bg-subtle hover:text-fg'}"
+						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 {selectedType === item.id ? 'bg-[#1bd96a] text-[#090a0f] font-black shadow-md' : 'bg-bg-elevated text-fg/60 border border-fg/5 hover:bg-bg-subtle hover:text-fg'}"
 						onclick={() => selectedType = item.id}
 					>
 						<item.icon class="w-3.5 h-3.5 shrink-0" />
@@ -122,7 +122,7 @@
 				{#each categories as cat}
 					<button
 						type="button"
-						class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer {selectedCategory === cat ? 'bg-fg/20 text-fg border border-fg/30 font-bold' : 'bg-bg-elevated text-fg/50 border border-fg/5 hover:border-fg/20 hover:text-fg'}"
+						class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer {selectedCategory === cat ? 'bg-[#1bd96a]/20 text-[#1bd96a] border border-[#1bd96a]/40 font-bold' : 'bg-bg-elevated text-fg/50 border border-fg/5 hover:border-fg/20 hover:text-fg'}"
 						onclick={() => selectedCategory = selectedCategory === cat ? null : cat}
 					>
 						{cat}

@@ -1,28 +1,30 @@
 import { type VariantProps, tv } from "tailwind-variants";
 
-const primary = "border border-brand-400/40 bg-gradient-to-r from-brand-600 to-indigo-600 text-brand-foreground shadow-button hover:from-brand-500 hover:to-indigo-500 hover:shadow-button-hover active:bg-brand-600";
-const secondary = "border border-fg/10 bg-bg-subtle text-fg hover:border-brand-500/30 hover:bg-brand-500/10 active:bg-brand-500/15";
+const primary = "border-0 bg-[#1bd96a] hover:bg-[#18c45f] active:bg-[#15af54] text-[#090a0f] font-extrabold shadow-sm transition-all duration-150 active:scale-[0.98]";
+const secondary = "border border-fg/10 bg-bg-elevated hover:bg-bg-subtle text-fg font-bold hover:border-fg/20 transition-all duration-150 active:scale-[0.98]";
+
 export const button = tv({
-    base: "relative inline-flex shrink-0 items-center justify-center gap-2 overflow-hidden rounded-xl font-semibold transition-all duration-200 ease-out select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none aria-disabled:pointer-events-none aria-disabled:opacity-40 active:scale-[0.97]",
+    base: "relative inline-flex shrink-0 items-center justify-center gap-2 overflow-hidden rounded-xl font-bold transition-all duration-150 ease-out select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1bd96a] focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none aria-disabled:pointer-events-none aria-disabled:opacity-40 active:scale-[0.98]",
     variants: {
         variant: {
             solid: primary,
             primary,
             secondary,
-            ghost: "border border-transparent text-fg-muted hover:bg-fg/5 hover:text-fg active:bg-fg/10",
-            outline: "border border-brand-500/30 bg-brand-500/10 text-brand-300 hover:border-brand-400/60 hover:bg-brand-500/20",
+            ghost: "border-0 text-fg-muted hover:bg-fg/5 hover:text-fg active:bg-fg/10",
+            outline: "border border-[#1bd96a]/40 bg-[#1bd96a]/10 text-[#1bd96a] hover:border-[#1bd96a]/70 hover:bg-[#1bd96a]/20 font-bold",
             danger: "border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20 hover:border-danger/50",
-            ghostBrand: "text-brand-400 hover:bg-brand-500/10 hover:text-brand-300",
+            ghostBrand: "text-[#1bd96a] hover:bg-[#1bd96a]/10 hover:text-[#18c45f]",
             microsoft: secondary,
-            play: "border border-brand-300/40 bg-gradient-to-br from-brand-400 via-brand-500 to-brand-700 text-brand-foreground shadow-button font-bold hover:from-brand-300 hover:via-brand-400 hover:to-brand-600 hover:shadow-button-hover after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:border-t after:border-brand-foreground/20"
+            play: "border-0 bg-[#1bd96a] hover:bg-[#18c45f] active:bg-[#15af54] text-[#090a0f] font-black tracking-wide shadow-sm transition-all duration-150 active:scale-[0.98]"
         },
         size: {
-            sm: "h-9 px-3 text-xs",
-            md: "h-10 px-4 text-xs",
-            lg: "h-11 px-5 text-sm",
-            xl: "h-12 px-6 text-sm",
-            hero: "h-16 px-8 text-sm tracking-wide",
-            icon: "h-10 w-10 p-0"
+            sm: "h-9 px-3 text-xs rounded-xl",
+            md: "h-10 px-4 text-xs rounded-xl",
+            lg: "h-11 px-5 text-sm rounded-xl",
+            xl: "h-12 px-6 text-sm rounded-2xl",
+            pill: "h-9 px-5 text-xs rounded-full",
+            hero: "h-14 px-8 text-sm tracking-wide rounded-2xl",
+            icon: "h-10 w-10 p-0 rounded-xl"
         },
         block: { true: "w-full" }
     },

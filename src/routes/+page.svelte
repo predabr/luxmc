@@ -31,7 +31,8 @@
 		FolderPlus,
 		SlidersHorizontal,
 		Filter,
-		ArrowUpDown
+		ArrowUpDown,
+		Home
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
@@ -89,6 +90,23 @@
 	let customGroups = $state<string[]>(["Vanilla", "Modded"]);
 	let showNewGroupPrompt = $state(false);
 	let newGroupName = $state("");
+
+	const tilePalette = [
+		{ bg: "bg-[#2563eb]", text: "text-blue-200" },
+		{ bg: "bg-[#7c3aed]", text: "text-purple-200" },
+		{ bg: "bg-[#9333ea]", text: "text-violet-200" },
+		{ bg: "bg-[#d97706]", text: "text-amber-200" },
+		{ bg: "bg-[#059669]", text: "text-emerald-200" },
+		{ bg: "bg-[#db2777]", text: "text-pink-200" },
+		{ bg: "bg-[#0284c7]", text: "text-sky-200" },
+		{ bg: "bg-[#e11d48]", text: "text-rose-200" }
+	];
+
+	function getInstanceTileColor(id: string): { bg: string; text: string } {
+		let hash = 0;
+		for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
+		return tilePalette[Math.abs(hash) % tilePalette.length];
+	}
 
 	onMount(() => {
 		const savedAccsRaw = localStorage.getItem("luxmc_saved_nicknames");
@@ -475,7 +493,6 @@
 	<div 
 		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none bg-bg overflow-hidden"
 	>
-		<!-- Cosmic background mesh and glow -->
 		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
 		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(59_130_246/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
 
@@ -529,7 +546,6 @@
 					</div>
 
 					{#if isLoggingInMicrosoft}
-						<!-- Futuristic Holographic Auth Portal -->
 						<div class="w-full bg-bg-subtle/90 border border-blue-500/30 rounded-2xl p-6 text-center space-y-4 shadow-xl relative overflow-hidden">
 							<div class="relative w-16 h-16 mx-auto flex items-center justify-center">
 								<div class="absolute inset-0 rounded-full border-2 border-blue-500/20 animate-ping pointer-events-none"></div>
@@ -764,10 +780,10 @@
 
 			<header class="flex items-center justify-between gap-4 py-1">
 				<div class="flex items-center gap-3">
-					<div class="flex items-center gap-1 bg-bg-elevated border border-fg/5 rounded-xl p-1 shadow-sm">
+					<div class="flex items-center gap-1 bg-[#14171d] border border-white/[0.08] rounded-xl p-1 shadow-sm">
 						<button 
 							type="button" 
-							class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
+							class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
 							title="Voltar"
 							onclick={() => history.back()}
 						>
@@ -775,7 +791,7 @@
 						</button>
 						<button 
 							type="button" 
-							class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
+							class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
 							title="Avançar"
 							onclick={() => history.forward()}
 						>
@@ -783,19 +799,22 @@
 						</button>
 					</div>
 
-					<div class="flex items-center gap-2 text-xs font-bold text-fg/70">
-						<span class="text-fg/30">▷</span>
-						<span class="text-fg">Home</span>
+					<div class="flex items-center gap-2 text-xs font-bold text-white/80">
+						<Home class="w-3.5 h-3.5 text-white/60" />
+						<span class="text-white font-extrabold">Home</span>
 					</div>
 				</div>
 
 				<div class="flex items-center gap-2">
-					<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-bg-elevated border border-fg/5 text-[11px] text-fg/60">
+					<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#14171d] border border-white/[0.08] text-[11px] text-white/70 shadow-sm">
 						{#if isLaunching}
 							<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
 							<span class="text-amber-300 font-bold">{launchStatusText || "Iniciando..."}</span>
+						{:else if appState.isGameRunning}
+							<span class="w-2 h-2 rounded-full bg-[#1bd96a] animate-pulse"></span>
+							<span class="text-[#1bd96a] font-bold">Jogando {appState.activeGameDetails?.name || "Minecraft"}</span>
 						{:else}
-							<span class="w-2 h-2 rounded-full bg-neutral-600"></span>
+							<span class="w-2 h-2 rounded-full bg-white/30"></span>
 							<span>No instances running</span>
 						{/if}
 					</div>
@@ -807,67 +826,69 @@
 					<button 
 						type="button" 
 						onclick={() => jumpInExpanded = !jumpInExpanded}
-						class="flex items-center gap-2 text-sm font-black text-fg uppercase tracking-wider hover:text-emerald-400 transition-colors cursor-pointer"
+						class="flex items-center gap-2 text-sm font-black text-white uppercase tracking-wider hover:text-[#1bd96a] transition-colors cursor-pointer"
 					>
 						<span>Jump in</span>
 						{#if jumpInExpanded}
-							<ChevronUp class="w-4 h-4 text-fg/40" />
+							<ChevronUp class="w-4 h-4 text-white/40" />
 						{:else}
-							<ChevronDown class="w-4 h-4 text-fg/40" />
+							<ChevronDown class="w-4 h-4 text-white/40" />
 						{/if}
 					</button>
 				</div>
 
 				{#if jumpInExpanded}
 					{#if jumpInInstances.length === 0}
-						<div class="p-6 rounded-2xl bg-bg-elevated border border-fg/5 text-center space-y-2">
-							<p class="text-xs text-fg/40">Nenhuma instância encontrada para início rápido.</p>
+						<div class="p-6 rounded-2xl bg-[#14171d] border border-white/[0.06] text-center space-y-2">
+							<p class="text-xs text-white/40">Nenhuma instância encontrada para início rápido.</p>
 							<button 
 								type="button" 
 								onclick={() => showCreateModal = true}
-								class="px-4 py-2 rounded-xl bg-emerald-500 text-brand-foreground text-xs font-bold hover:bg-emerald-400 transition-colors cursor-pointer"
+								class="px-4 py-2 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] text-xs font-black transition-colors cursor-pointer"
 							>
 								+ Criar Primeira Instância
 							</button>
 						</div>
 					{:else}
-						<div class="space-y-2" transition:slide={{ duration: 180 }}>
+						<div class="space-y-2.5" transition:slide={{ duration: 180 }}>
 							{#each jumpInInstances as inst (inst.id)}
-								<div class="flex items-center justify-between p-3 rounded-2xl bg-bg-elevated hover:bg-bg-elevated border border-fg/5 hover:border-fg/10 transition-all group shadow-sm">
+								{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
+								<div class="flex items-center justify-between p-3 rounded-2xl bg-[#14171d] hover:bg-[#181c24] border border-white/[0.06] hover:border-white/[0.14] transition-all group shadow-sm">
 									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="w-12 h-12 rounded-xl overflow-hidden bg-bg-overlay/60 border border-fg/10 shrink-0 flex items-center justify-center shadow-inner">
+										<div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-white/10' : tileCol.bg}">
 											{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 												<img 
 													src={inst.icon} 
 													alt={inst.name}
 													class="w-full h-full object-cover"
-													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-8 h-8 object-contain [image-rendering:pixelated] drop-shadow'; }}
+													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-7 h-7 object-contain [image-rendering:pixelated] drop-shadow'; }}
 												/>
 											{:else}
 												<img 
 													src="/grass_block.png" 
 													alt={inst.name}
-													class="w-8 h-8 object-contain [image-rendering:pixelated] drop-shadow"
+													class="w-7 h-7 object-contain [image-rendering:pixelated] drop-shadow"
 												/>
 											{/if}
 										</div>
 
 										<div class="min-w-0 space-y-0.5">
 											<div class="flex items-center gap-2">
-												<h3 class="text-sm font-bold text-fg truncate leading-tight group-hover:text-emerald-300 transition-colors">
+												<h3 class="text-sm font-bold text-white truncate leading-tight group-hover:text-[#1bd96a] transition-colors">
 													{inst.name}
 												</h3>
 												{#if !inst.lastPlayed}
-													<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+													<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#1bd96a]/15 text-[#1bd96a] border border-[#1bd96a]/30">
 														<Sparkles class="w-2.5 h-2.5" /> New instance
 													</span>
 												{/if}
 											</div>
 
-											<div class="flex items-center gap-2 text-[11px] text-fg/40">
-												<span class="px-2 py-0.5 rounded-md font-bold uppercase text-[9px] border {getLoaderBadgeColor(inst.loader)}">
+											<div class="flex items-center gap-2 text-[11px] text-white/50">
+												<span class="font-semibold text-white/70">
 													{inst.loader} {inst.mcVersion}
 												</span>
+												<span>•</span>
 												{#if inst.lastPlayed}
 													<span>Jogado recentemente</span>
 												{:else}
@@ -882,11 +903,11 @@
 											type="button"
 											onclick={() => handleLaunch(inst)}
 											disabled={isLaunching && launchingProfileId === inst.id}
-											class="px-5 py-2 rounded-full bg-emerald-500 hover:bg-emerald-400 text-brand-foreground font-extrabold text-xs flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
-											title="Jogar Instância"
+											class="px-5 py-2 rounded-full bg-[#1bd96a] hover:bg-[#18c45f] active:bg-[#15af54] text-[#090a0f] font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+											title="Play"
 										>
 											{#if isLaunching && launchingProfileId === inst.id}
-												<Loader2 class="w-3.5 h-3.5 animate-spin" />
+												<Loader2 class="w-3.5 h-3.5 animate-spin text-[#090a0f]" />
 												<span>Iniciando...</span>
 											{:else}
 												<Play class="w-3.5 h-3.5 fill-current" />
@@ -903,34 +924,34 @@
 												}}
 												aria-label={`Opções de ${inst.name}`}
                                                 aria-expanded={activeContextMenuId === inst.id}
-                                                class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
+                                                class="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
 											>
 												<MoreVertical class="w-4 h-4" />
 											</button>
 
 											{#if activeContextMenuId === inst.id}
 												<div 
-													class="absolute right-0 top-10 w-44 rounded-xl bg-bg-subtle border border-fg/10 shadow-2xl py-1 z-30 space-y-0.5"
+													class="absolute right-0 top-10 w-44 rounded-xl bg-[#181b22] border border-white/10 shadow-2xl py-1 z-30 space-y-0.5"
 													transition:fly={{ y: -6, duration: 120 }}
 												>
 													<button
 														type="button"
 														onclick={() => goto(`/instances/${inst.id}`)}
-														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer"
+														class="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer font-medium"
 													>
-														<Settings class="w-3.5 h-3.5 text-fg/60" /> Detalhes & Mods
+														<Settings class="w-3.5 h-3.5 text-white/60" /> Detalhes & Mods
 													</button>
 													<button
 														type="button"
 														onclick={() => instancesOpenFolder(inst.id)}
-														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer"
+														class="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer font-medium"
 													>
-														<FolderOpen class="w-3.5 h-3.5 text-fg/60" /> Abrir Pasta
+														<FolderOpen class="w-3.5 h-3.5 text-white/60" /> Abrir Pasta
 													</button>
 													<button
 														type="button"
 														onclick={() => profiles.remove(inst.id)}
-														class="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer"
+														class="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer font-bold"
 													>
 														<Trash2 class="w-3.5 h-3.5" /> Excluir Instância
 													</button>
@@ -945,107 +966,103 @@
 				{/if}
 			</section>
 
-			<div class="flex items-center justify-center py-1">
-				<div class="w-12 h-1 bg-fg/10 rounded-full"></div>
-			</div>
-
 			<section class="space-y-4 pb-8">
 				
 				<div class="space-y-3">
-					<h2 class="text-lg font-black text-fg tracking-tight">
+					<h2 class="text-lg font-black text-white tracking-tight">
 						Library
 					</h2>
 
 					<div class="flex items-center gap-2.5">
 						<div class="relative flex-1">
-							<Search class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-fg/30" />
+							<Search class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
 							<input 
 								type="text" 
 								placeholder="Search" 
 								bind:value={searchQuery}
-								class="w-full bg-bg-elevated border border-fg/5 rounded-xl pl-9 pr-3 py-2 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-fg/20 transition-all"
+								class="w-full bg-[#14171d] border border-white/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder:text-white/30 outline-none focus:border-[#1bd96a]/60 transition-all"
 							/>
 						</div>
 
 						<button 
 							type="button" 
 							onclick={() => showNewGroupPrompt = true}
-							class="px-3.5 py-2 rounded-xl bg-bg-elevated hover:bg-bg-elevated text-fg/70 hover:text-fg border border-fg/5 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+							class="px-4 py-2.5 rounded-xl bg-[#1a1d24] hover:bg-[#222731] text-white/80 hover:text-white border border-white/[0.08] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
 						>
-							<FolderPlus class="w-3.5 h-3.5 text-fg/50" />
+							<FolderPlus class="w-3.5 h-3.5 text-white/50" />
 							<span>+ New group</span>
 						</button>
 
 						<button 
 							type="button" 
 							onclick={() => showCreateModal = true}
-							class="px-4 py-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md shrink-0 active:scale-[0.98]"
+							class="px-4 py-2.5 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] active:bg-[#15af54] text-[#090a0f] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 active:scale-[0.98]"
 						>
 							<Plus class="w-4 h-4 stroke-[3]" />
-							<span>{t("home.createInstance") || "Nova Instância"}</span>
+							<span>+ New instance</span>
 						</button>
 					</div>
 
-					<div class="flex items-center gap-2">
-						<div class="relative flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
-							<ArrowUpDown class="w-3.5 h-3.5 text-brand-400 shrink-0 pointer-events-none" />
+					<div class="flex items-center gap-2 flex-wrap">
+						<div class="relative flex items-center gap-1.5 bg-[#14171d] hover:bg-[#1a1e26] border border-white/[0.08] hover:border-white/[0.15] rounded-xl px-3 py-1.5 transition-all shadow-sm">
+							<ArrowUpDown class="w-3.5 h-3.5 text-[#1bd96a] shrink-0 pointer-events-none" />
 							<select 
 								bind:value={sortBy}
-								class="appearance-none bg-transparent border-0 text-xs font-semibold text-fg outline-none cursor-pointer pr-5 py-0.5 focus:ring-0"
+								class="appearance-none bg-transparent border-0 text-xs font-semibold text-white outline-none cursor-pointer pr-5 py-0.5 focus:ring-0"
 							>
-								<option value="lastPlayed" class="bg-bg-elevated text-fg">{t("instances.sortLastPlayed") || "Última partida"}</option>
-								<option value="name" class="bg-bg-elevated text-fg">{t("instances.sortName") || "Nome"}</option>
-								<option value="version" class="bg-bg-elevated text-fg">{t("instances.sortVersion") || "Versão"}</option>
+								<option value="lastPlayed" class="bg-[#14171d] text-white">Date created</option>
+								<option value="name" class="bg-[#14171d] text-white">Name</option>
+								<option value="version" class="bg-[#14171d] text-white">Version</option>
 							</select>
-							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+							<ChevronDown class="w-3 h-3 text-white/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
 						</div>
 
-						<div class="relative flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
-							<Layers class="w-3.5 h-3.5 text-brand-400 shrink-0 pointer-events-none" />
+						<div class="relative flex items-center gap-1.5 bg-[#14171d] hover:bg-[#1a1e26] border border-white/[0.08] hover:border-white/[0.15] rounded-xl px-3 py-1.5 transition-all shadow-sm">
+							<Layers class="w-3.5 h-3.5 text-[#1bd96a] shrink-0 pointer-events-none" />
 							<select 
 								bind:value={selectedGroup}
-								class="appearance-none bg-transparent border-0 text-xs font-semibold text-fg outline-none cursor-pointer pr-5 py-0.5 focus:ring-0"
+								class="appearance-none bg-transparent border-0 text-xs font-semibold text-white outline-none cursor-pointer pr-5 py-0.5 focus:ring-0"
 							>
-								<option value="all" class="bg-bg-elevated text-fg">{t("instances.groupAll") || "Todas"}</option>
+								<option value="all" class="bg-[#14171d] text-white">Custom group</option>
 								{#each customGroups as grp}
-									<option value={grp} class="bg-bg-elevated text-fg">{grp}</option>
+									<option value={grp} class="bg-[#14171d] text-white">{grp}</option>
 								{/each}
 							</select>
-							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+							<ChevronDown class="w-3 h-3 text-white/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
 						</div>
 
 						<button 
 							type="button" 
-							class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3.5 py-1.5 text-xs font-semibold text-fg/80 hover:text-fg transition-all cursor-pointer shadow-sm active:scale-[0.98] {showNewGroupPrompt ? 'border-brand-500/50 bg-brand-500/10 text-brand-400' : ''}"
+							class="flex items-center gap-1.5 bg-[#14171d] hover:bg-[#1a1e26] border border-white/[0.08] hover:border-white/[0.15] rounded-xl px-3.5 py-1.5 text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer shadow-sm active:scale-[0.98] {showNewGroupPrompt ? 'border-[#1bd96a]/50 bg-[#1bd96a]/10 text-[#1bd96a]' : ''}"
 							onclick={() => showNewGroupPrompt = !showNewGroupPrompt}
 							title="Criar novo grupo de instâncias"
 						>
-							<FolderPlus class="w-3.5 h-3.5 {showNewGroupPrompt ? 'text-brand-400' : 'text-fg/50'}" />
-							<span>{showNewGroupPrompt ? "Fechar" : (t("instances.newGroup") === "instances.newGroup" ? "Novo grupo" : t("instances.newGroup"))}</span>
+							<Filter class="w-3.5 h-3.5 text-white/50" />
+							<span>+ Add filter</span>
 						</button>
 					</div>
 				</div>
 
 				{#if showNewGroupPrompt}
-					<div class="p-3.5 rounded-2xl bg-bg-elevated border border-emerald-500/30 flex items-center gap-2.5" in:slide={{ duration: 150 }}>
+					<div class="p-3.5 rounded-2xl bg-[#14171d] border border-[#1bd96a]/30 flex items-center gap-2.5" in:slide={{ duration: 150 }}>
 						<input 
 							type="text" 
 							placeholder="Nome do novo grupo..."
 							bind:value={newGroupName}
-							class="flex-1 bg-bg-overlay/40 border border-fg/10 rounded-xl px-3 py-1.5 text-xs text-fg outline-none focus:border-emerald-400"
+							class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#1bd96a]"
 							onkeydown={(e) => { if (e.key === "Enter") handleAddGroup(); }}
 						/>
 						<button 
 							type="button" 
 							onclick={handleAddGroup}
-							class="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground text-xs font-bold cursor-pointer"
+							class="px-4 py-2 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] text-xs font-black cursor-pointer"
 						>
 							Adicionar
 						</button>
 						<button 
 							type="button" 
 							onclick={() => showNewGroupPrompt = false}
-							class="px-3 py-1.5 rounded-xl bg-fg/5 text-fg/50 hover:text-fg text-xs cursor-pointer"
+							class="px-3 py-2 rounded-xl bg-white/5 text-white/50 hover:text-white text-xs cursor-pointer"
 						>
 							Cancelar
 						</button>
@@ -1053,13 +1070,13 @@
 				{/if}
 
 				{#if filteredProfiles.length === 0}
-					<div class="p-12 rounded-3xl bg-bg-elevated border border-fg/5 text-center space-y-3">
-						<Layers class="w-8 h-8 text-fg/20 mx-auto" />
-						<p class="text-sm text-fg/40">Nenhuma instância encontrada para os filtros aplicados.</p>
+					<div class="p-12 rounded-3xl bg-[#14171d] border border-white/[0.06] text-center space-y-3">
+						<Layers class="w-8 h-8 text-white/20 mx-auto" />
+						<p class="text-sm text-white/40">Nenhuma instância encontrada para os filtros aplicados.</p>
 						<button 
 							type="button" 
 							onclick={() => { searchQuery = ""; selectedGroup = "all"; }}
-							class="text-xs text-emerald-400 hover:underline font-bold cursor-pointer"
+							class="text-xs text-[#1bd96a] hover:underline font-bold cursor-pointer"
 						>
 							Limpar filtros
 						</button>
@@ -1067,15 +1084,16 @@
 				{:else}
 					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
 						{#each filteredProfiles as inst (inst.id)}
+							{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
 							<div 
 								role="button"
 								tabindex="0"
-								class="rounded-2xl bg-bg-elevated hover:bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-all p-3 flex flex-col justify-between group relative shadow-sm cursor-pointer min-h-[160px]"
+								class="rounded-2xl bg-[#14171d] hover:bg-[#181c24] border border-white/[0.06] hover:border-white/[0.14] transition-all p-3.5 flex flex-col justify-between group relative shadow-sm cursor-pointer min-h-[175px]"
 								onclick={() => goto(`/instances/${inst.id}`)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
 							>
 								<div class="w-full flex-1 flex items-center justify-center relative my-1">
-									<div class="w-16 h-16 rounded-2xl bg-bg-overlay/60 border border-fg/10 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105 shadow-inner">
+									<div class="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105 shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-white/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 											<img 
 												src={inst.icon} 
@@ -1098,7 +1116,7 @@
 											e.stopPropagation();
 											handleLaunch(inst);
 										}}
-										class="absolute bottom-0 right-3 w-9 h-9 rounded-full bg-emerald-500 hover:bg-emerald-400 text-brand-foreground flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
+										class="absolute bottom-0 right-1 w-9 h-9 rounded-full bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
 										title="Play"
 									>
 										<Play class="w-3.5 h-3.5 fill-current ml-0.5" />
@@ -1106,10 +1124,10 @@
 								</div>
 
 								<div class="w-full space-y-0.5 text-center mt-2">
-									<h3 class="text-xs font-bold text-fg group-hover:text-emerald-300 transition-colors truncate">
+									<h3 class="text-xs font-bold text-white group-hover:text-[#1bd96a] transition-colors truncate">
 										{inst.name}
 									</h3>
-									<p class="text-[10px] text-fg/40 truncate">
+									<p class="text-[10px] text-white/40 truncate font-medium">
 										{inst.loader} {inst.mcVersion}
 									</p>
 								</div>

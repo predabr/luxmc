@@ -90,51 +90,85 @@
 <aside class="shrink-0 flex flex-col gap-4 select-none pb-8 h-full overflow-y-auto custom-scrollbar transition-all duration-200 {collapsed ? 'w-12' : 'w-[280px]'}">
 	<button type="button" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-bg-elevated/80 p-3 text-fg-muted hover:text-fg" onclick={() => collapsed = !collapsed} aria-label={collapsed ? "Expandir amigos" : "Minimizar amigos"} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">Amigos</span>{/if}</button>
 	{#if !collapsed}
-	{#if !friendsState.me}<a href="/friends" class="rounded-xl border border-brand-500/30 bg-brand-500/10 p-3 text-xs text-brand-300">Conectar à rede social</a>{/if}
+	{@const hasInstance = profiles.list.length > 0}
+	{@const hasAccount = Boolean(account.value)}
+	{@const isMsLoggedIn = Boolean(account.value?.minecraftToken && !account.value?.id.startsWith("offline_"))}
+	{@const allDone = hasInstance && hasAccount}
+	<div class="bg-[#14171d] border border-white/[0.06] rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+		<div class="flex items-center justify-between">
+			<span class="text-xs font-black text-white tracking-wide">Começando</span>
+			<span class="text-[10px] font-bold text-[#1bd96a] bg-[#1bd96a]/15 px-2 py-0.5 rounded-full">
+				{Number(hasInstance) + Number(hasAccount)}/2
+			</span>
+		</div>
+		<div class="space-y-1.5">
+			<button
+				type="button"
+				onclick={() => goto("/instances?new=true")}
+				class="w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all cursor-pointer {hasInstance ? 'bg-white/[0.02] text-white/50 hover:text-white' : 'bg-white/[0.05] hover:bg-white/[0.08] text-white'}"
+			>
+				<div class="w-4 h-4 rounded-full flex items-center justify-center shrink-0 {hasInstance ? 'bg-[#1bd96a] text-[#090a0f]' : 'border border-white/30 text-transparent'}">
+					{#if hasInstance}
+						<Check class="w-2.5 h-2.5 stroke-[3]" />
+					{/if}
+				</div>
+				<span class="text-xs font-semibold truncate {hasInstance ? 'line-through opacity-70' : ''}">Criar primeira instância</span>
+			</button>
+
+			<button
+				type="button"
+				onclick={() => { if (!hasAccount) goto("/"); }}
+				class="w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all cursor-pointer {hasAccount ? 'bg-white/[0.02] text-white/50 hover:text-white' : 'bg-white/[0.05] hover:bg-white/[0.08] text-white'}"
+			>
+				<div class="w-4 h-4 rounded-full flex items-center justify-center shrink-0 {hasAccount ? 'bg-[#1bd96a] text-[#090a0f]' : 'border border-white/30 text-transparent'}">
+					{#if hasAccount}
+						<Check class="w-2.5 h-2.5 stroke-[3]" />
+					{/if}
+				</div>
+				<span class="text-xs font-semibold truncate {hasAccount ? 'line-through opacity-70' : ''}">Conectar conta</span>
+			</button>
+		</div>
+	</div>
 
 	{#if account.value}
 		<div class="space-y-1.5 shrink-0 relative">
-			<span class="text-xs font-bold text-fg/50 block">
-				Jogando como
-			</span>
-
 			<div 
 				role="button"
 				tabindex="0"
 				onclick={() => showAccountMenu = !showAccountMenu}
 				onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") showAccountMenu = !showAccountMenu; }}
-				class="w-full bg-bg-elevated hover:bg-bg-subtle border border-fg/5 rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-sm group"
+				class="w-full bg-[#14171d] hover:bg-[#1a1e26] border border-white/[0.06] rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-sm group"
 			>
 				<div class="flex items-center gap-2.5 min-w-0">
-					<div class="w-9 h-9 rounded-xl overflow-hidden bg-bg-overlay/40 border border-fg/10 shrink-0">
+					<div class="w-9 h-9 rounded-full overflow-hidden bg-white/[0.04] border border-white/10 shrink-0">
 						<img 
 							src={activeSkinStore.current.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`} 
 							alt="Avatar" 
-							class="w-full h-full object-cover"
+							class="w-full h-full object-cover rounded-full" 
 						/>
 					</div>
 					<div class="min-w-0 text-left">
-						<div class="text-xs font-bold text-fg truncate leading-tight group-hover:text-emerald-300 transition-colors">
+						<div class="text-xs font-extrabold text-white truncate leading-tight group-hover:text-[#1bd96a] transition-colors">
 							{account.value.username}
 						</div>
-						<div class="text-[10px] text-fg/40 truncate">
-							{isMicrosoft ? "Minecraft account" : "Offline account"}
+						<div class="text-[10px] text-white/40 truncate">
+							{isMicrosoft ? "Conta Microsoft" : "Conta Offline"}
 						</div>
 					</div>
 				</div>
 
-				<ChevronDown class="w-4 h-4 text-fg/40 group-hover:text-fg transition-transform {showAccountMenu ? 'rotate-180' : ''}" />
+				<ChevronDown class="w-4 h-4 text-white/40 group-hover:text-white transition-transform {showAccountMenu ? 'rotate-180' : ''}" />
 			</div>
 
 			{#if showAccountMenu}
 				<div 
-					class="absolute top-full left-0 right-0 mt-1 bg-bg-elevated border border-fg/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
+					class="absolute top-full left-0 right-0 mt-1 bg-[#181b22] border border-white/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
 					transition:slide={{ duration: 120 }}
 				>
 					<button
 						type="button"
 						onclick={handleLogout}
-						class="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer"
+						class="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer font-bold"
 					>
 						<LogOut class="w-3.5 h-3.5" /> Trocar de Conta / Sair
 					</button>
@@ -385,31 +419,31 @@
 
 	<div class="space-y-2 shrink-0 pt-1">
 		<div class="flex items-center justify-between">
-			<span class="text-xs font-bold text-fg/50 block">Notícias Luxmc</span>
-			<a href="/news" class="text-[10px] font-semibold text-emerald-400 hover:underline">Ver todas</a>
+			<span class="text-xs font-bold text-white/50 block">Notícias</span>
+			<a href="/news" class="text-[10px] font-semibold text-[#1bd96a] hover:underline">Ver todas</a>
 		</div>
 
 		<a
 			href="/news"
-			class="group block bg-bg-elevated border border-fg/10 hover:border-emerald-500/30 rounded-2xl overflow-hidden shadow-md transition-all cursor-pointer"
+			class="group block bg-[#14171d] border border-white/[0.06] hover:border-[#1bd96a]/40 rounded-2xl overflow-hidden shadow-md transition-all cursor-pointer"
 		>
-			<div class="h-24 bg-gradient-to-br from-emerald-900/40 to-bg-elevated relative overflow-hidden flex items-center justify-between p-3.5 border-b border-fg/5">
+			<div class="h-24 bg-gradient-to-br from-[#1bd96a]/20 via-[#14171d] to-[#14171d] relative overflow-hidden flex items-center justify-between p-3.5 border-b border-white/[0.06]">
 				<div class="space-y-1 z-10">
-					<span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">Atualização</span>
-					<div class="text-xs font-black text-fg group-hover:text-emerald-300 transition-colors">Luxmc v1.7.7 Oficial</div>
+					<span class="text-[9px] font-black text-[#1bd96a] uppercase tracking-wider bg-[#1bd96a]/15 border border-[#1bd96a]/30 px-2 py-0.5 rounded-full">Atualização</span>
+					<div class="text-xs font-black text-white group-hover:text-[#1bd96a] transition-colors">Luxmc v1.8.0 Oficial</div>
 				</div>
-				<div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-md">
+				<div class="w-9 h-9 rounded-xl bg-[#1bd96a]/15 border border-[#1bd96a]/30 flex items-center justify-center text-[#1bd96a] shadow-md">
 					<Sliders class="w-4 h-4" />
 				</div>
 			</div>
 
 			<div class="p-3.5 space-y-1.5">
-				<p class="text-[11px] text-fg/60 leading-relaxed line-clamp-2">
-					Lançamento de alta performance para Linux e Windows com integração web e estabilidade total.
+				<p class="text-[11px] text-white/60 leading-relaxed line-clamp-2">
+					Performance de ponta, visual repaginado no padrão Modrinth e novo visualizador 3D de skins integrado.
 				</p>
-				<div class="flex items-center justify-between pt-1 text-[10px] text-fg/35">
-					<span>18 de Setembro, 2026</span>
-					<span class="text-emerald-400 font-bold group-hover:translate-x-0.5 transition-transform">Ler mais →</span>
+				<div class="flex items-center justify-between pt-1 text-[10px] text-white/40">
+					<span>Setembro, 2026</span>
+					<span class="text-[#1bd96a] font-bold group-hover:translate-x-0.5 transition-transform">Ler mais →</span>
 				</div>
 			</div>
 		</a>
