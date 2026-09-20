@@ -62,7 +62,7 @@ function showAccount(account, recoveryCode) {
   void refreshFriends(run);
 }
 for (const button of document.querySelectorAll("[data-mode]")) button.addEventListener("click", () => setMode(button.dataset.mode));
-$("#nickname").addEventListener("change", () => { const name = $("#nickname").value; $("#nickAvatar").src = `https://mc-heads.net/avatar/${/^[A-Za-z0-9_]{3,16}$/.test(name) ? name : "Steve"}/64`; });
+$("#nickname").addEventListener("input", () => { const name = $("#nickname").value.trim(); $("#nickAvatar").src = `https://mc-heads.net/avatar/${/^[A-Za-z0-9_]{3,16}$/.test(name) ? name : "Steve"}/64`; });
 $("#revealPassword").addEventListener("click", () => { const visible = $("#password").type === "password"; $("#password").type = visible ? "text" : "password"; $("#revealPassword").textContent = visible ? "Ocultar" : "Mostrar"; $("#revealPassword").setAttribute("aria-pressed", String(visible)); $("#revealPassword").setAttribute("aria-label", visible ? "Ocultar senha" : "Mostrar senha"); });
 $("#authForm").addEventListener("submit", async event => {
   event.preventDefault();
