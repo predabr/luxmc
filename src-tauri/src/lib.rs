@@ -145,6 +145,7 @@ pub async fn run() {
             commands::instances::instance_set_favorite,
             commands::instances::instance_worlds_list,
             commands::instances::instance_world_delete,
+            commands::instances::instance_world_import,
             commands::instances::instance_mod_toggle,
             commands::instances::instance_mod_delete,
             commands::instances::instance_mod_add,

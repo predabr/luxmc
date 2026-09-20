@@ -276,6 +276,10 @@ export async function instanceWorldDelete(profileId: string, folderName: string)
 	return api.invoke<void>("instance_world_delete", { profileId, folderName });
 }
 
+export async function instanceWorldImport(profileId: string, sourcePath: string): Promise<WorldDetail> {
+	return api.invoke<WorldDetail>("instance_world_import", { profileId, sourcePath });
+}
+
 export async function instanceExportShareCode(profileId: string): Promise<string> {
 	return api.invoke<string>("instance_export_share_code", { profileId });
 }

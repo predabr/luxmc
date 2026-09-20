@@ -430,19 +430,9 @@
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-w-0 flex-1 flex-col relative z-10">
 			<main class="flex-1 overflow-x-hidden overflow-y-auto px-6 py-6 custom-scrollbar relative">
-				{#key page.url.pathname}
-					<div
-						class="mx-auto max-w-[1600px] min-h-full flex flex-col w-full"
-						in:fly={{
-							x: appState.performanceMode || !settings.value.animations ? 0 : slideDirection * 40,
-							duration: appState.performanceMode || !settings.value.animations ? 0 : 160,
-							opacity: 0,
-							easing: cubicOut
-						}}
-					>
-						{@render children?.()}
-					</div>
-				{/key}
+				<div class="mx-auto max-w-[1600px] min-h-full flex flex-col w-full">
+					{@render children?.()}
+				</div>
 			</main>
 		</div>
 	</div>

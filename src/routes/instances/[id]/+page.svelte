@@ -56,7 +56,8 @@
 		Keyboard,
 		HardDrive,
 		Skull,
-		Disc
+		Disc,
+		FolderPlus
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
@@ -91,6 +92,7 @@
 		authDevLogin,
 		instanceWorldsList,
 		instanceWorldDelete,
+		instanceWorldImport,
 		instanceModToggle,
 		instanceModDelete,
 		instanceModAdd,
@@ -967,6 +969,62 @@
 		}
 	}
 
+	let isImportingWorld = $state(false);
+
+	async function handleImportWorld() {
+		if (!instanceId || isImportingWorld) return;
+		try {
+			const selected = await open({
+				multiple: false,
+				directory: false,
+				title: "Selecionar Mapa do Minecraft (.zip)",
+				filters: [
+					{ name: "Mundo Minecraft Comprimido (*.zip)", extensions: ["zip"] },
+					{ name: "Todos os Arquivos (*.*)", extensions: ["*"] }
+				]
+			});
+			if (!selected) return;
+			const filePath = typeof selected === "string" ? selected : selected[0];
+			if (!filePath) return;
+
+			isImportingWorld = true;
+			toast("Importando e descompactando mapa...", "info");
+			const imported = await instanceWorldImport(instanceId, filePath);
+			playSound("achievement");
+			toast(`Mundo "${imported.name}" importado com sucesso!`, "success");
+			worldsList = await instanceWorldsList(instanceId);
+		} catch (e) {
+			toast("Erro ao importar mundo: " + String(e), "error");
+		} finally {
+			isImportingWorld = false;
+		}
+	}
+
+	async function handleImportWorldFolder() {
+		if (!instanceId || isImportingWorld) return;
+		try {
+			const selected = await open({
+				multiple: false,
+				directory: true,
+				title: "Selecionar Pasta de Mundo (contendo level.dat)"
+			});
+			if (!selected) return;
+			const folderPath = typeof selected === "string" ? selected : selected[0];
+			if (!folderPath) return;
+
+			isImportingWorld = true;
+			toast("Importando pasta do mundo...", "info");
+			const imported = await instanceWorldImport(instanceId, folderPath);
+			playSound("achievement");
+			toast(`Mundo "${imported.name}" importado com sucesso!`, "success");
+			worldsList = await instanceWorldsList(instanceId);
+		} catch (e) {
+			toast("Erro ao importar mundo: " + String(e), "error");
+		} finally {
+			isImportingWorld = false;
+		}
+	}
+
 	async function checkDoctorConflictsManual() {
 		const targetProfileId = activeProfile?.id || instanceId || "";
 		try {
@@ -1683,7 +1741,27 @@
 			<div class="space-y-4">
 				<div class="flex items-center justify-between flex-wrap gap-2">
 					<h3 class="text-sm font-bold text-fg">Mundos Salvos nesta Instância</h3>
-					<div class="flex items-center gap-2">
+					<div class="flex items-center flex-wrap gap-2">
+						<button
+							type="button"
+							class="bg-brand-500 hover:bg-brand-400 text-brand-foreground px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
+							onclick={handleImportWorld}
+							disabled={isImportingWorld}
+							title="Importar Mapa baixado em arquivo .zip"
+						>
+							<Download class="w-3.5 h-3.5" />
+							<span>{isImportingWorld ? "Importando..." : "Importar Mundo (.zip)"}</span>
+						</button>
+						<button
+							type="button"
+							class="bg-bg-subtle hover:bg-fg/10 text-fg/90 hover:text-fg px-3 py-1.5 rounded-full border border-fg/15 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-sm active:scale-95 disabled:opacity-50"
+							onclick={handleImportWorldFolder}
+							disabled={isImportingWorld}
+							title="Importar pasta descompactada de save"
+						>
+							<FolderPlus class="w-3.5 h-3.5 text-amber-400" />
+							<span>Importar Pasta</span>
+						</button>
 						<button
 							type="button"
 							class="bg-bg-subtle hover:bg-cyan-500/20 text-fg/90 hover:text-cyan-300 px-3.5 py-1.5 rounded-full border border-fg/15 hover:border-cyan-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
@@ -1699,10 +1777,28 @@
 				</div>
 
 				{#if worldsList.length === 0}
-					<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
-						<Globe2 class="w-12 h-12 text-fg/20 mb-3" />
-						<h4 class="text-sm font-bold text-fg">Nenhum mundo encontrado</h4>
-						<p class="text-xs text-fg/40 mt-1">Abra o Minecraft e crie seu primeiro mundo singleplayer!</p>
+					<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center gap-4">
+						<Globe2 class="w-12 h-12 text-fg/20" />
+						<div>
+							<h4 class="text-sm font-bold text-fg">Nenhum mundo encontrado</h4>
+							<p class="text-xs text-fg/40 mt-1">Abra o Minecraft e crie um mundo, ou importe um mapa baixado (.zip ou pasta)!</p>
+						</div>
+						<div class="flex items-center gap-2 mt-2">
+							<button
+								type="button"
+								class="bg-brand-500 hover:bg-brand-400 text-brand-foreground px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
+								onclick={handleImportWorld}
+							>
+								<Download class="w-4 h-4" /> Importar Mundo (.zip)
+							</button>
+							<button
+								type="button"
+								class="bg-bg-subtle hover:bg-fg/10 text-fg px-4 py-2 rounded-xl text-xs font-bold border border-fg/10 flex items-center gap-2 cursor-pointer active:scale-95"
+								onclick={handleImportWorldFolder}
+							>
+								<FolderPlus class="w-4 h-4 text-amber-400" /> Importar Pasta
+							</button>
+						</div>
 					</div>
 				{:else}
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -1788,15 +1884,26 @@
 								</div>
 
 								<div class="flex items-center justify-between pt-1 border-t border-fg/5">
-									<button
-										type="button"
-										class="bg-bg-subtle hover:bg-brand-500/20 text-fg/80 hover:text-brand-400 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-fg/10 hover:border-brand-500/30 active:scale-[0.98]"
-										onclick={() => selectedSnapshotWorld = { name: world.name, folder: world.folderName }}
-										title="Time Machine: Gerenciar snapshots e backups deste mundo"
-									>
-										<Archive class="w-3 h-3 text-brand-500" />
-										<span>Snapshots {world.snapshotsCount != null && world.snapshotsCount > 0 ? `(${world.snapshotsCount})` : ''}</span>
-									</button>
+									<div class="flex items-center gap-1.5">
+										<button
+											type="button"
+											class="bg-bg-subtle hover:bg-brand-500/20 text-fg/80 hover:text-brand-400 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-fg/10 hover:border-brand-500/30 active:scale-[0.98]"
+											onclick={() => selectedSnapshotWorld = { name: world.name, folder: world.folderName }}
+											title="Time Machine: Gerenciar snapshots e backups deste mundo"
+										>
+											<Archive class="w-3 h-3 text-brand-500" />
+											<span>Snapshots {world.snapshotsCount != null && world.snapshotsCount > 0 ? `(${world.snapshotsCount})` : ''}</span>
+										</button>
+										<button
+											type="button"
+											class="bg-bg-subtle hover:bg-purple-500/20 text-fg/80 hover:text-purple-300 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-fg/10 hover:border-purple-500/30 active:scale-[0.98]"
+											onclick={openHostWorldModal}
+											title="Hospedar este mundo para amigos via P2P / UPnP"
+										>
+											<Radio class="w-3 h-3 text-purple-400" />
+											<span>Hospedar</span>
+										</button>
+									</div>
 
 									<div class="flex items-center gap-2">
 										<button

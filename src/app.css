@@ -277,13 +277,14 @@ html.density-spacious { font-size: 15px; }
 
 
 button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
-  transition-property: color, background-color, border-color, transform, box-shadow, opacity;
-  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  transition-duration: 200ms;
+  transition-property: background-color, border-color, opacity;
+  transition-duration: 75ms;
+  transition-timing-function: ease-out;
 }
 
 button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
   transform: scale(0.98);
+  transition-duration: 50ms;
 }
 
 .hover-lift {

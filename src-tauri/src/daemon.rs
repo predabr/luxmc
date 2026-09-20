@@ -347,6 +347,12 @@ async fn dispatch_command(
             crate::commands::instances::instance_world_delete(profile_id, folder_name).await.map_err(|e| e.to_string())?;
             Ok(Value::Bool(true))
         },
+        "instance_world_import" => {
+            let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let source_path = args.get("sourcePath").or_else(|| args.get("source_path")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let res = crate::commands::instances::instance_world_import(profile_id, source_path).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
+        },
         "instance_world_snapshot_create" => {
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let folder_name = args.get("folderName").or_else(|| args.get("folder_name")).and_then(|v| v.as_str()).unwrap_or("").to_string();

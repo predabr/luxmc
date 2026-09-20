@@ -83,14 +83,23 @@ fn main() {
         }
 
         if let Ok(appdir) = std::env::var("APPDIR") {
-            let gst_dir = std::path::Path::new(&appdir).join("usr/lib/x86_64-linux-gnu/gstreamer-1.0");
-            let gst_dir_alt = std::path::Path::new(&appdir).join("usr/lib/gstreamer-1.0");
-            if gst_dir.is_dir() {
-                std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir);
-                std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir);
-            } else if gst_dir_alt.is_dir() {
-                std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir_alt);
-                std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir_alt);
+            let host_gst_candidates = [
+                "/usr/lib/x86_64-linux-gnu/gstreamer-1.0",
+                "/usr/lib64/gstreamer-1.0",
+                "/usr/lib/gstreamer-1.0",
+            ];
+            let host_has_gst = host_gst_candidates.iter().any(|p| std::path::Path::new(p).is_dir());
+
+            if !host_has_gst {
+                let gst_dir = std::path::Path::new(&appdir).join("usr/lib/x86_64-linux-gnu/gstreamer-1.0");
+                let gst_dir_alt = std::path::Path::new(&appdir).join("usr/lib/gstreamer-1.0");
+                if gst_dir.is_dir() {
+                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir);
+                    std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir);
+                } else if gst_dir_alt.is_dir() {
+                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir_alt);
+                    std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir_alt);
+                }
             } else {
                 std::env::remove_var("GST_PLUGIN_SYSTEM_PATH_1_0");
                 std::env::remove_var("GST_PLUGIN_PATH_1_0");

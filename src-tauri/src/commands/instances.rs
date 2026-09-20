@@ -1874,6 +1874,133 @@ pub struct WorldSnapshotInfo {
     pub size_bytes: u64,
 }
 
+pub(crate) fn inspect_world_dir(
+    path: &std::path::Path,
+    snapshots_base: &std::path::Path,
+) -> Option<WorldDetail> {
+    if !path.is_dir() {
+        return None;
+    }
+    let folder_name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let mut world_name = folder_name.clone();
+
+    let icon_path = path.join("icon.png");
+    let icon_base64 = if icon_path.exists() {
+        if let Ok(bytes) = std::fs::read(&icon_path) {
+            use base64::Engine;
+            Some(format!(
+                "data:image/png;base64,{}",
+                base64::engine::general_purpose::STANDARD.encode(&bytes)
+            ))
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let total_size = dir_size_recursive(path);
+
+    let last_played = path
+        .metadata()
+        .ok()
+        .and_then(|m| m.modified().ok())
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs() as i64);
+
+    let mut game_mode = "Sobrevivência".to_string();
+    let mut seed = None;
+    let mut spawn_x = None;
+    let mut spawn_y = None;
+    let mut spawn_z = None;
+    let mut version_name = None;
+    let mut difficulty = None;
+    let mut hardcore = None;
+    let mut player_health = None;
+    let mut player_level = None;
+    let mut day_count = None;
+    let mut player_inventory = None;
+
+    let level_dat_path = path.join("level.dat");
+    if level_dat_path.is_file() {
+        if let Some(data) = parse_level_dat(&level_dat_path) {
+            if let Some(lvl_name) = data.level_name {
+                if !lvl_name.trim().is_empty() {
+                    world_name = lvl_name;
+                }
+            }
+
+            if data.hardcore == Some(1) {
+                game_mode = "Hardcore".to_string();
+                hardcore = Some(true);
+            } else {
+                game_mode = match data.game_type {
+                    Some(1) => "Criativo".to_string(),
+                    Some(2) => "Aventura".to_string(),
+                    Some(3) => "Espectador".to_string(),
+                    _ => "Sobrevivência".to_string(),
+                };
+                hardcore = Some(false);
+            }
+
+            seed = data.random_seed.or_else(|| data.world_gen_settings.and_then(|w| w.seed));
+            spawn_x = data.spawn_x;
+            spawn_y = data.spawn_y;
+            spawn_z = data.spawn_z;
+            version_name = data.version.and_then(|v| v.name);
+            difficulty = match data.difficulty {
+                Some(0) => Some("Pacífico".to_string()),
+                Some(1) => Some("Fácil".to_string()),
+                Some(2) => Some("Normal".to_string()),
+                Some(3) => Some("Difícil".to_string()),
+                _ => None,
+            };
+            player_health = data.player.as_ref().and_then(|p| p.health);
+            player_level = data.player.as_ref().and_then(|p| p.xp_level);
+            day_count = data.day_time.or(data.time).map(|t| (t / 24000).max(1));
+            player_inventory = parse_player_inventory(data.player.as_ref(), path);
+        }
+    }
+
+    let world_snapshots_dir = snapshots_base.join(&folder_name);
+    let snapshots_count = if world_snapshots_dir.is_dir() {
+        std::fs::read_dir(&world_snapshots_dir)
+            .ok()
+            .map(|entries| {
+                entries
+                    .flatten()
+                    .filter(|e| e.path().extension().map_or(false, |ext| ext == "zst"))
+                    .count()
+            })
+    } else {
+        Some(0)
+    };
+
+    Some(WorldDetail {
+        name: world_name,
+        folder_name,
+        icon_base64,
+        last_played,
+        game_mode: Some(game_mode),
+        size_bytes: total_size,
+        seed,
+        spawn_x,
+        spawn_y,
+        spawn_z,
+        version_name,
+        difficulty,
+        hardcore,
+        player_health,
+        player_level,
+        day_count,
+        snapshots_count,
+        player_inventory,
+    })
+}
+
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_worlds_list(
@@ -1897,124 +2024,9 @@ pub async fn instance_worlds_list(
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
-                    let folder_name = path
-                        .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_default();
-                    let mut world_name = folder_name.clone();
-
-                    let icon_path = path.join("icon.png");
-                    let icon_base64 = if icon_path.exists() {
-                        if let Ok(bytes) = std::fs::read(&icon_path) {
-                            use base64::Engine;
-                            Some(format!(
-                                "data:image/png;base64,{}",
-                                base64::engine::general_purpose::STANDARD.encode(&bytes)
-                            ))
-                        } else {
-                            None
-                        }
-                    } else {
-                        None
-                    };
-
-                    let total_size = dir_size_recursive(&path);
-
-                    let last_played = entry
-                        .metadata()
-                        .ok()
-                        .and_then(|m| m.modified().ok())
-                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                        .map(|d| d.as_secs() as i64);
-
-                    let mut game_mode = "Sobrevivência".to_string();
-                    let mut seed = None;
-                    let mut spawn_x = None;
-                    let mut spawn_y = None;
-                    let mut spawn_z = None;
-                    let mut version_name = None;
-                    let mut difficulty = None;
-                    let mut hardcore = None;
-                    let mut player_health = None;
-                    let mut player_level = None;
-                    let mut day_count = None;
-                    let mut player_inventory = None;
-
-                    let level_dat_path = path.join("level.dat");
-                    if level_dat_path.is_file() {
-                        if let Some(data) = parse_level_dat(&level_dat_path) {
-                            if let Some(lvl_name) = data.level_name {
-                                if !lvl_name.trim().is_empty() {
-                                    world_name = lvl_name;
-                                }
-                            }
-
-                            if data.hardcore == Some(1) {
-                                game_mode = "Hardcore".to_string();
-                                hardcore = Some(true);
-                            } else {
-                                game_mode = match data.game_type {
-                                    Some(1) => "Criativo".to_string(),
-                                    Some(2) => "Aventura".to_string(),
-                                    Some(3) => "Espectador".to_string(),
-                                    _ => "Sobrevivência".to_string(),
-                                };
-                                hardcore = Some(false);
-                            }
-
-                            seed = data.random_seed.or_else(|| data.world_gen_settings.and_then(|w| w.seed));
-                            spawn_x = data.spawn_x;
-                            spawn_y = data.spawn_y;
-                            spawn_z = data.spawn_z;
-                            version_name = data.version.and_then(|v| v.name);
-                            difficulty = match data.difficulty {
-                                Some(0) => Some("Pacífico".to_string()),
-                                Some(1) => Some("Fácil".to_string()),
-                                Some(2) => Some("Normal".to_string()),
-                                Some(3) => Some("Difícil".to_string()),
-                                _ => None,
-                            };
-                            player_health = data.player.as_ref().and_then(|p| p.health);
-                            player_level = data.player.as_ref().and_then(|p| p.xp_level);
-                            day_count = data.day_time.or(data.time).map(|t| (t / 24000).max(1));
-                            player_inventory = parse_player_inventory(data.player.as_ref(), &path);
-                        }
+                    if let Some(detail) = inspect_world_dir(&path, &snapshots_base) {
+                        list.push(detail);
                     }
-
-                    let world_snapshots_dir = snapshots_base.join(&folder_name);
-                    let snapshots_count = if world_snapshots_dir.is_dir() {
-                        std::fs::read_dir(&world_snapshots_dir)
-                            .ok()
-                            .map(|entries| {
-                                entries
-                                    .flatten()
-                                    .filter(|e| e.path().extension().map_or(false, |ext| ext == "zst"))
-                                    .count()
-                            })
-                    } else {
-                        Some(0)
-                    };
-
-                    list.push(WorldDetail {
-                        name: world_name,
-                        folder_name,
-                        icon_base64,
-                        last_played,
-                        game_mode: Some(game_mode),
-                        size_bytes: total_size,
-                        seed,
-                        spawn_x,
-                        spawn_y,
-                        spawn_z,
-                        version_name,
-                        difficulty,
-                        hardcore,
-                        player_health,
-                        player_level,
-                        day_count,
-                        snapshots_count,
-                        player_inventory,
-                    });
                 }
             }
         }
@@ -2267,6 +2279,183 @@ pub async fn instance_world_delete(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_world_import(
+    profileId: String,
+    sourcePath: String,
+) -> AppResult<WorldDetail> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profileId)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| {
+            crate::error::AppError::NotFound(format!("profile {profileId} not found"))
+        })?;
+
+    let src = std::path::PathBuf::from(&sourcePath);
+    if !src.exists() {
+        return Err(crate::error::AppError::NotFound(format!(
+            "Source path not found: {}",
+            sourcePath
+        )));
+    }
+
+    let saves_dir = std::path::PathBuf::from(&row.game_dir).join("saves");
+    std::fs::create_dir_all(&saves_dir)?;
+    let snapshots_base = std::path::PathBuf::from(&row.game_dir).join("snapshots");
+
+    let get_unique_dir = |base_name: &str| -> std::path::PathBuf {
+        let clean: String = base_name
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+        let clean = clean.trim();
+        let clean = if clean.is_empty() {
+            "Mundo_Importado"
+        } else {
+            clean
+        };
+        let mut target = saves_dir.join(clean);
+        let mut counter = 1;
+        while target.exists() {
+            target = saves_dir.join(format!("{} ({})", clean, counter));
+            counter += 1;
+        }
+        target
+    };
+
+    let target_dir: std::path::PathBuf;
+
+    if src.is_file()
+        && src
+            .extension()
+            .map_or(false, |ext| ext.eq_ignore_ascii_case("zip"))
+    {
+        let file = std::fs::File::open(&src)?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+
+        let mut level_dat_prefix: Option<String> = None;
+        let mut default_folder_name = src
+            .file_stem()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Mundo_Importado".into());
+
+        for i in 0..archive.len() {
+            if let Ok(entry) = archive.by_index(i) {
+                let name = entry.name().replace('\\', "/");
+                if name.ends_with("level.dat") {
+                    let prefix = if name == "level.dat" {
+                        "".to_string()
+                    } else {
+                        name.trim_end_matches("level.dat").to_string()
+                    };
+                    if let Some(parent) = prefix.trim_end_matches('/').split('/').last() {
+                        if !parent.is_empty() {
+                            default_folder_name = parent.to_string();
+                        }
+                    }
+                    level_dat_prefix = Some(prefix);
+                    break;
+                }
+            }
+        }
+
+        target_dir = get_unique_dir(&default_folder_name);
+        std::fs::create_dir_all(&target_dir)?;
+
+        let prefix = level_dat_prefix.unwrap_or_default();
+
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i)
+                .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+            let entry_name = file.name().replace('\\', "/");
+
+            if !prefix.is_empty() && !entry_name.starts_with(&prefix) {
+                continue;
+            }
+
+            let rel_name = if !prefix.is_empty() {
+                entry_name.strip_prefix(&prefix).unwrap_or(&entry_name)
+            } else {
+                &entry_name
+            };
+
+            let rel_path = std::path::Path::new(rel_name);
+            if rel_path
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+            {
+                continue;
+            }
+
+            let out_path = target_dir.join(rel_path);
+            if file.is_dir() {
+                std::fs::create_dir_all(&out_path)?;
+            } else {
+                if let Some(parent) = out_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut out_file = std::fs::File::create(&out_path)?;
+                std::io::copy(&mut file, &mut out_file)?;
+            }
+        }
+    } else if src.is_dir() {
+        let actual_world_src = if src.join("level.dat").is_file() {
+            src.clone()
+        } else {
+            let mut found = None;
+            if let Ok(entries) = std::fs::read_dir(&src) {
+                for e in entries.flatten() {
+                    if e.path().is_dir() && e.path().join("level.dat").is_file() {
+                        found = Some(e.path());
+                        break;
+                    }
+                }
+            }
+            found.unwrap_or(src.clone())
+        };
+
+        let folder_name = actual_world_src
+            .file_name()
+            .map(|s| s.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Mundo_Importado".into());
+        target_dir = get_unique_dir(&folder_name);
+
+        let mut options = fs_extra::dir::CopyOptions::new();
+        options.copy_inside = true;
+        std::fs::create_dir_all(&target_dir)?;
+        fs_extra::dir::copy(&actual_world_src, &target_dir, &options)
+            .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+
+        let sub = target_dir.join(&folder_name);
+        if sub.join("level.dat").is_file() {
+            if let Ok(entries) = std::fs::read_dir(&sub) {
+                for e in entries.flatten() {
+                    let dest = target_dir.join(e.file_name());
+                    let _ = std::fs::rename(e.path(), dest);
+                }
+            }
+            let _ = std::fs::remove_dir(sub);
+        }
+    } else {
+        return Err(crate::error::AppError::InvalidInput(
+            "Invalid world source: must be a directory or .zip file".into(),
+        ));
+    }
+
+    inspect_world_dir(&target_dir, &snapshots_base)
+        .ok_or_else(|| crate::error::AppError::InvalidInput("Failed to read imported world level.dat".into()))
 }
 
 #[tauri::command]

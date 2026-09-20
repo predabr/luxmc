@@ -126,8 +126,24 @@
 					</div>
 				</div>`
 		);
-		html = html.replace(/<video([^>]*)>([\s\S]*?)<\/video>/gi,
-			'<video$1 preload="metadata" controls playsinline class="rounded-xl max-w-full my-3 border border-fg/[0.06]">$2</video>');
+		html = html.replace(/<video[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => `
+			<div class="my-4 p-4 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-between gap-3 max-w-xl">
+				<div class="flex items-center gap-2.5">
+					<div class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs">▶</div>
+					<span class="text-xs text-fg font-medium">Demonstração em Vídeo</span>
+				</div>
+				<a href="${src}" target="_blank" rel="noopener noreferrer" class="text-xs text-brand-400 hover:underline font-bold">Assistir no Navegador ↗</a>
+			</div>`
+		);
+		html = html.replace(/<video[^>]*>[\s\S]*?<source[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => `
+			<div class="my-4 p-4 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-between gap-3 max-w-xl">
+				<div class="flex items-center gap-2.5">
+					<div class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs">▶</div>
+					<span class="text-xs text-fg font-medium">Demonstração em Vídeo</span>
+				</div>
+				<a href="${src}" target="_blank" rel="noopener noreferrer" class="text-xs text-brand-400 hover:underline font-bold">Assistir no Navegador ↗</a>
+			</div>`
+		);
 		return sanitizeHtml(html);
 	}
 
