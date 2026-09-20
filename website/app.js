@@ -7,9 +7,9 @@ let searchDebounce = null;
 let searchController = null;
 let detectedOS = "linux";
 const directDownloadUrls = {
-  linux: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_amd64.AppImage",
-  windows: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_x64-setup.exe",
-  deb: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_amd64.deb"
+  linux: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.6_amd64.AppImage",
+  windows: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.6_x64-setup.exe",
+  deb: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.6_amd64.deb"
 };
 let currentGatePlatform = "linux";
 

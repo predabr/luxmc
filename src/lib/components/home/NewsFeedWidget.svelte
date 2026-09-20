@@ -38,6 +38,14 @@
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
+			id: "luxmc-v1-7-6",
+			title: "Luxmc v1.7.6: Barra Sincronizada & NeoForge ATM10",
+			body: "Barra lateral translúcida conectada ao wallpaper, correções gráficas e performance extrema.",
+			publishedAt: "20 Set",
+			tag: "v1.7.6",
+			url: "/news"
+		},
+		{
 			id: "luxmc-v1-7-5",
 			title: "Luxmc v1.7.5: Aceleração GPU & Modo Streamer",
 			body: "Interface ultra smooth com WebKit GPU, suporte a Espanhol e privacidade avançada.",

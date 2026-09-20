@@ -83,6 +83,24 @@
 			link: "https://modrinth.com/mod/sodium"
 		},
 		{
+			id: "v1.7.6",
+			title: "Luxmc v1.7.6 — Barra Lateral Translúcida, Suporte NeoForge ATM10 & Zero GLFW Crash",
+			tag: "Oficial",
+			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+			date: "20 de Setembro, 2026",
+			version: "v1.7.6",
+			image: "/news_1.jpg",
+			summary: "Atualização focada na sincronização estética da barra lateral com os temas e wallpapers dinâmicos, aceleração OpenGL WGL para modpacks NeoForge como All The Mods 11 e estabilidade total no Linux Wayland.",
+			highlights: [
+				"Barra lateral com transparência adaptativa e desfoque ultra suave (backdrop-blur-2xl)",
+				"Resolução da falha de driver OpenGL WGL no Windows para modpacks NeoForge",
+				"Eliminação de travamentos de ícones GLFW no Linux Wayland nativo",
+				"Renovação perpétua e invisível de tokens Microsoft",
+				"Consumo reduzido para menos de 85 MB de RAM em repouso"
+			],
+			link: "https://luxmc-r92.pages.dev/#destaques"
+		},
+		{
 			id: "v1.7.5",
 			title: "Luxmc v1.7.5 — GPU Acceleration, Suporte ao Espanhol & Modo Streamer",
 			tag: "Oficial",

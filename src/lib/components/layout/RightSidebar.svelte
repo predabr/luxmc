@@ -396,7 +396,7 @@
 			<div class="h-24 bg-gradient-to-br from-emerald-900/40 to-bg-elevated relative overflow-hidden flex items-center justify-between p-3.5 border-b border-fg/5">
 				<div class="space-y-1 z-10">
 					<span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">Atualização</span>
-					<div class="text-xs font-black text-fg group-hover:text-emerald-300 transition-colors">Luxmc v1.7.5 Oficial</div>
+					<div class="text-xs font-black text-fg group-hover:text-emerald-300 transition-colors">Luxmc v1.7.6 Oficial</div>
 				</div>
 				<div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-md">
 					<Sliders class="w-4 h-4" />

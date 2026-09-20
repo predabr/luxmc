@@ -47,7 +47,7 @@
 	const accountStatus = $derived(getAccountStatus(account.value));
 </script>
 
-<aside class="flex h-screen w-[70px] shrink-0 flex-col items-center py-4 bg-bg-elevated/40 backdrop-blur-xl border-r border-fg/[0.04] z-40 relative select-none shadow-elevated">
+<aside class="flex h-screen w-[70px] shrink-0 flex-col items-center py-4 bg-bg/25 backdrop-blur-2xl border-r border-fg/[0.06] z-40 relative select-none">
 	
 	<button 
 		type="button"
@@ -55,7 +55,7 @@
 		class="relative mb-4 group transition-transform duration-200 active:scale-[0.98] cursor-pointer"
 		onclick={() => showProfileModal = true}
 	>
-		<div class="h-11 w-11 rounded-[16px] overflow-hidden bg-bg-subtle border border-fg/10 group-hover:border-emerald-400/70 transition-all duration-200 shadow-md flex items-center justify-center p-0.5">
+		<div class="h-11 w-11 rounded-[16px] overflow-hidden bg-fg/[0.04] border border-fg/10 group-hover:border-brand-400/70 transition-all duration-200 shadow-sm flex items-center justify-center p-0.5">
 			<img 
 				src={activeSkinStore.current.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "/logo.png")} 
 				alt="Avatar" 
@@ -114,7 +114,7 @@
 								e.preventDefault();
 								goto(`/instances/${prof.id}`);
 							}}
-							class="relative h-10 w-10 rounded-[14px] overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-[0.98] border cursor-pointer {active ? 'ring-2 ring-brand-400 border-transparent shadow-lg scale-105' : 'border-fg/10 bg-bg-subtle hover:border-fg/30'}"
+							class="relative h-10 w-10 rounded-[14px] overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-[0.98] border cursor-pointer {active ? 'ring-2 ring-brand-400 border-transparent shadow-lg scale-105' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08] hover:border-fg/30'}"
 						>
 							{#if prof.icon && (prof.icon.startsWith("http") || prof.icon.startsWith("/") || prof.icon.startsWith("data:"))}
 								<img src={prof.icon} alt={prof.name} class="w-full h-full object-cover" />
@@ -140,7 +140,7 @@
 					e.preventDefault();
 					goto("/instances?new=true");
 				}}
-				class="h-10 w-10 rounded-[14px] bg-bg-elevated border border-fg/10 hover:border-fg/30 hover:bg-bg-subtle flex items-center justify-center text-fg-muted hover:text-fg transition-all duration-200 active:scale-[0.98] shadow-md cursor-pointer"
+				class="h-10 w-10 rounded-[14px] bg-fg/[0.03] border border-fg/10 hover:border-fg/30 hover:bg-fg/[0.08] flex items-center justify-center text-fg-muted hover:text-fg transition-all duration-200 active:scale-[0.98] shadow-sm cursor-pointer"
 			>
 				<Plus class="h-4 w-4 transition-transform duration-200 group-hover:rotate-90 text-fg/60 group-hover:text-fg" />
 			</a>

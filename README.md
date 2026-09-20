@@ -1,6 +1,6 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="140" />
-  <h1>Luxmc <code>v1.7.5</code></h1>
+  <h1>Luxmc <code>v1.7.6</code></h1>
   <p><strong>Launcher de Minecraft moderno, Linux-first, de alta performance.</strong></p>
   <p><a href="https://luxmc-r92.pages.dev"><strong>🌐 Site Oficial: luxmc-r92.pages.dev</strong></a></p>
 
