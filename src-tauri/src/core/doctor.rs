@@ -301,12 +301,25 @@ pub fn check_mod_conflicts(jar_filenames: &[String]) -> PreLaunchCheckResult {
             continue;
         }
 
-        let stem = fname.strip_suffix(".jar").unwrap_or(fname);
-        let base = stem.split('-').next().unwrap_or(stem).split('_').next().unwrap_or(stem).to_lowercase();
-        if let Some(prev) = seen_mods.get(&base) {
-            duplicates.push(format!("Duplicata de mod detectada: '{}' e '{}'", prev, fname));
-        } else {
-            seen_mods.insert(base, fname.clone());
+        let stem = fname.strip_suffix(".jar").unwrap_or(fname).to_lowercase();
+        let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();
+        let non_version_parts: Vec<&str> = parts
+            .into_iter()
+            .take_while(|part| !part.chars().any(|c| c.is_ascii_digit()))
+            .collect();
+        let base = non_version_parts.join("-");
+
+        const COMMON_SINGLE_PREFIXES: &[&str] = &[
+            "fabric", "forge", "neoforge", "quilt", "ftb", "kubejs", "create", 
+            "yungs", "macaws", "allthe", "better", "simple"
+        ];
+
+        if base.len() >= 3 && !COMMON_SINGLE_PREFIXES.contains(&base.as_str()) {
+            if let Some(prev) = seen_mods.get(&base) {
+                duplicates.push(format!("Duplicata de mod detectada: '{}' e '{}'", prev, fname));
+            } else {
+                seen_mods.insert(base, fname.clone());
+            }
         }
 
         if lower.contains("optifine") { has_optifine = Some(fname.clone()); }

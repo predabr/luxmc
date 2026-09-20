@@ -17,7 +17,8 @@
 	}
 
 	function toggleLanguage() {
-		const next = settings.value.language === "en" ? "pt-BR" : "en";
+		const current = settings.value.language;
+		const next = current === "en" ? "pt-BR" : current === "pt-BR" ? "es" : "en";
 		void setLocale(next);
 	}
 	
@@ -30,7 +31,7 @@
 	<div class="flex items-center gap-3 min-w-0">
 		{#if account.value}
 			<div class="flex items-center gap-2.5 text-sm">
-				<span class="text-fg/60 font-medium">Logged in as</span>
+				<span class="text-fg/60 font-medium">{t("home.playingAs") || "Logged in as"}</span>
 				<span class="font-bold text-fg drop-shadow-md">{account.value.username}</span>
 			</div>
 		{:else}
@@ -73,10 +74,10 @@
 		<button
 			onclick={toggleLanguage}
 			class="flex h-9 items-center gap-1.5 px-2.5 rounded-lg text-xs font-bold transition-all duration-200 hover:bg-fg/10 text-fg/60 hover:text-fg"
-			title={settings.value.language === "en" ? t("settings.switchToPortuguese") : t("settings.switchToEnglish")}
+			title={settings.value.language === "en" ? "English" : settings.value.language === "es" ? "Español" : "Português"}
 		>
 			<Globe class="h-4 w-4" />
-			<span>{settings.value.language === "en" ? "EN" : "PT"}</span>
+			<span>{settings.value.language === "en" ? "EN" : settings.value.language === "es" ? "ES" : "PT"}</span>
 		</button>
 
 		<button

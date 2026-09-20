@@ -340,7 +340,7 @@ pub async fn install_performance_pack(
 
     for mod_entry in &pack.mods {
         let versions = modrinth
-            .get_mod_versions(&mod_entry.slug, mc_version)
+            .get_mod_versions_filtered(&mod_entry.slug, mc_version, Some(loader))
             .await
             .unwrap_or_default();
 

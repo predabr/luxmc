@@ -47,7 +47,7 @@
 	const accountStatus = $derived(getAccountStatus(account.value));
 </script>
 
-<aside class="flex h-screen w-[70px] shrink-0 flex-col items-center py-4 bg-bg-elevated border-r border-fg/5 z-40 relative select-none shadow-elevated">
+<aside class="flex h-screen w-[70px] shrink-0 flex-col items-center py-4 bg-bg-elevated/40 backdrop-blur-xl border-r border-fg/[0.04] z-40 relative select-none shadow-elevated">
 	
 	<button 
 		type="button"
@@ -93,7 +93,7 @@
 				</a>
 
 				<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-subtle text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
-					{item.title}
+					{t(item.labelKey) || item.title}
 				</div>
 			</div>
 		{/each}
@@ -145,7 +145,7 @@
 				<Plus class="h-4 w-4 transition-transform duration-200 group-hover:rotate-90 text-fg/60 group-hover:text-fg" />
 			</a>
 			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-subtle text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
-				Criar Nova Instância
+				{t("home.createInstance") || "Criar Nova Instância"}
 			</div>
 		</div>
 	</nav>
@@ -194,7 +194,7 @@
 				<SettingsIcon class="h-5 w-5 transition-transform duration-300 {settingsActive ? 'text-brand-400 rotate-90' : 'text-fg-muted group-hover:rotate-45 group-hover:text-fg'}" strokeWidth={settingsActive ? 2.2 : 1.8} />
 			</a>
 			<div class="pointer-events-none absolute left-[74px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-subtle text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
-				Configurações
+				{t("nav.settings") || "Configurações"}
 			</div>
 		</div>
 	</div>

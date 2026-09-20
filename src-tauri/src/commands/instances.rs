@@ -911,7 +911,7 @@ pub async fn instance_import_modpack_core(
         }
     });
 
-    files_stream.buffer_unordered(4).for_each(|_| async {}).await;
+    files_stream.buffer_unordered(12).for_each(|_| async {}).await;
     crate::commands::optimizer::optimizer_trim_memory();
 
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
@@ -1319,7 +1319,7 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
                 let root = root.to_path_buf();
                 async move { ensure_mrpack_file(&client, &root, &file, None).await }
             })
-            .buffer_unordered(6).collect::<Vec<_>>().await;
+            .buffer_unordered(12).collect::<Vec<_>>().await;
         for result in results { result?; }
     }
     let cf_path = root.join("manifest.json");
@@ -1461,7 +1461,7 @@ pub async fn instance_import_mrpack_core(
             }
             result
         }
-    }).buffer_unordered(6).collect::<Vec<_>>().await;
+    }).buffer_unordered(12).collect::<Vec<_>>().await;
     pack::cancelled(Some(&state.import_cancel))?;
     for result in results { result?; }
 

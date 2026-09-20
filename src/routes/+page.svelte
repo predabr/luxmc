@@ -30,7 +30,8 @@
 		ChevronRight,
 		FolderPlus,
 		SlidersHorizontal,
-		Filter
+		Filter,
+		ArrowUpDown
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
@@ -966,45 +967,47 @@
 						<button 
 							type="button" 
 							onclick={() => showCreateModal = true}
-							class="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md shrink-0"
+							class="px-4 py-2 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-md shrink-0 active:scale-[0.98]"
 						>
 							<Plus class="w-4 h-4 stroke-[3]" />
-							<span>+ New instance</span>
+							<span>{t("home.createInstance") || "Nova Instância"}</span>
 						</button>
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="flex items-center gap-1 bg-bg-elevated border border-fg/5 rounded-xl px-2.5 py-1">
-							<span class="text-fg/40 text-xs">⇅</span>
+						<div class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
+							<ArrowUpDown class="w-3.5 h-3.5 text-fg/50 shrink-0" />
 							<select 
 								bind:value={sortBy}
-								class="bg-transparent text-xs text-fg/70 outline-none cursor-pointer pr-1"
+								class="bg-transparent text-xs font-bold text-fg/80 outline-none cursor-pointer pr-1"
 							>
-								<option value="lastPlayed" class="bg-bg-elevated">Last played</option>
-								<option value="name" class="bg-bg-elevated">Name</option>
-								<option value="version" class="bg-bg-elevated">Version</option>
+								<option value="lastPlayed" class="bg-bg-elevated text-fg">{t("instances.sortLastPlayed") || "Última jogada"}</option>
+								<option value="name" class="bg-bg-elevated text-fg">{t("instances.sortName") || "Nome"}</option>
+								<option value="version" class="bg-bg-elevated text-fg">{t("instances.sortVersion") || "Versão"}</option>
 							</select>
 						</div>
 
-						<div class="flex items-center gap-1 bg-bg-elevated border border-fg/5 rounded-xl px-2.5 py-1">
-							<span class="text-fg/40 text-xs">⊞</span>
+						<div class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
+							<Layers class="w-3.5 h-3.5 text-fg/50 shrink-0" />
 							<select 
 								bind:value={selectedGroup}
-								class="bg-transparent text-xs text-fg/70 outline-none cursor-pointer pr-1"
+								class="bg-transparent text-xs font-bold text-fg/80 outline-none cursor-pointer pr-1"
 							>
-								<option value="all" class="bg-bg-elevated">Custom group</option>
+								<option value="all" class="bg-bg-elevated text-fg">{t("instances.groupAll") || "Todos os grupos"}</option>
 								{#each customGroups as grp}
-									<option value={grp} class="bg-bg-elevated">{grp}</option>
+									<option value={grp} class="bg-bg-elevated text-fg">{grp}</option>
 								{/each}
 							</select>
 						</div>
 
 						<button 
 							type="button"
-							class="flex items-center gap-1 bg-bg-elevated hover:bg-bg-elevated border border-fg/5 rounded-xl px-3 py-1.5 text-xs text-fg/60 hover:text-fg transition-colors cursor-pointer"
+							class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 rounded-2xl px-3.5 py-1.5 text-xs font-bold text-fg/60 hover:text-fg transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+							onclick={() => showNewGroupPrompt = !showNewGroupPrompt}
+							title="Criar novo grupo de instâncias"
 						>
-							<Filter class="w-3 h-3 text-fg/40" />
-							<span>Add filter</span>
+							<FolderPlus class="w-3.5 h-3.5 text-fg/50" />
+							<span>{showNewGroupPrompt ? "Fechar" : (t("instances.newGroup") || "Novo grupo")}</span>
 						</button>
 					</div>
 				</div>

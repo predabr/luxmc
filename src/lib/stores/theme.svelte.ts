@@ -181,7 +181,7 @@ export const themeStore = {
 		return BACKGROUNDS[activeBackground]?.style || BACKGROUNDS.obsidian.style;
 	},
 
-	setTheme(tId: string) {
+	setTheme(tId: string, persist = true) {
 		let resolved: string | null = null;
 		if (tId === "dark" || tId === "default-dark") resolved = "dark";
 		else if (tId === "light" || tId === "default-light") resolved = "light";
@@ -192,26 +192,50 @@ export const themeStore = {
 				localStorage.setItem("luxmc_theme", resolved);
 			}
 			applyThemeVariables(activeTheme, activeAccent, activeBackground);
+			if (persist) {
+				import("./settings.svelte").then(({ settings }) => {
+					settings.patch({ theme: resolved === "light" ? "default-light" : "default-dark" });
+				}).catch(() => {});
+				import("./persistence.svelte").then(({ schedulePersist }) => {
+					schedulePersist();
+				}).catch(() => {});
+			}
 		}
 	},
 
-	setAccent(aId: string) {
+	setAccent(aId: string, persist = true) {
 		if (ACCENTS[aId]) {
 			activeAccent = aId;
 			if (typeof window !== "undefined") {
 				localStorage.setItem("luxmc_accent", aId);
 			}
 			applyThemeVariables(activeTheme, activeAccent, activeBackground);
+			if (persist) {
+				import("./settings.svelte").then(({ settings }) => {
+					settings.patch({ accentTheme: aId as import("./settings.svelte").AccentTheme });
+				}).catch(() => {});
+				import("./persistence.svelte").then(({ schedulePersist }) => {
+					schedulePersist();
+				}).catch(() => {});
+			}
 		}
 	},
 
-	setBackground(bgId: string) {
+	setBackground(bgId: string, persist = true) {
 		if (BACKGROUNDS[bgId]) {
 			activeBackground = bgId;
 			if (typeof window !== "undefined") {
 				localStorage.setItem("luxmc_background", bgId);
 			}
 			applyThemeVariables(activeTheme, activeAccent, activeBackground);
+			if (persist) {
+				import("./settings.svelte").then(({ settings }) => {
+					settings.patch({ customBackground: bgId });
+				}).catch(() => {});
+				import("./persistence.svelte").then(({ schedulePersist }) => {
+					schedulePersist();
+				}).catch(() => {});
+			}
 		}
 	},
 

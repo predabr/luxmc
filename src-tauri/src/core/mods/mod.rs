@@ -283,6 +283,15 @@ impl ModrinthClient {
         project_id: &str,
         mc_version: &str,
     ) -> AppResult<Vec<ModVersion>> {
+        self.get_mod_versions_filtered(project_id, mc_version, None).await
+    }
+
+    pub async fn get_mod_versions_filtered(
+        &self,
+        project_id: &str,
+        mc_version: &str,
+        loader: Option<&str>,
+    ) -> AppResult<Vec<ModVersion>> {
         let clean_ver = mc_version.trim();
         let has_ver = !clean_ver.is_empty()
             && clean_ver != "Qualquer Versão"
@@ -290,6 +299,17 @@ impl ModrinthClient {
 
         let mut candidate_urls = Vec::new();
         let gv_json = format!("[\"{}\"]", clean_ver);
+        let loader_clean = loader.map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty());
+        let loader_json = loader_clean.as_ref().map(|l| format!("[\"{}\"]", l));
+
+        if has_ver && loader_json.is_some() {
+            let encoded_gv = urlencoding::encode(&gv_json);
+            let encoded_loader = urlencoding::encode(loader_json.as_ref().unwrap());
+            candidate_urls.push(format!(
+                "{}/project/{}/version?game_versions={}&loaders={}",
+                MODRINTH_API, project_id, encoded_gv, encoded_loader
+            ));
+        }
         if has_ver {
             let encoded_gv = urlencoding::encode(&gv_json);
             candidate_urls.push(format!(

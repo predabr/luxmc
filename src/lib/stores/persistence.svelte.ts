@@ -4,6 +4,8 @@ import { settings, registerSettingsListener, type AppSettings, type ThemeName } 
 import { profiles } from "./profiles.svelte";
 import { setupI18n, notifyLocaleChange, type Locale } from "$lib/i18n";
 
+import { themeStore } from "./theme.svelte";
+
 const STORE_FILE = "settings.json";
 const STORE_KEY = "app";
 
@@ -21,6 +23,17 @@ export async function bootstrapSettings() {
 	const merged: AppSettings = { ...settings.value, ...stored };
 	settings.value = merged;
 	setupI18n(merged.language);
+
+	if (merged.accentTheme) {
+		themeStore.setAccent(merged.accentTheme, false);
+	}
+	if (merged.theme) {
+		const tId = merged.theme === "default-light" ? "light" : "dark";
+		themeStore.setTheme(tId, false);
+	}
+	if (merged.customBackground) {
+		themeStore.setBackground(merged.customBackground, false);
+	}
 }
 
 registerSettingsListener(() => schedulePersist());

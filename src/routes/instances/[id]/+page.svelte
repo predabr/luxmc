@@ -1473,6 +1473,7 @@
 												<img
 													src={mod.icon}
 													alt={displayName}
+													loading="lazy"
 													class="w-full h-full object-cover rounded-2xl border border-fg/10 [image-rendering:pixelated]"
 													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
 												/>

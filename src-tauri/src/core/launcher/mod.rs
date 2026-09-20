@@ -339,6 +339,20 @@ impl GameLauncher {
                 } else if !classpath.contains(&vanilla_jar) && vanilla_jar.exists() {
                     classpath.push(vanilla_jar);
                 }
+
+                if loader == "neoforge" {
+                    let has_neoforge_client = classpath.iter().any(|p| {
+                        let s = p.to_string_lossy().to_lowercase();
+                        s.contains("neoforge") && s.ends_with("-client.jar")
+                    });
+                    if has_neoforge_client {
+                        classpath.retain(|p| {
+                            let s = p.to_string_lossy().to_lowercase();
+                            !(s.contains("neoforge") && s.ends_with("-universal.jar"))
+                        });
+                        self.emit_log("Removed duplicate neoforge-universal.jar (neoforge-client.jar present)");
+                    }
+                }
             }
 
             let mut seen_cp = std::collections::HashSet::new();

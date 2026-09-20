@@ -63,7 +63,7 @@
 	let currentLang = $state<"pt-BR" | "en" | "es">(settings.value.language === "pt-BR" ? "pt-BR" : settings.value.language === "es" ? "es" : "en");
 
 	let selectedTheme = $state(settings.value.theme || "default-dark");
-	let selectedAccent = $state(settings.value.accentTheme || "emerald");
+	let selectedAccent = $state(settings.value.accentTheme || themeStore.accent || "blue");
 	let density = $state(settings.value.density || "comfortable");
 
 	let maxRamGb = $state(Math.round((settings.value.maxRamMb || 4096) / 1024));
