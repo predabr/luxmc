@@ -83,6 +83,24 @@
 			link: "https://modrinth.com/mod/sodium"
 		},
 		{
+			id: "v1.9.0",
+			title: "Luxmc v1.9.0 — Novo Design, Atualizador Oficial Tauri & Performance Máxima",
+			tag: "Oficial",
+			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+			date: "20 de Setembro, 2026",
+			version: "v1.9.0",
+			image: "/news_1.jpg",
+			summary: "Grande atualização v1.9.0 trazendo interface refinada de ponta a ponta, atualizador oficial integrado com validação criptográfica Ed25519 e inicialização otimizada.",
+			highlights: [
+				"Atualizador automático oficial do Tauri 2 com verificação em background",
+				"Interface com layout fluído e personalizador de ponta a ponta",
+				"Controle estrito de memória e zero vazamentos de RAM",
+				"Suporte aprimorado a instâncias, capas e modpacks pesados",
+				"Transições suaves entre abas e renderização acelerada por hardware"
+			],
+			link: "https://luxmc-r92.pages.dev/#destaques"
+		},
+		{
 			id: "v1.7.7",
 			title: "Luxmc v1.7.7 — Capas In-Game, Resolução Inteligente ATM10 & Shift Direito em Mods",
 			tag: "Oficial",

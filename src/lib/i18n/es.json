@@ -2,7 +2,7 @@
 	"app": {
 		"name": "Luxmc",
 		"tagline": "Lanzador de Minecraft para Linux",
-		"version": "v1.7.7",
+		"version": "v1.9.0",
 		"pressForShortcuts": "Presiona {{key}} para atajos de teclado",
 		"systemOnline": "Sistema en línea",
 		"navigation": "Navegación",

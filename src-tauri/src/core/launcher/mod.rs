@@ -14,7 +14,7 @@ use crate::error::AppResult;
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "1.7.7";
+const LAUNCHER_VERSION: &str = "1.9.0";
 static CLIENT_AGENT_JAR: &[u8] = include_bytes!("../../../assets/luxmc-client-agent.jar");
 static ACTIVE_CAPE_BYTES: tokio::sync::RwLock<Vec<u8>> = tokio::sync::RwLock::const_new(Vec::new());
 

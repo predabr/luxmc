@@ -38,11 +38,11 @@
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
-			id: "luxmc-v1-7-7",
-			title: "Luxmc v1.7.7: Capas In-Game & Suporte All The Mods 10",
-			body: "Capas salvas in-game, resolução inteligente de dependências ATM10 e Right Shift em mods.",
+			id: "luxmc-v1-9-0",
+			title: "Luxmc v1.9.0: Novo Visual & Atualizador Oficial",
+			body: "Atualizador integrado, interface fluida de ponta a ponta e máxima performance.",
 			publishedAt: "Hoje",
-			tag: "v1.7.7",
+			tag: "v1.9.0",
 			url: "/news"
 		},
 		{

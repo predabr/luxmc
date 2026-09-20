@@ -430,7 +430,7 @@
 			<div class="h-24 bg-gradient-to-br from-[#1bd96a]/20 via-[#14171d] to-[#14171d] relative overflow-hidden flex items-center justify-between p-3.5 border-b border-white/[0.06]">
 				<div class="space-y-1 z-10">
 					<span class="text-[9px] font-black text-[#1bd96a] uppercase tracking-wider bg-[#1bd96a]/15 border border-[#1bd96a]/30 px-2 py-0.5 rounded-full">Atualização</span>
-					<div class="text-xs font-black text-white group-hover:text-[#1bd96a] transition-colors">Luxmc v1.8.0 Oficial</div>
+					<div class="text-xs font-black text-white group-hover:text-[#1bd96a] transition-colors">Luxmc v1.9.0 Oficial</div>
 				</div>
 				<div class="w-9 h-9 rounded-xl bg-[#1bd96a]/15 border border-[#1bd96a]/30 flex items-center justify-center text-[#1bd96a] shadow-md">
 					<Sliders class="w-4 h-4" />
