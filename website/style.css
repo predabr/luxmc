@@ -3283,3 +3283,52 @@ html { overflow-x: clip; }
   color: #10b981 !important;
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
 }
+
+/* Ad Placements */
+.ad-leaderboard-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28px 16px;
+  width: 100%;
+  overflow-x: hidden;
+}
+.ad-leaderboard-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 100%;
+  overflow-x: auto;
+  min-height: 90px;
+}
+.ad-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.ad-native-section {
+  padding: 24px 0 32px;
+}
+.ad-native-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  min-height: 120px;
+  text-align: center;
+}
+.ad-box-300 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 24px auto 0;
+  text-align: center;
+  min-height: 250px;
+}
+
