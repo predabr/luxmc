@@ -979,29 +979,31 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
-							<ArrowUpDown class="w-3.5 h-3.5 text-brand-400 shrink-0" />
+						<div class="relative flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
+							<ArrowUpDown class="w-3.5 h-3.5 text-brand-400 shrink-0 pointer-events-none" />
 							<select 
 								bind:value={sortBy}
-								class="bg-transparent text-xs font-semibold text-fg outline-none cursor-pointer pr-1"
+								class="appearance-none bg-transparent border-0 text-xs font-semibold text-fg outline-none cursor-pointer pr-5 py-0.5 focus:ring-0"
 							>
 								<option value="lastPlayed" class="bg-bg-elevated text-fg">{t("instances.sortLastPlayed") || "Última partida"}</option>
 								<option value="name" class="bg-bg-elevated text-fg">{t("instances.sortName") || "Nome"}</option>
 								<option value="version" class="bg-bg-elevated text-fg">{t("instances.sortVersion") || "Versão"}</option>
 							</select>
+							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
 						</div>
 
-						<div class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
-							<Layers class="w-3.5 h-3.5 text-brand-400 shrink-0" />
+						<div class="relative flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
+							<Layers class="w-3.5 h-3.5 text-brand-400 shrink-0 pointer-events-none" />
 							<select 
 								bind:value={selectedGroup}
-								class="bg-transparent text-xs font-semibold text-fg outline-none cursor-pointer pr-1"
+								class="appearance-none bg-transparent border-0 text-xs font-semibold text-fg outline-none cursor-pointer pr-5 py-0.5 focus:ring-0"
 							>
 								<option value="all" class="bg-bg-elevated text-fg">{t("instances.groupAll") || "Todas"}</option>
 								{#each customGroups as grp}
 									<option value={grp} class="bg-bg-elevated text-fg">{grp}</option>
 								{/each}
 							</select>
+							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
 						</div>
 
 						<button 

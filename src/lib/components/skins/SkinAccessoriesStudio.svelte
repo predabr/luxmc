@@ -104,56 +104,155 @@
 			ctx.imageSmoothingEnabled = false;
 			ctx.drawImage(img, 0, 0, 64, 64);
 
+			const isSlim = activeSkinStore.current.type === "alex";
+			const armW = isSlim ? 3 : 4;
+
 			if (acc.id === "sunglasses") {
+				// Front lenses
 				ctx.fillStyle = "rgba(15, 15, 20, 1.0)";
 				ctx.fillRect(40, 9, 8, 3);
+				// White reflections
 				ctx.fillStyle = "rgba(240, 240, 255, 0.9)";
 				ctx.fillRect(41, 10, 1, 1);
 				ctx.fillRect(45, 10, 1, 1);
+				// Frame bridge
 				ctx.fillStyle = "rgba(30, 30, 35, 1.0)";
-				ctx.fillRect(38, 9, 2, 1);
-				ctx.fillRect(48, 9, 2, 1);
+				ctx.fillRect(43, 9, 2, 1);
+				// Right side temple/arm
+				ctx.fillRect(35, 9, 5, 2);
+				// Left side temple/arm
+				ctx.fillRect(48, 9, 5, 2);
 			} else if (acc.id === "headphones") {
-				ctx.fillStyle = "rgba(35, 35, 40, 1.0)";
-				ctx.fillRect(42, 3, 4, 2);
-				ctx.fillStyle = "rgba(25, 25, 30, 1.0)";
+				// Headband on top of head
+				ctx.fillStyle = "#1e272e";
+				ctx.fillRect(40, 3, 8, 2);
+				ctx.fillStyle = "#00d2d3";
+				ctx.fillRect(41, 3, 6, 1);
+
+				// Right side band & ear cup
+				ctx.fillStyle = "#1e272e";
+				ctx.fillRect(35, 8, 2, 2);
 				ctx.fillRect(34, 10, 4, 4);
 				ctx.fillStyle = "#00d2d3";
 				ctx.fillRect(35, 11, 2, 2);
 
-				ctx.fillStyle = "rgba(25, 25, 30, 1.0)";
-				ctx.fillRect(50, 10, 4, 4);
+				// Left side band & ear cup
+				ctx.fillStyle = "#1e272e";
+				ctx.fillRect(49, 8, 2, 2);
+				ctx.fillRect(48, 10, 4, 4);
 				ctx.fillStyle = "#00d2d3";
-				ctx.fillRect(51, 11, 2, 2);
+				ctx.fillRect(49, 11, 2, 2);
+
+				// Mic boom on left face & front
+				ctx.fillStyle = "#2c3e50";
+				ctx.fillRect(48, 13, 3, 1);
+				ctx.fillRect(40, 13, 2, 1);
+				ctx.fillStyle = "#ff4757";
+				ctx.fillRect(41, 13, 1, 1);
 			} else if (acc.id === "crown") {
+				// 360 headband (Right, Front, Left, Back)
 				ctx.fillStyle = "#f1c40f";
-				ctx.fillRect(40, 7, 8, 2);
 				ctx.fillRect(32, 7, 8, 2);
+				ctx.fillRect(40, 7, 8, 2);
 				ctx.fillRect(48, 7, 8, 2);
 				ctx.fillRect(56, 7, 8, 2);
 
-				ctx.fillStyle = "#e74c3c";
-				ctx.fillRect(42, 7, 1, 1);
-				ctx.fillRect(45, 7, 1, 1);
+				// Crown peaks on all sides
 				ctx.fillStyle = "#f39c12";
+				ctx.fillRect(32, 6, 1, 1);
+				ctx.fillRect(35, 6, 2, 1);
+				ctx.fillRect(39, 6, 1, 1);
+
 				ctx.fillRect(40, 6, 1, 1);
 				ctx.fillRect(43, 6, 2, 1);
 				ctx.fillRect(47, 6, 1, 1);
-			} else if (acc.id === "bandana") {
+
+				ctx.fillRect(48, 6, 1, 1);
+				ctx.fillRect(51, 6, 2, 1);
+				ctx.fillRect(55, 6, 1, 1);
+
+				ctx.fillRect(56, 6, 1, 1);
+				ctx.fillRect(59, 6, 2, 1);
+				ctx.fillRect(63, 6, 1, 1);
+
+				// Jewels
 				ctx.fillStyle = "#e74c3c";
-				ctx.fillRect(40, 8, 8, 2);
+				ctx.fillRect(43, 7, 2, 1);
+				ctx.fillStyle = "#2ecc71";
+				ctx.fillRect(35, 7, 2, 1);
+				ctx.fillStyle = "#3498db";
+				ctx.fillRect(51, 7, 2, 1);
+				ctx.fillStyle = "#9b59b6";
+				ctx.fillRect(59, 7, 2, 1);
+			} else if (acc.id === "bandana") {
+				// 360 wrap
+				ctx.fillStyle = "#e74c3c";
 				ctx.fillRect(32, 8, 8, 2);
+				ctx.fillRect(40, 8, 8, 2);
 				ctx.fillRect(48, 8, 8, 2);
 				ctx.fillRect(56, 8, 8, 2);
+
+				// Front emblem
 				ctx.fillStyle = "#bdc3c7";
 				ctx.fillRect(43, 8, 2, 2);
+				ctx.fillStyle = "#2c3e50";
+				ctx.fillRect(43, 8, 1, 1);
+
+				// Back knot and tails
+				ctx.fillStyle = "#c0392b";
+				ctx.fillRect(59, 10, 2, 3);
+				ctx.fillStyle = "#962d22";
+				ctx.fillRect(60, 13, 1, 2);
 			} else if (acc.id === "jacket") {
-				ctx.fillStyle = "#1e272e";
+				const jacketBase = "#1e272e";
+				const jacketAccent = "#00d2d3";
+				const jacketDark = "#141a1f";
+
+				// Torso Layer 2: Top (20, 32, 8, 4), Bottom (28, 32, 8, 4), Right (16, 36, 4, 12), Front (20, 36, 8, 12), Left (28, 36, 4, 12), Back (32, 36, 8, 12)
+				ctx.fillStyle = jacketBase;
+				ctx.fillRect(20, 32, 8, 4);
+				ctx.fillRect(28, 32, 8, 4);
+				ctx.fillRect(16, 36, 4, 12);
 				ctx.fillRect(20, 36, 8, 12);
-				ctx.fillRect(44, 36, 4, 12);
-				ctx.fillRect(52, 52, 4, 12);
-				ctx.fillStyle = "#00d2d3";
-				ctx.fillRect(23, 38, 2, 8);
+				ctx.fillRect(28, 36, 4, 12);
+				ctx.fillRect(32, 36, 8, 12);
+
+				// Front zipper and pockets
+				ctx.fillStyle = jacketAccent;
+				ctx.fillRect(23, 37, 2, 10);
+				ctx.fillStyle = jacketDark;
+				ctx.fillRect(21, 43, 2, 2);
+				ctx.fillRect(25, 43, 2, 2);
+
+				// Back gamer stripe
+				ctx.fillStyle = jacketAccent;
+				ctx.fillRect(35, 39, 2, 5);
+
+				// Right Sleeve Layer 2: Top (44, 32, armW, 4), Bottom (44+armW, 32, armW, 4), Right (40, 36, 4, 12), Front (44, 36, armW, 12), Left (44+armW, 36, 4, 12), Back (48+armW, 36, armW, 12)
+				ctx.fillStyle = jacketBase;
+				ctx.fillRect(44, 32, armW, 4);
+				ctx.fillRect(44 + armW, 32, armW, 4);
+				ctx.fillRect(40, 36, 4, 12);
+				ctx.fillRect(44, 36, armW, 12);
+				ctx.fillRect(44 + armW, 36, 4, 12);
+				ctx.fillRect(48 + armW, 36, armW, 12);
+
+				// Right sleeve accent stripe
+				ctx.fillStyle = jacketAccent;
+				ctx.fillRect(41, 38, 2, 8);
+
+				// Left Sleeve Layer 2: Top (52, 48, armW, 4), Bottom (52+armW, 48, armW, 4), Right (48, 52, 4, 12), Front (52, 52, armW, 12), Left (52+armW, 52, 4, 12), Back (56+armW, 52, armW, 12)
+				ctx.fillStyle = jacketBase;
+				ctx.fillRect(52, 48, armW, 4);
+				ctx.fillRect(52 + armW, 48, armW, 4);
+				ctx.fillRect(48, 52, 4, 12);
+				ctx.fillRect(52, 52, armW, 12);
+				ctx.fillRect(52 + armW, 52, 4, 12);
+				ctx.fillRect(56 + armW, 52, armW, 12);
+
+				// Left sleeve accent stripe
+				ctx.fillStyle = jacketAccent;
+				ctx.fillRect(52 + armW + 1, 54, 2, 8);
 			}
 
 			const newSkinDataUrl = canvas.toDataURL("image/png");

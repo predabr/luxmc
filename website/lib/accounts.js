@@ -7,8 +7,76 @@ export const json = (value, status = 200, extra = {}) => new Response(JSON.strin
 export const publicAccount = row => ({ id: row.id, username: row.username, socialId: row.social_id, preferences: JSON.parse(row.preferences), revision: row.revision });
 export const validNickname = value => typeof value === "string" && /^[A-Za-z0-9_]{3,16}$/.test(value);
 export const validPassword = value => typeof value === "string" && value.length >= 8 && value.length <= 128;
-export const sameOrigin = request => (!request.headers.get("Origin") || request.headers.get("Origin") === new URL(request.url).origin) && request.headers.get("Sec-Fetch-Site") !== "cross-site";
+const ALLOWED_ORIGIN_PATTERNS = [
+  "tauri://localhost",
+  "http://localhost:1420",
+  "http://127.0.0.1:1420"
+];
+
+export const sameOrigin = request => {
+  const origin = request.headers.get("Origin");
+  if (!origin) return true;
+  if (ALLOWED_ORIGIN_PATTERNS.includes(origin)) return true;
+  try {
+    const reqOrigin = new URL(request.url).origin;
+    if (origin === reqOrigin) return true;
+    const originHost = new URL(origin).hostname;
+    if (originHost === "luxmc.top" || originHost.endsWith(".luxmc.top") || originHost.endsWith(".pages.dev") || originHost === "localhost" || originHost === "127.0.0.1") {
+      return true;
+    }
+  } catch {}
+  return false;
+};
+
 export const cookie = (token, age = SESSION_SECONDS) => `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}`;
+
+export async function ensureTables(db) {
+  try {
+    await db.batch([
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS lux_accounts (
+          id TEXT PRIMARY KEY,
+          username TEXT UNIQUE COLLATE NOCASE,
+          password_hash TEXT NOT NULL,
+          password_salt TEXT NOT NULL,
+          recovery_hash TEXT,
+          social_id TEXT,
+          preferences TEXT NOT NULL DEFAULT '{}',
+          revision INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL
+        )
+      `),
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS lux_sessions (
+          token_hash TEXT PRIMARY KEY,
+          account_id TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL,
+          client TEXT NOT NULL DEFAULT 'web'
+        )
+      `),
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS social_users (
+          id TEXT PRIMARY KEY,
+          token_hash TEXT UNIQUE,
+          username TEXT UNIQUE COLLATE NOCASE,
+          avatar TEXT,
+          bio TEXT,
+          created_at INTEGER DEFAULT (unixepoch())
+        )
+      `),
+      db.prepare(`
+        CREATE TABLE IF NOT EXISTS social_limits (
+          bucket TEXT PRIMARY KEY,
+          count INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL
+        )
+      `)
+    ]);
+  } catch (err) {
+    console.warn("ensureTables notice:", err);
+  }
+}
 
 export async function limited(db, key, seconds, maximum) {
   const now = Math.floor(Date.now() / 1000);

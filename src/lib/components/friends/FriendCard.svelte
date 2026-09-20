@@ -1,13 +1,13 @@
 <script lang="ts">
     import { lastSeenLabel } from "$lib/utils/lastSeen";
-    import { Gamepad2, ArrowUpRight, Star, Trash2, Clock3, Copy, Check } from "lucide-svelte";
+    import { Gamepad2, ArrowUpRight, Star, Trash2, Clock3, Copy, Check, Share2 } from "lucide-svelte";
     import MinecraftAvatar from "$lib/components/ui/MinecraftAvatar.svelte";
     import { button } from "$lib/components/ui/button";
     import { toast } from "$lib/stores/toasts.svelte";
     import type { Friend } from "$lib/api/social";
 
-    let { friend, favourite = false, busy = false, onJoin, onFavourite, onRemove }: {
-        friend: Friend; favourite?: boolean; busy?: boolean; onJoin: () => void; onFavourite: () => void; onRemove: () => void;
+    let { friend, favourite = false, busy = false, onJoin, onFavourite, onRemove, onInvite }: {
+        friend: Friend; favourite?: boolean; busy?: boolean; onJoin: () => void; onFavourite: () => void; onRemove: () => void; onInvite?: () => void;
     } = $props();
 
     const playing = $derived(friend.status === 'in_game');
@@ -83,6 +83,15 @@
         {#if playing && friend.serverIp}
             <button type="button" class={button({ variant: 'primary', size: 'md', block: true, class: 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-600/20 active:scale-98' })} onclick={onJoin} disabled={busy}>
                 ENTRAR NO MUNDO <ArrowUpRight class="h-4 w-4 ml-1" />
+            </button>
+        {:else if friend.status === 'online' && onInvite}
+            <button
+                type="button"
+                class="w-full py-2 px-3 rounded-xl bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/30 text-brand-300 hover:text-brand-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 shadow-sm"
+                onclick={onInvite}
+            >
+                <Share2 class="h-3.5 w-3.5 text-brand-400" />
+                <span>Convidar para Meu Mundo</span>
             </button>
         {:else}
             <div class="rounded-xl border border-fg/5 bg-bg/30 px-3 py-2 text-center text-[11px] text-fg-subtle font-medium">

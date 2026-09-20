@@ -136,7 +136,11 @@
 		type ModpackUpdateInfo,
 		doctorCheckInstanceConflicts,
 		type PreLaunchCheckResult,
-		listen
+		listen,
+		upnpOpenPort,
+		upnpClosePort,
+		type UpnpPortMappingResult,
+		type ModUpdateItem
 	} from "$lib/api";
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { playSound } from "$lib/utils/sound";
@@ -560,6 +564,9 @@
 	}
 
 	let isCheckingUpdates = $state(false);
+	let availableModUpdates = $state<ModUpdateItem[]>([]);
+	let isUpdatingAllMods = $state(false);
+	let updatingModProjects = $state<string[]>([]);
 
 	async function handleCheckModUpdates() {
 		if (!instanceId) return;
@@ -567,25 +574,59 @@
 		toast("Verificando atualizações de mods...", "info");
 		try {
 			const updates = await modsCheckUpdates(instanceId);
-			if (!updates || updates.length === 0) {
+			availableModUpdates = updates || [];
+			if (availableModUpdates.length === 0) {
 				toast("Todos os mods estão atualizados!", "success");
 			} else {
-				toast(`${updates.length} atualização(ões) encontrada(s)! Atualizando...`, "info");
-				let count = 0;
-				for (const u of updates) {
-					try {
-						await modsUpdate(u.projectId, u.latestVersionId, instanceId);
-						count++;
-					} catch {}
-				}
-				toast(`${count} mod(s) atualizado(s) com sucesso!`, "success");
 				playSound("chime");
-				await refreshAllData();
+				toast(`${availableModUpdates.length} atualização(ões) de mods encontrada(s)!`, "info");
 			}
 		} catch (e) {
 			toast("Erro ao verificar atualizações: " + String(e), "error");
 		} finally {
 			isCheckingUpdates = false;
+		}
+	}
+
+	async function handleUpdateAllMods() {
+		if (!instanceId || availableModUpdates.length === 0 || isUpdatingAllMods) return;
+		isUpdatingAllMods = true;
+		toast(`Atualizando ${availableModUpdates.length} mods...`, "info");
+		let count = 0;
+		const toUpdate = [...availableModUpdates];
+		for (const u of toUpdate) {
+			try {
+				await modsUpdate(u.projectId, u.latestVersionId, instanceId);
+				count++;
+				availableModUpdates = availableModUpdates.filter(x => x.projectId !== u.projectId);
+			} catch (err) {
+				console.error("Falha ao atualizar mod:", u.projectId, err);
+			}
+		}
+		isUpdatingAllMods = false;
+		if (count > 0) {
+			playSound("achievement");
+			toast(`${count} mod(s) atualizado(s) com sucesso!`, "success");
+			await refreshAllData();
+		} else {
+			toast("Nenhum mod pôde ser atualizado no momento.", "warning");
+		}
+	}
+
+	async function handleUpdateSingleMod(update: ModUpdateItem) {
+		if (!instanceId || updatingModProjects.includes(update.projectId) || isUpdatingAllMods) return;
+		updatingModProjects = [...updatingModProjects, update.projectId];
+		try {
+			toast(`Atualizando ${update.projectName || update.projectTitle || 'mod'}...`, "info");
+			await modsUpdate(update.projectId, update.latestVersionId, instanceId);
+			playSound("chime");
+			toast(`Mod atualizado com sucesso!`, "success");
+			availableModUpdates = availableModUpdates.filter(x => x.projectId !== update.projectId);
+			await refreshAllData();
+		} catch (e) {
+			toast("Erro ao atualizar mod: " + String(e), "error");
+		} finally {
+			updatingModProjects = updatingModProjects.filter(id => id !== update.projectId);
 		}
 	}
 
@@ -615,11 +656,30 @@
 	let hostLinkInfo = $state<HostLinkInfo | null>(null);
 	let customHostPort = $state(25565);
 	let isCopiedHostLink = $state(false);
+	let isCopiedDirectAddress = $state(false);
+	let upnpResult = $state<UpnpPortMappingResult | null>(null);
+	let isOpeningUpnp = $state(false);
+
+	async function attemptUpnpOpen() {
+		isOpeningUpnp = true;
+		try {
+			const res = await upnpOpenPort(customHostPort);
+			upnpResult = res;
+			if (res.success) {
+				toast("Porta UPnP aberta com sucesso no roteador!", "success");
+			}
+		} catch (e) {
+			console.warn("UPnP automatic opening failed:", e);
+		} finally {
+			isOpeningUpnp = false;
+		}
+	}
 
 	async function openHostWorldModal() {
 		try {
 			hostLinkInfo = await p2pGetHostLink(customHostPort);
 			showHostModal = true;
+			attemptUpnpOpen();
 		} catch (e) {
 			toast("Erro ao gerar link de host: " + String(e), "error");
 		}
@@ -628,6 +688,7 @@
 	async function refreshHostLink() {
 		try {
 			hostLinkInfo = await p2pGetHostLink(customHostPort);
+			await attemptUpnpOpen();
 			toast("Link de conexão atualizado com a porta " + customHostPort, "success");
 		} catch (e) {
 			toast("Erro ao atualizar porta: " + String(e), "error");
@@ -640,6 +701,15 @@
 		isCopiedHostLink = true;
 		toast("Link próprio de conexão copiado! Envie para seus amigos.", "success");
 		setTimeout(() => (isCopiedHostLink = false), 2500);
+	}
+
+	function copyDirectAddress() {
+		if (!hostLinkInfo) return;
+		const addr = upnpResult?.externalIp ? `${upnpResult.externalIp}:${customHostPort}` : hostLinkInfo.directAddress;
+		navigator.clipboard.writeText(addr);
+		isCopiedDirectAddress = true;
+		toast("Endereço IP copiado!", "success");
+		setTimeout(() => (isCopiedDirectAddress = false), 2000);
 	}
 
 	// Launch & Install state
@@ -1447,7 +1517,7 @@
 								disabled={isCheckingUpdates}
 							>
 								<RefreshCw class="w-3.5 h-3.5 {isCheckingUpdates ? 'animate-spin' : ''}" />
-								{isCheckingUpdates ? 'Checando...' : 'Atualizar Mods'}
+								{isCheckingUpdates ? 'Verificando...' : 'Verificar Atualizações'}
 							</button>
 							<a
 								href="/mods"
@@ -1499,6 +1569,33 @@
 						</div>
 					{/if}
 
+					{#if availableModUpdates.length > 0}
+						<div class="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-transparent border border-amber-500/30 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 shadow-lg shadow-amber-500/5">
+							<div class="flex items-center gap-3">
+								<div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+									<ArrowUpCircle class="w-5 h-5 animate-pulse" />
+								</div>
+								<div>
+									<h4 class="text-xs font-black text-fg uppercase tracking-wider">
+										{availableModUpdates.length} Mod{availableModUpdates.length > 1 ? 's' : ''} com Atualização Disponível
+									</h4>
+									<p class="text-[11px] text-fg-muted">
+										Atualize todos de uma vez ou atualize individualmente os que desejar na lista abaixo.
+									</p>
+								</div>
+							</div>
+							<button
+								type="button"
+								class="bg-amber-500 hover:bg-amber-400 text-bg font-extrabold text-xs px-4 py-2 rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+								disabled={isUpdatingAllMods}
+								onclick={handleUpdateAllMods}
+							>
+								<RefreshCw class="w-4 h-4 {isUpdatingAllMods ? 'animate-spin' : ''}" />
+								{isUpdatingAllMods ? 'Atualizando Mods...' : `Atualizar Todos os Mods (${availableModUpdates.length})`}
+							</button>
+						</div>
+					{/if}
+
 					{#if instanceMods.length === 0}
 						<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
 							<div class="h-16 w-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4 text-blue-400">
@@ -1531,6 +1628,11 @@
 								{@const rawName = mod.name.replace('.disabled', '').replace('.jar', '')}
 								{@const displayName = rawName.includes('_') && /^\d+_\d+$/.test(rawName) ? 'Mod #' + rawName.split('_')[0] : rawName.replace(/_/g, ' ')}
 								{@const badge = getModBadge(displayName)}
+								{@const modUpdate = availableModUpdates.find(u => 
+									(u.fileName && (mod.name === u.fileName || mod.name === u.fileName + '.disabled' || mod.name.startsWith(u.fileName.replace('.jar', '')))) ||
+									(u.projectName && displayName.toLowerCase().includes(u.projectName.toLowerCase())) ||
+									(u.projectId && displayName.toLowerCase().includes(u.projectId.toLowerCase()))
+								)}
 								<div class="bg-bg-elevated/90 hover:bg-bg-subtle border border-fg/5 hover:border-fg/15 p-3.5 rounded-2xl flex items-center justify-between transition-all group shadow-sm hover:shadow-md {isDisabled ? 'opacity-50' : ''}" style="content-visibility: auto;">
 									<div class="flex items-center gap-3.5 min-w-0">
 										<div class="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-md relative {isDisabled ? 'grayscale opacity-60' : ''}">
@@ -1550,11 +1652,16 @@
 											{/if}
 										</div>
 										<div class="min-w-0">
-											<div class="flex items-center gap-2">
+											<div class="flex items-center gap-2 flex-wrap">
 												<h5 class="text-xs font-extrabold text-fg truncate max-w-[320px] group-hover:text-amber-300 transition-colors" title={displayName}>{displayName}</h5>
 												<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full {isDisabled ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
 													{isDisabled ? 'Desativado' : 'Ativo'}
 												</span>
+												{#if modUpdate}
+													<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse" title={`Atualização disponível: ${modUpdate.latestVersionNumber}`}>
+														v{modUpdate.latestVersionNumber}
+													</span>
+												{/if}
 											</div>
 											<div class="flex items-center gap-2 mt-1 text-[10px] text-fg/40 font-mono">
 												<span class="text-fg/60">{mod.size > 1048576 ? (mod.size / (1024 * 1024)).toFixed(2) + ' MB' : Math.round(mod.size / 1024) + ' KB'}</span>
@@ -1565,6 +1672,19 @@
 									</div>
 
 									<div class="flex items-center gap-2 shrink-0">
+										{#if modUpdate}
+											<button
+												type="button"
+												class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+												disabled={updatingModProjects.includes(modUpdate.projectId) || isUpdatingAllMods}
+												onclick={() => handleUpdateSingleMod(modUpdate)}
+												title={`Atualizar para versão ${modUpdate.latestVersionNumber}`}
+											>
+												<ArrowUpCircle class="w-4 h-4 text-amber-400 {updatingModProjects.includes(modUpdate.projectId) ? 'animate-spin' : ''}" />
+												<span>{updatingModProjects.includes(modUpdate.projectId) ? 'Atualizando...' : 'Atualizar'}</span>
+											</button>
+										{/if}
+
 										<button
 											type="button"
 											class="px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm active:scale-[0.98] {isDisabled ? 'bg-bg-subtle text-fg/70 hover:text-fg hover:bg-bg-subtle border border-fg/20' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 shadow-emerald-500/10'}"
@@ -2272,6 +2392,30 @@
 				</button>
 			</div>
 
+			<!-- UPnP Status Badge -->
+			<div class="flex items-center justify-between px-3.5 py-2 rounded-2xl border {upnpResult?.success ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : isOpeningUpnp ? 'bg-blue-500/10 border-blue-500/30 text-blue-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'}">
+				<div class="flex items-center gap-2">
+					{#if isOpeningUpnp}
+						<RefreshCw class="w-4 h-4 animate-spin text-blue-400" />
+						<span class="text-xs font-bold">Abrindo porta no roteador (UPnP)...</span>
+					{:else if upnpResult?.success}
+						<Globe2 class="w-4 h-4 text-emerald-400" />
+						<span class="text-xs font-extrabold">UPnP Ativo · Aberto para Internet</span>
+					{:else}
+						<Radio class="w-4 h-4 text-amber-400" />
+						<span class="text-xs font-bold">Modo LAN (Rede Local)</span>
+					{/if}
+				</div>
+				<button
+					type="button"
+					class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-fg/10 hover:bg-fg/15 text-fg transition-all cursor-pointer disabled:opacity-50"
+					disabled={isOpeningUpnp}
+					onclick={attemptUpnpOpen}
+				>
+					{isOpeningUpnp ? 'Aguarde...' : 'Reabrir UPnP'}
+				</button>
+			</div>
+
 			<div class="bg-bg-elevated border border-fg/10 rounded-2xl p-4 space-y-3 shadow-inner">
 				<div>
 					<span class="text-[10px] font-extrabold text-brand-500 uppercase tracking-wider block mb-1">Link Próprio do Luxmc (Compartilhável)</span>
@@ -2296,6 +2440,31 @@
 					</div>
 				</div>
 
+				{#if upnpResult?.success && upnpResult.externalIp}
+					<div class="pt-2 border-t border-fg/5">
+						<span class="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider block mb-1">IP Público (Amigos fora da rede local)</span>
+						<div class="flex items-center gap-2">
+							<input
+								type="text"
+								readonly
+								value={`${upnpResult.externalIp}:${customHostPort}`}
+								class="flex-1 bg-bg-overlay/50 border border-emerald-500/20 rounded-xl px-3.5 py-2 text-xs font-mono text-emerald-300 outline-none select-all"
+							/>
+							<button
+								type="button"
+								class="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-extrabold text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-[0.98]"
+								onclick={copyDirectAddress}
+							>
+								{#if isCopiedDirectAddress}
+									<Check class="w-3.5 h-3.5" /> Copiado!
+								{:else}
+									<Copy class="w-3.5 h-3.5" /> Copiar IP
+								{/if}
+							</button>
+						</div>
+					</div>
+				{/if}
+
 				<div class="grid grid-cols-2 gap-2 pt-2 border-t border-fg/5">
 					<div>
 						<span class="text-[10px] text-fg/40 block font-bold">Endereço IP Local:</span>
@@ -2317,8 +2486,8 @@
 
 			<div class="text-[11px] text-fg/50 leading-relaxed space-y-1 bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl">
 				<div class="font-bold text-amber-300">Como funciona?</div>
-				<div>1. Abra seu mundo no Minecraft e clique em <b>"Aberto para LAN"</b>.</div>
-				<div>2. Envie o <b>Link Próprio</b> acima para seus amigos colarem no Luxmc.</div>
+				<div>1. Abra seu mundo no Minecraft e clique em <b>"Aberto para LAN"</b> na porta <b>{customHostPort}</b>.</div>
+				<div>2. Envie o <b>Link Próprio</b> ou <b>IP Público</b> para seus amigos colarem no Luxmc.</div>
 			</div>
 		</div>
 	</div>

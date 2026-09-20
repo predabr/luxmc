@@ -145,17 +145,42 @@
         <p class="mt-1 text-xs text-fg-subtle">Minecraft {profile.mcVersion}{#if profile.loaderVersion} · {profile.loaderVersion}{/if}</p>
         {#if profile.notes}<p class="mt-2 line-clamp-1 text-xs text-fg-muted">{profile.notes}</p>{/if}
         {#if viewMode === 'grid'}
-            <div class="mt-5 grid grid-cols-3 gap-2 border-y border-fg/5 py-3">
-                <div><p class="text-[10px] text-fg-subtle">Tempo jogado</p><p class="mt-1 text-xs font-semibold text-fg">{playtime}</p></div>
-                <div><p class="text-[10px] text-fg-subtle">Mods</p><p class="mt-1 text-xs font-semibold text-fg">{profile.modCount || 0}</p></div>
-                <div><p class="text-[10px] text-fg-subtle">Memória</p><p class="mt-1 text-xs font-semibold text-fg">{((profile.ramMb || 4096) / 1024).toFixed(1)} GB</p></div>
+            <div class="mt-4 rounded-2xl bg-bg-overlay/40 border border-fg/5 p-2.5 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <div class="h-8 w-8 rounded-xl bg-brand-500/15 border border-brand-500/30 flex items-center justify-center text-brand-400 shrink-0 shadow-sm">
+                        <Clock class="h-4 w-4" />
+                    </div>
+                    <div class="min-w-0">
+                        <span class="text-[9px] font-black uppercase tracking-wider text-fg-subtle block">Tempo Jogado</span>
+                        <span class="text-xs font-black font-mono text-brand-300 drop-shadow-sm truncate block">{playtime}</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 text-right shrink-0">
+                    <div class="border-l border-fg/10 pl-3">
+                        <span class="text-[9px] font-black uppercase tracking-wider text-fg-subtle block">Mods</span>
+                        <span class="text-xs font-extrabold text-fg font-mono">{profile.modCount || 0}</span>
+                    </div>
+                    <div class="border-l border-fg/10 pl-3">
+                        <span class="text-[9px] font-black uppercase tracking-wider text-fg-subtle block">RAM</span>
+                        <span class="text-xs font-extrabold text-fg font-mono">{((profile.ramMb || 4096) / 1024).toFixed(1)}G</span>
+                    </div>
+                </div>
             </div>
-            <div class="mt-3 flex items-center justify-between gap-2 text-[10px] text-fg-subtle"><span class="flex items-center gap-1.5"><Clock class="h-3 w-3" />{lastPlayed}</span>{#if profile.diskUsage}<span>{formatBytes(profile.diskUsage)}</span>{/if}</div>
+            <div class="mt-3 flex items-center justify-between gap-2 text-[10px] text-fg-subtle px-0.5">
+                <span class="flex items-center gap-1.5 font-medium"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Última sessão: {lastPlayed}</span>
+                {#if profile.diskUsage}<span class="font-mono">{formatBytes(profile.diskUsage)}</span>{/if}
+            </div>
             <div class="relative z-10 mt-4 flex items-center justify-between gap-2">{@render controls()}</div>
         {/if}
     </div>
     {#if viewMode === 'list'}
-        <div class="hidden text-right text-xs text-fg-muted lg:block"><p>{playtime} · {profile.modCount || 0} mods</p><p class="mt-1 text-[10px] text-fg-subtle">{lastPlayed}</p></div>
+        <div class="hidden text-right text-xs lg:flex flex-col items-end">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-300 font-mono font-black text-xs shadow-sm">
+                <Clock class="h-3.5 w-3.5 text-brand-400" />
+                {playtime}
+            </span>
+            <span class="mt-1 text-[10px] text-fg-subtle font-medium">{profile.modCount || 0} mods · {lastPlayed}</span>
+        </div>
         <div class="hidden sm:block"><LoaderBadge loader={profile.loader} /></div>
         <div class="relative z-10 flex items-center gap-2">{@render controls()}</div>
     {/if}

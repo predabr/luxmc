@@ -57,6 +57,8 @@ pub struct ModUpdate {
     pub latest_version_id: String,
     pub latest_version_number: String,
     pub download_url: String,
+    #[serde(default)]
+    pub file_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

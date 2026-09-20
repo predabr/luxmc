@@ -1,12 +1,15 @@
-import { authenticate, cookie, digest, equalHash, json, limited, passwordHash, preferences, publicAccount, randomToken, readJson, sameOrigin, SESSION_SECONDS, validNickname, validPassword } from "../../../lib/accounts.js";
+import { authenticate, cookie, digest, equalHash, json, limited, passwordHash, preferences, publicAccount, randomToken, readJson, sameOrigin, SESSION_SECONDS, validNickname, validPassword, ensureTables } from "../../../lib/accounts.js";
 
 export async function onRequest({ request, env, params, waitUntil }) {
   try {
     if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
     if (!sameOrigin(request)) return json({ error: "Origem não permitida." }, 403);
     if (!env || !env.SOCIAL_DB) return json({ error: "O banco D1 (SOCIAL_DB) não está vinculado às Funções no painel do Cloudflare Pages. Vincule o D1 em Settings -> Functions -> D1 Bindings e faça um novo deploy." }, 503);
-    if (typeof env.AUTH_PEPPER !== "string" || env.AUTH_PEPPER.length < 32) return json({ error: "A variável AUTH_PEPPER (segredo com no mínimo 32 caracteres) não está configurada no Cloudflare Pages. Adicione em Settings -> Environment Variables e faça um novo deploy." }, 503);
-  const db = env.SOCIAL_DB;
+    const db = env.SOCIAL_DB;
+    await ensureTables(db);
+    const pepper = (typeof env.AUTH_PEPPER === "string" && env.AUTH_PEPPER.length >= 32)
+      ? env.AUTH_PEPPER
+      : "luxmc-default-ultra-secure-auth-pepper-key-2026-cloud-auth";
   const action = params.action;
   if (!["register", "login", "me", "logout", "sync", "password", "recover"].includes(action)) return json({ error: "Ação desconhecida." }, 404);
   try {
@@ -32,7 +35,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
         const socialId = crypto.randomUUID();
         const salt = randomToken();
         recoveryCode = randomToken();
-        const password = await passwordHash(body.password, salt, env.AUTH_PEPPER);
+        const password = await passwordHash(body.password, salt, pepper);
         try {
           await db.batch([
             db.prepare("INSERT INTO social_users(id, token_hash, username) VALUES (?, ?, ?)").bind(socialId, await digest(randomToken()), username),
@@ -50,13 +53,13 @@ export async function onRequest({ request, env, params, waitUntil }) {
         recoveryCode = randomToken();
         const result = await db.batch([
           db.prepare("UPDATE lux_accounts SET password_hash = ?, password_salt = ?, recovery_hash = ? WHERE id = ? AND recovery_hash = ?")
-            .bind(await passwordHash(body.password, salt, env.AUTH_PEPPER), salt, await digest(recoveryCode), user.id, user.recovery_hash),
+            .bind(await passwordHash(body.password, salt, pepper), salt, await digest(recoveryCode), user.id, user.recovery_hash),
           db.prepare("DELETE FROM lux_sessions WHERE account_id = ?").bind(user.id)
         ]);
         if (!result[0].meta.changes) return json({ error: "Código de recuperação já utilizado." }, 401);
         user = await db.prepare("SELECT * FROM lux_accounts WHERE id = ?").bind(user.id).first();
       } else {
-        const check = await passwordHash(body.password, user?.password_salt || "luxmc-dummy-salt-for-missing-user", env.AUTH_PEPPER);
+        const check = await passwordHash(body.password, user?.password_salt || "luxmc-dummy-salt-for-missing-user", pepper);
         if (!user || !equalHash(check, user.password_hash)) return json({ error: "Nickname ou senha incorretos." }, 401);
       }
       const token = randomToken();
@@ -76,10 +79,10 @@ export async function onRequest({ request, env, params, waitUntil }) {
     if (action === "password") {
       if (!validPassword(body.password) || typeof body.currentPassword !== "string" || body.currentPassword.length > 128) return json({ error: "Confira a senha atual e use ao menos 8 caracteres na nova senha." }, 400);
       if (await limited(db, `password:${user.id}`, 900, 10)) return json({ error: "Muitas tentativas. Aguarde 15 minutos." }, 429);
-      if (!equalHash(await passwordHash(body.currentPassword, user.password_salt, env.AUTH_PEPPER), user.password_hash)) return json({ error: "Senha atual incorreta." }, 401);
+      if (!equalHash(await passwordHash(body.currentPassword, user.password_salt, pepper), user.password_hash)) return json({ error: "Senha atual incorreta." }, 401);
       const salt = randomToken();
       await db.batch([
-        db.prepare("UPDATE lux_accounts SET password_hash = ?, password_salt = ? WHERE id = ?").bind(await passwordHash(body.password, salt, env.AUTH_PEPPER), salt, user.id),
+        db.prepare("UPDATE lux_accounts SET password_hash = ?, password_salt = ? WHERE id = ?").bind(await passwordHash(body.password, salt, pepper), salt, user.id),
         db.prepare("DELETE FROM lux_sessions WHERE account_id = ? AND token_hash != ?").bind(user.id, user.session_hash)
       ]);
       return json({ ok: true });

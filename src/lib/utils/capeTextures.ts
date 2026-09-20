@@ -279,6 +279,21 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillStyle = "#a8121d";
 		ctx.fillRect(16, 7, 2, 3);
 	}
+
+	const imgData = ctx.getImageData(12, 1, 10, 16);
+	const data = imgData.data;
+	for (let y = 0; y < 16; y++) {
+		for (let x = 0; x < 5; x++) {
+			const leftIdx = (y * 10 + x) * 4;
+			const rightIdx = (y * 10 + (9 - x)) * 4;
+			for (let c = 0; c < 4; c++) {
+				const tmp = data[leftIdx + c];
+				data[leftIdx + c] = data[rightIdx + c];
+				data[rightIdx + c] = tmp;
+			}
+		}
+	}
+	ctx.putImageData(imgData, 12, 1);
 }
 
 const previewCache = new Map<string, string>();
@@ -306,8 +321,11 @@ export function getCapePreviewDataUrl(type: CapeType): string {
 	fullCtx.imageSmoothingEnabled = false;
 	drawCapeToCanvas(fullCtx, type);
 
-	// The back face of the cape in standard MC UV is at x=12, y=1, w=10, h=16
+	ctx.save();
+	ctx.translate(40, 0);
+	ctx.scale(-1, 1);
 	ctx.drawImage(fullCanvas, 12, 1, 10, 16, 0, 0, 40, 64);
+	ctx.restore();
 
 	const dataUrl = canvas.toDataURL("image/png");
 	previewCache.set(type, dataUrl);

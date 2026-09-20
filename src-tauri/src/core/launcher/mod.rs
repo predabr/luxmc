@@ -348,10 +348,14 @@ impl GameLauncher {
                     });
                     if has_neoforge_client {
                         classpath.retain(|p| {
-                            let s = p.to_string_lossy().to_lowercase();
-                            !(s.contains("neoforge") && s.ends_with("-universal.jar"))
+                            let s = p.to_string_lossy().replace('\\', "/").to_lowercase();
+                            if s.contains("net/neoforged/neoforge") {
+                                s.ends_with("-client.jar")
+                            } else {
+                                true
+                            }
                         });
-                        self.emit_log("Removed duplicate neoforge-universal.jar (neoforge-client.jar present)");
+                        self.emit_log("NeoForge module isolation: removed redundant neoforge runtime jars (neoforge-client.jar active)");
                     }
                 }
             }
@@ -531,6 +535,10 @@ impl GameLauncher {
         } else {
             false
         };
+
+        if has_mods {
+            self.resolve_duplicate_mods(game_dir);
+        }
 
         let is_modpack_effective = is_modpack || has_mods;
 
@@ -1316,6 +1324,67 @@ pub fn evaluate_rules(rules: &[serde_json::Value]) -> bool {
 }
 
 impl GameLauncher {
+    fn resolve_duplicate_mods(&self, game_dir: &std::path::Path) {
+        let mods_dir = game_dir.join("mods");
+        let Ok(entries) = std::fs::read_dir(&mods_dir) else { return; };
+        let mut jar_files: Vec<(std::path::PathBuf, String, u64, std::time::SystemTime)> = Vec::new();
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.extension().map_or(false, |e| e == "jar") {
+                let fname = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                if fname.ends_with(".disabled") {
+                    continue;
+                }
+                let meta = std::fs::metadata(&path).ok();
+                let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+                let mtime = meta.and_then(|m| m.modified().ok()).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                jar_files.push((path, fname, size, mtime));
+            }
+        }
+
+        if jar_files.len() < 2 {
+            return;
+        }
+
+        let mut groups: std::collections::HashMap<String, Vec<(std::path::PathBuf, String, u64, std::time::SystemTime)>> = std::collections::HashMap::new();
+
+        for item in jar_files {
+            let stem = item.1.strip_suffix(".jar").unwrap_or(&item.1).to_lowercase();
+            let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();
+            let non_version_parts: Vec<&str> = parts
+                .into_iter()
+                .take_while(|part| !part.chars().any(|c| c.is_ascii_digit()))
+                .collect();
+            let base = non_version_parts.join("-");
+
+            const COMMON_SINGLE_PREFIXES: &[&str] = &[
+                "fabric", "forge", "neoforge", "quilt", "ftb", "kubejs", "create",
+                "yungs", "macaws", "allthe", "better", "simple"
+            ];
+
+            if base.len() >= 3 && !COMMON_SINGLE_PREFIXES.contains(&base.as_str()) {
+                groups.entry(base).or_default().push(item);
+            }
+        }
+
+        for (base, mut list) in groups {
+            if list.len() > 1 {
+                list.sort_by(|a, b| b.3.cmp(&a.3).then_with(|| b.2.cmp(&a.2)));
+                let keep = &list[0];
+                for duplicate in &list[1..] {
+                    let disabled_name = format!("{}.disabled", duplicate.1);
+                    let disabled_path = mods_dir.join(disabled_name);
+                    if std::fs::rename(&duplicate.0, &disabled_path).is_ok() {
+                        self.emit_log(&format!(
+                            "Conflito de mod evitado ({base}): desativando duplicata '{}' em favor da versão mais recente '{}'",
+                            duplicate.1, keep.1
+                        ));
+                    }
+                }
+            }
+        }
+    }
 
     fn build_game_args(
         &self,

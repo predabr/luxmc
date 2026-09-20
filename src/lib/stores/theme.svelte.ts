@@ -165,6 +165,15 @@ function applyThemeVariables(tId: string, aId: string, bgId: string) {
 	root.classList.add(`accent-${a.id}`);
 }
 
+function triggerThemeTransition() {
+	if (typeof window === "undefined" || !document?.documentElement) return;
+	document.documentElement.classList.add("theme-transitioning");
+	window.clearTimeout((window as any).__themeTransitionTimer);
+	(window as any).__themeTransitionTimer = window.setTimeout(() => {
+		document.documentElement.classList.remove("theme-transitioning");
+	}, 350);
+}
+
 export const themeStore = {
 	get theme() { return activeTheme; },
 	get accent() { return activeAccent; },
@@ -190,6 +199,7 @@ export const themeStore = {
 			activeTheme = resolved;
 			if (typeof window !== "undefined") {
 				localStorage.setItem("luxmc_theme", resolved);
+				triggerThemeTransition();
 			}
 			applyThemeVariables(activeTheme, activeAccent, activeBackground);
 			if (persist) {
@@ -208,6 +218,7 @@ export const themeStore = {
 			activeAccent = aId;
 			if (typeof window !== "undefined") {
 				localStorage.setItem("luxmc_accent", aId);
+				triggerThemeTransition();
 			}
 			applyThemeVariables(activeTheme, activeAccent, activeBackground);
 			if (persist) {

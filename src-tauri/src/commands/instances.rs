@@ -900,13 +900,15 @@ pub async fn instance_import_modpack_core(
             }
 
             if let Some(ref a) = app_for_stream {
-                let _ = a.emit("modpack-progress", serde_json::json!({
-                    "phase": "downloading",
-                    "current": current,
-                    "total": total_files,
-                    "percent": percent,
-                    "status": format!("Baixando mods ({}/{})...", current, total_files)
-                }));
+                if current % 4 == 0 || current == total_files {
+                    let _ = a.emit("modpack-progress", serde_json::json!({
+                        "phase": "downloading",
+                        "current": current,
+                        "total": total_files,
+                        "percent": percent,
+                        "status": format!("Baixando mods ({}/{})...", current, total_files)
+                    }));
+                }
             }
         }
     });
@@ -1267,36 +1269,82 @@ async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     let root = std::path::Path::new(&profile.game_dir);
     let cf = root.join("manifest.json");
+    let mut rows_to_insert: Vec<crate::db::schema::mods::ModRow> = Vec::new();
+
     if cf.exists() {
-        let manifest: CfManifest = serde_json::from_slice(&tokio::fs::read(cf).await?)?;
-        for file in manifest.files {
-            let info: crate::core::mods::curseforge::CurseForgeFileInfo = serde_json::from_slice(
-                &tokio::fs::read(root.join(format!(".luxmc/curseforge/{}.json", file.file_id))).await?)?;
-            crate::db::schema::mods::upsert(&db, &crate::db::schema::mods::ModRow {
-                profile_id: profile.id.clone(), project_id: file.project_id.to_string(), version_id: file.file_id.to_string(),
-                file_name: info.file_name, sha1: info.sha1.unwrap_or_default(), source: "curseforge".into(), installed_at: String::new(),
-            }).await?;
-        }
-    }
-    let mr = root.join("modrinth.index.json");
-    if mr.exists() {
-        let manifest: MrpackManifest = serde_json::from_slice(&tokio::fs::read(mr).await?)?;
-        for file in manifest.files {
-            if !file.path.starts_with("mods/") || !file.path.ends_with(".jar") || file.env.as_ref().and_then(|env| env.client.as_deref()) == Some("unsupported") { continue; }
-            for url in &file.downloads {
-                let Ok(url) = reqwest::Url::parse(url) else { continue };
-                if url.host_str() != Some("cdn.modrinth.com") { continue; }
-                let parts: Vec<_> = url.path_segments().into_iter().flatten().collect();
-                if parts.len() < 5 || parts[0] != "data" || parts[2] != "versions" { continue; }
-                crate::db::schema::mods::upsert(&db, &crate::db::schema::mods::ModRow {
-                    profile_id: profile.id.clone(), project_id: parts[1].to_owned(), version_id: parts[3].to_owned(),
-                    file_name: file.path.trim_start_matches("mods/").to_owned(), sha1: file.hashes.get("sha1").cloned().unwrap_or_default(),
-                    source: "modrinth".into(), installed_at: String::new(),
-                }).await?;
-                break;
+        if let Ok(bytes) = tokio::fs::read(&cf).await {
+            if let Ok(manifest) = serde_json::from_slice::<CfManifest>(&bytes) {
+                for file in manifest.files {
+                    let meta_path = root.join(format!(".luxmc/curseforge/{}.json", file.file_id));
+                    if let Ok(info_bytes) = tokio::fs::read(&meta_path).await {
+                        if let Ok(info) = serde_json::from_slice::<crate::core::mods::curseforge::CurseForgeFileInfo>(&info_bytes) {
+                            rows_to_insert.push(crate::db::schema::mods::ModRow {
+                                profile_id: profile.id.clone(),
+                                project_id: file.project_id.to_string(),
+                                version_id: file.file_id.to_string(),
+                                file_name: info.file_name,
+                                sha1: info.sha1.unwrap_or_default(),
+                                source: "curseforge".into(),
+                                installed_at: String::new(),
+                            });
+                        }
+                    }
+                }
             }
         }
     }
+
+    let mr = root.join("modrinth.index.json");
+    if mr.exists() {
+        if let Ok(bytes) = tokio::fs::read(&mr).await {
+            if let Ok(manifest) = serde_json::from_slice::<MrpackManifest>(&bytes) {
+                for file in manifest.files {
+                    if !file.path.starts_with("mods/") || !file.path.ends_with(".jar") || file.env.as_ref().and_then(|env| env.client.as_deref()) == Some("unsupported") { continue; }
+                    for url in &file.downloads {
+                        let Ok(url) = reqwest::Url::parse(url) else { continue };
+                        if url.host_str() != Some("cdn.modrinth.com") { continue; }
+                        let parts: Vec<_> = url.path_segments().into_iter().flatten().collect();
+                        if parts.len() < 5 || parts[0] != "data" || parts[2] != "versions" { continue; }
+                        rows_to_insert.push(crate::db::schema::mods::ModRow {
+                            profile_id: profile.id.clone(),
+                            project_id: parts[1].to_owned(),
+                            version_id: parts[3].to_owned(),
+                            file_name: file.path.trim_start_matches("mods/").to_owned(),
+                            sha1: file.hashes.get("sha1").cloned().unwrap_or_default(),
+                            source: "modrinth".into(),
+                            installed_at: String::new(),
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if !rows_to_insert.is_empty() {
+        let mut tx = db.pool().begin().await?;
+        for row in rows_to_insert {
+            let _ = sqlx::query(
+                "INSERT INTO mods (profile_id, project_id, version_id, file_name, sha1, source, installed_at)
+                 VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+                 ON CONFLICT(profile_id, project_id) DO UPDATE SET
+                    version_id = excluded.version_id,
+                    file_name = excluded.file_name,
+                    sha1 = excluded.sha1,
+                    source = excluded.source"
+            )
+            .bind(&row.profile_id)
+            .bind(&row.project_id)
+            .bind(&row.version_id)
+            .bind(&row.file_name)
+            .bind(&row.sha1)
+            .bind(&row.source)
+            .execute(&mut *tx)
+            .await;
+        }
+        let _ = tx.commit().await;
+    }
+
     Ok(())
 }
 

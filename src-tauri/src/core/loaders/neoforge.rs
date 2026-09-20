@@ -345,12 +345,16 @@ pub async fn prepare_neoforge(
         }
         classpath_entries.retain(|p| {
             let s = p.to_string_lossy().replace('\\', "/");
-            p != &universal_dest && !s.contains(&format!("neoforge-{}-universal.jar", chosen_version))
+            !s.contains("net/neoforged/neoforge/") || s.ends_with("-client.jar")
         });
     } else if universal_dest.exists() {
         if !classpath_entries.contains(&universal_dest) {
-            classpath_entries.push(universal_dest);
+            classpath_entries.push(universal_dest.clone());
         }
+        classpath_entries.retain(|p| {
+            let s = p.to_string_lossy().replace('\\', "/");
+            !s.contains("net/neoforged/neoforge/") || s.ends_with("-universal.jar")
+        });
     }
 
     let cp_sep = if cfg!(windows) { ";" } else { ":" };

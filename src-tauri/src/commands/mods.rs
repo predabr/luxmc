@@ -641,6 +641,7 @@ pub async fn mods_check_updates_core(
                             latest_version_id: latest.id.clone(),
                             latest_version_number: latest.version_number.clone(),
                             download_url: dl_url,
+                            file_name: Some(mod_row.file_name.clone()),
                         });
                     }
                 }
@@ -667,6 +668,7 @@ pub async fn mods_check_updates_core(
                     latest_version_id: latest_id,
                     latest_version_number: latest_num,
                     download_url,
+                    file_name: Some(mod_row.file_name.clone()),
                 });
             }
         }

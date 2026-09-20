@@ -54,6 +54,19 @@
 		} else {
 			viewer.animation = null;
 		}
+
+		if (viewer.animation) {
+			viewer.animation.addAnimation((player, progress) => {
+				if (!player.cape) return;
+				const t = progress * (anim === "run" ? 8 : anim === "walk" ? 5 : 3);
+				const baseAngle = anim === "run" ? 0.72 : anim === "walk" ? 0.34 : 0.18;
+				const wave1 = Math.sin(t) * (anim === "run" ? 0.22 : anim === "walk" ? 0.14 : 0.08);
+				const wave2 = Math.sin(t * 2.2) * (anim === "run" ? 0.08 : anim === "walk" ? 0.04 : 0.025);
+				player.cape.rotation.x = baseAngle + wave1 + wave2;
+				player.cape.rotation.y = Math.sin(t * 0.65) * (anim === "run" ? 0.08 : 0.04);
+				player.cape.rotation.z = Math.cos(t * 0.85) * (anim === "run" ? 0.06 : 0.03);
+			});
+		}
 	}
 
 	onMount(() => {

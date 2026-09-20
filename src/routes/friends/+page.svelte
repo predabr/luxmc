@@ -149,6 +149,15 @@
 	function joinFriend(friend: Friend) {
 		return perform(() => joinWorld(`${friend.serverIp}:${friend.serverPort || 25565}`, friend));
 	}
+	async function inviteFriend(friend: Friend) {
+		if (generatedHostCode) {
+			await navigator.clipboard.writeText(generatedHostCode);
+			toast(`Link do seu mundo copiado! Envie para ${friend.username}.`, "success");
+		} else {
+			activeTab = "p2p";
+			toast("Inicie a hospedagem do seu mundo para compartilhar com amigos!", "info");
+		}
+	}
 </script>
 
 <div class="h-full flex flex-col gap-6 select-none overflow-y-auto custom-scrollbar pb-10 max-w-7xl mx-auto w-full">
@@ -433,11 +442,10 @@
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {#each filteredFriends as friend (friend.id)}
-                    <FriendCard {friend} favourite={friendsState.favourites.includes(friend.id)} busy={working} onJoin={() => joinFriend(friend)} onFavourite={() => friendsState.toggleFavourite(friend.id)} onRemove={() => removeFriend(friend.id, friend.username)} />
+                 {#each filteredFriends as friend (friend.id)}
+                    <FriendCard {friend} favourite={friendsState.favourites.includes(friend.id)} busy={working} onJoin={() => joinFriend(friend)} onFavourite={() => friendsState.toggleFavourite(friend.id)} onRemove={() => removeFriend(friend.id, friend.username)} onInvite={() => inviteFriend(friend)} />
                 {/each}
 			</div>
 		{/if}
 	{/if}
 </div>
-

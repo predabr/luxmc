@@ -87,14 +87,19 @@ export async function modsRemove(profileId: string, projectId: string): Promise<
 	return api.invoke("mods_remove", { profileId, projectId });
 }
 
-export async function modsCheckUpdates(profileId: string): Promise<Array<{
+export interface ModUpdateItem {
 	projectId: string;
-	projectTitle: string;
+	projectName?: string;
+	projectTitle?: string;
 	currentVersionId: string;
-	currentVersionNumber: string;
+	currentVersionNumber?: string;
 	latestVersionId: string;
 	latestVersionNumber: string;
-}>> {
+	downloadUrl?: string;
+	fileName?: string;
+}
+
+export async function modsCheckUpdates(profileId: string): Promise<ModUpdateItem[]> {
 	return api.invoke("mods_check_updates", { profileId });
 }
 
