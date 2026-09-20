@@ -14,7 +14,7 @@ export function safeAssetUrl(value) {
   try {
     const url = new URL(value);
     return url.protocol === "https:" && url.hostname === "github.com" && !url.username && !url.password && !url.port
-      && url.pathname.startsWith(`/${repository}/releases/download/`);
+      && (url.pathname.startsWith(`/${repository}/releases/download/`) || url.pathname.startsWith(`/${repository}/releases/latest/download/`));
   } catch { return false; }
 }
 

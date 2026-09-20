@@ -2050,6 +2050,23 @@ html { overflow-x: clip; }
   padding: 6px 14px;
   border-radius: 9999px;
 }
+.gate-switch-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 650;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.gate-switch-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
 .gate-close-btn {
   background: transparent;
   border: none;

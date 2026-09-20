@@ -1,3 +1,6 @@
+/download/linux    https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_amd64.AppImage 302
+/download/windows  https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_x64-setup.exe 302
+/download/deb      https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_amd64.deb 302
 /download/latest   https://github.com/predabr/luxmc/releases/latest 302
 /download          https://github.com/predabr/luxmc/releases/latest 302
 /github            https://github.com/predabr/luxmc 302

@@ -6,6 +6,12 @@ let currentCategory = "mod";
 let searchDebounce = null;
 let searchController = null;
 let detectedOS = "linux";
+const directDownloadUrls = {
+  linux: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_amd64.AppImage",
+  windows: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_x64-setup.exe",
+  deb: "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.7.5_amd64.deb"
+};
+let currentGatePlatform = "linux";
 
 const FALLBACK_MODS = [
   {
@@ -242,11 +248,12 @@ async function initGitHubRelease() {
     const { assetFor } = await import("./lib/releases.js");
     const appImage = assetFor(data.assets, "linux");
     if (appImage) {
+      if (appImage.browser_download_url) directDownloadUrls.linux = appImage.browser_download_url;
       const link = document.getElementById("downloadAppImageLink");
-      if (link) link.href = "/download/linux";
+      if (link) link.href = appImage.browser_download_url;
       if (detectedOS === "linux") {
         const btn = document.getElementById("primaryDownloadBtn");
-        if (btn) btn.href = "/download/linux";
+        if (btn) btn.href = appImage.browser_download_url;
       }
       const meta = document.getElementById("appImageSize");
       if (meta) {
@@ -261,8 +268,9 @@ async function initGitHubRelease() {
 
     const deb = assetFor(data.assets, "deb");
     if (deb) {
+      if (deb.browser_download_url) directDownloadUrls.deb = deb.browser_download_url;
       const link = document.getElementById("downloadDebLink");
-      if (link) link.href = "/download/deb";
+      if (link) link.href = deb.browser_download_url;
       const meta = document.getElementById("debSize");
       if (meta) {
         const sizeMb = (deb.size / (1024 * 1024)).toFixed(0);
@@ -272,11 +280,12 @@ async function initGitHubRelease() {
 
     const exe = assetFor(data.assets, "windows");
     if (exe) {
+      if (exe.browser_download_url) directDownloadUrls.windows = exe.browser_download_url;
       const link = document.getElementById("downloadExeLink");
-      if (link) link.href = "/download/windows";
+      if (link) link.href = exe.browser_download_url;
       if (detectedOS === "windows") {
         const btn = document.getElementById("primaryDownloadBtn");
-        if (btn) btn.href = "/download/windows";
+        if (btn) btn.href = exe.browser_download_url;
       }
       const meta = document.getElementById("exeSize");
       if (meta) {
@@ -723,11 +732,51 @@ async function checkAdBlock() {
   return isBlocked;
 }
 
+function triggerBrowserDownload(url) {
+  if (!url) return;
+  const link = document.createElement("a");
+  link.href = url;
+  link.setAttribute("download", "");
+  link.rel = "noopener noreferrer";
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => link.remove(), 1000);
+}
+
+function updateGatePlatformUI(platform) {
+  currentGatePlatform = platform === "windows" ? "windows" : "linux";
+  const isWindows = currentGatePlatform === "windows";
+
+  const platformName = document.getElementById("gatePlatformName");
+  const platformIcon = document.getElementById("gatePlatformIcon");
+  const toggleBtn = document.getElementById("gateTogglePlatformBtn");
+  const finalBtn = document.getElementById("gateFinalDownloadBtn");
+
+  if (platformName) {
+    platformName.textContent = isWindows ? "Windows 10 / 11 (.exe Oficial)" : "Linux AppImage (.AppImage x86_64)";
+  }
+  if (platformIcon) {
+    platformIcon.innerHTML = isWindows
+      ? `<svg width="18" height="18" viewBox="0 0 88 88" fill="currentColor"><path d="M0 12.56L35.73 7.69V42.66H0V12.56ZM0 45.34H35.73V80.31L0 75.44V45.34ZM39.06 7.23L88 0V42.66H39.06V7.23ZM39.06 45.34H88V88L39.06 80.77V45.34Z"/></svg>`
+      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139z"/></svg>`;
+  }
+  if (toggleBtn) {
+    toggleBtn.textContent = isWindows ? "Mudar para Linux" : "Mudar para Windows";
+  }
+  const downloadUrl = directDownloadUrls[currentGatePlatform] || (isWindows ? "/download/windows" : "/download/linux");
+  if (finalBtn) {
+    finalBtn.href = downloadUrl;
+  }
+}
+
 function initDownloadGate() {
   const modal = document.getElementById("downloadGateModal");
   if (!modal) return;
 
   const closeBtn = document.getElementById("gateCloseBtn");
+  const toggleBtn = document.getElementById("gateTogglePlatformBtn");
+
   const stopGate = () => {
     if (gateProgressTimer) { clearInterval(gateProgressTimer); gateProgressTimer = null; }
     if (gateTipTimer) { clearInterval(gateTipTimer); gateTipTimer = null; }
@@ -740,35 +789,39 @@ function initDownloadGate() {
   });
   modal.addEventListener("close", stopGate);
 
+  toggleBtn?.addEventListener("click", () => {
+    const nextPlatform = currentGatePlatform === "windows" ? "linux" : "windows";
+    updateGatePlatformUI(nextPlatform);
+  });
+
   document.addEventListener("click", (event) => {
-    const link = event.target instanceof Element ? event.target.closest("a[href^='/download/']") : null;
+    const link = event.target instanceof Element ? event.target.closest("a[href^='/download/'], a[data-open-download], #primaryDownloadBtn") : null;
     if (!link || event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if (link.id === "gateFinalDownloadBtn") return;
     event.preventDefault();
-    openDownloadGate(link.getAttribute("href") || link.href);
+    const href = link.getAttribute("href") || "";
+    openDownloadGate(href);
   });
 }
 
-async function openDownloadGate(downloadPath) {
+async function openDownloadGate(target) {
   const modal = document.getElementById("downloadGateModal");
+  let requestedPlatform = detectedOS;
+  if (typeof target === "string") {
+    if (target.includes("windows") || target.endsWith(".exe")) {
+      requestedPlatform = "windows";
+    } else if (target.includes("linux") || target.endsWith(".AppImage")) {
+      requestedPlatform = "linux";
+    }
+  }
+
   if (!modal) {
-    window.location.href = downloadPath;
+    const fallbackUrl = directDownloadUrls[requestedPlatform] || (requestedPlatform === "windows" ? "/download/windows" : "/download/linux");
+    triggerBrowserDownload(fallbackUrl);
     return;
   }
 
-  const isWindows = downloadPath.includes("windows");
-  const platformName = document.getElementById("gatePlatformName");
-  const platformIcon = document.getElementById("gatePlatformIcon");
-  const finalBtn = document.getElementById("gateFinalDownloadBtn");
-
-  if (platformName) {
-    platformName.textContent = isWindows ? "Windows 10 / 11 (.exe Oficial)" : "Linux AppImage (.AppImage x86_64)";
-  }
-  if (platformIcon) {
-    platformIcon.innerHTML = isWindows
-      ? `<svg width="18" height="18" viewBox="0 0 88 88" fill="currentColor"><path d="M0 12.56L35.73 7.69V42.66H0V12.56ZM0 45.34H35.73V80.31L0 75.44V45.34ZM39.06 7.23L88 0V42.66H39.06V7.23ZM39.06 45.34H88V88L39.06 80.77V45.34Z"/></svg>`
-      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139z"/></svg>`;
-  }
-  if (finalBtn) finalBtn.href = downloadPath;
+  updateGatePlatformUI(requestedPlatform);
 
   const adblockView = document.getElementById("gateAdblockView");
   const prepView = document.getElementById("gatePreparingView");
@@ -802,7 +855,7 @@ async function openDownloadGate(downloadPath) {
           setTimeout(() => {
             if (adblockView) adblockView.hidden = true;
             if (prepView) prepView.hidden = false;
-            startDownloadSequence(downloadPath);
+            startDownloadSequence();
           }, 300);
         }
       };
@@ -810,11 +863,11 @@ async function openDownloadGate(downloadPath) {
   } else {
     if (adblockView) adblockView.hidden = true;
     if (prepView) prepView.hidden = false;
-    startDownloadSequence(downloadPath);
+    startDownloadSequence();
   }
 }
 
-function startDownloadSequence(downloadPath) {
+function startDownloadSequence() {
   if (gateProgressTimer) clearInterval(gateProgressTimer);
   if (gateTipTimer) clearInterval(gateTipTimer);
 
@@ -824,6 +877,7 @@ function startDownloadSequence(downloadPath) {
   const stageLabel = document.getElementById("gateStageLabel");
   const secRemaining = document.getElementById("gateSecRemaining");
   const readyActions = document.getElementById("gateReadyActions");
+  const finalBtn = document.getElementById("gateFinalDownloadBtn");
   const tipText = document.getElementById("gateTipText");
 
   let tipIndex = 0;
@@ -875,13 +929,19 @@ function startDownloadSequence(downloadPath) {
       gateProgressTimer = null;
       if (gateTipTimer) { clearInterval(gateTipTimer); gateTipTimer = null; }
 
+      const targetUrl = directDownloadUrls[currentGatePlatform] || (currentGatePlatform === "windows" ? "/download/windows" : "/download/linux");
+
       if (statusText) statusText.textContent = "Download liberado com sucesso!";
       if (statusSub) statusSub.textContent = "O download iniciou. Se não começar automaticamente, clique no botão abaixo.";
       if (stageLabel) stageLabel.textContent = "Transferência iniciada";
       if (secRemaining) secRemaining.textContent = "Pronto!";
       if (readyActions) readyActions.hidden = false;
+      if (finalBtn) {
+        finalBtn.href = targetUrl;
+        finalBtn.onclick = () => { triggerBrowserDownload(targetUrl); };
+      }
 
-      window.location.href = downloadPath;
+      triggerBrowserDownload(targetUrl);
     }
   }, stepMs);
 }
