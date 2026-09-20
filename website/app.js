@@ -84,6 +84,9 @@ document.addEventListener("DOMContentLoaded", () => {
   initKeyboardShortcuts();
   initCookieConsent();
   initDownloadGate();
+  initMobileNav();
+  initBackToTop();
+  initAnimatedCounters();
 });
 
 function initBackgroundParticles() {
@@ -470,6 +473,13 @@ function initMockupTabs() {
   let currentIndex = Math.max(0, Array.from(btns).findIndex(button => button.classList.contains("active")));
   let autoTimer = null;
   let userInteracted = false;
+
+  btns.forEach(btn => {
+    if (btn.dataset.mockup && btn.dataset.mockup !== "friends" && typeof Image !== "undefined") {
+      const preload = new Image();
+      preload.src = btn.dataset.mockup;
+    }
+  });
 
   function setMockup(index, manual = false) {
     if (manual) userInteracted = true;
@@ -951,6 +961,120 @@ function startDownloadSequence() {
       triggerBrowserDownload(targetUrl);
     }
   }, stepMs);
+}
+
+function initMobileNav() {
+  const toggle = document.getElementById("navMobileToggle");
+  const drawer = document.getElementById("mobileNavDrawer");
+  if (!toggle || !drawer) return;
+
+  const openMenu = () => {
+    toggle.classList.add("open");
+    toggle.setAttribute("aria-expanded", "true");
+    drawer.classList.add("open");
+    drawer.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  };
+
+  const closeMenu = () => {
+    toggle.classList.remove("open");
+    toggle.setAttribute("aria-expanded", "false");
+    drawer.classList.remove("open");
+    drawer.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  };
+
+  toggle.addEventListener("click", () => {
+    if (drawer.classList.contains("open")) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
+  });
+
+  drawer.querySelectorAll("a").forEach(link => {
+    link.addEventListener("click", () => {
+      closeMenu();
+    });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && drawer.classList.contains("open")) {
+      closeMenu();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 820 && drawer.classList.contains("open")) {
+      closeMenu();
+    }
+  }, { passive: true });
+}
+
+function initBackToTop() {
+  const btn = document.getElementById("btnBackToTop");
+  if (!btn) return;
+
+  window.addEventListener("scroll", () => {
+    if (window.scrollY > 380) {
+      btn.classList.add("show");
+    } else {
+      btn.classList.remove("show");
+    }
+  }, { passive: true });
+
+  btn.addEventListener("click", () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  });
+}
+
+function initAnimatedCounters() {
+  const counterElements = document.querySelectorAll("[data-counter-target]");
+  if (!counterElements.length) return;
+
+  if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const el = entry.target;
+        observer.unobserve(el);
+        animateCounter(el);
+      }
+    });
+  }, { threshold: 0.25 });
+
+  counterElements.forEach(el => observer.observe(el));
+
+  function animateCounter(el) {
+    const target = parseFloat(el.getAttribute("data-counter-target")) || 0;
+    const prefix = el.getAttribute("data-counter-prefix") || "";
+    const suffix = el.getAttribute("data-counter-suffix") || "";
+    const useLocale = el.getAttribute("data-counter-locale") === "true";
+    const duration = 1400;
+    const startTime = performance.now();
+
+    function update(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      const current = Math.round(target * ease);
+
+      const formatted = useLocale ? current.toLocaleString("pt-BR") : current.toString();
+      el.textContent = `${prefix}${formatted}${suffix}`;
+
+      if (progress < 1) {
+        requestAnimationFrame(update);
+      }
+    }
+
+    requestAnimationFrame(update);
+  }
 }
 
 

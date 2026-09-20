@@ -17,33 +17,74 @@
   <canvas id="bgCanvas"></canvas>
 
   <!-- Navbar -->
-  <nav class="navbar">
+  <header class="navbar">
     <div class="container">
-      <a href="index.html" class="nav-brand">
+      <a href="index.html" class="nav-brand" title="Luxmc Launcher">
         <img src="assets/logo.png" alt="Luxmc" class="nav-logo">
-        <span>Luxmc</span>
+        <span class="nav-brand-text">Luxmc</span>
       </a>
 
-      <ul class="nav-links">
-        <li><a href="index.html#inicio" class="nav-link">Início</a></li>
-        <li><a href="index.html#mods" class="nav-link">Mods</a></li>
-        <li><a href="index.html#recursos" class="nav-link">Recursos</a></li>
-        <li><a href="index.html#comparativo" class="nav-link">Comparativo</a></li>
-        <li><a href="skins.html" class="nav-link active">Skins & NameMC</a></li>
-        <li><a href="index.html#faq" class="nav-link">FAQ</a></li>
-        <li><a href="index.html#download" class="nav-link">Downloads</a></li>
-      </ul>
+      <nav class="nav-menu">
+        <ul class="nav-links">
+          <li><a href="index.html#inicio" class="nav-link">Início</a></li>
+          <li><a href="index.html#mods" class="nav-link">Mods</a></li>
+          <li><a href="index.html#recursos" class="nav-link">Recursos</a></li>
+          <li><a href="index.html#desempenho" class="nav-link">Desempenho</a></li>
+          <li><a href="index.html#comparativo" class="nav-link">Comparativo</a></li>
+          <li><a href="skins.html" class="nav-link active">Skins & NameMC</a></li>
+          <li><a href="index.html#download" class="nav-link">Downloads</a></li>
+          <li><a href="index.html#faq" class="nav-link">FAQ</a></li>
+        </ul>
+      </nav>
 
       <div class="nav-actions">
-        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-secondary" style="padding: 8px 16px;">
-          GitHub
+        <a href="conta.html" class="nav-account-link" title="Portal da Conta">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
+          <span>Minha Conta</span>
         </a>
-        <a href="index.html#download" class="btn-primary">
-          Baixar Launcher
+        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-github-nav" title="Ver código no GitHub">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          <span>GitHub</span>
         </a>
+        <a href="index.html#download" class="btn-primary-nav">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Baixar Launcher</span>
+        </a>
+        <button type="button" class="nav-mobile-toggle" id="navMobileToggle" aria-label="Abrir menu de navegação" aria-expanded="false">
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+        </button>
       </div>
     </div>
-  </nav>
+
+    <!-- Mobile Drawer / Overlay -->
+    <div class="mobile-nav-drawer" id="mobileNavDrawer" aria-hidden="true">
+      <div class="mobile-nav-content">
+        <ul class="mobile-nav-links">
+          <li><a href="index.html#inicio" class="mobile-nav-link">Início</a></li>
+          <li><a href="index.html#mods" class="mobile-nav-link">Central de Mods & Modpacks</a></li>
+          <li><a href="index.html#recursos" class="mobile-nav-link">Recursos Principais</a></li>
+          <li><a href="index.html#desempenho" class="mobile-nav-link">Desempenho & Instalação</a></li>
+          <li><a href="index.html#comparativo" class="mobile-nav-link">Comparativo Detalhado</a></li>
+          <li><a href="skins.html" class="mobile-nav-link">Estúdio 3D de Skins</a></li>
+          <li><a href="index.html#download" class="mobile-nav-link">Downloads</a></li>
+          <li><a href="index.html#faq" class="mobile-nav-link">Perguntas Frequentes</a></li>
+        </ul>
+        <div class="mobile-nav-divider"></div>
+        <div class="mobile-nav-actions">
+          <a href="conta.html" class="mobile-btn-account">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
+            <span>Portal da Minha Conta</span>
+          </a>
+          <a href="index.html#download" class="mobile-btn-download">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Baixar Launcher Oficial</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
 
   <!-- Studio Header -->
   <main class="container" style="padding-top: 130px; padding-bottom: 90px;">
@@ -589,6 +630,7 @@
     initBackgroundParticles();
     initSpotlightCards();
   </script>
+  <script src="app.js"></script>
   <script src="https://pl31422416.profitableratecpmnetwork.com/21/57/80/215780135ded866da59e26cae12afbac.js"></script>
   <script src="https://pl31422481.profitableratecpmnetwork.com/20/ce/cc/20cecce2a0480467d00b0b7c66306efc.js"></script>
 </body>

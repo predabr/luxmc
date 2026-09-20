@@ -1,15 +1,13 @@
-import { authenticate, cookie, digest, equalHash, json, limited, passwordHash, preferences, publicAccount, randomToken, readJson, sameOrigin, SESSION_SECONDS, validNickname, validPassword, ensureTables } from "../../../lib/accounts.js";
+import { authenticate, cookie, digest, equalHash, json, limited, passwordHash, preferences, publicAccount, randomToken, readJson, sameOrigin, SESSION_SECONDS, validNickname, validPassword } from "../../../lib/accounts.js";
 
 export async function onRequest({ request, env, params, waitUntil }) {
   try {
     if (request.method !== "POST") return json({ error: "Método não permitido." }, 405);
     if (!sameOrigin(request)) return json({ error: "Origem não permitida." }, 403);
     if (!env || !env.SOCIAL_DB) return json({ error: "O banco D1 (SOCIAL_DB) não está vinculado às Funções no painel do Cloudflare Pages. Vincule o D1 em Settings -> Functions -> D1 Bindings e faça um novo deploy." }, 503);
+    if (typeof env.AUTH_PEPPER !== "string" || env.AUTH_PEPPER.length < 32) return json({ error: "A variável AUTH_PEPPER (segredo com no mínimo 32 caracteres) não está configurada no Cloudflare Pages. Adicione em Settings -> Environment Variables e faça um novo deploy." }, 503);
     const db = env.SOCIAL_DB;
-    await ensureTables(db);
-    const pepper = (typeof env.AUTH_PEPPER === "string" && env.AUTH_PEPPER.length >= 32)
-      ? env.AUTH_PEPPER
-      : "luxmc-default-ultra-secure-auth-pepper-key-2026-cloud-auth";
+    const pepper = env.AUTH_PEPPER;
   const action = params.action;
   if (!["register", "login", "me", "logout", "sync", "password", "recover"].includes(action)) return json({ error: "Ação desconhecida." }, 404);
   try {

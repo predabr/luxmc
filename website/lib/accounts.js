@@ -14,6 +14,7 @@ const ALLOWED_ORIGIN_PATTERNS = [
 ];
 
 export const sameOrigin = request => {
+  if (request.headers.get("Sec-Fetch-Site") === "cross-site") return false;
   const origin = request.headers.get("Origin");
   if (!origin) return true;
   if (ALLOWED_ORIGIN_PATTERNS.includes(origin)) return true;
@@ -29,54 +30,6 @@ export const sameOrigin = request => {
 };
 
 export const cookie = (token, age = SESSION_SECONDS) => `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}`;
-
-export async function ensureTables(db) {
-  try {
-    await db.batch([
-      db.prepare(`
-        CREATE TABLE IF NOT EXISTS lux_accounts (
-          id TEXT PRIMARY KEY,
-          username TEXT UNIQUE COLLATE NOCASE,
-          password_hash TEXT NOT NULL,
-          password_salt TEXT NOT NULL,
-          recovery_hash TEXT,
-          social_id TEXT,
-          preferences TEXT NOT NULL DEFAULT '{}',
-          revision INTEGER NOT NULL DEFAULT 0,
-          created_at INTEGER NOT NULL
-        )
-      `),
-      db.prepare(`
-        CREATE TABLE IF NOT EXISTS lux_sessions (
-          token_hash TEXT PRIMARY KEY,
-          account_id TEXT NOT NULL,
-          created_at INTEGER NOT NULL,
-          expires_at INTEGER NOT NULL,
-          client TEXT NOT NULL DEFAULT 'web'
-        )
-      `),
-      db.prepare(`
-        CREATE TABLE IF NOT EXISTS social_users (
-          id TEXT PRIMARY KEY,
-          token_hash TEXT UNIQUE,
-          username TEXT UNIQUE COLLATE NOCASE,
-          avatar TEXT,
-          bio TEXT,
-          created_at INTEGER DEFAULT (unixepoch())
-        )
-      `),
-      db.prepare(`
-        CREATE TABLE IF NOT EXISTS social_limits (
-          bucket TEXT PRIMARY KEY,
-          count INTEGER NOT NULL,
-          expires_at INTEGER NOT NULL
-        )
-      `)
-    ]);
-  } catch (err) {
-    console.warn("ensureTables notice:", err);
-  }
-}
 
 export async function limited(db, key, seconds, maximum) {
   const now = Math.floor(Date.now() / 1000);
