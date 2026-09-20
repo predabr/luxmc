@@ -1,8 +1,10 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="140" />
-  <h1>Luxmc <code>v1.7.1</code></h1>
+  <h1>Luxmc <code>v1.7.5</code></h1>
   <p><strong>Launcher de Minecraft moderno, Linux-first, de alta performance.</strong></p>
+  <p><a href="https://luxmc-r92.pages.dev"><strong>🌐 Site Oficial: luxmc-r92.pages.dev</strong></a></p>
 
+  [![Website](https://img.shields.io/badge/Website-luxmc--r92.pages.dev-10b981?style=flat&logo=cloudflare)](https://luxmc-r92.pages.dev)
   ![Svelte](https://img.shields.io/badge/Svelte_5-FF3E00?logo=svelte&logoColor=white)
   ![Tauri](https://img.shields.io/badge/Tauri_2-FFC131?logo=tauri&logoColor=black)
   ![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)
@@ -16,6 +18,8 @@
 ## ✨ O que é o Luxmc?
 
 O **Luxmc** é um launcher de Minecraft Linux-first desenvolvido com **Tauri 2 (Rust)** no backend e **SvelteKit + Svelte 5 Runes + TypeScript** no frontend. Consome próximo de 0% de CPU em segundo plano, tem consumo de RAM controlado com `malloc_trim` / `EmptyWorkingSet` automático, e oferece uma experiência premium sem depender de Java instalado no sistema — o launcher gerencia os runtimes automaticamente.
+
+Para baixar a versão mais recente, personalizar capas em 3D ou ver novidades, acesse o [Portal Oficial do Luxmc](https://luxmc-r92.pages.dev).
 
 ---
 
