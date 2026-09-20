@@ -427,19 +427,6 @@
 		const konami = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
 		let pos = 0;
 		const handler = (e: KeyboardEvent) => {
-			if (e.code === "ShiftRight") {
-				const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-				if (tag !== "input" && tag !== "textarea") {
-					e.preventDefault();
-					clientMods.toggleMenu();
-					if (!clientMods.isMenuOpen) {
-						if (appState.isGameRunning) {
-							clientOverlayClose().catch(() => {});
-						}
-					}
-					return;
-				}
-			}
 			if (e.key === konami[pos]) {
 				pos++;
 				if (pos === konami.length) {
@@ -457,16 +444,30 @@
 
 </script>
 
-<div class="fixed inset-0 z-0 transition-all duration-500 pointer-events-none" style={themeStore.currentBackgroundStyle}>
-	{#if themeStore.theme !== "light" && !appState.performanceMode}
-		<div class="absolute inset-0 opacity-25 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
-		<div class="absolute inset-0 opacity-15 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--ambient-accent, var(--brand-500))) 0%, transparent 55%);"></div>
+<div class="fixed inset-0 z-0 transition-all duration-500 pointer-events-none overflow-hidden" style={themeStore.currentBackgroundStyle}>
+	{#if themeStore.customWallpaperUrl}
+		{#if themeStore.customWallpaperType === "video"}
+			<video
+				src={themeStore.customWallpaperUrl}
+				autoplay
+				loop
+				muted
+				playsinline
+				class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+			></video>
+		{:else}
+			<img
+				src={themeStore.customWallpaperUrl}
+				alt="Custom Wallpaper"
+				class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+			/>
+		{/if}
+		<div class="absolute inset-0 bg-black/40 pointer-events-none"></div>
+	{/if}
+	{#if themeStore.theme !== "light" && !appState.performanceMode && !themeStore.customWallpaperUrl}
 		{#if settings.value.liveWallpaper === true}
 			<LiveWallpaper />
 		{/if}
-	{:else if themeStore.theme === "light" && !appState.performanceMode}
-		<div class="absolute inset-0 opacity-10 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 45%);"></div>
-		<div class="absolute inset-0 opacity-5 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--brand-500)) 0%, transparent 45%);"></div>
 	{/if}
 </div>
 <Toasts bind:this={toastsInstance} />

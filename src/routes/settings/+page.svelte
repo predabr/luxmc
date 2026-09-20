@@ -27,7 +27,7 @@
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { appDataDir } from "@tauri-apps/api/path";
-	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
+	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 	import ThemeSection from "$lib/components/settings/ThemeSection.svelte";
 
 	const { t } = useTranslation();
@@ -136,6 +136,7 @@
 
 	function handleLangChange(lang: "pt-BR" | "en" | "es") {
 		currentLang = lang;
+		setActiveLocale(lang);
 		setLocale(lang);
 		settings.patch({ language: lang });
 		schedulePersist();

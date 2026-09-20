@@ -70,6 +70,9 @@ export async function setTheme(theme: ThemeName) {
 export async function setLocale(locale: Locale) {
 	settings.patch({ language: locale });
 	setupI18n(locale);
+	import("$lib/i18n/useTranslation.svelte").then(({ setActiveLocale }) => {
+		setActiveLocale(locale);
+	}).catch(() => {});
 	if (browser) {
 		localStorage.setItem("luxmc.locale", locale);
 	}

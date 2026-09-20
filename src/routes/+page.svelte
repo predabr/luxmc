@@ -1082,30 +1082,30 @@
 						</button>
 					</div>
 				{:else}
-					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+					<div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
 						{#each filteredProfiles as inst (inst.id)}
 							{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
 							<div 
 								role="button"
 								tabindex="0"
-								class="rounded-2xl bg-[#14171d] hover:bg-[#181c24] border border-white/[0.06] hover:border-white/[0.14] transition-all p-3.5 flex flex-col justify-between group relative shadow-sm cursor-pointer min-h-[175px]"
+								class="rounded-3xl bg-[#14171d] hover:bg-[#181c24] border border-white/[0.06] hover:border-white/[0.16] transition-all p-4 flex flex-col justify-between group relative shadow-md hover:shadow-xl cursor-pointer min-h-[215px]"
 								onclick={() => goto(`/instances/${inst.id}`)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
 							>
-								<div class="w-full flex-1 flex items-center justify-center relative my-1">
-									<div class="w-20 h-20 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105 shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-white/10' : tileCol.bg}">
+								<div class="w-full flex-1 flex items-center justify-center relative my-2">
+									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-[1.03] shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-white/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 											<img 
 												src={inst.icon} 
 												alt={inst.name}
 												class="w-full h-full object-cover"
-												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-10 h-10 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
+												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-14 h-14 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
 											/>
 										{:else}
 											<img 
 												src="/grass_block.png" 
 												alt={inst.name}
-												class="w-10 h-10 object-contain [image-rendering:pixelated] drop-shadow-md"
+												class="w-14 h-14 object-contain [image-rendering:pixelated] drop-shadow-md"
 											/>
 										{/if}
 									</div>
@@ -1116,19 +1116,19 @@
 											e.stopPropagation();
 											handleLaunch(inst);
 										}}
-										class="absolute bottom-0 right-1 w-9 h-9 rounded-full bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
+										class="absolute bottom-1 right-2 w-10 h-10 rounded-full bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
 										title="Play"
 									>
-										<Play class="w-3.5 h-3.5 fill-current ml-0.5" />
+										<Play class="w-4 h-4 fill-current ml-0.5" />
 									</button>
 								</div>
 
-								<div class="w-full space-y-0.5 text-center mt-2">
-									<h3 class="text-xs font-bold text-white group-hover:text-[#1bd96a] transition-colors truncate">
+								<div class="w-full space-y-1 text-center mt-2 px-1">
+									<h3 class="text-sm font-black text-white group-hover:text-[#1bd96a] transition-colors truncate">
 										{inst.name}
 									</h3>
-									<p class="text-[10px] text-white/40 truncate font-medium">
-										{inst.loader} {inst.mcVersion}
+									<p class="text-[11px] text-white/50 truncate font-semibold">
+										{inst.loader} • {inst.mcVersion}
 									</p>
 								</div>
 							</div>

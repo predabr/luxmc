@@ -51,8 +51,6 @@
 		const ctx = canvas.getContext("2d");
 		if (!ctx) return;
 
-		let width = canvas.width;
-		let height = canvas.height;
 		let time = 0;
 
 		const render = () => {
@@ -61,6 +59,9 @@
 				isActive = false;
 				return;
 			}
+
+			const width = canvas.width;
+			const height = canvas.height;
 
 			time += 0.02;
 			ctx.clearRect(0, 0, width, height);

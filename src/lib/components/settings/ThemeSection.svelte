@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { Check, Sparkles, Image, Palette, Eye } from "lucide-svelte";
+	import { Check, Sparkles, Image, Palette, Eye, Upload, Film } from "lucide-svelte";
 	import { themeStore, THEMES, ACCENTS, BACKGROUNDS } from "$lib/stores/theme.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { schedulePersist } from "$lib/stores/persistence.svelte";
 	import { startSoundscape, stopSoundscape, setSoundscapeVolume } from "$lib/utils/sound";
+	import { open } from "@tauri-apps/plugin-dialog";
+	import { convertFileSrc } from "@tauri-apps/api/core";
 
 	type Props = {
 		onSave?: () => void;
@@ -25,6 +27,28 @@
 	let soundscapesEnabled = $state(settings.value.soundscapesEnabled !== false);
 	let soundscapeVolume = $state(settings.value.soundscapeVolume ?? 0.2);
 
+	async function handleImportWallpaper() {
+		try {
+			const selected = await open({
+				multiple: false,
+				filters: [
+					{
+						name: "Wallpaper (Vídeo, GIF ou Imagem)",
+						extensions: ["mp4", "webm", "gif", "png", "jpg", "jpeg", "webp"]
+					}
+				]
+			});
+			if (!selected || typeof selected !== "string") return;
+			const isVideo = selected.toLowerCase().endsWith(".mp4") || selected.toLowerCase().endsWith(".webm");
+			const dataUrl = convertFileSrc(selected);
+			themeStore.setCustomWallpaper(dataUrl, isVideo ? "video" : "image");
+			toast("Wallpaper importado com sucesso! Exibindo perfeitamente recortado.", "success");
+			onSave?.();
+		} catch (e) {
+			toast("Erro ao importar wallpaper: " + String(e), "error");
+		}
+	}
+
 	function selectTheme(tId: string) {
 		themeStore.setTheme(tId);
 		settings.patch({
@@ -36,6 +60,7 @@
 	}
 
 	function selectBackground(bgId: string) {
+		themeStore.clearCustomWallpaper();
 		themeStore.setBackground(bgId);
 		toast(`Plano de fundo alterado para ${BACKGROUNDS[bgId]?.name ?? bgId}`, "success");
 		onSave?.();
@@ -134,6 +159,25 @@
 			<span class="text-xs font-bold text-fg uppercase tracking-wider">Plano de Fundo do Launcher</span>
 		</div>
 		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
+			<!-- Botão Importar Wallpaper Personalizado -->
+			<button
+				type="button"
+				class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-[0.98] cursor-pointer {currentBackground === 'custom' ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-dashed border-fg/20 bg-bg-subtle/50 hover:border-brand-500/50 hover:bg-bg-subtle'}"
+				onclick={handleImportWallpaper}
+				title="Importe qualquer vídeo MP4/WebM ou imagem PNG/JPG/GIF"
+			>
+				<div class="w-full h-12 rounded-xl border border-fg/10 bg-fg/[0.04] shadow-inner flex items-center justify-center relative overflow-hidden text-brand-500">
+					{#if currentBackground === "custom"}
+						<div class="w-6 h-6 rounded-full bg-brand-500 text-brand-foreground flex items-center justify-center shadow-md">
+							<Check class="w-3.5 h-3.5 stroke-[3]" />
+						</div>
+					{:else}
+						<Upload class="w-5 h-5 stroke-[2]" />
+					{/if}
+				</div>
+				<span class="text-[11px] font-bold text-fg/90 truncate">+ Importar</span>
+			</button>
+
 			{#each Object.values(BACKGROUNDS) as bg}
 				<button
 					type="button"

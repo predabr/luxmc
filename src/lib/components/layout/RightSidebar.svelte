@@ -384,27 +384,29 @@
 			<a href="/news" class="text-[10px] font-semibold text-[#1bd96a] hover:underline">Ver todas</a>
 		</div>
 
-		<div class="space-y-2 max-h-[320px] overflow-y-auto custom-scrollbar pr-0.5">
+		<div class="space-y-2 max-h-[340px] overflow-y-auto custom-scrollbar pr-0.5">
 			{#each [
-				{ tag: "Atualização", title: "Luxmc v1.9.1 Oficial", desc: "Correção de crash no startup, visual refinado e desempenho máximo.", date: "Setembro, 2026" },
-				{ tag: "Recurso", title: "Personalizador de Skins 3D", desc: "Novo viewer 3D com física de caminhada, capas e animações.", date: "Setembro, 2026" },
-				{ tag: "Melhoria", title: "Sidebar com Glow Dinâmico", desc: "Barra lateral agora reflete o gradiente do wallpaper escolhido.", date: "Setembro, 2026" },
-				{ tag: "Site", title: "Portal Web Atualizado", desc: "Benchmarks interativos, depoimentos e lightbox de screenshots.", date: "Setembro, 2026" },
-				{ tag: "Performance", title: "Motor Zero-Lag v1.9", desc: "Inicialização mais rápida e menor consumo de RAM em repouso.", date: "Setembro, 2026" }
+				{ tag: "Atualização", title: "Luxmc v1.9.1 Oficial", desc: "Correção de crash no startup, visual refinado e desempenho máximo.", date: "Setembro, 2026", image: "/news_1.jpg" },
+				{ tag: "Recurso", title: "Personalizador de Skins 3D", desc: "Novo viewer 3D com física de caminhada, capas e animações.", date: "Setembro, 2026", image: "/news_2.jpg" },
+				{ tag: "Melhoria", title: "Sidebar com Glow Dinâmico", desc: "Barra lateral agora reflete o gradiente do wallpaper escolhido.", date: "Setembro, 2026", image: "/news_3.jpg" },
+				{ tag: "Site", title: "Portal Web Atualizado", desc: "Benchmarks interativos, depoimentos e lightbox de screenshots.", date: "Setembro, 2026", image: "/news_4.jpg" },
+				{ tag: "Performance", title: "Motor Zero-Lag v1.9", desc: "Inicialização mais rápida e menor consumo de RAM em repouso.", date: "Setembro, 2026", image: "/news_1.jpg" }
 			] as item, i}
 				<a
 					href="/news"
 					class="group block bg-[#14171d] border border-white/[0.06] hover:border-[#1bd96a]/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer"
 				>
-					<div class="p-3 flex gap-2.5 items-start">
-						<div class="w-7 h-7 rounded-lg bg-[#1bd96a]/10 border border-[#1bd96a]/20 flex items-center justify-center text-[#1bd96a] shrink-0 mt-0.5">
-							<Sliders class="w-3.5 h-3.5" />
+					<div class="p-2.5 flex gap-2.5 items-center">
+						<div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10 bg-black/40 relative">
+							<img src={item.image} alt={item.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
 						</div>
-						<div class="min-w-0 space-y-0.5">
-							<span class="text-[9px] font-black text-[#1bd96a] uppercase tracking-wide">{item.tag}</span>
-							<div class="text-[11px] font-black text-white group-hover:text-[#1bd96a] transition-colors leading-tight">{item.title}</div>
-							<p class="text-[10px] text-white/50 leading-relaxed line-clamp-2">{item.desc}</p>
-							<span class="text-[9px] text-white/30">{item.date}</span>
+						<div class="min-w-0 flex-1 space-y-0.5">
+							<div class="flex items-center justify-between gap-1">
+								<span class="text-[9px] font-black text-[#1bd96a] uppercase tracking-wide">{item.tag}</span>
+								<span class="text-[9px] text-white/30">{item.date}</span>
+							</div>
+							<div class="text-[11px] font-black text-white group-hover:text-[#1bd96a] transition-colors leading-tight line-clamp-1">{item.title}</div>
+							<p class="text-[10px] text-white/50 leading-relaxed line-clamp-1">{item.desc}</p>
 						</div>
 					</div>
 				</a>

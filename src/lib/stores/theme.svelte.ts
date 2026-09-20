@@ -129,6 +129,8 @@ export const BACKGROUNDS: Record<string, BackgroundOption> = {
 let activeTheme = $state("dark");
 let activeAccent = $state("blue");
 let activeBackground = $state("obsidian");
+let customWallpaperUrl = $state("");
+let customWallpaperType = $state<"image" | "video">("image");
 
 function applyThemeVariables(tId: string, aId: string, bgId: string) {
 	if (typeof document === "undefined") return;
@@ -142,8 +144,8 @@ function applyThemeVariables(tId: string, aId: string, bgId: string) {
 	root.style.setProperty("--border", t.border);
 
 	if (tId === "light") {
-		root.style.setProperty("--bg-subtle", "238 242 248");
-		root.style.setProperty("--bg-overlay", "220 226 236");
+		root.style.setProperty("--bg-subtle", "255 255 255");
+		root.style.setProperty("--bg-overlay", "248 250 252");
 		root.style.setProperty("--fg", "15 23 42");
 		root.style.setProperty("--fg-muted", "71 85 105");
 		root.style.setProperty("--fg-subtle", "100 116 139");
@@ -190,6 +192,8 @@ export const themeStore = {
 	get theme() { return activeTheme; },
 	get accent() { return activeAccent; },
 	get background() { return activeBackground; },
+	get customWallpaperUrl() { return customWallpaperUrl; },
+	get customWallpaperType() { return customWallpaperType; },
 
 	get currentAccentData() {
 		return ACCENTS[activeAccent] || ACCENTS.blue;
@@ -197,7 +201,10 @@ export const themeStore = {
 
 	get currentBackgroundStyle() {
 		if (activeTheme === "light") {
-			return "background: radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 50%), radial-gradient(circle at 85% 100%, rgba(59, 130, 246, 0.06) 0%, transparent 50%), #f4f6fa; background-color: #f4f6fa;";
+			return "background-color: #fafcff;";
+		}
+		if (activeBackground === "custom") {
+			return "background-color: #07090e;";
 		}
 		return BACKGROUNDS[activeBackground]?.style || BACKGROUNDS.obsidian.style;
 	},
@@ -245,7 +252,7 @@ export const themeStore = {
 	},
 
 	setBackground(bgId: string, persist = true) {
-		if (BACKGROUNDS[bgId]) {
+		if (bgId === "custom" || BACKGROUNDS[bgId]) {
 			activeBackground = bgId;
 			if (typeof window !== "undefined") {
 				localStorage.setItem("luxmc_background", bgId);
@@ -262,17 +269,50 @@ export const themeStore = {
 		}
 	},
 
+	setCustomWallpaper(url: string, type: "image" | "video" = "image") {
+		customWallpaperUrl = url;
+		customWallpaperType = type;
+		activeBackground = "custom";
+		if (typeof window !== "undefined") {
+			localStorage.setItem("luxmc_custom_wallpaper", url);
+			localStorage.setItem("luxmc_custom_wallpaper_type", type);
+			localStorage.setItem("luxmc_background", "custom");
+		}
+		applyThemeVariables(activeTheme, activeAccent, "custom");
+	},
+
+	clearCustomWallpaper() {
+		customWallpaperUrl = "";
+		activeBackground = "obsidian";
+		if (typeof window !== "undefined") {
+			localStorage.removeItem("luxmc_custom_wallpaper");
+			localStorage.removeItem("luxmc_custom_wallpaper_type");
+			localStorage.setItem("luxmc_background", "obsidian");
+		}
+		applyThemeVariables(activeTheme, activeAccent, "obsidian");
+	},
+
 	init() {
 		if (typeof window === "undefined") return;
 		const savedTheme = localStorage.getItem("luxmc_theme");
 		const savedAccent = localStorage.getItem("luxmc_accent");
 		const savedBg = localStorage.getItem("luxmc_background");
+		const savedCustomWp = localStorage.getItem("luxmc_custom_wallpaper");
+		const savedCustomType = localStorage.getItem("luxmc_custom_wallpaper_type") as "image" | "video" | null;
+		
 		if (savedTheme) {
 			if (savedTheme === "light" || savedTheme === "default-light") activeTheme = "light";
 			else if (savedTheme === "dark" || savedTheme === "default-dark") activeTheme = "dark";
 		}
 		if (savedAccent && ACCENTS[savedAccent]) activeAccent = savedAccent;
-		if (savedBg && BACKGROUNDS[savedBg]) activeBackground = savedBg;
+		if (savedCustomWp) {
+			customWallpaperUrl = savedCustomWp;
+			customWallpaperType = savedCustomType || "image";
+			activeBackground = "custom";
+		} else if (savedBg && BACKGROUNDS[savedBg]) {
+			activeBackground = savedBg;
+		}
 		applyThemeVariables(activeTheme, activeAccent, activeBackground);
 	}
 };
+

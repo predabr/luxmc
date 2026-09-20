@@ -33,7 +33,6 @@
 	let viewer: SkinViewer | null = null;
     let unavailable = $state(false);
 	let resizeObserver: ResizeObserver | null = null;
-	let skinCache = new Map<string, HTMLCanvasElement | string>();
 	let capeCache = new Map<string, HTMLCanvasElement | string>();
 	let loadGeneration = 0;
 
@@ -137,116 +136,38 @@
 			viewer.dispose();
 			viewer = null;
 		}
-		skinCache.clear();
-		skinCache = new Map();
 		capeCache.clear();
 		capeCache = new Map();
 	});
 
-	function loadAndHealSkin(src: string, isSlim: boolean): Promise<HTMLCanvasElement | string> {
-		const cacheKey = `${src}|${isSlim ? "slim" : "default"}`;
-		const cached = skinCache.get(cacheKey);
-		if (cached) return Promise.resolve(cached);
-
-		return new Promise((resolve) => {
-			if (typeof window === "undefined") {
-				resolve(src);
-				return;
-			}
-			const img = new window.Image();
-			img.crossOrigin = "anonymous";
-			img.onload = () => {
-				try {
-					const w = img.naturalWidth || img.width;
-					const h = img.naturalHeight || img.height;
-					if (w <= 0 || h <= 0) {
-						resolve(src);
-						return;
-					}
-					const canvas = document.createElement("canvas");
-					canvas.width = 64;
-					canvas.height = 64;
-					const ctx = canvas.getContext("2d");
-					if (!ctx) {
-						resolve(src);
-						return;
-					}
-					ctx.imageSmoothingEnabled = false;
-
-					if (h === 32) {
-						// Standard 64x32 to 64x64 expansion for legacy Minecraft skins
-						ctx.drawImage(img, 0, 0);
-
-						for (let dy = 0; dy < 4; dy++) {
-							for (let dx = 0; dx < 4; dx++) {
-								ctx.drawImage(canvas, 4 + dx, 16 + dy, 1, 1, 20 + (3 - dx), 48 + dy, 1, 1);
-								ctx.drawImage(canvas, 8 + dx, 16 + dy, 1, 1, 24 + (3 - dx), 48 + dy, 1, 1);
-							}
-						}
-						for (let dy = 0; dy < 12; dy++) {
-							for (let dx = 0; dx < 4; dx++) {
-								ctx.drawImage(canvas, 4 + dx, 20 + dy, 1, 1, 20 + (3 - dx), 52 + dy, 1, 1);
-								ctx.drawImage(canvas, 12 + dx, 20 + dy, 1, 1, 28 + (3 - dx), 52 + dy, 1, 1);
-								ctx.drawImage(canvas, 0 + dx, 20 + dy, 1, 1, 24 + (3 - dx), 52 + dy, 1, 1);
-								ctx.drawImage(canvas, 8 + dx, 20 + dy, 1, 1, 16 + (3 - dx), 52 + dy, 1, 1);
-							}
-						}
-						for (let dy = 0; dy < 4; dy++) {
-							for (let dx = 0; dx < 4; dx++) {
-								ctx.drawImage(canvas, 44 + dx, 16 + dy, 1, 1, 36 + (3 - dx), 48 + dy, 1, 1);
-								ctx.drawImage(canvas, 48 + dx, 16 + dy, 1, 1, 40 + (3 - dx), 48 + dy, 1, 1);
-							}
-						}
-						for (let dy = 0; dy < 12; dy++) {
-							for (let dx = 0; dx < 4; dx++) {
-								ctx.drawImage(canvas, 44 + dx, 20 + dy, 1, 1, 36 + (3 - dx), 52 + dy, 1, 1);
-								ctx.drawImage(canvas, 52 + dx, 20 + dy, 1, 1, 44 + (3 - dx), 52 + dy, 1, 1);
-								ctx.drawImage(canvas, 40 + dx, 20 + dy, 1, 1, 40 + (3 - dx), 52 + dy, 1, 1);
-								ctx.drawImage(canvas, 48 + dx, 20 + dy, 1, 1, 32 + (3 - dx), 52 + dy, 1, 1);
-							}
-						}
-					} else {
-						ctx.drawImage(img, 0, 0, 64, 64);
-					}
-
-					if (skinCache.size > 10) {
-						const firstKey = skinCache.keys().next().value;
-						if (firstKey) skinCache.delete(firstKey);
-					}
-					skinCache.set(cacheKey, canvas);
-					resolve(canvas);
-				} catch (err) {
-					console.warn("Failed to preprocess skin canvas:", err);
-					resolve(src);
-				}
-			};
-			img.onerror = () => {
-				resolve(src);
-			};
-			img.src = src;
-		});
-	}
-
 	function updateSkin() {
 		if (!viewer) return;
 		const gen = ++loadGeneration;
-		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl : "https://minotar.net/skin/Steve";
-		loadAndHealSkin(targetSkin, slim).then((healedSrc) => {
-			if (!viewer || gen !== loadGeneration) return;
-			const res = viewer.loadSkin(healedSrc, { model: slim ? "slim" : "default" });
+		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl.trim() : "https://minotar.net/skin/Steve";
+		
+		try {
+			const res = viewer.loadSkin(targetSkin, { model: slim ? "slim" : "default" });
 			if (res && typeof (res as Promise<void>).then === "function") {
 				(res as Promise<void>)
 					.then(() => {
-						if (gen === loadGeneration) viewer?.playerObject.skin.setOuterLayerVisible(true);
+						if (gen === loadGeneration && viewer) {
+							viewer.playerObject.skin.setOuterLayerVisible(true);
+						}
 					})
 					.catch((e: unknown) => {
-						console.warn("Failed to load skin in 3D viewer:", e);
+						console.warn("Failed to load skin in 3D viewer, falling back to Steve:", e);
+						if (gen === loadGeneration && viewer && targetSkin !== "https://minotar.net/skin/Steve") {
+							viewer.loadSkin("https://minotar.net/skin/Steve", { model: "default" });
+						}
 					});
-			} else {
-				viewer?.playerObject.skin.setOuterLayerVisible(true);
+			} else if (viewer) {
+				viewer.playerObject.skin.setOuterLayerVisible(true);
 			}
-		});
+		} catch (err) {
+			console.warn("Error calling loadSkin:", err);
+		}
 	}
+
 
 	function loadAndHealCape(src: string): Promise<HTMLCanvasElement | string> {
 		if (!src) return Promise.resolve(src);

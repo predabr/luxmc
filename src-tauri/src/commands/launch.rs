@@ -112,7 +112,9 @@ pub async fn launch_game_core(
     let data_dir = base_dir.data_dir().to_path_buf();
 
     emit_log("Verificando integridade dos arquivos do modpack...");
-    crate::commands::instances::heal_modpack(state, &profile).await?;
+    if let Err(e) = crate::commands::instances::heal_modpack(state, &profile).await {
+        emit_log(&format!("Aviso na verificação do modpack: {}. Continuando lançamento...", e));
+    }
 
     let clean_req_ver = request.version_id.split('-').next().unwrap_or(&request.version_id);
     let version_row = match crate::db::schema::versions::get(&db, &request.version_id).await? {

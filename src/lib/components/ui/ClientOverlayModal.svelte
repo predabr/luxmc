@@ -131,11 +131,6 @@
 
 	async function handleClose() {
 		clientMods.close();
-		if (appState.isGameRunning) {
-			try {
-				await clientOverlayClose();
-			} catch {}
-		}
 	}
 
 	function handleToggle(key: keyof ClientModsConfig) {
