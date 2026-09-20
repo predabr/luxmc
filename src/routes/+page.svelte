@@ -92,14 +92,14 @@
 	let newGroupName = $state("");
 
 	const tilePalette = [
-		{ bg: "bg-[#2563eb]", text: "text-blue-200" },
-		{ bg: "bg-[#7c3aed]", text: "text-purple-200" },
-		{ bg: "bg-[#9333ea]", text: "text-violet-200" },
-		{ bg: "bg-[#d97706]", text: "text-amber-200" },
-		{ bg: "bg-[#059669]", text: "text-emerald-200" },
-		{ bg: "bg-[#db2777]", text: "text-pink-200" },
-		{ bg: "bg-[#0284c7]", text: "text-sky-200" },
-		{ bg: "bg-[#e11d48]", text: "text-rose-200" }
+		{ bg: "bg-[#1a1e28] border border-white/[0.08]", text: "text-white/60" },
+		{ bg: "bg-[#181c26] border border-white/[0.07]", text: "text-white/60" },
+		{ bg: "bg-[#1c1e2a] border border-white/[0.08]", text: "text-white/60" },
+		{ bg: "bg-[#171a24] border border-white/[0.06]", text: "text-white/60" },
+		{ bg: "bg-[#1a1d28] border border-white/[0.07]", text: "text-white/60" },
+		{ bg: "bg-[#191c26] border border-white/[0.08]", text: "text-white/60" },
+		{ bg: "bg-[#1b1f2a] border border-white/[0.07]", text: "text-white/60" },
+		{ bg: "bg-[#181b25] border border-white/[0.06]", text: "text-white/60" }
 	];
 
 	function getInstanceTileColor(id: string): { bg: string; text: string } {

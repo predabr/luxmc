@@ -90,45 +90,6 @@
 <aside class="shrink-0 flex flex-col gap-4 select-none pb-8 h-full overflow-y-auto custom-scrollbar transition-all duration-200 {collapsed ? 'w-12' : 'w-[280px]'}">
 	<button type="button" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-bg-elevated/80 p-3 text-fg-muted hover:text-fg" onclick={() => collapsed = !collapsed} aria-label={collapsed ? "Expandir amigos" : "Minimizar amigos"} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">Amigos</span>{/if}</button>
 	{#if !collapsed}
-	{@const hasInstance = profiles.list.length > 0}
-	{@const hasAccount = Boolean(account.value)}
-	{@const isMsLoggedIn = Boolean(account.value?.minecraftToken && !account.value?.id.startsWith("offline_"))}
-	{@const allDone = hasInstance && hasAccount}
-	<div class="bg-[#14171d] border border-white/[0.06] rounded-2xl p-3.5 space-y-2.5 shadow-sm">
-		<div class="flex items-center justify-between">
-			<span class="text-xs font-black text-white tracking-wide">Começando</span>
-			<span class="text-[10px] font-bold text-[#1bd96a] bg-[#1bd96a]/15 px-2 py-0.5 rounded-full">
-				{Number(hasInstance) + Number(hasAccount)}/2
-			</span>
-		</div>
-		<div class="space-y-1.5">
-			<button
-				type="button"
-				onclick={() => goto("/instances?new=true")}
-				class="w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all cursor-pointer {hasInstance ? 'bg-white/[0.02] text-white/50 hover:text-white' : 'bg-white/[0.05] hover:bg-white/[0.08] text-white'}"
-			>
-				<div class="w-4 h-4 rounded-full flex items-center justify-center shrink-0 {hasInstance ? 'bg-[#1bd96a] text-[#090a0f]' : 'border border-white/30 text-transparent'}">
-					{#if hasInstance}
-						<Check class="w-2.5 h-2.5 stroke-[3]" />
-					{/if}
-				</div>
-				<span class="text-xs font-semibold truncate {hasInstance ? 'line-through opacity-70' : ''}">Criar primeira instância</span>
-			</button>
-
-			<button
-				type="button"
-				onclick={() => { if (!hasAccount) goto("/"); }}
-				class="w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all cursor-pointer {hasAccount ? 'bg-white/[0.02] text-white/50 hover:text-white' : 'bg-white/[0.05] hover:bg-white/[0.08] text-white'}"
-			>
-				<div class="w-4 h-4 rounded-full flex items-center justify-center shrink-0 {hasAccount ? 'bg-[#1bd96a] text-[#090a0f]' : 'border border-white/30 text-transparent'}">
-					{#if hasAccount}
-						<Check class="w-2.5 h-2.5 stroke-[3]" />
-					{/if}
-				</div>
-				<span class="text-xs font-semibold truncate {hasAccount ? 'line-through opacity-70' : ''}">Conectar conta</span>
-			</button>
-		</div>
-	</div>
 
 	{#if account.value}
 		<div class="space-y-1.5 shrink-0 relative">
@@ -423,30 +384,32 @@
 			<a href="/news" class="text-[10px] font-semibold text-[#1bd96a] hover:underline">Ver todas</a>
 		</div>
 
-		<a
-			href="/news"
-			class="group block bg-[#14171d] border border-white/[0.06] hover:border-[#1bd96a]/40 rounded-2xl overflow-hidden shadow-md transition-all cursor-pointer"
-		>
-			<div class="h-24 bg-gradient-to-br from-[#1bd96a]/20 via-[#14171d] to-[#14171d] relative overflow-hidden flex items-center justify-between p-3.5 border-b border-white/[0.06]">
-				<div class="space-y-1 z-10">
-					<span class="text-[9px] font-black text-[#1bd96a] uppercase tracking-wider bg-[#1bd96a]/15 border border-[#1bd96a]/30 px-2 py-0.5 rounded-full">Atualização</span>
-					<div class="text-xs font-black text-white group-hover:text-[#1bd96a] transition-colors">Luxmc v1.9.1 Oficial</div>
-				</div>
-				<div class="w-9 h-9 rounded-xl bg-[#1bd96a]/15 border border-[#1bd96a]/30 flex items-center justify-center text-[#1bd96a] shadow-md">
-					<Sliders class="w-4 h-4" />
-				</div>
-			</div>
-
-			<div class="p-3.5 space-y-1.5">
-				<p class="text-[11px] text-white/60 leading-relaxed line-clamp-2">
-					Performance de ponta, visual repaginado no padrão Modrinth e novo visualizador 3D de skins integrado.
-				</p>
-				<div class="flex items-center justify-between pt-1 text-[10px] text-white/40">
-					<span>Setembro, 2026</span>
-					<span class="text-[#1bd96a] font-bold group-hover:translate-x-0.5 transition-transform">Ler mais →</span>
-				</div>
-			</div>
-		</a>
+		<div class="space-y-2 max-h-[320px] overflow-y-auto custom-scrollbar pr-0.5">
+			{#each [
+				{ tag: "Atualização", title: "Luxmc v1.9.1 Oficial", desc: "Correção de crash no startup, visual refinado e desempenho máximo.", date: "Setembro, 2026" },
+				{ tag: "Recurso", title: "Personalizador de Skins 3D", desc: "Novo viewer 3D com física de caminhada, capas e animações.", date: "Setembro, 2026" },
+				{ tag: "Melhoria", title: "Sidebar com Glow Dinâmico", desc: "Barra lateral agora reflete o gradiente do wallpaper escolhido.", date: "Setembro, 2026" },
+				{ tag: "Site", title: "Portal Web Atualizado", desc: "Benchmarks interativos, depoimentos e lightbox de screenshots.", date: "Setembro, 2026" },
+				{ tag: "Performance", title: "Motor Zero-Lag v1.9", desc: "Inicialização mais rápida e menor consumo de RAM em repouso.", date: "Setembro, 2026" }
+			] as item, i}
+				<a
+					href="/news"
+					class="group block bg-[#14171d] border border-white/[0.06] hover:border-[#1bd96a]/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer"
+				>
+					<div class="p-3 flex gap-2.5 items-start">
+						<div class="w-7 h-7 rounded-lg bg-[#1bd96a]/10 border border-[#1bd96a]/20 flex items-center justify-center text-[#1bd96a] shrink-0 mt-0.5">
+							<Sliders class="w-3.5 h-3.5" />
+						</div>
+						<div class="min-w-0 space-y-0.5">
+							<span class="text-[9px] font-black text-[#1bd96a] uppercase tracking-wide">{item.tag}</span>
+							<div class="text-[11px] font-black text-white group-hover:text-[#1bd96a] transition-colors leading-tight">{item.title}</div>
+							<p class="text-[10px] text-white/50 leading-relaxed line-clamp-2">{item.desc}</p>
+							<span class="text-[9px] text-white/30">{item.date}</span>
+						</div>
+					</div>
+				</a>
+			{/each}
+		</div>
 	</div>
 
 	{/if}

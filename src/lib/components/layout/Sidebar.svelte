@@ -52,7 +52,7 @@
 	}
 </script>
 
-<aside class="flex h-full min-h-screen w-[66px] shrink-0 flex-col items-center py-3 bg-[#0d0f12]/80 backdrop-blur-2xl border-r border-white/[0.06] z-40 relative select-none">
+<aside class="flex h-full min-h-screen w-[66px] shrink-0 flex-col items-center py-3 bg-[#0d0f12]/60 backdrop-blur-2xl border-r border-white/[0.06] z-40 relative select-none">
 	
 	<div class="relative group w-full flex justify-center mb-3">
 		<button

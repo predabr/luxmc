@@ -91,14 +91,14 @@
 			viewer.controls.enablePan = false;
 		}
 
-		viewer.camera.position.set(20, 15, 45);
-		viewer.camera.lookAt(0, 0, 0);
+		viewer.camera.position.set(0, 18, 55);
+		viewer.camera.lookAt(0, 8, 0);
 
 		updateSkin();
 		viewer.autoRotate = autoRotate;
-		viewer.autoRotateSpeed = 0.5;
+		viewer.autoRotateSpeed = 0.4;
 		applyAnimation(animation);
-		viewer.playerObject.rotation.y = (20 * Math.PI) / 180;
+		viewer.playerObject.rotation.y = (15 * Math.PI) / 180;
 		viewer.playerObject.skin.setOuterLayerVisible(true);
 
 		viewer.globalLight.intensity = 2.4;
@@ -429,10 +429,10 @@
 
 	export function resetCamera() {
 		if (!viewer) return;
-		viewer.camera.position.set(20, 15, 45);
-		viewer.camera.lookAt(0, 0, 0);
+		viewer.camera.position.set(0, 18, 55);
+		viewer.camera.lookAt(0, 8, 0);
 		viewer.zoom = 1;
-		viewer.playerObject.rotation.y = (20 * Math.PI) / 180;
+		viewer.playerObject.rotation.y = (15 * Math.PI) / 180;
 	}
 </script>
 

@@ -39,7 +39,7 @@
 	let isUpdating = $state(false);
 	let skinType = $state<"steve" | "alex">("steve");
 	let isRotating = $state(true);
-	let activeAnimation = $state<"idle" | "walk" | "run" | "fly" | "none">("idle");
+	let activeAnimation = $state<"idle" | "walk" | "run" | "fly" | "none">("walk");
 	let viewerRef = $state<SkinViewer3D | null>(null);
 
 	let searchNick = $state("");
@@ -385,6 +385,23 @@
 					<span>Drag to rotate</span>
 				</div>
 
+				<div class="flex items-center gap-1 bg-[#14171d] border border-white/[0.08] rounded-xl p-1 shadow-sm">
+					{#each [
+						{ id: "idle" as const, label: "Parado" },
+						{ id: "walk" as const, label: "Andar" },
+						{ id: "run" as const, label: "Correr" },
+						{ id: "fly" as const, label: "Voar" }
+					] as anim}
+						<button
+							type="button"
+							onclick={() => activeAnimation = anim.id}
+							class="px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer {activeAnimation === anim.id ? 'bg-[#1bd96a] text-[#090a0f] shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/[0.06]'}"
+						>
+							{anim.label}
+						</button>
+					{/each}
+				</div>
+
 				<button
 					type="button"
 					onclick={() => showEditModal = true}
@@ -394,6 +411,7 @@
 					<span>Edit skin</span>
 				</button>
 			</div>
+
 
 		</div>
 
