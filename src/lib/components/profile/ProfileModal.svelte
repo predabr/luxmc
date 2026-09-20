@@ -90,7 +90,7 @@
 >
 	<!-- Modal Card -->
 	<div 
-		class="w-full max-w-md rounded-3xl bg-bg-elevated border border-fg/10 shadow-elevated overflow-hidden flex flex-col"
+		class="w-full max-w-md min-w-[320px] sm:min-w-[440px] rounded-3xl bg-bg-elevated border border-fg/10 shadow-2xl overflow-hidden flex flex-col"
 		in:scale={{ start: 0.95, duration: 220 }}
 		out:scale={{ start: 0.95, duration: 150 }}
 	>

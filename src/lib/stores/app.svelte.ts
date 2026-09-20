@@ -1,6 +1,7 @@
 let devMode = $state(false);
 let performanceMode = $state(false);
 let showCutscene = $state(false);
+let showProfileModal = $state(false);
 let isGameRunning = $state(false);
 let activeGameDetails = $state<{ name: string; version: string; loader: string; profileId?: string } | null>(null);
 
@@ -11,6 +12,8 @@ export const appState = {
 	set devMode(v: boolean) { devMode = v; },
 	get showCutscene() { return showCutscene; },
 	set showCutscene(v: boolean) { showCutscene = v; },
+	get showProfileModal() { return showProfileModal; },
+	set showProfileModal(v: boolean) { showProfileModal = v; },
 	get isGameRunning() { return isGameRunning; },
 	set isGameRunning(v: boolean) { isGameRunning = v; },
 	get activeGameDetails() { return activeGameDetails; },

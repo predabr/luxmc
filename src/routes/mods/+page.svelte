@@ -5,7 +5,8 @@
 	import type { DeepLinkAction } from "$lib/utils/deepLink";
 	import {
 		Search, LayoutGrid, List, Loader2, AlertTriangle,
-		Check, ChevronLeft, ChevronRight, ChevronDown
+		Check, ChevronLeft, ChevronRight, ChevronDown,
+		Flame, Globe
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -406,7 +407,43 @@
                 <p class="page-eyebrow mb-3">Descubra · Instale · Explore</p>
                 <h1 class="page-title">Seu Minecraft, sem limites.</h1>
                 <p class="page-description">Mods, modpacks e novos mundos. Tudo em um só lugar.</p>
-                <div class="mt-5 flex items-center gap-3 text-[10px] font-semibold text-fg-muted"><span class="rounded-full border border-success/20 bg-success/5 px-3 py-1.5">Modrinth</span><span class="rounded-full border border-orange-500/20 bg-orange-500/5 px-3 py-1.5">CurseForge</span></div>
+                <div class="mt-5 flex flex-wrap items-center gap-2.5">
+                    <button
+                        type="button"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 {selectedSource === 'all' ? 'bg-fg/15 text-fg border border-fg/20 shadow-md' : 'bg-fg/5 text-fg/50 hover:text-fg hover:bg-fg/10 border border-transparent'}"
+                        onclick={() => selectedSource = "all"}
+                    >
+                        <Globe class="w-3.5 h-3.5" />
+                        <span>Todos os Provedores</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'modrinth' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/15 border border-emerald-500/20'}"
+                        onclick={() => selectedSource = selectedSource === "modrinth" ? "all" : "modrinth"}
+                    >
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                            <path d="M12.252 0C5.485 0 0 5.485 0 12.252c0 3.398 1.385 6.474 3.633 8.692l.006-.006c.24.234.492.456.756.666l.004-.004A12.19 12.19 0 0 0 12.252 24c6.767 0 12.252-5.485 12.252-12.252C24.504 5.485 19.019 0 12.252 0zm.012 3.864c3.418 0 6.36 2.072 7.625 5.034l-2.73 1.576a5.534 5.534 0 0 0-4.895-3.418V3.864zm-5.184 2.99a8.384 8.384 0 0 1 4.184-1.898v3.192a5.538 5.538 0 0 0-2.825 2.196l-2.73-1.576a8.386 8.386 0 0 1 1.371-1.914zm-3.216 5.398c0-.68.083-1.34.238-1.973l2.73 1.576c-.053.259-.082.528-.082.803 0 1.25.42 2.404 1.127 3.332l-2.73 1.576a8.388 8.388 0 0 1-1.283-5.314zm14.47 5.762-2.73-1.576a5.538 5.538 0 0 0 .584-3.377l2.73-1.576a8.388 8.388 0 0 1-.584 6.529zm-5.07 2.122v-3.192a5.538 5.538 0 0 0 3.256-1.547l2.73 1.576a8.388 8.388 0 0 1-5.986 3.163zm-4.896-1.128 2.73-1.576a5.538 5.538 0 0 0 3.166 1.71v3.192a8.388 8.388 0 0 1-5.896-3.326z"/>
+                        </svg>
+                        <span>Modrinth</span>
+                        {#if selectedSource === "modrinth"}
+                            <Check class="w-3 h-3 text-emerald-400 stroke-[3]" />
+                        {/if}
+                    </button>
+
+                    <button
+                        type="button"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'curseforge' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50 shadow-md shadow-orange-500/20 ring-1 ring-orange-500/40' : 'bg-orange-500/10 text-orange-400/80 hover:text-orange-300 hover:bg-orange-500/15 border border-orange-500/20'}"
+                        onclick={() => selectedSource = selectedSource === "curseforge" ? "all" : "curseforge"}
+                    >
+                        <Flame class="w-3.5 h-3.5 text-orange-400" />
+                        <span>CurseForge</span>
+                        {#if selectedSource === "curseforge"}
+                            <Check class="w-3 h-3 text-orange-400 stroke-[3]" />
+                        {/if}
+                    </button>
+                </div>
             </header>
 
 			<div class="relative w-full mb-4">

@@ -979,25 +979,25 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<div class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
-							<ArrowUpDown class="w-3.5 h-3.5 text-fg/50 shrink-0" />
+						<div class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
+							<ArrowUpDown class="w-3.5 h-3.5 text-brand-400 shrink-0" />
 							<select 
 								bind:value={sortBy}
-								class="bg-transparent text-xs font-bold text-fg/80 outline-none cursor-pointer pr-1"
+								class="bg-transparent text-xs font-semibold text-fg outline-none cursor-pointer pr-1"
 							>
-								<option value="lastPlayed" class="bg-bg-elevated text-fg">{t("instances.sortLastPlayed") || "Última jogada"}</option>
+								<option value="lastPlayed" class="bg-bg-elevated text-fg">{t("instances.sortLastPlayed") || "Última partida"}</option>
 								<option value="name" class="bg-bg-elevated text-fg">{t("instances.sortName") || "Nome"}</option>
 								<option value="version" class="bg-bg-elevated text-fg">{t("instances.sortVersion") || "Versão"}</option>
 							</select>
 						</div>
 
-						<div class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
-							<Layers class="w-3.5 h-3.5 text-fg/50 shrink-0" />
+						<div class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3 py-1.5 transition-all shadow-sm">
+							<Layers class="w-3.5 h-3.5 text-brand-400 shrink-0" />
 							<select 
 								bind:value={selectedGroup}
-								class="bg-transparent text-xs font-bold text-fg/80 outline-none cursor-pointer pr-1"
+								class="bg-transparent text-xs font-semibold text-fg outline-none cursor-pointer pr-1"
 							>
-								<option value="all" class="bg-bg-elevated text-fg">{t("instances.groupAll") || "Todos os grupos"}</option>
+								<option value="all" class="bg-bg-elevated text-fg">{t("instances.groupAll") || "Todas"}</option>
 								{#each customGroups as grp}
 									<option value={grp} class="bg-bg-elevated text-fg">{grp}</option>
 								{/each}
@@ -1005,13 +1005,13 @@
 						</div>
 
 						<button 
-							type="button"
-							class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 rounded-2xl px-3.5 py-1.5 text-xs font-bold text-fg/60 hover:text-fg transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+							type="button" 
+							class="flex items-center gap-1.5 bg-bg-elevated hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 rounded-2xl px-3.5 py-1.5 text-xs font-semibold text-fg/80 hover:text-fg transition-all cursor-pointer shadow-sm active:scale-[0.98] {showNewGroupPrompt ? 'border-brand-500/50 bg-brand-500/10 text-brand-400' : ''}"
 							onclick={() => showNewGroupPrompt = !showNewGroupPrompt}
 							title="Criar novo grupo de instâncias"
 						>
-							<FolderPlus class="w-3.5 h-3.5 text-fg/50" />
-							<span>{showNewGroupPrompt ? "Fechar" : (t("instances.newGroup") || "Novo grupo")}</span>
+							<FolderPlus class="w-3.5 h-3.5 {showNewGroupPrompt ? 'text-brand-400' : 'text-fg/50'}" />
+							<span>{showNewGroupPrompt ? "Fechar" : (t("instances.newGroup") === "instances.newGroup" ? "Novo grupo" : t("instances.newGroup"))}</span>
 						</button>
 					</div>
 				</div>

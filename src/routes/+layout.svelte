@@ -20,6 +20,7 @@
 	import LiveWallpaper from "$lib/components/visuals/LiveWallpaper.svelte";
 	import TelemetryModal from "$lib/components/ui/TelemetryModal.svelte";
 	import ClientOverlayModal from "$lib/components/ui/ClientOverlayModal.svelte";
+	import ProfileModal from "$lib/components/profile/ProfileModal.svelte";
 	import type { GameTelemetrySummary } from "$lib/api/types";
 	import { listenGameTelemetry } from "$lib/api/events";
 	import { startSoundscape, stopSoundscape, destroyAudio } from "$lib/utils/sound";
@@ -395,13 +396,16 @@
 
 </script>
 
-<div class="fixed inset-0 z-[-2] transition-all duration-500" style={themeStore.currentBackgroundStyle}>
+<div class="fixed inset-0 z-0 transition-all duration-500 pointer-events-none" style={themeStore.currentBackgroundStyle}>
 	{#if themeStore.theme !== "light" && !appState.performanceMode}
-		<div class="absolute inset-0 opacity-20 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
-		<div class="absolute inset-0 opacity-10 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--ambient-accent, var(--brand-500))) 0%, transparent 55%);"></div>
+		<div class="absolute inset-0 opacity-25 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 55%);"></div>
+		<div class="absolute inset-0 opacity-15 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--ambient-accent, var(--brand-500))) 0%, transparent 55%);"></div>
 		{#if settings.value.liveWallpaper === true}
 			<LiveWallpaper />
 		{/if}
+	{:else if themeStore.theme === "light" && !appState.performanceMode}
+		<div class="absolute inset-0 opacity-10 pointer-events-none" style="background: radial-gradient(circle at 20% -10%, rgb(var(--brand-500)) 0%, transparent 45%);"></div>
+		<div class="absolute inset-0 opacity-5 pointer-events-none" style="background: radial-gradient(circle at 85% 110%, rgb(var(--brand-500)) 0%, transparent 45%);"></div>
 	{/if}
 </div>
 <Toasts bind:this={toastsInstance} />
@@ -449,6 +453,9 @@
 <CommandPalette />
 <MiniPlayer />
 <ClientOverlayModal />
+{#if appState.showProfileModal}
+	<ProfileModal onClose={() => appState.showProfileModal = false} />
+{/if}
 <TelemetryModal
 	summary={showTelemetryModal ? telemetryData : null}
 	onClose={() => showTelemetryModal = false}

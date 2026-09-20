@@ -18,12 +18,10 @@
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
-	import ProfileModal from "$lib/components/profile/ProfileModal.svelte";
+	import { appState } from "$lib/stores/app.svelte";
 
 	let { notificationCount = 0 }: { notificationCount?: number } = $props();
 	const { t } = useTranslation();
-
-	let showProfileModal = $state(false);
 
 	type Item = { href: string; labelKey: string; icon: typeof import("lucide-svelte").Circle; title: string };
 
@@ -53,7 +51,7 @@
 		type="button"
 		title="Meu Perfil ({accountStatus.label})" 
 		class="relative mb-4 group transition-transform duration-200 active:scale-[0.98] cursor-pointer"
-		onclick={() => showProfileModal = true}
+		onclick={() => appState.showProfileModal = true}
 	>
 		<div class="h-11 w-11 rounded-[16px] overflow-hidden bg-fg/[0.04] border border-fg/10 group-hover:border-brand-400/70 transition-all duration-200 shadow-sm flex items-center justify-center p-0.5">
 			<img 
@@ -198,8 +196,4 @@
 			</div>
 		</div>
 	</div>
-
-	{#if showProfileModal}
-		<ProfileModal onClose={() => showProfileModal = false} />
-	{/if}
 </aside>

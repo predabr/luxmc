@@ -86,31 +86,31 @@ export const BACKGROUNDS: Record<string, BackgroundOption> = {
 		id: "obsidian",
 		name: "Preto Obsidiana",
 		preview: "#0c0c0e",
-		style: "background: radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.08) 0%, transparent 60%), #0c0c0e;"
+		style: "background: radial-gradient(circle at 50% -10%, rgba(59, 130, 246, 0.14) 0%, transparent 65%), radial-gradient(circle at 85% 110%, rgba(59, 130, 246, 0.08) 0%, transparent 60%), #090a0f;"
 	},
 	cosmos: {
 		id: "cosmos",
 		name: "Cosmos Profundo",
 		preview: "#08090f",
-		style: "background: radial-gradient(circle at 20% -10%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 110%, rgba(168, 85, 247, 0.12) 0%, transparent 50%), #05060a;"
+		style: "background: radial-gradient(circle at 20% -10%, rgba(59, 130, 246, 0.22) 0%, transparent 55%), radial-gradient(circle at 80% 110%, rgba(168, 85, 247, 0.18) 0%, transparent 55%), #05060b;"
 	},
 	night: {
 		id: "night",
 		name: "Minecraft Noite",
 		preview: "#0a1128",
-		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.85), rgba(10, 12, 18, 0.95)), url('/bg_night.jpg'); background-size: cover; background-position: center;"
+		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.82), rgba(10, 12, 18, 0.94)), url('/bg_night.jpg'); background-size: cover; background-position: center;"
 	},
 	day: {
 		id: "day",
 		name: "Minecraft Dia",
 		preview: "#1e3a5f",
-		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.85), rgba(10, 12, 18, 0.95)), url('/bg_day.jpg'); background-size: cover; background-position: center;"
+		style: "background-image: linear-gradient(rgba(10, 12, 18, 0.82), rgba(10, 12, 18, 0.94)), url('/bg_day.jpg'); background-size: cover; background-position: center;"
 	},
 	aurora: {
 		id: "aurora",
 		name: "Aurora Boreal",
 		preview: "#04151f",
-		style: "background: radial-gradient(ellipse at 50% -20%, rgba(56, 189, 248, 0.2) 0%, transparent 65%), radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.15) 0%, transparent 60%), #06090e;"
+		style: "background: radial-gradient(ellipse at 50% -20%, rgba(56, 189, 248, 0.25) 0%, transparent 70%), radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.2) 0%, transparent 65%), #040810;"
 	}
 };
 
@@ -176,7 +176,7 @@ export const themeStore = {
 
 	get currentBackgroundStyle() {
 		if (activeTheme === "light") {
-			return "background-color: #f1f3f7;";
+			return "background: radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 50%), radial-gradient(circle at 85% 100%, rgba(59, 130, 246, 0.06) 0%, transparent 50%), #f4f6fa; background-color: #f4f6fa;";
 		}
 		return BACKGROUNDS[activeBackground]?.style || BACKGROUNDS.obsidian.style;
 	},
