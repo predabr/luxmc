@@ -1,6 +1,6 @@
 [package]
 name = "luxmc"
-version = "1.9.0"
+version = "1.9.1"
 description = "Linux-first Minecraft launcher"
 authors = ["Luxmc contributors"]
 edition = "2021"
@@ -89,7 +89,6 @@ strip = true
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
-tauri-plugin-updater = "2"
 
 [patch.crates-io]
 glib = { path = "vendor/glib" }

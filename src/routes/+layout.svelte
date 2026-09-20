@@ -208,11 +208,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.9.0",
+					state: "Luxmc v1.9.1",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.9.0",
+					smallText: "Luxmc v1.9.1",
 					inGame: false
 				}).catch(() => {});
 
@@ -278,11 +278,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.9.0",
+					state: "Luxmc v1.9.1",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.9.0",
+					smallText: "Luxmc v1.9.1",
 					inGame: false
 				}).catch(() => {});
 			}
@@ -374,7 +374,7 @@
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
 			let details = "No Menu Principal";
-			let state = "Luxmc v1.9.0";
+			let state = "Luxmc v1.9.1";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
@@ -407,7 +407,7 @@
 				state,
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
-				smallText: "Luxmc v1.9.0",
+				smallText: "Luxmc v1.9.1",
 				inGame: false,
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },

@@ -104,7 +104,7 @@ export const updaterStore = {
 		isChecking = true;
 		try {
 			currentVersion = await getVersion();
-			lastChecked = new Date().toLocaleTimeString();
+			lastChecked = new Date().toISOString();
 
 			let foundUpdate = false;
 

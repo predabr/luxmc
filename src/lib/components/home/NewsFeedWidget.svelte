@@ -38,11 +38,11 @@
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
-			id: "luxmc-v1-9-0",
-			title: "Luxmc v1.9.0: Novo Visual & Atualizador Oficial",
-			body: "Atualizador integrado, interface fluida de ponta a ponta e máxima performance.",
+			id: "luxmc-v1-9-1",
+			title: "Luxmc v1.9.1: Correção de Inicialização & Novo Visual",
+			body: "Inicialização ultrarrápida restaurada, novo visual e máxima estabilidade.",
 			publishedAt: "Hoje",
-			tag: "v1.9.0",
+			tag: "v1.9.1",
 			url: "/news"
 		},
 		{

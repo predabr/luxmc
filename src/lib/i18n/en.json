@@ -2,7 +2,7 @@
 	"app": {
 		"name": "Luxmc",
 		"tagline": "Linux-first Minecraft launcher",
-		"version": "v1.9.0",
+		"version": "v1.9.1",
 		"pressForShortcuts": "Press {{key}} for shortcuts",
 		"systemOnline": "System Online",
 		"navigation": "Navigation",

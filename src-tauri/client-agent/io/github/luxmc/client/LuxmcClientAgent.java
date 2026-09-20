@@ -60,7 +60,7 @@ public class LuxmcClientAgent {
     private static final List<Long> rightClicks = new ArrayList<Long>();
 
     public static void premain(String agentArgs, Instrumentation inst) {
-        System.out.println("[LUXMC_CLIENT] Luxmc Client PvP Suite initialized (v1.9.0)");
+        System.out.println("[LUXMC_CLIENT] Luxmc Client PvP Suite initialized (v1.9.1)");
         System.out.println("[LUXMC_CLIENT] In-game menu hotkey: Right Shift (Shift Direito)");
 
         // 1. Cape & Texture network redirection proxy
