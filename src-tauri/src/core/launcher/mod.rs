@@ -244,9 +244,14 @@ impl GameLauncher {
         self.emit_log(&format!("Preparing to launch {}", detail.id));
         self.emit_log(&format!("Host platform: {:?}", current_platform()));
 
+        let (loader, loader_version) = loader_selection::resolve(&game_dir, &profile.loader, profile.loader_version.as_deref())?;
+
         self.emit_stage(LaunchStage::CheckingJava);
-        let major = detail.java_major_version();
-        self.emit_log(&format!("Java major version required: {}", major));
+        let mut major = detail.java_major_version();
+        if loader == "neoforge" && major < 21 {
+            major = 21;
+        }
+        self.emit_log(&format!("Java major version required: {} (loader: {})", major, loader));
 
         let java_path = if let Some(custom_path) = profile.java_path.as_deref().filter(|p| !p.trim().is_empty()) {
             let p = PathBuf::from(custom_path);
@@ -273,24 +278,23 @@ impl GameLauncher {
         let mut extra_jvm_args = Vec::new();
         let mut extra_game_args = Vec::new();
 
-        let (loader, loader_version) = loader_selection::resolve(&game_dir, &profile.loader, profile.loader_version.as_deref())?;
-
+        let clean_mc_ver = profile.clean_mc_version();
         if loader == "fabric" || loader == "quilt" || loader == "neoforge" || loader == "forge" {
             if loader == "fabric" {
                 let mods_dir = game_dir.join("mods");
                 let _ = crate::core::loaders::fabric::ensure_fabric_api(
                     self.downloader.http(),
                     &mods_dir,
-                    &profile.mc_version,
+                    clean_mc_ver,
                 ).await;
             }
 
-            self.emit_log(&format!("Resolving {} loader for Minecraft {}...", loader, profile.mc_version));
+            self.emit_log(&format!("Resolving {} loader for Minecraft {}...", loader, clean_mc_ver));
             match crate::core::loaders::prepare_loader(
                 self.downloader.http(),
                 &self.downloader.libraries_dir(),
                 &loader,
-                &profile.mc_version,
+                clean_mc_ver,
                 loader_version.as_deref(),
             ).await {
                 Ok(prep) => {
@@ -317,7 +321,7 @@ impl GameLauncher {
                     !s.ends_with("-installer.jar")
                 });
 
-                let mc_ver = &profile.mc_version;
+                let mc_ver = clean_mc_ver;
                 let versions_dir = self.downloader.versions_dir();
                 let vanilla_jar = versions_dir.join(mc_ver).join(format!("{}.jar", mc_ver));
 
@@ -447,10 +451,10 @@ impl GameLauncher {
 
             if let Some((skin_source, variant)) = skin_info {
                 self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
-                let _ = inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), &profile.mc_version).await;
+                let _ = inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), clean_mc_ver).await;
             } else if !is_msa || has_explicit_custom_cape {
                 let default_source = format!("https://minotar.net/skin/{}", username);
-                let _ = inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), &profile.mc_version).await;
+                let _ = inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), clean_mc_ver).await;
             }
         }
 
@@ -821,17 +825,11 @@ impl GameLauncher {
             None
         };
 
-        let app_for_overlay = self.app.clone();
+        let _app_for_overlay = self.app.clone();
         tokio::spawn(async move {
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                if line.contains("[LUXMC_CLIENT] TOGGLE_OVERLAY") {
-                    if let Some(ref app) = app_for_overlay {
-                        crate::commands::system::trigger_overlay_toggle(app);
-                    }
-                }
-
                 let mut line = line;
                 if line.len() > 2000 { line.truncate(2000); }
                 if let Some(ref mut f) = log_file {
@@ -1219,7 +1217,7 @@ impl GameLauncher {
             || profile.name.to_lowercase().contains("rlcraft")
             || profile.mod_count >= 80;
 
-        let is_pvp = profile.mc_version.starts_with("1.8") || profile.mc_version.starts_with("1.7");
+        let is_pvp = profile.clean_mc_version().starts_with("1.8") || profile.clean_mc_version().starts_with("1.7");
         let ram_mb = if let Some(manual) = profile.ram_mb {
             if manual > 0 {
                 self.emit_log(&format!(

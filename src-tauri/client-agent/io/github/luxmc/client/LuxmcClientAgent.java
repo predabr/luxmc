@@ -14,35 +14,56 @@ public class LuxmcClientAgent {
 
     private static volatile boolean running = true;
     private static volatile boolean wasRightShiftDown = false;
+    private static volatile boolean wasLmbDown = false;
+    private static volatile boolean wasRmbDown = false;
     private static long lastToggleTime = 0;
 
-    // Window / Input reflection handles
+    // Window / Input reflection handles (LWJGL 3)
     private static Method glfwGetCurrentContextMethod = null;
     private static Method glfwGetKeyMethod = null;
+    private static Method glfwGetMouseButtonMethod = null;
     private static Method glfwSetInputModeMethod = null;
     private static Method glfwGetWindowPosMethod = null;
     private static Method glfwGetWindowSizeMethod = null;
+    private static Method glfwGetWindowAttribMethod = null;
     private static Class<?> glfwClass = null;
 
+    // Window / Input reflection handles (LWJGL 2)
+    private static Method isCreatedMethod = null;
     private static Method isKeyDownMethod = null;
+    private static Method isButtonDownMethod = null;
     private static Method setGrabbedMethod = null;
+    private static Method displayIsActiveMethod = null;
+    private static Method displayIsVisibleMethod = null;
+    private static Method displayGetXMethod = null;
+    private static Method displayGetYMethod = null;
+    private static Method displayGetWidthMethod = null;
+    private static Method displayGetHeightMethod = null;
     private static Class<?> keyboardClass = null;
     private static Class<?> mouseClass = null;
+    private static Class<?> displayClass = null;
 
-    private static Long currentWindowHandle = null;
+    public static volatile Long currentWindowHandle = null;
+
+    // Tracked Minecraft window bounds on desktop
+    public static volatile int mcWindowX = 20;
+    public static volatile int mcWindowY = 20;
+    public static volatile int mcWindowW = 854;
+    public static volatile int mcWindowH = 480;
+    public static volatile boolean mcWindowVisible = false;
 
     // In-game GUI & HUD
     private static JDialog inGameMenu = null;
     private static InGameHudWindow hudWindow = null;
 
     // Module States
-    public static volatile boolean modFps = true;
+    public static volatile boolean modFps = false;
     public static volatile boolean modCps = true;
     public static volatile boolean modKeystrokes = true;
-    public static volatile boolean modArmor = true;
-    public static volatile boolean modCoords = true;
-    public static volatile boolean modPing = true;
-    public static volatile boolean modSprint = true;
+    public static volatile boolean modArmor = false;
+    public static volatile boolean modCoords = false;
+    public static volatile boolean modPing = false;
+    public static volatile boolean modSprint = false;
     public static volatile boolean modDirection = false;
     public static volatile boolean modFullbright = false;
 
@@ -63,10 +84,8 @@ public class LuxmcClientAgent {
         System.out.println("[LUXMC_CLIENT] Luxmc Client PvP Suite initialized (v1.9.2)");
         System.out.println("[LUXMC_CLIENT] In-game menu hotkey: Right Shift (Shift Direito)");
 
-        // 1. Cape & Texture network redirection proxy
         initCapeRedirection();
 
-        // 2. Start keyboard and input monitor thread
         Thread hookThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -77,15 +96,14 @@ public class LuxmcClientAgent {
         hookThread.setPriority(Thread.NORM_PRIORITY);
         hookThread.start();
 
-        // 3. Initialize HUD overlay on Swing thread
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
                 try {
                     hudWindow = new InGameHudWindow();
-                    hudWindow.setVisible(true);
+                    hudWindow.setVisible(false);
                 } catch (Throwable t) {
-                    System.out.println("[LUXMC_CLIENT] HUD window init note: " + t.getMessage());
+                    System.out.println("[LUXMC_CLIENT] HUD window init notice: " + t.getMessage());
                 }
             }
         });
@@ -126,25 +144,107 @@ public class LuxmcClientAgent {
         }
     }
 
-    private static void monitorKeyboard() {
-        Method isCreatedMethod = null;
-        Method glfwGetCurrentContext = null;
+    private static Long resolveGlfwWindowHandle() {
+        if (currentWindowHandle != null && currentWindowHandle.longValue() != 0L) {
+            return currentWindowHandle;
+        }
 
+        try {
+            if (glfwGetCurrentContextMethod != null) {
+                Long h = (Long) glfwGetCurrentContextMethod.invoke(null);
+                if (h != null && h.longValue() != 0L) {
+                    currentWindowHandle = h;
+                    return h;
+                }
+            }
+        } catch (Throwable ignored) {}
+
+        for (Map.Entry<Thread, StackTraceElement[]> entry : Thread.getAllStackTraces().entrySet()) {
+            Thread t = entry.getKey();
+            String name = t.getName();
+            if (name.equals("Render thread") || name.equals("Client thread") || name.equals("main") || name.toLowerCase().contains("minecraft")) {
+                ClassLoader cl = t.getContextClassLoader();
+                if (cl != null) {
+                    try {
+                        Class<?> mcClass = cl.loadClass("net.minecraft.client.Minecraft");
+                        Method getInstance = mcClass.getMethod("getInstance");
+                        Object mc = getInstance.invoke(null);
+                        if (mc != null) {
+                            for (Method m : mcClass.getMethods()) {
+                                if (m.getParameterTypes().length == 0 && (m.getName().equals("getWindow") || m.getReturnType().getName().contains("Window"))) {
+                                    Object win = m.invoke(mc);
+                                    if (win != null) {
+                                        for (Method wm : win.getClass().getMethods()) {
+                                            if (wm.getParameterTypes().length == 0 && (wm.getName().equals("getWindow") || wm.getName().equals("getHandle") || wm.getName().equals("handle")) && (wm.getReturnType() == long.class || wm.getReturnType() == Long.class)) {
+                                                Long h = (Long) wm.invoke(win);
+                                                if (h != null && h.longValue() != 0L) {
+                                                    currentWindowHandle = h;
+                                                    return h;
+                                                }
+                                            }
+                                        }
+                                        for (java.lang.reflect.Field f : win.getClass().getDeclaredFields()) {
+                                            if (f.getType() == long.class) {
+                                                f.setAccessible(true);
+                                                long h = f.getLong(win);
+                                                if (h != 0L) {
+                                                    currentWindowHandle = Long.valueOf(h);
+                                                    return currentWindowHandle;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            for (Method m : mcClass.getMethods()) {
+                                if (m.getParameterTypes().length == 1 && m.getParameterTypes()[0] == Runnable.class) {
+                                    m.invoke(mc, new Runnable() {
+                                        @Override
+                                        public void run() {
+                                            try {
+                                                if (glfwGetCurrentContextMethod != null) {
+                                                    Long h = (Long) glfwGetCurrentContextMethod.invoke(null);
+                                                    if (h != null && h.longValue() != 0L) {
+                                                        currentWindowHandle = h;
+                                                    }
+                                                }
+                                            } catch (Throwable ignored) {}
+                                        }
+                                    });
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Throwable ignored) {}
+                }
+            }
+        }
+        return currentWindowHandle;
+    }
+
+    private static void monitorKeyboard() {
         boolean lwjgl2Checked = false;
         boolean lwjgl3Checked = false;
 
         long lastCpsClean = System.currentTimeMillis();
+        long lastHandleSearch = 0;
+        int[] posBufX = new int[1];
+        int[] posBufY = new int[1];
+        int[] sizeBufW = new int[1];
+        int[] sizeBufH = new int[1];
 
         while (running) {
             try {
-                Thread.sleep(16); // ~60 Hz polling
+                Thread.sleep(16);
             } catch (InterruptedException ignored) {
                 break;
             }
 
             boolean isDown = false;
+            boolean currentLmb = false;
+            boolean currentRmb = false;
 
-            // 1. Try LWJGL 2 (Minecraft 1.8.9 - 1.12.2)
             if (!lwjgl2Checked) {
                 try {
                     keyboardClass = Class.forName("org.lwjgl.input.Keyboard");
@@ -152,7 +252,16 @@ public class LuxmcClientAgent {
                     isKeyDownMethod = keyboardClass.getMethod("isKeyDown", int.class);
 
                     mouseClass = Class.forName("org.lwjgl.input.Mouse");
+                    isButtonDownMethod = mouseClass.getMethod("isButtonDown", int.class);
                     setGrabbedMethod = mouseClass.getMethod("setGrabbed", boolean.class);
+
+                    displayClass = Class.forName("org.lwjgl.opengl.Display");
+                    displayIsActiveMethod = displayClass.getMethod("isActive");
+                    displayIsVisibleMethod = displayClass.getMethod("isVisible");
+                    displayGetXMethod = displayClass.getMethod("getX");
+                    displayGetYMethod = displayClass.getMethod("getY");
+                    displayGetWidthMethod = displayClass.getMethod("getWidth");
+                    displayGetHeightMethod = displayClass.getMethod("getHeight");
 
                     lwjgl2Checked = true;
                     System.out.println("[LUXMC_CLIENT] Detected LWJGL 2 runtime (1.8.9 PvP mode)");
@@ -165,35 +274,53 @@ public class LuxmcClientAgent {
                 try {
                     Boolean created = (Boolean) isCreatedMethod.invoke(null);
                     if (created != null && created.booleanValue()) {
-                        // 54 = Keyboard.KEY_RSHIFT
                         Boolean down = (Boolean) isKeyDownMethod.invoke(null, 54);
                         if (down != null && down.booleanValue()) {
                             isDown = true;
                         }
 
-                        // WASD for keystrokes
-                        Boolean wDown = (Boolean) isKeyDownMethod.invoke(null, 17); // KEY_W
-                        Boolean aDown = (Boolean) isKeyDownMethod.invoke(null, 30); // KEY_A
-                        Boolean sDown = (Boolean) isKeyDownMethod.invoke(null, 31); // KEY_S
-                        Boolean dDown = (Boolean) isKeyDownMethod.invoke(null, 32); // KEY_D
+                        Boolean wDown = (Boolean) isKeyDownMethod.invoke(null, 17);
+                        Boolean aDown = (Boolean) isKeyDownMethod.invoke(null, 30);
+                        Boolean sDown = (Boolean) isKeyDownMethod.invoke(null, 31);
+                        Boolean dDown = (Boolean) isKeyDownMethod.invoke(null, 32);
                         keyW = wDown != null && wDown.booleanValue();
                         keyA = aDown != null && aDown.booleanValue();
                         keyS = sDown != null && sDown.booleanValue();
                         keyD = dDown != null && dDown.booleanValue();
+
+                        if (isButtonDownMethod != null) {
+                            Boolean lmb = (Boolean) isButtonDownMethod.invoke(null, 0);
+                            Boolean rmb = (Boolean) isButtonDownMethod.invoke(null, 1);
+                            currentLmb = lmb != null && lmb.booleanValue();
+                            currentRmb = rmb != null && rmb.booleanValue();
+                        }
+
+                        if (displayClass != null && displayIsVisibleMethod != null) {
+                            Boolean v = (Boolean) displayIsVisibleMethod.invoke(null);
+                            Boolean a = displayIsActiveMethod != null ? (Boolean) displayIsActiveMethod.invoke(null) : Boolean.TRUE;
+                            mcWindowVisible = (v != null && v.booleanValue()) && (a != null && a.booleanValue());
+                            if (displayGetXMethod != null && displayGetYMethod != null) {
+                                mcWindowX = (Integer) displayGetXMethod.invoke(null);
+                                mcWindowY = (Integer) displayGetYMethod.invoke(null);
+                                mcWindowW = (Integer) displayGetWidthMethod.invoke(null);
+                                mcWindowH = (Integer) displayGetHeightMethod.invoke(null);
+                            }
+                        }
                     }
                 } catch (Throwable ignored) {}
             }
 
-            // 2. Try LWJGL 3 (Minecraft 1.13+)
             if (!isDown) {
                 if (!lwjgl3Checked) {
                     try {
                         glfwClass = Class.forName("org.lwjgl.glfw.GLFW");
-                        glfwGetCurrentContext = glfwClass.getMethod("glfwGetCurrentContext");
+                        glfwGetCurrentContextMethod = glfwClass.getMethod("glfwGetCurrentContext");
                         glfwGetKeyMethod = glfwClass.getMethod("glfwGetKey", long.class, int.class);
+                        glfwGetMouseButtonMethod = glfwClass.getMethod("glfwGetMouseButton", long.class, int.class);
                         glfwSetInputModeMethod = glfwClass.getMethod("glfwSetInputMode", long.class, int.class, int.class);
                         glfwGetWindowPosMethod = glfwClass.getMethod("glfwGetWindowPos", long.class, int[].class, int[].class);
                         glfwGetWindowSizeMethod = glfwClass.getMethod("glfwGetWindowSize", long.class, int[].class, int[].class);
+                        glfwGetWindowAttribMethod = glfwClass.getMethod("glfwGetWindowAttrib", long.class, int.class);
                         lwjgl3Checked = true;
                         System.out.println("[LUXMC_CLIENT] Detected LWJGL 3 runtime (Modern mode)");
                     } catch (Throwable t) {
@@ -201,39 +328,79 @@ public class LuxmcClientAgent {
                     }
                 }
 
-                if (glfwClass != null && glfwGetCurrentContext != null && glfwGetKeyMethod != null) {
+                long now = System.currentTimeMillis();
+                if (currentWindowHandle == null && now - lastHandleSearch > 1000) {
+                    lastHandleSearch = now;
+                    resolveGlfwWindowHandle();
+                }
+
+                if (glfwClass != null && currentWindowHandle != null && currentWindowHandle.longValue() != 0L) {
                     try {
-                        Long windowHandle = (Long) glfwGetCurrentContext.invoke(null);
-                        if (windowHandle != null && windowHandle.longValue() != 0L) {
-                            currentWindowHandle = windowHandle;
-                            // 344 = GLFW_KEY_RIGHT_SHIFT
-                            Integer state = (Integer) glfwGetKeyMethod.invoke(null, windowHandle.longValue(), 344);
+                        long handle = currentWindowHandle.longValue();
+
+                        if (glfwGetKeyMethod != null) {
+                            Integer state = (Integer) glfwGetKeyMethod.invoke(null, handle, 344);
                             if (state != null && state.intValue() == 1) {
                                 isDown = true;
                             }
 
-                            // WASD keys
-                            Integer stateW = (Integer) glfwGetKeyMethod.invoke(null, windowHandle.longValue(), 87);
-                            Integer stateA = (Integer) glfwGetKeyMethod.invoke(null, windowHandle.longValue(), 65);
-                            Integer stateS = (Integer) glfwGetKeyMethod.invoke(null, windowHandle.longValue(), 83);
-                            Integer stateD = (Integer) glfwGetKeyMethod.invoke(null, windowHandle.longValue(), 68);
+                            Integer stateW = (Integer) glfwGetKeyMethod.invoke(null, handle, 87);
+                            Integer stateA = (Integer) glfwGetKeyMethod.invoke(null, handle, 65);
+                            Integer stateS = (Integer) glfwGetKeyMethod.invoke(null, handle, 83);
+                            Integer stateD = (Integer) glfwGetKeyMethod.invoke(null, handle, 68);
                             keyW = stateW != null && stateW.intValue() == 1;
                             keyA = stateA != null && stateA.intValue() == 1;
                             keyS = stateS != null && stateS.intValue() == 1;
                             keyD = stateD != null && stateD.intValue() == 1;
                         }
+
+                        if (glfwGetMouseButtonMethod != null) {
+                            Integer btn0 = (Integer) glfwGetMouseButtonMethod.invoke(null, handle, 0);
+                            Integer btn1 = (Integer) glfwGetMouseButtonMethod.invoke(null, handle, 1);
+                            currentLmb = btn0 != null && btn0.intValue() == 1;
+                            currentRmb = btn1 != null && btn1.intValue() == 1;
+                        }
+
+                        if (glfwGetWindowPosMethod != null) {
+                            glfwGetWindowPosMethod.invoke(null, handle, posBufX, posBufY);
+                            mcWindowX = posBufX[0];
+                            mcWindowY = posBufY[0];
+                        }
+                        if (glfwGetWindowSizeMethod != null) {
+                            glfwGetWindowSizeMethod.invoke(null, handle, sizeBufW, sizeBufH);
+                            mcWindowW = sizeBufW[0];
+                            mcWindowH = sizeBufH[0];
+                        }
+                        if (glfwGetWindowAttribMethod != null) {
+                            Integer iconified = (Integer) glfwGetWindowAttribMethod.invoke(null, handle, 0x00020002);
+                            Integer visible = (Integer) glfwGetWindowAttribMethod.invoke(null, handle, 0x00020004);
+                            mcWindowVisible = (visible != null && visible.intValue() == 1)
+                                    && (iconified == null || iconified.intValue() == 0);
+                        }
                     } catch (Throwable ignored) {}
                 }
             }
 
-            // Clean CPS lists once per second
+            keyLmb = currentLmb;
+            keyRmb = currentRmb;
+
+            if (currentLmb && !wasLmbDown) {
+                recordClick(false);
+            }
+            wasLmbDown = currentLmb;
+
+            if (currentRmb && !wasRmbDown) {
+                recordClick(true);
+            }
+            wasRmbDown = currentRmb;
+
             long now = System.currentTimeMillis();
-            if (now - lastCpsClean > 200) {
+            if (now - lastCpsClean > 150) {
                 lastCpsClean = now;
                 cleanCps(now);
             }
 
-            if (isDown && !wasRightShiftDown && (now - lastToggleTime > 400)) {
+            if (isDown && !wasRightShiftDown && (now - lastToggleTime > 350)) {
                 lastToggleTime = now;
                 wasRightShiftDown = true;
                 toggleInGameMenu();
@@ -271,8 +438,7 @@ public class LuxmcClientAgent {
 
     public static void releaseMouse() {
         try {
-            if (glfwClass != null && glfwSetInputModeMethod != null && currentWindowHandle != null) {
-                // GLFW_CURSOR = 0x00033001, GLFW_CURSOR_NORMAL = 0x00034001
+            if (glfwClass != null && glfwSetInputModeMethod != null && currentWindowHandle != null && currentWindowHandle.longValue() != 0L) {
                 glfwSetInputModeMethod.invoke(null, currentWindowHandle.longValue(), 0x00033001, 0x00034001);
             } else if (mouseClass != null && setGrabbedMethod != null) {
                 setGrabbedMethod.invoke(null, Boolean.FALSE);
@@ -282,8 +448,7 @@ public class LuxmcClientAgent {
 
     public static void restoreMouse() {
         try {
-            if (glfwClass != null && glfwSetInputModeMethod != null && currentWindowHandle != null) {
-                // GLFW_CURSOR_DISABLED = 0x00034003
+            if (glfwClass != null && glfwSetInputModeMethod != null && currentWindowHandle != null && currentWindowHandle.longValue() != 0L) {
                 glfwSetInputModeMethod.invoke(null, currentWindowHandle.longValue(), 0x00033001, 0x00034003);
             } else if (mouseClass != null && setGrabbedMethod != null) {
                 setGrabbedMethod.invoke(null, Boolean.TRUE);
@@ -292,7 +457,6 @@ public class LuxmcClientAgent {
     }
 
     private static void toggleInGameMenu() {
-        System.out.println("[LUXMC_CLIENT] In-game menu toggle triggered inside Minecraft");
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
@@ -304,7 +468,11 @@ public class LuxmcClientAgent {
                     if (inGameMenu == null) {
                         inGameMenu = createInGameMenuDialog();
                     }
-                    inGameMenu.setLocationRelativeTo(null);
+                    int menuW = inGameMenu.getWidth();
+                    int menuH = inGameMenu.getHeight();
+                    int posX = Math.max(0, mcWindowX + (mcWindowW - menuW) / 2);
+                    int posY = Math.max(0, mcWindowY + (mcWindowH - menuH) / 2);
+                    inGameMenu.setLocation(posX, posY);
                     inGameMenu.setVisible(true);
                     inGameMenu.toFront();
                 }
@@ -314,15 +482,16 @@ public class LuxmcClientAgent {
 
     private static JDialog createInGameMenuDialog() {
         final JDialog dialog = new JDialog((Frame) null, false);
+        dialog.setType(Window.Type.POPUP);
         dialog.setUndecorated(true);
-        dialog.setSize(480, 440);
+        dialog.setSize(540, 440);
         dialog.setAlwaysOnTop(true);
 
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(new Color(11, 15, 25));
         mainPanel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(59, 130, 246), 2),
-                BorderFactory.createEmptyBorder(16, 20, 16, 20)
+                BorderFactory.createLineBorder(new Color(37, 99, 235), 2),
+                BorderFactory.createEmptyBorder(20, 24, 20, 24)
         ));
 
         // Header
@@ -331,10 +500,10 @@ public class LuxmcClientAgent {
 
         JLabel titleLabel = new JLabel("LUXMC CLIENT PVP SUITE");
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        titleLabel.setForeground(new Color(56, 189, 248));
+        titleLabel.setForeground(new Color(59, 130, 246));
 
         JLabel subLabel = new JLabel("Menu In-Game · Clique para alternar módulos · Shift Direito ou ESC para fechar");
-        subLabel.setFont(new Font("SansSerif", Font.PLAIN, 11));
+        subLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         subLabel.setForeground(new Color(148, 163, 184));
 
         headerPanel.add(titleLabel, BorderLayout.NORTH);
@@ -342,17 +511,9 @@ public class LuxmcClientAgent {
         mainPanel.add(headerPanel, BorderLayout.NORTH);
 
         // Modules Grid
-        JPanel gridPanel = new JPanel(new GridLayout(3, 3, 10, 10));
+        JPanel gridPanel = new JPanel(new GridLayout(3, 3, 12, 12));
         gridPanel.setOpaque(false);
-        gridPanel.setBorder(BorderFactory.createEmptyBorder(16, 0, 16, 0));
-
-        gridPanel.add(createModuleToggle("FPS Display", modFps, new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                modFps = !modFps;
-                updateButtonState((JButton) e.getSource(), modFps);
-            }
-        }));
+        gridPanel.setBorder(BorderFactory.createEmptyBorder(18, 0, 18, 0));
 
         gridPanel.add(createModuleToggle("CPS Display", modCps, new ActionListener() {
             @Override
@@ -367,6 +528,14 @@ public class LuxmcClientAgent {
             public void actionPerformed(ActionEvent e) {
                 modKeystrokes = !modKeystrokes;
                 updateButtonState((JButton) e.getSource(), modKeystrokes);
+            }
+        }));
+
+        gridPanel.add(createModuleToggle("FPS Display", modFps, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                modFps = !modFps;
+                updateButtonState((JButton) e.getSource(), modFps);
             }
         }));
 
@@ -423,10 +592,10 @@ public class LuxmcClientAgent {
         // Footer
         JButton closeButton = new JButton("Salvar e Fechar (ESC)");
         closeButton.setFont(new Font("SansSerif", Font.BOLD, 13));
-        closeButton.setBackground(new Color(16, 185, 129));
+        closeButton.setBackground(new Color(37, 99, 235));
         closeButton.setForeground(Color.WHITE);
         closeButton.setFocusPainted(false);
-        closeButton.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        closeButton.setBorder(BorderFactory.createEmptyBorder(12, 0, 12, 0));
         closeButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         closeButton.addActionListener(new ActionListener() {
             @Override
@@ -439,14 +608,23 @@ public class LuxmcClientAgent {
         mainPanel.add(closeButton, BorderLayout.SOUTH);
         dialog.setContentPane(mainPanel);
 
-        // ESC / Shift listener to close
-        dialog.getRootPane().registerKeyboardAction(new ActionListener() {
+        dialog.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosed(WindowEvent e) {
+                restoreMouse();
+            }
+        });
+
+        ActionListener closeAction = new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 dialog.setVisible(false);
                 restoreMouse();
             }
-        }, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
+        };
+
+        dialog.getRootPane().registerKeyboardAction(closeAction, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
+        dialog.getRootPane().registerKeyboardAction(closeAction, KeyStroke.getKeyStroke(KeyEvent.VK_SHIFT, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
 
         return dialog;
     }
@@ -465,13 +643,15 @@ public class LuxmcClientAgent {
 
     private static void updateButtonState(JButton button, boolean active) {
         if (active) {
-            button.setBackground(new Color(16, 185, 129, 220));
+            button.setBackground(new Color(37, 99, 235, 240));
             button.setForeground(Color.WHITE);
-            button.setBorder(BorderFactory.createLineBorder(new Color(52, 211, 153), 1));
+            button.setFont(new Font("SansSerif", Font.BOLD, 12));
+            button.setBorder(BorderFactory.createLineBorder(new Color(96, 165, 250), 1));
         } else {
-            button.setBackground(new Color(30, 41, 59, 200));
+            button.setBackground(new Color(19, 25, 39));
             button.setForeground(new Color(148, 163, 184));
-            button.setBorder(BorderFactory.createLineBorder(new Color(71, 85, 105), 1));
+            button.setFont(new Font("SansSerif", Font.PLAIN, 12));
+            button.setBorder(BorderFactory.createLineBorder(new Color(37, 47, 66), 1));
         }
         String text = button.getText();
         if (text != null && !text.isEmpty()) {
@@ -480,19 +660,49 @@ public class LuxmcClientAgent {
         }
     }
 
-    // In-game HUD overlay window
     public static class InGameHudWindow extends JWindow {
         public InGameHudWindow() {
-            setBackground(new Color(0, 0, 0, 0));
+            setType(Window.Type.POPUP);
+            boolean canTranslucent = false;
+            try {
+                GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+                GraphicsDevice gd = ge.getDefaultScreenDevice();
+                canTranslucent = gd.isWindowTranslucencySupported(GraphicsDevice.WindowTranslucency.TRANSLUCENT);
+                if (canTranslucent) {
+                    setBackground(new Color(0, 0, 0, 0));
+                }
+            } catch (Throwable ignored) {}
             setAlwaysOnTop(true);
             setFocusableWindowState(false);
-            setSize(320, 240);
-            setLocation(20, 20);
+            setFocusable(false);
+            setAutoRequestFocus(false);
+            setSize(200, 220);
+            setLocation(mcWindowX + 16, mcWindowY + 36);
+            setVisible(false);
 
-            javax.swing.Timer timer = new javax.swing.Timer(50, new ActionListener() {
+            final boolean supported = canTranslucent;
+            javax.swing.Timer timer = new javax.swing.Timer(30, new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
-                    repaint();
+                    if (!supported) {
+                        if (isVisible()) setVisible(false);
+                        return;
+                    }
+                    boolean hasWindow = (currentWindowHandle != null && currentWindowHandle.longValue() != 0L)
+                            || (keyboardClass != null);
+                    boolean active = mcWindowVisible && mcWindowW > 150 && mcWindowH > 150 && hasWindow;
+
+                    if (!active || (!modCps && !modKeystrokes)) {
+                        if (isVisible()) setVisible(false);
+                    } else {
+                        if (!isVisible()) setVisible(true);
+                        int targetX = Math.max(0, mcWindowX + 16);
+                        int targetY = Math.max(0, mcWindowY + 36);
+                        if (getX() != targetX || getY() != targetY) {
+                            setLocation(targetX, targetY);
+                        }
+                        repaint();
+                    }
                 }
             });
             timer.start();
@@ -502,72 +712,116 @@ public class LuxmcClientAgent {
         public void paint(Graphics g) {
             super.paint(g);
             Graphics2D g2 = (Graphics2D) g.create();
+            g2.setComposite(AlphaComposite.Src);
+            g2.setColor(new Color(0, 0, 0, 0));
+            g2.fillRect(0, 0, getWidth(), getHeight());
+            g2.setComposite(AlphaComposite.SrcOver);
+
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 
-            int y = 20;
-
-            if (modFps) {
-                drawHudPill(g2, 10, y, "FPS: 144", new Color(16, 185, 129));
-                y += 26;
-            }
+            int y = 4;
 
             if (modCps) {
-                drawHudPill(g2, 10, y, "CPS: " + leftCps + " | " + rightCps, new Color(56, 189, 248));
-                y += 26;
-            }
-
-            if (modCoords) {
-                drawHudPill(g2, 10, y, "XYZ: 128, 64, -256", new Color(226, 184, 107));
-                y += 26;
-            }
-
-            if (modPing) {
-                drawHudPill(g2, 10, y, "Ping: 22ms", new Color(168, 85, 247));
-                y += 26;
-            }
-
-            if (modSprint) {
-                drawHudPill(g2, 10, y, "[Sprinting]", new Color(244, 63, 94));
-                y += 26;
+                drawCpsPill(g2, 4, y);
+                y += 32;
             }
 
             if (modKeystrokes) {
-                drawKeystrokes(g2, 10, y);
+                drawKeystrokes(g2, 4, y);
             }
 
             g2.dispose();
         }
 
-        private void drawHudPill(Graphics2D g2, int x, int y, String text, Color accent) {
-            g2.setColor(new Color(11, 15, 25, 190));
-            g2.fillRoundRect(x, y, 140, 22, 10, 10);
-            g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 120));
-            g2.drawRoundRect(x, y, 140, 22, 10, 10);
+        private void drawCpsPill(Graphics2D g2, int x, int y) {
+            g2.setColor(new Color(11, 15, 25, 215));
+            g2.fillRoundRect(x, y, 148, 26, 8, 8);
+            g2.setColor(new Color(59, 130, 246, 90));
+            g2.drawRoundRect(x, y, 148, 26, 8, 8);
 
-            g2.setColor(accent);
-            g2.setFont(new Font("Monospaced", Font.BOLD, 12));
-            g2.drawString(text, x + 8, y + 16);
+            g2.setColor(new Color(56, 189, 248));
+            g2.fillOval(x + 8, y + 9, 7, 7);
+
+            g2.setFont(new Font("SansSerif", Font.BOLD, 11));
+            g2.setColor(Color.WHITE);
+            g2.drawString("CPS:", x + 20, y + 17);
+
+            g2.setFont(new Font("Monospaced", Font.BOLD, 11));
+            g2.setColor(new Color(56, 189, 248));
+            g2.drawString(leftCps + " LMB", x + 50, y + 17);
+            g2.setColor(new Color(148, 163, 184));
+            g2.drawString("|", x + 98, y + 17);
+            g2.setColor(new Color(56, 189, 248));
+            g2.drawString(rightCps + " RMB", x + 107, y + 17);
         }
 
         private void drawKeystrokes(Graphics2D g2, int x, int y) {
-            // W
-            drawKeyBox(g2, x + 24, y, "W", keyW);
-            // A, S, D
-            drawKeyBox(g2, x, y + 24, "A", keyA);
-            drawKeyBox(g2, x + 24, y + 24, "S", keyS);
-            drawKeyBox(g2, x + 48, y + 24, "D", keyD);
+            drawKeyBox(g2, x + 34, y, "W", keyW);
+            drawKeyBox(g2, x, y + 34, "A", keyA);
+            drawKeyBox(g2, x + 34, y + 34, "S", keyS);
+            drawKeyBox(g2, x + 68, y + 34, "D", keyD);
+
+            int btnW = 49;
+            int btnH = 30;
+            int btnY = y + 68;
+
+            drawMouseBox(g2, x, btnY, btnW, btnH, "LMB", leftCps, keyLmb);
+            drawMouseBox(g2, x + 53, btnY, btnW, btnH, "RMB", rightCps, keyRmb);
         }
 
         private void drawKeyBox(Graphics2D g2, int x, int y, String key, boolean pressed) {
             if (pressed) {
-                g2.setColor(new Color(59, 130, 246, 220));
+                g2.setColor(new Color(37, 99, 235, 235));
+                g2.fillRoundRect(x, y, 30, 30, 8, 8);
+                g2.setColor(new Color(147, 197, 253));
+                g2.drawRoundRect(x, y, 30, 30, 8, 8);
+                g2.setColor(Color.WHITE);
             } else {
-                g2.setColor(new Color(15, 23, 42, 180));
+                g2.setColor(new Color(11, 15, 25, 210));
+                g2.fillRoundRect(x, y, 30, 30, 8, 8);
+                g2.setColor(new Color(255, 255, 255, 30));
+                g2.drawRoundRect(x, y, 30, 30, 8, 8);
+                g2.setColor(new Color(203, 213, 225, 210));
             }
-            g2.fillRoundRect(x, y, 22, 22, 6, 6);
-            g2.setColor(new Color(255, 255, 255, pressed ? 255 : 120));
-            g2.setFont(new Font("SansSerif", Font.BOLD, 11));
-            g2.drawString(key, x + 6, y + 15);
+            g2.setFont(new Font("SansSerif", Font.BOLD, 13));
+            FontMetrics fm = g2.getFontMetrics();
+            int tx = x + (30 - fm.stringWidth(key)) / 2;
+            int ty = y + (30 - fm.getHeight()) / 2 + fm.getAscent();
+            g2.drawString(key, tx, ty);
+        }
+
+        private void drawMouseBox(Graphics2D g2, int x, int y, int w, int h, String btn, int cps, boolean pressed) {
+            if (pressed) {
+                g2.setColor(new Color(37, 99, 235, 235));
+                g2.fillRoundRect(x, y, w, h, 8, 8);
+                g2.setColor(new Color(147, 197, 253));
+                g2.drawRoundRect(x, y, w, h, 8, 8);
+                g2.setColor(Color.WHITE);
+            } else {
+                g2.setColor(new Color(11, 15, 25, 210));
+                g2.fillRoundRect(x, y, w, h, 8, 8);
+                g2.setColor(new Color(255, 255, 255, 30));
+                g2.drawRoundRect(x, y, w, h, 8, 8);
+                g2.setColor(new Color(203, 213, 225, 210));
+            }
+            g2.setFont(new Font("SansSerif", Font.BOLD, 10));
+            FontMetrics fm = g2.getFontMetrics();
+            int tx = x + (w - fm.stringWidth(btn)) / 2;
+            g2.drawString(btn, tx, y + 13);
+
+            g2.setFont(new Font("Monospaced", Font.BOLD, 9));
+            FontMetrics fmCps = g2.getFontMetrics();
+            String cpsStr = cps + " CPS";
+            int cx = x + (w - fmCps.stringWidth(cpsStr)) / 2;
+            if (pressed) {
+                g2.setColor(new Color(224, 242, 254));
+            } else {
+                g2.setColor(new Color(148, 163, 184));
+            }
+            g2.drawString(cpsStr, cx, y + 25);
         }
     }
 }

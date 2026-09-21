@@ -116,16 +116,23 @@ pub async fn launch_game_core(
         emit_log(&format!("Aviso na verificação do modpack: {}. Continuando lançamento...", e));
     }
 
-    let clean_req_ver = request.version_id.split('-').next().unwrap_or(&request.version_id);
-    let version_row = match crate::db::schema::versions::get(&db, &request.version_id).await? {
+    let raw_req = request.version_id.trim().trim_matches('\'').trim_matches('"');
+    let clean_req_ver = raw_req.split('-').next().unwrap_or(raw_req);
+    let profile_mc_ver = profile.mc_version.trim().trim_matches('\'').trim_matches('"');
+
+    let version_row = match crate::db::schema::versions::get(&db, raw_req).await? {
         Some(v) => v,
         None => {
             if let Ok(Some(v_clean)) = crate::db::schema::versions::get(&db, clean_req_ver).await {
                 v_clean
+            } else if let Ok(Some(v_prof)) = crate::db::schema::versions::get(&db, profile_mc_ver).await {
+                v_prof
             } else {
-                emit_log(&format!("Versão {} não encontrada localmente. Buscando manifesto oficial...", request.version_id));
+                emit_log(&format!("Versão {} não encontrada localmente. Buscando manifesto oficial...", raw_req));
                 let manifest = minecraft::fetch_version_manifest(&state.http).await?;
-                if let Some(target) = manifest.versions.iter().find(|v| v.id == request.version_id || v.id == clean_req_ver) {
+                if let Some(target) = manifest.versions.iter().find(|v| {
+                    v.id == raw_req || v.id == clean_req_ver || v.id == profile_mc_ver
+                }) {
                     let now = chrono::Utc::now().to_rfc3339();
                     let vrow = crate::db::schema::versions::VersionRow {
                         id: target.id.clone(),
@@ -139,8 +146,8 @@ pub async fn launch_game_core(
                     vrow
                 } else {
                     let msg = format!(
-                        "Version {} not found in official manifest. Try refreshing the version list.",
-                        request.version_id
+                        "Version {} (ou versão base {}) não encontrada no manifesto oficial. Atualize a lista de versões.",
+                        raw_req, profile_mc_ver
                     );
                     emit_log(&msg);
                     return Err(AppError::NotFound(msg));
@@ -149,10 +156,11 @@ pub async fn launch_game_core(
         }
     };
 
-    let local_ver_json = data_dir.join("versions").join(&request.version_id).join(format!("{}.json", request.version_id));
+    let local_ver_json = data_dir.join("versions").join(raw_req).join(format!("{}.json", raw_req));
     let local_clean_ver_json = data_dir.join("versions").join(clean_req_ver).join(format!("{}.json", clean_req_ver));
+    let local_prof_ver_json = data_dir.join("versions").join(profile_mc_ver).join(format!("{}.json", profile_mc_ver));
 
-    emit_log(&format!("Fetching version detail for {}...", request.version_id));
+    emit_log(&format!("Fetching version detail for {}...", raw_req));
     let detail = match minecraft::fetch_version_detail(&state.http, &version_row.url).await {
         Ok(d) => {
             let version_dir = data_dir.join("versions").join(&d.id);
@@ -174,6 +182,12 @@ pub async fn launch_game_core(
             } else if local_clean_ver_json.exists() {
                 emit_log("Modo offline ativo: carregando especificações locais da versão base...");
                 let content = tokio::fs::read_to_string(&local_clean_ver_json).await
+                    .map_err(AppError::Io)?;
+                serde_json::from_str::<minecraft::VersionDetail>(&content)
+                    .map_err(AppError::Serde)?
+            } else if local_prof_ver_json.exists() {
+                emit_log("Modo offline ativo: carregando especificações da versão da instância...");
+                let content = tokio::fs::read_to_string(&local_prof_ver_json).await
                     .map_err(AppError::Io)?;
                 serde_json::from_str::<minecraft::VersionDetail>(&content)
                     .map_err(AppError::Serde)?

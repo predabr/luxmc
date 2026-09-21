@@ -290,7 +290,6 @@ pub fn client_overlay_close(app: tauri::AppHandle) -> Result<(), String> {
     use tauri::Manager;
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.set_always_on_top(false);
-        let _ = window.minimize();
     }
     Ok(())
 }

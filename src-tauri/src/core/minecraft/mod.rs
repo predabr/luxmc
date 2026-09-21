@@ -55,12 +55,60 @@ pub struct VersionDetail {
     pub java_version: Option<JavaVersion>,
 }
 
+pub fn detect_java_major_from_version_id(id: &str) -> u32 {
+    let clean = id.trim().trim_matches('\'').trim_matches('"');
+    let lower = clean.to_ascii_lowercase();
+
+    if lower.contains("neoforge") {
+        return 21;
+    }
+
+    if lower.starts_with("24w") || lower.starts_with("25w") || lower.starts_with("26w") {
+        return 21;
+    }
+
+    if let Some(rest) = lower.strip_prefix("1.") {
+        let mut parts = rest.split('.');
+        if let Some(minor_str) = parts.next() {
+            let minor_token = minor_str.split('-').next().unwrap_or(minor_str);
+            if let Ok(minor) = minor_token.parse::<u32>() {
+                if minor >= 21 {
+                    return 21;
+                }
+                if minor == 20 {
+                    if let Some(patch_str) = parts.next() {
+                        let patch_token = patch_str.split('-').next().unwrap_or(patch_str);
+                        if let Ok(patch) = patch_token.parse::<u32>() {
+                            if patch >= 5 {
+                                return 21;
+                            }
+                        }
+                    }
+                    return 17;
+                }
+                if minor >= 17 {
+                    return 17;
+                }
+                return 8;
+            }
+        }
+    }
+
+    if lower.contains("1.7") || lower.contains("1.8") || lower.contains("1.12") || lower.contains("1.16") {
+        8
+    } else {
+        21
+    }
+}
+
 impl VersionDetail {
     pub fn java_major_version(&self) -> u32 {
-        self.java_version
-            .as_ref()
-            .map(|jv| jv.major_version)
-            .unwrap_or(8)
+        if let Some(ref jv) = self.java_version {
+            if jv.major_version > 0 {
+                return jv.major_version;
+            }
+        }
+        detect_java_major_from_version_id(&self.id)
     }
 
     pub fn effective_game_args(&self) -> Vec<String> {

@@ -239,13 +239,14 @@
 				</div>
 				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
 					{#each presets as preset}
+						{@const isSelected = newVersion === preset.version && newLoader === preset.loader}
 						<button
 							type="button"
-							class="p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between h-28 cursor-pointer bg-bg-elevated border-fg/5 hover:border-brand-500/50 hover:bg-bg-subtle group relative overflow-hidden active:scale-98"
+							class="p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between h-28 cursor-pointer group relative overflow-hidden active:scale-98 {isSelected ? 'bg-brand-500/10 border-brand-500 ring-1 ring-brand-500/30 shadow-lg shadow-brand-500/10' : 'bg-bg-elevated border-fg/5 hover:border-brand-500/50 hover:bg-bg-subtle'}"
 							onclick={() => applyPreset(preset)}
 						>
 							<div class="flex items-center justify-between w-full">
-								<span class="text-xs font-black text-fg group-hover:text-brand-500 transition-colors truncate">{preset.title}</span>
+								<span class="text-xs font-black {isSelected ? 'text-brand-400' : 'text-fg group-hover:text-brand-500'} transition-colors truncate">{preset.title}</span>
 								<span class="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded border {preset.tagColor} shrink-0">{preset.tag}</span>
 							</div>
 							<p class="text-[10px] text-fg/40 leading-snug">{preset.desc}</p>
@@ -268,12 +269,12 @@
 					{#each loaderOptions as ldr}
 						<button
 							type="button"
-							class="p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between h-24 cursor-pointer {newLoader === ldr.id ? 'bg-bg-subtle border-brand-500 shadow-elevated' : 'bg-bg-elevated border-fg/5 hover:border-fg/15'}"
+							class="p-3.5 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between h-24 cursor-pointer active:scale-98 {newLoader === ldr.id ? 'bg-brand-500/10 border-brand-500 ring-1 ring-brand-500/30 shadow-lg shadow-brand-500/10' : 'bg-bg-elevated border-fg/5 hover:border-fg/20 hover:bg-bg-subtle'}"
 							onclick={() => selectLoader(ldr)}
 						>
 							<div class="flex items-center justify-between w-full">
 								<span class="text-xs font-black text-fg">{ldr.name}</span>
-								<span class="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-fg/5 text-fg/60">{ldr.badge}</span>
+								<span class="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded {newLoader === ldr.id ? 'bg-brand-500/20 text-brand-400' : 'bg-fg/5 text-fg/60'}">{ldr.badge}</span>
 							</div>
 							<span class="text-[10px] text-fg/40 leading-snug">{ldr.desc}</span>
 						</button>

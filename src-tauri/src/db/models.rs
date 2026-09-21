@@ -59,6 +59,12 @@ pub struct ProfileRow {
     pub use_vulkan: bool,
 }
 
+impl ProfileRow {
+    pub fn clean_mc_version(&self) -> &str {
+        self.mc_version.trim().trim_matches('\'').trim_matches('"')
+    }
+}
+
 fn default_true() -> bool {
     true
 }

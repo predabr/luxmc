@@ -303,10 +303,10 @@
 	
 	<header class="flex items-center justify-between gap-4 py-1">
 		<div class="flex items-center gap-3">
-			<div class="flex items-center gap-1 bg-[#14171d] border border-white/[0.08] rounded-xl p-1 shadow-sm">
+			<div class="flex items-center gap-1 bg-bg-elevated border border-fg/10 rounded-xl p-1 shadow-sm">
 				<button 
 					type="button" 
-					class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+					class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
 					title="Voltar"
 					onclick={() => history.back()}
 				>
@@ -314,7 +314,7 @@
 				</button>
 				<button 
 					type="button" 
-					class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+					class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
 					title="Avançar"
 					onclick={() => history.forward()}
 				>
@@ -322,9 +322,9 @@
 				</button>
 			</div>
 
-			<div class="flex items-center gap-2 text-xs font-bold text-white/80">
-				<Shirt class="w-3.5 h-3.5 text-white/60" />
-				<span class="text-white font-extrabold">Skin selector</span>
+			<div class="flex items-center gap-2 text-xs font-bold text-fg/80">
+				<Shirt class="w-3.5 h-3.5 text-fg/60" />
+				<span class="text-fg font-extrabold">Skin selector</span>
 			</div>
 		</div>
 
@@ -332,10 +332,10 @@
 			<button
 				type="button"
 				onclick={handleSyncWithWeb}
-				class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#14171d] hover:bg-[#1a1e26] text-white/80 hover:text-white text-xs font-bold border border-white/[0.08] transition-all cursor-pointer shadow-sm"
+				class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-bg-elevated hover:bg-bg-subtle text-fg/80 hover:text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer shadow-sm"
 				title="Abrir no NameMC / Web Studio"
 			>
-				<Share2 class="w-3.5 h-3.5 text-[#1bd96a]" />
+				<Share2 class="w-3.5 h-3.5 text-brand-400" />
 				<span>Web Studio</span>
 			</button>
 		</div>
@@ -345,21 +345,21 @@
 		
 		<div class="lg:col-span-4 flex flex-col items-center gap-4 lg:sticky lg:top-2">
 			
-			<div class="w-full h-[520px] rounded-3xl bg-[#14171d] border border-white/[0.06] relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-4">
+			<div class="w-full h-[520px] rounded-3xl bg-bg-elevated border border-fg/10 relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-4">
 				
 				<div class="absolute top-3 left-3 right-3 flex items-center justify-between z-10 pointer-events-none">
-					<span class="text-[11px] font-black uppercase tracking-wider text-white/50 bg-white/[0.04] border border-white/10 px-2.5 py-1 rounded-full">
+					<span class="text-[11px] font-black uppercase tracking-wider text-fg/50 bg-fg/[0.04] border border-fg/10 px-2.5 py-1 rounded-full">
 						{skinType === "alex" ? "Slim (3px)" : "Classic (4px)"}
 					</span>
 
 					<button
 						type="button"
 						onclick={() => isRotating = !isRotating}
-						class="p-2 rounded-xl bg-black/40 hover:bg-black/60 border border-white/10 text-white/70 hover:text-white pointer-events-auto transition-all cursor-pointer shadow-sm"
+						class="p-2 rounded-xl bg-black/40 hover:bg-black/60 border border-fg/10 text-fg/70 hover:text-fg pointer-events-auto transition-all cursor-pointer shadow-sm"
 						title={isRotating ? "Pausar rotação" : "Ativar rotação"}
 					>
 						{#if isRotating}
-							<Pause class="w-3.5 h-3.5 text-[#1bd96a]" />
+							<Pause class="w-3.5 h-3.5 text-brand-400" />
 						{:else}
 							<Play class="w-3.5 h-3.5" />
 						{/if}
@@ -368,24 +368,23 @@
 
 				<SkinViewer3D
 					bind:this={viewerRef}
-					skinUrl={currentSkinUrl}
+					skinUrl={previewSkinUrl}
 					slim={skinType === "alex"}
 					cape={selectedCape}
-					customCapeUrl={selectedCape === "custom" ? customCapeDataUrl : ""}
-					autoRotate={isRotating}
+					customCapeUrl={customCapeDataUrl}
 					animation={activeAnimation}
+					autoRotate={isRotating}
 					className="w-full h-full"
 				/>
-
 			</div>
 
 			<div class="flex flex-col items-center gap-2.5 w-full">
-				<div class="flex items-center gap-1.5 text-xs text-white/40 font-medium">
+				<div class="flex items-center gap-1.5 text-xs text-fg/40 font-medium">
 					<Move class="w-3.5 h-3.5" />
 					<span>Drag to rotate</span>
 				</div>
 
-				<div class="flex items-center gap-1 bg-[#14171d] border border-white/[0.08] rounded-xl p-1 shadow-sm">
+				<div class="flex items-center gap-1 bg-bg-elevated border border-fg/10 rounded-xl p-1 shadow-sm">
 					{#each [
 						{ id: "idle" as const, label: "Parado" },
 						{ id: "walk" as const, label: "Andar" },
@@ -395,7 +394,7 @@
 						<button
 							type="button"
 							onclick={() => activeAnimation = anim.id}
-							class="px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer {activeAnimation === anim.id ? 'bg-[#1bd96a] text-[#090a0f] shadow-sm' : 'text-white/50 hover:text-white hover:bg-white/[0.06]'}"
+							class="px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer {activeAnimation === anim.id ? 'bg-brand-500 text-brand-foreground shadow-sm' : 'text-fg/50 hover:text-fg hover:bg-fg/[0.06]'}"
 						>
 							{anim.label}
 						</button>
@@ -405,9 +404,9 @@
 				<button
 					type="button"
 					onclick={() => showEditModal = true}
-					class="w-full max-w-[200px] py-2 px-4 rounded-xl bg-[#1a1d24] hover:bg-[#222731] text-white border border-white/[0.08] hover:border-white/[0.15] text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-[0.98]"
+					class="w-full max-w-[200px] py-2 px-4 rounded-xl bg-bg-elevated hover:bg-bg-subtle text-fg border border-fg/10 hover:border-fg/20 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-[0.98]"
 				>
-					<Pencil class="w-3.5 h-3.5 text-white/70" />
+					<Pencil class="w-3.5 h-3.5 text-fg/70" />
 					<span>Edit skin</span>
 				</button>
 			</div>
@@ -421,12 +420,12 @@
 				<button 
 					type="button" 
 					onclick={() => savedSkinsExpanded = !savedSkinsExpanded}
-					class="flex items-center gap-2 text-sm font-black text-white hover:text-[#1bd96a] transition-colors cursor-pointer"
+					class="flex items-center gap-2 text-sm font-black text-fg hover:text-brand-400 transition-colors cursor-pointer"
 				>
 					{#if savedSkinsExpanded}
-						<ChevronUp class="w-4 h-4 text-white/50" />
+						<ChevronUp class="w-4 h-4 text-fg/50" />
 					{:else}
-						<ChevronDown class="w-4 h-4 text-white/50" />
+						<ChevronDown class="w-4 h-4 text-fg/50" />
 					{/if}
 					<span>Saved skins</span>
 				</button>
@@ -437,14 +436,14 @@
 						<button
 							type="button"
 							onclick={handleAddSkinFile}
-							class="rounded-2xl border-2 border-dashed border-white/[0.12] hover:border-[#1bd96a] bg-white/[0.01] hover:bg-white/[0.03] p-5 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer min-h-[170px] group shadow-sm"
+							class="rounded-2xl border-2 border-dashed border-fg/15 hover:border-brand-500 bg-fg/[0.01] hover:bg-fg/[0.03] p-5 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer min-h-[170px] group shadow-sm"
 						>
-							<div class="w-10 h-10 rounded-full bg-white/[0.04] border border-white/10 group-hover:border-[#1bd96a] flex items-center justify-center text-white/60 group-hover:text-[#1bd96a] transition-colors">
+							<div class="w-10 h-10 rounded-full bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 flex items-center justify-center text-fg/60 group-hover:text-brand-400 transition-colors">
 								<Plus class="w-5 h-5 stroke-[2.5]" />
 							</div>
 							<div>
-								<span class="text-xs font-bold text-white block">Add skin</span>
-								<span class="text-[11px] text-white/40 block mt-0.5">Drag and drop</span>
+								<span class="text-xs font-bold text-fg block">Add skin</span>
+								<span class="text-[11px] text-fg/40 block mt-0.5">Drag and drop</span>
 							</div>
 						</button>
 
@@ -455,7 +454,7 @@
 								tabindex="0"
 								onclick={() => selectSavedSkin(s)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") selectSavedSkin(s); }}
-								class="rounded-2xl bg-[#14171d] hover:bg-[#181c24] border transition-all p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[170px] shadow-sm {isSelected ? 'border-[#1bd96a] ring-1 ring-[#1bd96a]' : 'border-white/[0.06] hover:border-white/[0.15]'}"
+								class="rounded-2xl bg-bg-elevated hover:bg-bg-subtle border transition-all p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[170px] shadow-sm {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
 							>
 								{#if isSelected}
 									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-black border border-white flex items-center justify-center text-white shadow-md z-10">
@@ -471,15 +470,15 @@
 									/>
 								</div>
 
-								<div class="w-full flex items-center justify-between pt-2 border-t border-white/[0.04]">
-									<span class="text-xs font-bold text-white truncate max-w-[90px]">{s.name}</span>
+								<div class="w-full flex items-center justify-between pt-2 border-t border-fg/[0.04]">
+									<span class="text-xs font-bold text-fg truncate max-w-[90px]">{s.name}</span>
 									<button
 										type="button"
 										onclick={(e) => {
 											e.stopPropagation();
 											removeSavedSkin(s.id);
 										}}
-										class="text-white/30 hover:text-red-400 transition-colors p-1 cursor-pointer"
+										class="text-fg/30 hover:text-red-400 transition-colors p-1 cursor-pointer"
 										title="Remover skin salva"
 									>
 										<Trash2 class="w-3 h-3" />
@@ -496,12 +495,12 @@
 				<button 
 					type="button" 
 					onclick={() => defaultSkinsExpanded = !defaultSkinsExpanded}
-					class="flex items-center gap-2 text-sm font-black text-white hover:text-[#1bd96a] transition-colors cursor-pointer"
+					class="flex items-center gap-2 text-sm font-black text-fg hover:text-brand-400 transition-colors cursor-pointer"
 				>
 					{#if defaultSkinsExpanded}
-						<ChevronUp class="w-4 h-4 text-white/50" />
+						<ChevronUp class="w-4 h-4 text-fg/50" />
 					{:else}
-						<ChevronDown class="w-4 h-4 text-white/50" />
+						<ChevronDown class="w-4 h-4 text-fg/50" />
 					{/if}
 					<span>Default skins</span>
 				</button>
@@ -515,7 +514,7 @@
 								tabindex="0"
 								onclick={() => selectDefaultSkin(skin)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") selectDefaultSkin(skin); }}
-								class="rounded-2xl bg-[#14171d] hover:bg-[#181c24] border transition-all p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[175px] shadow-sm {isSelected ? 'border-[#1bd96a] ring-1 ring-[#1bd96a]' : 'border-white/[0.06] hover:border-white/[0.15]'}"
+								class="rounded-2xl bg-bg-elevated hover:bg-bg-subtle border transition-all p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[175px] shadow-sm {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
 							>
 								{#if isSelected}
 									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-black border border-white flex items-center justify-center text-white shadow-md z-10">
@@ -534,9 +533,9 @@
 									/>
 								</div>
 
-								<div class="w-full text-center pt-2 border-t border-white/[0.04]">
-									<span class="text-xs font-bold text-white block truncate group-hover:text-[#1bd96a] transition-colors">{skin.name}</span>
-									<span class="text-[10px] text-white/40 block mt-0.5">{skin.model === "alex" ? "Slim (3px)" : "Classic (4px)"}</span>
+								<div class="w-full text-center pt-2 border-t border-fg/[0.04]">
+									<span class="text-xs font-bold text-fg block truncate group-hover:text-brand-400 transition-colors">{skin.name}</span>
+									<span class="text-[10px] text-fg/40 block mt-0.5">{skin.model === "alex" ? "Slim (3px)" : "Classic (4px)"}</span>
 								</div>
 							</div>
 						{/each}
@@ -548,18 +547,18 @@
 
 	</div>
 
-	<div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl bg-[#14171d]/95 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-3.5 px-5 flex items-center justify-between gap-4 shadow-2xl z-30">
+	<div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl bg-bg-elevated/95 backdrop-blur-xl border border-fg/10 rounded-2xl p-3.5 px-5 flex items-center justify-between gap-4 shadow-2xl z-30">
 		<div class="flex items-center gap-3 min-w-0">
-			<div class="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center text-white/60 shrink-0">
+			<div class="w-8 h-8 rounded-xl bg-fg/[0.06] flex items-center justify-center text-fg/60 shrink-0">
 				<Info class="w-4 h-4" />
 			</div>
 			<div class="min-w-0">
 				{#if isMicrosoft}
-					<div class="text-xs font-extrabold text-white truncate">Conta Microsoft Conectada</div>
-					<div class="text-[11px] text-white/50 truncate">As skins selecionadas serão aplicadas diretamente ao seu jogo.</div>
+					<div class="text-xs font-extrabold text-fg truncate">Conta Microsoft Conectada</div>
+					<div class="text-[11px] text-fg/50 truncate">As skins selecionadas serão aplicadas diretamente ao seu jogo.</div>
 				{:else}
-					<div class="text-xs font-extrabold text-white truncate">Editando com conta offline / demo</div>
-					<div class="text-[11px] text-white/50 truncate">Entre na sua conta Microsoft para sincronizar skins com o servidor!</div>
+					<div class="text-xs font-extrabold text-fg truncate">Editando com conta offline / demo</div>
+					<div class="text-[11px] text-fg/50 truncate">Entre na sua conta Microsoft para sincronizar skins com o servidor!</div>
 				{/if}
 			</div>
 		</div>
@@ -569,7 +568,7 @@
 				<button
 					type="button"
 					onclick={() => goto("/")}
-					class="px-4 py-2 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-[0.98] cursor-pointer"
+					class="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-[0.98] cursor-pointer"
 				>
 					<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
 						<path d="M1 1h10v10H1V1zm12 0h10v10H13V1zM1 13h10v10H1V13zm12 0h10v10H13V13z"/>
@@ -582,7 +581,7 @@
 				type="button"
 				onclick={handleApplyToAccount}
 				disabled={isUpdating}
-				class="px-4 py-2 rounded-xl {isMicrosoft ? 'bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f]' : 'bg-white/10 hover:bg-white/20 text-white'} text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-[0.98] cursor-pointer disabled:opacity-50"
+				class="px-4 py-2 rounded-xl {isMicrosoft ? 'bg-brand-500 hover:bg-brand-600 text-brand-foreground' : 'bg-fg/10 hover:bg-fg/20 text-fg'} text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-[0.98] cursor-pointer disabled:opacity-50"
 			>
 				{#if isUpdating}
 					<RefreshCw class="w-3.5 h-3.5 animate-spin" />
@@ -597,15 +596,15 @@
 
 	{#if showEditModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" in:fade={{ duration: 150 }}>
-			<div class="w-full max-w-xl rounded-3xl bg-[#14171d] border border-white/10 p-6 shadow-2xl space-y-5" in:fly={{ y: 20, duration: 200 }}>
-				<div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+			<div class="w-full max-w-xl rounded-3xl bg-bg-elevated border border-fg/10 p-6 shadow-2xl space-y-5" in:fly={{ y: 20, duration: 200 }}>
+				<div class="flex items-center justify-between border-b border-fg/[0.06] pb-3">
 					<div class="flex items-center gap-2.5">
-						<Pencil class="w-4 h-4 text-[#1bd96a]" />
-						<h3 class="text-sm font-extrabold text-white">Editar Configurações da Skin</h3>
+						<Pencil class="w-4 h-4 text-brand-400" />
+						<h3 class="text-sm font-extrabold text-fg">Editar Configurações da Skin</h3>
 					</div>
 					<button 
 						type="button" 
-						class="text-white/40 hover:text-white text-xs cursor-pointer p-1"
+						class="text-fg/40 hover:text-fg text-xs cursor-pointer p-1"
 						onclick={() => showEditModal = false}
 					>
 						<X class="w-4 h-4" />
@@ -613,12 +612,12 @@
 				</div>
 
 				<div class="space-y-2">
-					<span class="text-xs font-bold text-white/70 block">Modelo dos Braços</span>
+					<span class="text-xs font-bold text-fg/70 block">Modelo dos Braços</span>
 					<div class="grid grid-cols-2 gap-2">
 						<button
 							type="button"
 							onclick={() => skinType = "steve"}
-							class="p-3 rounded-2xl border text-left transition-all cursor-pointer {skinType === 'steve' ? 'bg-[#1bd96a]/15 border-[#1bd96a] text-[#1bd96a]' : 'bg-white/[0.02] border-white/10 text-white/60 hover:text-white'}"
+							class="p-3 rounded-2xl border text-left transition-all cursor-pointer {skinType === 'steve' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
 						>
 							<div class="text-xs font-extrabold">Classic (Steve)</div>
 							<div class="text-[10px] opacity-70">Braços normais com 4 pixels</div>
@@ -626,7 +625,7 @@
 						<button
 							type="button"
 							onclick={() => skinType = "alex"}
-							class="p-3 rounded-2xl border text-left transition-all cursor-pointer {skinType === 'alex' ? 'bg-[#1bd96a]/15 border-[#1bd96a] text-[#1bd96a]' : 'bg-white/[0.02] border-white/10 text-white/60 hover:text-white'}"
+							class="p-3 rounded-2xl border text-left transition-all cursor-pointer {skinType === 'alex' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
 						>
 							<div class="text-xs font-extrabold">Slim (Alex)</div>
 							<div class="text-[10px] opacity-70">Braços finos com 3 pixels</div>
@@ -635,7 +634,7 @@
 				</div>
 
 				<div class="space-y-2">
-					<label for="search-nickname-input" class="text-xs font-bold text-white/70 block">Buscar por Nickname (Mojang / NameMC)</label>
+					<label for="search-nickname-input" class="text-xs font-bold text-fg/70 block">Buscar por Nickname (Mojang / NameMC)</label>
 					<div class="flex items-center gap-2">
 						<input 
 							id="search-nickname-input"
@@ -643,13 +642,13 @@
 							placeholder="Ex: Technoblade, Dream, MumboJumbo..."
 							bind:value={searchNick}
 							onkeydown={(e) => e.key === 'Enter' && handleSearchNick()}
-							class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 outline-none focus:border-[#1bd96a]"
+							class="flex-1 bg-black/40 border border-fg/10 rounded-xl px-3.5 py-2 text-xs text-fg placeholder-fg/30 outline-none focus:border-brand-500"
 						/>
 						<button
 							type="button"
 							onclick={handleSearchNick}
 							disabled={isSearchingNick}
-							class="px-4 py-2 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] font-black text-xs cursor-pointer disabled:opacity-50"
+							class="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground font-black text-xs cursor-pointer disabled:opacity-50"
 						>
 							{#if isSearchingNick}
 								<RefreshCw class="w-3.5 h-3.5 animate-spin" />
@@ -662,12 +661,12 @@
 
 				<div class="space-y-2">
 					<div class="flex items-center justify-between">
-						<span class="text-xs font-bold text-white/70 block">Escolha de Capa HD</span>
+						<span class="text-xs font-bold text-fg/70 block">Escolha de Capa HD</span>
 						{#if selectedCape === "custom"}
 							<button
 								type="button"
 								onclick={handleCustomCapeUpload}
-								class="text-[11px] font-bold text-[#1bd96a] hover:underline flex items-center gap-1 cursor-pointer"
+								class="text-[11px] font-bold text-brand-400 hover:underline flex items-center gap-1 cursor-pointer"
 							>
 								<Upload class="w-3 h-3" /> Trocar .PNG da Capa
 							</button>
@@ -687,9 +686,9 @@
 										selectedCape = c.id;
 									}
 								}}
-								class="p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center text-center gap-1 relative overflow-hidden {isCapeSelected ? 'bg-[#1bd96a]/15 border-[#1bd96a]' : 'bg-white/[0.02] border-white/10 hover:border-white/20'}"
+								class="p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center text-center gap-1 relative overflow-hidden {isCapeSelected ? 'bg-brand-500/15 border-brand-500' : 'bg-fg/[0.02] border-fg/10 hover:border-fg/20'}"
 							>
-								<div class="w-8 h-12 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+								<div class="w-8 h-12 rounded-lg bg-black/40 border border-fg/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
 									{#if previewUrl}
 										<img 
 											src={previewUrl} 
@@ -703,22 +702,22 @@
 											class="w-full h-full object-cover [image-rendering:pixelated]" 
 										/>
 									{:else if c.id === "custom"}
-										<Upload class="w-4 h-4 text-white/50" />
+										<Upload class="w-4 h-4 text-fg/50" />
 									{:else}
-										<span class="text-[9px] text-white/30 font-bold uppercase">OFF</span>
+										<span class="text-[9px] text-fg/30 font-bold uppercase">OFF</span>
 									{/if}
 								</div>
-								<span class="text-[10px] font-bold truncate block text-white w-full">{c.name}</span>
+								<span class="text-[10px] font-bold truncate block text-fg w-full">{c.name}</span>
 							</button>
 						{/each}
 					</div>
 				</div>
 
-				<div class="flex items-center justify-end gap-2 pt-2 border-t border-white/[0.06]">
+				<div class="flex items-center justify-end gap-2 pt-2 border-t border-fg/[0.06]">
 					<button 
 						type="button" 
 						onclick={() => showEditModal = false}
-						class="px-5 py-2 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] text-xs font-black cursor-pointer"
+						class="px-5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black cursor-pointer"
 					>
 						Pronto
 					</button>

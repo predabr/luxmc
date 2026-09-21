@@ -7,8 +7,9 @@ fn declared(value: &serde_json::Value) -> Option<(String, String)> {
     if let Some(loaders) = value.pointer("/minecraft/modLoaders").and_then(|v| v.as_array()) {
         let entry = loaders.iter().find(|v| v.get("primary").and_then(|v| v.as_bool()) == Some(true)).or_else(|| loaders.first())?;
         let (loader, version) = entry.get("id")?.as_str()?.split_once('-')?;
-        if ["fabric", "forge", "neoforge", "quilt"].contains(&loader) && !version.is_empty() {
-            return Some((loader.into(), version.into()));
+        let loader_lower = loader.to_ascii_lowercase();
+        if ["fabric", "forge", "neoforge", "quilt"].contains(&loader_lower.as_str()) && !version.is_empty() {
+            return Some((loader_lower, version.into()));
         }
     }
     for (key, loader) in [("fabric-loader", "fabric"), ("forge", "forge"), ("neoforge", "neoforge"), ("quilt-loader", "quilt")] {
@@ -43,6 +44,7 @@ pub fn resolve(root: &Path, configured: &str, version: Option<&str>) -> AppResul
         }
     }
     if found.contains("quilt") { found.remove("fabric"); }
+    if found.contains("neoforge") { found.remove("forge"); }
     if found.len() > 1 { return Err(AppError::InvalidInput("Mods de loaders diferentes encontrados. Selecione o loader nas configurações da instância.".into())); }
     Ok((found.first().copied().unwrap_or("vanilla").into(), version.map(str::to_owned)))
 }
@@ -63,5 +65,7 @@ mod tests {
         assert_eq!(declared(&value).unwrap().0, "fabric");
         let value = serde_json::json!({"dependencies":{"minecraft":"1.21.1","neoforge":"21.1.1"}});
         assert_eq!(declared(&value), Some(("neoforge".into(), "21.1.1".into())));
+        let value_cf = serde_json::json!({"minecraft":{"modLoaders":[{"id":"NeoForge-21.1.137"}]}});
+        assert_eq!(declared(&value_cf), Some(("neoforge".into(), "21.1.137".into())));
     }
 }

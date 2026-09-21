@@ -766,6 +766,7 @@ pub async fn instance_import_modpack_core(
     } else {
         mc_version
     };
+    let mc_version = mc_version.trim().trim_matches('\'').trim_matches('"').to_string();
     let loader = if let Some(ref lt) = manifest_loader_type {
         tracing::info!(original_loader = %loader, detected = %lt, "using manifest loader type for modpack");
         lt.to_lowercase()
@@ -1422,8 +1423,11 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
         for file in &manifest.files {
             if !download_cf_mod_file(&state.http, file, None, None, &root.join("mods"), &storage,
                 &profile.id, Some(&profile.mc_version), Some(&profile.loader), None).await {
-                return Err(crate::error::AppError::InvalidState(format!(
-                    "Lançamento interrompido: não foi possível recuperar CurseForge {}/{}", file.project_id, file.file_id)));
+                tracing::warn!(
+                    project_id = file.project_id,
+                    file_id = file.file_id,
+                    "Arquivo CurseForge opcional ou bloqueado não pôde ser recuperado. Continuando..."
+                );
             }
         }
     }

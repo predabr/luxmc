@@ -177,7 +177,7 @@
 
 					<button
 						onclick={() => { activeSection = "all"; }}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'all' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'all' ? 'text-brand-400 bg-brand-500/10 border border-brand-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
 						title="Todos os Módulos"
 					>
 						<Home class="w-5 h-5" />
@@ -185,7 +185,7 @@
 
 					<button
 						onclick={() => { activeSection = "hud"; }}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'hud' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'hud' ? 'text-brand-400 bg-brand-500/10 border border-brand-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
 						title="Módulos de HUD"
 					>
 						<PenTool class="w-5 h-5" />
@@ -193,7 +193,7 @@
 
 					<button
 						onclick={() => { activeSection = "visual"; }}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'visual' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'visual' ? 'text-brand-400 bg-brand-500/10 border border-brand-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
 						title="Visual & Animações"
 					>
 						<Eye class="w-5 h-5" />
@@ -201,7 +201,7 @@
 
 					<button
 						onclick={() => { activeSection = "combat"; }}
-						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'combat' ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
+						class="w-10 h-10 rounded-2xl flex items-center justify-center transition-colors {activeSection === 'combat' ? 'text-brand-400 bg-brand-500/10 border border-brand-500/30' : 'text-fg/50 hover:text-fg hover:bg-fg/10'}"
 						title="Combate & PvP"
 					>
 						<Shield class="w-5 h-5" />
@@ -231,7 +231,7 @@
 				<!-- Header Bar -->
 				<div class="flex items-center justify-between px-8 py-4 border-b border-fg/5 bg-bg-elevated">
 					<div class="flex items-center gap-3">
-						<span class="text-xs font-bold uppercase tracking-widest text-emerald-400">Luxmc Client</span>
+						<span class="text-xs font-bold uppercase tracking-widest text-brand-400">Luxmc Client</span>
 						<span class="text-fg/20">/</span>
 						<span class="text-xs text-fg/60">
 							{filteredModules.length} {filteredModules.length === 1 ? 'módulo' : 'módulos'}
@@ -241,7 +241,7 @@
 					<div class="flex items-center gap-3">
 						<button
 							onclick={() => { clientMods.isPreviewingHud = true; }}
-							class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-fg/5 border border-fg/10 text-xs font-medium text-fg/70 hover:text-emerald-400 hover:border-emerald-500/30 hover:bg-emerald-500/10 transition-all"
+							class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-fg/5 border border-fg/10 text-xs font-medium text-fg/70 hover:text-brand-400 hover:border-brand-500/30 hover:bg-brand-500/10 transition-all"
 							title="Visualizar HUD como aparece no jogo"
 						>
 							<LayoutTemplate class="w-3.5 h-3.5" />
@@ -254,7 +254,7 @@
 								type="text"
 								bind:value={searchQuery}
 								placeholder="Buscar módulo..."
-								class="w-full pl-10 pr-4 py-1.5 rounded-2xl bg-fg/5 border border-fg/10 text-sm text-fg placeholder-fg/40 focus:outline-none focus:border-emerald-400/50 transition-colors"
+								class="w-full pl-10 pr-4 py-1.5 rounded-2xl bg-fg/5 border border-fg/10 text-sm text-fg placeholder-fg/40 focus:outline-none focus:border-brand-400/50 transition-colors"
 							/>
 							{#if searchQuery}
 								<button
@@ -301,7 +301,7 @@
 											e.stopPropagation();
 											openModuleSettings(mod.key);
 										}}
-										class="w-7 h-7 rounded-lg flex items-center justify-center text-fg/30 hover:text-emerald-400 hover:bg-fg/10 transition-colors"
+										class="w-7 h-7 rounded-lg flex items-center justify-center text-fg/30 hover:text-brand-400 hover:bg-fg/10 transition-colors"
 										title="Configurações de {mod.name}"
 									>
 										<Settings class="w-3.5 h-3.5" />
@@ -323,7 +323,7 @@
 				<!-- Bottom Status Bar -->
 				<div class="flex items-center justify-between px-8 py-3.5 border-t border-fg/5 bg-bg text-xs text-fg/40">
 					<div class="flex items-center gap-2">
-						<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+						<span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
 						<span>No Minecraft, este menu abre in-game pressionando <kbd class="px-1.5 py-0.5 rounded bg-fg/10 text-fg font-mono text-[10px]">Shift Direito</kbd></span>
 					</div>
 

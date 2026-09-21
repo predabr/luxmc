@@ -1,5 +1,5 @@
 export const repository = "predabr/luxmc";
-export const fallback = `https://github.com/${repository}/releases`;
+export const fallback = `https://github.com/${repository}/releases/latest`;
 
 export function assetFor(assets, platform) {
   const extensions = { linux: ".appimage", appimage: ".appimage", windows: ".exe", exe: ".exe", deb: ".deb", debian: ".deb", ubuntu: ".deb", rpm: ".rpm", fedora: ".rpm", rhel: ".rpm", suse: ".rpm", opensuse: ".rpm", tar: ".tar.gz", "tar.gz": ".tar.gz", archive: ".tar.gz", mac: ".dmg", macos: ".dmg", dmg: ".dmg", jar: ".jar", universal: ".jar" };
@@ -22,7 +22,7 @@ export async function latestRelease() {
   const response = await fetch(`https://api.github.com/repos/${repository}/releases/latest`, {
     headers: { "User-Agent": "Luxmc-Cloudflare-Pages/1.9.2", Accept: "application/vnd.github+json" },
     signal: AbortSignal.timeout(10000),
-    cf: { cacheTtl: 300, cacheEverything: true }
+    cf: { cacheTtl: 60, cacheEverything: true }
   });
   if (!response.ok) throw new Error("GitHub release unavailable");
   const data = await response.json();

@@ -305,21 +305,6 @@
 			unlistenTelemetry = unlisten;
 		}).catch(() => {});
 
-		let unlistenOverlayToggle: (() => void) | undefined;
-		import("@tauri-apps/api/event").then(({ listen }) => {
-			listen("luxmc-toggle-overlay", () => {
-				if (disposed) return;
-				clientMods.toggleMenu();
-				if (!clientMods.isMenuOpen) {
-					if (appState.isGameRunning) {
-						clientOverlayClose().catch(() => {});
-					}
-				}
-			}).then((unlisten) => {
-				if (disposed) unlisten();
-				else unlistenOverlayToggle = unlisten;
-			});
-		}).catch(() => {});
 
 		let soundscapeTimer: ReturnType<typeof setTimeout> | undefined;
 		if (settings.value.soundscapesEnabled === true && !appState.performanceMode) {
@@ -336,7 +321,6 @@
 			if (unlistenGameExit) unlistenGameExit();
             unlistenDeepLinks?.();
 			if (unlistenTelemetry) unlistenTelemetry();
-			if (unlistenOverlayToggle) unlistenOverlayToggle();
 			if (soundscapeTimer) clearTimeout(soundscapeTimer);
 			stopSoundscape();
 			destroyAudio();

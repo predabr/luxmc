@@ -35,6 +35,10 @@
 	let resizeObserver: ResizeObserver | null = null;
 	let capeCache = new Map<string, HTMLCanvasElement | string>();
 	let loadGeneration = 0;
+	let lastLoadedSkin = "";
+	let lastLoadedModel = "";
+	let lastLoadedCape = "";
+	let lastLoadedCustomCape = "";
 
 	function applyAnimation(anim: AnimationType) {
 		if (!viewer) return;
@@ -142,11 +146,19 @@
 
 	function updateSkin() {
 		if (!viewer) return;
-		const gen = ++loadGeneration;
 		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl.trim() : "https://minotar.net/skin/Steve";
+		const targetModel = slim ? "slim" : "default";
+
+		if (targetSkin === lastLoadedSkin && targetModel === lastLoadedModel) {
+			return;
+		}
+
+		lastLoadedSkin = targetSkin;
+		lastLoadedModel = targetModel;
+		const gen = ++loadGeneration;
 		
 		try {
-			const res = viewer.loadSkin(targetSkin, { model: slim ? "slim" : "default" });
+			const res = viewer.loadSkin(targetSkin, { model: targetModel });
 			if (res && typeof (res as Promise<void>).then === "function") {
 				(res as Promise<void>)
 					.then(() => {
@@ -263,6 +275,16 @@
 
 	function updateCape() {
 		if (!viewer) return;
+		const currentCape = cape;
+		const currentCustom = customCapeUrl;
+
+		if (currentCape === lastLoadedCape && currentCustom === lastLoadedCustomCape) {
+			return;
+		}
+
+		lastLoadedCape = currentCape;
+		lastLoadedCustomCape = currentCustom;
+
 		if (cape === "custom" && customCapeUrl) {
 			viewer.playerObject.backEquipment = "cape";
 			loadAndHealCape(customCapeUrl).then((healed) => {

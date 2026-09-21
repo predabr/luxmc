@@ -75,11 +75,38 @@ pub async fn versions_list(state: State<'_, AppState>) -> AppResult<VersionListR
     versions_list_core(&state.http).await
 }
 
+async fn resolve_version_row(
+    http: &reqwest::Client,
+    db: &crate::db::Db,
+    id: &str,
+) -> AppResult<crate::db::schema::versions::VersionRow> {
+    let clean = id.trim().trim_matches('\'').trim_matches('"');
+    if let Some(row) = crate::db::schema::versions::get(db, clean).await? {
+        return Ok(row);
+    }
+    let manifest = minecraft::fetch_version_manifest(http).await?;
+    if let Some(target) = manifest.versions.iter().find(|v| v.id == clean) {
+        let now = chrono::Utc::now().to_rfc3339();
+        let row = crate::db::schema::versions::VersionRow {
+            id: target.id.clone(),
+            version_type: target.version_type.clone(),
+            url: target.url.clone(),
+            time: target.release_time.clone(),
+            release_time: target.release_time.clone(),
+            fetched_at: now,
+        };
+        crate::db::schema::versions::upsert(db, &row).await?;
+        Ok(row)
+    } else {
+        Err(crate::error::AppError::NotFound(format!(
+            "Versão {clean} não encontrada no banco de dados nem no manifesto oficial."
+        )))
+    }
+}
+
 pub async fn versions_detail_core(http: &reqwest::Client, id: &str) -> AppResult<VersionDetail> {
     let db = crate::db::shared_db().await?;
-    let row = crate::db::schema::versions::get(&db, id)
-        .await?
-        .ok_or_else(|| crate::error::AppError::NotFound(format!("version {id} not found")))?;
+    let row = resolve_version_row(http, &db, id).await?;
     minecraft::fetch_version_detail(http, &row.url).await
 }
 
@@ -93,13 +120,7 @@ pub async fn versions_download_core(
     id: &str,
 ) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
-    let row = crate::db::schema::versions::get(&db, id)
-        .await?
-        .ok_or_else(|| {
-            crate::error::AppError::NotFound(format!(
-                "version {id} not found in database. Try refreshing versions."
-            ))
-        })?;
+    let row = resolve_version_row(http, &db, id).await?;
 
     let detail = minecraft::fetch_version_detail(http, &row.url).await?;
 
@@ -122,24 +143,19 @@ pub async fn versions_download(
     app: tauri::AppHandle,
     id: String,
 ) -> AppResult<()> {
+    let clean = id.trim().trim_matches('\'').trim_matches('"');
     app.emit(
         "launcher-log",
-        format!("Preparing to download version {}", id),
+        format!("Preparing to download version {}", clean),
     )
     .ok();
 
     let db = crate::db::shared_db().await?;
-    let row = crate::db::schema::versions::get(&db, &id)
-        .await?
-        .ok_or_else(|| {
-            crate::error::AppError::NotFound(format!(
-                "version {id} not found in database. Try refreshing versions."
-            ))
-        })?;
+    let row = resolve_version_row(&state.http, &db, clean).await?;
 
     app.emit(
         "launcher-log",
-        format!("Fetching version manifest for {}...", id),
+        format!("Fetching version manifest for {}...", clean),
     )
     .ok();
     let detail = minecraft::fetch_version_detail(&state.http, &row.url).await?;
@@ -152,7 +168,7 @@ pub async fn versions_download(
     let major = detail.java_major_version();
     app.emit(
         "launcher-log",
-        format!("Java {} required for version {}", major, id),
+        format!("Java {} required for version {}", major, clean),
     )
     .ok();
 
@@ -174,14 +190,15 @@ pub async fn versions_download(
 }
 
 pub async fn versions_check_installed_core(id: &str) -> AppResult<bool> {
+    let clean = id.trim().trim_matches('\'').trim_matches('"');
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
     let client_jar = base_dir
         .data_dir()
         .join("versions")
-        .join(id)
-        .join(format!("{}.jar", id));
+        .join(clean)
+        .join(format!("{}.jar", clean));
     Ok(client_jar.exists())
 }
 

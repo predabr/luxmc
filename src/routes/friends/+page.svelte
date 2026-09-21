@@ -21,7 +21,7 @@
 	import { friendsState } from "$lib/stores/friends.svelte";
 	import type { Friend, SocialIdentity } from "$lib/api/social";
 	import { joinWorld } from "$lib/utils/directJoin";
-	import { p2pScanLanWorlds, upnpOpenPort, upnpClosePort } from "$lib/api/p2p";
+	import { p2pScanLanWorlds, upnpOpenPort, upnpClosePort, p2pGetHostLink } from "$lib/api/p2p";
 	import { profiles } from "$lib/stores/profiles.svelte";
 
 	const friends = $derived(friendsState.list);
@@ -136,12 +136,23 @@
 			const worlds = await p2pScanLanWorlds();
 			const port = worlds.length === 1 ? worlds[0].port : hostPort;
 			if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Porta LAN inválida.");
-			const result = await upnpOpenPort(port, 3600);
-			if (!result.success || !result.externalIp) throw new Error(result.message);
+			try {
+				const result = await upnpOpenPort(port, 3600);
+				if (result.success && result.externalIp) {
+					hostingPort = port;
+					generatedHostCode = `luxmc://join/${result.externalIp}:${port}`;
+					await friendsState.shareWorld({ host: result.externalIp, port });
+					toast("Sessão aberta via UPnP por até uma hora. Compartilhe o link com seus amigos.", "success");
+					return;
+				}
+			} catch {}
+
+			const hostInfo = await p2pGetHostLink(port);
 			hostingPort = port;
-			generatedHostCode = `luxmc://join/${result.externalIp}:${port}`;
-			await friendsState.shareWorld({ host: result.externalIp, port });
-			toast("Sessão aberta por até uma hora. Compartilhe o link com seus amigos.", "success");
+			generatedHostCode = hostInfo.shareLink;
+			const targetHost = hostInfo.publicIp || hostInfo.localIp;
+			await friendsState.shareWorld({ host: targetHost, port });
+			toast(`Mundo aberto localmente (${hostInfo.directAddress}). Compartilhe com amigos na mesma rede ou VPN.`, "info");
 		});
 	}
 
