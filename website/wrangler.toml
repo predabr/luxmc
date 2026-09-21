@@ -5,4 +5,4 @@ pages_build_output_dir = "."
 [[d1_databases]]
 binding = "SOCIAL_DB"
 database_name = "luxmc-social"
-database_id = "luxmc-social-db"
+database_id = "05cc2118-70ab-4b39-8937-4789d59b57b4"
