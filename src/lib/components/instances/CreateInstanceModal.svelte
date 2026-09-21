@@ -94,7 +94,7 @@
 	];
 
 	function getIconSrc(iconStr?: string): string {
-		if (!iconStr || iconStr === "grass_block") return "/grass_block.png";
+		if (!iconStr || iconStr === "grass_block" || iconStr === "/grass_block" || iconStr === "grass" || iconStr === "/grass") return "/grass_block.png";
 		if (iconStr === "modpack_fo") return "/modpack_fo_icon.png";
 		if (iconStr === "modpack_better_mc") return "/modpack_bmc_icon.webp";
 		if (iconStr === "modpack_cobblemon") return "/modpack_cobblemon_icon.png";

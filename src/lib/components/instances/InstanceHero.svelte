@@ -9,7 +9,7 @@
         profile: Profile | null; banner: string; launching?: boolean; running?: boolean; status?: string; progress?: number;
         javaLabel?: string; onPlay: () => void; onSettings: () => void; onHost: () => void; actions?: Snippet;
     } = $props();
-    const icon = $derived(({ grass_block: '/grass_block.png', modpack_fo: '/modpack_fo_icon.png', modpack_better_mc: '/modpack_bmc_icon.webp', modpack_cobblemon: '/modpack_cobblemon_icon.png', logo: '/logo.png', grass_head: '/grass_head.png' } as Record<string, string>)[profile?.icon || 'grass_block'] || profile?.icon || '/grass_block.png');
+    const icon = $derived(({ grass_block: '/grass_block.png', '/grass_block': '/grass_block.png', grass: '/grass_block.png', '/grass': '/grass_block.png', modpack_fo: '/modpack_fo_icon.png', modpack_better_mc: '/modpack_bmc_icon.webp', modpack_cobblemon: '/modpack_cobblemon_icon.png', logo: '/logo.png', grass_head: '/grass_head.png' } as Record<string, string>)[profile?.icon || 'grass_block'] || (profile?.icon === '/grass_block' ? '/grass_block.png' : profile?.icon) || '/grass_block.png');
     const minutes = $derived(profile ? gamingStats.profileMinutes(profile.id) : 0);
     const playtime = $derived(minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`);
 </script>

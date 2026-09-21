@@ -1174,15 +1174,8 @@ pub async fn instance_file_tree(
         std::path::PathBuf::from(&row.game_dir)
     };
 
-    let mut entries = Vec::new();
-
-    let cached_icons: std::collections::HashMap<String, String> = {
-        let rows: Vec<(String, String)> = sqlx::query_as("SELECT key, icon_url FROM mod_icons")
-            .fetch_all(db.pool())
-            .await
-            .unwrap_or_default();
-        rows.into_iter().collect()
-    };
+    let mut raw_entries = Vec::new();
+    let mut keys_needed = std::collections::HashSet::new();
 
     if base.is_dir() {
         for entry in std::fs::read_dir(&base)? {
@@ -1198,34 +1191,70 @@ pub async fn instance_file_tree(
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_default();
-            let icon = if is_jar_or_zip {
-                if let Some(cached) = cached_icons.get(&fname) {
-                    Some(cached.clone())
-                } else if let Some(jar_icon) = crate::commands::mods::extract_mod_icon_from_jar(&path) {
-                    let _ = sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
-                        .bind(&fname)
-                        .bind(&jar_icon)
-                        .execute(db.pool())
-                        .await;
-                    Some(jar_icon)
-                } else {
-                    let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-                    let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
-                    cached_icons.get(&stem).cloned().or_else(|| cached_icons.get(&base_key).cloned())
-                }
-            } else {
-                None
-            };
-            let size = if is_dir { 0 } else { metadata.len() };
 
-            entries.push(FileTreeEntry {
-                name: fname,
-                path: path.to_string_lossy().to_string(),
-                is_dir,
-                size,
-                icon,
-            });
+            if is_jar_or_zip {
+                keys_needed.insert(fname.clone());
+                if let Some(stem) = path.file_stem().map(|s| s.to_string_lossy().to_string()) {
+                    let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
+                    keys_needed.insert(stem);
+                    keys_needed.insert(base_key);
+                }
+            }
+
+            raw_entries.push((fname, path, is_dir, metadata, is_jar_or_zip));
         }
+    }
+
+    let cached_icons: std::collections::HashMap<String, String> = if !keys_needed.is_empty() {
+        let keys_vec: Vec<String> = keys_needed.into_iter().collect();
+        let mut map = std::collections::HashMap::new();
+        for chunk in keys_vec.chunks(200) {
+            let placeholders = chunk.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            let query_str = format!("SELECT key, icon_url FROM mod_icons WHERE key IN ({})", placeholders);
+            let mut query = sqlx::query_as::<_, (String, String)>(&query_str);
+            for k in chunk {
+                query = query.bind(k);
+            }
+            if let Ok(rows) = query.fetch_all(db.pool()).await {
+                for (k, v) in rows {
+                    map.insert(k, v);
+                }
+            }
+        }
+        map
+    } else {
+        std::collections::HashMap::new()
+    };
+
+    let mut entries = Vec::new();
+    for (fname, path, is_dir, metadata, is_jar_or_zip) in raw_entries {
+        let icon = if is_jar_or_zip {
+            if let Some(cached) = cached_icons.get(&fname) {
+                Some(cached.clone())
+            } else if let Some(jar_icon) = crate::commands::mods::extract_mod_icon_from_jar(&path) {
+                let _ = sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
+                    .bind(&fname)
+                    .bind(&jar_icon)
+                    .execute(db.pool())
+                    .await;
+                Some(jar_icon)
+            } else {
+                let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+                let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
+                cached_icons.get(&stem).cloned().or_else(|| cached_icons.get(&base_key).cloned())
+            }
+        } else {
+            None
+        };
+        let size = if is_dir { 0 } else { metadata.len() };
+
+        entries.push(FileTreeEntry {
+            name: fname,
+            path: path.to_string_lossy().to_string(),
+            is_dir,
+            size,
+            icon,
+        });
     }
 
     entries.sort_by(|a, b| {
