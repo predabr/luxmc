@@ -30,40 +30,53 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create GitHub Release
+      - name: Create or Find GitHub Release
         id: create-release
         uses: actions/github-script@v7
         with:
           script: |
             const tag = "${{ steps.get-tag.outputs.tag }}";
-            const { data } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tag,
-              name: `Luxmc ${tag}`,
-              body: [
-                "## 🚀 Luxmc " + tag,
-                "",
-                "### Instaladores",
-                "| Plataforma | Arquivo | Formato |",
-                "| --- | --- | --- |",
-                "| 🪟 Windows | `Luxmc_x64-setup.exe` | NSIS Installer |",
-                "| 🐧 Ubuntu/Debian | `luxmc_amd64.deb` | DEB Package |",
-                "| 🐧 Fedora/openSUSE | `luxmc_x86_64.rpm` | RPM Package |",
-                "| 🐧 Universal Linux | `luxmc_amd64.AppImage` | AppImage |",
-                "| 🍎 macOS (Intel + Apple Silicon) | `Luxmc_universal.dmg` | DMG |",
-                "",
-                "### Como instalar",
-                "- **Windows**: Baixe o `.exe` e execute",
-                "- **Ubuntu/Debian**: `sudo dpkg -i luxmc_*.deb`",
-                "- **Fedora/RHEL**: `sudo rpm -i luxmc_*.rpm`",
-                "- **AppImage**: `chmod +x luxmc*.AppImage && ./luxmc*.AppImage`",
-                "- **macOS**: Abra o `.dmg` e arraste para `/Applications`",
-              ].join("\n"),
-              draft: false,
-              prerelease: tag.includes("beta") || tag.includes("alpha") || tag.includes("rc"),
-            });
-            return data.id;
+            let releaseId;
+            try {
+              const existing = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag,
+              });
+              releaseId = existing.data.id;
+              console.log(`Reusing existing release for tag ${tag} (ID: ${releaseId})`);
+            } catch (e) {
+              const { data } = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tag,
+                name: `Luxmc ${tag}`,
+                body: [
+                  "## 🚀 Luxmc " + tag,
+                  "",
+                  "### Instaladores",
+                  "| Plataforma | Arquivo | Formato |",
+                  "| --- | --- | --- |",
+                  "| 🪟 Windows | `Luxmc_x64-setup.exe` | NSIS Installer |",
+                  "| 🐧 Ubuntu/Debian | `luxmc_amd64.deb` | DEB Package |",
+                  "| 🐧 Fedora/openSUSE | `luxmc_x86_64.rpm` | RPM Package |",
+                  "| 🐧 Universal Linux | `luxmc_amd64.AppImage` | AppImage |",
+                  "| 🍎 macOS (Intel + Apple Silicon) | `Luxmc_universal.dmg` | DMG |",
+                  "",
+                  "### Como instalar",
+                  "- **Windows**: Baixe o `.exe` e execute",
+                  "- **Ubuntu/Debian**: `sudo dpkg -i luxmc_*.deb`",
+                  "- **Fedora/RHEL**: `sudo rpm -i luxmc_*.rpm`",
+                  "- **AppImage**: `chmod +x luxmc*.AppImage && ./luxmc*.AppImage`",
+                  "- **macOS**: Abra o `.dmg` e arraste para `/Applications`",
+                ].join("\n"),
+                draft: false,
+                prerelease: tag.includes("beta") || tag.includes("alpha") || tag.includes("rc"),
+              });
+              releaseId = data.id;
+              console.log(`Created new release for tag ${tag} (ID: ${releaseId})`);
+            }
+            return releaseId;
 
   build-linux:
     needs: create-release
@@ -75,22 +88,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            patchelf \
-            libfuse2 \
-            libsoup2.4-dev \
-            libjavascriptcoregtk-4.1-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev \
-            gstreamer1.0-plugins-good \
-            gstreamer1.0-plugins-bad \
-            file \
+            build-essential \
             curl \
             wget \
-            squashfs-tools
+            file \
+            libssl-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            squashfs-tools \
+            rpm
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -123,57 +132,6 @@ jobs:
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target x86_64-unknown-linux-gnu --bundles deb,rpm,appimage
-
-  build-linux-arm:
-    needs: create-release
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install cross-compilation tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: "pnpm"
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-unknown-linux-gnu
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "src-tauri -> target"
-
-      - name: Install frontend dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build Tauri (Linux ARM64 — DEB)
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          PKG_CONFIG_SYSROOT_DIR: /usr/aarch64-linux-gnu
-        with:
-          releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: --target aarch64-unknown-linux-gnu --bundles deb
 
   build-windows:
     needs: create-release
