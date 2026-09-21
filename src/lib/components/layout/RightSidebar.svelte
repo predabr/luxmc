@@ -17,8 +17,6 @@
 		X
 	} from "lucide-svelte";
 	import { onMount } from "svelte";
-    import { appState } from "$lib/stores/app.svelte";
-    import { settings } from "$lib/stores/settings.svelte";
 	import { slide, fade } from "svelte/transition";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -138,10 +136,6 @@
 		</div>
 	{/if}
 
-    <a href="/settings" class="surface-glass flex items-center gap-3 p-3 text-xs text-fg-muted hover:border-brand-500/30">
-        <span class="h-2 w-2 rounded-full {settings.value.discordRpc !== false ? 'bg-success' : 'bg-fg-subtle'}"></span>
-        <span><span class="block text-[10px] font-semibold text-fg">Discord Rich Presence</span><span class="mt-1 block text-[10px]">{settings.value.discordRpc === false ? 'Desativado' : appState.isGameRunning ? `Jogando ${appState.activeGameDetails?.name || 'Minecraft'}` : 'Atividade do launcher habilitada'}</span></span>
-    </a>
 	<div class="space-y-2.5 shrink-0">
 		<div class="flex items-center gap-1.5">
 			<button

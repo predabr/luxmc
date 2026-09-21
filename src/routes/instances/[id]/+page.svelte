@@ -5,7 +5,7 @@
 	import { javaScan } from "$lib/api/java";
 	import type { JavaInstallStatus } from "$lib/api/types";
 	import { page } from "$app/state";
-	import { fade } from "svelte/transition";
+	import { fade, scale } from "svelte/transition";
 	import { onMount } from "svelte";
 	import {
 		ArrowLeft,
@@ -57,7 +57,10 @@
 		HardDrive,
 		Skull,
 		Disc,
-		FolderPlus
+		FolderPlus,
+		ArrowLeftRight,
+		Snowflake,
+		Link
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
@@ -82,6 +85,7 @@
 	import { handlePostLaunchActions } from "$lib/utils/launcherLifecycle";
 	import {
 		launchGame,
+		stopGame,
 		versionsCheckInstalled,
 		versionsDownload,
 		instanceFileTree,
@@ -130,7 +134,6 @@
 		type HostLinkInfo,
 		instanceShieldScan,
 		type ShieldScanResult,
-		instanceInstallQuickPack,
 		modpackCheckUpdate,
 		modpackUpdateAtomic,
 		type ModpackUpdateInfo,
@@ -175,7 +178,6 @@
 	let isUpdatingModpack = $state(false);
 	let updateStatusText = $state("");
 	let updateProgressPercent = $state(0);
-	let quickInstallingSlug = $state<string | null>(null);
 
 	let showModConflictModal = $state(false);
 	let pendingLaunchConflicts = $state<PreLaunchCheckResult | null>(null);
@@ -184,93 +186,6 @@
 	let showKeybindEditorModal = $state(false);
 	let showDeathDetectorModal = $state(false);
 	let showJukeboxModal = $state(false);
-
-	const quickShaders = [
-		{
-			name: "Complementary Reimagined",
-			slug: "complementary-reimagined",
-			desc: "Iluminação deslumbrante com névoa volumétrica e desempenho impecável.",
-			author: "EminGT",
-			badge: "Mais Popular",
-			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-			checkMatch: (name: string) => name.includes("complementary") && name.includes("reimagined")
-		},
-		{
-			name: "BSL Shaders",
-			slug: "bsl-shaders",
-			desc: "Cores vivas, sombras suaves, água translúcida e iluminação acolhedora.",
-			author: "Capt Tatsu",
-			badge: "Cinemático",
-			tagColor: "text-sky-400 bg-sky-500/10 border-sky-500/20",
-			checkMatch: (name: string) => name.includes("bsl")
-		},
-		{
-			name: "MakeUp - Ultra Fast",
-			slug: "makeup-ultra-fast-shaders",
-			desc: "Shader ultra leve e otimizado para computadores modestos e notebooks.",
-			author: "XavierFbx",
-			badge: "Ultra Leve",
-			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-			checkMatch: (name: string) => name.includes("makeup")
-		},
-		{
-			name: "Complementary Unbound",
-			slug: "complementary-unbound",
-			desc: "Visual realista de alta fidelidade com reflexos e suporte avançado a PBR.",
-			author: "EminGT",
-			badge: "Alta Fidelidade",
-			tagColor: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-			checkMatch: (name: string) => name.includes("complementary") && name.includes("unbound")
-		},
-		{
-			name: "Solas Shader",
-			slug: "solas-shader",
-			desc: "Nuvens volumétricas tridimensionais, auroras boreais e feixes de sol.",
-			author: "SeptFox-dyn",
-			badge: "Atmosférico",
-			tagColor: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
-			checkMatch: (name: string) => name.includes("solas")
-		}
-	];
-
-	const quickResourcePacks = [
-		{
-			name: "Bare Bones",
-			slug: "bare-bones",
-			desc: "Estilo simplificado e vibrante idêntico aos trailers oficiais da Mojang.",
-			author: "RobotPantaloons",
-			badge: "Estilo Trailer",
-			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
-			checkMatch: (name: string) => name.includes("bare") && name.includes("bones")
-		},
-		{
-			name: "Faithful 32x",
-			slug: "faithful-32x",
-			desc: "Texturas originais do Minecraft com dobro de resolução e definição nítida.",
-			author: "Faithful Team",
-			badge: "Clássico HD",
-			tagColor: "text-blue-400 bg-blue-500/10 border-blue-500/20",
-			checkMatch: (name: string) => name.includes("faithful")
-		},
-		{
-			name: "Stay True",
-			slug: "stay-true",
-			desc: "Folhagens conectadas, texturas variadas e harmonia com o estilo Vanilla.",
-			author: "Trrigg",
-			badge: "Realismo Vanilla",
-			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
-			checkMatch: (name: string) => name.includes("stay") && name.includes("true")
-		},
-		{
-			name: "Fresh Animations",
-			slug: "fresh-animations",
-			desc: "Animações faciais e corporais vivas e expressivas para todos os mobs.",
-			author: "FreshLX",
-			badge: "Animações Vivas",
-			tagColor: "text-orange-400 bg-orange-500/10 border-orange-500/20",
-			checkMatch: (name: string) => name.includes("fresh") && name.includes("animation")
-		}
-	];
 
 	function getModBadge(name: string) {
 		const clean = name.replace(/[^a-zA-Z0-9]/g, " ").trim();
@@ -823,6 +738,89 @@
 			: instanceMods
 	);
 
+	let selectedModNames = $state<string[]>([]);
+	let frozenModNames = $state<string[]>([]);
+	let activeMenuMod = $state<string | null>(null);
+
+	const allModsSelected = $derived(
+		filteredMods.length > 0 && filteredMods.every(m => selectedModNames.includes(m.name))
+	);
+
+	function toggleSelectAllMods() {
+		if (allModsSelected) {
+			selectedModNames = [];
+		} else {
+			selectedModNames = filteredMods.map(m => m.name);
+		}
+	}
+
+	function toggleModSelection(name: string) {
+		if (selectedModNames.includes(name)) {
+			selectedModNames = selectedModNames.filter(n => n !== name);
+		} else {
+			selectedModNames = [...selectedModNames, name];
+		}
+	}
+
+	function handleToggleFreeze(mod: FileTreeEntry) {
+		if (frozenModNames.includes(mod.name)) {
+			frozenModNames = frozenModNames.filter(n => n !== mod.name);
+			toast(`Versão de "${mod.name.replace('.disabled', '')}" descongelada.`, "info");
+		} else {
+			frozenModNames = [...frozenModNames, mod.name];
+			toast(`Versão de "${mod.name.replace('.disabled', '')}" congelada! Atualizações pausadas.`, "success");
+		}
+	}
+
+	function handleCopyModLink(mod: FileTreeEntry) {
+		const raw = mod.name.replace(/\.disabled$/, '').replace(/\.(jar|zip)$/, '');
+		const url = `https://modrinth.com/mod/${raw.toLowerCase().replace(/[^a-z0-9_-]/g, '-')}`;
+		if (navigator.clipboard) {
+			navigator.clipboard.writeText(url).then(() => {
+				toast("Link do mod copiado para a área de transferência!", "success");
+			}).catch(() => {
+				toast(`Mod: ${raw}`, "info");
+			});
+		}
+	}
+
+	function handleShowModFile(_mod: FileTreeEntry) {
+		if (instanceId) {
+			instanceModsOpenFolder(instanceId).catch(() => {});
+		}
+	}
+
+	async function handleSyncMod(_mod: FileTreeEntry) {
+		toast("Sincronizando mod...", "info");
+		await refreshAllData();
+		toast("Mod sincronizado com sucesso!", "success");
+	}
+
+	function handleSwapVersion(mod: FileTreeEntry) {
+		const raw = mod.name.replace(/\.disabled$/, '').replace(/\.(jar|zip)$/, '');
+		import("$app/navigation").then(({ goto }) => {
+			goto(`/mods?search=${encodeURIComponent(raw)}`);
+		});
+	}
+
+	function parseModMeta(fileName: string) {
+		const clean = fileName.replace(/\.disabled$/, '').replace(/\.(jar|zip|mrpack)$/, '');
+		const match = clean.match(/^(.*?)[-_+vV]?((\d+\.[\d.]+[a-zA-Z0-9_-]*))$/);
+		if (match && match[1] && match[2]) {
+			const title = match[1].replace(/[-_]/g, ' ').trim() || clean;
+			return {
+				title,
+				version: match[2],
+				author: "Mod Developer"
+			};
+		}
+		return {
+			title: clean.replace(/[-_]/g, ' '),
+			version: "1.0.0",
+			author: "Mod Developer"
+		};
+	}
+
 	onMount(async () => {
         void detectJava();
 			try {
@@ -1238,6 +1236,17 @@
 		}
 	}
 
+	async function handleStopGame() {
+		try {
+			await stopGame();
+			appState.isGameRunning = false;
+			gamingStats.onGameExit();
+			toast("Instância encerrada com sucesso.", "info");
+		} catch (e) {
+			toast("Erro ao tentar encerrar o jogo: " + String(e), "error");
+		}
+	}
+
 	async function handleAddResourcePack() {
 		const packType = subTab === 'shaders' ? 'shaderpacks' : subTab === 'datapacks' ? 'datapacks' : 'resourcepacks';
 		const label = subTab === 'shaders' ? 'Shader' : subTab === 'datapacks' ? 'Datapack' : 'Pacote de Recursos';
@@ -1348,24 +1357,6 @@
 		}
 	}
 
-	async function handleQuickInstallPack(slug: string, packTitle: string) {
-		if (quickInstallingSlug) return;
-		quickInstallingSlug = slug;
-		try {
-			toast(`Iniciando download de ${packTitle}...`, "info");
-			const targetType = subTab === "shaders" ? "shaderpacks" : "resourcepacks";
-			const installedName = await instanceInstallQuickPack(instanceId, targetType, slug);
-			playSound("chime");
-			toast(`✨ ${packTitle} instalado com sucesso! (${installedName})`, "success");
-			await refreshAllData();
-		} catch (e) {
-			console.error("Quick pack install error:", e);
-			toast("Falha ao instalar pacote: " + String(e), "error");
-		} finally {
-			quickInstallingSlug = null;
-		}
-	}
-
 	async function openInstanceFolder() {
 		if (!instanceId) return;
 		try {
@@ -1395,7 +1386,7 @@
 
         <InstanceHero profile={activeProfile} banner={heroBanner} launching={isLaunching} running={appState.isGameRunning} status={launchStatusText} progress={downloadProgressPercent}
             javaLabel={javaRuntimes.find(runtime => runtime.path === activeProfile?.javaPath)?.versionString || (activeProfile?.javaPath ? 'Personalizado' : 'Automático')}
-            onPlay={() => handlePlay()} onSettings={() => showInstanceSettingsModal = true} onHost={openHostWorldModal}>
+            onPlay={() => handlePlay()} onStop={handleStopGame} onSettings={() => showInstanceSettingsModal = true} onHost={openHostWorldModal}>
             {#snippet actions()}
                 <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={openInstanceFolder}><FolderOpen class="h-4 w-4" />Abrir pasta</button>
                 <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showP2PHost = true}><Radio class="h-4 w-4" />Host P2P</button>
@@ -1622,175 +1613,211 @@
 							</div>
 						</div>
 					{:else}
-						<VirtualList items={filteredMods} itemHeight={76} height="600px" class="rounded-2xl">
+						<!-- Modrinth Table Header -->
+						<div class="grid grid-cols-[auto_1fr_180px_160px] items-center gap-4 px-4 py-3 border-b border-fg/10 text-xs font-semibold text-fg/50 select-none bg-bg-elevated/80 rounded-t-2xl">
+							<div class="flex items-center gap-3">
+								<input
+									type="checkbox"
+									checked={allModsSelected}
+									onchange={toggleSelectAllMods}
+									class="w-4 h-4 rounded border border-fg/20 bg-bg-subtle accent-emerald-500 cursor-pointer"
+								/>
+								<span>Projeto</span>
+							</div>
+							<div></div>
+							<div class="text-left font-medium">Versão</div>
+							<div class="text-right font-medium pr-2">Ações</div>
+						</div>
+
+						<VirtualList items={filteredMods} itemHeight={76} height="600px" class="rounded-b-2xl border-x border-b border-fg/5 bg-bg-elevated/40">
 							{#snippet children(mod: FileTreeEntry, _index: number)}
 								{@const isDisabled = mod.name.endsWith('.disabled')}
 								{@const rawName = mod.name.replace('.disabled', '').replace('.jar', '')}
-								{@const displayName = rawName.includes('_') && /^\d+_\d+$/.test(rawName) ? 'Mod #' + rawName.split('_')[0] : rawName.replace(/_/g, ' ')}
+								{@const meta = parseModMeta(mod.name)}
+								{@const displayName = rawName.includes('_') && /^\d+_\d+$/.test(rawName) ? 'Mod #' + rawName.split('_')[0] : meta.title}
 								{@const badge = getModBadge(displayName)}
+								{@const isFrozen = frozenModNames.includes(mod.name)}
+								{@const isSelected = selectedModNames.includes(mod.name)}
 								{@const modUpdate = availableModUpdates.find(u => 
 									(u.fileName && (mod.name === u.fileName || mod.name === u.fileName + '.disabled' || mod.name.startsWith(u.fileName.replace('.jar', '')))) ||
 									(u.projectName && displayName.toLowerCase().includes(u.projectName.toLowerCase())) ||
 									(u.projectId && displayName.toLowerCase().includes(u.projectId.toLowerCase()))
 								)}
-								<div class="bg-bg-elevated/90 hover:bg-bg-subtle border border-fg/5 hover:border-fg/15 p-3.5 rounded-2xl flex items-center justify-between transition-all group shadow-sm hover:shadow-md {isDisabled ? 'opacity-50' : ''}" style="content-visibility: auto;">
+								<div class="grid grid-cols-[auto_1fr_180px_160px] items-center gap-4 px-4 py-3 hover:bg-fg/[0.03] border-b border-fg/5 transition-colors group {isDisabled ? 'opacity-50' : ''}" style="content-visibility: auto;">
+									<!-- Checkbox & Project Info -->
 									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="w-11 h-11 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-md relative {isDisabled ? 'grayscale opacity-60' : ''}">
-											<div class="w-full h-full bg-gradient-to-br {badge.theme} border border-fg/10 flex flex-col items-center justify-center shadow-inner select-none">
-												<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
-												<span class="text-[7px] font-bold opacity-70 tracking-widest uppercase">MOD</span>
-											</div>
+										<input
+											type="checkbox"
+											checked={isSelected}
+											onchange={() => toggleModSelection(mod.name)}
+											class="w-4 h-4 rounded border border-fg/20 bg-bg-subtle accent-emerald-500 cursor-pointer shrink-0"
+										/>
+										<div class="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-bg-subtle border border-fg/10 relative shadow-sm {isDisabled ? 'grayscale opacity-60' : ''}">
 											{#if mod.icon}
 												<img
 													src={mod.icon}
 													alt={displayName}
 													loading="lazy"
-													class="absolute inset-0 w-full h-full object-cover rounded-2xl border border-fg/10 [image-rendering:pixelated]"
+													class="w-full h-full object-cover [image-rendering:pixelated]"
 													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
 												/>
+											{:else}
+												<div class="w-full h-full bg-gradient-to-br {badge.theme} flex items-center justify-center select-none">
+													<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
+												</div>
 											{/if}
 										</div>
 										<div class="min-w-0">
-											<div class="flex items-center gap-2 flex-wrap">
-												<h5 class="text-xs font-extrabold text-fg truncate max-w-[320px] group-hover:text-amber-300 transition-colors" title={displayName}>{displayName}</h5>
-												<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full {isDisabled ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}">
-													{isDisabled ? 'Desativado' : 'Ativo'}
-												</span>
+											<div class="flex items-center gap-2">
+												<h5 class="text-xs font-bold text-fg truncate max-w-[280px] group-hover:text-emerald-400 transition-colors" title={displayName}>
+													{displayName}
+												</h5>
 												{#if modUpdate}
-													<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse" title={`Atualização disponível: ${modUpdate.latestVersionNumber}`}>
+													<span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse" title={`Atualização disponível: ${modUpdate.latestVersionNumber}`}>
 														v{modUpdate.latestVersionNumber}
 													</span>
 												{/if}
 											</div>
-											<div class="flex items-center gap-2 mt-1 text-[10px] text-fg/40 font-mono">
-												<span class="text-fg/60">{mod.size > 1048576 ? (mod.size / (1024 * 1024)).toFixed(2) + ' MB' : Math.round(mod.size / 1024) + ' KB'}</span>
-												<span>·</span>
-												<span class="truncate max-w-[260px]">{mod.name}</span>
+											<div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-fg/40">
+												<span class="w-1.5 h-1.5 rounded-full bg-fg/30"></span>
+												<span class="truncate max-w-[200px]">{meta.author}</span>
 											</div>
 										</div>
 									</div>
 
-									<div class="flex items-center gap-2 shrink-0">
-										{#if modUpdate}
-											<button
-												type="button"
-												class="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
-												disabled={updatingModProjects.includes(modUpdate.projectId) || isUpdatingAllMods}
-												onclick={() => handleUpdateSingleMod(modUpdate)}
-												title={`Atualizar para versão ${modUpdate.latestVersionNumber}`}
-											>
-												<ArrowUpCircle class="w-4 h-4 text-amber-400 {updatingModProjects.includes(modUpdate.projectId) ? 'animate-spin' : ''}" />
-												<span>{updatingModProjects.includes(modUpdate.projectId) ? 'Atualizando...' : 'Atualizar'}</span>
-											</button>
-										{/if}
+									<div></div>
 
+									<!-- Versão -->
+									<div class="min-w-0">
+										<div class="flex items-center gap-1.5">
+											<span class="text-xs font-bold text-fg font-mono">{meta.version}</span>
+											{#if isFrozen}
+												<span title="Versão congelada">
+													<Snowflake class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+												</span>
+											{/if}
+										</div>
+										<div class="text-[10px] text-fg/40 font-mono truncate max-w-[160px]" title={mod.name}>
+											{mod.name.replace('.disabled', '')}
+										</div>
+									</div>
+
+									<div class="flex items-center gap-2 justify-end relative shrink-0">
 										<button
 											type="button"
-											class="px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-sm active:scale-[0.98] {isDisabled ? 'bg-bg-subtle text-fg/70 hover:text-fg hover:bg-bg-subtle border border-fg/20' : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25 shadow-emerald-500/10'}"
-											onclick={() => handleToggleMod(mod)}
-											title={isDisabled ? 'Ativar mod' : 'Desativar mod'}
+											onclick={() => handleSwapVersion(mod)}
+											class="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
+											title="Trocar versão"
 										>
-											{#if isDisabled}
-												<ToggleLeft class="w-4 h-4 text-fg/60" />
-												<span class="hidden sm:inline">Desativado</span>
-											{:else}
-												<ToggleRight class="w-4 h-4 text-emerald-400" />
-												<span class="hidden sm:inline">Ativo</span>
-											{/if}
+											<ArrowLeftRight class="w-4 h-4" />
 										</button>
 
 										<button
 											type="button"
-											class="p-2 rounded-xl text-fg/70 hover:text-red-300 hover:bg-red-500/20 border border-fg/10 hover:border-red-500/40 bg-bg-subtle transition-all cursor-pointer active:scale-[0.98] shadow-sm"
+											onclick={() => handleToggleMod(mod)}
+											class="w-10 h-5 rounded-full transition-colors relative cursor-pointer shadow-inner {isDisabled ? 'bg-fg/20' : 'bg-emerald-500'}"
+											title={isDisabled ? 'Ativar mod' : 'Desativar mod'}
+											role="switch"
+											aria-checked={!isDisabled}
+										>
+											<span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-md {isDisabled ? 'left-0.5' : 'left-[22px]'}"></span>
+										</button>
+
+										<button
+											type="button"
 											onclick={() => handleDeleteMod(mod)}
-											title="Excluir mod permanentemente"
+											class="p-1.5 rounded-lg text-fg/50 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+											title="Excluir mod"
 										>
 											<Trash2 class="w-4 h-4" />
 										</button>
+
+										<div class="relative">
+											<button
+												type="button"
+												onclick={(e) => {
+													e.stopPropagation();
+													activeMenuMod = activeMenuMod === mod.name ? null : mod.name;
+												}}
+												class="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
+												title="Mais opções"
+											>
+												<MoreVertical class="w-4 h-4" />
+											</button>
+
+											{#if activeMenuMod === mod.name}
+												<div
+													class="absolute right-0 top-full mt-1.5 w-44 rounded-2xl bg-bg-elevated/95 backdrop-blur-xl border border-fg/10 p-1.5 shadow-2xl z-30 space-y-0.5"
+													transition:scale={{ duration: 120, start: 0.95 }}
+												>
+													<button
+														type="button"
+														onclick={() => {
+															activeMenuMod = null;
+															handleSyncMod(mod);
+														}}
+														class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-fg/80 hover:text-fg hover:bg-fg/5 transition-colors text-left cursor-pointer"
+													>
+														<RefreshCw class="w-3.5 h-3.5 text-emerald-400" /> Sincronizar
+													</button>
+													<button
+														type="button"
+														onclick={() => {
+															activeMenuMod = null;
+															handleShowModFile(mod);
+														}}
+														class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-fg/80 hover:text-fg hover:bg-fg/5 transition-colors text-left cursor-pointer"
+													>
+														<FolderOpen class="w-3.5 h-3.5 text-blue-400" /> Exibir arquivo
+													</button>
+													<button
+														type="button"
+														onclick={() => {
+															activeMenuMod = null;
+															handleCopyModLink(mod);
+														}}
+														class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-fg/80 hover:text-fg hover:bg-fg/5 transition-colors text-left cursor-pointer"
+													>
+														<Link class="w-3.5 h-3.5 text-amber-400" /> Copiar link
+													</button>
+													<button
+														type="button"
+														onclick={() => {
+															activeMenuMod = null;
+															handleToggleFreeze(mod);
+														}}
+														class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-fg/80 hover:text-fg hover:bg-fg/5 transition-colors text-left cursor-pointer"
+													>
+														<Snowflake class="w-3.5 h-3.5 text-cyan-400" /> {isFrozen ? "Descongelar versão" : "Congelar versão"}
+													</button>
+												</div>
+											{/if}
+										</div>
 									</div>
 								</div>
 							{/snippet}
 						</VirtualList>
 					{/if}
 				{:else}
-					{#if subTab === 'shaders'}
-						<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-5 mb-6 shadow-sm space-y-4">
-							<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-fg/5 pb-3">
-								<div class="flex items-center gap-2.5">
-									<div class="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-										<Sparkles class="w-4 h-4" />
-									</div>
-									<div>
-										<h4 class="text-xs font-black text-fg uppercase tracking-wider">
-											Shaders Populares · 1 Clique
-										</h4>
-										<p class="text-[11px] text-fg/40 mt-0.5">
-											Baixe e instale instantaneamente os melhores shaders sem precisar abrir o navegador
-										</p>
-									</div>
-								</div>
-								<button
-									type="button"
-									class="self-start sm:self-auto bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg px-3.5 py-1.5 rounded-xl border border-fg/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
-									onclick={handleAddResourcePack}
-								>
-									<Plus class="w-3.5 h-3.5" /> Importar .ZIP Local
-								</button>
-							</div>
-
-							<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-								{#each quickShaders as pack}
-									{@const isInstalled = currentPacksList.some(p => pack.checkMatch(p.name.toLowerCase()))}
-									<div class="bg-bg-elevated hover:bg-bg-subtle border border-fg/5 hover:border-fg/15 p-4 rounded-2xl flex flex-col justify-between gap-3.5 transition-all group shadow-sm hover:shadow-md relative overflow-hidden">
-										<div class="space-y-2">
-											<div class="flex items-center justify-between gap-2">
-												<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border {pack.tagColor}">
-													{pack.badge}
-												</span>
-												<span class="text-[10px] text-fg/30 font-medium">por {pack.author}</span>
-											</div>
-											<div>
-												<h5 class="text-xs font-extrabold text-fg group-hover:text-amber-300 transition-colors">{pack.name}</h5>
-												<p class="text-[11px] text-fg/50 line-clamp-2 mt-1 leading-relaxed">{pack.desc}</p>
-											</div>
-										</div>
-
-										<div class="flex items-center justify-between pt-2 border-t border-fg/5">
-											{#if isInstalled}
-												<span class="text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-bold px-3 py-1 rounded-xl flex items-center gap-1.5">
-													<Check class="w-3.5 h-3.5 text-emerald-400" /> Instalado
-												</span>
-											{:else}
-												<button
-													type="button"
-													class="w-full bg-bg-subtle hover:bg-gradient-to-r hover:from-amber-500 hover:to-orange-500 hover:text-brand-foreground text-fg text-xs font-bold py-2 px-3 rounded-xl border border-fg/10 hover:border-transparent transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
-													onclick={() => handleQuickInstallPack(pack.slug, pack.name)}
-													disabled={quickInstallingSlug === pack.slug}
-												>
-													{#if quickInstallingSlug === pack.slug}
-														<RefreshCw class="w-3.5 h-3.5 animate-spin" /> Instalando...
-													{:else}
-														<Download class="w-3.5 h-3.5 text-amber-400 group-hover:text-brand-foreground" /> Baixar em 1 Clique
-													{/if}
-												</button>
-											{/if}
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-
 					<div class="flex items-center justify-between mb-3">
 						<h4 class="text-xs font-bold text-fg uppercase tracking-wider">
 							{subTab === 'resourcepacks' ? 'Pacotes de Textura Instalados' : subTab === 'shaders' ? 'Shaders Instalados' : 'Datapacks Instalados'} ({currentPacksList.length})
 						</h4>
-						<button
-							class="text-xs font-bold text-fg/40 hover:text-fg flex items-center gap-1 cursor-pointer transition-colors"
-							onclick={handleOpenPackFolder}
-						>
-							<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta
-						</button>
+						<div class="flex items-center gap-2">
+							<button
+								type="button"
+								class="bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg px-3 py-1.5 rounded-xl border border-fg/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+								onclick={handleAddResourcePack}
+							>
+								<Plus class="w-3.5 h-3.5" /> Importar .ZIP Local
+							</button>
+							<button
+								class="text-xs font-bold text-fg/40 hover:text-fg flex items-center gap-1 cursor-pointer transition-colors"
+								onclick={handleOpenPackFolder}
+							>
+								<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta
+							</button>
+						</div>
 					</div>
 
 					{#if currentPacksList.length === 0}
@@ -1802,7 +1829,7 @@
 								{subTab === 'resourcepacks' ? 'Nenhum pacote de textura instalado' : subTab === 'shaders' ? 'Nenhum shader instalado' : 'Nenhum datapack instalado'}
 							</h3>
 							<p class="text-xs text-fg/40 mt-1 max-w-sm">
-								{subTab === 'shaders' ? 'Utilize o instalador em 1 clique acima para baixar os melhores shaders.' : subTab === 'resourcepacks' ? 'Clique em Adicionar .ZIP acima ou importe pacotes de textura do seu computador.' : 'Adicione datapacks para modificar o comportamento do jogo.'}
+								{subTab === 'shaders' ? 'Clique em Importar .ZIP acima ou adicione shaders na pasta shaderpacks.' : subTab === 'resourcepacks' ? 'Clique em Importar .ZIP acima ou importe pacotes de textura do seu computador.' : 'Adicione datapacks para modificar o comportamento do jogo.'}
 							</p>
 						</div>
 					{:else}

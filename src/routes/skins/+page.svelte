@@ -29,6 +29,7 @@
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
 	import SkinViewer3D from "$lib/components/ui/SkinViewer3D.svelte";
+	import Skin2DPreview from "$lib/components/ui/Skin2DPreview.svelte";
 	import { activeSkinStore, type CapeType } from "$lib/stores/skin.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -47,12 +48,17 @@
 	let selectedCape = $state<CapeType>("luxmc");
 	let customCapeDataUrl = $state("");
 	let showEditModal = $state(false);
+	let hasPendingChange = $state(false);
 
 	let savedSkinsExpanded = $state(true);
 	let defaultSkinsExpanded = $state(true);
 
 	type SavedSkinItem = { id: string; name: string; url: string; model: "steve" | "alex" };
-	let savedSkins = $state<SavedSkinItem[]>([]);
+	const defaultSavedSkins: SavedSkinItem[] = [
+		{ id: "default_steve", name: "Steve", model: "steve", url: "/steve.png" },
+		{ id: "default_alex", name: "Alex", model: "alex", url: "/alex.png" }
+	];
+	let savedSkins = $state<SavedSkinItem[]>(defaultSavedSkins);
 
 	let selectedSkinNick = $state("Steve");
 
@@ -72,7 +78,7 @@
 		previewSkinUrl ||
 		activeSkinStore.current.skinUrl ||
 		account.value?.skinUrl ||
-		`https://minotar.net/skin/${username}`
+		"/steve.png"
 	);
 
 	const defaultSkins = [
@@ -124,7 +130,12 @@
 		}
 		try {
 			const saved = localStorage.getItem("luxmc_saved_skins");
-			if (saved) savedSkins = JSON.parse(saved);
+			if (saved) {
+				const parsed = JSON.parse(saved);
+				if (Array.isArray(parsed) && parsed.length > 0) {
+					savedSkins = parsed;
+				}
+			}
 		} catch {}
 	});
 
@@ -143,12 +154,30 @@
 		selectedSkinNick = skin.nick;
 		skinType = skin.model;
 		previewSkinUrl = `https://mineskin.eu/skin/${encodeURIComponent(skin.nick)}`;
+		activeSkinStore.setSkin({
+			id: skin.nick,
+			name: skin.name,
+			url: previewSkinUrl,
+			skinUrl: previewSkinUrl,
+			avatarUrl: `https://mc-heads.net/avatar/${encodeURIComponent(skin.nick)}/100`,
+			type: skin.model,
+		});
+		hasPendingChange = true;
 	}
 
 	function selectSavedSkin(skin: SavedSkinItem) {
 		selectedSkinNick = skin.name;
 		skinType = skin.model;
 		previewSkinUrl = skin.url;
+		activeSkinStore.setSkin({
+			id: skin.id,
+			name: skin.name,
+			url: skin.url,
+			skinUrl: skin.url,
+			avatarUrl: `https://mc-heads.net/avatar/${encodeURIComponent(skin.name)}/100`,
+			type: skin.model,
+		});
+		hasPendingChange = true;
 	}
 
 	function removeSavedSkin(id: string) {
@@ -166,7 +195,17 @@
 			});
 			if (!selected || typeof selected !== "string") return;
 
-			const dataUrl = convertFileSrc(selected);
+			let dataUrl = convertFileSrc(selected);
+			try {
+				const res = await fetch(dataUrl);
+				const blob = await res.blob();
+				const reader = new FileReader();
+				dataUrl = await new Promise<string>((resolve) => {
+					reader.onloadend = () => resolve(reader.result as string);
+					reader.readAsDataURL(blob);
+				});
+			} catch {}
+
 			previewSkinUrl = dataUrl;
 			selectedSkinNick = "Skin Customizada";
 
@@ -201,12 +240,14 @@
 			previewSkinUrl = targetUrl;
 			selectedSkinNick = nick;
 			isSearchingNick = false;
+			hasPendingChange = true;
 			toast(`Skin de "${nick}" carregada com sucesso!`, "success");
 		};
 		img.onerror = () => {
 			previewSkinUrl = `https://minotar.net/skin/${encodeURIComponent(nick)}`;
 			selectedSkinNick = nick;
 			isSearchingNick = false;
+			hasPendingChange = true;
 			toast(`Skin de "${nick}" carregada via Minotar!`, "success");
 		};
 		img.src = targetUrl;
@@ -279,6 +320,7 @@
 				await authSetAccountCape(account.value.id, hasCape ? capeUrl : null).catch(() => {});
 			}
 
+			hasPendingChange = false;
 			toast("Skin e capa aplicadas com sucesso no Minecraft!", "success");
 		} catch (e) {
 			toast("Erro ao salvar skin: " + String(e), "error");
@@ -368,7 +410,7 @@
 
 				<SkinViewer3D
 					bind:this={viewerRef}
-					skinUrl={previewSkinUrl}
+					skinUrl={currentSkinUrl || "/steve.png"}
 					slim={skinType === "alex"}
 					cape={selectedCape}
 					customCapeUrl={customCapeDataUrl}
@@ -463,10 +505,11 @@
 								{/if}
 
 								<div class="w-full flex-1 flex items-center justify-center my-1 overflow-hidden">
-									<img 
-										src={s.url} 
+									<Skin2DPreview
+										src={s.url}
 										alt={s.name}
-										class="h-28 object-contain [image-rendering:pixelated] drop-shadow-md transition-transform group-hover:scale-105" 
+										model={s.model}
+										className="h-28"
 									/>
 								</div>
 
@@ -547,18 +590,22 @@
 
 	</div>
 
-	<div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl bg-bg-elevated/95 backdrop-blur-xl border border-fg/10 rounded-2xl p-3.5 px-5 flex items-center justify-between gap-4 shadow-2xl z-30">
+	{#if hasPendingChange || !isMicrosoft}
+	<div class="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-2xl bg-bg-elevated/95 backdrop-blur-xl border border-fg/10 rounded-2xl p-3.5 px-5 flex items-center justify-between gap-4 shadow-2xl z-30" transition:slide={{ axis: 'y', duration: 200 }}>
 		<div class="flex items-center gap-3 min-w-0">
 			<div class="w-8 h-8 rounded-xl bg-fg/[0.06] flex items-center justify-center text-fg/60 shrink-0">
 				<Info class="w-4 h-4" />
 			</div>
 			<div class="min-w-0">
-				{#if isMicrosoft}
-					<div class="text-xs font-extrabold text-fg truncate">Conta Microsoft Conectada</div>
-					<div class="text-[11px] text-fg/50 truncate">As skins selecionadas serão aplicadas diretamente ao seu jogo.</div>
-				{:else}
-					<div class="text-xs font-extrabold text-fg truncate">Editando com conta offline / demo</div>
+				{#if hasPendingChange && isMicrosoft}
+					<div class="text-xs font-extrabold text-fg truncate">Skin selecionada — pronta para aplicar</div>
+					<div class="text-[11px] text-fg/50 truncate">Clique em "Aplicar Skin" para sincronizar com o Minecraft.</div>
+				{:else if !isMicrosoft}
+					<div class="text-xs font-extrabold text-fg truncate">Conta offline / demo</div>
 					<div class="text-[11px] text-fg/50 truncate">Entre na sua conta Microsoft para sincronizar skins com o servidor!</div>
+				{:else}
+					<div class="text-xs font-extrabold text-fg truncate">Skin selecionada</div>
+					<div class="text-[11px] text-fg/50 truncate">Clique em "Aplicar Skin" para salvar no jogo.</div>
 				{/if}
 			</div>
 		</div>
@@ -593,6 +640,7 @@
 			</button>
 		</div>
 	</div>
+	{/if}
 
 	{#if showEditModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" in:fade={{ duration: 150 }}>

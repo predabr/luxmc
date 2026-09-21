@@ -177,6 +177,9 @@ function applyThemeVariables(tId: string, aId: string, bgId: string) {
 
 	Object.keys(ACCENTS).forEach((k) => root.classList.remove(`accent-${k}`));
 	root.classList.add(`accent-${a.id}`);
+
+	const hasCustomWp = Boolean(customWallpaperUrl && (bgId === "custom" || activeBackground === "custom"));
+	root.classList.toggle("has-custom-wallpaper", hasCustomWp);
 }
 
 function triggerThemeTransition() {

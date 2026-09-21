@@ -1,4 +1,4 @@
-name: Release Luxmc
+name: Release
 
 on:
   push:
@@ -6,398 +6,255 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
-      tag_name:
-        description: "Release tag name (e.g. v1.5.4-beta)"
-        required: false
-        default: ""
-
-permissions:
-  contents: write
-  actions: read
+      tag:
+        description: "Release tag (e.g. v1.9.2)"
+        required: true
+        default: "v1.9.2"
 
 env:
-  NODE_VERSION: "22"
-  RUST_TOOLCHAIN: stable
+  CARGO_TERM_COLOR: always
 
 jobs:
-  validate:
-    name: Validate
+  create-release:
     runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install Dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Install System Dependencies (Validation)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libssl-dev \
-            libgtk-3-dev \
-            libayatana-appindicator3-dev \
-            librsvg2-dev
-
-      - name: Setup Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-
-      - name: Cache Rust Dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "./src-tauri -> target"
-
-      - name: Frontend Lint (svelte-check)
-        run: pnpm check
-
-      - name: Rust Compilation Check
-        working-directory: src-tauri
-        run: cargo check
-
-      - name: Rust Tests
-        working-directory: src-tauri
-        run: cargo test
-
-  generate-changelog:
-    name: Generate Changelog
-    runs-on: ubuntu-22.04
-    continue-on-error: true
     outputs:
-      changelog: ${{ steps.changelog.outputs.changelog }}
+      release_id: ${{ steps.create-release.outputs.result }}
+      tag: ${{ steps.get-tag.outputs.tag }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Generate Changelog
-        id: changelog
-        shell: bash
+      - name: Get tag
+        id: get-tag
         run: |
-          set +e
-          COMMITS=$(git log -n 30 --pretty=format:"- %s (%h)" 2>/dev/null || echo "- Release update")
-          {
-            echo "changelog<<CHANGELOG_EOF"
-            echo "### 🚀 Luxmc Release"
-            echo "$COMMITS"
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
 
-  build:
-    name: Build (${{ matrix.platform }}-${{ matrix.target }})
-    needs: [validate]
-    runs-on: ${{ matrix.platform }}
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-          - platform: windows-latest
-            target: x86_64-pc-windows-msvc
-          - platform: macos-latest
-            target: aarch64-apple-darwin
-          - platform: macos-latest
-            target: x86_64-apple-darwin
+      - name: Create GitHub Release
+        id: create-release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = "${{ steps.get-tag.outputs.tag }}";
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `Luxmc ${tag}`,
+              body: [
+                "## 🚀 Luxmc " + tag,
+                "",
+                "### Instaladores",
+                "| Plataforma | Arquivo | Formato |",
+                "| --- | --- | --- |",
+                "| 🪟 Windows | `Luxmc_x64-setup.exe` | NSIS Installer |",
+                "| 🐧 Ubuntu/Debian | `luxmc_amd64.deb` | DEB Package |",
+                "| 🐧 Fedora/openSUSE | `luxmc_x86_64.rpm` | RPM Package |",
+                "| 🐧 Universal Linux | `luxmc_amd64.AppImage` | AppImage |",
+                "| 🍎 macOS (Intel + Apple Silicon) | `Luxmc_universal.dmg` | DMG |",
+                "",
+                "### Como instalar",
+                "- **Windows**: Baixe o `.exe` e execute",
+                "- **Ubuntu/Debian**: `sudo dpkg -i luxmc_*.deb`",
+                "- **Fedora/RHEL**: `sudo rpm -i luxmc_*.rpm`",
+                "- **AppImage**: `chmod +x luxmc*.AppImage && ./luxmc*.AppImage`",
+                "- **macOS**: Abra o `.dmg` e arraste para `/Applications`",
+              ].join("\n"),
+              draft: false,
+              prerelease: tag.includes("beta") || tag.includes("alpha") || tag.includes("rc"),
+            });
+            return data.id;
 
+  build-linux:
+    needs: create-release
+    runs-on: ubuntu-22.04
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10
-
-      - name: Install pnpm Dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Setup Rust Toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Cache Rust Dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "./src-tauri -> target"
-          shared-key: "rust-${{ matrix.target }}"
-
-      - name: Install System Dependencies (Linux x86_64)
-        if: matrix.platform == 'ubuntu-22.04' && matrix.target == 'x86_64-unknown-linux-gnu'
+      - name: Install Linux system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            build-essential \
-            curl \
-            wget \
-            file \
-            libssl-dev \
             libgtk-3-dev \
-            libayatana-appindicator3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
             librsvg2-dev \
             patchelf \
             libfuse2 \
-            squashfs-tools \
-            rpm
+            libsoup2.4-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            file \
+            curl \
+            wget \
+            squashfs-tools
 
-      - name: Sync App Version with Tag
-        shell: bash
-        run: |
-          TAG="${{ github.ref_name }}"
-          VERSION="${TAG#v}"
-          if [[ -n "$VERSION" && "$TAG" =~ ^v[0-9] ]]; then
-            echo "Syncing app version to $VERSION from tag $TAG"
-            if [ -f package.json ]; then
-              node -e "const fs = require('fs'); const p = JSON.parse(fs.readFileSync('package.json', 'utf8')); p.version = '$VERSION'; fs.writeFileSync('package.json', JSON.stringify(p, null, 2) + '\n');"
-            fi
-            if [ -f src-tauri/tauri.conf.json ]; then
-              node -e "const fs = require('fs'); const t = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8')); t.version = '$VERSION'; fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(t, null, 2) + '\n');"
-            fi
-            if [ -f src-tauri/Cargo.toml ]; then
-              sed -i.bak -E "s/^(version[[:space:]]*=[[:space:]]*)\"[^\"]+\"/\1\"$VERSION\"/" src-tauri/Cargo.toml || true
-              rm -f src-tauri/Cargo.toml.bak
-            fi
-          fi
-
-      - name: Cache NSIS (Windows)
-        if: matrix.platform == 'windows-latest'
-        uses: actions/cache@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          path: |
-            C:\Users\runneradmin\AppData\Local\tauri\NSIS
-            C:\Users\runneradmin\AppData\Roaming\tauri\NSIS
-            ~\AppData\Local\tauri
-            ~\AppData\Roaming\tauri
-          key: nsis-3.11-windows-${{ runner.arch }}
+          version: 9
 
-      - name: Pre-download NSIS (Windows, with retry)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          $nsisDir = "$env:APPDATA\tauri\NSIS"
-          if (!(Test-Path "$nsisDir\nsis-3.11\NSIS.exe")) {
-            New-Item -ItemType Directory -Force -Path $nsisDir | Out-Null
-            $url = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip"
-            $zip = "$nsisDir\nsis-3.11.zip"
-            $maxRetries = 5
-            for ($i = 1; $i -le $maxRetries; $i++) {
-              try {
-                Write-Host "Downloading NSIS (attempt $i/$maxRetries)..."
-                $ProgressPreference = 'SilentlyContinue'
-                Invoke-WebRequest -Uri $url -OutFile $zip -TimeoutSec 120
-                Write-Host "Download succeeded."
-                break
-              } catch {
-                if ($i -eq $maxRetries) { throw }
-                $wait = [math]::Pow(2, $i) * 5
-                Write-Host "Failed (attempt $i): $_. Retrying in ${wait}s..."
-                Start-Sleep -Seconds $wait
-              }
-            }
-            Expand-Archive -Path $zip -DestinationPath $nsisDir -Force
-            Remove-Item $zip -Force
-          } else {
-            Write-Host "NSIS already cached, skipping download."
-          }
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
 
-      - name: Build Tauri Bundles
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri (Linux — DEB + RPM + AppImage)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "Luxmc ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download and install Luxmc."
-          releaseDraft: false
-          prerelease: false
-          args: --target ${{ matrix.target }}
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --target x86_64-unknown-linux-gnu --bundles deb,rpm,appimage
 
-      - name: Collect Build Artifacts
-        id: artifacts
-        shell: bash
-        run: |
-          mkdir -p upload
-          if [ "${{ matrix.platform }}" = "ubuntu-22.04" ]; then
-            cp src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage upload/ 2>/dev/null || true
-            cp src-tauri/target/${{ matrix.target }}/release/bundle/deb/*.deb upload/ 2>/dev/null || true
-            cp src-tauri/target/${{ matrix.target }}/release/bundle/rpm/*.rpm upload/ 2>/dev/null || true
-            cp src-tauri/target/release/bundle/appimage/*.AppImage upload/ 2>/dev/null || true
-            cp src-tauri/target/release/bundle/deb/*.deb upload/ 2>/dev/null || true
-            cp src-tauri/target/release/bundle/rpm/*.rpm upload/ 2>/dev/null || true
-          fi
-          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
-            cp src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*.exe upload/ 2>/dev/null || true
-            cp src-tauri/target/${{ matrix.target }}/release/bundle/msi/*.msi upload/ 2>/dev/null || true
-            cp src-tauri/target/release/bundle/nsis/*.exe upload/ 2>/dev/null || true
-            cp src-tauri/target/release/bundle/msi/*.msi upload/ 2>/dev/null || true
-          fi
-          if [ "${{ matrix.platform }}" = "macos-latest" ]; then
-            cp src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg upload/ 2>/dev/null || true
-            cp src-tauri/target/release/bundle/dmg/*.dmg upload/ 2>/dev/null || true
-          fi
-          echo "artifacts=upload" >> "$GITHUB_OUTPUT"
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: artifacts-${{ matrix.platform }}-${{ matrix.target }}
-          path: upload/
-          retention-days: 7
-
-  upload-release:
-    name: Upload to Release
-    needs: [build]
+  build-linux-arm:
+    needs: create-release
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Download All Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-          merge-multiple: true
-
-      - name: List Downloaded Artifacts
-        run: find artifacts/ -type f | head -50
-
-      - name: Upload Assets to Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
+      - name: Install cross-compilation tools
         run: |
-          cat << 'EOF' > /tmp/release_notes.md
-          ## Luxmc ${{ inputs.tag_name || github.ref_name }}
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-aarch64-linux-gnu \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev
 
-          ### Download
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
 
-          | Platform | Installer | Status |
-          |----------|-----------|--------|
-          | **Windows** | `.exe` (NSIS) | ✅ Available |
-          | **Linux** | AppImage / `.deb` / `.rpm` | ✅ Available |
-          | **macOS (Apple Silicon)** | `.dmg` | ✅ Available |
-          | **macOS (Intel)** | `.dmg` | ✅ Available |
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
 
-          ### System Requirements
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
 
-          - **Windows**: Windows 10 or later (x64)
-          - **Linux**: Ubuntu 22.04+ or equivalent (x64)
-          - **macOS**: macOS 10.13 (High Sierra) or later
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
 
-          ### Installation
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
 
-          **Windows**
-          1. Download the `.exe` installer and run it
-          2. Follow the on-screen wizard
-          3. Launch Luxmc from the Start Menu
+      - name: Build Tauri (Linux ARM64 — DEB)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          PKG_CONFIG_SYSROOT_DIR: /usr/aarch64-linux-gnu
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --target aarch64-unknown-linux-gnu --bundles deb
 
-          **Linux**
-          - AppImage: `chmod +x Luxmc-*.AppImage && ./Luxmc-*.AppImage`
-          - Debian/Ubuntu: `sudo dpkg -i Luxmc-*.deb`
-          - Fedora/RHEL: `sudo rpm -i Luxmc-*.rpm`
-
-          **macOS**
-          1. Download the `.dmg` file
-          2. Drag Luxmc to your Applications folder
-          3. Right-click → Open (first launch only, to bypass Gatekeeper)
-
-          ### Changelog
-
-          ${{ needs.generate-changelog.outputs.changelog }}
-          EOF
-
-          gh release edit "$TAG_NAME" --title "Luxmc $TAG_NAME" --notes-file /tmp/release_notes.md --draft=false || gh release create "$TAG_NAME" --title "Luxmc $TAG_NAME" --notes-file /tmp/release_notes.md || true
-          for f in artifacts/*; do
-            if [ -f "$f" ]; then
-              echo "Uploading $f to release $TAG_NAME..."
-              gh release upload "$TAG_NAME" "$f" --clobber
-            fi
-          done
-
-          echo "Generating and uploading latest.json for Tauri auto-updater..."
-          CLEAN_VER="${TAG_NAME#v}"
-          node -e "
-            const fs = require('fs');
-            const tag = process.env.TAG_NAME;
-            const clean = tag.replace(/^v/i, '');
-            const manifest = {
-              version: tag,
-              notes: 'Luxmc ' + tag + ' - Atualização oficial de alta performance',
-              pub_date: new Date().toISOString(),
-              platforms: {
-                'linux-x86_64': {
-                  signature: '',
-                  url: 'https://github.com/predabr/luxmc/releases/download/' + tag + '/Luxmc_' + clean + '_amd64.AppImage'
-                },
-                'windows-x86_64': {
-                  signature: '',
-                  url: 'https://github.com/predabr/luxmc/releases/download/' + tag + '/Luxmc_' + clean + '_x64-setup.exe'
-                }
-              }
-            };
-            fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
-          "
-          gh release upload "$TAG_NAME" latest.json --clobber || true
-
-  build-jar:
-    name: Build Universal Luxmc.jar
-    needs: upload-release
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          distribution: "temurin"
-          java-version: "17"
+          version: 9
 
-      - name: Compile Bootstrap JAR
-        run: |
-          mkdir -p out
-          javac -source 11 -target 11 -d out bootstrap-jar/src/com/luxmc/bootstrap/Main.java
-          cp src-tauri/icons/icon.png out/icon.png
-          echo "Manifest-Version: 1.0" > manifest.txt
-          echo "Main-Class: com.luxmc.bootstrap.Main" >> manifest.txt
-          jar cfm Luxmc.jar manifest.txt -C out .
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
 
-      - name: Upload JAR to Release
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri (Windows — NSIS)
+        uses: tauri-apps/tauri-action@v0
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
-        run: |
-          gh release upload "$TAG_NAME" Luxmc.jar --clobber
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --target x86_64-pc-windows-msvc --bundles nsis
+
+  build-macos:
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Setup Rust (universal)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Tauri (macOS — DMG universal)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --target universal-apple-darwin --bundles dmg

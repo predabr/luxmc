@@ -81,7 +81,9 @@ pub fn mirrors(value: &str) -> AppResult<Vec<String>> {
 pub fn client() -> AppResult<reqwest::Client> {
     Ok(reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .timeout(Duration::from_secs(35))
+        .timeout(Duration::from_secs(15))
+        .pool_idle_timeout(Some(Duration::from_secs(90)))
+        .tcp_nodelay(true)
         .user_agent("Luxmc/1.9.2")
         .build()?)
 }
@@ -96,7 +98,8 @@ pub fn cancelled(cancel: Option<&AtomicBool>) -> AppResult<()> {
 pub async fn backoff(attempt: u32, cancel: Option<&AtomicBool>) -> AppResult<()> {
     cancelled(cancel)?;
     if attempt == 0 { return Ok(()); }
-    let deadline = tokio::time::Instant::now() + Duration::from_millis(500 * (1 << (attempt.min(6) - 1)));
+    let ms = (300 * (1 << (attempt.min(4) - 1))).min(1500);
+    let deadline = tokio::time::Instant::now() + Duration::from_millis(ms);
     while tokio::time::Instant::now() < deadline {
         tokio::time::sleep_until(deadline.min(tokio::time::Instant::now() + Duration::from_millis(50))).await;
         cancelled(cancel)?;
@@ -155,8 +158,8 @@ pub async fn bytes(http: &reqwest::Client, value: &str, cancel: Option<&AtomicBo
         Ok::<Vec<u8>, AppError>(Vec::new())
     };
     tokio::select! {
-        result = tokio::time::timeout(Duration::from_secs(35), transfer) =>
-            result.map_err(|_| AppError::InvalidState("Download timed out after 35s".into()))?,
+        result = tokio::time::timeout(Duration::from_secs(15), transfer) =>
+            result.map_err(|_| AppError::InvalidState("Download timed out after 15s".into()))?,
         result = monitor => result,
     }
 }

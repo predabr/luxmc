@@ -18,7 +18,7 @@
 	};
 
 	let {
-		skinUrl = "https://minotar.net/skin/Steve",
+		skinUrl = "/steve.png",
 		cape = "none",
 		customCapeUrl = "",
 		slim = false,
@@ -72,6 +72,90 @@
 		}
 	}
 
+	function applyCrispSkinTexture() {
+		try {
+			const skinObj = (viewer?.playerObject as any)?.skin;
+			if (skinObj && skinObj.material) {
+				const mats = Array.isArray(skinObj.material) ? skinObj.material : [skinObj.material];
+				for (const mat of mats) {
+					if (mat && mat.map) {
+						mat.map.magFilter = 1003;
+						mat.map.minFilter = 1003;
+						mat.map.generateMipmaps = false;
+						mat.map.needsUpdate = true;
+					}
+				}
+			}
+		} catch {}
+	}
+
+	async function loadSkinTextureSource(src: string): Promise<HTMLCanvasElement | HTMLImageElement> {
+		if (!src || !src.trim()) {
+			src = "/steve.png";
+		}
+		let resolvedSrc = src.trim();
+		if (resolvedSrc.startsWith("/") && typeof window !== "undefined") {
+			resolvedSrc = window.location.origin + resolvedSrc;
+		}
+
+		if (resolvedSrc.startsWith("asset://")) {
+			try {
+				const res = await fetch(resolvedSrc);
+				const blob = await res.blob();
+				resolvedSrc = URL.createObjectURL(blob);
+			} catch {}
+		}
+
+		return new Promise((resolve) => {
+			const img = new Image();
+			if (resolvedSrc.startsWith("http://") || resolvedSrc.startsWith("https://")) {
+				img.crossOrigin = "anonymous";
+			}
+			img.onload = () => {
+				try {
+					const canvas = document.createElement("canvas");
+					canvas.width = img.naturalWidth || img.width || 64;
+					canvas.height = img.naturalHeight || img.height || 64;
+					const ctx = canvas.getContext("2d");
+					if (ctx) {
+						ctx.imageSmoothingEnabled = false;
+						ctx.drawImage(img, 0, 0);
+						resolve(canvas);
+						return;
+					}
+				} catch {}
+				resolve(img);
+			};
+			img.onerror = () => {
+				const fallbackImg = new Image();
+				fallbackImg.onload = () => {
+					try {
+						const canvas = document.createElement("canvas");
+						canvas.width = fallbackImg.naturalWidth || 64;
+						canvas.height = fallbackImg.naturalHeight || 64;
+						const ctx = canvas.getContext("2d");
+						if (ctx) {
+							ctx.imageSmoothingEnabled = false;
+							ctx.drawImage(fallbackImg, 0, 0);
+							resolve(canvas);
+							return;
+						}
+					} catch {}
+					resolve(fallbackImg);
+				};
+				fallbackImg.onerror = () => {
+					const canvas = document.createElement("canvas");
+					canvas.width = 64;
+					canvas.height = 64;
+					resolve(canvas);
+				};
+				const fallbackSrc = typeof window !== "undefined" ? window.location.origin + "/steve.png" : "/steve.png";
+				fallbackImg.src = fallbackSrc;
+			};
+			img.src = resolvedSrc;
+		});
+	}
+
 	onMount(() => {
 		if (!canvasEl || !containerEl) return;
 
@@ -79,25 +163,30 @@
 		const height = containerEl.clientHeight || 400;
 
 		try {
-        viewer = new SkinViewer({
-			canvas: canvasEl,
-			width,
-			height,
-			model: slim ? "slim" : "default",
-			enableControls: true
-		});
-        } catch { unavailable = true; return; }
+			viewer = new SkinViewer({
+				canvas: canvasEl,
+				width,
+				height,
+				model: slim ? "slim" : "default",
+				enableControls: true
+			});
+		} catch {
+			unavailable = true;
+			return;
+		}
 
 		if (viewer.controls) {
 			viewer.controls.enableRotate = true;
 			viewer.controls.enableZoom = true;
 			viewer.controls.enablePan = false;
+			viewer.controls.target.set(0, 6, 0);
 		}
 
-		viewer.camera.position.set(0, 18, 55);
-		viewer.camera.lookAt(0, 8, 0);
+		viewer.camera.position.set(0, 8, 48);
+		viewer.camera.lookAt(0, 6, 0);
+		viewer.zoom = 0.95;
+		viewer.fov = 48;
 
-		updateSkin();
 		viewer.autoRotate = autoRotate;
 		viewer.autoRotateSpeed = 0.4;
 		applyAnimation(animation);
@@ -106,18 +195,8 @@
 
 		viewer.globalLight.intensity = 2.4;
 		viewer.cameraLight.intensity = 0.9;
-		try {
-			const backLight1 = viewer.cameraLight.clone();
-			backLight1.position.set(25, 10, -45);
-			backLight1.intensity = 0.9;
-			viewer.scene.add(backLight1);
 
-			const backLight2 = viewer.cameraLight.clone();
-			backLight2.position.set(-25, 10, -45);
-			backLight2.intensity = 0.9;
-			viewer.scene.add(backLight2);
-		} catch {}
-
+		updateSkin();
 		updateCape();
 
 		resizeObserver = new ResizeObserver((entries) => {
@@ -146,7 +225,7 @@
 
 	function updateSkin() {
 		if (!viewer) return;
-		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl.trim() : "https://minotar.net/skin/Steve";
+		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl.trim() : "/steve.png";
 		const targetModel = slim ? "slim" : "default";
 
 		if (targetSkin === lastLoadedSkin && targetModel === lastLoadedModel) {
@@ -157,27 +236,17 @@
 		lastLoadedModel = targetModel;
 		const gen = ++loadGeneration;
 		
-		try {
-			const res = viewer.loadSkin(targetSkin, { model: targetModel });
-			if (res && typeof (res as Promise<void>).then === "function") {
-				(res as Promise<void>)
-					.then(() => {
-						if (gen === loadGeneration && viewer) {
-							viewer.playerObject.skin.setOuterLayerVisible(true);
-						}
-					})
-					.catch((e: unknown) => {
-						console.warn("Failed to load skin in 3D viewer, falling back to Steve:", e);
-						if (gen === loadGeneration && viewer && targetSkin !== "https://minotar.net/skin/Steve") {
-							viewer.loadSkin("https://minotar.net/skin/Steve", { model: "default" });
-						}
-					});
-			} else if (viewer) {
+		loadSkinTextureSource(targetSkin).then((source) => {
+			if (gen !== loadGeneration || !viewer) return;
+			try {
+				viewer.loadSkin(source as any, { model: targetModel });
+				viewer.playerObject.skin.visible = true;
 				viewer.playerObject.skin.setOuterLayerVisible(true);
+				applyCrispSkinTexture();
+			} catch (err) {
+				console.warn("Error applying skin texture:", err);
 			}
-		} catch (err) {
-			console.warn("Error calling loadSkin:", err);
-		}
+		});
 	}
 
 
@@ -192,7 +261,9 @@
 				return;
 			}
 			const img = new window.Image();
-			img.crossOrigin = "anonymous";
+			if (src.startsWith("http://") || src.startsWith("https://")) {
+				img.crossOrigin = "anonymous";
+			}
 			img.onload = () => {
 				try {
 					const w = img.naturalWidth || img.width;
@@ -372,9 +443,12 @@
 
 	export function resetCamera() {
 		if (!viewer) return;
-		viewer.camera.position.set(0, 18, 55);
-		viewer.camera.lookAt(0, 8, 0);
-		viewer.zoom = 1;
+		if (viewer.controls) {
+			viewer.controls.target.set(0, 6, 0);
+		}
+		viewer.camera.position.set(0, 8, 48);
+		viewer.camera.lookAt(0, 6, 0);
+		viewer.zoom = 0.95;
 		viewer.playerObject.rotation.y = (15 * Math.PI) / 180;
 	}
 </script>

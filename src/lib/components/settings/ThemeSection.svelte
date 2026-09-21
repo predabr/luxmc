@@ -40,7 +40,9 @@
 			});
 			if (!selected || typeof selected !== "string") return;
 			const isVideo = selected.toLowerCase().endsWith(".mp4") || selected.toLowerCase().endsWith(".webm");
-			const dataUrl = convertFileSrc(selected);
+			const dataUrl = isVideo
+				? `http://127.0.0.1:49152/media?path=${encodeURIComponent(selected)}`
+				: convertFileSrc(selected);
 			themeStore.setCustomWallpaper(dataUrl, isVideo ? "video" : "image");
 			toast("Wallpaper importado com sucesso! Exibindo perfeitamente recortado.", "success");
 			onSave?.();
@@ -60,7 +62,6 @@
 	}
 
 	function selectBackground(bgId: string) {
-		themeStore.clearCustomWallpaper();
 		themeStore.setBackground(bgId);
 		toast(`Plano de fundo alterado para ${BACKGROUNDS[bgId]?.name ?? bgId}`, "success");
 		onSave?.();
@@ -162,21 +163,45 @@
 			<!-- Botão Importar Wallpaper Personalizado -->
 			<button
 				type="button"
-				class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-[0.98] cursor-pointer {currentBackground === 'custom' ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-dashed border-fg/20 bg-bg-subtle/50 hover:border-brand-500/50 hover:bg-bg-subtle'}"
+				class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-[0.98] cursor-pointer border-dashed border-fg/20 bg-bg-subtle/50 hover:border-brand-500/50 hover:bg-bg-subtle"
 				onclick={handleImportWallpaper}
 				title="Importe qualquer vídeo MP4/WebM ou imagem PNG/JPG/GIF"
 			>
 				<div class="w-full h-12 rounded-xl border border-fg/10 bg-fg/[0.04] shadow-inner flex items-center justify-center relative overflow-hidden text-brand-500">
-					{#if currentBackground === "custom"}
-						<div class="w-6 h-6 rounded-full bg-brand-500 text-brand-foreground flex items-center justify-center shadow-md">
-							<Check class="w-3.5 h-3.5 stroke-[3]" />
-						</div>
-					{:else}
-						<Upload class="w-5 h-5 stroke-[2]" />
-					{/if}
+					<Upload class="w-5 h-5 stroke-[2]" />
 				</div>
 				<span class="text-[11px] font-bold text-fg/90 truncate">+ Importar</span>
 			</button>
+
+			<!-- Card de Wallpaper Personalizado Importado -->
+			{#if themeStore.customWallpaperUrl}
+				<button
+					type="button"
+					class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-[0.98] cursor-pointer {currentBackground === 'custom' ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
+					onclick={() => {
+						themeStore.setBackground("custom");
+						toast("Wallpaper personalizado ativado!", "success");
+						onSave?.();
+					}}
+					title="Seu wallpaper importado"
+				>
+					<div class="w-full h-12 rounded-xl border border-fg/10 shadow-inner flex items-center justify-center relative overflow-hidden bg-black/40">
+						{#if themeStore.customWallpaperType === "video"}
+							<Film class="w-5 h-5 text-brand-400 opacity-80" />
+						{:else}
+							<img src={themeStore.customWallpaperUrl} alt="Preview" class="w-full h-full object-cover" />
+						{/if}
+						{#if currentBackground === "custom"}
+							<div class="absolute inset-0 bg-black/30 flex items-center justify-center">
+								<div class="w-6 h-6 rounded-full bg-brand-500 text-brand-foreground flex items-center justify-center shadow-md">
+									<Check class="w-3.5 h-3.5 stroke-[3]" />
+								</div>
+							</div>
+						{/if}
+					</div>
+					<span class="text-[11px] font-bold text-fg/90 truncate">Personalizado</span>
+				</button>
+			{/if}
 
 			{#each Object.values(BACKGROUNDS) as bg}
 				<button

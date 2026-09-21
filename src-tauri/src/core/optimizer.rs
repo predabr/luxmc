@@ -159,8 +159,29 @@ pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     flags.push("-XX:G1RSetUpdatingPauseTimePercent=5".into());
     flags.push("-XX:SurvivorRatio=32".into());
     flags.push("-XX:+PerfDisableSharedMem".into());
+    flags.push("-XX:+AlwaysPreTouch".into());
+    flags.push("-XX:+OptimizeStringConcat".into());
+    flags.push("-XX:+UseStringDeduplication".into());
 
     flags
+}
+
+pub fn generate_optimized_flags(ram_mb: u64, java_major: u32) -> Vec<String> {
+    if java_major >= 21 {
+        let mut flags = Vec::new();
+        let initial_ram = std::cmp::min(1024, ram_mb / 2);
+        flags.push(format!("-Xms{}M", initial_ram));
+        flags.push(format!("-Xmx{}M", ram_mb));
+        flags.push("-XX:+UnlockExperimentalVMOptions".into());
+        flags.push("-XX:+UseZGC".into());
+        flags.push("-XX:+ZGenerational".into());
+        flags.push("-XX:+AlwaysPreTouch".into());
+        flags.push("-XX:+OptimizeStringConcat".into());
+        flags.push("-XX:+UseStringDeduplication".into());
+        flags
+    } else {
+        generate_aikar_flags(ram_mb)
+    }
 }
 
 pub fn generate_standard_flags(ram_mb: u64) -> Vec<String> {

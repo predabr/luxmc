@@ -15,6 +15,10 @@ export async function launchGame(request: {
 	return api.invoke("launch_game", { request });
 }
 
+export async function stopGame(pid?: number): Promise<boolean> {
+	return api.invoke("stop_game", { pid });
+}
+
 export async function loadersVersions(loader: string, mcVersion: string): Promise<{
 	versions: Array<{
 		id: string;

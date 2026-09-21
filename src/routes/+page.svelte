@@ -32,7 +32,8 @@
 		SlidersHorizontal,
 		Filter,
 		ArrowUpDown,
-		Home
+		Home,
+		Square
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
@@ -50,6 +51,7 @@
 		authGetClientId, 
 		authSetClientId, 
 		launchGame, 
+		stopGame,
 		versionsCheckInstalled, 
 		versionsDownload, 
 		discordSetActivity, 
@@ -382,6 +384,17 @@
 			isLaunching = false;
 			launchingProfileId = null;
 			launchStatusText = "";
+		}
+	}
+
+	async function handleStopGame() {
+		try {
+			await stopGame();
+			appState.isGameRunning = false;
+			gamingStats.onGameExit();
+			toast("Minecraft encerrado com sucesso.", "info");
+		} catch (e) {
+			toast("Erro ao tentar encerrar o jogo: " + String(e), "error");
 		}
 	}
 
@@ -818,6 +831,17 @@
 							<span>No instances running</span>
 						{/if}
 					</div>
+					{#if appState.isGameRunning}
+						<button
+							type="button"
+							onclick={handleStopGame}
+							class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+							title="Encerrar o Minecraft em execução"
+						>
+							<Square class="w-3.5 h-3.5 fill-current" />
+							<span>Parar Jogo</span>
+						</button>
+					{/if}
 				</div>
 			</header>
 
@@ -899,21 +923,37 @@
 									</div>
 
 									<div class="flex items-center gap-2 shrink-0">
-										<button
-											type="button"
-											onclick={() => handleLaunch(inst)}
-											disabled={isLaunching && launchingProfileId === inst.id}
-											class="px-5 py-2 rounded-full bg-[#1bd96a] hover:bg-[#18c45f] active:bg-[#15af54] text-[#090a0f] font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
-											title="Play"
-										>
-											{#if isLaunching && launchingProfileId === inst.id}
+										{#if isLaunching && launchingProfileId === inst.id}
+											<button
+												type="button"
+												disabled
+												class="px-5 py-2 rounded-full bg-[#1bd96a] text-[#090a0f] font-black text-xs flex items-center gap-1.5 shadow-sm opacity-70"
+											>
 												<Loader2 class="w-3.5 h-3.5 animate-spin text-[#090a0f]" />
 												<span>Iniciando...</span>
-											{:else}
+											</button>
+										{:else if appState.isGameRunning && appState.activeGameDetails?.profileId === inst.id}
+											<button
+												type="button"
+												onclick={handleStopGame}
+												class="px-5 py-2 rounded-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-[0.98] cursor-pointer"
+												title="Parar Jogo"
+											>
+												<Square class="w-3.5 h-3.5 fill-current" />
+												<span>Parar</span>
+											</button>
+										{:else}
+											<button
+												type="button"
+												onclick={() => handleLaunch(inst)}
+												disabled={isLaunching}
+												class="px-5 py-2 rounded-full bg-[#1bd96a] hover:bg-[#18c45f] active:bg-[#15af54] text-[#090a0f] font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+												title="Play"
+											>
 												<Play class="w-3.5 h-3.5 fill-current" />
 												<span>Play</span>
-											{/if}
-										</button>
+											</button>
+										{/if}
 
 										<div class="relative">
 											<button

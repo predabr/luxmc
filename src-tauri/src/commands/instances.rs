@@ -625,7 +625,7 @@ pub(crate) async fn download_cf_mod_file(
         }
         if let Some(hash) = &info.sha1 {
             if let Ok(response) = http.get(format!("https://api.modrinth.com/v2/version_file/{hash}?algorithm=sha1"))
-                .timeout(std::time::Duration::from_secs(35)).send().await {
+                .timeout(std::time::Duration::from_secs(4)).send().await {
                 if response.status().is_success() {
                     if let Ok(data) = response.json::<serde_json::Value>().await {
                         if let Some(files) = data.get("files").and_then(|v| v.as_array()) {
@@ -959,7 +959,7 @@ pub async fn instance_import_modpack_core(
         }
     });
 
-    files_stream.buffer_unordered(12).for_each(|_| async {}).await;
+    files_stream.buffer_unordered(24).for_each(|_| async {}).await;
     crate::commands::optimizer::optimizer_trim_memory();
 
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
@@ -1153,6 +1153,22 @@ pub async fn instance_health_check(
     })
 }
 
+fn compute_dir_size(dir: &std::path::Path) -> u64 {
+    let mut total = 0;
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if meta.is_dir() {
+                    total += compute_dir_size(&entry.path());
+                } else {
+                    total += meta.len();
+                }
+            }
+        }
+    }
+    total
+}
+
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_file_tree(
@@ -1246,7 +1262,7 @@ pub async fn instance_file_tree(
         } else {
             None
         };
-        let size = if is_dir { 0 } else { metadata.len() };
+        let size = if is_dir { compute_dir_size(&path) } else { metadata.len() };
 
         entries.push(FileTreeEntry {
             name: fname,
@@ -1424,8 +1440,24 @@ async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
 }
 
 pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppResult<()> {
-    use crate::core::mods::pack_download as pack;
     let root = std::path::Path::new(&profile.game_dir);
+    let mods_dir = root.join("mods");
+
+    // Se a pasta mods já tem arquivos .jar suficientes, pula a checagem lenta de rede no launch
+    if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
+        let mut jar_count = 0;
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if entry.path().extension().map_or(false, |ext| ext == "jar") {
+                jar_count += 1;
+                if jar_count >= 5 {
+                    tracing::info!(count = jar_count, "Modpack já possui mods instalados. Lançamento rápido.");
+                    return Ok(());
+                }
+            }
+        }
+    }
+
+    use crate::core::mods::pack_download as pack;
     let override_index = root.join(".luxmc/overrides.json");
     if override_index.exists() {
         let files: Vec<MrpackFile> = serde_json::from_slice(&tokio::fs::read(override_index).await?)?;
@@ -1460,6 +1492,132 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
             }
         }
     }
+    Ok(())
+}
+
+pub(crate) async fn ensure_modpack_shaders(http: &reqwest::Client, root: &std::path::Path) -> AppResult<()> {
+    let mods_dir = root.join("mods");
+    let mut has_shader_mod = false;
+
+    if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            if name.ends_with(".jar")
+                && (name.contains("oculus")
+                    || name.contains("iris")
+                    || name.contains("euphoria")
+                    || name.contains("optifine")
+                    || name.contains("shader"))
+            {
+                has_shader_mod = true;
+                break;
+            }
+        }
+    }
+
+    let config_dir = root.join("config");
+    if !has_shader_mod {
+        if config_dir.join("iris.properties").exists()
+            || config_dir.join("oculus.properties").exists()
+            || root.join("optionsshaders.txt").exists()
+        {
+            has_shader_mod = true;
+        }
+    }
+
+    if !has_shader_mod {
+        return Ok(());
+    }
+
+    let shaderpacks_dir = root.join("shaderpacks");
+    if let Err(e) = tokio::fs::create_dir_all(&shaderpacks_dir).await {
+        tracing::warn!("Não foi possível criar pasta shaderpacks: {}", e);
+    }
+
+    let mut has_existing_pack = false;
+    if let Ok(mut entries) = tokio::fs::read_dir(&shaderpacks_dir).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            let name = entry.file_name().to_string_lossy().to_lowercase();
+            if name.ends_with(".zip") || entry.file_type().await.map_or(false, |ft| ft.is_dir()) {
+                has_existing_pack = true;
+                break;
+            }
+        }
+    }
+
+    if has_existing_pack {
+        tracing::info!("Modpack já possui shaders em shaderpacks/. Nada a baixar.");
+        return Ok(());
+    }
+
+    tracing::info!("Modpack com suporte a shaders detectado, mas sem shaderpacks. Baixando Complementary Reimagined...");
+
+    let mut download_url = "https://cdn.modrinth.com/data/HVnmMxH1/versions/Bqen1mJX/ComplementaryReimagined_r5.9.3.zip".to_string();
+
+    if let Ok(resp) = http
+        .get("https://api.modrinth.com/v2/project/complementary-reimagined/version")
+        .header("User-Agent", "Luxmc/1.9.2")
+        .send()
+        .await
+    {
+        if let Ok(json) = resp.json::<serde_json::Value>().await {
+            if let Some(arr) = json.as_array() {
+                if let Some(first_ver) = arr.first() {
+                    if let Some(files) = first_ver.get("files").and_then(|f| f.as_array()) {
+                        if let Some(primary) = files.iter().find(|f| f.get("primary").and_then(|p| p.as_bool()).unwrap_or(false))
+                            .or_else(|| files.first())
+                        {
+                            if let Some(url) = primary.get("url").and_then(|u| u.as_str()) {
+                                download_url = url.to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    let dest_file = shaderpacks_dir.join("ComplementaryReimagined.zip");
+    match http.get(&download_url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            if let Ok(bytes) = resp.bytes().await {
+                if let Ok(_) = tokio::fs::write(&dest_file, &bytes).await {
+                    tracing::info!("Complementary Reimagined baixado com sucesso em {:?}", dest_file);
+
+                    let options_shaders = root.join("optionsshaders.txt");
+                    if !options_shaders.exists() {
+                        let _ = tokio::fs::write(&options_shaders, "shaderPack=ComplementaryReimagined.zip\n").await;
+                    }
+
+                    for prop_name in ["iris.properties", "oculus.properties"] {
+                        let p = config_dir.join(prop_name);
+                        if p.exists() {
+                            if let Ok(content) = tokio::fs::read_to_string(&p).await {
+                                if !content.contains("shaderPack=") || content.contains("shaderPack=OFF") {
+                                    let mut new_content = String::new();
+                                    for line in content.lines() {
+                                        if line.starts_with("shaderPack=") {
+                                            new_content.push_str("shaderPack=ComplementaryReimagined.zip\n");
+                                        } else if line.starts_with("enableShaders=") {
+                                            new_content.push_str("enableShaders=true\n");
+                                        } else {
+                                            new_content.push_str(line);
+                                            new_content.push('\n');
+                                        }
+                                    }
+                                    let _ = tokio::fs::write(&p, new_content).await;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        err => {
+            tracing::warn!("Falha ao baixar shaderpack automático: {:?}", err);
+        }
+    }
+
     Ok(())
 }
 
@@ -1587,7 +1745,7 @@ pub async fn instance_import_mrpack_core(
             }
             result
         }
-    }).buffer_unordered(12).collect::<Vec<_>>().await;
+    }).buffer_unordered(24).collect::<Vec<_>>().await;
     pack::cancelled(Some(&state.import_cancel))?;
     for result in results { result?; }
 

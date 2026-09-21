@@ -18,6 +18,76 @@ const LAUNCHER_VERSION: &str = "1.9.2";
 static CLIENT_AGENT_JAR: &[u8] = include_bytes!("../../../assets/luxmc-client-agent.jar");
 static ACTIVE_CAPE_BYTES: tokio::sync::RwLock<Vec<u8>> = tokio::sync::RwLock::const_new(Vec::new());
 
+static ACTIVE_GAME_PID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+pub fn set_active_game_pid(pid: u32) {
+    ACTIVE_GAME_PID.store(pid, std::sync::atomic::Ordering::SeqCst);
+}
+
+pub fn get_active_game_pid() -> u32 {
+    ACTIVE_GAME_PID.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+pub fn clear_active_game_pid() {
+    ACTIVE_GAME_PID.store(0, std::sync::atomic::Ordering::SeqCst);
+}
+
+pub fn resolve_local_or_asset_path(src: &str) -> Option<std::path::PathBuf> {
+    let raw = src.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    if let Some(rest) = raw.strip_prefix("asset://localhost/") {
+        if let Ok(decoded) = urlencoding::decode(rest) {
+            let p = std::path::PathBuf::from(decoded.into_owned());
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+    if let Some(rest) = raw.strip_prefix("asset://") {
+        if let Ok(decoded) = urlencoding::decode(rest) {
+            let p = std::path::PathBuf::from(decoded.into_owned());
+            if p.exists() {
+                return Some(p);
+            }
+        }
+    }
+    let p = std::path::PathBuf::from(raw);
+    if p.exists() {
+        return Some(p);
+    }
+    None
+}
+
+pub async fn resolve_image_bytes(source: &str, http: &reqwest::Client) -> Vec<u8> {
+    let s = source.trim();
+    if s.is_empty() {
+        return Vec::new();
+    }
+    if s.starts_with("http://") || s.starts_with("https://") {
+        if let Ok(resp) = http.get(s).send().await {
+            if resp.status().is_success() {
+                return resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default();
+            }
+        }
+        return Vec::new();
+    }
+    if s.starts_with("data:image/") {
+        if let Some(pos) = s.find(',') {
+            use base64::Engine;
+            return base64::engine::general_purpose::STANDARD
+                .decode(&s[pos + 1..])
+                .unwrap_or_default();
+        }
+        return Vec::new();
+    }
+    if let Some(p) = resolve_local_or_asset_path(s) {
+        return tokio::fs::read(p).await.unwrap_or_default();
+    }
+    Vec::new()
+}
+
 pub async fn set_active_cape_bytes(bytes: Vec<u8>) {
     let mut lock = ACTIVE_CAPE_BYTES.write().await;
     *lock = bytes;
@@ -355,20 +425,32 @@ impl GameLauncher {
                 }
 
                 if loader == "neoforge" {
-                    let has_neoforge_client = classpath.iter().any(|p| {
-                        let s = p.to_string_lossy().to_lowercase();
-                        s.contains("neoforge") && s.ends_with("-client.jar")
-                    });
-                    if has_neoforge_client {
+                    let is_modern = clean_mc_ver.starts_with("1.20.4")
+                        || clean_mc_ver.starts_with("1.20.5")
+                        || clean_mc_ver.starts_with("1.20.6")
+                        || clean_mc_ver.starts_with("1.21")
+                        || clean_mc_ver.starts_with("1.22");
+                    if is_modern {
                         classpath.retain(|p| {
                             let s = p.to_string_lossy().replace('\\', "/").to_lowercase();
-                            if s.contains("net/neoforged/neoforge") {
-                                s.ends_with("-client.jar")
-                            } else {
-                                true
-                            }
+                            !s.contains("net/neoforged/neoforge/")
                         });
-                        self.emit_log("NeoForge module isolation: removed redundant neoforge runtime jars (neoforge-client.jar active)");
+                        self.emit_log("NeoForge module isolation: excluded neoforge runtime jars from classpath");
+                    } else {
+                        let has_neoforge_client = classpath.iter().any(|p| {
+                            let s = p.to_string_lossy().to_lowercase();
+                            s.contains("neoforge") && s.ends_with("-client.jar")
+                        });
+                        if has_neoforge_client {
+                            classpath.retain(|p| {
+                                let s = p.to_string_lossy().replace('\\', "/").to_lowercase();
+                                if s.contains("net/neoforged/neoforge") {
+                                    s.ends_with("-client.jar")
+                                } else {
+                                    true
+                                }
+                            });
+                        }
                     }
                 }
             }
@@ -391,14 +473,7 @@ impl GameLauncher {
 
         // Apply customized player skin if configured
         let is_msa = user_type == "msa";
-        let has_explicit_custom_skin = skin_url
-            .map(|s| {
-                let trimmed = s.trim();
-                !trimmed.is_empty()
-                    && !trimmed.starts_with("https://textures.minecraft.net/")
-                    && !trimmed.starts_with("http://textures.minecraft.net/")
-            })
-            .unwrap_or(false);
+        let has_explicit_skin = skin_url.is_some_and(|s| !s.trim().is_empty());
 
         let effective_cape = if let Some(c) = cape_url.filter(|c| !c.trim().is_empty()) {
             Some(c.to_string())
@@ -419,12 +494,12 @@ impl GameLauncher {
             None
         };
 
-        let has_explicit_custom_cape = effective_cape
+        let has_explicit_cape = effective_cape
             .as_deref()
             .map(|c| !c.trim().is_empty())
             .unwrap_or(false);
 
-        if is_msa && !has_explicit_custom_skin && !has_explicit_custom_cape {
+        if is_msa && !has_explicit_skin && !has_explicit_cape {
             self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
             let _ = clean_skin_injection(game_dir).await;
         } else {
@@ -452,7 +527,7 @@ impl GameLauncher {
             if let Some((skin_source, variant)) = skin_info {
                 self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
                 let _ = inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), clean_mc_ver).await;
-            } else if !is_msa || has_explicit_custom_cape {
+            } else if !is_msa || has_explicit_cape {
                 let default_source = format!("https://minotar.net/skin/{}", username);
                 let _ = inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), clean_mc_ver).await;
             }
@@ -541,7 +616,7 @@ impl GameLauncher {
             );
         }
 
-        let _is_modpack = profile.loader == "forge"
+        let is_modpack = profile.loader == "forge"
             || profile.loader == "neoforge"
             || profile.loader == "fabric"
             || profile.loader == "quilt"
@@ -557,14 +632,19 @@ impl GameLauncher {
 
         if has_mods {
             self.resolve_duplicate_mods(game_dir);
+            self.patch_modpack_configs(game_dir);
         }
 
-        let agent_path = game_dir.join("luxmc-client-agent.jar");
-        if let Err(e) = std::fs::write(&agent_path, CLIENT_AGENT_JAR) {
-            self.emit_log(&format!("Aviso: Não foi possível extrair Luxmc Client Agent: {}", e));
+        if !is_modpack && !has_mods && profile.loader == "vanilla" {
+            let agent_path = game_dir.join("luxmc-client-agent.jar");
+            if let Err(e) = std::fs::write(&agent_path, CLIENT_AGENT_JAR) {
+                self.emit_log(&format!("Aviso: Não foi possível extrair Luxmc Client Agent: {}", e));
+            } else {
+                safe_jvm_args.push(format!("-javaagent:{}", agent_path.to_string_lossy()));
+                self.emit_log("Luxmc Client Agent anexado (Right Shift menu in-game ativo)");
+            }
         } else {
-            safe_jvm_args.push(format!("-javaagent:{}", agent_path.to_string_lossy()));
-            self.emit_log("Luxmc Client Agent anexado (Right Shift menu in-game ativo)");
+            self.emit_log("Modpack detectado: modo de compatibilidade ativa (agente PvP suprimido)");
         }
 
 
@@ -705,14 +785,11 @@ impl GameLauncher {
             cmd.env_remove("GSETTINGS_SCHEMA_DIR");
 
             cmd.env("_JAVA_AWT_WM_NONREPARENTING", "1");
-            if std::env::var("DISPLAY").is_ok() {
+            if let Ok(display) = std::env::var("DISPLAY") {
+                cmd.env("DISPLAY", display);
                 cmd.env("GLFW_PLATFORM", "x11");
-            } else if std::env::var("WAYLAND_DISPLAY").is_ok() {
-                cmd.env("DISPLAY", ":0");
-                cmd.env("GLFW_PLATFORM", "x11");
-            } else {
-                cmd.env("DISPLAY", ":0");
-                cmd.env("GLFW_PLATFORM", "x11");
+            } else if let Ok(wayland_display) = std::env::var("WAYLAND_DISPLAY") {
+                cmd.env("WAYLAND_DISPLAY", wayland_display);
             }
 
             if profile.use_vulkan {
@@ -721,11 +798,14 @@ impl GameLauncher {
                 cmd.env("GALLIUM_DRIVER", "zink");
                 cmd.env("MESA_SHADER_CACHE_MAX_SIZE", "100G");
                 cmd.env("RADV_PERFTEST", "aco");
-                cmd.env("vblank_mode", "0");
-                cmd.env("MESA_GL_THREAD", "true");
+                cmd.env("mesa_glthread", "true");
+                cmd.env("MESA_GLTHREAD", "true");
+                cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
             } else {
                 cmd.env("MESA_SHADER_CACHE_MAX_SIZE", "100G");
-                cmd.env("MESA_GL_THREAD", "true");
+                cmd.env("mesa_glthread", "true");
+                cmd.env("MESA_GLTHREAD", "true");
+                cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
             }
         }
 
@@ -763,6 +843,9 @@ impl GameLauncher {
         })?;
 
         let pid = child.id().unwrap_or(0);
+        if pid > 0 {
+            set_active_game_pid(pid);
+        }
         self.emit_log(&format!("Java process started, PID: {}", pid));
         self.emit_stage(LaunchStage::Running);
 
@@ -901,6 +984,7 @@ impl GameLauncher {
         tokio::spawn(async move {
             match child.wait().await {
                 Ok(status) => {
+                    clear_active_game_pid();
                     is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
                     let code = status.code().unwrap_or(-1);
                     if pid > 0 {
@@ -1238,7 +1322,7 @@ impl GameLauncher {
         let generated_flags = if custom_collector {
             vec![format!("-Xms{}M", ram_mb.min(1024)), format!("-Xmx{}M", ram_mb)]
         } else if profile.auto_optimize {
-            crate::core::optimizer::generate_aikar_flags(ram_mb.max(0) as u64)
+            crate::core::optimizer::generate_optimized_flags(ram_mb.max(0) as u64, detail.java_major_version())
         } else {
             crate::core::optimizer::generate_standard_flags(ram_mb.max(0) as u64)
         };
@@ -1280,6 +1364,21 @@ impl GameLauncher {
 
         if !args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.checkThread0=")) {
             args.push("-Dorg.lwjgl.glfw.checkThread0=false".to_string());
+        }
+
+        if detail.java_major_version() >= 17 {
+            for module in [
+                "java.base/java.lang",
+                "java.base/java.util",
+                "java.base/java.io",
+                "java.base/java.nio",
+                "java.base/sun.security.util",
+            ] {
+                let open_flag = format!("--add-opens={}={}", module, "ALL-UNNAMED");
+                if !args.contains(&open_flag) {
+                    args.push(open_flag);
+                }
+            }
         }
 
         #[cfg(target_os = "windows")]
@@ -1472,6 +1571,26 @@ impl GameLauncher {
                             ));
                         }
                     }
+                }
+            }
+        }
+    }
+
+    fn patch_modpack_configs(&self, game_dir: &std::path::Path) {
+        let crash_assistant_cfg = game_dir.join("config").join("crash_assistant").join("config.toml");
+        if crash_assistant_cfg.exists() {
+            if let Ok(content) = std::fs::read_to_string(&crash_assistant_cfg) {
+                let mut modified = content;
+                if modified.contains("[piracy]") {
+                    modified = modified.replace("delay = 10", "delay = 0");
+                    modified = modified.replace("piracy_notification = true", "piracy_notification = false");
+                    if let Some(pos) = modified.find("[piracy]") {
+                        if let Some(enabled_pos) = modified[pos..].find("enabled = true") {
+                            let actual_pos = pos + enabled_pos;
+                            modified.replace_range(actual_pos..actual_pos + 14, "enabled = false");
+                        }
+                    }
+                    let _ = std::fs::write(&crash_assistant_cfg, modified);
                 }
             }
         }
@@ -1750,14 +1869,14 @@ mod tests {
         let left_back = *normalized.get_pixel(45, 56);
 
         assert_eq!(right_back[3], 255);
-        assert_eq!(right_back[0], 190);
-        assert_eq!(right_back[1], 130);
-        assert_eq!(right_back[2], 90);
+        assert_eq!(right_back[0], 0);
+        assert_eq!(right_back[1], 0);
+        assert_eq!(right_back[2], 0);
 
         assert_eq!(left_back[3], 255);
-        assert_eq!(left_back[0], 195);
-        assert_eq!(left_back[1], 135);
-        assert_eq!(left_back[2], 95);
+        assert_eq!(left_back[0], 45);
+        assert_eq!(left_back[1], 45);
+        assert_eq!(left_back[2], 45);
     }
 
     #[test]
@@ -1789,8 +1908,8 @@ mod tests {
 
         // Set left arm top to known color
         img.put_pixel(37, 50, image::Rgba([195, 135, 95, 255]));
-        // Set left arm bottom (underside of hand) to black
-        img.put_pixel(41, 50, image::Rgba([0, 0, 0, 255]));
+        // Set left arm bottom (underside of hand) to transparent
+        img.put_pixel(41, 50, image::Rgba([0, 0, 0, 0]));
 
         let normalized = normalize_skin_image(img);
         let right_underside = *normalized.get_pixel(49, 18);
@@ -2044,6 +2163,144 @@ pub async fn clean_skin_injection(game_dir: &std::path::Path) -> AppResult<()> {
     Ok(())
 }
 
+pub(crate) fn is_slim_skin(img: &image::RgbaImage) -> bool {
+    let (w, h) = img.dimensions();
+    if w != h {
+        return false;
+    }
+    let scale = (w / 64).max(1);
+    let mut arm_opaque_pixels = 0;
+    for y in (20 * scale)..(32 * scale) {
+        for x in (44 * scale)..(50 * scale) {
+            if img.get_pixel(x, y)[3] >= 128 {
+                arm_opaque_pixels += 1;
+            }
+        }
+    }
+    if arm_opaque_pixels < 10 {
+        return false;
+    }
+
+    let mut transparent_padding_count = 0;
+    let mut total_padding_samples = 0;
+    for y in (20 * scale)..(32 * scale) {
+        for x in (54 * scale)..(56 * scale) {
+            total_padding_samples += 1;
+            if img.get_pixel(x, y)[3] < 50 {
+                transparent_padding_count += 1;
+            }
+        }
+    }
+    total_padding_samples > 0 && transparent_padding_count >= (total_padding_samples * 8) / 10
+}
+
+pub(crate) fn convert_slim_to_wide(img: &image::RgbaImage) -> image::RgbaImage {
+    let (w, h) = img.dimensions();
+    if w != 64 || h != 64 {
+        return img.clone();
+    }
+    let mut target = img.clone();
+    // In Alex (slim):
+    // Right Arm base (40..56, 16..32):
+    for y in 16..20 {
+        let t0 = *img.get_pixel(44, y);
+        let t1 = *img.get_pixel(45, y);
+        let t2 = *img.get_pixel(46, y);
+        target.put_pixel(44, y, t0);
+        target.put_pixel(45, y, t1);
+        target.put_pixel(46, y, t1);
+        target.put_pixel(47, y, t2);
+
+        let b0 = *img.get_pixel(47, y);
+        let b1 = *img.get_pixel(48, y);
+        let b2 = *img.get_pixel(49, y);
+        target.put_pixel(48, y, b0);
+        target.put_pixel(49, y, b1);
+        target.put_pixel(50, y, b1);
+        target.put_pixel(51, y, b2);
+    }
+    for y in 20..32 {
+        let f0 = *img.get_pixel(44, y);
+        let f1 = *img.get_pixel(45, y);
+        let f2 = *img.get_pixel(46, y);
+        target.put_pixel(44, y, f0);
+        target.put_pixel(45, y, f1);
+        target.put_pixel(46, y, f1);
+        target.put_pixel(47, y, f2);
+
+        let i0 = *img.get_pixel(47, y);
+        let i1 = *img.get_pixel(48, y);
+        let i2 = *img.get_pixel(49, y);
+        let i3 = *img.get_pixel(50, y);
+        target.put_pixel(48, y, i0);
+        target.put_pixel(49, y, i1);
+        target.put_pixel(50, y, i2);
+        target.put_pixel(51, y, i3);
+
+        let b0 = *img.get_pixel(51, y);
+        let b1 = *img.get_pixel(52, y);
+        let b2 = *img.get_pixel(53, y);
+        target.put_pixel(52, y, b0);
+        target.put_pixel(53, y, b1);
+        target.put_pixel(54, y, b1);
+        target.put_pixel(55, y, b2);
+    }
+    // Left Arm base (32..48, 48..64):
+    for y in 48..52 {
+        let t0 = *img.get_pixel(36, y);
+        let t1 = *img.get_pixel(37, y);
+        let t2 = *img.get_pixel(38, y);
+        target.put_pixel(36, y, t0);
+        target.put_pixel(37, y, t1);
+        target.put_pixel(38, y, t1);
+        target.put_pixel(39, y, t2);
+
+        let b0 = *img.get_pixel(39, y);
+        let b1 = *img.get_pixel(40, y);
+        let b2 = *img.get_pixel(41, y);
+        target.put_pixel(40, y, b0);
+        target.put_pixel(41, y, b1);
+        target.put_pixel(42, y, b1);
+        target.put_pixel(43, y, b2);
+    }
+    for y in 52..64 {
+        let i0 = *img.get_pixel(32, y);
+        let i1 = *img.get_pixel(33, y);
+        let i2 = *img.get_pixel(34, y);
+        let i3 = *img.get_pixel(35, y);
+        target.put_pixel(32, y, i0);
+        target.put_pixel(33, y, i1);
+        target.put_pixel(34, y, i2);
+        target.put_pixel(35, y, i3);
+
+        let f0 = *img.get_pixel(36, y);
+        let f1 = *img.get_pixel(37, y);
+        let f2 = *img.get_pixel(38, y);
+        target.put_pixel(36, y, f0);
+        target.put_pixel(37, y, f1);
+        target.put_pixel(38, y, f1);
+        target.put_pixel(39, y, f2);
+
+        let o0 = *img.get_pixel(39, y);
+        let o1 = *img.get_pixel(40, y);
+        let o2 = *img.get_pixel(41, y);
+        let o3 = *img.get_pixel(42, y);
+        target.put_pixel(40, y, o0);
+        target.put_pixel(41, y, o1);
+        target.put_pixel(42, y, o2);
+        target.put_pixel(43, y, o3);
+
+        let b0 = *img.get_pixel(43, y);
+        let b1 = *img.get_pixel(44, y);
+        let b2 = *img.get_pixel(45, y);
+        target.put_pixel(44, y, b0);
+        target.put_pixel(45, y, b1);
+        target.put_pixel(46, y, b1);
+        target.put_pixel(47, y, b2);
+    }
+    target
+}
+
 pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
     let (orig_w, orig_h) = img.dimensions();
     let mut canvas = if orig_w == 64 && orig_h == 32 {
@@ -2053,25 +2310,6 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                 target.put_pixel(x, y, *img.get_pixel(x, y));
             }
         }
-        for dy in 0..12 {
-            for dx in 0..4 {
-                let back_p = *target.get_pixel(52 + dx, 20 + dy);
-                if back_p[3] < 200
-                    || (back_p[0] == 0 && back_p[1] == 0 && back_p[2] == 0)
-                    || (back_p[0] == 45 && back_p[1] == 45 && back_p[2] == 45)
-                    || (back_p[0] == 40 && back_p[1] == 30 && back_p[2] == 25)
-                    || (back_p[0] < 10 && back_p[1] < 10 && back_p[2] < 10)
-                {
-                    let front_p = *target.get_pixel(44 + dx, 20 + dy);
-                    if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
-                        target.put_pixel(52 + dx, 20 + dy, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
-                    } else {
-                        target.put_pixel(52 + dx, 20 + dy, image::Rgba([210, 165, 130, 255]));
-                    }
-                }
-            }
-        }
-
         for dy in 0..4 {
             for dx in 0..4 {
                 target.put_pixel(20 + (3 - dx), 48 + dy, *target.get_pixel(4 + dx, 16 + dy));
@@ -2086,44 +2324,21 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                 target.put_pixel(16 + (3 - dx), 52 + dy, *target.get_pixel(8 + dx, 20 + dy));
             }
         }
-
         for dy in 0..4 {
             for dx in 0..4 {
                 let right_top = *target.get_pixel(44 + dx, 16 + dy);
                 let right_bottom = *target.get_pixel(48 + dx, 16 + dy);
-                let healed_bottom = if right_bottom[3] > 200 && !(right_bottom[0] == 0 && right_bottom[1] == 0 && right_bottom[2] == 0) {
-                    right_bottom
-                } else if right_top[3] > 200 && !(right_top[0] == 0 && right_top[1] == 0 && right_top[2] == 0) {
-                    right_top
-                } else {
-                    image::Rgba([210, 165, 130, 255])
-                };
                 target.put_pixel(36 + (3 - dx), 48 + dy, right_top);
-                target.put_pixel(40 + (3 - dx), 48 + dy, healed_bottom);
-                if right_bottom[3] < 200 || (right_bottom[0] == 0 && right_bottom[1] == 0 && right_bottom[2] == 0) {
-                    target.put_pixel(48 + dx, 16 + dy, healed_bottom);
-                }
+                target.put_pixel(40 + (3 - dx), 48 + dy, right_bottom);
             }
         }
         for dy in 0..12 {
             for dx in 0..4 {
                 target.put_pixel(36 + (3 - dx), 52 + dy, *target.get_pixel(44 + dx, 20 + dy));
-                let src_back = *target.get_pixel(52 + dx, 20 + dy);
-                let back_val = if src_back[3] > 200
-                    && !(src_back[0] == 0 && src_back[1] == 0 && src_back[2] == 0)
-                    && !(src_back[0] == 45 && src_back[1] == 45 && src_back[2] == 45)
-                    && !(src_back[0] == 40 && src_back[1] == 30 && src_back[2] == 25)
-                    && !(src_back[0] < 10 && src_back[1] < 10 && src_back[2] < 10)
-                {
-                    image::Rgba([src_back[0], src_back[1], src_back[2], 255])
-                } else {
-                    let fp = *target.get_pixel(44 + dx, 20 + dy);
-                    if fp[3] > 0 && !(fp[0] == 0 && fp[1] == 0 && fp[2] == 0) { 
-                        image::Rgba([fp[0], fp[1], fp[2], 255])
-                    } else { 
-                        image::Rgba([210, 165, 130, 255]) 
-                    }
-                };
+                let mut back_val = *target.get_pixel(52 + dx, 20 + dy);
+                if back_val[3] < 128 {
+                    back_val = *target.get_pixel(44 + dx, 20 + dy);
+                }
                 target.put_pixel(44 + (3 - dx), 52 + dy, back_val);
                 target.put_pixel(40 + (3 - dx), 52 + dy, *target.get_pixel(40 + dx, 20 + dy));
                 target.put_pixel(32 + (3 - dx), 52 + dy, *target.get_pixel(48 + dx, 20 + dy));
@@ -2138,14 +2353,15 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
 
     let (w, h) = canvas.dimensions();
     let scale = (w / 64).max(1);
+    let is_slim = is_slim_skin(&canvas);
 
-    let mut fallback_skin_tone = image::Rgba([210, 165, 130, 255]);
-    for ty in [24 * scale, 22 * scale, 12 * scale, 26 * scale] {
-        for tx in [24 * scale, 22 * scale, 12 * scale, 26 * scale] {
+    let mut fallback_color = image::Rgba([20, 20, 20, 255]);
+    for ty in [24 * scale, 22 * scale, 12 * scale] {
+        for tx in [24 * scale, 22 * scale, 12 * scale] {
             if tx < w && ty < h {
                 let p = *canvas.get_pixel(tx, ty);
-                if p[3] > 200 && (p[0] > 60 || p[1] > 60 || p[2] > 60) {
-                    fallback_skin_tone = image::Rgba([p[0], p[1], p[2], 255]);
+                if p[3] >= 200 {
+                    fallback_color = p;
                     break;
                 }
             }
@@ -2166,28 +2382,15 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
             for x in x1..x2.min(w) {
                 let pixel = *canvas.get_pixel(x, y);
 
-                let is_right_arm_back = x >= 51 * scale && x < 56 * scale && y >= 20 * scale && y < 32 * scale;
-                let is_left_arm_back = x >= 43 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale;
-                let is_right_hand_bottom = x >= 47 * scale && x < 52 * scale && y >= 16 * scale && y < 20 * scale;
-                let is_left_hand_bottom = x >= 39 * scale && x < 44 * scale && y >= 48 * scale && y < 52 * scale;
-
-                let is_placeholder_black = (pixel[0] == 45 && pixel[1] == 45 && pixel[2] == 45)
-                    || (pixel[0] == 40 && pixel[1] == 30 && pixel[2] == 25);
-
-                let is_arm_back_unrendered = (is_right_arm_back || is_left_arm_back)
-                    && (pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0);
-
-                let is_hand_bottom_unrendered = (is_right_hand_bottom || is_left_hand_bottom)
-                    && (pixel[0] == 0 && pixel[1] == 0 && pixel[2] == 0);
-
-                let needs_fix = pixel[3] < 250 || is_placeholder_black || is_arm_back_unrendered || is_hand_bottom_unrendered;
-
-                if !needs_fix {
-                    continue;
+                if is_slim {
+                    let in_right_arm_padding = x >= 54 * scale && x < 56 * scale && y >= 16 * scale && y < 32 * scale;
+                    let in_left_arm_padding = x >= 46 * scale && x < 48 * scale && y >= 48 * scale && y < 64 * scale;
+                    if in_right_arm_padding || in_left_arm_padding {
+                        continue;
+                    }
                 }
 
-                if pixel[3] > 0 && !is_placeholder_black && !is_arm_back_unrendered && !is_hand_bottom_unrendered {
-                    canvas.put_pixel(x, y, image::Rgba([pixel[0], pixel[1], pixel[2], 255]));
+                if pixel[3] >= 200 {
                     continue;
                 }
 
@@ -2211,7 +2414,7 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                 if let Some((ox, oy)) = overlay_pos {
                     if ox < w && oy < h {
                         let op = *canvas.get_pixel(ox, oy);
-                        if op[3] > 50 && !(op[0] == 0 && op[1] == 0 && op[2] == 0) && !(op[0] < 10 && op[1] < 10 && op[2] < 10) {
+                        if op[3] >= 128 {
                             canvas.put_pixel(x, y, image::Rgba([op[0], op[1], op[2], 255]));
                             filled = true;
                         }
@@ -2222,131 +2425,62 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
                     continue;
                 }
 
+                let is_right_arm_back = x >= 51 * scale && x < 56 * scale && y >= 20 * scale && y < 32 * scale;
+                let is_left_arm_back = x >= 43 * scale && x < 48 * scale && y >= 52 * scale && y < 64 * scale;
+                let is_torso_back = x >= 32 * scale && x < 40 * scale && y >= 20 * scale && y < 32 * scale;
+                let is_right_hand_bottom = x >= 47 * scale && x < 52 * scale && y >= 16 * scale && y < 20 * scale;
+                let is_left_hand_bottom = x >= 39 * scale && x < 44 * scale && y >= 48 * scale && y < 52 * scale;
+
                 if is_right_hand_bottom {
-                    let top_x = (x - 4 * scale).max(44 * scale);
+                    let top_x = x.saturating_sub(4 * scale).max(44 * scale);
                     let top_p = *canvas.get_pixel(top_x, y);
-                    if top_p[3] > 0 && !(top_p[0] == 0 && top_p[1] == 0 && top_p[2] == 0) {
+                    if top_p[3] >= 128 {
                         canvas.put_pixel(x, y, image::Rgba([top_p[0], top_p[1], top_p[2], 255]));
                     } else {
-                        let front_p = *canvas.get_pixel(44 * scale, 20 * scale);
-                        if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
-                            canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
-                        } else {
-                            canvas.put_pixel(x, y, fallback_skin_tone);
-                        }
+                        canvas.put_pixel(x, y, fallback_color);
                     }
                 } else if is_left_hand_bottom {
-                    let top_x = (x - 4 * scale).max(36 * scale);
+                    let top_x = x.saturating_sub(4 * scale).max(36 * scale);
                     let top_p = *canvas.get_pixel(top_x, y);
-                    if top_p[3] > 0 && !(top_p[0] == 0 && top_p[1] == 0 && top_p[2] == 0) {
+                    if top_p[3] >= 128 {
                         canvas.put_pixel(x, y, image::Rgba([top_p[0], top_p[1], top_p[2], 255]));
                     } else {
-                        let front_p = *canvas.get_pixel(36 * scale, 52 * scale);
-                        if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
-                            canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
-                        } else {
-                            canvas.put_pixel(x, y, fallback_skin_tone);
-                        }
+                        canvas.put_pixel(x, y, fallback_color);
                     }
                 } else if is_right_arm_back {
-                    let front_x = if x >= 52 * scale {
-                        44 * scale + (x - 52 * scale)
-                    } else {
+                    let front_x = if x == 51 * scale {
                         44 * scale
-                    };
-                    let front_p = *canvas.get_pixel(front_x, y);
-                    if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
-                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
                     } else {
-                        canvas.put_pixel(x, y, fallback_skin_tone);
+                        44 * scale + x.saturating_sub(52 * scale).min(3 * scale)
+                    };
+                    let fp = *canvas.get_pixel(front_x, y);
+                    if fp[3] >= 128 {
+                        canvas.put_pixel(x, y, image::Rgba([fp[0], fp[1], fp[2], 255]));
+                    } else {
+                        canvas.put_pixel(x, y, fallback_color);
                     }
                 } else if is_left_arm_back {
-                    let front_x = if x >= 44 * scale {
-                        36 * scale + (x - 44 * scale)
-                    } else {
+                    let front_x = if x == 43 * scale {
                         36 * scale
+                    } else {
+                        36 * scale + x.saturating_sub(44 * scale).min(3 * scale)
                     };
-                    let front_p = *canvas.get_pixel(front_x, y);
-                    if front_p[3] > 0 && !(front_p[0] == 0 && front_p[1] == 0 && front_p[2] == 0) {
-                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                    let fp = *canvas.get_pixel(front_x, y);
+                    if fp[3] >= 128 {
+                        canvas.put_pixel(x, y, image::Rgba([fp[0], fp[1], fp[2], 255]));
                     } else {
-                        canvas.put_pixel(x, y, fallback_skin_tone);
+                        canvas.put_pixel(x, y, fallback_color);
                     }
-                } else if x >= 32 * scale && x < 40 * scale && y >= 20 * scale && y < 32 * scale {
-                    let front_x = 20 * scale + (x - 32 * scale);
-                    let front_p = *canvas.get_pixel(front_x, y);
-                    if front_p[3] > 0 {
-                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
+                } else if is_torso_back {
+                    let front_x = 20 * scale + x.saturating_sub(32 * scale);
+                    let fp = *canvas.get_pixel(front_x, y);
+                    if fp[3] >= 128 {
+                        canvas.put_pixel(x, y, image::Rgba([fp[0], fp[1], fp[2], 255]));
                     } else {
-                        canvas.put_pixel(x, y, fallback_skin_tone);
-                    }
-                } else if x >= 24 * scale && x < 32 * scale && y >= 8 * scale && y < 16 * scale {
-                    let front_x = 8 * scale + (x - 24 * scale);
-                    let front_p = *canvas.get_pixel(front_x, y);
-                    if front_p[3] > 0 {
-                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
-                    } else {
-                        canvas.put_pixel(x, y, fallback_skin_tone);
-                    }
-                } else if x >= 12 * scale && x < 16 * scale && y >= 20 * scale && y < 32 * scale {
-                    let front_x = 4 * scale + (x - 12 * scale);
-                    let front_p = *canvas.get_pixel(front_x, y);
-                    if front_p[3] > 0 {
-                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
-                    } else {
-                        canvas.put_pixel(x, y, fallback_skin_tone);
-                    }
-                } else if x >= 28 * scale && x < 32 * scale && y >= 52 * scale && y < 64 * scale {
-                    let front_x = 20 * scale + (x - 28 * scale);
-                    let front_p = *canvas.get_pixel(front_x, y);
-                    if front_p[3] > 0 {
-                        canvas.put_pixel(x, y, image::Rgba([front_p[0], front_p[1], front_p[2], 255]));
-                    } else {
-                        canvas.put_pixel(x, y, fallback_skin_tone);
+                        canvas.put_pixel(x, y, fallback_color);
                     }
                 } else {
-                    canvas.put_pixel(x, y, fallback_skin_tone);
-                }
-            }
-        }
-    }
-
-    let (final_w, final_h) = canvas.dimensions();
-    let final_scale = (final_w / 64).max(1);
-    
-    let critical_base_zones = [
-        (40 * final_scale, 16 * final_scale, 56 * final_scale, 32 * final_scale),
-        (32 * final_scale, 48 * final_scale, 48 * final_scale, 64 * final_scale),
-        (16 * final_scale, 16 * final_scale, 40 * final_scale, 32 * final_scale),
-        (0 * final_scale, 16 * final_scale, 16 * final_scale, 32 * final_scale),
-    ];
-
-    for &(x1, y1, x2, y2) in &critical_base_zones {
-        for y in y1..y2.min(final_h) {
-            for x in x1..x2.min(final_w) {
-                let p = *canvas.get_pixel(x, y);
-                let is_ph = (p[0] == 45 && p[1] == 45 && p[2] == 45) || (p[0] == 40 && p[1] == 30 && p[2] == 25);
-                let is_arm_back = (x >= 51 * final_scale && x < 56 * final_scale && y >= 20 * final_scale && y < 32 * final_scale)
-                    || (x >= 43 * final_scale && x < 48 * final_scale && y >= 52 * final_scale && y < 64 * final_scale);
-                let is_black_arm = is_arm_back && (p[0] == 0 && p[1] == 0 && p[2] == 0);
-                if p[3] < 200 || is_ph || is_black_arm {
-                    canvas.put_pixel(x, y, fallback_skin_tone);
-                }
-            }
-        }
-    }
-
-    let overlay_arm_zones = [
-        (40 * final_scale, 32 * final_scale, 56 * final_scale, 48 * final_scale),
-        (48 * final_scale, 48 * final_scale, 64 * final_scale, 64 * final_scale),
-    ];
-    for &(x1, y1, x2, y2) in &overlay_arm_zones {
-        for y in y1..y2.min(final_h) {
-            for x in x1..x2.min(final_w) {
-                let p = *canvas.get_pixel(x, y);
-                let is_ph = (p[0] == 45 && p[1] == 45 && p[2] == 45) || (p[0] == 40 && p[1] == 30 && p[2] == 25);
-                if is_ph {
-                    canvas.put_pixel(x, y, image::Rgba([0, 0, 0, 0]));
+                    canvas.put_pixel(x, y, fallback_color);
                 }
             }
         }
@@ -2364,33 +2498,7 @@ async fn inject_player_skin(
     cape_source: Option<&str>,
     mc_version: &str,
 ) -> AppResult<()> {
-    let mut skin_bytes: Vec<u8> = if skin_source.starts_with("http://") || skin_source.starts_with("https://") {
-        if let Ok(resp) = http.get(skin_source).send().await {
-            if resp.status().is_success() {
-                resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
-            } else {
-                Vec::new()
-            }
-        } else {
-            Vec::new()
-        }
-    } else if skin_source.starts_with("data:image/") {
-        if let Some(comma_pos) = skin_source.find(',') {
-            use base64::Engine;
-            base64::engine::general_purpose::STANDARD
-                .decode(&skin_source[comma_pos + 1..])
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    } else {
-        let path = std::path::Path::new(skin_source);
-        if path.exists() {
-            tokio::fs::read(path).await.unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    };
+    let mut skin_bytes = resolve_image_bytes(skin_source, http).await;
 
     if skin_bytes.is_empty() {
         if let Some(u) = skin_source.split('/').last() {
@@ -2422,19 +2530,25 @@ async fn inject_player_skin(
         return clean_skin_injection(game_dir).await;
     }
 
-    // Normalize skin image
-    let normalized_skin_bytes = if let Ok(dyn_img) = image::load_from_memory(&skin_bytes) {
-        let norm_img = normalize_skin_image(dyn_img.to_rgba8());
-        let mut buf = Vec::new();
-        let mut cursor = std::io::Cursor::new(&mut buf);
-        if norm_img.write_to(&mut cursor, image::ImageFormat::Png).is_ok() {
-            buf
-        } else {
-            skin_bytes
-        }
+    let raw_dyn_img = image::load_from_memory(&skin_bytes).ok();
+    let is_slim = raw_dyn_img.as_ref().map(|d| is_slim_skin(&d.to_rgba8())).unwrap_or(false);
+    let normalized_skin_img = if let Some(ref dyn_img) = raw_dyn_img {
+        normalize_skin_image(dyn_img.to_rgba8())
     } else {
-        skin_bytes
+        image::RgbaImage::new(64, 64)
     };
+
+    let wide_skin_img = if is_slim {
+        convert_slim_to_wide(&normalized_skin_img)
+    } else {
+        normalized_skin_img.clone()
+    };
+    let slim_skin_img = normalized_skin_img.clone();
+
+    let mut wide_buf = Vec::new();
+    let _ = wide_skin_img.write_to(&mut std::io::Cursor::new(&mut wide_buf), image::ImageFormat::Png);
+    let mut slim_buf = Vec::new();
+    let _ = slim_skin_img.write_to(&mut std::io::Cursor::new(&mut slim_buf), image::ImageFormat::Png);
 
     let pack_dir = game_dir.join("resourcepacks").join("LuxmcCustomSkin");
     let entity_dir_wide = pack_dir.join("assets/minecraft/textures/entity/player/wide");
@@ -2465,45 +2579,17 @@ async fn inject_player_skin(
         "steve", "alex", "ari", "efe", "kai", "makena", "noor", "sunny", "zuri",
     ];
     for model in &skin_models {
-        let _ = tokio::fs::write(entity_dir_wide.join(format!("{}.png", model)), &normalized_skin_bytes).await;
-        let _ = tokio::fs::write(entity_dir_slim.join(format!("{}.png", model)), &normalized_skin_bytes).await;
-        let _ = tokio::fs::write(entity_dir_player.join(format!("{}.png", model)), &normalized_skin_bytes).await;
-        let _ = tokio::fs::write(entity_dir_legacy.join(format!("{}.png", model)), &normalized_skin_bytes).await;
+        let _ = tokio::fs::write(entity_dir_wide.join(format!("{}.png", model)), &wide_buf).await;
+        let _ = tokio::fs::write(entity_dir_slim.join(format!("{}.png", model)), &slim_buf).await;
+        let _ = tokio::fs::write(entity_dir_player.join(format!("{}.png", model)), if is_slim { &slim_buf } else { &wide_buf }).await;
+        let _ = tokio::fs::write(entity_dir_legacy.join(format!("{}.png", model)), &wide_buf).await;
     }
 
-    // Direct legacy Steve & Alex fallbacks
-    let _ = tokio::fs::write(entity_dir_legacy.join("steve.png"), &normalized_skin_bytes).await;
-    let _ = tokio::fs::write(entity_dir_legacy.join("alex.png"), &normalized_skin_bytes).await;
+    let _ = tokio::fs::write(entity_dir_legacy.join("steve.png"), &wide_buf).await;
+    let _ = tokio::fs::write(entity_dir_legacy.join("alex.png"), &slim_buf).await;
 
-    // Cape handling
     let cape_bytes: Vec<u8> = if let Some(cs) = cape_source.filter(|s| !s.trim().is_empty()) {
-        if cs.starts_with("http://") || cs.starts_with("https://") {
-            if let Ok(resp) = http.get(cs).send().await {
-                if resp.status().is_success() {
-                    resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
-                } else {
-                    Vec::new()
-                }
-            } else {
-                Vec::new()
-            }
-        } else if cs.starts_with("data:image/") {
-            if let Some(pos) = cs.find(',') {
-                use base64::Engine;
-                base64::engine::general_purpose::STANDARD
-                    .decode(&cs[pos + 1..])
-                    .unwrap_or_default()
-            } else {
-                Vec::new()
-            }
-        } else {
-            let p = std::path::Path::new(cs);
-            if p.exists() {
-                tokio::fs::read(p).await.unwrap_or_default()
-            } else {
-                Vec::new()
-            }
-        }
+        resolve_image_bytes(cs, http).await
     } else {
         Vec::new()
     };

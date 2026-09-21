@@ -45,7 +45,7 @@
 	const accountStatus = $derived(getAccountStatus(account.value));
 </script>
 
-<aside class="flex h-full min-h-screen w-[66px] shrink-0 flex-col items-center py-3 bg-transparent backdrop-blur-md border-r border-fg/5 transition-all duration-300 z-40 relative select-none">
+<aside class="flex h-full min-h-screen w-[66px] shrink-0 flex-col items-center py-3 bg-black/15 backdrop-blur-xl border-r border-white/5 transition-all duration-300 z-40 relative select-none">
 	
 	<div class="relative group w-full flex justify-center mb-3">
 		<button

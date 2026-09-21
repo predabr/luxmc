@@ -8,6 +8,179 @@ use state::AppState;
 use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 
+async fn handle_media_request(mut socket: tokio::net::TcpStream, msg: &str) {
+    use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+
+    let query_start = match msg.find("/media?") {
+        Some(pos) => pos + 7,
+        None => {
+            let header = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = socket.write_all(header.as_bytes()).await;
+            return;
+        }
+    };
+
+    let query_line = msg[query_start..].split_whitespace().next().unwrap_or("");
+    let mut file_path_str = String::new();
+    for param in query_line.split('&') {
+        if let Some(val) = param.strip_prefix("path=") {
+            if let Ok(decoded) = urlencoding::decode(val) {
+                file_path_str = decoded.into_owned();
+            }
+            break;
+        }
+    }
+
+    if file_path_str.is_empty() {
+        let header = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        let _ = socket.write_all(header.as_bytes()).await;
+        return;
+    }
+
+    let path = std::path::Path::new(&file_path_str);
+    if !path.exists() || !path.is_file() {
+        let header = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        let _ = socket.write_all(header.as_bytes()).await;
+        return;
+    }
+
+    let total_len = match tokio::fs::metadata(path).await {
+        Ok(m) => m.len(),
+        Err(_) => {
+            let header = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = socket.write_all(header.as_bytes()).await;
+            return;
+        }
+    };
+
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+    let content_type = match ext.as_str() {
+        "mp4" => "video/mp4",
+        "webm" => "video/webm",
+        "ogv" | "ogg" => "video/ogg",
+        "mkv" => "video/x-matroska",
+        "gif" => "image/gif",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "webp" => "image/webp",
+        _ => "application/octet-stream",
+    };
+
+    let mut range: Option<(u64, u64)> = None;
+    for line in msg.lines() {
+        let line_lower = line.to_lowercase();
+        if line_lower.starts_with("range:") {
+            if let Some(eq) = line_lower.find("bytes=") {
+                let range_val = line[eq + 6..].trim();
+                let parts: Vec<&str> = range_val.split('-').collect();
+                if let Ok(start) = parts[0].parse::<u64>() {
+                    let end = if parts.len() > 1 && !parts[1].is_empty() {
+                        parts[1].parse::<u64>().unwrap_or(total_len.saturating_sub(1))
+                    } else {
+                        total_len.saturating_sub(1)
+                    };
+                    if start <= end && end < total_len {
+                        range = Some((start, end));
+                    }
+                }
+            }
+        }
+    }
+
+    let mut file = match tokio::fs::File::open(path).await {
+        Ok(f) => f,
+        Err(_) => {
+            let header = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = socket.write_all(header.as_bytes()).await;
+            return;
+        }
+    };
+
+    if let Some((start, end)) = range {
+        let chunk_len = end - start + 1;
+        let header = format!(
+            "HTTP/1.1 206 Partial Content\r\nContent-Type: {}\r\nContent-Range: bytes {}-{}/{}\r\nContent-Length: {}\r\nAccept-Ranges: bytes\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: public, max-age=3600\r\nConnection: close\r\n\r\n",
+            content_type, start, end, total_len, chunk_len
+        );
+        let _ = socket.write_all(header.as_bytes()).await;
+        let _ = file.seek(std::io::SeekFrom::Start(start)).await;
+        let mut to_read = chunk_len;
+        let mut buf = [0u8; 65536];
+        while to_read > 0 {
+            let limit = buf.len().min(to_read as usize);
+            let n = match file.read(&mut buf[..limit]).await {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(_) => break,
+            };
+            if socket.write_all(&buf[..n]).await.is_err() {
+                break;
+            }
+            to_read -= n as u64;
+        }
+    } else {
+        let header = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccept-Ranges: bytes\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: public, max-age=3600\r\nConnection: close\r\n\r\n",
+            content_type, total_len
+        );
+        let _ = socket.write_all(header.as_bytes()).await;
+        let mut buf = [0u8; 65536];
+        loop {
+            let n = match file.read(&mut buf).await {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(_) => break,
+            };
+            if socket.write_all(&buf[..n]).await.is_err() {
+                break;
+            }
+        }
+    }
+    let _ = socket.flush().await;
+}
+
+async fn handle_cape_request(mut socket: tokio::net::TcpStream) {
+    use tokio::io::AsyncWriteExt;
+    let mut cape_bytes = crate::core::launcher::get_active_cape_bytes().await;
+    if cape_bytes.is_empty() {
+        if let Ok(db) = crate::db::shared_db().await {
+            use sqlx::Row;
+            if let Ok(Some(row)) = sqlx::query("SELECT cape_url FROM accounts WHERE cape_url IS NOT NULL AND cape_url != '' ORDER BY updated_at DESC LIMIT 1")
+                .fetch_optional(db.pool())
+                .await
+            {
+                if let Ok(Some(raw_cape)) = row.try_get::<Option<String>, _>("cape_url") {
+                    if raw_cape.starts_with("data:image/") {
+                        if let Some(pos) = raw_cape.find(',') {
+                            use base64::Engine;
+                            if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(&raw_cape[pos + 1..]) {
+                                cape_bytes = decoded;
+                            }
+                        }
+                    } else if let Some(local_path) = crate::core::launcher::resolve_local_or_asset_path(&raw_cape) {
+                        if let Ok(bytes) = tokio::fs::read(local_path).await {
+                            cape_bytes = bytes;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if !cape_bytes.is_empty() {
+        let header = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n",
+            cape_bytes.len()
+        );
+        let _ = socket.write_all(header.as_bytes()).await;
+        let _ = socket.write_all(&cape_bytes).await;
+    } else {
+        let header = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        let _ = socket.write_all(header.as_bytes()).await;
+    }
+    let _ = socket.flush().await;
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
     tracing_subscriber::fmt()
@@ -67,51 +240,23 @@ pub async fn run() {
             tauri::async_runtime::spawn(async move {
                 if let Ok(listener) = tokio::net::TcpListener::bind("127.0.0.1:49152").await {
                     while let Ok((mut socket, _)) = listener.accept().await {
-                        use tokio::io::{AsyncReadExt, AsyncWriteExt};
-                        let mut buf = [0u8; 1024];
-                        if let Ok(n) = socket.read(&mut buf).await {
-                            let msg = String::from_utf8_lossy(&buf[..n]);
-                            let is_cape_request = msg.starts_with("GET ") 
-                                && (msg.contains("/cape") || msg.contains("/optifine") || msg.contains("luxmc_cape") || msg.contains("/capes/"));
-                            if is_cape_request {
-                                let mut cape_bytes = crate::core::launcher::get_active_cape_bytes().await;
-                                if cape_bytes.is_empty() {
-                                    if let Ok(db) = crate::db::shared_db().await {
-                                        use sqlx::Row;
-                                        if let Ok(Some(row)) = sqlx::query("SELECT cape_url FROM accounts WHERE cape_url IS NOT NULL AND cape_url != '' ORDER BY updated_at DESC LIMIT 1")
-                                            .fetch_optional(db.pool())
-                                            .await
-                                        {
-                                            if let Ok(Some(raw_cape)) = row.try_get::<Option<String>, _>("cape_url") {
-                                                if raw_cape.starts_with("data:image/") {
-                                                    if let Some(pos) = raw_cape.find(',') {
-                                                        use base64::Engine;
-                                                        if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(&raw_cape[pos + 1..]) {
-                                                            cape_bytes = decoded;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
+                        let overlay_ref = handle_overlay.clone();
+                        tokio::spawn(async move {
+                            use tokio::io::AsyncReadExt;
+                            let mut buf = [0u8; 4096];
+                            if let Ok(n) = socket.read(&mut buf).await {
+                                let msg = String::from_utf8_lossy(&buf[..n]);
+                                if msg.starts_with("GET /media") {
+                                    handle_media_request(socket, &msg).await;
+                                } else if msg.starts_with("GET ")
+                                    && (msg.contains("/cape") || msg.contains("/optifine") || msg.contains("luxmc_cape") || msg.contains("/capes/"))
+                                {
+                                    handle_cape_request(socket).await;
+                                } else if msg.contains("TOGGLE") {
+                                    crate::commands::system::trigger_overlay_toggle(&overlay_ref);
                                 }
-
-                                if !cape_bytes.is_empty() {
-                                    let header = format!(
-                                        "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache\r\nConnection: close\r\n\r\n",
-                                        cape_bytes.len()
-                                    );
-                                    let _ = socket.write_all(header.as_bytes()).await;
-                                    let _ = socket.write_all(&cape_bytes).await;
-                                } else {
-                                    let header = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-                                    let _ = socket.write_all(header.as_bytes()).await;
-                                }
-                                let _ = socket.flush().await;
-                            } else if msg.contains("TOGGLE") {
-                                crate::commands::system::trigger_overlay_toggle(&handle_overlay);
                             }
-                        }
+                        });
                     }
                 }
             });
@@ -171,6 +316,7 @@ pub async fn run() {
             commands::versions::versions_download,
             commands::versions::versions_check_installed,
             commands::launch::launch_game,
+            commands::launch::stop_game,
             commands::loaders::loaders_versions,
             commands::mods::mods_search,
             commands::mods::mods_search_typed,

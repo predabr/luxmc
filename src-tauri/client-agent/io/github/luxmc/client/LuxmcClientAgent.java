@@ -58,8 +58,9 @@ public class LuxmcClientAgent {
 
     // Module States
     public static volatile boolean modFps = false;
-    public static volatile boolean modCps = true;
-    public static volatile boolean modKeystrokes = true;
+    public static volatile boolean modCps = false;
+    public static volatile boolean modKeystrokes = false;
+    public static volatile boolean hudActive = false;
     public static volatile boolean modArmor = false;
     public static volatile boolean modCoords = false;
     public static volatile boolean modPing = false;
@@ -438,9 +439,7 @@ public class LuxmcClientAgent {
 
     public static void releaseMouse() {
         try {
-            if (glfwClass != null && glfwSetInputModeMethod != null && currentWindowHandle != null && currentWindowHandle.longValue() != 0L) {
-                glfwSetInputModeMethod.invoke(null, currentWindowHandle.longValue(), 0x00033001, 0x00034001);
-            } else if (mouseClass != null && setGrabbedMethod != null) {
+            if (mouseClass != null && setGrabbedMethod != null) {
                 setGrabbedMethod.invoke(null, Boolean.FALSE);
             }
         } catch (Throwable ignored) {}
@@ -448,9 +447,7 @@ public class LuxmcClientAgent {
 
     public static void restoreMouse() {
         try {
-            if (glfwClass != null && glfwSetInputModeMethod != null && currentWindowHandle != null && currentWindowHandle.longValue() != 0L) {
-                glfwSetInputModeMethod.invoke(null, currentWindowHandle.longValue(), 0x00033001, 0x00034003);
-            } else if (mouseClass != null && setGrabbedMethod != null) {
+            if (mouseClass != null && setGrabbedMethod != null) {
                 setGrabbedMethod.invoke(null, Boolean.TRUE);
             }
         } catch (Throwable ignored) {}
@@ -519,6 +516,7 @@ public class LuxmcClientAgent {
             @Override
             public void actionPerformed(ActionEvent e) {
                 modCps = !modCps;
+                hudActive = modCps || modKeystrokes;
                 updateButtonState((JButton) e.getSource(), modCps);
             }
         }));
@@ -527,6 +525,7 @@ public class LuxmcClientAgent {
             @Override
             public void actionPerformed(ActionEvent e) {
                 modKeystrokes = !modKeystrokes;
+                hudActive = modCps || modKeystrokes;
                 updateButtonState((JButton) e.getSource(), modKeystrokes);
             }
         }));
@@ -690,7 +689,7 @@ public class LuxmcClientAgent {
                     }
                     boolean hasWindow = (currentWindowHandle != null && currentWindowHandle.longValue() != 0L)
                             || (keyboardClass != null);
-                    boolean active = mcWindowVisible && mcWindowW > 150 && mcWindowH > 150 && hasWindow;
+                    boolean active = hudActive && mcWindowVisible && mcWindowW > 150 && mcWindowH > 150 && hasWindow;
 
                     if (!active || (!modCps && !modKeystrokes)) {
                         if (isVisible()) setVisible(false);

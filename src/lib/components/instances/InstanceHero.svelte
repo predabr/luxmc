@@ -1,17 +1,25 @@
 <script lang="ts">
     import type { Snippet } from "svelte";
-    import { Play, Loader2, Settings2, Share2, Clock3, MemoryStick, Coffee, Box, ImagePlus } from "lucide-svelte";
+    import { Play, Square, Loader2, Settings2, Share2, Clock3, MemoryStick, Coffee, Box, ImagePlus } from "lucide-svelte";
     import type { Profile } from "$lib/stores/profiles.svelte";
     import { gamingStats } from "$lib/stores/gamingStats.svelte";
     import { button } from "$lib/components/ui/button";
     import LoaderBadge from "./LoaderBadge.svelte";
-    let { profile, banner, launching = false, running = false, status = "", progress = 0, javaLabel = "Automático", onPlay, onSettings, onHost, actions }: {
+    let { profile, banner, launching = false, running = false, status = "", progress = 0, javaLabel = "Automático", onPlay, onStop, onSettings, onHost, actions }: {
         profile: Profile | null; banner: string; launching?: boolean; running?: boolean; status?: string; progress?: number;
-        javaLabel?: string; onPlay: () => void; onSettings: () => void; onHost: () => void; actions?: Snippet;
+        javaLabel?: string; onPlay: () => void; onStop?: () => void; onSettings: () => void; onHost: () => void; actions?: Snippet;
     } = $props();
     const icon = $derived(({ grass_block: '/grass_block.png', '/grass_block': '/grass_block.png', grass: '/grass_block.png', '/grass': '/grass_block.png', modpack_fo: '/modpack_fo_icon.png', modpack_better_mc: '/modpack_bmc_icon.webp', modpack_cobblemon: '/modpack_cobblemon_icon.png', logo: '/logo.png', grass_head: '/grass_head.png' } as Record<string, string>)[profile?.icon || 'grass_block'] || (profile?.icon === '/grass_block' ? '/grass_block.png' : profile?.icon) || '/grass_block.png');
     const minutes = $derived(profile ? gamingStats.profileMinutes(profile.id) : 0);
-    const playtime = $derived(minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`);
+    const playtime = $derived(
+        running
+            ? `${Math.max(1, minutes)} min (Em jogo)`
+            : minutes >= 60
+                ? `${Math.floor(minutes / 60)}h ${minutes % 60}m`
+                : minutes > 0
+                    ? `${minutes} min`
+                    : 'Menos de 1 min'
+    );
 </script>
 
 <section class="surface-glass relative overflow-hidden">
@@ -30,9 +38,16 @@
             <div class="flex flex-wrap items-center gap-2">
                 <button type="button" class={button({ variant: 'secondary', size: 'icon' })} onclick={onSettings} aria-label="Configurações da instância"><Settings2 class="h-4 w-4" /></button>
                 <button type="button" class={button({ variant: 'secondary', size: 'icon' })} onclick={onHost} aria-label="Compartilhar mundo"><Share2 class="h-4 w-4" /></button>
-                <button type="button" class={button({ variant: 'play', size: 'hero' })} onclick={onPlay} disabled={launching || running} aria-busy={launching}>
-                    {#if launching}<Loader2 class="h-5 w-5 animate-spin" />PREPARANDO{:else if running}<span class="h-2 w-2 rounded-full bg-brand-foreground motion-safe:animate-pulse"></span>EM EXECUÇÃO{:else}<Play class="h-5 w-5 fill-current" />JOGAR MINECRAFT{/if}
-                </button>
+                {#if running}
+                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-black uppercase px-6 py-3 shadow-lg shadow-red-500/20 transition-all cursor-pointer" onclick={onStop}>
+                        <Square class="h-4 w-4 fill-current" />
+                        TERMINAR SESSÃO
+                    </button>
+                {:else}
+                    <button type="button" class={button({ variant: 'play', size: 'hero' })} onclick={onPlay} disabled={launching} aria-busy={launching}>
+                        {#if launching}<Loader2 class="h-5 w-5 animate-spin" />PREPARANDO{:else}<Play class="h-5 w-5 fill-current" />JOGAR MINECRAFT{/if}
+                    </button>
+                {/if}
             </div>
         </div>
         <div class="mt-7 grid grid-cols-2 gap-4 rounded-2xl border border-fg/5 bg-bg/30 p-4 xl:grid-cols-4">

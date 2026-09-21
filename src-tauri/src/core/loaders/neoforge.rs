@@ -339,21 +339,37 @@ pub async fn prepare_neoforge(
     );
     let universal_dest = libraries_dir.join(&universal_rel);
 
-    if client_dest.exists() {
-        if !classpath_entries.contains(&client_dest) {
-            classpath_entries.push(client_dest.clone());
+    let is_modern_neoforge = {
+        let parts: Vec<&str> = chosen_version.split('.').collect();
+        if let Some(first) = parts.first().and_then(|s| s.parse::<u32>().ok()) {
+            first >= 20
+        } else {
+            true
         }
+    };
+
+    if !is_modern_neoforge {
+        if client_dest.exists() {
+            if !classpath_entries.contains(&client_dest) {
+                classpath_entries.push(client_dest.clone());
+            }
+            classpath_entries.retain(|p| {
+                let s = p.to_string_lossy().replace('\\', "/");
+                !s.contains("net/neoforged/neoforge/") || s.ends_with("-client.jar")
+            });
+        } else if universal_dest.exists() {
+            if !classpath_entries.contains(&universal_dest) {
+                classpath_entries.push(universal_dest.clone());
+            }
+            classpath_entries.retain(|p| {
+                let s = p.to_string_lossy().replace('\\', "/");
+                !s.contains("net/neoforged/neoforge/") || s.ends_with("-universal.jar")
+            });
+        }
+    } else {
         classpath_entries.retain(|p| {
             let s = p.to_string_lossy().replace('\\', "/");
-            !s.contains("net/neoforged/neoforge/") || s.ends_with("-client.jar")
-        });
-    } else if universal_dest.exists() {
-        if !classpath_entries.contains(&universal_dest) {
-            classpath_entries.push(universal_dest.clone());
-        }
-        classpath_entries.retain(|p| {
-            let s = p.to_string_lossy().replace('\\', "/");
-            !s.contains("net/neoforged/neoforge/") || s.ends_with("-universal.jar")
+            !s.contains("net/neoforged/neoforge/")
         });
     }
 

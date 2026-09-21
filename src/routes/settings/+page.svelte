@@ -208,7 +208,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "general"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'general' ? 'bg-brand-500 text-fg shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'general' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Home class="w-4 h-4" />
 			<span>{t("settings.tabs.general")}</span>
@@ -217,7 +217,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "accounts"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'accounts' ? 'bg-brand-500 text-fg shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'accounts' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Users class="w-4 h-4" />
 			<span>{t("settings.tabs.accounts")}</span>
@@ -226,7 +226,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "language"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'language' ? 'bg-brand-500 text-fg shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'language' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Globe class="w-4 h-4" />
 			<span>{t("settings.tabs.language")}</span>
@@ -235,17 +235,17 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "appearance"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap relative {activeTab === 'appearance' ? 'bg-brand-500 text-fg shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap relative {activeTab === 'appearance' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Palette class="w-4 h-4" />
 			<span>{t("settings.tabs.appearance")}</span>
-			<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-400 text-brand-foreground ml-0.5">PRO</span>
+			<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-400 text-black ml-0.5">PRO</span>
 		</button>
 
 		<button
 			type="button"
 			onclick={() => activeTab = "java"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'java' ? 'bg-brand-500 text-fg shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'java' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Coffee class="w-4 h-4" />
 			<span>{t("settings.tabs.java")}</span>
@@ -254,7 +254,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "commands"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'commands' ? 'bg-brand-500 text-fg shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'commands' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Terminal class="w-4 h-4" />
 			<span>{t("settings.tabs.commands")}</span>
@@ -263,7 +263,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "privacy"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'privacy' ? 'bg-brand-500 text-fg shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'privacy' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<ShieldCheck class="w-4 h-4" />
 			<span>{t("settings.tabs.privacy")}</span>
@@ -272,7 +272,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "runtime"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'runtime' ? 'bg-brand-500 text-fg shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'runtime' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<FolderOpen class="w-4 h-4" />
 			<span>{t("settings.tabs.runtime")}</span>
@@ -409,11 +409,13 @@
 					</div>
 					<button
 						type="button"
+						role="switch"
+						aria-checked={discordIntegration}
 						aria-label="Toggle Discord Integration"
 						onclick={() => { discordIntegration = !discordIntegration; saveGeneral(); }}
-						class="w-12 h-6 rounded-full transition-colors relative cursor-pointer {discordIntegration ? 'bg-blue-600' : 'bg-fg/15'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {discordIntegration ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
 					>
-						<span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-fg transition-transform {discordIntegration ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {discordIntegration ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -425,7 +427,7 @@
 					<select
 						bind:value={launcherAction}
 						onchange={saveGeneral}
-						class="bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2 text-xs font-semibold text-fg outline-none focus:border-blue-500 cursor-pointer min-w-[150px]"
+						class="bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2 text-xs font-semibold text-fg outline-none focus:border-brand-500 cursor-pointer min-w-[150px]"
 					>
 						<option value="keep_open">{t("settings.launcherActionNone")} ↕</option>
 						<option value="hide_reopen">{t("settings.launcherActionHide")} ↕</option>
@@ -440,11 +442,13 @@
 					</div>
 					<button
 						type="button"
+						role="switch"
+						aria-checked={showCloseWarning}
 						aria-label="Toggle Window Close Warning"
 						onclick={() => showCloseWarning = !showCloseWarning}
-						class="w-12 h-6 rounded-full transition-colors relative cursor-pointer {showCloseWarning ? 'bg-blue-600' : 'bg-fg/15'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {showCloseWarning ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
 					>
-						<span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-fg transition-transform {showCloseWarning ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {showCloseWarning ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -455,11 +459,13 @@
 					</div>
 					<button
 						type="button"
+						role="switch"
+						aria-checked={performanceMode}
 						aria-label="Toggle Ultra Performance Mode"
 						onclick={() => { performanceMode = !performanceMode; appState.performanceMode = performanceMode; saveGeneral(); }}
-						class="w-12 h-6 rounded-full transition-colors relative cursor-pointer {performanceMode ? 'bg-emerald-500' : 'bg-fg/15'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {performanceMode ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
 					>
-						<span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-fg transition-transform {performanceMode ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {performanceMode ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -716,11 +722,13 @@
 					</div>
 					<button
 						type="button"
+						role="switch"
+						aria-checked={waylandNative}
 						aria-label="Toggle Wayland Mode"
 						onclick={() => { waylandNative = !waylandNative; saveJava(); }}
-						class="w-12 h-6 rounded-full transition-colors relative cursor-pointer {waylandNative ? 'bg-blue-600' : 'bg-fg/15'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {waylandNative ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
 					>
-						<span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-fg transition-transform {waylandNative ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {waylandNative ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -731,11 +739,13 @@
 					</div>
 					<button
 						type="button"
+						role="switch"
+						aria-checked={useVulkan}
 						aria-label="Toggle Vulkan Acceleration"
 						onclick={() => { useVulkan = !useVulkan; saveJava(); }}
-						class="w-12 h-6 rounded-full transition-colors relative cursor-pointer {useVulkan ? 'bg-blue-600' : 'bg-fg/15'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {useVulkan ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
 					>
-						<span class="absolute top-1 left-1 w-4 h-4 rounded-full bg-fg transition-transform {useVulkan ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {useVulkan ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 

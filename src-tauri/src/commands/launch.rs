@@ -116,6 +116,11 @@ pub async fn launch_game_core(
         emit_log(&format!("Aviso na verificação do modpack: {}. Continuando lançamento...", e));
     }
 
+    emit_log("Verificando shaderpacks do modpack...");
+    if let Err(e) = crate::commands::instances::ensure_modpack_shaders(&state.http, std::path::Path::new(&profile.game_dir)).await {
+        emit_log(&format!("Aviso na verificação de shaders: {}. Continuando lançamento...", e));
+    }
+
     let raw_req = request.version_id.trim().trim_matches('\'').trim_matches('"');
     let clean_req_ver = raw_req.split('-').next().unwrap_or(raw_req);
     let profile_mc_ver = profile.mc_version.trim().trim_matches('\'').trim_matches('"');
@@ -279,26 +284,11 @@ pub async fn launch_game_core(
         (compute_offline_uuid(&account.username), "-".to_string(), "mojang")
     };
 
-    let has_explicit_custom_skin = request
+    let effective_skin_url = request
         .skin_url
-        .as_deref()
-        .map(|s| {
-            let trimmed = s.trim();
-            !trimmed.is_empty()
-                && (trimmed.starts_with("data:image/")
-                    || (!trimmed.starts_with("http://") && !trimmed.starts_with("https://")))
-        })
-        .unwrap_or(false);
-
-    let effective_skin_url = if is_real_msa && !has_explicit_custom_skin {
-        None
-    } else {
-        request
-            .skin_url
-            .filter(|s| !s.trim().is_empty())
-            .or_else(|| account.skin_url.filter(|s| !s.trim().is_empty()))
-            .or_else(|| (!is_real_msa).then(|| format!("https://minotar.net/skin/{}", account.username)))
-    };
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| account.skin_url.filter(|s| !s.trim().is_empty()))
+        .or_else(|| (!is_real_msa).then(|| format!("https://minotar.net/skin/{}", account.username)));
 
     let effective_skin_variant = request
         .skin_variant
@@ -371,3 +361,53 @@ pub async fn launch_game_daemon(
 ) -> AppResult<LaunchResponse> {
     launch_game_core(state, None, request).await
 }
+
+#[tauri::command]
+pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
+    let target_pid = match pid {
+        Some(p) if p > 0 => p,
+        _ => crate::core::launcher::get_active_game_pid(),
+    };
+
+    if target_pid == 0 {
+        return Ok(false);
+    }
+
+    tracing::info!(target: "launch", "Terminating Minecraft process with PID {}", target_pid);
+
+    #[cfg(unix)]
+    {
+        let _ = tokio::process::Command::new("kill")
+            .args(["-15", &target_pid.to_string()])
+            .output()
+            .await;
+
+        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+
+        let check = tokio::process::Command::new("kill")
+            .args(["-0", &target_pid.to_string()])
+            .output()
+            .await;
+
+        if let Ok(out) = check {
+            if out.status.success() {
+                let _ = tokio::process::Command::new("kill")
+                    .args(["-9", &target_pid.to_string()])
+                    .output()
+                    .await;
+            }
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        let _ = tokio::process::Command::new("taskkill")
+            .args(["/PID", &target_pid.to_string(), "/F", "/T"])
+            .output()
+            .await;
+    }
+
+    crate::core::launcher::clear_active_game_pid();
+    Ok(true)
+}
+

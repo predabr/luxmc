@@ -406,37 +406,63 @@
 			}
 		};
 	});
+
+	let videoError = $state(false);
+	let videoEl = $state<HTMLVideoElement | null>(null);
+
+	const resolvedVideoUrl = $derived(
+		themeStore.customWallpaperType === "video"
+			? resolveWallpaperVideoUrl(themeStore.customWallpaperUrl)
+			: ""
+	);
+
 	$effect(() => {
-		const konami = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-		let pos = 0;
-		const handler = (e: KeyboardEvent) => {
-			if (e.key === konami[pos]) {
-				pos++;
-				if (pos === konami.length) {
-					toast("🎮 Cheat Code Activated: God Mode", "success");
-					document.documentElement.style.filter = 'hue-rotate(90deg)';
-					pos = 0;
-				}
-			} else {
-				pos = 0;
-			}
-		};
-		window.addEventListener('keydown', handler);
-		return () => window.removeEventListener('keydown', handler);
+		void resolvedVideoUrl;
+		videoError = false;
+		if (videoEl) {
+			videoEl.load();
+			videoEl.play().catch(() => {});
+		}
 	});
 
+	function resolveWallpaperVideoUrl(rawUrl: string): string {
+		if (!rawUrl) return "";
+		if (rawUrl.startsWith("http://127.0.0.1:49152/media")) return rawUrl;
+		let clean = rawUrl;
+		if (clean.startsWith("asset://localhost/")) {
+			try {
+				clean = decodeURIComponent(clean.replace("asset://localhost/", ""));
+			} catch {}
+		} else if (clean.startsWith("asset://")) {
+			try {
+				clean = decodeURIComponent(clean.replace("asset://", ""));
+			} catch {}
+		}
+		if (clean.startsWith("/")) {
+			return `http://127.0.0.1:49152/media?path=${encodeURIComponent(clean)}`;
+		}
+		return rawUrl;
+	}
 </script>
 
-<div class="fixed inset-0 z-0 transition-all duration-500 pointer-events-none overflow-hidden" style={themeStore.currentBackgroundStyle}>
+<div class="fixed inset-0 z-0 transition-all duration-500 pointer-events-none overflow-hidden bg-black" style={themeStore.currentBackgroundStyle}>
 	{#if themeStore.customWallpaperUrl}
-		{#if themeStore.customWallpaperType === "video"}
+		{#if themeStore.customWallpaperType === "video" && !videoError && resolvedVideoUrl}
 			<video
-				src={themeStore.customWallpaperUrl}
+				bind:this={videoEl}
+				src={resolvedVideoUrl}
 				autoplay
 				loop
 				muted
 				playsinline
+				preload="auto"
 				class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+				onerror={() => { videoError = true; }}
+				onloadeddata={(e) => {
+					const el = e.currentTarget as HTMLVideoElement;
+					el.muted = true;
+					el.play().catch(() => {});
+				}}
 			></video>
 		{:else}
 			<img
