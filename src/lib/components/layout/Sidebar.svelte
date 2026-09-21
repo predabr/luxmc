@@ -103,8 +103,8 @@
 							}}
 							class="relative h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-[0.98] border cursor-pointer {active ? 'ring-2 ring-brand-500 border-transparent shadow-lg scale-105' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08] hover:border-fg/30'}"
 						>
-							{#if prof.icon && (prof.icon.startsWith("http") || prof.icon.startsWith("/") || prof.icon.startsWith("data:"))}
-								<img src={prof.icon} alt={prof.name} class="w-full h-full object-cover" />
+							{#if prof.icon && prof.icon !== "grass_block" && prof.icon !== "/grass_block" && (prof.icon.startsWith("http") || (prof.icon.startsWith("/") && prof.icon.includes(".")) || prof.icon.startsWith("data:"))}
+								<img src={prof.icon} alt={prof.name} class="w-full h-full object-cover" onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }} />
 							{:else}
 								<div class="w-full h-full bg-fg/[0.04] border border-fg/[0.08] flex items-center justify-center">
 									<img src="/grass_block.png" alt={prof.name} class="w-6 h-6 object-contain [image-rendering:pixelated]" />

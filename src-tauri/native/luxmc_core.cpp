@@ -34,7 +34,7 @@ extern "C" {
 
 int luxmc_cpp_trim_memory() {
 #if defined(__linux__) && defined(__GLIBC__)
-    int res = malloc_trim(0);
+    int res = malloc_trim(256 * 1024);
     return res ? 1 : 0;
 #elif defined(_WIN32)
     BOOL ok = SetProcessWorkingSetSize(GetCurrentProcess(), (SIZE_T)-1, (SIZE_T)-1);
