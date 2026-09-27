@@ -2620,8 +2620,9 @@ html { overflow-x: clip; }
 
 .install-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .install-tab {
@@ -2630,10 +2631,11 @@ html { overflow-x: clip; }
   color: #94a3b8;
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 4px 10px;
+  padding: 5px 11px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  user-select: none;
 }
 
 .install-tab:hover {
@@ -2645,6 +2647,22 @@ html { overflow-x: clip; }
   background: rgba(56, 189, 248, 0.15);
   border-color: #38bdf8;
   color: #38bdf8;
+}
+
+.install-tab.uninstall-tab {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.install-tab.uninstall-tab:hover {
+  background: rgba(248, 113, 113, 0.15);
+  color: #fca5a5;
+}
+
+.install-tab.uninstall-tab.active {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: #ef4444;
+  color: #f87171;
 }
 
 /* Comparison Section */

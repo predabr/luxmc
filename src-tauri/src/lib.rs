@@ -302,8 +302,16 @@ fn ensure_linux_desktop_integration() {
         exe_path
     );
 
+    let _ = std::fs::remove_file(apps_dir.join("io.github.luxmc.Luxmc.desktop"));
+    let _ = std::fs::remove_file(apps_dir.join("luxmc-debug-handler.desktop"));
+
+    if std::path::Path::new("/usr/share/applications/luxmc.desktop").exists() {
+        let _ = std::fs::remove_file(apps_dir.join("luxmc.desktop"));
+        let _ = std::process::Command::new("update-desktop-database").arg(&apps_dir).output();
+        return;
+    }
+
     let _ = std::fs::write(apps_dir.join("luxmc.desktop"), &desktop_content);
-    let _ = std::fs::write(apps_dir.join("io.github.luxmc.Luxmc.desktop"), &desktop_content);
 
     let _ = std::process::Command::new("update-desktop-database").arg(&apps_dir).output();
 }

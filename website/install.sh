@@ -124,10 +124,12 @@ ICON_DEST="$ICON_DIR/luxmc.png"
 curl -s -L "$ICON_URL" -o "$ICON_DEST" || true
 
 # 7. Criação do Atalho no Menu (.desktop)
+rm -f "$DESKTOP_DIR/io.github.luxmc.Luxmc.desktop" "$DESKTOP_DIR/luxmc-debug-handler.desktop"
 DESKTOP_FILE="$DESKTOP_DIR/luxmc.desktop"
 cat <<EOFD > "$DESKTOP_FILE"
 [Desktop Entry]
-Name=Luxmc Launcher
+Name=Luxmc
+GenericName=Minecraft Launcher
 Comment=Launcher de Minecraft moderno, rápido e com otimização máxima para Linux
 Exec=$APPIMAGE_DEST %u
 Icon=luxmc
@@ -135,6 +137,7 @@ Terminal=false
 Type=Application
 Categories=Game;ActionGame;AdventureGame;
 StartupWMClass=luxmc
+StartupNotify=true
 MimeType=x-scheme-handler/luxmc;
 Keywords=minecraft;launcher;luxmc;modpack;optifine;fabric;forge;neoforge;
 EOFD

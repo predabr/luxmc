@@ -33,3 +33,11 @@
 
 /assets/*
   Cache-Control: public, max-age=0, must-revalidate
+
+/install.sh
+  Content-Type: text/x-shellscript; charset=utf-8
+  Cache-Control: public, max-age=0, must-revalidate
+
+/uninstall.sh
+  Content-Type: text/x-shellscript; charset=utf-8
+  Cache-Control: public, max-age=0, must-revalidate

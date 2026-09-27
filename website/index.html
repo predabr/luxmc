@@ -598,13 +598,17 @@
             <h3 class="step-title" data-i18n="quickstart.step1.title">Baixe o Luxmc</h3>
             <p class="step-desc" data-i18n="quickstart.step1.desc">Selecione o binário para o seu sistema operacional ou instale via terminal no Linux:</p>
             <div class="install-tabs">
-              <button type="button" class="install-tab active" onclick="setInstallCmd(this, 'curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash')">Universal (curl)</button>
-              <button type="button" class="install-tab" onclick="setInstallCmd(this, 'yay -S luxmc-bin')">Arch (yay)</button>
-              <button type="button" class="install-tab" onclick="setInstallCmd(this, 'paru -S luxmc-bin')">Arch (paru)</button>
+              <button type="button" class="install-tab active" data-cmd="curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Universal (curl)</button>
+              <button type="button" class="install-tab" data-cmd="yay -S luxmc-launcher" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (yay)</button>
+              <button type="button" class="install-tab" data-cmd="paru -S luxmc-launcher" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (paru)</button>
+              <button type="button" class="install-tab" data-cmd="sudo pacman -U https://github.com/predabr/luxmc/releases/latest/download/luxmc-2.0.0-1-x86_64.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (pacman)</button>
+              <button type="button" class="install-tab" data-cmd="curl -fsSL https://luxmc-r92.pages.dev/download/deb -o luxmc.deb &amp;&amp; sudo dpkg -i luxmc.deb" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Ubuntu/Debian</button>
+              <button type="button" class="install-tab" data-cmd="sudo dnf install https://luxmc-r92.pages.dev/download/rpm" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Fedora/RHEL</button>
+              <button type="button" class="install-tab uninstall-tab" data-cmd="curl -fsSL https://luxmc-r92.pages.dev/uninstall.sh | bash" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))" data-i18n="quickstart.tabUninstall">Desinstalar</button>
             </div>
             <div class="terminal-box">
               <span class="terminal-cmd" id="terminal-cmd-text">curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash</span>
-              <button type="button" class="btn-copy-cmd" onclick="copyTerminalCmd(this)" title="Copiar comando">
+              <button type="button" class="btn-copy-cmd" id="btnCopyTerminalCmd" onclick="copyTerminalCmd(this)" title="Copiar comando">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <span data-i18n="quickstart.btnCopy">Copiar</span>
               </button>
@@ -1085,13 +1089,26 @@
         modal.classList.remove('active');
         modal.setAttribute('aria-hidden', 'true');
         modal.style.display = 'none';
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
     }
 
     function copyPixKey() {
       const input = document.getElementById('pixKeyInput');
       const btn = document.getElementById('btnCopyPix');
       if (input) {
-        navigator.clipboard.writeText(input.value).then(() => {
+        const text = input.value;
+        const onCopied = () => {
           if (btn) {
             const oldText = btn.textContent;
             btn.textContent = 'Copiado! ✓';
@@ -1104,7 +1121,17 @@
           if (typeof showToast === 'function') {
             showToast('Chave PIX copiada com sucesso!');
           }
-        });
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(onCopied).catch(() => {
+            fallbackCopy(text);
+            onCopied();
+          });
+        } else {
+          fallbackCopy(text);
+          onCopied();
+        }
       }
     }
 
@@ -1112,7 +1139,8 @@
       const input = document.getElementById('inlinePixKey');
       const btn = document.getElementById('btnCopyInlinePix');
       if (input) {
-        navigator.clipboard.writeText(input.value).then(() => {
+        const text = input.value;
+        const onCopied = () => {
           if (btn) {
             const oldText = btn.textContent;
             btn.textContent = 'Copiado! ✓';
@@ -1127,7 +1155,17 @@
           if (typeof showToast === 'function') {
             showToast('Chave PIX copiada com sucesso!');
           }
-        });
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(onCopied).catch(() => {
+            fallbackCopy(text);
+            onCopied();
+          });
+        } else {
+          fallbackCopy(text);
+          onCopied();
+        }
       }
     }
 
@@ -1140,12 +1178,19 @@
           }
         });
       }
+
+      document.querySelectorAll('.install-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+          const cmd = this.getAttribute('data-cmd');
+          if (cmd) setInstallCmd(this, cmd);
+        });
+      });
     });
 
     let currentInstallCmd = "curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash";
     function setInstallCmd(btn, cmd) {
       document.querySelectorAll(".install-tab").forEach(t => t.classList.remove("active"));
-      btn.classList.add("active");
+      if (btn) btn.classList.add("active");
       currentInstallCmd = cmd;
       const cmdEl = document.getElementById("terminal-cmd-text");
       if (cmdEl) cmdEl.textContent = cmd;
@@ -1153,8 +1198,8 @@
 
     function copyTerminalCmd(btn) {
       const cmd = currentInstallCmd || document.getElementById("terminal-cmd-text")?.textContent || "curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash";
-      navigator.clipboard.writeText(cmd).then(() => {
-        const btnEl = btn || document.querySelector(".btn-copy-cmd");
+      const onCopied = () => {
+        const btnEl = btn || document.getElementById("btnCopyTerminalCmd") || document.querySelector(".btn-copy-cmd");
         const span = btnEl ? btnEl.querySelector("span") : null;
         if (span) {
           const old = span.textContent;
@@ -1168,7 +1213,17 @@
             btnEl.classList.remove("copied");
           }, 2200);
         }
-      });
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(cmd).then(onCopied).catch(() => {
+          fallbackCopy(cmd);
+          onCopied();
+        });
+      } else {
+        fallbackCopy(cmd);
+        onCopied();
+      }
     }
   </script>
 </body>
