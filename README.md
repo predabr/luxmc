@@ -171,7 +171,7 @@ pnpm tauri build
 
 ## 📄 Licença
 
-Proprietário — © 2024-2026 Luxmc Contributors. Todos os direitos reservados.
+Proprietário — © 2026-2026 Luxmc Contributors. Todos os direitos reservados.
 
 <div align="center">
   <sub>Construído com excelência para a comunidade global de Minecraft.</sub>
