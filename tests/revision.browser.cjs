@@ -1,0 +1,72 @@
+const {chromium}=require(process.env.LUXMC_PLAYWRIGHT_MODULE || 'playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({headless:true});
+ const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ const errors=[];page.on('pageerror',e=>{errors.push(String(e));console.error('PAGE ERROR',String(e))});
+ await page.addInitScript(()=>{
+   const profile={id:'fabric-profile',name:'Fabric de teste',icon:'grass_block',mcVersion:'1.20.1',loader:'fabric',loaderVersion:'0.16.0',gameDir:'/tmp/luxmc-test',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),ramMb:4096,modCount:2};
+   const account={id:'offline_test',uuid:'offline_test',username:'Steve',accessToken:'',skinUrl:'https://mineskin.eu/skin/Steve'};
+   const events={};const queue=[];window.testCalls=[];
+   const invoke=async(command,args)=>{
+     window.testCalls.push({command,args});
+     if(command==='app_init')return {account,profiles:[profile],activeProfileId:profile.id,devMode:true};
+     if(command==='deep_links_take')return queue.splice(0);
+     if(command==='mods_project_details')return {id:args.projectId,slug:args.projectId,title:args.projectId==='sodium'?'Sodium':'Fabulously Optimized',description:'Projeto de teste',body:'',bodyType:'markdown',iconUrl:null,downloads:1000000,categories:['fabric'],loaders:['fabric'],gameVersions:['1.20.1'],source:args.source,gallery:[]};
+     if(command==='curseforge_status')return true;
+     if(command==='profiles_list'||command==='instances_list')return [profile];
+     if(command==='mods_versions')return [{id:'v1',name:'v1',versionNumber:'1',files:[{filename:'pack.mrpack',url:'https://cdn.modrinth.com/pack.mrpack',size:1,sha1:''}]}];
+     if(command==='mods_download_to_temp')return '/tmp/pack.mrpack';
+     if(command==='instance_import_mrpack')return {...profile,id:'new-profile',name:'Fabulously Optimized'};
+     if(command==='plugin:store|load')return 1;
+     if(command==='plugin:store|get')return [{animations:false,liveWallpaper:false,soundscapesEnabled:false,soundEnabled:false},true];
+     if(command==='plugin:event|listen')return 1;
+     if(command==='mods_search'||command==='java_scan'||command==='screenshots_list'||command==='skins_list')return [];
+     if(command==='get_system_specs')return {totalRamMb:16384,osDistro:'Linux',arch:'x86_64'};
+     if(command==='minecraft_uuid')return null;
+     if(command==='auth_resolve_texture')return window.testSkinData;
+     if(command==='social_request' && args.request.action==='stream_ticket') return {url:null};
+     if(command==='mesh_status')return {available:false,state:'Tailscale não instalado',ip:null,peers:[]};
+     if(command==='auth_save_appearance') return null;
+     if(command==='social_request')return {me:{id:'me',username:'Steve'},friends:[{id:'friend-id',username:'Alex',status:'in_game',incoming:false,lastSeen:null,activity:'Fabric de teste',mcVersion:'1.20.1',loader:'fabric',serverIp:'friend.example.org',serverPort:25567}]};
+     return null;
+   };
+   window.electronAPI={invoke,on:(event,callback)=>{(events[event]??=[]).push(callback);return ()=>events[event]=events[event].filter(v=>v!==callback)}};
+   window.__TAURI_INTERNALS__={invoke,transformCallback:()=>1,convertFileSrc:()=>'/grass_head.png'};
+   window.testEvent=(event,payload)=>{for(const callback of events[event]||[])callback(payload)};
+   window.testLink=url=>{queue.push(url);for(const callback of events['deep-link-pending']||[])callback(null)};
+ });
+
+ const fs = require('node:fs');
+ fs.mkdirSync('docs/visual/2026-09-23', {recursive:true});
+ const skin = fs.readFileSync('static/steve.png');
+ await page.route(/https:\/\/(mineskin\.eu|mc-heads\.net|minotar\.net)\//, route => route.fulfill({status:200,contentType:'image/png',body:skin}));
+ await page.addInitScript(data=>window.testSkinData=data,'data:image/png;base64,'+require('node:fs').readFileSync('static/steve.png').toString('base64'));
+ await page.goto('http://127.0.0.1:1420/');
+
+ await page.locator('aside').last().waitFor();
+ const sidebar = await page.locator('aside').last().boundingBox();
+ assert.ok(Math.abs(sidebar.y + sidebar.height - 1000) <= 2, JSON.stringify(sidebar));
+ await page.evaluate(()=>document.documentElement.classList.add('has-custom-wallpaper'));
+ for (const filter of [page.getByRole('button',{name:'Ordenar instâncias'}),page.getByRole('button',{name:'Grupo de instâncias'})]) assert.equal(await filter.evaluate(e=>getComputedStyle(e).backgroundColor), 'rgba(0, 0, 0, 0)');
+ await page.screenshot({path:'docs/visual/2026-09-23/revision-home.png'});
+ await page.route('https://mineskin.eu/skin/Broken',route=>route.abort());
+ await page.evaluate(()=>window.testLink('luxmc://skin/apply?url=https%3A%2F%2Fmineskin.eu%2Fskin%2FBroken&model=slim'));
+ await page.waitForURL('**/skins');
+ await page.getByRole('region',{name:'Visualizador 3D de Skin'}).locator('canvas').first().waitFor({state:'visible',timeout:30000});
+ await page.waitForFunction(()=>window.testCalls.some(c=>c.command==='auth_save_appearance' && c.args.skinUrl.startsWith('data:image/png;base64,')));
+ await page.screenshot({path:'docs/visual/2026-09-23/revision-skins.png'});
+ const region=page.getByRole('region',{name:'Visualizador 3D de Skin'});
+ await region.locator('canvas').first().evaluate(canvas=>{
+   const gl=canvas.getContext('webgl2') || canvas.getContext('webgl');
+   window.contextLossExtension=gl.getExtension('WEBGL_lose_context');
+   window.contextLossExtension.loseContext();
+ });
+ await region.getByText('Prévia 2D — continue personalizando sua skin.').waitFor();
+ await page.waitForTimeout(1000);
+ await page.evaluate(()=>window.contextLossExtension.restoreContext());
+ await region.locator('canvas').first().waitFor({state:'visible',timeout:15000});
+ assert.deepEqual(errors, []);
+ console.log(JSON.stringify({sidebar,transparentFilters:true,skinFallback:true,errors}));
+ await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

@@ -89,46 +89,18 @@ pub async fn prepare_quilt(
 
     for lib in &profile.libraries {
         let rel_path = crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &lib.name);
+        if rel_path.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
+            return Err(crate::error::AppError::InvalidInput("Caminho Maven inválido".into()));
+        }
         let dest = libraries_dir.join(&rel_path);
-
-        if !dest.exists() {
-            if let Some(parent) = dest.parent() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
-
-            let base_url = lib.url.as_deref().unwrap_or("https://maven.quiltmc.org/repository/release/");
-            let rel_str = rel_path.to_string_lossy().replace('\\', "/");
-            let download_url = format!("{}/{}", base_url.trim_end_matches('/'), rel_str.trim_start_matches('/'));
-
-            tracing::info!(lib = %lib.name, url = %download_url, "downloading Quilt library");
-
-            let mut downloaded = false;
-            if let Ok(resp) = http.get(&download_url).send().await {
-                if resp.status().is_success() {
-                    if let Ok(bytes) = resp.bytes().await {
-                        if !bytes.is_empty() {
-                            let _ = tokio::fs::write(&dest, &bytes).await;
-                            downloaded = true;
-                        }
-                    }
-                }
-            }
-
-            if !downloaded {
-                let central_url = format!("https://repo1.maven.org/maven2/{}", rel_str.trim_start_matches('/'));
-                if let Ok(resp) = http.get(&central_url).send().await {
-                    if resp.status().is_success() {
-                        if let Ok(bytes) = resp.bytes().await {
-                            let _ = tokio::fs::write(&dest, &bytes).await;
-                        }
-                    }
-                }
-            }
+        let base_url = lib.url.as_deref().unwrap_or("https://maven.quiltmc.org/repository/release/");
+        let relative = rel_path.to_string_lossy().replace('\\', "/");
+        let url = format!("{}/{}", base_url.trim_end_matches('/'), relative);
+        if super::ensure_maven_jar(http, &dest, &url).await.is_err() {
+            let central = format!("https://repo1.maven.org/maven2/{relative}");
+            super::ensure_maven_jar(http, &dest, &central).await?;
         }
-
-        if dest.exists() {
-            classpath_entries.push(dest);
-        }
+        classpath_entries.push(dest);
     }
 
     let mut jvm_args = Vec::new();

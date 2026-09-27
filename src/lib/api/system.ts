@@ -2,6 +2,7 @@ import { api } from "./client";
 import type {
 	EnvCheckResult,
 	StorageBreakdown,
+	StorageFullReport,
 	ChangelogEntry,
 } from "./types";
 
@@ -81,6 +82,22 @@ export async function changelogGet(): Promise<ChangelogEntry[]> {
 
 export async function storageBreakdown(): Promise<StorageBreakdown[]> {
 	return api.invoke<StorageBreakdown[]>("storage_breakdown");
+}
+
+export async function storageFullReport(): Promise<StorageFullReport> {
+	return api.invoke<StorageFullReport>("storage_full_report");
+}
+
+export async function storageClearLogs(): Promise<number> {
+	return api.invoke<number>("storage_clear_logs");
+}
+
+export async function storageClearCache(): Promise<number> {
+	return api.invoke<number>("storage_clear_cache");
+}
+
+export async function storageDeleteInstance(id: string): Promise<void> {
+	return api.invoke("storage_delete_instance", { id });
 }
 
 export async function storageTotal(paths: string[]): Promise<number> {

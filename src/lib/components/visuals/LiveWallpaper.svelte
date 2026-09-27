@@ -22,19 +22,18 @@
 	let mouseX = 0;
 	let mouseY = 0;
 
-	let mouseMoveScheduled = false;
+	let mouseMoveFrame: number | null = null;
 	function handleMouseMove(e: MouseEvent) {
-		if (mouseMoveScheduled) return;
-		mouseMoveScheduled = true;
-		requestAnimationFrame(() => {
+		if (mouseMoveFrame !== null) return;
+		mouseMoveFrame = requestAnimationFrame(() => {
 			mouseX = (e.clientX / (window.innerWidth || 1) - 0.5) * 40;
 			mouseY = (e.clientY / (window.innerHeight || 1) - 0.5) * 40;
-			mouseMoveScheduled = false;
+			mouseMoveFrame = null;
 		});
 	}
 
 	function shouldRun() {
-		return !appState.performanceMode && settings.value.liveWallpaper !== false && !document.hidden;
+		return !appState.performanceMode && !appState.isGameRunning && settings.value.liveWallpaper !== false && !document.hidden;
 	}
 
 	function stopLoop() {
@@ -52,14 +51,20 @@
 		if (!ctx) return;
 
 		let time = 0;
+		let lastFrame = 0;
 
-		const render = () => {
+		const render = (now = performance.now()) => {
 			if (!shouldRun()) {
 				stopLoop();
 				isActive = false;
 				return;
 			}
 
+			if (now - lastFrame < 1000 / 30) {
+				animationFrameId = requestAnimationFrame(render);
+				return;
+			}
+			lastFrame = now;
 			const width = canvas.width;
 			const height = canvas.height;
 
@@ -97,7 +102,7 @@
 
 	function checkAndToggle() {
 		if (shouldRun()) {
-			if (!isActive) startLoop();
+			startLoop();
 		} else {
 			if (isActive) stopLoop();
 			isActive = false;
@@ -155,7 +160,15 @@
 		};
 	});
 
+	$effect(() => {
+		void appState.performanceMode;
+		void appState.isGameRunning;
+		void settings.value.liveWallpaper;
+		if (canvasEl) checkAndToggle();
+	});
+
 	onDestroy(() => {
+		if (mouseMoveFrame !== null) cancelAnimationFrame(mouseMoveFrame);
 		stopLoop();
 	});
 </script>

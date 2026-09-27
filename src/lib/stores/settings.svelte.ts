@@ -20,6 +20,10 @@ export interface AppSettings {
 	hideDiscordDetails?: boolean;
 	anonymousTelemetry?: boolean;
 	performanceMode?: boolean;
+	wallpaperFps?: 15 | 24 | 30;
+	wallpaperWidth?: 960 | 1280 | 1920;
+	pauseWallpaperOnBlur?: boolean;
+	animatedWallpaperBlur?: boolean;
 	customBackground?: string;
 	jvmArgs?: string;
 	gamemode?: boolean;
@@ -40,15 +44,27 @@ export interface AppSettings {
 	startFullscreen?: boolean;
 }
 
+function detectDefaultLanguage(): "en" | "pt-BR" | "es" {
+	if (typeof window !== "undefined" && typeof navigator !== "undefined" && navigator.language) {
+		const nav = navigator.language.toLowerCase();
+		if (nav.startsWith("pt")) return "pt-BR";
+		if (nav.startsWith("es")) return "es";
+		return "en";
+	}
+	return "en";
+}
+
 const defaults: AppSettings = {
 	theme: "default-dark",
 	density: "comfortable",
 	animations: true,
-	blur: true,
+	blur: false,
 	sidebarPosition: "left",
-	language: "en",
+	language: detectDefaultLanguage(),
 	accentTheme: "blue",
 	activeProfileId: null,
+	pauseWallpaperOnBlur: true,
+	autoCheckUpdates: true,
 	liveWallpaper: false,
 	soundscapesEnabled: false,
 	soundscapeVolume: 0.2,

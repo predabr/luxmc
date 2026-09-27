@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
 const root = mkdtempSync(join(tmpdir(), "luxmc-native-smoke-"));
-const daemon = spawn(resolve("src-tauri/target/debug/luxmc"), ["--daemon"], { env: { ...process.env, XDG_DATA_HOME: join(root, "data"), XDG_CONFIG_HOME: join(root, "config"), XDG_CACHE_HOME: join(root, "cache") }, stdio: ["pipe", "pipe", "pipe"] });
+const daemon = spawn(resolve(process.env.LUXMC_NATIVE_BINARY || "src-tauri/target/debug/luxmc"), ["--daemon"], { env: { ...process.env, XDG_DATA_HOME: join(root, "data"), XDG_CONFIG_HOME: join(root, "config"), XDG_CACHE_HOME: join(root, "cache") }, stdio: ["pipe", "pipe", "pipe"] });
 const waiting = new Map();
 let sequence = 0;
 let stderr = "";
@@ -37,7 +37,8 @@ try {
     const one = await call("profiles_create", { input: { name: "../../outside", mcVersion: "1.20.1", loader: "vanilla" } });
     const two = await call("profiles_create", { input: { name: "../../outside", mcVersion: "1.20.1", loader: "vanilla" } });
     assert.ok(one.gameDir.startsWith(join(root, "data")));
-    assert.equal(one.gameDir.split(/[\\/]/).at(-1), one.id);
+    assert.equal(one.gameDir.split(/[\\/]/).at(-1), ".minecraft");
+    assert.equal(one.gameDir.split(/[\\/]/).at(-2), one.id);
     assert.notEqual(one.gameDir, two.gameDir);
     passed("isolated profile paths", "path traversal and duplicate names cannot share gameDir");
 

@@ -219,7 +219,7 @@
 
 					<div
 						class="w-9 h-9 rounded-xl flex items-center justify-center text-fg/30"
-						title="No Minecraft, este menu abre com Shift Direito"
+						title="Configure os módulos por este painel do launcher"
 					>
 						<Info class="w-4 h-4" />
 					</div>
@@ -324,11 +324,11 @@
 				<div class="flex items-center justify-between px-8 py-3.5 border-t border-fg/5 bg-bg text-xs text-fg/40">
 					<div class="flex items-center gap-2">
 						<span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
-						<span>No Minecraft, este menu abre in-game pressionando <kbd class="px-1.5 py-0.5 rounded bg-fg/10 text-fg font-mono text-[10px]">Shift Direito</kbd></span>
+						<span>Configure os módulos aqui antes de iniciar o Minecraft</span>
 					</div>
 
 					<div class="flex items-center gap-4">
-						<span>PvP & FPS Suite v1.9.2</span>
+						<span>PvP & FPS Suite v2.0.0</span>
 					</div>
 
 				</div>

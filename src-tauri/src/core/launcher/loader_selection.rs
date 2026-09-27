@@ -6,13 +6,25 @@ use crate::error::{AppError, AppResult};
 fn declared(value: &serde_json::Value) -> Option<(String, String)> {
     if let Some(loaders) = value.pointer("/minecraft/modLoaders").and_then(|v| v.as_array()) {
         let entry = loaders.iter().find(|v| v.get("primary").and_then(|v| v.as_bool()) == Some(true)).or_else(|| loaders.first())?;
-        let (loader, version) = entry.get("id")?.as_str()?.split_once('-')?;
-        let loader_lower = loader.to_ascii_lowercase();
-        if ["fabric", "forge", "neoforge", "quilt"].contains(&loader_lower.as_str()) && !version.is_empty() {
-            return Some((loader_lower, version.into()));
+        let raw_id = entry.get("id")?.as_str()?;
+        if let Some((loader, version)) = raw_id.split_once('-') {
+            let loader_lower = loader.to_ascii_lowercase();
+            if ["fabric", "forge", "neoforge", "quilt"].contains(&loader_lower.as_str()) && !version.is_empty() {
+                return Some((loader_lower, version.into()));
+            }
+        } else {
+            let loader_lower = raw_id.to_ascii_lowercase();
+            if ["fabric", "forge", "neoforge", "quilt"].contains(&loader_lower.as_str()) {
+                return Some((loader_lower, String::new()));
+            }
         }
     }
-    for (key, loader) in [("fabric-loader", "fabric"), ("forge", "forge"), ("neoforge", "neoforge"), ("quilt-loader", "quilt")] {
+    for (key, loader) in [
+        ("fabric-loader", "fabric"), ("fabric", "fabric"),
+        ("forge", "forge"), ("minecraft-forge", "forge"),
+        ("neoforge", "neoforge"), ("neo-forge", "neoforge"), ("neoforged", "neoforge"),
+        ("quilt-loader", "quilt"), ("quilt", "quilt"),
+    ] {
         if let Some(version) = value.get("dependencies").and_then(|v| v.get(key)).and_then(|v| v.as_str()) {
             return Some((loader.into(), version.into()));
         }

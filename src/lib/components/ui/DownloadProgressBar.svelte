@@ -3,6 +3,7 @@
 	import { fade, slide, scale } from "svelte/transition";
 	import { Download, CheckCircle2, Clock, Zap, X, HardDrive } from "lucide-svelte";
 	import { listenDownloadProgress, type DownloadProgress } from "$lib/api";
+	import { appState } from "$lib/stores/app.svelte";
 
 	let progress = $state<DownloadProgress | null>(null);
 	let isVisible = $state(false);
@@ -81,6 +82,9 @@
 
 	onMount(() => {
 		void listenDownloadProgress((data) => {
+			if (appState.isLaunching) {
+				return;
+			}
 			progress = data;
 			isVisible = true;
 

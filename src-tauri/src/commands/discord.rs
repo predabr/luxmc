@@ -12,7 +12,7 @@ use std::fs::OpenOptions;
 const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
 const LUXMC_ICON_URL: &str =
     "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
-const LUXMC_VERSION: &str = "1.9.2";
+const LUXMC_VERSION: &str = "2.0.0";
 const MINECRAFT_GRASS_ASSET: &str = "grass";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -275,7 +275,15 @@ pub async fn discord_set_activity(
 
     let img = match largeImage.as_deref() {
         Some("default") | Some("luxmc") | Some("") | None => LUXMC_ICON_URL.to_string(),
-        Some(val) => val.to_string(),
+        Some(val) => {
+            if val.starts_with("http://") || val.starts_with("https://") {
+                val.to_string()
+            } else if val == "grass" {
+                "grass".to_string()
+            } else {
+                LUXMC_ICON_URL.to_string()
+            }
+        }
     };
 
     let txt = largeText.unwrap_or_else(|| {
@@ -288,7 +296,13 @@ pub async fn discord_set_activity(
 
     let s_img = match smallImage.as_deref() {
         Some("") | None => MINECRAFT_GRASS_ASSET.to_string(),
-        Some(val) => val.to_string(),
+        Some(val) => {
+            if val.starts_with("http://") || val.starts_with("https://") || val == "grass" {
+                val.to_string()
+            } else {
+                MINECRAFT_GRASS_ASSET.to_string()
+            }
+        }
     };
 
     let s_txt = smallText.unwrap_or_else(|| {

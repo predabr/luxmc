@@ -80,8 +80,8 @@
 		<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10 w-full">
 			<div class="flex items-start sm:items-center gap-5 min-w-0 flex-1">
 				<div class="w-20 h-20 shrink-0 rounded-2xl bg-bg-subtle border border-fg/15 p-1 overflow-hidden shadow-2xl flex items-center justify-center">
-					{#if item.iconUrl}
-						<img src={item.iconUrl} alt={item.title} class="w-full h-full object-cover rounded-xl" />
+					{#if details?.iconUrl || item.iconUrl || item.bannerUrl}
+						<img src={details?.iconUrl || item.iconUrl || item.bannerUrl || ""} alt={item.title} class="w-full h-full object-cover rounded-xl" />
 					{:else}
 						<Layers class="w-8 h-8 text-brand-400" />
 					{/if}

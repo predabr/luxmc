@@ -30,9 +30,9 @@ async function api(action, body = {}, area = "account") {
 }
 function setMode(next) {
   mode = ["login", "register", "recover"].includes(next) ? next : "login";
-  $("#authTitle").textContent = { login: "Bom ter você de volta.", register: "Seu próximo capítulo.", recover: "Vamos recuperar sua conta." }[mode];
-  $("#authDescription").textContent = { login: "Seu próximo mundo está esperando.", register: "Escolha seu nickname. O resto é aventura.", recover: "Use o código que guardou ao criar sua conta." }[mode];
-  $("#authSubmit").textContent = { login: "Entrar na minha conta →", register: "Criar minha conta →", recover: "Redefinir senha →" }[mode];
+  $("#authTitle").textContent = { login: "ACESSO AO PORTAL", register: "CRIAR CONTA LUXMC", recover: "RECUPERAR CONTA" }[mode];
+  $("#authDescription").textContent = { login: "Entre com seu nickname e senha para sincronizar seus dados.", register: "Escolha seu nickname Minecraft e uma senha segura.", recover: "Use o código de 64 caracteres recebido no cadastro." }[mode];
+  $("#authSubmit").textContent = { login: "ENTRAR NA MINHA CONTA ↗", register: "CRIAR MINHA CONTA LUXMC ↗", recover: "REDEFINIR SENHA ↗" }[mode];
   $("#recoveryField").hidden = mode !== "recover";
   $("#recoveryCode").required = mode === "recover";
   $("#confirmField").hidden = mode === "login";
@@ -67,13 +67,13 @@ $("#revealPassword").addEventListener("click", () => { const visible = $("#passw
 $("#authForm").addEventListener("submit", async event => {
   event.preventDefault();
   if (mode !== "login" && $("#password").value !== $("#confirmPassword").value) { $("#authError").textContent = "As senhas precisam ser iguais."; $("#authError").hidden = false; return; }
-  const button = $("#authSubmit"); button.disabled = true; button.textContent = "Conectando…"; $("#authError").hidden = true;
+  const button = $("#authSubmit"); button.disabled = true; button.textContent = "CONECTANDO…"; $("#authError").hidden = true;
   try {
     const result = await api(mode, { username: $("#nickname").value.trim(), password: $("#password").value, recoveryCode: $("#recoveryCode").value.trim() });
     $("#authForm").reset();
     showAccount(result.account, result.recoveryCode);
   } catch (error) { $("#authError").textContent = error.message; $("#authError").hidden = false; }
-  finally { button.disabled = false; button.textContent = mode === "login" ? "Entrar na minha conta →" : mode === "register" ? "Criar minha conta →" : "Redefinir senha →"; }
+  finally { button.disabled = false; button.textContent = mode === "login" ? "ENTRAR NA MINHA CONTA ↗" : mode === "register" ? "CRIAR MINHA CONTA LUXMC ↗" : "REDEFINIR SENHA ↗"; }
 });
 $("#copyRecovery").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("#generatedRecovery").value); $("#copyRecovery").textContent = "Copiado"; } catch { $("#generatedRecovery").select(); } });
 $("#savedRecovery").addEventListener("click", () => { $("#recoveryNotice").hidden = true; $("#generatedRecovery").value = ""; });

@@ -17,8 +17,9 @@
 		Pencil,
 		AlertCircle
 	} from "lucide-svelte";
-	import { account } from "$lib/stores/account.svelte";
+	import { account, saveCurrentAccount } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
+	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { goto } from "$app/navigation";
@@ -47,7 +48,7 @@
 				username: trimmed
 			};
 			account.value = updated;
-			localStorage.setItem("luxmc_current_account", JSON.stringify(updated));
+			void saveCurrentAccount(updated);
 		}
 		isEditingNick = false;
 		toast(`Nickname alterado para ${trimmed}!`, "success");
@@ -58,7 +59,6 @@
             try { await luxAccountLogout(account.value.id); } catch (cause) { toast(String(cause), "error"); return; }
         }
 		account.clear();
-		localStorage.removeItem("luxmc_current_account");
 		onClose();
 		toast("Sessão encerrada com sucesso. Até logo!", "info");
 		goto("/");
@@ -125,9 +125,15 @@
 				<div class="relative">
 					<div class="h-20 w-20 rounded-full overflow-hidden bg-bg-subtle border-4 border-border shadow-2xl flex items-center justify-center">
 						<img 
-							src={activeSkinStore.current.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "https://mc-heads.net/avatar/MHF_Steve/100")} 
+							src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + (account.value.username || account.value.uuid) + "/100" : "https://mc-heads.net/avatar/MHF_Steve/100")} 
 							alt="Avatar" 
 							class="w-full h-full object-cover"
+							onerror={(e) => {
+								const img = e.currentTarget as HTMLImageElement;
+								const fallback = account.value?.username ? `https://mc-heads.net/avatar/${account.value.username}/100` : "/grass_block.png";
+								if (img.src !== fallback) img.src = fallback;
+								else img.src = "/grass_block.png";
+							}}
 						/>
 					</div>
 					<div class="absolute -bottom-1 -right-1 h-5 w-5 bg-emerald-500 rounded-full border-2 border-border shadow-md flex items-center justify-center">
@@ -189,8 +195,8 @@
 
 				<div class="flex items-center gap-2 pt-1">
 					{#if isMicrosoft}
-						<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
-							<ShieldCheck class="w-3 h-3" /> Conta Oficial Microsoft
+						<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
+							<MicrosoftLogo size={12} /> Conta Oficial Microsoft
 						</span>
 					{:else}
 						<span class="bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">

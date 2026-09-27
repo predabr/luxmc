@@ -11,7 +11,8 @@
 		ShieldCheck,
 		AlertCircle
 	} from "lucide-svelte";
-	import { account } from "$lib/stores/account.svelte";
+	import { account, saveCurrentAccount } from "$lib/stores/account.svelte";
+	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import { authLogin, authOfflineLogin, type AuthAccount } from "$lib/api";
 	import { toast } from "$lib/stores/toasts.svelte";
 
@@ -56,7 +57,7 @@
 				minecraftToken: acc.accessToken,
 				expiresAt: acc.expiresAt
 			};
-			localStorage.setItem("luxmc_current_account", JSON.stringify(account.value));
+			void saveCurrentAccount(account.value);
 			toast(`Conta offline "${trimmed}" adicionada com sucesso!`, "success");
 			onAccountAdded?.(acc);
 			handleClose();
@@ -80,7 +81,7 @@
 				minecraftToken: acc.accessToken,
 				expiresAt: acc.expiresAt
 			};
-			localStorage.setItem("luxmc_current_account", JSON.stringify(account.value));
+			void saveCurrentAccount(account.value);
 			toast(`Conta Microsoft de ${acc.username} conectada!`, "success");
 			onAccountAdded?.(acc as AuthAccount);
 			handleClose();
@@ -160,7 +161,7 @@
 						class="py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {tab === 'microsoft' ? 'bg-emerald-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 						onclick={() => { tab = 'microsoft'; errorMsg = null; }}
 					>
-						<ShieldCheck class="w-3.5 h-3.5" />
+						<MicrosoftLogo size={14} />
 						Microsoft
 					</button>
 				</div>

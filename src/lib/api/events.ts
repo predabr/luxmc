@@ -45,3 +45,17 @@ export async function listenGameTelemetry(
 		callback(event.payload);
 	});
 }
+
+export interface GameStateChangeEvent {
+	status: "singleplayer" | "multiplayer" | "menu";
+	detail: string;
+}
+
+export async function listenGameStateChange(
+	callback: (event: GameStateChangeEvent) => void,
+): Promise<UnlistenFn> {
+	return listen<GameStateChangeEvent>("game-state-change", (event) => {
+		callback(event.payload);
+	});
+}
+

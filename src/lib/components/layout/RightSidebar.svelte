@@ -17,11 +17,14 @@
 		X
 	} from "lucide-svelte";
 	import { onMount } from "svelte";
+    import { newsState } from "$lib/stores/news.svelte";
+    onMount(() => { void newsState.load(); });
 	import { slide, fade } from "svelte/transition";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
+	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import { launchGame } from "$lib/api";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 
@@ -68,10 +71,7 @@
 
 	function handleLogout() {
 		friendsState.disconnect();
-		account.value = null;
-		if (typeof window !== "undefined") {
-			localStorage.removeItem("luxmc_current_account");
-		}
+		account.clear();
 		showAccountMenu = false;
 		toast("Você saiu da conta.", "info");
 	}
@@ -85,8 +85,8 @@
 	);
 </script>
 
-<aside class="shrink-0 flex flex-col gap-4 select-none pb-8 h-full overflow-y-auto custom-scrollbar transition-all duration-200 {collapsed ? 'w-12' : 'w-[280px]'}">
-	<button type="button" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-bg-elevated/80 p-3 text-fg-muted hover:text-fg" onclick={() => collapsed = !collapsed} aria-label={collapsed ? "Expandir amigos" : "Minimizar amigos"} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">Amigos</span>{/if}</button>
+<aside class="shrink-0 sticky top-3 self-start flex flex-col gap-4 select-none h-[calc(100dvh-1.5rem)] min-h-0 my-3 mr-3 rounded-3xl overflow-y-auto custom-scrollbar border border-fg/10 bg-bg/85 shadow-elevated backdrop-blur-2xl transition-all duration-200 {collapsed ? 'w-16 p-2' : 'w-[280px] p-4'}">
+	<button type="button" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-fg/[0.06] p-3 text-fg-muted hover:text-fg" onclick={() => collapsed = !collapsed} aria-label={collapsed ? "Expandir amigos" : "Minimizar amigos"} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">Amigos</span>{/if}</button>
 	{#if !collapsed}
 
 	{#if account.value}
@@ -96,32 +96,43 @@
 				tabindex="0"
 				onclick={() => showAccountMenu = !showAccountMenu}
 				onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") showAccountMenu = !showAccountMenu; }}
-				class="w-full bg-[#14171d] hover:bg-[#1a1e26] border border-white/[0.06] rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-sm group"
+				class="w-full bg-bg/35 backdrop-blur-xl hover:bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-sm group"
 			>
 				<div class="flex items-center gap-2.5 min-w-0">
-					<div class="w-9 h-9 rounded-full overflow-hidden bg-white/[0.04] border border-white/10 shrink-0">
+					<div class="w-9 h-9 rounded-full overflow-hidden bg-fg/[0.04] border border-fg/10 shrink-0">
 						<img 
-							src={activeSkinStore.current.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`} 
+							src={activeSkinStore.current.avatarUrl || account.value.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`} 
 							alt="Avatar" 
 							class="w-full h-full object-cover rounded-full" 
+							onerror={(e) => {
+								const img = e.currentTarget as HTMLImageElement;
+								const fallback = account.value?.username ? `https://mc-heads.net/avatar/${account.value.username}/64` : "/grass_block.png";
+								if (img.src !== fallback) img.src = fallback;
+								else img.src = "/grass_block.png";
+							}}
 						/>
 					</div>
 					<div class="min-w-0 text-left">
-						<div class="text-xs font-extrabold text-white truncate leading-tight group-hover:text-[#1bd96a] transition-colors">
+						<div class="text-xs font-extrabold text-fg truncate leading-tight group-hover:text-brand-400 transition-colors">
 							{account.value.username}
 						</div>
-						<div class="text-[10px] text-white/40 truncate">
-							{isMicrosoft ? "Conta Microsoft" : "Conta Offline"}
+						<div class="text-[10px] text-fg/40 truncate flex items-center gap-1.5 mt-0.5">
+							{#if isMicrosoft}
+								<MicrosoftLogo size={10} />
+								<span class="text-emerald-400 font-semibold">Conta Microsoft</span>
+							{:else}
+								<span>Conta Offline</span>
+							{/if}
 						</div>
 					</div>
 				</div>
 
-				<ChevronDown class="w-4 h-4 text-white/40 group-hover:text-white transition-transform {showAccountMenu ? 'rotate-180' : ''}" />
+				<ChevronDown class="w-4 h-4 text-fg/40 group-hover:text-fg transition-transform {showAccountMenu ? 'rotate-180' : ''}" />
 			</div>
 
 			{#if showAccountMenu}
 				<div 
-					class="absolute top-full left-0 right-0 mt-1 bg-[#181b22] border border-white/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
+					class="absolute top-full left-0 right-0 mt-1 bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
 					transition:slide={{ duration: 120 }}
 				>
 					<button
@@ -142,7 +153,7 @@
 				type="button"
 				onclick={() => showAddInput = !showAddInput}
 				class="p-1.5 rounded-xl bg-bg-elevated hover:bg-bg-subtle text-fg/60 hover:text-fg border border-fg/5 transition-colors cursor-pointer"
-				title="Add friend"
+				title="Adicionar amigo"
 			>
 				<UserPlus class="w-3.5 h-3.5" />
 			</button>
@@ -254,7 +265,7 @@
 					onclick={() => onlineExpanded = !onlineExpanded}
 					class="w-full flex items-center justify-between py-1 text-fg/70 hover:text-fg text-xs font-bold cursor-pointer"
 				>
-					<span>Online - {onlineFriends.length}</span>
+					<span>Conectados - {onlineFriends.length}</span>
 					<ChevronDown class="w-3.5 h-3.5 text-fg/40 transition-transform {onlineExpanded ? 'rotate-180' : ''}" />
 				</button>
 
@@ -292,7 +303,7 @@
 					onclick={() => offlineExpanded = !offlineExpanded}
 					class="w-full flex items-center justify-between py-1 text-fg/40 hover:text-fg text-xs font-bold cursor-pointer"
 				>
-					<span>Offline - {offlineFriends.length}</span>
+					<span>Desconectados - {offlineFriends.length}</span>
 					<ChevronDown class="w-3.5 h-3.5 text-fg/40 transition-transform {offlineExpanded ? 'rotate-180' : ''}" />
 				</button>
 
@@ -372,39 +383,37 @@
 		</div>
 	</div>
 
-	<div class="space-y-2 shrink-0 pt-1">
-		<div class="flex items-center justify-between">
-			<span class="text-xs font-bold text-white/50 block">Notícias</span>
-			<a href="/news" class="text-[10px] font-semibold text-[#1bd96a] hover:underline">Ver todas</a>
+	<div class="flex flex-col gap-2.5 flex-1 min-h-0 pt-1">
+		<div class="flex items-center justify-between shrink-0">
+			<span class="text-xs font-bold text-fg/60 block">Notícias & Novidades</span>
+			<a href="/news" class="text-[10px] font-semibold text-brand-400 hover:underline">Ver todas</a>
 		</div>
 
-		<div class="space-y-2 max-h-[340px] overflow-y-auto custom-scrollbar pr-0.5">
-			{#each [
-				{ tag: "Atualização", title: "Luxmc v1.9.2 Oficial", desc: "Pacotes .RPM, modpacks NeoForge corrigidos e skins 3D perfeitas.", date: "Setembro, 2026", image: "/news_1.jpg" },
-				{ tag: "Recurso", title: "Personalizador de Skins 3D", desc: "Novo viewer 3D com física de caminhada, capas e animações.", date: "Setembro, 2026", image: "/news_2.jpg" },
-				{ tag: "Melhoria", title: "Sidebar com Glow Dinâmico", desc: "Barra lateral agora reflete o gradiente do wallpaper escolhido.", date: "Setembro, 2026", image: "/news_3.jpg" },
-				{ tag: "Site", title: "Portal Web Atualizado", desc: "Benchmarks interativos, depoimentos e lightbox de screenshots.", date: "Setembro, 2026", image: "/news_4.jpg" },
-				{ tag: "Performance", title: "Motor Zero-Lag v1.9", desc: "Inicialização mais rápida e menor consumo de RAM em repouso.", date: "Setembro, 2026", image: "/news_1.jpg" }
-			] as item, i}
+		<div class="space-y-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-0.5 pb-2">
+			{#each newsState.items as item (item.id)}
 				<a
 					href="/news"
-					class="group block bg-[#14171d] border border-white/[0.06] hover:border-[#1bd96a]/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer"
+					class="group block bg-bg/35 backdrop-blur-xl border border-fg/[0.06] hover:border-brand-400/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer"
 				>
 					<div class="p-2.5 flex gap-2.5 items-center">
-						<div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-white/10 bg-black/40 relative">
-							<img src={item.image} alt={item.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+						<div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-fg/10 bg-black/40 relative">
+							<img loading="lazy" decoding="async" src={item.image} alt={item.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
 						</div>
 						<div class="min-w-0 flex-1 space-y-0.5">
 							<div class="flex items-center justify-between gap-1">
-								<span class="text-[9px] font-black text-[#1bd96a] uppercase tracking-wide">{item.tag}</span>
-								<span class="text-[9px] text-white/30">{item.date}</span>
+								<span class="text-[9px] font-black text-brand-400 uppercase tracking-wide">{item.category}</span>
+								<span class="text-[9px] text-fg/30">{new Date(`${item.date}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</span>
 							</div>
-							<div class="text-[11px] font-black text-white group-hover:text-[#1bd96a] transition-colors leading-tight line-clamp-1">{item.title}</div>
-							<p class="text-[10px] text-white/50 leading-relaxed line-clamp-1">{item.desc}</p>
+							<div class="text-[11px] font-black text-fg group-hover:text-brand-400 transition-colors leading-tight line-clamp-1">{item.title}</div>
+							<p class="text-[10px] text-fg/50 leading-relaxed line-clamp-1">{item.summary}</p>
 						</div>
 					</div>
 				</a>
 			{/each}
+
+			<div class="pt-2 px-1 text-center border-t border-fg/[0.04]">
+				<span class="text-[10px] text-fg/30 font-medium">Luxmc • Linux-First Launcher</span>
+			</div>
 		</div>
 	</div>
 

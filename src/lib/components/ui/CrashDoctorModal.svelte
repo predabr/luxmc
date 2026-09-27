@@ -115,7 +115,11 @@
 					Ver Log Completo
 				</button>
 
-				{#if diagnosis.recommendedAction === 'repair_modpack'}
+				{#if diagnosis.recommendedAction === 'increase_ram' || diagnosis.recommendedAction === 'install_java'}
+                    <button class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-brand-foreground disabled:opacity-50" disabled={crashDoctor.isFixing} onclick={handleFix}>
+                        {crashDoctor.isFixing ? 'Aplicando…' : diagnosis.recommendedAction === 'increase_ram' ? 'Ajustar memória' : 'Instalar Java compatível'}
+                    </button>
+                {:else if diagnosis.recommendedAction === 'repair_modpack'}
 					<button 
 						type="button"
 						class="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-brand-foreground shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"

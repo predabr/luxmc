@@ -1,7 +1,7 @@
 use super::{LoaderVersion, PreparedLoader};
 use crate::error::{AppError, AppResult};
 use serde::Deserialize;
-use std::io::{Cursor, Read, Write};
+use std::io::{Cursor, Read};
 use std::path::Path;
 
 const FORGE_MAVEN: &str = "https://maven.minecraftforge.net";
@@ -141,13 +141,16 @@ fn extract_installer_maven_files(installer_bytes: &[u8], libraries_dir: &Path) -
                 if rel.is_empty() || file.is_dir() {
                     continue;
                 }
-                let dest = libraries_dir.join(rel);
+                let relative = Path::new(rel);
+                if relative.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
+                    return Err(AppError::InvalidInput("Unsafe path in Forge installer".into()));
+                }
+                let dest = libraries_dir.join(relative);
                 if let Some(parent) = dest.parent() {
-                    let _ = std::fs::create_dir_all(parent);
+                    std::fs::create_dir_all(parent)?;
                 }
-                if let Ok(mut outfile) = std::fs::File::create(&dest) {
-                    let _ = std::io::copy(&mut file, &mut outfile);
-                }
+                let mut outfile = std::fs::File::create(&dest)?;
+                std::io::copy(&mut file, &mut outfile)?;
             }
         }
     }
@@ -166,132 +169,6 @@ fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
         .read_to_string(&mut s)
         .map_err(|e| AppError::Internal(format!("Failed to read Forge version.json: {e}")))?;
     Ok(s)
-}
-
-fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBuf {
-    let major = match mc_version {
-        v if v.starts_with("1.20.5") || v.starts_with("1.20.6")
-            || v.starts_with("1.21")
-            || (v.starts_with("1.2") && {
-                let patch: u32 = v.split('.').nth(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-                patch >= 22
-            })
-            || v.starts_with("2") => 21,
-        v if v.starts_with("1.17") || v.starts_with("1.18") || v.starts_with("1.19")
-            || v.starts_with("1.20") => 17,
-        _ => 8,
-    };
-    if let Some(parent) = libraries_dir.parent() {
-        let bin_name = if cfg!(windows) { "java.exe" } else { "java" };
-        let preferred = parent.join("java").join(major.to_string()).join("bin").join(bin_name);
-        if preferred.exists() {
-            return preferred;
-        }
-        let fallbacks: &[u32] = match major {
-            21 => &[21, 17],
-            17 => &[17, 21],
-            _ => &[8, 17, 21],
-        };
-        for &v in fallbacks {
-            let b = parent.join("java").join(v.to_string()).join("bin").join(bin_name);
-            if b.exists() {
-                return b;
-            }
-        }
-    }
-    if let Ok(java_home) = std::env::var("JAVA_HOME") {
-        let b = std::path::PathBuf::from(java_home).join("bin").join(if cfg!(windows) { "java.exe" } else { "java" });
-        if b.exists() {
-            return b;
-        }
-    }
-    if let Ok(found) = which::which("java") {
-        return found;
-    }
-    std::path::PathBuf::from(if cfg!(windows) { "java.exe" } else { "java" })
-}
-
-fn prepare_patched_installer(installer_path: &Path) -> AppResult<std::path::PathBuf> {
-    let file = std::fs::File::open(installer_path)
-        .map_err(|e| AppError::Internal(format!("Failed to open Forge installer: {e}")))?;
-    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
-        .map_err(|e| AppError::Internal(format!("Failed to read Forge installer zip: {e}")))?;
-
-    let mut has_processor_outputs = false;
-    for i in 0..archive.len() {
-        if let Ok(mut f) = archive.by_index(i) {
-            if f.name() == "install_profile.json" {
-                let mut content = String::new();
-                if f.read_to_string(&mut content).is_ok() {
-                    if let Ok(json_val) = serde_json::from_str::<serde_json::Value>(&content) {
-                        if let Some(processors) = json_val.get("processors").and_then(|p| p.as_array()) {
-                            for proc in processors {
-                                if let Some(outputs) = proc.get("outputs") {
-                                    if outputs.as_object().map(|o| !o.is_empty()).unwrap_or(false) {
-                                        has_processor_outputs = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                break;
-            }
-        }
-    }
-
-    if !has_processor_outputs {
-        return Ok(installer_path.to_path_buf());
-    }
-
-    let patched_path = installer_path.with_extension("patched.jar");
-    let out_file = std::fs::File::create(&patched_path)
-        .map_err(|e| AppError::Internal(format!("Failed to create patched Forge installer: {e}")))?;
-    let mut zip_writer = zip::ZipWriter::new(out_file);
-    let options = zip::write::FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
-
-    let file = std::fs::File::open(installer_path)
-        .map_err(|e| AppError::Internal(format!("Failed to re-open Forge installer: {e}")))?;
-    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
-        .map_err(|e| AppError::Internal(format!("Failed to re-read Forge installer: {e}")))?;
-
-    for i in 0..archive.len() {
-        let mut entry = archive.by_index(i)
-            .map_err(|e| AppError::Internal(format!("Failed to read entry from installer: {e}")))?;
-        let name = entry.name().to_string();
-
-        if name == "install_profile.json" {
-            let mut content = String::new();
-            entry.read_to_string(&mut content).map_err(|e| AppError::Internal(format!("Failed to read install_profile.json: {e}")))?;
-            let mut json_val: serde_json::Value = serde_json::from_str(&content)
-                .map_err(|e| AppError::Internal(format!("Failed to parse install_profile.json: {e}")))?;
-            if let Some(processors) = json_val.get_mut("processors").and_then(|p| p.as_array_mut()) {
-                for proc in processors {
-                    if let Some(outputs) = proc.get_mut("outputs") {
-                        *outputs = serde_json::json!({});
-                    }
-                }
-            }
-            let modified = serde_json::to_vec(&json_val)
-                .map_err(|e| AppError::Internal(format!("Failed to serialize install_profile.json: {e}")))?;
-            zip_writer.start_file(&name, options)
-                .map_err(|e| AppError::Internal(format!("Failed to start zip entry: {e}")))?;
-            zip_writer.write_all(&modified)
-                .map_err(|e| AppError::Internal(format!("Failed to write zip entry: {e}")))?;
-        } else {
-            zip_writer.start_file(&name, options)
-                .map_err(|e| AppError::Internal(format!("Failed to start zip entry: {e}")))?;
-            std::io::copy(&mut entry, &mut zip_writer)
-                .map_err(|e| AppError::Internal(format!("Failed to copy zip entry: {e}")))?;
-        }
-    }
-    zip_writer.finish()
-        .map_err(|e| AppError::Internal(format!("Failed to finish zip writer: {e}")))?;
-
-    tracing::info!(patched = %patched_path.display(), "Successfully created patched Forge installer");
-    Ok(patched_path)
 }
 
 pub async fn prepare_forge(
@@ -329,31 +206,7 @@ pub async fn prepare_forge(
     );
     let installer_dest = libraries_dir.join(&installer_rel);
 
-    if !installer_dest.exists() {
-        if let Some(parent) = installer_dest.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-        tracing::info!(version = %full_version, url = %installer_url, "Downloading Forge installer");
-        let resp = http
-            .get(&installer_url)
-            .send()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to download Forge installer: {e}")))?
-            .error_for_status()
-            .map_err(|e| AppError::Internal(format!("Forge installer not found ({full_version}): {e}")))?;
-        {
-            use futures_util::StreamExt;
-            use tokio::io::AsyncWriteExt;
-            let mut stream = resp.bytes_stream();
-            let mut dest = tokio::fs::File::create(&installer_dest).await?;
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk
-                    .map_err(|e| AppError::Internal(format!("Failed to read Forge installer: {e}")))?;
-                dest.write_all(&chunk).await?;
-            }
-            dest.flush().await?;
-        }
-    }
+    crate::core::downloader::ensure_artifact(http, &installer_dest, &installer_url, 0, "").await?;
 
     let data_dir = libraries_dir.parent().unwrap_or(libraries_dir);
     let client_rel = format!(
@@ -362,46 +215,17 @@ pub async fn prepare_forge(
     );
     let client_dest = libraries_dir.join(&client_rel);
 
-    if !client_dest.exists() && installer_dest.exists() {
+    if !client_dest.exists() || !installer_dest.with_extension("installed").exists() {
         let profiles_file = data_dir.join("launcher_profiles.json");
         if !profiles_file.exists() {
             let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
         }
 
-        let java_bin = find_java_binary(libraries_dir, mc_version);
-        tracing::info!(java = %java_bin.display(), installer = %installer_dest.display(), "Executing Forge installer");
-        let _ = crate::core::process::tokio_command(&java_bin)
-            .arg("-jar")
-            .arg(&installer_dest)
-            .arg("--installClient")
-            .arg(data_dir)
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .await;
-
-        if !client_dest.exists() {
-            if let Ok(patched) = prepare_patched_installer(&installer_dest) {
-                if patched != installer_dest && patched.exists() {
-                    let _ = crate::core::process::tokio_command(&java_bin)
-                        .arg("-jar")
-                        .arg(&patched)
-                        .arg("--installClient")
-                        .arg(data_dir)
-                        .stdin(std::process::Stdio::null())
-                        .stdout(std::process::Stdio::null())
-                        .stderr(std::process::Stdio::null())
-                        .status()
-                        .await;
-                    let _ = tokio::fs::remove_file(&patched).await;
-                }
-            }
-        }
+        super::installer::run(http, &installer_dest, data_dir, mc_version).await?;
     }
 
     let installer_bytes = tokio::fs::read(&installer_dest).await?;
-    let _ = extract_installer_maven_files(&installer_bytes, libraries_dir);
+    extract_installer_maven_files(&installer_bytes, libraries_dir)?;
 
     let versions_dir = data_dir.join("versions");
     let candidate_ids = [
@@ -477,51 +301,16 @@ pub async fn prepare_forge(
             (p, u)
         };
 
-        let dest = libraries_dir.join(&rel_path_str);
-        if !dest.exists() {
-            if let Some(parent) = dest.parent() {
-                let _ = tokio::fs::create_dir_all(parent).await;
-            }
-
-            let mut downloaded = false;
-            if let Ok(resp) = http.get(&download_url).send().await {
-                if resp.status().is_success() {
-                    if let Ok(b) = resp.bytes().await {
-                        if !b.is_empty() {
-                            let _ = tokio::fs::write(&dest, &b).await;
-                            downloaded = true;
-                        }
-                    }
-                }
-            }
-
-            if !downloaded {
-                let fallback_mojang = format!("https://libraries.minecraft.net/{}", rel_path_str.trim_start_matches('/'));
-                if let Ok(resp) = http.get(&fallback_mojang).send().await {
-                    if resp.status().is_success() {
-                        if let Ok(b) = resp.bytes().await {
-                            let _ = tokio::fs::write(&dest, &b).await;
-                            downloaded = true;
-                        }
-                    }
-                }
-            }
-
-            if !downloaded {
-                let fallback_central = format!("https://repo1.maven.org/maven2/{}", rel_path_str.trim_start_matches('/'));
-                if let Ok(resp) = http.get(&fallback_central).send().await {
-                    if resp.status().is_success() {
-                        if let Ok(b) = resp.bytes().await {
-                            let _ = tokio::fs::write(&dest, &b).await;
-                        }
-                    }
-                }
-            }
+        let relative = Path::new(&rel_path_str);
+        if relative.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
+            return Err(AppError::InvalidInput("Unsafe loader library path".into()));
         }
-
-        if dest.exists() && !classpath_entries.contains(&dest) {
-            classpath_entries.push(dest);
-        }
+        let dest = libraries_dir.join(relative);
+        let artifact = lib.downloads.as_ref().and_then(|downloads| downloads.artifact.as_ref());
+        let size = artifact.and_then(|entry| entry.size).unwrap_or(0);
+        let sha1 = artifact.and_then(|entry| entry.sha1.as_deref()).unwrap_or_default();
+        crate::core::downloader::ensure_artifact(http, &dest, &download_url, size, sha1).await?;
+        if !classpath_entries.contains(&dest) { classpath_entries.push(dest); }
     }
 
     let universal_rel = format!(

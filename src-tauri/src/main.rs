@@ -6,6 +6,10 @@ fn main() {
     {
         use std::os::unix::process::CommandExt;
 
+        if std::env::var("G_PRGNAME").is_err() {
+            std::env::set_var("G_PRGNAME", "luxmc");
+        }
+
         if std::env::var("LUXMC_WAYLAND_PRELOADED").is_err() {
             let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
                 || std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland");
@@ -33,6 +37,7 @@ fn main() {
                                 format!("{}:{}", host_wayland, current_preload)
                             };
                             cmd.env("LD_PRELOAD", new_preload);
+                            cmd.env("G_PRGNAME", "luxmc");
                             cmd.env("LUXMC_WAYLAND_PRELOADED", "1");
                             cmd.env("MALLOC_ARENA_MAX", "2");
                             cmd.env("MALLOC_TRIM_THRESHOLD_", "131072");
@@ -67,16 +72,10 @@ fn main() {
             }
         }
 
+
         if std::env::var("LUXMC_SOFTWARE_RENDER").map(|v| v == "1" || v == "true").unwrap_or(false) {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
             std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
-        } else {
-            if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").as_deref() == Ok("1") {
-                std::env::remove_var("WEBKIT_DISABLE_DMABUF_RENDERER");
-            }
-            if std::env::var("WEBKIT_FORCE_COMPOSITING_MODE").is_err() {
-                std::env::set_var("WEBKIT_FORCE_COMPOSITING_MODE", "1");
-            }
         }
         if std::env::var("__NV_DISABLE_EXPLICIT_SYNC").is_err() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
@@ -118,6 +117,7 @@ fn main() {
 
     let is_daemon = std::env::args().any(|a| a == "--daemon");
     let runtime = tokio::runtime::Builder::new_multi_thread()
+        .thread_stack_size(16 * 1024 * 1024)
         .enable_all()
         .build()
         .expect("failed to build tokio runtime");
@@ -125,6 +125,7 @@ fn main() {
     if is_daemon {
         runtime.block_on(luxmc_lib::daemon::run_daemon());
     } else {
+        tauri::async_runtime::set(runtime.handle().clone());
         runtime.block_on(luxmc_lib::run());
     }
 }

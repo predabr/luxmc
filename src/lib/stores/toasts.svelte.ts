@@ -6,6 +6,6 @@ export function setToastInstance(t: Toasts) {
 	_instance = t;
 }
 
-export function toast(message: string, level: "info" | "success" | "warning" | "error" = "info") {
-	_instance?.push(message, level);
+export function toast(message: string, level: "info" | "success" | "warning" | "error" = "info", action?: { label: string; run: () => void }) {
+	_instance?.push(message, level, action);
 }

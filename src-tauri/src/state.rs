@@ -13,6 +13,8 @@ impl Default for AppState {
     fn default() -> Self {
         let http = reqwest::Client::builder()
             .user_agent("Luxmc/1.5.5-beta (Linux; Minecraft Launcher)")
+            .pool_max_idle_per_host(32)
+            .tcp_nodelay(true)
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         let auth = AuthService::new(http.clone());

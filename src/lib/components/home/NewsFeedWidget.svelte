@@ -38,11 +38,11 @@
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
-			id: "luxmc-v1-9-2",
-			title: "Luxmc v1.9.2: Pacotes .RPM & Correção de Modpacks",
-			body: "Suporte a .rpm para Fedora/RHEL, inicialização de modpacks corrigida e skins 3D perfeitas.",
+			id: "luxmc-v2-0-0",
+			title: "Luxmc v2.0.0: O Lançamento Oficial da Nova Geração",
+			body: "CrashDoctor Auto-Heal, Mod Shield, 50k+ mods, P2P mesh multiplayer e integração total no Linux & Windows.",
 			publishedAt: "Hoje",
-			tag: "v1.9.2",
+			tag: "v2.0.0",
 			url: "/news"
 		},
 		{

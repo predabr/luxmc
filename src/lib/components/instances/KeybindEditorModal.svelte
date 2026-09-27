@@ -77,15 +77,13 @@
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
-		if (!listeningKeyId) return;
+		if (!listeningKeyId || e.key === "Shift") return;
 		e.preventDefault();
 		e.stopPropagation();
 
 		let rawKey = `key.keyboard.${e.code.toLowerCase().replace("key", "").replace("digit", "")}`;
 		if (e.code === "Space") rawKey = "key.keyboard.space";
 		if (e.code === "Escape") rawKey = "key.keyboard.escape";
-		if (e.code === "ShiftLeft") rawKey = "key.keyboard.left.shift";
-		if (e.code === "ShiftRight") rawKey = "key.keyboard.right.shift";
 		if (e.code === "ControlLeft") rawKey = "key.keyboard.left.control";
 		if (e.code === "ControlRight") rawKey = "key.keyboard.right.control";
 

@@ -1,12 +1,14 @@
 # Maintainer: Pedro <suporte@luxmc.com>
 pkgname=luxmc
-pkgver=1.5.2.beta
-_tagver="1.5.2-beta"
+pkgver=2.0.0
+_tagver="2.0.0"
 pkgrel=1
 pkgdesc="Linux-first Minecraft launcher written in Tauri 2, SvelteKit, and Rust"
 arch=('x86_64')
 url="https://github.com/predabr/luxmc"
 license=('MIT')
+provides=('luxmc-launcher' 'luxmc-bin')
+conflicts=('luxmc-launcher' 'luxmc-bin')
 makedepends=('cargo' 'pnpm' 'nodejs' 'webkit2gtk-4.1' 'openssl' 'librsvg' 'libayatana-appindicator' 'gtk3')
 depends=(
     'webkit2gtk-4.1'

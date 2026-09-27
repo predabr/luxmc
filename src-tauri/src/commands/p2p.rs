@@ -2,7 +2,7 @@ use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use std::net::UdpSocket;
 use tauri::Emitter;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 
 const DEFAULT_P2P_PORT: u16 = 25575;
@@ -63,13 +63,14 @@ pub async fn p2p_scan_lan_worlds() -> AppResult<Vec<DiscoveredLanWorld>> {
 
     let end_time = tokio::time::Instant::now() + std::time::Duration::from_millis(1500);
     while tokio::time::Instant::now() < end_time {
-        let remaining = end_time - tokio::time::Instant::now();
+        let remaining = end_time.saturating_duration_since(tokio::time::Instant::now());
         if let Ok(Ok((len, src))) = tokio::time::timeout(remaining, socket.recv_from(&mut buf)).await {
             let msg = String::from_utf8_lossy(&buf[..len]);
             if let (Some(motd_start), Some(motd_end)) = (msg.find("[MOTD]"), msg.find("[/MOTD]")) {
-                let motd = msg[motd_start + 6..motd_end].to_string();
+                let Some(motd) = msg.get(motd_start + 6..motd_end) else { continue; };
+                let motd = motd.to_string();
                 if let (Some(ad_start), Some(ad_end)) = (msg.find("[AD]"), msg.find("[/AD]")) {
-                    let port_str = &msg[ad_start + 4..ad_end];
+                    let Some(port_str) = msg.get(ad_start + 4..ad_end) else { continue; };
                     if let Ok(port) = port_str.parse::<u16>() {
                         let host = src.ip().to_string();
                         if !worlds.iter().any(|w: &DiscoveredLanWorld| w.port == port && w.host == host) {
@@ -172,11 +173,14 @@ pub async fn p2p_start_listener_core(app: Option<tauri::AppHandle>) -> AppResult
     tracing::info!("Luxmc P2P listener active on {}", addr);
 
     tokio::spawn(async move {
+        let connections = std::sync::Arc::new(tokio::sync::Semaphore::new(16));
         while let Ok((stream, peer)) = listener.accept().await {
+            let Ok(permit) = connections.clone().try_acquire_owned() else { continue; };
             tracing::debug!(peer = %peer, "P2P connection accepted");
             let app_clone = app.clone();
             tokio::spawn(async move {
-                let mut reader = BufReader::new(stream);
+                let _permit = permit;
+                let mut reader = BufReader::new(stream.take((MAX_MESSAGE_SIZE + 1) as u64));
                 let mut line = String::new();
                 match tokio::time::timeout(std::time::Duration::from_secs(5), reader.read_line(&mut line)).await {
                     Ok(Ok(0)) => {}

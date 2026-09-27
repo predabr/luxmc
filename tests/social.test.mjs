@@ -9,14 +9,16 @@ function fixture() {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec(readFileSync(new URL("../website/migrations/0001_social.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0002_accounts.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0003_mesh_social.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0004_social_stream.sql", import.meta.url), "utf8"));
   const db = { prepare(sql) {
     const statement = sqlite.prepare(sql);
     return { bind(...values) {
       return { async first() { return statement.get(...values) || null; }, async all() { return { results: statement.all(...values) }; }, async run() { return { meta: statement.run(...values) }; } };
     } };
   } };
-  async function request(action, token, body) {
-    const response = await onRequest({ request: new Request(`https://luxmc.test/api/social/${action}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) }), env: { SOCIAL_DB: db }, params: { action }, waitUntil() {} });
+  async function request(action, token, body, streamUrl) {
+    const response = await onRequest({ request: new Request(`https://luxmc.test/api/social/${action}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) }), env: { SOCIAL_DB: db, SOCIAL_STREAM_URL: streamUrl }, params: { action }, waitUntil() {} });
     return { status: response.status, body: await response.json() };
   }
   return { sqlite, request, db };
@@ -110,5 +112,44 @@ test("rate limiting rejects excess requests without leaking identities", async (
     for (let i = 0; i < 121; i++) response = await request("sync", aliceToken, {});
     assert.equal(response.status, 429);
     assert.equal(response.body.me, undefined);
+  } finally { sqlite.close(); }
+});
+
+
+test("blocked users cannot invite or join a private mesh room", async () => {
+  const { sqlite, request } = fixture();
+  try {
+    const alice = (await request("register", aliceToken, { username: "Alice" })).body.me;
+    const bob = (await request("register", bobToken, { username: "Bob" })).body.me;
+    await request("invite", aliceToken, { targetId: bob.id });
+    await request("accept", bobToken, { targetId: alice.id });
+    const room = await request("room_create", aliceToken, { host: "100.64.0.1", port: 25565 });
+    assert.equal(room.status, 200);
+    assert.match(room.body.code, /^\d{6}$/);
+    assert.equal((await request("room_join", bobToken, { code: room.body.code })).body.host, "100.64.0.1");
+    await request("block", aliceToken, { targetId: bob.id });
+    assert.equal((await request("invite", bobToken, { targetId: alice.id })).status, 403);
+    assert.equal((await request("room_join", bobToken, { code: room.body.code })).status, 403);
+    assert.deepEqual((await request("sync", bobToken, {})).body.friends, []);
+    await request("room_close", aliceToken, {});
+    assert.equal((await request("room_join", aliceToken, { code: room.body.code })).status, 404);
+  } finally { sqlite.close(); }
+});
+
+
+test("websocket tickets are short-lived and only their hash is stored", async () => {
+  const { sqlite, request } = fixture();
+  try {
+    await request("register", aliceToken, { username: "Alice" });
+    assert.equal((await request("stream_ticket", aliceToken, {})).body.url, null);
+    const response = await request("stream_ticket", aliceToken, {}, "wss://stream.example/connect");
+    assert.equal(response.status, 200);
+    const ticket = new URL(response.body.url).searchParams.get("ticket");
+    assert.equal(ticket.length, 72);
+    const stored = sqlite.prepare("SELECT * FROM social_stream_tickets").get();
+    assert.notEqual(stored.token_hash, ticket);
+    assert.equal(stored.token_hash.length, 64);
+    assert.ok(stored.expires_at <= Date.now()/1000 + 30);
+    assert.equal((await request("stream_ticket", aliceToken, {}, "ws://stream.example/connect")).status, 503);
   } finally { sqlite.close(); }
 });

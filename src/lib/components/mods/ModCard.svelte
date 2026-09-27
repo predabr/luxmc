@@ -103,7 +103,7 @@
 		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent"></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
 		<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
-			{#if item.iconUrl}<LazyImage src={item.iconUrl} alt="" class="h-full w-full rounded-xl object-cover" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
+			{#if item.iconUrl || item.bannerUrl}<LazyImage src={item.iconUrl || item.bannerUrl || ""} alt="" class="h-full w-full rounded-xl object-cover" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
 		</div>
 	</div>
 	<div class="flex flex-1 flex-col gap-3 p-5 pt-7">

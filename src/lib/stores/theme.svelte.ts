@@ -1,3 +1,4 @@
+import { wallpaperLocalPath } from "$lib/utils/wallpaperSource";
 export interface ThemeOption {
 	id: string;
 	name: string;
@@ -131,6 +132,17 @@ let activeAccent = $state("blue");
 let activeBackground = $state("obsidian");
 let customWallpaperUrl = $state("");
 let customWallpaperType = $state<"image" | "video">("image");
+export type WallpaperEntry = { url: string; type: "image" | "video"; name: string };
+let wallpaperLibrary = $state<WallpaperEntry[]>([]);
+
+function wallpaperName(url: string): string {
+	const filename = (wallpaperLocalPath(url) || url).split(/[\\/]/).pop() || "Wallpaper";
+	return filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || "Wallpaper";
+}
+
+function persistWallpaperLibrary() {
+	if (typeof window !== "undefined") localStorage.setItem("luxmc_wallpaper_library", JSON.stringify(wallpaperLibrary));
+}
 
 function applyThemeVariables(tId: string, aId: string, bgId: string) {
 	if (typeof document === "undefined") return;
@@ -178,7 +190,7 @@ function applyThemeVariables(tId: string, aId: string, bgId: string) {
 	Object.keys(ACCENTS).forEach((k) => root.classList.remove(`accent-${k}`));
 	root.classList.add(`accent-${a.id}`);
 
-	const hasCustomWp = Boolean(customWallpaperUrl && (bgId === "custom" || activeBackground === "custom"));
+	const hasCustomWp = Boolean(customWallpaperUrl && bgId === "custom");
 	root.classList.toggle("has-custom-wallpaper", hasCustomWp);
 }
 
@@ -197,6 +209,7 @@ export const themeStore = {
 	get background() { return activeBackground; },
 	get customWallpaperUrl() { return customWallpaperUrl; },
 	get customWallpaperType() { return customWallpaperType; },
+	get wallpaperLibrary() { return wallpaperLibrary; },
 
 	get currentAccentData() {
 		return ACCENTS[activeAccent] || ACCENTS.blue;
@@ -228,9 +241,6 @@ export const themeStore = {
 				import("./settings.svelte").then(({ settings }) => {
 					settings.patch({ theme: resolved === "light" ? "default-light" : "default-dark" });
 				}).catch(() => {});
-				import("./persistence.svelte").then(({ schedulePersist }) => {
-					schedulePersist();
-				}).catch(() => {});
 			}
 		}
 	},
@@ -247,9 +257,6 @@ export const themeStore = {
 				import("./settings.svelte").then(({ settings }) => {
 					settings.patch({ accentTheme: aId as import("./settings.svelte").AccentTheme });
 				}).catch(() => {});
-				import("./persistence.svelte").then(({ schedulePersist }) => {
-					schedulePersist();
-				}).catch(() => {});
 			}
 		}
 	},
@@ -265,23 +272,40 @@ export const themeStore = {
 				import("./settings.svelte").then(({ settings }) => {
 					settings.patch({ customBackground: bgId });
 				}).catch(() => {});
-				import("./persistence.svelte").then(({ schedulePersist }) => {
-					schedulePersist();
-				}).catch(() => {});
 			}
 		}
 	},
 
 	setCustomWallpaper(url: string, type: "image" | "video" = "image") {
-		customWallpaperUrl = url;
+		const normalized = wallpaperLocalPath(url) || url;
+		if (!normalized) return;
+		const existing = wallpaperLibrary.find(item => item.url === normalized);
+		wallpaperLibrary = [existing ? { ...existing, type } : { url: normalized, type, name: wallpaperName(normalized) }, ...wallpaperLibrary.filter(item => item.url !== normalized)];
+		persistWallpaperLibrary();
+		customWallpaperUrl = normalized;
 		customWallpaperType = type;
 		activeBackground = "custom";
 		if (typeof window !== "undefined") {
-			localStorage.setItem("luxmc_custom_wallpaper", url);
+			localStorage.setItem("luxmc_custom_wallpaper", customWallpaperUrl);
 			localStorage.setItem("luxmc_custom_wallpaper_type", type);
 			localStorage.setItem("luxmc_background", "custom");
 		}
 		applyThemeVariables(activeTheme, activeAccent, "custom");
+	},
+
+	selectWallpaper(url: string) {
+		const entry = wallpaperLibrary.find(item => item.url === url);
+		if (!entry) return false;
+		this.setCustomWallpaper(entry.url, entry.type);
+		return true;
+	},
+
+	removeWallpaper(url: string) {
+		wallpaperLibrary = wallpaperLibrary.filter(item => item.url !== url);
+		persistWallpaperLibrary();
+		if (customWallpaperUrl !== url) return;
+		if (wallpaperLibrary[0]) this.setCustomWallpaper(wallpaperLibrary[0].url, wallpaperLibrary[0].type);
+		else this.clearCustomWallpaper();
 	},
 
 	clearCustomWallpaper() {
@@ -302,6 +326,12 @@ export const themeStore = {
 		const savedBg = localStorage.getItem("luxmc_background");
 		const savedCustomWp = localStorage.getItem("luxmc_custom_wallpaper");
 		const savedCustomType = localStorage.getItem("luxmc_custom_wallpaper_type") as "image" | "video" | null;
+		try {
+			const parsed: unknown = JSON.parse(localStorage.getItem("luxmc_wallpaper_library") || "[]");
+			if (Array.isArray(parsed)) {
+				wallpaperLibrary = parsed.filter((item): item is WallpaperEntry => item && typeof item.url === "string" && item.url.length > 0 && item.url.length < 4096 && (item.type === "image" || item.type === "video") && typeof item.name === "string").slice(0, 100);
+			}
+		} catch {}
 		
 		if (savedTheme) {
 			if (savedTheme === "light" || savedTheme === "default-light") activeTheme = "light";
@@ -309,13 +339,18 @@ export const themeStore = {
 		}
 		if (savedAccent && ACCENTS[savedAccent]) activeAccent = savedAccent;
 		if (savedCustomWp) {
-			customWallpaperUrl = savedCustomWp;
-			customWallpaperType = savedCustomType || "image";
-			activeBackground = "custom";
-		} else if (savedBg && BACKGROUNDS[savedBg]) {
+			customWallpaperUrl = wallpaperLocalPath(savedCustomWp) || savedCustomWp;
+            localStorage.setItem("luxmc_custom_wallpaper", customWallpaperUrl);
+			customWallpaperType = savedCustomType === "video" ? "video" : "image";
+            if (!wallpaperLibrary.some(item => item.url === customWallpaperUrl)) {
+                wallpaperLibrary = [{ url: customWallpaperUrl, type: customWallpaperType, name: wallpaperName(customWallpaperUrl) }, ...wallpaperLibrary];
+                persistWallpaperLibrary();
+            }
+            if (!savedBg || savedBg === "custom") activeBackground = "custom";
+		}
+        if (savedBg && BACKGROUNDS[savedBg]) {
 			activeBackground = savedBg;
 		}
 		applyThemeVariables(activeTheme, activeAccent, activeBackground);
 	}
 };
-

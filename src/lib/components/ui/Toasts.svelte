@@ -9,6 +9,7 @@
 		id: number;
 		message: string;
 		level: "info" | "success" | "warning" | "error";
+		action?: { label: string; run: () => void };
 	};
 
 	let toasts = $state<Toast[]>([]);
@@ -17,11 +18,17 @@
 	const timers = new Map<number, ReturnType<typeof setTimeout>>();
 	let destroyed = false;
 
-	export function push(message: string, level: Toast["level"] = "info") {
+	export function push(message: string, level: Toast["level"] = "info", action?: Toast["action"]) {
 		if (destroyed) return;
-		if (toasts.length >= 20) { toasts = toasts.slice(-15); }
+		if (toasts.length >= 20) {
+            for (const item of toasts.slice(0, -15)) {
+                clearTimeout(timers.get(item.id)); clearTimeout(timers.get(item.id + 0.5));
+                timers.delete(item.id); timers.delete(item.id + 0.5); dismissing.delete(item.id);
+            }
+            toasts = toasts.slice(-15);
+        }
 		const id = ++counter;
-		toasts = [...toasts, { id, message, level }];
+		toasts = [...toasts, { id, message, level, action }];
 		const t1 = setTimeout(() => {
 			timers.delete(id);
 			if (!destroyed) dismiss(id);
@@ -43,10 +50,13 @@
 	}
 
 	function dismiss(id: number) {
+		if (dismissing.has(id)) return;
+		clearTimeout(timers.get(id));
+		timers.delete(id);
 		dismissing.add(id);
 		dismissing = dismissing;
 		const t2 = setTimeout(() => {
-			timers.delete(id);
+			timers.delete(id + 0.5);
 			if (destroyed) return;
 			toasts = toasts.filter((t) => t.id !== id);
 			dismissing.delete(id);
@@ -72,7 +82,9 @@
 			aria-live="polite"
 		>
 			<cfg.Icon class="h-4 w-4 shrink-0" style="color: {cfg.color};" />
-			<p class="flex-1">{toastItem.message}</p>
+			<div class="flex-1"><p>{toastItem.message}</p>
+                {#if toastItem.action}<button class="mt-2 font-semibold underline" onclick={() => { toastItem.action?.run(); dismiss(toastItem.id); }}>{toastItem.action.label}</button>{/if}
+            </div>
 			<button
 				type="button"
 				class="grid h-5 w-5 place-items-center rounded transition-colors hover:bg-fg/5"

@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v1.9.2)"
+        description: "Release tag (e.g. v2.0.0)"
         required: true
-        default: "v1.9.2"
+        default: "v2.0.0"
 
 permissions:
   contents: write
@@ -23,9 +23,12 @@ jobs:
     steps:
       - name: Get tag
         id: get-tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "tag=$INPUT_TAG" >> $GITHUB_OUTPUT
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
@@ -33,9 +36,11 @@ jobs:
       - name: Create or Find GitHub Release
         id: create-release
         uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ steps.get-tag.outputs.tag }}
         with:
           script: |
-            const tag = "${{ steps.get-tag.outputs.tag }}";
+            const tag = process.env.RELEASE_TAG;
             let releaseId;
             try {
               const existing = await github.rest.repos.getReleaseByTag({
@@ -52,23 +57,35 @@ jobs:
                 tag_name: tag,
                 name: `Luxmc ${tag}`,
                 body: [
-                  "## 🚀 Luxmc " + tag,
+                  "## 🚀 Luxmc " + tag + " — Lançamento Oficial",
                   "",
-                  "### Instaladores",
+                  "### ✨ Principais Recursos",
+                  "- 🛡️ **CrashDoctor™ Auto-Heal**: Detecção automática de falhas e sugestão de reparo.",
+                  "- 🛡️ **Mod Shield™**: Prevenção ativa de conflitos e validação de compatibilidade pré-jogo.",
+                  "- 📦 **Catálogo Unificado**: 50.000+ mods e modpacks do Modrinth e CurseForge em 1 clique.",
+                  "- 🌐 **Multiplayer P2P Mesh**: Conexão privada direta entre amigos sem abrir portas no roteador.",
+                  "- 🎨 **Estúdio 3D de Skins & Capas**: Prévia em tempo real e suporte a capas HD sem distorção.",
+                  "- ☕ **Java Auto-Manager**: Download e gestão automática de runtimes Temurin (Java 8, 17, 21).",
+                  "- 🐧 **Integração Linux Nativa**: Suporte a Wayland e X11, GameMode e ícone oficial na barra de tarefas.",
+                  "- 🔒 **Zero Telemetria**: Todos os dados e credenciais ficam 100% locais na sua máquina.",
+                  "",
+                  "### 📥 Instaladores",
                   "| Plataforma | Arquivo | Formato |",
                   "| --- | --- | --- |",
-                  "| 🪟 Windows | `Luxmc_x64-setup.exe` | NSIS Installer |",
-                  "| 🐧 Ubuntu/Debian | `luxmc_amd64.deb` | DEB Package |",
-                  "| 🐧 Fedora/openSUSE | `luxmc_x86_64.rpm` | RPM Package |",
-                  "| 🐧 Universal Linux | `luxmc_amd64.AppImage` | AppImage |",
-                  "| 🍎 macOS (Intel + Apple Silicon) | `Luxmc_universal.dmg` | DMG |",
+                  "| 🪟 Windows | `Luxmc_2.0.0_x64-setup.exe` | Instalador NSIS |",
+                  "| 🐧 Linux (Arch Linux) | `yay -S luxmc-launcher` / `pacman -U` | AUR / Pacman |",
+                  "| 🐧 Universal Linux | `Luxmc_2.0.0_amd64.AppImage` | AppImage |",
+                  "| 🐧 Ubuntu / Debian | `Luxmc_2.0.0_amd64.deb` | Pacote DEB |",
+                  "| 🐧 Fedora / openSUSE | `Luxmc-2.0.0-1.x86_64.rpm` | Pacote RPM |",
+                  "| 🍎 macOS (Universal) | `Luxmc_2.0.0_universal.dmg` | DMG |",
                   "",
                   "### Como instalar",
-                  "- **Windows**: Baixe o `.exe` e execute",
-                  "- **Ubuntu/Debian**: `sudo dpkg -i luxmc_*.deb`",
-                  "- **Fedora/RHEL**: `sudo rpm -i luxmc_*.rpm`",
-                  "- **AppImage**: `chmod +x luxmc*.AppImage && ./luxmc*.AppImage`",
-                  "- **macOS**: Abra o `.dmg` e arraste para `/Applications`",
+                  "- **Arch Linux**: `yay -S luxmc-launcher` ou `sudo pacman -U <url>.pkg.tar.zst`",
+                  "- **Linux Universal**: `curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash`",
+                  "- **Windows**: Baixe o `Luxmc_2.0.0_x64-setup.exe` e execute o instalador",
+                  "- **Ubuntu/Debian**: `sudo dpkg -i Luxmc_2.0.0_amd64.deb`",
+                  "- **Fedora/RHEL**: `sudo rpm -i Luxmc-2.0.0-1.x86_64.rpm`",
+                  "- **macOS**: Abra o `.dmg` e arraste para a pasta `/Applications`",
                 ].join("\n"),
                 draft: false,
                 prerelease: tag.includes("beta") || tag.includes("alpha") || tag.includes("rc"),
@@ -104,12 +121,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "pnpm"
 
       - name: Setup Rust
@@ -133,6 +150,17 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target x86_64-unknown-linux-gnu --bundles deb,rpm,appimage
 
+      - name: Build and Upload Arch Linux Package (.pkg.tar.zst)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+        run: |
+          sudo apt-get install -y zstd tar
+          bash scripts/build-arch-package.sh || true
+          if [ -f "packaging/arch/luxmc-2.0.0-1-x86_64.pkg.tar.zst" ]; then
+            gh release upload "$RELEASE_TAG" "packaging/arch/luxmc-2.0.0-1-x86_64.pkg.tar.zst" --clobber || true
+          fi
+
   build-windows:
     needs: create-release
     runs-on: windows-latest
@@ -142,12 +170,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "pnpm"
 
       - name: Setup Rust
@@ -180,12 +208,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: "22"
           cache: "pnpm"
 
       - name: Setup Rust (universal)

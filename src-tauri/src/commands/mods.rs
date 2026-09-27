@@ -46,6 +46,16 @@ fn dedup_results(mut combined: Vec<ModSearchResult>) -> Vec<ModSearchResult> {
     combined
 }
 
+use std::sync::OnceLock;
+use std::time::{Duration, Instant};
+use dashmap::DashMap;
+
+static MODS_SEARCH_CACHE: OnceLock<DashMap<String, (Instant, Vec<ModSearchResult>)>> = OnceLock::new();
+
+fn get_mods_search_cache() -> &'static DashMap<String, (Instant, Vec<ModSearchResult>)> {
+    MODS_SEARCH_CACHE.get_or_init(DashMap::new)
+}
+
 #[tauri::command]
 pub async fn mods_search_core(
     state: &AppState,
@@ -63,48 +73,96 @@ pub async fn mods_search_core(
     let offset = offset.unwrap_or(0);
     let content_type = content_type.unwrap_or_else(|| "mod".to_string());
     let sort = sort_by.as_deref().unwrap_or("downloads");
+    let src = source.as_deref().unwrap_or("all").to_lowercase();
+
+    let cache_key = format!(
+        "{}:{}:{}:{}:{}:{}:{}:{}:{}",
+        query,
+        mc_version,
+        limit,
+        offset,
+        content_type,
+        sort,
+        loader.as_deref().unwrap_or(""),
+        category.as_deref().unwrap_or(""),
+        src
+    );
+
+    let cache = get_mods_search_cache();
+    if let Some(entry) = cache.get(&cache_key) {
+        if entry.0.elapsed() < Duration::from_secs(300) {
+            return Ok(entry.1.clone());
+        }
+    }
 
     let modrinth_client = ModrinthClient::new(state.http.clone());
 
-    let src = source.as_deref().unwrap_or("all").to_lowercase();
     let (modrinth_results, curseforge_results) = match src.as_str() {
         "modrinth" => {
-            let m = modrinth_client
-                .search_mods(&query, &mc_version, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
-                .await
-                .unwrap_or_else(|e| {
-                    tracing::warn!(error = %e, "Modrinth search failed");
-                    Vec::new()
-                });
+            let m = tokio::time::timeout(Duration::from_millis(3500), async {
+                modrinth_client
+                    .search_mods(&query, &mc_version, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
+                    .await
+            })
+            .await
+            .unwrap_or_else(|_| {
+                tracing::warn!("Modrinth search timed out");
+                Ok(Vec::new())
+            })
+            .unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "Modrinth search failed");
+                Vec::new()
+            });
             (m, Vec::new())
         }
         "curseforge" => {
-            let c = curseforge::search_mods(&state.http, &query, &mc_version, &content_type, loader.as_deref(), limit, offset, Some(sort))
-                .await
-                .unwrap_or_else(|e| {
-                    tracing::warn!(error = %e, "CurseForge search failed");
-                    Vec::new()
-                });
+            let c = tokio::time::timeout(Duration::from_millis(3000), async {
+                curseforge::search_mods(&state.http, &query, &mc_version, &content_type, loader.as_deref(), limit, offset, Some(sort))
+                    .await
+            })
+            .await
+            .unwrap_or_else(|_| {
+                tracing::warn!("CurseForge search timed out");
+                Ok(Vec::new())
+            })
+            .unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "CurseForge search failed");
+                Vec::new()
+            });
             (Vec::new(), c)
         }
         _ => {
             tokio::join!(
                 async {
-                    modrinth_client
-                        .search_mods(&query, &mc_version, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
-                        .await
-                        .unwrap_or_else(|e| {
-                            tracing::warn!(error = %e, "Modrinth search failed");
-                            Vec::new()
-                        })
+                    tokio::time::timeout(Duration::from_millis(3500), async {
+                        modrinth_client
+                            .search_mods(&query, &mc_version, &content_type, loader.as_deref(), category.as_deref(), limit, offset, Some(sort))
+                            .await
+                    })
+                    .await
+                    .unwrap_or_else(|_| {
+                        tracing::warn!("Modrinth search timed out");
+                        Ok(Vec::new())
+                    })
+                    .unwrap_or_else(|e| {
+                        tracing::warn!(error = %e, "Modrinth search failed");
+                        Vec::new()
+                    })
                 },
                 async {
-                    curseforge::search_mods(&state.http, &query, &mc_version, &content_type, loader.as_deref(), limit, offset, Some(sort))
-                        .await
-                        .unwrap_or_else(|e| {
-                            tracing::warn!(error = %e, "CurseForge search failed");
-                            Vec::new()
-                        })
+                    tokio::time::timeout(Duration::from_millis(3000), async {
+                        curseforge::search_mods(&state.http, &query, &mc_version, &content_type, loader.as_deref(), limit, offset, Some(sort))
+                            .await
+                    })
+                    .await
+                    .unwrap_or_else(|_| {
+                        tracing::warn!("CurseForge search timed out");
+                        Ok(Vec::new())
+                    })
+                    .unwrap_or_else(|e| {
+                        tracing::warn!(error = %e, "CurseForge search failed");
+                        Vec::new()
+                    })
                 }
             )
         }
@@ -128,6 +186,12 @@ pub async fn mods_search_core(
         combined.sort_by(|a, b| b.downloads.cmp(&a.downloads));
     }
     combined.truncate(limit as usize);
+
+    if cache.len() > 300 {
+        cache.clear();
+    }
+    cache.insert(cache_key, (Instant::now(), combined.clone()));
+
     Ok(combined)
 }
 

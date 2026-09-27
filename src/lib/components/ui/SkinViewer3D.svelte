@@ -1,21 +1,15 @@
 <script lang="ts">
-	import { onMount, onDestroy } from "svelte";
-	import { SkinViewer, IdleAnimation, WalkingAnimation, RunningAnimation, FlyingAnimation } from "skinview3d";
+	import { onMount } from "svelte";
+	import { authResolveTexture } from "$lib/api/auth";
+	import type { SkinViewer } from "skinview3d";
 	import type { CapeType } from "$lib/stores/skin.svelte";
+	import { appState } from "$lib/stores/app.svelte";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
+	import { loadTextureImage, normalizeCape, classifyTexture, textureCanvas, inferSkinModelType } from "$lib/utils/textureImage";
+	import { DirectionalLight } from "three";
+	import Skin2DPreview from "./Skin2DPreview.svelte";
 
-	type AnimationType = "idle" | "walk" | "run" | "fly" | "none";
-
-	type Props = {
-		skinUrl?: string;
-		cape?: CapeType;
-		customCapeUrl?: string;
-		slim?: boolean;
-		autoRotate?: boolean;
-		animation?: AnimationType;
-		className?: string;
-		active?: boolean;
-	};
+	export type AnimationType = "idle" | "walk" | "run" | "fly" | "none";
 
 	let {
 		skinUrl = "/steve.png",
@@ -26,414 +20,464 @@
 		animation = "walk",
 		className = "",
 		active = true
-	}: Props = $props();
+	}: {
+		skinUrl?: string;
+		cape?: CapeType;
+		customCapeUrl?: string;
+		slim?: boolean;
+		autoRotate?: boolean;
+		animation?: AnimationType;
+		className?: string;
+		active?: boolean;
+	} = $props();
 
-	let containerEl: HTMLDivElement | null = $state(null);
-	let canvasEl: HTMLCanvasElement | null = $state(null);
-	let viewer: SkinViewer | null = null;
-    let unavailable = $state(false);
-	let resizeObserver: ResizeObserver | null = null;
-	let capeCache = new Map<string, HTMLCanvasElement | string>();
-	let loadGeneration = 0;
-	let lastLoadedSkin = "";
-	let lastLoadedModel = "";
-	let lastLoadedCape = "";
-	let lastLoadedCustomCape = "";
+	let containerEl = $state<HTMLDivElement | null>(null);
+	let canvasEl = $state<HTMLCanvasElement | null>(null);
+	let viewer = $state.raw<SkinViewer | null>(null);
+	let library = $state.raw<typeof import("skinview3d") | null>(null);
+	let visible = $state(false);
+	let foreground = $state(true);
+	let ready = $state(false);
+	let hasMountedViewer = $state(false);
+	let unavailable = $state(false);
+	let textureError = $state(false);
+	let fallbackUsed = $state(false);
+	let lastTexture = $state("");
 
-	function applyAnimation(anim: AnimationType) {
-		if (!viewer) return;
-		if (anim === "idle") {
-			viewer.animation = new IdleAnimation();
-			viewer.animation.speed = 0.8;
-		} else if (anim === "walk") {
-			viewer.animation = new WalkingAnimation();
-			viewer.animation.speed = 0.8;
-		} else if (anim === "run") {
-			viewer.animation = new RunningAnimation();
-			viewer.animation.speed = 0.9;
-		} else if (anim === "fly") {
-			viewer.animation = new FlyingAnimation();
-			viewer.animation.speed = 0.8;
-		} else {
-			viewer.animation = null;
-		}
+	let dragPointerId: number | null = null;
+	let lastPointerX = 0;
+	let lastPointerY = 0;
 
-		if (viewer.animation) {
-			viewer.animation.addAnimation((player, progress) => {
-				if (!player.cape) return;
-				const t = progress * (anim === "run" ? 8 : anim === "walk" ? 5 : 3);
-				const baseAngle = anim === "run" ? 0.72 : anim === "walk" ? 0.34 : 0.18;
-				const wave1 = Math.sin(t) * (anim === "run" ? 0.22 : anim === "walk" ? 0.14 : 0.08);
-				const wave2 = Math.sin(t * 2.2) * (anim === "run" ? 0.08 : anim === "walk" ? 0.04 : 0.025);
-				player.cape.rotation.x = baseAngle + wave1 + wave2;
-				player.cape.rotation.y = Math.sin(t * 0.65) * (anim === "run" ? 0.08 : 0.04);
-				player.cape.rotation.z = Math.cos(t * 0.85) * (anim === "run" ? 0.06 : 0.03);
-			});
-		}
-	}
-
-	function applyCrispSkinTexture() {
-		try {
-			const skinObj = (viewer?.playerObject as any)?.skin;
-			if (skinObj && skinObj.material) {
-				const mats = Array.isArray(skinObj.material) ? skinObj.material : [skinObj.material];
-				for (const mat of mats) {
-					if (mat && mat.map) {
-						mat.map.magFilter = 1003;
-						mat.map.minFilter = 1003;
-						mat.map.generateMipmaps = false;
-						mat.map.needsUpdate = true;
-					}
-				}
-			}
-		} catch {}
-	}
-
-	async function loadSkinTextureSource(src: string): Promise<HTMLCanvasElement | HTMLImageElement> {
-		if (!src || !src.trim()) {
-			src = "/steve.png";
-		}
-		let resolvedSrc = src.trim();
-		if (resolvedSrc.startsWith("/") && typeof window !== "undefined") {
-			resolvedSrc = window.location.origin + resolvedSrc;
-		}
-
-		if (resolvedSrc.startsWith("asset://")) {
-			try {
-				const res = await fetch(resolvedSrc);
-				const blob = await res.blob();
-				resolvedSrc = URL.createObjectURL(blob);
-			} catch {}
-		}
-
-		return new Promise((resolve) => {
-			const img = new Image();
-			if (resolvedSrc.startsWith("http://") || resolvedSrc.startsWith("https://")) {
-				img.crossOrigin = "anonymous";
-			}
-			img.onload = () => {
-				try {
-					const canvas = document.createElement("canvas");
-					canvas.width = img.naturalWidth || img.width || 64;
-					canvas.height = img.naturalHeight || img.height || 64;
-					const ctx = canvas.getContext("2d");
-					if (ctx) {
-						ctx.imageSmoothingEnabled = false;
-						ctx.drawImage(img, 0, 0);
-						resolve(canvas);
-						return;
-					}
-				} catch {}
-				resolve(img);
-			};
-			img.onerror = () => {
-				const fallbackImg = new Image();
-				fallbackImg.onload = () => {
-					try {
-						const canvas = document.createElement("canvas");
-						canvas.width = fallbackImg.naturalWidth || 64;
-						canvas.height = fallbackImg.naturalHeight || 64;
-						const ctx = canvas.getContext("2d");
-						if (ctx) {
-							ctx.imageSmoothingEnabled = false;
-							ctx.drawImage(fallbackImg, 0, 0);
-							resolve(canvas);
-							return;
-						}
-					} catch {}
-					resolve(fallbackImg);
-				};
-				fallbackImg.onerror = () => {
-					const canvas = document.createElement("canvas");
-					canvas.width = 64;
-					canvas.height = 64;
-					resolve(canvas);
-				};
-				const fallbackSrc = typeof window !== "undefined" ? window.location.origin + "/steve.png" : "/steve.png";
-				fallbackImg.src = fallbackSrc;
-			};
-			img.src = resolvedSrc;
-		});
-	}
+	const running = $derived(active && visible && foreground && !appState.isGameRunning && !appState.performanceMode);
 
 	onMount(() => {
-		if (!canvasEl || !containerEl) return;
+		let disposed = false;
+		const visibility = () => {
+			foreground = !document.hidden;
+			if (!foreground) stopDragging();
+		};
+		visibility();
+		document.addEventListener("visibilitychange", visibility);
+		window.addEventListener("blur", stopDragging);
 
-		const width = containerEl.clientWidth || 300;
-		const height = containerEl.clientHeight || 400;
-
-		try {
-			viewer = new SkinViewer({
-				canvas: canvasEl,
-				width,
-				height,
-				model: slim ? "slim" : "default",
-				enableControls: true
-			});
-		} catch {
+		const contextLost = (event: Event) => {
+			event.preventDefault();
 			unavailable = true;
-			return;
-		}
-
-		if (viewer.controls) {
-			viewer.controls.enableRotate = true;
-			viewer.controls.enableZoom = true;
-			viewer.controls.enablePan = false;
-			viewer.controls.target.set(0, 6, 0);
-		}
-
-		viewer.camera.position.set(0, 8, 48);
-		viewer.camera.lookAt(0, 6, 0);
-		viewer.zoom = 0.95;
-		viewer.fov = 48;
-
-		viewer.autoRotate = autoRotate;
-		viewer.autoRotateSpeed = 0.4;
-		applyAnimation(animation);
-		viewer.playerObject.rotation.y = (15 * Math.PI) / 180;
-		viewer.playerObject.skin.setOuterLayerVisible(true);
-
-		viewer.globalLight.intensity = 2.4;
-		viewer.cameraLight.intensity = 0.9;
-
-		updateSkin();
-		updateCape();
-
-		resizeObserver = new ResizeObserver((entries) => {
-			for (const entry of entries) {
-				const { width: w, height: h } = entry.contentRect;
-				if (w > 0 && h > 0 && viewer) {
-					viewer.setSize(w, h);
+			ready = false;
+		};
+		const contextRestored = () => {
+			requestAnimationFrame(() => {
+				if (!disposed && viewer) {
+					unavailable = false;
+					ready = renderViewer(viewer);
 				}
+			});
+		};
+
+		canvasEl?.addEventListener("webglcontextlost", contextLost);
+		canvasEl?.addEventListener("webglcontextrestored", contextRestored);
+
+		const intersection = new IntersectionObserver((entries) => {
+			visible = entries.some((entry) => entry.isIntersecting);
+		});
+		if (containerEl) intersection.observe(containerEl);
+
+		const resize = new ResizeObserver((entries) => {
+			const box = entries[0]?.contentRect;
+			if (box && box.width > 0 && box.height > 0 && viewer) {
+				viewer.setSize(box.width, box.height);
+				if (!unavailable) renderViewer(viewer);
 			}
 		});
-		resizeObserver.observe(containerEl);
+		if (containerEl) resize.observe(containerEl);
+
+		void import("skinview3d").then((module) => {
+			if (disposed || !canvasEl || !containerEl) return;
+			library = module;
+			createViewer();
+		}).catch(() => {
+			if (!disposed) unavailable = true;
+		});
+
+		return () => {
+			disposed = true;
+			intersection.disconnect();
+			resize.disconnect();
+			document.removeEventListener("visibilitychange", visibility);
+			window.removeEventListener("blur", stopDragging);
+			stopDragging();
+			canvasEl?.removeEventListener("webglcontextlost", contextLost);
+			canvasEl?.removeEventListener("webglcontextrestored", contextRestored);
+			disposeViewer();
+		};
 	});
 
-	onDestroy(() => {
-		if (resizeObserver) {
-			resizeObserver.disconnect();
-			resizeObserver = null;
-		}
-		if (viewer) {
-			viewer.dispose();
-			viewer = null;
-		}
-		capeCache.clear();
-		capeCache = new Map();
-	});
-
-	function updateSkin() {
-		if (!viewer) return;
-		const targetSkin = skinUrl && skinUrl.trim() ? skinUrl.trim() : "/steve.png";
-		const targetModel = slim ? "slim" : "default";
-
-		if (targetSkin === lastLoadedSkin && targetModel === lastLoadedModel) {
-			return;
-		}
-
-		lastLoadedSkin = targetSkin;
-		lastLoadedModel = targetModel;
-		const gen = ++loadGeneration;
-		
-		loadSkinTextureSource(targetSkin).then((source) => {
-			if (gen !== loadGeneration || !viewer) return;
-			try {
-				viewer.loadSkin(source as any, { model: targetModel });
-				viewer.playerObject.skin.visible = true;
-				viewer.playerObject.skin.setOuterLayerVisible(true);
-				applyCrispSkinTexture();
-			} catch (err) {
-				console.warn("Error applying skin texture:", err);
-			}
-		});
-	}
-
-
-	function loadAndHealCape(src: string): Promise<HTMLCanvasElement | string> {
-		if (!src) return Promise.resolve(src);
-		const cached = capeCache.get(src);
-		if (cached) return Promise.resolve(cached);
-
-		return new Promise((resolve) => {
-			if (typeof window === "undefined") {
-				resolve(src);
-				return;
-			}
-			const img = new window.Image();
-			if (src.startsWith("http://") || src.startsWith("https://")) {
-				img.crossOrigin = "anonymous";
-			}
-			img.onload = () => {
-				try {
-					const w = img.naturalWidth || img.width;
-					const h = img.naturalHeight || img.height;
-					if (w <= 0 || h <= 0) {
-						resolve(src);
-						return;
-					}
-
-					// Standard OptiFine cape: 22x17 -> place at (0,0) on 64x32 canvas without stretching
-					if (w === 22 && h === 17) {
-						const canvas = document.createElement("canvas");
-						canvas.width = 64;
-						canvas.height = 32;
-						const ctx = canvas.getContext("2d");
-						if (ctx) {
-							ctx.imageSmoothingEnabled = false;
-							ctx.drawImage(img, 0, 0);
-							capeCache.set(src, canvas);
-							resolve(canvas);
-							return;
-						}
-					}
-
-					// HD OptiFine cape: 44x34 -> place at (0,0) on 128x64 canvas
-					if (w === 44 && h === 34) {
-						const canvas = document.createElement("canvas");
-						canvas.width = 128;
-						canvas.height = 64;
-						const ctx = canvas.getContext("2d");
-						if (ctx) {
-							ctx.imageSmoothingEnabled = false;
-							ctx.drawImage(img, 0, 0);
-							capeCache.set(src, canvas);
-							resolve(canvas);
-							return;
-						}
-					}
-
-					// Square cape: crop top half
-					if (w === h && w > 0) {
-						const canvas = document.createElement("canvas");
-						canvas.width = w;
-						canvas.height = w / 2;
-						const ctx = canvas.getContext("2d");
-						if (ctx) {
-							ctx.imageSmoothingEnabled = false;
-							ctx.drawImage(img, 0, 0, w, w / 2, 0, 0, w, w / 2);
-							capeCache.set(src, canvas);
-							resolve(canvas);
-							return;
-						}
-					}
-
-					capeCache.set(src, src);
-					resolve(src);
-				} catch {
-					resolve(src);
-				}
-			};
-			img.onerror = () => resolve(src);
-			img.src = src;
-		});
-	}
-
-	function applyCrispCapeTexture() {
+	function renderViewer(target: SkinViewer): boolean {
+		if (target.disposed) return false;
 		try {
-			const capeMesh = (viewer?.playerObject as any)?.cape?.mesh;
-			if (capeMesh) {
-				const mat = Array.isArray(capeMesh.material) ? capeMesh.material[0] : capeMesh.material;
-				if (mat && mat.map) {
-					mat.map.magFilter = 1003; // NearestFilter
-					mat.map.minFilter = 1003; // NearestFilter
-					mat.map.generateMipmaps = false;
-					mat.map.needsUpdate = true;
-				}
+			if (target.renderer.getContext().isContextLost()) throw new Error("Contexto gráfico indisponível");
+			target.renderer.setRenderTarget(null);
+			target.renderer.render(target.scene, target.camera);
+			return true;
+		} catch (error) {
+			if (!unavailable) console.error("Luxmc skin preview:", error);
+			unavailable = true;
+			return false;
+		}
+	}
+
+	function applySkinMaterial(target: SkinViewer) {
+		const texture = target.playerObject.skin.map as unknown as import("three").Texture | null;
+		if (!texture) return;
+		target.playerObject.skin.traverse(object => {
+			const mesh = object as unknown as import("three").Mesh;
+			if (!mesh.isMesh) return;
+			for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+				const skinMaterial = material as import("three").MeshStandardMaterial;
+				if (skinMaterial.type !== "MeshStandardMaterial" || skinMaterial.map !== texture) continue;
+				skinMaterial.color.setRGB(0, 0, 0);
+				skinMaterial.emissive.setRGB(1, 1, 1);
+				skinMaterial.emissiveMap = texture;
+				skinMaterial.emissiveIntensity = 1;
+				skinMaterial.needsUpdate = true;
 			}
+		});
+	}
+
+	function disposeViewer() {
+		const target = viewer;
+		viewer = null;
+		if (!target) return;
+		const geometries = new Set<import("three").BufferGeometry>();
+		const materials = new Set<import("three").Material>();
+		target.scene.traverse(object => {
+			const mesh = object as unknown as import("three").Mesh;
+			if (mesh.geometry) geometries.add(mesh.geometry);
+			if (mesh.material) for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) materials.add(material);
+		});
+		target.dispose();
+		target.composer.dispose();
+		geometries.forEach(geometry => geometry.dispose());
+		materials.forEach(material => material.dispose());
+	}
+
+	function createViewer() {
+		if (!library || !canvasEl || !containerEl) return;
+		stopDragging();
+		disposeViewer();
+		ready = false;
+		unavailable = false;
+		try {
+			const target = new library.SkinViewer({
+				canvas: canvasEl,
+				width: containerEl.clientWidth || 300,
+				height: containerEl.clientHeight || 400,
+				renderPaused: true,
+				preserveDrawingBuffer: false,
+				pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
+				enableControls: false
+			});
+			target.controls.dispose();
+			target.renderer.setClearColor(0, 0);
+			target.cameraLight.decay = 0;
+			target.cameraLight.intensity = 1.0;
+			target.globalLight.intensity = 1.8;
+
+			const frontLight = new DirectionalLight(0xffffff, 1.4);
+			frontLight.position.set(15, 25, 30);
+			(target.scene as any).add(frontLight);
+
+			const backLight = new DirectionalLight(0xffffff, 0.7);
+			backLight.position.set(-15, 15, -30);
+			(target.scene as any).add(backLight);
+
+			target.fov = 46;
+			viewer = target;
+			resetCamera();
+		} catch (error) {
+			console.error("Luxmc skin preview initialization:", error);
+			unavailable = true;
+		}
+	}
+
+	function handlePointerDown(e: PointerEvent) {
+		if (!viewer || unavailable || e.button !== 0 || dragPointerId !== null) return;
+		try {
+			(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+		} catch { return; }
+		dragPointerId = e.pointerId;
+		lastPointerX = e.clientX;
+		lastPointerY = e.clientY;
+	}
+
+	function handlePointerMove(e: PointerEvent) {
+		if (dragPointerId !== e.pointerId || !viewer || unavailable) return;
+		if (e.pointerType === "mouse" && e.buttons === 0) {
+			stopDragging();
+			return;
+		}
+		const dx = e.clientX - lastPointerX;
+		const dy = e.clientY - lastPointerY;
+		lastPointerX = e.clientX;
+		lastPointerY = e.clientY;
+		if (Number.isFinite(dx)) viewer.playerWrapper.rotation.y += dx * 0.012;
+		if (Number.isFinite(dy)) viewer.playerObject.rotation.x = Math.max(-0.5, Math.min(0.5, viewer.playerObject.rotation.x + dy * 0.008));
+		renderViewer(viewer);
+	}
+
+	function stopDragging() {
+		const pointerId = dragPointerId;
+		dragPointerId = null;
+		try {
+			if (pointerId !== null && canvasEl?.hasPointerCapture(pointerId)) canvasEl.releasePointerCapture(pointerId);
 		} catch {}
 	}
 
-	function updateCape() {
-		if (!viewer) return;
-		const currentCape = cape;
-		const currentCustom = customCapeUrl;
+	function handlePointerUp(e: PointerEvent) {
+		if (dragPointerId === e.pointerId) stopDragging();
+	}
 
-		if (currentCape === lastLoadedCape && currentCustom === lastLoadedCustomCape) {
+	function handleWheel(e: WheelEvent) {
+		if (!viewer || unavailable) return;
+		e.preventDefault();
+		viewer.zoom = Math.max(0.5, Math.min(2.2, viewer.zoom - e.deltaY * 0.0015));
+		renderViewer(viewer);
+	}
+
+	let isLoadingSkin = $state(false);
+
+	$effect(() => {
+		const target = viewer;
+		const source = skinUrl || "/steve.png";
+		const selectedSlim = slim;
+		const model = selectedSlim ? "slim" : "default";
+		if (!target) return;
+		stopDragging();
+		const controller = new AbortController();
+		textureError = false;
+		fallbackUsed = false;
+        isLoadingSkin = true;
+
+		const load = async () => {
+			const candidates: Array<() => Promise<string>> = [
+				async () => (source.startsWith("https://") ? await authResolveTexture(source) : source),
+				async () => source.startsWith("https://") ? source : lastTexture || (selectedSlim ? "/alex.png" : "/steve.png"),
+				async () => (selectedSlim ? "/alex.png" : "/steve.png")
+			];
+			let failure: unknown;
+			for (let index = 0; index < candidates.length; index++) {
+				try {
+					const url = await candidates[index]();
+					if (controller.signal.aborted) return;
+					const image = await loadTextureImage(url, controller.signal, 5000);
+					if (controller.signal.aborted) return;
+					if (image.naturalWidth > 2048 || image.naturalHeight > 2048) throw new Error("Textura muito grande");
+					if (classifyTexture(textureCanvas(image)) !== "skin") throw new Error("Uma capa não pode ser usada como skin");
+					try {
+						await target.loadSkin(image, { model });
+						if (controller.signal.aborted) return;
+						applySkinMaterial(target);
+						target.playerObject.skin.visible = true;
+						target.playerObject.visible = true;
+						target.playerObject.skin.setOuterLayerVisible(true);
+						ready = renderViewer(target);
+						if (!ready) throw new Error("Não foi possível renderizar a skin");
+						hasMountedViewer = true;
+						fallbackUsed = index > 0;
+					} finally {
+						if (!controller.signal.aborted) isLoadingSkin = false;
+					}
+					try {
+						const cache = document.createElement("canvas");
+						cache.width = image.naturalWidth;
+						cache.height = image.naturalHeight;
+						cache.getContext("2d")?.drawImage(image, 0, 0);
+						lastTexture = cache.toDataURL("image/png");
+					} catch {}
+					return;
+				} catch (error) {
+					if (controller.signal.aborted) return;
+					failure = error;
+				}
+			}
+			throw failure;
+		};
+
+		void load().catch(() => {
+			if (!controller.signal.aborted) {
+				if (!lastTexture) ready = false;
+				textureError = true;
+			}
+		}).finally(() => { if (!controller.signal.aborted) isLoadingSkin = false; });
+		return () => {
+			isLoadingSkin = false;
+			controller.abort();
+		};
+	});
+
+	$effect(() => {
+		const target = viewer;
+		const source = cape === "custom" ? customCapeUrl : cape === "none" ? "" : getFullCapeDataUrl(cape);
+		if (!target) return;
+		if (!source) {
+			target.resetCape();
+			try { renderViewer(target); } catch {}
+			return;
+		}
+		const controller = new AbortController();
+		void loadTextureImage(source, controller.signal).then((image) => {
+			if (!controller.signal.aborted) {
+				try {
+					target.loadCape(normalizeCape(image), { backEquipment: "cape" });
+					renderViewer(target);
+				} catch {}
+			}
+		}).catch(() => {});
+		return () => controller.abort();
+	});
+
+	$effect(() => {
+		if (!viewer || !library) return;
+		const constructors: Record<string, any> = {
+			idle: library.IdleAnimation,
+			walk: library.WalkingAnimation,
+			run: library.RunningAnimation,
+			fly: library.FlyingAnimation
+		};
+		try {
+			const AnimClass = animation !== "none" && animation in constructors ? constructors[animation] : null;
+			viewer.animation = AnimClass ? new AnimClass() : null;
+			if (viewer.animation) viewer.animation.speed = 0.8;
+			renderViewer(viewer);
+		} catch {}
+	});
+
+	$effect(() => {
+		const target = viewer;
+		if (!target || !running || !ready || isLoadingSkin || unavailable) return;
+
+		const hasAnimation = animation !== "none";
+		const canRotate = autoRotate;
+		const hasCape = cape !== "none";
+		if (!hasAnimation && !canRotate && !hasCape) {
+			try { renderViewer(target); } catch {}
 			return;
 		}
 
-		lastLoadedCape = currentCape;
-		lastLoadedCustomCape = currentCustom;
+		let frame = 0;
+		let previous = performance.now();
+		const targetInterval = 1000 / 30;
 
-		if (cape === "custom" && customCapeUrl) {
-			viewer.playerObject.backEquipment = "cape";
-			loadAndHealCape(customCapeUrl).then((healed) => {
-				if (!viewer) return;
-				const res = viewer.loadCape(healed as any, { backEquipment: "cape" });
-				if (res && typeof (res as Promise<void>).then === "function") {
-					(res as Promise<void>)
-						.then(() => {
-							applyCrispCapeTexture();
-						})
-						.catch((e: unknown) => {
-							console.warn("Failed to load custom cape in 3D viewer:", e);
-						});
-				} else {
-					applyCrispCapeTexture();
-				}
-			});
-		} else if (cape !== "none") {
-			const fullUrl = getFullCapeDataUrl(cape);
-			if (fullUrl) {
-				viewer.playerObject.backEquipment = "cape";
-				loadAndHealCape(fullUrl).then((healed) => {
-					if (!viewer) return;
-					const res = viewer.loadCape(healed as any, { backEquipment: "cape" });
-					if (res && typeof (res as Promise<void>).then === "function") {
-						(res as Promise<void>)
-							.then(() => {
-								applyCrispCapeTexture();
-							})
-							.catch((e: unknown) => {
-								console.warn("Failed to load cape in 3D viewer:", e);
-							});
-					} else {
-						applyCrispCapeTexture();
-					}
-				});
-			} else {
-				viewer.resetCape();
+		let capePitch = 0.18;
+		let capeRoll = 0.0;
+		let capeYaw = 0.0;
+		let lastWrapperRotY = target.playerWrapper.rotation.y;
+
+		const renderLoop = (now: number) => {
+			if (isLoadingSkin) {
+				previous = now;
+				if (target) lastWrapperRotY = target.playerWrapper.rotation.y;
+				frame = requestAnimationFrame(renderLoop);
+				return;
 			}
-		} else {
-			viewer.resetCape();
-		}
-	}
+			const elapsed = now - previous;
+			if (elapsed >= targetInterval - 1) {
+				const delta = Number.isFinite(elapsed) ? Math.max(0, Math.min(elapsed / 1000, 0.05)) : 0;
+				previous = now;
+				try {
+					if (hasAnimation) {
+						target.animation?.update(target.playerObject, delta);
+					}
+					if (!Number.isFinite(target.playerWrapper.rotation.y)) target.playerWrapper.rotation.y = 0;
+					if (canRotate && dragPointerId === null) {
+						target.playerWrapper.rotation.y += delta * 0.45;
+					}
 
-	$effect(() => {
-		const _s = skinUrl;
-		const _m = slim;
-		const _c = cape;
-		const _u = customCapeUrl;
-		const _r = autoRotate;
-		const _a = active;
-		const _anim = animation;
+					if (hasCape && target.playerObject?.cape && target.playerObject.cape.visible) {
+						const currentWrapperRotY = target.playerWrapper.rotation.y;
+						let deltaRotY = currentWrapperRotY - lastWrapperRotY;
+						lastWrapperRotY = currentWrapperRotY;
+						deltaRotY = Number.isFinite(deltaRotY) ? Math.atan2(Math.sin(deltaRotY), Math.cos(deltaRotY)) : 0;
+						if (Math.abs(deltaRotY) > 0.6) deltaRotY = Math.sign(deltaRotY) * 0.6;
 
-		if (viewer) {
-			viewer.autoRotate = _r;
-			viewer.renderPaused = !_a;
-			applyAnimation(_anim);
-		}
-		updateSkin();
-		updateCape();
+						const targetPitch = animation === "run"
+							? 0.65 + Math.sin(now * 0.014) * 0.08
+							: animation === "walk"
+							? 0.35 + Math.sin(now * 0.008) * 0.05
+							: animation === "fly"
+							? 0.85 + Math.sin(now * 0.005) * 0.03
+							: 0.18 + Math.sin(now * 0.002) * 0.02;
+
+						const targetRoll = Math.max(-0.4, Math.min(0.4, -deltaRotY * 1.5));
+						const targetYaw = Math.max(-0.3, Math.min(0.3, -deltaRotY * 1.2));
+
+						const decayFactor = 1 - Math.exp(-12 * delta);
+						capePitch += (targetPitch - capePitch) * decayFactor;
+						capeRoll += (targetRoll - capeRoll) * decayFactor;
+						capeYaw += (targetYaw - capeYaw) * decayFactor;
+
+						if (!Number.isFinite(capePitch)) capePitch = 0.18;
+						if (!Number.isFinite(capeRoll)) capeRoll = 0.0;
+						if (!Number.isFinite(capeYaw)) capeYaw = 0.0;
+
+						target.playerObject.cape.rotation.x = Math.max(0.05, Math.min(1.2, capePitch));
+						target.playerObject.cape.rotation.z = Math.max(-0.4, Math.min(0.4, capeRoll));
+						target.playerObject.cape.rotation.y = Math.PI + Math.max(-0.35, Math.min(0.35, capeYaw));
+					}
+
+					renderViewer(target);
+				} catch (error) {
+					console.error("Luxmc skin animation:", error);
+					unavailable = true;
+					return;
+				}
+			}
+			frame = requestAnimationFrame(renderLoop);
+		};
+
+		frame = requestAnimationFrame(renderLoop);
+		return () => cancelAnimationFrame(frame);
 	});
 
 	export function setAngle(deg: number) {
 		if (viewer) {
-			viewer.autoRotate = false;
-			viewer.playerObject.rotation.y = (deg * Math.PI) / 180;
+			viewer.playerWrapper.rotation.y = (deg * Math.PI) / 180;
+			renderViewer(viewer);
 		}
+	}
+
+	export function setFrontView() {
+		if (!viewer) return;
+		viewer.playerWrapper.rotation.set(0, 0, 0);
+		viewer.playerObject.rotation.set(0, 0, 0);
+		renderViewer(viewer);
+	}
+
+	export function setBackView() {
+		if (!viewer) return;
+		viewer.playerWrapper.rotation.set(0, Math.PI, 0);
+		viewer.playerObject.rotation.set(0, 0, 0);
+		renderViewer(viewer);
+	}
+
+	export function setIsometricView() {
+		if (!viewer) return;
+		viewer.playerWrapper.rotation.set(0, Math.PI / 4, 0);
+		viewer.playerObject.rotation.set(0.1, 0, 0);
+		renderViewer(viewer);
 	}
 
 	export function zoomIn() {
 		if (viewer) {
-			viewer.zoom = Math.min(2.5, (viewer.zoom || 1) + 0.2);
+			viewer.zoom = Math.min(2.2, viewer.zoom + 0.2);
+			renderViewer(viewer);
 		}
 	}
 
 	export function zoomOut() {
 		if (viewer) {
-			viewer.zoom = Math.max(0.4, (viewer.zoom || 1) - 0.2);
+			viewer.zoom = Math.max(0.5, viewer.zoom - 0.2);
+			renderViewer(viewer);
 		}
 	}
 
@@ -443,28 +487,49 @@
 
 	export function resetCamera() {
 		if (!viewer) return;
-		if (viewer.controls) {
-			viewer.controls.target.set(0, 6, 0);
-		}
-		viewer.camera.position.set(0, 8, 48);
-		viewer.camera.lookAt(0, 6, 0);
+		viewer.camera.position.set(0, 2, 48);
+		viewer.camera.lookAt(0, 0, 0);
 		viewer.zoom = 0.95;
-		viewer.playerObject.rotation.y = (15 * Math.PI) / 180;
+		viewer.playerObject.position.set(0, 0, 0);
+		viewer.playerObject.rotation.set(0, 0, 0);
+		viewer.playerWrapper.rotation.set(0, Math.PI / 14, 0);
+		renderViewer(viewer);
 	}
 </script>
 
-<div 
+<div
 	bind:this={containerEl}
 	class="relative w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden {className}"
 	role="region"
 	aria-label="Visualizador 3D de Skin"
 >
-	<canvas bind:this={canvasEl} class="w-full h-full block" class:invisible={unavailable}></canvas>
-    {#if unavailable}
-        <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center" role="status">
-            <img src={skinUrl || "/grass_head.png"} alt="Textura da skin selecionada" class="h-32 w-32 object-contain [image-rendering:pixelated]" />
-            <p class="max-w-xs text-sm text-fg-muted">A prévia 3D precisa de aceleração gráfica. Você pode continuar escolhendo e aplicando skins.</p>
-        </div>
-    {/if}
-	<div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-6 bg-bg-overlay/40 rounded-full blur-sm pointer-events-none"></div>
+	<canvas
+		bind:this={canvasEl}
+		class="w-full h-full block touch-none"
+		class:invisible={unavailable || !ready}
+		onpointerdown={handlePointerDown}
+		onpointermove={handlePointerMove}
+		onpointerup={handlePointerUp}
+		onpointercancel={handlePointerUp}
+		onlostpointercapture={handlePointerUp}
+		onwheel={handleWheel}
+	></canvas>
+	{#if fallbackUsed && ready}
+		<p class="absolute bottom-2 left-2 right-2 text-center text-xs text-fg-muted pointer-events-none">
+			Prévia alternativa; sua seleção foi preservada.
+		</p>
+	{/if}
+	{#if unavailable || !ready}
+		<div class="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center pointer-events-none" role="status">
+			<Skin2DPreview src={skinUrl || (slim ? "/alex.png" : "/steve.png")} model={slim ? "alex" : "steve"} className="h-48" />
+			<p class="text-sm text-fg-muted">
+				{textureError
+					? "Não foi possível carregar a textura selecionada."
+					: unavailable
+						? "A prévia 3D foi interrompida. Sua seleção está preservada."
+						: "Carregando prévia 3D…"}
+			</p>
+			{#if unavailable}<button type="button" class="luxmc-control pointer-events-auto" onclick={createViewer}>Reiniciar prévia 3D</button>{/if}
+		</div>
+	{/if}
 </div>

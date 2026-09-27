@@ -16,6 +16,18 @@ pub enum SocialRequest {
     Accept { target_id: String },
     #[serde(rename = "remove", rename_all = "camelCase")]
     Remove { target_id: String },
+    #[serde(rename = "block", rename_all = "camelCase")]
+    Block { target_id: String },
+    #[serde(rename = "unblock", rename_all = "camelCase")]
+    Unblock { target_id: String },
+    #[serde(rename = "room_create")]
+    RoomCreate { host: String, port: u16 },
+    #[serde(rename = "room_join")]
+    RoomJoin { code: String },
+    #[serde(rename = "room_close")]
+    RoomClose,
+    #[serde(rename = "stream_ticket")]
+    StreamTicket,
 }
 
 static IDENTITY_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

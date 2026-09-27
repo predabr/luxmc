@@ -24,5 +24,5 @@
 
 <div class="relative shrink-0 rounded-2xl bg-bg-subtle ring-2 ring-offset-2 ring-offset-bg-elevated {ring} {className}" title={label}>
 	<img src={source} alt={`Skin de ${username || "Steve"}`} class="h-full w-full rounded-2xl object-cover [image-rendering:pixelated]" class:opacity-60={status === "offline"} class:grayscale={status === "offline"} loading="lazy" referrerpolicy="no-referrer" onerror={() => { if (fallback < 3) fallback += 1; }} />
-	<span class="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-bg-elevated {status === 'online' ? 'bg-success motion-safe:animate-pulse' : status === 'in_game' ? 'bg-purple-500' : status === 'pending' ? 'bg-warning' : 'bg-fg-subtle'}"></span>
+	<span class="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-bg-elevated {status === 'online' ? 'bg-success shadow-[0_0_6px_rgba(34,197,94,0.6)]' : status === 'in_game' ? 'bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,0.6)]' : status === 'pending' ? 'bg-warning' : 'bg-fg-subtle'}"></span>
 </div>

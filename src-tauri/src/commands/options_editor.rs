@@ -216,10 +216,6 @@ pub async fn instance_config_write(
     relativePath: String,
     content: String,
 ) -> AppResult<()> {
-    if relativePath.contains("..") || relativePath.starts_with('/') || relativePath.starts_with('\\') {
-        return Err(AppError::InvalidInput("Invalid relative path".into()));
-    }
-
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&profileId)
@@ -227,7 +223,10 @@ pub async fn instance_config_write(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
 
-    let target = PathBuf::from(&row.game_dir).join(&relativePath);
+    let target = crate::core::instance_paths::resolve_within(
+        std::path::Path::new(&row.game_dir),
+        &relativePath,
+    )?;
     if let Some(parent) = target.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }

@@ -15,19 +15,29 @@
 		Trash2,
 		AlertCircle,
 		Download,
-		Sparkles
+		Sparkles,
+		HardDrive,
+		Layers,
+		FileText,
+		Database
 	} from "lucide-svelte";
+	import { storageFullReport, storageClearLogs, storageClearCache, storageDeleteInstance } from "$lib/api/system";
+	import type { StorageFullReport, InstanceStorageInfo } from "$lib/api/types";
+	import { profiles } from "$lib/stores/profiles.svelte";
 	import { settings, type AppSettings } from "$lib/stores/settings.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { updaterStore } from "$lib/stores/updater.svelte";
 	import { themeStore, THEMES, ACCENTS } from "$lib/stores/theme.svelte";
 	import { setLocale, schedulePersist } from "$lib/stores/persistence.svelte";
 	import { account } from "$lib/stores/account.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
+	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { appDataDir } from "@tauri-apps/api/path";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
+	import RenderingSection from "$lib/components/settings/RenderingSection.svelte";
 	import ThemeSection from "$lib/components/settings/ThemeSection.svelte";
 
 	const { t } = useTranslation();
@@ -63,7 +73,7 @@
 		)
 	);
 
-	let currentLang = $state<"pt-BR" | "en" | "es">(settings.value.language === "pt-BR" ? "pt-BR" : settings.value.language === "es" ? "es" : "en");
+	let currentLang = $derived<"pt-BR" | "en" | "es">(settings.value.language === "pt-BR" ? "pt-BR" : settings.value.language === "es" ? "es" : "en");
 
 	let selectedTheme = $state(settings.value.theme || "default-dark");
 	let selectedAccent = $state(settings.value.accentTheme || themeStore.accent || "blue");
@@ -135,12 +145,11 @@
 	}
 
 	function handleLangChange(lang: "pt-BR" | "en" | "es") {
-		currentLang = lang;
 		setActiveLocale(lang);
 		setLocale(lang);
 		settings.patch({ language: lang });
 		schedulePersist();
-		toast("Idioma alterado com sucesso!", "info");
+		toast(t("settings.langChangedSuccess"), "info");
 	}
 
 	function handleThemeChange(tName: AppSettings["theme"]) {
@@ -198,6 +207,72 @@
 			for (const k of keys) localStorage.removeItem(k);
 		} catch {}
 		toast(t("settings.cacheCleared") || "Cache limpo com sucesso!", "success");
+	}
+
+	let storageReport = $state<StorageFullReport | null>(null);
+	let storageLoading = $state(false);
+	let deletingInstanceId = $state<string | null>(null);
+	let confirmingDeleteInstance = $state<InstanceStorageInfo | null>(null);
+
+	function formatBytes(bytes: number): string {
+		if (!bytes || bytes <= 0) return "0 B";
+		const k = 1024;
+		const sizes = ["B", "KB", "MB", "GB", "TB"];
+		const i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+	}
+
+	async function loadStorageReport() {
+		storageLoading = true;
+		try {
+			storageReport = await storageFullReport();
+		} catch (e) {
+			toast("Erro ao carregar dados de armazenamento: " + String(e), "error");
+		} finally {
+			storageLoading = false;
+		}
+	}
+
+	$effect(() => {
+		if (activeTab === "runtime") {
+			void loadStorageReport();
+		}
+	});
+
+	async function handleClearLogs() {
+		try {
+			const freed = await storageClearLogs();
+			toast(`Logs limpos com sucesso! (${formatBytes(freed)} liberados)`, "success");
+			void loadStorageReport();
+		} catch (e) {
+			toast("Erro ao limpar logs: " + String(e), "error");
+		}
+	}
+
+	async function handleClearCacheAction() {
+		try {
+			const freed = await storageClearCache();
+			await handleClearCache();
+			toast(`Cache limpo com sucesso! (${formatBytes(freed)} liberados)`, "success");
+			void loadStorageReport();
+		} catch (e) {
+			toast("Erro ao limpar cache: " + String(e), "error");
+		}
+	}
+
+	async function handleDeleteInstance(inst: InstanceStorageInfo) {
+		deletingInstanceId = inst.id;
+		try {
+			await storageDeleteInstance(inst.id);
+			profiles.remove(inst.id);
+			toast(`Instância "${inst.name}" excluída do disco com sucesso!`, "success");
+			confirmingDeleteInstance = null;
+			void loadStorageReport();
+		} catch (e) {
+			toast("Erro ao excluir instância: " + String(e), "error");
+		} finally {
+			deletingInstanceId = null;
+		}
 	}
 </script>
 
@@ -285,7 +360,7 @@
 			<div class="flex items-center justify-between">
 				<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.general")}</h2>
 				<span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-fg/5 text-fg/60 border border-fg/10">
-					Versão 1.9.2
+					{t("settings.version", { version: "2.0.0" })}
 				</span>
 			</div>
 
@@ -293,30 +368,30 @@
 				<div class="space-y-1.5">
 					<div class="flex items-center gap-2">
 						<span class="text-xs font-bold uppercase tracking-wider text-brand-400 flex items-center gap-1.5">
-							<Sparkles class="w-3.5 h-3.5" /> Atualizador Automático Integrado
+							<Sparkles class="w-3.5 h-3.5" /> {t("settings.autoUpdaterTitle")}
 						</span>
 						{#if updaterStore.updateAvailable}
 							<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
-								Nova Versão Disponível
+								{t("settings.newVersionAvailable")}
 							</span>
 						{:else}
 							<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-fg/5 text-fg/60 border border-fg/10">
-								Sistema Atualizado
+								{t("settings.systemUpToDate")}
 							</span>
 						{/if}
 					</div>
 					<h3 class="text-base font-bold text-fg">
 						{#if updaterStore.updateAvailable}
-							Luxmc v{updaterStore.newVersion || "1.9.2"} pronto para instalar
+							{t("settings.versionReady", { version: updaterStore.newVersion || "2.0.0" })}
 						{:else}
-							Você está executando a versão mais recente do Luxmc (v1.9.2)
+							{t("settings.versionLatest", { version: "2.0.0" })}
 						{/if}
 					</h3>
 					<p class="text-xs text-fg/50">
 						{#if updaterStore.lastChecked}
-							Última verificação: {new Date(updaterStore.lastChecked).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+							{t("settings.lastCheck", { time: new Date(updaterStore.lastChecked).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) })}
 						{:else}
-							Verificação rápida e automática de novas versões e correções
+							{t("settings.autoCheckDesc")}
 						{/if}
 					</p>
 				</div>
@@ -330,9 +405,9 @@
 							class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg-deep font-bold text-xs transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
 						>
 							{#if updaterStore.isDownloading}
-								<RefreshCw class="w-4 h-4 animate-spin" /> Baixando {updaterStore.downloadProgress}%
+								<RefreshCw class="w-4 h-4 animate-spin" /> {t("settings.downloadingProgress", { percent: updaterStore.downloadProgress })}
 							{:else}
-								<Download class="w-4 h-4" /> Atualizar Agora
+								<Download class="w-4 h-4" /> {t("settings.updateNow")}
 							{/if}
 						</button>
 					{:else}
@@ -343,7 +418,7 @@
 							class="px-4 py-2.5 rounded-xl bg-bg border border-fg/10 hover:border-brand-500/40 text-fg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer"
 						>
 							<RefreshCw class="w-4 h-4 {updaterStore.isChecking ? 'animate-spin text-brand-400' : 'text-fg/60'}" />
-							{updaterStore.isChecking ? "Verificando..." : "Verificar Atualizações"}
+							{updaterStore.isChecking ? t("settings.checking") : t("settings.checkUpdates")}
 						</button>
 					{/if}
 				</div>
@@ -368,8 +443,8 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-fg">Downloads Simultâneos</h3>
-						<p class="text-xs text-fg/50 leading-relaxed">Número de conexões paralelas ao baixar mods e bibliotecas</p>
+						<h3 class="text-sm font-bold text-fg">{t("settings.concurrentDownloads")}</h3>
+						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.concurrentDownloadsDesc")}</p>
 					</div>
 					<select
 						bind:value={concurrentDownloads}
@@ -392,20 +467,20 @@
 						onchange={saveGeneral}
 						class="bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2 text-xs font-semibold text-fg outline-none focus:border-blue-500 cursor-pointer min-w-[140px]"
 					>
-						<option value="default">Padrão ↕</option>
+						<option value="default">{t("settings.resolutionDefault")} ↕</option>
 						<option value="1920x1080">1920x1080 ↕</option>
 						<option value="1280x720">1280x720 ↕</option>
-						<option value="fullscreen">Tela Cheia ↕</option>
+						<option value="fullscreen">{t("settings.resolutionFullscreen")} ↕</option>
 					</select>
 				</div>
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
 						<div class="flex items-center gap-2">
-							<h3 class="text-sm font-bold text-fg">Discord Rich Presence</h3>
-							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">v1.9.2</span>
+							<h3 class="text-sm font-bold text-fg">{t("settings.discordRpcTitle")}</h3>
+							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">v2.0.0</span>
 						</div>
-						<p class="text-xs text-fg/50 leading-relaxed">Exibe seu status, mundo, modpack e tempo de jogo no Discord com botões de conexão direta</p>
+						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.discordRpcDesc")}</p>
 					</div>
 					<button
 						type="button"
@@ -413,15 +488,15 @@
 						aria-checked={discordIntegration}
 						aria-label="Toggle Discord Integration"
 						onclick={() => { discordIntegration = !discordIntegration; saveGeneral(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {discordIntegration ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {discordIntegration ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
-						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {discordIntegration ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {discordIntegration ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-fg">Ação do Launcher ao Iniciar</h3>
+						<h3 class="text-sm font-bold text-fg">{t("settings.launcherActionTitle")}</h3>
 						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.launcherActionDesc")}</p>
 					</div>
 					<select
@@ -446,9 +521,9 @@
 						aria-checked={showCloseWarning}
 						aria-label="Toggle Window Close Warning"
 						onclick={() => showCloseWarning = !showCloseWarning}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {showCloseWarning ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {showCloseWarning ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
-						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {showCloseWarning ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {showCloseWarning ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -463,13 +538,14 @@
 						aria-checked={performanceMode}
 						aria-label="Toggle Ultra Performance Mode"
 						onclick={() => { performanceMode = !performanceMode; appState.performanceMode = performanceMode; saveGeneral(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {performanceMode ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {performanceMode ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
-						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {performanceMode ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {performanceMode ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
 			</div>
+            <RenderingSection />
 		</div>
 
 	{:else if activeTab === "accounts"}
@@ -481,14 +557,35 @@
 					<div class="flex items-center gap-4">
 						<div class="w-12 h-12 rounded-2xl bg-bg-overlay/40 border border-fg/10 overflow-hidden flex items-center justify-center">
 							<img
-								src={account.value?.uuid ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "/logo.png"}
+								src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value?.uuid ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "/logo.png")}
 								alt="Avatar"
 								class="w-full h-full object-cover"
+								onerror={(e) => {
+									const img = e.currentTarget as HTMLImageElement;
+									const fallback = account.value?.username ? `https://mc-heads.net/avatar/${account.value.username}/100` : "/logo.png";
+									if (img.src !== fallback) img.src = fallback;
+									else img.src = "/logo.png";
+								}}
 							/>
 						</div>
 						<div>
-							<h3 class="text-sm font-bold text-fg">{currentUsername}</h3>
-							<p class="text-xs text-fg/50">{isMicrosoft ? "Conta Microsoft Online" : "Conta Offline / Luxmc"}</p>
+							<div class="flex items-center gap-2">
+								<h3 class="text-sm font-bold text-fg">{currentUsername}</h3>
+								{#if isMicrosoft}
+									<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[10px] font-bold text-emerald-400">
+										<MicrosoftLogo size={11} />
+										Microsoft
+									</span>
+								{/if}
+							</div>
+							<p class="text-xs text-fg/50 flex items-center gap-1.5 mt-0.5">
+								{#if isMicrosoft}
+									<MicrosoftLogo size={12} />
+									<span>{t("settings.msAccountOnline")}</span>
+								{:else}
+									<span>{t("settings.offlineAccount")}</span>
+								{/if}
+							</p>
 						</div>
 					</div>
 
@@ -502,15 +599,15 @@
 
 				<div class="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-300 leading-relaxed space-y-1.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 					<div class="space-y-1">
-						<p class="font-bold">Gerenciamento no site oficial:</p>
-						<p class="text-fg/60">Para cadastrar uma nova conta, trocar sua skin ou gerenciar amigos, acesse o portal web oficial do Luxmc.</p>
+						<p class="font-bold">{t("settings.webPortalManagement")}</p>
+						<p class="text-fg/60">{t("settings.webPortalManagementDesc")}</p>
 					</div>
 					<button
 						type="button"
 						onclick={() => openUrl("https://luxmc-r92.pages.dev")}
 						class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-2 active:scale-[0.98] shadow-md"
 					>
-						<span>Abrir Portal Web</span>
+						<span>{t("settings.openWebPortal")}</span>
 						<ExternalLink class="w-3.5 h-3.5" />
 					</button>
 				</div>
@@ -631,7 +728,7 @@
 					<div class="flex items-center justify-between gap-6">
 						<div class="space-y-1 max-w-xl">
 							<h3 class="text-sm font-bold text-fg">{t("settings.ramAllocation")}</h3>
-							<p class="text-xs text-fg/50 leading-relaxed">Quantidade de memória dedicada às instâncias do Minecraft (Atual: {maxRamGb} GB)</p>
+							<p class="text-xs text-fg/50 leading-relaxed">{t("settings.ramAllocationDesc", { current: maxRamGb })}</p>
 						</div>
 						<div class="flex items-center gap-3">
 							<input
@@ -673,7 +770,7 @@
 					<div class="flex items-center justify-between gap-6">
 						<div class="space-y-1 max-w-xl">
 							<h3 class="text-sm font-bold text-fg">{t("settings.jvmFlags")}</h3>
-							<p class="text-xs text-fg/50 leading-relaxed">Flags personalizadas do Java e parâmetros do Garbage Collector (GC)</p>
+							<p class="text-xs text-fg/50 leading-relaxed">{t("settings.jvmFlagsDesc")}</p>
 						</div>
 						<input
 							type="text"
@@ -726,9 +823,9 @@
 						aria-checked={waylandNative}
 						aria-label="Toggle Wayland Mode"
 						onclick={() => { waylandNative = !waylandNative; saveJava(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {waylandNative ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {waylandNative ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
-						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {waylandNative ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {waylandNative ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -743,9 +840,9 @@
 						aria-checked={useVulkan}
 						aria-label="Toggle Vulkan Acceleration"
 						onclick={() => { useVulkan = !useVulkan; saveJava(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {useVulkan ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {useVulkan ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
-						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {useVulkan ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {useVulkan ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -773,8 +870,8 @@
 
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-fg">Comando Envoltório (Game Wrapper)</h3>
-						<p class="text-xs text-fg/50 leading-relaxed">Comando envoltório inserido antes do executável Java (ex: gamemoderun, mangohud)</p>
+						<h3 class="text-sm font-bold text-fg">{t("settings.gameWrapperTitle")}</h3>
+						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.gameWrapperDesc")}</p>
 					</div>
 					<input
 						type="text"
@@ -804,7 +901,7 @@
 		<div class="space-y-6">
 			<div>
 				<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.tabs.privacy")}</h2>
-				<p class="text-xs text-fg/50 mt-1">Gerencie a visibilidade dos seus dados, modo de transmissão e telemetria</p>
+				<p class="text-xs text-fg/50 mt-1">{t("settings.privacyDesc")}</p>
 			</div>
 
 			<div class="bg-bg-elevated border border-fg/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
@@ -823,9 +920,9 @@
 						aria-checked={streamerMode}
 						aria-label="Alternar Modo Streamer"
 						onclick={() => { streamerMode = !streamerMode; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {streamerMode ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {streamerMode ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
-						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {streamerMode ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {streamerMode ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -840,9 +937,9 @@
 						aria-checked={hideDiscordDetails}
 						aria-label="Alternar Ocultar Detalhes do Discord"
 						onclick={() => { hideDiscordDetails = !hideDiscordDetails; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {hideDiscordDetails ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {hideDiscordDetails ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
-						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {hideDiscordDetails ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {hideDiscordDetails ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -857,9 +954,9 @@
 						aria-checked={anonymousTelemetry}
 						aria-label="Alternar Telemetria Anônima"
 						onclick={() => { anonymousTelemetry = !anonymousTelemetry; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {anonymousTelemetry ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/10 hover:bg-fg/20'}"
+						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {anonymousTelemetry ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
-						<span class="absolute top-0.5 left-0.5 w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 shadow-sm {anonymousTelemetry ? 'translate-x-6' : ''}"></span>
+						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {anonymousTelemetry ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
@@ -883,7 +980,133 @@
 
 	{:else if activeTab === "runtime"}
 		<div class="space-y-6">
-			<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.tabs.runtime")}</h2>
+			<div class="flex items-center justify-between">
+				<div>
+					<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.tabs.runtime")}</h2>
+					<p class="text-xs text-fg/50 mt-1">{t("settings.storageDesc")}</p>
+				</div>
+				<button
+					type="button"
+					onclick={loadStorageReport}
+					disabled={storageLoading}
+					class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98]"
+				>
+					<RefreshCw class="w-3.5 h-3.5 {storageLoading ? 'animate-spin' : ''}" />
+					<span>{t("settings.refresh")}</span>
+				</button>
+			</div>
+
+			<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+				<div class="space-y-1">
+					<span class="text-xs font-bold uppercase tracking-wider text-fg/40">{t("settings.totalDiskUsage")}</span>
+					<div class="flex items-baseline gap-3">
+						<span class="text-3xl font-black text-fg font-mono tracking-tight">
+							{formatBytes(storageReport?.totalBytes || 0)}
+						</span>
+						<span class="text-xs text-fg/50">{t("settings.usedByLuxmc")}</span>
+					</div>
+				</div>
+
+				<div class="flex flex-wrap items-center gap-3">
+					<button
+						type="button"
+						onclick={handleClearLogs}
+						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer flex items-center gap-2 active:scale-[0.98]"
+					>
+						<Trash2 class="w-3.5 h-3.5 text-fg/60" />
+						<span>{t("settings.clearLogs", { size: formatBytes(storageReport?.logsBytes || 0) })}</span>
+					</button>
+
+					<button
+						type="button"
+						onclick={handleClearCacheAction}
+						class="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-all cursor-pointer flex items-center gap-2 active:scale-[0.98]"
+					>
+						<Trash2 class="w-3.5 h-3.5 text-red-400" />
+						<span>{t("settings.clearCacheSize", { size: formatBytes(storageReport?.cacheBytes || 0) })}</span>
+					</button>
+				</div>
+			</div>
+
+			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+				{#each (storageReport?.categories || []) as cat}
+					<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 shadow-sm flex flex-col justify-between gap-2">
+						<div class="flex items-center justify-between">
+							<span class="text-xs font-semibold text-fg/60 capitalize">
+								{cat.category === "libraries" ? t("settings.catLibraries") : cat.category === "assets" ? t("settings.catAssets") : cat.category === "versions" ? t("settings.catVersions") : cat.category === "instances" ? t("settings.catInstances") : cat.category === "mods" ? t("settings.catMods") : cat.category === "logs" ? t("settings.catLogs") : t("settings.catCache")}
+							</span>
+							{#if cat.category === "instances"}
+								<Layers class="w-3.5 h-3.5 text-brand-400" />
+							{:else if cat.category === "logs"}
+								<FileText class="w-3.5 h-3.5 text-fg/40" />
+							{:else if cat.category === "cache"}
+								<Trash2 class="w-3.5 h-3.5 text-red-400/60" />
+							{:else}
+								<HardDrive class="w-3.5 h-3.5 text-fg/40" />
+							{/if}
+						</div>
+						<div class="text-lg font-bold text-fg font-mono">
+							{formatBytes(cat.bytes)}
+						</div>
+					</div>
+				{/each}
+			</div>
+
+			<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-6 shadow-sm space-y-4">
+				<div class="flex items-center justify-between">
+					<div class="space-y-0.5">
+						<h3 class="text-sm font-bold text-fg">Armazenamento por Instância & Modpack</h3>
+						<p class="text-xs text-fg/50">Espaço real consumido no disco por cada perfil instalado</p>
+					</div>
+					<span class="text-xs font-mono font-bold text-fg/50">
+						{storageReport?.instances.length || 0} instaladas
+					</span>
+				</div>
+
+				{#if !storageReport?.instances || storageReport.instances.length === 0}
+					<div class="py-8 text-center text-xs text-fg/40">
+						Nenhuma instância encontrada no diretório local.
+					</div>
+				{:else}
+					<div class="divide-y divide-white/5">
+						{#each storageReport.instances as inst}
+							<div class="flex items-center justify-between py-3.5 gap-4">
+								<div class="flex items-center gap-3.5 min-w-0">
+									<div class="w-10 h-10 rounded-xl overflow-hidden bg-fg/5 border border-fg/10 flex items-center justify-center shrink-0">
+										{#if inst.icon && inst.icon !== "grass_block" && (inst.icon.startsWith("http") || inst.icon.startsWith("/"))}
+											<img src={inst.icon} alt={inst.name} class="w-full h-full object-cover" onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }} />
+										{:else}
+											<img src="/grass_block.png" alt={inst.name} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
+										{/if}
+									</div>
+									<div class="min-w-0">
+										<div class="text-sm font-bold text-fg truncate">{inst.name}</div>
+										<div class="flex items-center gap-2 text-[11px] text-fg/50 mt-0.5">
+											<span class="font-mono">{inst.mcVersion}</span>
+											<span>•</span>
+											<span class="uppercase font-semibold text-brand-400">{inst.loader}</span>
+										</div>
+									</div>
+								</div>
+
+								<div class="flex items-center gap-4 shrink-0">
+									<span class="font-mono text-xs font-bold text-fg bg-fg/5 px-2.5 py-1.5 rounded-lg border border-fg/10">
+										{formatBytes(inst.bytes)}
+									</span>
+									<button
+										type="button"
+										title="Excluir instância permanentemente do disco"
+										onclick={() => confirmingDeleteInstance = inst}
+										class="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all cursor-pointer active:scale-95"
+									>
+										<Trash2 class="w-4 h-4" />
+									</button>
+								</div>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
 
 			<div class="bg-bg-elevated border border-fg/5 rounded-3xl px-6 py-6 shadow-sm space-y-4">
 				<div class="space-y-1 max-w-xl">
@@ -904,6 +1127,61 @@
 						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 cursor-pointer shrink-0"
 					>
 						Abrir Pasta
+					</button>
+				</div>
+			</div>
+		</div>
+	{/if}
+
+	{#if confirmingDeleteInstance}
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+			<div class="bg-bg-elevated border border-fg/10 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-200">
+				<div class="flex items-center gap-3 text-red-400">
+					<div class="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center shrink-0">
+						<AlertCircle class="w-5 h-5" />
+					</div>
+					<div>
+						<h3 class="text-base font-bold text-fg">Excluir Instância do Disco?</h3>
+						<p class="text-xs text-fg/50">Esta ação é irreversível e liberará espaço no armazenamento.</p>
+					</div>
+				</div>
+
+				<div class="bg-fg/[0.03] border border-fg/5 rounded-2xl p-4 space-y-2 text-xs">
+					<div class="flex justify-between text-fg">
+						<span class="text-fg/50">Instância:</span>
+						<span class="font-bold">{confirmingDeleteInstance.name}</span>
+					</div>
+					<div class="flex justify-between text-fg">
+						<span class="text-fg/50">Versão / Loader:</span>
+						<span class="font-mono">{confirmingDeleteInstance.mcVersion} ({confirmingDeleteInstance.loader})</span>
+					</div>
+					<div class="flex justify-between text-fg">
+						<span class="text-fg/50">Espaço a ser liberado:</span>
+						<span class="font-bold font-mono text-emerald-400">{formatBytes(confirmingDeleteInstance.bytes)}</span>
+					</div>
+				</div>
+
+				<div class="flex items-center justify-end gap-3 pt-2">
+					<button
+						type="button"
+						onclick={() => confirmingDeleteInstance = null}
+						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 cursor-pointer"
+					>
+						Cancelar
+					</button>
+					<button
+						type="button"
+						disabled={deletingInstanceId !== null}
+						onclick={() => handleDeleteInstance(confirmingDeleteInstance!)}
+						class="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-lg shadow-red-500/25 transition-all cursor-pointer disabled:opacity-50 active:scale-95 flex items-center gap-2"
+					>
+						{#if deletingInstanceId}
+							<RefreshCw class="w-3.5 h-3.5 animate-spin" />
+							<span>Excluindo...</span>
+						{:else}
+							<Trash2 class="w-3.5 h-3.5" />
+							<span>Excluir do Disco</span>
+						{/if}
 					</button>
 				</div>
 			</div>

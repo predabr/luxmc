@@ -3,6 +3,7 @@ import { LazyStore } from "@tauri-apps/plugin-store";
 import { settings, registerSettingsListener, type AppSettings, type ThemeName } from "./settings.svelte";
 import { profiles } from "./profiles.svelte";
 import { setupI18n, notifyLocaleChange, type Locale } from "$lib/i18n";
+import { setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 
 import { themeStore } from "./theme.svelte";
 
@@ -23,6 +24,7 @@ export async function bootstrapSettings() {
 	const merged: AppSettings = { ...settings.value, ...stored };
 	settings.value = merged;
 	setupI18n(merged.language);
+	setActiveLocale(merged.language);
 
 	if (merged.accentTheme) {
 		themeStore.setAccent(merged.accentTheme, false);
@@ -70,9 +72,7 @@ export async function setTheme(theme: ThemeName) {
 export async function setLocale(locale: Locale) {
 	settings.patch({ language: locale });
 	setupI18n(locale);
-	import("$lib/i18n/useTranslation.svelte").then(({ setActiveLocale }) => {
-		setActiveLocale(locale);
-	}).catch(() => {});
+	setActiveLocale(locale);
 	if (browser) {
 		localStorage.setItem("luxmc.locale", locale);
 	}

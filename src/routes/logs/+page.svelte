@@ -9,6 +9,7 @@
 	import { listenGameLog, listenGameExit, listenLauncherLog, shareLogMclogs, type GameExitEvent } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import VirtualList from "$lib/components/ui/VirtualList.svelte";
 
 	const { t } = useTranslation();
 
@@ -20,7 +21,7 @@
 	let searchQuery = $state("");
 	let isSharing = $state(false);
 	let lastUpdate = $state<Date | null>(null);
-	let logContainer = $state<HTMLDivElement | null>(null);
+	let virtualListRef = $state<{ scrollToIndex: (idx: number) => void } | null>(null);
 	let lastUiRefresh = 0;
 
 	function touchUpdate() {
@@ -122,8 +123,8 @@
 	}
 
 	function scrollToBottom() {
-		if (logContainer) {
-			logContainer.scrollTop = logContainer.scrollHeight;
+		if (virtualListRef && filteredEntries.length > 0) {
+			virtualListRef.scrollToIndex(filteredEntries.length - 1);
 		}
 	}
 
@@ -210,29 +211,33 @@
 			</div>
 		</div>
 
-		<div
-			bind:this={logContainer}
-			class="flex-1 overflow-y-auto rounded-2xl p-4 font-mono text-xs leading-relaxed bg-bg border border-fg/[0.06] custom-scrollbar select-text shadow-inner"
-			onscroll={(e) => {
-				const el = e.currentTarget;
-				const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-				if (!atBottom) autoScroll = false;
-			}}
-		>
-		{#each filteredEntries as entry (entry.id)}
-			<div class="flex gap-2 py-0.5 hover:bg-fg/[0.02] rounded px-1 {getLineClass(entry)}">
-				<span class="w-16 shrink-0 text-right text-fg/30 text-[10px]">
-					{getRelativeTime(entry.timestamp)}
-				</span>
-				<span class="w-14 shrink-0 text-right font-bold text-[11px] {getStreamTagClass(entry)}">
-					[{entry.stream}]
-				</span>
-				<span class="break-all text-fg/80">{entry.message}</span>
+		{#if filteredEntries.length === 0}
+			<div class="flex-1 flex items-center justify-center rounded-2xl bg-bg border border-fg/[0.06] shadow-inner p-8">
+				<p class="text-center text-fg/30">{t("logs.noLogs")}</p>
 			</div>
-			{:else}
-				<p class="p-8 text-center text-fg/30">{t("logs.noLogs")}</p>
-			{/each}
-		</div>
+		{:else}
+			<div class="flex-1 min-h-0 relative">
+				<VirtualList
+					bind:this={virtualListRef}
+					items={filteredEntries}
+					itemHeight={24}
+					height="100%"
+					class="h-full rounded-2xl p-4 font-mono text-xs leading-relaxed bg-bg border border-fg/[0.06] custom-scrollbar select-text shadow-inner"
+				>
+					{#snippet children(entry)}
+						<div class="flex gap-2 py-0.5 hover:bg-fg/[0.02] rounded px-1 {getLineClass(entry)}">
+							<span class="w-16 shrink-0 text-right text-fg/30 text-[10px]">
+								{getRelativeTime(entry.timestamp)}
+							</span>
+							<span class="w-14 shrink-0 text-right font-bold text-[11px] {getStreamTagClass(entry)}">
+								[{entry.stream}]
+							</span>
+							<span class="break-all text-fg/80">{entry.message}</span>
+						</div>
+					{/snippet}
+				</VirtualList>
+			</div>
+		{/if}
 
 		<div class="mt-3 flex items-center justify-between border-t border-fg/[0.06] pt-3 text-[11px] text-fg/35">
 			<div class="flex items-center gap-3">

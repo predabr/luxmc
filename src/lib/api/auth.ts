@@ -107,3 +107,24 @@ export async function authSetAccountCape(uuid: string, capeUrl: string | null): 
 	return api.invoke("auth_set_account_cape", { uuid, capeUrl });
 }
 
+
+export async function authSaveAppearance(uuid: string, skinUrl: string, variant: "classic" | "slim", capeUrl: string | null): Promise<void> {
+    return api.invoke("auth_save_appearance", { uuid, skinUrl, variant, capeUrl });
+}
+
+const textureRequests = new Map<string, Promise<string>>();
+export function authResolveTexture(url: string): Promise<string> {
+    const existing = textureRequests.get(url);
+    if (existing) return existing;
+    if (textureRequests.size >= 8) textureRequests.delete(textureRequests.keys().next().value!);
+    const request = api.invoke<string>("auth_resolve_texture", { url }).then(data => {
+        if (!data?.startsWith("data:image/png;base64,")) throw new Error("Textura inválida");
+        return data;
+    }).catch(error => { textureRequests.delete(url); throw error; });
+    textureRequests.set(url, request);
+    return request;
+}
+
+export function authReadLocalTexture(path: string): Promise<string> {
+    return api.invoke<string>("auth_read_local_texture", { path });
+}

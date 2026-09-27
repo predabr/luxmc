@@ -10,12 +10,12 @@ describe("button", () => {
 
   it("renders with solid variant", () => {
     const classes = button({ variant: "solid" });
-    expect(classes).toContain("bg-[#1bd96a]");
+    expect(classes).toContain("bg-brand-500");
   });
 
   it("renders with primary variant", () => {
     const classes = button({ variant: "primary" });
-    expect(classes).toContain("bg-[#1bd96a]");
+    expect(classes).toContain("bg-brand-500");
   });
 
   it("renders with danger variant", () => {

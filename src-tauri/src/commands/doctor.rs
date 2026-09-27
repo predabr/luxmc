@@ -57,15 +57,17 @@ pub async fn doctor_check_instance_conflicts(
     }
 
     let mut jar_names = Vec::new();
+    let mut jar_paths = Vec::new();
     if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
             let name = entry.file_name().to_string_lossy().to_string();
             if name.ends_with(".jar") || name.ends_with(".disabled") {
+                jar_paths.push(entry.path());
                 jar_names.push(name);
             }
         }
     }
 
-    Ok(crate::core::doctor::check_mod_conflicts(&jar_names))
+    Ok(crate::core::doctor::check_mod_conflicts_with_paths(&jar_names, &jar_paths))
 }
 

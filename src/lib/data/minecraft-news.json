@@ -1,0 +1,52 @@
+{
+  "entries": [
+    {
+      "id": "8b8dd9a917ff824c7c171525ead64ea850b5c607abcd83cb5b797d6de688ccff",
+      "title": "Minecraft Live Recap",
+      "date": "2026-09-26",
+      "readMoreLink": "https://www.minecraft.net/article/mclive_sept2026_recap?OCID=Launcher",
+      "newsPageImage": {
+        "title": "mcln772x350.jpg",
+        "url": "/v2/images/mcln772x350.jpg",
+        "dimensions": {
+          "width": 772,
+          "height": 350
+        }
+      },
+      "category": "Minecraft for Windows",
+      "text": "Resumo oficial do Minecraft Live, com anúncios sobre Minecraft World e Dungeons II."
+    },
+    {
+      "id": "b91dc9d1a815888416b27de18679cab5ad85552e6d3e3349df34adbf09ec3e17",
+      "title": "Play Wilderness Bound",
+      "date": "2026-09-15",
+      "readMoreLink": "https://www.minecraft.net/article/play-wilderness-bound-game-drop?OCID=Launcher",
+      "newsPageImage": {
+        "title": "Minecraft_WildernessBound_Launcher_772x350.png",
+        "url": "/v2/images/MinecraftWildernessBoundLauncher772x350.png",
+        "dimensions": {
+          "width": 772,
+          "height": 350
+        }
+      },
+      "category": "Minecraft for Windows",
+      "text": "Publicação sobre o lançamento de Wilderness Bound e suas novidades para exploração e construção."
+    },
+    {
+      "id": "ae8a50b9847297f2b50d5ec5139d97f9a7185bd92a3d49ff731aa2458322db82",
+      "title": "New on Java Realms: Mischiefs & Secrets",
+      "date": "2026-08-28",
+      "readMoreLink": "https://www.minecraft.net/article/new-on-java-realms--mischiefs---secrets?OCID=Launcher",
+      "newsPageImage": {
+        "title": "jr08-28-772x350.jpg",
+        "url": "/v2/images/jr0828772x350.jpg",
+        "dimensions": {
+          "width": 772,
+          "height": 350
+        }
+      },
+      "category": "Minecraft: Java Edition",
+      "text": "Seleção oficial de nove mapas disponibilizados no Java Realms."
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolveWallpaperVideoUrl, resolveWallpaperImageUrl } from "$lib/utils/wallpaperSource";
+	import VideoWallpaper from "$lib/components/visuals/VideoWallpaper.svelte";
 	import "../app.css";
 	import { listenDeepLinks } from "$lib/api/deepLinks";
 	import { handleDeepLink } from "$lib/utils/handleDeepLink";
@@ -27,7 +29,7 @@
 	import { bootstrapSettings, schedulePersist, startAutoPersist } from "$lib/stores/persistence.svelte";
 	import { setToastInstance } from "$lib/stores/toasts.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
-	import { account } from "$lib/stores/account.svelte";
+	import { account, saveCurrentAccount, loadCurrentAccount } from "$lib/stores/account.svelte";
 	import { cloudAccount } from "$lib/stores/cloudAccount.svelte";
     import { friendsState } from "$lib/stores/friends.svelte";
 	$effect(() => {
@@ -49,21 +51,30 @@
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { activeSkinStore, type CapeType } from "$lib/stores/skin.svelte";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
+	import { createSkinAvatar } from "$lib/utils/textureImage";
 	import { crashDoctor } from "$lib/stores/crashDoctor.svelte";
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
-	import { appInit, discordSetActivity, listenGameExit, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
+	import { appInit, discordSetActivity, listenGameExit, listenGameStateChange, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
-	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
+	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
 	const { t } = useTranslation();
+	$effect(() => {
+		const lang = settings.value.language;
+		if (lang) {
+			setActiveLocale(lang);
+		}
+	});
 	let { children }: { children: import("svelte").Snippet } = $props();
 	let initialized = $state(false);
 	let showSplash = $state(true);
 	let toastsInstance = $state<Toasts | null>(null);
 	let telemetryData = $state<GameTelemetrySummary | null>(null);
 	let showTelemetryModal = $state(false);
+	const launcherStartTime = Math.floor(Date.now() / 1000);
+	let gameStartTime = $state<number | null>(null);
 
 	const tabOrderMap: Record<string, number> = {
 		"/": 0,
@@ -141,7 +152,11 @@
 					effectiveCapeUrl = init.account.capeUrl;
 				}
 
-				account.value = {
+				const skinModel = init.account.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve";
+				const skinUrl = init.account.skinUrl || `https://minotar.net/skin/${init.account.username}`;
+				const fallbackAvatarUrl = `https://mc-heads.net/avatar/${init.account.username}/100`;
+
+				const newAcc = {
 					id: init.account.id,
 					username: init.account.username,
 					uuid: init.account.uuid,
@@ -150,34 +165,42 @@
 					skinUrl: init.account.skinUrl ?? null,
 					skinVariant: init.account.skinVariant ?? null,
 					capeUrl: effectiveCapeUrl,
+					avatarUrl: fallbackAvatarUrl,
 				};
-				if (typeof window !== "undefined") {
-					try {
-						localStorage.setItem("luxmc_current_account", JSON.stringify(account.value));
-					} catch {}
-				}
-				const skinUrl = init.account.skinUrl || `https://minotar.net/skin/${init.account.username}`;
+				account.value = newAcc;
+				void saveCurrentAccount(newAcc);
+
 				activeSkinStore.setSkin({
 					id: init.account.uuid,
 					name: init.account.username,
 					url: `https://mc-heads.net/body/${init.account.username}/300`,
 					skinUrl,
-					avatarUrl: `https://mc-heads.net/avatar/${init.account.username}/100`,
-					type: init.account.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve",
+					avatarUrl: fallbackAvatarUrl,
+					type: skinModel,
 					hasCape,
 					capeType,
 					customCapeUrl
 				});
+
+				if (skinUrl) {
+					void createSkinAvatar(skinUrl, new AbortController().signal, skinModel)
+						.then((avatar) => {
+							if (avatar) {
+								activeSkinStore.setSkin({ avatarUrl: avatar });
+								if (account.value && account.value.id === init.account?.id) {
+									const withAvatar = { ...account.value, avatarUrl: avatar };
+									account.value = withAvatar;
+									void saveCurrentAccount(withAvatar);
+								}
+							}
+						})
+						.catch(() => {});
+				}
 				if (hasUserChosenCape && effectiveCapeUrl && effectiveCapeUrl !== init.account.capeUrl) {
 					void authSetAccountCape(init.account.id, effectiveCapeUrl).catch(() => {});
 				}
-			} else if (typeof window !== "undefined") {
-				const saved = localStorage.getItem("luxmc_current_account");
-				if (saved) {
-					try {
-						account.value = JSON.parse(saved);
-					} catch {}
-				}
+			} else {
+				void loadCurrentAccount();
 			}
 			profiles.list = init.profiles.map((p) => ({
 				id: p.id,
@@ -208,11 +231,12 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.9.2",
+					state: "Luxmc v2.0.0",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.9.2",
+					smallText: "Luxmc v2.0.0",
+					startTime: launcherStartTime,
 					inGame: false
 				}).catch(() => {});
 			}
@@ -264,12 +288,35 @@
 				}).catch(() => {});
 			}
 
-			if (!event.success || event.code !== 0) {
-				const detail = event.errorMessage ? `\nMotivo: ${event.errorMessage}` : " Consulte a aba de Logs para detalhes.";
-				toast(`O Minecraft encerrou com código de saída ${event.code}.${detail}`, "error");
+			const wasManual = appState.wasManuallyTerminated || event.code === 143 || event.code === 137 || event.code === 130;
+			appState.wasManuallyTerminated = false;
 
-				if (settings.value.showLogsOnLaunch === "on_crash") {
-					import("$app/navigation").then(({ goto }) => goto("/logs")).catch(() => {});
+			if (!wasManual && (!event.success || (event.code !== 0 && event.code !== null))) {
+				if (lastProfileId) {
+					crashDoctor.autoHealCrash(lastProfileId, event.errorMessage).then((healed) => {
+						if (!healed) {
+							const detail = event.errorMessage ? `\nMotivo: ${event.errorMessage}` : " Consulte a aba de Logs para detalhes.";
+							toast(`O Minecraft encerrou com código de saída ${event.code}.${detail}`, "error");
+
+							if (settings.value.showLogsOnLaunch === "on_crash") {
+								import("$app/navigation").then(({ goto }) => goto("/logs")).catch(() => {});
+							}
+						}
+					}).catch(() => {
+						const detail = event.errorMessage ? `\nMotivo: ${event.errorMessage}` : " Consulte a aba de Logs para detalhes.";
+						toast(`O Minecraft encerrou com código de saída ${event.code}.${detail}`, "error");
+
+						if (settings.value.showLogsOnLaunch === "on_crash") {
+							import("$app/navigation").then(({ goto }) => goto("/logs")).catch(() => {});
+						}
+					});
+				} else {
+					const detail = event.errorMessage ? `\nMotivo: ${event.errorMessage}` : " Consulte a aba de Logs para detalhes.";
+					toast(`O Minecraft encerrou com código de saída ${event.code}.${detail}`, "error");
+
+					if (settings.value.showLogsOnLaunch === "on_crash") {
+						import("$app/navigation").then(({ goto }) => goto("/logs")).catch(() => {});
+					}
 				}
 			} else {
 				achievements.unlock("primeira_noite");
@@ -277,11 +324,12 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v1.9.2",
+					state: "Luxmc v2.0.0",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v1.9.2",
+					smallText: "Luxmc v2.0.0",
+					startTime: launcherStartTime,
 					inGame: false
 				}).catch(() => {});
 			}
@@ -306,6 +354,66 @@
 		}).catch(() => {});
 
 
+		let unlistenGameState: (() => void) | undefined;
+		const statePromise = listenGameStateChange((event) => {
+			if (disposed) return;
+			if (settings.value.discordRpc === false) return;
+			if (!appState.isGameRunning) return;
+
+			if (!gameStartTime) {
+				gameStartTime = Math.floor(Date.now() / 1000);
+			}
+
+			const activeDetails = appState.activeGameDetails;
+			const pName = activeDetails?.name || "Minecraft";
+			const verId = activeDetails?.version || "1.20.1";
+			const loader = activeDetails?.loader ? activeDetails.loader.toUpperCase() : "Vanilla";
+			const profile = activeDetails?.profileId ? profiles.list.find(p => p.id === activeDetails.profileId) : null;
+			const modInfo = profile?.modCount ? ` · ${profile.modCount} mods` : "";
+
+			let details = pName;
+			let state = `Minecraft ${verId} · ${loader}${modInfo}`;
+
+			if (event.status === "singleplayer") {
+				if (settings.value.hideDiscordDetails) {
+					details = "No Modo Singleplayer";
+				} else if (event.detail) {
+					details = `Mundo: ${event.detail}`;
+				} else {
+					details = "No Modo Singleplayer";
+				}
+			} else if (event.status === "multiplayer") {
+				if (settings.value.hideDiscordDetails) {
+					details = "Em Servidor Multiplayer";
+				} else if (event.detail) {
+					details = `Servidor: ${event.detail}`;
+				} else {
+					details = "Em Servidor Multiplayer";
+				}
+			} else if (event.status === "menu") {
+				details = "No Menu do Jogo";
+			}
+
+			discordSetActivity({
+				inGame: true,
+				details,
+				state,
+				largeText: `${pName} (${verId})`,
+				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+				smallImage: "grass",
+				smallText: `Luxmc · ${loader}`,
+				startTime: gameStartTime || launcherStartTime,
+				buttons: [
+					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
+					{ label: "Site Oficial", url: "https://luxmc-r92.pages.dev" }
+				]
+			}).catch(() => {});
+		});
+		statePromise.then((unlisten) => {
+			if (disposed) { unlisten(); return; }
+			unlistenGameState = unlisten;
+		}).catch(() => {});
+
 		let soundscapeTimer: ReturnType<typeof setTimeout> | undefined;
 		if (settings.value.soundscapesEnabled === true && !appState.performanceMode) {
 			soundscapeTimer = setTimeout(() => {
@@ -313,12 +421,59 @@
 			}, 1200);
 		}
 
+		const rpcHeartbeat = setInterval(() => {
+			if (disposed || settings.value.discordRpc === false) return;
+			if (!appState.isGameRunning) {
+				const currentPath = page.url.pathname;
+				let details = "No Menu Principal";
+				let state = "Luxmc v2.0.0";
+				if (currentPath === "/") {
+					details = "No Menu Principal";
+					state = "Pronto para Jogar";
+				} else if (currentPath === "/instances") {
+					details = "Gerenciando Instâncias";
+					state = `${profiles.list.length} instâncias criadas`;
+				} else if (currentPath.startsWith("/instances/")) {
+					details = profiles.active ? `Ajustando ${profiles.active.name}` : "Configurando Instância";
+					state = profiles.active ? `${profiles.active.mcVersion} · ${profiles.active.loader.toUpperCase()}` : "Ajustando Mods & Versões";
+				} else if (currentPath === "/mods") {
+					details = "Explorando Mods & Modpacks";
+					state = "Modrinth & CurseForge";
+				} else if (currentPath === "/skins") {
+					details = "Personalizador de Skins 3D";
+					state = account.value?.username ? `Skin de ${account.value.username}` : "Customizando Aparência";
+				} else if (currentPath === "/friends") {
+					details = "Comunidade & Amigos";
+					state = "Rede P2P Luxmc";
+				} else if (currentPath === "/settings") {
+					details = "Configurações do Launcher";
+					state = "Ajustando Preferências";
+				}
+				discordSetActivity({
+					details,
+					state,
+					largeText: "Luxmc Launcher",
+					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
+					smallImage: "grass",
+					smallText: "Luxmc v2.0.0",
+					startTime: launcherStartTime,
+					inGame: false,
+					buttons: [
+						{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
+						{ label: "Site Oficial", url: "https://luxmc-r92.pages.dev" }
+					]
+				}).catch(() => {});
+			}
+		}, 25000);
+
 		const stop = startAutoPersist();
 		
 		return () => {
 			disposed = true;
 			stop();
+			clearInterval(rpcHeartbeat);
 			if (unlistenGameExit) unlistenGameExit();
+			if (unlistenGameState) unlistenGameState();
             unlistenDeepLinks?.();
 			if (unlistenTelemetry) unlistenTelemetry();
 			if (soundscapeTimer) clearTimeout(soundscapeTimer);
@@ -344,7 +499,16 @@
 
 	$effect(() => {
 		if (appState.isGameRunning) {
+			if (!gameStartTime) {
+				gameStartTime = Math.floor(Date.now() / 1000);
+			}
 			stopSoundscape();
+			if (rpcTimeout) {
+				clearTimeout(rpcTimeout);
+				rpcTimeout = null;
+			}
+		} else {
+			gameStartTime = null;
 		}
 	});
 
@@ -356,30 +520,34 @@
 
 		if (rpcTimeout) clearTimeout(rpcTimeout);
 		rpcTimeout = setTimeout(() => {
+			if (appState.isGameRunning) return;
 			let details = "No Menu Principal";
-			let state = "Luxmc v1.9.2";
+			let state = "Luxmc v2.0.0";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
 				state = "Pronto para Jogar";
 			} else if (currentPath === "/instances") {
 				details = "Gerenciando Instâncias";
-				state = "Luxmc v1.9.2";
+				state = `${profiles.list.length} instâncias criadas`;
 			} else if (currentPath.startsWith("/instances/")) {
-				details = "Configurando Instância";
-				state = "Ajustando Mods & Versões";
+				details = profiles.active ? `Ajustando ${profiles.active.name}` : "Configurando Instância";
+				state = profiles.active ? `${profiles.active.mcVersion} · ${profiles.active.loader.toUpperCase()}` : "Ajustando Mods & Versões";
 			} else if (currentPath === "/mods") {
 				details = "Explorando Mods & Modpacks";
 				state = "Modrinth & CurseForge";
 			} else if (currentPath === "/skins") {
 				details = "Personalizador de Skins 3D";
-				state = "Customizando Aparência";
+				state = account.value?.username ? `Skin de ${account.value.username}` : "Customizando Aparência";
 			} else if (currentPath === "/screenshots") {
 				details = "Galeria de Capturas de Tela";
 				state = "Visualizando Screenshots";
 			} else if (currentPath === "/logs" || currentPath === "/logs-history") {
 				details = "Analisando Logs";
 				state = "Diagnóstico do Jogo";
+			} else if (currentPath === "/friends") {
+				details = "Comunidade & Amigos";
+				state = "Rede P2P Luxmc";
 			} else if (currentPath === "/settings") {
 				details = "Configurações do Launcher";
 				state = "Ajustando Preferências";
@@ -390,7 +558,9 @@
 				state,
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
-				smallText: "Luxmc v1.9.2",
+				smallImage: "grass",
+				smallText: "Luxmc v2.0.0",
+				startTime: launcherStartTime,
 				inGame: false,
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
@@ -407,73 +577,38 @@
 		};
 	});
 
-	let videoError = $state(false);
-	let videoEl = $state<HTMLVideoElement | null>(null);
-
 	const resolvedVideoUrl = $derived(
 		themeStore.customWallpaperType === "video"
 			? resolveWallpaperVideoUrl(themeStore.customWallpaperUrl)
 			: ""
 	);
 
-	$effect(() => {
-		void resolvedVideoUrl;
-		videoError = false;
-		if (videoEl) {
-			videoEl.load();
-			videoEl.play().catch(() => {});
-		}
-	});
+    $effect(() => {
+        const disableBlur = settings.value.blur === false || appState.performanceMode;
+        document.documentElement.classList.toggle("no-blur", disableBlur);
+        document.documentElement.classList.toggle("efficient-wallpaper", themeStore.background === "custom" && themeStore.customWallpaperType === "video" && settings.value.animatedWallpaperBlur !== true);
+        return () => {
+            document.documentElement.classList.remove("no-blur");
+            document.documentElement.classList.remove("efficient-wallpaper");
+        };
+    });
 
-	function resolveWallpaperVideoUrl(rawUrl: string): string {
-		if (!rawUrl) return "";
-		if (rawUrl.startsWith("http://127.0.0.1:49152/media")) return rawUrl;
-		let clean = rawUrl;
-		if (clean.startsWith("asset://localhost/")) {
-			try {
-				clean = decodeURIComponent(clean.replace("asset://localhost/", ""));
-			} catch {}
-		} else if (clean.startsWith("asset://")) {
-			try {
-				clean = decodeURIComponent(clean.replace("asset://", ""));
-			} catch {}
-		}
-		if (clean.startsWith("/")) {
-			return `http://127.0.0.1:49152/media?path=${encodeURIComponent(clean)}`;
-		}
-		return rawUrl;
-	}
 </script>
 
-<div class="fixed inset-0 z-0 transition-all duration-500 pointer-events-none overflow-hidden bg-black" style={themeStore.currentBackgroundStyle}>
-	{#if themeStore.customWallpaperUrl}
-		{#if themeStore.customWallpaperType === "video" && !videoError && resolvedVideoUrl}
-			<video
-				bind:this={videoEl}
-				src={resolvedVideoUrl}
-				autoplay
-				loop
-				muted
-				playsinline
-				preload="auto"
-				class="absolute inset-0 w-full h-full object-cover pointer-events-none"
-				onerror={() => { videoError = true; }}
-				onloadeddata={(e) => {
-					const el = e.currentTarget as HTMLVideoElement;
-					el.muted = true;
-					el.play().catch(() => {});
-				}}
-			></video>
+<div class="fixed inset-0 z-0 transition-colors duration-300 pointer-events-none overflow-hidden" style={themeStore.currentBackgroundStyle}>
+	{#if themeStore.background === "custom" && themeStore.customWallpaperUrl}
+		{#if themeStore.customWallpaperType === "video"}
+			<VideoWallpaper src={resolvedVideoUrl} />
 		{:else}
 			<img
-				src={themeStore.customWallpaperUrl}
-				alt="Custom Wallpaper"
+				src={resolveWallpaperImageUrl(themeStore.customWallpaperUrl)}
+				alt="Plano de fundo personalizado"
 				class="absolute inset-0 w-full h-full object-cover pointer-events-none"
 			/>
 		{/if}
 		<div class="absolute inset-0 bg-black/40 pointer-events-none"></div>
 	{/if}
-	{#if themeStore.theme !== "light" && !appState.performanceMode && !themeStore.customWallpaperUrl}
+	{#if themeStore.theme !== "light" && !appState.performanceMode && !appState.isGameRunning && (themeStore.background !== "custom" || !themeStore.customWallpaperUrl)}
 		{#if settings.value.liveWallpaper === true}
 			<LiveWallpaper />
 		{/if}
@@ -497,11 +632,11 @@
 		{@render children?.()}
 	</div>
 {:else}
-	<div class="flex h-full w-full overflow-hidden" in:fade={{ duration: 100 }}>
+	<div class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ duration: 100 }}>
 		<Sidebar notificationCount={0} />
-		<div class="flex h-full min-w-0 flex-1 flex-col relative z-10">
-			<main class="flex-1 overflow-x-hidden overflow-y-auto px-6 py-6 custom-scrollbar relative">
-				<div class="mx-auto max-w-[1600px] min-h-full flex flex-col w-full">
+		<div class="flex h-full min-h-0 min-w-0 flex-1 flex-col relative z-10">
+			<main class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto {page.url.pathname === "/" ? "p-0" : "px-6 py-6"} custom-scrollbar relative">
+				<div class="mx-auto {page.url.pathname === "/" ? "" : "max-w-[1600px]"} min-h-full flex flex-col w-full">
 					{@render children?.()}
 				</div>
 			</main>

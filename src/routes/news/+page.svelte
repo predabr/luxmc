@@ -1,4 +1,7 @@
 <script lang="ts">
+    import { onMount } from "svelte";
+    import { newsState } from "$lib/stores/news.svelte";
+    onMount(() => { void newsState.load(); });
 	import Heading from "$lib/components/ui/Heading.svelte";
 	import Card from "$lib/components/ui/Card.svelte";
 	import ChangelogPanel from "$lib/components/ui/ChangelogPanel.svelte";
@@ -32,55 +35,24 @@
 		image: string;
 	};
 
-	const officialNews: LauncherArticle[] = [
+	const launcherNews: LauncherArticle[] = [
 		{
-			id: "mc-1-21-5-pale-garden",
-			title: "Minecraft Drop Oficial: The Pale Garden & The Creaking",
-			tag: "Minecraft Oficial",
+			id: "v2.0.0",
+			title: "Luxmc v2.0.0 — Nova Geração: Auto-Reparo de Modpacks, Capas HD e Máxima Performance",
+			tag: "Oficial",
 			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
-			date: "Setembro, 2026",
-			image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=800&auto=format&fit=crop",
-			summary: "A Mojang Studios revelou o aguardado drop oficial com o misterioso bioma Pale Garden, o aterrorizante Creaking que só se move quando você não está olhando, e novos blocos de madeira e resina.",
+			date: "27 de Setembro, 2026",
+			version: "v2.0.0",
+			image: "/news_1.jpg",
+			summary: "O grande marco da versão 2.0.0: auto-reparo silencioso de modpacks com CrashDoctor, renderização de capas sem distorção para qualquer proporção, controle manual absoluto de RAM e carregamento instantâneo de instâncias sem delays.",
 			highlights: [
-				"Novo bioma Pale Garden: atmosfera cinzenta e silenciosa onde as copas das árvores bloqueiam a luz",
-				"Mob The Creaking: imune a ataques frontais enquanto mantiver contato visual; destrua o Coração do Creaking na árvore para derrotá-lo",
-				"Nova madeira Pale Oak (Carvalho Pálido) com conjunto completo de tábuas, cercas, portas e barcos",
-				"Novo recurso: Resina encontrada nas árvores do Pale Garden para fabricação de tijolos e ornamentos",
-				"Compatibilidade nativa imediata no Luxmc para snapshots e lançamentos oficiais"
+				"Auto-reparo automático e silencioso de erros e dependências em modpacks",
+				"Suporte a capas HD, WebP e PNG mantendo proporções sem distorções",
+				"Controle total de alocação de memória RAM sem overrides automáticos",
+				"Navegação instantânea nas instâncias com pré-carregamento dinâmico",
+				"Otimização avançada de inicialização e redução drástica de stutters via AlwaysPreTouch"
 			],
-			link: "https://www.minecraft.net"
-		},
-		{
-			id: "modrinth-api-v3",
-			title: "Modrinth API v3 & Novos Servidores de CDN na América do Sul",
-			tag: "Mods & Comunidade",
-			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
-			date: "Setembro, 2026",
-			image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop",
-			summary: "A plataforma Modrinth expandiu sua rede de borda com servidores dedicados em São Paulo (GRU), garantindo downloads de modpacks e shaders até 4 vezes mais rápidos no Luxmc.",
-			highlights: [
-				"Baixa latência para jogadores do Brasil e América Latina",
-				"Pesquisa instantânea de Shaders e Texturas pelo catálogo integrado",
-				"Distribuição automatizada de arquivos .mrpack com verificação de integridade SHA-512",
-				"Catálogo com mais de 80.000 modificações atualizadas diariamente"
-			],
-			link: "https://modrinth.com"
-		},
-		{
-			id: "sodium-iris-vulkan",
-			title: "Sodium 0.6 & Iris Shaders: Salto Gráfico com Multi-Draw no Linux",
-			tag: "Desempenho & Gráficos",
-			tagColor: "text-cyan-400 bg-cyan-500/10 border-cyan-500/30",
-			date: "Setembro, 2026",
-			image: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=800&auto=format&fit=crop",
-			summary: "O motor de renderização Sodium e o carregador Iris Shaders receberam otimizações profundas de OpenGL Multi-Draw e Zink Vulkan, alcançando 144+ FPS estáveis mesmo em mundos pesados.",
-			highlights: [
-				"Pipeline gráfico reconstruído para placas AMD, Intel e Nvidia",
-				"Redução de até 60% na carga de CPU durante a renderização de chunks distantes",
-				"Compatibilidade total com pacotes famosos como Complimentary Reimagined e BSL",
-				"Renderização fluida em monitores de alta taxa de atualização (144Hz a 360Hz)"
-			],
-			link: "https://modrinth.com/mod/sodium"
+			link: "https://luxmc-r92.pages.dev/#destaques"
 		},
 		{
 			id: "v1.9.2",
@@ -243,7 +215,11 @@
 		}
 	];
 
-	let selectedTab = $state<"news" | "changelog">("news");
+	let selectedTab = $state<"news" | "launcher" | "changelog">("news");
+    const officialNews: LauncherArticle[] = $derived(selectedTab === "launcher" ? launcherNews : newsState.items.map(item => ({
+        ...item, tag: item.category, tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30", highlights: [],
+        date: new Date(`${item.date}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })
+    })));
 
 	async function openWebsite(url?: string) {
 		const target = url || "https://luxmc-r92.pages.dev";
@@ -294,8 +270,9 @@
 			onclick={() => selectedTab = "news"}
 			class="px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {selectedTab === 'news' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 		>
-			Atualizações do Launcher ({officialNews.length})
+			Minecraft ({newsState.items.length})
 		</button>
+        <button type="button" onclick={() => selectedTab = "launcher"} class="px-5 py-2 rounded-xl text-xs font-bold transition-colors {selectedTab === 'launcher' ? 'bg-fg/15 text-fg' : 'text-fg/60 hover:text-fg'}">Luxmc ({launcherNews.length})</button>
 		<button
 			type="button"
 			onclick={() => selectedTab = "changelog"}
@@ -305,7 +282,13 @@
 		</button>
 	</div>
 
-	{#if selectedTab === "news"}
+	{#if selectedTab !== "changelog"}
+        {#if selectedTab === "news"}
+            <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-fg-muted" role="status">
+                <span>{newsState.loading ? "Atualizando notícias oficiais…" : newsState.error || (newsState.offline ? "Publicações salvas — confira as datas dos artigos." : `Fonte oficial Minecraft · atualizado ${new Date(newsState.updatedAt).toLocaleTimeString("pt-BR")}`)}</span>
+                <button type="button" class="luxmc-control" disabled={newsState.loading} onclick={() => newsState.load(true)}>Atualizar notícias</button>
+            </div>
+        {/if}
 		<!-- Featured Article -->
 		{#if officialNews.length > 0}
 			{@const featured = officialNews[0]}

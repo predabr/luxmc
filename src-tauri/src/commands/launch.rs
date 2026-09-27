@@ -91,7 +91,7 @@ pub async fn launch_game_core(
                 }
             });
 
-    let profile =
+    let mut profile =
         sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
             .bind(&request.profile_id)
             .fetch_optional(db.pool())
@@ -110,10 +110,15 @@ pub async fn launch_game_core(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
     let data_dir = base_dir.data_dir().to_path_buf();
+    crate::core::instance_paths::isolate(&mut profile, &data_dir).await?;
 
-    emit_log("Verificando integridade dos arquivos do modpack...");
-    if let Err(e) = crate::commands::instances::heal_modpack(state, &profile).await {
-        emit_log(&format!("Aviso na verificação do modpack: {}. Continuando lançamento...", e));
+    if crate::commands::instance_lab::isolation_testing(&profile.id)? {
+        emit_log("Diagnóstico de mods ativo: teste iniciado com a seleção temporária de JARs.");
+    } else {
+        emit_log("Verificando integridade dos arquivos do modpack...");
+        let integrity_started = std::time::Instant::now();
+        crate::commands::instances::heal_modpack(state, &profile).await?;
+        emit_log(&format!("Integridade concluída em {:.1}s. Preparando Java e loader...", integrity_started.elapsed().as_secs_f32()));
     }
 
     emit_log("Verificando shaderpacks do modpack...");
@@ -217,24 +222,9 @@ pub async fn launch_game_core(
         java = java.with_app(a.clone());
     }
 
-    if let Err(e) = downloader.download_version(&detail).await {
-        let client_jar = data_dir.join("versions").join(&detail.id).join(format!("{}.jar", detail.id));
-        if client_jar.exists() {
-            emit_log(&format!("Aviso de rede no download (modo offline): {}. Usando arquivos locais existentes.", e));
-        } else {
-            return Err(e);
-        }
-    }
-
+    downloader.download_version(&detail).await?;
     emit_log("Download verified. Validating version...");
-    if let Err(e) = downloader.validate_version(&detail).await {
-        let client_jar = data_dir.join("versions").join(&detail.id).join(format!("{}.jar", detail.id));
-        if client_jar.exists() {
-            emit_log(&format!("Aviso de validação (modo offline): {}. Prosseguindo com arquivos locais.", e));
-        } else {
-            return Err(e);
-        }
-    }
+    downloader.validate_version(&detail).await?;
     emit_log("Version validated.");
 
     let mut launcher = GameLauncher::new(downloader, java);
@@ -245,14 +235,6 @@ pub async fn launch_game_core(
     let game_dir = std::path::PathBuf::from(&profile.game_dir);
     tokio::fs::create_dir_all(&game_dir).await?;
 
-    #[cfg(target_os = "linux")]
-    {
-        let user = std::env::var("USER").unwrap_or_else(|_| "root".to_string());
-        let _ = std::process::Command::new("pkill")
-            .args(["-f", "-u", &user, "net.minecraft.client.main.Main"])
-            .output();
-        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    }
 
     if !account.refresh_token.is_empty() {
         let client_id = crate::commands::auth::get_configured_client_id().await;
@@ -260,10 +242,10 @@ pub async fn launch_game_core(
             account.access_token = Some(refreshed.access_token.clone());
             account.refresh_token = refreshed.refresh_token.clone();
             account.expires_at = Some(chrono::DateTime::from_timestamp(refreshed.expires_at, 0).unwrap_or_default());
-            if refreshed.skin_url.is_some() {
+            if account.skin_url.is_none() && refreshed.skin_url.is_some() {
                 account.skin_url = refreshed.skin_url;
             }
-            if refreshed.skin_variant.is_some() {
+            if account.skin_variant.is_none() && refreshed.skin_variant.is_some() {
                 account.skin_variant = refreshed.skin_variant;
             }
             account.updated_at = chrono::Utc::now();
@@ -375,28 +357,42 @@ pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
 
     tracing::info!(target: "launch", "Terminating Minecraft process with PID {}", target_pid);
 
+    if let Some(game_dir) = crate::core::launcher::get_active_game_dir() {
+        let crash_dir = game_dir.join("local").join("crash_assistant");
+        if crash_dir.is_dir() {
+            let normal_stop = crash_dir.join(format!("normal_stop_pid{}.tmp", target_pid));
+            let prevent_window = crash_dir.join(format!("prevent_crash_assistant_window_pid{}.tmp", target_pid));
+            let _ = tokio::fs::write(&normal_stop, b"").await;
+            let _ = tokio::fs::write(&prevent_window, b"").await;
+        }
+    }
+
     #[cfg(unix)]
     {
+        let _ = tokio::process::Command::new("pkill")
+            .args(["-9", "-f", "CrashAssistantApp"])
+            .output()
+            .await;
+
+        let _ = tokio::process::Command::new("pkill")
+            .args(["-9", "-f", &format!("-parentPID {}", target_pid)])
+            .output()
+            .await;
+
+        let _ = tokio::process::Command::new("pkill")
+            .args(["-9", "-P", &target_pid.to_string()])
+            .output()
+            .await;
+
         let _ = tokio::process::Command::new("kill")
-            .args(["-15", &target_pid.to_string()])
+            .args(["-9", &format!("-{}", target_pid)])
             .output()
             .await;
 
-        tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
-
-        let check = tokio::process::Command::new("kill")
-            .args(["-0", &target_pid.to_string()])
+        let _ = tokio::process::Command::new("kill")
+            .args(["-9", &target_pid.to_string()])
             .output()
             .await;
-
-        if let Ok(out) = check {
-            if out.status.success() {
-                let _ = tokio::process::Command::new("kill")
-                    .args(["-9", &target_pid.to_string()])
-                    .output()
-                    .await;
-            }
-        }
     }
 
     #[cfg(windows)]
@@ -408,6 +404,6 @@ pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
     }
 
     crate::core::launcher::clear_active_game_pid();
+    crate::core::launcher::clear_active_game_dir();
     Ok(true)
 }
-

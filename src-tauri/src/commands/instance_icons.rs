@@ -2,9 +2,19 @@ use std::path::Path;
 
 use crate::error::{AppError, AppResult};
 
-fn app_data_dir() -> Option<std::path::PathBuf> {
-    directories::ProjectDirs::from("io", "github", "Luxmc")
-        .map(|d| d.data_dir().to_path_buf())
+fn allowed_app_dirs() -> Vec<std::path::PathBuf> {
+    let mut dirs = Vec::new();
+    if let Some(d) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+        dirs.push(d.data_dir().to_path_buf());
+        dirs.push(d.config_dir().to_path_buf());
+        dirs.push(d.cache_dir().to_path_buf());
+    }
+    if let Some(user) = directories::UserDirs::new() {
+        dirs.push(user.home_dir().join(".local/share/luxmc"));
+        dirs.push(user.home_dir().join(".config/luxmc"));
+        dirs.push(user.home_dir().join(".cache/luxmc"));
+    }
+    dirs
 }
 
 fn is_safe_path(path: &str) -> bool {
@@ -14,25 +24,31 @@ fn is_safe_path(path: &str) -> bool {
             return false;
         }
     }
-    let data_dir = match app_data_dir() {
-        Some(d) => d,
-        None => return false,
-    };
-    if let Ok(canonical_data) = std::fs::canonicalize(&data_dir) {
-        if let Ok(canonical_p) = std::fs::canonicalize(p) {
-            return canonical_p.starts_with(&canonical_data);
-        }
-        let mut cur = p;
-        while let Some(parent) = cur.parent() {
-            if let Ok(canonical_parent) = std::fs::canonicalize(parent) {
-                return canonical_parent.starts_with(&canonical_data);
+    let allowed = allowed_app_dirs();
+    for dir in allowed {
+        if let Ok(canonical_data) = std::fs::canonicalize(&dir) {
+            if let Ok(canonical_p) = std::fs::canonicalize(p) {
+                if canonical_p.starts_with(&canonical_data) {
+                    return true;
+                }
             }
-            cur = parent;
+            let mut cur = p;
+            while let Some(parent) = cur.parent() {
+                if let Ok(canonical_parent) = std::fs::canonicalize(parent) {
+                    if canonical_parent.starts_with(&canonical_data) {
+                        return true;
+                    }
+                }
+                cur = parent;
+            }
+            if p.starts_with(&dir) {
+                return true;
+            }
+        } else if p.starts_with(&dir) {
+            return true;
         }
-        p.starts_with(&data_dir)
-    } else {
-        p.starts_with(&data_dir)
     }
+    false
 }
 
 #[tauri::command]

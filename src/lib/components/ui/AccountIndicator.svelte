@@ -2,8 +2,10 @@
 	import { onMount } from "svelte";
 	import { LogOut, LogIn, User, Settings, CircleCheck, Users, Plus, Check } from "lucide-svelte";
 	import Button from "./Button.svelte";
+	import MicrosoftLogo from "./MicrosoftLogo.svelte";
 	import AccountLoginModal from "$lib/components/profile/AccountLoginModal.svelte";
-	import { account } from "$lib/stores/account.svelte";
+	import { account, saveCurrentAccount } from "$lib/stores/account.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { authAccounts, authSwitchAccount } from "$lib/api";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -21,9 +23,11 @@
 	}>>([]);
 
 	let skinUrl = $derived(
-		account.value?.username 
+		activeSkinStore.current.avatarUrl ||
+		account.value?.avatarUrl ||
+		(account.value?.username 
 			? `https://mc-heads.net/avatar/${account.value.username}/64` 
-			: "/grass_block.png"
+			: "/grass_block.png")
 	);
 
 	type AccountStatus = "online" | "offline";
@@ -71,9 +75,24 @@
 		}
 	}
 
+	const isMicrosoft = $derived(
+		Boolean(
+			account.value?.minecraftToken &&
+			!account.value.minecraftToken.startsWith("luxmc-") &&
+			account.value.minecraftToken.length > 50 &&
+			!account.value.id.startsWith("offline_") &&
+			!account.value.id.startsWith("offline-")
+		)
+	);
+
 	function handleSkinError(e: Event) {
 		const img = e.target as HTMLImageElement;
-		img.src = "/grass_block.png";
+		const fallback = account.value?.username ? `https://mc-heads.net/avatar/${account.value.username}/64` : "/grass_block.png";
+		if (img.src !== fallback) {
+			img.src = fallback;
+		} else {
+			img.src = "/grass_block.png";
+		}
 	}
 
 	async function handleSwitchAccount(acc: { id: string; username: string; uuid: string; accessToken: string | null; expiresAt: string | null }) {
@@ -87,8 +106,8 @@
 			minecraftToken: acc.accessToken || "",
 			expiresAt: acc.expiresAt ? new Date(acc.expiresAt).getTime() : 0
 		};
-		localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
 		account.value = newAcc;
+		void saveCurrentAccount(newAcc);
 		showMenu = false;
 		toast(`Alternado para a conta ${acc.username}!`, "success");
 	}
@@ -116,6 +135,9 @@
 				></span>
 			</span>
 			<span class="text-xs font-bold text-fg truncate max-w-[120px]">{account.value.username}</span>
+			{#if isMicrosoft}
+				<MicrosoftLogo size={12} class="opacity-90" />
+			{/if}
 		</button>
 
 		{#if showMenu}
@@ -123,9 +145,16 @@
 				<div class="p-3.5 border-b border-fg/5 bg-bg-elevated/80">
 					<div class="flex items-center justify-between">
 						<span class="text-[10px] text-fg/40 uppercase tracking-wider font-extrabold">{t("accountIndicator.account")}</span>
-						<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-fg/5 text-fg/60">
-							{account.value.minecraftToken && !account.value.minecraftToken.startsWith('luxmc-') && account.value.minecraftToken.length > 50 ? 'Microsoft' : 'Offline'}
-						</span>
+						{#if isMicrosoft}
+							<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+								<MicrosoftLogo size={10} />
+								Microsoft
+							</span>
+						{:else}
+							<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-fg/5 text-fg/60">
+								Offline
+							</span>
+						{/if}
 					</div>
 					<div class="flex items-center gap-2.5 mt-2">
 						<img 

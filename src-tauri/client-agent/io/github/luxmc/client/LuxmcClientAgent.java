@@ -13,7 +13,6 @@ import javax.swing.*;
 public class LuxmcClientAgent {
 
     private static volatile boolean running = true;
-    private static volatile boolean wasRightShiftDown = false;
     private static volatile boolean wasLmbDown = false;
     private static volatile boolean wasRmbDown = false;
     private static long lastToggleTime = 0;
@@ -82,9 +81,19 @@ public class LuxmcClientAgent {
     private static final List<Long> rightClicks = new ArrayList<Long>();
 
     public static void premain(String agentArgs, Instrumentation inst) {
-        System.out.println("[LUXMC_CLIENT] Luxmc Client PvP Suite initialized (v1.9.2)");
-        System.out.println("[LUXMC_CLIENT] In-game menu hotkey: Right Shift (Shift Direito)");
+        System.out.println("[LUXMC_CLIENT] Luxmc Client initialized (v2.0.0)");
 
+        try {
+            java.nio.file.Path support = java.nio.file.Files.createTempFile("luxmc-appearance-", ".jar");
+            support.toFile().deleteOnExit();
+            try (java.io.InputStream embedded = LuxmcClientAgent.class.getResourceAsStream("/luxmc-appearance-support.jar")) {
+                if (embedded == null) throw new IOException("Appearance support missing");
+                java.nio.file.Files.copy(embedded, support, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            inst.appendToBootstrapClassLoaderSearch(new java.util.jar.JarFile(support.toFile()));
+            AppearanceAgent.install(inst);
+        } catch (Throwable error) { System.err.println("[LUXMC_CLIENT] Appearance agent unavailable: " + error.getClass().getSimpleName()); }
+        if ("appearance-only".equals(agentArgs)) return;
         initCapeRedirection();
 
         Thread hookThread = new Thread(new Runnable() {
@@ -242,7 +251,6 @@ public class LuxmcClientAgent {
                 break;
             }
 
-            boolean isDown = false;
             boolean currentLmb = false;
             boolean currentRmb = false;
 
@@ -275,10 +283,6 @@ public class LuxmcClientAgent {
                 try {
                     Boolean created = (Boolean) isCreatedMethod.invoke(null);
                     if (created != null && created.booleanValue()) {
-                        Boolean down = (Boolean) isKeyDownMethod.invoke(null, 54);
-                        if (down != null && down.booleanValue()) {
-                            isDown = true;
-                        }
 
                         Boolean wDown = (Boolean) isKeyDownMethod.invoke(null, 17);
                         Boolean aDown = (Boolean) isKeyDownMethod.invoke(null, 30);
@@ -311,7 +315,7 @@ public class LuxmcClientAgent {
                 } catch (Throwable ignored) {}
             }
 
-            if (!isDown) {
+            {
                 if (!lwjgl3Checked) {
                     try {
                         glfwClass = Class.forName("org.lwjgl.glfw.GLFW");
@@ -340,10 +344,6 @@ public class LuxmcClientAgent {
                         long handle = currentWindowHandle.longValue();
 
                         if (glfwGetKeyMethod != null) {
-                            Integer state = (Integer) glfwGetKeyMethod.invoke(null, handle, 344);
-                            if (state != null && state.intValue() == 1) {
-                                isDown = true;
-                            }
 
                             Integer stateW = (Integer) glfwGetKeyMethod.invoke(null, handle, 87);
                             Integer stateA = (Integer) glfwGetKeyMethod.invoke(null, handle, 65);
@@ -401,13 +401,7 @@ public class LuxmcClientAgent {
                 cleanCps(now);
             }
 
-            if (isDown && !wasRightShiftDown && (now - lastToggleTime > 350)) {
-                lastToggleTime = now;
-                wasRightShiftDown = true;
-                toggleInGameMenu();
-            } else if (!isDown) {
-                wasRightShiftDown = false;
-            }
+
         }
     }
 
@@ -499,7 +493,7 @@ public class LuxmcClientAgent {
         titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
         titleLabel.setForeground(new Color(59, 130, 246));
 
-        JLabel subLabel = new JLabel("Menu In-Game · Clique para alternar módulos · Shift Direito ou ESC para fechar");
+        JLabel subLabel = new JLabel("Menu In-Game · Clique para alternar módulos · ESC para fechar");
         subLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         subLabel.setForeground(new Color(148, 163, 184));
 
@@ -623,7 +617,6 @@ public class LuxmcClientAgent {
         };
 
         dialog.getRootPane().registerKeyboardAction(closeAction, KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
-        dialog.getRootPane().registerKeyboardAction(closeAction, KeyStroke.getKeyStroke(KeyEvent.VK_SHIFT, 0), JComponent.WHEN_IN_FOCUSED_WINDOW);
 
         return dialog;
     }

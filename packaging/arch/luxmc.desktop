@@ -1,10 +1,13 @@
 [Desktop Entry]
 Name=Luxmc
-Comment=Linux-first Minecraft Launcher
+GenericName=Minecraft Launcher
+Comment=Linux-first Minecraft launcher
 Exec=luxmc %u
 Icon=luxmc
 Terminal=false
 Type=Application
-Categories=Game;
+Categories=Game;ActionGame;AdventureGame;
 Keywords=minecraft;game;launcher;tauri;
 StartupWMClass=luxmc
+StartupNotify=true
+MimeType=x-scheme-handler/luxmc;

@@ -16,6 +16,7 @@ export async function profilesList(): Promise<ProfileRow[]> {
 
 export async function profilesGet(id: string): Promise<{
 	id: string;
+	ramMb?: number | null;
 	name: string;
 	icon: string;
 	mcVersion: string;

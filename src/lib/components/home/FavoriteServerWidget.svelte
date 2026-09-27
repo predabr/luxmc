@@ -129,12 +129,11 @@
 				{/if}
 
 				<!-- Status Dot Indicator -->
-				<span class="absolute bottom-1 right-1 flex h-3 w-3">
+				<span class="absolute bottom-1 right-1 flex h-3 w-3 items-center justify-center">
 					{#if status?.online}
-						<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-						<span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-border"></span>
+						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400 border border-emerald-300 shadow-[0_0_8px_rgba(52,211,153,0.7)]"></span>
 					{:else}
-						<span class="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border-2 border-border"></span>
+						<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border border-rose-400"></span>
 					{/if}
 				</span>
 			</div>
@@ -217,7 +216,7 @@
 						<Server class="w-4 h-4" />
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-fg">Servidor Favorito da Home</h3>
+						<h3 class="text-sm font-black text-fg">Servidor favorito do início</h3>
 						<p class="text-[11px] text-fg/50">Monitore o status e conecte com 1 clique</p>
 					</div>
 				</div>

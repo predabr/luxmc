@@ -117,3 +117,19 @@ async fn test_fabric_loader_resolution_and_knot_client() {
     // Clean up test directory
     let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 }
+
+#[tokio::test]
+async fn quilt_libraries_repair_corrupted_cache() {
+    let http = reqwest::Client::builder().user_agent("Luxmc/2.0.0").build().unwrap();
+    let root = std::env::temp_dir().join(format!("luxmc-quilt-{}", std::process::id()));
+    let libraries = root.join("libraries");
+    tokio::fs::create_dir_all(&libraries).await.unwrap();
+    let prepared = prepare_loader(&http, &libraries, "quilt", "1.20.1", None).await.unwrap();
+    assert!(prepared.main_class.contains("KnotClient"));
+    let first = prepared.classpath_entries.first().unwrap();
+    let original = tokio::fs::read(first).await.unwrap();
+    tokio::fs::write(first, b"corrupted").await.unwrap();
+    prepare_loader(&http, &libraries, "quilt", "1.20.1", None).await.unwrap();
+    assert_eq!(tokio::fs::read(first).await.unwrap(), original);
+    tokio::fs::remove_dir_all(root).await.unwrap();
+}

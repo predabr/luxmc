@@ -201,6 +201,24 @@ export interface StorageBreakdown {
 	path: string;
 }
 
+export interface InstanceStorageInfo {
+	id: string;
+	name: string;
+	mcVersion: string;
+	loader: string;
+	icon: string;
+	bytes: number;
+	path: string;
+}
+
+export interface StorageFullReport {
+	totalBytes: number;
+	categories: StorageBreakdown[];
+	instances: InstanceStorageInfo[];
+	logsBytes: number;
+	cacheBytes: number;
+}
+
 export interface ChangelogEntry {
 	version: string;
 	date: string;

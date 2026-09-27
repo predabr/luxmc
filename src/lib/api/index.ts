@@ -21,3 +21,4 @@ export * from "./keybinds";
 export * from "./modpackExport";
 export * from "./worldBackup";
 export * from "./skins";
+export * from "./instanceLab";

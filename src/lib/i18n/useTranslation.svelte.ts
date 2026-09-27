@@ -31,6 +31,7 @@ if (browser) {
 export function setActiveLocale(loc: Locale) {
 	if (loc in dictionaries) {
 		activeLocale = loc;
+        if (browser) document.documentElement.lang = loc;
 		if (browser) {
 			try {
 				localStorage.setItem("luxmc.locale", loc);

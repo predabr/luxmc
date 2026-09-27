@@ -3,6 +3,11 @@ let performanceMode = $state(false);
 let showCutscene = $state(false);
 let showProfileModal = $state(false);
 let isGameRunning = $state(false);
+let isStopping = $state(false);
+let isLaunching = $state(false);
+let launchStatusText = $state("");
+let launchingProfileId = $state<string | null>(null);
+let wasManuallyTerminated = $state(false);
 let activeGameDetails = $state<{ name: string; version: string; loader: string; profileId?: string } | null>(null);
 
 export const appState = {
@@ -16,6 +21,16 @@ export const appState = {
 	set showProfileModal(v: boolean) { showProfileModal = v; },
 	get isGameRunning() { return isGameRunning; },
 	set isGameRunning(v: boolean) { isGameRunning = v; },
+	get isStopping() { return isStopping; },
+	set isStopping(v: boolean) { isStopping = v; },
+	get isLaunching() { return isLaunching; },
+	set isLaunching(v: boolean) { isLaunching = v; },
+	get launchStatusText() { return launchStatusText; },
+	set launchStatusText(v: string) { launchStatusText = v; },
+	get launchingProfileId() { return launchingProfileId; },
+	set launchingProfileId(v: string | null) { launchingProfileId = v; },
+	get wasManuallyTerminated() { return wasManuallyTerminated; },
+	set wasManuallyTerminated(v: boolean) { wasManuallyTerminated = v; },
 	get activeGameDetails() { return activeGameDetails; },
 	set activeGameDetails(v: { name: string; version: string; loader: string; profileId?: string } | null) { activeGameDetails = v; },
 	playCutscene() { showCutscene = true; },

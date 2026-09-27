@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Snake — Jogo da cobrinha</title>
+  <style>
+    :root { color-scheme: dark; --bg: 12 18 16; --bg-elevated: 21 30 26; --fg: 233 242 235; --fg-muted: 147 169 154; --brand-500: 170 238 126; --border: 45 63 51; --danger: 255 135 113; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100svh; display: grid; place-items: center; padding: 28px 18px; background: radial-gradient(ellipse at top, rgb(var(--brand-500) / .07), transparent 65%), rgb(var(--bg)); color: rgb(var(--fg)); font-family: system-ui, sans-serif; }
+    main { width: min(100%, 520px); }
+    header, .stats, .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .eyebrow { color: rgb(var(--brand-500)); font-size: 11px; letter-spacing: .22em; font-weight: 700; }
+    h1 { font-size: 48px; letter-spacing: -.06em; margin: 4px 0; }
+    .subtitle, footer { color: rgb(var(--fg-muted)); font-size: 13px; line-height: 1.6; }
+    .badge { border: 1px solid rgb(var(--border)); border-radius: 30px; padding: 8px 12px; color: rgb(var(--brand-500)); font-size: 11px; letter-spacing: .1em; }
+    .stats { margin: 24px 0 14px; }
+    .stat { flex: 1; background: rgb(var(--bg-elevated)); border: 1px solid rgb(var(--border)); border-radius: 12px; padding: 13px 16px; }
+    .stat span { display: block; font-size: 10px; color: rgb(var(--fg-muted)); letter-spacing: .12em; }
+    .stat strong { display: block; font: 700 25px ui-monospace, monospace; margin-top: 5px; }
+    .arena { position: relative; border: 1px solid rgb(var(--border)); border-radius: 16px; overflow: hidden; }
+    canvas { width: 100%; display: block; aspect-ratio: 1; touch-action: none; }
+    .overlay { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding: 24px; background: rgb(var(--bg) / .84); backdrop-filter: blur(3px); }
+    .overlay[hidden] { display: none; }
+    h2 { font-size: 28px; letter-spacing: -.04em; margin: 0 0 8px; }
+    .overlay p { color: rgb(var(--fg-muted)); font-size: 14px; margin: 0 0 24px; max-width: 300px; line-height: 1.6; }
+    button, select { font: inherit; border-radius: 10px; border: 1px solid rgb(var(--border)); padding: 11px 16px; color: rgb(var(--fg)); background: rgb(var(--bg-elevated)); cursor: pointer; }
+    button:hover { border-color: rgb(var(--brand-500)); }
+    button:focus-visible, select:focus-visible { outline: 2px solid rgb(var(--brand-500)); outline-offset: 3px; }
+    button:disabled { opacity: .4; cursor: default; }
+    .primary { background: rgb(var(--brand-500)); color: rgb(var(--bg)); font-weight: 750; }
+    .toolbar { margin-top: 14px; flex-wrap: wrap; }
+    label { font-size: 12px; color: rgb(var(--fg-muted)); }
+    select { margin-left: 5px; padding: 10px; font-size: 12px; }
+    .pad { display: grid; grid-template-columns: repeat(3, 48px); gap: 6px; justify-content: center; margin: 20px auto 0; }
+    .pad button { padding: 12px; touch-action: manipulation; }
+    .pad button:first-child { grid-column: 2; }
+    .pad button:nth-child(2) { grid-column: 1; }
+    footer { text-align: center; margin-top: 18px; font-size: 11px; }
+    @media (max-width: 380px) { body { padding: 16px 12px; } h1 { font-size: 40px; } .stat { padding: 10px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header><div><div class="eyebrow">UM CLÁSSICO, MAIS UMA VEZ</div><h1>snake<span style="color: rgb(var(--brand-500))">.</span></h1></div><span class="badge">ARCADE / 01</span></header>
+    <div class="subtitle">Só mais uma fruta. Só mais um recorde.</div>
+    <section class="stats" aria-label="Placar">
+      <div class="stat"><span>PONTOS</span><strong id="score">000</strong></div>
+      <div class="stat"><span>RECORDE</span><strong id="best">000</strong></div>
+      <div class="stat"><span>NÍVEL</span><strong id="level">01</strong></div>
+    </section>
+    <div class="arena">
+      <canvas id="board" width="600" height="600" aria-label="Tabuleiro do jogo da cobrinha"></canvas>
+      <div class="overlay" id="overlay">
+        <h2 id="title">Bora jogar?</h2>
+        <p id="message" role="status" aria-live="polite">Pegue as frutas e cresça. Cuidado com as paredes e com a própria cauda!</p>
+        <button class="primary" id="play">Começar partida ↗</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <label>Ritmo <select id="difficulty"><option value="170">Tranquilo</option><option value="125" selected>Clássico</option><option value="85">Turbo</option></select></label>
+      <button id="pause" disabled>Pausar</button>
+      <button id="restart">Reiniciar</button>
+    </div>
+    <nav class="pad" aria-label="Controles de direção"><button data-dir="up" aria-label="Cima">↑</button><button data-dir="left" aria-label="Esquerda">←</button><button data-dir="down" aria-label="Baixo">↓</button><button data-dir="right" aria-label="Direita">→</button></nav>
+    <footer>Setas ou WASD para mover · Espaço para pausar<br>No celular, use os botões ou deslize no tabuleiro.</footer>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const canvas = $('board'), ctx = canvas.getContext('2d');
+    const theme = getComputedStyle(document.documentElement);
+    const color = (name, alpha = 1) => `rgb(${theme.getPropertyValue(name).trim()} / ${alpha})`;
+    const size = 20, cell = canvas.width / size;
+    const directions = { up: {x: 0, y: -1}, down: {x: 0, y: 1}, left: {x: -1, y: 0}, right: {x: 1, y: 0} };
+    let snake, direction, queue, food, score, best = 0, state = 'ready', timer;
+    try { best = Math.max(0, Number(localStorage.getItem('snake-record')) || 0); } catch {}
+    function scoreboard() {
+      $('score').textContent = String(score).padStart(3, '0');
+      $('best').textContent = String(best).padStart(3, '0');
+      $('level').textContent = String(1 + Math.floor(score / 50)).padStart(2, '0');
+    }
+    function placeFood() {
+      const free = [];
+      for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+        if (!snake.some(p => p.x === x && p.y === y)) free.push({x, y});
+      }
+      food = free[Math.floor(Math.random() * free.length)] || null;
+    }
+    function reset() {
+      clearTimeout(timer);
+      snake = [{x: 9, y: 10}, {x: 8, y: 10}, {x: 7, y: 10}];
+      direction = directions.right; queue = []; score = 0;
+      placeFood(); scoreboard(); draw();
+    }
+    function draw() {
+      ctx.fillStyle = color('--bg'); ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = color('--border', .35); ctx.lineWidth = 1;
+      for (let i = 1; i < size; i++) {
+        ctx.beginPath(); ctx.moveTo(i * cell, 0); ctx.lineTo(i * cell, canvas.height); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, i * cell); ctx.lineTo(canvas.width, i * cell); ctx.stroke();
+      }
+      if (food) {
+        ctx.fillStyle = color('--danger'); ctx.shadowColor = color('--danger'); ctx.shadowBlur = 16;
+        ctx.beginPath(); ctx.arc((food.x + .5) * cell, (food.y + .5) * cell, cell * .28, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      }
+      snake.forEach((p, i) => {
+        ctx.fillStyle = color('--brand-500', i === 0 ? 1 : .65);
+        ctx.beginPath(); ctx.roundRect(p.x * cell + 2, p.y * cell + 2, cell - 4, cell - 4, i === 0 ? 8 : 5); ctx.fill();
+      });
+      const head = snake[0], side = {x: -direction.y, y: direction.x};
+      ctx.fillStyle = color('--bg');
+      for (const sign of [-1, 1]) {
+        ctx.beginPath(); ctx.arc((head.x + .5 + direction.x * .18 + side.x * sign * .16) * cell, (head.y + .5 + direction.y * .18 + side.y * sign * .16) * cell, 2.5, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    function show(title, message, label) {
+      $('title').textContent = title; $('message').textContent = message; $('play').textContent = label; $('overlay').hidden = false;
+    }
+    function schedule() { timer = setTimeout(tick, Math.max(48, Number($('difficulty').value) - Math.floor(score / 50) * 10)); }
+    function finish(won = false) {
+      state = 'over'; clearTimeout(timer); $('pause').disabled = true; $('difficulty').disabled = false;
+      show(won ? 'Tabuleiro dominado!' : 'Fim de jogo!', `Você fez ${score} pontos. ${won ? 'Que partida!' : 'Pronto para tentar de novo?'}`, 'Jogar novamente ↗');
+    }
+    function tick() {
+      if (state !== 'playing') return;
+      direction = queue.shift() || direction;
+      const head = {x: snake[0].x + direction.x, y: snake[0].y + direction.y};
+      const eating = food && head.x === food.x && head.y === food.y;
+      const body = eating ? snake : snake.slice(0, -1);
+      if (head.x < 0 || head.y < 0 || head.x >= size || head.y >= size || body.some(p => p.x === head.x && p.y === head.y)) { finish(); return; }
+      snake.unshift(head);
+      if (eating) {
+        score += 10;
+        if (score > best) { best = score; try { localStorage.setItem('snake-record', String(best)); } catch {} }
+        scoreboard(); placeFood();
+      } else snake.pop();
+      draw();
+      if (!food) { finish(true); return; }
+      schedule();
+    }
+    function start() {
+      reset(); state = 'playing'; $('overlay').hidden = true; $('pause').disabled = false;
+      $('pause').textContent = 'Pausar'; $('difficulty').disabled = true; schedule();
+    }
+    function togglePause() {
+      if (state === 'playing') {
+        state = 'paused'; clearTimeout(timer); $('pause').textContent = 'Continuar';
+        show('Respira um pouco.', 'Sua partida está esperando por você.', 'Continuar ↗');
+      } else if (state === 'paused') {
+        state = 'playing'; $('overlay').hidden = true; $('pause').textContent = 'Pausar'; schedule();
+      }
+    }
+    function turn(name) {
+      if (state !== 'playing' || queue.length >= 2) return;
+      const next = directions[name], last = queue[queue.length - 1] || direction;
+      if (next.x * last.x + next.y * last.y === 0) queue.push(next);
+    }
+    $('play').addEventListener('click', () => state === 'paused' ? togglePause() : start());
+    $('restart').addEventListener('click', start);
+    $('pause').addEventListener('click', togglePause);
+    document.querySelectorAll('[data-dir]').forEach(button => button.addEventListener('click', () => turn(button.dataset.dir)));
+    document.addEventListener('keydown', event => {
+      if (event.target instanceof HTMLSelectElement) return;
+      const keys = {ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', w: 'up', s: 'down', a: 'left', d: 'right'};
+      const name = keys[event.key] || keys[event.key.toLowerCase()];
+      if (name) { event.preventDefault(); turn(name); }
+      if (event.code === 'Space' && event.target.tagName !== 'BUTTON') {
+        event.preventDefault(); if (!event.repeat) { if (state === 'ready' || state === 'over') start(); else togglePause(); }
+      }
+    });
+    let touchStart;
+    canvas.addEventListener('pointerdown', event => { touchStart = {x: event.clientX, y: event.clientY}; canvas.setPointerCapture(event.pointerId); });
+    canvas.addEventListener('pointerup', event => {
+      if (!touchStart) return;
+      const dx = event.clientX - touchStart.x, dy = event.clientY - touchStart.y; touchStart = null;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 12) return;
+      turn(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+    });
+    canvas.addEventListener('pointercancel', () => { touchStart = null; });
+    document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'playing') togglePause(); });
+    window.addEventListener('blur', () => { if (state === 'playing') togglePause(); });
+    reset();
+  </script>
+</body>
+</html>

@@ -136,7 +136,7 @@
 	<!-- Header do Radar -->
 	<div class="flex items-center justify-between">
 		<div class="flex items-center gap-2">
-			<div class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
+			<div class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]"></div>
 			<h2 class="text-xs font-bold text-fg uppercase tracking-wider flex items-center gap-1.5">
 				<Radio class="w-3.5 h-3.5 text-brand-400" />
 				Radar de Amigos (Ghost Ping)

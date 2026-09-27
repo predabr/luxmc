@@ -53,7 +53,6 @@
 		if (e.ctrlKey) parts.push("Ctrl");
 		if (e.metaKey) parts.push("Meta");
 		if (e.altKey) parts.push("Alt");
-		if (e.shiftKey) parts.push("Shift");
 		const key = e.key === " " ? "Space" : e.key.length === 1 ? e.key.toLowerCase() : e.key;
 		if (!["Control", "Shift", "Alt", "Meta"].includes(e.key)) {
 			parts.push(key);

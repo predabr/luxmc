@@ -297,10 +297,14 @@ pub async fn search_mods(
             let logo_url = logo
                 .and_then(|l| l.get("url"))
                 .and_then(|u| u.as_str())
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
                 .map(|s| s.to_string());
             let icon_url = logo
                 .and_then(|l| l.get("thumbnailUrl"))
                 .and_then(|u| u.as_str())
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
                 .map(|s| s.to_string())
                 .or_else(|| logo_url.clone());
 
@@ -310,6 +314,8 @@ pub async fn search_mods(
                 .and_then(|arr| arr.first())
                 .and_then(|sc| sc.get("url").or_else(|| sc.get("thumbnailUrl")))
                 .and_then(|u| u.as_str())
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
                 .map(|s| s.to_string())
                 .or_else(|| logo_url);
 
@@ -537,10 +543,19 @@ pub async fn get_mod_details(
     let updated_at = m.get("dateModified").and_then(|d| d.as_str()).map(|s| s.to_string());
 
     let logo = m.get("logo").and_then(|l| l.as_object());
+    let logo_url = logo
+        .and_then(|l| l.get("url"))
+        .and_then(|u| u.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
     let icon_url = logo
         .and_then(|l| l.get("thumbnailUrl"))
         .and_then(|u| u.as_str())
-        .map(|s| s.to_string());
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .or_else(|| logo_url.clone());
 
     let categories: Vec<String> = m
         .get("categories")
@@ -872,7 +887,17 @@ pub async fn get_mod_logos_batch(
                         if let Some(data) = body.get("data").and_then(|d| d.as_array()) {
                             for m in data {
                                 if let Some(id) = m.get("id").and_then(|i| i.as_u64()) {
-                                    if let Some(thumb) = m.pointer("/logo/thumbnailUrl").and_then(|t| t.as_str()) {
+                                    let thumb = m.pointer("/logo/thumbnailUrl")
+                                        .and_then(|t| t.as_str())
+                                        .map(|s| s.trim())
+                                        .filter(|s| !s.is_empty())
+                                        .or_else(|| {
+                                            m.pointer("/logo/url")
+                                                .and_then(|t| t.as_str())
+                                                .map(|s| s.trim())
+                                                .filter(|s| !s.is_empty())
+                                        });
+                                    if let Some(thumb) = thumb {
                                         logos.insert(id, thumb.to_string());
                                     }
                                 }
@@ -993,6 +1018,47 @@ pub async fn get_files_batch(
     }
 
     map
+}
+
+pub async fn get_file_single(
+    http: &reqwest::Client,
+    mod_id: u64,
+    file_id: u64,
+) -> Option<CurseForgeFileInfo> {
+    let key = api_key()?;
+    let url = format!("{}/mods/{}/files/{}", CURSEFORGE_API, mod_id, file_id);
+    for attempt in 0..3 {
+        let resp = http
+            .get(&url)
+            .header("x-api-key", &key)
+            .timeout(Duration::from_secs(15))
+            .send()
+            .await;
+        if let Ok(resp) = resp {
+            if resp.status().is_success() {
+                if let Ok(json) = resp.json::<serde_json::Value>().await {
+                    if let Some(item) = json.get("data") {
+                        let id = item.get("id").and_then(|i| i.as_u64()).unwrap_or(file_id);
+                        let file_name = item.get("fileName").and_then(|n| n.as_str()).unwrap_or("mod.jar").to_string();
+                        let download_url = item.get("downloadUrl").and_then(|u| u.as_str()).map(|s| s.to_string());
+                        return Some(CurseForgeFileInfo {
+                            id,
+                            mod_id,
+                            file_name,
+                            download_url,
+                            size: item.get("fileLength").and_then(|v| v.as_u64()),
+                            sha1: item.get("hashes").and_then(|v| v.as_array()).and_then(|hashes| hashes.iter().find(|h| h.get("algo").and_then(|v| v.as_u64()) == Some(1))).and_then(|h| h.get("value")).and_then(|v| v.as_str()).map(str::to_owned),
+                        });
+                    }
+                }
+            } else if resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                tokio::time::sleep(Duration::from_millis(1000 * (attempt + 1) as u64)).await;
+                continue;
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(300 * (attempt + 1))).await;
+    }
+    None
 }
 
 #[cfg(test)]

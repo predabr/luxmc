@@ -92,6 +92,21 @@ pub fn analyze_crash_text(log: &str) -> CrashDiagnosis {
         };
     }
 
+    let re_jvm_opt = Regex::new(r"(?i)Unrecognized VM option '([^']+)'").unwrap();
+    if let Some(caps) = re_jvm_opt.captures(trimmed) {
+        let opt = caps.get(1).map(|m| m.as_str()).unwrap_or("desconhecida");
+        return CrashDiagnosis {
+            has_error: true,
+            title: format!("Opção JVM Inválida: '{opt}'"),
+            message: format!("A máquina virtual Java encerrou pois não reconhece a opção '{opt}' nesta versão do Java."),
+            solution: "O Luxmc removeu a flag incompatível dos argumentos para você.".to_string(),
+            category: "jvm_option".to_string(),
+            offending_mod: Some(opt.to_string()),
+            recommended_action: Some("fix_jvm_args".to_string()),
+            log_snippet: extract_snippet(trimmed, "Unrecognized VM option"),
+        };
+    }
+
     let re_java_ver = Regex::new(r"(?i)UnsupportedClassVersionError: .* has been compiled by a more recent version of the Java Runtime \(class file version (\d+)").unwrap();
     if let Some(caps) = re_java_ver.captures(trimmed) {
         let version_code = caps.get(1).map(|m| m.as_str()).unwrap_or("65");
@@ -284,6 +299,13 @@ pub struct PreLaunchCheckResult {
 }
 
 pub fn check_mod_conflicts(jar_filenames: &[String]) -> PreLaunchCheckResult {
+    check_mod_conflicts_with_paths(jar_filenames, &[])
+}
+
+pub fn check_mod_conflicts_with_paths(
+    jar_filenames: &[String],
+    jar_paths: &[std::path::PathBuf],
+) -> PreLaunchCheckResult {
     let mut conflicts = Vec::new();
     let mut duplicates = Vec::new();
     let mut seen_mods: std::collections::HashMap<String, String> = std::collections::HashMap::new();
@@ -295,19 +317,33 @@ pub fn check_mod_conflicts(jar_filenames: &[String]) -> PreLaunchCheckResult {
     let mut has_embeddium = None;
     let mut has_create = None;
 
-    for fname in jar_filenames {
+    for (idx, fname) in jar_filenames.iter().enumerate() {
         let lower = fname.to_lowercase();
         if lower.ends_with(".disabled") {
             continue;
         }
 
-        let stem = fname.strip_suffix(".jar").unwrap_or(fname).to_lowercase();
-        let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();
-        let non_version_parts: Vec<&str> = parts
-            .into_iter()
-            .take_while(|part| !part.chars().any(|c| c.is_ascii_digit()))
-            .collect();
-        let base = non_version_parts.join("-");
+        let base = if let Some(path) = jar_paths.get(idx) {
+            crate::commands::mods::extract_mod_name_from_jar(path)
+                .map(|id| id.to_lowercase().trim().replace(' ', "-"))
+                .unwrap_or_else(|| {
+                    let stem = fname.strip_suffix(".jar").unwrap_or(fname).to_lowercase();
+                    let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();
+                    let non_version_parts: Vec<&str> = parts
+                        .into_iter()
+                        .take_while(|part| !part.chars().any(|c| c.is_ascii_digit()))
+                        .collect();
+                    non_version_parts.join("-")
+                })
+        } else {
+            let stem = fname.strip_suffix(".jar").unwrap_or(fname).to_lowercase();
+            let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();
+            let non_version_parts: Vec<&str> = parts
+                .into_iter()
+                .take_while(|part| !part.chars().any(|c| c.is_ascii_digit()))
+                .collect();
+            non_version_parts.join("-")
+        };
 
         const COMMON_SINGLE_PREFIXES: &[&str] = &[
             "fabric", "forge", "neoforge", "quilt", "ftb", "kubejs", "create", 
@@ -385,7 +421,7 @@ pub fn check_mod_conflicts(jar_filenames: &[String]) -> PreLaunchCheckResult {
         });
     }
 
-    let has_conflicts = !conflicts.is_empty() || !duplicates.is_empty();
+    let has_conflicts = !conflicts.is_empty();
     PreLaunchCheckResult {
         has_conflicts,
         conflicts,
@@ -453,7 +489,6 @@ mod tests {
             "jei-1.20.1-forge-15.1.0.jar".to_string(),
         ];
         let res = check_mod_conflicts(&files);
-        assert!(res.has_conflicts);
         assert_eq!(res.duplicates.len(), 1);
     }
 }

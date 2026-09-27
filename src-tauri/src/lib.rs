@@ -1,4 +1,5 @@
 mod commands;
+pub mod network;
 pub mod core;
 pub mod daemon;
 pub mod db;
@@ -10,6 +11,25 @@ use tauri_plugin_deep_link::DeepLinkExt;
 
 async fn handle_media_request(mut socket: tokio::net::TcpStream, msg: &str) {
     use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
+
+    for line in msg.lines() {
+        if let Some((name, value)) = line.split_once(':') {
+            let name_trim = name.trim().to_ascii_lowercase();
+            let val_trim = value.trim();
+            if name_trim == "origin" || name_trim == "referer" {
+                let allowed = val_trim.starts_with("tauri://")
+                    || val_trim.starts_with("http://tauri.localhost")
+                    || val_trim.starts_with("https://tauri.localhost")
+                    || val_trim.starts_with("http://localhost")
+                    || val_trim.starts_with("http://127.0.0.1");
+                if !allowed {
+                    let header = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                    let _ = socket.write_all(header.as_bytes()).await;
+                    return;
+                }
+            }
+        }
+    }
 
     let query_start = match msg.find("/media?") {
         Some(pos) => pos + 7,
@@ -38,21 +58,6 @@ async fn handle_media_request(mut socket: tokio::net::TcpStream, msg: &str) {
     }
 
     let path = std::path::Path::new(&file_path_str);
-    if !path.exists() || !path.is_file() {
-        let header = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-        let _ = socket.write_all(header.as_bytes()).await;
-        return;
-    }
-
-    let total_len = match tokio::fs::metadata(path).await {
-        Ok(m) => m.len(),
-        Err(_) => {
-            let header = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
-            let _ = socket.write_all(header.as_bytes()).await;
-            return;
-        }
-    };
-
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
     let content_type = match ext.as_str() {
         "mp4" => "video/mp4",
@@ -63,31 +68,100 @@ async fn handle_media_request(mut socket: tokio::net::TcpStream, msg: &str) {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
         "webp" => "image/webp",
-        _ => "application/octet-stream",
+        _ => {
+            let _ = socket.write_all(b"HTTP/1.1 415 Unsupported Media Type\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await;
+            return;
+        },
     };
 
-    let mut range: Option<(u64, u64)> = None;
+    let canonical = match path.canonicalize() {
+        Ok(c) => c,
+        Err(_) => {
+            let header = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = socket.write_all(header.as_bytes()).await;
+            return;
+        }
+    };
+
+    if !canonical.is_file() {
+        let header = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        let _ = socket.write_all(header.as_bytes()).await;
+        return;
+    }
+
+    let canon_lower = canonical.to_string_lossy().to_lowercase();
+    let sensitive_markers = [
+        "/.ssh", "\\.ssh",
+        "/.gnupg", "\\.gnupg",
+        "/.aws", "\\.aws",
+        ".env", "id_rsa", "id_ed25519",
+        "/etc/", "\\etc\\",
+        "shadow", "passwd",
+        "luxmc.db", "keyring", "token", "credentials"
+    ];
+    if sensitive_markers.iter().any(|m| canon_lower.contains(m)) {
+        let header = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        let _ = socket.write_all(header.as_bytes()).await;
+        return;
+    }
+
+    let mut allowed = false;
+    if let Some(proj) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+        if let Ok(can) = proj.data_dir().canonicalize() {
+            if canonical.starts_with(&can) { allowed = true; }
+        }
+        if let Ok(can) = proj.config_dir().canonicalize() {
+            if canonical.starts_with(&can) { allowed = true; }
+        }
+        if let Ok(can) = proj.cache_dir().canonicalize() {
+            if canonical.starts_with(&can) { allowed = true; }
+        }
+    }
+    if !allowed {
+        if let Some(user) = directories::UserDirs::new() {
+            if let Ok(can) = user.home_dir().canonicalize() {
+                if canonical.starts_with(&can) { allowed = true; }
+            }
+        }
+    }
+    if !allowed {
+        if let Ok(cwd) = std::env::current_dir().and_then(|c| c.canonicalize()) {
+            if canonical.starts_with(&cwd) { allowed = true; }
+        }
+    }
+
+    if !allowed {
+        let header = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+        let _ = socket.write_all(header.as_bytes()).await;
+        return;
+    }
+
+    let total_len = match tokio::fs::metadata(&canonical).await {
+        Ok(m) => m.len(),
+        Err(_) => {
+            let header = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = socket.write_all(header.as_bytes()).await;
+            return;
+        }
+    };
+
+    let mut range = None;
     for line in msg.lines() {
-        let line_lower = line.to_lowercase();
-        if line_lower.starts_with("range:") {
-            if let Some(eq) = line_lower.find("bytes=") {
-                let range_val = line[eq + 6..].trim();
-                let parts: Vec<&str> = range_val.split('-').collect();
-                if let Ok(start) = parts[0].parse::<u64>() {
-                    let end = if parts.len() > 1 && !parts[1].is_empty() {
-                        parts[1].parse::<u64>().unwrap_or(total_len.saturating_sub(1))
-                    } else {
-                        total_len.saturating_sub(1)
-                    };
-                    if start <= end && end < total_len {
-                        range = Some((start, end));
+        if let Some((name, value)) = line.split_once(':') {
+            if name.eq_ignore_ascii_case("range") {
+                match crate::core::media_range::parse_range(value, total_len) {
+                    Ok(parsed) => range = Some(parsed),
+                    Err(()) => {
+                        let header = format!("HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */{total_len}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                        let _ = socket.write_all(header.as_bytes()).await;
+                        return;
                     }
                 }
             }
         }
     }
 
-    let mut file = match tokio::fs::File::open(path).await {
+    let mut file = match tokio::fs::File::open(&canonical).await {
         Ok(f) => f,
         Err(_) => {
             let header = "HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
@@ -99,7 +173,7 @@ async fn handle_media_request(mut socket: tokio::net::TcpStream, msg: &str) {
     if let Some((start, end)) = range {
         let chunk_len = end - start + 1;
         let header = format!(
-            "HTTP/1.1 206 Partial Content\r\nContent-Type: {}\r\nContent-Range: bytes {}-{}/{}\r\nContent-Length: {}\r\nAccept-Ranges: bytes\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: public, max-age=3600\r\nConnection: close\r\n\r\n",
+            "HTTP/1.1 206 Partial Content\r\nContent-Type: {}\r\nContent-Range: bytes {}-{}/{}\r\nContent-Length: {}\r\nAccept-Ranges: bytes\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
             content_type, start, end, total_len, chunk_len
         );
         let _ = socket.write_all(header.as_bytes()).await;
@@ -120,7 +194,7 @@ async fn handle_media_request(mut socket: tokio::net::TcpStream, msg: &str) {
         }
     } else {
         let header = format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccept-Ranges: bytes\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: public, max-age=3600\r\nConnection: close\r\n\r\n",
+            "HTTP/1.1 200 OK\r\nContent-Type: {}\r\nContent-Length: {}\r\nAccept-Ranges: bytes\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n",
             content_type, total_len
         );
         let _ = socket.write_all(header.as_bytes()).await;
@@ -181,6 +255,59 @@ async fn handle_cape_request(mut socket: tokio::net::TcpStream) {
     let _ = socket.flush().await;
 }
 
+#[cfg(target_os = "linux")]
+fn ensure_linux_desktop_integration() {
+    let Some(base_dirs) = directories::BaseDirs::new() else { return; };
+    let data_dir = base_dirs.data_dir();
+
+    let icons_512_dir = data_dir.join("icons/hicolor/512x512/apps");
+    let icons_128_dir = data_dir.join("icons/hicolor/128x128/apps");
+    let pixmaps_dir = data_dir.join("pixmaps");
+    let apps_dir = data_dir.join("applications");
+
+    let _ = std::fs::create_dir_all(&icons_512_dir);
+    let _ = std::fs::create_dir_all(&icons_128_dir);
+    let _ = std::fs::create_dir_all(&pixmaps_dir);
+    let _ = std::fs::create_dir_all(&apps_dir);
+
+    let icon_512_bytes = include_bytes!("../icons/icon.png");
+    let icon_128_bytes = include_bytes!("../icons/128x128.png");
+
+    let _ = std::fs::write(icons_512_dir.join("luxmc.png"), icon_512_bytes);
+    let _ = std::fs::write(icons_128_dir.join("luxmc.png"), icon_128_bytes);
+    let _ = std::fs::write(pixmaps_dir.join("luxmc.png"), icon_512_bytes);
+
+    let exe_path = if let Ok(appimage) = std::env::var("APPIMAGE") {
+        appimage
+    } else if let Ok(p) = std::env::current_exe() {
+        p.to_string_lossy().to_string()
+    } else {
+        "luxmc".to_string()
+    };
+
+    let desktop_content = format!(
+        "[Desktop Entry]\n\
+        Name=Luxmc\n\
+        GenericName=Minecraft Launcher\n\
+        Comment=Linux-first Minecraft launcher\n\
+        Exec=\"{}\" %u\n\
+        Icon=luxmc\n\
+        Terminal=false\n\
+        Type=Application\n\
+        Categories=Game;ActionGame;AdventureGame;\n\
+        MimeType=x-scheme-handler/luxmc;\n\
+        StartupWMClass=luxmc\n\
+        StartupNotify=true\n\
+        Keywords=minecraft;launcher;luxmc;modpack;optifine;fabric;forge;neoforge;\n",
+        exe_path
+    );
+
+    let _ = std::fs::write(apps_dir.join("luxmc.desktop"), &desktop_content);
+    let _ = std::fs::write(apps_dir.join("io.github.luxmc.Luxmc.desktop"), &desktop_content);
+
+    let _ = std::process::Command::new("update-desktop-database").arg(&apps_dir).output();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub async fn run() {
     tracing_subscriber::fmt()
@@ -236,18 +363,24 @@ pub async fn run() {
                 }
             }
 
+            #[cfg(target_os = "linux")]
+            ensure_linux_desktop_integration();
+
             let handle_overlay = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Ok(listener) = tokio::net::TcpListener::bind("127.0.0.1:49152").await {
+                    let connections = std::sync::Arc::new(tokio::sync::Semaphore::new(8));
                     while let Ok((mut socket, _)) = listener.accept().await {
+                        let Ok(permit) = connections.clone().try_acquire_owned() else { continue; };
                         let overlay_ref = handle_overlay.clone();
                         tokio::spawn(async move {
+                            let _permit = permit;
                             use tokio::io::AsyncReadExt;
                             let mut buf = [0u8; 4096];
-                            if let Ok(n) = socket.read(&mut buf).await {
+                            if let Ok(Ok(n)) = tokio::time::timeout(std::time::Duration::from_secs(5), socket.read(&mut buf)).await {
                                 let msg = String::from_utf8_lossy(&buf[..n]);
                                 if msg.starts_with("GET /media") {
-                                    handle_media_request(socket, &msg).await;
+                                    let _ = tokio::time::timeout(std::time::Duration::from_secs(120), handle_media_request(socket, &msg)).await;
                                 } else if msg.starts_with("GET ")
                                     && (msg.contains("/cape") || msg.contains("/optifine") || msg.contains("luxmc_cape") || msg.contains("/capes/"))
                                 {
@@ -271,10 +404,17 @@ pub async fn run() {
         .plugin(tauri_plugin_fs::init())
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
+            network::p2p_tunnel::host_world,
+            network::p2p_tunnel::join_world,
+            network::p2p_tunnel::stop_session,
+            network::p2p_tunnel::tunnel_status,
+            commands::mesh::mesh_status,
+            commands::mesh::mesh_ping,
             commands::deep_links::deep_links_take,
             commands::deep_links::open_portal,
             commands::skins::minecraft_uuid,
             commands::social::social_request,
+            commands::news::minecraft_news,
             commands::system::ping,
             commands::system::app_info,
             commands::system::app_init,
@@ -299,6 +439,20 @@ pub async fn run() {
             commands::auth::auth_get_tenant_id,
             commands::auth::auth_set_client_id,
             commands::auth::auth_change_skin,
+            commands::auth::auth_save_appearance,
+            commands::auth::auth_resolve_texture,
+            commands::auth::auth_read_local_texture,
+            commands::wallpaper::wallpaper_prepare_video,
+            commands::wallpaper::wallpaper_prepare_poster,
+            commands::instance_lab::instance_capsule_create,
+            commands::instance_lab::instance_capsules_list,
+            commands::instance_lab::instance_capsule_restore,
+            commands::instance_lab::instance_isolation_status,
+            commands::instance_lab::instance_isolation_start,
+            commands::instance_lab::instance_isolation_report,
+            commands::instance_lab::instance_isolation_restore,
+            commands::instance_lab::instance_benchmarks_list,
+            commands::instance_lab::instance_benchmark_import,
             commands::auth::auth_set_account_cape,
             commands::profiles::profiles_list,
             commands::profiles::profiles_get,
@@ -377,6 +531,10 @@ pub async fn run() {
             commands::instance_tools::instance_disk_usage,
             commands::instance_tools::version_repair,
             commands::storage::storage_breakdown,
+            commands::storage::storage_full_report,
+            commands::storage::storage_clear_logs,
+            commands::storage::storage_clear_cache,
+            commands::storage::storage_delete_instance,
             commands::changelog::changelog_get,
             commands::instance_icons::storage_total,
             commands::instance_icons::directory_exists,

@@ -1,15 +1,17 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="140" />
-  <h1>Luxmc <code>v1.9.2</code></h1>
-  <p><strong>Launcher de Minecraft moderno, Linux-first, de alta performance.</strong></p>
+  <h1>Luxmc <code>v2.0.0</code></h1>
+  <p><strong>Launcher de Minecraft moderno, Linux-first e de altíssima performance.</strong></p>
   <p><a href="https://luxmc-r92.pages.dev"><strong>🌐 Site Oficial: luxmc-r92.pages.dev</strong></a></p>
 
+  [![Release](https://img.shields.io/badge/Release-v2.0.0-emerald?style=flat&logo=github)](https://github.com/predabr/luxmc/releases/tag/v2.0.0)
   [![Website](https://img.shields.io/badge/Website-luxmc--r92.pages.dev-10b981?style=flat&logo=cloudflare)](https://luxmc-r92.pages.dev)
   ![Svelte](https://img.shields.io/badge/Svelte_5-FF3E00?logo=svelte&logoColor=white)
   ![Tauri](https://img.shields.io/badge/Tauri_2-FFC131?logo=tauri&logoColor=black)
   ![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)
   ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
   ![Linux](https://img.shields.io/badge/Linux--first-FCC624?logo=linux&logoColor=black)
+  ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
   ![License](https://img.shields.io/badge/license-Proprietary-red)
 </div>
 
@@ -17,86 +19,152 @@
 
 ## ✨ O que é o Luxmc?
 
-O **Luxmc** é um launcher de Minecraft Linux-first desenvolvido com **Tauri 2 (Rust)** no backend e **SvelteKit + Svelte 5 Runes + TypeScript** no frontend. Consome próximo de 0% de CPU em segundo plano, tem consumo de RAM controlado com `malloc_trim` / `EmptyWorkingSet` automático, e oferece uma experiência premium sem depender de Java instalado no sistema — o launcher gerencia os runtimes automaticamente.
+O **Luxmc** é um launcher de Minecraft moderno construído do zero com **Tauri 2 (Rust)** no backend e **SvelteKit + Svelte 5 Runes + TypeScript** no frontend. Projetado com prioridade máxima para ambientes Linux sem comprometer a compatibilidade nativa no Windows e macOS, o Luxmc oferece inicialização instantânea, consumo residual de memória e total controle sobre as suas instâncias de Minecraft.
 
-Para baixar a versão mais recente, personalizar capas em 3D ou ver novidades, acesse o [Portal Oficial do Luxmc](https://luxmc-r92.pages.dev).
+Todas as chamadas pesadas, verificações de arquivos, downloads paralelos e injeção de processos são executados nativamente em Rust assíncrono com Tokio, garantindo fluidez ininterrupta na interface gráfica mesmo durante o download de modpacks com centenas de mods.
 
 ---
 
-## 🏗️ Arquitetura
+## 🚀 Funcionalidades da Versão 2.0.0
+
+| Recurso | Descrição |
+|---|---|
+| 🎮 **Multi-Loader Nativo** | Suporte completo a **Fabric**, **Forge**, **NeoForge**, **Quilt** e **Vanilla** com instalação em 1 clique |
+| 🛡️ **CrashDoctor™ Auto-Heal** | Diagnóstico automático de crashes, sugestões de reparo inteligente e detecção de Java incompatível |
+| 🛡️ **Mod Shield™** | Verificação prévia de integridade, compatibilidade JPMS e resolução automática de dependências ausentes |
+| 📦 **Catálogo Unificado (50k+ Mods)** | Busca e instalação direta de mods e modpacks do **Modrinth** e **CurseForge** sem abrir o navegador |
+| 🌐 **Multiplayer P2P Mesh** | Jogue mundos singleplayer com seus amigos via túnel criptografado ponto-a-ponto sem Hamachi ou abrir portas no roteador |
+| 🎨 **Estúdio 3D de Skins & Capas** | Visualizador tridimensional interativo, suporte a capas em alta definição (PNG/WebP) sem distorção e capas clássicas |
+| ☕ **Java Auto-Manager** | Download e configuração automática dos runtimes Eclipse Temurin (Java 8, 17, 21) |
+| ⚡ **Otimizador Nativo de Memória** | Gestão ativa de memória via `malloc_trim` no Linux e `EmptyWorkingSet` no Windows |
+| 🐧 **Integração Linux Completa** | Suporte refinado a **Wayland** e **X11**, **Feral GameMode**, **MangoHud** e registro automático de ícones no dock |
+| 🔒 **Zero Telemetria** | 100% dos seus dados, senhas e configurações permanecem armazenados localmente na sua máquina |
+
+---
+
+## 📸 Demonstração Visual (v2.0.0)
+
+<div align="center">
+
+### Início & Central do Jogador
+![Tela Inicial](static/home.png)
+
+### Gerenciador de Instâncias & Modpacks
+![Instâncias](static/instances.png)
+
+### Catálogo Unificado de Mods & Shaders
+![Mods](static/mods.png)
+
+### Estúdio 3D de Skins & Capas Personalizadas
+![Skins](static/skins.png)
+
+</div>
+
+---
+
+## 📥 Como Instalar
+
+### 🐧 Linux
+
+#### 1. Arch Linux / Manjaro / EndeavourOS
+Instale diretamente pelo AUR com seu AUR helper favorito:
+```bash
+yay -S luxmc-launcher
+# ou
+paru -S luxmc-launcher
+```
+
+Ou instale o pacote `.pkg.tar.zst` diretamente via pacman:
+```bash
+sudo pacman -U https://github.com/predabr/luxmc/releases/latest/download/luxmc-2.0.0-1-x86_64.pkg.tar.zst
+```
+
+#### 2. Instalador Automático Universal (Qualquer Distribuição Linux)
+Execute o comando de instalação oficial no terminal:
+```bash
+curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash
+```
+
+#### 3. AppImage Portátil
+Baixe o [Luxmc_2.0.0_amd64.AppImage](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_2.0.0_amd64.AppImage), conceda permissão de execução e inicie:
+```bash
+chmod +x Luxmc_2.0.0_amd64.AppImage
+./Luxmc_2.0.0_amd64.AppImage
+```
+
+#### 4. Ubuntu / Debian / Pop!_OS / Linux Mint
+Baixe e instale o pacote `.deb`:
+```bash
+sudo dpkg -i Luxmc_2.0.0_amd64.deb
+```
+
+#### 5. Fedora / RHEL / openSUSE
+Baixe e instale o pacote `.rpm`:
+```bash
+sudo rpm -i Luxmc-2.0.0-1.x86_64.rpm
+```
+
+---
+
+### 🪟 Windows
+
+Baixe o instalador oficial executável:
+- **Instalador NSIS**: [Luxmc_2.0.0_x64-setup.exe](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_2.0.0_x64-setup.exe)
+
+Dê um duplo clique no instalador e siga o assistente. O Luxmc configurará automaticamente os atalhos da área de trabalho e menu Iniciar.
+
+---
+
+### 🍎 macOS
+
+- **Universal DMG (Apple Silicon & Intel)**: [Luxmc_2.0.0_universal.dmg](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_2.0.0_universal.dmg)
+
+Abra o arquivo `.dmg` e arraste o **Luxmc** para a sua pasta **Aplicativos**.
+
+---
+
+## 🏗️ Estrutura do Projeto
 
 ```
 Luxmc/
-├── src/                        # Frontend SvelteKit (Svelte 5 Runes + TypeScript)
-│   ├── routes/                 # Páginas: home, instances, mods, skins, friends...
-│   └── lib/                    # Componentes, stores, API wrappers, i18n
-├── src-tauri/                  # Backend Rust (Tauri 2)
+├── src/                        # Interface SvelteKit (Svelte 5 Runes + TypeScript + Tailwind)
+│   ├── routes/                 # Rotas: / (home), /instances, /mods, /skins, /friends, /news...
+│   └── lib/                    # Componentes modulares, stores reativas, API wrappers Tauri
+├── src-tauri/                  # Backend Nativo Rust (Tauri 2)
 │   └── src/
-│       ├── commands/           # Handlers Tauri expostos ao frontend
-│       ├── core/               # Launcher, loaders (Forge/NeoForge/Fabric), Java manager
-│       └── db/                 # SQLite via sqlx (perfis, mods, skins, capas, logs)
-└── static/                     # Assets estáticos (imagens, banners)
+│       ├── commands/           # Handlers expostos com validação estrita de tipos
+│       ├── core/               # Motores de inicialização, downloaders paralelos, Java manager
+│       ├── db/                 # Banco local SQLite (perfis, mods, skins, histórico, logs)
+│       └── network/            # Túnel P2P Mesh, status de servidores e ping nativo
+├── packaging/                  # Especificações de empacotamento (Arch PKGBUILD, DEB, RPM, NSIS)
+├── static/                     # Recursos gráficos e capturas de tela do launcher
+└── website/                    # Portal oficial estático e documentação
 ```
 
 ---
 
-## 🚀 Funcionalidades Principais (v1.7.1)
+## 🛠️ Compilação e Desenvolvimento Local
 
-| Funcionalidade | Detalhe |
-|---|---|
-| 🎮 **Multi-Loader** | Vanilla, Fabric, Forge, NeoForge, Quilt — instalação automática |
-| 📦 **Importação Universal** | `.mrpack` (Modrinth), `.zip` (CurseForge manifest) com 1 clique |
-| 🎨 **Skins & Capas In-Game** | Injeção via resource pack dinâmico — funciona offline e Microsoft, OptiFine, EMF/ETF |
-| ☕ **Java Auto-Manager** | Detecta e baixa Temurin 8/17/21 via Mojang Runtime Manifest automaticamente |
-| 🎵 **Discord RPC Nativo** | Windows Named Pipes + Linux Unix Socket — sem biblioteca externa, textos dinâmicos v1.7.1 |
-| 👥 **Radar de Amigos P2P** | Status em tempo real (jogando, em servidor, online, offline) com Quick Join direto |
-| 🔧 **Dependency Checker** | Detecta Fabric API, Cloth Config, Architectury faltando e instala com 1 clique |
-| 📊 **Playtime Tracker** | Gráfico semanal de tempo jogado, sessão recorde, persistência SQLite |
-| 🛡️ **Shield Scanner** | Detecta mods incompatíveis, conflitos JPMS, crashes comuns |
-| ⚡ **Otimizador Aikar** | Flags JVM dinâmicas baseadas na RAM disponível e GPU detectada |
-| 🖼️ **Screenshot Gallery** | Browser integrado de capturas da instância |
-| 📸 **Gamer Card** | Exporta card estilo Spotify Wrapped com stats do jogador |
-| 🌍 **MangoHud + GameMode** | Controles nativos Linux para overlay de FPS e prioridade de CPU |
-| 🔒 **Wayland/XWayland** | Seletor por rádio — compatível com Hyprland, Sway, GNOME Wayland |
-| 🧹 **Zero Memory Leak** | `malloc_trim` (Linux) / `EmptyWorkingSet` (Windows) + unlisten correto de eventos Tauri |
-
----
-
-## 📸 Screenshots
-
-| Home | Instâncias | Skins |
-|---|---|---|
-| ![home](static/home.png) | ![instances](static/instances.png) | ![skins](static/skins.png) |
-
----
-
-## 🛠️ Requisitos de Desenvolvimento
+### Pré-requisitos
+- **Node.js**: `>= 22`
+- **pnpm**: `>= 10`
+- **Rust**: Versão estável via `rustup`
 
 ```bash
-# Dependências do sistema (Linux)
-sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg
-# ou Debian/Ubuntu:
-sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+# 1. Instalar dependências de build
+pnpm install
 
-# Node / pnpm
-node >= 20
-pnpm >= 9
+# 2. Executar em modo de desenvolvimento com hot-reload
+pnpm tauri dev
 
-# Rust
-rustup update stable
-```
+# 3. Verificação de tipos no frontend
+pnpm check
 
----
+# 4. Verificação de integridade no Rust
+cargo check --manifest-path src-tauri/Cargo.toml
 
-## ⚡ Comandos
-
-```bash
-pnpm install          # instalar dependências
-pnpm tauri dev        # desenvolvimento com hot-reload
-pnpm check            # svelte-check (0 erros)
-pnpm build            # build estático do frontend
-cd src-tauri && cargo test   # testes Rust (45+ passing)
-pnpm tauri build      # AppImage / .deb / NSIS release
+# 5. Gerar pacote de lançamento da sua plataforma atual
+pnpm tauri build
 ```
 
 ---
@@ -105,8 +173,6 @@ pnpm tauri build      # AppImage / .deb / NSIS release
 
 Proprietário — © 2024-2026 Luxmc Contributors. Todos os direitos reservados.
 
----
-
 <div align="center">
-  <sub>Feito com ❤️ para a comunidade Linux + Minecraft</sub>
+  <sub>Construído com excelência para a comunidade global de Minecraft.</sub>
 </div>

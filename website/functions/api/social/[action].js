@@ -1,3 +1,4 @@
+import { friendSnapshot } from "../../../lib/social.js";
 import { authenticate, sameOrigin, sessionToken } from "../../../lib/accounts.js";
 const headers = { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
 const respond = (data, status = 200) => new Response(JSON.stringify(data), { status, headers });
@@ -27,7 +28,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
   if (!request.headers.get("Content-Type")?.startsWith("application/json")) return respond({ error: "JSON required" }, 415);
   if (Number(request.headers.get("Content-Length")) > 4096) return respond({ error: "Request too large" }, 413);
   const action = params.action;
-  if (!["register", "sync", "search", "invite", "accept", "remove"].includes(action)) return respond({ error: "Unknown action" }, 404);
+  if (!["register", "sync", "search", "invite", "accept", "remove", "block", "unblock", "room_create", "room_join", "room_close", "stream_ticket"].includes(action)) return respond({ error: "Unknown action" }, 404);
   const bearer = sessionToken(request);
   if (!bearer) return respond({ error: "Authentication required" }, 401);
   const db = env.SOCIAL_DB;
@@ -69,13 +70,51 @@ export async function onRequest({ request, env, params, waitUntil }) {
       return respond({ me });
     }
     if (!me) return respond({ error: "Perfil social não registrado." }, 401);
+    if (action === "stream_ticket") {
+      if (!env.SOCIAL_STREAM_URL) return respond({ url: null });
+      const url = new URL(env.SOCIAL_STREAM_URL);
+      if (url.protocol !== "wss:") return respond({ error: "Invalid stream configuration" }, 503);
+      if (await limited(db, `stream:${me.id}`, now, 60, 12)) return respond({ error: "Aguarde antes de reconectar." }, 429);
+      const ticket = `${crypto.randomUUID()}${crypto.randomUUID()}`;
+      await db.prepare("DELETE FROM social_stream_tickets WHERE expires_at < ?").bind(now).run();
+      await db.prepare("INSERT INTO social_stream_tickets(token_hash, user_id, expires_at) VALUES (?, ?, ?)").bind(await digest(ticket), me.id, now + 30).run();
+      url.searchParams.set("ticket", ticket);
+      return respond({ url: url.toString() });
+    }
+    if (action === "room_close") {
+      await db.prepare("DELETE FROM social_rooms WHERE owner = ?").bind(me.id).run();
+      return respond({ ok: true });
+    }
+    if (action === "room_create") {
+      const octets = typeof body.host === "string" ? body.host.split(".").map(Number) : [];
+      if (octets.length !== 4 || octets[0] !== 100 || octets[1] < 64 || octets[1] > 127 || !octets.every(n => Number.isInteger(n) && n >= 0 && n <= 255) || !validServer(body.host, body.port)) return respond({ error: "Use o IP virtual Tailscale e uma porta LAN válida." }, 400);
+      if (await limited(db, `room:${me.id}`, now, 3600, 20)) return respond({ error: "Limite de salas atingido." }, 429);
+      await db.prepare("DELETE FROM social_rooms WHERE owner = ? OR expires_at < ?").bind(me.id, now).run();
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const random = crypto.getRandomValues(new Uint32Array(1))[0];
+        const code = String(100000 + random % 900000);
+        const result = await db.prepare("INSERT OR IGNORE INTO social_rooms(code, owner, host, port, expires_at) VALUES (?, ?, ?, ?, ?)").bind(code, me.id, body.host, body.port, now + 3600).run();
+        if (result.meta.changes) return respond({ code, expiresAt: now + 3600 });
+      }
+      return respond({ error: "Tente criar a sala novamente." }, 503);
+    }
+    if (action === "room_join") {
+      if (await limited(db, `join:${me.id}`, now, 60, 10)) return respond({ error: "Muitas tentativas. Aguarde um minuto." }, 429);
+      if (typeof body.code !== "string" || !/^\d{6}$/.test(body.code)) return respond({ error: "Código inválido." }, 400);
+      const room = await db.prepare("SELECT host, port, owner FROM social_rooms WHERE code = ? AND expires_at > ?").bind(body.code, now).first();
+      if (!room) return respond({ error: "Sala expirada ou inexistente." }, 404);
+      const relation = await db.prepare("SELECT accepted FROM social_relationships WHERE pair_key = ? AND accepted = 1").bind([me.id, room.owner].sort().join(":")).first();
+      const blocked = await db.prepare("SELECT 1 FROM social_blocks WHERE (owner = ? AND target = ?) OR (owner = ? AND target = ?)").bind(me.id, room.owner, room.owner, me.id).first();
+      if (blocked || (room.owner !== me.id && !relation)) return respond({ error: "Esta sala é exclusiva para amigos aceitos pelo anfitrião." }, 403);
+      return respond({ host: room.host, port: room.port });
+    }
     if (action === "search") {
       const query = shortText(body.query, 64).trim();
       if (query.length < 3 || !/^[A-Za-z0-9_#-]+$/.test(query)) return respond({ users: [] });
       const [name, code] = query.split("#");
       const escaped = name.replace(/_/g, "!_");
-      const { results } = await db.prepare("SELECT id, username FROM social_users WHERE username LIKE ? ESCAPE '!' COLLATE NOCASE AND id != ? AND (? = '' OR id LIKE ?) LIMIT 8")
-        .bind(`${escaped}%`, me.id, code || "", `${code || ""}%`).all();
+      const { results } = await db.prepare("SELECT id, username FROM social_users WHERE username LIKE ? ESCAPE '!' COLLATE NOCASE AND id != ? AND NOT EXISTS (SELECT 1 FROM social_blocks b WHERE (b.owner = ? AND b.target = social_users.id) OR (b.target = ? AND b.owner = social_users.id)) AND (? = '' OR id LIKE ?) LIMIT 8")
+        .bind(`${escaped}%`, me.id, me.id, me.id, code || "", `${code || ""}%`).all();
       return respond({ users: results });
     }
     if (action === "sync") {
@@ -83,22 +122,24 @@ export async function onRequest({ request, env, params, waitUntil }) {
       const server = activity === "in_game" && validServer(body.serverHost, body.serverPort);
       if (body.readOnly !== true) await db.prepare("UPDATE social_users SET last_seen = ?, activity = ?, instance_name = ?, mc_version = ?, loader = ?, server_host = ?, server_port = ? WHERE id = ?")
         .bind(activity === "offline" ? 0 : now, activity, shortText(body.instanceName, 80), shortText(body.mcVersion, 40), shortText(body.loader, 20), server ? body.serverHost : null, server ? body.serverPort : null, me.id).run();
-      const { results } = await db.prepare("SELECT u.id, u.username, u.last_seen, u.activity, u.instance_name, u.mc_version, u.loader, u.server_host, u.server_port, r.accepted, r.recipient FROM social_relationships r JOIN social_users u ON u.id = CASE WHEN r.sender = ? THEN r.recipient ELSE r.sender END WHERE r.sender = ? OR r.recipient = ? LIMIT 200")
-        .bind(me.id, me.id, me.id).all();
-      const friends = results.map(row => {
-        const online = row.accepted === 1 && row.last_seen > now - 75;
-        return { id: row.id, username: row.username,
-          status: row.accepted ? (online ? row.activity : "offline") : "pending",
-          incoming: !row.accepted && row.recipient === me.id,
-          lastSeen: row.accepted && row.last_seen ? new Date(row.last_seen * 1000).toISOString() : null,
-          activity: online ? row.instance_name : null,
-          mcVersion: online ? row.mc_version : null, loader: online ? row.loader : null,
-          serverIp: online ? row.server_host : null, serverPort: online ? row.server_port : null };
-      });
+      const friends = await friendSnapshot(db, me.id, now);
       return respond({ me, friends });
     }
     if (typeof body.targetId !== "string" || !/^[a-f0-9-]{36}$/.test(body.targetId) || body.targetId === me.id) return respond({ error: "Invalid friend" }, 400);
     const target = body.targetId;
+    if (action === "block") {
+      await db.prepare("INSERT OR IGNORE INTO social_blocks(owner, target) VALUES (?, ?)").bind(me.id, target).run();
+      await db.prepare("DELETE FROM social_relationships WHERE pair_key = ?").bind([me.id, target].sort().join(":")).run();
+      return respond({ ok: true });
+    }
+    if (action === "unblock") {
+      await db.prepare("DELETE FROM social_blocks WHERE owner = ? AND target = ?").bind(me.id, target).run();
+      return respond({ ok: true });
+    }
+    if (["invite", "accept"].includes(action)) {
+      const blocked = await db.prepare("SELECT 1 FROM social_blocks WHERE (owner = ? AND target = ?) OR (owner = ? AND target = ?)").bind(me.id, target, target, me.id).first();
+      if (blocked) return respond({ error: "Este jogador não está disponível para convites." }, 403);
+    }
     if (action === "invite") {
       if (await limited(db, `invite:${me.id}`, now, 3600, 20)) return respond({ error: "Limite de convites atingido." }, 429);
       const exists = await db.prepare("SELECT id FROM social_users WHERE id = ?").bind(target).first();

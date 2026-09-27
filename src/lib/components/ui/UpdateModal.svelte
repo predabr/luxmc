@@ -7,8 +7,14 @@
 	onMount(() => {
 		const timer = setTimeout(() => {
 			updaterStore.check(false);
-		}, 2000);
-		return () => clearTimeout(timer);
+		}, 3000);
+		const interval = setInterval(() => {
+			updaterStore.check(false);
+		}, 1800000);
+		return () => {
+			clearTimeout(timer);
+			clearInterval(interval);
+		};
 	});
 </script>
 

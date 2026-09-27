@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://luxmc-r92.pages.dev/sitemap.xml
+Sitemap: https://luxmc-r92.pages.dev/sitemap.txt

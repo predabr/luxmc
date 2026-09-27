@@ -2,19 +2,19 @@ mod loader_selection;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tauri::Emitter;
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::BufReader;
 use tokio::sync::Mutex as TokioMutex;
 use std::sync::Arc;
 
 use crate::core::downloader::DownloadManager;
 use crate::core::java::JavaRuntimeManager;
 use crate::core::minecraft::{self, VersionDetail};
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "1.9.2";
+const LAUNCHER_VERSION: &str = "2.0.0";
 static CLIENT_AGENT_JAR: &[u8] = include_bytes!("../../../assets/luxmc-client-agent.jar");
 static ACTIVE_CAPE_BYTES: tokio::sync::RwLock<Vec<u8>> = tokio::sync::RwLock::const_new(Vec::new());
 
@@ -30,6 +30,28 @@ pub fn get_active_game_pid() -> u32 {
 
 pub fn clear_active_game_pid() {
     ACTIVE_GAME_PID.store(0, std::sync::atomic::Ordering::SeqCst);
+}
+
+static ACTIVE_GAME_DIR: std::sync::RwLock<Option<std::path::PathBuf>> = std::sync::RwLock::new(None);
+
+pub fn set_active_game_dir(dir: std::path::PathBuf) {
+    if let Ok(mut lock) = ACTIVE_GAME_DIR.write() {
+        *lock = Some(dir);
+    }
+}
+
+pub fn get_active_game_dir() -> Option<std::path::PathBuf> {
+    if let Ok(lock) = ACTIVE_GAME_DIR.read() {
+        lock.clone()
+    } else {
+        None
+    }
+}
+
+pub fn clear_active_game_dir() {
+    if let Ok(mut lock) = ACTIVE_GAME_DIR.write() {
+        *lock = None;
+    }
 }
 
 pub fn resolve_local_or_asset_path(src: &str) -> Option<std::path::PathBuf> {
@@ -162,6 +184,16 @@ fn forbidden_jvm_prefixes_on(p: Platform) -> &'static [&'static str] {
     }
 }
 
+const OBSOLETE_HOTSPOT_FLAGS: &[&str] = &[
+    "-XX:+UseFastAccessorMethods",
+    "-XX:-UseFastAccessorMethods",
+    "-XX:+AggressiveOpts",
+    "-XX:-AggressiveOpts",
+    "-XX:+UseConcMarkSweepGC",
+    "-XX:+CMSParallelRemarkEnabled",
+    "-XX:+UseCMSCompactAtFullCollection",
+];
+
 /// Final validation layer. Returns the indices of every arg that must NOT
 /// be passed to the Java process on the current platform.
 pub fn validate_platform_args(args: &[String]) -> Vec<usize> {
@@ -177,6 +209,10 @@ pub fn validate_platform_args(args: &[String]) -> Vec<usize> {
             continue;
         }
         if forbidden_prefixes.iter().any(|p| trimmed.starts_with(p)) {
+            rejected.push(idx);
+            continue;
+        }
+        if OBSOLETE_HOTSPOT_FLAGS.iter().any(|f| trimmed == *f) {
             rejected.push(idx);
             continue;
         }
@@ -259,6 +295,75 @@ impl GameLauncher {
         }
     }
 
+    fn extract_actual_crash_reason(game_dir: &std::path::Path, fallback_stderr: Option<String>) -> Option<String> {
+        let crash_reports_dir = game_dir.join("crash-reports");
+        if let Ok(entries) = std::fs::read_dir(&crash_reports_dir) {
+            let mut newest_report: Option<(std::time::SystemTime, std::path::PathBuf)> = None;
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().map_or(false, |ext| ext == "txt") {
+                    if let Ok(meta) = entry.metadata() {
+                        if let Ok(modified) = meta.modified() {
+                            if let Ok(elapsed) = modified.elapsed() {
+                                if elapsed.as_secs() < 300 {
+                                    if newest_report.as_ref().map_or(true, |(m, _)| modified > *m) {
+                                        newest_report = Some((modified, path));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some((_, report_path)) = newest_report {
+                if let Ok(content) = std::fs::read_to_string(report_path) {
+                    let mut description = None;
+                    let mut cause = None;
+                    for line in content.lines().take(60) {
+                        let line = line.trim();
+                        if description.is_none() && line.starts_with("Description:") {
+                            description = Some(line.trim_start_matches("Description:").trim().to_string());
+                        } else if line.starts_with("Caused by:") || line.starts_with("java.lang.") || line.starts_with("org.spongepowered.") {
+                            if cause.is_none() || line.starts_with("Caused by:") {
+                                cause = Some(line.to_string());
+                            }
+                        }
+                    }
+                    if let Some(desc) = description {
+                        if let Some(c) = cause {
+                            return Some(format!("{}: {}", desc, c));
+                        }
+                        return Some(desc);
+                    } else if let Some(c) = cause {
+                        return Some(c);
+                    }
+                }
+            }
+        }
+
+        let log_file = game_dir.join("logs").join("latest.log");
+        if let Ok(content) = std::fs::read_to_string(log_file) {
+            let lines: Vec<&str> = content.lines().collect();
+            let scan_start = lines.len().saturating_sub(60);
+            for line in lines[scan_start..].iter().rev() {
+                let trimmed = line.trim();
+                if trimmed.contains("/FATAL]") || trimmed.contains("/ERROR]") || trimmed.starts_with("Caused by:") {
+                    let cleaned = if let Some(idx) = trimmed.find("]: ") {
+                        &trimmed[idx + 3..]
+                    } else {
+                        trimmed
+                    };
+                    if !cleaned.is_empty() && !cleaned.contains("[ALSOFT]") {
+                        return Some(cleaned.to_string());
+                    }
+                }
+            }
+        }
+
+        fallback_stderr.filter(|s| !s.is_empty())
+    }
+
+    #[allow(dead_code)]
     fn compute_auto_ram(&self, is_heavy_modded: bool, is_pvp: bool, mod_count: i64) -> i64 {
         let total_ram_mb = crate::core::optimizer::get_total_memory_mb();
         let os_reserve: i64 = 3072;
@@ -275,16 +380,16 @@ impl GameLauncher {
         }
 
         let want = if is_heavy_modded {
-            if total_ram_mb >= 32768 { 10240 }
-            else if total_ram_mb >= 24576 { 8192 }
-            else if total_ram_mb >= 16384 { 6144 }
-            else if total_ram_mb >= 12288 { 5120 }
-            else if total_ram_mb >= 8192 { 4096 }
-            else { (total_ram_mb * 6 / 10).max(2048) }
+            if total_ram_mb >= 32768 { 12288 }
+            else if total_ram_mb >= 24576 { 10240 }
+            else if total_ram_mb >= 16384 { 8192 }
+            else if total_ram_mb >= 12288 { 6144 }
+            else if total_ram_mb >= 8192 { 5120 }
+            else { (total_ram_mb * 7 / 10).max(3072) }
         } else if mod_count >= 20 {
-            if total_ram_mb >= 16384 { 4096 } else if total_ram_mb >= 8192 { 3072 } else { 2048 }
+            if total_ram_mb >= 16384 { 5120 } else if total_ram_mb >= 8192 { 4096 } else { 3072 }
         } else {
-            if total_ram_mb >= 8192 { 2560 } else { 2048 }
+            if total_ram_mb >= 8192 { 3072 } else { 2048 }
         };
 
         let result = want.min(available);
@@ -318,7 +423,8 @@ impl GameLauncher {
 
         self.emit_stage(LaunchStage::CheckingJava);
         let mut major = detail.java_major_version();
-        if loader == "neoforge" && major < 21 {
+        let clean_ver = profile.clean_mc_version();
+        if (clean_ver.starts_with("1.21") || clean_ver.starts_with("1.20.5") || clean_ver.starts_with("1.20.6")) && major < 21 {
             major = 21;
         }
         self.emit_log(&format!("Java major version required: {} (loader: {})", major, loader));
@@ -473,6 +579,7 @@ impl GameLauncher {
 
         // Apply customized player skin if configured
         let is_msa = user_type == "msa";
+        let mut appearance_variant = skin_variant.unwrap_or("classic").to_string();
         let has_explicit_skin = skin_url.is_some_and(|s| !s.trim().is_empty());
 
         let effective_cape = if let Some(c) = cape_url.filter(|c| !c.trim().is_empty()) {
@@ -501,7 +608,7 @@ impl GameLauncher {
 
         if is_msa && !has_explicit_skin && !has_explicit_cape {
             self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
-            let _ = clean_skin_injection(game_dir).await;
+            clean_skin_injection(game_dir).await?;
         } else {
             let skin_info = if let Some(s_url) = skin_url.filter(|s| !s.trim().is_empty()) {
                 Some((s_url.to_string(), skin_variant.unwrap_or("classic").to_string()))
@@ -525,11 +632,14 @@ impl GameLauncher {
             };
 
             if let Some((skin_source, variant)) = skin_info {
+                appearance_variant = variant.clone();
                 self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
-                let _ = inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), clean_mc_ver).await;
+                inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), clean_mc_ver).await?;
             } else if !is_msa || has_explicit_cape {
-                let default_source = format!("https://minotar.net/skin/{}", username);
-                let _ = inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), clean_mc_ver).await;
+                use base64::Engine;
+                let default_source = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(include_bytes!("../../../../static/steve.png")));
+                appearance_variant = "classic".to_string();
+                inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), clean_mc_ver).await?;
             }
         }
 
@@ -631,20 +741,24 @@ impl GameLauncher {
         };
 
         if has_mods {
-            self.resolve_duplicate_mods(game_dir);
             self.patch_modpack_configs(game_dir);
         }
 
-        if !is_modpack && !has_mods && profile.loader == "vanilla" {
+        let appearance_root = game_dir.join("resourcepacks/LuxmcCustomSkin/assets/minecraft/textures/entity");
+        let appearance_skin = appearance_root.join(if appearance_variant == "slim" { "player/slim/alex.png" } else { "player/wide/steve.png" });
+        let appearance_cape = appearance_root.join("cape.png");
+        let pvp = !is_modpack && !has_mods && profile.loader == "vanilla";
+        if appearance_skin.is_file() || pvp {
             let agent_path = game_dir.join("luxmc-client-agent.jar");
-            if let Err(e) = std::fs::write(&agent_path, CLIENT_AGENT_JAR) {
-                self.emit_log(&format!("Aviso: Não foi possível extrair Luxmc Client Agent: {}", e));
-            } else {
-                safe_jvm_args.push(format!("-javaagent:{}", agent_path.to_string_lossy()));
-                self.emit_log("Luxmc Client Agent anexado (Right Shift menu in-game ativo)");
+            tokio::fs::write(&agent_path, CLIENT_AGENT_JAR).await?;
+            if appearance_skin.is_file() {
+                safe_jvm_args.push(format!("-Dluxmc.appearance.uuid={uuid}"));
+                safe_jvm_args.push(format!("-Dluxmc.appearance.skin={}", appearance_skin.display()));
+                safe_jvm_args.push(format!("-Dluxmc.appearance.model={}", appearance_variant));
+                if appearance_cape.is_file() { safe_jvm_args.push(format!("-Dluxmc.appearance.cape={}", appearance_cape.display())); }
             }
-        } else {
-            self.emit_log("Modpack detectado: modo de compatibilidade ativa (agente PvP suprimido)");
+            safe_jvm_args.push(format!("-javaagent:{}{}", agent_path.display(), if pvp { "" } else { "=appearance-only" }));
+            self.emit_log("Luxmc Client Agent anexado: aparência local por perfil; Shift desativado");
         }
 
 
@@ -718,6 +832,11 @@ impl GameLauncher {
             .kill_on_drop(true)
             .env("PATH", std::env::var("PATH").unwrap_or_default());
 
+        #[cfg(unix)]
+        {
+            cmd.process_group(0);
+        }
+
         #[cfg(target_os = "linux")]
         {
             let mut ld_dirs: Vec<String> = Vec::new();
@@ -787,7 +906,7 @@ impl GameLauncher {
             cmd.env("_JAVA_AWT_WM_NONREPARENTING", "1");
             if let Ok(display) = std::env::var("DISPLAY") {
                 cmd.env("DISPLAY", display);
-                cmd.env("GLFW_PLATFORM", "x11");
+                cmd.env_remove("WAYLAND_DISPLAY");
             } else if let Ok(wayland_display) = std::env::var("WAYLAND_DISPLAY") {
                 cmd.env("WAYLAND_DISPLAY", wayland_display);
             }
@@ -808,6 +927,9 @@ impl GameLauncher {
                 cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
             }
         }
+
+        let gpu = crate::core::optimizer::detect_gpu();
+        self.emit_log(&format!("GPU detectada para lançamento: {} (Fabricante: {}, Driver: {})", gpu.renderer, gpu.vendor, gpu.driver));
 
         #[cfg(target_os = "windows")]
         {
@@ -830,9 +952,87 @@ impl GameLauncher {
             cmd.env("GPU_NUM_COMPUTE_RINGS", "1");
             cmd.env("GPU_MAX_HEAP_SIZE", "100");
             cmd.env("GPU_FORCE_64BIT_PTR", "1");
-            cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
             cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
             cmd.env("AMD_POWERXPRESS_REQUEST_HIGH_PERFORMANCE", "1");
+            cmd.env("SHIM_MCCOMPAT", "0x800000001");
+            if gpu.vendor == "NVIDIA" {
+                cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            cmd.env("GPU_MAX_ALLOC_PERCENT", "100");
+            cmd.env("GPU_USE_SYNC_OBJECTS", "1");
+            cmd.env("GPU_NUM_COMPUTE_RINGS", "1");
+            cmd.env("GPU_MAX_HEAP_SIZE", "100");
+            cmd.env("GPU_FORCE_64BIT_PTR", "1");
+
+            if gpu.vendor == "NVIDIA" {
+                cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
+                cmd.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
+                cmd.env("__VK_LAYER_NV_optimus", "NVIDIA_only");
+                cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
+            } else {
+                cmd.env_remove("__GLX_VENDOR_LIBRARY_NAME");
+                cmd.env_remove("__VK_LAYER_NV_optimus");
+                cmd.env_remove("__NV_PRIME_RENDER_OFFLOAD");
+
+                let drm_cards = std::fs::read_dir("/sys/class/drm").ok().map(|rd| {
+                    rd.filter_map(|e| e.ok()).filter(|e| {
+                        let name = e.file_name().to_string_lossy().to_string();
+                        (name.starts_with("card0") || name.starts_with("card1") || name.starts_with("card2")) && !name.contains('-')
+                    }).count()
+                }).unwrap_or(0);
+                if drm_cards > 1 {
+                    cmd.env("DRI_PRIME", "1");
+                } else {
+                    cmd.env_remove("DRI_PRIME");
+                }
+
+                let has_sodium_like = if let Ok(mods) = std::fs::read_dir(game_dir.join("mods")) {
+                    mods.filter_map(|e| e.ok()).any(|e| {
+                        let name = e.file_name().to_string_lossy().to_lowercase();
+                        name.contains("embeddium") || name.contains("sodium") || name.contains("rubidium")
+                    })
+                } else {
+                    false
+                };
+
+                if has_sodium_like {
+                    cmd.env_remove("mesa_glthread");
+                    cmd.env_remove("MESA_GLTHREAD");
+                    self.emit_log("Embeddium/Sodium detectado: mesa_glthread desativado para evitar conflito de renderização.");
+                } else {
+                    cmd.env("mesa_glthread", "true");
+                    cmd.env("MESA_GLTHREAD", "true");
+                }
+
+                cmd.env("MESA_SHADER_CACHE_MAX_SIZE", "100G");
+                if gpu.vendor == "AMD" {
+                    cmd.env("AMD_POWERXPRESS_REQUEST_HIGH_PERFORMANCE", "1");
+                } else if gpu.vendor == "Intel" {
+                    cmd.env("ANV_ENABLE_PIPELINE_CACHE", "1");
+                }
+            }
+
+            let gamemode_libs = [
+                "/usr/lib/libgamemodeauto.so.0",
+                "/usr/lib64/libgamemodeauto.so.0",
+                "/usr/lib/x86_64-linux-gnu/libgamemodeauto.so.0",
+            ];
+            for lib in gamemode_libs {
+                if std::path::Path::new(lib).exists() {
+                    let existing = std::env::var("LD_PRELOAD").unwrap_or_default();
+                    if existing.is_empty() {
+                        cmd.env("LD_PRELOAD", lib);
+                    } else if !existing.contains("libgamemodeauto") {
+                        cmd.env("LD_PRELOAD", format!("{}:{}", lib, existing));
+                    }
+                    self.emit_log(&format!("GameMode ativo via preload: {}", lib));
+                    break;
+                }
+            }
         }
 
         let mut child = cmd.spawn().map_err(|e| {
@@ -845,6 +1045,7 @@ impl GameLauncher {
         let pid = child.id().unwrap_or(0);
         if pid > 0 {
             set_active_game_pid(pid);
+            set_active_game_dir(game_dir.clone());
         }
         self.emit_log(&format!("Java process started, PID: {}", pid));
         self.emit_stage(LaunchStage::Running);
@@ -908,36 +1109,73 @@ impl GameLauncher {
             None
         };
 
-        let _app_for_overlay = self.app.clone();
+        let app_world_notify = self.app.clone();
         tokio::spawn(async move {
-            let reader = BufReader::new(stdout);
-            let mut lines = reader.lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                let mut line = line;
-                if line.len() > 2000 { line.truncate(2000); }
+            let mut reader = BufReader::new(stdout);
+            while let Ok(Some(line)) = crate::core::process::read_log_line(&mut reader).await {
                 if let Some(ref mut f) = log_file {
                     let _ = tokio::io::AsyncWriteExt::write_all(f, format!("{}\n", line).as_bytes()).await;
                 }
-                if lb_out.lock().await.len() < 200 { lb_out.lock().await.push(line); }
+                let mut buffer = lb_out.lock().await;
+                if buffer.len() < 200 { buffer.push(line.clone()); }
+                drop(buffer);
+
+                if let Some(ref app) = app_world_notify {
+                    if line.contains("Preparing level \"") {
+                        if let Some(start) = line.find("Preparing level \"") {
+                            let rest = &line[start + 17..];
+                            if let Some(end) = rest.find('"') {
+                                let world_name = &rest[..end];
+                                let _ = app.emit("game-state-change", serde_json::json!({
+                                    "status": "singleplayer",
+                                    "detail": world_name
+                                }));
+                            }
+                        }
+                    } else if line.contains("Starting integrated minecraft server") {
+                        let _ = app.emit("game-state-change", serde_json::json!({
+                            "status": "singleplayer",
+                            "detail": ""
+                        }));
+                    } else if line.contains("Connecting to ") {
+                        let parts: Vec<&str> = line.split("Connecting to ").collect();
+                        let target = parts.get(1).map(|s| s.trim()).unwrap_or("");
+                        let host = target.split(',').next().unwrap_or(target).trim();
+                        let _ = app.emit("game-state-change", serde_json::json!({
+                            "status": "multiplayer",
+                            "detail": host
+                        }));
+                    } else if line.contains("Stopping server") || line.contains("Saving and disconnecting") {
+                        let _ = app.emit("game-state-change", serde_json::json!({
+                            "status": "menu",
+                            "detail": ""
+                        }));
+                    }
+                }
             }
         });
 
         tokio::spawn(async move {
-            let reader = BufReader::new(stderr);
-            let mut lines = reader.lines();
-            while let Ok(Some(line)) = lines.next_line().await {
-                let mut line = line;
-                if line.len() > 2000 { line.truncate(2000); }
+            let mut reader = BufReader::new(stderr);
+            while let Ok(Some(line)) = crate::core::process::read_log_line(&mut reader).await {
                 let trimmed = line.trim();
                 if !trimmed.is_empty() {
-                    if let Ok(mut lock) = last_stderr_writer.lock() {
-                        *lock = Some(trimmed.to_string());
+                    let is_noise = trimmed.contains("[ALSOFT]")
+                        || trimmed.contains("Failed to set real-time priority")
+                        || trimmed.contains("AL_SOFT")
+                        || trimmed.contains("MESA-LOADER")
+                        || trimmed.contains("libEGL warning");
+                    if !is_noise {
+                        if let Ok(mut lock) = last_stderr_writer.lock() {
+                            *lock = Some(trimmed.to_string());
+                        }
                     }
                 }
                 if let Some(ref mut f) = log_file_err {
                     let _ = tokio::io::AsyncWriteExt::write_all(f, format!("{}\n", line).as_bytes()).await;
                 }
-                if lb_err.lock().await.len() < 200 { lb_err.lock().await.push(line); }
+                let mut buffer = lb_err.lock().await;
+                if buffer.len() < 200 { buffer.push(line); }
             }
         });
 
@@ -981,10 +1219,12 @@ impl GameLauncher {
         let profile_name = profile.name.clone();
         let last_stderr_reader = last_stderr.clone();
         let is_game_active_waiter = is_game_active.clone();
+        let game_dir_for_crash = game_dir.clone();
         tokio::spawn(async move {
             match child.wait().await {
                 Ok(status) => {
                     clear_active_game_pid();
+                    clear_active_game_dir();
                     is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
                     let code = status.code().unwrap_or(-1);
                     if pid > 0 {
@@ -994,8 +1234,9 @@ impl GameLauncher {
                     let peak_mb = peak_ram_bytes.load(std::sync::atomic::Ordering::Relaxed) / (1024 * 1024);
                     let msg = format!("Game process exited with code {}", code);
                     tracing::info!(target: "launch", "{}", msg);
+                    let raw_stderr = last_stderr_reader.lock().ok().and_then(|g| g.clone());
                     let error_message = if !status.success() {
-                        last_stderr_reader.lock().ok().and_then(|g| g.clone())
+                        Self::extract_actual_crash_reason(&game_dir_for_crash, raw_stderr)
                     } else {
                         None
                     };
@@ -1025,6 +1266,8 @@ impl GameLauncher {
                     }
                 }
                 Err(e) => {
+                    clear_active_game_pid();
+                    clear_active_game_dir();
                     is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
                     let msg = format!("Game process error: {}", e);
                     tracing::error!(target: "launch", "{}", msg);
@@ -1180,6 +1423,33 @@ impl GameLauncher {
             }
         }
 
+        #[cfg(target_os = "linux")]
+        {
+            let candidate_glfw_paths = [
+                "/usr/lib/libglfw.so",
+                "/usr/lib/libglfw.so.3",
+                "/usr/lib64/libglfw.so",
+                "/usr/lib64/libglfw.so.3",
+                "/usr/lib/x86_64-linux-gnu/libglfw.so",
+                "/usr/lib/x86_64-linux-gnu/libglfw.so.3",
+            ];
+            for path in candidate_glfw_paths {
+                let p = std::path::Path::new(path);
+                if p.exists() {
+                    let target = natives_dir.join("libglfw.so");
+                    let _ = std::fs::remove_file(&target);
+                    #[cfg(unix)]
+                    if std::os::unix::fs::symlink(p, &target).is_err() {
+                        let _ = std::fs::copy(p, &target);
+                    }
+                    #[cfg(not(unix))]
+                    let _ = std::fs::copy(p, &target);
+                    self.emit_log(&format!("Using system GLFW library: {}", path));
+                    break;
+                }
+            }
+        }
+
         let native_count = std::fs::read_dir(&natives_dir)
             .map(|rd| {
                 rd.filter(|e| {
@@ -1290,6 +1560,18 @@ impl GameLauncher {
             args.push(cp_str.clone());
         }
 
+        let actual_mods_count = if let Ok(entries) = std::fs::read_dir(game_dir.join("mods")) {
+            entries.filter_map(|e| e.ok()).filter(|e| {
+                e.path().extension().map_or(false, |ext| {
+                    let s = ext.to_string_lossy().to_lowercase();
+                    s == "jar" || s == "disabled"
+                })
+            }).count() as i64
+        } else {
+            0
+        };
+        let effective_mod_count = profile.mod_count.max(actual_mods_count);
+
         // 100% Automatic RAM Allocation: dynamically inspects user hardware and mod weight
         let is_heavy_modded = profile.loader == "forge"
             || profile.loader == "neoforge"
@@ -1299,33 +1581,40 @@ impl GameLauncher {
             || profile.name.to_lowercase().contains("dawncraft")
             || profile.name.to_lowercase().contains("prominence")
             || profile.name.to_lowercase().contains("rlcraft")
-            || profile.mod_count >= 80;
+            || effective_mod_count >= 50;
 
-        let is_pvp = profile.clean_mc_version().starts_with("1.8") || profile.clean_mc_version().starts_with("1.7");
+        let _is_pvp = profile.clean_mc_version().starts_with("1.8") || profile.clean_mc_version().starts_with("1.7");
         let ram_mb = if let Some(manual) = profile.ram_mb {
             if manual > 0 {
                 self.emit_log(&format!(
-                    "Luxmc RAM: {}MB definido manualmente pelo usuário",
+                    "Luxmc RAM: {}MB alocados (configurado pelo usuário)",
                     manual
                 ));
                 manual
             } else {
-                self.compute_auto_ram(is_heavy_modded, is_pvp, profile.mod_count)
+                4096
             }
         } else {
-            self.compute_auto_ram(is_heavy_modded, is_pvp, profile.mod_count)
+            4096
         };
 
         // Apply Intelligent Luxmc Optimization (Aikar's Flags) or Standard Flags
         let custom_collector = profile.jvm_args.as_deref().is_some_and(|args|
             args.split_whitespace().any(|arg| matches!(arg, "-XX:+UseZGC" | "-XX:+UseShenandoahGC" | "-XX:+UseParallelGC" | "-XX:+UseSerialGC")));
-        let generated_flags = if custom_collector {
+        let mut generated_flags = if custom_collector {
             vec![format!("-Xms{}M", ram_mb.min(1024)), format!("-Xmx{}M", ram_mb)]
         } else if profile.auto_optimize {
             crate::core::optimizer::generate_optimized_flags(ram_mb.max(0) as u64, detail.java_major_version())
         } else {
             crate::core::optimizer::generate_standard_flags(ram_mb.max(0) as u64)
         };
+
+        if (is_heavy_modded || profile.loader == "forge" || profile.loader == "neoforge" || profile.loader == "fabric" || profile.loader == "quilt") && !custom_collector {
+            if let Some(pos) = generated_flags.iter().position(|f| f.starts_with("-Xms")) {
+                let initial_ms = (ram_mb / 4).max(2048).min(ram_mb);
+                generated_flags[pos] = format!("-Xms{}M", initial_ms);
+            }
+        }
 
         for flag in generated_flags {
             let key = if flag.starts_with("-Xms") {
@@ -1339,6 +1628,25 @@ impl GameLauncher {
             };
             if !args.iter().any(|a| a.starts_with(key)) {
                 args.push(flag);
+            }
+        }
+
+        if is_heavy_modded || profile.loader == "forge" || profile.loader == "neoforge" || profile.loader == "fabric" || profile.loader == "quilt" {
+            for opt in [
+                "-XX:+TieredCompilation",
+                "-Dfml.ignoreInvalidMinecraftCertificates=true",
+                "-Dfml.ignorePatchDiscrepancies=true",
+                "-Djava.net.preferIPv4Stack=true",
+                "-Dio.netty.allocator.type=pooled",
+                "-Dio.netty.recycler.maxCapacityPerThread=0",
+                "-XX:+OptimizeStringConcat",
+                "-Dsun.rmi.dgc.server.gcInterval=2147483646",
+                "-Dsun.rmi.dgc.client.gcInterval=2147483646",
+                "-Dlog4j2.formatMsgNoLookups=true",
+            ] {
+                if !args.iter().any(|a| a.starts_with(opt)) {
+                    args.push(opt.to_string());
+                }
             }
         }
 
@@ -1364,6 +1672,10 @@ impl GameLauncher {
 
         if !args.iter().any(|a| a.starts_with("-Dorg.lwjgl.glfw.checkThread0=")) {
             args.push("-Dorg.lwjgl.glfw.checkThread0=false".to_string());
+        }
+
+        if !args.iter().any(|a| a.starts_with("-Dorg.lwjgl.opengl.Display.allowSoftwareOpenGL=")) {
+            args.push("-Dorg.lwjgl.opengl.Display.allowSoftwareOpenGL=true".to_string());
         }
 
         if detail.java_major_version() >= 17 {
@@ -1440,142 +1752,6 @@ pub fn evaluate_rules(rules: &[serde_json::Value]) -> bool {
 }
 
 impl GameLauncher {
-    fn resolve_duplicate_mods(&self, game_dir: &std::path::Path) {
-        let mods_dir = game_dir.join("mods");
-        let Ok(entries) = std::fs::read_dir(&mods_dir) else { return; };
-
-        let overrides_set: std::collections::HashSet<String> = {
-            let overrides_json = game_dir.join(".luxmc/overrides.json");
-            if let Ok(bytes) = std::fs::read(overrides_json) {
-                if let Ok(files) = serde_json::from_slice::<Vec<serde_json::Value>>(&bytes) {
-                    files.into_iter().filter_map(|f| {
-                        f.get("path")
-                            .and_then(|p| p.as_str())
-                            .and_then(|s| s.strip_prefix("mods/"))
-                            .map(|s| s.to_lowercase())
-                    }).collect()
-                } else {
-                    std::collections::HashSet::new()
-                }
-            } else {
-                std::collections::HashSet::new()
-            }
-        };
-
-        struct ModCandidate {
-            path: std::path::PathBuf,
-            clean_jar_name: String,
-            is_currently_disabled: bool,
-            is_override: bool,
-            version_numbers: Vec<u64>,
-            size: u64,
-            mtime: std::time::SystemTime,
-        }
-
-        let mut all_files: Vec<ModCandidate> = Vec::new();
-
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() {
-                let fname = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-                let is_jar = fname.ends_with(".jar");
-                let is_disabled = fname.ends_with(".jar.disabled") || fname.ends_with(".disabled");
-                if is_jar || is_disabled {
-                    let clean_jar_name = if is_disabled {
-                        fname.strip_suffix(".disabled").unwrap_or(&fname).to_string()
-                    } else {
-                        fname.clone()
-                    };
-
-                    let meta = std::fs::metadata(&path).ok();
-                    let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
-                    let mtime = meta.and_then(|m| m.modified().ok()).unwrap_or(std::time::SystemTime::UNIX_EPOCH);
-
-                    let clean_lower = clean_jar_name.to_lowercase();
-                    let is_override = overrides_set.contains(&clean_lower) || {
-                        let stem = clean_lower.strip_suffix(".jar").unwrap_or(&clean_lower);
-                        overrides_set.iter().any(|o| o.contains(stem))
-                    };
-
-                    let re = regex::Regex::new(r"\d+").unwrap();
-                    let version_numbers: Vec<u64> = re.find_iter(&clean_jar_name)
-                        .filter_map(|m| m.as_str().parse::<u64>().ok())
-                        .collect();
-
-                    all_files.push(ModCandidate {
-                        path,
-                        clean_jar_name,
-                        is_currently_disabled: is_disabled,
-                        is_override,
-                        version_numbers,
-                        size,
-                        mtime,
-                    });
-                }
-            }
-        }
-
-        if all_files.len() < 2 {
-            return;
-        }
-
-        let mut groups: std::collections::HashMap<String, Vec<ModCandidate>> = std::collections::HashMap::new();
-
-        for item in all_files {
-            let stem = item.clean_jar_name.strip_suffix(".jar").unwrap_or(&item.clean_jar_name).to_lowercase();
-            let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();
-            let non_version_parts: Vec<&str> = parts
-                .into_iter()
-                .take_while(|part| !part.chars().any(|c| c.is_ascii_digit()))
-                .collect();
-            let base = non_version_parts.join("-");
-
-            const COMMON_SINGLE_PREFIXES: &[&str] = &[
-                "fabric", "forge", "neoforge", "quilt", "ftb", "kubejs", "create",
-                "yungs", "macaws", "allthe", "better", "simple"
-            ];
-
-            if base.len() >= 3 && !COMMON_SINGLE_PREFIXES.contains(&base.as_str()) {
-                groups.entry(base).or_default().push(item);
-            }
-        }
-
-        for (base, mut list) in groups {
-            if list.len() > 1 {
-                list.sort_by(|a, b| {
-                    b.is_override.cmp(&a.is_override)
-                        .then_with(|| b.version_numbers.cmp(&a.version_numbers))
-                        .then_with(|| b.size.cmp(&a.size))
-                        .then_with(|| b.mtime.cmp(&a.mtime))
-                });
-
-                let winner = &list[0];
-                if winner.is_currently_disabled {
-                    let active_winner_path = mods_dir.join(&winner.clean_jar_name);
-                    if std::fs::rename(&winner.path, &active_winner_path).is_ok() {
-                        self.emit_log(&format!(
-                            "Reativando versão mais recente do mod ({base}): '{}' (restaurado de .disabled)",
-                            winner.clean_jar_name
-                        ));
-                    }
-                }
-
-                for duplicate in &list[1..] {
-                    if !duplicate.is_currently_disabled {
-                        let disabled_name = format!("{}.disabled", duplicate.clean_jar_name);
-                        let disabled_path = mods_dir.join(&disabled_name);
-                        if std::fs::rename(&duplicate.path, &disabled_path).is_ok() {
-                            self.emit_log(&format!(
-                                "Conflito de mod evitado ({base}): desativando duplicata '{}' em favor da versão mais recente '{}'",
-                                duplicate.clean_jar_name, winner.clean_jar_name
-                            ));
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     fn patch_modpack_configs(&self, game_dir: &std::path::Path) {
         let crash_assistant_cfg = game_dir.join("config").join("crash_assistant").join("config.toml");
         if crash_assistant_cfg.exists() {
@@ -1731,6 +1907,48 @@ async fn ensure_flite_library(natives_dir: &PathBuf) -> AppResult<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn appearance_keeps_other_packs_and_removes_stale_cape() {
+        use base64::Engine;
+        let directory = std::env::temp_dir().join(format!("luxmc-skin-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&directory).unwrap();
+        std::fs::write(directory.join("options.txt"), "resourcePacks:[\"vanilla\",\"file/Other\",\"file/LuxmcCustomSkin\"]\n").unwrap();
+        let skin = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(include_bytes!("../../../../static/steve.png")));
+        let client = reqwest::Client::new();
+        inject_player_skin(&client, &directory, "Player", &skin, "classic", Some(&skin), "1.21.1").await.unwrap();
+        let cape = directory.join("resourcepacks/LuxmcCustomSkin/assets/minecraft/textures/entity/cape.png");
+        assert!(cape.is_file());
+        inject_player_skin(&client, &directory, "Player", &skin, "classic", None, "1.21.1").await.unwrap();
+        assert!(!cape.exists());
+        let options = std::fs::read_to_string(directory.join("options.txt")).unwrap();
+        assert!(options.contains("resourcePacks:[\"vanilla\",\"file/Other\"]"));
+        assert!(!options.contains("LuxmcCustomSkin"));
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+    #[tokio::test]
+    async fn appearance_preserves_pack_defaults_on_first_launch_and_user_options_afterward() {
+        use base64::Engine;
+        let directory = std::env::temp_dir().join(format!("luxmc-yosbr-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(directory.join("config/yosbr")).unwrap();
+        let defaults = "resourcePacks:[\"vanilla\",\"file/ProminenceFancyServerListing.zip\"]\nlang:pt_br\n";
+        std::fs::write(directory.join("config/yosbr/options.txt"), defaults).unwrap();
+        let skin = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(include_bytes!("../../../../static/steve.png")));
+        let client = reqwest::Client::new();
+        inject_player_skin(&client, &directory, "Player", &skin, "classic", None, "1.20.1").await.unwrap();
+        let options = std::fs::read_to_string(directory.join("options.txt")).unwrap();
+        assert!(options.contains("file/ProminenceFancyServerListing.zip"));
+        assert!(options.contains("lang:pt_br"));
+        let personal = "resourcePacks:[\"vanilla\",\"file/MyPack.zip\"]\nlang:en_us\n";
+        std::fs::write(directory.join("options.txt"), personal).unwrap();
+        inject_player_skin(&client, &directory, "Player", &skin, "classic", None, "1.20.1").await.unwrap();
+        let options = std::fs::read_to_string(directory.join("options.txt")).unwrap();
+        assert!(options.contains("file/MyPack.zip"));
+        assert!(options.contains("lang:en_us"));
+        assert!(!options.contains("ProminenceFancyServerListing"));
+        assert_eq!(std::fs::read_to_string(directory.join("config/yosbr/options.txt")).unwrap(), defaults);
+        std::fs::remove_dir_all(directory).unwrap();
+    }
     use std::path::PathBuf;
 
     #[test]
@@ -2320,7 +2538,7 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
             for dx in 0..4 {
                 target.put_pixel(20 + (3 - dx), 52 + dy, *target.get_pixel(4 + dx, 20 + dy));
                 target.put_pixel(28 + (3 - dx), 52 + dy, *target.get_pixel(12 + dx, 20 + dy));
-                target.put_pixel(24 + (3 - dx), 52 + dy, *target.get_pixel(0 + dx, 20 + dy));
+                target.put_pixel(24 + (3 - dx), 52 + dy, *target.get_pixel(dx, 20 + dy));
                 target.put_pixel(16 + (3 - dx), 52 + dy, *target.get_pixel(8 + dx, 20 + dy));
             }
         }
@@ -2369,10 +2587,10 @@ pub(crate) fn normalize_skin_image(img: image::RgbaImage) -> image::RgbaImage {
     }
 
     let base_rects = [
-        (0 * scale, 0 * scale, 32 * scale, 16 * scale),
+        (0, 0, 32 * scale, 16 * scale),
         (16 * scale, 16 * scale, 40 * scale, 32 * scale),
         (40 * scale, 16 * scale, 56 * scale, 32 * scale),
-        (0 * scale, 16 * scale, 16 * scale, 32 * scale),
+        (0, 16 * scale, 16 * scale, 32 * scale),
         (16 * scale, 48 * scale, 32 * scale, 64 * scale),
         (32 * scale, 48 * scale, 48 * scale, 64 * scale),
     ];
@@ -2494,7 +2712,7 @@ async fn inject_player_skin(
     game_dir: &std::path::Path,
     username: &str,
     skin_source: &str,
-    _variant: &str,
+    variant: &str,
     cape_source: Option<&str>,
     mc_version: &str,
 ) -> AppResult<()> {
@@ -2527,11 +2745,11 @@ async fn inject_player_skin(
 
     if skin_bytes.is_empty() || skin_bytes.len() < 8 || &skin_bytes[0..8] != b"\x89PNG\r\n\x1a\n" {
         tracing::warn!("No valid PNG skin bytes found for player skin injection. Cleaning up injection pack...");
-        return clean_skin_injection(game_dir).await;
+        return Err(AppError::InvalidInput("A skin selecionada não pôde ser carregada. Selecione um PNG local antes de jogar.".into()));
     }
 
-    let raw_dyn_img = image::load_from_memory(&skin_bytes).ok();
-    let is_slim = raw_dyn_img.as_ref().map(|d| is_slim_skin(&d.to_rgba8())).unwrap_or(false);
+    let raw_dyn_img = Some(image::load_from_memory(&skin_bytes).map_err(|e| AppError::InvalidInput(format!("PNG da skin inválido: {e}")))?);
+    let is_slim = match variant { "slim" => true, "classic" => false, _ => raw_dyn_img.as_ref().map(|d| is_slim_skin(&d.to_rgba8())).unwrap_or(false) };
     let normalized_skin_img = if let Some(ref dyn_img) = raw_dyn_img {
         normalize_skin_image(dyn_img.to_rgba8())
     } else {
@@ -2550,7 +2768,9 @@ async fn inject_player_skin(
     let mut slim_buf = Vec::new();
     let _ = slim_skin_img.write_to(&mut std::io::Cursor::new(&mut slim_buf), image::ImageFormat::Png);
 
+    set_active_cape_bytes(Vec::new()).await;
     let pack_dir = game_dir.join("resourcepacks").join("LuxmcCustomSkin");
+    if tokio::fs::try_exists(&pack_dir).await? { tokio::fs::remove_dir_all(&pack_dir).await?; }
     let entity_dir_wide = pack_dir.join("assets/minecraft/textures/entity/player/wide");
     let entity_dir_slim = pack_dir.join("assets/minecraft/textures/entity/player/slim");
     let entity_dir_player = pack_dir.join("assets/minecraft/textures/entity/player");
@@ -2572,21 +2792,21 @@ async fn inject_player_skin(
             "description": "Luxmc Player Custom Skin & Cape"
         }
     });
-    let _ = tokio::fs::write(pack_dir.join("pack.mcmeta"), serde_json::to_string_pretty(&mcmeta).unwrap_or_default()).await;
-    let _ = tokio::fs::write(pack_dir.join("pack.png"), include_bytes!("../../../icons/64x64.png")).await;
+    tokio::fs::write(pack_dir.join("pack.mcmeta"), serde_json::to_string_pretty(&mcmeta).unwrap_or_default()).await?;
+    tokio::fs::write(pack_dir.join("pack.png"), include_bytes!("../../../icons/64x64.png")).await?;
 
     let skin_models = [
         "steve", "alex", "ari", "efe", "kai", "makena", "noor", "sunny", "zuri",
     ];
     for model in &skin_models {
-        let _ = tokio::fs::write(entity_dir_wide.join(format!("{}.png", model)), &wide_buf).await;
-        let _ = tokio::fs::write(entity_dir_slim.join(format!("{}.png", model)), &slim_buf).await;
-        let _ = tokio::fs::write(entity_dir_player.join(format!("{}.png", model)), if is_slim { &slim_buf } else { &wide_buf }).await;
-        let _ = tokio::fs::write(entity_dir_legacy.join(format!("{}.png", model)), &wide_buf).await;
+        tokio::fs::write(entity_dir_wide.join(format!("{}.png", model)), &wide_buf).await?;
+        tokio::fs::write(entity_dir_slim.join(format!("{}.png", model)), &slim_buf).await?;
+        tokio::fs::write(entity_dir_player.join(format!("{}.png", model)), if is_slim { &slim_buf } else { &wide_buf }).await?;
+        tokio::fs::write(entity_dir_legacy.join(format!("{}.png", model)), &wide_buf).await?;
     }
 
-    let _ = tokio::fs::write(entity_dir_legacy.join("steve.png"), &wide_buf).await;
-    let _ = tokio::fs::write(entity_dir_legacy.join("alex.png"), &slim_buf).await;
+    tokio::fs::write(entity_dir_legacy.join("steve.png"), &wide_buf).await?;
+    tokio::fs::write(entity_dir_legacy.join("alex.png"), &slim_buf).await?;
 
     let cape_bytes: Vec<u8> = if let Some(cs) = cape_source.filter(|s| !s.trim().is_empty()) {
         resolve_image_bytes(cs, http).await
@@ -2594,30 +2814,25 @@ async fn inject_player_skin(
         Vec::new()
     };
 
+    if cape_source.is_some_and(|source| !source.trim().is_empty()) && (cape_bytes.is_empty() || image::load_from_memory(&cape_bytes).is_err()) {
+        return Err(AppError::InvalidInput("A capa selecionada não pôde ser carregada. Selecione um PNG local antes de jogar.".into()));
+    }
     if !cape_bytes.is_empty() {
         let (normalized_cape_bytes, optifine_cape_bytes) = if let Ok(dyn_cape) = image::load_from_memory(&cape_bytes) {
             use image::GenericImageView;
             let (cw, ch) = dyn_cape.dimensions();
             let cape_rgba = dyn_cape.to_rgba8();
 
-            let full_img = if cw == 22 && ch == 17 {
-                let mut canvas = image::RgbaImage::new(64, 32);
+            let (full_img, opti_img) = if (cw == 22 && ch == 17) || (cw == 44 && ch == 34) {
+                let scale = if cw == 22 { 1 } else { 2 };
+                let mut canvas = image::RgbaImage::new(64 * scale, 32 * scale);
                 image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
-                canvas
-            } else if cw == 44 && ch == 34 {
-                let mut canvas = image::RgbaImage::new(128, 64);
-                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
-                canvas
-            } else if (cw == 64 && ch == 32) || (cw == ch * 2) {
-                cape_rgba.clone()
-            } else if cw == ch && cw > 0 {
-                image::imageops::crop_imm(&cape_rgba, 0, 0, cw, cw / 2).to_image()
+                let opti = canvas.clone();
+                (canvas, opti)
+            } else if cw == ch * 2 {
+                (cape_rgba.clone(), cape_rgba)
             } else {
-                let target_w = (cw.max(64) + 63) / 64 * 64;
-                let target_h = target_w / 2;
-                let mut canvas = image::RgbaImage::new(target_w, target_h);
-                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
-                canvas
+                format_custom_cape_texture(&cape_rgba, cw, ch)
             };
 
             let mut full_buf = Vec::new();
@@ -2626,26 +2841,6 @@ async fn inject_player_skin(
                 full_buf
             } else {
                 cape_bytes.clone()
-            };
-
-            let opti_img = if cw == 22 && ch == 17 {
-                let mut canvas = image::RgbaImage::new(64, 32);
-                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
-                canvas
-            } else if cw == 44 && ch == 34 {
-                let mut canvas = image::RgbaImage::new(128, 64);
-                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
-                canvas
-            } else if cw == ch && cw > 0 {
-                image::imageops::crop_imm(&cape_rgba, 0, 0, cw, cw / 2).to_image()
-            } else if cw == ch * 2 {
-                cape_rgba
-            } else {
-                let target_w = (cw.max(64) + 63) / 64 * 64;
-                let target_h = target_w / 2;
-                let mut canvas = image::RgbaImage::new(target_w, target_h);
-                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
-                canvas
             };
 
             let mut opti_buf = Vec::new();
@@ -2670,13 +2865,13 @@ async fn inject_player_skin(
         let optifine_users_dir = pack_dir.join("assets/minecraft/optifine/users");
         let _ = tokio::fs::create_dir_all(&optifine_users_dir).await;
         let user_prop = format!("cape=optifine/capes/{}.png\n", u_clean);
-        let _ = tokio::fs::write(optifine_users_dir.join(format!("{}.properties", u_clean)), user_prop.as_bytes()).await;
-        let _ = tokio::fs::write(optifine_users_dir.join(format!("{}.properties", u_lower)), user_prop.as_bytes()).await;
+        tokio::fs::write(optifine_users_dir.join(format!("{}.properties", u_clean)), user_prop.as_bytes()).await?;
+        tokio::fs::write(optifine_users_dir.join(format!("{}.properties", u_lower)), user_prop.as_bytes()).await?;
 
         let optifine_root_prop = pack_dir.join("assets/minecraft/optifine/cape.properties");
         let root_prop = format!("users={}\n", u_clean);
         if let Some(p) = optifine_root_prop.parent() { let _ = tokio::fs::create_dir_all(p).await; }
-        let _ = tokio::fs::write(&optifine_root_prop, root_prop.as_bytes()).await;
+        tokio::fs::write(&optifine_root_prop, root_prop.as_bytes()).await?;
 
         let optifine_capes = [
             pack_dir.join("assets/minecraft/optifine/cape.png"),
@@ -2689,7 +2884,7 @@ async fn inject_player_skin(
             if let Some(parent) = path.parent() {
                 let _ = tokio::fs::create_dir_all(parent).await;
             }
-            let _ = tokio::fs::write(path, &optifine_cape_bytes).await;
+            tokio::fs::write(path, &optifine_cape_bytes).await?;
         }
 
         let cape_paths = [
@@ -2732,7 +2927,7 @@ async fn inject_player_skin(
             if let Some(parent) = path.parent() {
                 let _ = tokio::fs::create_dir_all(parent).await;
             }
-            let _ = tokio::fs::write(path, &normalized_cape_bytes).await;
+            tokio::fs::write(path, &normalized_cape_bytes).await?;
         }
     }
 
@@ -2759,6 +2954,10 @@ async fn inject_player_skin(
     ];
 
     let options_file = game_dir.join("options.txt");
+    let pack_defaults = game_dir.join("config/yosbr/options.txt");
+    if !options_file.exists() && pack_defaults.is_file() {
+        tokio::fs::copy(&pack_defaults, &options_file).await?;
+    }
     if options_file.exists() {
         if let Ok(content) = tokio::fs::read_to_string(&options_file).await {
             let mut lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
@@ -2788,14 +2987,11 @@ async fn inject_player_skin(
                     let inner = line.trim_start_matches("resourcePacks:").trim();
                     if inner.starts_with('[') && inner.ends_with(']') {
                         let array_content = &inner[1..inner.len() - 1];
-                        let mut entries: Vec<String> = array_content
+                        let entries: Vec<String> = array_content
                             .split(',')
                             .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty() && s != unchosen_pack_entry)
+                            .filter(|s| !s.is_empty() && s != unchosen_pack_entry && s != chosen_pack_entry)
                             .collect();
-                        if !entries.iter().any(|e| e == chosen_pack_entry) {
-                            entries.push(chosen_pack_entry.to_string());
-                        }
                         *line = format!("resourcePacks:[{}]", entries.join(","));
                     }
                 } else if line.starts_with("incompatibleResourcePacks:") {
@@ -2809,26 +3005,102 @@ async fn inject_player_skin(
             }
             if !found_pack {
                 let default_list = if is_legacy {
-                    format!("resourcePacks:[{}]", chosen_pack_entry)
+                    "resourcePacks:[]".to_string()
                 } else {
-                    format!("resourcePacks:[\"vanilla\",{}]", chosen_pack_entry)
+                    "resourcePacks:[\"vanilla\"]".to_string()
                 };
                 lines.push(default_list);
             }
-            let _ = tokio::fs::write(&options_file, lines.join("\n")).await;
+            tokio::fs::write(&options_file, lines.join("\n")).await?;
         }
     } else {
         let mut default_options = if is_legacy {
-            format!("resourcePacks:[{}]\nincompatibleResourcePacks:[]\n", chosen_pack_entry)
+            "resourcePacks:[]\nincompatibleResourcePacks:[]\n".to_string()
         } else {
-            format!("resourcePacks:[\"vanilla\",{}]\nincompatibleResourcePacks:[]\n", chosen_pack_entry)
+            "resourcePacks:[\"vanilla\"]\nincompatibleResourcePacks:[]\n".to_string()
         };
         for (key, val) in &skin_flags {
             default_options.push_str(&format!("{}:{}\n", key, val));
         }
-        let _ = tokio::fs::write(&options_file, default_options).await;
+        tokio::fs::write(&options_file, default_options).await?;
     }
 
     Ok(())
+}
+
+fn format_custom_cape_texture(cape_rgba: &image::RgbaImage, cw: u32, ch: u32) -> (image::RgbaImage, image::RgbaImage) {
+    let mut min_x = cw;
+    let mut min_y = ch;
+    let mut max_x = 0;
+    let mut max_y = 0;
+    for y in 0..ch {
+        for x in 0..cw {
+            if cape_rgba.get_pixel(x, y)[3] > 10 {
+                if x < min_x { min_x = x; }
+                if x > max_x { max_x = x; }
+                if y < min_y { min_y = y; }
+                if y > max_y { max_y = y; }
+            }
+        }
+    }
+
+    let cropped = if min_x <= max_x && min_y <= max_y {
+        let bw = (max_x - min_x + 1).max(1);
+        let bh = (max_y - min_y + 1).max(1);
+        image::imageops::crop_imm(cape_rgba, min_x, min_y, bw, bh).to_image()
+    } else {
+        cape_rgba.clone()
+    };
+
+    let target_w = if cw >= 128 || ch >= 128 { 128 } else { 64 };
+    let target_h = target_w / 2;
+    let s = target_w / 64;
+    let mut canvas = image::RgbaImage::new(target_w, target_h);
+
+    let art_w = 10 * s;
+    let art_h = 16 * s;
+
+    let cw_f = cropped.width() as f32;
+    let ch_f = cropped.height() as f32;
+    let scale = (art_w as f32 / cw_f).min(art_h as f32 / ch_f);
+    let draw_w = ((cw_f * scale).round() as u32).max(1).min(art_w);
+    let draw_h = ((ch_f * scale).round() as u32).max(1).min(art_h);
+    let offset_x = (art_w - draw_w) / 2;
+    let offset_y = (art_h - draw_h) / 2;
+
+    let resized = image::imageops::resize(&cropped, draw_w, draw_h, image::imageops::FilterType::Nearest);
+
+    let bg_pixel = if cropped.width() > 0 && cropped.height() > 0 {
+        *cropped.get_pixel(0, 0)
+    } else {
+        image::Rgba([0, 0, 0, 0])
+    };
+
+    if bg_pixel[3] > 20 {
+        for y in 0..art_h {
+            for x in 0..art_w {
+                canvas.put_pixel((1 * s) + x, (1 * s) + y, bg_pixel);
+                canvas.put_pixel((12 * s) + x, (1 * s) + y, bg_pixel);
+            }
+        }
+        for y in 0..art_h {
+            for x in 0..s {
+                canvas.put_pixel(x, (1 * s) + y, bg_pixel);
+                canvas.put_pixel((11 * s) + x, (1 * s) + y, bg_pixel);
+            }
+        }
+        for x in 0..art_w {
+            for y in 0..s {
+                canvas.put_pixel((1 * s) + x, y, bg_pixel);
+                canvas.put_pixel((11 * s) + x, y, bg_pixel);
+            }
+        }
+    }
+
+    image::imageops::overlay(&mut canvas, &resized, ((1 * s) + offset_x) as i64, ((1 * s) + offset_y) as i64);
+    image::imageops::overlay(&mut canvas, &resized, ((12 * s) + offset_x) as i64, ((1 * s) + offset_y) as i64);
+
+    let opti = canvas.clone();
+    (canvas, opti)
 }
 

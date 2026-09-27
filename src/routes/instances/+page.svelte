@@ -38,6 +38,7 @@
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { appState } from "$lib/stores/app.svelte";
+	import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
 	import {
 		api,
 		versionsList,
@@ -140,6 +141,7 @@
 	let selectionMode = $state(false);
 	let searchInput = $state<HTMLInputElement | null>(null);
 	let colorPickerId = $state<string | null>(null);
+	let navigatingId = $state<string | null>(null);
 
 	const colorOptions = [
 		{ value: "red", color: "rgb(var(--danger))" },
@@ -164,10 +166,10 @@
 				return true;
 			})
 			.toSorted((a, b) => {
-				if (sortBy === "name") return a.name.localeCompare(b.name);
-				if (sortBy === "version") return a.mcVersion.localeCompare(b.mcVersion);
+				if (sortBy === "name") return (a.name || "").localeCompare(b.name || "");
+				if (sortBy === "version") return (a.mcVersion || "").localeCompare(b.mcVersion || "");
 				if (sortBy === "lastPlayed") return (b.lastPlayed ?? 0) - (a.lastPlayed ?? 0);
-				return b.createdAt - a.createdAt;
+				return (b.createdAt ?? 0) - (a.createdAt ?? 0);
 			}),
 	);
 
@@ -235,8 +237,9 @@
 			toggleSelect(id);
 			return;
 		}
+		navigatingId = id;
 		profiles.activeId = id;
-		goto("/instances/" + id);
+		void goto("/instances/" + id);
 	}
 
 	function handleInstanceKeydown(e: KeyboardEvent) {
@@ -344,8 +347,11 @@
 	let launchingInstanceId = $state<string | null>(null);
 
 	async function quickPlay(p: Profile) {
-		if (launchingInstanceId) return;
+		if (launchingInstanceId || appState.isLaunching) return;
 		launchingInstanceId = p.id;
+		appState.isLaunching = true;
+		appState.launchingProfileId = p.id;
+		appState.launchStatusText = "Preparando autenticação...";
 		profiles.activeId = p.id;
 		try {
 			let accountId = account.value?.uuid;
@@ -354,8 +360,10 @@
 				accountId = dev.uuid;
 			}
 			const verId = p.mcVersion || "1.21.4";
+			appState.launchStatusText = `Verificando versão ${verId}...`;
 			const installed = await versionsCheckInstalled(verId).catch(() => false);
 			if (!installed) {
+				appState.launchStatusText = `Baixando Minecraft ${verId}...`;
 				toast(`Baixando Minecraft ${verId}...`, "info");
 				await versionsDownload(verId);
 			}
@@ -364,6 +372,7 @@
 			const effectiveCape = activeSkinStore.current.hasCape
 				? (activeSkinStore.current.customCapeUrl || (activeSkinStore.current.capeType && activeSkinStore.current.capeType !== "none" ? getFullCapeDataUrl(activeSkinStore.current.capeType) : null))
 				: (account.value?.capeUrl || null);
+			appState.launchStatusText = "Injetando parâmetros JVM e iniciando...";
 			const res = await launchGame({
 				versionId: verId,
 				accountId: accountId || "",
@@ -393,7 +402,7 @@
 				state: `Minecraft ${verId} · ${p.loader ? p.loader.toUpperCase() : "Vanilla"}`,
 				largeText: p.name,
 				largeImage: modpackCover,
-				smallImage: p.loader === "fabric" ? "fabric" : (p.loader === "forge" ? "curse" : "grass"),
+				smallImage: "grass",
 				smallText: `Luxmc · ${p.loader || "Vanilla"}`,
 				startTime: Math.floor(Date.now() / 1000)
 			}).catch(() => {});
@@ -403,7 +412,10 @@
 		} catch (e) {
 			toast("Falha ao iniciar jogo: " + String(e), "error");
 		} finally {
-			setTimeout(() => { launchingInstanceId = null; }, 2500);
+			appState.isLaunching = false;
+			appState.launchingProfileId = null;
+			appState.launchStatusText = "";
+			launchingInstanceId = null;
 		}
 	}
 
@@ -596,7 +608,7 @@
 		const file = await open({ filters: [{ name: "Modpack", extensions: ["zip"] }] });
 		if (typeof file === "string") {
 			importFile = file;
-			if (!importName) { importName = (file.split("/").pop() ?? "Imported Modpack").replace(/\.zip$/i, ""); }
+			if (!importName) { importName = (file.split(/[/\\]/).pop() ?? "Imported Modpack").replace(/\.zip$/i, ""); }
 			showImport = true;
 		}
 	}
@@ -626,10 +638,12 @@
 					id: p.id, name: p.name, icon: p.icon || "",
 					mcVersion: p.mcVersion,
 					loader: (p.loader.toLowerCase() as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt") || "fabric",
+					loaderVersion: p.loaderVersion ?? undefined,
 					gameDir: p.gameDir, createdAt: Date.now(), updatedAt: Date.now(),
 				});
 				profiles.activeId = p.id;
 				showImport = false; importFile = null; importName = "";
+				fireModpackSuccessConfetti();
 				toast(t("instances.createdSuccess"), "success");
 			}
 		} catch (e) { toast(t("instances.failedImportModpack", { error: String(e) }), "error"); }
@@ -644,7 +658,7 @@
 		const file = await open({ filters: [{ name: "Modrinth Modpack", extensions: ["mrpack"] }] });
 		if (typeof file === "string") {
 			importMrpackFile = file;
-			if (!importMrpackName) { importMrpackName = (file.split("/").pop() ?? "Imported Modpack").replace(/\.mrpack$/i, ""); }
+			if (!importMrpackName) { importMrpackName = (file.split(/[/\\]/).pop() ?? "Imported Modpack").replace(/\.mrpack$/i, ""); }
 			showImportMrpack = true;
 		}
 	}
@@ -652,23 +666,42 @@
 	async function importMrpack() {
 		if (!importMrpackFile || !importMrpackName.trim()) return;
 		importingMrpack = true;
+		importProgress = null;
+		let unlisten: (() => void) | null = null;
+		let wasCancelled = false;
 		try {
+			const { listen } = await import("@tauri-apps/api/event");
+			unlisten = await listen<{ phase: string; current: number; total: number; percent: number; status: string }>(
+				"modpack-progress",
+				(event) => {
+					importProgress = event.payload;
+					if (event.payload.phase === "cancelled") {
+						wasCancelled = true;
+					}
+				}
+			);
 			const p = await instanceImportMrpack(importMrpackFile, importMrpackName.trim());
-			profiles.add({
-				id: p.id,
-				name: p.name,
-				icon: p.icon || "",
-				mcVersion: p.mcVersion,
-				loader: (p.loader.toLowerCase() as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt") || "fabric",
-				gameDir: p.gameDir,
-				createdAt: Date.now(),
-				updatedAt: Date.now(),
-			});
-			profiles.activeId = p.id;
-			showImportMrpack = false; importMrpackFile = null; importMrpackName = "";
-			toast(t("instances.createdSuccess"), "success");
+			if (wasCancelled) {
+				toast("Importação cancelada.", "info");
+			} else {
+				profiles.add({
+					id: p.id,
+					name: p.name,
+					icon: p.icon || "",
+					mcVersion: p.mcVersion,
+					loader: (p.loader.toLowerCase() as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt") || "fabric",
+					loaderVersion: p.loaderVersion ?? undefined,
+					gameDir: p.gameDir,
+					createdAt: Date.now(),
+					updatedAt: Date.now(),
+				});
+				profiles.activeId = p.id;
+				showImportMrpack = false; importMrpackFile = null; importMrpackName = "";
+				fireModpackSuccessConfetti();
+				toast(t("instances.createdSuccess"), "success");
+			}
 		} catch (e) { toast(t("instances.failedImportMrpack", { error: String(e) }), "error"); }
-		finally { importingMrpack = false; }
+		finally { importingMrpack = false; importProgress = null; unlisten?.(); }
 	}
 </script>
 
@@ -816,20 +849,38 @@
 			<div class="flex flex-col gap-3">
 				<p class="text-sm" style="color: rgb(var(--fg-muted));">{t("instances.importMrpackDesc")}</p>
 				<p class="truncate text-xs" style="color: rgb(var(--fg-subtle));">{importMrpackFile}</p>
-				<div class="flex gap-3">
-					<div class="flex-1">
-						<label for="import-mrpack-name" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.name")}</label>
-						<Input id="import-mrpack-name" bind:value={importMrpackName} placeholder={t("instances.modpackName")} />
+				{#if importingMrpack && importProgress}
+					<div class="flex flex-col gap-2">
+						<div class="flex items-center justify-between text-xs" style="color: rgb(var(--fg-muted));">
+							<span>{importProgress.status ?? "Processando modpack..."}</span>
+							<span>{importProgress.percent ?? 0}%</span>
+						</div>
+						<div class="h-2 w-full overflow-hidden rounded-full" style="background: rgb(var(--bg-elevated));">
+							<div
+								class="h-full rounded-full transition-all duration-300"
+								style="width: {importProgress.percent ?? 0}%; background: linear-gradient(90deg, rgb(var(--brand-500)), rgb(var(--brand-400)));"
+							></div>
+						</div>
+						<Button variant="danger" size="sm" onclick={cancelImport}>
+							<X class="h-4 w-4" /> Cancelar Download
+						</Button>
 					</div>
-				</div>
-				<div class="flex gap-2">
-					<Button variant="solid" onclick={importMrpack} loading={importingMrpack}>
-						<Import class="h-4 w-4" /> {t("instances.importMrpack")}
-					</Button>
-					<Button variant="secondary" onclick={() => { showImportMrpack = false; importMrpackFile = null; }}>
-						<X class="h-4 w-4" /> {t("common.cancel")}
-					</Button>
-				</div>
+				{:else}
+					<div class="flex gap-3">
+						<div class="flex-1">
+							<label for="import-mrpack-name" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.name")}</label>
+							<Input id="import-mrpack-name" bind:value={importMrpackName} placeholder={t("instances.modpackName")} />
+						</div>
+					</div>
+					<div class="flex gap-2">
+						<Button variant="solid" onclick={importMrpack} loading={importingMrpack}>
+							<Import class="h-4 w-4" /> {t("instances.importMrpack")}
+						</Button>
+						<Button variant="secondary" onclick={() => { showImportMrpack = false; importMrpackFile = null; }}>
+							<X class="h-4 w-4" /> {t("common.cancel")}
+						</Button>
+					</div>
+				{/if}
 			</div>
 		</Card>
 	{/if}
@@ -851,6 +902,7 @@
 		{selectedIds}
 		{instanceColors}
 		{launchingInstanceId}
+		navigatingInstanceId={navigatingId}
 		{colorOptions}
 		{getIconSrc}
 		{formatTimeAgo}

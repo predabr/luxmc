@@ -79,3 +79,46 @@ pub async fn prepare_loader(
         _ => Err(crate::error::AppError::NotFound(format!("Loader '{}' not supported for auto-injection", loader))),
     }
 }
+
+mod installer;
+
+#[cfg(target_os = "linux")]
+mod installer_java;
+
+fn is_valid_jar(path: &std::path::Path) -> bool {
+    let file = match std::fs::File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let meta = match file.metadata() {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+    if meta.len() < 22 {
+        return false;
+    }
+    zip::ZipArchive::new(file).is_ok()
+}
+
+async fn ensure_maven_jar(http: &reqwest::Client, path: &std::path::Path, url: &str) -> crate::error::AppResult<()> {
+    if path.exists() && is_valid_jar(path) {
+        return Ok(());
+    }
+    let sha = match http.get(format!("{url}.sha1")).timeout(std::time::Duration::from_secs(6)).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            if let Ok(bytes) = resp.bytes().await {
+                let text = String::from_utf8_lossy(&bytes);
+                let hash = text.split_whitespace().next().unwrap_or("").to_owned();
+                if hash.len() == 40 && hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+                    hash.to_ascii_lowercase()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            }
+        }
+        _ => String::new(),
+    };
+    crate::core::downloader::ensure_artifact(http, path, url, 0, &sha).await
+}

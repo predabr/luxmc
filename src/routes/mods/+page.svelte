@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { button } from "$lib/components/ui/button";
+    import VirtualList from "$lib/components/ui/VirtualList.svelte";
 	import { sanitizeHtml } from "$lib/utils/sanitizeHtml";
 	import { onMount, untrack } from "svelte";
 	import { deepLinks } from "$lib/stores/deepLinks.svelte";
@@ -10,6 +12,7 @@
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
+	import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
 	import {
 		modsSearch, modsVersions, modsInstall, modsProjectDetails,
 		modsDownloadToTemp, instanceImportMrpack, instanceImportModpack, instanceCancelImport,
@@ -59,6 +62,14 @@
 	let selectedSort = $state<"downloads" | "relevance" | "updated" | "newest">("downloads");
 	let sortMenuOpen = $state(false);
 	let viewMode = $state<"grid" | "list">("grid");
+
+    let resultsWidth = $state(0);
+    const resultColumns = $derived(resultsWidth >= 1050 ? 3 : resultsWidth >= 650 ? 2 : 1);
+    const resultRows = $derived.by(() => {
+        const rows: ModSearchResultItem[][] = [];
+        for (let index = 0; index < results.length; index += resultColumns) rows.push(results.slice(index, index + resultColumns));
+        return rows;
+    });
 
 	const sortOptions = [
 		{ id: "downloads", label: "Downloads" },
@@ -264,7 +275,9 @@
 				return;
 			}
 			const extension = item.source === "curseforge" ? ".zip" : ".mrpack";
-            const f = versions.flatMap(version => version.files).find(file => file.url && file.filename.toLowerCase().endsWith(extension));
+            const f = versions.flatMap(version => version.files).find(file => file.url && file.filename.toLowerCase().endsWith(extension))
+				|| versions.flatMap(version => version.files).find(file => file.url && (file.filename.toLowerCase().endsWith(".zip") || file.filename.toLowerCase().endsWith(".mrpack")))
+				|| versions.flatMap(version => version.files).find(file => file.url);
 			if (!f?.url) { toast("Arquivo de download não disponível para este modpack.", "error"); isInstallingModpack = false; return; }
 			modpackProgressText = `Baixando pacote (${f.filename})...`;
 			modpackProgressPercent = -1;
@@ -273,7 +286,7 @@
             if (cancelRequested) throw new Error("Importação cancelada");
 			modpackProgressText = "Configurando nova instância e extraindo mods...";
 			modpackProgressPercent = 0;
-			const iconUrl = item.iconUrl || "";
+			const iconUrl = item.iconUrl || item.bannerUrl || "";
 			const detectedLoader = item.categories?.find(c => ["forge", "fabric", "neoforge", "quilt"].includes(c.toLowerCase()))?.toLowerCase()
 				|| (item.title.toLowerCase().includes("forge") && !item.title.toLowerCase().includes("neoforge") ? "forge" : "")
 				|| (item.title.toLowerCase().includes("neoforge") ? "neoforge" : "")
@@ -296,6 +309,7 @@
 			profiles.activeId = cp.id;
 			targetInstanceId = cp.id;
 			await profiles.refresh();
+			fireModpackSuccessConfetti();
 			toast(`Instância "${name}" criada com sucesso!`, "success");
 			showModpackInstallModal = false;
 			modpackToInstall = null;
@@ -480,7 +494,7 @@
 				</div>
 				<div class="flex items-center gap-2.5">
 					<div class="relative">
-						<button type="button" class="bg-bg-elevated border border-fg/[0.06] hover:border-fg/[0.15] px-3 py-1.5 rounded-xl text-xs font-semibold text-fg/80 flex items-center gap-2 transition-all cursor-pointer shadow-sm" onclick={() => sortMenuOpen = !sortMenuOpen}>
+						<button type="button" class={button({ variant: "secondary", size: "sm" })} onclick={() => sortMenuOpen = !sortMenuOpen}>
 							<span>{currentSortLabel}</span>
 							<ChevronDown class="w-3.5 h-3.5 text-fg/35 transition-transform duration-300 {sortMenuOpen ? 'rotate-180' : ''}" />
 						</button>
@@ -497,8 +511,8 @@
 						{/if}
 					</div>
 					<div class="flex bg-bg-elevated border border-fg/[0.06] rounded-xl p-0.5 gap-0.5">
-						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'grid' ? 'bg-brand-500 text-fg shadow-sm' : 'text-fg/35 hover:text-fg'}" onclick={() => viewMode = 'grid'} title="Grade"><LayoutGrid class="w-3.5 h-3.5" /></button>
-						<button type="button" class="p-1.5 rounded-lg transition-all cursor-pointer {viewMode === 'list' ? 'bg-brand-500 text-fg shadow-sm' : 'text-fg/35 hover:text-fg'}" onclick={() => viewMode = 'list'} title="Lista"><List class="w-3.5 h-3.5" /></button>
+						<button type="button" class={button({ variant: viewMode === "grid" ? "primary" : "ghost", size: "icon" })} aria-pressed={viewMode === "grid"} onclick={() => viewMode = 'grid'} title="Grade"><LayoutGrid class="w-3.5 h-3.5" /></button>
+						<button type="button" class={button({ variant: viewMode === "list" ? "primary" : "ghost", size: "icon" })} aria-pressed={viewMode === "list"} onclick={() => viewMode = 'list'} title="Lista"><List class="w-3.5 h-3.5" /></button>
 					</div>
 				</div>
 			</div>
@@ -530,21 +544,27 @@
 					</div>
 				</div>
 			{:else}
-				{#if viewMode === 'grid'}
-					<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 pb-6">
-						{#each results as item (item.source + ':' + item.sourceId)}
-							{@const id = `${item.source}:${item.sourceId}`}
-							<ModCard {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
-						{/each}
-					</div>
-				{:else}
-					<div class="space-y-2.5 pb-6">
-						{#each results as item (item.source + ':' + item.sourceId)}
-							{@const id = `${item.source}:${item.sourceId}`}
-							<ModCardList {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
-						{/each}
-					</div>
-				{/if}
+                <div bind:clientWidth={resultsWidth}>
+                    {#if viewMode === 'grid'}
+                        <VirtualList items={resultRows} itemHeight={380} height="min(65vh, 820px)" overscan={1}>
+                            {#snippet children(row)}
+                                <div class="grid gap-4 pb-4" style:grid-template-columns={`repeat(${resultColumns}, minmax(0, 1fr))`}>
+                                    {#each row as item (item.source + ':' + item.sourceId)}
+                                        {@const id = `${item.source}:${item.sourceId}`}
+                                        <ModCard {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
+                                    {/each}
+                                </div>
+                            {/snippet}
+                        </VirtualList>
+                    {:else}
+                        <VirtualList items={results} itemHeight={112} height="min(65vh, 820px)" overscan={1}>
+                            {#snippet children(item)}
+                                {@const id = `${item.source}:${item.sourceId}`}
+                                <div class="pb-2.5"><ModCardList {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} /></div>
+                            {/snippet}
+                        </VirtualList>
+                    {/if}
+                </div>
 
 				{#if results.length > 0}
 					<div class="flex items-center justify-between pt-3 pb-8 border-t border-fg/[0.06]">
@@ -552,7 +572,7 @@
 							Mostrando <span class="text-fg font-bold">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalEstimateNumber)}</span> de <span class="text-fg font-bold">{totalEstimate}</span>
 						</div>
 						<div class="flex items-center gap-1 text-xs">
-							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-fg/35 hover:text-fg hover:bg-fg/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
+							<button type="button" class={button({ variant: "secondary", size: "icon" })} onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
 							{#each [1, 2, 3, 4] as p}
 								{#if totalPages >= p}
 									<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === p ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(p)}>{p}</button>
@@ -562,7 +582,7 @@
 								<span class="px-1 text-fg/35">...</span>
 								<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === totalPages ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
 							{/if}
-							<button type="button" class="h-8 w-8 rounded-xl flex items-center justify-center text-fg/35 hover:text-fg hover:bg-fg/5 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer" onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
+							<button type="button" class={button({ variant: "secondary", size: "icon" })} onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
 						</div>
 					</div>
 				{/if}

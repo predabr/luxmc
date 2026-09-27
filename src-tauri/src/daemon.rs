@@ -98,6 +98,7 @@ async fn dispatch_command(
             let request = serde_json::from_value(args.get("request").cloned().ok_or("Missing request")?).map_err(|e| e.to_string())?;
             crate::commands::social::social_request_core(account_id, request).await.map_err(|e| e.to_string())
         },
+        "minecraft_news" => crate::commands::news::minecraft_news_core(&state).await.map_err(|error| error.to_string()),
         "ping" => Ok(Value::String("pong".into())),
         "app_info" => Ok(serde_json::to_value(crate::commands::system::app_info()).map_err(|e| e.to_string())?),
         "optimizer_trim_memory" => {
@@ -623,6 +624,23 @@ async fn dispatch_command(
             let res = crate::commands::storage::storage_breakdown().await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
+        "storage_full_report" => {
+            let res = crate::commands::storage::storage_full_report().await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
+        },
+        "storage_clear_logs" => {
+            let res = crate::commands::storage::storage_clear_logs().await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
+        },
+        "storage_clear_cache" => {
+            let res = crate::commands::storage::storage_clear_cache().await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
+        },
+        "storage_delete_instance" => {
+            let id = args.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            crate::commands::storage::storage_delete_instance(id).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::Value::Null)
+        },
         "storage_total" => {
             let paths: Vec<String> = args.get("paths").and_then(|v| serde_json::from_value(v.clone()).ok()).unwrap_or_default();
             let res = crate::commands::instance_icons::storage_total(paths).await.map_err(|e| e.to_string())?;
@@ -730,6 +748,65 @@ async fn dispatch_command(
             let username = args.get("username").and_then(|value| value.as_str()).unwrap_or_default().to_owned();
             let result = crate::commands::skins::minecraft_uuid(username).await.map_err(|error| error.to_string())?;
             serde_json::to_value(result).map_err(|error| error.to_string())
+        },
+        "host_world" => serde_json::to_value(crate::network::p2p_tunnel::host_world(args.get("port").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()).ok_or("Porta inválida")?).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
+        "join_world" => serde_json::to_value(crate::network::p2p_tunnel::join_world(args.get("invitation").and_then(Value::as_str).ok_or("Convite ausente")?.to_owned()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
+        "stop_session" => { crate::network::p2p_tunnel::stop_session().await.map_err(|e| e.to_string())?; Ok(serde_json::Value::Null) },
+        "tunnel_status" => serde_json::to_value(crate::network::p2p_tunnel::tunnel_status().await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
+        "mesh_status" => serde_json::to_value(crate::commands::mesh::mesh_status().await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
+        "mesh_ping" => {
+            let ip = args.get("ip").and_then(Value::as_str).unwrap_or_default().to_owned();
+            Ok(serde_json::json!(crate::commands::mesh::mesh_ping(ip).await.map_err(|e| e.to_string())?))
+        },
+        "wallpaper_prepare_video" => Ok(serde_json::json!(crate::commands::wallpaper::wallpaper_prepare_video(
+            args.get("path").and_then(Value::as_str).ok_or("Caminho ausente")?.to_owned(),
+            args.get("width").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()).ok_or("Largura inválida")?,
+            args.get("fps").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()).ok_or("FPS inválido")?
+        ).await.map_err(|e| e.to_string())?)),
+        "wallpaper_prepare_poster" => Ok(serde_json::json!(crate::commands::wallpaper::wallpaper_prepare_poster(
+            args.get("path").and_then(Value::as_str).ok_or("Caminho ausente")?.to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_capsule_create" => Ok(serde_json::json!(crate::commands::instance_lab::instance_capsule_create(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned(),
+            args.get("label").and_then(Value::as_str).unwrap_or_default().to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_capsules_list" => Ok(serde_json::json!(crate::commands::instance_lab::instance_capsules_list(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_capsule_restore" => Ok(serde_json::json!(crate::commands::instance_lab::instance_capsule_restore(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned(),
+            args.get("filename").and_then(Value::as_str).ok_or("Cápsula ausente")?.to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_isolation_status" => Ok(serde_json::json!(crate::commands::instance_lab::instance_isolation_status(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_isolation_start" => Ok(serde_json::json!(crate::commands::instance_lab::instance_isolation_start(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_isolation_report" => Ok(serde_json::json!(crate::commands::instance_lab::instance_isolation_report(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned(),
+            args.get("crashed").and_then(Value::as_bool).ok_or("Resultado ausente")?
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_isolation_restore" => Ok(serde_json::json!(crate::commands::instance_lab::instance_isolation_restore(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_benchmarks_list" => Ok(serde_json::json!(crate::commands::instance_lab::instance_benchmarks_list(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "instance_benchmark_import" => Ok(serde_json::json!(crate::commands::instance_lab::instance_benchmark_import(
+            args.get("profileId").and_then(Value::as_str).ok_or("Instância ausente")?.to_owned(),
+            args.get("label").and_then(Value::as_str).unwrap_or_default().to_owned(),
+            args.get("csvPath").and_then(Value::as_str).ok_or("CSV ausente")?.to_owned()
+        ).await.map_err(|e| e.to_string())?)),
+        "auth_read_local_texture" => Ok(serde_json::json!(crate::commands::auth::auth_read_local_texture(args.get("path").and_then(Value::as_str).ok_or("Caminho ausente")?.to_owned()).await.map_err(|e| e.to_string())?)),
+        "auth_resolve_texture" => Ok(serde_json::json!(crate::commands::auth::auth_resolve_texture(args.get("url").and_then(Value::as_str).ok_or("URL ausente")?.to_owned()).await.map_err(|e| e.to_string())?)),
+        "auth_save_appearance" => {
+            let uuid = args.get("uuid").and_then(Value::as_str).unwrap_or_default().to_owned();
+            let skin = args.get("skinUrl").and_then(Value::as_str).unwrap_or_default().to_owned();
+            let variant = args.get("variant").and_then(Value::as_str).unwrap_or_default().to_owned();
+            let cape = args.get("capeUrl").and_then(Value::as_str).map(str::to_owned);
+            crate::commands::auth::auth_save_appearance(uuid, skin, variant, cape).await.map_err(|e| e.to_string())?;
+            Ok(Value::Null)
         },
         "auth_change_skin" => {
             let uuid = args.get("uuid").and_then(|v| v.as_str()).unwrap_or("").to_string();

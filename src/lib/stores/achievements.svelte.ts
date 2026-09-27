@@ -1,4 +1,4 @@
-import confetti from "canvas-confetti";
+import { fireAchievementConfetti } from "$lib/utils/confetti";
 import { toast } from "$lib/stores/toasts.svelte";
 import { playSound } from "$lib/utils/sound";
 
@@ -70,14 +70,7 @@ function createAchievementsStore() {
 		}
 
 		playSound("achievement");
-		try {
-			confetti({
-				particleCount: 80,
-				spread: 70,
-				origin: { y: 0.7 }
-			});
-		} catch {
-		}
+		fireAchievementConfetti();
 
 		toast(`🏆 Conquista Desbloqueada: ${ach.title}!`, "success");
 	}

@@ -6,7 +6,7 @@
 	import type { JavaInstallStatus } from "$lib/api/types";
 	import { page } from "$app/state";
 	import { fade, scale } from "svelte/transition";
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import {
 		ArrowLeft,
 		Download,
@@ -41,6 +41,7 @@
 		Cpu,
 		Zap,
 		Gauge,
+		Activity,
 		ZoomIn,
 		ZoomOut,
 		RotateCcw,
@@ -65,6 +66,7 @@
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
 	import WorldSnapshotsModal from "$lib/components/ui/WorldSnapshotsModal.svelte";
+	import InstanceLab from "$lib/components/instances/InstanceLab.svelte";
 	import InstanceConfigEditorModal from "$lib/components/ui/InstanceConfigEditorModal.svelte";
 	import P2PHostModal from "$lib/components/ui/P2PHostModal.svelte";
 	import KeybindEditorModal from "$lib/components/instances/KeybindEditorModal.svelte";
@@ -151,6 +153,8 @@
 	const instanceId = $derived(page.params.id ?? "");
 	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) || profiles.active);
 
+	const settingsIcon = $derived(activeProfile?.icon && /^(https?:|data:|asset:|\/)/.test(activeProfile.icon) ? activeProfile.icon : "/grass_block.png");
+
 	const heroBanner = $derived.by(() => {
 		if (activeProfile?.banner) return activeProfile.banner;
 		if (activeProfile?.icon && (activeProfile.icon.startsWith("http") || activeProfile.icon.startsWith("data:"))) {
@@ -169,9 +173,15 @@
 		return "/bg_day.jpg";
 	});
 
-	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros" | "configuracoes">("conteudo");
+	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros" | "configuracoes" | "laboratorio">("conteudo");
 	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("mods");
 	let searchQuery = $state("");
+    let debouncedSearch = $state("");
+    $effect(() => {
+        const query = searchQuery;
+        const timer = setTimeout(() => { debouncedSearch = query; }, 150);
+        return () => clearTimeout(timer);
+    });
 
 	let modpackUpdate = $state<ModpackUpdateInfo | null>(null);
 	let isCheckingUpdate = $state(false);
@@ -628,9 +638,9 @@
 	}
 
 	// Launch & Install state
-	let isLaunching = $state(false);
+	let isLaunching = $derived(appState.isLaunching);
 	let isInstalled = $state(true);
-	let launchStatusText = $state("");
+	let launchStatusText = $derived(appState.launchStatusText);
 	let downloadProgressPercent = $state(0);
 
 	// Real Data from File System & Backend
@@ -722,10 +732,10 @@
 
 	let hasAutoScannedShield = $state(false);
 	$effect(() => {
-		if (subTab === "mods" && instanceMods.length > 0 && !shieldResult && !isScanningShield && !hasAutoScannedShield) {
-			hasAutoScannedShield = true;
-			runShieldScan();
-		}
+		if (mainTab === "conteudo" && subTab === "mods" && instanceMods.length > 0 && !shieldResult && !isScanningShield && !hasAutoScannedShield) {
+            const timer = setTimeout(() => { hasAutoScannedShield = true; void runShieldScan(); }, 1200);
+            return () => clearTimeout(timer);
+        }
 	});
 
 	const currentPacksList = $derived(
@@ -733,8 +743,8 @@
 	);
 
 	const filteredMods = $derived(
-		searchQuery
-			? instanceMods.filter(m => m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+		debouncedSearch
+			? instanceMods.filter(m => m.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
 			: instanceMods
 	);
 
@@ -821,87 +831,146 @@
 		};
 	}
 
-	onMount(async () => {
-        void detectJava();
-			try {
-			const specs = await getSystemSpecs();
-			if (specs && specs.totalRamMb > 0) {
-				systemRamMb = specs.totalRamMb;
-			}
-			gpuInfo = await optimizerDetectGpu();
-			if (activeProfile) {
-				perfPackInfo = await optimizerGetPerfPack(activeProfile.loader, activeProfile.mcVersion);
-			}
-		} catch {}
-		await refreshAllData();
-		if (instanceId) {
-			checkModpackUpdate();
-		}
+    type DataSection = "mods" | "resourcepacks" | "shaders" | "datapacks" | "mundos" | "galeria" | "ficheiros" | "configuracoes";
+    const loadedSections = new Set<string>();
+    const sectionRequests = new Map<string, Promise<void>>();
+    const resolvedMetadata = new Set<string>();
+    let dataGeneration = 0;
+    let pendingLoads = 0;
+    let metadataTimer: ReturnType<typeof setTimeout> | undefined;
 
-		if (instanceId) {
-			const hasNumericNames = instanceMods.some(m => /^\d+_\d+\.jar$/.test(m.name.replace('.disabled', '')));
-			if (hasNumericNames) {
-				modsResolveNames(instanceId).then(renamed => {
-					if (renamed > 0) {
-						refreshAllData();
-					}
-				}).catch(() => {});
-			}
-		}
-	});
+    async function loadSection(section: DataSection, force = false) {
+        const id = instanceId;
+        if (!id) return;
+        const path = fileSubPath;
+        const key = `${id}:${section}:${section === "ficheiros" ? path : ""}`;
+        const generation = dataGeneration;
+        const pending = sectionRequests.get(key);
+        if (pending) { await pending; if (!force && loadedSections.has(key)) return; }
+        if (generation !== dataGeneration || (!force && loadedSections.has(key))) return;
+        pendingLoads++;
+        isLoadingData = true;
+        const request = (async () => {
+            const current = () => generation === dataGeneration && id === instanceId;
+            if (section === "configuracoes") {
+                const specs = await getSystemSpecs();
+                if (!current()) return;
+                if (specs?.totalRamMb > 0) systemRamMb = specs.totalRamMb;
+                gpuInfo = await optimizerDetectGpu();
+                if (!current()) return;
+                if (activeProfile) perfPackInfo = await optimizerGetPerfPack(activeProfile.loader, activeProfile.mcVersion);
+                if (!current()) return;
+                await detectJava();
+            } else if (section === "mundos") {
+                const data = await instanceWorldsList(id);
+                if (current()) worldsList = data;
+            } else if (section === "galeria") {
+                const data = await instancesScreenshots(id);
+                if (current()) screenshotsList = data;
+            } else {
+                const folder = section === "ficheiros" ? path || undefined : section === "shaders" ? "shaderpacks" : section;
+                const data = await instanceFileTree(id, folder);
+                if (!current()) return;
+                if (section === "mods") {
+                    instanceMods = data;
+                    if (!resolvedMetadata.has(id)) {
+                        resolvedMetadata.add(id);
+                        metadataTimer = setTimeout(() => {
+                            void (async () => {
+                                let changed = 0;
+                                if (data.some(mod => /^\d+(_\d+)?\.jar$/.test(mod.name.replace('.disabled', '')))) changed += await modsResolveNames(id);
+                                if (!current()) return;
+                                if (data.some(mod => !mod.icon)) changed += await modsResolveIcons(id);
+                                if (current() && changed > 0) await loadSection("mods", true);
+                            })().catch(() => {});
+                        }, 1500);
+                    }
+                } else if (section === "resourcepacks") resourcePacks = data;
+                else if (section === "shaders") shaderPacks = data;
+                else if (section === "datapacks") dataPacks = data;
+                else fileTree = data;
+            }
+            if (current()) loadedSections.add(key);
+        })().catch(error => {
+            if (generation === dataGeneration) toast("Falha ao carregar dados da instância: " + String(error), "error");
+        }).finally(() => {
+            if (sectionRequests.get(key) === request) sectionRequests.delete(key);
+            pendingLoads--;
+            isLoadingData = pendingLoads > 0;
+        });
+        sectionRequests.set(key, request);
+        await request;
+    }
 
-	async function refreshAllData() {
-		if (!instanceId) return;
-		isLoadingData = true;
-		try {
-			const ver = activeProfile?.mcVersion || "1.20.4";
+    $effect(() => {
+        const id = instanceId;
+        untrack(() => {
+            dataGeneration++;
+            loadedSections.clear();
+            resolvedMetadata.clear();
+            mainTab = "conteudo"; subTab = "mods";
+            instanceMods = []; resourcePacks = []; shaderPacks = []; dataPacks = [];
+            worldsList = []; screenshotsList = []; fileTree = [];
+            fileSubPath = ""; fileBreadcrumbs = [];
+            shieldResult = null; hasAutoScannedShield = false;
+            const generation = dataGeneration;
+            const version = activeProfile?.mcVersion;
+            if (id && version) void versionsCheckInstalled(version).then(value => {
+                if (generation === dataGeneration) isInstalled = value;
+            }).catch(() => {});
+        });
+        return () => { dataGeneration++; clearTimeout(metadataTimer); };
+    });
 
-			const [newIsInstalled, newWorlds, newScreenshots, newFileTree, newMods, newResources, newShaders, newDataPacks] = await Promise.all([
-				versionsCheckInstalled(ver).catch(() => true),
-				instanceWorldsList(instanceId).catch(() => []),
-				instancesScreenshots(instanceId).catch(() => []),
-				instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []),
-				instanceFileTree(instanceId, "mods").catch(() => []),
-				instanceFileTree(instanceId, "resourcepacks").catch(() => []),
-				instanceFileTree(instanceId, "shaderpacks").catch(() => []),
-				instanceFileTree(instanceId, "datapacks").catch(() => []),
-			]);
+    $effect(() => {
+        const id = instanceId;
+        const section = mainTab === "conteudo" ? subTab : mainTab;
+        if (id && section !== "laboratorio") {
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            untrack(() => {
+                void loadSection(section);
+                if (mainTab === "conteudo") {
+                    timer = setTimeout(() => {
+                        if (instanceId !== id) return;
+                        if (subTab !== "resourcepacks") void loadSection("resourcepacks");
+                        if (subTab !== "shaders") void loadSection("shaders");
+                        if (subTab !== "datapacks") void loadSection("datapacks");
+                        void loadSection("mundos");
+                    }, 400);
+                }
+            });
+            return () => {
+                if (timer) clearTimeout(timer);
+            };
+        }
+    });
 
-			isInstalled = newIsInstalled;
-			worldsList = newWorlds;
-			screenshotsList = newScreenshots;
-			fileTree = newFileTree;
-			instanceMods = newMods;
-			resourcePacks = newResources;
-			shaderPacks = newShaders;
-			dataPacks = newDataPacks;
+    $effect(() => {
+        if (showInstanceSettingsModal) untrack(() => { void loadSection("configuracoes"); });
+    });
 
-			if (instanceId && newMods.some(m => /^\d+(_\d+)?\.jar$/.test(m.name.replace('.disabled', '')))) {
-				modsResolveNames(instanceId).then(renamed => {
-					if (renamed > 0) {
-						instanceFileTree(instanceId, "mods").then(updated => {
-							instanceMods = updated;
-						}).catch(() => {});
-					}
-				}).catch(() => {});
-			}
+    onMount(() => {
+        const timer = setTimeout(() => { void checkModpackUpdate(); }, 2000);
+        return () => clearTimeout(timer);
+    });
 
-			if (instanceId && newMods.some(m => !m.icon)) {
-				modsResolveIcons(instanceId).then(resolved => {
-					if (resolved > 0) {
-						instanceFileTree(instanceId, "mods").then(updated => {
-							instanceMods = updated;
-						}).catch(() => {});
-					}
-				}).catch(() => {});
-			}
-		} catch (e) {
-			console.error(e);
-			toast("Falha ao carregar dados da instância: " + String(e), "error");
-		} finally {
-			isLoadingData = false;
-		}
-	}
+    async function refreshAllData() {
+        loadedSections.clear();
+        const section = mainTab === "conteudo" ? subTab : mainTab;
+        if (section !== "laboratorio") {
+            if (mainTab === "conteudo") {
+                await Promise.allSettled([
+                    loadSection("mods", true),
+                    loadSection("resourcepacks", true),
+                    loadSection("shaders", true),
+                    loadSection("datapacks", true),
+                    loadSection("mundos", true)
+                ]);
+            } else {
+                await loadSection(section, true);
+            }
+        }
+    }
 
 	async function handleToggleMod(mod: FileTreeEntry) {
 		const isCurrentlyDisabled = mod.name.endsWith(".disabled");
@@ -1125,9 +1194,9 @@
 			}
 		}
 
-		isLaunching = true;
+		appState.isLaunching = true;
 		downloadProgressPercent = 15;
-		launchStatusText = "Preparando autenticação da conta...";
+		appState.launchStatusText = "Preparando autenticação da conta...";
 
 		try {
 			// Ensure valid account
@@ -1148,18 +1217,18 @@
 
 			const verId = activeProfile?.mcVersion || "1.20.4";
 			downloadProgressPercent = 35;
-			launchStatusText = "Verificando bibliotecas e integridade do jogo...";
+			appState.launchStatusText = "Verificando bibliotecas e integridade do jogo...";
 
 			// If not installed, download version
 			if (!isInstalled) {
 				downloadProgressPercent = 55;
-				launchStatusText = "Baixando client.jar do Minecraft " + verId + "...";
+				appState.launchStatusText = "Baixando client.jar do Minecraft " + verId + "...";
 				await versionsDownload(verId);
 				isInstalled = true;
 			}
 
 			downloadProgressPercent = 85;
-			launchStatusText = "Injetando parâmetros JVM, flags e inicializando Minecraft...";
+			appState.launchStatusText = "Injetando parâmetros JVM, flags e inicializando Minecraft...";
 			const targetProfileId = activeProfile?.id || instanceId || "";
 			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
@@ -1208,8 +1277,8 @@
 				state: `Minecraft ${verId} · ${loaderText}${modCountText}`,
 				largeText: activeProfile?.name || `Minecraft ${verId}`,
 				largeImage: modpackCover,
-				smallImage: activeProfile?.loader === "fabric" ? "fabric" : (activeProfile?.loader === "forge" ? "curse" : "grass"),
-				smallText: `Luxmc v1.9.2`,
+				smallImage: "grass",
+				smallText: `Luxmc · ${loaderText}`,
 				startTime: Math.floor(Date.now() / 1000),
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
@@ -1217,20 +1286,30 @@
 				]
 			}).catch(() => {});
 
+			gamingStats.onGameStart(activeProfile?.id || "");
+			appState.isGameRunning = true;
+			appState.activeGameDetails = {
+				profileId: activeProfile?.id,
+				name: activeProfile?.name || "Minecraft",
+				version: verId,
+				loader: activeProfile?.loader || "vanilla"
+			};
+			if (activeProfile?.id) profiles.setLastPlayed(activeProfile.id);
 			downloadProgressPercent = 100;
-			launchStatusText = `Minecraft em execução (PID: ${result.pid})`;
+			appState.launchStatusText = `Minecraft em execução (PID: ${result.pid})`;
 			toast(`🎮 Minecraft ${verId} iniciado com sucesso! (PID: ${result.pid})`, "success");
 			void handlePostLaunchActions();
 		} catch (e) {
 			console.error("Launch error:", e);
 			toast("Falha ao iniciar o jogo: " + String(e), "error");
-			launchStatusText = "";
+			appState.launchStatusText = "";
 			downloadProgressPercent = 0;
 			appState.isGameRunning = false;
 		} finally {
 			setTimeout(() => {
-				isLaunching = false;
-				launchStatusText = "";
+				appState.isLaunching = false;
+				appState.launchingProfileId = null;
+				appState.launchStatusText = "";
 				downloadProgressPercent = 0;
 			}, 2000);
 		}
@@ -1238,12 +1317,16 @@
 
 	async function handleStopGame() {
 		try {
+			appState.isStopping = true;
+			appState.wasManuallyTerminated = true;
 			await stopGame();
 			appState.isGameRunning = false;
 			gamingStats.onGameExit();
 			toast("Instância encerrada com sucesso.", "info");
 		} catch (e) {
 			toast("Erro ao tentar encerrar o jogo: " + String(e), "error");
+		} finally {
+			appState.isStopping = false;
 		}
 	}
 
@@ -1384,12 +1467,12 @@
 			<ArrowLeft class="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" /> Voltar
 		</a>
 
-        <InstanceHero profile={activeProfile} banner={heroBanner} launching={isLaunching} running={appState.isGameRunning} status={launchStatusText} progress={downloadProgressPercent}
+        <InstanceHero profile={activeProfile} banner={heroBanner} launching={isLaunching} running={appState.isGameRunning} stopping={appState.isStopping} status={launchStatusText} progress={downloadProgressPercent}
             javaLabel={javaRuntimes.find(runtime => runtime.path === activeProfile?.javaPath)?.versionString || (activeProfile?.javaPath ? 'Personalizado' : 'Automático')}
-            onPlay={() => handlePlay()} onStop={handleStopGame} onSettings={() => showInstanceSettingsModal = true} onHost={openHostWorldModal}>
+            onPlay={() => handlePlay()} onStop={handleStopGame} onSettings={() => showInstanceSettingsModal = true} onHost={() => showP2PHost = true}>
             {#snippet actions()}
                 <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={openInstanceFolder}><FolderOpen class="h-4 w-4" />Abrir pasta</button>
-                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showP2PHost = true}><Radio class="h-4 w-4" />Host P2P</button>
+                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showP2PHost = true}><Radio class="h-4 w-4" />Jogar com amigos</button>
                 <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showModpackExportModal = true}><Package class="h-4 w-4" />Exportar pack</button>
                 <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showWorldBackupModal = true}><HardDrive class="h-4 w-4" />Backups</button>
                 <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showDeathDetectorModal = true}><Skull class="h-4 w-4" />Última morte</button>
@@ -1459,11 +1542,14 @@
                     <button type="button" role="tab" class="section-tab" aria-selected={mainTab === tab.id} onclick={() => mainTab = tab.id as typeof mainTab}><tab.icon class="h-4 w-4" />{tab.label}</button>
                 {/each}
                 <button type="button" role="tab" class="section-tab" aria-selected={mainTab === "configuracoes"} onclick={() => mainTab = "configuracoes"}><SettingsIcon class="h-4 w-4" />Configurações</button>
+                <button type="button" role="tab" class="section-tab" aria-selected={mainTab === "laboratorio"} onclick={() => mainTab = "laboratorio"}><Activity class="h-4 w-4" />Laboratório</button>
             </div>
             <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label="Atualizar dados" onclick={refreshAllData}><RefreshCw class="h-4 w-4 {isLoadingData ? 'animate-spin' : ''}" /></button>
         </div>
 
-		{#if mainTab === 'conteudo'}
+		{#if mainTab === 'laboratorio'}
+			<InstanceLab profileId={instanceId} />
+		{:else if mainTab === 'conteudo'}
 			<div class="flex flex-col gap-4" in:fade={{ duration: 150 }}>
 				<div class="flex flex-wrap items-center justify-between gap-3">
 					<div class="flex bg-bg-elevated border border-fg/10 rounded-full p-1 gap-1">
@@ -2352,7 +2438,7 @@
 {/if}
 
 {#if activeEditorFile}
-	<div class="fixed inset-0 z-50 bg-bg-overlay/85 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
+	<div class="fixed inset-0 z-50 bg-bg-overlay/55 flex items-center justify-center p-4 sm:p-6" in:fade={{ duration: 150 }}>
 		<div class="max-w-4xl w-full h-[80vh] bg-bg-elevated border border-fg/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col">
 			<div class="p-4 border-b border-fg/10 flex items-center justify-between">
 				<div class="flex items-center gap-2 min-w-0">
@@ -2522,11 +2608,19 @@
 
 
 {#if showInstanceSettingsModal}
-	<div class="fixed inset-0 z-50 bg-bg-overlay/85 backdrop-blur-md flex items-center justify-center p-6" in:fade={{ duration: 150 }}>
-		<div class="w-full max-w-3xl bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-2xl space-y-6 flex flex-col justify-between select-none h-[560px]">
+	<div class="fixed inset-0 z-50 bg-bg-overlay/55 flex items-center justify-center p-4 sm:p-6" in:fade={{ duration: 150 }}>
+		<div role="dialog" aria-modal="true" aria-label="Configurações da instância" tabindex="-1" class="w-full max-w-5xl bg-bg-elevated border border-fg/10 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 flex flex-col select-none h-[min(780px,90vh)]">
 
-			<div class="flex gap-6 h-full overflow-hidden">
-				<div class="w-56 shrink-0 border-r border-fg/5 pr-4 flex flex-col justify-between">
+            <header class="relative shrink-0 overflow-hidden rounded-2xl border border-border bg-bg-subtle">
+                <img src={instanceBanner || heroBanner} alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
+                <div class="relative flex items-center gap-4 bg-gradient-to-r from-bg-elevated via-bg-elevated/80 to-transparent p-5">
+                    <img src={settingsIcon} alt="" class="h-14 w-14 rounded-xl object-cover border border-fg/10" />
+                    <div class="min-w-0 flex-1"><p class="text-xs text-brand-400 font-semibold">Configurações da instância</p><h2 class="mt-1 text-xl font-bold text-fg truncate">{instanceNameInput}</h2><p class="mt-1 text-xs text-fg-muted">Minecraft {activeProfile?.mcVersion} · Ajustes exclusivos deste perfil</p></div>
+                    <button type="button" onclick={() => showInstanceSettingsModal = false} aria-label="Fechar configurações" class="p-2 rounded-xl border border-border text-fg-muted hover:bg-fg/10 hover:text-fg"><X class="h-5 w-5" /></button>
+                </div>
+            </header>
+			<div class="flex gap-4 min-h-0 flex-1 overflow-hidden">
+				<div class="w-40 sm:w-52 shrink-0 border-r border-fg/5 pr-4 flex flex-col justify-between">
 					<div class="space-y-4">
 						<h2 class="text-sm font-extrabold text-fg px-2">Configurações da Instância</h2>
 						<nav class="flex flex-col gap-1">
@@ -2596,7 +2690,7 @@
 								<span class="text-xs font-bold text-fg/70 block">Nome da Instância</span>
 								<div class="flex items-center gap-4">
 									<div class="h-14 w-14 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-center shrink-0 p-1">
-										<img src="/grass_block.png" alt="Minecraft" class="w-10 h-10 object-contain [image-rendering:pixelated]" />
+										<img src={settingsIcon} alt="Ícone da instância" class="w-10 h-10 rounded-lg object-contain" />
 									</div>
 									<input
 										type="text"
@@ -3117,17 +3211,23 @@
 	/>
 {/if}
 
+{#if showConfigEditor}
 <InstanceConfigEditorModal
 	open={showConfigEditor}
 	profileId={instanceId}
 	onClose={() => showConfigEditor = false}
 />
+{/if}
 
+{#if showP2PHost}
 <P2PHostModal
+	profileId={instanceId}
 	open={showP2PHost}
 	onClose={() => showP2PHost = false}
 />
+{/if}
 
+{#if showModConflictModal}
 <ModConflictModal
 	isOpen={showModConflictModal}
 	profileId={instanceId}
@@ -3143,27 +3243,35 @@
 	}}
 	onClose={() => showModConflictModal = false}
 />
+{/if}
 
+{#if showModpackExportModal}
 <ModpackExportModal
 	isOpen={showModpackExportModal}
 	profileId={instanceId}
 	instanceName={activeProfile?.name || "Modpack"}
 	onClose={() => showModpackExportModal = false}
 />
+{/if}
 
+{#if showWorldBackupModal}
 <WorldBackupModal
 	isOpen={showWorldBackupModal}
 	profileId={instanceId}
 	worldsList={worldsList}
 	onClose={() => showWorldBackupModal = false}
 />
+{/if}
 
+{#if showKeybindEditorModal}
 <KeybindEditorModal
 	isOpen={showKeybindEditorModal}
 	profileId={instanceId}
 	onClose={() => showKeybindEditorModal = false}
 />
+{/if}
 
+{#if showDeathDetectorModal}
 <DeathDetectorModal
 	open={showDeathDetectorModal}
 	profileId={instanceId}
@@ -3176,8 +3284,11 @@
 		}
 	}}
 />
+{/if}
 
+{#if showJukeboxModal}
 <JukeboxModal
 	open={showJukeboxModal}
 	onClose={() => showJukeboxModal = false}
 />
+{/if}

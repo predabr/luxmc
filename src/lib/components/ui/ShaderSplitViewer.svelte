@@ -86,7 +86,7 @@
 				<Sparkles class="w-4 h-4" />
 			</div>
 			<div>
-				<h4 class="text-xs font-bold text-fg">Comparador Visual de Shaders (Split-View)</h4>
+				<h4 class="text-xs font-bold text-fg">Comparador visual de shaders</h4>
 				<p class="text-[10px] text-fg/40">Arraste o controle central para comparar Vanilla vs Shader</p>
 			</div>
 		</div>

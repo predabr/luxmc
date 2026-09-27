@@ -6,8 +6,8 @@
     import { toast } from "$lib/stores/toasts.svelte";
     import type { Friend } from "$lib/api/social";
 
-    let { friend, favourite = false, busy = false, onJoin, onFavourite, onRemove, onInvite }: {
-        friend: Friend; favourite?: boolean; busy?: boolean; onJoin: () => void; onFavourite: () => void; onRemove: () => void; onInvite?: () => void;
+    let { friend, favourite = false, busy = false, onJoin, onFavourite, onRemove, onInvite, onBlock }: {
+        friend: Friend; favourite?: boolean; busy?: boolean; onJoin: () => void; onFavourite: () => void; onRemove: () => void; onInvite?: () => void; onBlock?: () => void;
     } = $props();
 
     const playing = $derived(friend.status === 'in_game');
@@ -55,6 +55,7 @@
             <button type="button" class={button({ variant: 'ghost', size: 'icon', class: 'h-8 w-8 hover:text-danger' })} aria-label={`Remover ${friend.username}`} onclick={onRemove} disabled={busy}>
                 <Trash2 class="h-3.5 w-3.5 text-fg/40 hover:text-danger" />
             </button>
+            {#if onBlock}<button class="text-xs text-fg-muted hover:text-danger" onclick={onBlock} disabled={busy} aria-label={`Bloquear ${friend.username}`}>Bloquear</button>{/if}
         </div>
     </div>
 

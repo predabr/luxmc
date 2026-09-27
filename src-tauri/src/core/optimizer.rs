@@ -121,14 +121,13 @@ pub fn get_total_memory_mb() -> i64 {
 
 pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
     let mut flags = Vec::new();
-
-    let initial_ram = std::cmp::min(1024, ram_mb / 2);
+    let initial_ram = std::cmp::min(1024, ram_mb / 2).max(512);
     flags.push(format!("-Xms{}M", initial_ram));
     flags.push(format!("-Xmx{}M", ram_mb));
 
     flags.push("-XX:+UseG1GC".into());
     flags.push("-XX:+ParallelRefProcEnabled".into());
-    flags.push("-XX:MaxGCPauseMillis=50".into());
+    flags.push("-XX:MaxGCPauseMillis=120".into());
     flags.push("-XX:+UnlockExperimentalVMOptions".into());
     flags.push("-XX:+DisableExplicitGC".into());
 
@@ -169,12 +168,18 @@ pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
 pub fn generate_optimized_flags(ram_mb: u64, java_major: u32) -> Vec<String> {
     if java_major >= 21 {
         let mut flags = Vec::new();
-        let initial_ram = std::cmp::min(1024, ram_mb / 2);
+        let initial_ram = if ram_mb >= 8192 {
+            (ram_mb * 3 / 4).max(4096)
+        } else if ram_mb >= 4096 {
+            (ram_mb / 2).max(2048)
+        } else {
+            std::cmp::min(1024, ram_mb / 2).max(512)
+        };
         flags.push(format!("-Xms{}M", initial_ram));
         flags.push(format!("-Xmx{}M", ram_mb));
         flags.push("-XX:+UnlockExperimentalVMOptions".into());
         flags.push("-XX:+UseZGC".into());
-        flags.push("-XX:+ZGenerational".into());
+        if java_major < 23 { flags.push("-XX:+ZGenerational".into()); }
         flags.push("-XX:+AlwaysPreTouch".into());
         flags.push("-XX:+OptimizeStringConcat".into());
         flags.push("-XX:+UseStringDeduplication".into());

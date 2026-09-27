@@ -304,13 +304,15 @@ impl ModrinthClient {
         let loader_clean = loader.map(|l| l.trim().to_lowercase()).filter(|l| !l.is_empty());
         let loader_json = loader_clean.as_ref().map(|l| format!("[\"{}\"]", l));
 
-        if has_ver && loader_json.is_some() {
-            let encoded_gv = urlencoding::encode(&gv_json);
-            let encoded_loader = urlencoding::encode(loader_json.as_ref().unwrap());
-            candidate_urls.push(format!(
-                "{}/project/{}/version?game_versions={}&loaders={}",
-                MODRINTH_API, project_id, encoded_gv, encoded_loader
-            ));
+        if has_ver {
+            if let Some(ref lj) = loader_json {
+                let encoded_gv = urlencoding::encode(&gv_json);
+                let encoded_loader = urlencoding::encode(lj);
+                candidate_urls.push(format!(
+                    "{}/project/{}/version?game_versions={}&loaders={}",
+                    MODRINTH_API, project_id, encoded_gv, encoded_loader
+                ));
+            }
         }
         if has_ver {
             let encoded_gv = urlencoding::encode(&gv_json);

@@ -21,19 +21,36 @@ export default defineConfig(({ isSsrBuild }) => ({
   plugins: [sveltekit(), svelteCssGuard(), { name: "luxmc-runtime-chunks", configResolved(config) { serverBuild = Boolean(config.build.ssr); } }],
 
   optimizeDeps: {
-    include: [],
-    exclude: ["lucide-svelte", "svelte-sonner"],
+    include: [
+      "bits-ui",
+      "@tanstack/svelte-virtual",
+      "canvas-confetti",
+      "skinview3d",
+      "three",
+      "clsx",
+      "tailwind-merge",
+      "tailwind-variants",
+      "runed",
+      "@floating-ui/dom",
+      "lucide-svelte",
+      "howler",
+      "colord",
+      "marked",
+      "dompurify"
+    ],
+    exclude: ["svelte-sonner"],
+    holdUntilCrawlEnd: true,
   },
 
   ssr: { noExternal: ["@panzoom/panzoom", "wavesurfer.js", "codemirror", "@codemirror/state"] },
   clearScreen: false,
   build: {
     target: ["es2021", "chrome100", "safari14"],
+    chunkSizeWarningLimit: 550,
     rollupOptions: isSsrBuild ? {} : {
       output: {
         manualChunks(id) {
           if (serverBuild) return;
-          if (id.includes("/node_modules/three/")) return "three-runtime";
           if (/\/node_modules\/(?:@codemirror|codemirror|@lezer)\//.test(id)) return "editor-runtime";
         }
       }

@@ -1,7 +1,7 @@
 use serde::Serialize;
 use sha1::{Digest, Sha1};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tauri::Emitter;
 use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
@@ -13,7 +13,7 @@ use crate::error::{AppError, AppResult};
 
 const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_DELAY_MS: u64 = 1000;
-const MAX_CONCURRENT_DOWNLOADS: usize = 8;
+const MAX_CONCURRENT_DOWNLOADS: usize = 24;
 const SPEED_UPDATE_INTERVAL_MS: u64 = 250;
 
 pub struct DownloadManager {
@@ -21,6 +21,7 @@ pub struct DownloadManager {
     base_dir: PathBuf,
     app: Option<tauri::AppHandle>,
     semaphore: Arc<Semaphore>,
+    progress_clock: Arc<Mutex<Option<Instant>>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -50,6 +51,7 @@ impl DownloadManager {
             base_dir,
             app: None,
             semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_DOWNLOADS)),
+            progress_clock: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -75,6 +77,12 @@ impl DownloadManager {
     }
 
     fn emit_progress(mgr: &DownloadManager, progress: &DownloadProgress) {
+        if let Ok(mut clock) = mgr.progress_clock.lock() {
+            if progress.completed < progress.total && clock.is_some_and(|last| last.elapsed().as_millis() < SPEED_UPDATE_INTERVAL_MS as u128) {
+                return;
+            }
+            *clock = Some(Instant::now());
+        }
         if let Some(ref app) = mgr.app {
             let _ = app.emit("download-progress", progress);
         }
@@ -98,7 +106,7 @@ impl DownloadManager {
             tokio::fs::create_dir_all(&version_dir).await?;
 
             let client_jar = version_dir.join(format!("{}.jar", detail.id));
-            let already = client_jar.exists();
+            let already = valid_cached_file(&client_jar, downloads.client.size, &downloads.client.sha1).await?;
             Self::emit_progress(
                 self,
                 &DownloadProgress {
@@ -224,6 +232,15 @@ impl DownloadManager {
             );
         }
 
+        let marker_path = assets_dir.join(format!(".complete_{}", asset_index.id));
+        if marker_path.exists() && index_path.exists() {
+            Self::emit_log(
+                self,
+                &format!("Asset index {} already verified and complete", asset_index.id),
+            );
+            return Ok(());
+        }
+
         let objects_dir = assets_dir.join("objects");
         tokio::fs::create_dir_all(&objects_dir).await?;
 
@@ -236,10 +253,13 @@ impl DownloadManager {
                 for (_name, obj) in map {
                     if let Some(hash) = obj.get("hash").and_then(|h| h.as_str()) {
                         let size = obj.get("size").and_then(|s| s.as_u64()).unwrap_or(0);
+                        if hash.len() != 40 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+                            return Err(AppError::InvalidInput("Invalid asset SHA1".into()));
+                        }
                         let prefix = &hash[..2];
                         let object_dir = objects_dir.join(prefix);
                         let object_path = object_dir.join(hash);
-                        if !object_path.exists() {
+                        if !fast_cached_file(&object_path, size) && !valid_cached_file(&object_path, size, hash).await? {
                             tokio::fs::create_dir_all(&object_dir).await?;
                             let url =
                                 format!("https://resources.download.minecraft.net/{prefix}/{hash}");
@@ -392,7 +412,7 @@ impl DownloadManager {
                 speed: None,
             },
         );
-
+        let _ = tokio::fs::write(&marker_path, b"1").await;
         Ok(())
     }
 
@@ -411,7 +431,7 @@ impl DownloadManager {
 
             if let Some(ref downloads) = lib.downloads {
                 if let Some(ref artifact) = downloads.artifact {
-                    if !path.exists() {
+                    if !fast_cached_file(&path, artifact.size) && !valid_cached_file(&path, artifact.size, &artifact.sha1).await? {
                         if let Some(parent) = path.parent() {
                             tokio::fs::create_dir_all(parent).await?;
                         }
@@ -436,7 +456,7 @@ impl DownloadManager {
                         if matches_os {
                             let native_lib_name = format!("{}:{}", lib.name, classifier_key);
                             let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
-                            if !native_path.exists() {
+                            if !fast_cached_file(&native_path, entry.size) && !valid_cached_file(&native_path, entry.size, &entry.sha1).await? {
                                 if let Some(parent) = native_path.parent() {
                                     tokio::fs::create_dir_all(parent).await?;
                                 }
@@ -639,6 +659,7 @@ impl DownloadManager {
             base_dir: self.base_dir.clone(),
             app: self.app.clone(),
             semaphore: self.semaphore.clone(),
+            progress_clock: self.progress_clock.clone(),
         }
     }
 
@@ -655,24 +676,31 @@ impl DownloadManager {
                 )));
             }
             if !downloads.client.sha1.is_empty() {
-                let file = tokio::fs::File::open(&client_path).await?;
-                let mut reader = tokio::io::BufReader::with_capacity(64 * 1024, file);
-                let mut hasher = Sha1::new();
-                let mut buf = vec![0u8; 64 * 1024];
-                loop {
-                    use tokio::io::AsyncReadExt;
-                    let n = reader.read(&mut buf).await?;
-                    if n == 0 {
-                        break;
+                let size_matches = tokio::fs::metadata(&client_path)
+                    .await
+                    .map(|m| downloads.client.size > 0 && m.len() == downloads.client.size)
+                    .unwrap_or(false);
+
+                if !size_matches {
+                    let file = tokio::fs::File::open(&client_path).await?;
+                    let mut reader = tokio::io::BufReader::with_capacity(64 * 1024, file);
+                    let mut hasher = Sha1::new();
+                    let mut buf = vec![0u8; 64 * 1024];
+                    loop {
+                        use tokio::io::AsyncReadExt;
+                        let n = reader.read(&mut buf).await?;
+                        if n == 0 {
+                            break;
+                        }
+                        hasher.update(&buf[..n]);
                     }
-                    hasher.update(&buf[..n]);
-                }
-                let computed = format!("{:x}", hasher.finalize());
-                if computed != downloads.client.sha1 {
-                    return Err(AppError::Internal(format!(
-                        "client jar sha1 mismatch for {}",
-                        detail.id
-                    )));
+                    let computed = format!("{:x}", hasher.finalize());
+                    if computed != downloads.client.sha1 {
+                        return Err(AppError::Internal(format!(
+                            "client jar sha1 mismatch for {}",
+                            detail.id
+                        )));
+                    }
                 }
             }
         }
@@ -764,9 +792,11 @@ async fn download_file_retry(
 ) -> AppResult<()> {
     let mut last_err = None;
 
+    let temporary = path.with_extension(format!("{}.part", uuid::Uuid::new_v4()));
     for attempt in 1..=MAX_RETRIES {
-        match download_file_once(mgr, entry, path, label).await {
+        match download_file_once(mgr, entry, &temporary, label).await {
             Ok(()) => {
+                if temporary.exists() { tokio::fs::rename(&temporary, path).await?; }
                 if attempt > 1 {
                     DownloadManager::emit_log(
                         mgr,
@@ -783,6 +813,7 @@ async fn download_file_retry(
                         attempt, MAX_RETRIES, label, e
                     ),
                 );
+                let _ = tokio::fs::remove_file(&temporary).await;
                 last_err = Some(e);
 
                 if attempt < MAX_RETRIES {
@@ -883,6 +914,9 @@ async fn download_file_once(
     })?;
     drop(file);
 
+    if bytes_downloaded == 0 || (entry.size > 0 && bytes_downloaded != entry.size) {
+        return Err(AppError::Internal(format!("invalid download size for {label}: {bytes_downloaded}, expected {}", entry.size)));
+    }
     if !entry.sha1.is_empty() {
         let file = tokio::fs::File::open(path).await?;
         let mut reader = tokio::io::BufReader::with_capacity(64 * 1024, file);
@@ -930,4 +964,75 @@ async fn download_file_once(
     );
 
     Ok(())
+}
+
+fn fast_cached_file(path: &std::path::Path, size: u64) -> bool {
+    if let Ok(meta) = std::fs::metadata(path) {
+        meta.is_file() && (size == 0 || meta.len() == size)
+    } else {
+        false
+    }
+}
+
+async fn valid_cached_file(path: &std::path::Path, size: u64, sha1: &str) -> AppResult<bool> {
+    use tokio::io::AsyncReadExt;
+    let mut file = match tokio::fs::File::open(path).await {
+        Ok(file) => file,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error.into()),
+    };
+    let length = file.metadata().await?.len();
+    if length == 0 || (size > 0 && length != size) { return Ok(false); }
+    if sha1.is_empty() { return Ok(true); }
+    let mut digest = Sha1::new();
+    let mut buffer = [0u8; 65536];
+    loop {
+        let read = file.read(&mut buffer).await?;
+        if read == 0 { break; }
+        digest.update(&buffer[..read]);
+    }
+    Ok(format!("{:x}", digest.finalize()).eq_ignore_ascii_case(sha1))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    #[tokio::test]
+    async fn failed_transfers_preserve_existing_file_and_remove_partials() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            for _ in 0..MAX_RETRIES {
+                let (mut connection, _) = listener.accept().await.unwrap();
+                let mut request = [0; 2048];
+                let _ = connection.read(&mut request).await;
+                connection.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nxx").await.unwrap();
+            }
+        });
+        let directory = std::env::temp_dir().join(format!("luxmc-download-{}", uuid::Uuid::new_v4()));
+        tokio::fs::create_dir_all(&directory).await.unwrap();
+        let path = directory.join("client.jar");
+        tokio::fs::write(&path, b"previous-valid-file").await.unwrap();
+        let manager = DownloadManager::new(reqwest::Client::new(), directory.clone());
+        let entry = DownloadEntry { url: format!("http://{address}/client.jar"), size: 10, sha1: String::new() };
+        assert!(download_file_retry(&manager, &entry, &path, "test").await.is_err());
+        assert_eq!(tokio::fs::read(&path).await.unwrap(), b"previous-valid-file");
+        let mut files = tokio::fs::read_dir(&directory).await.unwrap();
+        let mut count = 0;
+        while files.next_entry().await.unwrap().is_some() { count += 1; }
+        assert_eq!(count, 1);
+        assert!(!valid_cached_file(&path, 18, "0000000000000000000000000000000000000000").await.unwrap());
+        server.await.unwrap();
+        tokio::fs::remove_dir_all(directory).await.unwrap();
+    }
+}
+
+pub async fn ensure_artifact(http: &reqwest::Client, path: &std::path::Path, url: &str, size: u64, sha1: &str) -> AppResult<()> {
+    if valid_cached_file(path, size, sha1).await? { return Ok(()); }
+    if let Some(parent) = path.parent() { tokio::fs::create_dir_all(parent).await?; }
+    let manager = DownloadManager::new(http.clone(), PathBuf::new());
+    let entry = DownloadEntry { url: url.to_owned(), size, sha1: sha1.to_owned() };
+    download_file_retry(&manager, &entry, &path.to_owned(), &path.display().to_string()).await
 }

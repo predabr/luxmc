@@ -1,10 +1,13 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use sha2::{Digest, Sha256};
 use crate::db::models::ProfileRow;
 use crate::error::{AppError, AppResult};
+
+static SHIELD_CLEAN_CACHE: Mutex<Option<HashMap<PathBuf, (u64, u64)>>> = Mutex::new(None);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,6 +46,8 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
     let known_hashes = get_known_malicious_hashes();
     let mut total_scanned = 0;
     let mut threats = Vec::new();
+    let mut cache_guard = SHIELD_CLEAN_CACHE.lock().unwrap();
+    let cache = cache_guard.get_or_insert_with(HashMap::new);
 
     if mods_dir.is_dir() {
         if let Ok(entries) = std::fs::read_dir(mods_dir) {
@@ -55,12 +60,27 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
                         .map(|n| n.to_string_lossy().to_string())
                         .unwrap_or_else(|| "unknown.jar".to_string());
 
+                    let meta = entry.metadata().ok();
+                    let len = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+                    let mtime = meta.as_ref()
+                        .and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+
+                    if len > 0 && cache.get(&path) == Some(&(len, mtime)) {
+                        continue;
+                    }
+
+                    let mut file_is_clean = true;
+
                     if let Ok(bytes) = std::fs::read(&path) {
                         let mut hasher = Sha256::new();
                         hasher.update(&bytes);
                         let hash_hex = format!("{:x}", hasher.finalize());
 
                         if known_hashes.contains(hash_hex.as_str()) {
+                            cache.remove(&path);
                             threats.push(ShieldThreat {
                                 file_name: file_name.clone(),
                                 file_path: path.to_string_lossy().to_string(),
@@ -101,6 +121,7 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
                             }
 
                             if has_l10 {
+                                file_is_clean = false;
                                 threats.push(ShieldThreat {
                                     file_name: file_name.clone(),
                                     file_path: path.to_string_lossy().to_string(),
@@ -109,6 +130,7 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
                                     description: "Detectado payload com estrutura interna similar ao exploit Fracturiser (L10/updater)".to_string(),
                                 });
                             } else if has_suspicious_webhook {
+                                file_is_clean = false;
                                 threats.push(ShieldThreat {
                                     file_name: file_name.clone(),
                                     file_path: path.to_string_lossy().to_string(),
@@ -117,6 +139,12 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
                                     description: "Mod contém endpoints de webhook do Discord embutidos no bytecode. Possível stealer de credenciais.".to_string(),
                                 });
                             }
+                        }
+
+                        if file_is_clean && len > 0 {
+                            cache.insert(path, (len, mtime));
+                        } else {
+                            cache.remove(&path);
                         }
                     }
                 }

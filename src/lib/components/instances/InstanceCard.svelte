@@ -5,6 +5,7 @@
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import Card from "$lib/components/ui/Card.svelte";
 	import InstanceActionsMenu from "./InstanceActionsMenu.svelte";
+	import LuxTooltip from "$lib/components/ui/LuxTooltip.svelte";
 	import {
 		Trash2,
 		Check,
@@ -20,10 +21,13 @@
 		Download,
 		Play,
 		Pencil,
-		Loader2
+		Loader2,
+		Square
 	} from "lucide-svelte";
+	import { preloadData } from "$app/navigation";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
-	import { instanceSetFavorite } from "$lib/api";
+	import { appState } from "$lib/stores/app.svelte";
+	import { instanceSetFavorite, stopGame } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 
@@ -40,6 +44,7 @@
 		selectionMode?: boolean;
 		isSelected?: boolean;
 		launchingInstanceId?: string | null;
+		navigatingInstanceId?: string | null;
 		onSelect?: (id: string) => void;
 		onToggleSelect?: (id: string) => void;
 		onQuickPlay?: (p: Profile) => void;
@@ -64,6 +69,7 @@
 		selectionMode = false,
 		isSelected = false,
 		launchingInstanceId = null,
+		navigatingInstanceId = null,
 		onSelect,
 		onToggleSelect,
 		onQuickPlay,
@@ -91,9 +97,15 @@
 
     let now = $state(Date.now());
     onMount(() => { const timer = setInterval(() => now = Date.now(), 60000); return () => clearInterval(timer); });
-    const lastPlayed = $derived.by(() => { now; return profile.lastPlayed ? formatTimeAgo(profile.lastPlayed) : 'Ainda não jogada'; });
+    const isRunningThis = $derived(appState.isGameRunning && appState.activeGameDetails?.profileId === profile.id);
+    const isLaunchingThis = $derived(
+        launchingInstanceId === profile.id ||
+        (appState.isLaunching && (appState.launchingProfileId === profile.id || appState.activeGameDetails?.profileId === profile.id))
+    );
+    const isOpening = $derived(navigatingInstanceId === profile.id);
+    const lastPlayed = $derived.by(() => { now; return isRunningThis ? "Em execução agora" : (profile.lastPlayed ? formatTimeAgo(profile.lastPlayed) : 'Ainda não jogada'); });
     const minutes = $derived(gamingStats.profileMinutes(profile.id));
-    const playtime = $derived(minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`);
+    const playtime = $derived(minutes <= 0 ? (isRunningThis ? '< 1 min' : '0 min') : (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`));
     const banner = $derived(profile.banner || (profile.icon?.startsWith('http') || profile.icon?.startsWith('/modpack_') ? profile.icon : (({ modpack_better_mc: '/modpack_better_mc.webp', modpack_cobblemon: '/modpack_cobblemon.webp', modpack_fo: '/modpack_fo.webp' } as Record<string, string>)[profile.icon] || '/bg_day.jpg')));
     const actions = $derived([
         { label: 'Configurar instância', icon: Pencil, onClick: () => onEdit?.(profile) },
@@ -109,8 +121,10 @@
 <div
 	role="button"
 	tabindex="0"
-	class="surface-glass group relative cursor-pointer transition-all duration-200 hover:border-brand-500/30 hover:shadow-elevated {viewMode === 'grid' ? 'flex flex-col hover:-translate-y-1' : 'flex flex-wrap items-center gap-4 p-4'}"
-	style:box-shadow={isActive ? "0 0 0 1px rgb(var(--brand-500) / 0.3)" : undefined}
+	class="surface-glass group relative cursor-pointer transition-all duration-200 active:scale-[0.98] hover:border-brand-500/30 hover:shadow-elevated {viewMode === 'grid' ? 'flex flex-col hover:-translate-y-1' : 'flex flex-wrap items-center gap-4 p-4'} {isOpening ? 'scale-[0.98] ring-2 ring-brand-400 border-brand-400 shadow-2xl brightness-105' : ''}"
+	style:box-shadow={isActive && !isOpening ? "0 0 0 1px rgb(var(--brand-500) / 0.3)" : undefined}
+	onpointerenter={() => { void preloadData("/instances/" + profile.id); }}
+	onpointerdown={() => { void preloadData("/instances/" + profile.id); }}
 	onclick={(e) => {
 		const target = e.target as HTMLElement | null;
 		if (target?.closest('button, a, input, select, textarea, [role="checkbox"], [role="menu"]')) return;
@@ -127,6 +141,13 @@
 		}
 	}}
 >
+    {#if isOpening}
+        <div class="absolute inset-0 bg-bg-elevated/80 rounded-2xl flex items-center justify-center z-30 pointer-events-none transition-opacity duration-150">
+            <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-bg-elevated border border-brand-400/40 text-xs font-bold text-brand-300 shadow-lg">
+                <Loader2 class="w-3.5 h-3.5 animate-spin text-brand-400" /> Entrando...
+            </div>
+        </div>
+    {/if}
     {#if tagColor}<span class="absolute bottom-5 left-0 top-5 w-0.5 rounded-full" style:background={colorOptions.find(color => color.value === tagColor)?.color || 'rgb(var(--brand-500))'}></span>{/if}
     {#if viewMode === 'grid'}
         <div class="relative h-40 overflow-hidden rounded-t-2xl">
@@ -167,7 +188,7 @@
                 </div>
             </div>
             <div class="mt-3 flex items-center justify-between gap-2 text-[10px] text-fg-subtle px-0.5">
-                <span class="flex items-center gap-1.5 font-medium"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Última sessão: {lastPlayed}</span>
+                <span class="flex items-center gap-1.5 font-medium"><span class="h-1.5 w-1.5 rounded-full {isRunningThis ? 'bg-emerald-400 animate-pulse' : 'bg-brand-400'}"></span>Última sessão: {lastPlayed}</span>
                 {#if profile.diskUsage}<span class="font-mono">{formatBytes(profile.diskUsage)}</span>{/if}
             </div>
             <div class="relative z-10 mt-4 flex items-center justify-between gap-2">{@render controls()}</div>
@@ -188,11 +209,52 @@
 
 {#snippet selection()}
     {#if selectionMode}<button type="button" role="checkbox" aria-checked={isSelected} aria-label={`Selecionar ${profile.name}`} class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/15 bg-bg-elevated text-brand-400" onclick={() => onToggleSelect?.(profile.id)}>{#if isSelected}<Check class="h-4 w-4" />{/if}</button>
-    {:else}<button type="button" class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/10 bg-bg-elevated text-fg-muted hover:text-warning" aria-label={`Favoritar ${profile.name}`} aria-pressed={!!profile.favorite} onclick={handleFavorite}><Star class="h-4 w-4 {profile.favorite ? 'fill-warning text-warning' : ''}" /></button>{/if}
+    {:else}<LuxTooltip text={profile.favorite ? "Remover dos favoritos" : "Adicionar aos favoritos"} side="left"><button type="button" class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/10 bg-bg-elevated text-fg-muted hover:text-warning" aria-label={`Favoritar ${profile.name}`} aria-pressed={!!profile.favorite} onclick={handleFavorite}><Star class="h-4 w-4 {profile.favorite ? 'fill-warning text-warning' : ''}" /></button></LuxTooltip>{/if}
 {/snippet}
 {#snippet controls()}
-    <div class="flex items-center gap-1"><button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`Configurar ${profile.name}`} onclick={() => onEdit?.(profile)}><Pencil class="h-4 w-4" /></button><InstanceActionsMenu bind:isOpen={menuOpen} {actions} /></div>
-    <button type="button" class={button({ variant: 'play', size: 'md', class: viewMode === 'grid' ? 'min-w-28' : '' })} onclick={() => onQuickPlay?.(profile)} disabled={launchingInstanceId === profile.id} aria-label={`Jogar ${profile.name}`}>
-        {#if launchingInstanceId === profile.id}<Loader2 class="h-4 w-4 animate-spin" />Iniciando{:else}<Play class="h-4 w-4 fill-current" />JOGAR{/if}
-    </button>
+    <div class="flex items-center gap-1"><LuxTooltip text="Configurações da instância"><button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`Configurar ${profile.name}`} onclick={() => onEdit?.(profile)}><Pencil class="h-4 w-4" /></button></LuxTooltip><InstanceActionsMenu bind:isOpen={menuOpen} {actions} /></div>
+    {#if isRunningThis}
+        <button
+            type="button"
+            disabled={appState.isStopping}
+            class={button({ variant: 'danger', size: 'md', class: `${viewMode === 'grid' ? 'min-w-28' : ''} ${appState.isStopping ? 'opacity-50' : ''}` })}
+            onclick={async () => {
+                try {
+                    appState.isStopping = true;
+                    appState.wasManuallyTerminated = true;
+                    await stopGame();
+                    appState.isGameRunning = false;
+                    gamingStats.onGameExit();
+                    toast("Minecraft encerrado com sucesso.", "info");
+                } catch (e) {
+                    toast("Erro ao tentar encerrar o jogo: " + String(e), "error");
+                } finally {
+                    appState.isStopping = false;
+                }
+            }}
+            aria-label={`Parar ${profile.name}`}
+        >
+            {#if appState.isStopping}
+                <Loader2 class="h-4 w-4 animate-spin" />PARANDO...
+            {:else}
+                <Square class="h-4 w-4 fill-current" />PARAR
+            {/if}
+        </button>
+    {:else}
+        <button
+            type="button"
+            class={button({ variant: 'play', size: 'md', class: viewMode === 'grid' ? 'min-w-32' : '' })}
+            onclick={() => onQuickPlay?.(profile)}
+            disabled={isLaunchingThis || appState.isLaunching}
+            aria-label={`Jogar ${profile.name}`}
+        >
+            {#if isLaunchingThis}
+                <Loader2 class="h-4 w-4 animate-spin" />
+                <span class="truncate">{appState.launchStatusText || "Preparando..."}</span>
+            {:else}
+                <Play class="h-4 w-4 fill-current" />
+                <span>JOGAR</span>
+            {/if}
+        </button>
+    {/if}
 {/snippet}

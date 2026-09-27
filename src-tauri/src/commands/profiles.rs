@@ -91,9 +91,9 @@ pub async fn profiles_create(
                 let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
                 format!("{}/.local/share/luxmc", home)
             });
-        format!("{}/instances/{}", base, id)
+        format!("{}/instances/{}/.minecraft", base, id)
     });
-    let row = ProfileRow {
+    let mut row = ProfileRow {
         id,
         name: input.name,
         icon: input.icon.unwrap_or_else(|| "grass_block".into()),
@@ -120,6 +120,8 @@ pub async fn profiles_create(
         use_vulkan: input.use_vulkan.unwrap_or(false),
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
+    let base = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| crate::error::AppError::InvalidState("Diretório de dados indisponível".into()))?;
+    crate::core::instance_paths::isolate(&mut row, base.data_dir()).await?;
     Ok(row)
 }
 
@@ -194,9 +196,13 @@ pub async fn profiles_delete(id: String) -> AppResult<()> {
                 let _ = tokio::fs::remove_dir_all(&instance_dir_by_id).await;
             }
 
-            let instance_dir_by_name = base_dir.data_dir().join("instances").join(&row.name);
-            if instance_dir_by_name.is_dir() {
-                let _ = tokio::fs::remove_dir_all(&instance_dir_by_name).await;
+            if let Ok(safe_name_dir) = crate::core::instance_paths::resolve_within(
+                &base_dir.data_dir().join("instances"),
+                &row.name,
+            ) {
+                if safe_name_dir.is_dir() {
+                    let _ = tokio::fs::remove_dir_all(&safe_name_dir).await;
+                }
             }
         }
     }

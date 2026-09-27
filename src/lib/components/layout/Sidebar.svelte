@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { onMount } from "svelte";
+    import { PanelLeftClose, PanelLeftOpen, Users } from "lucide-svelte";
     import { toast } from "$lib/stores/toasts.svelte";
     import { openPortal } from "$lib/api/deepLinks";
 	import { page } from "$app/state";
@@ -22,12 +24,16 @@
 
 	let { notificationCount = 0 }: { notificationCount?: number } = $props();
 	const { t } = useTranslation();
+    let expanded = $state(false);
+    onMount(() => { try { expanded = localStorage.getItem("luxmc_sidebar_expanded") === "true"; } catch {} });
+    function toggleSidebar() { expanded = !expanded; try { localStorage.setItem("luxmc_sidebar_expanded", String(expanded)); } catch {} }
 
 	type Item = { href: string; labelKey: string; icon: typeof import("lucide-svelte").Circle; title: string };
 
 	const items: Item[] = [
 		{ href: "/mods", labelKey: "nav.mods", title: "Explorar Mods", icon: Compass },
 		{ href: "/skins", labelKey: "nav.skins", title: "Skins & Capas", icon: Shirt },
+		{ href: "/friends", labelKey: "nav.friends", title: "Amigos & Rede", icon: Users },
 		{ href: "/instances", labelKey: "nav.instances", title: "Biblioteca", icon: Layers },
 	];
 
@@ -45,23 +51,27 @@
 	const accountStatus = $derived(getAccountStatus(account.value));
 </script>
 
-<aside class="flex h-full min-h-screen w-[66px] shrink-0 flex-col items-center py-3 bg-black/15 backdrop-blur-xl border-r border-white/5 transition-all duration-300 z-40 relative select-none">
+<aside class="flex h-dvh min-h-0 {expanded ? 'w-52' : 'w-[66px]'} shrink-0 flex-col items-center py-3 bg-bg-elevated/80 backdrop-blur-2xl border-r border-fg/[0.08] transition-all duration-300 z-40 relative select-none">
 	
+    <button class="mb-3 flex h-9 items-center gap-3 rounded-xl px-3 text-fg-muted hover:bg-fg/5 hover:text-fg" aria-label={expanded ? "Recolher menu" : "Expandir menu"} aria-expanded={expanded} onclick={toggleSidebar}>
+        {#if expanded}<PanelLeftClose class="h-4 w-4" /><span class="font-semibold tracking-wide text-fg">LUXMC</span>{:else}<PanelLeftOpen class="h-4 w-4" />{/if}
+    </button>
 	<div class="relative group w-full flex justify-center mb-3">
 		<button
 			type="button"
 			onclick={() => goto("/")}
-			class="relative h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer {isHomeActive ? 'bg-brand-500 text-brand-foreground shadow-lg shadow-brand-500/25 scale-[1.04]' : 'bg-fg/5 text-fg/60 hover:text-fg hover:bg-fg/10 active:scale-[0.98]'}"
-			title="Início"
+			class="relative h-11 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-11 justify-center'} rounded-2xl flex items-center transition-all duration-200 cursor-pointer {isHomeActive ? 'bg-brand-500 text-brand-foreground shadow-lg shadow-brand-500/25 scale-[1.04]' : 'bg-fg/5 text-fg/60 hover:text-fg hover:bg-fg/10 active:scale-[0.98]'}"
+			title={t("nav.home") || "Início"}
 		>
-			<Play class="h-5 w-5 fill-current ml-0.5" />
+			<Play class="h-5 w-5 fill-current ml-0.5 shrink-0" />
+			{#if expanded}<span class="text-sm font-medium">{t("nav.home") || "Início"}</span>{/if}
 		</button>
-		<div class="pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
+		<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
 			{t("nav.home") || "Início"}
 		</div>
 	</div>
 
-	<nav class="flex-1 w-full flex flex-col items-center gap-2">
+	<nav class="min-h-0 overflow-y-auto custom-scrollbar flex-1 w-full flex flex-col items-center gap-2">
 		{#each items as item}
 			{@const active = page.url.pathname.startsWith(item.href)}
 			<div class="relative group w-full flex justify-center">
@@ -74,12 +84,15 @@
 						e.preventDefault();
 						goto(item.href);
 					}}
-					class="relative h-11 w-11 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer {active ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30 scale-[1.02]' : 'bg-fg/[0.02] border border-transparent text-fg/50 hover:text-fg hover:bg-fg/[0.06] active:scale-[0.98]'}"
+					aria-label={t(item.labelKey) || item.title}
+                    aria-current={active ? "page" : undefined}
+                    class="relative h-11 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-11 justify-center'} rounded-2xl flex items-center transition-all duration-200 cursor-pointer {active ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30 scale-[1.02]' : 'bg-fg/[0.02] border border-transparent text-fg/50 hover:text-fg hover:bg-fg/[0.06] active:scale-[0.98]'}"
 				>
-					<item.icon class="h-5 w-5" strokeWidth={active ? 2.2 : 1.8} />
+					<item.icon class="h-5 w-5 shrink-0" strokeWidth={active ? 2.2 : 1.8} />
+                    {#if expanded}<span class="text-sm font-medium">{t(item.labelKey) || item.title}</span>{/if}
 				</a>
 
-				<div class="pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
+				<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
 					{t(item.labelKey) || item.title}
 				</div>
 			</div>
@@ -112,7 +125,7 @@
 							{/if}
 						</a>
 
-						<div class="pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-2 rounded-xl border border-fg/10 shadow-2xl flex flex-col gap-0.5">
+						<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-2 rounded-xl border border-fg/10 shadow-2xl flex flex-col gap-0.5">
 							<span class="text-fg font-extrabold">{prof.name}</span>
 							<span class="text-[10px] text-fg/50">{prof.mcVersion} • {prof.loader}</span>
 						</div>
@@ -134,13 +147,13 @@
 			>
 				<Plus class="h-4 w-4" />
 			</a>
-			<div class="pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
+			<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
 				{t("home.createInstance") || "Nova Instância"}
 			</div>
 		</div>
 	</nav>
 
-	<div class="mt-auto w-full flex flex-col items-center gap-2 pt-2 border-t border-fg/10">
+	<div class="mt-auto shrink-0 pb-1 w-full flex flex-col items-center gap-2 pt-2 border-t border-fg/10">
 		<div class="relative group w-full flex justify-center">
 			<button
 				type="button"
@@ -150,7 +163,7 @@
 			>
 				<Globe class="h-4 w-4" strokeWidth={1.8} />
 			</button>
-			<div class="pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl flex items-center gap-1.5">
+			<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl flex items-center gap-1.5">
 				<span>Portal Web & Studio 3D</span>
 				<span class="text-[10px] text-brand-400 font-mono">pages.dev</span>
 			</div>
@@ -165,7 +178,7 @@
 			>
 				<Github class="h-4 w-4" strokeWidth={1.8} />
 			</button>
-			<div class="pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl flex items-center gap-1.5">
+			<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl flex items-center gap-1.5">
 				<span>GitHub Oficial</span>
 			</div>
 		</div>
@@ -177,11 +190,12 @@
 					e.preventDefault();
 					goto("/settings");
 				}}
-				class="relative h-10 w-10 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer {settingsActive ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30' : 'bg-fg/[0.02] text-fg/50 hover:text-fg hover:bg-fg/[0.06] active:scale-[0.98]'}"
+				class="relative h-10 {expanded ? 'w-full mx-3 gap-3 px-3 justify-start' : 'w-10 justify-center'} rounded-xl flex items-center transition-all duration-200 cursor-pointer {settingsActive ? 'bg-brand-500/15 text-brand-400 border border-brand-500/30' : 'bg-fg/[0.02] text-fg/50 hover:text-fg hover:bg-fg/[0.06] active:scale-[0.98]'}"
 			>
-				<SettingsIcon class="h-4 w-4 transition-transform duration-300 {settingsActive ? 'rotate-90' : 'group-hover:rotate-45'}" strokeWidth={1.8} />
+				<SettingsIcon class="h-4 w-4 shrink-0 transition-transform duration-300 {settingsActive ? 'rotate-90' : 'group-hover:rotate-45'}" strokeWidth={1.8} />
+				{#if expanded}<span class="text-sm font-medium">{t("nav.settings") || "Configurações"}</span>{/if}
 			</a>
-			<div class="pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
+			<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl">
 				{t("nav.settings") || "Configurações"}
 			</div>
 		</div>
@@ -196,9 +210,15 @@
 		>
 			<div class="h-10 w-10 rounded-full overflow-hidden bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 transition-all duration-200 shadow-sm flex items-center justify-center p-0.5">
 				<img 
-					src={activeSkinStore.current.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "/logo.png")} 
+					src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + (account.value.username || account.value.uuid) + "/100" : "/logo.png")} 
 					alt="Avatar" 
 					class="w-full h-full object-cover rounded-full" 
+					onerror={(e) => {
+						const img = e.currentTarget as HTMLImageElement;
+						const fallback = account.value?.username ? `https://mc-heads.net/avatar/${account.value.username}/100` : "/logo.png";
+						if (img.src !== fallback) img.src = fallback;
+						else img.src = "/logo.png";
+					}}
 				/>
 			</div>
 
@@ -207,7 +227,7 @@
 				title={accountStatus.label}
 			></span>
 
-			<div class="pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl flex items-center gap-2">
+			<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-150 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl flex items-center gap-2">
 				<span>{account.value?.username || "Perfil de Jogador"}</span>
 				<span class="text-[10px] font-normal text-fg/50">({accountStatus.label})</span>
 			</div>

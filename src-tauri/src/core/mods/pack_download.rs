@@ -43,17 +43,50 @@ pub fn destination(root: &Path, value: &str) -> AppResult<PathBuf> {
     Ok(path)
 }
 
+fn is_allowed_pack_host(host: &str) -> bool {
+    let host = host.to_ascii_lowercase();
+    let exact = [
+        "api.curseforge.com", "www.curseforge.com", "curseforge.com",
+        "edge.forgecdn.net", "mediafilez.forgecdn.net", "media.forgecdn.net",
+        "cdn.modrinth.com", "api.modrinth.com", "modrinth.com",
+        "github.com", "raw.githubusercontent.com", "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com", "gitlab.com", "codeberg.org",
+        "bitbucket.org", "archive.org", "cursemeta.dries007.net", "dist.creeper.host",
+        "maven.architectury.dev", "maven.shedaniel.me", "maven.terraformersmc.com",
+        "maven.blamejared.com", "maven.theillusivec4.top", "files.minecraftforge.net",
+        "maven.minecraftforge.net", "libraries.minecraft.net", "resources.download.minecraft.net",
+        "jitpack.io",
+    ];
+    if exact.contains(&host.as_str()) {
+        return true;
+    }
+    let suffixes = [
+        ".forgecdn.net",
+        ".curseforge.com",
+        ".modrinth.com",
+        ".github.com",
+        ".githubusercontent.com",
+        ".amazonaws.com",
+        ".cloudflarestorage.com",
+        ".creeperhost.net",
+        ".creeper.host",
+        ".fabricmc.net",
+        ".quiltmc.org",
+        ".neoforged.net",
+        ".minecraftforge.net",
+        ".parchmentmc.org",
+        ".geysermc.org",
+        ".papermc.io",
+        ".spongepowered.org",
+    ];
+    suffixes.iter().any(|suffix| host.ends_with(suffix))
+}
+
 pub fn download_url(value: &str) -> AppResult<reqwest::Url> {
     let url = reqwest::Url::parse(value)
         .map_err(|_| AppError::InvalidInput("Invalid download URL".into()))?;
     let host = url.host_str().unwrap_or_default();
-    let allowed = [
-        "api.curseforge.com", "www.curseforge.com", "edge.forgecdn.net",
-        "mediafilez.forgecdn.net", "media.forgecdn.net", "cdn.modrinth.com",
-        "github.com", "raw.githubusercontent.com", "objects.githubusercontent.com",
-        "release-assets.githubusercontent.com", "gitlab.com",
-    ];
-    if url.scheme() != "https" || !allowed.contains(&host)
+    if url.scheme() != "https" || !is_allowed_pack_host(host)
         || !url.username().is_empty() || url.password().is_some()
         || url.port().is_some_and(|port| port != 443)
     {
@@ -81,10 +114,13 @@ pub fn mirrors(value: &str) -> AppResult<Vec<String>> {
 pub fn client() -> AppResult<reqwest::Client> {
     Ok(reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
-        .timeout(Duration::from_secs(15))
+        .connect_timeout(Duration::from_secs(15))
+        .read_timeout(Duration::from_secs(45))
+        .timeout(Duration::from_secs(600))
         .pool_idle_timeout(Some(Duration::from_secs(90)))
+        .pool_max_idle_per_host(32)
         .tcp_nodelay(true)
-        .user_agent("Luxmc/1.9.2")
+        .user_agent("Luxmc/2.0.0")
         .build()?)
 }
 
@@ -108,8 +144,12 @@ pub async fn backoff(attempt: u32, cancel: Option<&AtomicBool>) -> AppResult<()>
 }
 
 pub async fn bytes(http: &reqwest::Client, value: &str, cancel: Option<&AtomicBool>) -> AppResult<Vec<u8>> {
+    transfer_bytes(http, download_url(value)?, cancel).await
+}
+
+async fn transfer_bytes(http: &reqwest::Client, initial: reqwest::Url, cancel: Option<&AtomicBool>) -> AppResult<Vec<u8>> {
     let transfer = async {
-        let mut url = download_url(value)?;
+        let mut url = initial;
         for _ in 0..6 {
             cancelled(cancel)?;
             let mut request = http.get(url.clone());
@@ -158,10 +198,48 @@ pub async fn bytes(http: &reqwest::Client, value: &str, cancel: Option<&AtomicBo
         Ok::<Vec<u8>, AppError>(Vec::new())
     };
     tokio::select! {
-        result = tokio::time::timeout(Duration::from_secs(15), transfer) =>
-            result.map_err(|_| AppError::InvalidState("Download timed out after 15s".into()))?,
+        result = tokio::time::timeout(Duration::from_secs(600), transfer) =>
+            result.map_err(|_| AppError::InvalidState("Download excedeu 10 minutos; tente novamente ou verifique sua conexão".into()))?,
         result = monitor => result,
     }
+}
+
+pub async fn verify_existing(path: &Path, size: Option<u64>, sha1: Option<&str>, sha512: Option<&str>, archive: bool) -> bool {
+    let path = path.to_path_buf();
+    let sha1 = sha1.map(str::to_owned);
+    let sha512 = sha512.map(str::to_owned);
+    tokio::task::spawn_blocking(move || {
+        use std::io::Read;
+        use std::sync::{LazyLock, Mutex};
+        static VERIFIED: LazyLock<Mutex<std::collections::HashSet<String>>> = LazyLock::new(|| Mutex::new(std::collections::HashSet::new()));
+        let Ok(mut file) = std::fs::File::open(&path) else { return false; };
+        let Ok(before) = file.metadata() else { return false; };
+        if !before.is_file() || before.len() == 0 || size.is_some_and(|s| s != before.len()) { return false; }
+        let fingerprint = |meta: &std::fs::Metadata| {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::MetadataExt;
+                format!("{}:{}:{}:{}:{}:{}:{}", meta.dev(), meta.ino(), meta.len(), meta.mtime(), meta.mtime_nsec(), meta.ctime(), meta.ctime_nsec())
+            }
+            #[cfg(not(unix))]
+            { format!("{}:{:?}", meta.len(), meta.modified()) }
+        };
+        let signature = fingerprint(&before);
+        let key = format!("{:?}:{signature}:{sha1:?}:{sha512:?}:{archive}", path);
+        if cfg!(unix) && (sha1.is_some() || sha512.is_some()) && VERIFIED.lock().is_ok_and(|cache| cache.contains(&key)) { return true; }
+        let mut bytes = Vec::new();
+        if file.read_to_end(&mut bytes).is_err() || !verify(&bytes, size, sha1.as_deref(), sha512.as_deref())
+            || (archive && zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_err()) { return false; }
+        let Ok(after) = file.metadata() else { return false; };
+        if signature != fingerprint(&after) { return false; }
+        if cfg!(unix) && (sha1.is_some() || sha512.is_some()) {
+            if let Ok(mut cache) = VERIFIED.lock() {
+                if cache.len() >= 4096 { cache.clear(); }
+                cache.insert(key);
+            }
+        }
+        true
+    }).await.unwrap_or(false)
 }
 
 pub fn verify(bytes: &[u8], size: Option<u64>, sha1: Option<&str>, sha512: Option<&str>) -> bool {
@@ -205,6 +283,52 @@ mod tests {
             result
         }).await.expect("Cancellation must interrupt backoff");
         assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn slow_active_download_survives_old_fifteen_second_limit() {
+        use tokio::io::AsyncReadExt;
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = reqwest::Url::parse(&format!("http://{}/pack", listener.local_addr().unwrap())).unwrap();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0; 2048];
+            socket.read(&mut request).await.unwrap();
+            socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\np").await.unwrap();
+            tokio::time::sleep(Duration::from_secs(16)).await;
+            socket.write_all(b"ack").await.unwrap();
+        });
+        assert_eq!(transfer_bytes(&client().unwrap(), url, None).await.unwrap(), b"pack");
+        server.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancellation_interrupts_a_stalled_response() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = reqwest::Url::parse(&format!("http://{}/pack", listener.local_addr().unwrap())).unwrap();
+        let cancel = AtomicBool::new(false);
+        let http = client().unwrap();
+        let download = transfer_bytes(&http, url, Some(&cancel));
+        let trigger = async {
+            let (_socket, _) = listener.accept().await.unwrap();
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            cancel.store(true, Ordering::SeqCst);
+        };
+        let (result, ()) = tokio::time::timeout(Duration::from_secs(2), async { tokio::join!(download, trigger) }).await.unwrap();
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn verified_files_reject_same_size_edits_and_changed_hashes() {
+        let path = std::env::temp_dir().join(format!("luxmc-verify-{}", uuid::Uuid::new_v4()));
+        std::fs::write(&path, b"valid").unwrap();
+        let hash = format!("{:x}", sha1::Sha1::digest(b"valid"));
+        assert!(verify_existing(&path, Some(5), Some(&hash), None, false).await);
+        assert!(verify_existing(&path, Some(5), Some(&hash), None, false).await);
+        assert!(!verify_existing(&path, Some(5), Some("wrong"), None, false).await);
+        std::fs::write(&path, b"other").unwrap();
+        assert!(!verify_existing(&path, Some(5), Some(&hash), None, false).await);
+        std::fs::remove_file(path).unwrap();
     }
 
     #[test]

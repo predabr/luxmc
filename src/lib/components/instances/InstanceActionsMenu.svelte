@@ -1,20 +1,10 @@
 <script lang="ts">
-	import { fade } from "svelte/transition";
-	import {
-		Copy,
-		Image,
-		StickyNote,
-		HeartPulse,
-		FolderOpen,
-		FolderTree,
-		Trash2,
-		Download,
-		MoreVertical
-	} from "lucide-svelte";
+	import { DropdownMenu } from "bits-ui";
+	import { MoreVertical, type Icon } from "lucide-svelte";
 
 	interface ActionItem {
 		label: string;
-		icon?: typeof Copy;
+		icon?: typeof Icon;
 		iconClass?: string;
 		variant?: "default" | "danger";
 		onClick: () => void;
@@ -26,46 +16,39 @@
 		isOpen = $bindable(false)
 	}: {
 		actions: ActionItem[];
-		isOpen: boolean;
+		isOpen?: boolean;
 	} = $props();
 </script>
 
-<div class="relative">
-	<button
-		type="button"
-		class="h-8 w-8 rounded-xl flex items-center justify-center text-fg/50 hover:text-fg bg-fg/[0.03] hover:bg-fg/10 border border-fg/5 transition-all cursor-pointer shadow-sm active:scale-[0.98] {isOpen ? 'bg-brand-400/20 text-brand-400 border-brand-400/40' : ''}"
-		onclick={(e) => { e.stopPropagation(); isOpen = !isOpen; }}
+<DropdownMenu.Root bind:open={isOpen}>
+	<DropdownMenu.Trigger
+		class="h-8 w-8 rounded-xl flex items-center justify-center text-fg/50 hover:text-fg bg-fg/[0.03] hover:bg-fg/10 border border-fg/5 transition-all cursor-pointer shadow-sm active:scale-[0.98] data-[state=open]:bg-brand-400/20 data-[state=open]:text-brand-400 data-[state=open]:border-brand-400/40"
 		title="Mais Opções"
 	>
 		<MoreVertical class="h-3.5 w-3.5" />
-	</button>
+	</DropdownMenu.Trigger>
 
-	{#if isOpen}
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div class="fixed inset-0 z-40" onclick={(e) => { e.stopPropagation(); isOpen = false; }}></div>
-		<!-- svelte-ignore a11y_click_events_have_key_events -->
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
-		<div
-			class="absolute bottom-10 left-0 z-50 w-48 bg-bg-elevated border border-fg/10 rounded-2xl shadow-2xl p-1.5 space-y-0.5 text-xs font-semibold text-fg/80"
-			onclick={(e) => e.stopPropagation()}
-			transition:fade={{ duration: 150 }}
+	<DropdownMenu.Portal>
+		<DropdownMenu.Content
+			align="end"
+			sideOffset={6}
+			class="z-50 min-w-48 overflow-hidden rounded-2xl bg-bg-elevated/95 p-1.5 shadow-2xl backdrop-blur-2xl border border-fg/10 space-y-0.5 text-xs font-semibold text-fg/80 focus:outline-none"
 		>
-			{#each actions as action, i}
+			{#each actions as action (action.label)}
 				{#if action.divider}
-					<div class="border-t border-fg/5 my-1"></div>
+					<DropdownMenu.Separator class="border-t border-fg/5 my-1" />
 				{/if}
-				<button
-					type="button"
-					class="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors cursor-pointer text-left {action.variant === 'danger' ? 'hover:bg-red-500/15 text-red-400 hover:text-red-300' : 'hover:bg-fg/5 hover:text-fg'}"
-					onclick={() => { isOpen = false; action.onClick(); }}
+				<DropdownMenu.Item
+					onSelect={() => action.onClick()}
+					class="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors cursor-pointer text-left outline-none {action.variant === 'danger' ? 'hover:bg-red-500/15 text-red-400 hover:text-red-300 focus:bg-red-500/15 focus:text-red-300' : 'hover:bg-fg/5 hover:text-fg focus:bg-fg/5 focus:text-fg'}"
 				>
 					{#if action.icon}
-						<action.icon class="w-3.5 h-3.5 {action.iconClass ?? ''}" />
+						{@const IconComponent = action.icon}
+						<IconComponent class="w-3.5 h-3.5 {action.iconClass ?? ''}" />
 					{/if}
 					<span>{action.label}</span>
-				</button>
+				</DropdownMenu.Item>
 			{/each}
-		</div>
-	{/if}
-</div>
+		</DropdownMenu.Content>
+	</DropdownMenu.Portal>
+</DropdownMenu.Root>

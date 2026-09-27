@@ -2,7 +2,7 @@
     import { ArrowLeft, ArrowRight, LockKeyhole, Cloud, Loader2 } from "lucide-svelte";
     import { luxAccountLogin } from "$lib/api/luxAccount";
     import { openPortalAccount } from "$lib/api/system";
-    import { account } from "$lib/stores/account.svelte";
+    import { account, saveCurrentAccount } from "$lib/stores/account.svelte";
     import type { AuthAccount } from "$lib/api/auth";
     import { activeSkinStore } from "$lib/stores/skin.svelte";
     import Button from "$lib/components/ui/Button.svelte";
@@ -24,7 +24,7 @@
             const result = await luxAccountLogin(username, password);
             password = "";
             account.value = { id: result.id, uuid: result.uuid, username: result.username, minecraftToken: "", expiresAt: 0, skinUrl: result.skinUrl, skinVariant: result.skinVariant };
-            localStorage.setItem("luxmc_current_account", JSON.stringify(account.value));
+            void saveCurrentAccount(account.value);
             activeSkinStore.setSkin({ id: result.uuid, name: result.username, url: `https://mc-heads.net/body/${result.username}/300`, skinUrl: result.skinUrl || `https://minotar.net/skin/${result.username}`, avatarUrl: `https://mc-heads.net/avatar/${result.username}/100`, type: "steve" });
             onAuthenticated?.(result);
         } catch (cause) { error = String(cause); }

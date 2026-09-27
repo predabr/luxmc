@@ -145,9 +145,8 @@ export const updaterStore = {
 
 			const newer = isNewerVersion(currentVersion, latestVersion);
 			if (newer) {
-				if (interactive) {
-					showModal = true;
-				}
+				showModal = true;
+				toast(`Nova versão v${latestVersion} do Luxmc disponível!`, "info");
 			} else if (interactive) {
 				toast(`Você já está na versão mais recente do Luxmc (v${currentVersion})!`, "success");
 			}

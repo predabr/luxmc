@@ -31,10 +31,30 @@ async fn test_neoforge_loader_versions_and_prepare() {
         "Classpath must contain NeoForge libraries"
     );
 
-    let has_loader = prep.classpath_entries.iter().any(|p| {
-        p.to_string_lossy().contains("neoforge-20.4.237") && p.exists()
-    });
-    assert!(has_loader, "NeoForge loader jar must exist in classpath and on disk");
+    let loader_dir = libraries_dir.join("net/neoforged/neoforge/20.4.237");
+    for name in ["neoforge-20.4.237-client.jar", "neoforge-20.4.237-universal.jar"] {
+        let file = std::fs::File::open(loader_dir.join(name)).expect("NeoForge processor output missing");
+        let archive = zip::ZipArchive::new(file).expect("NeoForge processor output is not a valid JAR");
+        assert!(!archive.is_empty());
+    }
+    assert!(prep.game_args.iter().any(|arg| arg == "20.4.237"));
+    assert!(prep.classpath_entries.iter().all(|path| path.exists()));
 
     let _ = tokio::fs::remove_dir_all(&temp_dir).await;
+}
+
+
+#[tokio::test]
+async fn modern_neoforge_processors_produce_valid_client() {
+    let http = reqwest::Client::builder().user_agent("Luxmc integration tests").build().unwrap();
+    let root = std::env::temp_dir().join(format!("luxmc_neoforge21_test_{}", std::process::id()));
+    let libraries = root.join("libraries");
+    tokio::fs::create_dir_all(&libraries).await.unwrap();
+    let prepared = prepare_loader(&http, &libraries, "neoforge", "1.21.1", Some("21.1.248")).await.expect("NeoForge 1.21.1 preparation failed");
+    assert!(!prepared.classpath_entries.is_empty());
+    assert!(prepared.classpath_entries.iter().all(|path| path.exists()));
+    let client = libraries.join("net/neoforged/neoforge/21.1.248/neoforge-21.1.248-client.jar");
+    let archive = zip::ZipArchive::new(std::fs::File::open(client).unwrap()).unwrap();
+    assert!(!archive.is_empty());
+    tokio::fs::remove_dir_all(root).await.unwrap();
 }

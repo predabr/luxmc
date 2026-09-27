@@ -1,17 +1,18 @@
 <script lang="ts">
+    import MeshPanel from "$lib/components/friends/MeshPanel.svelte";
     import FriendCard from "$lib/components/friends/FriendCard.svelte";
     import { button } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
-	import { 
-		Users, 
-		UserPlus, 
-		UserCheck, 
-		Radio, 
-		Check, 
-		X, 
-		Search, 
-		Copy, 
-		Trash2, 
+	import {
+		Users,
+		UserPlus,
+		UserCheck,
+		Radio,
+		Check,
+		X,
+		Search,
+		Copy,
+		Trash2,
 		Gamepad2, Star
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -21,7 +22,7 @@
 	import { friendsState } from "$lib/stores/friends.svelte";
 	import type { Friend, SocialIdentity } from "$lib/api/social";
 	import { joinWorld } from "$lib/utils/directJoin";
-	import { p2pScanLanWorlds, upnpOpenPort, upnpClosePort, p2pGetHostLink } from "$lib/api/p2p";
+
 	import { profiles } from "$lib/stores/profiles.svelte";
 
 	const friends = $derived(friendsState.list);
@@ -35,15 +36,15 @@
 	let activeTab = $state<"all" | "online" | "pending" | "add" | "p2p">("all");
 	let searchQuery = $state("");
 	let newFriendUsername = $state("");
-	let directJoinCode = $state("");
-	let generatedHostCode = $state("");
-	let hostingPort = $state<number | null>(null);
-	let hostPort = $state(25565);
+
+
+
+
 	let working = $state(false);
 	let suggestions = $state<SocialIdentity[]>([]);
 	let selectedFriend = $state<SocialIdentity | null>(null);
 	let searchError = $state("");
-	let joinProfileId = $state("");
+
 
 	$effect(() => {
 		const query = newFriendUsername.trim();
@@ -96,15 +97,9 @@
 			if (target) {
 				await friendsState.action("invite", target.id);
 				toast(`Convite enviado para ${target.username}!`, "success");
-			} else {
-				if (!localContacts.includes(query)) {
-					localContacts = [...localContacts, query];
-					try {
-						localStorage.setItem("luxmc_custom_friends_v4", JSON.stringify(localContacts.map(u => ({ username: u }))));
-					} catch {}
-				}
-				toast(`Amigo ${query} adicionado à sua lista!`, "success");
-			}
+            } else {
+                throw new Error("Jogador não encontrado na rede. Peça que ele abra o Luxmc e confira o nickname.");
+            }
 
 			newFriendUsername = "";
 			selectedFriend = null;
@@ -116,67 +111,19 @@
 	function declineFriend(friend: Friend) { return perform(() => friendsState.action("remove", friend.id)); }
 	function removeFriend(id: string, _name: string) { return perform(() => friendsState.action("remove", id)); }
 
-	function copyDirectLink() {
-		return perform(async () => {
-			if (!generatedHostCode) throw new Error("Abra a sessão primeiro.");
-			await navigator.clipboard.writeText(generatedHostCode);
-			toast("Link copiado.", "success");
-		});
-	}
-
-	function hostWorld() {
-		return perform(async () => {
-			if (hostingPort) {
-				await upnpClosePort(hostingPort);
-				await friendsState.shareWorld(null);
-				hostingPort = null;
-				generatedHostCode = "";
-				return;
-			}
-			const worlds = await p2pScanLanWorlds();
-			const port = worlds.length === 1 ? worlds[0].port : hostPort;
-			if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error("Porta LAN inválida.");
-			try {
-				const result = await upnpOpenPort(port, 3600);
-				if (result.success && result.externalIp) {
-					hostingPort = port;
-					generatedHostCode = `luxmc://join/${result.externalIp}:${port}`;
-					await friendsState.shareWorld({ host: result.externalIp, port });
-					toast("Sessão aberta via UPnP por até uma hora. Compartilhe o link com seus amigos.", "success");
-					return;
-				}
-			} catch {}
-
-			const hostInfo = await p2pGetHostLink(port);
-			hostingPort = port;
-			generatedHostCode = hostInfo.shareLink;
-			const targetHost = hostInfo.publicIp || hostInfo.localIp;
-			await friendsState.shareWorld({ host: targetHost, port });
-			toast(`Mundo aberto localmente (${hostInfo.directAddress}). Compartilhe com amigos na mesma rede ou VPN.`, "info");
-		});
-	}
-
-	function handleDirectJoin() { return perform(() => joinWorld(directJoinCode, undefined, joinProfileId)); }
 	function joinFriend(friend: Friend) {
 		return perform(() => joinWorld(`${friend.serverIp}:${friend.serverPort || 25565}`, friend));
 	}
-	async function inviteFriend(friend: Friend) {
-		if (generatedHostCode) {
-			await navigator.clipboard.writeText(generatedHostCode);
-			toast(`Link do seu mundo copiado! Envie para ${friend.username}.`, "success");
-		} else {
-			activeTab = "p2p";
-			toast("Inicie a hospedagem do seu mundo para compartilhar com amigos!", "info");
-		}
-	}
+	function inviteFriend(_friend: Friend) { activeTab = "p2p"; }
 </script>
 
 <div class="h-full flex flex-col gap-6 select-none overflow-y-auto custom-scrollbar pb-10 max-w-7xl mx-auto w-full">
     <header class="relative flex flex-wrap items-end justify-between gap-5 py-4">
         <div><p class="page-eyebrow mb-3">Conexões que viram aventuras</p><h1 class="page-title">Melhor com amigos.</h1><p class="page-description">Encontre sua turma, compartilhe um mundo e entre no jogo.</p></div>
-        <div class="flex gap-2"><button type="button" class={button({ variant: 'secondary' })} onclick={() => activeTab = 'p2p'}><Radio class="h-4 w-4" />Hospedar mundo</button><button type="button" class={button({ variant: 'primary' })} onclick={() => activeTab = 'add'}><UserPlus class="h-4 w-4" />Adicionar amigo</button></div>
+        {#if activeTab !== "p2p"}<div class="flex gap-2"><button type="button" class={button({ variant: 'secondary' })} onclick={() => activeTab = 'p2p'}><Radio class="h-4 w-4" />Hospedar mundo</button><button type="button" class={button({ variant: 'primary' })} onclick={() => activeTab = 'add'}><UserPlus class="h-4 w-4" />Adicionar amigo</button></div>{/if}
     </header>
 
+    {#if activeTab !== "p2p"}
 	<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-bg-elevated/80 p-4">
 		<div class="flex items-center gap-3">
 			<p class="text-xs text-fg-muted">{friendsState.me ? `Seu código: ` : "Conecte seu perfil para buscar jogadores e receber convites."}</p>
@@ -212,6 +159,7 @@
         {/each}
     </div>
 
+    {/if}
 	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
 		<div class="flex items-center gap-2 p-1.5 rounded-2xl bg-bg-elevated border border-fg/10 w-fit">
 			<button
@@ -245,7 +193,7 @@
 				onclick={() => activeTab = "p2p"}
 				class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'p2p' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 			>
-				Direct Join & Host
+				Jogar com amigos
 			</button>
 		</div>
 
@@ -367,78 +315,7 @@
 		</div>
 
 	{:else if activeTab === "p2p"}
-		<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-			<div class="p-6 rounded-3xl bg-bg-elevated border border-fg/10 space-y-5 shadow-xl">
-				<div class="flex items-center gap-3">
-					<div class="p-2.5 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-						<Radio class="w-5 h-5" />
-					</div>
-					<div>
-						<h3 class="text-base font-bold text-fg">Hospedar Sessão P2P (UPnP)</h3>
-						<p class="text-xs text-fg/50">Abra seu mundo para amigos pela internet sem Hamachi ou Radmin</p>
-					</div>
-				</div>
-
-				<div class="p-4 rounded-2xl bg-bg-overlay/40 border border-fg/10 space-y-3">
-					<span class="text-[10px] font-bold uppercase text-fg/40 block">Código da sua Sessão</span>
-					<div class="flex items-center justify-between gap-3">
-						<span class="font-mono text-lg font-black text-emerald-400 tracking-wider">{generatedHostCode || "Sessão fechada"}</span>
-						<button
-							type="button"
-							onclick={copyDirectLink}
-							disabled={!generatedHostCode || working}
-							class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold transition-all cursor-pointer active:scale-[0.98]"
-						>
-							<Copy class="w-3.5 h-3.5" />
-							<span>Copiar Link</span>
-						</button>
-					</div>
-				</div>
-
-				<label class="block text-xs text-fg-muted" for="host-port">Porta exibida pelo Minecraft ao abrir para LAN</label>
-				<input id="host-port" type="number" min="1" max="65535" bind:value={hostPort} class="rounded-xl border-border bg-bg-subtle text-fg" disabled={hostingPort !== null} />
-				<button type="button" class="rounded-xl bg-brand-500 px-4 py-3 font-bold text-brand-foreground hover:bg-brand-400 disabled:opacity-50" onclick={hostWorld} disabled={working}>{hostingPort ? "Fechar sessão" : "Detectar mundo e abrir sessão"}</button>
-
-				<p class="text-xs text-fg/50 leading-relaxed">
-					Abra o jogo no Minecraft, pause e clique em <b>"Abrir para LAN"</b>. O Luxmc mapeará a porta automaticamente e gerará este link próprio para qualquer amigo entrar direto.
-				</p>
-			</div>
-
-			<div class="p-6 rounded-3xl bg-bg-elevated border border-fg/10 space-y-5 shadow-xl">
-				<div class="flex items-center gap-3">
-					<div class="p-2.5 rounded-2xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
-						<Gamepad2 class="w-5 h-5" />
-					</div>
-					<div>
-						<h3 class="text-base font-bold text-fg">Entrar Direto (Direct Join)</h3>
-						<p class="text-xs text-fg/50">Conecte-se ao mundo de um amigo com 1 clique</p>
-					</div>
-				</div>
-
-				<div class="space-y-3">
-					<label for="join-profile" class="text-xs text-fg-muted">Instância para conectar</label>
-					<select id="join-profile" bind:value={joinProfileId} class="w-full rounded-xl border-border bg-bg-subtle text-fg">
-						<option value="">Instância ativa</option>
-						{#each profiles.list as profile}<option value={profile.id}>{profile.name} · {profile.mcVersion}</option>{/each}
-					</select>
-
-					<input
-						type="text"
-						bind:value={directJoinCode}
-						placeholder="luxmc://join/IP:porta ou IP:porta"
-						class="w-full bg-bg-subtle border border-fg/15 rounded-2xl px-4 py-3 text-sm text-fg placeholder:text-fg/30 outline-none focus:border-blue-400 transition-colors font-mono"
-					/>
-					<button
-						type="button"
-						onclick={handleDirectJoin}
-						disabled={working}
-						class="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-black transition-all shadow-lg shadow-blue-600/20 cursor-pointer active:scale-[0.98]"
-					>
-						Entrar no Mundo do Amigo
-					</button>
-				</div>
-			</div>
-		</div>
+        <MeshPanel />
 
 	{:else}
 		{#if filteredFriends.length === 0}
@@ -454,7 +331,7 @@
 		{:else}
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  {#each filteredFriends as friend (friend.id)}
-                    <FriendCard {friend} favourite={friendsState.favourites.includes(friend.id)} busy={working} onJoin={() => joinFriend(friend)} onFavourite={() => friendsState.toggleFavourite(friend.id)} onRemove={() => removeFriend(friend.id, friend.username)} onInvite={() => inviteFriend(friend)} />
+                    <FriendCard {friend} favourite={friendsState.favourites.includes(friend.id)} busy={working} onJoin={() => joinFriend(friend)} onFavourite={() => friendsState.toggleFavourite(friend.id)} onBlock={() => perform(() => friendsState.action("block", friend.id))} onRemove={() => removeFriend(friend.id, friend.username)} onInvite={() => inviteFriend(friend)} />
                 {/each}
 			</div>
 		{/if}

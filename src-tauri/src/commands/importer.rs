@@ -172,7 +172,7 @@ pub async fn importer_execute_import(
     .map(|s| s.data_dir())
     .unwrap_or_else(|_| etcetera::home_dir().unwrap_or_default().join(".local/share/luxmc"));
 
-    let dest_dir = data_dir.join("instances").join(&safe_name);
+    let dest_dir = data_dir.join("instances").join(&profile_id).join(".minecraft");
     tokio::fs::create_dir_all(&dest_dir).await?;
 
     let copy_candidates = vec!["mods", "config", "saves", "resourcepacks", "shaderpacks", "options.txt"];
@@ -187,12 +187,12 @@ pub async fn importer_execute_import(
         let from = inner_mc.join(item);
         let to = dest_dir.join(item);
         if from.is_dir() {
-            let _ = fs_extra::dir::copy(&from, &dest_dir, &fs_extra::dir::CopyOptions::new().overwrite(true));
+            fs_extra::dir::copy(&from, &dest_dir, &fs_extra::dir::CopyOptions::new().overwrite(true)).map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
             if item == "mods" {
                 imported_mods = count_mods_in_dir(&to);
             }
         } else if from.is_file() {
-            let _ = tokio::fs::copy(&from, &to).await;
+            tokio::fs::copy(&from, &to).await?;
         }
     }
 

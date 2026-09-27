@@ -5,6 +5,8 @@
   let error = $state<Error | null>(null);
   
   function handleError(e: ErrorEvent) {
+    if (!e.error) return;
+    if (e.target && e.target !== window && (e.target as HTMLElement).tagName) return;
     error = e.error;
     console.error("ErrorBoundary caught:", e.error);
   }

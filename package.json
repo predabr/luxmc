@@ -1,6 +1,6 @@
 {
   "name": "luxmc",
-  "version": "1.9.2",
+  "version": "2.0.0",
   "description": "Linux-first Minecraft launcher.",
   "type": "module",
   "private": true,
@@ -21,7 +21,8 @@
     "test:coverage": "vitest run --coverage",
     "deploy:website": "pnpm dlx wrangler@4.135.0 --cwd website pages deploy . --project-name=luxmc",
     "test:website": "node --test tests/social.test.mjs tests/accounts.test.mjs tests/protocol.test.mjs",
-    "test:native": "node tests/native-smoke.mjs"
+    "test:native": "node tests/native-smoke.mjs",
+    "build:client-agent": "node scripts/build-client-agent.mjs"
   },
   "build": {
     "appId": "io.github.luxmc.Luxmc",

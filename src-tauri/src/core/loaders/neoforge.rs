@@ -131,43 +131,6 @@ fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
     Ok(s)
 }
 
-fn find_java_binary(libraries_dir: &Path, mc_version: &str) -> std::path::PathBuf {
-    let major = match mc_version {
-        v if v.starts_with("1.20.5") || v.starts_with("1.20.6")
-            || v.starts_with("1.21")
-            || (v.starts_with("1.2") && {
-                let patch: u32 = v.split('.').nth(1).and_then(|s| s.parse().ok()).unwrap_or(0);
-                patch >= 22
-            })
-            || v.starts_with("2") => 21,
-        _ => 17,
-    };
-    if let Some(parent) = libraries_dir.parent() {
-        let bin_name = if cfg!(windows) { "java.exe" } else { "java" };
-        let preferred = parent.join("java").join(major.to_string()).join("bin").join(bin_name);
-        if preferred.exists() {
-            return preferred;
-        }
-        let fallbacks: &[u32] = if major == 21 { &[21, 17] } else { &[17, 21] };
-        for &v in fallbacks {
-            let b = parent.join("java").join(v.to_string()).join("bin").join(bin_name);
-            if b.exists() {
-                return b;
-            }
-        }
-    }
-    if let Ok(java_home) = std::env::var("JAVA_HOME") {
-        let b = std::path::PathBuf::from(java_home).join("bin").join(if cfg!(windows) { "java.exe" } else { "java" });
-        if b.exists() {
-            return b;
-        }
-    }
-    if let Ok(found) = which::which("java") {
-        return found;
-    }
-    std::path::PathBuf::from(if cfg!(windows) { "java.exe" } else { "java" })
-}
-
 pub async fn prepare_neoforge(
     http: &reqwest::Client,
     libraries_dir: &Path,
@@ -176,8 +139,16 @@ pub async fn prepare_neoforge(
 ) -> AppResult<PreparedLoader> {
     let chosen_version = if let Some(v) = loader_version {
         if !v.trim().is_empty() {
-            let clean = v.trim();
-            clean.strip_prefix("neoforge-").unwrap_or(clean).to_string()
+            let mut clean = v.trim();
+            if clean.to_ascii_lowercase().starts_with("neoforge-") {
+                clean = &clean[9..];
+            } else if clean.to_ascii_lowercase().starts_with("neo-forge-") {
+                clean = &clean[10..];
+            }
+            if clean.starts_with(mc_version) && clean.len() > mc_version.len() + 1 && clean.as_bytes()[mc_version.len()] == b'-' {
+                clean = &clean[mc_version.len() + 1..];
+            }
+            clean.to_string()
         } else {
             get_latest_loader_version(http, mc_version).await?
         }
@@ -196,31 +167,7 @@ pub async fn prepare_neoforge(
     );
     let installer_dest = libraries_dir.join(&installer_rel);
 
-    if !installer_dest.exists() {
-        if let Some(parent) = installer_dest.parent() {
-            tokio::fs::create_dir_all(parent).await?;
-        }
-        tracing::info!(version = %chosen_version, url = %installer_url, "Downloading NeoForge installer");
-        let resp = http
-            .get(&installer_url)
-            .send()
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to download NeoForge installer: {e}")))?
-            .error_for_status()
-            .map_err(|e| AppError::Internal(format!("NeoForge installer not found: {e}")))?;
-        {
-            use futures_util::StreamExt;
-            use tokio::io::AsyncWriteExt;
-            let mut stream = resp.bytes_stream();
-            let mut dest = tokio::fs::File::create(&installer_dest).await?;
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk
-                    .map_err(|e| AppError::Internal(format!("Failed to read NeoForge installer: {e}")))?;
-                dest.write_all(&chunk).await?;
-            }
-            dest.flush().await?;
-        }
-    }
+    crate::core::downloader::ensure_artifact(http, &installer_dest, &installer_url, 0, "").await?;
 
     let data_dir = libraries_dir.parent().unwrap_or(libraries_dir);
     let installed_json_path = data_dir
@@ -228,23 +175,13 @@ pub async fn prepare_neoforge(
         .join(format!("neoforge-{}", chosen_version))
         .join(format!("neoforge-{}.json", chosen_version));
 
-    if !installed_json_path.exists() && installer_dest.exists() {
+    if !installed_json_path.exists() || !installer_dest.with_extension("installed").exists() {
         let profiles_file = data_dir.join("launcher_profiles.json");
         if !profiles_file.exists() {
             let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
         }
 
-        let java_bin = find_java_binary(libraries_dir, mc_version);
-        let _ = crate::core::process::tokio_command(&java_bin)
-            .arg("-jar")
-            .arg(&installer_dest)
-            .arg("--installClient")
-            .arg(data_dir)
-            .stdin(std::process::Stdio::null())
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .await;
+        super::installer::run(http, &installer_dest, data_dir, mc_version).await?;
     }
 
     let version_json_str = if installed_json_path.exists() {
@@ -293,39 +230,16 @@ pub async fn prepare_neoforge(
             (p, u)
         };
 
-        let dest = libraries_dir.join(&rel_path_str);
-        if !dest.exists() {
-            if let Some(parent) = dest.parent() {
-                let _ = tokio::fs::create_dir_all(parent).await;
-            }
-
-            let mut downloaded = false;
-            if let Ok(resp) = http.get(&download_url).send().await {
-                if resp.status().is_success() {
-                    if let Ok(b) = resp.bytes().await {
-                        if !b.is_empty() {
-                            let _ = tokio::fs::write(&dest, &b).await;
-                            downloaded = true;
-                        }
-                    }
-                }
-            }
-
-            if !downloaded {
-                let fallback = format!("https://repo1.maven.org/maven2/{}", rel_path_str.trim_start_matches('/'));
-                if let Ok(resp) = http.get(&fallback).send().await {
-                    if resp.status().is_success() {
-                        if let Ok(b) = resp.bytes().await {
-                            let _ = tokio::fs::write(&dest, &b).await;
-                        }
-                    }
-                }
-            }
+        let relative = Path::new(&rel_path_str);
+        if relative.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
+            return Err(AppError::InvalidInput("Unsafe loader library path".into()));
         }
-
-        if dest.exists() {
-            classpath_entries.push(dest);
-        }
+        let dest = libraries_dir.join(relative);
+        let artifact = lib.downloads.as_ref().and_then(|downloads| downloads.artifact.as_ref());
+        let size = artifact.and_then(|entry| entry.size).unwrap_or(0);
+        let sha1 = artifact.and_then(|entry| entry.sha1.as_deref()).unwrap_or_default();
+        crate::core::downloader::ensure_artifact(http, &dest, &download_url, size, sha1).await?;
+        if !classpath_entries.contains(&dest) { classpath_entries.push(dest); }
     }
 
     let client_rel = format!(

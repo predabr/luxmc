@@ -10,7 +10,8 @@ const directDownloadUrls = {
   linux: "/download/linux",
   windows: "/download/windows",
   deb: "/download/deb",
-  rpm: "/download/rpm"
+  rpm: "/download/rpm",
+  macos: "/download/macos"
 };
 
 let currentGatePlatform = "linux";
@@ -72,7 +73,7 @@ const FALLBACK_MODS = [
   }
 ];
 
-document.addEventListener("DOMContentLoaded", () => {
+function startApp() {
   initBackgroundParticles();
   initSpotlightCards();
   initMockupTabs();
@@ -89,10 +90,16 @@ document.addEventListener("DOMContentLoaded", () => {
   initMobileNav();
   initBackToTop();
   initAnimatedCounters();
-  initBenchmarkVisualizer();
+  initStabilityVisualizer();
   initServerStatusChecker();
   initShowcaseModal();
-});
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", startApp);
+} else {
+  startApp();
+}
 
 function initBackgroundParticles() {
   const canvas = document.getElementById("bgCanvas");
@@ -188,56 +195,68 @@ function initSpotlightCards() {
   });
 }
 
+function getOSDownloadLabel(os) {
+  const i18n = window.LuxI18n;
+  if (i18n && i18n.t) {
+    if (os === "windows") return i18n.t("download.btn.windows").toUpperCase() + " ↗";
+    if (os === "macos") return i18n.t("download.btn.macos").toUpperCase() + " ↗";
+    if (os === "deb") return i18n.t("download.btn.deb").toUpperCase() + " ↗";
+    if (os === "rpm") return i18n.t("download.btn.rpm").toUpperCase() + " ↗";
+    return i18n.t("download.btn.linux").toUpperCase() + " ↗";
+  }
+  const fallbackLabels = {
+    windows: "BAIXAR PARA WINDOWS (.EXE) ↗",
+    macos: "BAIXAR PARA MACOS (.DMG) ↗",
+    deb: "BAIXAR PARA UBUNTU / DEBIAN (.DEB) ↗",
+    rpm: "BAIXAR PARA FEDORA (.RPM) ↗",
+    linux: "BAIXAR PARA LINUX (.APPIMAGE) ↗"
+  };
+  return fallbackLabels[os] || fallbackLabels.linux;
+}
+
 function initOSDetection() {
   const ua = navigator.userAgent || "";
-  const btn = document.getElementById("primaryDownloadBtn") || document.getElementById("heroPrimaryBtn");
-  const btnLabel = document.getElementById("heroBtnLabel");
-  const linuxCard = document.getElementById("card-linux") || document.querySelector(".download-card:first-child");
-  const windowsCard = document.getElementById("card-windows") || document.querySelector(".download-card:last-child");
-
-  const isWindows = ua.includes("Win");
-  detectedOS = isWindows ? "windows" : "linux";
-
-  if (isWindows) {
-    if (windowsCard) {
-      windowsCard.classList.add("is-detected");
-      const badge = document.createElement("div");
-      badge.className = "os-detected-badge";
-      badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Seu Sistema Operacional Detectado (Windows)`;
-      const header = windowsCard.querySelector(".download-card-header, .download-header");
-      if (header && !windowsCard.querySelector(".os-detected-badge")) {
-        header.parentNode.insertBefore(badge, header);
-      }
-    }
-    if (linuxCard) {
-      linuxCard.classList.remove("featured");
-    }
-    if (btnLabel) {
-      btnLabel.textContent = "Baixar para Windows (.exe)";
-      if (btn) btn.href = "https://github.com/predabr/luxmc/releases/latest/download/Luxmc_1.9.2_x64-setup.exe";
-    } else if (btn) {
-      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 88 88" fill="currentColor"><path d="M0 12.56L35.73 7.69V42.66H0V12.56ZM0 45.34H35.73V80.31L0 75.44V45.34ZM39.06 7.23L88 0V42.66H39.06V7.23ZM39.06 45.34H88V88L39.06 80.77V45.34Z"/></svg> Baixar para Windows (.exe)`;
-      btn.href = "/download/windows";
-    }
+  const platform = navigator.platform || "";
+  if (/Win|Windows/i.test(ua) || /Win/i.test(platform)) {
+    detectedOS = "windows";
+  } else if (/Macintosh|Mac OS X|MacIntel/i.test(ua) || /Mac/i.test(platform)) {
+    detectedOS = "macos";
+  } else if (/Ubuntu|Debian/i.test(ua)) {
+    detectedOS = "deb";
+  } else if (/Fedora/i.test(ua)) {
+    detectedOS = "rpm";
   } else {
-    if (linuxCard) {
-      linuxCard.classList.add("is-detected");
-      const badge = document.createElement("div");
-      badge.className = "os-detected-badge";
-      badge.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Seu Sistema Operacional Detectado (Linux)`;
-      const header = linuxCard.querySelector(".download-card-header, .download-header");
-      if (header && !linuxCard.querySelector(".os-detected-badge")) {
-        header.parentNode.insertBefore(badge, header);
-      }
+    detectedOS = "linux";
+  }
+
+  function updateDownloadBtn() {
+    const button = document.getElementById("primaryDownloadBtn") || document.getElementById("heroPrimaryBtn");
+    const label = document.getElementById("heroBtnLabel");
+    const downloadLabel = getOSDownloadLabel(detectedOS);
+    if (button) {
+      button.href = directDownloadUrls[detectedOS] || "/download/linux";
+      if (!label) button.textContent = downloadLabel;
     }
-    if (btnLabel) {
-      btnLabel.textContent = "Baixar para Linux (.AppImage)";
-      if (btn) btn.href = directDownloadUrls.linux;
-    } else if (btn) {
-      btn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139zm.529 3.405h.013c.213 0 .396.062.584.198.19.135.33.332.438.533.105.259.158.459.166.724 0-.02.006-.04.006-.06v.105a.086.086 0 01-.004-.021l-.004-.024a1.807 1.807 0 01-.15.706.953.953 0 01-.213.335.71.71 0 00-.088-.042c-.104-.045-.198-.064-.284-.133a1.312 1.312 0 00-.22-.066c.05-.06.146-.133.183-.198.053-.128.082-.264.088-.402v-.02a1.21 1.21 0 00-.061-.4c-.045-.134-.101-.2-.183-.333-.084-.066-.167-.132-.267-.132h-.016c-.093 0-.176.03-.262.132a.8.8 0 00-.205.334 1.18 1.18 0 00-.09.4v.019c.002.089.008.179.02.267-.193-.067-.438-.135-.607-.202a1.635 1.635 0 01-.018-.2v-.02a1.772 1.772 0 01.15-.768c.082-.22.232-.406.43-.533a.985.985 0 01.594-.2zm-2.962.059h.036c.142 0 .27.048.399.135.146.129.264.288.344.465.09.199.14.4.153.667v.004c.007.134.006.2-.002.266v.08c-.03.007-.056.018-.083.024-.152.055-.274.135-.393.2.012-.09.013-.18.003-.267v-.015c-.012-.133-.04-.2-.082-.333a.613.613 0 00-.166-.267.248.248 0 00-.183-.064h-.021c-.071.006-.13.04-.186.132a.552.552 0 00-.12.27.944.944 0 00-.023.33v.015c.012.135.037.2.08.334.046.134.098.2.166.268.01.009.02.018.034.024-.07.057-.117.07-.176.136a.304.304 0 01-.131.068 2.62 2.62 0 01-.275-.402 1.772 1.772 0 01-.155-.667 1.759 1.759 0 01.08-.668 1.43 1.43 0 01.283-.535c.128-.133.26-.2.418-.2zm1.37 1.706c.332 0 .733.065 1.216.399.293.2.523.269 1.052.468h.003c.255.136.405.266.478.399v-.131a.571.571 0 01.016.47c-.123.31-.516.643-1.063.842v.002c-.268.135-.501.333-.775.465-.276.135-.588.292-1.012.267a1.139 1.139 0 01-.448-.067 3.566 3.566 0 01-.322-.198c-.195-.135-.363-.332-.612-.465v-.005h-.005c-.4-.246-.616-.512-.686-.71-.07-.268-.005-.47.193-.6.224-.135.38-.271.483-.336.104-.074.143-.102.176-.131h.002v-.003c.169-.202.436-.47.839-.601.139-.036.294-.065.466-.065zm2.8 2.142c.358 1.417 1.196 3.475 1.735 4.473.286.534.855 1.659 1.102 3.024.156-.005.33.018.513.064.646-1.671-.546-3.467-1.089-3.966-.22-.2-.232-.335-.123-.335.59.534 1.365 1.572 1.646 2.757.13.535.16 1.104.021 1.67.067.028.135.06.205.067 1.032.534 1.413.938 1.23 1.537v-.043c-.06-.003-.12 0-.18 0h-.016c.151-.467-.182-.825-1.065-1.224-.915-.4-1.646-.336-1.77.465-.008.043-.013.066-.018.135-.068.023-.139.053-.209.064-.43.268-.662.669-.793 1.187-.13.533-.17 1.156-.205 1.869v.003c-.02.334-.17.838-.319 1.35-1.5 1.072-3.58 1.538-5.348.334a2.645 2.645 0 00-.402-.533 1.45 1.45 0 00-.275-.333c.182 0 .338-.03.465-.067a.615.615 0 00.314-.334c.108-.267 0-.697-.345-1.163-.345-.467-.931-.995-1.788-1.521-.63-.4-.986-.87-1.15-1.396-.165-.534-.143-1.085-.015-1.645.245-1.07.873-2.11 1.274-2.763.107-.065.037.135-.408.974-.396.751-1.14 2.497-.122 3.854a8.123 8.123 0 01.647-2.876c.564-1.278 1.743-3.504 1.836-5.268.048.036.217.135.289.202.218.133.38.333.59.465.21.201.477.335.876.335.039.003.075.006.11.006.412 0 .73-.134.997-.268.29-.134.52-.334.74-.4h.005c.467-.135.835-.402 1.044-.7zm2.185 8.958c.037.6.343 1.245.882 1.377.588.134 1.434-.333 1.791-.765l.211-.01c.315-.007.577.01.847.268l.003.003c.208.199.305.53.391.876.085.4.154.78.409 1.066.486.527.645.906.636 1.14l.003-.007v.018l-.003-.012c-.015.262-.185.396-.498.595-.63.401-1.746.712-2.457 1.57-.618.737-1.37 1.14-2.036 1.191-.664.053-1.237-.2-1.574-.898l-.005-.003c-.21-.4-.12-1.025.056-1.69.176-.668.428-1.344.463-1.897.037-.714.076-1.335.195-1.814.12-.465.308-.797.641-.984l.045-.022zm-10.814.049h.01c.053 0 .105.005.157.014.376.055.706.333 1.023.752l.91 1.664.003.003c.243.533.754 1.064 1.189 1.637.434.598.77 1.131.729 1.57v.006c-.057.744-.48 1.148-1.125 1.294-.645.135-1.52.002-2.395-.464-.968-.536-2.118-.469-2.857-.602-.369-.066-.61-.2-.723-.4-.11-.2-.113-.602.123-1.23v-.004l.002-.003c.117-.334.03-.752-.027-1.118-.055-.401-.083-.71.043-.94.16-.334.396-.4.69-.533.294-.135.64-.202.915-.47h.002v-.002c.256-.268.445-.601.668-.838.19-.201.38-.336.663-.336zm7.159-9.074c-.435.201-.945.535-1.488.535-.542 0-.97-.267-1.28-.466-.154-.134-.28-.268-.373-.335-.164-.134-.144-.333-.074-.333.109.016.129.134.199.2.096.066.215.2.36.333.292.2.68.467 1.167.467.485 0 1.053-.267 1.398-.466.195-.135.445-.334.648-.467.156-.136.149-.267.279-.267.128.016.034.134-.147.332a8.097 8.097 0 01-.69.468zm-1.082-1.583V5.64c-.006-.02.013-.042.029-.05.074-.043.18-.027.26.004.063 0 .16.067.15.135-.006.049-.085.066-.135.066-.055 0-.092-.043-.141-.068-.052-.018-.146-.008-.163-.065zm-.551 0c-.02.058-.113.049-.166.066-.047.025-.086.068-.14.068-.05 0-.13-.02-.136-.068-.01-.066.088-.133.15-.133.08-.031.184-.047.259-.005.019.009.036.03.03.05v.02h.003z"/></svg> Baixar para Linux (.AppImage)`;
-      btn.href = directDownloadUrls.linux;
+    if (label) label.textContent = downloadLabel;
+
+    document.querySelectorAll(".download-card").forEach(c => c.classList.remove("is-detected"));
+    const activeCardId = detectedOS === "deb" || detectedOS === "rpm" ? "card-linux" : `card-${detectedOS}`;
+    const card = document.getElementById(activeCardId);
+    if (card) {
+      card.classList.add("is-detected");
+      let badge = card.querySelector(".detected-system-badge");
+      if (!badge) {
+        badge = document.createElement("div");
+        badge.className = "detected-system-badge";
+        card.prepend(badge);
+      }
+      const recText = (window.LuxI18n && window.LuxI18n.t("download.recommended")) || "★ RECOMENDADO PARA VOCÊ";
+      badge.textContent = recText;
     }
   }
+
+  updateDownloadBtn();
+  window.addEventListener("luxmc-language-changed", updateDownloadBtn);
 }
 
 async function initGitHubRelease() {
@@ -315,7 +334,18 @@ async function initGitHubRelease() {
         meta.innerText = `Instalador .exe · ${sizeMb} MB`;
       }
     }
-    const heroAsset = detectedOS === "windows" ? exe : appImage;
+    const macos = assetFor(data.assets, "macos");
+    const macLink = document.getElementById("downloadMacLink");
+    if (macos) {
+      directDownloadUrls.macos = macos.browser_download_url;
+      if (macLink) macLink.href = macos.browser_download_url;
+    } else if (macLink) {
+      macLink.href = `https://github.com/${GITHUB_REPO}/releases/latest`;
+      macLink.textContent = "Conferir disponibilidade macOS";
+    }
+    const heroAsset = ({ windows: exe, macos, deb, rpm, linux: appImage })[detectedOS];
+    const heroButton = document.getElementById("primaryDownloadBtn") || document.getElementById("heroPrimaryBtn");
+    if (heroButton) heroButton.href = heroAsset?.browser_download_url || `https://github.com/${GITHUB_REPO}/releases/latest`;
     const heroSize = document.getElementById("heroReleaseSize");
     if (heroSize && heroAsset) heroSize.textContent = `${(heroAsset.size / (1024 * 1024)).toFixed(1)} MB · Download direto`;
   } catch (e) {
@@ -346,8 +376,16 @@ async function initModrinthExplorer() {
     });
   }
 
+  window.addEventListener("luxmc-language-changed", () => {
+    if (lastRenderedMods && lastRenderedMods.length > 0) {
+      renderModCards(lastRenderedMods);
+    }
+  });
+
   performModSearch("");
 }
+
+let lastRenderedMods = [];
 
 async function performModSearch(query) {
   searchController?.abort();
@@ -356,9 +394,10 @@ async function performModSearch(query) {
   const container = document.getElementById("modsGrid");
   if (!container) return;
 
+  const loadingText = (window.LuxI18n && window.LuxI18n.t("mods.loading")) || "Buscando mods no Modrinth...";
   container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
     <div style="font-size: 1.5rem; margin-bottom: 8px;">⏳</div>
-    Buscando mods no Modrinth...
+    ${escapeHtml(loadingText)}
   </div>`;
 
   try {
@@ -388,12 +427,18 @@ async function performModSearch(query) {
 }
 
 function renderModCards(mods) {
+  lastRenderedMods = mods;
   const container = document.getElementById("modsGrid");
   if (!container) return;
 
+  const emptyText = (window.LuxI18n && window.LuxI18n.t("mods.empty")) || "Nenhum mod encontrado para essa pesquisa.";
+  const byText = (window.LuxI18n && window.LuxI18n.t("mods.by")) || "por";
+  const installText = (window.LuxI18n && window.LuxI18n.t("mods.install")) || "Instalar no Luxmc";
+  const versionsText = (window.LuxI18n && window.LuxI18n.t("mods.versions")) || "Ver versões";
+
   if (mods.length === 0) {
     container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">
-      Nenhum mod encontrado para essa pesquisa.
+      ${escapeHtml(emptyText)}
     </div>`;
     return;
   }
@@ -415,7 +460,7 @@ function renderModCards(mods) {
             <img src="${escapeHtml(icon)}" alt="${escapeHtml(title)}" class="project-icon" onerror="this.src='assets/logo.png'">
             <div class="project-title-area">
               <h4 class="project-title">${escapeHtml(title)}</h4>
-              <p class="project-author">por <span>${escapeHtml(author)}</span></p>
+              <p class="project-author">${escapeHtml(byText)} <span>${escapeHtml(author)}</span></p>
             </div>
           </div>
           <p class="project-desc">${escapeHtml(desc)}</p>
@@ -428,10 +473,10 @@ function renderModCards(mods) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>${downloads}</span>
           </div>
-          ${["mod", "modpack"].includes(currentCategory) ? `<a class="btn-download-mod" data-luxmc href="luxmc://install/${currentCategory}?id=${encodeURIComponent(mod.project_id || slug)}&amp;source=modrinth">Instalar no Luxmc</a>` : ""}
+          ${["mod", "modpack"].includes(currentCategory) ? `<a class="btn-download-mod" data-luxmc href="luxmc://install/${currentCategory}?id=${encodeURIComponent(mod.project_id || slug)}&amp;source=modrinth">${escapeHtml(installText)}</a>` : ""}
           <a href="${downloadUrl}" target="_blank" rel="noopener noreferrer" class="btn-download-mod">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Ver versões
+            ${escapeHtml(versionsText)}
           </a>
         </div>
       </div>
@@ -502,7 +547,8 @@ function initMockupTabs() {
     btn.setAttribute("aria-pressed", "true");
 
     const newSrc = btn.dataset.mockup;
-    const title = btn.dataset.title || "Menu Principal";
+    const titleKey = btn.dataset.titleKey;
+    const title = (titleKey && window.LuxI18n ? window.LuxI18n.t(titleKey) : null) || btn.dataset.title || "Menu Principal";
 
     img.style.opacity = "0.2";
     img.style.transform = "scale(0.995)";
@@ -524,6 +570,15 @@ function initMockupTabs() {
       clearInterval(autoTimer);
       setMockup(idx, true);
     });
+  });
+
+  window.addEventListener("luxmc-language-changed", () => {
+    const activeBtn = Array.from(btns).find(b => b.classList.contains("active"));
+    if (activeBtn && badge) {
+      const titleKey = activeBtn.dataset.titleKey;
+      const title = (titleKey && window.LuxI18n ? window.LuxI18n.t(titleKey) : null) || activeBtn.dataset.title || "Menu Principal";
+      badge.innerText = title;
+    }
   });
 
   // Auto rotate every 6s if user hasn't clicked
@@ -618,21 +673,6 @@ function copyCode(text, btnElement) {
   });
 }
 
-function showToast(msg) {
-  let toast = document.getElementById("siteToast");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "siteToast";
-    toast.className = "site-toast";
-    document.body.appendChild(toast);
-  }
-  toast.textContent = `⚡ ${msg}`;
-  toast.classList.add("show");
-  clearTimeout(toast._timeout);
-  toast._timeout = setTimeout(() => {
-    toast.classList.remove("show");
-  }, 3200);
-}
 
 let launcherAttemptCleanup;
 function openLuxmc(value) {
@@ -1117,66 +1157,30 @@ function showToast(message, icon = "✓") {
 }
 window.showToast = showToast;
 
-function initBenchmarkVisualizer() {
-  const chart = document.getElementById("benchmarkChart");
-  const tabs = document.querySelectorAll(".benchmark-tab");
-  if (!chart || !tabs.length) return;
+function initStabilityVisualizer() {
+  const terminal = document.querySelector(".diagnostic-window");
+  if (!terminal) return;
+  const lines = terminal.querySelectorAll(".diagnostic-line");
+  if (!lines.length) return;
 
-  const data = {
-    fps: [
-      { name: "Luxmc v1.9.2", val: "285 FPS", percent: 100, highlight: true, badge: "Vulkan Zink" },
-      { name: "Lunar Client", val: "185 FPS", percent: 65, highlight: false },
-      { name: "Vanilla Launcher", val: "68 FPS", percent: 24, highlight: false },
-      { name: "CurseForge App", val: "62 FPS", percent: 22, highlight: false }
-    ],
-    ram: [
-      { name: "Luxmc v1.9.2", val: "< 82 MB", percent: 12, highlight: true, badge: "Rust Nativo" },
-      { name: "Prism Launcher", val: "~160 MB", percent: 24, highlight: false },
-      { name: "Lunar Client", val: "~380 MB", percent: 54, highlight: false },
-      { name: "Vanilla Launcher", val: "~540 MB", percent: 77, highlight: false },
-      { name: "CurseForge (Overwolf)", val: "~720 MB", percent: 100, highlight: false }
-    ],
-    boot: [
-      { name: "Luxmc v1.9.2", val: "0.38s", percent: 5, highlight: true, badge: "Instantâneo" },
-      { name: "Prism Launcher", val: "1.5s", percent: 18, highlight: false },
-      { name: "Lunar Client", val: "3.2s", percent: 38, highlight: false },
-      { name: "Vanilla Launcher", val: "4.5s", percent: 53, highlight: false },
-      { name: "CurseForge App", val: "8.9s", percent: 100, highlight: false }
-    ]
-  };
-
-  function renderMetric(metric) {
-    const rows = data[metric] || data.fps;
-    chart.innerHTML = rows.map(r => `
-      <div class="benchmark-row ${r.highlight ? 'highlight' : ''}">
-        <div class="benchmark-label-wrap">
-          <span class="benchmark-label">${r.name}</span>
-          ${r.badge ? `<span class="benchmark-badge-lux">${r.badge}</span>` : ''}
-        </div>
-        <div class="benchmark-bar-track">
-          <div class="benchmark-bar-fill" style="width: 0%;" data-target-width="${r.percent}%"></div>
-        </div>
-        <div class="benchmark-score">${r.val}</div>
-      </div>
-    `).join("");
-
-    setTimeout(() => {
-      chart.querySelectorAll(".benchmark-bar-fill").forEach(bar => {
-        bar.style.width = bar.dataset.targetWidth;
-      });
-    }, 50);
-  }
-
-  tabs.forEach(tab => {
-    tab.addEventListener("click", () => {
-      tabs.forEach(t => t.classList.remove("active"));
-      tab.classList.add("active");
-      const metric = tab.dataset.metric || "fps";
-      renderMetric(metric);
+  const observer = new IntersectionObserver((entries, obs) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        lines.forEach((line, idx) => {
+          line.style.opacity = "0";
+          line.style.transform = "translateX(-8px)";
+          line.style.transition = `all 0.3s ease ${idx * 0.12}s`;
+          setTimeout(() => {
+            line.style.opacity = "1";
+            line.style.transform = "translateX(0)";
+          }, 50);
+        });
+        obs.disconnect();
+      }
     });
-  });
+  }, { threshold: 0.2 });
 
-  renderMetric("fps");
+  observer.observe(terminal);
 }
 
 function initServerStatusChecker() {
@@ -1207,52 +1211,41 @@ function initServerStatusChecker() {
     }
   });
 
-  async function checkServer(address) {
-    if (!address) return;
+  function formatMinecraftMotd(raw) {
+    if (!raw) return "";
+    const mcColors = {
+      "0": "#000000", "1": "#0000AA", "2": "#00AA00", "3": "#00AAAA",
+      "4": "#AA0000", "5": "#AA00AA", "6": "#FFAA00", "7": "#AAAAAA",
+      "8": "#555555", "9": "#5555FF", "a": "#55FF55", "b": "#55FFFF",
+      "c": "#FF5555", "d": "#FF55FF", "e": "#FFFF55", "f": "#FFFFFF"
+    };
+    let clean = raw.replace(/\r\n/g, "<br>").replace(/\n/g, "<br>");
+    clean = clean.replace(/§([0-9a-fA-F])/g, (m, c) => {
+      const color = mcColors[c.toLowerCase()] || "#ffffff";
+      return `</span><span style="color:${color};">`;
+    });
+    clean = clean.replace(/§l/gi, '<span style="font-weight:700;">');
+    clean = clean.replace(/§o/gi, '<span style="font-style:italic;">');
+    clean = clean.replace(/§n/gi, '<span style="text-decoration:underline;">');
+    clean = clean.replace(/§m/gi, '<span style="text-decoration:line-through;">');
+    clean = clean.replace(/§k/gi, '<span>');
+    clean = clean.replace(/§r/gi, '</span><span style="color:#e2e8f0;font-weight:normal;font-style:normal;">');
+    return `<span>${clean}</span>`;
+  }
 
-    resultBox.innerHTML = `
-      <div style="text-align: center; padding: 24px; color: var(--text-muted);">
-        <div style="font-size: 1.6rem; margin-bottom: 8px;">⏳</div>
-        <div>Consultando status de <strong>${escapeHtml(address)}</strong>...</div>
-      </div>
-    `;
+  let lastServerCheck = null;
 
-    const startTs = performance.now();
-    let data = null;
-    let pingMs = 0;
-
-    try {
-      const res = await fetch(`https://api.mcstatus.io/v2/status/java/${encodeURIComponent(address)}`, {
-        signal: AbortSignal.timeout(6000)
-      });
-      if (res.ok) {
-        data = await res.json();
-        pingMs = Math.round(performance.now() - startTs);
-      }
-    } catch {}
-
-    if (!data || !data.online) {
-      try {
-        const res2 = await fetch(`https://api.mcsrvstat.us/3/${encodeURIComponent(address)}`, {
-          signal: AbortSignal.timeout(5000)
-        });
-        if (res2.ok) {
-          const d2 = await res2.json();
-          if (d2 && d2.online) {
-            data = {
-              online: true,
-              icon: d2.icon || null,
-              players: d2.players || { online: 0, max: 0 },
-              version: { name_clean: d2.version || "1.20+" },
-              motd: {
-                html: d2.motd?.html ? d2.motd.html.join("<br>") : (d2.motd?.clean ? d2.motd.clean.join("<br>") : "")
-              }
-            };
-            pingMs = Math.round(performance.now() - startTs);
-          }
-        }
-      } catch {}
-    }
+  function renderServerResult(address, data, pingMs) {
+    if (!resultBox) return;
+    const noResponseText = (window.LuxI18n && window.LuxI18n.t("servers.noResponse")) || "Servidor não respondeu ao ping";
+    const offlineText = (window.LuxI18n && window.LuxI18n.t("servers.offline")) || "Offline / Inacessível";
+    const offlineDescText = (window.LuxI18n && window.LuxI18n.t("servers.offlineDesc")) || "O servidor está desligado, em manutenção ou com proteção contra pings diretos. Verifique se o endereço foi digitado corretamente.";
+    const onlineText = (window.LuxI18n && window.LuxI18n.t("servers.online")) || "Servidor Online";
+    const connectedPlayersText = (window.LuxI18n && window.LuxI18n.t("servers.connectedPlayers")) || "Jogadores Conectados";
+    const latencyText = (window.LuxI18n && window.LuxI18n.t("servers.latency")) || "Latência Estimada";
+    const versionText = (window.LuxI18n && window.LuxI18n.t("servers.version")) || "Versão do Servidor";
+    const btnCopyIpText = (window.LuxI18n && window.LuxI18n.t("servers.btnCopyIp")) || "Copiar IP";
+    const btnConnectText = (window.LuxI18n && window.LuxI18n.t("servers.btnConnect")) || "Conectar via Luxmc";
 
     if (!data || !data.online) {
       resultBox.innerHTML = `
@@ -1262,16 +1255,16 @@ function initServerStatusChecker() {
               <div class="server-favicon" style="display:flex;align-items:center;justify-content:center;color:#ef4444;font-size:1.4rem;">✕</div>
               <div class="server-name-wrap">
                 <div class="server-hostname">${escapeHtml(address)}</div>
-                <div class="server-ip-copy-tag">Servidor não respondeu ao ping</div>
+                <div class="server-ip-copy-tag">${escapeHtml(noResponseText)}</div>
               </div>
             </div>
             <div class="server-status-pill offline">
               <span class="pill-dot" style="background:#ef4444;"></span>
-              <span>Offline / Inacessível</span>
+              <span>${escapeHtml(offlineText)}</span>
             </div>
           </div>
           <div class="server-motd-container" style="color:#94a3b8;">
-            O servidor está desligado, em manutenção ou com proteção contra pings diretos. Verifique se o endereço foi digitado corretamente.
+            ${escapeHtml(offlineDescText)}
           </div>
         </div>
       `;
@@ -1296,25 +1289,25 @@ function initServerStatusChecker() {
           </div>
           <div class="server-status-pill online">
             <span class="pill-dot" style="background:#10b981;"></span>
-            <span>Servidor Online</span>
+            <span>${escapeHtml(onlineText)}</span>
           </div>
         </div>
 
         <div class="server-metrics-grid">
           <div class="server-metric-item">
-            <span class="metric-label">Jogadores Conectados</span>
+            <span class="metric-label">${escapeHtml(connectedPlayersText)}</span>
             <span class="metric-val">
               ${formatNumber(onlinePlayers)} <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">/ ${formatNumber(maxPlayers)}</span>
             </span>
           </div>
           <div class="server-metric-item">
-            <span class="metric-label">Latência Estimada</span>
+            <span class="metric-label">${escapeHtml(latencyText)}</span>
             <span class="metric-val" style="color:#34d399;">
               ${pingMs} <span style="font-size:0.75rem;color:#94a3b8;font-weight:600;">ms</span>
             </span>
           </div>
           <div class="server-metric-item">
-            <span class="metric-label">Versão do Servidor</span>
+            <span class="metric-label">${escapeHtml(versionText)}</span>
             <span class="metric-val" style="font-size:0.88rem;">
               ${escapeHtml(versionStr)}
             </span>
@@ -1326,11 +1319,11 @@ function initServerStatusChecker() {
         <div class="server-actions-bar">
           <button type="button" class="btn-server-copy" data-copy-ip="${escapeHtml(address)}">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            <span>Copiar IP</span>
+            <span>${escapeHtml(btnCopyIpText)}</span>
           </button>
           <a href="#download" class="btn-server-play">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            <span>Conectar via Luxmc</span>
+            <span>${escapeHtml(btnConnectText)}</span>
           </a>
         </div>
       </div>
@@ -1352,7 +1345,94 @@ function initServerStatusChecker() {
     }
   }
 
-  checkServer("mush.com.br");
+  window.addEventListener("luxmc-language-changed", () => {
+    if (lastServerCheck) {
+      renderServerResult(lastServerCheck.address, lastServerCheck.data, lastServerCheck.pingMs);
+    }
+  });
+
+  async function checkServer(address) {
+    if (!address) return;
+
+    const checkingText = (window.LuxI18n && window.LuxI18n.t("servers.checking")) || "Consultando status de";
+    resultBox.innerHTML = `
+      <div style="text-align: center; padding: 24px; color: var(--text-muted);">
+        <div style="font-size: 1.6rem; margin-bottom: 8px;">⏳</div>
+        <div>${escapeHtml(checkingText)} <strong>${escapeHtml(address)}</strong>...</div>
+      </div>
+    `;
+
+    const startTs = performance.now();
+    let data = null;
+    let pingMs = 0;
+
+    // 1. Primary: eu.mc-api.net (bypasses Cloudflare on Hypixel and handles international & BR servers)
+    try {
+      const res = await fetch(`https://eu.mc-api.net/v3/server/ping/${encodeURIComponent(address)}`, {
+        signal: AbortSignal.timeout(6000)
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d && (d.online === true || d.status === true)) {
+          data = {
+            online: true,
+            icon: d.favicon || d.favicon_base64 || null,
+            players: d.players || { online: 0, max: 0 },
+            version: { name_clean: d.version?.name || "1.20+" },
+            motd: {
+              html: d.description ? formatMinecraftMotd(d.description) : ""
+            }
+          };
+          pingMs = typeof d.took === "number" ? Math.max(1, Math.round(d.took)) : Math.round(performance.now() - startTs);
+        }
+      }
+    } catch {}
+
+    // 2. Fallback: api.mcstatus.io
+    if (!data || !data.online) {
+      try {
+        const res1 = await fetch(`https://api.mcstatus.io/v2/status/java/${encodeURIComponent(address)}`, {
+          signal: AbortSignal.timeout(5000)
+        });
+        if (res1.ok) {
+          const d1 = await res1.json();
+          if (d1 && d1.online) {
+            data = d1;
+            pingMs = Math.round(performance.now() - startTs);
+          }
+        }
+      } catch {}
+    }
+
+    // 3. Fallback: api.mcsrvstat.us
+    if (!data || !data.online) {
+      try {
+        const res2 = await fetch(`https://api.mcsrvstat.us/3/${encodeURIComponent(address)}`, {
+          signal: AbortSignal.timeout(5000)
+        });
+        if (res2.ok) {
+          const d2 = await res2.json();
+          if (d2 && d2.online) {
+            data = {
+              online: true,
+              icon: d2.icon || null,
+              players: d2.players || { online: 0, max: 0 },
+              version: { name_clean: d2.version || "1.20+" },
+              motd: {
+                html: d2.motd?.html ? d2.motd.html.join("<br>") : (d2.motd?.clean ? formatMinecraftMotd(d2.motd.clean.join("\n")) : "")
+              }
+            };
+            pingMs = Math.round(performance.now() - startTs);
+          }
+        }
+      } catch {}
+    }
+
+    lastServerCheck = { address, data, pingMs };
+    renderServerResult(address, data, pingMs);
+  }
+
+  checkServer("hypixel.net");
 }
 
 function initShowcaseModal() {
@@ -1373,7 +1453,9 @@ function initShowcaseModal() {
       modalImg.src = currentImg.src;
     }
     if (activeTab && modalTitle) {
-      modalTitle.textContent = `${activeTab.dataset.title || "Interface"} — Luxmc Launcher`;
+      const titleKey = activeTab.dataset.titleKey;
+      const title = (titleKey && window.LuxI18n ? window.LuxI18n.t(titleKey) : null) || activeTab.dataset.title || "Interface";
+      modalTitle.textContent = `${title} — Luxmc Launcher`;
     }
     modal.classList.add("active");
     modal.setAttribute("aria-hidden", "false");

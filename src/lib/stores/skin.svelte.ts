@@ -1,3 +1,21 @@
+import { authSaveAppearance } from "$lib/api/auth";
+import { account, saveCurrentAccount } from "./account.svelte";
+import { toast } from "./toasts.svelte";
+
+let pendingSave: Promise<void> = Promise.resolve();
+export async function saveAppearance(skinUrl: string, variant: "classic" | "slim", capeUrl: string | null, avatarUrl?: string): Promise<void> {
+    const current = account.value;
+    if (!current) return Promise.reject(new Error("Selecione uma conta"));
+    const request = pendingSave.catch(() => {}).then(() => authSaveAppearance(current.id, skinUrl, variant, capeUrl));
+    pendingSave = request;
+    await request;
+    if (account.value?.id !== current.id) return;
+    const updated = { ...account.value, skinUrl, skinVariant: variant, capeUrl, ...(avatarUrl ? { avatarUrl } : {}) };
+    account.value = updated;
+    await saveCurrentAccount(updated);
+    return request;
+}
+
 export type CapeType =
 	| "none"
 	| "custom"
@@ -63,7 +81,7 @@ function createSkinStore() {
 		setSkin(skin: Partial<SkinData>) {
 			current = { ...current, ...skin };
 			if (typeof window !== "undefined") {
-				localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current));
+				try { localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current)); } catch {}
 			}
 		},
 		setCape(capeType: CapeType, customUrl?: string) {
@@ -73,7 +91,7 @@ function createSkinStore() {
 				current.customCapeUrl = customUrl;
 			}
 			if (typeof window !== "undefined") {
-				localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current));
+				try { localStorage.setItem("luxmc_active_skin_data", JSON.stringify(current)); } catch {}
 			}
 		}
 	};

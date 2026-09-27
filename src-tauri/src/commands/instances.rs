@@ -75,7 +75,8 @@ pub async fn instances_duplicate(id: String) -> AppResult<ProfileRow> {
             std::path::PathBuf::from(format!("{}/.local/share/luxmc/instances", home))
         });
 
-    let target_game_dir = base_instances_dir.join(&new_name);
+    let new_id = Uuid::new_v4().to_string();
+    let target_game_dir = base_instances_dir.join(&new_id).join(".minecraft");
     let target_dir_str = target_game_dir.to_string_lossy().to_string();
 
     let old_dir = std::path::PathBuf::from(&existing.game_dir);
@@ -84,11 +85,11 @@ pub async fn instances_duplicate(id: String) -> AppResult<ProfileRow> {
         let mut copy_options = fs_extra::dir::CopyOptions::new();
         copy_options.content_only = true;
         copy_options.overwrite = true;
-        let _ = fs_extra::dir::copy(&old_dir, &target_game_dir, &copy_options);
+        fs_extra::dir::copy(&old_dir, &target_game_dir, &copy_options).map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
     }
 
     let row = ProfileRow {
-        id: Uuid::new_v4().to_string(),
+        id: new_id,
         name: new_name,
         icon: existing.icon,
         mc_version: existing.mc_version,
@@ -358,23 +359,37 @@ pub async fn instances_screenshots(
 #[tauri::command]
 pub async fn screenshot_delete(path: String) -> AppResult<()> {
     let p = std::path::Path::new(&path);
-    let canonical = match p.canonicalize() {
-        Ok(c) => c,
-        Err(_) => {
-            return Err(crate::error::AppError::Internal(
-                "Path does not exist".to_string(),
-            ));
-        }
-    };
-    let path_str = canonical.to_string_lossy();
-    let dominated_by_screenshots = path_str
-        .split(std::path::MAIN_SEPARATOR)
-        .any(|component| component == "screenshots");
-    if !dominated_by_screenshots {
-        return Err(crate::error::AppError::Internal(
-            "Path must be inside a screenshots directory".to_string(),
+    let canonical = p.canonicalize().map_err(|_| {
+        crate::error::AppError::NotFound("Arquivo de screenshot não encontrado".to_string())
+    })?;
+
+    if !canonical.is_file() {
+        return Err(crate::error::AppError::InvalidInput("O caminho não aponta para um arquivo".to_string()));
+    }
+
+    let parent_is_screenshots = canonical
+        .parent()
+        .and_then(|parent| parent.file_name())
+        .map_or(false, |name| name == "screenshots");
+
+    if !parent_is_screenshots {
+        return Err(crate::error::AppError::InvalidInput(
+            "O arquivo deve estar diretamente dentro de uma pasta screenshots".to_string(),
         ));
     }
+
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+        .ok_or_else(|| crate::error::AppError::Internal("Data dir unavailable".to_string()))?;
+    let canonical_data = base_dir.data_dir().canonicalize().map_err(|_| {
+        crate::error::AppError::Internal("Data dir not found".to_string())
+    })?;
+
+    if !canonical.starts_with(&canonical_data) {
+        return Err(crate::error::AppError::InvalidInput(
+            "Screenshot fora do diretório de dados do Luxmc".to_string(),
+        ));
+    }
+
     tokio::fs::remove_file(&canonical).await?;
     Ok(())
 }
@@ -563,6 +578,8 @@ pub(crate) async fn download_cf_mod_file(
             .and_then(|bytes| serde_json::from_slice::<curseforge::CurseForgeFileInfo>(&bytes).ok());
         let info = if let Some(info) = file_info.cloned().or(cached) {
             info
+        } else if let Some(single) = curseforge::get_file_single(http, cf_file.project_id, cf_file.file_id).await {
+            single
         } else {
             curseforge::get_files_batch(http, &[cf_file.file_id]).await.remove(&cf_file.file_id)
                 .ok_or_else(|| crate::error::AppError::InvalidState(format!(
@@ -578,28 +595,15 @@ pub(crate) async fn download_cf_mod_file(
         let root = mods_dir.parent().unwrap_or(mods_dir);
         if let Ok(bytes) = tokio::fs::read(root.join(".luxmc/overrides.json")).await {
             if let Ok(overrides) = serde_json::from_slice::<Vec<MrpackFile>>(&bytes) {
-                let info_stem = info.file_name.strip_suffix(".jar").unwrap_or(&info.file_name).to_lowercase();
-                let info_parts: Vec<&str> = info_stem.split(&['-', '_'][..]).collect();
-                let info_base: String = info_parts.into_iter().take_while(|p| !p.chars().any(|c| c.is_ascii_digit())).collect::<Vec<_>>().join("-");
-                if let Some(file) = overrides.iter().find(|file| {
-                    if file.path == format!("mods/{}", info.file_name) {
-                        return true;
-                    }
-                    if !info_base.is_empty() && info_base.len() >= 3 {
-                        if let Some(over_name) = file.path.strip_prefix("mods/") {
-                            let over_stem = over_name.strip_suffix(".jar").unwrap_or(over_name).to_lowercase();
-                            let over_parts: Vec<&str> = over_stem.split(&['-', '_'][..]).collect();
-                            let over_base: String = over_parts.into_iter().take_while(|p| !p.chars().any(|c| c.is_ascii_digit())).collect::<Vec<_>>().join("-");
-                            return over_base == info_base;
-                        }
-                    }
-                    false
-                }) {
+                if let Some(file) = overrides.iter().find(|file| file.path == format!("mods/{}", info.file_name)) {
                     ensure_mrpack_file(&pack::client()?, root, file, None).await?;
                     pack::atomic_write(&metadata_path, &serde_json::to_vec(&info)?).await?;
                     return Ok(());
                 }
             }
+        }
+        for existing in [&path, &disabled] {
+            if info.sha1.is_some() && pack::verify_existing(existing, info.size, info.sha1.as_deref(), None, true).await { return Ok(()); }
         }
         let valid = |bytes: &[u8]| pack::verify(bytes, info.size, info.sha1.as_deref(), None)
             && zip::ZipArchive::new(std::io::Cursor::new(bytes)).is_ok();
@@ -618,10 +622,16 @@ pub(crate) async fn download_cf_mod_file(
         if let Some(url) = info.download_url.as_ref().filter(|url| !url.is_empty()) {
             urls.extend(pack::mirrors(url)?);
         }
+        let p1 = cf_file.file_id / 1000;
+        let p2 = cf_file.file_id % 1000;
+        let encoded_name = urlencoding::encode(&info.file_name);
         for host in ["edge.forgecdn.net", "mediafilez.forgecdn.net", "media.forgecdn.net"] {
-            let url = format!("https://{host}/files/{}/{}/{}", cf_file.file_id / 1000,
-                cf_file.file_id % 1000, urlencoding::encode(&info.file_name));
-            if !urls.contains(&url) { urls.push(url); }
+            let u1 = format!("https://{host}/files/{p1}/{p2}/{encoded_name}");
+            if !urls.contains(&u1) { urls.push(u1); }
+            let u2 = format!("https://{host}/files/{p1}/{p2:03}/{encoded_name}");
+            if !urls.contains(&u2) { urls.push(u2); }
+            let u3 = format!("https://{host}/files/{p1}/{p2}/{}", info.file_name);
+            if !urls.contains(&u3) { urls.push(u3); }
         }
         if let Some(hash) = &info.sha1 {
             if let Ok(response) = http.get(format!("https://api.modrinth.com/v2/version_file/{hash}?algorithm=sha1"))
@@ -780,7 +790,7 @@ pub async fn instance_import_modpack_core(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let instance_dir = base_dir.data_dir().join("instances").join(&profile_id);
+    let instance_dir = base_dir.data_dir().join("instances").join(&profile_id).join(".minecraft");
     tokio::fs::create_dir_all(&instance_dir).await?;
     tokio::fs::write(instance_dir.join("manifest.json"), serde_json::to_vec_pretty(&manifest)?).await?;
     let mods_dir = instance_dir.join("mods");
@@ -829,23 +839,16 @@ pub async fn instance_import_modpack_core(
                 clean_name.get(fallback_client_prefix.len()..)
             } else if lower_name.starts_with(&fallback_client_dir) {
                 clean_name.get(fallback_client_dir.len()..)
-            } else if lower_name.starts_with(&kubejs_prefix) {
-                Some(&clean_name[root_prefix.len()..])
-            } else if lower_name.starts_with(&config_prefix) {
-                Some(&clean_name[root_prefix.len()..])
-            } else if lower_name.starts_with(&defaultconfigs_prefix) {
-                Some(&clean_name[root_prefix.len()..])
-            } else if lower_name.starts_with(&scripts_prefix) {
-                Some(&clean_name[root_prefix.len()..])
-            } else if lower_name.starts_with(&patchouli_prefix) {
-                Some(&clean_name[root_prefix.len()..])
-            } else if lower_name.starts_with(&openloader_prefix) {
-                Some(&clean_name[root_prefix.len()..])
-            } else if lower_name.starts_with(&resourcepacks_prefix) {
-                Some(&clean_name[root_prefix.len()..])
-            } else if lower_name.starts_with(&shaderpacks_prefix) {
-                Some(&clean_name[root_prefix.len()..])
-            } else if lower_name.starts_with(&mods_prefix) {
+            } else if lower_name.starts_with(&kubejs_prefix)
+                || lower_name.starts_with(&config_prefix)
+                || lower_name.starts_with(&defaultconfigs_prefix)
+                || lower_name.starts_with(&scripts_prefix)
+                || lower_name.starts_with(&patchouli_prefix)
+                || lower_name.starts_with(&openloader_prefix)
+                || lower_name.starts_with(&resourcepacks_prefix)
+                || lower_name.starts_with(&shaderpacks_prefix)
+                || lower_name.starts_with(&mods_prefix)
+            {
                 Some(&clean_name[root_prefix.len()..])
             } else {
                 None
@@ -1036,6 +1039,7 @@ pub async fn instance_repair_modpack_core(
     state: &AppState,
     profileId: String,
 ) -> AppResult<u32> {
+    crate::commands::instance_lab::ensure_isolation_idle(&profileId)?;
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&profileId)
@@ -1047,6 +1051,7 @@ pub async fn instance_repair_modpack_core(
     let mods_dir = root.join("mods");
     let before: std::collections::HashMap<_, _> = std::fs::read_dir(&mods_dir).into_iter().flatten().filter_map(Result::ok)
         .filter_map(|entry| entry.metadata().ok().map(|meta| (entry.file_name(), (meta.len(), meta.modified().ok())))).collect();
+    let _ = tokio::fs::remove_file(root.join(".luxmc/.healed")).await;
     heal_modpack(state, &row).await?;
     let repaired = std::fs::read_dir(&mods_dir)?.filter_map(Result::ok).filter(|entry| {
         entry.metadata().ok().is_some_and(|meta| before.get(&entry.file_name()) != Some(&(meta.len(), meta.modified().ok())))
@@ -1154,12 +1159,19 @@ pub async fn instance_health_check(
 }
 
 fn compute_dir_size(dir: &std::path::Path) -> u64 {
+    compute_dir_size_bounded(dir, 0, 3)
+}
+
+fn compute_dir_size_bounded(dir: &std::path::Path, current_depth: usize, max_depth: usize) -> u64 {
+    if current_depth > max_depth {
+        return 0;
+    }
     let mut total = 0;
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
             if let Ok(meta) = entry.metadata() {
                 if meta.is_dir() {
-                    total += compute_dir_size(&entry.path());
+                    total += compute_dir_size_bounded(&entry.path(), current_depth + 1, max_depth);
                 } else {
                     total += meta.len();
                 }
@@ -1185,7 +1197,10 @@ pub async fn instance_file_tree(
         })?;
 
     let base = if let Some(ref sub) = subPath {
-        std::path::PathBuf::from(&row.game_dir).join(sub)
+        crate::core::instance_paths::resolve_within(
+            std::path::Path::new(&row.game_dir),
+            sub,
+        )?
     } else {
         std::path::PathBuf::from(&row.game_dir)
     };
@@ -1245,7 +1260,9 @@ pub async fn instance_file_tree(
     let mut entries = Vec::new();
     for (fname, path, is_dir, metadata, is_jar_or_zip) in raw_entries {
         let icon = if is_jar_or_zip {
-            if let Some(cached) = cached_icons.get(&fname) {
+            let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+            let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
+            if let Some(cached) = cached_icons.get(&fname).or_else(|| cached_icons.get(&stem)).or_else(|| cached_icons.get(&base_key)) {
                 Some(cached.clone())
             } else if let Some(jar_icon) = crate::commands::mods::extract_mod_icon_from_jar(&path) {
                 let _ = sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
@@ -1255,9 +1272,7 @@ pub async fn instance_file_tree(
                     .await;
                 Some(jar_icon)
             } else {
-                let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-                let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
-                cached_icons.get(&stem).cloned().or_else(|| cached_icons.get(&base_key).cloned())
+                None
             }
         } else {
             None
@@ -1331,9 +1346,7 @@ async fn ensure_mrpack_file(
     let valid = |bytes: &[u8]| pack::verify(bytes, file.file_size, sha1, sha512);
     let disabled = pack::destination(root, &format!("{}.disabled", file.path))?;
     for existing in [&path, &disabled] {
-        if let Ok(bytes) = tokio::fs::read(existing).await {
-            if valid(&bytes) { return Ok(()); }
-        }
+        if pack::verify_existing(existing, file.file_size, sha1, sha512, false).await { return Ok(()); }
     }
     let target = if disabled.exists() { &disabled } else { &path };
     let cache = pack::destination(&root.join(".luxmc/overrides"), &file.path)?;
@@ -1439,59 +1452,149 @@ async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
     Ok(())
 }
 
+fn prominence_ftb_files(name: &str, config: &str) -> Vec<CfFile> {
+    if !name.starts_with("Prominence") { return Vec::new(); }
+    let prefix = "https://www.curseforge.com/api/v1/mods/";
+    let mut files = std::collections::BTreeMap::new();
+    for line in config.lines().filter(|line| line.contains("[action_type:openlink]")) {
+        let Some((_, url)) = line.split_once(" = ") else { continue; };
+        let Some(path) = url.trim().strip_prefix(prefix) else { continue; };
+        let parts: Vec<_> = path.split('/').collect();
+        if parts.len() != 4 || parts[1] != "files" || parts[3] != "download" { continue; }
+        let (Ok(project_id), Ok(mut file_id)) = (parts[0].parse::<u64>(), parts[2].parse::<u64>()) else { continue; };
+        if ![438496, 438495, 889915, 438497].contains(&project_id) || file_id == 0 { continue; }
+        if project_id == 438497 && file_id == 6130783 {
+            file_id = 7499808;
+        }
+        files.entry(project_id).or_insert(file_id);
+    }
+    files.into_iter().map(|(project_id, file_id)| CfFile {project_id, file_id}).collect()
+}
+
 pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppResult<()> {
     let root = std::path::Path::new(&profile.game_dir);
+    let healed_stamp = root.join(".luxmc/.healed");
+    let mr_path = root.join("modrinth.index.json");
+    let cf_path = root.join("manifest.json");
+    let override_index = root.join(".luxmc/overrides.json");
     let mods_dir = root.join("mods");
 
-    // Se a pasta mods já tem arquivos .jar suficientes, pula a checagem lenta de rede no launch
-    if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
-        let mut jar_count = 0;
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            if entry.path().extension().map_or(false, |ext| ext == "jar") {
-                jar_count += 1;
-                if jar_count >= 5 {
-                    tracing::info!(count = jar_count, "Modpack já possui mods instalados. Lançamento rápido.");
-                    return Ok(());
+    if healed_stamp.exists() && mods_dir.is_dir() {
+        if let Ok(stamp_meta) = tokio::fs::metadata(&healed_stamp).await {
+            if let Ok(stamp_mtime) = stamp_meta.modified() {
+                let mut up_to_date = true;
+                for manifest_file in [&mr_path, &cf_path, &override_index] {
+                    if manifest_file.exists() {
+                        if let Ok(meta) = tokio::fs::metadata(manifest_file).await {
+                            if let Ok(mtime) = meta.modified() {
+                                if mtime > stamp_mtime {
+                                    up_to_date = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                if up_to_date {
+                    if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
+                        if let Ok(Some(_)) = entries.next_entry().await {
+                            return Ok(());
+                        }
+                    }
                 }
             }
         }
     }
 
     use crate::core::mods::pack_download as pack;
-    let override_index = root.join(".luxmc/overrides.json");
     if override_index.exists() {
         let files: Vec<MrpackFile> = serde_json::from_slice(&tokio::fs::read(override_index).await?)?;
         let client = pack::client()?;
         for file in files { ensure_mrpack_file(&client, root, &file, None).await?; }
     }
-    let mr_path = root.join("modrinth.index.json");
     if mr_path.exists() {
         let manifest: MrpackManifest = serde_json::from_slice(&tokio::fs::read(mr_path).await?)?;
         let client = pack::client()?;
+        let addons = if let Ok(config) = tokio::fs::read_to_string(root.join("config/fancymenu/customization/noftbquests.txt")).await {
+            prominence_ftb_files(manifest.name.as_deref().unwrap_or_default(), &config)
+        } else { Vec::new() };
         let results = futures_util::stream::iter(manifest.files)
             .map(|file| {
                 let client = client.clone();
                 let root = root.to_path_buf();
                 async move { ensure_mrpack_file(&client, &root, &file, None).await }
             })
-            .buffer_unordered(12).collect::<Vec<_>>().await;
+            .buffer_unordered(24).collect::<Vec<_>>().await;
         for result in results { result?; }
-    }
-    let cf_path = root.join("manifest.json");
-    if cf_path.exists() {
-        let manifest: CfManifest = serde_json::from_slice(&tokio::fs::read(cf_path).await?)?;
-        let storage = root.join(".luxmc").join("mods");
-        for file in &manifest.files {
-            if !download_cf_mod_file(&state.http, file, None, None, &root.join("mods"), &storage,
+        let storage = root.join(".luxmc/mods");
+        let db = crate::db::shared_db().await?;
+        let installed = crate::db::schema::mods::list_by_profile(&db, &profile.id).await?;
+        for file in addons {
+            let already_installed = installed.iter().any(|item| item.source == "curseforge"
+                && item.project_id == file.project_id.to_string()
+                && item.version_id == file.file_id.to_string()
+                && (root.join("mods").join(&item.file_name).is_file()
+                    || root.join("mods").join(format!("{}.disabled", item.file_name)).is_file()));
+            if already_installed { continue; }
+            for old in installed.iter().filter(|i| i.source == "curseforge" && i.project_id == file.project_id.to_string()) {
+                let _ = tokio::fs::remove_file(root.join("mods").join(&old.file_name)).await;
+                let _ = tokio::fs::remove_file(root.join("mods").join(format!("{}.disabled", old.file_name))).await;
+            }
+            if !download_cf_mod_file(&state.http, &file, None, None, &root.join("mods"), &storage,
                 &profile.id, Some(&profile.mc_version), Some(&profile.loader), None).await {
-                tracing::warn!(
-                    project_id = file.project_id,
-                    file_id = file.file_id,
-                    "Arquivo CurseForge opcional ou bloqueado não pôde ser recuperado. Continuando..."
-                );
+                return Err(crate::error::AppError::InvalidState(format!(
+                    "Não foi possível instalar o complemento FTB {}/{} exigido pelo Prominence.",
+                    file.project_id, file.file_id)));
             }
         }
     }
+    if cf_path.exists() {
+        let manifest: CfManifest = serde_json::from_slice(&tokio::fs::read(cf_path).await?)?;
+        let storage = root.join(".luxmc").join("mods");
+        let results = futures_util::stream::iter(manifest.files)
+            .map(|file| {
+                let http = state.http.clone();
+                let mods_dir = root.join("mods");
+                let storage = storage.clone();
+                let profile_id = profile.id.clone();
+                let mc_version = profile.mc_version.clone();
+                let loader = profile.loader.clone();
+                async move {
+                    if !download_cf_mod_file(
+                        &http,
+                        &file,
+                        None,
+                        None,
+                        &mods_dir,
+                        &storage,
+                        &profile_id,
+                        Some(&mc_version),
+                        Some(&loader),
+                        None,
+                    )
+                    .await
+                    {
+                        Err(crate::error::AppError::InvalidState(format!(
+                            "Não foi possível recuperar o arquivo CurseForge {}/{}. Repare o modpack antes de iniciar.",
+                            file.project_id, file.file_id
+                        )))
+                    } else {
+                        Ok(())
+                    }
+                }
+            })
+            .buffer_unordered(24)
+            .collect::<Vec<_>>()
+            .await;
+        for result in results {
+            result?;
+        }
+    }
+    if profile.loader.eq_ignore_ascii_case("fabric") || profile.loader.eq_ignore_ascii_case("quilt") {
+        let _ = crate::core::loaders::fabric::ensure_fabric_api(&state.http, &root.join("mods"), &profile.mc_version).await;
+    }
+    let _ = tokio::fs::create_dir_all(root.join(".luxmc")).await;
+    let _ = tokio::fs::write(&healed_stamp, b"healed").await;
     Ok(())
 }
 
@@ -1556,7 +1659,7 @@ pub(crate) async fn ensure_modpack_shaders(http: &reqwest::Client, root: &std::p
 
     if let Ok(resp) = http
         .get("https://api.modrinth.com/v2/project/complementary-reimagined/version")
-        .header("User-Agent", "Luxmc/1.9.2")
+        .header("User-Agent", "Luxmc/2.0.0")
         .send()
         .await
     {
@@ -1691,7 +1794,7 @@ pub async fn instance_import_mrpack_core(
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
-    let instance_dir = base_dir.data_dir().join("instances").join(&profile_id);
+    let instance_dir = base_dir.data_dir().join("instances").join(&profile_id).join(".minecraft");
     let mods_dir = instance_dir.join("mods");
     tokio::fs::create_dir_all(&mods_dir).await?;
 
@@ -1753,11 +1856,18 @@ pub async fn instance_import_mrpack_core(
     let mut extracted_size = 0u64;
     for folder in ["overrides", "client-overrides"] {
         let prefix = format!("{root_prefix}{folder}/");
+        let prefix_lower = prefix.to_ascii_lowercase();
         for i in 0..archive.len() {
             pack::cancelled(Some(&state.import_cancel))?;
             let mut file = archive.by_index(i)?;
             let name = file.name().replace('\\', "/");
-            let Some(relative) = name.strip_prefix(&prefix).filter(|value| !value.is_empty()) else { continue };
+            let name_lower = name.to_ascii_lowercase();
+            let relative = if name_lower.starts_with(&prefix_lower) && name.len() > prefix.len() {
+                &name[prefix.len()..]
+            } else {
+                continue;
+            };
+            if relative.is_empty() { continue; }
             validate_pack_entry(relative)?;
             let outpath = pack::destination(&instance_dir, relative)?;
             if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
@@ -2749,6 +2859,7 @@ pub async fn instance_mod_toggle(
     fileName: String,
     enabled: bool,
 ) -> AppResult<String> {
+    crate::commands::instance_lab::ensure_isolation_idle(&profileId)?;
     if fileName.is_empty() || fileName.contains("..") || fileName.contains('/') || fileName.contains('\\') {
         return Err(crate::error::AppError::InvalidInput("Invalid file name".into()));
     }
@@ -2791,6 +2902,7 @@ pub async fn instance_mod_delete(
     profileId: String,
     fileName: String,
 ) -> AppResult<()> {
+    crate::commands::instance_lab::ensure_isolation_idle(&profileId)?;
     if fileName.is_empty() || fileName.contains("..") || fileName.contains('/') || fileName.contains('\\') {
         return Err(crate::error::AppError::InvalidInput("Invalid file name".into()));
     }
@@ -2832,6 +2944,7 @@ pub async fn instance_mod_add(
     profileId: String,
     sourcePath: String,
 ) -> AppResult<String> {
+    crate::commands::instance_lab::ensure_isolation_idle(&profileId)?;
     let src = std::path::PathBuf::from(&sourcePath);
     if !src.is_file() {
         return Err(crate::error::AppError::NotFound("Source file does not exist".into()));
@@ -3074,6 +3187,22 @@ mod modpack_integrity_tests {
     }
 
     #[tokio::test]
+    async fn repair_does_not_skip_integrity_for_populated_mods_directory() {
+        let root = root();
+        std::fs::create_dir_all(root.join("mods")).unwrap();
+        for index in 0..6 { std::fs::write(root.join(format!("mods/other-{index}.jar")), b"unrelated").unwrap(); }
+        std::fs::create_dir_all(root.join(".luxmc")).unwrap();
+        std::fs::write(root.join(".luxmc/overrides.json"), serde_json::to_vec(&vec![entry("mods/missing.jar", b"expected")]).unwrap()).unwrap();
+        let profile: ProfileRow = serde_json::from_value(serde_json::json!({
+            "id": "integrity", "name": "Integrity", "icon": "default", "mcVersion": "1.20.1", "loader": "fabric",
+            "fullscreen": false, "gameDir": root, "createdAt": chrono::Utc::now(), "updatedAt": chrono::Utc::now()
+        })).unwrap();
+        assert!(heal_modpack(&AppState::default(), &profile).await.is_err());
+        assert_eq!(std::fs::read_dir(root.join("mods")).unwrap().count(), 6);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[tokio::test]
     async fn preserves_disabled_mods_and_restores_override_bytes() {
         let root = root();
         let bytes = b"the exact override jar bytes";
@@ -3115,6 +3244,16 @@ mod modpack_integrity_tests {
             assert!(validate_pack_entry(path).is_err());
         }
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn prominence_addons_use_only_published_ftb_links() {
+        let config = "[executable_action_instance:a][action_type:openlink] = https://www.curseforge.com/api/v1/mods/438496/files/6431736/download\n[executable_action_instance:b][action_type:openlink] = https://www.curseforge.com/api/v1/mods/438496/files/6431736/download\n[executable_action_instance:c][action_type:openlink] = https://untrusted.invalid/api/v1/mods/438495/files/6164052/download\n[executable_action_instance:d][action_type:openlink] = https://www.curseforge.com/api/v1/mods/123/files/456/download";
+        let files = prominence_ftb_files("Prominence II", config);
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].project_id, 438496);
+        assert_eq!(files[0].file_id, 6431736);
+        assert!(prominence_ftb_files("Another pack", config).is_empty());
     }
 
     #[test]

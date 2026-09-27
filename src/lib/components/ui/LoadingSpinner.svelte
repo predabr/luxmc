@@ -10,5 +10,5 @@
 </script>
 
 <div class="animate-spin rounded-full border-2 border-t-transparent {sizes[size]} {colors[color]}" role="status">
-  <span class="sr-only">Loading...</span>
+  <span class="sr-only">Carregando…</span>
 </div>

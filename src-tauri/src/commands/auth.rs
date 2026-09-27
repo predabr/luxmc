@@ -517,3 +517,103 @@ pub async fn auth_set_account_cape(
 }
 
 
+
+#[tauri::command]
+pub async fn auth_save_appearance(uuid: String, skin_url: String, variant: String, cape_url: Option<String>) -> AppResult<()> {
+    fn validate_texture(value: &str) -> AppResult<()> {
+        if value.len() > 3 * 1024 * 1024 { return Err(AppError::InvalidInput("Textura excede 3 MB".into())); }
+        if value.starts_with("data:image/png;base64,") {
+            use base64::Engine;
+            let bytes = base64::engine::general_purpose::STANDARD.decode(value.split_once(',').unwrap().1)
+                .map_err(|_| AppError::InvalidInput("PNG inválido".into()))?;
+            if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") { return Err(AppError::InvalidInput("PNG inválido".into())); }
+        } else {
+            let url = url::Url::parse(value).map_err(|_| AppError::InvalidInput("URL de textura inválida".into()))?;
+            if url.scheme() != "https" || url.host_str().is_none() || !url.username().is_empty() || url.password().is_some() {
+                return Err(AppError::InvalidInput("Use PNG ou HTTPS".into()));
+            }
+        }
+        Ok(())
+    }
+    validate_texture(&skin_url)?;
+    if let Some(cape) = &cape_url { validate_texture(cape)?; }
+    if variant != "classic" && variant != "slim" { return Err(AppError::InvalidInput("Modelo de skin inválido".into())); }
+    let db = crate::db::shared_db().await?;
+    let result = sqlx::query("UPDATE accounts SET skin_url = ?, skin_variant = ?, cape_url = ?, updated_at = ? WHERE id = ? OR uuid = ?")
+        .bind(skin_url).bind(variant).bind(cape_url).bind(chrono::Utc::now()).bind(&uuid).bind(&uuid)
+        .execute(db.pool()).await?;
+    if result.rows_affected() == 0 { return Err(AppError::NotFound("Conta não encontrada".into())); }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn auth_resolve_texture(url: String) -> AppResult<String> {
+    use base64::Engine;
+    use futures_util::StreamExt;
+    let http = reqwest::Client::builder().timeout(std::time::Duration::from_secs(6)).redirect(reqwest::redirect::Policy::none()).build()?;
+    let mut target = url::Url::parse(&url).map_err(|_| AppError::InvalidInput("URL de textura inválida".into()))?;
+    for _ in 0..4 {
+        if target.scheme() != "https" || !target.username().is_empty() || target.password().is_some() || !matches!(target.host_str(), Some("mineskin.eu" | "mc-heads.net" | "minotar.net" | "crafatar.com" | "textures.minecraft.net")) {
+            return Err(AppError::InvalidInput("Provedor de textura não permitido".into()));
+        }
+        let response = http.get(target.clone()).send().await?;
+        if response.status().is_redirection() {
+            let location = response.headers().get(reqwest::header::LOCATION).and_then(|v| v.to_str().ok()).ok_or_else(|| AppError::InvalidInput("Redirecionamento inválido".into()))?;
+            target = target.join(location).map_err(|_| AppError::InvalidInput("Redirecionamento inválido".into()))?;
+            continue;
+        }
+        let mut stream = response.error_for_status()?.bytes_stream();
+        let mut bytes = Vec::new();
+        while let Some(chunk) = stream.next().await { let chunk = chunk?; if bytes.len() + chunk.len() > 3 * 1024 * 1024 { return Err(AppError::InvalidInput("Textura excede 3 MB".into())); } bytes.extend_from_slice(&chunk); }
+        if !bytes.starts_with(b"\x89PNG\r\n\x1a\n") { return Err(AppError::InvalidInput("Textura não é PNG".into())); }
+        return Ok(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes)));
+    }
+    Err(AppError::InvalidInput("Redirecionamentos demais".into()))
+}
+
+#[tauri::command]
+pub async fn auth_read_local_texture(path: String) -> AppResult<String> {
+    use base64::Engine;
+    use tokio::io::AsyncReadExt;
+    let file = tokio::fs::File::open(path).await?;
+    if !file.metadata().await?.is_file() {
+        return Err(AppError::InvalidInput("Selecione um arquivo de imagem válido".into()));
+    }
+    let mut bytes = Vec::new();
+    file.take(10 * 1024 * 1024 + 1).read_to_end(&mut bytes).await?;
+    let png_bytes = convert_or_validate_local_texture(&bytes)?;
+    Ok(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(png_bytes)))
+}
+
+fn convert_or_validate_local_texture(bytes: &[u8]) -> AppResult<Vec<u8>> {
+    if bytes.len() > 10 * 1024 * 1024 {
+        return Err(AppError::InvalidInput("A textura deve ter até 10 MB".into()));
+    }
+    let dyn_img = image::load_from_memory(bytes)
+        .map_err(|_| AppError::InvalidInput("Formato de imagem não suportado (use PNG ou WebP)".into()))?;
+    let (width, height) = (dyn_img.width(), dyn_img.height());
+    if width == 0 || height == 0 || width > 2048 || height > 2048 {
+        return Err(AppError::InvalidInput("A textura deve ter no máximo 2048 × 2048 pixels".into()));
+    }
+
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Ok(bytes.to_vec());
+    }
+
+    let mut png_buf = Vec::new();
+    dyn_img.to_rgba8().write_to(&mut std::io::Cursor::new(&mut png_buf), image::ImageFormat::Png)
+        .map_err(|e| AppError::Internal(format!("Erro ao converter textura para PNG: {e}")))?;
+    Ok(png_buf)
+}
+
+#[cfg(test)]
+mod local_texture_tests {
+    use super::convert_or_validate_local_texture;
+
+    #[test]
+    fn accepts_skin_and_rejects_non_png_or_oversize() {
+        assert!(convert_or_validate_local_texture(include_bytes!("../../../static/steve.png")).is_ok());
+        assert!(convert_or_validate_local_texture(b"not a png").is_err());
+        assert!(convert_or_validate_local_texture(&vec![0; 10 * 1024 * 1024 + 1]).is_err());
+    }
+}

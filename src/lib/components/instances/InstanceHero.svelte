@@ -5,8 +5,8 @@
     import { gamingStats } from "$lib/stores/gamingStats.svelte";
     import { button } from "$lib/components/ui/button";
     import LoaderBadge from "./LoaderBadge.svelte";
-    let { profile, banner, launching = false, running = false, status = "", progress = 0, javaLabel = "Automático", onPlay, onStop, onSettings, onHost, actions }: {
-        profile: Profile | null; banner: string; launching?: boolean; running?: boolean; status?: string; progress?: number;
+    let { profile, banner, launching = false, running = false, stopping = false, status = "", progress = 0, javaLabel = "Automático", onPlay, onStop, onSettings, onHost, actions }: {
+        profile: Profile | null; banner: string; launching?: boolean; running?: boolean; stopping?: boolean; status?: string; progress?: number;
         javaLabel?: string; onPlay: () => void; onStop?: () => void; onSettings: () => void; onHost: () => void; actions?: Snippet;
     } = $props();
     const icon = $derived(({ grass_block: '/grass_block.png', '/grass_block': '/grass_block.png', grass: '/grass_block.png', '/grass': '/grass_block.png', modpack_fo: '/modpack_fo_icon.png', modpack_better_mc: '/modpack_bmc_icon.webp', modpack_cobblemon: '/modpack_cobblemon_icon.png', logo: '/logo.png', grass_head: '/grass_head.png' } as Record<string, string>)[profile?.icon || 'grass_block'] || (profile?.icon === '/grass_block' ? '/grass_block.png' : profile?.icon) || '/grass_block.png');
@@ -39,9 +39,14 @@
                 <button type="button" class={button({ variant: 'secondary', size: 'icon' })} onclick={onSettings} aria-label="Configurações da instância"><Settings2 class="h-4 w-4" /></button>
                 <button type="button" class={button({ variant: 'secondary', size: 'icon' })} onclick={onHost} aria-label="Compartilhar mundo"><Share2 class="h-4 w-4" /></button>
                 {#if running}
-                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-black uppercase px-6 py-3 shadow-lg shadow-red-500/20 transition-all cursor-pointer" onclick={onStop}>
-                        <Square class="h-4 w-4 fill-current" />
-                        TERMINAR SESSÃO
+                    <button type="button" disabled={stopping} class="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-black uppercase px-6 py-3 shadow-lg shadow-red-500/20 transition-all cursor-pointer disabled:opacity-50" onclick={onStop}>
+                        {#if stopping}
+                            <Loader2 class="h-4 w-4 animate-spin" />
+                            PARANDO...
+                        {:else}
+                            <Square class="h-4 w-4 fill-current" />
+                            TERMINAR SESSÃO
+                        {/if}
                     </button>
                 {:else}
                     <button type="button" class={button({ variant: 'play', size: 'hero' })} onclick={onPlay} disabled={launching} aria-busy={launching}>

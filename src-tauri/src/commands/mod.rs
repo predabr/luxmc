@@ -38,3 +38,10 @@ pub mod social;
 pub mod lux_account;
 
 pub mod deep_links;
+
+pub mod mesh;
+
+pub mod news;
+
+pub mod wallpaper;
+pub mod instance_lab;

@@ -250,7 +250,7 @@ export const gamingStats = {
 		if (activeGameStartTime) return;
 		sessionProfileId = profileId || appState.activeGameDetails?.profileId || null;
 		activeGameStartTime = Date.now();
-		activeSessionMinutes = 1;
+		activeSessionMinutes = 0;
 		totalLaunches += 1;
 		if (typeof window !== "undefined") {
 			localStorage.setItem(STORAGE_TOTAL_LAUNCHES, String(totalLaunches));
@@ -261,10 +261,10 @@ export const gamingStats = {
 		if (activeInterval) clearInterval(activeInterval);
 		activeInterval = setInterval(() => {
 			if (activeGameStartTime) {
-				const elapsed = Math.max(1, Math.floor((Date.now() - activeGameStartTime) / 60000));
+				const elapsed = Math.floor((Date.now() - activeGameStartTime) / 60000);
 				activeSessionMinutes = elapsed;
 			}
-		}, 10000);
+		}, 5000);
 	},
 
 	onGameExit() {

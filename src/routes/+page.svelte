@@ -4,27 +4,28 @@
     import { appState } from "$lib/stores/app.svelte";
 	import { fade, slide, fly } from "svelte/transition";
 	import { onMount } from "svelte";
-	import { goto } from "$app/navigation";
-	import { 
-		Play, 
-		Plus, 
-		Clock, 
-		Users, 
-		ArrowRight, 
-		Gamepad2, 
-		Loader2, 
-		Lock, 
-		ExternalLink, 
-		CheckCircle2, 
-		FolderOpen, 
-		ChevronDown, 
-		ChevronUp, 
-		Search, 
-		Trash2, 
-		User, 
-		MoreVertical, 
-		Settings, 
-		Sparkles, 
+    import { listenDownloadProgress } from "$lib/api/events";
+	import { goto, preloadData } from "$app/navigation";
+	import {
+		Play,
+		Plus,
+		Clock,
+		Users,
+		ArrowRight,
+		Gamepad2,
+		Loader2,
+		Lock,
+		ExternalLink,
+		CheckCircle2,
+		FolderOpen,
+		ChevronDown,
+		ChevronUp,
+		Search,
+		Trash2,
+		User,
+		MoreVertical,
+		Settings,
+		Sparkles,
 		Layers,
 		ArrowLeft,
 		ChevronRight,
@@ -35,26 +36,28 @@
 		Home,
 		Square
 	} from "lucide-svelte";
+	import GlassSelect from "$lib/components/ui/GlassSelect.svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
-	import { account } from "$lib/stores/account.svelte";
+	import { account, saveCurrentAccount, loadCurrentAccount } from "$lib/stores/account.svelte";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
+	import { createSkinAvatar } from "$lib/utils/textureImage";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { playClick, playSuccess } from "$lib/utils/sounds";
-	import { 
-		authDevLogin, 
-		authOfflineLogin, 
-		authLogin, 
-		authGetClientId, 
-		authSetClientId, 
-		launchGame, 
+	import {
+		authDevLogin,
+		authOfflineLogin,
+		authLogin,
+		authGetClientId,
+		authSetClientId,
+		launchGame,
 		stopGame,
-		versionsCheckInstalled, 
-		versionsDownload, 
-		discordSetActivity, 
+		versionsCheckInstalled,
+		versionsDownload,
+		discordSetActivity,
 		instancesOpenFolder,
 		versionsList,
 		api,
@@ -79,9 +82,9 @@
 	let selectedGroup = $state("all");
 	let sortBy = $state<"lastPlayed" | "name" | "version">("lastPlayed");
 	let jumpInExpanded = $state(true);
-	let isLaunching = $state(false);
-	let launchingProfileId = $state<string | null>(null);
-	let launchStatusText = $state("");
+	let isLaunching = $derived(appState.isLaunching);
+	let launchingProfileId = $derived(appState.launchingProfileId);
+	let launchStatusText = $derived(appState.launchStatusText);
 	let activeContextMenuId = $state<string | null>(null);
 
 	let showCreateModal = $state(false);
@@ -94,14 +97,14 @@
 	let newGroupName = $state("");
 
 	const tilePalette = [
-		{ bg: "bg-[#1a1e28] border border-white/[0.08]", text: "text-white/60" },
-		{ bg: "bg-[#181c26] border border-white/[0.07]", text: "text-white/60" },
-		{ bg: "bg-[#1c1e2a] border border-white/[0.08]", text: "text-white/60" },
-		{ bg: "bg-[#171a24] border border-white/[0.06]", text: "text-white/60" },
-		{ bg: "bg-[#1a1d28] border border-white/[0.07]", text: "text-white/60" },
-		{ bg: "bg-[#191c26] border border-white/[0.08]", text: "text-white/60" },
-		{ bg: "bg-[#1b1f2a] border border-white/[0.07]", text: "text-white/60" },
-		{ bg: "bg-[#181b25] border border-white/[0.06]", text: "text-white/60" }
+		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: "text-fg/60" },
+		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: "text-fg/60" },
+		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: "text-fg/60" },
+		{ bg: "bg-bg-subtle border border-fg/[0.06]", text: "text-fg/60" },
+		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: "text-fg/60" },
+		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: "text-fg/60" },
+		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: "text-fg/60" },
+		{ bg: "bg-bg-subtle border border-fg/[0.06]", text: "text-fg/60" }
 	];
 
 	function getInstanceTileColor(id: string): { bg: string; text: string } {
@@ -109,6 +112,20 @@
 		for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
 		return tilePalette[Math.abs(hash) % tilePalette.length];
 	}
+
+    $effect(() => {
+        if (!isLaunching) return;
+        let disposed = false;
+        let unsubscribe: (() => void) | undefined;
+        void listenDownloadProgress(progress => {
+            if (disposed) return;
+            const labels: Record<string, string> = { assets: "Baixando assets", libraries: "Preparando bibliotecas", client: "Baixando Minecraft", java: "Preparando Java", done: "Verificando arquivos" };
+            const label = labels[progress.phase] || "Baixando arquivos";
+            const percent = progress.total > 0 ? Math.min(100, Math.round(progress.completed / progress.total * 100)) : 0;
+            appState.launchStatusText = `${label} · ${percent}%`;
+        }).then(unlisten => { if (disposed) unlisten(); else unsubscribe = unlisten; }).catch(() => {});
+        return () => { disposed = true; unsubscribe?.(); };
+    });
 
 	onMount(() => {
 		const savedAccsRaw = localStorage.getItem("luxmc_saved_nicknames");
@@ -126,12 +143,7 @@
 		}
 
 		if (!account.value) {
-			const saved = localStorage.getItem("luxmc_current_account");
-			if (saved) {
-				try {
-					account.value = JSON.parse(saved);
-				} catch {}
-			}
+			void loadCurrentAccount();
 		}
 
 		loadVersions();
@@ -195,7 +207,7 @@
 				capeUrl: null
 			};
 
-			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
+			void saveCurrentAccount(newAcc);
 			activeSkinStore.setSkin({
 				id: newAcc.uuid,
 				name: newAcc.username,
@@ -236,6 +248,10 @@
 		try {
 			toast("Iniciando autenticação com a Microsoft no navegador...", "info");
 			const acc = await authLogin();
+			const skinModel = acc.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve";
+			const skinUrl = acc.skinUrl || `https://minotar.net/skin/${acc.username}`;
+			const initialAvatar = `https://mc-heads.net/avatar/${acc.username}/100`;
+
 			const newAcc = {
 				id: acc.id,
 				username: acc.username,
@@ -244,21 +260,37 @@
 				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0,
 				skinUrl: acc.skinUrl || null,
 				skinVariant: acc.skinVariant || "classic",
-				capeUrl: acc.capeUrl || null
+				capeUrl: acc.capeUrl || null,
+				avatarUrl: initialAvatar
 			};
 
-			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
+			void saveCurrentAccount(newAcc);
 			activeSkinStore.setSkin({
 				id: newAcc.uuid,
 				name: newAcc.username,
 				url: `https://mc-heads.net/body/${newAcc.username}/300`,
-				skinUrl: newAcc.skinUrl || `https://minotar.net/skin/${newAcc.username}`,
-				avatarUrl: `https://mc-heads.net/avatar/${newAcc.username}/100`,
-				type: newAcc.skinVariant === "slim" ? "alex" : "steve",
+				skinUrl,
+				avatarUrl: initialAvatar,
+				type: skinModel,
 				hasCape: Boolean(newAcc.capeUrl),
 				capeType: newAcc.capeUrl ? "custom" : "none",
 				customCapeUrl: newAcc.capeUrl || ""
 			});
+
+			if (skinUrl) {
+				void createSkinAvatar(skinUrl, new AbortController().signal, skinModel)
+					.then((avatar) => {
+						if (avatar) {
+							activeSkinStore.setSkin({ avatarUrl: avatar });
+							if (account.value && account.value.id === newAcc.id) {
+								const updated = { ...account.value, avatarUrl: avatar };
+								account.value = updated;
+								void saveCurrentAccount(updated);
+							}
+						}
+					})
+					.catch(() => {});
+			}
 
 			if (!savedAccounts.some(n => n.toLowerCase() === newAcc.username.toLowerCase())) {
 				saveSavedAccounts([newAcc.username, ...savedAccounts]);
@@ -304,7 +336,7 @@
 				minecraftToken: devAcc.accessToken,
 				expiresAt: devAcc.expiresAt ? (devAcc.expiresAt < 1e11 ? devAcc.expiresAt * 1000 : devAcc.expiresAt) : 0
 			};
-			localStorage.setItem("luxmc_current_account", JSON.stringify(newAcc));
+			void saveCurrentAccount(newAcc);
 			toast(`Modo Dev Ativo: ${devAcc.username}`, "info");
 			playSuccess();
 			account.value = newAcc;
@@ -316,10 +348,10 @@
 	}
 
 	async function handleLaunch(targetProfile: Profile, serverIp?: string, serverPort?: number) {
-		if (isLaunching) return;
-		isLaunching = true;
-		launchingProfileId = targetProfile.id;
-		launchStatusText = serverIp ? `Conectando a ${serverIp}...` : "Iniciando...";
+		if (appState.isLaunching) return;
+		appState.isLaunching = true;
+		appState.launchingProfileId = targetProfile.id;
+		appState.launchStatusText = serverIp ? `Conectando a ${serverIp}...` : "Iniciando...";
 
 		try {
 			let userUuid = account.value?.uuid;
@@ -329,15 +361,15 @@
 			}
 
 			const verId = targetProfile.mcVersion || "1.20.4";
-			launchStatusText = "Verificando arquivos do jogo...";
+			appState.launchStatusText = "Verificando arquivos do jogo...";
 
 			const installed = await versionsCheckInstalled(verId).catch(() => false);
 			if (!installed) {
-				launchStatusText = `Baixando Minecraft ${verId}...`;
+				appState.launchStatusText = `Baixando Minecraft ${verId}...`;
 				await versionsDownload(verId);
 			}
 
-			launchStatusText = serverIp ? `Conectando a ${serverIp}...` : "Iniciando Minecraft...";
+			appState.launchStatusText = serverIp ? `Conectando a ${serverIp}...` : "Iniciando Minecraft...";
 			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
 			const effectiveCape = activeSkinStore.current.hasCape
@@ -367,8 +399,8 @@
 				state: `Minecraft ${verId} · ${targetProfile.loader.toUpperCase()}`,
 				largeText: targetProfile.name,
 				largeImage: targetProfile.icon || "grass",
-				smallImage: targetProfile.loader === "fabric" ? "fabric" : "grass",
-				smallText: `Luxmc v1.9.2`,
+				smallImage: "grass",
+				smallText: `Luxmc · ${targetProfile.loader.toUpperCase()}`,
 				startTime: Math.floor(Date.now() / 1000),
 				buttons: [
 					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
@@ -381,20 +413,24 @@
 		} catch (e) {
 			toast("Falha ao iniciar o Minecraft: " + String(e), "error");
 		} finally {
-			isLaunching = false;
-			launchingProfileId = null;
-			launchStatusText = "";
+			appState.isLaunching = false;
+			appState.launchingProfileId = null;
+			appState.launchStatusText = "";
 		}
 	}
 
 	async function handleStopGame() {
 		try {
+			appState.isStopping = true;
+			appState.wasManuallyTerminated = true;
 			await stopGame();
 			appState.isGameRunning = false;
 			gamingStats.onGameExit();
 			toast("Minecraft encerrado com sucesso.", "info");
 		} catch (e) {
 			toast("Erro ao tentar encerrar o jogo: " + String(e), "error");
+		} finally {
+			appState.isStopping = false;
 		}
 	}
 
@@ -503,14 +539,14 @@
 
 {#if !account.value}
 
-	<div 
+	<div
 		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none bg-bg overflow-hidden"
 	>
 		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
 		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(59_130_246/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
 
-		<div 
-			class="w-full max-w-md bg-bg-elevated border border-fg/10 rounded-3xl p-8 shadow-elevated relative z-10 space-y-6"
+		<div
+			class="w-full max-w-md bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-3xl p-8 shadow-elevated relative z-10 space-y-6"
 			in:fly={{ y: 20, duration: 200 }}
 		>
 			<div class="flex flex-col items-center text-center space-y-3">
@@ -573,8 +609,8 @@
 								</p>
 							</div>
 
-							<button 
-								type="button" 
+							<button
+								type="button"
 								onclick={() => isLoggingInMicrosoft = false}
 								class="px-4 py-1.5 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/10 text-[11px] font-bold text-fg/60 hover:text-fg cursor-pointer transition-colors"
 							>
@@ -638,16 +674,16 @@
 						</label>
 						<div class="relative flex items-center">
 							<div class="w-7 h-7 rounded-lg bg-bg-overlay/40 border border-fg/10 overflow-hidden absolute left-2.5 flex items-center justify-center pointer-events-none">
-								<img 
-									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`} 
-									alt="Avatar" 
-									class="w-full h-full object-cover" 
+								<img
+									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`}
+									alt="Avatar"
+									class="w-full h-full object-cover"
 								/>
 							</div>
-							<input 
+							<input
 								id="offline-nick-input"
-								type="text" 
-								placeholder="Ex: SteveGamer" 
+								type="text"
+								placeholder="Ex: SteveGamer"
 								bind:value={offlineName}
 								maxlength="16"
 								class="w-full bg-bg-overlay/40 border border-fg/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-fg outline-none transition-all placeholder:text-fg/20"
@@ -656,8 +692,8 @@
 						</div>
 					</div>
 
-					<button 
-						type="button" 
+					<button
+						type="button"
 						class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/25 hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50"
 						onclick={() => { playClick(); handleOfflineAuth(); }}
 						disabled={isLoggingIn || isLoggingInMicrosoft}
@@ -677,20 +713,20 @@
 							<div class="flex flex-wrap gap-1.5">
 								{#each savedAccounts as accName (accName)}
 									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/5 transition-all group">
-										<button 
-											type="button" 
+										<button
+											type="button"
 											onclick={() => handleOfflineAuth(accName)}
 											class="flex items-center gap-1.5 text-left cursor-pointer"
 										>
-											<img 
-												src={`https://mc-heads.net/avatar/${accName}/32`} 
-												alt={accName} 
-												class="w-4 h-4 rounded object-cover" 
+											<img
+												src={`https://mc-heads.net/avatar/${accName}/32`}
+												alt={accName}
+												class="w-4 h-4 rounded object-cover"
 											/>
 											<span class="text-xs font-bold text-fg/80 group-hover:text-blue-300 transition-colors">{accName}</span>
 										</button>
-										<button 
-											type="button" 
+										<button
+											type="button"
 											onclick={() => deleteSavedAccount(accName)}
 											class="opacity-0 group-hover:opacity-100 text-fg/30 hover:text-red-400 transition-opacity cursor-pointer p-0.5"
 											title="Remover"
@@ -708,8 +744,8 @@
 			{/if}
 
 			<div class="pt-2 border-t border-fg/5 flex flex-col items-center gap-2">
-				<button 
-					type="button" 
+				<button
+					type="button"
 					onclick={() => openUrl("https://luxmc-r92.pages.dev/#skin-studio")}
 					class="text-[11px] text-fg/50 hover:text-blue-400 transition-colors flex items-center gap-1 cursor-pointer"
 				>
@@ -738,14 +774,14 @@
 
 	{#if showMsClientIdModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-sm" in:fade={{ duration: 150 }}>
-			<div class="w-full max-w-md rounded-3xl bg-bg-elevated border border-amber-500/30 p-6 shadow-2xl space-y-4" in:fly={{ y: 20, duration: 200 }}>
+			<div class="w-full max-w-md rounded-3xl bg-bg/35 backdrop-blur-xl border border-amber-500/30 p-6 shadow-2xl space-y-4" in:fly={{ y: 20, duration: 200 }}>
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2.5">
 						<Lock class="w-4 h-4 text-amber-400" />
 						<h3 class="text-sm font-bold text-fg">Configurar Microsoft Azure</h3>
 					</div>
-					<button 
-						type="button" 
+					<button
+						type="button"
 						class="text-fg/40 hover:text-fg text-xs cursor-pointer"
 						onclick={() => showMsClientIdModal = false}
 					>
@@ -757,23 +793,23 @@
 					Insira o <span class="text-amber-400 font-bold">Client ID</span> do seu registro de aplicativo no Azure Portal (Redirect URI: <code class="text-amber-300">http://localhost:8453/callback</code>).
 				</p>
 
-				<input 
-					type="text" 
-					placeholder="9750ebbe-21e9-4a4d-b808-f451a3e0af7f" 
+				<input
+					type="text"
+					placeholder="9750ebbe-21e9-4a4d-b808-f451a3e0af7f"
 					bind:value={msClientIdInput}
 					class="w-full bg-bg-overlay/40 border border-fg/10 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-amber-500/50"
 				/>
 
 				<div class="flex items-center gap-2 pt-1">
-					<button 
-						type="button" 
+					<button
+						type="button"
 						class="flex-1 py-2 rounded-xl bg-fg/5 text-fg/60 text-xs font-bold hover:bg-fg/10 cursor-pointer"
 						onclick={() => showMsClientIdModal = false}
 					>
 						Cancelar
 					</button>
-					<button 
-						type="button" 
+					<button
+						type="button"
 						class="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-brand-foreground text-xs font-bold cursor-pointer"
 						onclick={saveAndLoginWithClientId}
 						disabled={isSavingClientId}
@@ -787,24 +823,24 @@
 
 {:else}
 
-	<div class="flex gap-6 min-h-full w-full select-none" in:fade={{ duration: 150 }}>
-		
-		<div class="flex-1 flex flex-col min-w-0 space-y-6">
+	<div class="flex min-h-full w-full select-none" in:fade={{ duration: 150 }}>
+
+		<div class="flex-1 flex flex-col min-w-0 space-y-6 p-6">
 
 			<header class="flex items-center justify-between gap-4 py-1">
 				<div class="flex items-center gap-3">
-					<div class="flex items-center gap-1 bg-[#14171d] border border-white/[0.08] rounded-xl p-1 shadow-sm">
-						<button 
-							type="button" 
-							class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+					<div class="flex items-center gap-1 bg-bg/35 backdrop-blur-xl border border-fg/[0.08] rounded-xl p-1 shadow-sm">
+						<button
+							type="button"
+							class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/[0.06] transition-colors cursor-pointer"
 							title="Voltar"
 							onclick={() => history.back()}
 						>
 							<ArrowLeft class="w-3.5 h-3.5" />
 						</button>
-						<button 
-							type="button" 
-							class="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+						<button
+							type="button"
+							class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/[0.06] transition-colors cursor-pointer"
 							title="Avançar"
 							onclick={() => history.forward()}
 						>
@@ -812,34 +848,40 @@
 						</button>
 					</div>
 
-					<div class="flex items-center gap-2 text-xs font-bold text-white/80">
-						<Home class="w-3.5 h-3.5 text-white/60" />
-						<span class="text-white font-extrabold">Home</span>
+					<div class="flex items-center gap-2 text-xs font-bold text-fg/80">
+						<Home class="w-3.5 h-3.5 text-fg/60" />
+						<span class="text-fg font-extrabold">{t("nav.home")}</span>
 					</div>
 				</div>
 
 				<div class="flex items-center gap-2">
-					<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#14171d] border border-white/[0.08] text-[11px] text-white/70 shadow-sm">
+					<div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-bg/35 backdrop-blur-xl border border-fg/[0.08] text-[11px] text-fg/70 shadow-sm">
 						{#if isLaunching}
-							<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+							<span class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]"></span>
 							<span class="text-amber-300 font-bold">{launchStatusText || "Iniciando..."}</span>
 						{:else if appState.isGameRunning}
-							<span class="w-2 h-2 rounded-full bg-[#1bd96a] animate-pulse"></span>
-							<span class="text-[#1bd96a] font-bold">Jogando {appState.activeGameDetails?.name || "Minecraft"}</span>
+							<span class="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_6px_rgba(59,130,246,0.8)]"></span>
+							<span class="text-brand-500 font-bold">Jogando {appState.activeGameDetails?.name || "Minecraft"}</span>
 						{:else}
-							<span class="w-2 h-2 rounded-full bg-white/30"></span>
-							<span>No instances running</span>
+							<span class="w-2 h-2 rounded-full bg-fg/30"></span>
+							<span>{t("library.noneRunning")}</span>
 						{/if}
 					</div>
 					{#if appState.isGameRunning}
 						<button
 							type="button"
+							disabled={appState.isStopping}
 							onclick={handleStopGame}
-							class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95"
+							class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
 							title="Encerrar o Minecraft em execução"
 						>
-							<Square class="w-3.5 h-3.5 fill-current" />
-							<span>Parar Jogo</span>
+							{#if appState.isStopping}
+								<Loader2 class="w-3.5 h-3.5 animate-spin" />
+								<span>Parando...</span>
+							{:else}
+								<Square class="w-3.5 h-3.5 fill-current" />
+								<span>Parar Jogo</span>
+							{/if}
 						</button>
 					{/if}
 				</div>
@@ -847,28 +889,28 @@
 
 			<section class="space-y-3">
 				<div class="flex items-center justify-between">
-					<button 
-						type="button" 
+					<button
+						type="button"
 						onclick={() => jumpInExpanded = !jumpInExpanded}
-						class="flex items-center gap-2 text-sm font-black text-white uppercase tracking-wider hover:text-[#1bd96a] transition-colors cursor-pointer"
+						class="flex items-center gap-2 text-sm font-black text-fg uppercase tracking-wider hover:text-brand-500 transition-colors cursor-pointer"
 					>
-						<span>Jump in</span>
+						<span>{t("library.jumpIn")}</span>
 						{#if jumpInExpanded}
-							<ChevronUp class="w-4 h-4 text-white/40" />
+							<ChevronUp class="w-4 h-4 text-fg/40" />
 						{:else}
-							<ChevronDown class="w-4 h-4 text-white/40" />
+							<ChevronDown class="w-4 h-4 text-fg/40" />
 						{/if}
 					</button>
 				</div>
 
 				{#if jumpInExpanded}
 					{#if jumpInInstances.length === 0}
-						<div class="p-6 rounded-2xl bg-[#14171d] border border-white/[0.06] text-center space-y-2">
-							<p class="text-xs text-white/40">Nenhuma instância encontrada para início rápido.</p>
-							<button 
-								type="button" 
+						<div class="p-6 rounded-2xl bg-bg/35 backdrop-blur-xl border border-fg/[0.06] text-center space-y-2">
+							<p class="text-xs text-fg/40">Nenhuma instância encontrada para início rápido.</p>
+							<button
+								type="button"
 								onclick={() => showCreateModal = true}
-								class="px-4 py-2 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] text-xs font-black transition-colors cursor-pointer"
+								class="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black transition-colors cursor-pointer"
 							>
 								+ Criar Primeira Instância
 							</button>
@@ -877,19 +919,19 @@
 						<div class="space-y-2.5" transition:slide={{ duration: 180 }}>
 							{#each jumpInInstances as inst (inst.id)}
 								{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
-								<div class="flex items-center justify-between p-3 rounded-2xl bg-[#14171d] hover:bg-[#181c24] border border-white/[0.06] hover:border-white/[0.14] transition-all group shadow-sm">
+								<div class="flex items-center justify-between p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-all group shadow-sm">
 									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-white/10' : tileCol.bg}">
+										<div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
 											{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
-												<img 
-													src={inst.icon} 
+												<img
+													src={inst.icon}
 													alt={inst.name}
 													class="w-full h-full object-cover"
 													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-7 h-7 object-contain [image-rendering:pixelated] drop-shadow'; }}
 												/>
 											{:else}
-												<img 
-													src="/grass_block.png" 
+												<img
+													src="/grass_block.png"
 													alt={inst.name}
 													class="w-7 h-7 object-contain [image-rendering:pixelated] drop-shadow"
 												/>
@@ -898,25 +940,25 @@
 
 										<div class="min-w-0 space-y-0.5">
 											<div class="flex items-center gap-2">
-												<h3 class="text-sm font-bold text-white truncate leading-tight group-hover:text-[#1bd96a] transition-colors">
+												<h3 class="text-sm font-bold text-fg truncate leading-tight group-hover:text-brand-500 transition-colors">
 													{inst.name}
 												</h3>
 												{#if !inst.lastPlayed}
-													<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#1bd96a]/15 text-[#1bd96a] border border-[#1bd96a]/30">
-														<Sparkles class="w-2.5 h-2.5" /> New instance
+													<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-brand-500/15 text-brand-500 border border-brand-500/30">
+														<Sparkles class="w-2.5 h-2.5" /> {t("library.newInstanceBadge")}
 													</span>
 												{/if}
 											</div>
 
-											<div class="flex items-center gap-2 text-[11px] text-white/50">
-												<span class="font-semibold text-white/70">
+											<div class="flex items-center gap-2 text-[11px] text-fg/50">
+												<span class="font-semibold text-fg/70">
 													{inst.loader} {inst.mcVersion}
 												</span>
 												<span>•</span>
 												{#if inst.lastPlayed}
 													<span>Jogado recentemente</span>
 												{:else}
-													<span>Never played</span>
+													<span>{t("library.neverPlayed")}</span>
 												{/if}
 											</div>
 										</div>
@@ -927,31 +969,43 @@
 											<button
 												type="button"
 												disabled
-												class="px-5 py-2 rounded-full bg-[#1bd96a] text-[#090a0f] font-black text-xs flex items-center gap-1.5 shadow-sm opacity-70"
+												class="px-5 py-2 rounded-full bg-brand-500 text-brand-foreground font-black text-xs flex items-center gap-1.5 shadow-sm opacity-70"
 											>
-												<Loader2 class="w-3.5 h-3.5 animate-spin text-[#090a0f]" />
-												<span>Iniciando...</span>
+												<Loader2 class="w-3.5 h-3.5 animate-spin text-brand-foreground" />
+												<span aria-live="polite">{launchStatusText || "Iniciando…"}</span>
 											</button>
 										{:else if appState.isGameRunning && appState.activeGameDetails?.profileId === inst.id}
 											<button
 												type="button"
+												disabled={appState.isStopping}
 												onclick={handleStopGame}
-												class="px-5 py-2 rounded-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-[0.98] cursor-pointer"
+												class="px-5 py-2 rounded-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-fg font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
 												title="Parar Jogo"
 											>
-												<Square class="w-3.5 h-3.5 fill-current" />
-												<span>Parar</span>
+												{#if appState.isStopping}
+													<Loader2 class="w-3.5 h-3.5 animate-spin" />
+													<span>Parando...</span>
+												{:else}
+													<Square class="w-3.5 h-3.5 fill-current" />
+													<span>Parar</span>
+												{/if}
 											</button>
 										{:else}
+											{@const isThisLaunching = (isLaunching || appState.isLaunching) && (launchingProfileId === inst.id || appState.launchingProfileId === inst.id)}
 											<button
 												type="button"
 												onclick={() => handleLaunch(inst)}
-												disabled={isLaunching}
-												class="px-5 py-2 rounded-full bg-[#1bd96a] hover:bg-[#18c45f] active:bg-[#15af54] text-[#090a0f] font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
-												title="Play"
+												disabled={isLaunching || appState.isLaunching}
+												class="px-5 py-2 rounded-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-brand-foreground font-black text-xs flex items-center gap-1.5 shadow-button hover:shadow-button-hover transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+												title={isThisLaunching ? (appState.launchStatusText || "Preparando...") : "Jogar"}
 											>
-												<Play class="w-3.5 h-3.5 fill-current" />
-												<span>Play</span>
+												{#if isThisLaunching}
+													<Loader2 class="w-3.5 h-3.5 animate-spin" />
+													<span>{appState.launchStatusText || "Preparando..."}</span>
+												{:else}
+													<Play class="w-3.5 h-3.5 fill-current" />
+													<span>Jogar</span>
+												{/if}
 											</button>
 										{/if}
 
@@ -964,29 +1018,31 @@
 												}}
 												aria-label={`Opções de ${inst.name}`}
                                                 aria-expanded={activeContextMenuId === inst.id}
-                                                class="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors cursor-pointer"
+                                                class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
 											>
 												<MoreVertical class="w-4 h-4" />
 											</button>
 
 											{#if activeContextMenuId === inst.id}
-												<div 
-													class="absolute right-0 top-10 w-44 rounded-xl bg-[#181b22] border border-white/10 shadow-2xl py-1 z-30 space-y-0.5"
+												<div
+													class="absolute right-0 top-10 w-44 rounded-xl bg-bg-subtle border border-fg/10 shadow-2xl py-1 z-30 space-y-0.5"
 													transition:fly={{ y: -6, duration: 120 }}
 												>
 													<button
 														type="button"
+														onpointerenter={() => void preloadData(`/instances/${inst.id}`)}
+														onpointerdown={() => void preloadData(`/instances/${inst.id}`)}
 														onclick={() => goto(`/instances/${inst.id}`)}
-														class="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer font-medium"
+														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer font-medium"
 													>
-														<Settings class="w-3.5 h-3.5 text-white/60" /> Detalhes & Mods
+														<Settings class="w-3.5 h-3.5 text-fg/60" /> Detalhes & Mods
 													</button>
 													<button
 														type="button"
 														onclick={() => instancesOpenFolder(inst.id)}
-														class="w-full px-3 py-2 text-left text-xs text-white hover:bg-white/5 flex items-center gap-2 cursor-pointer font-medium"
+														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer font-medium"
 													>
-														<FolderOpen class="w-3.5 h-3.5 text-white/60" /> Abrir Pasta
+														<FolderOpen class="w-3.5 h-3.5 text-fg/60" /> Abrir Pasta
 													</button>
 													<button
 														type="button"
@@ -1007,102 +1063,87 @@
 			</section>
 
 			<section class="space-y-4 pb-8">
-				
+
 				<div class="space-y-3">
-					<h2 class="text-lg font-black text-white tracking-tight">
-						Library
+					<h2 class="text-lg font-black text-fg tracking-tight">
+						{t("library.title")}
 					</h2>
 
 					<div class="flex items-center gap-2.5">
 						<div class="relative flex-1">
-							<Search class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
-							<input 
-								type="text" 
-								placeholder="Search" 
+							<Search class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-fg/30" />
+							<input
+								type="text"
+								placeholder={t("common.search")}
 								bind:value={searchQuery}
-								class="w-full bg-[#14171d] border border-white/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-xs text-white placeholder:text-white/30 outline-none focus:border-[#1bd96a]/60 transition-all"
+								class="w-full bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500/60 transition-all"
 							/>
 						</div>
 
-						<button 
-							type="button" 
+						<button
+							type="button"
 							onclick={() => showNewGroupPrompt = true}
-							class="px-4 py-2.5 rounded-xl bg-[#1a1d24] hover:bg-[#222731] text-white/80 hover:text-white border border-white/[0.08] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+							class="px-4 py-2.5 rounded-xl bg-bg-subtle hover:bg-border-strong text-fg/80 hover:text-fg border border-fg/[0.08] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
 						>
-							<FolderPlus class="w-3.5 h-3.5 text-white/50" />
-							<span>+ New group</span>
+							<FolderPlus class="w-3.5 h-3.5 text-fg/50" />
+							<span>{t("library.newGroup")}</span>
 						</button>
 
-						<button 
-							type="button" 
+						<button
+							type="button"
 							onclick={() => showCreateModal = true}
-							class="px-4 py-2.5 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] active:bg-[#15af54] text-[#090a0f] text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 active:scale-[0.98]"
+							class="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-brand-foreground text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 active:scale-[0.98]"
 						>
 							<Plus class="w-4 h-4 stroke-[3]" />
-							<span>+ New instance</span>
+							<span>{t("library.newInstance")}</span>
 						</button>
 					</div>
 
 					<div class="flex items-center gap-2 flex-wrap">
-						<div class="relative flex items-center gap-1.5 bg-[#14171d] hover:bg-[#1a1e26] border border-white/[0.08] hover:border-white/[0.15] rounded-xl px-3 py-1.5 transition-all shadow-sm">
-							<ArrowUpDown class="w-3.5 h-3.5 text-[#1bd96a] shrink-0 pointer-events-none" />
-							<select 
-								bind:value={sortBy}
-								class="appearance-none bg-transparent border-0 text-xs font-semibold text-white outline-none cursor-pointer pr-5 py-0.5 focus:ring-0"
-							>
-								<option value="lastPlayed" class="bg-[#14171d] text-white">Date created</option>
-								<option value="name" class="bg-[#14171d] text-white">Name</option>
-								<option value="version" class="bg-[#14171d] text-white">Version</option>
-							</select>
-							<ChevronDown class="w-3 h-3 text-white/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+						<div class="relative flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3 py-1.5 transition-all shadow-sm">
+							<ArrowUpDown class="w-3.5 h-3.5 text-brand-500 shrink-0 pointer-events-none" />
+							<GlassSelect bind:value={sortBy} label="Ordenar instâncias" options={[{value:"lastPlayed",label:"Recentes"},{value:"name",label:"Nome"},{value:"version",label:"Versão"}]} />
+							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
 						</div>
 
-						<div class="relative flex items-center gap-1.5 bg-[#14171d] hover:bg-[#1a1e26] border border-white/[0.08] hover:border-white/[0.15] rounded-xl px-3 py-1.5 transition-all shadow-sm">
-							<Layers class="w-3.5 h-3.5 text-[#1bd96a] shrink-0 pointer-events-none" />
-							<select 
-								bind:value={selectedGroup}
-								class="appearance-none bg-transparent border-0 text-xs font-semibold text-white outline-none cursor-pointer pr-5 py-0.5 focus:ring-0"
-							>
-								<option value="all" class="bg-[#14171d] text-white">Custom group</option>
-								{#each customGroups as grp}
-									<option value={grp} class="bg-[#14171d] text-white">{grp}</option>
-								{/each}
-							</select>
-							<ChevronDown class="w-3 h-3 text-white/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
+						<div class="relative flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3 py-1.5 transition-all shadow-sm">
+							<Layers class="w-3.5 h-3.5 text-brand-500 shrink-0 pointer-events-none" />
+							<GlassSelect bind:value={selectedGroup} label="Grupo de instâncias" options={[{value:"all",label:"Todos os grupos"},...customGroups.map(group => ({value:group,label:group}))]} />
+							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
 						</div>
 
-						<button 
-							type="button" 
-							class="flex items-center gap-1.5 bg-[#14171d] hover:bg-[#1a1e26] border border-white/[0.08] hover:border-white/[0.15] rounded-xl px-3.5 py-1.5 text-xs font-semibold text-white/80 hover:text-white transition-all cursor-pointer shadow-sm active:scale-[0.98] {showNewGroupPrompt ? 'border-[#1bd96a]/50 bg-[#1bd96a]/10 text-[#1bd96a]' : ''}"
+						<button
+							type="button"
+							class="flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3.5 py-1.5 text-xs font-semibold text-fg/80 hover:text-fg transition-all cursor-pointer shadow-sm active:scale-[0.98] {showNewGroupPrompt ? 'border-brand-500/50 bg-brand-500/10 text-brand-500' : ''}"
 							onclick={() => showNewGroupPrompt = !showNewGroupPrompt}
 							title="Criar novo grupo de instâncias"
 						>
-							<Filter class="w-3.5 h-3.5 text-white/50" />
-							<span>+ Add filter</span>
+							<Filter class="w-3.5 h-3.5 text-fg/50" />
+							<span>{t("library.addFilter")}</span>
 						</button>
 					</div>
 				</div>
 
 				{#if showNewGroupPrompt}
-					<div class="p-3.5 rounded-2xl bg-[#14171d] border border-[#1bd96a]/30 flex items-center gap-2.5" in:slide={{ duration: 150 }}>
-						<input 
-							type="text" 
+					<div class="p-3.5 rounded-2xl bg-bg/35 backdrop-blur-xl border border-brand-500/30 flex items-center gap-2.5" in:slide={{ duration: 150 }}>
+						<input
+							type="text"
 							placeholder="Nome do novo grupo..."
 							bind:value={newGroupName}
-							class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#1bd96a]"
+							class="flex-1 bg-black/40 border border-fg/10 rounded-xl px-3 py-2 text-xs text-fg outline-none focus:border-brand-500"
 							onkeydown={(e) => { if (e.key === "Enter") handleAddGroup(); }}
 						/>
-						<button 
-							type="button" 
+						<button
+							type="button"
 							onclick={handleAddGroup}
-							class="px-4 py-2 rounded-xl bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] text-xs font-black cursor-pointer"
+							class="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black cursor-pointer"
 						>
 							Adicionar
 						</button>
-						<button 
-							type="button" 
+						<button
+							type="button"
 							onclick={() => showNewGroupPrompt = false}
-							class="px-3 py-2 rounded-xl bg-white/5 text-white/50 hover:text-white text-xs cursor-pointer"
+							class="px-3 py-2 rounded-xl bg-fg/5 text-fg/50 hover:text-fg text-xs cursor-pointer"
 						>
 							Cancelar
 						</button>
@@ -1110,13 +1151,13 @@
 				{/if}
 
 				{#if filteredProfiles.length === 0}
-					<div class="p-12 rounded-3xl bg-[#14171d] border border-white/[0.06] text-center space-y-3">
-						<Layers class="w-8 h-8 text-white/20 mx-auto" />
-						<p class="text-sm text-white/40">Nenhuma instância encontrada para os filtros aplicados.</p>
-						<button 
-							type="button" 
+					<div class="p-12 rounded-3xl bg-bg/35 backdrop-blur-xl border border-fg/[0.06] text-center space-y-3">
+						<Layers class="w-8 h-8 text-fg/20 mx-auto" />
+						<p class="text-sm text-fg/40">Nenhuma instância encontrada para os filtros aplicados.</p>
+						<button
+							type="button"
 							onclick={() => { searchQuery = ""; selectedGroup = "all"; }}
-							class="text-xs text-[#1bd96a] hover:underline font-bold cursor-pointer"
+							class="text-xs text-brand-500 hover:underline font-bold cursor-pointer"
 						>
 							Limpar filtros
 						</button>
@@ -1125,25 +1166,28 @@
 					<div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
 						{#each filteredProfiles as inst (inst.id)}
 							{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
-							<div 
+							{@const isThisLaunching = (isLaunching || appState.isLaunching) && (launchingProfileId === inst.id || appState.launchingProfileId === inst.id)}
+							<div
 								role="button"
 								tabindex="0"
-								class="rounded-3xl bg-[#14171d] hover:bg-[#181c24] border border-white/[0.06] hover:border-white/[0.16] transition-all p-4 flex flex-col justify-between group relative shadow-md hover:shadow-xl cursor-pointer min-h-[215px]"
+								class="rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.16] transition-all p-4 flex flex-col justify-between group relative shadow-md hover:shadow-xl cursor-pointer min-h-[215px]"
+								onpointerenter={() => void preloadData(`/instances/${inst.id}`)}
+								onpointerdown={() => void preloadData(`/instances/${inst.id}`)}
 								onclick={() => goto(`/instances/${inst.id}`)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
 							>
 								<div class="w-full flex-1 flex items-center justify-center relative my-2">
-									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-[1.03] shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-white/10' : tileCol.bg}">
+									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-[1.03] shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
-											<img 
-												src={inst.icon} 
+											<img
+												src={inst.icon}
 												alt={inst.name}
 												class="w-full h-full object-cover"
 												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-14 h-14 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
 											/>
 										{:else}
-											<img 
-												src="/grass_block.png" 
+											<img
+												src="/grass_block.png"
 												alt={inst.name}
 												class="w-14 h-14 object-contain [image-rendering:pixelated] drop-shadow-md"
 											/>
@@ -1156,18 +1200,23 @@
 											e.stopPropagation();
 											handleLaunch(inst);
 										}}
-										class="absolute bottom-1 right-2 w-10 h-10 rounded-full bg-[#1bd96a] hover:bg-[#18c45f] text-[#090a0f] flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer"
-										title="Play"
+										disabled={isLaunching || appState.isLaunching}
+										class="absolute bottom-1 right-2 w-10 h-10 rounded-full bg-brand-500 hover:bg-brand-600 text-brand-foreground flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer disabled:opacity-50"
+										title={isThisLaunching ? (appState.launchStatusText || "Preparando...") : "Jogar"}
 									>
-										<Play class="w-4 h-4 fill-current ml-0.5" />
+										{#if isThisLaunching}
+											<Loader2 class="w-4 h-4 animate-spin" />
+										{:else}
+											<Play class="w-4 h-4 fill-current ml-0.5" />
+										{/if}
 									</button>
 								</div>
 
 								<div class="w-full space-y-1 text-center mt-2 px-1">
-									<h3 class="text-sm font-black text-white group-hover:text-[#1bd96a] transition-colors truncate">
+									<h3 class="text-sm font-black text-fg group-hover:text-brand-500 transition-colors truncate">
 										{inst.name}
 									</h3>
-									<p class="text-[11px] text-white/50 truncate font-semibold">
+									<p class="text-[11px] text-fg/50 truncate font-semibold">
 										{inst.loader} • {inst.mcVersion}
 									</p>
 								</div>

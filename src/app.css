@@ -215,21 +215,23 @@ html.density-spacious { font-size: 15px; }
 
 .luxmc-card {
   border: 1px solid rgb(var(--border));
-  background: rgb(var(--bg-elevated));
-  border-radius: var(--radius);
+  background: linear-gradient(145deg, rgb(var(--bg-elevated) / 0.96), rgb(var(--bg-subtle) / 0.88));
+  border-radius: var(--radius-xl);
+  box-shadow: inset 0 1px 0 rgb(var(--surface-shine) / 0.06);
   transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .luxmc-card:hover {
-  border-color: rgb(var(--border-strong));
-  box-shadow: 0 8px 32px -8px rgb(var(--shadow-color) / 0.4);
+  border-color: rgb(var(--brand-400) / 0.4);
+  box-shadow: 0 8px 32px -8px rgb(var(--brand-500) / 0.16), inset 0 1px 0 rgb(var(--surface-shine) / 0.08);
 }
 
 .luxmc-glass {
   background: rgb(var(--bg-elevated) / 0.8);
   backdrop-filter: blur(24px) saturate(1.2);
   -webkit-backdrop-filter: blur(24px) saturate(1.2);
-  border: 1px solid rgb(var(--surface-shine) / 0.04);
+  border: 1px solid rgb(var(--surface-shine) / 0.08);
+  box-shadow: inset 0 1px 0 rgb(var(--surface-shine) / 0.06), var(--shadow-soft);
 }
 
 .luxmc-gradient-text {
@@ -304,14 +306,20 @@ html.density-spacious { font-size: 15px; }
 
 
 button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
-  transition-property: background-color, border-color, opacity;
-  transition-duration: 75ms;
-  transition-timing-function: ease-out;
+  transition-property: background-color, border-color, color, box-shadow, transform, opacity, filter;
+  transition-duration: 170ms;
+  transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
-  transform: scale(0.98);
-  transition-duration: 50ms;
+  transform: scale(0.985);
+  transition-duration: 90ms;
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  button:not(:disabled):hover, [role="button"]:not([aria-disabled="true"]):hover {
+    filter: brightness(1.06);
+  }
 }
 
 .hover-lift {
@@ -343,12 +351,12 @@ button:focus-visible, a:focus-visible, [role="button"]:focus-visible { outline: 
 }
 
 @layer components {
-  .surface-glass { @apply rounded-2xl border border-fg/[0.08] bg-bg-elevated shadow-soft; }
+  .surface-glass { @apply rounded-2xl border border-fg/[0.08] bg-bg-elevated/90 shadow-soft; }
   .page-eyebrow { @apply text-[10px] font-bold uppercase tracking-[0.2em] text-brand-400; }
   .page-title { @apply text-3xl font-bold tracking-tight text-fg; }
   .page-description { @apply mt-2 text-sm leading-relaxed text-fg-muted; }
   .section-tabs { @apply flex flex-wrap items-center gap-1 rounded-2xl border border-fg/[0.08] bg-bg-elevated/80 p-1.5; }
-  .section-tab { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold text-fg-muted hover:bg-fg/5 hover:text-fg; }
+  .section-tab { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold text-fg-muted hover:bg-fg/5 hover:text-fg focus-visible:ring-2 focus-visible:ring-brand-500; }
   .section-tab[aria-selected="true"] { @apply bg-brand-500/15 text-brand-300 shadow-soft; }
 }
 
@@ -416,16 +424,16 @@ html.has-custom-wallpaper [class*="bg-[#181b22]"],
 html.has-custom-wallpaper [class*="bg-[#1a1d24]"],
 html.has-custom-wallpaper .bg-bg-elevated,
 html.has-custom-wallpaper .bg-bg-subtle {
-  background-color: rgba(14, 18, 28, 0.52) !important;
-  backdrop-filter: blur(24px) saturate(145%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
+  background-color: rgba(14, 18, 28, 0.82) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
-html.has-custom-wallpaper button:not(.bg-brand-500):not(.bg-[#1bd96a]):not(.bg-blue-600):not(.bg-emerald-500):not([aria-checked="true"]),
-html.has-custom-wallpaper [role="button"]:not(.bg-brand-500):not(.bg-[#1bd96a]):not(.bg-blue-600):not(.bg-emerald-500):not([aria-checked="true"]) {
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+html.has-custom-wallpaper :is(button, [role="button"], select, input[type="text"]),
+html.has-custom-wallpaper aside a {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 html.has-custom-wallpaper button.bg-fg\/5,
@@ -446,30 +454,30 @@ html.has-custom-wallpaper button.bg-blue-600,
 html.has-custom-wallpaper button.bg-\[\#1bd96a\],
 html.has-custom-wallpaper button.bg-emerald-500 {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 20px rgba(0, 0, 0, 0.4) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 html.has-custom-wallpaper aside {
-  background-color: rgba(10, 13, 20, 0.55) !important;
-  backdrop-filter: blur(28px) saturate(150%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(150%) !important;
+  background-color: rgba(10, 13, 20, 0.88) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 html.has-custom-wallpaper select,
 html.has-custom-wallpaper input[type="text"] {
-  background-color: rgba(12, 16, 24, 0.6) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
+  background-color: rgba(12, 16, 24, 0.85) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
 html.has-custom-wallpaper button[role="switch"] {
   background-color: rgba(255, 255, 255, 0.16) !important;
   border: 1px solid rgba(255, 255, 255, 0.22) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 html.has-custom-wallpaper button[role="switch"][aria-checked="true"] {
@@ -478,3 +486,57 @@ html.has-custom-wallpaper button[role="switch"][aria-checked="true"] {
   box-shadow: 0 0 16px rgb(var(--brand-500) / 0.5) !important;
 }
 
+
+@media (prefers-reduced-motion: reduce) {
+  .luxmc-card, .luxmc-glass { transition: none; }
+}
+@supports not (backdrop-filter: blur(1px)) {
+  .luxmc-glass { background: rgb(var(--bg-elevated)); }
+}
+
+.luxmc-control {
+  background: rgb(var(--fg) / 0.06);
+  border: 1px solid rgb(var(--fg) / 0.1);
+  color: rgb(var(--fg));
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  backdrop-filter: none;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background 200ms, border-color 200ms, transform 200ms;
+}
+.luxmc-control:hover { background: rgb(var(--fg) / 0.12); border-color: rgb(var(--brand-500) / 0.5); }
+.luxmc-control:active { transform: scale(0.98); }
+.luxmc-control:disabled { opacity: 0.5; cursor: wait; }
+select.luxmc-filter { background-color: transparent !important; background-image: none; box-shadow: none; }
+.luxmc-control > span, .luxmc-control > svg { background: transparent; }
+
+.luxmc-control:focus-visible, .luxmc-control:has(.glass-select-trigger:focus-visible) { outline: 2px solid rgb(var(--brand-400) / 0.65); outline-offset: 3px; }
+.glass-select-trigger { appearance: none; border: 0; background: transparent !important; box-shadow: none !important; }
+
+html.has-custom-wallpaper main .bg-bg {
+  background-color: rgb(var(--bg) / 0.85);
+}
+
+html.no-blur :is(aside, main, nav, header, section, div, button, [class*="backdrop-blur"], .luxmc-control, .luxmc-glass) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html.no-blur .bg-bg\/35 {
+  background-color: rgb(var(--bg-elevated) / 0.94) !important;
+}
+html.no-blur aside {
+  background-color: rgb(var(--bg-elevated) / 0.96) !important;
+}
+
+html.efficient-wallpaper :is(aside, main, [class*="backdrop-blur"], .bg-bg-elevated, .bg-bg-subtle) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html.efficient-wallpaper :is(.bg-bg-elevated, .bg-bg-subtle, aside) {
+  background-color: rgb(var(--bg-elevated) / 0.88) !important;
+}
+button:focus-visible, a:focus-visible, select:focus-visible {
+  outline: 2px solid rgb(var(--brand-400));
+  outline-offset: 3px;
+}

@@ -16,6 +16,7 @@
 		selectedIds?: Set<string>;
 		instanceColors?: Record<string, string>;
 		launchingInstanceId?: string | null;
+		navigatingInstanceId?: string | null;
 		colorOptions?: Array<{ value: string; color: string }>;
 		getIconSrc: (icon?: string) => string;
 		formatTimeAgo: (ts: number) => string;
@@ -41,6 +42,7 @@
 		selectedIds = new Set(),
 		instanceColors = {},
 		launchingInstanceId = null,
+		navigatingInstanceId = null,
 		colorOptions = [],
 		getIconSrc,
 		formatTimeAgo,
@@ -88,6 +90,7 @@
 				{selectionMode}
 				isSelected={selectedIds.has(p.id)}
 				{launchingInstanceId}
+				{navigatingInstanceId}
 				{onSelect}
 				{onToggleSelect}
 				{onQuickPlay}
@@ -116,6 +119,7 @@
 				{selectionMode}
 				isSelected={selectedIds.has(p.id)}
 				{launchingInstanceId}
+				{navigatingInstanceId}
 				{onSelect}
 				{onToggleSelect}
 				{onQuickPlay}
