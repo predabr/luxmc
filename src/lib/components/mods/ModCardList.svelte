@@ -39,7 +39,7 @@
 >
     <div class="flex min-w-48 flex-1 items-center gap-4">
         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-fg/10 bg-brand-500/10 shadow-elevated">
-            {#if item.iconUrl}<LazyImage src={item.iconUrl} alt="" class="h-full w-full object-cover" />{:else}<PackagePlus class="h-7 w-7 text-brand-400" />{/if}
+            {#if item.iconUrl}<LazyImage src={item.iconUrl} alt="" class="h-full w-full object-contain p-0.5" fallback="/grass_block.png" />{:else}<PackagePlus class="h-7 w-7 text-brand-400" />{/if}
         </div>
         <div class="min-w-0 flex-1">
             <h3 class="truncate text-sm font-semibold text-fg group-hover:text-brand-400">

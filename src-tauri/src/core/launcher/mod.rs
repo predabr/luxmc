@@ -1,4 +1,5 @@
 mod loader_selection;
+pub mod launch_state;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tauri::Emitter;
@@ -14,7 +15,7 @@ use crate::error::{AppError, AppResult};
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "2.0.0";
+const LAUNCHER_VERSION: &str = "2.0.1";
 static CLIENT_AGENT_JAR: &[u8] = include_bytes!("../../../assets/luxmc-client-agent.jar");
 static ACTIVE_CAPE_BYTES: tokio::sync::RwLock<Vec<u8>> = tokio::sync::RwLock::const_new(Vec::new());
 
@@ -822,6 +823,42 @@ impl GameLauncher {
                 java_path.clone()
             };
 
+            let mut wrappers = Vec::new();
+            #[cfg(target_os = "linux")]
+            {
+                if profile.use_gamemode && which::which("gamemoderun").is_ok() {
+                    wrappers.push("gamemoderun");
+                    self.emit_log("GameMode ativo para esta instância.");
+                }
+                if profile.use_mangohud && which::which("mangohud").is_ok() {
+                    wrappers.push("mangohud");
+                    self.emit_log("MangoHud ativo para esta instância.");
+                }
+            }
+            #[cfg(target_os = "linux")]
+            let mut c = if profile.use_gamescope && which::which("gamescope").is_ok() {
+                let mut command = crate::core::process::tokio_command("gamescope");
+                if let Some(width) = profile.gamescope_width.filter(|value| *value > 0) {
+                    command.arg("-W").arg(width.to_string());
+                }
+                if let Some(height) = profile.gamescope_height.filter(|value| *value > 0) {
+                    command.arg("-H").arg(height.to_string());
+                }
+                command.arg("-U");
+                if profile.gamescope_fsr {
+                    command.arg("--fsr-upscaling");
+                }
+                command.arg("--").args(&wrappers).arg(&effective_java);
+                self.emit_log("Gamescope ativo para esta instância.");
+                command
+            } else if let Some(wrapper) = wrappers.first() {
+                let mut command = crate::core::process::tokio_command(wrapper);
+                command.args(&wrappers[1..]).arg(&effective_java);
+                command
+            } else {
+                crate::core::process::tokio_command(&effective_java)
+            };
+            #[cfg(not(target_os = "linux"))]
             let mut c = crate::core::process::tokio_command(&effective_java);
             c.args(&safe_jvm_args)
                 .arg(main_class)
@@ -939,6 +976,13 @@ impl GameLauncher {
 
         #[cfg(target_os = "windows")]
         {
+            if profile.auto_optimize {
+                cmd.creation_flags(
+                    crate::core::process::CREATE_NO_WINDOW
+                        | crate::core::process::ABOVE_NORMAL_PRIORITY_CLASS,
+                );
+                self.emit_log("Windows: prioridade acima do normal ativada para o jogo.");
+            }
             let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".to_string());
             let system32 = format!("{}\\System32", system_root);
             let mut win_paths = Vec::new();
@@ -957,12 +1001,16 @@ impl GameLauncher {
                 cmd.env_remove(key);
             }
 
-            if let Ok((hkcu, _)) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
-                .create_subkey("Software\\Microsoft\\DirectX\\UserGpuPreferences")
-            {
-                let java_str = java_path.to_string_lossy().to_string();
-                if let Err(error) = hkcu.set_value(&java_str, &"GpuPreference=2;") {
-                    self.emit_log(&format!("Não foi possível definir preferência de GPU: {error}"));
+            if profile.force_dedicated_gpu {
+                if let Ok((hkcu, _)) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
+                    .create_subkey("Software\\Microsoft\\DirectX\\UserGpuPreferences")
+                {
+                    let java_str = java_path.to_string_lossy().to_string();
+                    if let Err(error) = hkcu.set_value(&java_str, &"GpuPreference=2;") {
+                        self.emit_log(&format!("Não foi possível definir preferência de GPU: {error}"));
+                    } else {
+                        self.emit_log("Windows: preferência de GPU de alto desempenho ativada.");
+                    }
                 }
             }
         }
@@ -975,11 +1023,21 @@ impl GameLauncher {
             cmd.env("GPU_MAX_HEAP_SIZE", "100");
             cmd.env("GPU_FORCE_64BIT_PTR", "1");
 
-            if gpu.vendor == "NVIDIA" {
+            if profile.force_dedicated_gpu && gpu.vendor == "NVIDIA" {
                 cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
                 cmd.env("__GLX_VENDOR_LIBRARY_NAME", "nvidia");
                 cmd.env("__VK_LAYER_NV_optimus", "NVIDIA_only");
                 cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
+                if let Ok(entries) = std::fs::read_dir("/usr/share/vulkan/icd.d") {
+                    let nvidia_icds = entries.flatten()
+                        .map(|entry| entry.path())
+                        .filter(|path| path.file_name().is_some_and(|name| name.to_string_lossy().to_lowercase().contains("nvidia")))
+                        .map(|path| path.to_string_lossy().to_string())
+                        .collect::<Vec<_>>();
+                    if !nvidia_icds.is_empty() {
+                        cmd.env("VK_ICD_FILENAMES", nvidia_icds.join(":"));
+                    }
+                }
             } else {
                 cmd.env_remove("__GLX_VENDOR_LIBRARY_NAME");
                 cmd.env_remove("__VK_LAYER_NV_optimus");
@@ -991,7 +1049,7 @@ impl GameLauncher {
                         (name.starts_with("card0") || name.starts_with("card1") || name.starts_with("card2")) && !name.contains('-')
                     }).count()
                 }).unwrap_or(0);
-                if drm_cards > 1 {
+                if profile.force_dedicated_gpu && drm_cards > 1 {
                     cmd.env("DRI_PRIME", "1");
                 } else {
                     cmd.env_remove("DRI_PRIME");
@@ -1029,6 +1087,9 @@ impl GameLauncher {
                 "/usr/lib/x86_64-linux-gnu/libgamemodeauto.so.0",
             ];
             for lib in gamemode_libs {
+                if !profile.use_gamemode {
+                    break;
+                }
                 if std::path::Path::new(lib).exists() {
                     let existing = std::env::var("LD_PRELOAD").unwrap_or_default();
                     if existing.is_empty() {
@@ -1060,7 +1121,7 @@ impl GameLauncher {
         // Ghost mode: immediately release unused launcher memory
         crate::commands::optimizer::optimizer_trim_memory();
 
-        if pid > 0 {
+        if pid > 0 && profile.use_gamemode {
             tokio::spawn(async move {
                 crate::core::linux::gamemode::request_gamemode_for_pid(pid).await;
             });
@@ -1224,6 +1285,7 @@ impl GameLauncher {
         let detail_id = detail.id.clone();
         let profile_id = profile.id.clone();
         let profile_name = profile.name.clone();
+        let use_gamemode = profile.use_gamemode;
         let last_stderr_reader = last_stderr.clone();
         let is_game_active_waiter = is_game_active.clone();
         let game_dir_for_crash = game_dir.clone();
@@ -1234,7 +1296,7 @@ impl GameLauncher {
                     clear_active_game_dir();
                     is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
                     let code = status.code().unwrap_or(-1);
-                    if pid > 0 {
+                    if pid > 0 && use_gamemode {
                         crate::core::linux::gamemode::release_gamemode_for_pid(pid).await;
                     }
                     let duration_secs = start_time.elapsed().as_secs();
@@ -3110,4 +3172,3 @@ fn format_custom_cape_texture(cape_rgba: &image::RgbaImage, cw: u32, ch: u32) ->
     let opti = canvas.clone();
     (canvas, opti)
 }
-

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { skinAvatar, createSkinAvatar, inferSkinModelType, classifyTexture, textureCanvas } from "$lib/utils/textureImage";
-	import { onMount, untrack } from "svelte";
+	import { onDestroy, onMount, untrack } from "svelte";
 	import { deepLinks } from "$lib/stores/deepLinks.svelte";
 	import { authChangeSkin } from "$lib/api/auth";
 	import {
@@ -59,14 +59,12 @@
 	let saveError = $state("");
 
 	let savedSkinsExpanded = $state(true);
-	let defaultSkinsExpanded = $state(true);
-
 	type SavedSkinItem = { id: string; name: string; url: string; model: "steve" | "alex" };
 	const defaultSavedSkins: SavedSkinItem[] = [];
 	let savedSkins = $state<SavedSkinItem[]>(defaultSavedSkins);
 
-	let selectedSkinId = $state("default:Steve");
-	let selectedSkinNick = $state("Steve");
+	let selectedSkinId = $state("");
+	let selectedSkinNick = $state("Nenhuma skin salva");
 	let editingSkinId = $state<string | null>(null);
 	let editingSkinName = $state("");
 
@@ -91,23 +89,6 @@
 
 	const selection = $derived(JSON.stringify([currentSkinUrl, skinType, selectedCape, customCapeDataUrl]));
 	const hasPendingChange = $derived(hydrated && selection !== appliedSelection);
-
-	const defaultSkins = [
-		{ name: "Steve", nick: "Steve", model: "steve" as const },
-		{ name: "Alex", nick: "Alex", model: "alex" as const },
-		{ name: "Ari", nick: "Ari", model: "alex" as const },
-		{ name: "Efe", nick: "Efe", model: "alex" as const },
-		{ name: "Kai", nick: "Kai", model: "alex" as const },
-		{ name: "Makena", nick: "Makena", model: "alex" as const },
-		{ name: "Noor", nick: "Noor", model: "alex" as const },
-		{ name: "Sunny", nick: "Sunny", model: "alex" as const },
-		{ name: "Zuri", nick: "Zuri", model: "alex" as const },
-		{ name: "Technoblade", nick: "Technoblade", model: "steve" as const },
-		{ name: "Dream", nick: "Dream", model: "steve" as const },
-		{ name: "Mumbo Jumbo", nick: "Mumbo", model: "steve" as const },
-		{ name: "DanTDM", nick: "DanTDM", model: "steve" as const },
-		{ name: "Grian", nick: "Grian", model: "steve" as const }
-	];
 
 	const capeList: { id: CapeType; name: string; desc: string }[] = [
 		{ id: "none", name: "Nenhuma", desc: "Sem capa" },
@@ -156,8 +137,6 @@
             skinType = account.value.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve";
             selectedCape = account.value.capeUrl ? "custom" : "none";
             customCapeDataUrl = account.value.capeUrl || "";
-            selectedSkinId = account.value.skinUrl ? "account_active" : "default:Steve";
-            selectedSkinNick = account.value.skinUrl ? account.value.username : "Steve";
         }
 		const appliedAccountSkin = account.value?.skinUrl || activeSkinStore.current.skinUrl || "/steve.png";
 		const appliedAccountModel = account.value ? (account.value.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve") : skinType;
@@ -186,47 +165,22 @@
 				selectedSkinNick = savedMatch.name;
 				previewSkinUrl = savedMatch.url;
 				skinType = savedMatch.model;
-			} else if (persistedSkinId.startsWith("default:")) {
-				const nick = persistedSkinId.replace("default:", "");
-				const defMatch = defaultSkins.find(d => d.nick === nick);
-				if (defMatch) {
-					selectedSkinId = persistedSkinId;
-					selectedSkinNick = defMatch.nick;
-					previewSkinUrl = `https://mineskin.eu/skin/${encodeURIComponent(defMatch.nick)}`;
-					skinType = defMatch.model;
-				}
-			} else if ((persistedSkinId === "account_active" || persistedSkinId === "custom") && account.value?.skinUrl) {
-				selectedSkinId = "account_active";
-				selectedSkinNick = username;
-				previewSkinUrl = account.value.skinUrl;
-				skinType = account.value.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve";
 			}
-		}
 
-		if (!selectedSkinId || selectedSkinId === "custom") {
+		if (!savedSkins.some(skin => skin.id === selectedSkinId)) {
 			const matchSaved = savedSkins.find(s => s.url === initialSkin);
 			if (matchSaved) {
 				selectedSkinId = matchSaved.id;
 				selectedSkinNick = matchSaved.name;
-			} else {
-				const matchDef = defaultSkins.find(d => initialSkin.includes(encodeURIComponent(d.nick)) || initialSkin === `/${d.nick.toLowerCase()}.png`);
-				if (matchDef) {
-					selectedSkinId = "default:" + matchDef.nick;
-					selectedSkinNick = matchDef.nick;
-				} else if (account.value?.skinUrl) {
-					selectedSkinId = "account_active";
-					selectedSkinNick = username;
-				} else if (savedSkins.length > 0) {
+			} else if (savedSkins.length > 0) {
 					selectedSkinId = savedSkins[0].id;
 					selectedSkinNick = savedSkins[0].name;
 					previewSkinUrl = savedSkins[0].url;
 					skinType = savedSkins[0].model;
-				} else {
-					selectedSkinId = "default:Steve";
-					selectedSkinNick = "Steve";
-					previewSkinUrl = "/steve.png";
-					skinType = "steve";
-				}
+			} else {
+				selectedSkinId = "";
+				selectedSkinNick = "Nenhuma skin salva";
+			}
 			}
 		}
         appliedSelection = JSON.stringify([appliedAccountSkin, appliedAccountModel, appliedAccountCape, appliedAccountCapeUrl]);
@@ -241,7 +195,7 @@
             const draft = JSON.parse(sessionStorage.getItem(`luxmc_skin_draft:${draftOwner}`) || "null");
             if (draft && typeof draft.skinUrl === "string" && /^(data:image\/png;base64,|https:\/\/|\/)/.test(draft.skinUrl) &&
                 (draft.model === "steve" || draft.model === "alex") && capeList.some(cape => cape.id === draft.cape) &&
-                typeof draft.customCapeUrl === "string" && typeof draft.id === "string" && typeof draft.name === "string") {
+                typeof draft.customCapeUrl === "string" && typeof draft.id === "string" && typeof draft.name === "string" && savedSkins.some(saved => saved.id === draft.id)) {
                 previewSkinUrl = draft.skinUrl;
                 skinType = draft.model;
                 selectedCape = draft.cape;
@@ -266,14 +220,16 @@
         const skin = deepLinks.skin;
         if (!skin) return;
         untrack(() => {
-            previewSkinUrl = skin.url;
-            skinType = skin.model === "slim" ? "alex" : "steve";
-			selectedSkinId = "custom";
-			selectedSkinNick = "Skin da Web";
+            const saved: SavedSkinItem = { id: crypto.randomUUID(), name: "Skin da Web", url: skin.url, model: skin.model === "slim" ? "alex" : "steve" };
+            savedSkins = [saved, ...savedSkins];
+            try { localStorage.setItem("luxmc_saved_skins", JSON.stringify(savedSkins)); } catch {}
+            selectValidatedSkin(saved, saved.model);
             deepLinks.skin = null;
             toast("Skin recebida do portal web!", "info");
         });
     });
+
+    onDestroy(() => viewerRef?.dispose());
 
     $effect(() => {
         if (!hydrated) return;
@@ -288,31 +244,6 @@
         }).catch(() => {});
         return () => controller.abort();
     });
-
-	function selectDefaultSkin(skin: typeof defaultSkins[0]) {
-        importController?.abort();
-		selectedSkinId = "default:" + skin.nick;
-		selectedSkinNick = skin.nick;
-		skinType = skin.model === "alex" ? "alex" : "steve";
-		previewSkinUrl = `https://mineskin.eu/skin/${encodeURIComponent(skin.nick)}`;
-		try {
-			localStorage.setItem("luxmc_selected_skin_id", selectedSkinId);
-			localStorage.setItem("luxmc_selected_skin_nick", selectedSkinNick);
-		} catch {}
-	}
-
-	function selectAccountSkin() {
-		if (!account.value?.skinUrl) return;
-		importController?.abort();
-		selectedSkinId = "account_active";
-		selectedSkinNick = username;
-		skinType = account.value.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve";
-		previewSkinUrl = account.value.skinUrl;
-		try {
-			localStorage.setItem("luxmc_selected_skin_id", "account_active");
-			localStorage.setItem("luxmc_selected_skin_nick", selectedSkinNick);
-		} catch {}
-	}
 
     async function selectSavedSkin(skin: SavedSkinItem) {
         importController?.abort();
@@ -349,12 +280,12 @@
 	function removeSavedSkin(id: string) {
 		savedSkins = savedSkins.filter(s => s.id !== id);
 		if (selectedSkinId === id) {
-			if (account.value?.skinUrl) {
-				selectAccountSkin();
-			} else if (savedSkins.length > 0) {
+			if (savedSkins.length > 0) {
 				void selectSavedSkin(savedSkins[0]);
 			} else {
-				selectDefaultSkin(defaultSkins[0]);
+				selectedSkinId = "";
+				selectedSkinNick = "Nenhuma skin salva";
+				previewSkinUrl = "";
 			}
 		}
 		try {
@@ -384,7 +315,7 @@
 
 	function setModelType(model: "steve" | "alex") {
 		skinType = model;
-		if (selectedSkinId && !selectedSkinId.startsWith("default:")) {
+		if (savedSkins.some(skin => skin.id === selectedSkinId)) {
 			savedSkins = savedSkins.map(s => s.id === selectedSkinId ? { ...s, model } : s);
 			try {
 				localStorage.setItem("luxmc_saved_skins", JSON.stringify(savedSkins));
@@ -443,10 +374,11 @@
             const image = await loadTextureImage(resolved, controller.signal);
             if (controller.signal.aborted) return;
             const canvas = textureCanvas(image);
-            skinType = inferSkinModelType(canvas);
-            previewSkinUrl = resolved;
-            selectedSkinNick = nick;
-            setModelType(skinType);
+            const model = inferSkinModelType(canvas);
+            const saved: SavedSkinItem = { id: crypto.randomUUID(), name: nick, url: resolved, model };
+            savedSkins = [saved, ...savedSkins];
+            localStorage.setItem("luxmc_saved_skins", JSON.stringify(savedSkins));
+            selectValidatedSkin(saved, model);
 
         } catch (error) { if (!controller.signal.aborted) toast(String(error), "error"); }
         finally { if (!controller.signal.aborted) isSearchingNick = false; }
@@ -802,37 +734,6 @@
 							</div>
 						</button>
 
-						{#if account.value?.skinUrl}
-							{@const isAccountSelected = selectedSkinId === "account_active" || (selectedSkinId === "custom" && previewSkinUrl === account.value.skinUrl)}
-							<div
-								role="button"
-								tabindex="0"
-								onclick={selectAccountSkin}
-								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") selectAccountSkin(); }}
-								class="rounded-2xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 border transition-all p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[170px] shadow-sm {isAccountSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
-							>
-								{#if isAccountSelected}
-									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-black border border-white flex items-center justify-center text-white shadow-md z-10">
-										<Check class="w-3 h-3 stroke-[3]" />
-									</div>
-								{/if}
-
-								<div class="w-full flex-1 flex items-center justify-center my-1 overflow-hidden">
-									<Skin2DPreview
-										src={account.value.skinUrl}
-										alt={account.value.username}
-										model={account.value.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve"}
-										className="h-28"
-									/>
-								</div>
-
-								<div class="w-full flex items-center justify-between pt-2 border-t border-fg/[0.04] gap-1">
-									<span class="text-xs font-bold text-fg truncate flex-1">{account.value.username}</span>
-									<span class="text-[10px] font-semibold uppercase tracking-wider text-brand-400 bg-brand-500/10 px-1.5 py-0.5 rounded">Conta</span>
-								</div>
-							</div>
-						{/if}
-
 						{#each savedSkins as s (s.id)}
 							{@const isSelected = selectedSkinId === s.id}
 							<div
@@ -903,59 +804,15 @@
 								</div>
 							</div>
 						{/each}
-
-					</div>
-				{/if}
-			</section>
-
-			<section class="space-y-3">
-				<button
-					type="button"
-					onclick={() => defaultSkinsExpanded = !defaultSkinsExpanded}
-					class="flex items-center gap-2 text-sm font-black text-fg hover:text-brand-400 transition-colors cursor-pointer"
-				>
-					{#if defaultSkinsExpanded}
-						<ChevronUp class="w-4 h-4 text-fg/50" />
-					{:else}
-						<ChevronDown class="w-4 h-4 text-fg/50" />
-					{/if}
-					<span>Skins padrão</span>
-				</button>
-
-				{#if defaultSkinsExpanded}
-					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5" transition:slide={{ duration: 150 }}>
-						{#each defaultSkins as skin (skin.nick)}
-							{@const isSelected = selectedSkinId === ("default:" + skin.nick)}
-							<div
-								role="button"
-								tabindex="0"
-								onclick={() => selectDefaultSkin(skin)}
-								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") selectDefaultSkin(skin); }}
-								class="rounded-2xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 border transition-all p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[175px] shadow-sm {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
-							>
-								{#if isSelected}
-									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-black border border-white flex items-center justify-center text-white shadow-md z-10">
-										<Check class="w-3 h-3 stroke-[3]" />
-									</div>
-								{/if}
-
-								<div class="w-full flex-1 flex items-center justify-center my-1 overflow-hidden">
-									<img
-										src={`https://mc-heads.net/body/${skin.nick}/140`}
-										alt={skin.name}
-										class="h-28 object-contain [image-rendering:pixelated] drop-shadow-md transition-transform group-hover:scale-105"
-										onerror={(e) => {
-											(e.currentTarget as HTMLImageElement).src = `https://minotar.net/armor/body/${skin.nick}/120.png`;
-										}}
-									/>
-								</div>
-
-								<div class="w-full text-center pt-2 border-t border-fg/[0.04]">
-									<span class="text-xs font-bold text-fg block truncate group-hover:text-brand-400 transition-colors">{skin.name}</span>
-									<span class="text-[10px] text-fg/40 block mt-0.5">{skin.model === "alex" ? "Fino (3 px)" : "Clássico (4 px)"}</span>
-								</div>
+						{#if savedSkins.length === 0}
+							<div class="col-span-full min-h-[170px] rounded-2xl border border-fg/10 bg-fg/[0.025] p-6 text-center flex flex-col items-center justify-center gap-2">
+								<Shirt class="w-7 h-7 text-brand-400" />
+								<p class="text-sm font-bold text-fg">Sua coleção está pronta para começar</p>
+								<p class="max-w-sm text-xs text-fg/50">Importe sua primeira skin personalizada em PNG, no modelo Steve ou Alex.</p>
+								<button type="button" onclick={handleAddSkinFile} class="mt-1 text-xs font-bold text-brand-400 hover:text-brand-300">Importar skin PNG</button>
 							</div>
-						{/each}
+						{/if}
+
 					</div>
 				{/if}
 			</section>

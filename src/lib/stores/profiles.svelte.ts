@@ -24,6 +24,14 @@ export interface Profile {
 	ramMb?: number;
 	autoOptimize?: boolean;
 	useVulkan?: boolean;
+	useGamemode?: boolean;
+	useMangohud?: boolean;
+	forceDedicatedGpu?: boolean;
+	useGamescope?: boolean;
+	gamescopeWidth?: number | null;
+	gamescopeHeight?: number | null;
+	gamescopeFsr?: boolean;
+	forceFullVerification?: boolean;
 	banner?: string;
 }
 
@@ -102,6 +110,10 @@ function createProfileStore() {
 					favorite: p.favorite ?? false,
 					ramMb: p.ramMb ?? undefined, modCount: p.modCount, diskUsage: p.diskUsage,
 					autoOptimize: p.autoOptimize, useVulkan: p.useVulkan,
+					useGamemode: p.useGamemode, useMangohud: p.useMangohud,
+					forceDedicatedGpu: p.forceDedicatedGpu, useGamescope: p.useGamescope,
+					gamescopeWidth: p.gamescopeWidth, gamescopeHeight: p.gamescopeHeight,
+					gamescopeFsr: p.gamescopeFsr, forceFullVerification: p.forceFullVerification,
 					notes: p.notes ?? undefined, group: p.instanceGroup ?? undefined,
 					lastPlayed: p.lastPlayed ? new Date(p.lastPlayed).getTime() : undefined, launchCount: p.launchCount,
 				}));

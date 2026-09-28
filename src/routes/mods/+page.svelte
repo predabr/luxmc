@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { openUrl } from "@tauri-apps/plugin-opener";
     import { button } from "$lib/components/ui/button";
     import VirtualList from "$lib/components/ui/VirtualList.svelte";
 	import { sanitizeHtml } from "$lib/utils/sanitizeHtml";
@@ -112,49 +113,107 @@
 
 	function renderMarkdown(content: string): string {
 		if (!content) return "";
-		try { return marked.parse(content) as string; } catch { return content; }
+		try {
+			return marked.parse(content, { breaks: true, gfm: true }) as string;
+		} catch {
+			return content;
+		}
 	}
 
+	function createYouTubeVideoCard(vid: string): string {
+		return `
+			<div class="luxmc-video-card my-5 rounded-2xl overflow-hidden border border-fg/[0.1] bg-bg-elevated shadow-xl max-w-2xl">
+				<div class="video-player-container relative aspect-video w-full bg-black/95 flex items-center justify-center overflow-hidden" data-video-id="${vid}">
+					<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" class="w-full h-full object-cover opacity-90 transition-opacity" alt="YouTube Preview" loading="lazy" />
+					<div role="button" tabindex="0" class="btn-play-video absolute inset-0 flex flex-col items-center justify-center bg-black/45 hover:bg-black/25 transition-all cursor-pointer group" data-video-id="${vid}" title="Reproduzir no launcher">
+						<div class="w-16 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] group-hover:scale-110 group-hover:bg-red-500 transition-transform">
+							<svg class="w-7 h-7 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+						</div>
+						<span class="mt-2.5 px-3 py-1 rounded-full bg-black/75 backdrop-blur-md text-[11px] font-bold text-white border border-white/10 shadow-lg group-hover:bg-black/90 transition-colors">
+							Reproduzir no Launcher ▶
+						</span>
+					</div>
+				</div>
+				<div class="p-3 bg-bg-elevated flex items-center justify-between text-xs text-fg/70 font-medium border-t border-fg/5">
+					<span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Vídeo de Demonstração (YouTube)</span>
+					<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener noreferrer" class="btn-browser-link flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 hover:underline font-bold px-2.5 py-1 rounded-lg hover:bg-fg/5 transition-colors">
+						<span>Assistir no Navegador</span>
+						<span>↗</span>
+					</a>
+				</div>
+			</div>`;
+	}
 
 	function processDescription(body: string, isHtml: boolean): string {
 		if (!body) return "";
 		let html = isHtml ? body : renderMarkdown(body);
+
 		html = html.replace(
-			/<iframe[^>]*src=["'](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/embed\/|youtu\.be\/)([\w-]+)[^"']*["'][^>]*>.*?<\/iframe>/gi,
-			(_m, vid) => `
-				<div class="my-5 rounded-2xl overflow-hidden border border-fg/[0.06] bg-bg-overlay/60 shadow-xl max-w-2xl">
-					<div class="relative aspect-video w-full group">
-						<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" class="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity" alt="YouTube Preview" loading="lazy" />
-						<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener" class="absolute inset-0 flex items-center justify-center bg-bg-overlay/30 hover:bg-bg-overlay/10 transition-colors">
-							<div class="w-16 h-12 rounded-2xl bg-red-600/90 text-fg flex items-center justify-center shadow-2xl hover:scale-110 hover:bg-red-600 transition-transform">
-								<svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-							</div>
-						</a>
-					</div>
-					<div class="p-3 bg-bg-elevated flex items-center justify-between text-xs text-fg/70 font-medium">
-						<span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span> Vídeo de Demonstração (YouTube)</span>
-						<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener" class="text-brand-500 hover:underline font-bold">Assistir no Navegador ↗</a>
-					</div>
-				</div>`
+			/<iframe[^>]*src=["'](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/embed\/|youtube-nocookie\.com\/embed\/|youtu\.be\/)([\w-]+)[^"']*["'][^>]*>[\s\S]*?<\/iframe>/gi,
+			(_m, vid) => createYouTubeVideoCard(vid)
 		);
-		html = html.replace(/<video[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => `
-			<div class="my-4 p-4 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-between gap-3 max-w-xl">
+
+		html = html.replace(
+			/<a[^>]*href=["'](?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})[^"']*["'][^>]*>([\s\S]*?)<\/a>/gi,
+			(match, vid, text) => {
+				const lowerText = String(text || "").toLowerCase();
+				if (
+					lowerText.includes("youtube") ||
+					lowerText.includes("trailer") ||
+					lowerText.includes("vídeo") ||
+					lowerText.includes("video") ||
+					lowerText.includes("watch") ||
+					lowerText.includes("showcase") ||
+					lowerText.includes("youtu.be") ||
+					String(text || "").trim() === match.trim()
+				) {
+					return createYouTubeVideoCard(vid);
+				}
+				return `<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener noreferrer" class="text-brand-400 hover:text-brand-300 underline font-bold">${text} ↗</a>`;
+			}
+		);
+
+		html = html.replace(/<iframe[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/iframe>/gi, (_m, src) => `
+			<div class="my-4 p-4 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-between gap-3 max-w-xl shadow-sm">
 				<div class="flex items-center gap-2.5">
 					<div class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs">▶</div>
-					<span class="text-xs text-fg font-medium">Demonstração em Vídeo</span>
+					<span class="text-xs text-fg font-medium">Conteúdo Multimídia Incorporado</span>
 				</div>
-				<a href="${src}" target="_blank" rel="noopener noreferrer" class="text-xs text-brand-400 hover:underline font-bold">Assistir no Navegador ↗</a>
+				<a href="${src}" target="_blank" rel="noopener noreferrer" class="text-xs text-brand-400 hover:underline font-bold">Abrir no Navegador ↗</a>
+			</div>`
+		);
+
+		html = html.replace(/<video[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => `
+			<div class="my-5 rounded-2xl overflow-hidden border border-fg/[0.1] bg-bg-elevated shadow-xl max-w-2xl">
+				<div class="relative aspect-video w-full bg-black flex items-center justify-center">
+					<video src="${src}" controls class="w-full h-full object-contain" preload="metadata"></video>
+				</div>
+				<div class="p-3 bg-bg-elevated flex items-center justify-between text-xs text-fg/70 font-medium border-t border-fg/5">
+					<span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-brand-400"></span> Vídeo de Demonstração</span>
+					<a href="${src}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 hover:underline font-bold px-2.5 py-1 rounded-lg hover:bg-fg/5 transition-colors">
+						<span>Abrir no Navegador</span>
+						<span>↗</span>
+					</a>
+				</div>
 			</div>`
 		);
 		html = html.replace(/<video[^>]*>[\s\S]*?<source[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => `
-			<div class="my-4 p-4 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-between gap-3 max-w-xl">
-				<div class="flex items-center gap-2.5">
-					<div class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs">▶</div>
-					<span class="text-xs text-fg font-medium">Demonstração em Vídeo</span>
+			<div class="my-5 rounded-2xl overflow-hidden border border-fg/[0.1] bg-bg-elevated shadow-xl max-w-2xl">
+				<div class="relative aspect-video w-full bg-black flex items-center justify-center">
+					<video src="${src}" controls class="w-full h-full object-contain" preload="metadata"></video>
 				</div>
-				<a href="${src}" target="_blank" rel="noopener noreferrer" class="text-xs text-brand-400 hover:underline font-bold">Assistir no Navegador ↗</a>
+				<div class="p-3 bg-bg-elevated flex items-center justify-between text-xs text-fg/70 font-medium border-t border-fg/5">
+					<span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-brand-400"></span> Vídeo de Demonstração</span>
+					<a href="${src}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 hover:underline font-bold px-2.5 py-1 rounded-lg hover:bg-fg/5 transition-colors">
+						<span>Abrir no Navegador</span>
+						<span>↗</span>
+					</a>
+				</div>
 			</div>`
 		);
+
+		html = html.replace(/<a\s+(?![^>]*\btarget=)([^>]+)>/gi, '<a target="_blank" rel="noopener noreferrer" $1>');
+
 		return sanitizeHtml(html);
 	}
 
@@ -391,7 +450,47 @@
 			{:else if modDetails}
 				{#if activeDetailTab === 'overview'}
 					<div class="bg-bg-elevated border border-fg/[0.06] rounded-3xl p-6 shadow-sm overflow-hidden">
-						<div class="prose prose-invert max-w-none text-xs text-fg/80 leading-relaxed font-sans [&_a]:text-brand-500 [&_h1]:text-fg [&_h2]:text-fg [&_h3]:text-fg [&_img]:rounded-xl [&_img]:max-w-full">
+						<!-- svelte-ignore a11y_click_events_have_key_events -->
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="prose prose-invert max-w-none text-xs text-fg/80 leading-relaxed font-sans [&_a]:text-brand-400 [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-brand-300 [&_h1]:text-fg [&_h1]:font-black [&_h2]:text-fg [&_h2]:font-bold [&_h3]:text-fg [&_h3]:font-bold [&_img]:rounded-2xl [&_img]:max-w-full [&_img]:shadow-md [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-fg/10 [&_td]:border [&_td]:border-fg/10 [&_th]:p-2.5 [&_td]:p-2.5 [&_th]:bg-fg/5 [&_code]:bg-fg/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:font-mono [&_pre]:bg-bg-subtle [&_pre]:p-4 [&_pre]:rounded-2xl [&_pre]:overflow-x-auto overflow-x-auto break-words select-text"
+							onclick={(e) => {
+								const target = e.target as HTMLElement | null;
+								const playBtn = target?.closest('.btn-play-video');
+								if (playBtn) {
+									e.preventDefault();
+									e.stopPropagation();
+									const vid = playBtn.getAttribute('data-video-id');
+									const container = playBtn.closest('.video-player-container');
+									if (vid && container) {
+										container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&rel=0&modestbranding=1" title="YouTube video player" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" sandbox="allow-scripts allow-same-origin allow-presentation" allowfullscreen></iframe>`;
+									}
+									return;
+								}
+
+								const a = target?.closest('a');
+								if (a && a.href && (a.href.startsWith('http://') || a.href.startsWith('https://') || a.href.startsWith('mailto:'))) {
+									e.preventDefault();
+									e.stopPropagation();
+									openUrl(a.href).catch(() => {});
+								}
+							}}
+							onkeydown={(e) => {
+								if (e.key === "Enter" || e.key === " ") {
+									const target = e.target as HTMLElement | null;
+									const playBtn = target?.closest('.btn-play-video');
+									if (playBtn) {
+										e.preventDefault();
+										e.stopPropagation();
+										const vid = playBtn.getAttribute('data-video-id');
+										const container = playBtn.closest('.video-player-container');
+										if (vid && container) {
+											container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&rel=0&modestbranding=1" title="YouTube video player" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" sandbox="allow-scripts allow-same-origin allow-presentation" allowfullscreen></iframe>`;
+										}
+									}
+								}
+							}}
+						>
 							{@html processDescription(modDetails.body, modDetails.bodyType === 'html')}
 						</div>
 					</div>
@@ -407,7 +506,13 @@
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
 								<div class="group relative bg-bg-elevated border border-fg/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/30 transition-all shadow-sm" onclick={() => lightboxImage = img}>
 									<div class="h-44 w-full bg-bg-subtle overflow-hidden">
-										<img src={img.url} alt={img.title || "Screenshot"} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+										<img
+											src={img.url}
+											alt={img.title || "Screenshot"}
+											loading="lazy"
+											class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+											onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+										/>
 									</div>
 									{#if img.title}
 										<div class="p-3 bg-bg-elevated">

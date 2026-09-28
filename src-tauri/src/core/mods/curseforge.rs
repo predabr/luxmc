@@ -316,8 +316,7 @@ pub async fn search_mods(
                 .and_then(|u| u.as_str())
                 .map(|s| s.trim())
                 .filter(|s| !s.is_empty())
-                .map(|s| s.to_string())
-                .or_else(|| logo_url);
+                .map(|s| s.to_string());
 
             let author = m
                 .get("authors")

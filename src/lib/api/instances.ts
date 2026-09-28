@@ -49,6 +49,14 @@ export async function profilesCreate(input: {
 	ramMb?: number;
 	autoOptimize?: boolean;
 	useVulkan?: boolean;
+	useGamemode?: boolean;
+	useMangohud?: boolean;
+	forceDedicatedGpu?: boolean;
+	useGamescope?: boolean;
+	gamescopeWidth?: number | null;
+	gamescopeHeight?: number | null;
+	gamescopeFsr?: boolean;
+	forceFullVerification?: boolean;
 }): Promise<{
 	id: string;
 	name: string;
@@ -87,6 +95,14 @@ export async function profilesUpdate(input: {
 	ramMb?: number;
 	autoOptimize?: boolean;
 	useVulkan?: boolean;
+	useGamemode?: boolean;
+	useMangohud?: boolean;
+	forceDedicatedGpu?: boolean;
+	useGamescope?: boolean;
+	gamescopeWidth?: number | null;
+	gamescopeHeight?: number | null;
+	gamescopeFsr?: boolean;
+	forceFullVerification?: boolean;
 	lastPlayed?: string;
 	launchCount?: number;
 }): Promise<{
@@ -203,6 +219,22 @@ export async function instanceRepairModpack(profileId: string): Promise<number> 
 
 export async function instanceFileTree(profileId: string, subPath?: string): Promise<FileTreeEntry[]> {
 	return api.invoke("instance_file_tree", { profileId, subPath });
+}
+
+export async function instanceFileRead(profileId: string, path: string): Promise<string> {
+	return api.invoke<string>("instance_file_read", { profileId, path });
+}
+
+export async function instanceFileWrite(
+	profileId: string,
+	path: string,
+	content: string
+): Promise<void> {
+	return api.invoke<void>("instance_file_write", { profileId, path, content });
+}
+
+export async function instanceFileDelete(profileId: string, path: string): Promise<void> {
+	return api.invoke<void>("instance_file_delete", { profileId, path });
 }
 
 export async function instanceExport(profileId: string, destPath: string): Promise<string> {

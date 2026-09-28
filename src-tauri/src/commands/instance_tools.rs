@@ -260,6 +260,16 @@ pub struct InstanceShareManifest {
     pub ram_mb: Option<i64>,
     pub jvm_args: Option<String>,
     pub mods: Vec<String>,
+    #[serde(default)]
+    pub mod_sources: Vec<ShareMod>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShareMod {
+    pub project_id: String,
+    pub version_id: String,
+    pub source: String,
 }
 
 #[tauri::command]
@@ -295,6 +305,10 @@ pub async fn instance_export_share_code(
         ram_mb: row.ram_mb,
         jvm_args: row.jvm_args,
         mods,
+        mod_sources: crate::db::schema::mods::list_by_profile(&db, &profileId).await?
+            .into_iter()
+            .map(|mod_row| ShareMod { project_id: mod_row.project_id, version_id: mod_row.version_id, source: mod_row.source })
+            .collect(),
     };
 
     let manifest_json = serde_json::to_string(&manifest)
@@ -311,7 +325,7 @@ pub async fn instance_export_share_code(
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     let _ = encoder.write_all(manifest_json.as_bytes());
     let compressed = encoder.finish().unwrap_or_else(|_| manifest_json.as_bytes().to_vec());
-    let b64_code = format!("LUX-B64:{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&compressed));
+    let b64_code = format!("luxpack://{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&compressed));
 
     let now = chrono::Utc::now().to_rfc3339();
     let _ = sqlx::query(
@@ -345,6 +359,14 @@ pub async fn instance_export_share_code(
 
 #[tauri::command]
 pub async fn instance_import_share_code(
+    state: State<'_, AppState>,
+    shareCode: String,
+) -> AppResult<crate::db::models::ProfileRow> {
+    instance_import_share_code_core(&state, shareCode).await
+}
+
+pub async fn instance_import_share_code_core(
+    state: &AppState,
     shareCode: String,
 ) -> AppResult<crate::db::models::ProfileRow> {
     let raw_trimmed = shareCode.trim();
@@ -354,7 +376,7 @@ pub async fn instance_import_share_code(
 
     let db = db::shared_db().await?;
 
-    let json_data: String = if let Some(encoded) = raw_trimmed.strip_prefix("LUX-B64:").or_else(|| raw_trimmed.strip_prefix("lux-b64:")) {
+    let json_data: String = if let Some(encoded) = raw_trimmed.strip_prefix("luxpack://").or_else(|| raw_trimmed.strip_prefix("LUX-B64:")).or_else(|| raw_trimmed.strip_prefix("lux-b64:")) {
         use base64::Engine;
         use flate2::read::GzDecoder;
         use std::io::Read;
@@ -416,12 +438,30 @@ pub async fn instance_import_share_code(
         instance_group: Some("Importados".into()),
         auto_optimize: Some(true),
         use_vulkan: Some(false),
+        use_gamemode: Some(false),
+        use_mangohud: Some(false),
+        force_dedicated_gpu: Some(false),
+        use_gamescope: Some(false),
+        gamescope_width: Some(None),
+        gamescope_height: Some(None),
+        gamescope_fsr: Some(false),
+        force_full_verification: Some(false),
     };
 
     let new_profile = crate::commands::profiles::profiles_create(input).await?;
     let game_dir = std::path::PathBuf::from(&new_profile.game_dir);
     let mods_dir = game_dir.join("mods");
     let _ = std::fs::create_dir_all(&mods_dir);
+
+    for mod_source in manifest.mod_sources {
+        crate::commands::mods::mods_install_core(state, crate::commands::mods::ModInstallRequest {
+            profile_id: new_profile.id.clone(),
+            project_id: mod_source.project_id,
+            version_id: mod_source.version_id,
+            source: mod_source.source,
+            content_type: Some("mod".into()),
+        }).await?;
+    }
 
     Ok(new_profile)
 }

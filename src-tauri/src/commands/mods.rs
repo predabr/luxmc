@@ -295,17 +295,19 @@ pub async fn mods_list(profileId: String) -> AppResult<Vec<ModRow>> {
 
 pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> AppResult<()> {
     tracing::info!(profile_id = %request.profile_id, project_id = %request.project_id, version_id = %request.version_id, source = %request.source, content_type = ?request.content_type, "mods_install called");
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
-        crate::error::AppError::InvalidState("could not determine data dir".into())
-    })?;
-
     let target_subfolder = match request.content_type.as_deref().unwrap_or("mod").to_lowercase().as_str() {
         "shader" | "shaders" => "shaderpacks",
         "resourcepack" | "resource pack" | "resource_pack" => "resourcepacks",
         _ => "mods",
     };
 
-    let target_dir = base_dir.data_dir().join(target_subfolder).join(&request.profile_id);
+    let db = crate::db::shared_db().await?;
+    let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&request.profile_id)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {} not found", request.profile_id)))?;
+    let target_dir = std::path::PathBuf::from(&profile.game_dir).join(target_subfolder);
     tokio::fs::create_dir_all(&target_dir).await?;
 
     let (file_url, file_name, _file_size, file_sha1) = match request.source.as_str() {
@@ -425,24 +427,7 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
     let _ = tokio::io::AsyncWriteExt::flush(&mut file).await;
     drop(file);
 
-    let db = crate::db::shared_db().await?;
-    let profile = if let Some(p) = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
-        .bind(&request.profile_id)
-        .fetch_optional(db.pool())
-        .await? {
-        Some(p)
-    } else {
-        sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles ORDER BY last_played DESC LIMIT 1")
-            .fetch_optional(db.pool())
-            .await?
-    };
-    let resolved_profile_id = profile.as_ref().map(|p| p.id.clone()).unwrap_or_else(|| request.profile_id.clone());
-
-    if let Some(ref prof) = profile {
-        let prof_dest_dir = std::path::PathBuf::from(&prof.game_dir).join(target_subfolder);
-        let _ = tokio::fs::create_dir_all(&prof_dest_dir).await;
-        let _ = tokio::fs::copy(&file_path, prof_dest_dir.join(&file_name)).await;
-    }
+    let resolved_profile_id = profile.id.clone();
 
     if target_subfolder == "mods" {
         let mod_row = ModRow {
@@ -469,14 +454,12 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
 
         // Automatically promote profile loader to Fabric if installing a .jar mod onto a vanilla instance
         if file_name.ends_with(".jar") {
-            if let Some(ref prof) = profile {
-                if prof.loader == "vanilla" || prof.loader.is_empty() {
-                    tracing::info!(profile_id = %resolved_profile_id, "Promoting profile loader from vanilla to fabric");
-                    let _ = sqlx::query("UPDATE profiles SET loader = 'fabric' WHERE id = ?")
-                        .bind(&resolved_profile_id)
-                        .execute(db.pool())
-                        .await;
-                }
+            if profile.loader == "vanilla" || profile.loader.is_empty() {
+                tracing::info!(profile_id = %resolved_profile_id, "Promoting profile loader from vanilla to fabric");
+                let _ = sqlx::query("UPDATE profiles SET loader = 'fabric' WHERE id = ?")
+                    .bind(&resolved_profile_id)
+                    .execute(db.pool())
+                    .await;
             }
         }
     }

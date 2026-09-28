@@ -17,8 +17,9 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
 			(id, name, icon, mc_version, loader, loader_version, java_path, jvm_args,
 			 resolution_w, resolution_h, fullscreen, game_dir, created_at, updated_at,
 			 favorite, notes, last_played, launch_count, mod_count, disk_usage, ram_mb, instance_group,
-			 auto_optimize, use_vulkan)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			 auto_optimize, use_vulkan, use_gamemode, use_mangohud, force_dedicated_gpu, use_gamescope,
+			 gamescope_width, gamescope_height, gamescope_fsr, force_full_verification)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET
 			name=excluded.name, icon=excluded.icon, mc_version=excluded.mc_version,
 			loader=excluded.loader, loader_version=excluded.loader_version,
@@ -30,7 +31,11 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
 			last_played=excluded.last_played, launch_count=excluded.launch_count,
 			mod_count=excluded.mod_count, disk_usage=excluded.disk_usage,
 			ram_mb=excluded.ram_mb, instance_group=excluded.instance_group,
-			auto_optimize=excluded.auto_optimize, use_vulkan=excluded.use_vulkan
+			auto_optimize=excluded.auto_optimize, use_vulkan=excluded.use_vulkan,
+			use_gamemode=excluded.use_gamemode, use_mangohud=excluded.use_mangohud,
+			force_dedicated_gpu=excluded.force_dedicated_gpu, use_gamescope=excluded.use_gamescope,
+			gamescope_width=excluded.gamescope_width, gamescope_height=excluded.gamescope_height,
+			gamescope_fsr=excluded.gamescope_fsr, force_full_verification=excluded.force_full_verification
 		"#,
     )
     .bind(&p.id)
@@ -57,6 +62,14 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
     .bind(&p.instance_group)
     .bind(p.auto_optimize)
     .bind(p.use_vulkan)
+    .bind(p.use_gamemode)
+    .bind(p.use_mangohud)
+    .bind(p.force_dedicated_gpu)
+    .bind(p.use_gamescope)
+    .bind(p.gamescope_width)
+    .bind(p.gamescope_height)
+    .bind(p.gamescope_fsr)
+    .bind(p.force_full_verification)
     .execute(db.pool())
     .await
     .map_err(AppError::from)?;

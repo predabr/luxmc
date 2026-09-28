@@ -601,6 +601,8 @@ mod tests {
             game_dir: game_dir.to_string_lossy().into_owned(), created_at: now, updated_at: now,
             favorite: false, notes: None, last_played: None, launch_count: 0, mod_count: 1, disk_usage: 0,
             ram_mb: Some(4096), instance_group: None, auto_optimize: true, use_vulkan: false,
+            use_gamemode: false, use_mangohud: false, force_dedicated_gpu: false, use_gamescope: false,
+            gamescope_width: None, gamescope_height: None, gamescope_fsr: false, force_full_verification: false,
         };
         let original = super::create_capsule_inner(&row, "Original").unwrap();
         std::fs::write(game_dir.join("mods/a.jar"), b"changed jar").unwrap();

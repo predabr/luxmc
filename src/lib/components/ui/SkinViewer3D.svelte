@@ -485,6 +485,12 @@
 		resetCamera();
 	}
 
+	export function dispose() {
+		stopDragging();
+		disposeViewer();
+		ready = false;
+	}
+
 	export function resetCamera() {
 		if (!viewer) return;
 		viewer.camera.position.set(0, 2, 48);

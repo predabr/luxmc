@@ -1,6 +1,6 @@
 [package]
 name = "luxmc"
-version = "2.0.0"
+version = "2.0.1"
 description = "Linux-first Minecraft launcher"
 authors = ["Luxmc contributors"]
 edition = "2021"
@@ -73,6 +73,7 @@ fastanvil = "0.32"
 igd-next = "0.14"
 cacache = { version = "13.1", default-features = false, features = ["tokio-runtime"] }
 iroh = "=1.2.0"
+socket2 = "0.5"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 zbus = { version = "4", default-features = false, features = ["tokio"] }

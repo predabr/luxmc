@@ -81,7 +81,7 @@ public class LuxmcClientAgent {
     private static final List<Long> rightClicks = new ArrayList<Long>();
 
     public static void premain(String agentArgs, Instrumentation inst) {
-        System.out.println("[LUXMC_CLIENT] Luxmc Client initialized (v2.0.0)");
+        System.out.println("[LUXMC_CLIENT] Luxmc Client initialized (v2.0.1)");
 
         try {
             java.nio.file.Path support = java.nio.file.Files.createTempFile("luxmc-appearance-", ".jar");

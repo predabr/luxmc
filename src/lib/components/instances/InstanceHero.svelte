@@ -5,11 +5,12 @@
     import { gamingStats } from "$lib/stores/gamingStats.svelte";
     import { button } from "$lib/components/ui/button";
     import LoaderBadge from "./LoaderBadge.svelte";
+    import { getIconSrc } from "$lib/utils/icons";
     let { profile, banner, launching = false, running = false, stopping = false, status = "", progress = 0, javaLabel = "Automático", onPlay, onStop, onSettings, onHost, actions }: {
         profile: Profile | null; banner: string; launching?: boolean; running?: boolean; stopping?: boolean; status?: string; progress?: number;
         javaLabel?: string; onPlay: () => void; onStop?: () => void; onSettings: () => void; onHost: () => void; actions?: Snippet;
     } = $props();
-    const icon = $derived(({ grass_block: '/grass_block.png', '/grass_block': '/grass_block.png', grass: '/grass_block.png', '/grass': '/grass_block.png', modpack_fo: '/modpack_fo_icon.png', modpack_better_mc: '/modpack_bmc_icon.webp', modpack_cobblemon: '/modpack_cobblemon_icon.png', logo: '/logo.png', grass_head: '/grass_head.png' } as Record<string, string>)[profile?.icon || 'grass_block'] || (profile?.icon === '/grass_block' ? '/grass_block.png' : profile?.icon) || '/grass_block.png');
+    const icon = $derived(getIconSrc(profile?.icon));
     const minutes = $derived(profile ? gamingStats.profileMinutes(profile.id) : 0);
     const playtime = $derived(
         running
@@ -24,7 +25,12 @@
 
 <section class="surface-glass relative overflow-hidden">
     <div class="relative h-44 overflow-hidden sm:h-52">
-        <img src={banner} alt="" class="h-full w-full object-cover" />
+        <img
+            src={banner}
+            alt=""
+            class="h-full w-full object-cover"
+            onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/bg_day.jpg'; }}
+        />
         <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/30 to-bg-overlay/10"></div>
         <div class="absolute left-6 top-5 flex items-center gap-2"><LoaderBadge loader={profile?.loader || 'vanilla'} /><span class="rounded-full border border-fg/10 bg-bg-overlay/60 px-3 py-1 text-xs text-fg">Minecraft {profile?.mcVersion || '—'}</span></div>
         <button type="button" class={button({ variant: 'secondary', size: 'sm', class: 'absolute right-5 top-5 bg-bg-overlay/50' })} onclick={onSettings}><ImagePlus class="h-3.5 w-3.5" />Personalizar</button>
@@ -32,7 +38,12 @@
     <div class="relative -mt-12 px-6 pb-6 sm:px-7">
         <div class="flex flex-wrap items-end justify-between gap-5">
             <div class="flex min-w-0 items-end gap-4">
-                <img src={icon} alt="" class="h-20 w-20 shrink-0 rounded-2xl border border-fg/15 bg-bg-elevated p-2 object-cover shadow-elevated" />
+                <img
+                    src={icon}
+                    alt={profile?.name || "Ícone da instância"}
+                    class="h-20 w-20 shrink-0 rounded-2xl border border-fg/15 bg-bg-elevated p-2 object-contain shadow-elevated"
+                    onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+                />
                 <div class="min-w-0 pb-1"><p class="page-eyebrow mb-2">Sua próxima aventura</p><h1 class="text-3xl font-bold tracking-tight text-fg sm:text-4xl">{profile?.name || 'Minecraft'}</h1></div>
             </div>
             <div class="flex flex-wrap items-center gap-2">

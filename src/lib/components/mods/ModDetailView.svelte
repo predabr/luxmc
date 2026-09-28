@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { openUrl } from "@tauri-apps/plugin-opener";
 	import {
 		ArrowLeft, CheckCircle2, Download, Loader2, Check, PackagePlus,
 		HelpCircle, MessageSquare, Globe, Heart, FileText, ImageIcon, Layers
@@ -54,6 +55,9 @@
 	}
 
 	const isModpack = $derived(contentType === "Modpack");
+	const effectiveLoaders = $derived(details?.loaders && details.loaders.length > 0 ? details.loaders : item.categories.filter(c => ['fabric', 'forge', 'neoforge', 'quilt'].includes(c.toLowerCase())));
+	const effectiveVersions = $derived(details?.gameVersions && details.gameVersions.length > 0 ? details.gameVersions : item.versions);
+	const effectiveCategories = $derived(details?.categories && details.categories.length > 0 ? details.categories : item.categories.filter(c => !['fabric', 'forge', 'neoforge', 'quilt'].includes(c.toLowerCase())));
 </script>
 
 <div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-6">
@@ -81,7 +85,12 @@
 			<div class="flex items-start sm:items-center gap-5 min-w-0 flex-1">
 				<div class="w-20 h-20 shrink-0 rounded-2xl bg-bg-subtle border border-fg/15 p-1 overflow-hidden shadow-2xl flex items-center justify-center">
 					{#if details?.iconUrl || item.iconUrl || item.bannerUrl}
-						<img src={details?.iconUrl || item.iconUrl || item.bannerUrl || ""} alt={item.title} class="w-full h-full object-cover rounded-xl" />
+						<img
+							src={details?.iconUrl || item.iconUrl || item.bannerUrl || ""}
+							alt={item.title}
+							class="w-full h-full object-contain p-0.5 rounded-xl"
+							onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+						/>
 					{:else}
 						<Layers class="w-8 h-8 text-brand-400" />
 					{/if}
@@ -95,7 +104,7 @@
 						<SourceBadge source={item.source} />
 					</div>
 					<p class="text-xs text-fg/60 mt-1.5 line-clamp-2 max-w-2xl leading-relaxed">
-						{item.description}
+						{item.description || details?.description || "Sem descrição curta fornecida para este projeto."}
 					</p>
 					<div class="flex items-center gap-1.5 flex-wrap mt-3">
 						{#each item.categories.slice(0, 4) as cat}
@@ -157,19 +166,37 @@
 				<span>Como Instalar</span>
 			</button>
 			{#if details?.discordUrl}
-				<a href={details.discordUrl} target="_blank" class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all">
+				<a
+					href={details.discordUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all cursor-pointer"
+					onclick={(e) => { e.preventDefault(); if (details?.discordUrl) void openUrl(details.discordUrl); }}
+				>
 					<MessageSquare class="w-3.5 h-3.5 text-indigo-400" />
 					<span>Discord</span>
 				</a>
 			{/if}
 			{#if details?.sourceUrl}
-				<a href={details.sourceUrl} target="_blank" class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all">
+				<a
+					href={details.sourceUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all cursor-pointer"
+					onclick={(e) => { e.preventDefault(); if (details?.sourceUrl) void openUrl(details.sourceUrl); }}
+				>
 					<Globe class="w-3.5 h-3.5 text-emerald-400" />
 					<span>Código Fonte</span>
 				</a>
 			{/if}
 			{#if details?.donationUrl}
-				<a href={details.donationUrl} target="_blank" class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all">
+				<a
+					href={details.donationUrl}
+					target="_blank"
+					rel="noopener noreferrer"
+					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all cursor-pointer"
+					onclick={(e) => { e.preventDefault(); if (details?.donationUrl) void openUrl(details.donationUrl); }}
+				>
 					<Heart class="w-3.5 h-3.5 text-rose-400" />
 					<span>Apoiar</span>
 				</a>
@@ -195,15 +222,33 @@
 						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-widest block mb-2">AUTOR</span>
 						<div class="flex items-center gap-3 bg-bg-elevated p-3 rounded-2xl border border-fg/5">
 							{#if details.author.avatarUrl}
-								<img src={details.author.avatarUrl} alt={details.author.name} class="w-10 h-10 rounded-full object-cover border border-fg/10 shrink-0" />
+								<img
+									src={details.author.avatarUrl}
+									alt={details.author.name}
+									class="w-10 h-10 rounded-full object-cover border border-fg/10 shrink-0"
+									onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+								/>
 							{:else}
 								<div class="w-10 h-10 rounded-full bg-bg-subtle flex items-center justify-center text-fg/60 font-black text-xs shrink-0">
-									{details.author.name.slice(0, 2).toUpperCase()}
+									{details.author.name ? details.author.name.slice(0, 2).toUpperCase() : "AU"}
 								</div>
 							{/if}
-							<div>
-								<h4 class="text-xs font-extrabold text-fg">{details.author.name}</h4>
+							<div class="min-w-0">
+								<h4 class="text-xs font-extrabold text-fg truncate">{details.author.name || "Autor Desconhecido"}</h4>
 								<span class="text-[10px] text-fg/40">{details.author.role || "Criador do Projeto"}</span>
+							</div>
+						</div>
+					</div>
+				{:else if item.author}
+					<div>
+						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-widest block mb-2">AUTOR</span>
+						<div class="flex items-center gap-3 bg-bg-elevated p-3 rounded-2xl border border-fg/5">
+							<div class="w-10 h-10 rounded-full bg-bg-subtle flex items-center justify-center text-fg/60 font-black text-xs shrink-0">
+								{item.author.slice(0, 2).toUpperCase()}
+							</div>
+							<div class="min-w-0">
+								<h4 class="text-xs font-extrabold text-fg truncate">{item.author}</h4>
+								<span class="text-[10px] text-fg/40">Criador do Projeto</span>
 							</div>
 						</div>
 					</div>
@@ -233,31 +278,31 @@
 						{/if}
 					</div>
 				</div>
-				{#if details.loaders.length > 0}
+				{#if effectiveLoaders.length > 0}
 					<div>
 						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-widest block mb-2">LOADERS COMPATÍVEIS</span>
 						<div class="flex flex-wrap gap-1.5">
-							{#each details.loaders as l}
-								<span class="px-2.5 py-1 rounded-xl bg-fg/5 border border-fg/10 text-xs font-bold text-fg/80">{l}</span>
+							{#each effectiveLoaders as l}
+								<span class="px-2.5 py-1 rounded-xl bg-fg/5 border border-fg/10 text-xs font-bold text-fg/80 capitalize">{l}</span>
 							{/each}
 						</div>
 					</div>
 				{/if}
-				{#if details.gameVersions.length > 0}
+				{#if effectiveVersions.length > 0}
 					<div>
 						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-widest block mb-2">VERSÕES SUPORTADAS</span>
 						<div class="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pr-1">
-							{#each details.gameVersions as v}
+							{#each effectiveVersions as v}
 								<span class="px-2 py-0.5 rounded-lg bg-bg-elevated border border-fg/5 text-[10px] font-mono text-fg/60">{v}</span>
 							{/each}
 						</div>
 					</div>
 				{/if}
-				{#if details.categories.length > 0}
+				{#if effectiveCategories.length > 0}
 					<div>
 						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-widest block mb-2">CATEGORIAS</span>
 						<div class="flex flex-wrap gap-1.5">
-							{#each details.categories as cat}
+							{#each effectiveCategories as cat}
 								<span class="px-2.5 py-0.5 rounded-full bg-brand-400/10 text-brand-400 border border-brand-400/20 text-[10px] font-bold">{cat}</span>
 							{/each}
 						</div>

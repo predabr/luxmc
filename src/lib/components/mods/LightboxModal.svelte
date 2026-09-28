@@ -28,7 +28,12 @@
 		>
 			<X class="w-5 h-5" />
 		</button>
-		<img src={imageUrl} alt={title || "Screenshot"} class="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-fg/10" />
+		<img
+			src={imageUrl}
+			alt={title || "Screenshot"}
+			class="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl border border-fg/10"
+			onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/bg_day.jpg'; }}
+		/>
 		{#if title}
 			<div class="mt-4 text-center">
 				<h3 class="text-sm font-bold text-fg">{title}</h3>

@@ -74,7 +74,12 @@
 		<div class="flex items-center gap-3 bg-bg-elevated p-3 rounded-2xl border border-fg/5">
 			<div class="w-12 h-12 rounded-xl bg-bg-subtle border border-fg/10 overflow-hidden shrink-0 flex items-center justify-center">
 				{#if modpack.iconUrl}
-					<img src={modpack.iconUrl} alt={modpack.title} class="w-full h-full object-cover" />
+					<img
+						src={modpack.iconUrl}
+						alt={modpack.title}
+						class="w-full h-full object-contain p-0.5"
+						onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+					/>
 				{:else}
 					<Box class="w-6 h-6 text-brand-400" />
 				{/if}

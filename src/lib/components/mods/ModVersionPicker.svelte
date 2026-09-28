@@ -40,7 +40,7 @@
 					<div class="min-w-0">
 						<div class="flex items-center gap-2">
 							<h4 class="text-xs font-extrabold text-fg truncate">{ver.name || ver.versionNumber}</h4>
-							{#if ver.versionNumber}
+							{#if ver.versionNumber && ver.name !== ver.versionNumber}
 								<span class="text-[10px] font-mono px-2 py-0.5 rounded bg-fg/5 text-fg/60">
 									{ver.versionNumber}
 								</span>

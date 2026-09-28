@@ -21,8 +21,23 @@ export interface ProfileRow {
 	ramMb?: number | null;
 	autoOptimize?: boolean;
 	useVulkan?: boolean;
+	useGamemode?: boolean;
+	useMangohud?: boolean;
+	forceDedicatedGpu?: boolean;
+	useGamescope?: boolean;
+	gamescopeWidth?: number | null;
+	gamescopeHeight?: number | null;
+	gamescopeFsr?: boolean;
+	forceFullVerification?: boolean;
 	createdAt: string;
 	updatedAt: string;
+}
+
+export interface ModpackVersionDiff {
+	available: boolean;
+	added: string[];
+	removed: string[];
+	updated: string[];
 }
 
 export interface DownloadSpeed {

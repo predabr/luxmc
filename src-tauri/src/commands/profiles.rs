@@ -31,6 +31,22 @@ pub struct ProfileCreate {
     pub auto_optimize: Option<bool>,
     #[serde(default)]
     pub use_vulkan: Option<bool>,
+    #[serde(default)]
+    pub use_gamemode: Option<bool>,
+    #[serde(default)]
+    pub use_mangohud: Option<bool>,
+    #[serde(default)]
+    pub force_dedicated_gpu: Option<bool>,
+    #[serde(default)]
+    pub use_gamescope: Option<bool>,
+    #[serde(default)]
+    pub gamescope_width: Option<Option<i64>>,
+    #[serde(default)]
+    pub gamescope_height: Option<Option<i64>>,
+    #[serde(default)]
+    pub gamescope_fsr: Option<bool>,
+    #[serde(default)]
+    pub force_full_verification: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +74,14 @@ pub struct ProfileUpdate {
     pub instance_group: Option<Option<String>>,
     pub auto_optimize: Option<bool>,
     pub use_vulkan: Option<bool>,
+    pub use_gamemode: Option<bool>,
+    pub use_mangohud: Option<bool>,
+    pub force_dedicated_gpu: Option<bool>,
+    pub use_gamescope: Option<bool>,
+    pub gamescope_width: Option<Option<i64>>,
+    pub gamescope_height: Option<Option<i64>>,
+    pub gamescope_fsr: Option<bool>,
+    pub force_full_verification: Option<bool>,
 }
 
 #[tauri::command]
@@ -118,6 +142,14 @@ pub async fn profiles_create(
         instance_group: input.instance_group,
         auto_optimize: input.auto_optimize.unwrap_or(true),
         use_vulkan: input.use_vulkan.unwrap_or(false),
+        use_gamemode: input.use_gamemode.unwrap_or(false),
+        use_mangohud: input.use_mangohud.unwrap_or(false),
+        force_dedicated_gpu: input.force_dedicated_gpu.unwrap_or(false),
+        use_gamescope: input.use_gamescope.unwrap_or(false),
+        gamescope_width: input.gamescope_width.unwrap_or(None),
+        gamescope_height: input.gamescope_height.unwrap_or(None),
+        gamescope_fsr: input.gamescope_fsr.unwrap_or(false),
+        force_full_verification: input.force_full_verification.unwrap_or(false),
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     let base = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| crate::error::AppError::InvalidState("Diretório de dados indisponível".into()))?;
@@ -167,6 +199,14 @@ pub async fn profiles_update(
         instance_group: input.instance_group.unwrap_or(existing.instance_group),
         auto_optimize: input.auto_optimize.unwrap_or(existing.auto_optimize),
         use_vulkan: input.use_vulkan.unwrap_or(existing.use_vulkan),
+        use_gamemode: input.use_gamemode.unwrap_or(existing.use_gamemode),
+        use_mangohud: input.use_mangohud.unwrap_or(existing.use_mangohud),
+        force_dedicated_gpu: input.force_dedicated_gpu.unwrap_or(existing.force_dedicated_gpu),
+        use_gamescope: input.use_gamescope.unwrap_or(existing.use_gamescope),
+        gamescope_width: input.gamescope_width.unwrap_or(existing.gamescope_width),
+        gamescope_height: input.gamescope_height.unwrap_or(existing.gamescope_height),
+        gamescope_fsr: input.gamescope_fsr.unwrap_or(existing.gamescope_fsr),
+        force_full_verification: input.force_full_verification.unwrap_or(existing.force_full_verification),
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     Ok(row)

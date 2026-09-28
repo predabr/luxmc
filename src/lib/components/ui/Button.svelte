@@ -2,6 +2,7 @@
 	import type { HTMLButtonAttributes, HTMLAnchorAttributes } from "svelte/elements";
 	import { button, type ButtonVariant, type ButtonSize } from "./button";
 	import type { Snippet } from "svelte";
+	import { Loader2 } from "lucide-svelte";
 
 	type Props = {
 		variant?: ButtonVariant;
@@ -51,10 +52,7 @@
         aria-busy={loading}
 	>
 		{#if loading}
-			<span
-				class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-				aria-hidden="true"
-			></span>
+			<Loader2 class="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
 		{/if}
 		{#if children}{@render children()}{/if}
 	</button>

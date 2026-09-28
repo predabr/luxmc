@@ -32,6 +32,7 @@
 	} from "lucide-svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
+	import { getIconSrc } from "$lib/utils/icons";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -191,21 +192,6 @@
 		if (hours < 24) return `há ${hours} h`;
 		const days = Math.floor(hours / 24);
 		return `há ${days} d`;
-	}
-
-	function getIconSrc(iconStr?: string): string {
-		if (!iconStr || iconStr === "grass_block" || iconStr === "/grass_block" || iconStr === "grass" || iconStr === "/grass") return "/grass_block.png";
-		if (iconStr === "modpack_fo") return "/modpack_fo_icon.png";
-		if (iconStr === "modpack_better_mc") return "/modpack_bmc_icon.webp";
-		if (iconStr === "modpack_cobblemon") return "/modpack_cobblemon_icon.png";
-		if (iconStr === "logo") return "/logo.png";
-		if (iconStr === "grass_head") return "/grass_head.png";
-		if (iconStr.startsWith("/") || iconStr.startsWith("http") || iconStr.startsWith("data:")) return iconStr;
-		try {
-			return convertFileSrc(iconStr);
-		} catch {
-			return "/grass_block.png";
-		}
 	}
 
 	function loadColors() {

@@ -108,9 +108,9 @@
 		instancePackOpenFolder,
 		profilesUpdate,
 		discordSetActivity,
-		readTextFile,
-		writeTextFile,
-		deleteFileOrDir,
+		instanceFileRead,
+		instanceFileWrite,
+		instanceFileDelete,
 		p2pGetHostLink,
 		instanceRepair,
 		instanceRepairModpack,
@@ -137,9 +137,13 @@
 		instanceShieldScan,
 		type ShieldScanResult,
 		modpackCheckUpdate,
+		modpackVersionDiff,
 		modpackUpdateAtomic,
 		type ModpackUpdateInfo,
+		type ModpackVersionDiff,
 		doctorCheckInstanceConflicts,
+		doctorInstanceReadiness,
+		doctorRepairAll,
 		type PreLaunchCheckResult,
 		listen,
 		upnpOpenPort,
@@ -149,26 +153,39 @@
 	} from "$lib/api";
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { playSound } from "$lib/utils/sound";
+	import { getIconSrc } from "$lib/utils/icons";
 
 	const instanceId = $derived(page.params.id ?? "");
 	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) || profiles.active);
 
-	const settingsIcon = $derived(activeProfile?.icon && /^(https?:|data:|asset:|\/)/.test(activeProfile.icon) ? activeProfile.icon : "/grass_block.png");
+	const settingsIcon = $derived(getIconSrc(activeProfile?.icon));
+
+	const curatedHeroBanners: Record<string, string> = {
+		"rlcraft": "https://media.forgecdn.net/attachments/267/928/rlcraft-banner.png",
+		"skyfactory": "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
+		"all the mods": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
+		"atm": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
+		"better mc": "/modpack_better_mc.webp",
+		"better minecraft": "/modpack_better_mc.webp",
+		"bmc": "/modpack_better_mc.webp",
+		"cobblemon": "/modpack_cobblemon.webp",
+		"pixelmon": "https://media.forgecdn.net/attachments/305/760/banner.png",
+		"fabulously optimized": "/modpack_fo.webp",
+		"fo": "/modpack_fo.webp",
+		"dawncraft": "https://media.forgecdn.net/attachments/474/883/banner.png",
+		"medieval mc": "https://media.forgecdn.net/attachments/418/850/banner.png",
+		"prominence": "https://media.forgecdn.net/attachments/625/441/prominence_banner.png",
+		"vault hunters": "https://media.forgecdn.net/attachments/420/55/vh3_banner.png",
+		"simply optimized": "https://cdn.modrinth.com/data/bKUGbHwI/images/b07cbde1b24bf20a320ff7b57b98df9ad01b54a7.png"
+	};
 
 	const heroBanner = $derived.by(() => {
-		if (activeProfile?.banner) return activeProfile.banner;
-		if (activeProfile?.icon && (activeProfile.icon.startsWith("http") || activeProfile.icon.startsWith("data:"))) {
-			return activeProfile.icon;
+		if (activeProfile?.banner && activeProfile.banner !== activeProfile.icon && activeProfile.banner !== "/grass_block.png") {
+			return activeProfile.banner;
 		}
 		const nameLower = (activeProfile?.name || "").toLowerCase();
-		if (nameLower.includes("better mc") || nameLower.includes("better minecraft") || nameLower.includes("bmc")) {
-			return "/modpack_better_mc.webp";
-		}
-		if (nameLower.includes("pixelmon") || nameLower.includes("cobblemon")) {
-			return "/modpack_cobblemon.webp";
-		}
-		if (nameLower.includes("fabulously optimized") || nameLower.includes("fo")) {
-			return "/modpack_fo.webp";
+		for (const [key, b] of Object.entries(curatedHeroBanners)) {
+			if (nameLower.includes(key)) return b;
 		}
 		return "/bg_day.jpg";
 	});
@@ -184,6 +201,7 @@
     });
 
 	let modpackUpdate = $state<ModpackUpdateInfo | null>(null);
+	let modpackDiff = $state<ModpackVersionDiff | null>(null);
 	let isCheckingUpdate = $state(false);
 	let isUpdatingModpack = $state(false);
 	let updateStatusText = $state("");
@@ -252,6 +270,14 @@
 	let instanceJavaPath = $state("");
 	let instanceEnableVulkanOpt = $state(false);
 	let instanceAutoOptimize = $state(true);
+	let instanceUseGameMode = $state(false);
+	let instanceUseMangoHud = $state(false);
+	let instanceForceDedicatedGpu = $state(false);
+	let instanceUseGamescope = $state(false);
+	let instanceGamescopeWidth = $state<number | null>(null);
+	let instanceGamescopeHeight = $state<number | null>(null);
+	let instanceGamescopeFsr = $state(false);
+	let instanceForceFullVerification = $state(false);
 	let gpuInfo = $state<GpuInfo | null>(null);
 	let perfPackInfo = $state<PerformancePackInfo | null>(null);
 	let generatedAikarFlags = $state<string[]>([]);
@@ -298,6 +324,14 @@
 			instanceMinRamMb = minimum ? Number(minimum[1]) * (minimum[2].toLowerCase() === "g" ? 1024 : 1) : Math.min(1024, activeProfile.ramMb || 4096);
 			instanceAutoOptimize = activeProfile.autoOptimize !== false;
 			instanceEnableVulkanOpt = activeProfile.useVulkan === true;
+			instanceUseGameMode = activeProfile.useGamemode === true;
+			instanceUseMangoHud = activeProfile.useMangohud === true;
+			instanceForceDedicatedGpu = activeProfile.forceDedicatedGpu === true;
+			instanceUseGamescope = activeProfile.useGamescope === true;
+			instanceGamescopeWidth = activeProfile.gamescopeWidth ?? null;
+			instanceGamescopeHeight = activeProfile.gamescopeHeight ?? null;
+			instanceGamescopeFsr = activeProfile.gamescopeFsr === true;
+			instanceForceFullVerification = activeProfile.forceFullVerification === true;
 			instanceLoaderType = activeProfile.loader || "vanilla";
 			instanceLoaderVersion = activeProfile.loaderVersion || "";
 			instanceWindowWidth = activeProfile.resolutionW || activeProfile.resolution?.width || 1280;
@@ -336,6 +370,14 @@
 					jvmArgs: instanceJvmArgs,
 					autoOptimize: instanceAutoOptimize,
 					useVulkan: instanceEnableVulkanOpt,
+					useGamemode: instanceUseGameMode,
+					useMangohud: instanceUseMangoHud,
+					forceDedicatedGpu: instanceForceDedicatedGpu,
+					useGamescope: instanceUseGamescope,
+					gamescopeWidth: instanceGamescopeWidth,
+					gamescopeHeight: instanceGamescopeHeight,
+					gamescopeFsr: instanceGamescopeFsr,
+					forceFullVerification: instanceForceFullVerification,
 					loader: instanceLoaderType,
 					loaderVersion: instanceLoaderVersion || null,
 					resolutionW: instanceWindowWidth,
@@ -383,6 +425,7 @@
 
 	let jvmValidation = $state<JvmValidationResult | null>(null);
 	let isRepairing = $state(false);
+	let isRepairingAll = $state(false);
 	let isBackingUp = $state(false);
 	let isExporting = $state(false);
 
@@ -415,6 +458,23 @@
 			toast("Erro ao reparar instância: " + String(e), "error");
 		} finally {
 			isRepairing = false;
+		}
+	}
+
+	async function handleRepairAll() {
+		if (!activeProfile || isRepairingAll) return;
+		isRepairingAll = true;
+		try {
+			toast("Reparando arquivos do jogo, Java e modpack sem tocar em mundos ou configurações...", "info");
+			const outcome = await doctorRepairAll(activeProfile.id);
+			const detail = outcome.repairedMods > 0 ? ` ${outcome.repairedMods} mod(s) recuperado(s).` : "";
+			toast(`Instância pronta para jogar.${detail}`, "success");
+			for (const warning of outcome.warnings) toast(warning, "info");
+			await refreshAllData();
+		} catch (e) {
+			toast("Erro ao reparar tudo: " + String(e), "error");
+		} finally {
+			isRepairingAll = false;
 		}
 	}
 
@@ -1057,7 +1117,7 @@
 			const isText = /\.(txt|json|properties|toml|log|cfg|mcmeta|yaml|yml|ini|csv|md|sh|lock|json5)$/i.test(file.name);
 			if (isText) {
 				try {
-					const content = await readTextFile(file.path);
+					const content = await instanceFileRead(instanceId, file.path);
 					activeEditorFile = { path: file.path, name: file.name, content };
 				} catch (e) {
 					toast("Não foi possível ler este arquivo: " + String(e), "error");
@@ -1072,7 +1132,7 @@
 		if (!activeEditorFile) return;
 		isSavingEditor = true;
 		try {
-			await writeTextFile(activeEditorFile.path, activeEditorFile.content);
+			await instanceFileWrite(instanceId, activeEditorFile.path, activeEditorFile.content);
 			toast(`Arquivo "${activeEditorFile.name}" guardado com sucesso!`, "success");
 		} catch (e) {
 			toast("Erro ao salvar arquivo: " + String(e), "error");
@@ -1084,7 +1144,7 @@
 	async function handleDeleteFileEntry(file: FileTreeEntry) {
 		if (!confirm(`Tem certeza que deseja excluir "${file.name}" permanentemente?`)) return;
 		try {
-			await deleteFileOrDir(file.path);
+			await instanceFileDelete(instanceId, file.path);
 			playSound("delete");
 			toast(`"${file.name}" excluído com sucesso!`, "success");
 			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
@@ -1183,6 +1243,17 @@
 		const targetProfileId = activeProfile?.id || instanceId || "";
 		if (!skipConflictCheck) {
 			try {
+				const readiness = await doctorInstanceReadiness(targetProfileId);
+				if (!readiness.ready) {
+					if (readiness.conflicts.hasConflicts) {
+						pendingLaunchConflicts = readiness.conflicts;
+						showModConflictModal = true;
+						return;
+					}
+					toast(`${readiness.blockers[0] || "A instância precisa de reparo."} Use “Reparar tudo” nas configurações.`, "error");
+					return;
+				}
+				for (const warning of readiness.warnings) toast(warning, "info");
 				const conflicts = await doctorCheckInstanceConflicts(targetProfileId);
 				if (conflicts.hasConflicts) {
 					pendingLaunchConflicts = conflicts;
@@ -1390,8 +1461,10 @@
 			const info = await modpackCheckUpdate(instanceId);
 			if (info && info.hasUpdate) {
 				modpackUpdate = info;
+				modpackDiff = await modpackVersionDiff(instanceId, info.versionId || "", info.source || "").catch(() => null);
 			} else {
 				modpackUpdate = null;
+				modpackDiff = null;
 			}
 		} catch (e) {
 			console.debug("Modpack update check not applicable or failed:", e);
@@ -1427,6 +1500,7 @@
 			toast(`🎉 Modpack atualizado com sucesso para a versão ${modpackUpdate.latestVersion || "mais recente"}! Seus mundos, prints e opções foram 100% preservados.`, "success");
 			playSound("chime");
 			modpackUpdate = null;
+			modpackDiff = null;
 			await profiles.refresh();
             await refreshAllData();
 		} catch (e) {
@@ -1504,8 +1578,15 @@
 							</p>
 							<div class="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 pt-0.5">
 								<ShieldCheck class="w-3.5 h-3.5 shrink-0" />
-								<span>Seus mundos (saves/), prints (screenshots/) e opções (options.txt) serão 100% preservados.</span>
+								<span>Backups versionados dos mundos serão criados antes da atualização.</span>
 							</div>
+							{#if modpackDiff?.available}
+								<div class="mt-2 flex flex-wrap gap-1.5 text-[10px]">
+									{#if modpackDiff.added.length}<span class="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">+{modpackDiff.added.length} mod(s)</span>{/if}
+									{#if modpackDiff.updated.length}<span class="rounded-full bg-amber-500/15 px-2 py-1 text-amber-300">↻{modpackDiff.updated.length} atualizado(s)</span>{/if}
+									{#if modpackDiff.removed.length}<span class="rounded-full bg-rose-500/15 px-2 py-1 text-rose-300">−{modpackDiff.removed.length} removido(s)</span>{/if}
+								</div>
+							{/if}
 						</div>
 					</div>
 
@@ -1739,18 +1820,17 @@
 											class="w-4 h-4 rounded border border-fg/20 bg-bg-subtle accent-emerald-500 cursor-pointer shrink-0"
 										/>
 										<div class="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-bg-subtle border border-fg/10 relative shadow-sm {isDisabled ? 'grayscale opacity-60' : ''}">
+											<div class="absolute inset-0 bg-gradient-to-br {badge.theme} flex items-center justify-center select-none">
+												<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
+											</div>
 											{#if mod.icon}
 												<img
 													src={mod.icon}
 													alt={displayName}
 													loading="lazy"
-													class="w-full h-full object-cover [image-rendering:pixelated]"
-													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+													class="relative z-10 w-full h-full object-contain p-0.5 [image-rendering:pixelated]"
+													onerror={(e) => { (e.currentTarget as HTMLImageElement).remove(); }}
 												/>
-											{:else}
-												<div class="w-full h-full bg-gradient-to-br {badge.theme} flex items-center justify-center select-none">
-													<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
-												</div>
 											{/if}
 										</div>
 										<div class="min-w-0">
@@ -2614,7 +2694,12 @@
             <header class="relative shrink-0 overflow-hidden rounded-2xl border border-border bg-bg-subtle">
                 <img src={instanceBanner || heroBanner} alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
                 <div class="relative flex items-center gap-4 bg-gradient-to-r from-bg-elevated via-bg-elevated/80 to-transparent p-5">
-                    <img src={settingsIcon} alt="" class="h-14 w-14 rounded-xl object-cover border border-fg/10" />
+                    <img
+                        src={settingsIcon}
+                        alt=""
+                        class="h-14 w-14 rounded-xl object-contain border border-fg/10 bg-bg-elevated p-1"
+                        onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+                    />
                     <div class="min-w-0 flex-1"><p class="text-xs text-brand-400 font-semibold">Configurações da instância</p><h2 class="mt-1 text-xl font-bold text-fg truncate">{instanceNameInput}</h2><p class="mt-1 text-xs text-fg-muted">Minecraft {activeProfile?.mcVersion} · Ajustes exclusivos deste perfil</p></div>
                     <button type="button" onclick={() => showInstanceSettingsModal = false} aria-label="Fechar configurações" class="p-2 rounded-xl border border-border text-fg-muted hover:bg-fg/10 hover:text-fg"><X class="h-5 w-5" /></button>
                 </div>
@@ -2907,6 +2992,17 @@
 							</div>
 						</div>
 
+							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
+								<div><span class="text-xs font-bold text-fg">Linux Gaming</span><span class="mt-0.5 block text-[10px] text-fg/40">Integrações aplicadas somente a esta instância.</span></div>
+								<div class="grid gap-2 sm:grid-cols-2">
+									<button type="button" class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3 text-left text-xs hover:bg-fg/5" onclick={() => instanceUseGameMode = !instanceUseGameMode}><span><span class="block font-bold text-fg">GameMode</span><span class="block text-[10px] text-fg/40">Prioriza CPU e I/O</span></span><span class="h-2.5 w-2.5 rounded-full {instanceUseGameMode ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
+									<button type="button" class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3 text-left text-xs hover:bg-fg/5" onclick={() => instanceUseMangoHud = !instanceUseMangoHud}><span><span class="block font-bold text-fg">MangoHud</span><span class="block text-[10px] text-fg/40">FPS e frame times</span></span><span class="h-2.5 w-2.5 rounded-full {instanceUseMangoHud ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
+									<button type="button" class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3 text-left text-xs hover:bg-fg/5" onclick={() => instanceForceDedicatedGpu = !instanceForceDedicatedGpu}><span><span class="block font-bold text-fg">GPU dedicada</span><span class="block text-[10px] text-fg/40">PRIME ou DRI_PRIME</span></span><span class="h-2.5 w-2.5 rounded-full {instanceForceDedicatedGpu ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
+									<button type="button" class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3 text-left text-xs hover:bg-fg/5" onclick={() => instanceForceFullVerification = !instanceForceFullVerification}><span><span class="block font-bold text-fg">Verificação completa</span><span class="block text-[10px] text-fg/40">No próximo jogo</span></span><span class="h-2.5 w-2.5 rounded-full {instanceForceFullVerification ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
+								</div>
+								<div class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3"><div><span class="block text-xs font-bold text-fg">Gamescope e FSR</span><span class="block text-[10px] text-fg/40">Escala a resolução interna com frame pacing preciso.</span></div><button type="button" aria-label="Alternar Gamescope" class="w-10 h-5 rounded-full px-0.5 {instanceUseGamescope ? 'bg-emerald-500' : 'bg-bg-subtle'}" onclick={() => instanceUseGamescope = !instanceUseGamescope}><span class="block h-4 w-4 rounded-full bg-fg transition-transform {instanceUseGamescope ? 'translate-x-5' : ''}"></span></button></div>
+								{#if instanceUseGamescope}<div class="grid grid-cols-2 gap-2"><input type="number" bind:value={instanceGamescopeWidth} placeholder="Largura interna" class="rounded-xl border border-fg/10 bg-bg-overlay/30 px-3 py-2 text-xs text-fg outline-none" /><input type="number" bind:value={instanceGamescopeHeight} placeholder="Altura interna" class="rounded-xl border border-fg/10 bg-bg-overlay/30 px-3 py-2 text-xs text-fg outline-none" /></div><label class="flex items-center gap-2 text-xs text-fg/70"><input type="checkbox" bind:checked={instanceGamescopeFsr} class="accent-brand-500" /> FSR upscaling</label>{/if}
+							</div>
 					{:else if activeInstanceSection === 'janela'}
 						<div class="space-y-6">
 							<div>
@@ -3096,6 +3192,24 @@
 										<div class="mt-2">
 											<p class="text-xs font-bold text-fg">Reparar Instância</p>
 											<p class="text-[10px] text-fg/40">Checar SHA1 e baixar arquivos faltantes</p>
+										</div>
+									</button>
+
+									<button
+										type="button"
+										class="p-3 rounded-xl bg-bg-subtle hover:bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 text-left transition-all cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleRepairAll}
+										disabled={isRepairingAll}
+									>
+										<div class="flex items-center justify-between w-full">
+											<ShieldCheck class="w-4 h-4 text-emerald-400 {isRepairingAll ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'}" />
+											{#if isRepairingAll}
+												<span class="text-[9px] text-emerald-400 font-bold">Preparando...</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-fg">Reparar Tudo</p>
+											<p class="text-[10px] text-fg/40">Jogo, Java e mods; saves preservados</p>
 										</div>
 									</button>
 

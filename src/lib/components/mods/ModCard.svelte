@@ -62,8 +62,14 @@
 
 	let bannerFailed = $state(false);
 
+	$effect(() => {
+		item.slug;
+		item.bannerUrl;
+		bannerFailed = false;
+	});
+
 	const effectiveBanner = $derived.by(() => {
-		if (item.bannerUrl) return item.bannerUrl;
+		if (item.bannerUrl && item.bannerUrl !== item.iconUrl) return item.bannerUrl;
 		const lowerTitle = item.title.toLowerCase();
 		const lowerSlug = item.slug.toLowerCase();
 		for (const [key, banner] of Object.entries(curatedBanners)) {
@@ -92,7 +98,7 @@
 			/>
 		{:else if item.iconUrl}
 			<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-surface">
-				<img src={item.iconUrl} alt="" class="h-full w-full object-cover scale-125 blur-md opacity-40 transition-transform duration-500 group-hover:scale-135" />
+				<img src={item.iconUrl} alt="" class="h-full w-full object-cover scale-125 blur-md opacity-40 transition-transform duration-500 group-hover:scale-135" onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
 				<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-70"></div>
 			</div>
 		{:else}
@@ -103,7 +109,7 @@
 		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent"></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
 		<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
-			{#if item.iconUrl || item.bannerUrl}<LazyImage src={item.iconUrl || item.bannerUrl || ""} alt="" class="h-full w-full rounded-xl object-cover" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
+			{#if item.iconUrl || item.bannerUrl}<LazyImage src={item.iconUrl || item.bannerUrl || ""} alt="" class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
 		</div>
 	</div>
 	<div class="flex flex-1 flex-col gap-3 p-5 pt-7">

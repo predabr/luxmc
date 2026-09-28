@@ -37,6 +37,24 @@
 
 	const launcherNews: LauncherArticle[] = [
 		{
+			id: "v2.0.1",
+			title: "Luxmc v2.0.1 — Fast Launch (<2s), GameMode/MangoHud, P2P Rooms & 1-Click Reparar Tudo",
+			tag: "Oficial",
+			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+			date: "28 de Setembro, 2026",
+			version: "v2.0.1",
+			image: "/news_1.jpg",
+			summary: "A versão 2.0.1 traz Fast Launch com cache de integridade (<2s), integração nativa com GameMode, MangoHud e GPU dedicada, salas P2P com código curto LUX-XXXX e QR Code, além do botão Reparar Tudo com 1 clique.",
+			highlights: [
+				"Fast Launch: cache SHA-256 de integridade iniciando instâncias em menos de 2 segundos",
+				"Suporte a Feral GameMode, MangoHud, GPU Dedicada e Gamescope no Linux e Windows",
+				"Salas P2P com códigos curtos (LUX-XXXX), QR Code local e links diretos luxmc://",
+				"Atualização diferencial de modpacks com backup versionado e automático de mundos",
+				"Diagnóstico do sistema e botão Reparar Tudo em 1 clique nas instâncias"
+			],
+			link: "https://luxmc-r92.pages.dev"
+		},
+		{
 			id: "v2.0.0",
 			title: "Luxmc v2.0.0 — Nova Geração: Auto-Reparo de Modpacks, Capas HD e Máxima Performance",
 			tag: "Oficial",

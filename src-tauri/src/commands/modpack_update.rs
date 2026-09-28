@@ -16,6 +16,101 @@ pub struct ModpackUpdateInfo {
     pub version_id: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModpackVersionDiff {
+    pub available: bool,
+    pub added: Vec<String>,
+    pub removed: Vec<String>,
+    pub updated: Vec<String>,
+}
+
+fn modpack_entries(value: &serde_json::Value) -> std::collections::HashMap<String, String> {
+    value
+        .get("files")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|file| {
+            let path = file.get("path")?.as_str()?.replace('\\', "/");
+            let hash = file
+                .get("hashes")
+                .and_then(serde_json::Value::as_object)
+                .and_then(|hashes| hashes.get("sha512").or_else(|| hashes.get("sha1")))
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or_default()
+                .to_string();
+            Some((path, hash))
+        })
+        .collect()
+}
+
+fn display_mod_path(path: &str) -> String {
+    std::path::Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
+        .to_string()
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn modpack_version_diff(
+    state: State<'_, AppState>,
+    profileId: String,
+    versionId: String,
+    source: String,
+) -> AppResult<ModpackVersionDiff> {
+    modpack_version_diff_core(&state, profileId, versionId, source).await
+}
+
+pub async fn modpack_version_diff_core(
+    state: &AppState,
+    profile_id: String,
+    version_id: String,
+    source: String,
+) -> AppResult<ModpackVersionDiff> {
+    if source != "modrinth" || version_id.is_empty() || !version_id.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-') {
+        return Ok(ModpackVersionDiff { available: false, added: Vec::new(), removed: Vec::new(), updated: Vec::new() });
+    }
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&profile_id)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("profile {profile_id} not found")))?;
+    let current: serde_json::Value = serde_json::from_slice(&tokio::fs::read(std::path::Path::new(&row.game_dir).join("modrinth.index.json")).await?)?;
+    let version: serde_json::Value = state.http.get(format!("https://api.modrinth.com/v2/version/{version_id}"))
+        .header("User-Agent", "Luxmc/2.0.1")
+        .send().await?.error_for_status()?.json().await?;
+    let url = version.get("files").and_then(serde_json::Value::as_array)
+        .and_then(|files| files.iter().find(|file| file.get("primary").and_then(serde_json::Value::as_bool) == Some(true)).or_else(|| files.first()))
+        .and_then(|file| file.get("url")).and_then(serde_json::Value::as_str)
+        .ok_or_else(|| AppError::NotFound("Arquivo do modpack não encontrado".into()))?;
+    let client = crate::core::mods::pack_download::client()?;
+    let archive = crate::core::mods::pack_download::bytes(&client, url, None).await?;
+    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(archive))?;
+    let mut remote = None;
+    for index in 0..zip.len() {
+        let entry = zip.by_index(index)?;
+        if entry.name().replace('\\', "/").trim_start_matches('/').ends_with("modrinth.index.json") {
+            if entry.size() > 8 * 1024 * 1024 { return Err(AppError::InvalidInput("Manifesto remoto muito grande".into())); }
+            remote = Some(serde_json::from_reader(entry)?);
+            break;
+        }
+    }
+    let remote: serde_json::Value = remote.ok_or_else(|| AppError::NotFound("Manifesto remoto não encontrado".into()))?;
+    let current_entries = modpack_entries(&current);
+    let remote_entries = modpack_entries(&remote);
+    let mut added: Vec<_> = remote_entries.keys().filter(|path| !current_entries.contains_key(*path)).map(|path| display_mod_path(path)).collect();
+    let mut removed: Vec<_> = current_entries.keys().filter(|path| !remote_entries.contains_key(*path)).map(|path| display_mod_path(path)).collect();
+    let mut updated: Vec<_> = remote_entries.iter().filter(|(path, hash)| current_entries.get(*path).is_some_and(|current_hash| current_hash != *hash)).map(|(path, _)| display_mod_path(path)).collect();
+    added.sort();
+    removed.sort();
+    updated.sort();
+    Ok(ModpackVersionDiff { available: true, added, removed, updated })
+}
+
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn modpack_check_update(
@@ -227,6 +322,17 @@ pub async fn modpack_update_atomic(
         .bind(&profileId).fetch_optional(db.pool()).await?
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
     let original = std::path::PathBuf::from(&row.game_dir);
+    let saves_dir = original.join("saves");
+    if saves_dir.is_dir() {
+        let _ = app.emit("modpack-progress", serde_json::json!({"phase":"backup","percent":2,"status":"Criando backups versionados dos mundos antes da atualização..."}));
+        for entry in std::fs::read_dir(&saves_dir)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                let world = entry.file_name().to_string_lossy().to_string();
+                crate::commands::world_backup::instance_backup_world(profileId.clone(), world).await?;
+            }
+        }
+    }
     let managed = owned_pack_paths(&original).await?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     let client = pack::client()?;

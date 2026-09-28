@@ -12,7 +12,7 @@ use std::fs::OpenOptions;
 const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
 const LUXMC_ICON_URL: &str =
     "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
-const LUXMC_VERSION: &str = "2.0.0";
+const LUXMC_VERSION: &str = "2.0.1";
 const MINECRAFT_GRASS_ASSET: &str = "grass";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

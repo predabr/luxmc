@@ -38,10 +38,18 @@
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
+			id: "luxmc-v2-0-1",
+			title: "Luxmc v2.0.1: Fast Launch, GameMode & Salas P2P",
+			body: "Inicialização ultrarrápida (<2s), GameMode, MangoHud, códigos de sala P2P com QR code e Reparar Tudo.",
+			publishedAt: "Hoje",
+			tag: "v2.0.1",
+			url: "/news"
+		},
+		{
 			id: "luxmc-v2-0-0",
 			title: "Luxmc v2.0.0: O Lançamento Oficial da Nova Geração",
 			body: "CrashDoctor Auto-Heal, Mod Shield, 50k+ mods, P2P mesh multiplayer e integração total no Linux & Windows.",
-			publishedAt: "Hoje",
+			publishedAt: "Ontem",
 			tag: "v2.0.0",
 			url: "/news"
 		},

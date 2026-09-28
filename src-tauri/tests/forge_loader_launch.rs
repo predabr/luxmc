@@ -44,7 +44,7 @@ async fn test_forge_loader_versions_and_prepare() {
 
 #[tokio::test]
 async fn legacy_forge_1122_installs_without_sharing_instance_files() {
-    let http = reqwest::Client::builder().user_agent("Luxmc/2.0.0").build().unwrap();
+    let http = reqwest::Client::builder().user_agent("Luxmc/2.0.1").build().unwrap();
     let temp = std::env::temp_dir().join(format!("luxmc-forge-legacy-{}", std::process::id()));
     let libraries = temp.join("libraries");
     tokio::fs::create_dir_all(&libraries).await.unwrap();

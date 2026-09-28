@@ -14,7 +14,8 @@ describe("portal protocol", () => {
         expect(parseDeepLink("luxmc://join/server?ip=play.example.org&port=25566")).toEqual({ kind: "server", address: "play.example.org:25566" });
         expect(parseDeepLink("luxmc://join/play.example.org:25565")).toEqual({ kind: "server", address: "play.example.org:25565" });
         expect(parseDeepLink("luxmc://join/server?ip=2001:db8::1")).toEqual({ kind: "server", address: "[2001:db8::1]:25565" });
-        expect(parseDeepLink("luxmc://join/friend?code=friend-id")).toEqual({ kind: "friend", code: "friend-id" });
+		expect(parseDeepLink("luxmc://join/friend?code=friend-id")).toEqual({ kind: "friend", code: "friend-id" });
+		expect(parseDeepLink("luxmc://join/world?invitation=LUX-4821%7Cluxmc-world:invite_payload")).toEqual({ kind: "world", invitation: "LUX-4821|luxmc-world:invite_payload" });
     });
     it.each([
         "https://install/mod?id=sodium&source=modrinth",

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
-	import { DownloadCloud, Sparkles, ArrowRight, X, Loader2, CheckCircle2 } from "lucide-svelte";
+	import { DownloadCloud, Sparkles, ArrowRight, X, Loader2, ExternalLink, Copy } from "lucide-svelte";
+	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { updaterStore } from "$lib/stores/updater.svelte";
 
 	onMount(() => {
@@ -25,7 +26,7 @@
 		out:fade={{ duration: 200 }}
 	>
 		<div
-			class="relative w-full max-w-lg bg-bg-elevated border border-brand-500/30 rounded-3xl p-8 shadow-2xl overflow-hidden"
+			class="surface-glass relative w-full max-w-lg border-brand-500/30 bg-bg-elevated/85 p-8 shadow-2xl backdrop-blur-2xl overflow-hidden"
 			in:scale={{ start: 0.95, duration: 300, opacity: 0 }}
 		>
 			<div class="absolute -top-20 -right-20 w-64 h-64 bg-brand-500/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -86,30 +87,37 @@
 							<span>{updaterStore.statusText}</span>
 							<span class="text-brand-500 font-mono">{updaterStore.progressPercent}%</span>
 						</div>
+						<p class="text-xs font-mono text-fg/50">{(updaterStore.transferredBytes / 1048576).toFixed(1)} MB{updaterStore.totalBytes > 0 ? ` / ${(updaterStore.totalBytes / 1048576).toFixed(1)} MB` : ""}</p>
 						<div class="w-full bg-fg/10 rounded-full h-3 overflow-hidden">
 							<div
 								class="bg-brand-500 h-full rounded-full transition-all duration-300"
 								style="width: {updaterStore.progressPercent}%;"
 							></div>
 						</div>
-						<p class="text-[11px] text-fg/40 text-center">
-							O aplicativo será reiniciado automaticamente quando a instalação concluir.
-						</p>
 					</div>
 				{:else}
-					<div class="w-full text-left bg-fg/5 rounded-2xl p-4 max-h-32 overflow-y-auto custom-scrollbar border border-fg/5">
+					<div class="w-full text-left bg-fg/5 rounded-2xl p-4 max-h-44 overflow-y-auto custom-scrollbar border border-fg/5">
 						<span class="text-[10px] text-fg/40 font-bold uppercase tracking-widest block mb-2">Novidades:</span>
 						<p class="text-xs text-fg/80 whitespace-pre-line leading-relaxed">
 							{updaterStore.releaseNotes}
 						</p>
 					</div>
+					{#if updaterStore.updateError}
+						<div class="w-full rounded-2xl border border-danger/30 bg-danger/10 p-4 text-left"><p class="text-xs font-bold text-danger">Não foi possível concluir a atualização</p><p class="mt-1 text-xs text-fg/65 break-words">{updaterStore.updateError}</p></div>
+					{/if}
+					{#if updaterStore.terminalCommand}
+						<div class="w-full rounded-2xl border border-fg/10 bg-bg-overlay/50 p-3 text-left"><p class="text-[10px] font-bold uppercase tracking-wider text-fg/45">Atualizar via Terminal</p><code class="mt-2 block break-all text-xs text-fg/80">{updaterStore.terminalCommand}</code><button type="button" class="mt-3 inline-flex items-center gap-2 text-xs font-bold text-brand-400 hover:text-brand-300" onclick={() => navigator.clipboard.writeText(updaterStore.terminalCommand)}><Copy class="w-3.5 h-3.5" />Copiar comando</button></div>
+					{/if}
 
+					{#if updaterStore.downloadUrl}
 					<button
 						class="w-full py-3.5 bg-brand-500 hover:brightness-110 text-brand-foreground font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shadow-glow cursor-pointer"
 						onclick={() => updaterStore.startUpdate()}
 					>
 						Atualizar Agora Automaticamente <DownloadCloud class="w-4 h-4" />
 					</button>
+					{/if}
+					<button class="w-full py-3 border border-fg/10 bg-fg/[0.04] hover:bg-fg/[0.08] text-fg font-bold rounded-2xl transition-all active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer" onclick={() => openUrl(updaterStore.releaseUrl || "https://github.com/predabr/luxmc/releases/latest")}>Abrir no GitHub <ExternalLink class="w-4 h-4" /></button>
 
 					<button
 						class="text-xs font-bold text-fg/40 hover:text-fg transition-colors cursor-pointer"

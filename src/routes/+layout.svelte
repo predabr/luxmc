@@ -231,11 +231,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v2.0.0",
+					state: "Luxmc v2.0.1",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v2.0.0",
+					smallText: "Luxmc v2.0.1",
 					startTime: launcherStartTime,
 					inGame: false
 				}).catch(() => {});
@@ -324,11 +324,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v2.0.0",
+					state: "Luxmc v2.0.1",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v2.0.0",
+					smallText: "Luxmc v2.0.1",
 					startTime: launcherStartTime,
 					inGame: false
 				}).catch(() => {});
@@ -426,7 +426,7 @@
 			if (!appState.isGameRunning) {
 				const currentPath = page.url.pathname;
 				let details = "No Menu Principal";
-				let state = "Luxmc v2.0.0";
+				let state = "Luxmc v2.0.1";
 				if (currentPath === "/") {
 					details = "No Menu Principal";
 					state = "Pronto para Jogar";
@@ -455,7 +455,7 @@
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v2.0.0",
+					smallText: "Luxmc v2.0.1",
 					startTime: launcherStartTime,
 					inGame: false,
 					buttons: [
@@ -467,9 +467,22 @@
 		}, 25000);
 
 		const stop = startAutoPersist();
+
+		const handleExternalLink = (e: MouseEvent) => {
+			const a = (e.target as HTMLElement | null)?.closest("a");
+			if (!a) return;
+			const href = a.getAttribute("href") || a.href;
+			if (href && (href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:"))) {
+				e.preventDefault();
+				e.stopPropagation();
+				import("@tauri-apps/plugin-opener").then(({ openUrl }) => openUrl(href)).catch(() => {});
+			}
+		};
+		window.addEventListener("click", handleExternalLink, { capture: true });
 		
 		return () => {
 			disposed = true;
+			window.removeEventListener("click", handleExternalLink, { capture: true });
 			stop();
 			clearInterval(rpcHeartbeat);
 			if (unlistenGameExit) unlistenGameExit();
@@ -522,7 +535,7 @@
 		rpcTimeout = setTimeout(() => {
 			if (appState.isGameRunning) return;
 			let details = "No Menu Principal";
-			let state = "Luxmc v2.0.0";
+			let state = "Luxmc v2.0.1";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
@@ -559,7 +572,7 @@
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
-				smallText: "Luxmc v2.0.0",
+				smallText: "Luxmc v2.0.1",
 				startTime: launcherStartTime,
 				inGame: false,
 				buttons: [

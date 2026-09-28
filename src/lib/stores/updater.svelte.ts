@@ -1,7 +1,7 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { appPerformUpdate } from "$lib/api/updater";
+import { appPerformUpdate, appUpdateEnvironment, type UpdateEnvironment } from "$lib/api/updater";
 import { toast } from "$lib/stores/toasts.svelte";
 
 interface GitHubAsset {
@@ -27,6 +27,11 @@ let isChecking = $state(false);
 let isUpdating = $state(false);
 let progressPercent = $state(0);
 let statusText = $state("");
+let transferredBytes = $state(0);
+let totalBytes = $state(0);
+let updateError = $state("");
+let terminalCommand = $state("");
+let environment = $state<UpdateEnvironment["mode"]>("manual");
 let unlistenFn: (() => void) | null = null;
 
 function isNewerVersion(current: string, latest: string): boolean {
@@ -46,7 +51,7 @@ function isNewerVersion(current: string, latest: string): boolean {
 
 let lastChecked = $state<string | null>(null);
 
-function resolveAssetUrl(assets: GitHubAsset[]): string {
+function resolveAssetUrl(assets: GitHubAsset[], installation: UpdateEnvironment["mode"]): string {
 	if (!assets || assets.length === 0) return "";
 	const ua = typeof navigator !== "undefined" ? (navigator.userAgent + " " + (navigator.platform || "")).toLowerCase() : "";
 	const isWin = ua.includes("win");
@@ -60,19 +65,17 @@ function resolveAssetUrl(assets: GitHubAsset[]): string {
 	} else if (isMac) {
 		const dmg = assets.find((a) => a.name.toLowerCase().endsWith(".dmg"));
 		if (dmg) return dmg.browser_download_url;
-	} else {
+	} else if (installation === "appimage") {
 		const appImage = assets.find((a) => a.name.toLowerCase().endsWith(".appimage"));
 		if (appImage) return appImage.browser_download_url;
+	} else if (installation === "pacman") {
+		const packageAsset = assets.find((a) => a.name.toLowerCase().endsWith(".pkg.tar.zst"));
+		if (packageAsset) return packageAsset.browser_download_url;
+	} else if (installation === "debian") {
 		const deb = assets.find((a) => a.name.toLowerCase().endsWith(".deb"));
 		if (deb) return deb.browser_download_url;
 	}
-
-	const fallback = assets.find((a) =>
-		a.name.toLowerCase().endsWith(".appimage") ||
-		a.name.toLowerCase().endsWith(".exe") ||
-		a.name.toLowerCase().endsWith(".deb")
-	);
-	return fallback ? fallback.browser_download_url : "";
+	return "";
 }
 
 export const updaterStore = {
@@ -89,6 +92,11 @@ export const updaterStore = {
 	get progressPercent() { return progressPercent; },
 	get downloadProgress() { return progressPercent; },
 	get statusText() { return statusText; },
+	get transferredBytes() { return transferredBytes; },
+	get totalBytes() { return totalBytes; },
+	get updateError() { return updateError; },
+	get terminalCommand() { return terminalCommand; },
+	get environment() { return environment; },
 	get lastChecked() { return lastChecked; },
 	get newVersion() { return latestVersion; },
 	get updateAvailable() {
@@ -104,6 +112,8 @@ export const updaterStore = {
 		isChecking = true;
 		try {
 			currentVersion = await getVersion();
+			try { environment = (await appUpdateEnvironment()).mode; } catch { environment = "manual"; }
+			downloadUrl = "";
 			lastChecked = new Date().toISOString();
 
 			let foundUpdate = false;
@@ -120,8 +130,8 @@ export const updaterStore = {
 						const ua = typeof navigator !== "undefined" ? (navigator.userAgent + " " + (navigator.platform || "")).toLowerCase() : "";
 						const platformKey = ua.includes("win") ? "windows-x86_64" : ua.includes("mac") ? (ua.includes("arm") ? "darwin-aarch64" : "darwin-x86_64") : "linux-x86_64";
 						
-						if (manifest.platforms && manifest.platforms[platformKey] && manifest.platforms[platformKey].url) {
-							downloadUrl = manifest.platforms[platformKey].url;
+							if (manifest.platforms && manifest.platforms[platformKey] && manifest.platforms[platformKey].url && (environment === "appimage" || environment === "windows" || environment === "macos")) {
+								downloadUrl = manifest.platforms[platformKey].url;
 						}
 						foundUpdate = true;
 					}
@@ -130,7 +140,7 @@ export const updaterStore = {
 				foundUpdate = false;
 			}
 
-			if (!foundUpdate) {
+			if (!foundUpdate || !downloadUrl) {
 				const res = await fetch("https://api.github.com/repos/predabr/luxmc/releases/latest");
 				if (res.ok) {
 					const data = await res.json();
@@ -138,7 +148,7 @@ export const updaterStore = {
 					latestVersion = tag.replace(/^v/i, "");
 					releaseUrl = data.html_url || "https://github.com/predabr/luxmc/releases/latest";
 					releaseNotes = data.body || "Atualização de melhorias e performance!";
-					downloadUrl = resolveAssetUrl(data.assets || []);
+						downloadUrl = resolveAssetUrl(data.assets || [], environment);
 					foundUpdate = true;
 				}
 			}
@@ -162,6 +172,8 @@ export const updaterStore = {
 
 	async startUpdate() {
 		if (isUpdating) return;
+		updateError = "";
+		terminalCommand = "";
 		if (!downloadUrl) {
 			// Fallback if no direct asset found
 			await openUrl(releaseUrl || "https://github.com/predabr/luxmc/releases/latest");
@@ -171,6 +183,8 @@ export const updaterStore = {
 
 		isUpdating = true;
 		progressPercent = 0;
+		transferredBytes = 0;
+		totalBytes = 0;
 		statusText = "Iniciando download...";
 
 		try {
@@ -182,14 +196,18 @@ export const updaterStore = {
 			unlistenFn = await listen<UpdateProgressPayload>("update-progress", (event) => {
 				progressPercent = event.payload.percent;
 				statusText = event.payload.status;
+				transferredBytes = event.payload.transferred;
+				totalBytes = event.payload.total;
 			});
 
-			await appPerformUpdate(downloadUrl);
+			const outcome = await appPerformUpdate(downloadUrl);
+			terminalCommand = outcome.terminalCommand || "";
+			if (outcome.action === "system-installer") statusText = "O assistente de privilégios do sistema foi aberto.";
+			if (outcome.action === "terminal") statusText = "Copie o comando para concluir a atualização no Terminal.";
 		} catch (err: unknown) {
 			console.error("Falha ao instalar atualização automaticamente:", err);
-			toast("Não foi possível atualizar automaticamente. Abrindo página de download...", "warning");
-			await openUrl(releaseUrl || "https://github.com/predabr/luxmc/releases/latest");
-			showModal = false;
+			updateError = String(err);
+			toast("Não foi possível atualizar automaticamente. Baixe a versão compatível no GitHub.", "warning");
 		} finally {
 			isUpdating = false;
 			if (unlistenFn) {

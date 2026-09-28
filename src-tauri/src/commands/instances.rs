@@ -4,7 +4,7 @@ use tauri::{Emitter, State};
 use uuid::Uuid;
 
 use crate::db::models::ProfileRow;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 fn dir_size_recursive(p: &std::path::Path) -> u64 {
@@ -39,6 +39,62 @@ pub struct FileTreeEntry {
     pub is_dir: bool,
     pub size: u64,
     pub icon: Option<String>,
+}
+
+const INSTANCE_EDITOR_MAX_BYTES: u64 = 300_000;
+
+async fn resolve_instance_existing_path(profile_id: &str, requested_path: &str) -> AppResult<std::path::PathBuf> {
+    let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(profile_id)
+        .fetch_optional(db.pool())
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("profile {profile_id} not found")))?;
+    let root = std::fs::canonicalize(&row.game_dir)?;
+    let path = std::fs::canonicalize(requested_path)?;
+    if path == root || !path.starts_with(&root) {
+        return Err(AppError::InvalidInput("O arquivo não pertence à instância".into()));
+    }
+    Ok(path)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_file_read(profileId: String, path: String) -> AppResult<String> {
+    let path = resolve_instance_existing_path(&profileId, &path).await?;
+    let metadata = std::fs::metadata(&path)?;
+    if !metadata.is_file() || metadata.len() > INSTANCE_EDITOR_MAX_BYTES {
+        return Err(AppError::InvalidInput("O arquivo não pode ser aberto no editor".into()));
+    }
+    std::fs::read_to_string(path).map_err(AppError::Io)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_file_write(profileId: String, path: String, content: String) -> AppResult<()> {
+    if content.len() as u64 > INSTANCE_EDITOR_MAX_BYTES {
+        return Err(AppError::InvalidInput("O conteúdo excede o limite do editor".into()));
+    }
+    let path = resolve_instance_existing_path(&profileId, &path).await?;
+    if !std::fs::metadata(&path)?.is_file() {
+        return Err(AppError::InvalidInput("Apenas arquivos podem ser editados".into()));
+    }
+    std::fs::write(path, content).map_err(AppError::Io)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_file_delete(profileId: String, path: String) -> AppResult<()> {
+    let path = resolve_instance_existing_path(&profileId, &path).await?;
+    let metadata = std::fs::metadata(&path)?;
+    if metadata.is_dir() {
+        std::fs::remove_dir_all(path)?;
+    } else if metadata.is_file() {
+        std::fs::remove_file(path)?;
+    } else {
+        return Err(AppError::InvalidInput("Tipo de arquivo não suportado".into()));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -113,6 +169,14 @@ pub async fn instances_duplicate(id: String) -> AppResult<ProfileRow> {
         instance_group: existing.instance_group,
         auto_optimize: existing.auto_optimize,
         use_vulkan: existing.use_vulkan,
+        use_gamemode: existing.use_gamemode,
+        use_mangohud: existing.use_mangohud,
+        force_dedicated_gpu: existing.force_dedicated_gpu,
+        use_gamescope: existing.use_gamescope,
+        gamescope_width: existing.gamescope_width,
+        gamescope_height: existing.gamescope_height,
+        gamescope_fsr: existing.gamescope_fsr,
+        force_full_verification: false,
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     Ok(row)
@@ -1010,6 +1074,14 @@ pub async fn instance_import_modpack_core(
         instance_group: None,
         auto_optimize: true,
         use_vulkan: false,
+        use_gamemode: false,
+        use_mangohud: false,
+        force_dedicated_gpu: false,
+        use_gamescope: false,
+        gamescope_width: None,
+        gamescope_height: None,
+        gamescope_fsr: false,
+        force_full_verification: false,
     };
 
     let db = crate::db::shared_db().await?;
@@ -1114,7 +1186,7 @@ pub async fn instance_health_check(
         }
     };
 
-    let mods_dir = data_dir.join("mods").join(&profileId);
+    let mods_dir = std::path::Path::new(&row.game_dir).join("mods");
     let mods_ok = if mods_dir.exists() {
         let mod_count = std::fs::read_dir(&mods_dir)
             .map(|entries| {
@@ -1659,7 +1731,7 @@ pub(crate) async fn ensure_modpack_shaders(http: &reqwest::Client, root: &std::p
 
     if let Ok(resp) = http
         .get("https://api.modrinth.com/v2/project/complementary-reimagined/version")
-        .header("User-Agent", "Luxmc/2.0.0")
+        .header("User-Agent", "Luxmc/2.0.1")
         .send()
         .await
     {
@@ -1963,6 +2035,14 @@ pub async fn instance_import_mrpack_core(
         instance_group: None,
         auto_optimize: true,
         use_vulkan: false,
+        use_gamemode: false,
+        use_mangohud: false,
+        force_dedicated_gpu: false,
+        use_gamescope: false,
+        gamescope_width: None,
+        gamescope_height: None,
+        gamescope_fsr: false,
+        force_full_verification: false,
     };
 
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;

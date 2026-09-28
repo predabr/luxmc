@@ -25,7 +25,8 @@ pub async fn instance_backup_world(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
 
-    let world_dir = PathBuf::from(&row.game_dir).join("saves").join(&worldFolder);
+    let saves_dir = PathBuf::from(&row.game_dir).join("saves");
+    let world_dir = crate::core::instance_paths::resolve_within(&saves_dir, &worldFolder)?;
     if !world_dir.is_dir() {
         return Err(AppError::NotFound("Pasta do mundo não encontrada".into()));
     }

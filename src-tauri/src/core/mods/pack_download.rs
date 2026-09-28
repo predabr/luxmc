@@ -120,7 +120,7 @@ pub fn client() -> AppResult<reqwest::Client> {
         .pool_idle_timeout(Some(Duration::from_secs(90)))
         .pool_max_idle_per_host(32)
         .tcp_nodelay(true)
-        .user_agent("Luxmc/2.0.0")
+        .user_agent("Luxmc/2.0.1")
         .build()?)
 }
 

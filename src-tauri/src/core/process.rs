@@ -1,5 +1,7 @@
 #[cfg(windows)]
 pub const CREATE_NO_WINDOW: u32 = 0x08000000;
+#[cfg(windows)]
+pub const ABOVE_NORMAL_PRIORITY_CLASS: u32 = 0x00008000;
 
 #[inline]
 pub fn std_command<S: AsRef<std::ffi::OsStr>>(program: S) -> std::process::Command {

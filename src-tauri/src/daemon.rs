@@ -418,7 +418,7 @@ async fn dispatch_command(
         },
         "instance_import_share_code" => {
             let share_code = args.get("shareCode").or_else(|| args.get("share_code")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let res = crate::commands::instance_tools::instance_import_share_code(share_code).await.map_err(|e| e.to_string())?;
+            let res = crate::commands::instance_tools::instance_import_share_code_core(&state, share_code).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "instance_export_modpack" => {
@@ -1023,6 +1023,18 @@ async fn dispatch_command(
             let profile_id = args.get("profileId").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let check = crate::commands::doctor::doctor_check_instance_conflicts(profile_id).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(check).map_err(|e| e.to_string())?)
+        },
+        "doctor_instance_readiness" => {
+            let profile_id = args.get("profileId").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let readiness = crate::commands::doctor::doctor_instance_readiness(profile_id).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(readiness).map_err(|e| e.to_string())?)
+        },
+        "modpack_version_diff" => {
+            let profile_id = args.get("profileId").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let version_id = args.get("versionId").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let source = args.get("source").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let diff = crate::commands::modpack_update::modpack_version_diff_core(&state, profile_id, version_id, source).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(diff).map_err(|e| e.to_string())?)
         },
 
         "plugin:store|load" => Ok(serde_json::json!(1)),

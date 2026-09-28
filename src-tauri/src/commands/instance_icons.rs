@@ -24,28 +24,25 @@ fn is_safe_path(path: &str) -> bool {
             return false;
         }
     }
-    let allowed = allowed_app_dirs();
-    for dir in allowed {
-        if let Ok(canonical_data) = std::fs::canonicalize(&dir) {
-            if let Ok(canonical_p) = std::fs::canonicalize(p) {
-                if canonical_p.starts_with(&canonical_data) {
-                    return true;
-                }
-            }
-            let mut cur = p;
-            while let Some(parent) = cur.parent() {
-                if let Ok(canonical_parent) = std::fs::canonicalize(parent) {
-                    if canonical_parent.starts_with(&canonical_data) {
-                        return true;
-                    }
-                }
-                cur = parent;
-            }
-            if p.starts_with(&dir) {
+    for dir in allowed_app_dirs() {
+        let Ok(canonical_dir) = std::fs::canonicalize(dir) else {
+            continue;
+        };
+        if let Ok(canonical_path) = std::fs::canonicalize(p) {
+            if canonical_path.starts_with(&canonical_dir) {
                 return true;
             }
-        } else if p.starts_with(&dir) {
-            return true;
+            continue;
+        }
+        let mut parent = p.parent();
+        while let Some(candidate) = parent {
+            if let Ok(canonical_parent) = std::fs::canonicalize(candidate) {
+                if canonical_parent.starts_with(&canonical_dir) {
+                    return true;
+                }
+                break;
+            }
+            parent = candidate.parent();
         }
     }
     false

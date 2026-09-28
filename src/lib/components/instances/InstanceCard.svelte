@@ -30,6 +30,7 @@
 	import { instanceSetFavorite, stopGame } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { getIconSrc as defaultGetIconSrc } from "$lib/utils/icons";
 
 	const { t } = useTranslation();
 
@@ -38,7 +39,7 @@
 		isActive?: boolean;
 		tagColor?: string;
 		colorOptions?: Array<{ value: string; color: string }>;
-		getIconSrc: (icon?: string) => string;
+		getIconSrc?: (icon?: string) => string;
 		formatTimeAgo: (ts: number) => string;
 		formatBytes: (bytes: number) => string;
 		selectionMode?: boolean;
@@ -63,7 +64,7 @@
 		isActive = false,
 		tagColor,
 		colorOptions = [],
-		getIconSrc,
+		getIconSrc = defaultGetIconSrc,
 		formatTimeAgo,
 		formatBytes,
 		selectionMode = false,
@@ -84,6 +85,13 @@
 	}: Props = $props();
 
 	let menuOpen = $state(false);
+	let bannerFailed = $state(false);
+
+	$effect(() => {
+		profile.id;
+		profile.banner;
+		bannerFailed = false;
+	});
 
 	function handleFavorite(e: MouseEvent) {
 		e.stopPropagation();
@@ -106,7 +114,9 @@
     const lastPlayed = $derived.by(() => { now; return isRunningThis ? "Em execução agora" : (profile.lastPlayed ? formatTimeAgo(profile.lastPlayed) : 'Ainda não jogada'); });
     const minutes = $derived(gamingStats.profileMinutes(profile.id));
     const playtime = $derived(minutes <= 0 ? (isRunningThis ? '< 1 min' : '0 min') : (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`));
-    const banner = $derived(profile.banner || (profile.icon?.startsWith('http') || profile.icon?.startsWith('/modpack_') ? profile.icon : (({ modpack_better_mc: '/modpack_better_mc.webp', modpack_cobblemon: '/modpack_cobblemon.webp', modpack_fo: '/modpack_fo.webp' } as Record<string, string>)[profile.icon] || '/bg_day.jpg')));
+    const hasDedicatedBanner = $derived(Boolean(profile.banner && profile.banner !== profile.icon && profile.banner !== '/grass_block.png'));
+    const banner = $derived(profile.banner || '/bg_day.jpg');
+    const resolvedIcon = $derived(getIconSrc(profile.icon));
     const actions = $derived([
         { label: 'Configurar instância', icon: Pencil, onClick: () => onEdit?.(profile) },
         { label: 'Abrir pasta', icon: FolderOpen, onClick: () => onOpenFolder?.(profile.id) },
@@ -151,15 +161,42 @@
     {#if tagColor}<span class="absolute bottom-5 left-0 top-5 w-0.5 rounded-full" style:background={colorOptions.find(color => color.value === tagColor)?.color || 'rgb(var(--brand-500))'}></span>{/if}
     {#if viewMode === 'grid'}
         <div class="relative h-40 overflow-hidden rounded-t-2xl">
-            <img src={banner} alt="" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+            {#if hasDedicatedBanner && !bannerFailed}
+                <img
+                    src={banner}
+                    alt=""
+                    class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    loading="lazy"
+                    onerror={() => { bannerFailed = true; }}
+                />
+            {:else}
+                <div class="absolute inset-0 bg-gradient-to-br from-bg-elevated via-bg-subtle to-bg-overlay"></div>
+                <img
+                    src={resolvedIcon}
+                    alt=""
+                    class="absolute inset-0 h-full w-full scale-125 object-cover blur-xl brightness-50 opacity-60"
+                    loading="lazy"
+                    onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+                />
+            {/if}
             <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/10 to-bg-overlay/15"></div>
             <div class="absolute left-4 top-4"><LoaderBadge loader={profile.loader} /></div>
             <div class="absolute right-4 top-4">{@render selection()}</div>
-            <img src={getIconSrc(profile.icon)} alt="" class="absolute bottom-2 left-5 h-14 w-14 rounded-2xl border border-fg/15 bg-bg-elevated p-1.5 object-cover shadow-elevated" />
+            <img
+                src={resolvedIcon}
+                alt={profile.name}
+                class="absolute bottom-2 left-5 h-14 w-14 rounded-2xl border border-fg/10 bg-bg-elevated/90 p-1 object-contain shadow-elevated"
+                onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+            />
         </div>
     {:else}
         {@render selection()}
-        <img src={getIconSrc(profile.icon)} alt="" class="h-12 w-12 rounded-xl border border-fg/10 bg-bg-subtle p-1 object-cover" />
+        <img
+            src={resolvedIcon}
+            alt={profile.name}
+            class="h-12 w-12 rounded-xl border border-fg/10 bg-bg-elevated/90 p-1 object-contain shrink-0"
+            onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+        />
     {/if}
     <div class={viewMode === 'grid' ? 'flex flex-1 flex-col p-5 pt-1' : 'min-w-32 flex-1'}>
         <div class="flex items-center gap-2"><h3 class="min-w-0 flex-1 truncate text-base font-semibold text-fg"><button type="button" class="text-left hover:text-brand-400 transition-colors focus-visible:outline-none focus-visible:underline" onclick={() => selectionMode ? onToggleSelect?.(profile.id) : onSelect?.(profile.id)}>{profile.name}</button></h3>{#if isActive}<span class="shrink-0 rounded-full bg-brand-500/10 px-2 py-1 text-[9px] font-bold text-brand-300">SELECIONADA</span>{/if}</div>

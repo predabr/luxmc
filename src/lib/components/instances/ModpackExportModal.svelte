@@ -9,7 +9,7 @@
 		Sparkles,
 		FileArchive
 	} from "lucide-svelte";
-	import { instanceExportModpack, type ExportResult } from "$lib/api";
+	import { instanceExportModpack, instanceExportShareCode, type ExportResult } from "$lib/api";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { playSound } from "$lib/utils/sound";
 
@@ -29,11 +29,14 @@
 	let customName = $state("MeuModpack");
 	let isExporting = $state(false);
 	let exportResult = $state<ExportResult | null>(null);
+	let shareCode = $state<string | null>(null);
+	let isGeneratingCode = $state(false);
 
 	$effect(() => {
 		if (isOpen) {
 			customName = instanceName || "MeuModpack";
 			exportResult = null;
+			shareCode = null;
 		}
 	});
 
@@ -48,6 +51,20 @@
 			toast("Falha na exportação: " + String(e), "error");
 		} finally {
 			isExporting = false;
+		}
+	}
+
+	async function handleShareCode() {
+		isGeneratingCode = true;
+		try {
+			shareCode = await instanceExportShareCode(profileId);
+			await navigator.clipboard.writeText(shareCode);
+			playSound("chime");
+			toast("Código de modpack copiado.", "success");
+		} catch (error) {
+			toast("Falha ao gerar código: " + String(error), "error");
+		} finally {
+			isGeneratingCode = false;
 		}
 	}
 </script>
@@ -141,6 +158,12 @@
 					</div>
 				</div>
 			{/if}
+
+			<div class="rounded-2xl border border-brand-500/20 bg-brand-500/5 p-4 space-y-3">
+				<div><p class="text-xs font-black text-fg">Compartilhar por código</p><p class="mt-1 text-[10px] text-fg/50">Inclui versão, loader e os IDs oficiais dos mods para instalar direto no Luxmc.</p></div>
+				{#if shareCode}<textarea readonly class="h-20 w-full rounded-xl border border-fg/10 bg-bg-overlay/40 p-2 font-mono text-[10px] text-fg" value={shareCode}></textarea>{/if}
+				<button type="button" class="px-4 py-2 rounded-xl border border-brand-500/30 bg-brand-500/10 text-xs font-bold text-brand-400 disabled:opacity-50" disabled={isGeneratingCode} onclick={handleShareCode}>{isGeneratingCode ? 'Gerando...' : 'Gerar e copiar Share Code'}</button>
+			</div>
 
 			<!-- Actions -->
 			<div class="flex items-center justify-end gap-2.5 pt-2 border-t border-fg/10">

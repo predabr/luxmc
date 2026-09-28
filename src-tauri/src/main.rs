@@ -7,8 +7,6 @@ compile_error!("Release requires embedded assets: use pnpm tauri build");
 fn main() {
     #[cfg(target_os = "linux")]
     {
-        use std::os::unix::process::CommandExt;
-
         extern "C" {
             fn g_set_prgname(prgname: *const std::ffi::c_char);
             fn g_set_application_name(application_name: *const std::ffi::c_char);
@@ -21,44 +19,8 @@ fn main() {
         if std::env::var("G_PRGNAME").is_err() {
             std::env::set_var("G_PRGNAME", "luxmc");
         }
-
-        if std::env::var("LUXMC_WAYLAND_PRELOADED").is_err() {
-            let is_wayland = std::env::var("WAYLAND_DISPLAY").is_ok()
-                || std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland");
-
-            if is_wayland {
-                let candidates = [
-                    "/usr/lib/libwayland-client.so.0",
-                    "/usr/lib/libwayland-client.so",
-                    "/usr/lib64/libwayland-client.so.0",
-                    "/usr/lib64/libwayland-client.so",
-                    "/usr/lib/x86_64-linux-gnu/libwayland-client.so.0",
-                    "/usr/lib/x86_64-linux-gnu/libwayland-client.so",
-                ];
-
-                if let Some(host_wayland) = candidates.iter().find(|p| std::path::Path::new(p).exists()) {
-                    let current_preload = std::env::var("LD_PRELOAD").unwrap_or_default();
-                    if !current_preload.contains("libwayland-client") {
-                        if let Ok(exe) = std::env::current_exe() {
-                            let mut cmd = std::process::Command::new(exe);
-                            cmd.args(std::env::args().skip(1));
-
-                            let new_preload = if current_preload.trim().is_empty() {
-                                host_wayland.to_string()
-                            } else {
-                                format!("{}:{}", host_wayland, current_preload)
-                            };
-                            cmd.env("LD_PRELOAD", new_preload);
-                            cmd.env("G_PRGNAME", "luxmc");
-                            cmd.env("LUXMC_WAYLAND_PRELOADED", "1");
-                            cmd.env("MALLOC_ARENA_MAX", "2");
-                            cmd.env("MALLOC_TRIM_THRESHOLD_", "131072");
-                            let _ = cmd.exec();
-                        }
-                    }
-                }
-            }
-        }
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+        std::env::set_var("GDK_BACKEND", "wayland,x11");
 
         if let Ok(appdir) = std::env::var("APPDIR") {
             let usr_dir = std::path::Path::new(&appdir).join("usr");
@@ -79,9 +41,18 @@ fn main() {
                 "usr/lib/gstreamer-1.0",
                 "usr/lib64/gstreamer-1.0",
                 "usr/lib/x86_64-linux-gnu/gstreamer-1.0",
-            ].iter().map(|path| root.join(path)).filter(|path| path.is_dir()).collect();
+            ]
+            .iter()
+            .map(|path| root.join(path))
+            .filter(|path| path.is_dir())
+            .collect();
             let gst_path = std::env::join_paths(&gst_dirs).expect("Invalid AppDir plugin path");
-            for key in ["GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_PATH_1_0", "GST_PLUGIN_SYSTEM_PATH", "GST_PLUGIN_PATH"] {
+            for key in [
+                "GST_PLUGIN_SYSTEM_PATH_1_0",
+                "GST_PLUGIN_PATH_1_0",
+                "GST_PLUGIN_SYSTEM_PATH",
+                "GST_PLUGIN_PATH",
+            ] {
                 std::env::set_var(key, &gst_path);
             }
             std::env::set_var("GST_REGISTRY_REUSE_PLUGIN_SCANNER", "no");
@@ -91,21 +62,28 @@ fn main() {
                 "usr/libexec/gstreamer-1.0/gst-plugin-scanner",
                 "usr/lib/gstreamer-1.0/gst-plugin-scanner",
                 "usr/lib64/gstreamer-1.0/gst-plugin-scanner",
-            ].iter().map(|path| root.join(path)).find(|path| path.is_file())
-                .unwrap_or_else(|| root.join("usr/libexec/gstreamer-1.0/gst-plugin-scanner"));
+            ]
+            .iter()
+            .map(|path| root.join(path))
+            .find(|path| path.is_file())
+            .unwrap_or_else(|| root.join("usr/libexec/gstreamer-1.0/gst-plugin-scanner"));
             std::env::set_var("GST_PLUGIN_SCANNER_1_0", &scanner);
             std::env::set_var("GST_PLUGIN_SCANNER", &scanner);
             if gst_dirs.is_empty() || !scanner.is_file() {
-                eprintln!("Luxmc: AppImage incompleto: plugins ou scanner GStreamer ausentes em {}", root.display());
+                eprintln!(
+                    "Luxmc: AppImage incompleto: plugins ou scanner GStreamer ausentes em {}",
+                    root.display()
+                );
             }
-
         } else if let Ok(exe) = std::env::current_exe() {
             if let Some(bin) = exe.parent() {
                 if let Some(usr) = bin.parent() {
-                    let network_proc = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess");
+                    let network_proc =
+                        usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/WebKitNetworkProcess");
                     if network_proc.is_file() {
                         let _ = std::env::set_current_dir(usr);
-                        let injected = usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
+                        let injected =
+                            usr.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
                         if injected.is_dir() {
                             std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
                         }
@@ -114,7 +92,10 @@ fn main() {
             }
         }
 
-        if std::env::var("LUXMC_SOFTWARE_RENDER").map(|v| v == "1" || v == "true").unwrap_or(false) {
+        if std::env::var("LUXMC_SOFTWARE_RENDER")
+            .map(|v| v == "1" || v == "true")
+            .unwrap_or(false)
+        {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
             std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
         }

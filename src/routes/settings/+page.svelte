@@ -360,7 +360,7 @@
 			<div class="flex items-center justify-between">
 				<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.general")}</h2>
 				<span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-fg/5 text-fg/60 border border-fg/10">
-					{t("settings.version", { version: "2.0.0" })}
+					{t("settings.version", { version: "2.0.1" })}
 				</span>
 			</div>
 
@@ -382,9 +382,9 @@
 					</div>
 					<h3 class="text-base font-bold text-fg">
 						{#if updaterStore.updateAvailable}
-							{t("settings.versionReady", { version: updaterStore.newVersion || "2.0.0" })}
+							{t("settings.versionReady", { version: updaterStore.newVersion || "2.0.1" })}
 						{:else}
-							{t("settings.versionLatest", { version: "2.0.0" })}
+							{t("settings.versionLatest", { version: "2.0.1" })}
 						{/if}
 					</h3>
 					<p class="text-xs text-fg/50">
@@ -400,7 +400,7 @@
 					{#if updaterStore.updateAvailable}
 						<button
 							type="button"
-							onclick={() => updaterStore.downloadAndInstall()}
+							onclick={() => updaterStore.showModal = true}
 							disabled={updaterStore.isDownloading}
 							class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg-deep font-bold text-xs transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
 						>
@@ -478,7 +478,7 @@
 					<div class="space-y-1 max-w-xl">
 						<div class="flex items-center gap-2">
 							<h3 class="text-sm font-bold text-fg">{t("settings.discordRpcTitle")}</h3>
-							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">v2.0.0</span>
+							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">v2.0.1</span>
 						</div>
 						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.discordRpcDesc")}</p>
 					</div>

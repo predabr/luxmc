@@ -36,6 +36,31 @@ export interface PreLaunchCheckResult {
 	duplicates: string[];
 }
 
+export interface InstanceReadiness {
+	ready: boolean;
+	requiredJava: number;
+	allocatedRamMb: number;
+	recommendedRamMb: number;
+	gpuVendor: string;
+	gpuDriver: string;
+	blockers: string[];
+	warnings: string[];
+	conflicts: PreLaunchCheckResult;
+}
+
+export interface RepairAllOutcome {
+	repairedMods: number;
+	warnings: string[];
+}
+
+export async function doctorInstanceReadiness(profileId: string): Promise<InstanceReadiness> {
+	return api.invoke<InstanceReadiness>("doctor_instance_readiness", { profileId });
+}
+
+export async function doctorRepairAll(profileId: string): Promise<RepairAllOutcome> {
+	return api.invoke<RepairAllOutcome>("doctor_repair_all", { profileId });
+}
+
 export async function doctorCheckInstanceConflicts(
 	profileId: string
 ): Promise<PreLaunchCheckResult> {

@@ -120,7 +120,7 @@ async fn test_fabric_loader_resolution_and_knot_client() {
 
 #[tokio::test]
 async fn quilt_libraries_repair_corrupted_cache() {
-    let http = reqwest::Client::builder().user_agent("Luxmc/2.0.0").build().unwrap();
+    let http = reqwest::Client::builder().user_agent("Luxmc/2.0.1").build().unwrap();
     let root = std::env::temp_dir().join(format!("luxmc-quilt-{}", std::process::id()));
     let libraries = root.join("libraries");
     tokio::fs::create_dir_all(&libraries).await.unwrap();

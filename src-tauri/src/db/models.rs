@@ -57,6 +57,22 @@ pub struct ProfileRow {
     pub auto_optimize: bool,
     #[serde(default)]
     pub use_vulkan: bool,
+    #[serde(default)]
+    pub use_gamemode: bool,
+    #[serde(default)]
+    pub use_mangohud: bool,
+    #[serde(default)]
+    pub force_dedicated_gpu: bool,
+    #[serde(default)]
+    pub use_gamescope: bool,
+    #[serde(default)]
+    pub gamescope_width: Option<i64>,
+    #[serde(default)]
+    pub gamescope_height: Option<i64>,
+    #[serde(default)]
+    pub gamescope_fsr: bool,
+    #[serde(default)]
+    pub force_full_verification: bool,
 }
 
 impl ProfileRow {

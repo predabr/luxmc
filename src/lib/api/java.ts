@@ -1,5 +1,5 @@
 import { api } from "./client";
-import type { JavaScanResult, JavaInstallStatus, DepCheckResult, ModpackUpdateInfo } from "./types";
+import type { JavaScanResult, JavaInstallStatus, DepCheckResult, ModpackUpdateInfo, ModpackVersionDiff } from "./types";
 
 export async function javaScan(): Promise<JavaScanResult> {
 	return api.invoke<JavaScanResult>("java_scan");
@@ -41,4 +41,12 @@ export async function modpackUpdateAtomic(
 	projectId: string
 ): Promise<void> {
 	return api.invoke("modpack_update_atomic", { profileId, versionId, source, projectId });
+}
+
+export async function modpackVersionDiff(
+	profileId: string,
+	versionId: string,
+	source: string
+): Promise<ModpackVersionDiff> {
+	return api.invoke<ModpackVersionDiff>("modpack_version_diff", { profileId, versionId, source });
 }

@@ -1,6 +1,6 @@
 {
   "name": "luxmc",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Linux-first Minecraft launcher.",
   "type": "module",
   "private": true,
@@ -88,6 +88,10 @@
     "@threlte/core": "^8.6.0",
     "@threlte/extras": "^9.21.1",
     "@tsparticles/svelte": "^4.4.0",
+    "@vibrant/core": "^4.0.4",
+    "@vibrant/generator-default": "^4.0.4",
+    "@vibrant/image-browser": "^4.0.4",
+    "@vibrant/quantizer-mmcq": "^4.0.4",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/xterm": "^5.5.0",
@@ -111,6 +115,7 @@
     "mode-watcher": "^1.0.0",
     "motion": "^12.4.7",
     "postprocessing": "^6.36.7",
+    "qrcode": "^1.5.4",
     "runed": "^0.37.1",
     "shiki": "^1.29.2",
     "simple-icons": "^14.12.1",
@@ -126,11 +131,7 @@
     "tone": "^15.0.4",
     "tsparticles": "^4.1.1",
     "wavesurfer.js": "^7.12.12",
-    "zod": "^3.23.0",
-    "@vibrant/core": "^4.0.4",
-    "@vibrant/image-browser": "^4.0.4",
-    "@vibrant/quantizer-mmcq": "^4.0.4",
-    "@vibrant/generator-default": "^4.0.4"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
@@ -145,6 +146,7 @@
     "@types/canvas-confetti": "^1.9.0",
     "@types/diff": "^8.0.0",
     "@types/howler": "^2.2.12",
+    "@types/qrcode": "^1.5.6",
     "@types/stats.js": "^0.17.3",
     "@types/three": "^0.185.4",
     "autoprefixer": "^10.4.20",

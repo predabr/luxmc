@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v2.0.0)"
+        description: "Release tag (e.g. v2.0.1)"
         required: true
-        default: "v2.0.0"
+        default: "v2.0.1"
 
 permissions:
   contents: write
@@ -51,6 +51,7 @@ jobs:
               releaseId = existing.data.id;
               console.log(`Reusing existing release for tag ${tag} (ID: ${releaseId})`);
             } catch (e) {
+              const v = tag.replace(/^v/, "");
               const { data } = await github.rest.repos.createRelease({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
@@ -72,19 +73,19 @@ jobs:
                   "### 📥 Instaladores",
                   "| Plataforma | Arquivo | Formato |",
                   "| --- | --- | --- |",
-                  "| 🪟 Windows | `Luxmc_2.0.0_x64-setup.exe` | Instalador NSIS |",
+                  `| 🪟 Windows | \`Luxmc_${v}_x64-setup.exe\` | Instalador NSIS |`,
                   "| 🐧 Linux (Arch Linux) | `yay -S luxmc-launcher` / `pacman -U` | AUR / Pacman |",
-                  "| 🐧 Universal Linux | `Luxmc_2.0.0_amd64.AppImage` | AppImage |",
-                  "| 🐧 Ubuntu / Debian | `Luxmc_2.0.0_amd64.deb` | Pacote DEB |",
-                  "| 🐧 Fedora / openSUSE | `Luxmc-2.0.0-1.x86_64.rpm` | Pacote RPM |",
-                  "| 🍎 macOS (Universal) | `Luxmc_2.0.0_universal.dmg` | DMG |",
+                  `| 🐧 Universal Linux | \`Luxmc_${v}_amd64.AppImage\` | AppImage |`,
+                  `| 🐧 Ubuntu / Debian | \`Luxmc_${v}_amd64.deb\` | Pacote DEB |`,
+                  `| 🐧 Fedora / openSUSE | \`Luxmc-${v}-1.x86_64.rpm\` | Pacote RPM |`,
+                  `| 🍎 macOS (Universal) | \`Luxmc_${v}_universal.dmg\` | DMG |`,
                   "",
                   "### Como instalar",
                   "- **Arch Linux**: `yay -S luxmc-launcher` ou `curl -fSL <url>.pkg.tar.zst -o /tmp/luxmc.pkg.tar.zst && sudo pacman -U /tmp/luxmc.pkg.tar.zst && rm -f /tmp/luxmc.pkg.tar.zst`",
                   "- **Linux Universal**: `curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash`",
-                  "- **Windows**: Baixe o `Luxmc_2.0.0_x64-setup.exe` e execute o instalador",
-                  "- **Ubuntu/Debian**: `sudo dpkg -i Luxmc_2.0.0_amd64.deb`",
-                  "- **Fedora/RHEL**: `sudo rpm -i Luxmc-2.0.0-1.x86_64.rpm`",
+                  `- **Windows**: Baixe o \`Luxmc_${v}_x64-setup.exe\` e execute o instalador`,
+                  `- **Ubuntu/Debian**: \`sudo dpkg -i Luxmc_${v}_amd64.deb\``,
+                  `- **Fedora/RHEL**: \`sudo rpm -i Luxmc-${v}-1.x86_64.rpm\``,
                   "- **macOS**: Abra o `.dmg` e arraste para a pasta `/Applications`",
                 ].join("\n"),
                 draft: false,
@@ -165,8 +166,9 @@ jobs:
         run: |
           sudo apt-get install -y zstd tar
           bash scripts/build-arch-package.sh
-          if [ -f "packaging/arch/luxmc-2.0.0-1-x86_64.pkg.tar.zst" ]; then
-            gh release upload "$RELEASE_TAG" "packaging/arch/luxmc-2.0.0-1-x86_64.pkg.tar.zst" --clobber
+          PKG_FILE=$(ls packaging/arch/luxmc-*-1-x86_64.pkg.tar.zst 2>/dev/null | head -n 1)
+          if [ -n "$PKG_FILE" ] && [ -f "$PKG_FILE" ]; then
+            gh release upload "$RELEASE_TAG" "$PKG_FILE" --clobber
           fi
 
   build-windows:

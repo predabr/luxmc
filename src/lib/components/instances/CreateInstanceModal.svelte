@@ -23,6 +23,7 @@
 	import { settings } from "$lib/stores/settings.svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
+	import { getIconSrc } from "$lib/utils/icons";
 
 	const { t } = useTranslation();
 
@@ -91,17 +92,6 @@
 		{ id: "logo", label: "Luxmc Logo", src: "/logo.png" },
 		{ id: "grass_head", label: "Steve", src: "/grass_head.png" }
 	];
-
-	function getIconSrc(iconStr?: string): string {
-		if (!iconStr || iconStr === "grass_block" || iconStr === "/grass_block" || iconStr === "grass" || iconStr === "/grass") return "/grass_block.png";
-		if (iconStr === "modpack_fo") return "/modpack_fo_icon.png";
-		if (iconStr === "modpack_better_mc") return "/modpack_bmc_icon.webp";
-		if (iconStr === "modpack_cobblemon") return "/modpack_cobblemon_icon.png";
-		if (iconStr === "logo") return "/logo.png";
-		if (iconStr === "grass_head") return "/grass_head.png";
-		if (iconStr.startsWith("/") || iconStr.startsWith("http") || iconStr.startsWith("data:") || iconStr.startsWith("asset:")) return iconStr;
-		return "/grass_block.png";
-	}
 
 	async function handleCustomIconUpload() {
 		try {
@@ -242,6 +232,7 @@
 							src={getIconSrc(newIcon)}
 							alt="Ícone da Instância"
 							class="w-14 h-14 object-contain [image-rendering:pixelated]"
+							onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
 						/>
 					</div>
 

@@ -111,13 +111,22 @@ pub async fn launch_game_core(
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
     let data_dir = base_dir.data_dir().to_path_buf();
     crate::core::instance_paths::isolate(&mut profile, &data_dir).await?;
+    let fast_launch = !crate::commands::instance_lab::isolation_testing(&profile.id)?
+        && crate::core::launcher::launch_state::is_valid(&profile);
 
     if crate::commands::instance_lab::isolation_testing(&profile.id)? {
         emit_log("Diagnóstico de mods ativo: teste iniciado com a seleção temporária de JARs.");
+    } else if fast_launch {
+        emit_log("Fast Launch: integridade local preservada; verificação profunda ignorada.");
     } else {
         emit_log("Verificando integridade dos arquivos do modpack...");
         let integrity_started = std::time::Instant::now();
         crate::commands::instances::heal_modpack(state, &profile).await?;
+        crate::core::launcher::launch_state::store(&profile)?;
+        if profile.force_full_verification {
+            profile.force_full_verification = false;
+            crate::db::schema::profiles::upsert(&db, &profile).await?;
+        }
         emit_log(&format!("Integridade concluída em {:.1}s. Preparando Java e loader...", integrity_started.elapsed().as_secs_f32()));
     }
 
@@ -171,7 +180,12 @@ pub async fn launch_game_core(
     let local_prof_ver_json = data_dir.join("versions").join(profile_mc_ver).join(format!("{}.json", profile_mc_ver));
 
     emit_log(&format!("Fetching version detail for {}...", raw_req));
-    let detail = match minecraft::fetch_version_detail(&state.http, &version_row.url).await {
+    let detail_request = if fast_launch && (local_ver_json.exists() || local_clean_ver_json.exists() || local_prof_ver_json.exists()) {
+        Err(AppError::NotFound("Fast Launch usa o manifesto local".into()))
+    } else {
+        minecraft::fetch_version_detail(&state.http, &version_row.url).await
+    };
+    let detail = match detail_request {
         Ok(d) => {
             let version_dir = data_dir.join("versions").join(&d.id);
             if tokio::fs::create_dir_all(&version_dir).await.is_ok() {

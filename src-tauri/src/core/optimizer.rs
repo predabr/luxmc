@@ -92,6 +92,32 @@ pub fn detect_gpu() -> GpuInfo {
         }
     }
 
+    #[cfg(target_os = "windows")]
+    {
+        let command = "Get-CimInstance Win32_VideoController | Select-Object -First 1 Name,DriverVersion | ConvertTo-Json -Compress";
+        if let Ok(output) = crate::core::process::std_command("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", command])
+            .output()
+        {
+            if output.status.success() {
+                if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
+                    renderer = value.get("Name").and_then(serde_json::Value::as_str).unwrap_or("Driver Padrão").to_string();
+                    driver = value.get("DriverVersion").and_then(serde_json::Value::as_str).unwrap_or("Desconhecido").to_string();
+                    let lower = renderer.to_ascii_lowercase();
+                    if lower.contains("nvidia") {
+                        vendor = "NVIDIA".to_string();
+                    } else if lower.contains("amd") || lower.contains("radeon") {
+                        vendor = "AMD".to_string();
+                        supports_zink = true;
+                    } else if lower.contains("intel") {
+                        vendor = "Intel".to_string();
+                        supports_zink = true;
+                    }
+                }
+            }
+        }
+    }
+
     GpuInfo {
         vendor,
         renderer,

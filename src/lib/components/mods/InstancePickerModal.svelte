@@ -4,6 +4,7 @@
 	import { fade, scale } from "svelte/transition";
 	import type { ModSearchResultItem } from "$lib/api";
 	import { profiles } from "$lib/stores/profiles.svelte";
+	import { getIconSrc } from "$lib/utils/icons";
 
 	let {
 		item,
@@ -56,7 +57,12 @@
 		<div class="flex items-center gap-3 bg-bg-elevated p-3 rounded-2xl border border-fg/5">
 			<div class="w-10 h-10 rounded-xl bg-bg-subtle border border-fg/10 overflow-hidden shrink-0 flex items-center justify-center">
 				{#if item.iconUrl}
-					<img src={item.iconUrl} alt={item.title} class="w-full h-full object-cover" />
+					<img
+						src={item.iconUrl}
+						alt={item.title}
+						class="w-full h-full object-contain p-0.5"
+						onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+					/>
 				{:else}
 					<Cpu class="w-5 h-5 text-brand-400" />
 				{/if}
@@ -76,11 +82,12 @@
 				>
 					<div class="flex items-center gap-3 min-w-0">
 						<div class="w-9 h-9 rounded-xl bg-fg/5 border border-fg/10 flex items-center justify-center overflow-hidden shrink-0">
-							{#if p.icon && p.icon !== "default" && (p.icon.startsWith("http") || p.icon.startsWith("data:"))}
-								<img src={p.icon} alt={p.name} class="w-full h-full object-cover" />
-							{:else}
-								<Box class="w-4 h-4 text-fg/60" />
-							{/if}
+							<img
+								src={getIconSrc(p.icon)}
+								alt={p.name}
+								class="w-full h-full object-contain p-0.5"
+								onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+							/>
 						</div>
 						<div class="min-w-0">
 							<h5 class="text-xs font-bold text-fg truncate">{p.name}</h5>
