@@ -169,25 +169,28 @@
                     loading="lazy"
                     onerror={() => { bannerFailed = true; }}
                 />
-            {:else}
-                <div class="absolute inset-0 bg-gradient-to-br from-bg-elevated via-bg-subtle to-bg-overlay"></div>
-                <img
-                    src={resolvedIcon}
-                    alt=""
-                    class="absolute inset-0 h-full w-full scale-125 object-cover blur-xl brightness-50 opacity-60"
-                    loading="lazy"
-                    onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
-                />
+			{:else}
+				<div class="absolute inset-0 bg-gradient-to-br from-bg-subtle via-bg-elevated to-bg-overlay"></div>
+				<div class="card-mesh absolute inset-0 opacity-40"></div>
+				<img
+					src={resolvedIcon}
+					alt={profile.name}
+					class="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-fg/10 bg-bg-elevated p-1 object-contain shadow-elevated"
+					loading="lazy"
+					onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+				/>
             {/if}
             <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/10 to-bg-overlay/15"></div>
             <div class="absolute left-4 top-4"><LoaderBadge loader={profile.loader} /></div>
             <div class="absolute right-4 top-4">{@render selection()}</div>
-            <img
-                src={resolvedIcon}
-                alt={profile.name}
-                class="absolute bottom-2 left-5 h-14 w-14 rounded-2xl border border-fg/10 bg-bg-elevated/90 p-1 object-contain shadow-elevated"
-                onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
-            />
+			{#if hasDedicatedBanner && !bannerFailed}
+				<img
+					src={resolvedIcon}
+					alt={profile.name}
+					class="absolute bottom-2 left-5 h-14 w-14 rounded-2xl border border-fg/10 bg-bg-elevated p-1 object-contain shadow-elevated"
+					onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+				/>
+			{/if}
         </div>
     {:else}
         {@render selection()}
@@ -243,6 +246,15 @@
         <div class="relative z-10 flex items-center gap-2">{@render controls()}</div>
     {/if}
 </div>
+
+<style>
+	.card-mesh {
+		background-image:
+			linear-gradient(rgb(var(--fg) / 0.045) 1px, transparent 1px),
+			linear-gradient(90deg, rgb(var(--fg) / 0.045) 1px, transparent 1px);
+		background-size: 28px 28px;
+	}
+</style>
 
 {#snippet selection()}
     {#if selectionMode}<button type="button" role="checkbox" aria-checked={isSelected} aria-label={`Selecionar ${profile.name}`} class="relative z-10 grid h-8 w-8 place-items-center rounded-xl border border-fg/15 bg-bg-elevated text-brand-400" onclick={() => onToggleSelect?.(profile.id)}>{#if isSelected}<Check class="h-4 w-4" />{/if}</button>

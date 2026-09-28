@@ -96,21 +96,24 @@
 				class="h-full w-full rounded-t-2xl object-cover transition-transform duration-500 group-hover:scale-105" 
 				onerror={() => { bannerFailed = true; }}
 			/>
-		{:else if item.iconUrl}
-			<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-surface">
-				<img src={item.iconUrl} alt="" class="h-full w-full object-cover scale-125 blur-md opacity-40 transition-transform duration-500 group-hover:scale-135" onerror={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-				<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-70"></div>
-			</div>
-		{:else}
-			<div class="absolute inset-0 overflow-hidden rounded-t-2xl">
-				<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-70"></div>
-			</div>
-		{/if}
+			{:else}
+				<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-elevated">
+					<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-70"></div>
+					<div class="card-mesh absolute inset-0 opacity-40"></div>
+					<div class="absolute inset-0 flex items-center justify-center">
+						<div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-fg/10 bg-bg-elevated p-1 shadow-elevated">
+							{#if item.iconUrl}<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain p-1" fallback="/grass_block.png" />{:else}<Box class="h-8 w-8 text-brand-400" />{/if}
+						</div>
+					</div>
+				</div>
+			{/if}
 		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent"></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
-		<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
-			{#if item.iconUrl || item.bannerUrl}<LazyImage src={item.iconUrl || item.bannerUrl || ""} alt="" class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
-		</div>
+			{#if effectiveBanner && !bannerFailed}
+				<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
+					{#if item.iconUrl || item.bannerUrl}<LazyImage src={item.iconUrl || item.bannerUrl || ""} alt={item.title} class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
+				</div>
+			{/if}
 	</div>
 	<div class="flex flex-1 flex-col gap-3 p-5 pt-7">
 		<h3 class="truncate text-base font-bold text-fg group-hover:text-brand-400">
@@ -133,3 +136,12 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	.card-mesh {
+		background-image:
+			linear-gradient(30deg, rgb(var(--fg) / 0.05) 12%, transparent 12.5%, transparent 87%, rgb(var(--fg) / 0.05) 87.5%),
+			linear-gradient(150deg, rgb(var(--fg) / 0.05) 12%, transparent 12.5%, transparent 87%, rgb(var(--fg) / 0.05) 87.5%);
+		background-size: 36px 62px;
+	}
+</style>

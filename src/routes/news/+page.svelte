@@ -37,6 +37,25 @@
 
 	const launcherNews: LauncherArticle[] = [
 		{
+			id: "v2.0.2",
+			title: "Luxmc v2.0.2 — Correções Críticas: Auto-Updater Atômico, Wallpapers & P2P",
+			tag: "Hotfix",
+			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+			date: "28 de Setembro, 2026",
+			version: "v2.0.2",
+			image: "/news_1.jpg",
+			summary: "A versão 2.0.2 traz correções essenciais para estabilidade: auto-atualizador atômico para AppImage/RPM/DEB, correção do streaming de vídeo de wallpapers, cutscene otimizada sem travamento no WebKitGTK, logos e banners com proporção preservada e modo local P2P à prova de falhas.",
+			highlights: [
+				"Atualizador atômico para AppImages em execução e suporte automático a RPM via DNF/Zypper",
+				"Recuperação graciosa de migrações SQLite do banco de dados local",
+				"Wallpapers de vídeo com streaming nativo convertFileSrc sem dependência de portas locais",
+				"Cutscene leve com aceleração por hardware e fade-out suave sem lag de GPU/CPU",
+				"Banners e cards com proporção nativa e logos nítidos sem desfoque forçado",
+				"Painel de amigos com detecção instantânea de mundos LAN e modo offline resiliente"
+			],
+			link: "https://luxmc-r92.pages.dev"
+		},
+		{
 			id: "v2.0.1",
 			title: "Luxmc v2.0.1 — Fast Launch (<2s), GameMode/MangoHud, P2P Rooms & 1-Click Reparar Tudo",
 			tag: "Oficial",

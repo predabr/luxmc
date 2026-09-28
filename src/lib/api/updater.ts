@@ -1,7 +1,7 @@
 import { api } from "./client";
 
 export interface UpdateEnvironment {
-	mode: "appimage" | "pacman" | "debian" | "system" | "windows" | "macos" | "manual";
+	mode: "appimage" | "pacman" | "debian" | "rpm" | "system" | "windows" | "macos" | "manual";
 }
 
 export interface UpdateOutcome {

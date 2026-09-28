@@ -117,7 +117,7 @@
 						Atualizar Agora Automaticamente <DownloadCloud class="w-4 h-4" />
 					</button>
 					{/if}
-					<button class="w-full py-3 border border-fg/10 bg-fg/[0.04] hover:bg-fg/[0.08] text-fg font-bold rounded-2xl transition-all active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer" onclick={() => openUrl(updaterStore.releaseUrl || "https://github.com/predabr/luxmc/releases/latest")}>Abrir no GitHub <ExternalLink class="w-4 h-4" /></button>
+						<button class="w-full py-3 border border-fg/10 bg-fg/[0.04] hover:bg-fg/[0.08] text-fg font-bold rounded-2xl transition-all active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer" onclick={() => openUrl(updaterStore.releaseUrl || "https://github.com/predabr/luxmc/releases/latest")}>{updaterStore.updateError || !updaterStore.downloadUrl ? "Baixar pacote manualmente" : "Abrir no GitHub"} <ExternalLink class="w-4 h-4" /></button>
 
 					<button
 						class="text-xs font-bold text-fg/40 hover:text-fg transition-colors cursor-pointer"

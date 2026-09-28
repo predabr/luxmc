@@ -8,6 +8,15 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class Installers(unittest.TestCase):
+    def test_website_only_advertises_published_installers(self):
+        page = (ROOT / 'website/index.html').read_text()
+        self.assertNotIn('Flatpak', page)
+        self.assertNotIn('Versão Portátil .zip', page)
+        self.assertNotIn('AUR (luxmc-bin)', page)
+        self.assertNotIn('/releases/download/v2.0.1/', page)
+        self.assertIn('sudo apt-get install -y /tmp/luxmc.deb', page)
+        self.assertIn('sudo dnf install -y /tmp/luxmc.rpm', page)
+
     def run_installer(self, distro, fail_native=False, fail_download=False):
         with tempfile.TemporaryDirectory(prefix='luxmc-installer-test-') as tmp:
             base = Path(tmp)
@@ -29,7 +38,7 @@ case "$name" in
     while [ "$#" -gt 0 ]; do
       if [ "$1" = -o ]; then
         shift
-        printf payload > "$1"
+        printf '\177ELFpayload' > "$1"
         [ "$FAIL_DOWNLOAD" = 0 ]
         exit
       fi
@@ -66,7 +75,7 @@ exit 0
             else:
                 self.assertEqual(result.returncode, 0, result.stderr)
                 if fail_native or distro == 'generic':
-                    self.assertEqual(dest.read_text(), 'payload')
+                    self.assertEqual(dest.read_bytes(), b'\x7fELFpayload')
                     self.assertIn('StartupWMClass=luxmc', (home / '.local/share/applications/luxmc.desktop').read_text())
                 else:
                     self.assertNotIn('.AppImage', calls)

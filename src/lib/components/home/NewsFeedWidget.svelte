@@ -38,6 +38,14 @@
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
+			id: "luxmc-v2-0-2",
+			title: "Luxmc v2.0.2: Auto-Updater Atômico, Correções de UI & P2P",
+			body: "Atualizador atômico para Linux, cutscene fluida, novos cards nítidos e wallpapers com reprodução instantânea.",
+			publishedAt: "Hoje",
+			tag: "v2.0.2",
+			url: "/news"
+		},
+		{
 			id: "luxmc-v2-0-1",
 			title: "Luxmc v2.0.1: Fast Launch, GameMode & Salas P2P",
 			body: "Inicialização ultrarrápida (<2s), GameMode, MangoHud, códigos de sala P2P com QR code e Reparar Tudo.",

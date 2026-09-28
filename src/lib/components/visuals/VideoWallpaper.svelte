@@ -2,7 +2,6 @@
     import { onMount } from "svelte";
     import { settings } from "$lib/stores/settings.svelte";
     import { appState } from "$lib/stores/app.svelte";
-    import { toast } from "$lib/stores/toasts.svelte";
     import { loadWallpaperPoster, resolveWallpaperVideoUrl } from "$lib/utils/wallpaperSource";
 
     let { src, preview = false }: { src: string; preview?: boolean } = $props();
@@ -125,7 +124,6 @@
             if (disposed) return;
             failed = true;
             cover();
-            if (!preview) toast("Não foi possível reproduzir o wallpaper. Confira o arquivo de vídeo.", "warning");
         };
 
         el.addEventListener("timeupdate", onTimeUpdate);

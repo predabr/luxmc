@@ -231,11 +231,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v2.0.1",
+					state: "Luxmc v2.0.2",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v2.0.1",
+					smallText: "Luxmc v2.0.2",
 					startTime: launcherStartTime,
 					inGame: false
 				}).catch(() => {});
@@ -324,11 +324,11 @@
 			if (settings.value.discordRpc !== false) {
 				discordSetActivity({
 					details: "No Menu Principal",
-					state: "Luxmc v2.0.1",
+					state: "Luxmc v2.0.2",
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v2.0.1",
+					smallText: "Luxmc v2.0.2",
 					startTime: launcherStartTime,
 					inGame: false
 				}).catch(() => {});
@@ -426,7 +426,7 @@
 			if (!appState.isGameRunning) {
 				const currentPath = page.url.pathname;
 				let details = "No Menu Principal";
-				let state = "Luxmc v2.0.1";
+				let state = "Luxmc v2.0.2";
 				if (currentPath === "/") {
 					details = "No Menu Principal";
 					state = "Pronto para Jogar";
@@ -455,7 +455,7 @@
 					largeText: "Luxmc Launcher",
 					largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 					smallImage: "grass",
-					smallText: "Luxmc v2.0.1",
+					smallText: "Luxmc v2.0.2",
 					startTime: launcherStartTime,
 					inGame: false,
 					buttons: [
@@ -535,7 +535,7 @@
 		rpcTimeout = setTimeout(() => {
 			if (appState.isGameRunning) return;
 			let details = "No Menu Principal";
-			let state = "Luxmc v2.0.1";
+			let state = "Luxmc v2.0.2";
 
 			if (currentPath === "/") {
 				details = "No Menu Principal";
@@ -572,7 +572,7 @@
 				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
-				smallText: "Luxmc v2.0.1",
+				smallText: "Luxmc v2.0.2",
 				startTime: launcherStartTime,
 				inGame: false,
 				buttons: [

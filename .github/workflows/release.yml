@@ -74,18 +74,18 @@ jobs:
                   "| Plataforma | Arquivo | Formato |",
                   "| --- | --- | --- |",
                   `| 🪟 Windows | \`Luxmc_${v}_x64-setup.exe\` | Instalador NSIS |`,
-                  "| 🐧 Linux (Arch Linux) | `yay -S luxmc-launcher` / `pacman -U` | AUR / Pacman |",
+                  `| 🐧 Linux (Arch Linux) | \`luxmc-${v}-1-x86_64.pkg.tar.zst\` | Pacman |`,
                   `| 🐧 Universal Linux | \`Luxmc_${v}_amd64.AppImage\` | AppImage |`,
                   `| 🐧 Ubuntu / Debian | \`Luxmc_${v}_amd64.deb\` | Pacote DEB |`,
                   `| 🐧 Fedora / openSUSE | \`Luxmc-${v}-1.x86_64.rpm\` | Pacote RPM |`,
                   `| 🍎 macOS (Universal) | \`Luxmc_${v}_universal.dmg\` | DMG |`,
                   "",
                   "### Como instalar",
-                  "- **Arch Linux**: `yay -S luxmc-launcher` ou `curl -fSL <url>.pkg.tar.zst -o /tmp/luxmc.pkg.tar.zst && sudo pacman -U /tmp/luxmc.pkg.tar.zst && rm -f /tmp/luxmc.pkg.tar.zst`",
+                  `- **Arch Linux**: \`curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst && sudo pacman -U /tmp/luxmc.pkg.tar.zst && rm -f /tmp/luxmc.pkg.tar.zst\``,
                   "- **Linux Universal**: `curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash`",
                   `- **Windows**: Baixe o \`Luxmc_${v}_x64-setup.exe\` e execute o instalador`,
                   `- **Ubuntu/Debian**: \`sudo dpkg -i Luxmc_${v}_amd64.deb\``,
-                  `- **Fedora/RHEL**: \`sudo rpm -i Luxmc-${v}-1.x86_64.rpm\``,
+                  `- **Fedora/RHEL**: \`sudo dnf install ./Luxmc-${v}-1.x86_64.rpm\``,
                   "- **macOS**: Abra o `.dmg` e arraste para a pasta `/Applications`",
                 ].join("\n"),
                 draft: false,
@@ -254,3 +254,32 @@ jobs:
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target universal-apple-darwin --bundles dmg
+
+  verify-release-assets:
+    needs: [create-release, build-linux, build-windows, build-macos]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download and verify every published installer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_TAG#v}"
+          mkdir artifacts
+          cd artifacts
+          gh release download "$RELEASE_TAG" --repo "$REPOSITORY"
+          expected=(
+            "luxmc-${version}-1-x86_64.pkg.tar.zst"
+            "Luxmc-${version}-1.x86_64.rpm"
+            "Luxmc_${version}_amd64.AppImage"
+            "Luxmc_${version}_amd64.deb"
+            "Luxmc_${version}_universal.dmg"
+            "Luxmc_${version}_x64-setup.exe"
+          )
+          for artifact in "${expected[@]}"; do
+            test -s "$artifact"
+          done
+          sha256sum "${expected[@]}" > SHA256SUMS
+          gh release upload "$RELEASE_TAG" SHA256SUMS --repo "$REPOSITORY" --clobber

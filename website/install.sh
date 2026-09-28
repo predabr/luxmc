@@ -112,7 +112,7 @@ if [ "$DISTRO" = "arch" ] && command -v pacman &>/dev/null && command -v sudo &>
     TMP_PKG="$TMP_DIR/luxmc.pkg.tar.zst"
     ARCH_PKG_URL="$(release_asset 'x86_64\.pkg\.tar\.zst$')"
     ARCH_PKG_URL="${ARCH_PKG_URL:-https://github.com/$REPO/releases/download/${LATEST_TAG}/luxmc-${LATEST_TAG#v}-1-x86_64.pkg.tar.zst}"
-    ARCH_FALLBACK="https://github.com/$REPO/releases/latest/download/luxmc-${LATEST_TAG#v}-1-x86_64.pkg.tar.zst"
+    ARCH_FALLBACK="https://luxmc-r92.pages.dev/download/arch"
     if curl -L --progress-bar --fail "$ARCH_PKG_URL" -o "$TMP_PKG" 2>/dev/null || curl -L --progress-bar --fail "$ARCH_FALLBACK" -o "$TMP_PKG" 2>/dev/null; then
         echo -e "${CYAN}[*] Instalando pacote nativo via pacman...${NC}"
         if sudo pacman -U --needed --noconfirm "$TMP_PKG"; then
@@ -138,7 +138,7 @@ if [ "$DISTRO" = "debian" ] && command -v dpkg &>/dev/null && command -v sudo &>
     TMP_DEB="$TMP_DIR/luxmc.deb"
     DEB_URL="$(release_asset 'amd64\.deb$')"
     DEB_URL="${DEB_URL:-https://github.com/$REPO/releases/download/${LATEST_TAG}/Luxmc_${LATEST_TAG#v}_amd64.deb}"
-    DEB_FALLBACK="https://github.com/$REPO/releases/latest/download/Luxmc_${LATEST_TAG#v}_amd64.deb"
+    DEB_FALLBACK="https://luxmc-r92.pages.dev/download/deb"
     if curl -L --progress-bar --fail "$DEB_URL" -o "$TMP_DEB" 2>/dev/null || curl -L --progress-bar --fail "$DEB_FALLBACK" -o "$TMP_DEB" 2>/dev/null; then
         if sudo apt-get install -y "$TMP_DEB"; then
             finish_native
@@ -157,7 +157,7 @@ if [ "$DISTRO" = "fedora" ] && command -v dnf &>/dev/null && command -v sudo &>/
     RPM_URL="https://github.com/$REPO/releases/download/${LATEST_TAG}/Luxmc-${LATEST_TAG#v}-1.x86_64.rpm"
     RPM_ASSET="$(release_asset 'x86_64\.rpm$')"
     RPM_URL="${RPM_ASSET:-$RPM_URL}"
-    if curl -fL --progress-bar "$RPM_URL" -o "$TMP_RPM"; then
+    if curl -fL --progress-bar "$RPM_URL" -o "$TMP_RPM" 2>/dev/null || curl -fL --progress-bar "https://luxmc-r92.pages.dev/download/rpm" -o "$TMP_RPM" 2>/dev/null; then
         if sudo dnf install -y "$TMP_RPM"; then
             finish_native
             echo "Luxmc instalado nativamente via RPM."
@@ -184,7 +184,7 @@ echo -e "${CYAN}[*] Buscando a versão mais recente do Luxmc no GitHub...${NC}"
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/${LATEST_TAG}/Luxmc_${LATEST_TAG#v}_amd64.AppImage"
 APPIMAGE_ASSET="$(release_asset '(amd64|x86_64)\.AppImage$')"
 DOWNLOAD_URL="${APPIMAGE_ASSET:-$DOWNLOAD_URL}"
-FALLBACK_URL="https://github.com/$REPO/releases/latest/download/Luxmc_amd64.AppImage"
+FALLBACK_URL="https://luxmc-r92.pages.dev/download/linux"
 
 echo -e "${CYAN}[*] Baixando Luxmc ${LATEST_TAG}...${NC}"
 if ! curl -L --progress-bar --fail "$DOWNLOAD_URL" -o "$TMP_DIR/luxmc.AppImage"; then
@@ -193,6 +193,12 @@ if ! curl -L --progress-bar --fail "$DOWNLOAD_URL" -o "$TMP_DIR/luxmc.AppImage";
         echo -e "${RED}[!] Falha ao baixar o AppImage. Verifique sua conexão com a internet.${NC}"
         exit 1
     }
+fi
+
+APPIMAGE_MAGIC="$(od -An -tx1 -N4 "$TMP_DIR/luxmc.AppImage" | tr -d '[:space:]')"
+if [ "$APPIMAGE_MAGIC" != "7f454c46" ]; then
+    echo -e "${RED}[!] O download recebido não é um AppImage Linux válido.${NC}"
+    exit 1
 fi
 
 install -m755 "$TMP_DIR/luxmc.AppImage" "$APPIMAGE_DEST"

@@ -75,6 +75,10 @@ test("downloads select installers and reject off-repository redirects", () => {
   const asset = name => ({ name, browser_download_url: `https://github.com/predabr/luxmc/releases/download/v1/${name}` });
   assert.equal(assetFor([asset("arm64.AppImage"), asset("x86_64.AppImage"), asset("app.exe.sig")], "linux").name, "x86_64.AppImage");
   assert.equal(assetFor([asset("app.exe.sig")], "windows"), null);
+  assert.equal(assetFor([asset("Luxmc.deb")], "debian").name, "Luxmc.deb");
+  assert.equal(assetFor([asset("Luxmc.rpm")], "fedora").name, "Luxmc.rpm");
+  assert.equal(assetFor([asset("luxmc.pkg.tar.zst")], "arch").name, "luxmc.pkg.tar.zst");
+  assert.equal(assetFor([asset("Luxmc.dmg")], "macos").name, "Luxmc.dmg");
 });
 
 

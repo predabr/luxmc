@@ -599,11 +599,11 @@
             <p class="step-desc" data-i18n="quickstart.step1.desc">Selecione o binário para o seu sistema operacional ou instale via terminal no Linux:</p>
             <div class="install-tabs">
               <button type="button" class="install-tab active" data-cmd="curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Universal (curl)</button>
-              <button type="button" class="install-tab" data-cmd="curl -sSL https://github.com/predabr/luxmc/releases/download/v2.0.1/luxmc-2.0.1-1-x86_64.pkg.tar.zst -o /tmp/luxmc.pkg.tar.zst &amp;&amp; sudo pacman -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (pacman)</button>
-              <button type="button" class="install-tab" data-cmd="curl -sSL https://github.com/predabr/luxmc/releases/download/v2.0.1/luxmc-2.0.1-1-x86_64.pkg.tar.zst -o /tmp/luxmc.pkg.tar.zst &amp;&amp; yay -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (yay)</button>
-              <button type="button" class="install-tab" data-cmd="curl -sSL https://github.com/predabr/luxmc/releases/download/v2.0.1/luxmc-2.0.1-1-x86_64.pkg.tar.zst -o /tmp/luxmc.pkg.tar.zst &amp;&amp; paru -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (paru)</button>
-              <button type="button" class="install-tab" data-cmd="curl -fsSL https://luxmc-r92.pages.dev/download/deb -o /tmp/luxmc.deb &amp;&amp; (sudo dpkg -i /tmp/luxmc.deb || sudo apt-get install -f -y) &amp;&amp; rm -f /tmp/luxmc.deb" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Ubuntu/Debian</button>
-              <button type="button" class="install-tab" data-cmd="sudo dnf install -y https://luxmc-r92.pages.dev/download/rpm" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Fedora/RHEL</button>
+              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; sudo pacman -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (pacman)</button>
+              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; yay -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (yay)</button>
+              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; paru -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (paru)</button>
+              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/deb -o /tmp/luxmc.deb &amp;&amp; sudo apt-get install -y /tmp/luxmc.deb &amp;&amp; rm -f /tmp/luxmc.deb" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Ubuntu/Debian</button>
+              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/rpm -o /tmp/luxmc.rpm &amp;&amp; sudo dnf install -y /tmp/luxmc.rpm &amp;&amp; rm -f /tmp/luxmc.rpm" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Fedora/RHEL</button>
               <button type="button" class="install-tab uninstall-tab" data-cmd="curl -fsSL https://luxmc-r92.pages.dev/uninstall.sh | bash" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))" data-i18n="quickstart.tabUninstall">Desinstalar</button>
             </div>
             <div class="terminal-box">
@@ -788,8 +788,7 @@
             <div class="alt-tags">
               <a id="downloadDebLink" href="/download/deb" class="alt-tag" data-i18n="download.alt.deb">Pacote .deb</a>
               <a id="downloadRpmLink" href="/download/rpm" class="alt-tag" data-i18n="download.alt.rpm">Pacote .rpm</a>
-              <span class="alt-tag" title="yay -S luxmc-bin">AUR (luxmc-bin)</span>
-              <span class="alt-tag">Flatpak</span>
+              <a href="/download/arch" class="alt-tag" data-i18n="download.alt.arch">Arch (.pkg.tar.zst)</a>
             </div>
           </div>
         </div>
@@ -822,7 +821,6 @@
           <div class="alt-downloads">
             <span class="alt-label" data-i18n="download.card.windows.alt">Outros formatos:</span>
             <div class="alt-tags">
-              <a href="https://github.com/predabr/luxmc/releases/latest" target="_blank" rel="noopener noreferrer" class="alt-tag" data-i18n="download.alt.zip">Versão Portátil .zip</a>
               <a href="https://github.com/predabr/luxmc/releases" target="_blank" rel="noopener noreferrer" class="alt-tag" data-i18n="download.alt.all">Todas as Releases ↗</a>
             </div>
           </div>
@@ -974,7 +972,7 @@
           <h4 class="footer-heading" data-i18n="footer.col2.title">Plataformas</h4>
           <ul class="footer-links">
             <li><a href="#download" data-i18n="footer.col2.link1">Linux (.AppImage)</a></li>
-            <li><a href="#download" data-i18n="footer.col2.link2">Linux (.deb / .rpm / Flatpak)</a></li>
+            <li><a href="#download" data-i18n="footer.col2.link2">Linux (.deb / .rpm / Arch)</a></li>
             <li><a href="#download" data-i18n="footer.col2.link3">Windows (Setup .exe)</a></li>
             <li><a href="https://github.com/predabr/luxmc/releases" target="_blank" rel="noopener noreferrer" data-i18n="footer.col2.link4">Todas as Releases ↗</a></li>
           </ul>

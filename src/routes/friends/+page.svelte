@@ -10,29 +10,48 @@
 		Radio,
 		Check,
 		X,
-		Search,
-		Copy,
-		Trash2,
-		Gamepad2, Star
-	} from "lucide-svelte";
+			Search,
+			Copy,
+			Gamepad2,
+			CloudOff,
+			ShieldCheck,
+			Sparkles,
+			Wifi
+		} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { account } from "$lib/stores/account.svelte";
 
 	import MinecraftAvatar from "$lib/components/ui/MinecraftAvatar.svelte";
 	import { friendsState } from "$lib/stores/friends.svelte";
 	import type { Friend, SocialIdentity } from "$lib/api/social";
+	import { p2pScanLanWorlds } from "$lib/api/p2p";
 	import { joinWorld } from "$lib/utils/directJoin";
 
-	import { profiles } from "$lib/stores/profiles.svelte";
-
 	const friends = $derived(friendsState.list);
-    let localContacts = $state<string[]>([]);
-    onMount(() => {
-        try {
-            const saved: unknown = JSON.parse(localStorage.getItem("luxmc_custom_friends_v4") || "[]");
-            if (Array.isArray(saved)) localContacts = saved.flatMap((item: unknown) => item && typeof item === "object" && "username" in item && typeof item.username === "string" ? [item.username] : []);
-        } catch { localContacts = []; }
-    });
+	let localContacts = $state<string[]>([]);
+	let lanWorldCount = $state(0);
+	onMount(() => {
+		try {
+			const saved: unknown = JSON.parse(localStorage.getItem("luxmc_custom_friends_v4") || "[]");
+			if (Array.isArray(saved)) localContacts = saved.flatMap((item: unknown) => item && typeof item === "object" && "username" in item && typeof item.username === "string" ? [item.username] : []);
+		} catch { localContacts = []; }
+		let disposed = false;
+		let scanTimer: ReturnType<typeof setTimeout>;
+		const scanLan = async () => {
+			try {
+				const worlds = await p2pScanLanWorlds();
+				if (!disposed) lanWorldCount = worlds.length;
+			} catch {
+				if (!disposed) lanWorldCount = 0;
+			}
+			if (!disposed) scanTimer = setTimeout(scanLan, 10000);
+		};
+		void scanLan();
+		return () => {
+			disposed = true;
+			clearTimeout(scanTimer);
+		};
+	});
 	let activeTab = $state<"all" | "online" | "pending" | "add" | "p2p">("all");
 	let searchQuery = $state("");
 	let newFriendUsername = $state("");
@@ -44,6 +63,17 @@
 	let suggestions = $state<SocialIdentity[]>([]);
 	let selectedFriend = $state<SocialIdentity | null>(null);
 	let searchError = $state("");
+	let offlineRedirected = $state(false);
+	const cloudOffline = $derived(Boolean(friendsState.error));
+
+	$effect(() => {
+		if (cloudOffline && !offlineRedirected) {
+			offlineRedirected = true;
+			activeTab = "p2p";
+		} else if (!cloudOffline) {
+			offlineRedirected = false;
+		}
+	});
 
 
 	$effect(() => {
@@ -118,48 +148,61 @@
 </script>
 
 <div class="h-full flex flex-col gap-6 select-none overflow-y-auto custom-scrollbar pb-10 max-w-7xl mx-auto w-full">
-    <header class="relative flex flex-wrap items-end justify-between gap-5 py-4">
-        <div><p class="page-eyebrow mb-3">Conexões que viram aventuras</p><h1 class="page-title">Melhor com amigos.</h1><p class="page-description">Encontre sua turma, compartilhe um mundo e entre no jogo.</p></div>
-        {#if activeTab !== "p2p"}<div class="flex gap-2"><button type="button" class={button({ variant: 'secondary' })} onclick={() => activeTab = 'p2p'}><Radio class="h-4 w-4" />Hospedar mundo</button><button type="button" class={button({ variant: 'primary' })} onclick={() => activeTab = 'add'}><UserPlus class="h-4 w-4" />Adicionar amigo</button></div>{/if}
-    </header>
-
-    {#if activeTab !== "p2p"}
-	<div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-bg-elevated/80 p-4">
-		<div class="flex items-center gap-3">
-			<p class="text-xs text-fg-muted">{friendsState.me ? `Seu código: ` : "Conecte seu perfil para buscar jogadores e receber convites."}</p>
-			{#if friendsState.me}
-				<span class="font-mono text-xs font-bold text-fg bg-bg-subtle px-2 py-0.5 rounded-lg border border-fg/10">{friendsState.me.username}#{friendsState.me.id.slice(0, 8)}</span>
-				<button
-					type="button"
-					title="Copiar código para compartilhar com amigos"
-					class="px-2.5 py-1 rounded-lg bg-fg/10 hover:bg-fg/20 text-fg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
-					onclick={() => {
-						navigator.clipboard.writeText(`${friendsState.me?.username}#${friendsState.me?.id.slice(0, 8)}`);
-						toast("Código de amigo copiado!", "success");
-					}}
-				>
-					<Copy class="w-3 h-3" />
-					<span>Copiar</span>
-				</button>
-			{/if}
+	<header class="surface-glass relative overflow-hidden border-brand-500/20 p-6 sm:p-8">
+		<div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand-500/15 via-transparent to-success/10"></div>
+		<div class="friends-grid pointer-events-none absolute inset-0 opacity-30"></div>
+		<div class="relative flex flex-wrap items-end justify-between gap-6">
+			<div>
+				<p class="page-eyebrow mb-3">Conexões que viram aventuras</p>
+				<h1 class="page-title">Melhor com amigos.</h1>
+				<p class="page-description max-w-2xl">Salas diretas, descoberta LAN e sua turma em um só lugar.</p>
+				<div class="mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest {cloudOffline ? 'border-success/30 bg-success/10 text-success' : 'border-brand-500/30 bg-brand-500/10 text-brand-300'}">
+					{#if cloudOffline}<CloudOff class="h-3.5 w-3.5" /> Modo Local / P2P Ativo{:else}<ShieldCheck class="h-3.5 w-3.5" /> Rede social conectada{/if}
+				</div>
+			</div>
+			<div class="flex flex-wrap gap-2">
+				<button type="button" class={button({ variant: 'secondary' })} onclick={() => activeTab = 'p2p'}><Radio class="h-4 w-4" />Sala P2P</button>
+				<button type="button" class={button({ variant: 'primary' })} onclick={() => activeTab = 'add'} disabled={cloudOffline}><UserPlus class="h-4 w-4" />Adicionar amigo</button>
+			</div>
 		</div>
-		<button type="button" class="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-brand-foreground hover:bg-brand-400 disabled:opacity-50 cursor-pointer" onclick={() => friendsState.connect()} disabled={friendsState.busy || !account.value}>{friendsState.busy ? "Conectando..." : friendsState.me ? "Reconectar" : "Conectar rede social"}</button>
-		{#if friendsState.error}<p class="w-full text-xs text-warning" role="status">{friendsState.error}</p>{/if}
-	</div>
-    {#if localContacts.length}
-        <details class="rounded-xl border border-border bg-bg-elevated p-4 text-xs text-fg-muted">
-            <summary class="cursor-pointer">Contatos salvos neste dispositivo ({localContacts.length})</summary>
-            <p class="my-3">Seus contatos anteriores foram preservados. Procure cada jogador para enviar um convite na rede social.</p>
-            <div class="flex flex-wrap gap-2">{#each localContacts as name}<button type="button" class="rounded-xl border border-border px-3 py-2 hover:bg-brand-500/10" onclick={() => { newFriendUsername = name; activeTab = "add"; }}>{name}</button>{/each}</div>
-        </details>
-    {/if}
-    <div class="grid grid-cols-3 gap-3">
-        {#each [{label:'Na sua turma',value:totalFriends,icon:Users}, {label:'Online agora',value:onlineCount,icon:Gamepad2}, {label:'Solicitações',value:pendingCount,icon:UserPlus}] as stat}
-            <div class="surface-glass flex items-center gap-3 p-4"><stat.icon class="h-4 w-4 text-brand-400" /><div><p class="text-xl font-semibold text-fg">{stat.value}</p><p class="mt-1 text-[10px] text-fg-muted">{stat.label}</p></div></div>
-        {/each}
-    </div>
+	</header>
 
-    {/if}
+		{#if activeTab !== "p2p"}
+			<div class="surface-glass flex flex-wrap items-center justify-between gap-3 border-brand-500/15 p-4">
+				<div class="flex items-center gap-3">
+					<p class="text-xs text-fg-muted">{friendsState.me ? `Seu código: ` : "Conecte seu perfil para buscar jogadores e receber convites."}</p>
+					{#if friendsState.me}
+						<span class="font-mono text-xs font-bold text-fg bg-bg-subtle px-2 py-0.5 rounded-lg border border-fg/10">{friendsState.me.username}#{friendsState.me.id.slice(0, 8)}</span>
+						<button
+							type="button"
+							title="Copiar código para compartilhar com amigos"
+							class="px-2.5 py-1 rounded-lg bg-fg/10 hover:bg-fg/20 text-fg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+							onclick={() => {
+								navigator.clipboard.writeText(`${friendsState.me?.username}#${friendsState.me?.id.slice(0, 8)}`);
+								toast("Código de amigo copiado!", "success");
+							}}
+						>
+							<Copy class="w-3 h-3" />
+							<span>Copiar</span>
+						</button>
+					{/if}
+				</div>
+				<button type="button" class="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-brand-foreground hover:bg-brand-400 disabled:opacity-50 cursor-pointer" onclick={() => friendsState.connect()} disabled={friendsState.busy || !account.value}>{friendsState.busy ? "Conectando..." : friendsState.me ? "Reconectar" : "Conectar rede social"}</button>
+				{#if cloudOffline}<div class="flex w-full items-center gap-2 rounded-xl border border-success/20 bg-success/10 px-3 py-2 text-xs text-success" role="status"><Wifi class="h-4 w-4" /><span>O serviço de nuvem está offline. Suas salas P2P e mundos LAN continuam disponíveis.</span><button type="button" class="ml-auto font-bold underline" onclick={() => activeTab = 'p2p'}>Abrir P2P</button></div>{/if}
+			</div>
+			{#if localContacts.length}
+				<details class="rounded-xl border border-border bg-bg-elevated p-4 text-xs text-fg-muted">
+					<summary class="cursor-pointer">Contatos salvos neste dispositivo ({localContacts.length})</summary>
+					<p class="my-3">Seus contatos anteriores foram preservados. Procure cada jogador para enviar um convite na rede social.</p>
+					<div class="flex flex-wrap gap-2">{#each localContacts as name}<button type="button" class="rounded-xl border border-border px-3 py-2 hover:bg-brand-500/10" onclick={() => { newFriendUsername = name; activeTab = "add"; }}>{name}</button>{/each}</div>
+				</details>
+			{/if}
+		{/if}
+	<div class="grid gap-3 sm:grid-cols-3">
+		{#each [{label:'Na sua turma',value:totalFriends,icon:Users,tone:'text-brand-400 bg-brand-500/10 border-brand-500/20'}, {label:'Online agora',value:onlineCount,icon:Gamepad2,tone:'text-success bg-success/10 border-success/20'}, {label:'Mundos LAN detectados',value:lanWorldCount,icon:Wifi,tone:'text-info bg-info/10 border-info/20'}] as stat}
+			<div class="surface-glass group flex items-center gap-4 p-4 hover:border-brand-500/25"><div class="grid h-11 w-11 place-items-center rounded-2xl border {stat.tone}"><stat.icon class="h-5 w-5" /></div><div><p class="text-2xl font-black text-fg">{stat.value}</p><p class="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-fg-muted">{stat.label}</p></div></div>
+		{/each}
+	</div>
 	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
 		<div class="flex items-center gap-2 p-1.5 rounded-2xl bg-bg-elevated border border-fg/10 w-fit">
 			<button
@@ -317,17 +360,22 @@
 	{:else if activeTab === "p2p"}
         <MeshPanel />
 
-	{:else}
-		{#if filteredFriends.length === 0}
-			<div class="p-12 text-center rounded-3xl bg-bg-elevated border border-fg/10 space-y-3">
-				<div class="w-12 h-12 rounded-2xl bg-fg/5 border border-fg/10 flex items-center justify-center mx-auto text-fg/30">
-					<Users class="w-6 h-6" />
+		{:else}
+			{#if filteredFriends.length === 0}
+				<div class="surface-glass relative overflow-hidden border-brand-500/15 p-10 text-center">
+					<div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-500/10 via-transparent to-success/10"></div>
+					<div class="relative space-y-4">
+						<div class="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-brand-500/25 bg-brand-500/10 text-brand-300 shadow-glow"><Sparkles class="h-8 w-8" /></div>
+						<h3 class="text-lg font-black text-fg">Sua próxima aventura começa aqui</h3>
+						<p class="text-sm text-fg-muted max-w-md mx-auto">
+						{searchQuery ? `Nenhum amigo corresponde a "${searchQuery}".` : "Você ainda não adicionou amigos nesta categoria."}
+						</p>
+						<div class="flex flex-wrap justify-center gap-2 pt-2">
+							<button type="button" class={button({ variant: 'primary' })} onclick={() => activeTab = 'p2p'}><Radio class="h-4 w-4" />Hospedar um mundo</button>
+							<button type="button" class={button({ variant: 'secondary' })} onclick={() => activeTab = 'add'} disabled={cloudOffline}><UserPlus class="h-4 w-4" />Adicionar amigo</button>
+						</div>
+					</div>
 				</div>
-				<h3 class="text-sm font-bold text-fg">Nenhum amigo encontrado</h3>
-				<p class="text-xs text-fg/40 max-w-sm mx-auto">
-					{searchQuery ? `Nenhum amigo corresponde a "${searchQuery}".` : "Você ainda não adicionou amigos nesta categoria."}
-				</p>
-			</div>
 		{:else}
 			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                  {#each filteredFriends as friend (friend.id)}
@@ -335,5 +383,14 @@
                 {/each}
 			</div>
 		{/if}
-	{/if}
+		{/if}
 </div>
+
+<style>
+	.friends-grid {
+		background-image:
+			linear-gradient(rgb(var(--fg) / 0.04) 1px, transparent 1px),
+			linear-gradient(90deg, rgb(var(--fg) / 0.04) 1px, transparent 1px);
+		background-size: 32px 32px;
+	}
+</style>

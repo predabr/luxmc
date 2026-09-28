@@ -40,40 +40,34 @@
 </script>
 
 <div
-	class="intro fixed inset-0 z-[99999] overflow-hidden bg-bg text-fg transition-opacity duration-1000 ease-out select-none"
+	class="intro fixed inset-0 z-[99999] overflow-hidden bg-bg text-fg transition-opacity duration-700 ease-out select-none"
 	class:opacity-0={leaving}
 	class:pointer-events-none={leaving}
 	role="status"
 	aria-label="Abrindo Luxmc"
 >
-	<!-- Fundo Fluido Animado (sem imagem estática genérica) -->
-	<div class="absolute inset-0 overflow-hidden pointer-events-none">
-		<div class="fluid-orb-1 absolute -top-[25%] -left-[15%] w-[65vw] h-[65vw] rounded-full bg-[radial-gradient(circle,rgba(34,197,94,0.16)_0%,transparent_70%)] blur-[90px]"></div>
-		<div class="fluid-orb-2 absolute -bottom-[25%] -right-[15%] w-[70vw] h-[70vw] rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.14)_0%,transparent_70%)] blur-[100px]"></div>
-		<div class="fluid-orb-3 absolute top-[25%] left-[25%] w-[50vw] h-[50vw] rounded-full bg-[radial-gradient(circle,rgba(16,185,129,0.1)_0%,transparent_70%)] blur-[80px]"></div>
-		<div class="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-bg/80"></div>
+	<div class="cutscene-background absolute inset-0 pointer-events-none">
+		<div class="absolute inset-0 bg-gradient-to-br from-brand-500/10 via-bg to-success/5"></div>
+		<div class="cutscene-grid absolute inset-0 opacity-40"></div>
+		<div class="absolute inset-0 bg-gradient-to-t from-bg via-bg/35 to-transparent"></div>
 	</div>
 
-	<!-- Topbar da cutscene -->
 	<div class="absolute left-8 right-8 top-8 flex items-center justify-between text-[10px] uppercase tracking-[.25em] text-fg-muted z-20">
 		<span class="font-bold">Luxmc Launcher</span>
 		<span class="font-mono text-fg/40">Java Edition</span>
 	</div>
 
-	<!-- Centro: Logo e Textos com fade-out gradual e suave -->
 	<div
-		class="absolute inset-0 flex flex-col items-center justify-center px-8 z-10 transition-all duration-1000 ease-out"
+		class="absolute inset-0 flex flex-col items-center justify-center px-8 z-10 transition-opacity duration-700 ease-out"
 		class:opacity-0={leaving}
-		class:scale-95={leaving}
-		class:blur-sm={leaving}
 	>
 		<div class="portal mb-8 relative h-28 w-28 sm:h-36 sm:w-36 flex items-center justify-center">
-			<div class="portal-frame absolute inset-0 rounded-[2rem] border border-brand-300/30 bg-brand-500/10 backdrop-blur-xl shadow-[0_0_50px_rgba(var(--brand-500),0.2)]"></div>
-			<div class="absolute inset-3 rounded-2xl border border-white/10 bg-bg/50 backdrop-blur-md"></div>
+			<div class="portal-frame absolute inset-0 rounded-[2rem] border border-brand-300/30 bg-bg-elevated/80 shadow-glow"></div>
+			<div class="absolute inset-3 rounded-2xl border border-fg/10 bg-bg"></div>
 			<img
 				src="/logo.png"
 				alt="Luxmc"
-				class="emblem relative h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-[0_0_25px_rgba(255,255,255,0.25)]"
+				class="emblem relative h-16 w-16 sm:h-20 sm:w-20 object-contain"
 			/>
 		</div>
 
@@ -85,12 +79,11 @@
 			</p>
 		</div>
 
-		<div class="mt-8 h-1 w-44 rounded-full overflow-hidden bg-white/5 border border-white/10">
+		<div class="mt-8 h-1 w-44 rounded-full overflow-hidden bg-fg/5 border border-fg/10">
 			<div class="light h-full w-full origin-left bg-gradient-to-r from-brand-500 via-brand-300 to-emerald-400"></div>
 		</div>
 	</div>
 
-	<!-- Rodapé com botão de pular -->
 	<div class="absolute bottom-6 inset-x-8 flex items-center justify-between text-[10px] uppercase tracking-[.2em] text-fg-muted z-20">
 		<span>Feito para jogar do seu jeito</span>
 		<button
@@ -104,26 +97,16 @@
 </div>
 
 <style>
-	.fluid-orb-1 {
-		animation: fluid-float-1 14s ease-in-out infinite alternate;
+	.cutscene-background {
+		background-image:
+			radial-gradient(circle at 16% 18%, rgb(var(--brand-500) / 0.16), transparent 34%),
+			radial-gradient(circle at 82% 74%, rgb(var(--success) / 0.1), transparent 32%);
 	}
-	.fluid-orb-2 {
-		animation: fluid-float-2 18s ease-in-out infinite alternate;
-	}
-	.fluid-orb-3 {
-		animation: fluid-float-3 12s ease-in-out infinite alternate;
-	}
-	@keyframes fluid-float-1 {
-		from { transform: translate(0, 0) scale(1); }
-		to { transform: translate(6vw, 4vh) scale(1.15); }
-	}
-	@keyframes fluid-float-2 {
-		from { transform: translate(0, 0) scale(1); }
-		to { transform: translate(-5vw, -6vh) scale(1.2); }
-	}
-	@keyframes fluid-float-3 {
-		from { transform: translate(0, 0) scale(1); }
-		to { transform: translate(4vw, -4vh) scale(0.9); }
+	.cutscene-grid {
+		background-image:
+			linear-gradient(rgb(var(--fg) / 0.035) 1px, transparent 1px),
+			linear-gradient(90deg, rgb(var(--fg) / 0.035) 1px, transparent 1px);
+		background-size: 42px 42px;
 	}
 
 	.portal {
@@ -153,7 +136,6 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.fluid-orb-1, .fluid-orb-2, .fluid-orb-3,
 		.portal, .portal-frame, .wordmark, .light {
 			animation: none;
 		}

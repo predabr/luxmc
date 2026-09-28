@@ -1,14 +1,8 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { listen } from "@tauri-apps/api/event";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { appPerformUpdate, appUpdateEnvironment, type UpdateEnvironment } from "$lib/api/updater";
 import { toast } from "$lib/stores/toasts.svelte";
-
-interface GitHubAsset {
-	name: string;
-	browser_download_url: string;
-	size: number;
-}
+import { resolveUpdateAssetUrl, type UpdateAsset } from "$lib/utils/updaterAssets";
 
 interface UpdateProgressPayload {
 	percent: number;
@@ -50,33 +44,6 @@ function isNewerVersion(current: string, latest: string): boolean {
 }
 
 let lastChecked = $state<string | null>(null);
-
-function resolveAssetUrl(assets: GitHubAsset[], installation: UpdateEnvironment["mode"]): string {
-	if (!assets || assets.length === 0) return "";
-	const ua = typeof navigator !== "undefined" ? (navigator.userAgent + " " + (navigator.platform || "")).toLowerCase() : "";
-	const isWin = ua.includes("win");
-	const isMac = ua.includes("mac");
-
-	if (isWin) {
-		const exe = assets.find((a) => a.name.toLowerCase().endsWith(".exe"));
-		if (exe) return exe.browser_download_url;
-		const msi = assets.find((a) => a.name.toLowerCase().endsWith(".msi"));
-		if (msi) return msi.browser_download_url;
-	} else if (isMac) {
-		const dmg = assets.find((a) => a.name.toLowerCase().endsWith(".dmg"));
-		if (dmg) return dmg.browser_download_url;
-	} else if (installation === "appimage") {
-		const appImage = assets.find((a) => a.name.toLowerCase().endsWith(".appimage"));
-		if (appImage) return appImage.browser_download_url;
-	} else if (installation === "pacman") {
-		const packageAsset = assets.find((a) => a.name.toLowerCase().endsWith(".pkg.tar.zst"));
-		if (packageAsset) return packageAsset.browser_download_url;
-	} else if (installation === "debian") {
-		const deb = assets.find((a) => a.name.toLowerCase().endsWith(".deb"));
-		if (deb) return deb.browser_download_url;
-	}
-	return "";
-}
 
 export const updaterStore = {
 	get showModal() { return showModal; },
@@ -148,7 +115,7 @@ export const updaterStore = {
 					latestVersion = tag.replace(/^v/i, "");
 					releaseUrl = data.html_url || "https://github.com/predabr/luxmc/releases/latest";
 					releaseNotes = data.body || "Atualização de melhorias e performance!";
-						downloadUrl = resolveAssetUrl(data.assets || [], environment);
+				downloadUrl = resolveUpdateAssetUrl((data.assets || []) as UpdateAsset[], environment);
 					foundUpdate = true;
 				}
 			}
@@ -175,9 +142,9 @@ export const updaterStore = {
 		updateError = "";
 		terminalCommand = "";
 		if (!downloadUrl) {
-			// Fallback if no direct asset found
-			await openUrl(releaseUrl || "https://github.com/predabr/luxmc/releases/latest");
-			showModal = false;
+			updateError = "Não encontramos um pacote automático compatível com esta instalação. Use o botão abaixo para baixar o pacote oficial manualmente.";
+			statusText = "Atualização manual necessária";
+			showModal = true;
 			return;
 		}
 

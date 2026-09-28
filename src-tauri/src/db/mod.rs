@@ -36,10 +36,13 @@ impl Db {
             .await
             .map_err(|e| AppError::Internal(format!("sqlite connect: {e}")))?;
 
-        let migrator = sqlx::migrate!("./migrations");
+        let mut migrator = sqlx::migrate!("./migrations");
+        migrator.set_ignore_missing(true);
         if let Err(e) = migrator.run(&pool).await {
             let err_str = e.to_string();
-            if err_str.contains("was previously applied but has been modified") {
+            if err_str.contains("was previously applied but is missing in the resolved migrations") {
+                tracing::warn!(error = %e, "Ignoring a migration recorded by a newer Luxmc build");
+            } else if err_str.contains("was previously applied but has been modified") {
                 tracing::warn!("SQLX migration checksum mismatch detected, self-repairing _sqlx_migrations...");
                 for m in migrator.iter() {
                     let _ = sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = ?")

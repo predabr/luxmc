@@ -18,7 +18,7 @@ export function resolveWallpaperImageUrl(value: string): string {
 
 export function resolveWallpaperVideoUrl(value: string): string {
     const path = wallpaperLocalPath(value);
-    return path ? `http://127.0.0.1:49152/media?path=${encodeURIComponent(path)}` : value;
+    return path ? convertFileSrc(path) : value;
 }
 
 export const wallpaperPosters = new Map<string, string>();

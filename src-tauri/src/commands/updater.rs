@@ -8,6 +8,37 @@ use crate::error::{AppError, AppResult};
 
 const MAX_UPDATE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
+#[cfg(target_os = "linux")]
+fn replace_appimage(staged: &Path, target: &Path) -> AppResult<Option<PathBuf>> {
+    use std::os::unix::fs::PermissionsExt;
+
+    std::fs::set_permissions(staged, std::fs::Permissions::from_mode(0o755))?;
+    let parent = target
+        .parent()
+        .ok_or_else(|| AppError::InvalidState("Caminho do AppImage inválido".into()))?;
+    let old = parent.join(format!(
+        ".{}.{}.old",
+        target
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("luxmc"),
+        uuid::Uuid::new_v4()
+    ));
+
+    let had_target = target.exists();
+    if had_target {
+        std::fs::rename(target, &old)?;
+    }
+    if let Err(error) = std::fs::rename(staged, target) {
+        if old.exists() {
+            let _ = std::fs::rename(&old, target);
+        }
+        return Err(error.into());
+    }
+    std::fs::set_permissions(target, std::fs::Permissions::from_mode(0o755))?;
+    Ok(had_target.then_some(old))
+}
+
 fn is_official_release_url(url: &Url) -> bool {
     url.scheme() == "https"
         && url.host_str() == Some("github.com")
@@ -31,7 +62,10 @@ fn accepted_update_extension(file_name: &str) -> bool {
     let lower = file_name.to_ascii_lowercase();
     #[cfg(target_os = "linux")]
     {
-        lower.ends_with(".appimage") || lower.ends_with(".pkg.tar.zst") || lower.ends_with(".deb")
+        lower.ends_with(".appimage")
+            || lower.ends_with(".pkg.tar.zst")
+            || lower.ends_with(".deb")
+            || lower.ends_with(".rpm")
     }
     #[cfg(target_os = "windows")]
     {
@@ -102,6 +136,12 @@ pub fn app_update_environment() -> UpdateEnvironment {
                     mode: "debian".into(),
                 };
             }
+            if Path::new("/usr/bin/dnf").is_file()
+                || Path::new("/usr/bin/zypper").is_file()
+                || Path::new("/usr/bin/rpm").is_file()
+            {
+                return UpdateEnvironment { mode: "rpm".into() };
+            }
             return UpdateEnvironment {
                 mode: "system".into(),
             };
@@ -126,6 +166,54 @@ pub fn app_update_environment() -> UpdateEnvironment {
 
 fn quote_for_shell(path: &Path) -> String {
     format!("'{}'", path.to_string_lossy().replace('\'', "'\\\"'\\\"'"))
+}
+
+#[cfg(target_os = "linux")]
+fn linux_package_installer(
+    environment: &str,
+    package: &Path,
+) -> AppResult<(&'static str, Vec<String>, String)> {
+    let package_path = package.to_string_lossy().into_owned();
+    let quoted = quote_for_shell(package);
+    match environment {
+        "pacman" if package_path.to_ascii_lowercase().ends_with(".pkg.tar.zst") => Ok((
+            "pacman",
+            vec!["-U".into(), "--needed".into(), package_path],
+            format!("sudo pacman -U --needed -- {quoted}"),
+        )),
+        "debian" if package_path.to_ascii_lowercase().ends_with(".deb") => Ok((
+            "apt-get",
+            vec!["install".into(), "-y".into(), package_path],
+            format!("sudo apt-get install -y {quoted}"),
+        )),
+        "rpm" if package_path.to_ascii_lowercase().ends_with(".rpm") => {
+            if Path::new("/usr/bin/dnf").is_file() {
+                Ok((
+                    "dnf",
+                    vec!["install".into(), "-y".into(), package_path],
+                    format!("sudo dnf install -y {quoted}"),
+                ))
+            } else if Path::new("/usr/bin/zypper").is_file() {
+                Ok((
+                    "zypper",
+                    vec!["--non-interactive".into(), "install".into(), package_path],
+                    format!("sudo zypper --non-interactive install {quoted}"),
+                ))
+            } else {
+                Ok((
+                    "rpm",
+                    vec!["-Uvh".into(), "--replacepkgs".into(), package_path],
+                    format!("sudo rpm -Uvh --replacepkgs {quoted}"),
+                ))
+            }
+        }
+        "pacman" | "debian" | "rpm" | "system" => Err(AppError::InvalidInput(
+            "A versão disponível não corresponde ao formato instalado. Abra o GitHub para baixar o pacote correto.".into(),
+        )),
+        _ => Err(AppError::InvalidInput(
+            "Atualização automática disponível apenas para AppImage, pacman, APT, RPM e Windows.".into(),
+        )),
+    }
 }
 
 #[tauri::command]
@@ -189,7 +277,8 @@ pub async fn app_perform_update(
         ));
     }
     let temp_dir = std::env::temp_dir();
-    let temp_file_path = temp_dir.join(format!("luxmc-update-{}-{file_name}", uuid::Uuid::new_v4()));
+    let temp_file_path =
+        temp_dir.join(format!("luxmc-update-{}-{file_name}", uuid::Uuid::new_v4()));
 
     let mut out_file = tokio::fs::OpenOptions::new()
         .write(true)
@@ -261,7 +350,6 @@ pub async fn app_perform_update(
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(&temp_file_path, std::fs::Permissions::from_mode(0o755));
 
-        // Se estiver rodando como AppImage, substitui o AppImage original e reinicia
         if let Ok(appimage_path) = std::env::var("APPIMAGE") {
             let appimage_target = PathBuf::from(&appimage_path);
             if temp_file_path.to_string_lossy().ends_with(".AppImage") {
@@ -285,7 +373,24 @@ pub async fn app_perform_update(
                     std::io::copy(&mut source, &mut target)?;
                     target.sync_all()?;
                     std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
-                    std::fs::rename(&staged, &appimage_target)?;
+                    let old = replace_appimage(&staged, &appimage_target)?;
+                    let launched = std::process::Command::new(&appimage_target).spawn();
+                    match launched {
+                        Ok(_) => {
+                            if let Some(old) = old {
+                                let _ = std::fs::remove_file(old);
+                            }
+                        }
+                        Err(error) => {
+                            if let Some(old) = old {
+                                let _ = std::fs::remove_file(&appimage_target);
+                                let _ = std::fs::rename(old, &appimage_target);
+                            }
+                            return Err(AppError::Internal(format!(
+                                "Falha ao iniciar AppImage atualizado: {error}"
+                            )));
+                        }
+                    }
                     Ok(())
                 })();
                 if let Err(error) = staged_result {
@@ -293,31 +398,13 @@ pub async fn app_perform_update(
                     return Err(error);
                 }
                 let _ = std::fs::remove_file(&temp_file_path);
-                std::process::Command::new(&appimage_target)
-                    .spawn()
-                    .map_err(|e| {
-                        AppError::Internal(format!("Falha ao iniciar AppImage atualizado: {e}"))
-                    })?;
                 std::process::exit(0);
             }
         }
 
         let environment = app_update_environment().mode;
-        let file_name = temp_file_path.to_string_lossy().to_ascii_lowercase();
-        let (program, arguments, terminal_command) = match environment.as_str() {
-            "pacman" if file_name.ends_with(".pkg.tar.zst") => (
-                "pacman",
-                vec!["-U".to_string(), temp_file_path.to_string_lossy().into_owned()],
-                format!("sudo pacman -U -- {}", quote_for_shell(&temp_file_path)),
-            ),
-            "debian" if file_name.ends_with(".deb") => (
-                "dpkg",
-                vec!["-i".to_string(), temp_file_path.to_string_lossy().into_owned()],
-                format!("sudo dpkg -i {}", quote_for_shell(&temp_file_path)),
-            ),
-            "pacman" | "debian" | "system" => return Err(AppError::InvalidInput("A versão disponível não corresponde ao formato instalado. Abra o GitHub para baixar o pacote correto.".into())),
-            _ => return Err(AppError::InvalidInput("Atualização automática disponível apenas para AppImage, pacman, dpkg e Windows.".into())),
-        };
+        let (program, arguments, terminal_command) =
+            linux_package_installer(&environment, &temp_file_path)?;
         match std::process::Command::new("pkexec")
             .arg(program)
             .args(&arguments)
@@ -340,13 +427,21 @@ pub async fn app_perform_update(
 
     #[cfg(target_os = "windows")]
     {
-        if temp_file_path.to_string_lossy().to_ascii_lowercase().ends_with(".exe") {
+        if temp_file_path
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .ends_with(".exe")
+        {
             let mut cmd = crate::core::process::std_command(&temp_file_path);
             cmd.spawn()
                 .map_err(|e| AppError::Internal(format!("Falha ao iniciar instalador: {e}")))?;
             std::process::exit(0);
         }
-        if temp_file_path.to_string_lossy().to_ascii_lowercase().ends_with(".msi") {
+        if temp_file_path
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .ends_with(".msi")
+        {
             crate::core::process::std_command("msiexec.exe")
                 .args(["/i", &temp_file_path.to_string_lossy()])
                 .spawn()
@@ -372,16 +467,61 @@ pub async fn app_perform_update(
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn replaces_existing_appimage_without_overwriting_its_inode() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = std::env::temp_dir().join(format!("luxmc-updater-test-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("Luxmc.AppImage");
+        let staged = dir.join("Luxmc.AppImage.update");
+        std::fs::write(&target, b"old").unwrap();
+        std::fs::write(&staged, b"new").unwrap();
+
+        let old = replace_appimage(&staged, &target).unwrap().unwrap();
+
+        assert_eq!(std::fs::read(&target).unwrap(), b"new");
+        assert_eq!(std::fs::read(&old).unwrap(), b"old");
+        assert_eq!(
+            std::fs::metadata(&target).unwrap().permissions().mode() & 0o777,
+            0o755
+        );
+        assert!(!staged.exists());
+        assert_eq!(std::fs::read_dir(&dir).unwrap().count(), 2);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[test]
     fn accepts_official_release_asset_url() {
-        let url = Url::parse("https://github.com/predabr/luxmc/releases/download/v1/Luxmc.AppImage").unwrap();
+        let url =
+            Url::parse("https://github.com/predabr/luxmc/releases/download/v1/Luxmc.AppImage")
+                .unwrap();
         assert!(is_official_release_url(&url));
     }
 
     #[test]
     fn rejects_untrusted_update_urls() {
-        let url = Url::parse("https://example.com/predabr/luxmc/releases/download/v1/Luxmc.AppImage").unwrap();
+        let url =
+            Url::parse("https://example.com/predabr/luxmc/releases/download/v1/Luxmc.AppImage")
+                .unwrap();
         assert!(!is_official_release_url(&url));
         assert!(!is_allowed_redirect_url(&url));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn accepts_and_prepares_rpm_updates() {
+        let url = Url::parse(
+            "https://github.com/predabr/luxmc/releases/download/v2.0.1/Luxmc-2.0.1-1.x86_64.rpm",
+        )
+        .unwrap();
+        assert_eq!(update_file_name(&url).unwrap(), "Luxmc-2.0.1-1.x86_64.rpm");
+
+        let (program, arguments, terminal) =
+            linux_package_installer("rpm", Path::new("/tmp/Luxmc update.rpm")).unwrap();
+        assert!(matches!(program, "dnf" | "zypper" | "rpm"));
+        assert!(arguments.iter().any(|argument| argument.ends_with(".rpm")));
+        assert!(terminal.contains("'/tmp/Luxmc update.rpm'"));
     }
 }

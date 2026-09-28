@@ -1,12 +1,3 @@
-/download/linux    https://github.com/predabr/luxmc/releases/download/v2.0.1/Luxmc_2.0.1_amd64.AppImage 302
-/download/appimage https://github.com/predabr/luxmc/releases/download/v2.0.1/Luxmc_2.0.1_amd64.AppImage 302
-/download/windows  https://github.com/predabr/luxmc/releases/download/v2.0.1/Luxmc_2.0.1_x64-setup.exe 302
-/download/exe      https://github.com/predabr/luxmc/releases/download/v2.0.1/Luxmc_2.0.1_x64-setup.exe 302
-/download/deb      https://github.com/predabr/luxmc/releases/download/v2.0.1/Luxmc_2.0.1_amd64.deb 302
-/download/rpm      https://github.com/predabr/luxmc/releases/download/v2.0.1/Luxmc-2.0.1-1.x86_64.rpm 302
-/download/arch     https://github.com/predabr/luxmc/releases/download/v2.0.1/luxmc-2.0.1-1-x86_64.pkg.tar.zst 302
-/download/pacman   https://github.com/predabr/luxmc/releases/download/v2.0.1/luxmc-2.0.1-1-x86_64.pkg.tar.zst 302
-/download/latest   https://github.com/predabr/luxmc/releases/tag/v2.0.1 302
-/download          https://github.com/predabr/luxmc/releases/tag/v2.0.1 302
+/download          https://github.com/predabr/luxmc/releases/latest 302
 /github            https://github.com/predabr/luxmc 302
 /releases          https://github.com/predabr/luxmc/releases 302
