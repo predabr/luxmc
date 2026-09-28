@@ -85,6 +85,54 @@ case "$DISTRO" in
     debian) check_debian_deps ;;
 esac
 
+REPO="predabr/luxmc"
+LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "")
+if [ -z "$LATEST_TAG" ]; then
+    LATEST_TAG="v2.0.0"
+fi
+
+# 3.1. Tentativa de Instalação Nativa no Arch Linux (Pacman local dispensa .sig remoto)
+if [ "$DISTRO" = "arch" ] && command -v pacman &>/dev/null && command -v sudo &>/dev/null; then
+    echo -e "${CYAN}[*] Sistema Arch Linux detectado! Baixando pacote oficial .pkg.tar.zst...${NC}"
+    TMP_PKG="/tmp/luxmc-2.0.0-1-x86_64.pkg.tar.zst"
+    ARCH_PKG_URL="https://github.com/$REPO/releases/download/${LATEST_TAG}/luxmc-2.0.0-1-x86_64.pkg.tar.zst"
+    ARCH_FALLBACK="https://github.com/$REPO/releases/latest/download/luxmc-2.0.0-1-x86_64.pkg.tar.zst"
+    if curl -L --progress-bar --fail "$ARCH_PKG_URL" -o "$TMP_PKG" 2>/dev/null || curl -L --progress-bar --fail "$ARCH_FALLBACK" -o "$TMP_PKG" 2>/dev/null; then
+        echo -e "${CYAN}[*] Instalando pacote nativo via pacman...${NC}"
+        if sudo pacman -U --needed --noconfirm "$TMP_PKG"; then
+            rm -f "$TMP_PKG"
+            rm -f "$HOME/.local/share/applications/io.github.luxmc.Luxmc.desktop" "$HOME/.local/share/applications/luxmc-handler.desktop" "$HOME/.local/share/applications/luxmc-debug-handler.desktop"
+            echo -e "\n${GREEN}${BOLD}================================================================${NC}"
+            echo -e "${GREEN}${BOLD}   Luxmc Launcher instalado nativamente no Arch Linux!         ${NC}"
+            echo -e "${GREEN}${BOLD}================================================================${NC}\n"
+            echo -e "  ${BOLD}Como iniciar:${NC}"
+            echo -e "  1. Pelo menu de aplicativos (procure por ${CYAN}Luxmc${NC})"
+            echo -e "  2. Pelo terminal: execute ${CYAN}luxmc${NC}\n"
+            exit 0
+        fi
+        rm -f "$TMP_PKG"
+    fi
+    echo -e "${YELLOW}[!] Pacman não concluiu. Prosseguindo com instalação universal AppImage...${NC}"
+fi
+
+# 3.2. Tentativa de Instalação Nativa no Debian/Ubuntu (.deb)
+if [ "$DISTRO" = "debian" ] && command -v dpkg &>/dev/null && command -v sudo &>/dev/null; then
+    echo -e "${CYAN}[*] Sistema Debian/Ubuntu detectado! Baixando pacote .deb...${NC}"
+    TMP_DEB="/tmp/luxmc.deb"
+    DEB_URL="https://github.com/$REPO/releases/download/${LATEST_TAG}/Luxmc_${LATEST_TAG#v}_amd64.deb"
+    DEB_FALLBACK="https://github.com/$REPO/releases/latest/download/Luxmc_2.0.0_amd64.deb"
+    if curl -L --progress-bar --fail "$DEB_URL" -o "$TMP_DEB" 2>/dev/null || curl -L --progress-bar --fail "$DEB_FALLBACK" -o "$TMP_DEB" 2>/dev/null; then
+        if sudo dpkg -i "$TMP_DEB" || (sudo apt-get update -y && sudo apt-get install -f -y); then
+            rm -f "$TMP_DEB"
+            echo -e "\n${GREEN}${BOLD}================================================================${NC}"
+            echo -e "${GREEN}${BOLD}   Luxmc Launcher instalado nativamente via pacote .deb!       ${NC}"
+            echo -e "${GREEN}${BOLD}================================================================${NC}\n"
+            exit 0
+        fi
+        rm -f "$TMP_DEB"
+    fi
+fi
+
 # 4. Determinação dos Caminhos de Instalação
 INSTALL_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
