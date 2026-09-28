@@ -15,7 +15,7 @@
       "nav.skins": "Skins 3D",
       "nav.donate": "Apoiar 💛",
       "nav.createAccount": "Criar Conta",
-      "nav.download": "Baixar V2.0.0 ↗",
+      "nav.download": "Baixar <span class=\"live-version-tag\">v2.0.2</span> ↗",
       "mobile.home": "Início",
       "mobile.features": "Recursos Principais",
       "mobile.stability": "Estabilidade & Auto-Cura",
@@ -222,12 +222,12 @@
       "faq.a5": "O Luxmc oferece suporte a Linux e Wayland nativo. A fluidez é garantida com aceleração de hardware e controles gráficos que permitem ajustar efeitos e desempenho do sistema.",
       "faq.q6": "É compatível com modpacks pesados?",
       "faq.a6": "Completamente! O Luxmc possui motor em Rust otimizado, gestão inteligente de memória JVM com flags Aikar automáticas, limpador de RAM em segundo plano e suporte a todos os modpacks Fabric, NeoForge, Forge e Quilt.",
-      "cta.tag": "// SISTEMA PRONTO // BUILD V2.0.0",
+      "cta.tag": "// SISTEMA PRONTO // BUILD <span class=\"live-version-tag\">v2.0.2</span>",
       "cta.title": "PRONTO PARA SEU PRÓXIMO MUNDO?",
       "cta.subtitle": "Escolha sua plataforma e comece a montar sua próxima aventura com inicialização instantânea e zero telemetria.",
-      "cta.btnDownload": "BAIXAR LUXMC V2.0.0 GRÁTIS ↗",
+      "cta.btnDownload": "BAIXAR LUXMC <span class=\"live-version-tag\">v2.0.2</span> GRÁTIS ↗",
       "cta.btnGithub": "VER NO GITHUB ↗",
-      "footer.status": "STATUS: 100% OPERACIONAL // BUILD V2.0.0",
+      "footer.status": "<span class=\"live-status-dot\">●</span> STATUS: 100% OPERACIONAL // BUILD <span class=\"live-version-tag\">v2.0.2</span>",
       "footer.tagline": "LINUX-FIRST MINECRAFT ECOSYSTEM // TAURI & RUST",
       "footer.desc": "Seus mundos, modpacks e amigos em um só lugar. Feito para a comunidade Minecraft, com desenvolvimento aberto e arquitetura nativa em Rust.",
       "footer.col1.title": "Recursos",
@@ -262,7 +262,7 @@
       "nav.skins": "3D Skins",
       "nav.donate": "Support 💛",
       "nav.createAccount": "Create Account",
-      "nav.download": "Download v2.0.1 ↗",
+      "nav.download": "Download <span class=\"live-version-tag\">v2.0.2</span> ↗",
       "mobile.home": "Home",
       "mobile.features": "Key Features",
       "mobile.stability": "Stability & Diagnostics",
@@ -469,12 +469,12 @@
       "faq.a5": "Luxmc provides native Linux and Wayland support. Smooth performance is guaranteed with hardware acceleration and graphics controls that let you fine-tune effects and system performance.",
       "faq.q6": "Can it run heavy modpacks?",
       "faq.a6": "Absolutely! Luxmc is backed by a native Rust core, automatic Aikar GC flags, real-time background memory trimming, and full compatibility with all Fabric, NeoForge, Forge, and Quilt modpacks.",
-      "cta.tag": "// SYSTEM READY // BUILD V2.0.0",
+      "cta.tag": "// SYSTEM READY // BUILD <span class=\"live-version-tag\">v2.0.2</span>",
       "cta.title": "READY FOR YOUR NEXT WORLD?",
       "cta.subtitle": "Choose your platform and begin your next adventure with instant launch and zero telemetry.",
-      "cta.btnDownload": "DOWNLOAD LUXMC V2.0.0 FREE ↗",
+      "cta.btnDownload": "DOWNLOAD LUXMC <span class=\"live-version-tag\">v2.0.2</span> FREE ↗",
       "cta.btnGithub": "VIEW ON GITHUB ↗",
-      "footer.status": "STATUS: 100% OPERATIONAL // BUILD V2.0.0",
+      "footer.status": "<span class=\"live-status-dot\">●</span> STATUS: 100% OPERATIONAL // BUILD <span class=\"live-version-tag\">v2.0.2</span>",
       "footer.tagline": "LINUX-FIRST MINECRAFT ECOSYSTEM // TAURI & RUST",
       "footer.desc": "Your worlds, modpacks, and friends in one place. Built for the Minecraft community with open development and native Rust architecture.",
       "footer.col1.title": "Features",
@@ -509,7 +509,7 @@
       "nav.skins": "Skins 3D",
       "nav.donate": "Apoyar 💛",
       "nav.createAccount": "Crear Cuenta",
-      "nav.download": "Descargar v2.0.1 ↗",
+      "nav.download": "Descargar <span class=\"live-version-tag\">v2.0.2</span> ↗",
       "mobile.home": "Inicio",
       "mobile.features": "Características Clave",
       "mobile.stability": "Estabilidad y Diagnóstico",
@@ -716,12 +716,12 @@
       "faq.a5": "Luxmc ofrece soporte nativo para Linux y Wayland. El rendimiento fluido está garantizado con aceleración por hardware y controles gráficos para ajustar efectos y rendimiento.",
       "faq.q6": "¿Es compatible con modpacks pesados?",
       "faq.a6": "¡Totalmente! Luxmc cuenta con un motor optimizado en Rust, gestión inteligente de memoria JVM con flags Aikar automáticos, liberador de RAM en segundo plano y compatibilidad completa con Fabric, NeoForge, Forge y Quilt.",
-      "cta.tag": "// SISTEMA LISTO // BUILD V2.0.0",
+      "cta.tag": "// SISTEMA LISTO // BUILD <span class=\"live-version-tag\">v2.0.2</span>",
       "cta.title": "¿LISTO PARA TU PRÓXIMO MUNDO?",
       "cta.subtitle": "Elige tu plataforma y prepárate para tu próxima aventura con inicio instantáneo y cero telemetría.",
-      "cta.btnDownload": "DESCARGAR LUXMC V2.0.0 GRATIS ↗",
+      "cta.btnDownload": "DESCARGAR LUXMC <span class=\"live-version-tag\">v2.0.2</span> GRATIS ↗",
       "cta.btnGithub": "VER EN GITHUB ↗",
-      "footer.status": "ESTADO: 100% OPERATIVO // BUILD V2.0.0",
+      "footer.status": "<span class=\"live-status-dot\">●</span> ESTADO: 100% OPERATIVO // BUILD <span class=\"live-version-tag\">v2.0.2</span>",
       "footer.tagline": "LINUX-FIRST MINECRAFT ECOSYSTEM // TAURI & RUST",
       "footer.desc": "Tus mundos, modpacks y amigos en un solo lugar. Creado para la comunidad de Minecraft con desarrollo abierto y motor nativo en Rust.",
       "footer.col1.title": "Características",
@@ -832,6 +832,12 @@
         btn.classList.remove("active");
       }
     });
+
+    if (window.LuxLatestVersion) {
+      document.querySelectorAll(".live-version-tag").forEach((el) => {
+        el.textContent = window.LuxLatestVersion;
+      });
+    }
 
     // Trigger custom event for other modules
     window.dispatchEvent(new CustomEvent("luxmc-language-changed", { detail: { lang: currentLang } }));

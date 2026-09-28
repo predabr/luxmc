@@ -274,7 +274,8 @@ async function initGitHubRelease() {
 
     if (!data) throw new Error("Release indisponível");
     
-    const tag = typeof data.tag_name === "string" ? data.tag_name : "Versão indisponível";
+    const tag = typeof data.tag_name === "string" ? data.tag_name : "v2.0.2";
+    window.LuxLatestVersion = tag;
     document.querySelectorAll(".live-version-tag").forEach(el => {
       el.textContent = tag;
     });
@@ -349,7 +350,7 @@ async function initGitHubRelease() {
     const heroSize = document.getElementById("heroReleaseSize");
     if (heroSize && heroAsset) heroSize.textContent = `${(heroAsset.size / (1024 * 1024)).toFixed(1)} MB · Download direto`;
   } catch (e) {
-    document.querySelectorAll(".live-version-tag").forEach(el => { el.textContent = "Releases no GitHub"; });
+    document.querySelectorAll(".live-version-tag").forEach(el => { el.textContent = window.LuxLatestVersion || "v2.0.2"; });
     console.debug("GitHub API fetch fallback:", e);
   }
 }
