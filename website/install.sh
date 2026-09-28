@@ -4,7 +4,10 @@
 # https://luxmc.pages.dev
 # ==============================================================================
 
-set -e
+set -euo pipefail
+
+TMP_DIR="$(mktemp -d /tmp/luxmc-install.XXXXXX)"
+trap 'rm -rf "$TMP_DIR"' EXIT
 
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -86,20 +89,34 @@ case "$DISTRO" in
 esac
 
 REPO="predabr/luxmc"
-LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "")
-if [ -z "$LATEST_TAG" ]; then
-    LATEST_TAG="v2.0.0"
-fi
+RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" || true)"
+LATEST_TAG="$(printf '%s' "$RELEASE_JSON" | sed -nE 's/.*"tag_name": *"([^"]+)".*/\1/p' | head -1)"
+LATEST_TAG="${LATEST_TAG:-v2.0.0}"
+release_asset() {
+    printf '%s' "$RELEASE_JSON" | sed -nE 's/.*"browser_download_url": *"([^"]+)".*/\1/p' | grep -Ei "$1" | head -1 || true
+}
+
+finish_native() {
+    rm -f "$HOME/.local/bin/luxmc"
+    for name in luxmc Luxmc io.github.luxmc.Luxmc luxmc-handler luxmc-debug-handler; do
+        rm -f "${XDG_DATA_HOME:-$HOME/.local/share}/applications/$name.desktop"
+    done
+    if command -v update-desktop-database &>/dev/null; then
+        update-desktop-database "${XDG_DATA_HOME:-$HOME/.local/share}/applications" 2>/dev/null || true
+    fi
+}
 
 # 3.1. Tentativa de Instalação Nativa no Arch Linux (Pacman local dispensa .sig remoto)
 if [ "$DISTRO" = "arch" ] && command -v pacman &>/dev/null && command -v sudo &>/dev/null; then
     echo -e "${CYAN}[*] Sistema Arch Linux detectado! Baixando pacote oficial .pkg.tar.zst...${NC}"
-    TMP_PKG="/tmp/luxmc-2.0.0-1-x86_64.pkg.tar.zst"
-    ARCH_PKG_URL="https://github.com/$REPO/releases/download/${LATEST_TAG}/luxmc-2.0.0-1-x86_64.pkg.tar.zst"
-    ARCH_FALLBACK="https://github.com/$REPO/releases/latest/download/luxmc-2.0.0-1-x86_64.pkg.tar.zst"
+    TMP_PKG="$TMP_DIR/luxmc.pkg.tar.zst"
+    ARCH_PKG_URL="$(release_asset 'x86_64\.pkg\.tar\.zst$')"
+    ARCH_PKG_URL="${ARCH_PKG_URL:-https://github.com/$REPO/releases/download/${LATEST_TAG}/luxmc-${LATEST_TAG#v}-1-x86_64.pkg.tar.zst}"
+    ARCH_FALLBACK="https://github.com/$REPO/releases/latest/download/luxmc-${LATEST_TAG#v}-1-x86_64.pkg.tar.zst"
     if curl -L --progress-bar --fail "$ARCH_PKG_URL" -o "$TMP_PKG" 2>/dev/null || curl -L --progress-bar --fail "$ARCH_FALLBACK" -o "$TMP_PKG" 2>/dev/null; then
         echo -e "${CYAN}[*] Instalando pacote nativo via pacman...${NC}"
         if sudo pacman -U --needed --noconfirm "$TMP_PKG"; then
+            finish_native
             rm -f "$TMP_PKG"
             rm -f "$HOME/.local/share/applications/io.github.luxmc.Luxmc.desktop" "$HOME/.local/share/applications/luxmc-handler.desktop" "$HOME/.local/share/applications/luxmc-debug-handler.desktop"
             echo -e "\n${GREEN}${BOLD}================================================================${NC}"
@@ -118,11 +135,13 @@ fi
 # 3.2. Tentativa de Instalação Nativa no Debian/Ubuntu (.deb)
 if [ "$DISTRO" = "debian" ] && command -v dpkg &>/dev/null && command -v sudo &>/dev/null; then
     echo -e "${CYAN}[*] Sistema Debian/Ubuntu detectado! Baixando pacote .deb...${NC}"
-    TMP_DEB="/tmp/luxmc.deb"
-    DEB_URL="https://github.com/$REPO/releases/download/${LATEST_TAG}/Luxmc_${LATEST_TAG#v}_amd64.deb"
-    DEB_FALLBACK="https://github.com/$REPO/releases/latest/download/Luxmc_2.0.0_amd64.deb"
+    TMP_DEB="$TMP_DIR/luxmc.deb"
+    DEB_URL="$(release_asset 'amd64\.deb$')"
+    DEB_URL="${DEB_URL:-https://github.com/$REPO/releases/download/${LATEST_TAG}/Luxmc_${LATEST_TAG#v}_amd64.deb}"
+    DEB_FALLBACK="https://github.com/$REPO/releases/latest/download/Luxmc_${LATEST_TAG#v}_amd64.deb"
     if curl -L --progress-bar --fail "$DEB_URL" -o "$TMP_DEB" 2>/dev/null || curl -L --progress-bar --fail "$DEB_FALLBACK" -o "$TMP_DEB" 2>/dev/null; then
-        if sudo dpkg -i "$TMP_DEB" || (sudo apt-get update -y && sudo apt-get install -f -y); then
+        if sudo apt-get install -y "$TMP_DEB"; then
+            finish_native
             rm -f "$TMP_DEB"
             echo -e "\n${GREEN}${BOLD}================================================================${NC}"
             echo -e "${GREEN}${BOLD}   Luxmc Launcher instalado nativamente via pacote .deb!       ${NC}"
@@ -133,10 +152,25 @@ if [ "$DISTRO" = "debian" ] && command -v dpkg &>/dev/null && command -v sudo &>
     fi
 fi
 
+if [ "$DISTRO" = "fedora" ] && command -v dnf &>/dev/null && command -v sudo &>/dev/null; then
+    TMP_RPM="$TMP_DIR/luxmc.rpm"
+    RPM_URL="https://github.com/$REPO/releases/download/${LATEST_TAG}/Luxmc-${LATEST_TAG#v}-1.x86_64.rpm"
+    RPM_ASSET="$(release_asset 'x86_64\.rpm$')"
+    RPM_URL="${RPM_ASSET:-$RPM_URL}"
+    if curl -fL --progress-bar "$RPM_URL" -o "$TMP_RPM"; then
+        if sudo dnf install -y "$TMP_RPM"; then
+            finish_native
+            echo "Luxmc instalado nativamente via RPM."
+            exit 0
+        fi
+    fi
+    echo "Instalação RPM indisponível; tentando AppImage."
+fi
+
 # 4. Determinação dos Caminhos de Instalação
 INSTALL_DIR="$HOME/.local/bin"
-DESKTOP_DIR="$HOME/.local/share/applications"
-ICON_DIR="$HOME/.local/share/icons/hicolor/512x512/apps"
+DESKTOP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/512x512/apps"
 
 mkdir -p "$INSTALL_DIR" "$DESKTOP_DIR" "$ICON_DIR"
 
@@ -146,24 +180,22 @@ APPIMAGE_DEST="$INSTALL_DIR/luxmc"
 REPO="predabr/luxmc"
 echo -e "${CYAN}[*] Buscando a versão mais recente do Luxmc no GitHub...${NC}"
 
-LATEST_TAG=$(curl -s "https://api.github.com/repos/$REPO/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' || echo "")
-if [ -z "$LATEST_TAG" ]; then
-    LATEST_TAG="v2.0.0"
-fi
 
 DOWNLOAD_URL="https://github.com/$REPO/releases/download/${LATEST_TAG}/Luxmc_${LATEST_TAG#v}_amd64.AppImage"
+APPIMAGE_ASSET="$(release_asset '(amd64|x86_64)\.AppImage$')"
+DOWNLOAD_URL="${APPIMAGE_ASSET:-$DOWNLOAD_URL}"
 FALLBACK_URL="https://github.com/$REPO/releases/latest/download/Luxmc_amd64.AppImage"
 
 echo -e "${CYAN}[*] Baixando Luxmc ${LATEST_TAG}...${NC}"
-if ! curl -L --progress-bar --fail "$DOWNLOAD_URL" -o "$APPIMAGE_DEST"; then
+if ! curl -L --progress-bar --fail "$DOWNLOAD_URL" -o "$TMP_DIR/luxmc.AppImage"; then
     echo -e "${YELLOW}[*] Tentando URL alternativa do release...${NC}"
-    curl -L --progress-bar --fail "$FALLBACK_URL" -o "$APPIMAGE_DEST" || {
+    curl -L --progress-bar --fail "$FALLBACK_URL" -o "$TMP_DIR/luxmc.AppImage" || {
         echo -e "${RED}[!] Falha ao baixar o AppImage. Verifique sua conexão com a internet.${NC}"
         exit 1
     }
 fi
 
-chmod +x "$APPIMAGE_DEST"
+install -m755 "$TMP_DIR/luxmc.AppImage" "$APPIMAGE_DEST"
 echo -e "${GREEN}[✓] Binário salvo e tornado executável em: $APPIMAGE_DEST${NC}"
 
 # 6. Download e Instalação do Ícone de Alta Resolução
@@ -172,14 +204,14 @@ ICON_DEST="$ICON_DIR/luxmc.png"
 curl -s -L "$ICON_URL" -o "$ICON_DEST" || true
 
 # 7. Criação do Atalho no Menu (.desktop)
-rm -f "$DESKTOP_DIR/io.github.luxmc.Luxmc.desktop" "$DESKTOP_DIR/luxmc-debug-handler.desktop"
+rm -f "$DESKTOP_DIR/io.github.luxmc.Luxmc.desktop" "$DESKTOP_DIR/luxmc-handler.desktop" "$DESKTOP_DIR/luxmc-debug-handler.desktop"
 DESKTOP_FILE="$DESKTOP_DIR/luxmc.desktop"
 cat <<EOFD > "$DESKTOP_FILE"
 [Desktop Entry]
 Name=Luxmc
 GenericName=Minecraft Launcher
 Comment=Launcher de Minecraft moderno, rápido e com otimização máxima para Linux
-Exec=$APPIMAGE_DEST %u
+Exec="$APPIMAGE_DEST" %u
 Icon=luxmc
 Terminal=false
 Type=Application
@@ -198,7 +230,7 @@ fi
 # 8. Integração no PATH
 if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
     SHELL_RC=""
-    if [ -n "$ZSH_VERSION" ] || [ -f "$HOME/.zshrc" ]; then
+    if [ -n "${ZSH_VERSION:-}" ] || [ -f "$HOME/.zshrc" ]; then
         SHELL_RC="$HOME/.zshrc"
     elif [ -f "$HOME/.bashrc" ]; then
         SHELL_RC="$HOME/.bashrc"

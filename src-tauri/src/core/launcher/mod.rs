@@ -913,8 +913,8 @@ impl GameLauncher {
                 cmd.env("GDK_BACKEND", "x11");
                 cmd.env("SDL_VIDEODRIVER", "x11");
                 cmd.env("QT_QPA_PLATFORM", "xcb");
-            } else if let Ok(wayland_display) = std::env::var("WAYLAND_DISPLAY") {
-                cmd.env("WAYLAND_DISPLAY", wayland_display);
+            } else {
+                return Err(anyhow::anyhow!("Minecraft requer X11/XWayland: DISPLAY não está definido. Ative o XWayland e tente novamente.").into());
             }
 
             if profile.use_vulkan {
@@ -953,15 +953,17 @@ impl GameLauncher {
             let joined_path = win_paths.join(";");
             cmd.env("PATH", &joined_path);
             cmd.env("Path", &joined_path);
-            cmd.env_remove("SHIM_MCCOMPAT");
-            cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
-            cmd.env("AMD_POWERXPRESS_REQUEST_HIGH_PERFORMANCE", "1");
+            for key in ["SHIM_MCCOMPAT", "GPU_MAX_ALLOC_PERCENT", "GPU_USE_SYNC_OBJECTS", "GPU_NUM_COMPUTE_RINGS", "GPU_MAX_HEAP_SIZE", "GPU_FORCE_64BIT_PTR"] {
+                cmd.env_remove(key);
+            }
 
-            if let Ok(hkcu) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
-                .open_subkey_with_flags("Software\\Microsoft\\DirectX\\UserGpuPreferences", winreg::enums::KEY_SET_VALUE)
+            if let Ok((hkcu, _)) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
+                .create_subkey("Software\\Microsoft\\DirectX\\UserGpuPreferences")
             {
                 let java_str = java_path.to_string_lossy().to_string();
-                let _ = hkcu.set_value(&java_str, &"GpuPreference=2;");
+                if let Err(error) = hkcu.set_value(&java_str, &"GpuPreference=2;") {
+                    self.emit_log(&format!("Não foi possível definir preferência de GPU: {error}"));
+                }
             }
         }
 

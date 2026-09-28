@@ -314,10 +314,12 @@ fn ensure_linux_desktop_integration() {
     let _ = std::fs::remove_file(apps_dir.join("luxmc-handler.desktop"));
     let _ = std::fs::remove_file(apps_dir.join("luxmc-debug-handler.desktop"));
 
-    if std::path::Path::new("/usr/share/applications/luxmc.desktop").exists() {
+    if let Some(desktop) = ["luxmc.desktop", "Luxmc.desktop"].into_iter().find(|name| {
+        ["/usr/share/applications", "/usr/local/share/applications"].iter().any(|base| std::path::Path::new(base).join(name).is_file())
+    }) {
         let _ = std::fs::remove_file(apps_dir.join("luxmc.desktop"));
         let _ = std::process::Command::new("update-desktop-database").arg(&apps_dir).output();
-        let _ = std::process::Command::new("xdg-mime").args(["default", "luxmc.desktop", "x-scheme-handler/luxmc"]).output();
+        let _ = std::process::Command::new("xdg-mime").args(["default", desktop, "x-scheme-handler/luxmc"]).output();
         return;
     }
 

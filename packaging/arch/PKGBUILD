@@ -34,8 +34,7 @@ build() {
     cd "luxmc-${_tagver}"
     pnpm install --frozen-lockfile
     pnpm build
-    cd src-tauri
-    cargo build --release --locked
+    pnpm tauri build --no-bundle -- --locked
 }
 
 package() {

@@ -1,6 +1,9 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(all(not(debug_assertions), dev))]
+compile_error!("Release requires embedded assets: use pnpm tauri build");
+
 fn main() {
     #[cfg(target_os = "linux")]
     {
@@ -71,32 +74,31 @@ fn main() {
                 }
             }
 
-            let gst_candidates = [
-                std::path::Path::new(&appdir).join("usr/lib/gstreamer-1.0"),
-                std::path::Path::new(&appdir).join("usr/lib/x86_64-linux-gnu/gstreamer-1.0"),
-            ];
-            for gst_dir in gst_candidates {
-                if gst_dir.is_dir() {
-                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir);
-                    std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir);
-                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH", &gst_dir);
-                    std::env::set_var("GST_PLUGIN_PATH", &gst_dir);
-                    std::env::set_var("GST_REGISTRY_REUSE_PLUGIN_SCANNER", "no");
-                    break;
-                }
+            let root = std::path::Path::new(&appdir);
+            let gst_dirs: Vec<_> = [
+                "usr/lib/gstreamer-1.0",
+                "usr/lib64/gstreamer-1.0",
+                "usr/lib/x86_64-linux-gnu/gstreamer-1.0",
+            ].iter().map(|path| root.join(path)).filter(|path| path.is_dir()).collect();
+            let gst_path = std::env::join_paths(&gst_dirs).expect("Invalid AppDir plugin path");
+            for key in ["GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_PATH_1_0", "GST_PLUGIN_SYSTEM_PATH", "GST_PLUGIN_PATH"] {
+                std::env::set_var(key, &gst_path);
+            }
+            std::env::set_var("GST_REGISTRY_REUSE_PLUGIN_SCANNER", "no");
+            let scanner = [
+                "usr/lib/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner",
+                "usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner",
+                "usr/libexec/gstreamer-1.0/gst-plugin-scanner",
+                "usr/lib/gstreamer-1.0/gst-plugin-scanner",
+                "usr/lib64/gstreamer-1.0/gst-plugin-scanner",
+            ].iter().map(|path| root.join(path)).find(|path| path.is_file())
+                .unwrap_or_else(|| root.join("usr/libexec/gstreamer-1.0/gst-plugin-scanner"));
+            std::env::set_var("GST_PLUGIN_SCANNER_1_0", &scanner);
+            std::env::set_var("GST_PLUGIN_SCANNER", &scanner);
+            if gst_dirs.is_empty() || !scanner.is_file() {
+                eprintln!("Luxmc: AppImage incompleto: plugins ou scanner GStreamer ausentes em {}", root.display());
             }
 
-            let scanner_candidates = [
-                std::path::Path::new(&appdir).join("usr/lib/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"),
-                std::path::Path::new(&appdir).join("usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"),
-            ];
-            for scanner in scanner_candidates {
-                if scanner.is_file() {
-                    std::env::set_var("GST_PLUGIN_SCANNER_1_0", &scanner);
-                    std::env::set_var("GST_PLUGIN_SCANNER", &scanner);
-                    break;
-                }
-            }
         } else if let Ok(exe) = std::env::current_exe() {
             if let Some(bin) = exe.parent() {
                 if let Some(usr) = bin.parent() {

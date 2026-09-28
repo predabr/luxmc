@@ -80,7 +80,7 @@ jobs:
                   "| 🍎 macOS (Universal) | `Luxmc_2.0.0_universal.dmg` | DMG |",
                   "",
                   "### Como instalar",
-                  "- **Arch Linux**: `yay -S luxmc-launcher` ou `sudo pacman -U <url>.pkg.tar.zst`",
+                  "- **Arch Linux**: `yay -S luxmc-launcher` ou `curl -fSL <url>.pkg.tar.zst -o /tmp/luxmc.pkg.tar.zst && sudo pacman -U /tmp/luxmc.pkg.tar.zst && rm -f /tmp/luxmc.pkg.tar.zst`",
                   "- **Linux Universal**: `curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash`",
                   "- **Windows**: Baixe o `Luxmc_2.0.0_x64-setup.exe` e execute o instalador",
                   "- **Ubuntu/Debian**: `sudo dpkg -i Luxmc_2.0.0_amd64.deb`",
@@ -140,6 +140,13 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Validate Linux release
+        run: |
+          pnpm check
+          python3 tests/installers.test.py
+          cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
+          cargo check --manifest-path src-tauri/Cargo.toml --locked
+
       - name: Build Tauri (Linux — DEB + RPM + AppImage)
         uses: tauri-apps/tauri-action@v0
         env:
@@ -189,6 +196,12 @@ jobs:
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Validate Windows release
+        run: |
+          pnpm check
+          cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
+          cargo check --manifest-path src-tauri/Cargo.toml --locked
 
       - name: Build Tauri (Windows — NSIS)
         uses: tauri-apps/tauri-action@v0

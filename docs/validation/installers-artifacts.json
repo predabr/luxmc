@@ -1,0 +1,27 @@
+[
+  {
+    "path": "src-tauri/target/x86_64-unknown-linux-gnu/release/luxmc",
+    "bytes": 45264768,
+    "sha256": "d0359692f8cfe4b774c90b91812d9af3769963bec896a20fd6344d54f72e8cc8"
+  },
+  {
+    "path": "packaging/arch/luxmc-2.0.0-1-x86_64.pkg.tar.zst",
+    "bytes": 18685422,
+    "sha256": "9866a27224ef5ec7311a9e6b81b2753efd065fd82ad92ec03681d088fe9bc8ad"
+  },
+  {
+    "path": "src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/Luxmc_2.0.0_amd64.deb",
+    "bytes": 23025770,
+    "sha256": "3983bc43e706fbcb5b494063da48989dd38c3b3d350ef736ea45668d7c6d4114"
+  },
+  {
+    "path": "src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/Luxmc-2.0.0-1.x86_64.rpm",
+    "bytes": 23025875,
+    "sha256": "538e11e3e3cd1327e7f1b91338e3e730d1c9db27fdefea7a9e315b1866c6bda9"
+  },
+  {
+    "path": "src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/Luxmc_2.0.0_amd64.AppImage",
+    "bytes": 185510392,
+    "sha256": "f4c1d6120a1418a6bcbef9f47e70669d217da0cbeece01d7c85d440030ce3a76"
+  }
+]
