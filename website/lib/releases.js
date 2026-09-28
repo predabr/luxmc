@@ -2,7 +2,7 @@ export const repository = "predabr/luxmc";
 export const fallback = `https://github.com/${repository}/releases/latest`;
 
 export function assetFor(assets, platform) {
-  const extensions = { linux: ".appimage", appimage: ".appimage", windows: ".exe", exe: ".exe", deb: ".deb", debian: ".deb", ubuntu: ".deb", rpm: ".rpm", fedora: ".rpm", rhel: ".rpm", suse: ".rpm", opensuse: ".rpm", tar: ".tar.gz", "tar.gz": ".tar.gz", archive: ".tar.gz", mac: ".dmg", macos: ".dmg", dmg: ".dmg", jar: ".jar", universal: ".jar" };
+  const extensions = { linux: ".appimage", appimage: ".appimage", windows: ".exe", exe: ".exe", deb: ".deb", debian: ".deb", ubuntu: ".deb", rpm: ".rpm", fedora: ".rpm", rhel: ".rpm", suse: ".rpm", opensuse: ".rpm", arch: ".pkg.tar.zst", pacman: ".pkg.tar.zst", pkg: ".pkg.tar.zst", zst: ".pkg.tar.zst", tar: ".tar.gz", "tar.gz": ".tar.gz", archive: ".tar.gz", mac: ".dmg", macos: ".dmg", dmg: ".dmg", jar: ".jar", universal: ".jar" };
   const extension = extensions[platform];
   if (!extension || !Array.isArray(assets)) return null;
   return assets.filter(asset => typeof asset.name === "string" && asset.name.toLowerCase().endsWith(extension)
