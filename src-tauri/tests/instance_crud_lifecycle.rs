@@ -43,6 +43,14 @@ async fn test_instance_crud_and_persistence() {
         instance_group: Some("Modded".to_string()),
         auto_optimize: true,
         use_vulkan: false,
+        use_gamemode: false,
+        use_mangohud: false,
+        force_dedicated_gpu: false,
+        use_gamescope: false,
+        gamescope_width: None,
+        gamescope_height: None,
+        gamescope_fsr: false,
+        force_full_verification: false,
     };
 
     luxmc_lib::db::schema::profiles::upsert(&db, &initial_profile)

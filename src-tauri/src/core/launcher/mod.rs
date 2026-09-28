@@ -823,7 +823,8 @@ impl GameLauncher {
                 java_path.clone()
             };
 
-            let mut wrappers = Vec::new();
+            #[cfg(target_os = "linux")]
+            let mut wrappers: Vec<&str> = Vec::new();
             #[cfg(target_os = "linux")]
             {
                 if profile.use_gamemode && which::which("gamemoderun").is_ok() {

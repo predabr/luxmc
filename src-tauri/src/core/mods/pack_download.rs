@@ -326,6 +326,7 @@ mod tests {
         assert!(verify_existing(&path, Some(5), Some(&hash), None, false).await);
         assert!(verify_existing(&path, Some(5), Some(&hash), None, false).await);
         assert!(!verify_existing(&path, Some(5), Some("wrong"), None, false).await);
+        tokio::time::sleep(Duration::from_millis(100)).await;
         std::fs::write(&path, b"other").unwrap();
         assert!(!verify_existing(&path, Some(5), Some(&hash), None, false).await);
         std::fs::remove_file(path).unwrap();
