@@ -61,6 +61,8 @@ done
 ICON_TARGETS=(
     "$HOME/.local/share/icons/hicolor/512x512/apps/luxmc.png"
     "$HOME/.local/share/icons/hicolor/128x128/apps/luxmc.png"
+    "$HOME/.local/share/icons/hicolor/64x64/apps/luxmc.png"
+    "$HOME/.local/share/icons/hicolor/32x32/apps/luxmc.png"
     "$HOME/.local/share/icons/hicolor/scalable/apps/luxmc.png"
     "$HOME/.local/share/pixmaps/luxmc.png"
 )
@@ -73,6 +75,9 @@ done
 
 if command -v update-desktop-database &>/dev/null; then
     update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+fi
+if command -v gtk-update-icon-cache &>/dev/null; then
+    gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 fi
 
 echo -e "\n${GREEN}${BOLD}[✓] Luxmc foi completamente desinstalado e todos os atalhos foram removidos com sucesso!${NC}\n"

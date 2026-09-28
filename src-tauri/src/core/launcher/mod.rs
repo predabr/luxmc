@@ -580,7 +580,6 @@ impl GameLauncher {
         // Apply customized player skin if configured
         let is_msa = user_type == "msa";
         let mut appearance_variant = skin_variant.unwrap_or("classic").to_string();
-        let has_explicit_skin = skin_url.is_some_and(|s| !s.trim().is_empty());
 
         let effective_cape = if let Some(c) = cape_url.filter(|c| !c.trim().is_empty()) {
             Some(c.to_string())
@@ -606,41 +605,39 @@ impl GameLauncher {
             .map(|c| !c.trim().is_empty())
             .unwrap_or(false);
 
-        if is_msa && !has_explicit_skin && !has_explicit_cape {
-            self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
-            clean_skin_injection(game_dir).await?;
-        } else {
-            let skin_info = if let Some(s_url) = skin_url.filter(|s| !s.trim().is_empty()) {
-                Some((s_url.to_string(), skin_variant.unwrap_or("classic").to_string()))
-            } else if let Ok(db) = crate::db::shared_db().await {
-                use sqlx::Row;
-                if let Ok(Some(row)) = sqlx::query("SELECT skin_url, skin_variant FROM accounts WHERE username = ? OR uuid = ? OR id = ? LIMIT 1")
-                    .bind(username)
-                    .bind(uuid)
-                    .bind(uuid)
-                    .fetch_optional(db.pool())
-                    .await
-                {
-                    let s_url: Option<String> = row.try_get("skin_url").ok();
-                    let s_var: Option<String> = row.try_get("skin_variant").ok();
-                    s_url.map(|u| (u, s_var.unwrap_or_else(|| "classic".to_string())))
-                } else {
-                    None
-                }
+        let skin_info = if let Some(s_url) = skin_url.filter(|s| !s.trim().is_empty()) {
+            Some((s_url.to_string(), skin_variant.unwrap_or("classic").to_string()))
+        } else if let Ok(db) = crate::db::shared_db().await {
+            use sqlx::Row;
+            if let Ok(Some(row)) = sqlx::query("SELECT skin_url, skin_variant FROM accounts WHERE username = ? OR uuid = ? OR id = ? LIMIT 1")
+                .bind(username)
+                .bind(uuid)
+                .bind(uuid)
+                .fetch_optional(db.pool())
+                .await
+            {
+                let s_url: Option<String> = row.try_get::<Option<String>, _>("skin_url").ok().flatten().filter(|s| !s.trim().is_empty());
+                let s_var: Option<String> = row.try_get::<Option<String>, _>("skin_variant").ok().flatten();
+                s_url.map(|u| (u, s_var.unwrap_or_else(|| "classic".to_string())))
             } else {
                 None
-            };
-
-            if let Some((skin_source, variant)) = skin_info {
-                appearance_variant = variant.clone();
-                self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
-                inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), clean_mc_ver).await?;
-            } else if !is_msa || has_explicit_cape {
-                use base64::Engine;
-                let default_source = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(include_bytes!("../../../../static/steve.png")));
-                appearance_variant = "classic".to_string();
-                inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), clean_mc_ver).await?;
             }
+        } else {
+            None
+        };
+
+        if let Some((skin_source, variant)) = skin_info {
+            appearance_variant = variant.clone();
+            self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
+            inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), clean_mc_ver).await?;
+        } else if is_msa && !has_explicit_cape {
+            self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
+            clean_skin_injection(game_dir).await?;
+        } else if !is_msa || has_explicit_cape {
+            use base64::Engine;
+            let default_source = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(include_bytes!("../../../../static/steve.png")));
+            appearance_variant = "classic".to_string();
+            inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), clean_mc_ver).await?;
         }
 
 
@@ -759,6 +756,11 @@ impl GameLauncher {
             }
             safe_jvm_args.push(format!("-javaagent:{}{}", agent_path.display(), if pvp { "" } else { "=appearance-only" }));
             self.emit_log("Luxmc Client Agent anexado: aparência local por perfil; Shift desativado");
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            safe_jvm_args.push("-Dorg.lwjgl.glfw.checkFilename=false".to_string());
         }
 
 
@@ -907,6 +909,10 @@ impl GameLauncher {
             if let Ok(display) = std::env::var("DISPLAY") {
                 cmd.env("DISPLAY", display);
                 cmd.env_remove("WAYLAND_DISPLAY");
+                cmd.env("GLFW_PLATFORM", "x11");
+                cmd.env("GDK_BACKEND", "x11");
+                cmd.env("SDL_VIDEODRIVER", "x11");
+                cmd.env("QT_QPA_PLATFORM", "xcb");
             } else if let Ok(wayland_display) = std::env::var("WAYLAND_DISPLAY") {
                 cmd.env("WAYLAND_DISPLAY", wayland_display);
             }
@@ -947,16 +953,15 @@ impl GameLauncher {
             let joined_path = win_paths.join(";");
             cmd.env("PATH", &joined_path);
             cmd.env("Path", &joined_path);
-            cmd.env("GPU_MAX_ALLOC_PERCENT", "100");
-            cmd.env("GPU_USE_SYNC_OBJECTS", "1");
-            cmd.env("GPU_NUM_COMPUTE_RINGS", "1");
-            cmd.env("GPU_MAX_HEAP_SIZE", "100");
-            cmd.env("GPU_FORCE_64BIT_PTR", "1");
+            cmd.env_remove("SHIM_MCCOMPAT");
             cmd.env("__GL_THREADED_OPTIMIZATIONS", "1");
             cmd.env("AMD_POWERXPRESS_REQUEST_HIGH_PERFORMANCE", "1");
-            cmd.env("SHIM_MCCOMPAT", "0x800000001");
-            if gpu.vendor == "NVIDIA" {
-                cmd.env("__NV_PRIME_RENDER_OFFLOAD", "1");
+
+            if let Ok(hkcu) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
+                .open_subkey_with_flags("Software\\Microsoft\\DirectX\\UserGpuPreferences", winreg::enums::KEY_SET_VALUE)
+            {
+                let java_str = java_path.to_string_lossy().to_string();
+                let _ = hkcu.set_value(&java_str, &"GpuPreference=2;");
             }
         }
 

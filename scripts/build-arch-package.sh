@@ -16,28 +16,39 @@ mkdir -p "${PKG_DIR}/usr/bin"
 mkdir -p "${PKG_DIR}/usr/share/applications"
 mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/512x512/apps"
 mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/128x128/apps"
+mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/64x64/apps"
+mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/32x32/apps"
+mkdir -p "${PKG_DIR}/usr/share/pixmaps"
 
-BIN_SRC="${ROOT_DIR}/src-tauri/target/release/luxmc"
-if [ ! -f "${BIN_SRC}" ]; then
-    echo "Release binary not found at ${BIN_SRC}. Checking debug..."
-    if [ -f "${ROOT_DIR}/src-tauri/target/debug/luxmc" ]; then
-        BIN_SRC="${ROOT_DIR}/src-tauri/target/debug/luxmc"
+BIN_SRC=""
+for candidate in \
+    "${ROOT_DIR}/src-tauri/target/x86_64-unknown-linux-gnu/release/luxmc" \
+    "${ROOT_DIR}/target/x86_64-unknown-linux-gnu/release/luxmc" \
+    "${ROOT_DIR}/src-tauri/target/release/luxmc" \
+    "${ROOT_DIR}/target/release/luxmc" \
+    "${ROOT_DIR}/src-tauri/target/x86_64-unknown-linux-gnu/debug/luxmc" \
+    "${ROOT_DIR}/src-tauri/target/debug/luxmc"; do
+    if [ -f "$candidate" ] && [ -s "$candidate" ]; then
+        BIN_SRC="$candidate"
+        break
     fi
+done
+
+if [ -z "${BIN_SRC}" ] || [ ! -s "${BIN_SRC}" ]; then
+    echo "Error: Binary not found or empty! Cannot generate valid package."
+    exit 1
 fi
 
-if [ -f "${BIN_SRC}" ]; then
-    cp "${BIN_SRC}" "${PKG_DIR}/usr/bin/luxmc"
-    chmod 755 "${PKG_DIR}/usr/bin/luxmc"
-else
-    echo "Warning: binary not found yet, will generate package skeleton."
-    touch "${PKG_DIR}/usr/bin/luxmc"
-    chmod 755 "${PKG_DIR}/usr/bin/luxmc"
-fi
+echo "Using binary: ${BIN_SRC} ($(du -h "${BIN_SRC}" | cut -f1))"
+cp "${BIN_SRC}" "${PKG_DIR}/usr/bin/luxmc"
+chmod 755 "${PKG_DIR}/usr/bin/luxmc"
 
 cp "${ROOT_DIR}/packaging/arch/luxmc.desktop" "${PKG_DIR}/usr/share/applications/luxmc.desktop"
-cp "${ROOT_DIR}/packaging/arch/luxmc.desktop" "${PKG_DIR}/usr/share/applications/io.github.luxmc.Luxmc.desktop"
 cp "${ROOT_DIR}/src-tauri/icons/icon.png" "${PKG_DIR}/usr/share/icons/hicolor/512x512/apps/luxmc.png"
 cp "${ROOT_DIR}/src-tauri/icons/128x128.png" "${PKG_DIR}/usr/share/icons/hicolor/128x128/apps/luxmc.png"
+cp "${ROOT_DIR}/src-tauri/icons/64x64.png" "${PKG_DIR}/usr/share/icons/hicolor/64x64/apps/luxmc.png"
+cp "${ROOT_DIR}/src-tauri/icons/32x32.png" "${PKG_DIR}/usr/share/icons/hicolor/32x32/apps/luxmc.png"
+cp "${ROOT_DIR}/src-tauri/icons/icon.png" "${PKG_DIR}/usr/share/pixmaps/luxmc.png"
 
 cat <<EOF > "${PKG_DIR}/.PKGINFO"
 pkgname = ${PKGNAME}
@@ -71,5 +82,6 @@ OUT_PKG="${ROOT_DIR}/packaging/arch/${PKGNAME}-${PKGVER}-${PKGREL}-${ARCH}.pkg.t
     cd "${PKG_DIR}"
     tar -cf - .PKGINFO usr | zstd -c -T0 -19 - > "${OUT_PKG}"
 )
+rm -rf "${BUILD_DIR}"
 
 echo "Arch package generated at: ${OUT_PKG}"

@@ -6,6 +6,15 @@ fn main() {
     {
         use std::os::unix::process::CommandExt;
 
+        extern "C" {
+            fn g_set_prgname(prgname: *const std::ffi::c_char);
+            fn g_set_application_name(application_name: *const std::ffi::c_char);
+        }
+        unsafe {
+            g_set_prgname(b"luxmc\0".as_ptr() as *const _);
+            g_set_application_name(b"Luxmc\0".as_ptr() as *const _);
+        }
+
         if std::env::var("G_PRGNAME").is_err() {
             std::env::set_var("G_PRGNAME", "luxmc");
         }
@@ -54,7 +63,38 @@ fn main() {
                 let _ = std::env::set_current_dir(&usr_dir);
                 let injected = usr_dir.join("lib/x86_64-linux-gnu/webkit2gtk-4.1/injected-bundle");
                 if injected.is_dir() {
-                    std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", injected);
+                    std::env::set_var("WEBKIT_INJECTED_BUNDLE_PATH", &injected);
+                }
+                let exec_path = usr_dir.join("lib/x86_64-linux-gnu/webkit2gtk-4.1");
+                if exec_path.is_dir() {
+                    std::env::set_var("WEBKIT_EXEC_PATH", &exec_path);
+                }
+            }
+
+            let gst_candidates = [
+                std::path::Path::new(&appdir).join("usr/lib/gstreamer-1.0"),
+                std::path::Path::new(&appdir).join("usr/lib/x86_64-linux-gnu/gstreamer-1.0"),
+            ];
+            for gst_dir in gst_candidates {
+                if gst_dir.is_dir() {
+                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir);
+                    std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir);
+                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH", &gst_dir);
+                    std::env::set_var("GST_PLUGIN_PATH", &gst_dir);
+                    std::env::set_var("GST_REGISTRY_REUSE_PLUGIN_SCANNER", "no");
+                    break;
+                }
+            }
+
+            let scanner_candidates = [
+                std::path::Path::new(&appdir).join("usr/lib/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"),
+                std::path::Path::new(&appdir).join("usr/lib/x86_64-linux-gnu/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"),
+            ];
+            for scanner in scanner_candidates {
+                if scanner.is_file() {
+                    std::env::set_var("GST_PLUGIN_SCANNER_1_0", &scanner);
+                    std::env::set_var("GST_PLUGIN_SCANNER", &scanner);
+                    break;
                 }
             }
         } else if let Ok(exe) = std::env::current_exe() {
@@ -72,7 +112,6 @@ fn main() {
             }
         }
 
-
         if std::env::var("LUXMC_SOFTWARE_RENDER").map(|v| v == "1" || v == "true").unwrap_or(false) {
             std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
             std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
@@ -81,32 +120,6 @@ fn main() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
         }
 
-        if let Ok(appdir) = std::env::var("APPDIR") {
-            let host_gst_candidates = [
-                "/usr/lib/x86_64-linux-gnu/gstreamer-1.0",
-                "/usr/lib64/gstreamer-1.0",
-                "/usr/lib/gstreamer-1.0",
-            ];
-            let host_has_gst = host_gst_candidates.iter().any(|p| std::path::Path::new(p).is_dir());
-
-            if !host_has_gst {
-                let gst_dir = std::path::Path::new(&appdir).join("usr/lib/x86_64-linux-gnu/gstreamer-1.0");
-                let gst_dir_alt = std::path::Path::new(&appdir).join("usr/lib/gstreamer-1.0");
-                if gst_dir.is_dir() {
-                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir);
-                    std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir);
-                } else if gst_dir_alt.is_dir() {
-                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst_dir_alt);
-                    std::env::set_var("GST_PLUGIN_PATH_1_0", &gst_dir_alt);
-                }
-            } else {
-                std::env::remove_var("GST_PLUGIN_SYSTEM_PATH_1_0");
-                std::env::remove_var("GST_PLUGIN_PATH_1_0");
-                std::env::remove_var("GST_PLUGIN_SCANNER_1_0");
-            }
-        }
-
-        // Memory management: prevent glibc multi-arena memory fragmentation
         if std::env::var("MALLOC_ARENA_MAX").is_err() {
             std::env::set_var("MALLOC_ARENA_MAX", "2");
         }

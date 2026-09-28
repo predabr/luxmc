@@ -262,19 +262,27 @@ fn ensure_linux_desktop_integration() {
 
     let icons_512_dir = data_dir.join("icons/hicolor/512x512/apps");
     let icons_128_dir = data_dir.join("icons/hicolor/128x128/apps");
+    let icons_64_dir = data_dir.join("icons/hicolor/64x64/apps");
+    let icons_32_dir = data_dir.join("icons/hicolor/32x32/apps");
     let pixmaps_dir = data_dir.join("pixmaps");
     let apps_dir = data_dir.join("applications");
 
     let _ = std::fs::create_dir_all(&icons_512_dir);
     let _ = std::fs::create_dir_all(&icons_128_dir);
+    let _ = std::fs::create_dir_all(&icons_64_dir);
+    let _ = std::fs::create_dir_all(&icons_32_dir);
     let _ = std::fs::create_dir_all(&pixmaps_dir);
     let _ = std::fs::create_dir_all(&apps_dir);
 
     let icon_512_bytes = include_bytes!("../icons/icon.png");
     let icon_128_bytes = include_bytes!("../icons/128x128.png");
+    let icon_64_bytes = include_bytes!("../icons/64x64.png");
+    let icon_32_bytes = include_bytes!("../icons/32x32.png");
 
     let _ = std::fs::write(icons_512_dir.join("luxmc.png"), icon_512_bytes);
     let _ = std::fs::write(icons_128_dir.join("luxmc.png"), icon_128_bytes);
+    let _ = std::fs::write(icons_64_dir.join("luxmc.png"), icon_64_bytes);
+    let _ = std::fs::write(icons_32_dir.join("luxmc.png"), icon_32_bytes);
     let _ = std::fs::write(pixmaps_dir.join("luxmc.png"), icon_512_bytes);
 
     let exe_path = if let Ok(appimage) = std::env::var("APPIMAGE") {
@@ -303,17 +311,21 @@ fn ensure_linux_desktop_integration() {
     );
 
     let _ = std::fs::remove_file(apps_dir.join("io.github.luxmc.Luxmc.desktop"));
+    let _ = std::fs::remove_file(apps_dir.join("luxmc-handler.desktop"));
     let _ = std::fs::remove_file(apps_dir.join("luxmc-debug-handler.desktop"));
 
     if std::path::Path::new("/usr/share/applications/luxmc.desktop").exists() {
         let _ = std::fs::remove_file(apps_dir.join("luxmc.desktop"));
         let _ = std::process::Command::new("update-desktop-database").arg(&apps_dir).output();
+        let _ = std::process::Command::new("xdg-mime").args(["default", "luxmc.desktop", "x-scheme-handler/luxmc"]).output();
         return;
     }
 
     let _ = std::fs::write(apps_dir.join("luxmc.desktop"), &desktop_content);
 
     let _ = std::process::Command::new("update-desktop-database").arg(&apps_dir).output();
+    let _ = std::process::Command::new("xdg-mime").args(["default", "luxmc.desktop", "x-scheme-handler/luxmc"]).output();
+    let _ = std::process::Command::new("gtk-update-icon-cache").args(["-f", "-t", &data_dir.join("icons/hicolor").to_string_lossy()]).output();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -348,6 +360,19 @@ pub async fn run() {
         .plugin(tauri_plugin_deep_link::init())
         .manage(commands::deep_links::PendingLinks::default())
         .setup(|app| {
+            #[cfg(target_os = "linux")]
+            {
+                extern "C" {
+                    fn g_set_prgname(prgname: *const std::ffi::c_char);
+                    fn g_set_application_name(application_name: *const std::ffi::c_char);
+                }
+                unsafe {
+                    g_set_prgname(b"luxmc\0".as_ptr() as *const _);
+                    g_set_application_name(b"Luxmc\0".as_ptr() as *const _);
+                }
+                ensure_linux_desktop_integration();
+            }
+
             let handle = app.handle().clone();
             app.deep_link().on_open_url(move |event| {
                 commands::deep_links::enqueue(&handle, event.urls().into_iter().map(|url| url.to_string()).collect());
@@ -355,7 +380,7 @@ pub async fn run() {
             if let Some(urls) = app.deep_link().get_current()? {
                 commands::deep_links::enqueue(app.handle(), urls.into_iter().map(|url| url.to_string()).collect());
             }
-            #[cfg(any(target_os = "linux", target_os = "windows"))]
+            #[cfg(target_os = "windows")]
             if let Err(error) = app.deep_link().register_all() {
                 tracing::warn!(%error, "Não foi possível registrar luxmc://");
             }
@@ -370,9 +395,6 @@ pub async fn run() {
                     let _ = window.set_icon(icon.clone());
                 }
             }
-
-            #[cfg(target_os = "linux")]
-            ensure_linux_desktop_integration();
 
             let handle_overlay = app.handle().clone();
             tauri::async_runtime::spawn(async move {

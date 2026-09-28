@@ -153,12 +153,13 @@ jobs:
       - name: Build and Upload Arch Linux Package (.pkg.tar.zst)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
         run: |
           sudo apt-get install -y zstd tar
-          bash scripts/build-arch-package.sh || true
+          bash scripts/build-arch-package.sh
           if [ -f "packaging/arch/luxmc-2.0.0-1-x86_64.pkg.tar.zst" ]; then
-            gh release upload "$RELEASE_TAG" "packaging/arch/luxmc-2.0.0-1-x86_64.pkg.tar.zst" --clobber || true
+            gh release upload "$RELEASE_TAG" "packaging/arch/luxmc-2.0.0-1-x86_64.pkg.tar.zst" --clobber
           fi
 
   build-windows:
