@@ -21,6 +21,11 @@ export function resolveWallpaperVideoUrl(value: string): string {
     return path ? convertFileSrc(path) : value;
 }
 
+export function resolveWallpaperStreamUrl(value: string, port: number): string {
+    const path = wallpaperLocalPath(value);
+    return path ? `http://127.0.0.1:${port}/media?path=${encodeURIComponent(path)}` : value;
+}
+
 export const wallpaperPosters = new Map<string, string>();
 const pendingPosters = new Map<string, Promise<string>>();
 

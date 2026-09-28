@@ -2,7 +2,8 @@
     import { onMount } from "svelte";
     import { settings } from "$lib/stores/settings.svelte";
     import { appState } from "$lib/stores/app.svelte";
-    import { loadWallpaperPoster, resolveWallpaperVideoUrl } from "$lib/utils/wallpaperSource";
+    import { mediaServerPort } from "$lib/api";
+    import { loadWallpaperPoster, resolveWallpaperStreamUrl, resolveWallpaperVideoUrl, wallpaperLocalPath } from "$lib/utils/wallpaperSource";
 
     let { src, preview = false }: { src: string; preview?: boolean } = $props();
     let video = $state<HTMLVideoElement | null>(null);
@@ -11,8 +12,10 @@
     let visible = $state(true);
     let focused = $state(true);
     let failed = $state(false);
+    let source = $state("");
+    let fallbackSource = $state("");
+    let triedFallback = $state(false);
 
-    const source = $derived(resolveWallpaperVideoUrl(src));
     const paused = $derived(
         preview || !visible ||
         (settings.value.pauseWallpaperOnBlur !== false && !focused) ||
@@ -46,10 +49,23 @@
 
     $effect(() => {
         const currentSource = src;
+        const localPath = wallpaperLocalPath(currentSource);
+        fallbackSource = resolveWallpaperVideoUrl(currentSource);
+        source = localPath ? "" : currentSource;
+        triedFallback = false;
+        failed = false;
         poster = "";
         posterReady = false;
         if (!currentSource) return;
         let disposed = false;
+        if (localPath) {
+            void mediaServerPort().then(port => {
+                if (disposed) return;
+                source = port ? resolveWallpaperStreamUrl(currentSource, port) : fallbackSource;
+            }).catch(() => {
+                if (!disposed) source = fallbackSource;
+            });
+        }
         void loadWallpaperPoster(currentSource).then(image => {
             if (!disposed) poster = image;
         }).catch(() => {});
@@ -122,6 +138,11 @@
         };
         const onError = () => {
             if (disposed) return;
+            if (!triedFallback && fallbackSource && source !== fallbackSource) {
+                triedFallback = true;
+                source = fallbackSource;
+                return;
+            }
             failed = true;
             cover();
         };

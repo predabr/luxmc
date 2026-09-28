@@ -1,7 +1,6 @@
 <script lang="ts">
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { button } from "$lib/components/ui/button";
-    import VirtualList from "$lib/components/ui/VirtualList.svelte";
 	import { sanitizeHtml } from "$lib/utils/sanitizeHtml";
 	import { onMount, untrack } from "svelte";
 	import { deepLinks } from "$lib/stores/deepLinks.svelte";
@@ -66,11 +65,6 @@
 
     let resultsWidth = $state(0);
     const resultColumns = $derived(resultsWidth >= 1050 ? 3 : resultsWidth >= 650 ? 2 : 1);
-    const resultRows = $derived.by(() => {
-        const rows: ModSearchResultItem[][] = [];
-        for (let index = 0; index < results.length; index += resultColumns) rows.push(results.slice(index, index + resultColumns));
-        return rows;
-    });
 
 	const sortOptions = [
 		{ id: "downloads", label: "Downloads" },
@@ -86,7 +80,7 @@
 	let searchError = $state<string | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let currentPage = $state(1);
-	const pageSize = 21;
+	const pageSize = 36;
 	let installingIds = $state<Set<string>>(new Set());
 	let installedIds = $state<Set<string>>(new Set());
 	let hasSearched = $state(false);
@@ -357,6 +351,7 @@
 				id: cp.id,
 				name: cp.name,
 				icon: iconUrl || "default",
+				banner: item.bannerUrl || undefined,
 				mcVersion: cp.mcVersion,
 				loader: (cp.loader || detectedLoader || "fabric") as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
 				loaderVersion: cp.loaderVersion ?? undefined,
@@ -365,6 +360,9 @@
 				createdAt: Date.now(),
 				updatedAt: Date.now(),
 			});
+			if (item.bannerUrl) {
+				profiles.setBanner(cp.id, item.bannerUrl);
+			}
 			profiles.activeId = cp.id;
 			targetInstanceId = cp.id;
 			await profiles.refresh();
@@ -424,7 +422,7 @@
 	}
 </script>
 
-<div class="h-full flex gap-6 select-none overflow-hidden">
+<div class="min-h-full flex gap-6 select-none">
 
 	{#if selectedItem}
 		{@const id = `${selectedItem.source}:${selectedItem.sourceId}`}
@@ -537,7 +535,7 @@
 		</ModDetailView>
 
 	{:else}
-		<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-1">
+		<div class="flex-1 flex flex-col min-w-0 pr-1">
 			<header class="relative mb-6 overflow-hidden rounded-2xl border border-fg/[0.08] bg-bg-elevated p-6 shadow-soft">
                 <p class="page-eyebrow mb-3">Descubra · Instale · Explore</p>
                 <h1 class="page-title">Seu Minecraft, sem limites.</h1>
@@ -651,23 +649,19 @@
 			{:else}
                 <div bind:clientWidth={resultsWidth}>
                     {#if viewMode === 'grid'}
-                        <VirtualList items={resultRows} itemHeight={380} height="min(65vh, 820px)" overscan={1}>
-                            {#snippet children(row)}
-                                <div class="grid gap-4 pb-4" style:grid-template-columns={`repeat(${resultColumns}, minmax(0, 1fr))`}>
-                                    {#each row as item (item.source + ':' + item.sourceId)}
-                                        {@const id = `${item.source}:${item.sourceId}`}
-                                        <ModCard {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
-                                    {/each}
-                                </div>
-                            {/snippet}
-                        </VirtualList>
-                    {:else}
-                        <VirtualList items={results} itemHeight={112} height="min(65vh, 820px)" overscan={1}>
-                            {#snippet children(item)}
+                        <div class="grid gap-4 pb-5" style:grid-template-columns={`repeat(${resultColumns}, minmax(0, 1fr))`}>
+                            {#each results as item (item.source + ':' + item.sourceId)}
                                 {@const id = `${item.source}:${item.sourceId}`}
-                                <div class="pb-2.5"><ModCardList {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} /></div>
-                            {/snippet}
-                        </VirtualList>
+                                <ModCard {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
+                            {/each}
+                        </div>
+                    {:else}
+                        <div class="space-y-2.5 pb-5">
+                            {#each results as item (item.source + ':' + item.sourceId)}
+                                {@const id = `${item.source}:${item.sourceId}`}
+                                <ModCardList {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
+                            {/each}
+                        </div>
                     {/if}
                 </div>
 

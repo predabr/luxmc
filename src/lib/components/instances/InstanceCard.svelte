@@ -31,6 +31,7 @@
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { getIconSrc as defaultGetIconSrc } from "$lib/utils/icons";
+	import { resolveProfileBanner } from "$lib/utils/curatedBanners";
 
 	const { t } = useTranslation();
 
@@ -114,9 +115,9 @@
     const lastPlayed = $derived.by(() => { now; return isRunningThis ? "Em execução agora" : (profile.lastPlayed ? formatTimeAgo(profile.lastPlayed) : 'Ainda não jogada'); });
     const minutes = $derived(gamingStats.profileMinutes(profile.id));
     const playtime = $derived(minutes <= 0 ? (isRunningThis ? '< 1 min' : '0 min') : (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`));
-    const hasDedicatedBanner = $derived(Boolean(profile.banner && profile.banner !== profile.icon && profile.banner !== '/grass_block.png'));
-    const banner = $derived(profile.banner || '/bg_day.jpg');
+    const banner = $derived(bannerFailed ? '/bg_day.jpg' : resolveProfileBanner(profile));
     const resolvedIcon = $derived(getIconSrc(profile.icon));
+    const showAvatarIcon = $derived(Boolean(resolvedIcon && resolvedIcon !== '/grass_block.png' && resolvedIcon !== banner));
     const actions = $derived([
         { label: 'Configurar instância', icon: Pencil, onClick: () => onEdit?.(profile) },
         { label: 'Abrir pasta', icon: FolderOpen, onClick: () => onOpenFolder?.(profile.id) },
@@ -160,37 +161,27 @@
     {/if}
     {#if tagColor}<span class="absolute bottom-5 left-0 top-5 w-0.5 rounded-full" style:background={colorOptions.find(color => color.value === tagColor)?.color || 'rgb(var(--brand-500))'}></span>{/if}
     {#if viewMode === 'grid'}
-        <div class="relative h-40 overflow-hidden rounded-t-2xl">
-            {#if hasDedicatedBanner && !bannerFailed}
+        <div class="relative h-44 overflow-hidden rounded-t-2xl bg-bg-subtle">
+            <img
+                src={banner}
+                alt=""
+                class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                loading="lazy"
+                onerror={() => { bannerFailed = true; }}
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/25 to-transparent"></div>
+            <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent"></div>
+            <div class="absolute left-4 top-4 z-10"><LoaderBadge loader={profile.loader} /></div>
+            <div class="absolute right-4 top-4 z-10">{@render selection()}</div>
+            {#if showAvatarIcon}
                 <img
-                    src={banner}
-                    alt=""
-                    class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    src={resolvedIcon}
+                    alt={profile.name}
+                    class="absolute bottom-2 left-4 z-10 h-12 w-12 rounded-xl border border-fg/15 bg-bg-elevated/90 p-1 object-contain shadow-elevated"
                     loading="lazy"
-                    onerror={() => { bannerFailed = true; }}
+                    onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
                 />
-			{:else}
-				<div class="absolute inset-0 bg-gradient-to-br from-bg-subtle via-bg-elevated to-bg-overlay"></div>
-				<div class="card-mesh absolute inset-0 opacity-40"></div>
-				<img
-					src={resolvedIcon}
-					alt={profile.name}
-					class="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-fg/10 bg-bg-elevated p-1 object-contain shadow-elevated"
-					loading="lazy"
-					onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
-				/>
             {/if}
-            <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/10 to-bg-overlay/15"></div>
-            <div class="absolute left-4 top-4"><LoaderBadge loader={profile.loader} /></div>
-            <div class="absolute right-4 top-4">{@render selection()}</div>
-			{#if hasDedicatedBanner && !bannerFailed}
-				<img
-					src={resolvedIcon}
-					alt={profile.name}
-					class="absolute bottom-2 left-5 h-14 w-14 rounded-2xl border border-fg/10 bg-bg-elevated p-1 object-contain shadow-elevated"
-					onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
-				/>
-			{/if}
         </div>
     {:else}
         {@render selection()}

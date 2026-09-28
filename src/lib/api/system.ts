@@ -10,6 +10,10 @@ export async function ping(): Promise<string> {
 	return api.invoke<string>("ping");
 }
 
+export async function mediaServerPort(): Promise<number | null> {
+	return api.invoke<number | null>("media_server_port");
+}
+
 export async function appInit(): Promise<{
 	devMode: boolean;
 	account: {

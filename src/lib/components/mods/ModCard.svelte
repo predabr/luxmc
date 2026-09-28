@@ -88,7 +88,7 @@
 	onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDetails(item); } }}
 	class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-elevated cursor-pointer"
 >
-	<div class="relative h-40 bg-bg-subtle rounded-t-2xl overflow-hidden">
+	<div class="relative h-48 bg-bg-subtle rounded-t-2xl overflow-hidden">
 		{#if effectiveBanner && !bannerFailed}
 			<img 
 				src={effectiveBanner} 
@@ -100,9 +100,9 @@
 				<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-elevated">
 					<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-70"></div>
 					<div class="card-mesh absolute inset-0 opacity-40"></div>
-					<div class="absolute inset-0 flex items-center justify-center">
-						<div class="flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-fg/10 bg-bg-elevated p-1 shadow-elevated">
-							{#if item.iconUrl}<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain p-1" fallback="/grass_block.png" />{:else}<Box class="h-8 w-8 text-brand-400" />{/if}
+					<div class="absolute inset-3 flex items-center justify-center">
+						<div class="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-fg/10 bg-bg-elevated/55 p-3 shadow-elevated transition-transform duration-300 group-hover:scale-[1.02]">
+							{#if item.iconUrl}<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain" fallback="/grass_block.png" />{:else}<Box class="h-12 w-12 text-brand-400" />{/if}
 						</div>
 					</div>
 				</div>

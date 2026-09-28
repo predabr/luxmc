@@ -139,12 +139,9 @@
         await wait(() => window.testCalls.some(call => call.command === 'instances_screenshots'), 'screenshots sob demanda');
         assert(true, 'Mundos e screenshots carregados sob demanda');
         await goto('/mods');
-        await wait(() => document.querySelector('[data-virtual-list] [data-index]'), 'catálogo virtual');
-        let viewport = document.querySelector('[data-virtual-list]');
-        assert(viewport.querySelectorAll('[data-index]').length <= 20, 'Catálogo tem até 20 linhas virtuais');
-        viewport.scrollTop = viewport.scrollHeight;
-        await wait(() => viewport.textContent.includes('Pack 199'), 'fim do catálogo');
-        assert(true, 'Último item do catálogo continua acessível');
+        await wait(() => document.body.textContent.includes('Pack 35'), 'catálogo completo');
+        assert(!document.querySelector('[data-virtual-list]'), 'Catálogo usa a rolagem principal sem viewport aninhado');
+        let viewport;
         const { gameLogs } = await import('/src/lib/stores/app.svelte.ts');
         gameLogs.clear();
         for (let index = 0; index < 500; index++) gameLogs.add('stdout', `Linha ${index}: ${'mensagem longa '.repeat(index % 5 + 1)}`);

@@ -6,8 +6,17 @@ pub mod db;
 pub mod error;
 mod state;
 use state::AppState;
+use std::sync::atomic::{AtomicU16, Ordering};
 use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
+
+static MEDIA_SERVER_PORT: AtomicU16 = AtomicU16::new(0);
+
+#[tauri::command]
+fn media_server_port() -> Option<u16> {
+    let port = MEDIA_SERVER_PORT.load(Ordering::Relaxed);
+    (port != 0).then_some(port)
+}
 
 async fn handle_media_request(mut socket: tokio::net::TcpStream, msg: &str) {
     use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
@@ -399,32 +408,53 @@ pub async fn run() {
             }
 
             let handle_overlay = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                if let Ok(listener) = tokio::net::TcpListener::bind("127.0.0.1:49152").await {
-                    let connections = std::sync::Arc::new(tokio::sync::Semaphore::new(8));
-                    while let Ok((mut socket, _)) = listener.accept().await {
-                        let Ok(permit) = connections.clone().try_acquire_owned() else { continue; };
-                        let overlay_ref = handle_overlay.clone();
-                        tokio::spawn(async move {
-                            let _permit = permit;
-                            use tokio::io::AsyncReadExt;
-                            let mut buf = [0u8; 4096];
-                            if let Ok(Ok(n)) = tokio::time::timeout(std::time::Duration::from_secs(5), socket.read(&mut buf)).await {
-                                let msg = String::from_utf8_lossy(&buf[..n]);
-                                if msg.starts_with("GET /media") {
-                                    let _ = tokio::time::timeout(std::time::Duration::from_secs(120), handle_media_request(socket, &msg)).await;
-                                } else if msg.starts_with("GET ")
-                                    && (msg.contains("/cape") || msg.contains("/optifine") || msg.contains("luxmc_cape") || msg.contains("/capes/"))
-                                {
-                                    handle_cape_request(socket).await;
-                                } else if msg.contains("TOGGLE") {
-                                    crate::commands::system::trigger_overlay_toggle(&overlay_ref);
-                                }
+            let media_listener = std::net::TcpListener::bind(("127.0.0.1", 49152))
+                .or_else(|error| {
+                    tracing::warn!(%error, "Porta 49152 ocupada; escolhendo uma porta livre para mídia");
+                    std::net::TcpListener::bind(("127.0.0.1", 0))
+                });
+            match media_listener {
+                Ok(listener) => {
+                    listener.set_nonblocking(true)?;
+                    let port = listener.local_addr()?.port();
+                    MEDIA_SERVER_PORT.store(port, Ordering::Relaxed);
+                    tauri::async_runtime::spawn(async move {
+                        let listener = match tokio::net::TcpListener::from_std(listener) {
+                            Ok(listener) => listener,
+                            Err(error) => {
+                                MEDIA_SERVER_PORT.store(0, Ordering::Relaxed);
+                                tracing::error!(%error, "Falha ao iniciar o servidor de mídia");
+                                return;
                             }
-                        });
-                    }
+                        };
+                        let connections = std::sync::Arc::new(tokio::sync::Semaphore::new(8));
+                        while let Ok((mut socket, _)) = listener.accept().await {
+                            let Ok(permit) = connections.clone().try_acquire_owned() else { continue; };
+                            let overlay_ref = handle_overlay.clone();
+                            tokio::spawn(async move {
+                                let _permit = permit;
+                                use tokio::io::AsyncReadExt;
+                                let mut buf = [0u8; 4096];
+                                if let Ok(Ok(n)) = tokio::time::timeout(std::time::Duration::from_secs(5), socket.read(&mut buf)).await {
+                                    let msg = String::from_utf8_lossy(&buf[..n]);
+                                    if msg.starts_with("GET /media") {
+                                        let _ = tokio::time::timeout(std::time::Duration::from_secs(120), handle_media_request(socket, &msg)).await;
+                                    } else if msg.starts_with("GET ")
+                                        && (msg.contains("/cape") || msg.contains("/optifine") || msg.contains("luxmc_cape") || msg.contains("/capes/"))
+                                    {
+                                        handle_cape_request(socket).await;
+                                    } else if msg.contains("TOGGLE") {
+                                        crate::commands::system::trigger_overlay_toggle(&overlay_ref);
+                                    }
+                                }
+                            });
+                        }
+                    });
                 }
-            });
+                Err(error) => {
+                    tracing::error!(%error, "Nenhuma porta local disponível para o servidor de mídia");
+                }
+            }
 
 
             Ok(())
@@ -452,6 +482,7 @@ pub async fn run() {
             commands::system::app_init,
             commands::system::get_system_specs,
             commands::system::client_overlay_close,
+            media_server_port,
             commands::env::env_check,
             commands::settings::settings_get,
             commands::settings::settings_set,

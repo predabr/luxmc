@@ -82,6 +82,7 @@
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { appState } from "$lib/stores/app.svelte";
+	import { resolveProfileBanner } from "$lib/utils/curatedBanners";
 	import { open, save } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
 	import { handlePostLaunchActions } from "$lib/utils/launcherLifecycle";
@@ -160,35 +161,7 @@
 
 	const settingsIcon = $derived(getIconSrc(activeProfile?.icon));
 
-	const curatedHeroBanners: Record<string, string> = {
-		"rlcraft": "https://media.forgecdn.net/attachments/267/928/rlcraft-banner.png",
-		"skyfactory": "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
-		"all the mods": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
-		"atm": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
-		"better mc": "/modpack_better_mc.webp",
-		"better minecraft": "/modpack_better_mc.webp",
-		"bmc": "/modpack_better_mc.webp",
-		"cobblemon": "/modpack_cobblemon.webp",
-		"pixelmon": "https://media.forgecdn.net/attachments/305/760/banner.png",
-		"fabulously optimized": "/modpack_fo.webp",
-		"fo": "/modpack_fo.webp",
-		"dawncraft": "https://media.forgecdn.net/attachments/474/883/banner.png",
-		"medieval mc": "https://media.forgecdn.net/attachments/418/850/banner.png",
-		"prominence": "https://media.forgecdn.net/attachments/625/441/prominence_banner.png",
-		"vault hunters": "https://media.forgecdn.net/attachments/420/55/vh3_banner.png",
-		"simply optimized": "https://cdn.modrinth.com/data/bKUGbHwI/images/b07cbde1b24bf20a320ff7b57b98df9ad01b54a7.png"
-	};
-
-	const heroBanner = $derived.by(() => {
-		if (activeProfile?.banner && activeProfile.banner !== activeProfile.icon && activeProfile.banner !== "/grass_block.png") {
-			return activeProfile.banner;
-		}
-		const nameLower = (activeProfile?.name || "").toLowerCase();
-		for (const [key, b] of Object.entries(curatedHeroBanners)) {
-			if (nameLower.includes(key)) return b;
-		}
-		return "/bg_day.jpg";
-	});
+	const heroBanner = $derived(resolveProfileBanner(activeProfile));
 
 	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros" | "configuracoes" | "laboratorio">("conteudo");
 	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("mods");

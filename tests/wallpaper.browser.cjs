@@ -21,6 +21,7 @@ const fs = require('node:fs');
             if (command === 'plugin:store|get') return [{ animations: false, liveWallpaper: false, soundscapesEnabled: false }, true];
             if (command === 'plugin:dialog|open') return window.nextWallpaperPath;
             if (command === 'wallpaper_prepare_poster') return window.wallpaperPoster;
+            if (command === 'media_server_port') return 49152;
             if (command === 'get_system_specs') return { totalRamMb: 16384, osDistro: 'Linux', arch: 'x86_64' };
             if (command === 'mesh_status') return { available: false, state: '', ip: null, peers: [] };
             return null;
@@ -28,6 +29,7 @@ const fs = require('node:fs');
         window.electronAPI = { invoke, on: () => () => {} };
         window.__TAURI_INTERNALS__ = { invoke, transformCallback: () => 1, convertFileSrc: path => `http://asset.localhost/${encodeURIComponent(path)}` };
     }, poster);
+    await page.route('http://127.0.0.1:49152/media**', route => route.fulfill({ status: 200, contentType: 'video/mp4', body: fs.readFileSync('tests/fixtures/wallpaper.mp4') }));
     await page.route('http://asset.localhost/**', route => route.fulfill({ status: 200, contentType: 'video/mp4', body: fs.readFileSync('tests/fixtures/wallpaper.mp4') }));
     await page.goto('http://127.0.0.1:1420/');
     await page.evaluate(async () => {
@@ -35,6 +37,7 @@ const fs = require('node:fs');
         themeStore.setCustomWallpaper('/tmp/wallpaper-one.mp4', 'video');
     });
     const video = page.locator('video').first();
+    await page.waitForFunction(() => document.querySelector('video')?.currentSrc.startsWith('http://127.0.0.1:49152/media'));
     await page.waitForFunction(() => {
         const element = document.querySelector('video');
         const image = element?.parentElement?.querySelector('img');
