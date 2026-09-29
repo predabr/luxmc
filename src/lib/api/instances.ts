@@ -261,6 +261,10 @@ export async function instanceModAdd(profileId: string, sourcePath: string): Pro
 	return api.invoke<string>("instance_mod_add", { profileId, sourcePath });
 }
 
+export async function instanceModAddBytes(profileId: string, fileName: string, dataBase64: string): Promise<string> {
+	return api.invoke<string>("instance_mod_add_bytes", { profileId, fileName, dataBase64 });
+}
+
 export async function instanceModsOpenFolder(profileId: string): Promise<void> {
 	return api.invoke("instance_mods_open_folder", { profileId });
 }

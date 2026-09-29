@@ -329,6 +329,25 @@ button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active
   transform: translateY(-2px);
 }
 
+html.no-anim *, html.no-anim *::before, html.no-anim *::after {
+  transition-duration: 1ms !important;
+}
+html.no-anim *:not(.animate-spin), html.no-anim *::before, html.no-anim *::after {
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+}
+html.no-anim button:not(:disabled):hover, html.no-anim [role="button"]:not([aria-disabled="true"]):hover {
+  filter: none;
+}
+html.no-anim .hover-lift:hover {
+  transform: none;
+}
+
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
 @keyframes slideIn {
   from {
     transform: translateX(400px);
@@ -365,11 +384,6 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   scroll-behavior: auto !important;
-}
-
-body.is-scrolling,
-body.is-scrolling * {
-  pointer-events: none !important;
 }
 
 .gpu-accelerated {

@@ -14,6 +14,7 @@ pub struct InstanceReadiness {
     pub gpu_driver: String,
     pub blockers: Vec<String>,
     pub warnings: Vec<String>,
+    pub repairable: bool,
     pub conflicts: crate::core::doctor::PreLaunchCheckResult,
 }
 
@@ -53,6 +54,7 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
     let gpu = crate::core::optimizer::detect_gpu();
     let mut blockers = Vec::new();
     let mut warnings = Vec::new();
+    let mut repairable = true;
     if !health.client_jar {
         blockers.push("Os arquivos principais do Minecraft estão ausentes.".into());
     }
@@ -60,13 +62,24 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
         blockers.push("As bibliotecas nativas da versão não estão prontas.".into());
     }
     if !health.mods_ok {
-        warnings.extend(health.issues);
+        warnings.push(
+            health
+                .issues
+                .iter()
+                .find(|issue| issue.starts_with("Falha ao sincronizar"))
+                .cloned()
+                .unwrap_or_else(|| {
+                    "A lista de mods está fora de sincronia com os arquivos da instância.".into()
+                }),
+        );
     }
     if conflicts.has_conflicts {
         blockers.push("Há conflitos ou duplicatas de mods que impedem a inicialização segura.".into());
+        repairable = false;
     }
     if !matches!(row.loader.to_ascii_lowercase().as_str(), "vanilla" | "fabric" | "forge" | "neoforge" | "quilt" | "optifine") {
         blockers.push("O loader configurado para a instância não é suportado.".into());
+        repairable = false;
     }
     if allocated_ram_mb < recommended_ram_mb {
         warnings.push(format!("Esta instância tem {} MB; recomenda-se pelo menos {} MB.", allocated_ram_mb, recommended_ram_mb));
@@ -77,12 +90,17 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
     if gpu.vendor == "Desconhecido" {
         warnings.push("Não foi possível identificar a GPU; o Luxmc usará a configuração segura padrão.".into());
     }
+    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
+    for warning in crate::core::doctor::mod_compatibility_warnings(&mods_dir, &row.mc_version, &row.loader) {
+        warnings.push(warning);
+    }
     #[cfg(target_os = "linux")]
     if gpu.vendor == "NVIDIA" && std::env::var_os("WAYLAND_DISPLAY").is_some() {
         warnings.push("NVIDIA em Wayland detectada; use o modo de compatibilidade XWayland se ocorrer falha gráfica.".into());
     }
     Ok(InstanceReadiness {
         ready: blockers.is_empty(),
+        repairable: repairable && !blockers.is_empty(),
         required_java,
         allocated_ram_mb,
         recommended_ram_mb,
@@ -139,7 +157,9 @@ pub async fn crash_doctor_diagnose_core(
     log_content: Option<String>,
 ) -> AppResult<CrashDiagnosis> {
     if let Some(text) = log_content.filter(|t| !t.trim().is_empty()) {
-        let diagnosis = analyze_crash_text(&text);
+        let diagnosis = tokio::task::spawn_blocking(move || analyze_crash_text(&text))
+            .await
+            .map_err(|error| AppError::Internal(error.to_string()))?;
         if diagnosis.has_error {
             return Ok(diagnosis);
         }
@@ -153,7 +173,9 @@ pub async fn crash_doctor_diagnose_core(
         .ok_or_else(|| AppError::NotFound(format!("Instância {profile_id} não encontrada")))?;
 
     let game_dir = std::path::PathBuf::from(&row.game_dir);
-    Ok(diagnose_instance(&game_dir))
+    tokio::task::spawn_blocking(move || diagnose_instance(&game_dir))
+        .await
+        .map_err(|error| AppError::Internal(error.to_string()))
 }
 
 #[tauri::command]
@@ -189,5 +211,9 @@ pub async fn doctor_check_instance_conflicts(
         }
     }
 
-    Ok(crate::core::doctor::check_mod_conflicts_with_paths(&jar_names, &jar_paths))
+    tokio::task::spawn_blocking(move || {
+        crate::core::doctor::check_mod_conflicts_with_paths(&jar_names, &jar_paths)
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))
 }

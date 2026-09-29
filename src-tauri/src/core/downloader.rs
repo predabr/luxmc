@@ -814,7 +814,11 @@ async fn download_file_retry(
                     ),
                 );
                 let _ = tokio::fs::remove_file(&temporary).await;
+                let not_found = matches!(&e, AppError::Http(re) if re.status() == Some(reqwest::StatusCode::NOT_FOUND));
                 last_err = Some(e);
+                if not_found {
+                    break;
+                }
 
                 if attempt < MAX_RETRIES {
                     let delay = RETRY_BASE_DELAY_MS * 2u64.pow(attempt - 1);
@@ -1035,4 +1039,30 @@ pub async fn ensure_artifact(http: &reqwest::Client, path: &std::path::Path, url
     let manager = DownloadManager::new(http.clone(), PathBuf::new());
     let entry = DownloadEntry { url: url.to_owned(), size, sha1: sha1.to_owned() };
     download_file_retry(&manager, &entry, &path.to_owned(), &path.display().to_string()).await
+}
+
+pub async fn ensure_artifact_any(
+    http: &reqwest::Client,
+    path: &std::path::Path,
+    urls: &[String],
+    size: u64,
+    sha1: &str,
+) -> AppResult<()> {
+    if valid_cached_file(path, size, sha1).await? { return Ok(()); }
+    if let Some(parent) = path.parent() { tokio::fs::create_dir_all(parent).await?; }
+    let manager = DownloadManager::new(http.clone(), PathBuf::new());
+    let mut last_err: Option<AppError> = None;
+    for url in urls {
+        if url.trim().is_empty() {
+            continue;
+        }
+        let entry = DownloadEntry { url: url.clone(), size, sha1: sha1.to_owned() };
+        match download_file_retry(&manager, &entry, &path.to_owned(), &path.display().to_string()).await {
+            Ok(()) => return Ok(()),
+            Err(e) => last_err = Some(e),
+        }
+    }
+    Err(last_err.unwrap_or_else(|| {
+        AppError::NotFound(format!("{} not available in any repository", path.display()))
+    }))
 }

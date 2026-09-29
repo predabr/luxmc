@@ -47,6 +47,20 @@ pub struct NeoForgeVersionJson {
     pub libraries: Vec<NeoForgeLibrary>,
 }
 
+fn versions_from_metadata(metadata: &str, prefix: &str) -> Vec<LoaderVersion> {
+    let mut versions = metadata.split("<version>").skip(1)
+        .filter_map(|entry| entry.split("</version>").next())
+        .map(str::trim)
+        .filter(|version| version.starts_with(prefix))
+        .map(|version| LoaderVersion {
+            id: version.to_string(),
+            stable: !version.contains("beta") && !version.contains("alpha") && !version.contains("rc"),
+        })
+        .collect::<Vec<_>>();
+    versions.reverse();
+    versions
+}
+
 pub async fn fetch_versions(
     http: &reqwest::Client,
     mc_version: &str,
@@ -71,50 +85,7 @@ pub async fn fetch_versions(
         _ => String::new(),
     };
 
-    let mut versions = Vec::new();
-    if !resp_text.is_empty() {
-        for line in resp_text.lines() {
-            let trimmed = line.trim();
-            if trimmed.starts_with("<version>") && trimmed.ends_with("</version>") {
-                let v = trimmed
-                    .trim_start_matches("<version>")
-                    .trim_end_matches("</version>")
-                    .trim();
-                if v.starts_with(&prefix) {
-                    versions.push(LoaderVersion {
-                        id: v.to_string(),
-                        stable: true,
-                    });
-                }
-            }
-        }
-    }
-
-    if versions.is_empty() {
-        let fallbacks: &[(&str, &[&str])] = &[
-            ("1.20.2", &["20.2.86", "20.2.85", "20.2.84", "20.2.83"]),
-            ("1.20.4", &["20.4.237", "20.4.236", "20.4.235", "20.4.234", "20.4.233", "20.4.232"]),
-            ("1.20.6", &["20.6.119", "20.6.118", "20.6.117"]),
-            ("1.21.0", &["21.0.167", "21.0.166", "21.0.165"]),
-            ("1.21.1", &["21.1.137", "21.1.136", "21.1.135", "21.1.134"]),
-            ("1.21.3", &["21.3.56-beta", "21.3.55-beta"]),
-            ("1.21.4", &["21.4.120", "21.4.119", "21.4.118"]),
-        ];
-        for (mc, vers) in fallbacks {
-            if *mc == mc_version {
-                for v in *vers {
-                    versions.push(LoaderVersion {
-                        id: v.to_string(),
-                        stable: !v.contains("beta"),
-                    });
-                }
-                break;
-            }
-        }
-    }
-
-    versions.reverse();
-    Ok(versions)
+    Ok(versions_from_metadata(&resp_text, &prefix))
 }
 
 fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
@@ -416,16 +387,21 @@ pub async fn prepare_neoforge(
 
 async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> AppResult<String> {
     let versions = fetch_versions(http, mc_version).await?;
-    if let Some(first) = versions.first() {
-        return Ok(first.id.clone());
+    if let Some(chosen) = versions.iter().find(|version| version.stable).or_else(|| versions.first()) {
+        return Ok(chosen.id.clone());
     }
 
-    let parts: Vec<&str> = mc_version.split('.').collect();
-    if parts.len() >= 2 && parts[0] == "1" {
-        let minor = parts[1];
-        let patch = if parts.len() > 2 { parts[2] } else { "0" };
-        Ok(format!("{}.{}.1", minor, patch))
-    } else {
-        Ok(format!("{}.1", mc_version))
+    Err(AppError::NotFound(format!("NeoForge indisponível para Minecraft {mc_version}")))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn reads_compact_maven_metadata() {
+        let xml = "<metadata><versions><version>21.4.157</version><version>21.4.158</version><version>21.4.159-beta</version></versions></metadata>";
+        let versions = super::versions_from_metadata(xml, "21.4.");
+        assert_eq!(versions.iter().map(|version| version.id.as_str()).collect::<Vec<_>>(), ["21.4.159-beta", "21.4.158", "21.4.157"]);
+        assert!(!versions[0].stable);
+        assert!(versions[1].stable);
     }
 }

@@ -34,7 +34,25 @@ pub async fn death_tracker_get_last_death(
 
     let game_dir = PathBuf::from(&row.game_dir);
     let log_path = game_dir.join("logs").join("latest.log");
+    tokio::task::spawn_blocking(move || last_death_from_log(log_path))
+        .await
+        .map_err(|error| crate::error::AppError::Internal(error.to_string()))
+}
 
+fn empty_death() -> DeathEventInfo {
+    DeathEventInfo {
+        has_death: false,
+        death_message: "Nenhuma morte recente detectada nos registros.".into(),
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        x: None,
+        y: None,
+        z: None,
+        dimension: "Overworld".into(),
+        world_name: None,
+    }
+}
+
+fn last_death_from_log(log_path: PathBuf) -> DeathEventInfo {
     let death_keywords = [
         "fell from a high place",
         "was blown up",
@@ -53,58 +71,51 @@ pub async fn death_tracker_get_last_death(
         "died",
     ];
 
-    if log_path.is_file() {
-        if let Ok(content) = std::fs::read_to_string(&log_path) {
-            let mut last_death_line = None;
-            let mut last_coords = None;
+    if !log_path.is_file() {
+        return empty_death();
+    }
+    let Ok(content) = std::fs::read_to_string(&log_path) else {
+        return empty_death();
+    };
 
-            for line in content.lines().rev() {
-                if last_death_line.is_none() {
-                    for kw in &death_keywords {
-                        if line.contains(kw) {
-                            last_death_line = Some(line.to_string());
-                            break;
-                        }
-                    }
-                }
+    let mut last_death_line = None;
+    let mut last_coords = None;
 
-                if line.contains("Block:") || line.contains("Position:") {
-                    last_coords = parse_coords_from_log_line(line);
-                }
-
-                if last_death_line.is_some() && last_coords.is_some() {
+    for line in content.lines().rev() {
+        if last_death_line.is_none() {
+            for kw in &death_keywords {
+                if line.contains(kw) {
+                    last_death_line = Some(line.to_string());
                     break;
                 }
             }
+        }
 
-            if let Some(death_msg) = last_death_line {
-                let clean_msg = death_msg.split(']').last().unwrap_or(&death_msg).trim();
-                let (x, y, z) = last_coords.unwrap_or((0.0, 64.0, 0.0));
+        if line.contains("Block:") || line.contains("Position:") {
+            last_coords = parse_coords_from_log_line(line);
+        }
 
-                return Ok(DeathEventInfo {
-                    has_death: true,
-                    death_message: clean_msg.to_string(),
-                    timestamp: chrono::Utc::now().to_rfc3339(),
-                    x: Some(x),
-                    y: Some(y),
-                    z: Some(z),
-                    dimension: "Overworld".into(),
-                    world_name: None,
-                });
-            }
+        if last_death_line.is_some() && last_coords.is_some() {
+            break;
         }
     }
 
-    Ok(DeathEventInfo {
-        has_death: false,
-        death_message: "Nenhuma morte recente detectada nos registros.".into(),
+    let Some(death_msg) = last_death_line else {
+        return empty_death();
+    };
+    let clean_msg = death_msg.split(']').last().unwrap_or(&death_msg).trim();
+    let (x, y, z) = last_coords.unwrap_or((0.0, 64.0, 0.0));
+
+    DeathEventInfo {
+        has_death: true,
+        death_message: clean_msg.to_string(),
         timestamp: chrono::Utc::now().to_rfc3339(),
-        x: None,
-        y: None,
-        z: None,
+        x: Some(x),
+        y: Some(y),
+        z: Some(z),
         dimension: "Overworld".into(),
         world_name: None,
-    })
+    }
 }
 
 fn parse_coords_from_log_line(line: &str) -> Option<(f64, f64, f64)> {

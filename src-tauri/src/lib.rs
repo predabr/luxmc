@@ -571,6 +571,7 @@ pub async fn run() {
             commands::instances::instance_mod_toggle,
             commands::instances::instance_mod_delete,
             commands::instances::instance_mod_add,
+            commands::instances::instance_mod_add_bytes,
             commands::instances::instance_mods_open_folder,
             commands::instances::instance_pack_add,
             commands::instances::instance_pack_delete,

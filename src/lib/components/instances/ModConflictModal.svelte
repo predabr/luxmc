@@ -34,7 +34,7 @@
 	async function handleFixConflict(c: ModConflict) {
 		resolving = true;
 		try {
-			await instanceModToggle(profileId, c.fileToDisable, true);
+			await instanceModToggle(profileId, c.fileToDisable, false);
 			toast(`Mod conflitante "${c.fileToDisable}" desativado com sucesso!`, "success");
 			playSound("click");
 			onResolved();
@@ -50,7 +50,7 @@
 		resolving = true;
 		try {
 			for (const c of conflictsResult.conflicts) {
-				await instanceModToggle(profileId, c.fileToDisable, true);
+				await instanceModToggle(profileId, c.fileToDisable, false);
 			}
 			toast("Todos os conflitos resolvidos automaticamente!", "success");
 			playSound("click");

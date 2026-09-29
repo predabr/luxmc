@@ -220,7 +220,22 @@ pub struct SystemSpecs {
 }
 
 #[tauri::command]
-pub fn get_system_specs() -> SystemSpecs {
+pub async fn get_system_specs() -> SystemSpecs {
+    tokio::task::spawn_blocking(collect_system_specs)
+        .await
+        .unwrap_or_else(|error| SystemSpecs {
+            os_distro: format!("Erro ao coletar specs: {error}"),
+            kernel_version: String::new(),
+            arch: std::env::consts::ARCH.to_string(),
+            total_ram_mb: 0,
+            launcher_version: env!("CARGO_PKG_VERSION").to_string(),
+            gpu_vendor: "Desconhecido".into(),
+            gpu_renderer: "Driver Padrão".into(),
+            gpu_supports_zink: false,
+        })
+}
+
+fn collect_system_specs() -> SystemSpecs {
     let raw_name = sysinfo::System::name().unwrap_or_else(|| {
         if cfg!(target_os = "windows") {
             "Windows".to_string()

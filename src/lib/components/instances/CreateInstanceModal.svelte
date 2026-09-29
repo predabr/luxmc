@@ -24,6 +24,7 @@
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
 	import { getIconSrc } from "$lib/utils/icons";
+	import { loadersVersions } from "$lib/api/launch";
 
 	const { t } = useTranslation();
 
@@ -40,6 +41,7 @@
 		name: string;
 		version: string;
 		loader: string;
+		loaderVersion?: string;
 		icon: string;
 		ramGb: number;
 		autoOptimize: boolean;
@@ -66,6 +68,10 @@
 	let newVersion = $state("1.21.4");
 	let newLoader = $state("fabric");
 	let loaderReleaseType = $state<"stable" | "latest" | "other">("stable");
+	let availableLoaderVersions = $state<Array<{ id: string; stable: boolean }>>([]);
+	let selectedLoaderVersion = $state("");
+	let loaderVersionsLoading = $state(false);
+	let loaderVersionError = $state("");
 	let newIcon = $state("grass_block");
 	let showIconPicker = $state(false);
 
@@ -125,6 +131,32 @@
 		{ id: 'quilt', name: 'Quilt' }
 	];
 
+	$effect(() => {
+		const loader = newLoader;
+		const version = newVersion;
+		if (!isOpen || loader === "vanilla" || !version) {
+			availableLoaderVersions = [];
+			loaderVersionsLoading = false;
+			loaderVersionError = "";
+			return;
+		}
+		let active = true;
+		availableLoaderVersions = [];
+		loaderVersionsLoading = true;
+		loaderVersionError = "";
+		void loadersVersions(loader, version).then(result => {
+			if (!active) return;
+			availableLoaderVersions = result.versions;
+			if (!result.versions.some(candidate => candidate.id === selectedLoaderVersion)) {
+				selectedLoaderVersion = result.versions[0]?.id ?? "";
+			}
+			if (!result.versions.length) loaderVersionError = `Não há ${loader} disponível para Minecraft ${version}.`;
+		}).catch(error => {
+			if (active) loaderVersionError = `Não foi possível consultar ${loader}: ${String(error)}`;
+		}).finally(() => { if (active) loaderVersionsLoading = false; });
+		return () => { active = false; };
+	});
+
 	function selectLoader(ldrId: string) {
 		newLoader = ldrId;
 		const ldr = loaderOptions.find(l => l.id === ldrId);
@@ -144,6 +176,7 @@
 		newVersion = "1.21.4";
 		newIcon = "grass_block";
 		loaderReleaseType = "stable";
+		selectedLoaderVersion = "";
 		newAutoOptimize = true;
 		newUseVulkan = false;
 		newInstallPerfPack = true;
@@ -160,6 +193,15 @@
 
 	async function handleCreate() {
 		if (!newName.trim()) return;
+		const chosenLoaderVersion = loaderReleaseType === "other"
+			? selectedLoaderVersion
+			: (loaderReleaseType === "stable"
+				? availableLoaderVersions.find(candidate => candidate.stable)?.id ?? availableLoaderVersions[0]?.id
+				: availableLoaderVersions[0]?.id);
+		if (newLoader !== "vanilla" && !chosenLoaderVersion) {
+			lastError = loaderVersionError || "Aguarde a consulta da versão do loader.";
+			return;
+		}
 		creating = true;
 		lastError = null;
 		createSuccess = false;
@@ -168,6 +210,7 @@
 				name: newName.trim(),
 				version: newVersion,
 				loader: newLoader,
+				loaderVersion: newLoader === "vanilla" ? undefined : chosenLoaderVersion,
 				icon: newIcon,
 				ramGb: selectedRamGb,
 				autoOptimize: newAutoOptimize,
@@ -346,6 +389,13 @@
 								</button>
 							{/each}
 						</div>
+						{#if loaderVersionsLoading}<p class="text-xs text-fg/50">Consultando versões compatíveis…</p>{/if}
+						{#if loaderVersionError}<p class="text-xs text-danger" role="alert">{loaderVersionError}</p>{/if}
+						{#if loaderReleaseType === 'other' && availableLoaderVersions.length > 0}
+							<select bind:value={selectedLoaderVersion} class="w-full rounded-xl border border-fg/10 bg-bg-subtle px-3 py-2 text-xs text-fg">
+								{#each availableLoaderVersions as loaderVersion}<option value={loaderVersion.id}>{loaderVersion.id}{loaderVersion.stable ? ' · estável' : ''}</option>{/each}
+							</select>
+						{/if}
 					</div>
 				{/if}
 
@@ -393,7 +443,7 @@
 								{#if newLoader !== "vanilla"}
 									<label class="flex items-center gap-2 text-xs text-fg/80 cursor-pointer">
 										<input type="checkbox" bind:checked={newInstallPerfPack} class="accent-emerald-500 rounded" />
-										<span>Instalar Sodium / Iris / Lithium automaticamente</span>
+										<span>Instalar mods de desempenho compatíveis com este loader</span>
 									</label>
 								{/if}
 							</div>
@@ -411,7 +461,7 @@
 					</button>
 					<button
 						type="button"
-						disabled={creating || !newName.trim()}
+						disabled={creating || !newName.trim() || (newLoader !== 'vanilla' && (loaderVersionsLoading || availableLoaderVersions.length === 0))}
 						onclick={handleCreate}
 						class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
 					>

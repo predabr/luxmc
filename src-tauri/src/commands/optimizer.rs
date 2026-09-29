@@ -1,6 +1,6 @@
 use tauri::State;
 use crate::core::optimizer::{
-    detect_gpu, generate_aikar_flags, generate_standard_flags, get_performance_pack_info,
+    detect_gpu, generate_aikar_flags, generate_standard_flags, get_performance_pack_info_for,
     install_performance_pack, GpuInfo, PerformancePackInfo,
 };
 use crate::error::{AppError, AppResult};
@@ -15,9 +15,21 @@ pub fn optimizer_get_flags(ram_mb: u64, auto_optimize: bool) -> Vec<String> {
     }
 }
 
+pub async fn optimizer_get_perf_pack_core(
+    http: &reqwest::Client,
+    loader: String,
+    mc_version: String,
+) -> PerformancePackInfo {
+    get_performance_pack_info_for(http, &loader, &mc_version).await
+}
+
 #[tauri::command]
-pub fn optimizer_get_perf_pack(loader: String, mc_version: String) -> PerformancePackInfo {
-    get_performance_pack_info(&loader, &mc_version)
+pub async fn optimizer_get_perf_pack(
+    state: State<'_, AppState>,
+    loader: String,
+    mc_version: String,
+) -> AppResult<PerformancePackInfo> {
+    Ok(optimizer_get_perf_pack_core(&state.http, loader, mc_version).await)
 }
 
 pub async fn optimizer_install_perf_pack_core(
@@ -68,8 +80,15 @@ pub async fn optimizer_install_perf_pack(
 }
 
 #[tauri::command]
-pub fn optimizer_detect_gpu() -> GpuInfo {
-    detect_gpu()
+pub async fn optimizer_detect_gpu() -> GpuInfo {
+    tokio::task::spawn_blocking(detect_gpu)
+        .await
+        .unwrap_or_else(|_| GpuInfo {
+            vendor: "Desconhecido".to_string(),
+            renderer: "Driver Padrão".to_string(),
+            driver: "Desconhecido".to_string(),
+            supports_zink: false,
+        })
 }
 
 #[tauri::command]

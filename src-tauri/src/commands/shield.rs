@@ -174,5 +174,7 @@ pub async fn instance_shield_scan(
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
 
     let mods_dir = PathBuf::from(&row.game_dir).join("mods");
-    Ok(scan_mods_directory(&mods_dir))
+    tokio::task::spawn_blocking(move || scan_mods_directory(&mods_dir))
+        .await
+        .map_err(|error| AppError::Internal(error.to_string()))
 }

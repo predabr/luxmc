@@ -41,6 +41,8 @@
       {src}
       {alt}
       {loading}
+      decoding="async"
+      referrerpolicy="no-referrer"
       class="h-full w-full transition-opacity duration-200 {loaded ? 'opacity-100' : 'opacity-0'} {klass}"
       onload={handleLoad}
       onerror={handleError}
@@ -50,7 +52,7 @@
       src={fallback || "/grass_block.png"}
       {alt}
       class="h-full w-full object-contain p-1 rounded-xl"
-      onerror={(e) => { (e.currentTarget as HTMLImageElement).src = "/grass_block.png"; }}
+      onerror={(e) => { const image = e.currentTarget as HTMLImageElement; if (!image.src.endsWith("/grass_block.png")) image.src = "/grass_block.png"; }}
     />
   {/if}
 </div>

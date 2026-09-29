@@ -134,7 +134,9 @@ pub async fn versions_download_core(
     let _ = java.ensure_java(major).await;
 
     let downloader = DownloadManager::new(http.clone(), data_dir);
-    downloader.download_version(&detail).await
+    downloader.download_version(&detail).await?;
+    crate::core::launcher::extract_natives(&downloader, &detail, None).await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -186,7 +188,9 @@ pub async fn versions_download(
     }
 
     let downloader = DownloadManager::new(state.http.clone(), data_dir).with_app(app.clone());
-    downloader.download_version(&detail).await
+    downloader.download_version(&detail).await?;
+    crate::core::launcher::extract_natives(&downloader, &detail, Some(&app)).await?;
+    Ok(())
 }
 
 pub async fn versions_check_installed_core(id: &str) -> AppResult<bool> {

@@ -108,6 +108,18 @@ impl Db {
             )"
         ).execute(&pool).await;
 
+        #[cfg(target_os = "linux")]
+        {
+            let mut transaction = pool.begin().await?;
+            let first_enable = sqlx::query("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('linux_gamemode_default_v1', 'enabled')")
+                .execute(&mut *transaction).await?.rows_affected() > 0;
+            if first_enable {
+                sqlx::query("UPDATE profiles SET use_gamemode = 1 WHERE use_gamemode = 0")
+                    .execute(&mut *transaction).await?;
+            }
+            transaction.commit().await?;
+        }
+
         Ok(Self { pool })
     }
 

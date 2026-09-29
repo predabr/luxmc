@@ -56,7 +56,6 @@
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
-	import { initSmoothScroll } from "$lib/utils/smoothScroll";
 	import { appInit, discordSetActivity, listenGameExit, listenGameStateChange, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
@@ -108,6 +107,20 @@
 			slideDirection = curIdx >= prevIdx ? 1 : -1;
 		}
 	});
+	onMount(() => {
+		const rejectNativeFileNavigation = (e: Event) => {
+			const types = (e as DragEvent).dataTransfer?.types;
+			if (!types || !Array.from(types).includes("Files")) return;
+			e.preventDefault();
+		};
+		document.addEventListener("dragover", rejectNativeFileNavigation, { passive: false });
+		document.addEventListener("drop", rejectNativeFileNavigation, { passive: false });
+		return () => {
+			document.removeEventListener("dragover", rejectNativeFileNavigation);
+			document.removeEventListener("drop", rejectNativeFileNavigation);
+		};
+	});
+
 	onMount(() => {
 		themeStore.init();
 		void bootstrapSettings();
@@ -222,7 +235,11 @@
 				modCount: p.modCount,
 				diskUsage: p.diskUsage,
 				ramMb: p.ramMb ?? undefined,
-                autoOptimize: p.autoOptimize, useVulkan: p.useVulkan, launchCount: p.launchCount,
+				autoOptimize: p.autoOptimize, useVulkan: p.useVulkan, launchCount: p.launchCount,
+				useGamemode: p.useGamemode, useMangohud: p.useMangohud,
+				forceDedicatedGpu: p.forceDedicatedGpu, useGamescope: p.useGamescope,
+				gamescopeWidth: p.gamescopeWidth, gamescopeHeight: p.gamescopeHeight,
+				gamescopeFsr: p.gamescopeFsr, forceFullVerification: p.forceFullVerification,
 				group: p.instanceGroup ?? undefined,
 			}));
 			if (init.activeProfileId) {
@@ -253,7 +270,6 @@
 		});
 
 		setToastInstance(toastsInstance!);
-		const cleanupSmoothScroll = initSmoothScroll();
 
 		let unlistenGameExit: (() => void) | undefined;
 		let unlistenTelemetry: (() => void) | undefined;
@@ -484,7 +500,6 @@
 		
 		return () => {
 			disposed = true;
-			cleanupSmoothScroll();
 			window.removeEventListener("click", handleExternalLink, { capture: true });
 			stop();
 			clearInterval(rpcHeartbeat);
@@ -601,10 +616,13 @@
 
     $effect(() => {
         const disableBlur = settings.value.blur === false || appState.performanceMode;
+        const disableAnim = settings.value.animations === false || appState.performanceMode;
         document.documentElement.classList.toggle("no-blur", disableBlur);
+        document.documentElement.classList.toggle("no-anim", disableAnim);
         document.documentElement.classList.toggle("efficient-wallpaper", themeStore.background === "custom" && themeStore.customWallpaperType === "video" && settings.value.animatedWallpaperBlur !== true);
         return () => {
             document.documentElement.classList.remove("no-blur");
+            document.documentElement.classList.remove("no-anim");
             document.documentElement.classList.remove("efficient-wallpaper");
         };
     });

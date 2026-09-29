@@ -393,7 +393,7 @@
 			{#each newsState.items as item (item.id)}
 				<a
 					href="/news"
-					class="group block bg-bg/35 backdrop-blur-xl border border-fg/[0.06] hover:border-brand-400/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer"
+					class="cv-auto group block bg-bg/35 backdrop-blur-xl border border-fg/[0.06] hover:border-brand-400/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer"
 				>
 					<div class="p-2.5 flex gap-2.5 items-center">
 						<div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-fg/10 bg-black/40 relative">

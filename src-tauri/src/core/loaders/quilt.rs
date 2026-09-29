@@ -27,6 +27,16 @@ pub struct QuiltProfile {
     pub libraries: Vec<QuiltLibrary>,
 }
 
+fn versions_from_response(response: &[serde_json::Value]) -> Vec<LoaderVersion> {
+    response.iter()
+        .filter_map(|entry| {
+            let version = entry.get("loader")?.get("version")?.as_str()?.to_string();
+            let stable = !version.contains("beta") && !version.contains("alpha") && !version.contains("rc");
+            Some(LoaderVersion { id: version, stable })
+        })
+        .collect()
+}
+
 pub async fn fetch_versions(
     http: &reqwest::Client,
     mc_version: &str,
@@ -40,20 +50,7 @@ pub async fn fetch_versions(
         .json()
         .await?;
 
-    let versions = resp
-        .iter()
-        .filter_map(|v| {
-            let version = v.get("version").and_then(|v| v.as_str())?.to_string();
-            let stable = v.get("stable").and_then(|s| s.as_bool()).unwrap_or(false);
-            Some(LoaderVersion {
-                id: version,
-                stable,
-            })
-        })
-        .filter(|v| !v.id.is_empty())
-        .collect();
-
-    Ok(versions)
+    Ok(versions_from_response(&resp))
 }
 
 pub async fn prepare_quilt(
@@ -106,8 +103,33 @@ pub async fn prepare_quilt(
     let mut jvm_args = Vec::new();
     if let Some(args) = profile.arguments {
         for arg in args.jvm {
-            if let Some(s) = arg.as_str() {
-                jvm_args.push(s.to_string());
+            match &arg {
+                serde_json::Value::String(s) => {
+                    if crate::core::launcher::jvm_arg_allowed_on_current_os(s) {
+                        jvm_args.push(s.to_string());
+                    }
+                }
+                serde_json::Value::Object(obj) => {
+                    if let Some(serde_json::Value::Array(rules)) = obj.get("rules") {
+                        if !crate::core::launcher::evaluate_rules(rules) {
+                            continue;
+                        }
+                    }
+                    if let Some(serde_json::Value::Array(values)) = obj.get("value") {
+                        for v in values {
+                            if let Some(s) = v.as_str() {
+                                if crate::core::launcher::jvm_arg_allowed_on_current_os(s) {
+                                    jvm_args.push(s.to_string());
+                                }
+                            }
+                        }
+                    } else if let Some(serde_json::Value::String(s)) = obj.get("value") {
+                        if crate::core::launcher::jvm_arg_allowed_on_current_os(s) {
+                            jvm_args.push(s.to_string());
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
@@ -127,6 +149,21 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
         .find(|v| v.stable)
         .or_else(|| versions.first())
         .map(|v| v.id.clone())
-        .unwrap_or_else(|| "0.26.0".to_string());
+        .ok_or_else(|| crate::error::AppError::NotFound(format!("Quilt indisponível para Minecraft {mc_version}")))?;
     Ok(chosen)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn reads_nested_loader_version() {
+        let response = serde_json::json!([
+            {"loader": {"version": "0.28.1"}},
+            {"loader": {"version": "0.29.0-beta.1"}}
+        ]);
+        let versions = super::versions_from_response(response.as_array().unwrap());
+        assert_eq!(versions[0].id, "0.28.1");
+        assert!(versions[0].stable);
+        assert!(!versions[1].stable);
+    }
 }

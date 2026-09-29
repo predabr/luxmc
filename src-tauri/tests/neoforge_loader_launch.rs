@@ -1,6 +1,12 @@
 use luxmc_lib::core::loaders::neoforge::fetch_versions;
 use luxmc_lib::core::loaders::prepare_loader;
 
+async fn reset_install_root(root: &std::path::Path) {
+    let _ = tokio::fs::remove_dir_all(root.join("libraries")).await;
+    let _ = tokio::fs::remove_dir_all(root.join("versions")).await;
+    tokio::fs::create_dir_all(root.join("libraries")).await.unwrap();
+}
+
 #[tokio::test]
 async fn test_neoforge_loader_versions_and_prepare() {
     let http = reqwest::Client::builder()
@@ -12,9 +18,9 @@ async fn test_neoforge_loader_versions_and_prepare() {
     assert!(!versions.is_empty(), "Must find NeoForge versions for MC 1.20.4");
     assert!(versions[0].id.starts_with("20.4."), "NeoForge version must match 20.4. prefix");
 
-    let temp_dir = std::env::temp_dir().join(format!("luxmc_neoforge_test_{}", std::process::id()));
+    let temp_dir = std::env::temp_dir().join("luxmc_neoforge_1_20_4_cache");
+    reset_install_root(&temp_dir).await;
     let libraries_dir = temp_dir.join("libraries");
-    tokio::fs::create_dir_all(&libraries_dir).await.unwrap();
 
     let prep = prepare_loader(&http, &libraries_dir, "neoforge", "1.20.4", Some("20.4.237"))
         .await
@@ -39,22 +45,19 @@ async fn test_neoforge_loader_versions_and_prepare() {
     }
     assert!(prep.game_args.iter().any(|arg| arg == "20.4.237"));
     assert!(prep.classpath_entries.iter().all(|path| path.exists()));
-
-    let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 }
 
 
 #[tokio::test]
 async fn modern_neoforge_processors_produce_valid_client() {
     let http = reqwest::Client::builder().user_agent("Luxmc integration tests").build().unwrap();
-    let root = std::env::temp_dir().join(format!("luxmc_neoforge21_test_{}", std::process::id()));
+    let root = std::env::temp_dir().join("luxmc_neoforge_1_21_1_cache");
+    reset_install_root(&root).await;
     let libraries = root.join("libraries");
-    tokio::fs::create_dir_all(&libraries).await.unwrap();
     let prepared = prepare_loader(&http, &libraries, "neoforge", "1.21.1", Some("21.1.248")).await.expect("NeoForge 1.21.1 preparation failed");
     assert!(!prepared.classpath_entries.is_empty());
     assert!(prepared.classpath_entries.iter().all(|path| path.exists()));
     let client = libraries.join("net/neoforged/neoforge/21.1.248/neoforge-21.1.248-client.jar");
     let archive = zip::ZipArchive::new(std::fs::File::open(client).unwrap()).unwrap();
     assert!(!archive.is_empty());
-    tokio::fs::remove_dir_all(root).await.unwrap();
 }

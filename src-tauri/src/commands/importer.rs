@@ -243,23 +243,57 @@ fn count_mods_in_dir(dir: &Path) -> usize {
 
 fn parse_prism_instance_cfg(dir: &Path) -> (String, String) {
     let cfg_path = dir.join("instance.cfg");
-    let mut version = "1.20.1".to_string();
-    let mut loader = "fabric".to_string();
+    let mut version = String::new();
+    let mut loader = "vanilla".to_string();
 
     if let Ok(content) = std::fs::read_to_string(cfg_path) {
         for line in content.lines() {
             if let Some(v) = line.strip_prefix("IntendedVersion=") {
                 version = v.trim().to_string();
-            } else if line.contains("Fabric") {
-                loader = "fabric".to_string();
-            } else if line.contains("Forge") {
-                loader = "forge".to_string();
-            } else if line.contains("NeoForge") {
+            }
+            let lower = line.to_lowercase();
+            if lower.contains("neoforge") {
                 loader = "neoforge".to_string();
-            } else if line.contains("Quilt") {
+            } else if lower.contains("fabric") {
+                loader = "fabric".to_string();
+            } else if lower.contains("quilt") {
                 loader = "quilt".to_string();
+            } else if lower.contains("forge") {
+                loader = "forge".to_string();
             }
         }
+    }
+
+    if let Ok(content) = std::fs::read_to_string(dir.join("mmc-pack.json")) {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(components) = val.get("components").and_then(|c| c.as_array()) {
+                for component in components {
+                    let id = component.get("id").and_then(|i| i.as_str()).unwrap_or_default();
+                    if id == "net.minecraft" && version.is_empty() {
+                        version = component
+                            .get("version")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or_default()
+                            .to_string();
+                        continue;
+                    }
+                    let mapped = match id {
+                        "net.neoforged" | "net.neoforged.modloader" => Some("neoforge"),
+                        "net.fabricmc.fabric-loader" => Some("fabric"),
+                        "org.quiltmc.quilt-loader" => Some("quilt"),
+                        "net.minecraftforge" | "net.minecraftforge.fml" => Some("forge"),
+                        _ => None,
+                    };
+                    if let Some(mapped) = mapped {
+                        loader = mapped.to_string();
+                    }
+                }
+            }
+        }
+    }
+
+    if version.is_empty() {
+        version = "1.20.1".to_string();
     }
     (version, loader)
 }
@@ -274,15 +308,19 @@ fn parse_curseforge_manifest(dir: &Path) -> (String, String) {
             } else {
                 "fabric".to_string()
             };
-            let clean_loader = if loader.contains("forge") && !loader.contains("neoforge") {
-                "forge"
-            } else if loader.contains("neoforge") {
+            let clean_loader = if loader.contains("neoforge") {
                 "neoforge"
-            } else {
+            } else if loader.contains("quilt") {
+                "quilt"
+            } else if loader.contains("forge") {
+                "forge"
+            } else if loader.contains("fabric") {
                 "fabric"
+            } else {
+                "vanilla"
             };
             return (version, clean_loader.to_string());
         }
     }
-    ("1.20.1".to_string(), "fabric".to_string())
+    ("1.20.1".to_string(), "vanilla".to_string())
 }

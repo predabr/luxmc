@@ -1074,7 +1074,7 @@ pub async fn instance_import_modpack_core(
         instance_group: None,
         auto_optimize: true,
         use_vulkan: false,
-        use_gamemode: false,
+        use_gamemode: cfg!(target_os = "linux"),
         use_mangohud: false,
         force_dedicated_gpu: false,
         use_gamescope: false,
@@ -1173,53 +1173,35 @@ pub async fn instance_health_check(
         .join("versions")
         .join(&row.mc_version)
         .join("natives");
-    let natives_ok = natives_dir.exists() || {
-        let libs_dir = data_dir.join("libraries");
-        if let Ok(entries) = std::fs::read_dir(&libs_dir) {
-            let has_natives = entries.filter_map(|e| e.ok()).any(|e| {
-                let name = e.file_name().to_string_lossy().to_lowercase();
-                name.contains("natives") && name.contains(&row.mc_version)
-            });
-            has_natives
-        } else {
+    let natives_ok = natives_dir.exists()
+        || {
+            let libs_dir = data_dir.join("libraries");
+            let version = row.mc_version.clone();
+            tokio::task::spawn_blocking(move || has_natives_library(&libs_dir, &version))
+                .await
+                .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
+        };
+
+    let mut mods_error: Option<String> = None;
+    let mods_dir = std::path::Path::new(&row.game_dir).join("mods");
+    let mods_ok = match crate::db::schema::mods::reconcile_profile(&db, &profileId, &mods_dir).await
+    {
+        Ok(_) => true,
+        Err(error) => {
+            mods_error = Some(format!("Falha ao sincronizar a lista de mods: {error}"));
             false
         }
     };
 
-    let mods_dir = std::path::Path::new(&row.game_dir).join("mods");
-    let mods_ok = if mods_dir.exists() {
-        let mod_count = std::fs::read_dir(&mods_dir)
-            .map(|entries| {
-                entries
-                    .filter_map(|e| e.ok())
-                    .filter(|e| {
-                        e.path()
-                            .extension()
-                            .and_then(|ext| ext.to_str())
-                            .map(|ext| ext == "jar")
-                            .unwrap_or(false)
-                    })
-                    .count()
-            })
-            .unwrap_or(0);
-        let db_mod_count = crate::db::schema::mods::list_by_profile(&db, &profileId)
-            .await
-            .map(|m| m.len())
-            .unwrap_or(0);
-        mod_count == db_mod_count
-    } else {
-        true
-    };
-
     let mut issues = Vec::new();
     if !client_jar_ok {
-        issues.push(format!("Client JAR missing for {}", row.mc_version));
+        issues.push(format!("O arquivo principal do Minecraft {} não foi encontrado.", row.mc_version));
     }
     if !natives_ok {
-        issues.push(format!("Natives not extracted for {}", row.mc_version));
+        issues.push(format!("As bibliotecas nativas do Minecraft {} não foram extraídas.", row.mc_version));
     }
-    if !mods_ok {
-        issues.push("Mods directory out of sync with database".into());
+    if let Some(error) = mods_error {
+        issues.push(error);
     }
 
     Ok(HealthCheckResult {
@@ -1227,6 +1209,16 @@ pub async fn instance_health_check(
         natives: natives_ok,
         mods_ok,
         issues,
+    })
+}
+
+fn has_natives_library(libs_dir: &std::path::Path, mc_version: &str) -> bool {
+    let Ok(entries) = std::fs::read_dir(libs_dir) else {
+        return false;
+    };
+    entries.filter_map(|entry| entry.ok()).any(|entry| {
+        let name = entry.file_name().to_string_lossy().to_lowercase();
+        name.contains("natives") && name.contains(mc_version)
     })
 }
 
@@ -1329,28 +1321,41 @@ pub async fn instance_file_tree(
         std::collections::HashMap::new()
     };
 
-    let mut entries = Vec::new();
-    for (fname, path, is_dir, metadata, is_jar_or_zip) in raw_entries {
-        let icon = if is_jar_or_zip {
+    let cached_icons = cached_icons;
+    let computed = tokio::task::spawn_blocking(move || {
+        let mut out = Vec::with_capacity(raw_entries.len());
+        for (fname, path, is_dir, metadata, is_jar_or_zip) in raw_entries {
             let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
             let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
-            if let Some(cached) = cached_icons.get(&fname).or_else(|| cached_icons.get(&stem)).or_else(|| cached_icons.get(&base_key)) {
-                Some(cached.clone())
-            } else if let Some(jar_icon) = crate::commands::mods::extract_mod_icon_from_jar(&path) {
+            let mut icon = None;
+            let mut from_cache = false;
+            if is_jar_or_zip {
+                if let Some(cached) = cached_icons.get(&fname).or_else(|| cached_icons.get(&stem)).or_else(|| cached_icons.get(&base_key)) {
+                    icon = Some(cached.clone());
+                    from_cache = true;
+                } else if !base_key.starts_with("luxmc") {
+                    icon = crate::commands::mods::extract_mod_icon_from_jar(&path);
+                }
+            }
+            let size = if is_dir { compute_dir_size(&path) } else { metadata.len() };
+            out.push((fname, path, is_dir, size, icon, from_cache));
+        }
+        out
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("file tree worker failed: {e}")))?;
+
+    let mut entries = Vec::new();
+    for (fname, path, is_dir, size, icon, from_cache) in computed {
+        if !from_cache {
+            if let Some(ref jar_icon) = icon {
                 let _ = sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
                     .bind(&fname)
-                    .bind(&jar_icon)
+                    .bind(jar_icon)
                     .execute(db.pool())
                     .await;
-                Some(jar_icon)
-            } else {
-                None
             }
-        } else {
-            None
-        };
-        let size = if is_dir { compute_dir_size(&path) } else { metadata.len() };
-
+        }
         entries.push(FileTreeEntry {
             name: fname,
             path: path.to_string_lossy().to_string(),
@@ -2035,7 +2040,7 @@ pub async fn instance_import_mrpack_core(
         instance_group: None,
         auto_optimize: true,
         use_vulkan: false,
-        use_gamemode: false,
+        use_gamemode: cfg!(target_os = "linux"),
         use_mangohud: false,
         force_dedicated_gpu: false,
         use_gamescope: false,
@@ -2954,18 +2959,17 @@ pub async fn instance_mod_toggle(
     let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
     let current_path = mods_dir.join(&fileName);
 
+    let lower = fileName.to_ascii_lowercase();
     let new_name = if enabled {
-        if fileName.ends_with(".jar.disabled") {
-            fileName.trim_end_matches(".disabled").to_string()
+        if lower.ends_with(".jar.disabled") {
+            fileName[..fileName.len() - ".disabled".len()].to_string()
         } else {
             fileName.clone()
         }
+    } else if lower.ends_with(".jar") {
+        format!("{}.disabled", fileName)
     } else {
-        if fileName.ends_with(".jar") {
-            format!("{}.disabled", fileName)
-        } else {
-            fileName.clone()
-        }
+        fileName.clone()
     };
 
     let target_path = mods_dir.join(&new_name);
@@ -3015,7 +3019,35 @@ pub async fn instance_mod_delete(
         }
     }
 
+    crate::db::schema::mods::reconcile_profile(
+        &db,
+        &profileId,
+        &std::path::PathBuf::from(&row.game_dir).join("mods"),
+    )
+    .await?;
     Ok(())
+}
+
+fn files_are_identical(first: &std::path::Path, second: &std::path::Path) -> AppResult<bool> {
+    use sha1::{Digest, Sha1};
+    if std::fs::metadata(first)?.len() != std::fs::metadata(second)?.len() {
+        return Ok(false);
+    }
+    fn digest(path: &std::path::Path) -> std::io::Result<Vec<u8>> {
+        use std::io::Read;
+        let mut file = std::fs::File::open(path)?;
+        let mut hasher = Sha1::new();
+        let mut buffer = [0u8; 64 * 1024];
+        loop {
+            let read = file.read(&mut buffer)?;
+            if read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..read]);
+        }
+        Ok(hasher.finalize().to_vec())
+    }
+    Ok(digest(first)? == digest(second)?)
 }
 
 #[tauri::command]
@@ -3029,6 +3061,17 @@ pub async fn instance_mod_add(
     if !src.is_file() {
         return Err(crate::error::AppError::NotFound("Source file does not exist".into()));
     }
+    if !src.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| ext.eq_ignore_ascii_case("jar")) {
+        return Err(AppError::InvalidInput("Selecione um arquivo .jar de mod".into()));
+    }
+    let mut archive = zip::ZipArchive::new(std::fs::File::open(&src)?)
+        .map_err(|_| AppError::InvalidInput("O arquivo .jar está corrompido ou não é um arquivo ZIP válido".into()))?;
+    let fabric = archive.by_name("fabric.mod.json").is_ok();
+    let quilt = archive.by_name("quilt.mod.json").is_ok();
+    let neoforge = archive.by_name("META-INF/neoforge.mods.toml").is_ok();
+    let forge = archive.by_name("META-INF/mods.toml").is_ok() || archive.by_name("mcmod.info").is_ok();
+    let has_metadata = fabric || quilt || neoforge || forge;
+    drop(archive);
 
     let file_name = src
         .file_name()
@@ -3042,6 +3085,26 @@ pub async fn instance_mod_add(
         .fetch_optional(db.pool())
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
+    if row.loader == "vanilla" {
+        return Err(AppError::InvalidInput(
+            "Instâncias Vanilla não carregam mods; escolha Fabric, Quilt, Forge ou NeoForge".into(),
+        ));
+    }
+    if has_metadata {
+        let compatible = match row.loader.as_str() {
+            "fabric" => fabric,
+            "quilt" => quilt || fabric,
+            "forge" => forge,
+            "neoforge" => neoforge || forge,
+            _ => false,
+        };
+        if !compatible {
+            return Err(AppError::InvalidInput(format!(
+                "Este .jar é de outro loader; a instância usa {}.",
+                row.loader
+            )));
+        }
+    }
 
     let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
     if !mods_dir.exists() {
@@ -3049,9 +3112,69 @@ pub async fn instance_mod_add(
     }
 
     let dest = mods_dir.join(&file_name);
-    std::fs::copy(&src, &dest)?;
+    if dest.exists() {
+        if !files_are_identical(&src, &dest)? {
+            return Err(AppError::InvalidInput(format!(
+                "Já existe um arquivo chamado {file_name} com conteúdo diferente nesta instância."
+            )));
+        }
+    } else {
+        std::fs::copy(&src, &dest)?;
+    }
+    crate::db::schema::mods::reconcile_profile(&db, &profileId, &mods_dir).await?;
 
     Ok(file_name)
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn instance_mod_add_bytes(
+    profileId: String,
+    fileName: String,
+    dataBase64: String,
+) -> AppResult<String> {
+    use base64::Engine as _;
+
+    if fileName.is_empty()
+        || fileName.contains("..")
+        || fileName.contains('/')
+        || fileName.contains('\\')
+        || fileName.contains('\0')
+    {
+        return Err(AppError::InvalidInput("Invalid file name".into()));
+    }
+    if !fileName.to_ascii_lowercase().ends_with(".jar") {
+        return Err(AppError::InvalidInput("Apenas ficheiros .jar podem ser importados".into()));
+    }
+
+    const MAX_BYTES: usize = 128 * 1024 * 1024;
+    if dataBase64.len() > (MAX_BYTES / 3) * 4 + 8 {
+        return Err(AppError::InvalidInput(
+            "Ficheiro demasiado grande para importação por arrastar (máximo 128 MB)".into(),
+        ));
+    }
+
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(dataBase64.as_bytes())
+        .or_else(|_| base64::engine::general_purpose::STANDARD_NO_PAD.decode(dataBase64.as_bytes()))
+        .map_err(|_| AppError::InvalidInput("Não foi possível ler o conteúdo do ficheiro".into()))?;
+    if bytes.is_empty() || bytes.len() > MAX_BYTES {
+        return Err(AppError::InvalidInput(
+            "Ficheiro vazio ou acima do limite de 128 MB".into(),
+        ));
+    }
+
+    let dir = std::env::temp_dir().join(format!("luxmc-import-{}", Uuid::new_v4()));
+    tokio::fs::create_dir_all(&dir).await?;
+    let path = dir.join(&fileName);
+
+    let result = match tokio::fs::write(&path, &bytes).await {
+        Ok(()) => instance_mod_add(profileId, path.to_string_lossy().to_string()).await,
+        Err(e) => Err(AppError::Io(e)),
+    };
+
+    let _ = tokio::fs::remove_dir_all(&dir).await;
+    result
 }
 
 #[tauri::command]
@@ -3088,6 +3211,20 @@ pub async fn instance_pack_add(
         .and_then(|n| n.to_str())
         .ok_or_else(|| crate::error::AppError::InvalidInput("Invalid source filename".into()))?
         .to_string();
+    if file_name.contains("..") || file_name.contains('/') || file_name.contains('\\') {
+        return Err(crate::error::AppError::InvalidInput("Invalid source filename".into()));
+    }
+    let extension = std::path::Path::new(&file_name)
+        .extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase());
+    match extension.as_deref() {
+        Some("zip") | Some("jar") => {}
+        _ => {
+            return Err(crate::error::AppError::InvalidInput(
+                "Packs devem ser ficheiros .zip ou .jar".into(),
+            ))
+        }
+    }
 
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -3133,9 +3270,22 @@ pub async fn instance_pack_delete(
         _ => "resourcepacks",
     };
 
-    let target_path = std::path::PathBuf::from(&row.game_dir).join(folder_name).join(&fileName);
-    if target_path.exists() {
-        std::fs::remove_file(&target_path)?;
+    if fileName.is_empty() || fileName.contains("..") || fileName.contains('/') || fileName.contains('\\') {
+        return Err(crate::error::AppError::InvalidInput("Invalid file name".into()));
+    }
+
+    let pack_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
+    let target_path = pack_dir.join(&fileName);
+    let canonical = match target_path.canonicalize() {
+        Ok(canonical) => canonical,
+        Err(_) => return Ok(()),
+    };
+    let canonical_dir = pack_dir.canonicalize().unwrap_or(pack_dir);
+    if !canonical.starts_with(&canonical_dir) {
+        return Err(crate::error::AppError::InvalidInput("Invalid pack path".into()));
+    }
+    if canonical.is_file() {
+        std::fs::remove_file(&canonical)?;
     }
 
     Ok(())

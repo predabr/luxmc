@@ -38,6 +38,7 @@
 	import { appDataDir } from "@tauri-apps/api/path";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 	import RenderingSection from "$lib/components/settings/RenderingSection.svelte";
+	import { getIconSrc } from "$lib/utils/icons";
 	import ThemeSection from "$lib/components/settings/ThemeSection.svelte";
 
 	const { t } = useTranslation();
@@ -1069,12 +1070,13 @@
 					</div>
 				{:else}
 					<div class="divide-y divide-white/5">
-						{#each storageReport.instances as inst}
+							{#each storageReport.instances as inst}
+							{@const iconSrc = getIconSrc(inst.icon)}
 							<div class="flex items-center justify-between py-3.5 gap-4">
 								<div class="flex items-center gap-3.5 min-w-0">
 									<div class="w-10 h-10 rounded-xl overflow-hidden bg-fg/5 border border-fg/10 flex items-center justify-center shrink-0">
-										{#if inst.icon && inst.icon !== "grass_block" && (inst.icon.startsWith("http") || inst.icon.startsWith("/"))}
-											<img src={inst.icon} alt={inst.name} class="w-full h-full object-cover" onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }} />
+										{#if iconSrc !== "/grass_block.png"}
+											<img src={iconSrc} alt={inst.name} class="w-full h-full object-cover" onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }} />
 										{:else}
 											<img src="/grass_block.png" alt={inst.name} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
 										{/if}

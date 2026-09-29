@@ -24,32 +24,29 @@
 		return ["from-brand-500/30 via-info/10", "from-purple-500/30 via-brand-500/10", "from-success/30 via-info/10", "from-warning/30 via-brand-500/10"][Math.abs(hash) % 4];
 	});
 
-	import { curatedBanners } from "$lib/utils/curatedBanners";
+	import { curatedBanners, matchesCuratedBanner } from "$lib/utils/curatedBanners";
 
-	let bannerFailed = $state(false);
+	let bannerAttempt = $state(0);
 
 	$effect(() => {
 		item.slug;
 		item.bannerUrl;
 		item.iconUrl;
-		bannerFailed = false;
+		bannerAttempt = 0;
 	});
 
-	const effectiveBanner = $derived.by(() => {
-		if (bannerFailed) return null;
-		if (item.bannerUrl && item.bannerUrl !== item.iconUrl) return item.bannerUrl;
+	const bannerCandidates = $derived.by(() => {
+		const candidates: string[] = [];
+		if (item.bannerUrl && item.bannerUrl !== item.iconUrl) candidates.push(item.bannerUrl);
 		const lowerTitle = item.title.toLowerCase();
 		const lowerSlug = item.slug.toLowerCase();
 		for (const [key, banner] of Object.entries(curatedBanners)) {
-			if (lowerTitle.includes(key) || lowerSlug.includes(key)) {
-				return banner;
-			}
+			if ((matchesCuratedBanner(lowerTitle, key) || matchesCuratedBanner(lowerSlug, key)) && !candidates.includes(banner)) candidates.push(banner);
 		}
-		if (isModpack && item.iconUrl) {
-			return item.iconUrl;
-		}
-		return null;
+		if (isModpack && item.iconUrl && !candidates.includes(item.iconUrl)) candidates.push(item.iconUrl);
+		return candidates;
 	});
+	const effectiveBanner = $derived(bannerCandidates[bannerAttempt] ?? null);
 </script>
 
 <div 
@@ -57,15 +54,17 @@
 	tabindex="0"
 	onclick={() => onOpenDetails(item)}
 	onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDetails(item); } }}
-	class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-elevated cursor-pointer"
+	class="cv-auto group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-elevated cursor-pointer"
 >
 	<div class="relative h-48 bg-bg-subtle rounded-t-2xl overflow-hidden">
-		{#if effectiveBanner && !bannerFailed}
+		{#if effectiveBanner}
 			<img 
 				src={effectiveBanner} 
 				alt="" 
+				loading="lazy"
+				decoding="async"
 				class="h-full w-full rounded-t-2xl object-cover transition-transform duration-500 group-hover:scale-105" 
-				onerror={() => { bannerFailed = true; }}
+				onerror={() => { bannerAttempt += 1; }}
 			/>
 		{:else}
 			<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-elevated">
@@ -82,7 +81,7 @@
 		{/if}
 		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent"></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
-		{#if effectiveBanner && !bannerFailed && item.iconUrl && item.iconUrl !== effectiveBanner}
+		{#if effectiveBanner && item.iconUrl && item.iconUrl !== effectiveBanner}
 			<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
 				<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
 			</div>

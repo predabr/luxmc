@@ -1,6 +1,12 @@
 use luxmc_lib::core::loaders::forge::fetch_versions;
 use luxmc_lib::core::loaders::prepare_loader;
 
+async fn reset_install_root(root: &std::path::Path) {
+    let _ = tokio::fs::remove_dir_all(root.join("libraries")).await;
+    let _ = tokio::fs::remove_dir_all(root.join("versions")).await;
+    tokio::fs::create_dir_all(root.join("libraries")).await.unwrap();
+}
+
 #[tokio::test]
 async fn test_forge_loader_versions_and_prepare() {
     let http = reqwest::Client::builder()
@@ -15,9 +21,9 @@ async fn test_forge_loader_versions_and_prepare() {
         "Forge version must match 47. prefix for MC 1.20.1"
     );
 
-    let temp_dir = std::env::temp_dir().join(format!("luxmc_forge_test_{}", std::process::id()));
+    let temp_dir = std::env::temp_dir().join("luxmc_forge_1_20_1_cache");
+    reset_install_root(&temp_dir).await;
     let libraries_dir = temp_dir.join("libraries");
-    tokio::fs::create_dir_all(&libraries_dir).await.unwrap();
 
     let prep = prepare_loader(&http, &libraries_dir, "forge", "1.20.1", Some("47.4.20"))
         .await
@@ -38,19 +44,16 @@ async fn test_forge_loader_versions_and_prepare() {
         p.to_string_lossy().contains("forge-1.20.1-47.4.20") && p.exists()
     });
     assert!(has_loader, "Forge loader jar must exist in classpath and on disk");
-
-    let _ = tokio::fs::remove_dir_all(&temp_dir).await;
 }
 
 #[tokio::test]
 async fn legacy_forge_1122_installs_without_sharing_instance_files() {
     let http = reqwest::Client::builder().user_agent("Luxmc/2.0.1").build().unwrap();
-    let temp = std::env::temp_dir().join(format!("luxmc-forge-legacy-{}", std::process::id()));
+    let temp = std::env::temp_dir().join("luxmc_forge_legacy_cache");
+    reset_install_root(&temp).await;
     let libraries = temp.join("libraries");
-    tokio::fs::create_dir_all(&libraries).await.unwrap();
     let prepared = prepare_loader(&http, &libraries, "forge", "1.12.2", Some("14.23.5.2860")).await.unwrap();
     assert!(prepared.main_class.contains("Launch"));
     assert!(!prepared.classpath_entries.is_empty());
     for path in prepared.classpath_entries { assert!(path.metadata().unwrap().len() > 0); }
-    tokio::fs::remove_dir_all(temp).await.unwrap();
 }

@@ -142,7 +142,7 @@ pub async fn profiles_create(
         instance_group: input.instance_group,
         auto_optimize: input.auto_optimize.unwrap_or(true),
         use_vulkan: input.use_vulkan.unwrap_or(false),
-        use_gamemode: input.use_gamemode.unwrap_or(false),
+        use_gamemode: input.use_gamemode.unwrap_or(cfg!(target_os = "linux")),
         use_mangohud: input.use_mangohud.unwrap_or(false),
         force_dedicated_gpu: input.force_dedicated_gpu.unwrap_or(false),
         use_gamescope: input.use_gamescope.unwrap_or(false),

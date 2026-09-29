@@ -52,8 +52,16 @@ export async function appInit(): Promise<{
 		diskUsage: number;
 		ramMb: number | null;
 		instanceGroup: string | null;
-        autoOptimize?: boolean;
-        useVulkan?: boolean;
+		autoOptimize?: boolean;
+		useVulkan?: boolean;
+		useGamemode?: boolean;
+		useMangohud?: boolean;
+		forceDedicatedGpu?: boolean;
+		useGamescope?: boolean;
+		gamescopeWidth?: number | null;
+		gamescopeHeight?: number | null;
+		gamescopeFsr?: boolean;
+		forceFullVerification?: boolean;
 	}>;
 	activeProfileId: string | null;
 	stressTest?: boolean;

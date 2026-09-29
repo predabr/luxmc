@@ -22,6 +22,7 @@ const assert = require('node:assert/strict');
             categories: ['forge'],
             versions: ['1.21.1']
         }));
+        results[0].bannerUrl = '/missing-banner.png';
         const invoke = async (command, args) => {
             if (command === 'mods_search') {
                 window.searchCalls.push(args);
@@ -44,9 +45,10 @@ const assert = require('node:assert/strict');
     assert.equal(await page.locator('[data-virtual-list]').count(), 0);
     assert.equal(await page.getByText(/^Pack \d+$/).count(), 36);
     assert.equal(await page.evaluate(() => window.searchCalls.at(-1)?.limit), 36);
-    const icon = page.locator('img[alt="Pack 0"]');
+    const icon = page.locator('img[src="/steve.png"]').first();
     const bounds = await icon.boundingBox();
     assert.ok(bounds && bounds.height >= 140 && bounds.width >= 140, JSON.stringify(bounds));
+    assert.ok(await icon.evaluate(image => image.complete && image.naturalWidth > 0));
     const nestedScroll = await icon.evaluate(element => {
         const main = element.closest('main');
         let current = element.parentElement;
@@ -58,7 +60,12 @@ const assert = require('node:assert/strict');
         return false;
     });
     assert.equal(nestedScroll, false);
+    await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(150);
+    const scrollTop = await page.locator('main').evaluate(element => element.scrollTop);
+    assert.ok(scrollTop > 0, `mouse wheel did not move the catalog: ${scrollTop}`);
     assert.deepEqual(errors, []);
-    console.log(JSON.stringify({ cards: 36, icon: bounds, nestedScroll, errors }));
+    console.log(JSON.stringify({ cards: 36, icon: bounds, nestedScroll, scrollTop, errors }));
     await browser.close();
 })().catch(error => { console.error(error); process.exit(1); });

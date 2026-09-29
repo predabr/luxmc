@@ -103,6 +103,7 @@
 		instanceModToggle,
 		instanceModDelete,
 		instanceModAdd,
+		instanceModAddBytes,
 		instanceModsOpenFolder,
 		instancePackAdd,
 		instancePackDelete,
@@ -165,6 +166,9 @@
 
 	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros" | "configuracoes" | "laboratorio">("conteudo");
 	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("mods");
+	let modsDragOver = $state(false);
+	let isImportingDrop = $state(false);
+	let modsDragDepth = 0;
 	let searchQuery = $state("");
     let debouncedSearch = $state("");
     $effect(() => {
@@ -1036,11 +1040,20 @@
 			});
 			if (!selected) return;
 			const paths = Array.isArray(selected) ? selected : [selected];
+			let added = 0;
+			const failed: string[] = [];
 			for (const p of paths) {
-				await instanceModAdd(instanceId, p);
+				try {
+					await instanceModAdd(instanceId, p);
+					added++;
+				} catch (error) {
+					console.error("instance_mod_add failed:", p, error);
+					failed.push(`${p.split(/[\\/]/).pop()}: ${String(error)}`);
+				}
 			}
-			toast(`${paths.length} mod(s) adicionado(s) com sucesso!`, "success");
 			await refreshAllData();
+			if (added) toast(`${added} mod(s) adicionado(s) com sucesso!`, "success");
+			if (failed.length) toast(`${failed.length} mod(s) não foram importados: ${failed.slice(0, 2).join("; ")}`, "error");
 		} catch (e) {
 			toast("Erro ao adicionar mod: " + String(e), "error");
 		}
@@ -1051,6 +1064,96 @@
 			await instanceModsOpenFolder(instanceId);
 		} catch (e) {
 			toast("Erro ao abrir pasta de mods: " + String(e), "error");
+		}
+	}
+
+	function isModsFileDrag(e: DragEvent): boolean {
+		if (subTab !== "mods" || isImportingDrop) return false;
+		const types = e.dataTransfer?.types;
+		if (!types) return false;
+		return Array.from(types).includes("Files");
+	}
+
+	function handleModsDragEnter(e: DragEvent) {
+		if (!isModsFileDrag(e)) return;
+		e.preventDefault();
+		modsDragDepth += 1;
+		modsDragOver = true;
+	}
+
+	function handleModsDragOver(e: DragEvent) {
+		if (!isModsFileDrag(e)) return;
+		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+	}
+
+	function handleModsDragLeave() {
+		if (!modsDragOver) return;
+		modsDragDepth = Math.max(0, modsDragDepth - 1);
+		if (modsDragDepth === 0) modsDragOver = false;
+	}
+
+	function fileToBase64(file: Blob): Promise<string> {
+		return new Promise((resolve, reject) => {
+			const reader = new FileReader();
+			reader.onload = () => {
+				const raw = String(reader.result ?? "");
+				const sep = raw.indexOf(",");
+				resolve(sep >= 0 ? raw.slice(sep + 1) : raw);
+			};
+			reader.onerror = () => reject(reader.error ?? new Error("Falha ao ler o ficheiro"));
+			reader.readAsDataURL(file);
+		});
+	}
+
+	async function handleModsDrop(e: DragEvent) {
+		e.preventDefault();
+		modsDragDepth = 0;
+		modsDragOver = false;
+		if (subTab !== "mods" || isImportingDrop) return;
+
+		const files = Array.from(e.dataTransfer?.files ?? []);
+		const jars = files.filter((f) => f.name.toLowerCase().endsWith(".jar"));
+		if (!jars.length) {
+			toast("Solte ficheiros .jar de mods nesta área", "error");
+			return;
+		}
+
+		isImportingDrop = true;
+		let added = 0;
+		const failed: string[] = [];
+		try {
+			for (const file of jars) {
+				if (file.size > 128 * 1024 * 1024) {
+					failed.push(`${file.name}: maior que 128 MB`);
+					continue;
+				}
+				try {
+					const direct = (file as unknown as { path?: string }).path;
+					let ok = false;
+					if (direct) {
+						try {
+							await instanceModAdd(instanceId, direct);
+							ok = true;
+						} catch (err) {
+							console.warn("import por caminho falhou; a usar bytes:", err);
+						}
+					}
+					if (!ok) {
+						const data = await fileToBase64(file);
+						await instanceModAddBytes(instanceId, file.name, data);
+					}
+					added += 1;
+				} catch (error) {
+					console.error("drop import failed:", file.name, error);
+					failed.push(`${file.name}: ${String(error)}`);
+				}
+			}
+			await refreshAllData();
+			if (added) toast(`${added} mod(s) adicionado(s) com sucesso!`, "success");
+			if (failed.length) toast(`${failed.length} mod(s) não foram importados: ${failed.slice(0, 2).join("; ")}`, "error");
+		} finally {
+			isImportingDrop = false;
 		}
 	}
 
@@ -1216,14 +1319,35 @@
 		const targetProfileId = activeProfile?.id || instanceId || "";
 		if (!skipConflictCheck) {
 			try {
-				const readiness = await doctorInstanceReadiness(targetProfileId);
-				if (!readiness.ready) {
-					if (readiness.conflicts.hasConflicts) {
-						pendingLaunchConflicts = readiness.conflicts;
-						showModConflictModal = true;
+				let readiness = await doctorInstanceReadiness(targetProfileId);
+				if (!readiness.ready && readiness.conflicts.hasConflicts) {
+					pendingLaunchConflicts = readiness.conflicts;
+					showModConflictModal = true;
+					return;
+				}
+				if (!readiness.ready && readiness.repairable) {
+					appState.isLaunching = true;
+					appState.launchStatusText = "Reparando arquivos do Minecraft...";
+					toast("Arquivos do Minecraft ausentes. Reparando a instância...", "info");
+					try {
+						const outcome = await doctorRepairAll(targetProfileId);
+						for (const warning of outcome.warnings) toast(warning, "warning");
+					} catch (repairError) {
+						console.error("Auto repair failed:", repairError);
+						toast("Falha ao reparar a instância: " + String(repairError), "error");
+						appState.isLaunching = false;
 						return;
 					}
-					toast(`${readiness.blockers[0] || "A instância precisa de reparo."} Use “Reparar tudo” nas configurações.`, "error");
+					readiness = await doctorInstanceReadiness(targetProfileId);
+					if (!readiness.ready) {
+						toast(readiness.blockers[0] || "A instância continua precisando de reparo.", "error");
+						appState.isLaunching = false;
+						return;
+					}
+					appState.isLaunching = false;
+				}
+				if (!readiness.ready) {
+					toast(`${readiness.blockers[0] || "A instância precisa de reparo."} Use “Reparar Tudo” na página da instância.`, "error");
 					return;
 				}
 				for (const warning of readiness.warnings) toast(warning, "info");
@@ -1604,7 +1728,25 @@
 		{#if mainTab === 'laboratorio'}
 			<InstanceLab profileId={instanceId} />
 		{:else if mainTab === 'conteudo'}
-			<div class="flex flex-col gap-4" in:fade={{ duration: 150 }}>
+			<div
+				class="relative flex flex-col gap-4"
+				in:fade={{ duration: 150 }}
+				role="group"
+				aria-label="Conteúdo da instância"
+				ondragenter={handleModsDragEnter}
+				ondragover={handleModsDragOver}
+				ondragleave={handleModsDragLeave}
+				ondrop={handleModsDrop}
+			>
+				{#if modsDragOver || isImportingDrop}
+					<div class="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed {isImportingDrop && !modsDragOver ? 'border-brand-400/40' : 'border-brand-400/70'} bg-bg-overlay/75 backdrop-blur-sm">
+						<div class="h-14 w-14 rounded-2xl bg-brand-500/15 border border-brand-400/40 text-brand-300 flex items-center justify-center">
+							<Puzzle class="w-7 h-7" />
+						</div>
+						<p class="text-sm font-black text-fg">{isImportingDrop ? 'Importando .jar...' : 'Solte os .jar aqui'}</p>
+						<p class="text-xs text-fg/60 max-w-sm text-center">{isImportingDrop ? 'A validar e copiar os mods para esta instância.' : 'Cada .jar é validado contra o loader da instância antes de entrar na pasta mods/.'}</p>
+					</div>
+				{/if}
 				<div class="flex flex-wrap items-center justify-between gap-3">
 					<div class="flex bg-bg-elevated border border-fg/10 rounded-full p-1 gap-1">
 						<button
@@ -1663,6 +1805,9 @@
 							>
 								<Plus class="w-4 h-4 stroke-[3]" /> Adicionar .JAR
 							</button>
+							<span class="hidden xl:inline-flex items-center rounded-full border border-dashed border-fg/25 px-3 py-2 text-[10px] font-bold text-fg/45">
+								ou arraste .jar para esta página
+							</span>
 						{:else}
 							<button
 								class="bg-bg-subtle hover:bg-fg/10 text-fg/70 hover:text-fg px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 border border-fg/5 transition-all cursor-pointer"
@@ -1734,7 +1879,7 @@
 							</div>
 							<h3 class="text-base font-extrabold text-fg">Nenhum mod instalado nesta instância</h3>
 							<p class="text-xs text-fg/40 mt-1 max-w-md">
-								Você pode instalar mods incríveis diretamente pela Central de Conteúdo ou importar arquivos .jar do seu computador.
+								Você pode instalar mods incríveis diretamente pela Central de Conteúdo, importar arquivos .jar do seu computador ou simplesmente arrastá-los para esta área.
 							</p>
 							<div class="flex items-center gap-3 mt-6">
 								<a
@@ -2809,7 +2954,7 @@
 							<div class="space-y-3">
 								<span class="text-xs font-bold text-fg/70 block">Mod Loader Ativo</span>
 								<div class="grid grid-cols-2 gap-3">
-									{#each ["fabric", "forge", "neoforge", "vanilla"] as loader}
+									{#each ["fabric", "forge", "neoforge", "quilt", "vanilla"] as loader}
 										<button
 											type="button"
 											class="p-3 rounded-2xl border text-xs font-bold flex items-center justify-between transition-all cursor-pointer {instanceLoaderType === loader ? 'bg-brand-500/20 border-brand-500 text-brand-500' : 'bg-bg-elevated border-fg/10 text-fg/60 hover:text-fg'}"

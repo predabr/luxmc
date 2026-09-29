@@ -5,7 +5,8 @@
 	import { fade, slide, fly } from "svelte/transition";
 	import { onMount } from "svelte";
     import { listenDownloadProgress } from "$lib/api/events";
-	import { goto, preloadData } from "$app/navigation";
+	import { goto } from "$app/navigation";
+	import { preloadRoute } from "$lib/utils/preloadRoute";
 	import {
 		Play,
 		Plus,
@@ -919,7 +920,7 @@
 						<div class="space-y-2.5" transition:slide={{ duration: 180 }}>
 							{#each jumpInInstances as inst (inst.id)}
 								{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
-								<div class="flex items-center justify-between p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-all group shadow-sm">
+								<div class="cv-auto flex items-center justify-between p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-all group shadow-sm">
 									<div class="flex items-center gap-3.5 min-w-0">
 										<div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
 											{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
@@ -1030,8 +1031,8 @@
 												>
 													<button
 														type="button"
-														onpointerenter={() => void preloadData(`/instances/${inst.id}`)}
-														onpointerdown={() => void preloadData(`/instances/${inst.id}`)}
+														onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
+														onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
 														onclick={() => goto(`/instances/${inst.id}`)}
 														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer font-medium"
 													>
@@ -1170,9 +1171,9 @@
 							<div
 								role="button"
 								tabindex="0"
-								class="rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.16] transition-all p-4 flex flex-col justify-between group relative shadow-md hover:shadow-xl cursor-pointer min-h-[215px]"
-								onpointerenter={() => void preloadData(`/instances/${inst.id}`)}
-								onpointerdown={() => void preloadData(`/instances/${inst.id}`)}
+								class="cv-auto rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.16] transition-all p-4 flex flex-col justify-between group relative shadow-md hover:shadow-xl cursor-pointer min-h-[215px]"
+								onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
+								onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
 								onclick={() => goto(`/instances/${inst.id}`)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
 							>

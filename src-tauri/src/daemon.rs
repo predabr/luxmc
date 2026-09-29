@@ -122,7 +122,7 @@ async fn dispatch_command(
         "optimizer_get_perf_pack" => {
             let loader = args.get("loader").and_then(|v| v.as_str()).unwrap_or("fabric").to_string();
             let mc_version = args.get("mcVersion").or_else(|| args.get("mc_version")).and_then(|v| v.as_str()).unwrap_or("1.20.1").to_string();
-            let pack = crate::commands::optimizer::optimizer_get_perf_pack(loader, mc_version);
+            let pack = crate::commands::optimizer::optimizer_get_perf_pack_core(&state.http, loader, mc_version).await;
             Ok(serde_json::to_value(pack).map_err(|e| e.to_string())?)
         },
         "optimizer_install_perf_pack" => {
@@ -131,7 +131,7 @@ async fn dispatch_command(
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "get_system_specs" => {
-            let specs = crate::commands::system::get_system_specs();
+            let specs = crate::commands::system::get_system_specs().await;
             Ok(serde_json::to_value(specs).map_err(|e| e.to_string())?)
         },
         "env_check" => {
@@ -256,6 +256,13 @@ async fn dispatch_command(
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let source_path = args.get("sourcePath").or_else(|| args.get("source_path")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let res = crate::commands::instances::instance_mod_add(profile_id, source_path).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
+        },
+        "instance_mod_add_bytes" => {
+            let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let file_name = args.get("fileName").or_else(|| args.get("file_name")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let data_base64 = args.get("dataBase64").or_else(|| args.get("data_base64")).and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let res = crate::commands::instances::instance_mod_add_bytes(profile_id, file_name, data_base64).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "instance_mods_open_folder" => {
@@ -462,7 +469,8 @@ async fn dispatch_command(
             let loader = args.get("loader").and_then(|v| v.as_str()).unwrap_or("fabric");
             let game_version = args.get("gameVersion").or_else(|| args.get("mcVersion")).and_then(|v| v.as_str()).unwrap_or("1.20.1");
             let versions = crate::core::loaders::fetch_loader_versions(&state.http, loader, game_version).await.map_err(|e| e.to_string())?;
-            Ok(serde_json::to_value(versions).map_err(|e| e.to_string())?)
+            let response = crate::commands::loaders::LoaderVersionsResponse { versions };
+            Ok(serde_json::to_value(response).map_err(|e| e.to_string())?)
         },
 
         "mods_search" | "mods_search_typed" => {

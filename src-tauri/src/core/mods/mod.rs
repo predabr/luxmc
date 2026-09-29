@@ -323,6 +323,28 @@ impl ModrinthClient {
         }
         candidate_urls.push(format!("{}/project/{}/version", MODRINTH_API, project_id));
 
+        let matches_filters = |entry: &serde_json::Value| -> bool {
+            if has_ver {
+                match entry.get("game_versions").and_then(|v| v.as_array()) {
+                    Some(versions) if !versions
+                        .iter()
+                        .any(|v| v.as_str() == Some(clean_ver)) => return false,
+                    None => {}
+                    _ => {}
+                }
+            }
+            if let Some(loader) = loader_clean.as_ref() {
+                match entry.get("loaders").and_then(|v| v.as_array()) {
+                    Some(loaders) if !loaders
+                        .iter()
+                        .any(|l| l.as_str() == Some(loader.as_str())) => return false,
+                    None => {}
+                    _ => {}
+                }
+            }
+            true
+        };
+
         let mut resp_json: Option<Vec<serde_json::Value>> = None;
         for url in candidate_urls {
             for attempt in 0..3 {
@@ -332,8 +354,10 @@ impl ModrinthClient {
                 if let Ok(resp) = self.http.get(&url).timeout(std::time::Duration::from_secs(20)).send().await {
                     if resp.status().is_success() {
                         if let Ok(json) = resp.json::<Vec<serde_json::Value>>().await {
-                            if !json.is_empty() || !has_ver {
-                                resp_json = Some(json);
+                            let filtered: Vec<serde_json::Value> =
+                                json.into_iter().filter(|entry| matches_filters(entry)).collect();
+                            if !filtered.is_empty() {
+                                resp_json = Some(filtered);
                                 break;
                             }
                         }
@@ -342,7 +366,7 @@ impl ModrinthClient {
                     }
                 }
             }
-            if resp_json.as_ref().map_or(false, |arr| !arr.is_empty()) {
+            if resp_json.is_some() {
                 break;
             }
         }

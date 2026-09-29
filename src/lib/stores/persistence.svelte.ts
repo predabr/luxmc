@@ -2,6 +2,7 @@ import { browser } from "$app/environment";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import { settings, registerSettingsListener, type AppSettings, type ThemeName } from "./settings.svelte";
 import { profiles } from "./profiles.svelte";
+import { appState } from "./app.svelte";
 import { setupI18n, notifyLocaleChange, type Locale } from "$lib/i18n";
 import { setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 
@@ -23,6 +24,7 @@ export async function bootstrapSettings() {
 	const stored = (await s.get<Partial<AppSettings>>(STORE_KEY)) ?? {};
 	const merged: AppSettings = { ...settings.value, ...stored };
 	settings.value = merged;
+	appState.performanceMode = merged.performanceMode === true;
 	setupI18n(merged.language);
 	setActiveLocale(merged.language);
 

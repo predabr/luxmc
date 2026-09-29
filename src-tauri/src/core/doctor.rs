@@ -205,6 +205,27 @@ pub fn analyze_crash_text(log: &str) -> CrashDiagnosis {
         };
     }
 
+    let re_bad_ctor = Regex::new(r"(?i)Invalid class .+ no constructor taking").unwrap();
+    if re_bad_ctor.is_match(trimmed) {
+        let re_from = Regex::new(r"(?i)Caught exception from (.+?) \(").unwrap();
+        let mod_label = re_from
+            .captures(trimmed)
+            .and_then(|c| c.get(1).map(|m| m.as_str().trim().to_string()))
+            .unwrap_or_else(|| "um dos mods instalados".to_string());
+        return CrashDiagnosis {
+            has_error: true,
+            title: "Mod incompatível com a versão do Minecraft".to_string(),
+            message: format!(
+                "O mod \"{mod_label}\" travou ao registrar suas entidades. Isso ocorre quando o .jar foi compilado para outra versão do Minecraft (ou outro loader) daquela configurada nesta instância."
+            ),
+            solution: "Confira a versão escrita no nome do arquivo do mod (ex.: ...-1.12.2-forge...) e edite a instância para essa mesma versão do Minecraft, ou substitua o .jar por um build compatível com a versão atual.".to_string(),
+            category: "version_mismatch".to_string(),
+            offending_mod: Some(mod_label),
+            recommended_action: Some("fix_mc_version".to_string()),
+            log_snippet: extract_snippet(trimmed, "no constructor taking"),
+        };
+    }
+
     if trimmed.contains("Exception") || trimmed.contains("Error") || trimmed.contains("FATAL") {
         let re_cause = Regex::new(r"(?m)^Caused by: ([^\n\r]+)").unwrap();
         let cause = re_cause
@@ -234,6 +255,82 @@ fn extract_snippet(log: &str, target: &str) -> Option<String> {
     let start = idx.saturating_sub(2);
     let end = std::cmp::min(lines.len(), idx + 6);
     Some(lines[start..end].join("\n"))
+}
+
+pub fn mod_compatibility_warnings(
+    mods_dir: &Path,
+    mc_version: &str,
+    loader: &str,
+) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if mc_version.trim().is_empty() {
+        return warnings;
+    }
+    let instance_version = mc_version.trim().to_ascii_lowercase();
+    let instance_loader = loader.trim().to_ascii_lowercase();
+
+    let incompatible: &[&str] = match instance_loader.as_str() {
+        "forge" => &["fabric", "quilt", "neoforge"],
+        "fabric" => &["forge", "quilt"],
+        "quilt" => &["forge", "neoforge", "fabric"],
+        "neoforge" => &["fabric", "quilt"],
+        _ => &[],
+    };
+
+    let re_mc = Regex::new(r"(?i)([^vV0-9]|^)(1\.\d{1,2}\.\d{1,2})([^0-9]|$)").unwrap();
+
+    let Ok(entries) = std::fs::read_dir(mods_dir) else {
+        return warnings;
+    };
+    for entry in entries.flatten() {
+        if warnings.len() >= 4 {
+            break;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        let lower = name.to_ascii_lowercase();
+        if lower.ends_with(".disabled") {
+            continue;
+        }
+        if !lower.ends_with(".jar") {
+            continue;
+        }
+
+        let mut file_version: Option<String> = None;
+        for caps in re_mc.captures_iter(&lower) {
+            let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+            if prefix.eq_ignore_ascii_case("v") {
+                continue;
+            }
+            file_version = Some(caps.get(2).unwrap().as_str().to_string());
+            break;
+        }
+
+        if let Some(found) = file_version {
+            if found != instance_version {
+                warnings.push(format!(
+                    "\"{name}\" parece ser para o Minecraft {found}, mas esta instância roda {instance_version}."
+                ));
+                continue;
+            }
+        }
+
+        let stripped = lower.replace("neoforge", "");
+        let has_own_loader = match instance_loader.as_str() {
+            "forge" => stripped.contains("forge"),
+            "fabric" => lower.contains("fabric"),
+            "quilt" => lower.contains("quilt"),
+            "neoforge" => lower.contains("neoforge"),
+            _ => true,
+        };
+        if !has_own_loader {
+            if let Some(foreign) = incompatible.iter().find(|l| lower.contains(**l)) {
+                warnings.push(format!(
+                    "\"{name}\" é um mod para {foreign}, mas esta instância usa {instance_loader}."
+                ));
+            }
+        }
+    }
+    warnings
 }
 
 pub fn diagnose_instance(game_dir: &Path) -> CrashDiagnosis {
@@ -490,5 +587,50 @@ mod tests {
         ];
         let res = check_mod_conflicts(&files);
         assert_eq!(res.duplicates.len(), 1);
+    }
+
+    #[test]
+    fn test_diagnose_entity_constructor_version_mismatch() {
+        let log = "net.minecraftforge.fml.common.LoaderExceptionModCrash: Caught exception from SchnurriTV's Sexmod (sexmod)\nCaused by: java.lang.RuntimeException: Invalid class class com.schnurritv.sexmod.cQ no constructor taking net.minecraft.world.World";
+        let diag = analyze_crash_text(log);
+        assert!(diag.has_error);
+        assert_eq!(diag.category, "version_mismatch");
+        assert_eq!(diag.recommended_action.as_deref(), Some("fix_mc_version"));
+        assert!(diag.offending_mod.as_deref().unwrap().contains("Sexmod"));
+    }
+
+    fn write_mod(dir: &Path, name: &str) {
+        std::fs::write(dir.join(name), b"jar").unwrap();
+    }
+
+    #[test]
+    fn test_mod_compatibility_warnings() {
+        let dir = std::env::temp_dir().join(format!("luxmc_compat_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        write_mod(&dir, "Jenny-Mod-Forge-1.12.2-v1.9.0.jar");
+        write_mod(&dir, "jei-1.12-4.8.0.1.jar");
+        write_mod(&dir, "sodium-0.5.8+mc1.12.2-fabric.jar");
+        write_mod(&dir, "OptiFine_1.12.2_HD_U_G5.jar");
+
+        let warnings = mod_compatibility_warnings(&dir, "1.12", "forge");
+        let joined = warnings.join("\n");
+        assert!(joined.contains("Jenny-Mod-Forge-1.12.2-v1.9.0.jar"), "{joined}");
+        assert!(joined.contains("sodium"), "{joined}");
+        assert!(joined.contains("OptiFine"), "{joined}");
+        assert!(!joined.contains("jei-1.12"), "{joined}");
+
+        let ok = mod_compatibility_warnings(&dir, "1.12.2", "forge");
+        let joined_ok = ok.join("\n");
+        assert!(!joined_ok.contains("Jenny-Mod-Forge-1.12.2-v1.9.0.jar"), "{joined_ok}");
+        assert!(!joined_ok.contains("OptiFine"), "{joined_ok}");
+        assert!(joined_ok.contains("sodium"), "{joined_ok}");
+
+        let wrong_loader = mod_compatibility_warnings(&dir, "1.12.2", "fabric");
+        let joined_loader = wrong_loader.join("\n");
+        assert!(joined_loader.contains("Jenny-Mod-Forge-1.12.2-v1.9.0.jar"), "{joined_loader}");
+        assert!(!joined_loader.contains("sodium"), "{joined_loader}");
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -279,7 +279,7 @@
 	}
 
 	async function handleCreateInstance(input: {
-		name: string; version: string; loader: string; icon: string;
+		name: string; version: string; loader: string; loaderVersion?: string; icon: string;
 		ramGb: number; autoOptimize: boolean; useVulkan: boolean; installPerfPack: boolean;
 		resolutionW?: number; resolutionH?: number; fullscreen?: boolean;
 		javaPath?: string; jvmArgs?: string; gameDir?: string;
@@ -293,6 +293,7 @@
 		}>("profiles_create", {
 			input: {
 				name: input.name, mcVersion: input.version, loader: input.loader,
+				loaderVersion: input.loaderVersion ?? null,
 				icon: input.icon, ramMb: input.ramGb * 1024,
 				autoOptimize: input.autoOptimize, useVulkan: input.useVulkan,
 				resolutionW: input.resolutionW ?? null,
@@ -305,7 +306,20 @@
 		});
 
 		if (input.installPerfPack && input.loader !== "vanilla") {
-			try { await optimizerInstallPerfPack(p.id); } catch (err) { console.warn("Could not install perf pack:", err); }
+			try {
+				await optimizerInstallPerfPack(p.id);
+			} catch (err) {
+				const message = String(err);
+				const withoutMods =
+					message.includes("Nenhum mod de desempenho compatível") ||
+					message.includes("O pacote de otimização requer");
+				toast(
+					withoutMods
+						? `Instância criada sem mods de desempenho: não há versões compatíveis com ${input.version} ${input.loader}.`
+						: `Instância criada, mas os mods de desempenho não foram instalados: ${message}`,
+					withoutMods ? "info" : "error"
+				);
+			}
 		}
 
 		profiles.add({

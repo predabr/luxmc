@@ -55,5 +55,6 @@ describe("resolveProfileBanner", () => {
 	it("defaults to bg_day.jpg when nothing is specified", () => {
 		expect(resolveProfileBanner(null)).toBe("/bg_day.jpg");
 		expect(resolveProfileBanner({ name: "Unknown" })).toBe("/bg_day.jpg");
+		expect(resolveProfileBanner({ name: "Forge adventure pack" })).toBe("/bg_day.jpg");
 	});
 });

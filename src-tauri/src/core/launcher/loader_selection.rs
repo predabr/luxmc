@@ -3,20 +3,27 @@ use std::path::Path;
 
 use crate::error::{AppError, AppResult};
 
+fn parse_loader_id(raw_id: &str) -> Option<(String, String)> {
+    let lower = raw_id.to_ascii_lowercase();
+    for loader in ["neoforged", "neoforge", "fabric", "quilt", "forge"] {
+        if let Some(rest) = lower.strip_prefix(loader) {
+            let rest = rest.strip_prefix("-loader").unwrap_or(rest);
+            let rest = rest.strip_prefix('-').unwrap_or(rest);
+            return Some((loader.to_string(), rest.to_string()));
+        }
+    }
+    None
+}
+
 fn declared(value: &serde_json::Value) -> Option<(String, String)> {
     if let Some(loaders) = value.pointer("/minecraft/modLoaders").and_then(|v| v.as_array()) {
         let entry = loaders.iter().find(|v| v.get("primary").and_then(|v| v.as_bool()) == Some(true)).or_else(|| loaders.first())?;
         let raw_id = entry.get("id")?.as_str()?;
-        if let Some((loader, version)) = raw_id.split_once('-') {
-            let loader_lower = loader.to_ascii_lowercase();
-            if ["fabric", "forge", "neoforge", "quilt"].contains(&loader_lower.as_str()) && !version.is_empty() {
-                return Some((loader_lower, version.into()));
+        if let Some((loader, version)) = parse_loader_id(raw_id) {
+            if !version.is_empty() {
+                return Some((loader, version));
             }
-        } else {
-            let loader_lower = raw_id.to_ascii_lowercase();
-            if ["fabric", "forge", "neoforge", "quilt"].contains(&loader_lower.as_str()) {
-                return Some((loader_lower, String::new()));
-            }
+            return Some((loader, String::new()));
         }
     }
     for (key, loader) in [

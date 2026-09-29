@@ -438,7 +438,7 @@ pub async fn instance_import_share_code_core(
         instance_group: Some("Importados".into()),
         auto_optimize: Some(true),
         use_vulkan: Some(false),
-        use_gamemode: Some(false),
+        use_gamemode: Some(cfg!(target_os = "linux")),
         use_mangohud: Some(false),
         force_dedicated_gpu: Some(false),
         use_gamescope: Some(false),
@@ -596,11 +596,12 @@ pub async fn instance_repair_core(
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
     let data_dir = base_dir.data_dir().to_path_buf();
     let mut downloader = crate::core::downloader::DownloadManager::new(http.clone(), data_dir);
-    if let Some(a) = app {
-        downloader = downloader.with_app(a);
+    if let Some(a) = &app {
+        downloader = downloader.with_app(a.clone());
     }
     downloader.download_version(&detail).await?;
     downloader.validate_version(&detail).await?;
+    crate::core::launcher::extract_natives(&downloader, &detail, app.as_ref()).await?;
     Ok(())
 }
 
@@ -651,11 +652,12 @@ pub async fn version_repair_core(
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
     let data_dir = base_dir.data_dir().to_path_buf();
     let mut downloader = crate::core::downloader::DownloadManager::new(http.clone(), data_dir);
-    if let Some(a) = app {
-        downloader = downloader.with_app(a);
+    if let Some(a) = &app {
+        downloader = downloader.with_app(a.clone());
     }
     downloader.download_version(&detail).await?;
     downloader.validate_version(&detail).await?;
+    crate::core::launcher::extract_natives(&downloader, &detail, app.as_ref()).await?;
     Ok(())
 }
 

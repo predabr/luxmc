@@ -25,6 +25,7 @@
 	
 	function togglePerformance() {
 		appState.performanceMode = !appState.performanceMode;
+		settings.patch({ performanceMode: appState.performanceMode });
 	}
 </script>
 

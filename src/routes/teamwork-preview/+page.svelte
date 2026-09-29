@@ -23,6 +23,8 @@
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { playSound } from "$lib/utils/sound";
 	import Button from "$lib/components/ui/Button.svelte";
+	import MeshPanel from "$lib/components/friends/MeshPanel.svelte";
+	import { joinTunnel } from "$lib/api/tunnel";
 
 	let hostInfo = $state<HostLinkInfo | null>(null);
 	let loadingHost = $state(false);
@@ -109,15 +111,24 @@
 		});
 	}
 
-	function handleJoin() {
+	async function handleJoin() {
 		const raw = joinInput.trim();
 		if (!raw) {
 			toast("Informe um link de convite ou endereço IP:porta!", "error");
 			return;
 		}
 
-		let clean = raw.replace(/^luxmc:\/\/join\//, "").replace(/^luxmc:\/\//, "");
-		toast(`Conectando à sessão P2P de ${clean}...`, "info");
+		try {
+			const invitation = raw.startsWith("luxmc://") ? new URL(raw).searchParams.get("invitation") : raw;
+			if (!invitation?.startsWith("luxmc-world:") && !invitation?.startsWith("LUX-")) {
+				toast("Para endereço IP:porta, use Multijogador → Conexão direta no Minecraft.", "info");
+				return;
+			}
+			await joinTunnel(invitation);
+			toast("Conectado. Abra o Minecraft em Multijogador para entrar no mundo LAN.", "success");
+		} catch (error) {
+			toast(`Não foi possível entrar na sala: ${String(error)}`, "error");
+		}
 	}
 </script>
 
@@ -132,12 +143,12 @@
 				</div>
 				<div>
 					<div class="flex items-center gap-2">
-						<h1 class="text-2xl font-black text-fg tracking-tight">Teamwork & Squad Preview</h1>
+						<h1 class="text-2xl font-black text-fg tracking-tight">Jogar com amigos</h1>
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-brand-foreground shadow-md">
 							P2P Host
 						</span>
 					</div>
-					<p class="text-xs text-fg/50 mt-1">Conexão direta P2P sem portas abertas, inspeção de equipe e sincronização</p>
+					<p class="text-xs text-fg/50 mt-1">Abra o mundo para LAN, crie uma sala privada e envie o convite</p>
 				</div>
 			</div>
 
@@ -155,6 +166,13 @@
 		</div>
 	</div>
 
+	<MeshPanel />
+
+	<div class="rounded-2xl border border-fg/10 bg-bg-subtle px-5 py-4 text-xs leading-relaxed text-fg-muted">
+		<strong class="block text-fg">Endereço direto por IP · opção avançada</strong>
+		As informações abaixo servem para conexão direta no Minecraft. Gerar um endereço não inicia uma sala P2P; para jogar pela internet sem configurar o roteador, use a sala acima.
+	</div>
+
 	<!-- P2P Room Generation Card -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 		<div class="lg:col-span-2 bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-md space-y-5">
@@ -164,8 +182,8 @@
 						<Radio class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-sm font-bold text-fg">Criar Sala Multiplayer P2P</h3>
-						<p class="text-xs text-fg/40">Gera um link seguro para qualquer amigo entrar no seu mundo</p>
+						<h3 class="text-sm font-bold text-fg">Endereço direto do Minecraft</h3>
+						<p class="text-xs text-fg/40">Consulta seu IP e porta LAN; a conexão pela internet pode exigir configurar o roteador</p>
 					</div>
 				</div>
 
@@ -184,7 +202,7 @@
 				<div class="space-y-3">
 					<div class="bg-bg-subtle border border-fg/10 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-inner">
 						<div class="min-w-0 flex-1">
-							<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block">Link de Convite P2P</span>
+						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block">Link de endereço direto</span>
 							<span class="font-mono text-xs text-emerald-400 font-semibold truncate block mt-0.5">
 								{hostInfo.shareLink}
 							</span>
@@ -233,7 +251,7 @@
 				<input
 					type="text"
 					bind:value={joinInput}
-					placeholder="Cole aqui o link luxmc://host/... ou IP:Porta de um amigo"
+					placeholder="Cole o convite da sala acima ou um IP:porta"
 					class="flex-1 bg-bg-subtle border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500 transition-colors"
 				/>
 				<Button
@@ -252,19 +270,17 @@
 			<div>
 				<div class="flex items-center gap-2.5 text-emerald-400">
 					<ShieldCheck class="w-5 h-5" />
-					<h4 class="text-xs font-black uppercase tracking-wider">Túnel P2P Criptografado</h4>
+					<h4 class="text-xs font-black uppercase tracking-wider">Sobre o endereço direto</h4>
 				</div>
 				<p class="text-xs text-fg/50 mt-2 leading-relaxed">
-					As conexões diretas entre hosts utilizam hole-punching UDP de baixa latência. Nenhuma porta precisa ser aberta no roteador.
+					O endereço abaixo é só uma referência para entrada direta no Minecraft. Use a sala P2P acima para criar um convite de túnel.
 				</p>
 			</div>
 
 			<div class="space-y-2 pt-4 border-t border-fg/5">
 				<div class="flex items-center justify-between text-xs">
-					<span class="text-fg/40">Status do Túnel:</span>
-					<span class="font-bold text-emerald-400 flex items-center gap-1">
-						<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Ativo
-					</span>
+						<span class="text-fg/40">Status do Túnel:</span>
+						<span class="font-bold text-fg/80">Veja a sala acima</span>
 				</div>
 				<div class="flex items-center justify-between text-xs">
 					<span class="text-fg/40">Descoberta LAN:</span>
@@ -272,7 +288,7 @@
 				</div>
 				<div class="flex items-center justify-between text-xs">
 					<span class="text-fg/40">Latência Média:</span>
-					<span class="font-mono font-bold text-emerald-400">~15-35 ms</span>
+						<span class="font-mono font-bold text-fg/80">Depende da conexão</span>
 				</div>
 			</div>
 		</div>
@@ -284,12 +300,12 @@
 			<div>
 				<h3 class="text-sm font-bold text-fg flex items-center gap-2">
 					<Users class="w-4 h-4 text-emerald-400" />
-					Escalação da Equipe (Party Lineup)
+					Prévia de equipe
 				</h3>
-				<p class="text-xs text-fg/40 mt-0.5">Jogadores prontos para entrar no mesmo mundo multiplayer</p>
+				<p class="text-xs text-fg/40 mt-0.5">Exemplo visual; os jogadores conectados aparecem na sala real acima</p>
 			</div>
 			<span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-				{partyMembers.length} Jogadores Prontos
+				Demonstração
 			</span>
 		</div>
 

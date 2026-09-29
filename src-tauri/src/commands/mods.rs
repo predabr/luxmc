@@ -298,6 +298,7 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
     let target_subfolder = match request.content_type.as_deref().unwrap_or("mod").to_lowercase().as_str() {
         "shader" | "shaders" => "shaderpacks",
         "resourcepack" | "resource pack" | "resource_pack" => "resourcepacks",
+        "datapack" | "data pack" | "data_pack" | "datapacks" => "datapacks",
         _ => "mods",
     };
 
@@ -407,25 +408,36 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
     };
 
     use futures_util::StreamExt;
+    use tokio::io::AsyncWriteExt;
     let safe_name = std::path::Path::new(&file_name)
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("mod.jar");
     let file_path = target_dir.join(safe_name);
-    let mut stream = resp.bytes_stream();
-    let mut file = tokio::fs::File::create(&file_path).await.map_err(|e| {
-        tracing::error!(path = %file_path.display(), error = %e, "failed to create file");
-        e
-    })?;
-    while let Some(chunk) = stream.next().await {
-        let bytes = chunk.map_err(|e| {
-            tracing::error!(url = %file_url, error = %e, "stream error");
-            crate::error::AppError::Http(e)
+    let tmp_path = target_dir.join(format!("{}.{}.part", safe_name, uuid::Uuid::new_v4()));
+    let write_result: AppResult<()> = async {
+        let mut stream = resp.bytes_stream();
+        let mut file = tokio::fs::File::create(&tmp_path).await.map_err(|e| {
+            tracing::error!(path = %tmp_path.display(), error = %e, "failed to create temp file");
+            e
         })?;
-        let _ = tokio::io::AsyncWriteExt::write_all(&mut file, &bytes).await;
+        while let Some(chunk) = stream.next().await {
+            let bytes = chunk.map_err(|e| {
+                tracing::error!(url = %file_url, error = %e, "stream error");
+                crate::error::AppError::Http(e)
+            })?;
+            file.write_all(&bytes).await?;
+        }
+        file.flush().await?;
+        drop(file);
+        tokio::fs::rename(&tmp_path, &file_path).await?;
+        Ok(())
     }
-    let _ = tokio::io::AsyncWriteExt::flush(&mut file).await;
-    drop(file);
+    .await;
+    if let Err(error) = write_result {
+        let _ = tokio::fs::remove_file(&tmp_path).await;
+        return Err(error);
+    }
 
     let resolved_profile_id = profile.id.clone();
 
@@ -1206,8 +1218,7 @@ pub async fn mods_resolve_names_core(
     let mut renamed = 0u32;
     let mut entries = tokio::fs::read_dir(&mods_dir).await?;
 
-    let mut project_ids: Vec<u64> = Vec::new();
-    let mut file_map: Vec<(std::path::PathBuf, String)> = Vec::new();
+    let mut candidates: Vec<(std::path::PathBuf, String, bool)> = Vec::new();
 
     while let Ok(Some(entry)) = entries.next_entry().await {
         let name = entry.file_name().to_string_lossy().to_string();
@@ -1227,31 +1238,56 @@ pub async fn mods_resolve_names_core(
         let is_numeric_single = bare.strip_suffix(".jar").map(|s| !s.is_empty() && s.chars().all(|c| c.is_ascii_digit())).unwrap_or(false);
 
         if is_numeric_pair || is_numeric_single {
-            let entry_path = entry.path();
-            if let Some(jar_name) = extract_mod_name_from_jar(&entry_path) {
+            candidates.push((entry.path(), name, is_numeric_pair));
+        }
+    }
+
+    let pending_renames: Vec<(std::path::PathBuf, std::path::PathBuf)> = {
+        let mods_dir = mods_dir.clone();
+        let scan_targets = candidates.clone();
+        tokio::task::spawn_blocking(move || {
+            let mut out = Vec::new();
+            for (entry_path, _name, _is_pair) in &scan_targets {
+                let Some(jar_name) = extract_mod_name_from_jar(entry_path) else {
+                    continue;
+                };
                 let safe_name = jar_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
-                let is_disabled = name.ends_with(".disabled");
-                let new_name = if is_disabled {
+                let new_name = if _name.ends_with(".disabled") {
                     format!("{}.jar.disabled", safe_name)
                 } else {
                     format!("{}.jar", safe_name)
                 };
                 let new_path = entry_path.parent().unwrap_or(&mods_dir).join(&new_name);
-                if new_path != entry_path {
-                    if tokio::fs::rename(&entry_path, &new_path).await.is_ok() {
-                        renamed += 1;
-                        continue;
-                    }
+                if new_path != *entry_path && !new_path.exists() {
+                    out.push((entry_path.clone(), new_path));
                 }
             }
+            out
+        })
+        .await
+        .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
+    };
 
-            if is_numeric_pair {
-                if let Some(dollar_pos) = bare.find('_') {
-                    if let Ok(pid) = bare[..dollar_pos].parse::<u64>() {
-                        project_ids.push(pid);
-                        file_map.push((entry_path, name));
-                    }
-                }
+    let mut resolved: std::collections::HashSet<std::path::PathBuf> = std::collections::HashSet::new();
+    for (entry_path, new_path) in pending_renames {
+        if tokio::fs::rename(&entry_path, &new_path).await.is_ok() {
+            renamed += 1;
+            resolved.insert(entry_path);
+        }
+    }
+
+    let mut project_ids: Vec<u64> = Vec::new();
+    let mut file_map: Vec<(std::path::PathBuf, String)> = Vec::new();
+
+    for (entry_path, name, is_numeric_pair) in candidates {
+        if resolved.contains(&entry_path) || !is_numeric_pair {
+            continue;
+        }
+        let bare = name.strip_suffix(".disabled").unwrap_or(&name);
+        if let Some(dollar_pos) = bare.find('_') {
+            if let Ok(pid) = bare[..dollar_pos].parse::<u64>() {
+                project_ids.push(pid);
+                file_map.push((entry_path, name));
             }
         }
     }
@@ -1270,7 +1306,7 @@ pub async fn mods_resolve_names_core(
                         format!("{}.jar", safe_name)
                     };
                     let new_path = path.parent().unwrap_or(&mods_dir).join(&new_name);
-                    if new_path != *path {
+                    if new_path != *path && !new_path.exists() {
                         if tokio::fs::rename(path, &new_path).await.is_ok() {
                             renamed += 1;
                             tracing::info!(old = %old_name, new = %new_name, "renamed mod file");
@@ -1279,6 +1315,10 @@ pub async fn mods_resolve_names_core(
                 }
             }
         }
+    }
+
+    if renamed > 0 {
+        let _ = crate::db::schema::mods::reconcile_profile(&db, &profile_id, &mods_dir).await;
     }
 
     Ok(renamed)

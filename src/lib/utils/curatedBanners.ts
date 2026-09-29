@@ -24,6 +24,12 @@ export const curatedBanners: Record<string, string> = {
 	"vanilla": "/vanilla_banner.png"
 };
 
+export function matchesCuratedBanner(name: string, key: string): boolean {
+	const lower = name.toLowerCase();
+	if (key.length > 3) return lower.includes(key);
+	return lower.split(/[^a-z0-9]+/).includes(key);
+}
+
 export function resolveProfileBanner(profile?: {
 	name?: string;
 	banner?: string;
@@ -44,7 +50,7 @@ export function resolveProfileBanner(profile?: {
 
 	const nameLower = (profile.name || "").toLowerCase();
 	for (const [key, bannerUrl] of Object.entries(curatedBanners)) {
-		if (nameLower.includes(key)) {
+		if (matchesCuratedBanner(nameLower, key)) {
 			return bannerUrl;
 		}
 	}

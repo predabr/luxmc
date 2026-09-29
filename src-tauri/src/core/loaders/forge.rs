@@ -5,6 +5,11 @@ use std::io::{Cursor, Read};
 use std::path::Path;
 
 const FORGE_MAVEN: &str = "https://maven.minecraftforge.net";
+const MAVEN_REPOS: [&str; 3] = [
+    "https://maven.minecraftforge.net",
+    "https://libraries.minecraft.net",
+    "https://repo1.maven.org/maven2",
+];
 const FORGE_METADATA: &str =
     "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml";
 const FORGE_PROMOTIONS: &str =
@@ -28,6 +33,8 @@ pub struct ForgeLibrary {
     pub name: String,
     pub downloads: Option<ForgeDownloads>,
     pub url: Option<String>,
+    #[serde(default, rename = "clientreq")]
+    pub clientreq: Option<bool>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -57,6 +64,41 @@ struct ForgePromotions {
     promos: std::collections::HashMap<String, String>,
 }
 
+fn versions_from_metadata(metadata: &str, mc_version: &str) -> Vec<String> {
+    let prefix = format!("{mc_version}-");
+    let mut versions: Vec<String> = metadata.split("<version>").skip(1)
+        .filter_map(|entry| entry.split("</version>").next())
+        .map(str::trim)
+        .filter_map(|version| version.strip_prefix(&prefix).map(str::to_string))
+        .collect();
+    versions.sort_by(|a, b| compare_loader_versions(a, b));
+    versions
+}
+
+fn version_key(version: &str) -> Vec<u64> {
+    let mut key = Vec::new();
+    let mut digits = String::new();
+    for ch in version.chars() {
+        if ch.is_ascii_digit() {
+            digits.push(ch);
+        } else if !digits.is_empty() {
+            key.push(digits.parse::<u64>().unwrap_or(0));
+            digits.clear();
+        }
+    }
+    if !digits.is_empty() {
+        key.push(digits.parse::<u64>().unwrap_or(0));
+    }
+    key
+}
+
+pub(crate) fn compare_loader_versions(a: &str, b: &str) -> std::cmp::Ordering {
+    let (key_a, key_b) = (version_key(a), version_key(b));
+    key_b
+        .cmp(&key_a)
+        .then_with(|| b.cmp(a))
+}
+
 pub async fn fetch_versions(
     http: &reqwest::Client,
     mc_version: &str,
@@ -69,6 +111,14 @@ pub async fn fetch_versions(
 
     if let Ok(resp) = http.get(FORGE_PROMOTIONS).send().await {
         if let Ok(data) = resp.json::<ForgePromotions>().await {
+            if let Some(lat) = data.promos.get(&lat_key) {
+                if seen.insert(lat.clone()) {
+                    versions.push(LoaderVersion {
+                        id: lat.clone(),
+                        stable: data.promos.get(&rec_key) == Some(lat),
+                    });
+                }
+            }
             if let Some(rec) = data.promos.get(&rec_key) {
                 if seen.insert(rec.clone()) {
                     versions.push(LoaderVersion {
@@ -77,54 +127,20 @@ pub async fn fetch_versions(
                     });
                 }
             }
-            if let Some(lat) = data.promos.get(&lat_key) {
-                if seen.insert(lat.clone()) {
+        }
+    }
+
+    if let Ok(resp) = http.get(FORGE_METADATA).send().await {
+        if let Ok(text) = resp.text().await {
+            for forge_ver in versions_from_metadata(&text, mc_version) {
+                if seen.insert(forge_ver.clone()) {
                     versions.push(LoaderVersion {
-                        id: lat.clone(),
-                        stable: false,
+                        id: forge_ver,
+                        stable: true,
                     });
                 }
             }
         }
-    }
-
-    let prefix = format!("{}-", mc_version);
-    if let Ok(resp) = http.get(FORGE_METADATA).send().await {
-        if let Ok(text) = resp.text().await {
-            for line in text.lines() {
-                let trimmed = line.trim();
-                if trimmed.starts_with("<version>") && trimmed.ends_with("</version>") {
-                    let v = trimmed
-                        .trim_start_matches("<version>")
-                        .trim_end_matches("</version>")
-                        .trim();
-                    if v.starts_with(&prefix) {
-                        let forge_ver = v.trim_start_matches(&prefix).to_string();
-                        if seen.insert(forge_ver.clone()) {
-                            versions.push(LoaderVersion {
-                                id: forge_ver,
-                                stable: true,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if versions.is_empty() {
-        let default_ver = match mc_version {
-            "1.20.1" => "47.4.20",
-            "1.19.2" => "43.4.2",
-            "1.18.2" => "40.2.21",
-            "1.16.5" => "36.2.42",
-            "1.12.2" => "14.23.5.2860",
-            _ => "47.4.20",
-        };
-        versions.push(LoaderVersion {
-            id: default_ver.to_string(),
-            stable: true,
-        });
     }
 
     Ok(versions)
@@ -161,14 +177,70 @@ fn extract_version_json_from_bytes(bytes: &[u8]) -> AppResult<String> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
         .map_err(|e| AppError::Internal(format!("Failed to open Forge installer zip: {e}")))?;
 
-    let mut version_file = archive
-        .by_name("version.json")
-        .map_err(|e| AppError::Internal(format!("Forge installer missing version.json: {e}")))?;
-    let mut s = String::new();
-    version_file
-        .read_to_string(&mut s)
-        .map_err(|e| AppError::Internal(format!("Failed to read Forge version.json: {e}")))?;
-    Ok(s)
+    if let Ok(mut version_file) = archive.by_name("version.json") {
+        let mut s = String::new();
+        version_file.read_to_string(&mut s)?;
+        return Ok(s);
+    }
+
+    if let Ok(mut profile_file) = archive.by_name("install_profile.json") {
+        let mut raw = String::new();
+        profile_file.read_to_string(&mut raw)?;
+        if let Ok(value) = serde_json::from_str::<serde_json::Value>(&raw) {
+            if let Some(info) = value.get("versionInfo") {
+                return Ok(info.to_string());
+            }
+        }
+    }
+
+    Err(AppError::Internal(
+        "Forge installer sem version.json nem install_profile.json".into(),
+    ))
+}
+
+fn primary_maven_url(lib: &ForgeLibrary, rel_path: &str) -> String {
+    let normalized = rel_path.trim_start_matches('/');
+    if let Some(url) = lib
+        .url
+        .as_deref()
+        .map(str::trim)
+        .filter(|u| !u.is_empty())
+    {
+        return format!("{}/{}", url.trim_end_matches('/'), normalized);
+    }
+    format!("{FORGE_MAVEN}/{normalized}")
+}
+
+async fn find_installed_json(
+    versions_dir: &Path,
+    mc_version: &str,
+    chosen_version: &str,
+    candidate_ids: &[String],
+) -> Option<std::path::PathBuf> {
+    for cand in candidate_ids {
+        let p = versions_dir.join(cand).join(format!("{cand}.json"));
+        if p.exists() {
+            return Some(p);
+        }
+    }
+
+    if !versions_dir.exists() {
+        return None;
+    }
+    let mut entries = tokio::fs::read_dir(versions_dir).await.ok()?;
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.contains(mc_version)
+            && name.contains(chosen_version)
+            && name.to_lowercase().contains("forge")
+        {
+            let cand_file = entry.path().join(format!("{name}.json"));
+            if cand_file.exists() {
+                return Some(cand_file);
+            }
+        }
+    }
+    None
 }
 
 pub async fn prepare_forge(
@@ -214,21 +286,16 @@ pub async fn prepare_forge(
         full_version, full_version
     );
     let client_dest = libraries_dir.join(&client_rel);
-
-    if !client_dest.exists() || !installer_dest.with_extension("installed").exists() {
-        let profiles_file = data_dir.join("launcher_profiles.json");
-        if !profiles_file.exists() {
-            let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
-        }
-
-        super::installer::run(http, &installer_dest, data_dir, mc_version).await?;
-    }
-
-    let installer_bytes = tokio::fs::read(&installer_dest).await?;
-    extract_installer_maven_files(&installer_bytes, libraries_dir)?;
+    let universal_rel = format!(
+        "net/minecraftforge/forge/{}/forge-{}-universal.jar",
+        full_version, full_version
+    );
+    let universal_dest = libraries_dir.join(&universal_rel);
+    let installer_marker = installer_dest.with_extension("installed");
 
     let versions_dir = data_dir.join("versions");
     let candidate_ids = [
+        format!("{}-forge{}", mc_version, full_version),
         format!("{}-forge-{}", mc_version, chosen_version),
         format!("{}-forge{}", mc_version, chosen_version),
         format!("forge-{}-{}", mc_version, chosen_version),
@@ -237,29 +304,25 @@ pub async fn prepare_forge(
         format!("forge-{}", chosen_version),
     ];
 
-    let mut installed_json_path = None;
-    for cand in &candidate_ids {
-        let p = versions_dir.join(cand).join(format!("{}.json", cand));
-        if p.exists() {
-            installed_json_path = Some(p);
-            break;
+    let mut installed_json_path =
+        find_installed_json(&versions_dir, mc_version, &chosen_version, &candidate_ids).await;
+
+    let already_installed =
+        installed_json_path.is_some() && (client_dest.exists() || installer_marker.exists());
+
+    if !already_installed {
+        let profiles_file = data_dir.join("launcher_profiles.json");
+        if !profiles_file.exists() {
+            let _ = tokio::fs::write(&profiles_file, b"{\"profiles\":{}}").await;
         }
+
+        super::installer::run(http, &installer_dest, data_dir, mc_version).await?;
+        installed_json_path =
+            find_installed_json(&versions_dir, mc_version, &chosen_version, &candidate_ids).await;
     }
 
-    if installed_json_path.is_none() && versions_dir.exists() {
-        if let Ok(mut entries) = tokio::fs::read_dir(&versions_dir).await {
-            while let Ok(Some(entry)) = entries.next_entry().await {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if (name.contains(mc_version) || name.contains(&chosen_version)) && name.to_lowercase().contains("forge") {
-                    let cand_file = entry.path().join(format!("{}.json", name));
-                    if cand_file.exists() {
-                        installed_json_path = Some(cand_file);
-                        break;
-                    }
-                }
-            }
-        }
-    }
+    let installer_bytes = tokio::fs::read(&installer_dest).await?;
+    extract_installer_maven_files(&installer_bytes, libraries_dir)?;
 
     let version_json_str = if let Some(ref p) = installed_json_path {
         tokio::fs::read_to_string(p).await.unwrap_or_else(|_| {
@@ -275,49 +338,67 @@ pub async fn prepare_forge(
     let mut classpath_entries = Vec::new();
 
     for lib in &version_data.libraries {
-        let (rel_path_str, download_url) = if let Some(ref d) = lib.downloads {
+        if lib.clientreq == Some(false) {
+            continue;
+        }
+
+        let legacy_self_forge = lib.downloads.is_none()
+            && lib.name == format!("net.minecraftforge:forge:{}", full_version);
+
+        let (mut rel_path_str, primary_url) = if let Some(ref d) = lib.downloads {
             if let Some(ref art) = d.artifact {
                 let path = art.path.clone().unwrap_or_else(|| {
                     crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &lib.name)
                         .to_string_lossy()
                         .replace('\\', "/")
                 });
-                let url = art.url.clone().filter(|u| !u.trim().is_empty()).unwrap_or_else(|| {
-                    format!("{}/{}", FORGE_MAVEN, path.trim_start_matches('/'))
-                });
+                let url = art
+                    .url
+                    .clone()
+                    .filter(|u| !u.trim().is_empty())
+                    .unwrap_or_else(|| primary_maven_url(lib, &path));
                 (path, url)
             } else {
                 let p = crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &lib.name)
                     .to_string_lossy()
                     .replace('\\', "/");
-                let u = format!("{}/{}", FORGE_MAVEN, p.trim_start_matches('/'));
+                let u = primary_maven_url(lib, &p);
                 (p, u)
             }
         } else {
             let p = crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &lib.name)
                 .to_string_lossy()
                 .replace('\\', "/");
-            let u = format!("{}/{}", FORGE_MAVEN, p.trim_start_matches('/'));
+            let u = primary_maven_url(lib, &p);
             (p, u)
         };
+
+        if legacy_self_forge {
+            rel_path_str = universal_rel.clone();
+        }
 
         let relative = Path::new(&rel_path_str);
         if relative.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
             return Err(AppError::InvalidInput("Unsafe loader library path".into()));
         }
         let dest = libraries_dir.join(relative);
+
+        let mut urls = vec![primary_url.clone()];
+        let normalized = rel_path_str.trim_start_matches('/').to_string();
+        for repo in MAVEN_REPOS {
+            let candidate = format!("{repo}/{normalized}");
+            if !urls.contains(&candidate) {
+                urls.push(candidate);
+            }
+        }
+
         let artifact = lib.downloads.as_ref().and_then(|downloads| downloads.artifact.as_ref());
         let size = artifact.and_then(|entry| entry.size).unwrap_or(0);
         let sha1 = artifact.and_then(|entry| entry.sha1.as_deref()).unwrap_or_default();
-        crate::core::downloader::ensure_artifact(http, &dest, &download_url, size, sha1).await?;
+        crate::core::downloader::ensure_artifact_any(http, &dest, &urls, size, sha1).await?;
         if !classpath_entries.contains(&dest) { classpath_entries.push(dest); }
     }
 
-    let universal_rel = format!(
-        "net/minecraftforge/forge/{}/forge-{}-universal.jar",
-        full_version, full_version
-    );
-    let universal_dest = libraries_dir.join(&universal_rel);
     if !universal_dest.exists() {
         let universal_url = format!("{}/{}", FORGE_MAVEN, universal_rel);
         if let Ok(resp) = http.get(&universal_url).send().await {
@@ -495,13 +576,14 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
         return Ok(first.id.clone());
     }
 
-    let default_ver = match mc_version {
-        "1.20.1" => "47.4.20",
-        "1.19.2" => "43.4.2",
-        "1.18.2" => "40.2.21",
-        "1.16.5" => "36.2.42",
-        "1.12.2" => "14.23.5.2860",
-        _ => "47.4.20",
-    };
-    Ok(default_ver.to_string())
+    Err(AppError::NotFound(format!("Forge indisponível para Minecraft {mc_version}")))
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn reads_compact_maven_metadata_without_other_versions() {
+        let xml = "<versions><version>1.20.1-47.4.20</version><version>1.21.4-54.1.0</version></versions>";
+        assert_eq!(super::versions_from_metadata(xml, "1.21.4"), ["54.1.0"]);
+    }
 }

@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use tokio::io::AsyncWriteExt;
-use futures_util::StreamExt;
 
 use crate::core::mods::ModrinthClient;
 use crate::error::{AppError, AppResult};
@@ -15,8 +13,14 @@ pub struct GpuInfo {
     pub supports_zink: bool,
 }
 
-#[allow(unused_mut)]
+static GPU_INFO: std::sync::OnceLock<GpuInfo> = std::sync::OnceLock::new();
+
 pub fn detect_gpu() -> GpuInfo {
+    GPU_INFO.get_or_init(detect_gpu_uncached).clone()
+}
+
+#[allow(unused_mut)]
+fn detect_gpu_uncached() -> GpuInfo {
     let mut vendor = "Desconhecido".to_string();
     let mut renderer = "Driver Padrão".to_string();
     let mut driver = "Desconhecido".to_string();
@@ -399,22 +403,103 @@ pub async fn install_performance_pack(
         if let Some(ver) = versions.first() {
             if let Some(file) = ver.files.first() {
                 let dest = mods_dir.join(&file.filename);
-                if !dest.exists() {
-                    let resp = http.get(&file.url).send().await?.error_for_status()?;
-                    let mut file_stream = resp.bytes_stream();
-                    let mut dest_file = tokio::fs::File::create(&dest).await?;
-                    while let Some(chunk) = file_stream.next().await {
-                        let chunk = chunk?;
-                        dest_file.write_all(&chunk).await?;
-                    }
-                    dest_file.flush().await?;
-                    installed.push(file.filename.clone());
-                } else {
+                let valid_existing = std::fs::File::open(&dest).ok()
+                    .and_then(|existing| zip::ZipArchive::new(existing).ok())
+                    .is_some();
+                if valid_existing {
                     installed.push(format!("{} (já instalado)", file.filename));
+                } else {
+                    crate::core::downloader::ensure_artifact(http, &dest, &file.url, file.size, &file.sha1).await?;
+                    installed.push(file.filename.clone());
                 }
             }
         }
     }
 
+    if installed.is_empty() {
+        return Err(AppError::NotFound(format!("Nenhum mod de desempenho compatível com {loader} {mc_version}")));
+    }
+
     Ok(installed)
+}
+
+static PERF_PACK_CACHE: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, (std::time::Instant, PerformancePackInfo)>>,
+> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+
+const PERF_PACK_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(900);
+
+pub async fn get_performance_pack_info_for(
+    http: &reqwest::Client,
+    loader: &str,
+    mc_version: &str,
+) -> PerformancePackInfo {
+    let base = get_performance_pack_info(loader, mc_version);
+    if !base.available {
+        return base;
+    }
+
+    let key = format!("{}:{}", base.loader, mc_version.trim());
+    if let Ok(cache) = PERF_PACK_CACHE.lock() {
+        if let Some((cached_at, info)) = cache.get(&key) {
+            if cached_at.elapsed() < PERF_PACK_CACHE_TTL {
+                return info.clone();
+            }
+        }
+    }
+
+    let checks = futures_util::future::join_all(base.mods.iter().map(|entry| {
+        let slug = entry.slug.clone();
+        let mc = base.mc_version.clone();
+        let loader = base.loader.clone();
+        let client = ModrinthClient::new(http.clone());
+        async move {
+            client
+                .get_mod_versions_filtered(&slug, &mc, Some(&loader))
+                .await
+                .map(|versions| !versions.is_empty())
+        }
+    }))
+    .await;
+
+    let mut network_error = false;
+    let mut compatible = Vec::new();
+    for (entry, result) in base.mods.iter().zip(checks) {
+        match result {
+            Ok(true) => compatible.push(entry.clone()),
+            Ok(false) => {}
+            Err(_) => network_error = true,
+        }
+    }
+
+    let info = if network_error {
+        base
+    } else if compatible.is_empty() {
+        PerformancePackInfo {
+            available: false,
+            loader: base.loader.clone(),
+            mc_version: base.mc_version.clone(),
+            reason: Some(format!(
+                "Nenhum mod compatível com {} {}",
+                base.mc_version, base.loader
+            )),
+            mods: Vec::new(),
+        }
+    } else if compatible.len() == base.mods.len() {
+        base
+    } else {
+        PerformancePackInfo {
+            mods: compatible,
+            ..base
+        }
+    };
+
+    if let Ok(mut cache) = PERF_PACK_CACHE.lock() {
+        if cache.len() > 64 {
+            cache.clear();
+        }
+        cache.insert(key, (std::time::Instant::now(), info.clone()));
+    }
+
+    info
 }

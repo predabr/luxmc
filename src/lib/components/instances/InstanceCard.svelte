@@ -24,7 +24,7 @@
 		Loader2,
 		Square
 	} from "lucide-svelte";
-	import { preloadData } from "$app/navigation";
+	import { preloadRoute } from "$lib/utils/preloadRoute";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { instanceSetFavorite, stopGame } from "$lib/api";
@@ -134,8 +134,8 @@
 	tabindex="0"
 	class="surface-glass group relative cursor-pointer transition-all duration-200 active:scale-[0.98] hover:border-brand-500/30 hover:shadow-elevated {viewMode === 'grid' ? 'flex flex-col hover:-translate-y-1' : 'flex flex-wrap items-center gap-4 p-4'} {isOpening ? 'scale-[0.98] ring-2 ring-brand-400 border-brand-400 shadow-2xl brightness-105' : ''}"
 	style:box-shadow={isActive && !isOpening ? "0 0 0 1px rgb(var(--brand-500) / 0.3)" : undefined}
-	onpointerenter={() => { void preloadData("/instances/" + profile.id); }}
-	onpointerdown={() => { void preloadData("/instances/" + profile.id); }}
+	onpointerenter={() => preloadRoute("/instances/" + profile.id)}
+	onpointerdown={() => preloadRoute("/instances/" + profile.id, true)}
 	onclick={(e) => {
 		const target = e.target as HTMLElement | null;
 		if (target?.closest('button, a, input, select, textarea, [role="checkbox"], [role="menu"]')) return;
@@ -167,6 +167,7 @@
                 alt=""
                 class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
+                decoding="async"
                 onerror={() => { bannerFailed = true; }}
             />
             <div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/25 to-transparent"></div>
