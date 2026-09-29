@@ -364,7 +364,12 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  scroll-behavior: smooth;
+  scroll-behavior: auto !important;
+}
+
+body.is-scrolling,
+body.is-scrolling * {
+  pointer-events: none !important;
 }
 
 .gpu-accelerated {
@@ -383,6 +388,9 @@ html.perf-mode *, html.perf-mode *::before, html.perf-mode *::after {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--fg) / 0.18) transparent;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto !important;
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;

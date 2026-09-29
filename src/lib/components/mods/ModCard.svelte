@@ -24,51 +24,19 @@
 		return ["from-brand-500/30 via-info/10", "from-purple-500/30 via-brand-500/10", "from-success/30 via-info/10", "from-warning/30 via-brand-500/10"][Math.abs(hash) % 4];
 	});
 
-	const curatedBanners: Record<string, string> = {
-		rlcraft: "https://media.forgecdn.net/attachments/267/928/rlcraft-banner.png",
-		"skyfactory 4": "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
-		"skyfactory-4": "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
-		skyfactory: "https://media.forgecdn.net/attachments/258/182/skyfactory4_banner.png",
-		"zombie invade": "https://media.forgecdn.net/attachments/403/328/banner.png",
-		"all the mods": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
-		"all the mods 10": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
-		"all the mods 9": "https://media.forgecdn.net/attachments/542/374/banner.png",
-		"atm10": "https://media.forgecdn.net/attachments/636/123/atm10_banner.png",
-		"atm9": "https://media.forgecdn.net/attachments/542/374/banner.png",
-		"atm8": "https://media.forgecdn.net/attachments/542/374/banner.png",
-		"better mc": "/modpack_better_mc.webp",
-		cobblemon: "/modpack_cobblemon.webp",
-		"fabulously optimized": "/modpack_fo.webp",
-		pixelmon: "https://media.forgecdn.net/attachments/305/760/banner.png",
-		dawncraft: "https://media.forgecdn.net/attachments/474/883/banner.png",
-		"medieval mc": "https://media.forgecdn.net/attachments/418/850/banner.png",
-		sevtech: "https://media.forgecdn.net/attachments/231/13/banner.png",
-		stoneblock: "https://media.forgecdn.net/attachments/251/72/banner.png",
-		prominence: "https://media.forgecdn.net/attachments/625/441/prominence_banner.png",
-		"vault hunters": "https://media.forgecdn.net/attachments/420/55/vh3_banner.png",
-		"create astral": "https://media.forgecdn.net/attachments/460/320/banner.png",
-		"create chronicles": "https://media.forgecdn.net/attachments/584/104/banner.png",
-		"roguelike adventures": "https://media.forgecdn.net/attachments/478/924/rad2_banner.png",
-		"rad 2": "https://media.forgecdn.net/attachments/478/924/rad2_banner.png",
-		"simply optimized": "https://cdn.modrinth.com/data/bKUGbHwI/images/b07cbde1b24bf20a320ff7b57b98df9ad01b54a7.png",
-		"crucial 2": "https://media.forgecdn.net/attachments/348/591/banner.png",
-		valhelsia: "https://media.forgecdn.net/attachments/490/182/valhelsia5_banner.png",
-		enigmatica: "https://media.forgecdn.net/attachments/440/120/banner.png",
-		nomifactory: "https://media.forgecdn.net/attachments/380/740/banner.png",
-		tekkit: "https://media.forgecdn.net/attachments/220/80/banner.png",
-		gtnh: "https://media.forgecdn.net/attachments/310/220/banner.png",
-		gregtech: "https://media.forgecdn.net/attachments/310/220/banner.png"
-	};
+	import { curatedBanners } from "$lib/utils/curatedBanners";
 
 	let bannerFailed = $state(false);
 
 	$effect(() => {
 		item.slug;
 		item.bannerUrl;
+		item.iconUrl;
 		bannerFailed = false;
 	});
 
 	const effectiveBanner = $derived.by(() => {
+		if (bannerFailed) return null;
 		if (item.bannerUrl && item.bannerUrl !== item.iconUrl) return item.bannerUrl;
 		const lowerTitle = item.title.toLowerCase();
 		const lowerSlug = item.slug.toLowerCase();
@@ -76,6 +44,9 @@
 			if (lowerTitle.includes(key) || lowerSlug.includes(key)) {
 				return banner;
 			}
+		}
+		if (isModpack && item.iconUrl) {
+			return item.iconUrl;
 		}
 		return null;
 	});
@@ -96,24 +67,26 @@
 				class="h-full w-full rounded-t-2xl object-cover transition-transform duration-500 group-hover:scale-105" 
 				onerror={() => { bannerFailed = true; }}
 			/>
-			{:else}
-				<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-elevated">
-					<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-70"></div>
-					<div class="card-mesh absolute inset-0 opacity-40"></div>
-					<div class="absolute inset-3 flex items-center justify-center">
-						<div class="flex h-full w-full items-center justify-center overflow-hidden rounded-2xl border border-fg/10 bg-bg-elevated/55 p-3 shadow-elevated transition-transform duration-300 group-hover:scale-[1.02]">
-							{#if item.iconUrl}<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain" fallback="/grass_block.png" />{:else}<Box class="h-12 w-12 text-brand-400" />{/if}
-						</div>
-					</div>
+		{:else}
+			<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-elevated">
+				<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-70"></div>
+				<div class="card-mesh absolute inset-0 opacity-40"></div>
+				<div class="absolute inset-0 flex items-center justify-center p-6">
+					{#if item.iconUrl}
+						<LazyImage src={item.iconUrl} alt={item.title} class="h-20 w-20 rounded-2xl border border-fg/10 bg-bg-elevated/70 p-2 object-contain shadow-elevated transition-transform duration-300 group-hover:scale-105" fallback="/grass_block.png" />
+					{:else}
+						<Box class="h-12 w-12 text-brand-400" />
+					{/if}
 				</div>
-			{/if}
+			</div>
+		{/if}
 		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent"></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
-			{#if effectiveBanner && !bannerFailed}
-				<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
-					{#if item.iconUrl || item.bannerUrl}<LazyImage src={item.iconUrl || item.bannerUrl || ""} alt={item.title} class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />{:else}<Box class="h-7 w-7 text-brand-400" />{/if}
-				</div>
-			{/if}
+		{#if effectiveBanner && !bannerFailed && item.iconUrl && item.iconUrl !== effectiveBanner}
+			<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
+				<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
+			</div>
+		{/if}
 	</div>
 	<div class="flex flex-1 flex-col gap-3 p-5 pt-7">
 		<h3 class="truncate text-base font-bold text-fg group-hover:text-brand-400">

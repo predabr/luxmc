@@ -10,26 +10,32 @@ describe("resolveProfileBanner", () => {
 		expect(banner).toBe("https://example.com/custom.png");
 	});
 
-	it("resolves curated banner for Kimetsu no Yaiba / Demon Slayer", () => {
+	it("resolves official curated banner for Kimetsu no Yaiba / Demon Slayer", () => {
 		const banner = resolveProfileBanner({
 			name: "Kimetsu no Yaiba (Demon-Slayer)"
 		});
-		expect(banner).toContain("cdn.modrinth.com");
-		expect(banner).toContain("1ca292dc6ecd81cbb25ee090a4743c7f047cdaa0");
+		expect(banner).toContain("BH_KnYDS_header.webp");
 	});
 
-	it("resolves curated banner for Vulkan Optimized", () => {
+	it("resolves official curated banner for Vulkan Optimized", () => {
 		const banner = resolveProfileBanner({
 			name: "Vulkan Optimized"
 		});
-		expect(banner).toContain("cdn.modrinth.com");
+		expect(banner).toContain("VulkanMod");
 	});
 
-	it("resolves curated banner for Sunlit Valley", () => {
+	it("resolves official curated banner for Sunlit Valley", () => {
 		const banner = resolveProfileBanner({
 			name: "Society: Sunlit Valley"
 		});
-		expect(banner).toContain("cdn.modrinth.com");
+		expect(banner).toContain("forgecdn.net");
+	});
+
+	it("resolves official curated banner for RLCraft", () => {
+		const banner = resolveProfileBanner({
+			name: "RLCraft"
+		});
+		expect(banner).toContain("BH_RL_Header.webp");
 	});
 
 	it("resolves preset modpack banners", () => {

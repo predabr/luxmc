@@ -56,6 +56,7 @@
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
+	import { initSmoothScroll } from "$lib/utils/smoothScroll";
 	import { appInit, discordSetActivity, listenGameExit, listenGameStateChange, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
@@ -252,6 +253,7 @@
 		});
 
 		setToastInstance(toastsInstance!);
+		const cleanupSmoothScroll = initSmoothScroll();
 
 		let unlistenGameExit: (() => void) | undefined;
 		let unlistenTelemetry: (() => void) | undefined;
@@ -482,6 +484,7 @@
 		
 		return () => {
 			disposed = true;
+			cleanupSmoothScroll();
 			window.removeEventListener("click", handleExternalLink, { capture: true });
 			stop();
 			clearInterval(rpcHeartbeat);
