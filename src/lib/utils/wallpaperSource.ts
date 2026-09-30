@@ -12,13 +12,17 @@ export function wallpaperLocalPath(value: string): string | null {
 }
 
 export function resolveWallpaperImageUrl(value: string): string {
-    const path = wallpaperLocalPath(value);
-    return path ? convertFileSrc(path) : value;
+	const path = wallpaperLocalPath(value);
+	if (!path) return value;
+	const stripped = path.startsWith("/") ? path.slice(1) : path;
+	return convertFileSrc(stripped);
 }
 
 export function resolveWallpaperVideoUrl(value: string): string {
-    const path = wallpaperLocalPath(value);
-    return path ? convertFileSrc(path) : value;
+	const path = wallpaperLocalPath(value);
+	if (!path) return value;
+	const stripped = path.startsWith("/") ? path.slice(1) : path;
+	return convertFileSrc(stripped);
 }
 
 export function resolveWallpaperStreamUrl(value: string, port: number): string {
