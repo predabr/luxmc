@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
 	import {
@@ -78,8 +79,8 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-md select-none" in:fade={{ duration: 150 }}>
-		<div class="w-full max-w-2xl rounded-3xl bg-bg-elevated border border-fg/15 p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col" in:scale={{ start: 0.95, duration: 200 }}>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-md select-none" in:fade={{ easing: quintOut, duration: 220 }}>
+		<div class="w-full max-w-2xl rounded-3xl bg-bg-elevated border border-fg/15 p-6 shadow-2xl space-y-5 max-h-[90vh] flex flex-col" in:scale={{ easing: backOut, start: 0.95, duration: 260 }}>
 			<!-- Header -->
 			<div class="flex items-center justify-between border-b border-fg/10 pb-4 shrink-0">
 				<div class="flex items-center gap-3">
@@ -117,7 +118,7 @@
 
 				<button
 					type="button"
-					class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-[0.98] disabled:opacity-50"
+					class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-[0.98] disabled:opacity-50"
 					onclick={handleCreateBackup}
 					disabled={isBackingUp || !selectedWorldToBackup}
 				>
@@ -150,7 +151,7 @@
 					</div>
 				{:else}
 					{#each backups as b}
-						<div class="p-3.5 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-all flex items-center justify-between gap-3">
+						<div class="p-3.5 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center justify-between gap-3">
 							<div class="min-w-0 space-y-0.5">
 								<div class="flex items-center gap-2">
 									<h4 class="text-xs font-bold text-fg truncate">{b.worldName}</h4>
@@ -169,7 +170,7 @@
 							<div class="flex items-center gap-2 shrink-0">
 								<button
 									type="button"
-									class="px-3.5 py-1.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
+									class="px-3.5 py-1.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
 									onclick={() => {
 										navigator.clipboard.writeText(b.filePath);
 										toast("Caminho do backup copiado!", "success");

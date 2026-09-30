@@ -51,21 +51,21 @@
 			<div class="grid grid-cols-2 bg-bg/40 p-1 rounded-xl border border-fg/5 gap-1">
 				<button
 					type="button"
-					class="col-span-2 py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center {selectedSource === 'all' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/50 hover:text-fg'}"
+					class="col-span-2 py-2 px-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center {selectedSource === 'all' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/50 hover:text-fg'}"
 					onclick={() => selectedSource = 'all'}
 				>
 					Todos
 				</button>
 				<button
 					type="button"
-					class="py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'modrinth' ? 'bg-success/15 text-success shadow-sm border border-success/30' : 'text-fg/50 hover:text-fg'}"
+					class="py-2 px-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'modrinth' ? 'bg-success/15 text-success shadow-sm border border-success/30' : 'text-fg/50 hover:text-fg'}"
 					onclick={() => selectedSource = 'modrinth'}
 				>
 					<span class="text-success font-black text-xs">m</span> Modrinth
 				</button>
 				<button
 					type="button"
-					class="py-2 px-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'curseforge' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/50 hover:text-fg'}"
+					class="py-2 px-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'curseforge' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/50 hover:text-fg'}"
 					onclick={() => selectedSource = 'curseforge'}
 				>
 					<Flame class="w-3.5 h-3.5 text-orange-400" /> CurseForge
@@ -78,7 +78,7 @@
 				{#each contentTypeItems as item}
 					<button
 						type="button"
-						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 {selectedType === item.id ? 'bg-success text-bg font-black shadow-md' : 'bg-bg-elevated text-fg/60 border border-fg/5 hover:bg-bg-subtle hover:text-fg'}"
+						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-2 {selectedType === item.id ? 'bg-success text-bg font-black shadow-md' : 'bg-bg-elevated text-fg/60 border border-fg/5 hover:bg-bg-subtle hover:text-fg'}"
 						onclick={() => selectedType = item.id}
 					>
 						<item.icon class="w-3.5 h-3.5 shrink-0" />
@@ -107,7 +107,7 @@
 				{#each modLoaders as loader}
 					<button
 						type="button"
-						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer border flex items-center gap-1.5 {selectedLoader === loader.name ? `${loader.color} font-bold shadow-sm` : 'bg-bg-elevated text-fg/60 border-fg/5 hover:border-fg/20 hover:text-fg'}"
+						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border flex items-center gap-1.5 {selectedLoader === loader.name ? `${loader.color} font-bold shadow-sm` : 'bg-bg-elevated text-fg/60 border-fg/5 hover:border-fg/20 hover:text-fg'}"
 						onclick={() => selectedLoader = selectedLoader === loader.name ? null : loader.name}
 					>
 						<span class="w-1.5 h-1.5 rounded-full bg-current"></span>
@@ -122,7 +122,7 @@
 				{#each categories as cat}
 					<button
 						type="button"
-						class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer {selectedCategory === cat ? 'bg-success/20 text-success border border-success/40 font-bold' : 'bg-bg-elevated text-fg/50 border border-fg/5 hover:border-fg/20 hover:text-fg'}"
+						class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedCategory === cat ? 'bg-success/20 text-success border border-success/40 font-bold' : 'bg-bg-elevated text-fg/50 border border-fg/5 hover:border-fg/20 hover:text-fg'}"
 						onclick={() => selectedCategory = selectedCategory === cat ? null : cat}
 					>
 						{cat}

@@ -176,7 +176,7 @@
 						<button
 							type="button"
 							title="Copiar código para compartilhar com amigos"
-							class="px-2.5 py-1 rounded-lg bg-fg/10 hover:bg-fg/20 text-fg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+							class="px-2.5 py-1 rounded-lg bg-fg/10 hover:bg-fg/20 text-fg text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1 active:scale-95"
 							onclick={() => {
 								navigator.clipboard.writeText(`${friendsState.me?.username}#${friendsState.me?.id.slice(0, 8)}`);
 								toast("Código de amigo copiado!", "success");
@@ -208,21 +208,21 @@
 			<button
 				type="button"
 				onclick={() => activeTab = "all"}
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'all' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'all' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 			>
 				Todos ({totalFriends})
 			</button>
 			<button
 				type="button"
 				onclick={() => activeTab = "online"}
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'online' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm' : 'text-fg/60 hover:text-fg'}"
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'online' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm' : 'text-fg/60 hover:text-fg'}"
 			>
 				Online ({onlineCount})
 			</button>
 			<button
 				type="button"
 				onclick={() => activeTab = "pending"}
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer relative {activeTab === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm' : 'text-fg/60 hover:text-fg'}"
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer relative {activeTab === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm' : 'text-fg/60 hover:text-fg'}"
 			>
 				Solicitações
 				{#if pendingCount > 0}
@@ -234,7 +234,7 @@
 			<button
 				type="button"
 				onclick={() => activeTab = "p2p"}
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {activeTab === 'p2p' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
+				class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'p2p' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 			>
 				Jogar com amigos
 			</button>
@@ -271,7 +271,7 @@
 			{:else}
 				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{#each friends.filter(f => f.status === "pending") as req (req.id)}
-						<div class="p-5 rounded-3xl bg-bg-elevated border border-fg/10 hover:border-amber-500/30 transition-all flex flex-col justify-between gap-4 shadow-xl">
+						<div class="p-5 rounded-3xl bg-bg-elevated border border-fg/10 hover:border-amber-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col justify-between gap-4 shadow-xl">
 							<div class="flex items-center gap-3.5">
 								<MinecraftAvatar username={req.username} status={req.status} activity={req.activity} lastSeen={req.lastSeen} />
 								<div class="min-w-0">
@@ -285,7 +285,7 @@
 									type="button"
 									onclick={() => acceptFriend(req)}
 									disabled={!req.incoming || working}
-									class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-bold transition-all shadow-md active:scale-[0.98] cursor-pointer"
+									class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md active:scale-[0.98] cursor-pointer"
 								>
 									<Check class="w-3.5 h-3.5" />
 									<span>{req.incoming ? "Aceitar Convite" : "Convite enviado"}</span>
@@ -293,7 +293,7 @@
 								<button
 									type="button"
 									onclick={() => declineFriend(req)}
-									class="flex items-center justify-center py-2 px-3 rounded-xl bg-fg/5 hover:bg-rose-500/20 text-fg/70 hover:text-rose-400 border border-fg/10 hover:border-rose-500/30 text-xs font-bold transition-all active:scale-[0.98] cursor-pointer"
+									class="flex items-center justify-center py-2 px-3 rounded-xl bg-fg/5 hover:bg-rose-500/20 text-fg/70 hover:text-rose-400 border border-fg/10 hover:border-rose-500/30 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-[0.98] cursor-pointer"
 									title="Recusar"
 								>
 									<X class="w-4 h-4" />
@@ -342,7 +342,7 @@
 				<button
 					type="button"
 					onclick={() => activeTab = "all"}
-					class="px-5 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/70 hover:text-fg text-xs font-bold transition-all cursor-pointer"
+					class="px-5 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/70 hover:text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 				>
 					Cancelar
 				</button>
@@ -350,7 +350,7 @@
 					type="button"
 					onclick={handleAddFriend}
 					disabled={working || !newFriendUsername.trim()}
-					class="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-brand-foreground text-xs font-black transition-all shadow-lg shadow-brand-500/20 cursor-pointer active:scale-[0.98]"
+					class="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-brand-500/20 cursor-pointer active:scale-[0.98]"
 				>
 					Adicionar Amigo
 				</button>

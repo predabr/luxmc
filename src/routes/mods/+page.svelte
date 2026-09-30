@@ -118,8 +118,8 @@
 		return `
 			<div class="luxmc-video-card my-5 rounded-2xl overflow-hidden border border-fg/[0.1] bg-bg-elevated shadow-xl max-w-2xl">
 				<div class="video-player-container relative aspect-video w-full bg-black/95 flex items-center justify-center overflow-hidden" data-video-id="${vid}">
-					<img src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" class="w-full h-full object-cover opacity-90 transition-opacity" alt="YouTube Preview" loading="lazy" />
-					<div role="button" tabindex="0" class="btn-play-video absolute inset-0 flex flex-col items-center justify-center bg-black/45 hover:bg-black/25 transition-all cursor-pointer group" data-video-id="${vid}" title="Reproduzir no launcher">
+					<img decoding="async" src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" class="w-full h-full object-cover opacity-90 transition-opacity" alt="YouTube Preview" loading="lazy" />
+					<div role="button" tabindex="0" class="btn-play-video absolute inset-0 flex flex-col items-center justify-center bg-black/45 hover:bg-black/25 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer group" data-video-id="${vid}" title="Reproduzir no launcher">
 						<div class="w-16 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] group-hover:scale-110 group-hover:bg-red-500 transition-transform">
 							<svg class="w-7 h-7 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
 						</div>
@@ -502,9 +502,9 @@
 							{#each modDetails.gallery as img}
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div class="group relative bg-bg-elevated border border-fg/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/30 transition-all shadow-sm" onclick={() => lightboxImage = img}>
+								<div class="group relative bg-bg-elevated border border-fg/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm" onclick={() => lightboxImage = img}>
 									<div class="h-44 w-full bg-bg-subtle overflow-hidden">
-										<img
+										<img decoding="async"
 											src={img.url}
 											alt={img.title || "Screenshot"}
 											loading="lazy"
@@ -543,7 +543,7 @@
                 <div class="mt-5 flex flex-wrap items-center gap-2.5">
                     <button
                         type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 {selectedSource === 'all' ? 'bg-fg/15 text-fg border border-fg/20 shadow-md' : 'bg-fg/5 text-fg/50 hover:text-fg hover:bg-fg/10 border border-transparent'}"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 {selectedSource === 'all' ? 'bg-fg/15 text-fg border border-fg/20 shadow-md' : 'bg-fg/5 text-fg/50 hover:text-fg hover:bg-fg/10 border border-transparent'}"
                         onclick={() => selectedSource = "all"}
                     >
                         <Globe class="w-3.5 h-3.5" />
@@ -552,7 +552,7 @@
 
                     <button
                         type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'modrinth' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/15 border border-emerald-500/20'}"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'modrinth' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/15 border border-emerald-500/20'}"
                         onclick={() => selectedSource = selectedSource === "modrinth" ? "all" : "modrinth"}
                     >
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -567,7 +567,7 @@
 
                     <button
                         type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'curseforge' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50 shadow-md shadow-orange-500/20 ring-1 ring-orange-500/40' : 'bg-orange-500/10 text-orange-400/80 hover:text-orange-300 hover:bg-orange-500/15 border border-orange-500/20'}"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'curseforge' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50 shadow-md shadow-orange-500/20 ring-1 ring-orange-500/40' : 'bg-orange-500/10 text-orange-400/80 hover:text-orange-300 hover:bg-orange-500/15 border border-orange-500/20'}"
                         onclick={() => selectedSource = selectedSource === "curseforge" ? "all" : "curseforge"}
                     >
                         <Flame class="w-3.5 h-3.5 text-orange-400" />
@@ -582,7 +582,7 @@
 			<div class="relative w-full mb-4">
 				<Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30" />
 				<input type="text" bind:value={searchQuery} placeholder={`Buscar ${selectedType.toLowerCase()}…`}
-					class="w-full bg-bg-elevated border border-fg/[0.08] focus:border-brand-500/60 rounded-2xl py-3 pl-11 pr-4 text-xs text-fg placeholder-fg/30 focus:outline-none transition-all shadow-inner" />
+					class="w-full bg-bg-elevated border border-fg/[0.08] focus:border-brand-500/60 rounded-2xl py-3 pl-11 pr-4 text-xs text-fg placeholder-fg/30 focus:outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-inner" />
 			</div>
 
 			<div class="flex items-center justify-between mb-4">
@@ -674,12 +674,12 @@
 							<button type="button" class={button({ variant: "secondary", size: "icon" })} onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
 							{#each [1, 2, 3, 4] as p}
 								{#if totalPages >= p}
-									<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === p ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(p)}>{p}</button>
+									<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {currentPage === p ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(p)}>{p}</button>
 								{/if}
 							{/each}
 							{#if totalPages > 5}
 								<span class="px-1 text-fg/35">...</span>
-								<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-all cursor-pointer {currentPage === totalPages ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
+								<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {currentPage === totalPages ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
 							{/if}
 							<button type="button" class={button({ variant: "secondary", size: "icon" })} onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
 						</div>

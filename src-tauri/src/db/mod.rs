@@ -21,7 +21,7 @@ impl Db {
     pub async fn init() -> AppResult<Self> {
         let path = db_path()?;
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
+            tokio::fs::create_dir_all(parent).await?;
         }
 
         let opts = SqliteConnectOptions::new()

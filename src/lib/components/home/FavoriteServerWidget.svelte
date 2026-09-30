@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade } from "svelte/transition";
 	import {
@@ -112,7 +113,7 @@
 	}
 </script>
 
-<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-elevated to-bg-elevated border border-fg/10 p-5 shadow-xl transition-all duration-300 hover:border-fg/20 group">
+<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-elevated to-bg-elevated border border-fg/10 p-5 shadow-xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 hover:border-fg/20 group">
 	<!-- Background subtle ambient glow based on status -->
 	<div class="absolute -right-12 -top-12 w-44 h-44 rounded-full pointer-events-none transition-colors duration-500 {status?.online ? 'bg-[radial-gradient(circle_at_center,rgb(16_185_129/0.15),transparent_70%)]' : 'bg-[radial-gradient(circle_at_center,rgb(244_63_94/0.15),transparent_70%)]'}"></div>
 
@@ -121,7 +122,7 @@
 		<div class="flex items-center gap-3.5 min-w-0">
 			<div class="relative w-12 h-12 rounded-2xl overflow-hidden bg-bg-overlay/40 border border-fg/15 flex items-center justify-center shrink-0 shadow-md">
 				{#if status?.favicon}
-					<img src={status.favicon} alt={selectedServer.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
+					<img loading="lazy" decoding="async" src={status.favicon} alt={selectedServer.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
 				{:else}
 					<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-600/30 to-teal-800/40 text-emerald-400 font-black">
 						<Server class="w-6 h-6" />
@@ -174,7 +175,7 @@
 		<div class="flex items-center gap-2.5 w-full md:w-auto shrink-0 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-fg/5">
 			<button
 				type="button"
-				class="p-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 text-fg/70 hover:text-fg transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+				class="p-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 text-fg/70 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98]"
 				onclick={pingServer}
 				title="Atualizar Ping"
 				disabled={isPinging}
@@ -184,7 +185,7 @@
 
 			<button
 				type="button"
-				class="px-3.5 py-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 text-xs font-bold text-fg/80 hover:text-fg transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-[0.98]"
+				class="px-3.5 py-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 text-xs font-bold text-fg/80 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-[0.98]"
 				onclick={() => showEditModal = true}
 				title="Alterar Servidor Monitorado"
 			>
@@ -194,7 +195,7 @@
 
 			<button
 				type="button"
-				class="px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer shadow-lg active:scale-[0.98] {status?.online ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-brand-foreground shadow-emerald-500/20' : 'bg-fg/10 text-fg/40 cursor-not-allowed'}"
+				class="px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-lg active:scale-[0.98] {status?.online ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-brand-foreground shadow-emerald-500/20' : 'bg-fg/10 text-fg/40 cursor-not-allowed'}"
 				onclick={handleConnect}
 				disabled={!status?.online}
 				title={status?.online ? "Entrar diretamente neste servidor" : "Servidor offline no momento"}
@@ -208,7 +209,7 @@
 
 <!-- Modal: Selecionar ou Inserir Servidor -->
 {#if showEditModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-sm" in:fade={{ duration: 150 }}>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-sm" in:fade={{ easing: quintOut, duration: 220 }}>
 		<div class="w-full max-w-md rounded-3xl bg-bg-elevated border border-fg/15 p-6 shadow-2xl space-y-5">
 			<div class="flex items-center justify-between border-b border-fg/10 pb-4">
 				<div class="flex items-center gap-2.5">
@@ -236,7 +237,7 @@
 					{#each presetServers as srv}
 						<button
 							type="button"
-							class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between {selectedServer.host === srv.host && !isCustomServer ? 'bg-brand-500/15 border-brand-500/40 shadow-sm' : 'bg-bg-subtle hover:bg-bg-subtle border-fg/5'}"
+							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between {selectedServer.host === srv.host && !isCustomServer ? 'bg-brand-500/15 border-brand-500/40 shadow-sm' : 'bg-bg-subtle hover:bg-bg-subtle border-fg/5'}"
 							onclick={() => { selectedServer = srv; isCustomServer = false; }}
 						>
 							<div class="flex items-center justify-between">
@@ -259,7 +260,7 @@
 				</label>
 
 				{#if isCustomServer}
-					<div class="flex gap-2 pt-1" in:fade={{ duration: 150 }}>
+					<div class="flex gap-2 pt-1" in:fade={{ easing: quintOut, duration: 220 }}>
 						<input
 							type="text"
 							bind:value={customHost}
@@ -287,7 +288,7 @@
 				</button>
 				<button
 					type="button"
-					class="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs transition-all shadow-md cursor-pointer"
+					class="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md cursor-pointer"
 					onclick={handleSaveServer}
 				>
 					Salvar Servidor

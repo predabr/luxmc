@@ -50,7 +50,7 @@
 	}
 </script>
 
-<div class="rounded-2xl border overflow-hidden transition-all {checked && missing.length > 0 ? 'border-warning/30 bg-warning/5' : checked ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-fg/5 bg-bg-subtle'}">
+<div class="rounded-2xl border overflow-hidden transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {checked && missing.length > 0 ? 'border-warning/30 bg-warning/5' : checked ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-fg/5 bg-bg-subtle'}">
 	<button
 		type="button"
 		onclick={() => { if (!checked) { check(); } else { expanded = !expanded; } }}
@@ -94,7 +94,7 @@
 				type="button"
 				disabled={installing}
 				onclick={installAll}
-				class="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-fg text-xs font-black transition-all cursor-pointer shadow-glow"
+				class="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-fg text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-glow"
 			>
 				{#if installing}
 					<Loader2 class="w-3.5 h-3.5 animate-spin" />

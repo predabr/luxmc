@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { fade, slide } from "svelte/transition";
 	import FilterableVersionSelect from "$lib/components/ui/FilterableVersionSelect.svelte";
 	import {
@@ -238,7 +239,7 @@
 {#if isOpen}
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80 backdrop-blur-md p-4 overflow-y-auto"
-		transition:fade={{ duration: 150 }}
+		transition:fade={{ easing: quintOut, duration: 220 }}
 		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
 		onkeydown={(e) => { if (e.key === "Escape") handleClose(); }}
 		role="dialog"
@@ -247,14 +248,14 @@
 	>
 		<div
 			class="rounded-3xl bg-bg-elevated border border-fg/10 p-6 shadow-2xl space-y-5 select-none max-w-lg w-full max-h-[92vh] overflow-y-auto custom-scrollbar my-auto"
-			in:fade={{ duration: 180 }}
+			in:fade={{ easing: quintOut, duration: 240 }}
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between">
 				<h3 class="text-base font-bold text-fg tracking-tight">Criar instância</h3>
 				<button
 					type="button"
-					class="h-8 w-8 rounded-full bg-fg/5 hover:bg-fg/10 text-fg/60 hover:text-fg flex items-center justify-center transition-all cursor-pointer"
+					class="h-8 w-8 rounded-full bg-fg/5 hover:bg-fg/10 text-fg/60 hover:text-fg flex items-center justify-center transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 					onclick={handleClose}
 					title="Fechar"
 				>
@@ -271,7 +272,7 @@
 				<!-- Top: Icon & 3 Stacked Buttons -->
 				<div class="flex items-center gap-4">
 					<div class="w-20 h-20 rounded-2xl bg-bg-subtle border border-fg/10 flex items-center justify-center p-2 shrink-0 shadow-inner overflow-hidden">
-						<img
+						<img loading="lazy" decoding="async"
 							src={getIconSrc(newIcon)}
 							alt="Ícone da Instância"
 							class="w-14 h-14 object-contain [image-rendering:pixelated]"
@@ -306,17 +307,17 @@
 
 				<!-- Icon Picker Popover / Drawer -->
 				{#if showIconPicker}
-					<div class="p-3 bg-bg-subtle rounded-2xl border border-fg/10 space-y-2" transition:slide={{ duration: 150 }}>
+					<div class="p-3 bg-bg-subtle rounded-2xl border border-fg/10 space-y-2" transition:slide={{ easing: quintOut, duration: 220 }}>
 						<span class="text-[11px] font-bold text-fg/70 block">Escolha um ícone pré-definido:</span>
 						<div class="flex items-center gap-2 flex-wrap">
 							{#each iconPresets as ip}
 								<button
 									type="button"
 									onclick={() => { newIcon = ip.id; showIconPicker = false; }}
-									class="w-9 h-9 rounded-xl p-1.5 transition-all cursor-pointer flex items-center justify-center border {newIcon === ip.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-bg-elevated border-fg/10 hover:border-fg/30'}"
+									class="w-9 h-9 rounded-xl p-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center border {newIcon === ip.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-bg-elevated border-fg/10 hover:border-fg/30'}"
 									title={ip.label}
 								>
-									<img src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
+									<img loading="lazy" decoding="async" src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
 								</button>
 							{/each}
 						</div>
@@ -330,7 +331,7 @@
 						id="instance-name"
 						type="text"
 						bind:value={newName}
-						class="w-full h-10 rounded-xl px-3.5 text-xs font-medium text-fg bg-bg-subtle border border-fg/10 focus:border-emerald-500 outline-none transition-all"
+						class="w-full h-10 rounded-xl px-3.5 text-xs font-medium text-fg bg-bg-subtle border border-fg/10 focus:border-emerald-500 outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
 						placeholder="ex: Fabric 1.21.4"
 					/>
 				</div>
@@ -344,7 +345,7 @@
 							<button
 								type="button"
 								onclick={() => selectLoader(ldr.id)}
-								class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
+								class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
 							>
 								{#if isSelected}
 									<Check class="w-3.5 h-3.5 stroke-[2.5]" />
@@ -380,7 +381,7 @@
 								<button
 									type="button"
 									onclick={() => loaderReleaseType = lv.id}
-									class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
+									class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
 								>
 									{#if isSelected}
 										<Check class="w-3.5 h-3.5 stroke-[2.5]" />
@@ -418,7 +419,7 @@
 					</button>
 
 					{#if showAdvanced}
-						<div class="space-y-3 pt-2" transition:slide={{ duration: 150 }}>
+						<div class="space-y-3 pt-2" transition:slide={{ easing: quintOut, duration: 220 }}>
 							<!-- Memória RAM -->
 							<div class="space-y-1.5">
 								<div class="flex justify-between text-xs">
@@ -463,7 +464,7 @@
 						type="button"
 						disabled={creating || !newName.trim() || (newLoader !== 'vanilla' && (loaderVersionsLoading || availableLoaderVersions.length === 0))}
 						onclick={handleCreate}
-						class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50"
+						class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50"
 					>
 						{#if creating}
 							<div class="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin"></div>

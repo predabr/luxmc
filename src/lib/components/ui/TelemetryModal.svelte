@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import { 
 		Timer, 
@@ -36,11 +37,11 @@
 {#if summary}
 	<div 
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md"
-		transition:fade={{ duration: 200 }}
+		transition:fade={{ easing: quintOut, duration: 260 }}
 	>
 		<div 
 			class="relative w-full max-w-md bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5"
-			transition:scale={{ start: 0.95, duration: 220 }}
+			transition:scale={{ easing: backOut, start: 0.95, duration: 220 }}
 		>
 			<!-- Ambient background glow -->
 			<div class="absolute -top-20 -right-20 w-48 h-48 bg-brand-400/15 rounded-full blur-3xl pointer-events-none"></div>
@@ -112,7 +113,7 @@
 			<div class="flex items-center justify-end gap-2.5 pt-2 border-t border-fg/5">
 				<button 
 					type="button" 
-					class="px-4 py-2 rounded-xl text-xs font-bold text-fg/70 hover:text-fg bg-fg/5 hover:bg-fg/10 transition-all flex items-center gap-1.5 cursor-pointer"
+					class="px-4 py-2 rounded-xl text-xs font-bold text-fg/70 hover:text-fg bg-fg/5 hover:bg-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer"
 					onclick={() => { onClose(); goto(`/logs`); }}
 				>
 					<FileText class="w-3.5 h-3.5" /> Ver Logs

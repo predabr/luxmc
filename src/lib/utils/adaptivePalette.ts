@@ -1,6 +1,13 @@
-import { Vibrant } from "./vibrant";
-
 let lastExtractedUrl = "";
+
+function runLater(fn: () => void) {
+	if (typeof window === "undefined") return;
+	if (typeof window.requestIdleCallback === "function") {
+		window.requestIdleCallback(fn, { timeout: 2000 });
+		return;
+	}
+	window.setTimeout(fn, 120);
+}
 
 export async function applyAdaptivePalette(imageUrl: string | null | undefined) {
 	if (typeof window === "undefined" || !imageUrl || imageUrl === lastExtractedUrl) {
@@ -8,17 +15,23 @@ export async function applyAdaptivePalette(imageUrl: string | null | undefined) 
 	}
 
 	lastExtractedUrl = imageUrl;
+	const target = imageUrl;
 
-	try {
-		const vibrant = new Vibrant(imageUrl);
-		const palette = await vibrant.getPalette();
-		const root = document.documentElement;
-
-		const vibrantSwatch = palette.Vibrant || palette.LightVibrant || palette.DarkVibrant;
-		if (vibrantSwatch) {
-			const channels = vibrantSwatch.rgb.map(Math.round).join(" ");
-			if (lastExtractedUrl === imageUrl) root.style.setProperty("--ambient-accent", channels);
-		}
-	} catch {
-	}
+	runLater(() => {
+		if (lastExtractedUrl !== target) return;
+		void (async () => {
+			try {
+				const { Vibrant } = await import("./vibrant");
+				const palette = await new Vibrant(target).getPalette();
+				if (lastExtractedUrl !== target) return;
+				const swatch = palette.Vibrant || palette.LightVibrant || palette.DarkVibrant;
+				if (!swatch) return;
+				document.documentElement.style.setProperty(
+					"--ambient-accent",
+					swatch.rgb.map(Math.round).join(" "),
+				);
+			} catch {
+			}
+		})();
+	});
 }

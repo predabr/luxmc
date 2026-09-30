@@ -291,7 +291,7 @@
 			<button
 				type="button"
 				onclick={() => openWebsite("https://luxmc-r92.pages.dev")}
-				class="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold border border-fg/15 transition-all cursor-pointer shadow-md active:scale-[0.98]"
+				class="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold border border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-md active:scale-[0.98]"
 			>
 				<Globe class="w-4 h-4 text-emerald-400" />
 				<span>Visitar Site Oficial</span>
@@ -305,7 +305,7 @@
 		<button
 			type="button"
 			onclick={() => selectedTab = "news"}
-			class="px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {selectedTab === 'news' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
+			class="px-5 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedTab === 'news' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 		>
 			Minecraft ({newsState.items.length})
 		</button>
@@ -313,7 +313,7 @@
 		<button
 			type="button"
 			onclick={() => selectedTab = "changelog"}
-			class="px-5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer {selectedTab === 'changelog' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
+			class="px-5 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedTab === 'changelog' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 		>
 			Changelog Técnico
 		</button>
@@ -331,7 +331,7 @@
 			{@const featured = officialNews[0]}
 			<div class="rounded-3xl bg-bg-elevated border border-blue-500/30 shadow-2xl relative overflow-hidden group flex flex-col lg:flex-row">
 				<div class="lg:w-1/2 h-56 lg:h-auto relative overflow-hidden">
-					<img 
+					<img loading="lazy" decoding="async" 
 						src={featured.image} 
 						alt={featured.title} 
 						class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -381,7 +381,7 @@
 						<button
 							type="button"
 							onclick={() => openWebsite(featured.link)}
-							class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-black transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] cursor-pointer"
+							class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-blue-600/20 active:scale-[0.98] cursor-pointer"
 						>
 							<span>Ver Notas Completas</span>
 							<ExternalLink class="w-3.5 h-3.5" />
@@ -397,9 +397,9 @@
 
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 				{#each officialNews.slice(1) as article (article.id)}
-					<div class="rounded-3xl bg-bg-elevated border border-fg/10 hover:border-blue-500/30 transition-all flex flex-col justify-between overflow-hidden shadow-lg group">
+					<div class="rounded-3xl bg-bg-elevated border border-fg/10 hover:border-blue-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col justify-between overflow-hidden shadow-lg group">
 						<div class="w-full h-36 relative overflow-hidden bg-bg">
-							<img 
+							<img loading="lazy" decoding="async" 
 								src={article.image} 
 								alt={article.title} 
 								class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

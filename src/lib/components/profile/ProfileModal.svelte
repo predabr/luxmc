@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
     import { luxAccountLogout } from "$lib/api/luxAccount";
     import { cloudAccount } from "$lib/stores/cloudAccount.svelte";
 	import { fade, scale } from "svelte/transition";
@@ -81,8 +82,8 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div 
 	class="fixed inset-0 z-[10000] flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md p-4 select-none"
-	in:fade={{ duration: 200 }}
-	out:fade={{ duration: 150 }}
+	in:fade={{ easing: quintOut, duration: 260 }}
+	out:fade={{ easing: quintOut, duration: 220 }}
 	onclick={(e) => { if (e.target === e.currentTarget) onClose(); }}
 	role="dialog"
 	aria-modal="true"
@@ -91,8 +92,8 @@
 	<!-- Modal Card -->
 	<div 
 		class="w-full max-w-md min-w-[320px] sm:min-w-[440px] rounded-3xl bg-bg-elevated border border-fg/10 shadow-2xl overflow-hidden flex flex-col"
-		in:scale={{ start: 0.95, duration: 220 }}
-		out:scale={{ start: 0.95, duration: 150 }}
+		in:scale={{ easing: backOut, start: 0.95, duration: 220 }}
+		out:scale={{ easing: backOut, start: 0.95, duration: 220 }}
 	>
         {#if account.value?.id.startsWith("luxmc:")}
             <div class="mx-5 my-3 rounded-xl border border-brand-500/20 bg-brand-500/5 p-3 text-xs">
@@ -110,7 +111,7 @@
 			
 			<button 
 				type="button"
-				class="h-8 w-8 rounded-full bg-bg-overlay/40 hover:bg-fg/10 text-fg/70 hover:text-fg flex items-center justify-center transition-all cursor-pointer"
+				class="h-8 w-8 rounded-full bg-bg-overlay/40 hover:bg-fg/10 text-fg/70 hover:text-fg flex items-center justify-center transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 				onclick={onClose}
 				title="Fechar"
 			>
@@ -124,7 +125,7 @@
 			<div class="-mt-12 mb-4 flex items-end justify-between">
 				<div class="relative">
 					<div class="h-20 w-20 rounded-full overflow-hidden bg-bg-subtle border-4 border-border shadow-2xl flex items-center justify-center">
-						<img 
+						<img loading="lazy" decoding="async" 
 							src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + (account.value.username || account.value.uuid) + "/100" : "https://mc-heads.net/avatar/MHF_Steve/100")} 
 							alt="Avatar" 
 							class="w-full h-full object-cover"
@@ -143,7 +144,7 @@
 
 				<button 
 					type="button"
-					class="px-4 py-2 rounded-full bg-fg/5 hover:bg-fg/10 border border-fg/10 text-xs font-bold text-fg flex items-center gap-1.5 transition-all active:scale-[0.98] cursor-pointer"
+					class="px-4 py-2 rounded-full bg-fg/5 hover:bg-fg/10 border border-fg/10 text-xs font-bold text-fg flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-[0.98] cursor-pointer"
 					onclick={handleNavigateSkins}
 				>
 					<Shirt class="w-3.5 h-3.5 text-brand-500" />
@@ -165,7 +166,7 @@
 						/>
 						<button 
 							type="button"
-							class="h-9 px-4 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs flex items-center gap-1 transition-all cursor-pointer"
+							class="h-9 px-4 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs flex items-center gap-1 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 							onclick={handleSaveNick}
 						>
 							<Check class="w-3.5 h-3.5 stroke-[3]" />
@@ -173,7 +174,7 @@
 						</button>
 						<button 
 							type="button"
-							class="h-9 px-3 rounded-full bg-fg/5 hover:bg-fg/10 text-fg/60 text-xs flex items-center justify-center transition-all cursor-pointer"
+							class="h-9 px-3 rounded-full bg-fg/5 hover:bg-fg/10 text-fg/60 text-xs flex items-center justify-center transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 							onclick={() => { isEditingNick = false; editedNick = currentUsername; }}
 						>
 							<X class="w-3.5 h-3.5" />
@@ -184,7 +185,7 @@
 						<h2 class="text-xl font-black text-fg tracking-tight">{currentUsername}</h2>
 						<button 
 							type="button" 
-							class="p-2 rounded-full hover:bg-fg/10 text-fg/40 hover:text-fg transition-all cursor-pointer"
+							class="p-2 rounded-full hover:bg-fg/10 text-fg/40 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 							title="Mudar Nickname"
 							onclick={() => { editedNick = currentUsername; isEditingNick = true; }}
 						>
@@ -232,7 +233,7 @@
 			<div class="mt-6 pt-5 border-t border-fg/5 flex flex-col gap-2">
 				<button 
 					type="button"
-					class="w-full h-11 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-98 cursor-pointer"
+					class="w-full h-11 rounded-full bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 text-red-400 font-bold text-xs flex items-center justify-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-98 cursor-pointer"
 					onclick={handleLogout}
 				>
 					<LogOut class="w-4 h-4" />

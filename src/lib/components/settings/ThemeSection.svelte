@@ -182,7 +182,7 @@
 			{#each Object.values(THEMES) as th}
 				<button
 					type="button"
-					class="p-4 rounded-2xl border flex items-center justify-between transition-all active:scale-[0.98] cursor-pointer {currentTheme === th.id ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
+					class="p-4 rounded-2xl border flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-[0.98] cursor-pointer {currentTheme === th.id ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
 					onclick={() => selectTheme(th.id)}
 				>
 					<div class="flex items-center gap-3">
@@ -207,7 +207,7 @@
 			<!-- Botão Importar Wallpaper Personalizado -->
 			<button
 				type="button"
-				class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-[0.98] cursor-pointer border-dashed border-fg/20 bg-bg-subtle/50 hover:border-brand-500/50 hover:bg-bg-subtle"
+				class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-[0.98] cursor-pointer border-dashed border-fg/20 bg-bg-subtle/50 hover:border-brand-500/50 hover:bg-bg-subtle"
 				onclick={handleImportWallpaper}
 				title={t("settings.appearanceOptions.importWallpaperTooltip")}
 			>
@@ -221,7 +221,7 @@
 				<div class="relative min-w-0" title={wallpaper.url}>
 					<button
 						type="button"
-						class="w-full p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-[0.98] cursor-pointer {currentBackground === 'custom' && themeStore.customWallpaperUrl === wallpaper.url ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
+						class="w-full p-3 rounded-2xl border flex flex-col items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-[0.98] cursor-pointer {currentBackground === 'custom' && themeStore.customWallpaperUrl === wallpaper.url ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
 						onclick={() => selectWallpaper(wallpaper.url)}
 						aria-label={`Selecionar wallpaper ${wallpaper.name}`}
 					>
@@ -246,7 +246,7 @@
 			{#each Object.values(BACKGROUNDS) as bg}
 				<button
 					type="button"
-					class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-all active:scale-[0.98] cursor-pointer {currentBackground === bg.id ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
+					class="p-3 rounded-2xl border flex flex-col items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-[0.98] cursor-pointer {currentBackground === bg.id ? 'border-brand-500 bg-bg-subtle shadow-lg ring-2 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
 					onclick={() => selectBackground(bg.id)}
 				>
 					<div class="w-full h-12 rounded-xl border border-fg/10 shadow-inner flex items-center justify-center relative overflow-hidden" style="background-color: {bg.preview};">
@@ -272,7 +272,7 @@
 			{#each Object.values(ACCENTS) as ac}
 				<button
 					type="button"
-					class="p-3 rounded-2xl border flex items-center gap-2.5 transition-all cursor-pointer {currentAccent === ac.id ? 'border-brand-500 bg-bg-subtle shadow-md ring-2 ring-brand-500/40' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
+					class="p-3 rounded-2xl border flex items-center gap-2.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {currentAccent === ac.id ? 'border-brand-500 bg-bg-subtle shadow-md ring-2 ring-brand-500/40' : 'border-fg/5 bg-bg-subtle hover:border-fg/20'}"
 					onclick={() => selectAccent(ac.id)}
 				>
 					<div class="w-4 h-4 rounded-full shadow-md shrink-0 flex items-center justify-center" style="background-color: {ac.hex};"></div>
@@ -295,7 +295,7 @@
 			{ title: t("settings.appearanceOptions.animations"), desc: t("settings.appearanceOptions.animationsDesc"), val: smoothAnimations, toggle: toggleAnimations },
 			{ title: t("settings.appearanceOptions.perfMode"), desc: t("settings.appearanceOptions.perfModeDesc"), val: performanceMode, toggle: togglePerformanceMode }
 		] as opt}
-			<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex items-center justify-between hover:border-fg/10 transition-all">
+			<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]">
 				<div>
 					<div class="text-xs font-bold text-fg">{opt.title}</div>
 					<div class="text-[10px] text-fg/40">{opt.desc}</div>
@@ -314,7 +314,7 @@
 		{/each}
 
 		{#if soundscapesEnabled}
-			<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex items-center justify-between hover:border-fg/10 transition-all">
+			<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]">
 				<div>
 					<div class="text-xs font-bold text-fg">{t("settings.appearanceOptions.soundscapeVolume")}</div>
 					<div class="text-[10px] text-fg/40">{t("settings.appearanceOptions.soundscapeVolumeDesc")} ({Math.round(soundscapeVolume * 100)}%)</div>

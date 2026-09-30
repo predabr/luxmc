@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
 	import { 
@@ -114,11 +115,11 @@
 {#if open}
 	<div 
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md"
-		transition:fade={{ duration: 180 }}
+		transition:fade={{ easing: quintOut, duration: 240 }}
 	>
 		<div 
 			class="relative w-full max-w-lg bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 max-h-[85vh]"
-			transition:scale={{ start: 0.95, duration: 200 }}
+			transition:scale={{ easing: backOut, start: 0.95, duration: 260 }}
 		>
 			<!-- Top glow -->
 			<div class="absolute -top-24 -right-20 w-48 h-48 bg-purple-500/15 rounded-full blur-3xl pointer-events-none"></div>
@@ -178,7 +179,7 @@
 					</div>
 				{:else}
 					{#each snapshots as snap}
-						<div class="bg-bg-subtle border border-fg/5 hover:border-fg/10 rounded-2xl p-3.5 flex items-center justify-between transition-all group">
+						<div class="bg-bg-subtle border border-fg/5 hover:border-fg/10 rounded-2xl p-3.5 flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group">
 							<div class="flex items-center gap-3 min-w-0">
 								<div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
 									<Clock class="w-4 h-4" />
@@ -196,7 +197,7 @@
 							<div class="flex items-center gap-1.5 shrink-0">
 								<button 
 									type="button"
-									class="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+									class="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
 									disabled={restoringId === snap.filename}
 									onclick={() => handleRestore(snap.filename)}
 									title="Restaurar mundo para este ponto"

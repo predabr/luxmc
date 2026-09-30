@@ -96,7 +96,7 @@
 			{#each presets as preset, idx}
 				<button 
 					type="button" 
-					class="px-3 py-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer {selectedIdx === idx ? 'bg-bg-overlay text-fg shadow-sm border border-fg/10' : 'text-fg/40 hover:text-fg'}"
+					class="px-3 py-1 rounded-lg text-[10px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedIdx === idx ? 'bg-bg-overlay text-fg shadow-sm border border-fg/10' : 'text-fg/40 hover:text-fg'}"
 					onclick={() => selectedIdx = idx}
 				>
 					{preset.name}

@@ -94,7 +94,7 @@
 			>
 				<X class="h-3 w-3" />
 			</button>
-			<div class="absolute bottom-0 left-0 h-0.5 rounded-b-lg" style="background: {cfg.color}; animation: progress 4s linear forwards;"></div>
+			<div class="absolute bottom-0 left-0 h-0.5 w-full origin-left rounded-b-lg" style="background: {cfg.color}; animation: progress 4s linear forwards;"></div>
 		</div>
 	{/each}
 </div>
@@ -122,10 +122,10 @@
 
 	@keyframes progress {
 		from {
-			width: 100%;
+			transform: scaleX(1);
 		}
 		to {
-			width: 0%;
+			transform: scaleX(0);
 		}
 	}
 </style>

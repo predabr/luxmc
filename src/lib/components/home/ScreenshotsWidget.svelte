@@ -51,14 +51,14 @@
 			<div class="flex items-center gap-1">
 				<button
 					type="button"
-					class="p-1 rounded-lg bg-fg/5 hover:bg-fg/10 text-fg/40 hover:text-fg transition-all cursor-pointer"
+					class="p-1 rounded-lg bg-fg/5 hover:bg-fg/10 text-fg/40 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 					onclick={() => scroll("left")}
 				>
 					<ChevronLeft class="w-3 h-3" />
 				</button>
 				<button
 					type="button"
-					class="p-1 rounded-lg bg-fg/5 hover:bg-fg/10 text-fg/40 hover:text-fg transition-all cursor-pointer"
+					class="p-1 rounded-lg bg-fg/5 hover:bg-fg/10 text-fg/40 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 					onclick={() => scroll("right")}
 				>
 					<ChevronRight class="w-3 h-3" />
@@ -94,9 +94,9 @@
 			style="scrollbar-width: none; -ms-overflow-style: none;"
 		>
 			{#each screenshots as shot (shot.id)}
-				<div class="relative h-28 w-40 rounded-2xl overflow-hidden bg-bg-elevated border border-fg/5 hover:border-brand-400/30 transition-all shrink-0 group cursor-pointer">
+				<div class="relative h-28 w-40 rounded-2xl overflow-hidden bg-bg-elevated border border-fg/5 hover:border-brand-400/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shrink-0 group cursor-pointer">
 					{#if shot.url}
-						<img src={shot.url} alt="Screenshot" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+						<img loading="lazy" decoding="async" src={shot.url} alt="Screenshot" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
 					{:else}
 						<div class="w-full h-full flex items-center justify-center">
 							<Camera class="w-6 h-6 text-fg/15" />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { fade } from "svelte/transition";
 	import { X, Sliders, Check } from "lucide-svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
@@ -8,7 +9,7 @@
 
 <div
 	class="fixed inset-0 z-[70] flex flex-col justify-between bg-black/85 backdrop-blur-sm p-6 select-none"
-	transition:fade={{ duration: 150 }}
+	transition:fade={{ easing: quintOut, duration: 220 }}
 >
 	<!-- Top Bar -->
 	<div class="flex items-center justify-between px-6 py-3 rounded-2xl bg-bg/90 border border-fg/15 shadow-xl max-w-4xl mx-auto w-full">
@@ -22,7 +23,7 @@
 			<span class="text-xs text-fg/50">Pressione <kbd class="px-1.5 py-0.5 rounded bg-fg/10 text-fg font-mono text-[10px]">Esc</kbd> ou clique para voltar</span>
 			<button
 				onclick={onClose}
-				class="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-500 text-black font-semibold text-xs hover:bg-emerald-400 active:scale-95 transition-all shadow-md shadow-emerald-500/20"
+				class="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-emerald-500 text-black font-semibold text-xs hover:bg-emerald-400 active:scale-95 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md shadow-emerald-500/20"
 			>
 				<Check class="w-3.5 h-3.5" />
 				<span>Concluir</span>

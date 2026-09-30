@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
 	import {
@@ -190,8 +191,8 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/85 backdrop-blur-md select-none" in:fade={{ duration: 150 }}>
-		<div class="w-full max-w-4xl rounded-3xl bg-bg-elevated border border-fg/15 p-7 shadow-2xl space-y-6 relative overflow-hidden" in:scale={{ start: 0.95, duration: 200 }}>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/85 backdrop-blur-md select-none" in:fade={{ easing: quintOut, duration: 220 }}>
+		<div class="w-full max-w-4xl rounded-3xl bg-bg-elevated border border-fg/15 p-7 shadow-2xl space-y-6 relative overflow-hidden" in:scale={{ easing: backOut, start: 0.95, duration: 260 }}>
 			<div class="absolute -top-20 -left-20 w-64 h-64 bg-brand-400/15 rounded-full blur-3xl pointer-events-none"></div>
 			<div class="absolute -bottom-20 -right-20 w-64 h-64 bg-brand-500/15 rounded-full blur-3xl pointer-events-none"></div>
 			<div class="flex items-center justify-between border-b border-fg/10 pb-4 relative z-10">
@@ -225,7 +226,7 @@
 				<div class="flex items-center gap-3 w-full sm:w-auto justify-end">
 					<button
 						type="button"
-						class="px-5 py-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle text-fg/80 hover:text-fg font-bold text-xs border border-fg/10 flex items-center gap-2 transition-all cursor-pointer active:scale-[0.98] shadow-sm"
+						class="px-5 py-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle text-fg/80 hover:text-fg font-bold text-xs border border-fg/10 flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] shadow-sm"
 						onclick={handleDownloadCard}
 						disabled={isGenerating}
 					>
@@ -235,7 +236,7 @@
 
 					<button
 						type="button"
-						class="px-7 py-2.5 rounded-2xl bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 hover:from-brand-400 hover:to-brand-400 text-brand-foreground font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer active:scale-[0.98] shadow-lg shadow-glow"
+						class="px-7 py-2.5 rounded-2xl bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 hover:from-brand-400 hover:to-brand-400 text-brand-foreground font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] shadow-lg shadow-glow"
 						onclick={handleCopyCard}
 						disabled={isGenerating}
 					>

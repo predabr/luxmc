@@ -25,7 +25,7 @@
 
 <section class="surface-glass relative overflow-hidden">
     <div class="relative h-44 overflow-hidden sm:h-52">
-        <img
+        <img loading="lazy" decoding="async"
             src={banner}
             alt=""
             class="h-full w-full object-cover"
@@ -38,7 +38,7 @@
     <div class="relative -mt-12 px-6 pb-6 sm:px-7">
         <div class="flex flex-wrap items-end justify-between gap-5">
             <div class="flex min-w-0 items-end gap-4">
-                <img
+                <img loading="lazy" decoding="async"
                     src={icon}
                     alt={profile?.name || "Ícone da instância"}
                     class="h-20 w-20 shrink-0 rounded-2xl border border-fg/15 bg-bg-elevated p-2 object-contain shadow-elevated"
@@ -50,7 +50,7 @@
                 <button type="button" class={button({ variant: 'secondary', size: 'icon' })} onclick={onSettings} aria-label="Configurações da instância"><Settings2 class="h-4 w-4" /></button>
                 <button type="button" class={button({ variant: 'secondary', size: 'icon' })} onclick={onHost} aria-label="Compartilhar mundo"><Share2 class="h-4 w-4" /></button>
                 {#if running}
-                    <button type="button" disabled={stopping} class="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-black uppercase px-6 py-3 shadow-lg shadow-red-500/20 transition-all cursor-pointer disabled:opacity-50" onclick={onStop}>
+                    <button type="button" disabled={stopping} class="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-95 text-white text-xs font-black uppercase px-6 py-3 shadow-lg shadow-red-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50" onclick={onStop}>
                         {#if stopping}
                             <Loader2 class="h-4 w-4 animate-spin" />
                             PARANDO...
@@ -72,7 +72,7 @@
             {/each}
         </div>
         {#if launching}
-            <div class="mt-4 space-y-2" role="status"><div class="flex justify-between text-xs text-fg-muted"><span>{status || 'Verificando arquivos…'}</span><span>{Math.round(progress)}%</span></div><div class="h-1.5 overflow-hidden rounded-full bg-fg/5"><div class="h-full rounded-full bg-brand-500 transition-all duration-200" style:width={`${Math.max(0, Math.min(progress, 100))}%`}></div></div></div>
+            <div class="mt-4 space-y-2" role="status"><div class="flex justify-between text-xs text-fg-muted"><span>{status || 'Verificando arquivos…'}</span><span>{Math.round(progress)}%</span></div><div class="h-1.5 overflow-hidden rounded-full bg-fg/5"><div class="h-full rounded-full bg-brand-500 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200" style:width={`${Math.max(0, Math.min(progress, 100))}%`}></div></div></div>
         {/if}
         {#if actions}<div class="mt-5 flex flex-wrap items-center gap-2 border-t border-fg/5 pt-4">{@render actions()}</div>{/if}
     </div>

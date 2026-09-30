@@ -118,11 +118,11 @@
 		{@const status = statusConfig}
 		<button
 			onclick={toggleMenu}
-			class="flex items-center gap-2 h-9 px-2.5 rounded-full bg-bg-elevated border border-fg/10 hover:border-brand-500/50 hover:bg-bg-subtle transition-all cursor-pointer shadow-sm"
+			class="flex items-center gap-2 h-9 px-2.5 rounded-full bg-bg-elevated border border-fg/10 hover:border-brand-500/50 hover:bg-bg-subtle transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm"
 			title={account.value.username}
 		>
 			<span class="relative inline-flex">
-				<img
+				<img loading="lazy" decoding="async"
 					src={skinUrl}
 					alt={account.value.username}
 					class="w-6 h-6 rounded-md border border-fg/10 object-cover bg-bg-overlay/40"
@@ -157,7 +157,7 @@
 						{/if}
 					</div>
 					<div class="flex items-center gap-2.5 mt-2">
-						<img 
+						<img loading="lazy" decoding="async" 
 							src={skinUrl} 
 							alt={account.value.username} 
 							class="w-8 h-8 rounded-lg border border-fg/10 object-cover bg-bg-overlay/30"
@@ -181,11 +181,11 @@
 							{@const isActive = acc.username.toLowerCase() === account.value.username.toLowerCase()}
 							<button 
 								type="button"
-								class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer {isActive ? 'bg-brand-500/10 text-brand-500 font-bold border border-brand-500/20' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+								class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {isActive ? 'bg-brand-500/10 text-brand-500 font-bold border border-brand-500/20' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 								onclick={() => handleSwitchAccount(acc)}
 							>
 								<div class="flex items-center gap-2 min-w-0">
-									<img 
+									<img loading="lazy" decoding="async" 
 										src={`https://mc-heads.net/avatar/${acc.username}/32`} 
 										alt={acc.username} 
 										class="w-5 h-5 rounded object-cover"
@@ -235,7 +235,7 @@
 		<button 
 			type="button"
 			onclick={() => showLoginModal = true}
-			class="flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-black transition-all shadow-sm active:scale-[0.98] cursor-pointer"
+			class="flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm active:scale-[0.98] cursor-pointer"
 		>
 			<LogIn size={14} />
 			<span>Entrar</span>

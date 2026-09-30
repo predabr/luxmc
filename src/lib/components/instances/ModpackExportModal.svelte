@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import {
 		Package,
@@ -70,8 +71,8 @@
 </script>
 
 {#if isOpen}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-md select-none" in:fade={{ duration: 150 }}>
-		<div class="w-full max-w-md rounded-3xl bg-bg-elevated border border-fg/15 p-6 shadow-2xl space-y-5" in:scale={{ start: 0.95, duration: 200 }}>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-md select-none" in:fade={{ easing: quintOut, duration: 220 }}>
+		<div class="w-full max-w-md rounded-3xl bg-bg-elevated border border-fg/15 p-6 shadow-2xl space-y-5" in:scale={{ easing: backOut, start: 0.95, duration: 260 }}>
 			<!-- Header -->
 			<div class="flex items-center justify-between border-b border-fg/10 pb-4">
 				<div class="flex items-center gap-3">
@@ -95,7 +96,7 @@
 
 			{#if exportResult}
 				<!-- Result Card -->
-				<div class="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3" in:fade={{ duration: 150 }}>
+				<div class="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-3" in:fade={{ easing: quintOut, duration: 220 }}>
 					<div class="flex items-center gap-2 text-emerald-400 font-bold text-xs">
 						<Check class="w-4 h-4 stroke-[3]" />
 						<span>Modpack Pronto para Distribuição!</span>
@@ -129,7 +130,7 @@
 						<div class="grid grid-cols-2 gap-2.5">
 							<button
 								type="button"
-								class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between {exportFormat === 'mrpack' ? 'bg-emerald-500/15 border-emerald-500/40 text-fg' : 'bg-bg-elevated hover:bg-bg-subtle border-fg/5 text-fg/60'}"
+								class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between {exportFormat === 'mrpack' ? 'bg-emerald-500/15 border-emerald-500/40 text-fg' : 'bg-bg-elevated hover:bg-bg-subtle border-fg/5 text-fg/60'}"
 								onclick={() => exportFormat = 'mrpack'}
 							>
 								<div class="flex items-center justify-between">
@@ -141,7 +142,7 @@
 
 							<button
 								type="button"
-								class="p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between {exportFormat === 'zip' ? 'bg-amber-500/15 border-amber-500/40 text-fg' : 'bg-bg-elevated hover:bg-bg-subtle border-fg/5 text-fg/60'}"
+								class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between {exportFormat === 'zip' ? 'bg-amber-500/15 border-amber-500/40 text-fg' : 'bg-bg-elevated hover:bg-bg-subtle border-fg/5 text-fg/60'}"
 								onclick={() => exportFormat = 'zip'}
 							>
 								<div class="flex items-center justify-between">
@@ -178,7 +179,7 @@
 				{#if !exportResult}
 					<button
 						type="button"
-						class="px-7 py-2.5 rounded-2xl bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs uppercase tracking-wider transition-all shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
+						class="px-7 py-2.5 rounded-2xl bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs uppercase tracking-wider transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md cursor-pointer disabled:opacity-50 flex items-center gap-2"
 						onclick={handleExport}
 						disabled={isExporting}
 					>

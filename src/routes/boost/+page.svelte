@@ -164,7 +164,7 @@
 			<div class="flex items-center gap-3">
 				<button
 					type="button"
-					class="px-5 py-2.5 rounded-full text-xs font-bold bg-bg-overlay hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10 transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98]"
+					class="px-5 py-2.5 rounded-full text-xs font-bold bg-bg-overlay hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer active:scale-[0.98]"
 					onclick={loadSpecs}
 					disabled={loadingSpecs}
 				>
@@ -173,7 +173,7 @@
 				</button>
 				<button
 					type="button"
-					class="px-6 py-2.5 rounded-full text-xs font-black bg-brand-500 hover:brightness-110 text-brand-foreground transition-all flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer active:scale-[0.98] disabled:opacity-50"
+					class="px-6 py-2.5 rounded-full text-xs font-black bg-brand-500 hover:brightness-110 text-brand-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer active:scale-[0.98] disabled:opacity-50"
 					onclick={handleTrimMemory}
 					disabled={trimming}
 				>
@@ -283,7 +283,7 @@
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
-					class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/5 transition-all flex items-center gap-1.5 cursor-pointer"
+					class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer"
 					onclick={copyFlags}
 				>
 					{#if copiedFlags}
@@ -312,7 +312,7 @@
 				{#each ramPresets as preset}
 					<button
 						type="button"
-						class="p-3.5 rounded-2xl border text-left transition-all cursor-pointer {selectedRamPreset === preset.mb ? 'border-brand-500 bg-brand-500/10 shadow-md ring-1 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/15'}"
+						class="p-3.5 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedRamPreset === preset.mb ? 'border-brand-500 bg-brand-500/10 shadow-md ring-1 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/15'}"
 						onclick={() => updateFlags(preset.mb)}
 					>
 						<div class="text-lg">{preset.icon}</div>

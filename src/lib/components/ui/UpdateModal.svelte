@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
 	import { DownloadCloud, Sparkles, ArrowRight, X, Loader2, ExternalLink, Copy } from "lucide-svelte";
@@ -22,12 +23,12 @@
 {#if updaterStore.showModal}
 	<div
 		class="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-bg-overlay/80 backdrop-blur-md"
-		in:fade={{ duration: 300 }}
-		out:fade={{ duration: 200 }}
+		in:fade={{ easing: quintOut, duration: 300 }}
+		out:fade={{ easing: quintOut, duration: 260 }}
 	>
 		<div
 			class="surface-glass relative w-full max-w-lg border-brand-500/30 bg-bg-elevated/85 p-8 shadow-2xl backdrop-blur-2xl overflow-hidden"
-			in:scale={{ start: 0.95, duration: 300, opacity: 0 }}
+			in:scale={{ easing: backOut, start: 0.95, duration: 300, opacity: 0 }}
 		>
 			<div class="absolute -top-20 -right-20 w-64 h-64 bg-brand-500/20 rounded-full blur-3xl pointer-events-none"></div>
 			<div class="absolute -bottom-20 -left-20 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -90,7 +91,7 @@
 						<p class="text-xs font-mono text-fg/50">{(updaterStore.transferredBytes / 1048576).toFixed(1)} MB{updaterStore.totalBytes > 0 ? ` / ${(updaterStore.totalBytes / 1048576).toFixed(1)} MB` : ""}</p>
 						<div class="w-full bg-fg/10 rounded-full h-3 overflow-hidden">
 							<div
-								class="bg-brand-500 h-full rounded-full transition-all duration-300"
+								class="bg-brand-500 h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
 								style="width: {updaterStore.progressPercent}%;"
 							></div>
 						</div>
@@ -111,13 +112,13 @@
 
 					{#if updaterStore.downloadUrl}
 					<button
-						class="w-full py-3.5 bg-brand-500 hover:brightness-110 text-brand-foreground font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shadow-glow cursor-pointer"
+						class="w-full py-3.5 bg-brand-500 hover:brightness-110 text-brand-foreground font-black rounded-2xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 shadow-glow cursor-pointer"
 						onclick={() => updaterStore.startUpdate()}
 					>
 						Atualizar Agora Automaticamente <DownloadCloud class="w-4 h-4" />
 					</button>
 					{/if}
-						<button class="w-full py-3 border border-fg/10 bg-fg/[0.04] hover:bg-fg/[0.08] text-fg font-bold rounded-2xl transition-all active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer" onclick={() => openUrl(updaterStore.releaseUrl || "https://github.com/predabr/luxmc/releases/latest")}>{updaterStore.updateError || !updaterStore.downloadUrl ? "Baixar pacote manualmente" : "Abrir no GitHub"} <ExternalLink class="w-4 h-4" /></button>
+						<button class="w-full py-3 border border-fg/10 bg-fg/[0.04] hover:bg-fg/[0.08] text-fg font-bold rounded-2xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-[0.97] flex items-center justify-center gap-2 cursor-pointer" onclick={() => openUrl(updaterStore.releaseUrl || "https://github.com/predabr/luxmc/releases/latest")}>{updaterStore.updateError || !updaterStore.downloadUrl ? "Baixar pacote manualmente" : "Abrir no GitHub"} <ExternalLink class="w-4 h-4" /></button>
 
 					<button
 						class="text-xs font-bold text-fg/40 hover:text-fg transition-colors cursor-pointer"

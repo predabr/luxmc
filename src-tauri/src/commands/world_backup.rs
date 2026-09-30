@@ -38,17 +38,22 @@ pub async fn instance_backup_world(
     let zip_name = format!("{}_{}.zip", worldFolder, now_str);
     let zip_dest = backups_dir.join(&zip_name);
 
-    let file = std::fs::File::create(&zip_dest)
-        .map_err(|e| AppError::Internal(format!("Falha ao criar arquivo de backup: {e}")))?;
-    let mut zip = zip::ZipWriter::new(file);
+    let zip_dest_result = zip_dest.clone();
+    let size_bytes = tokio::task::spawn_blocking(move || -> AppResult<u64> {
+        let file = std::fs::File::create(&zip_dest)
+            .map_err(|e| AppError::Internal(format!("Falha ao criar arquivo de backup: {e}")))?;
+        let mut zip = zip::ZipWriter::new(file);
 
-    let options = zip::write::FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated);
+        let options = zip::write::FileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
 
-    add_folder_to_zip(&mut zip, &world_dir, "", options)?;
-    zip.finish().map_err(|e| AppError::Internal(e.to_string()))?;
+        add_folder_to_zip(&mut zip, &world_dir, "", options)?;
+        zip.finish().map_err(|e| AppError::Internal(e.to_string()))?;
 
-    let size_bytes = std::fs::metadata(&zip_dest).map(|m| m.len()).unwrap_or(0);
+        Ok(std::fs::metadata(&zip_dest).map(|m| m.len()).unwrap_or(0))
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))??;
 
     if let Ok(mut entries) = tokio::fs::read_dir(&backups_dir).await {
         let mut world_backups = Vec::new();
@@ -68,7 +73,7 @@ pub async fn instance_backup_world(
 
     Ok(WorldBackupEntry {
         file_name: zip_name,
-        file_path: zip_dest.to_string_lossy().to_string(),
+        file_path: zip_dest_result.to_string_lossy().to_string(),
         size_bytes,
         created_at: chrono::Local::now().format("%d/%m/%Y %H:%M").to_string(),
         world_name: worldFolder,

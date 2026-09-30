@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { fade } from 'svelte/transition';
 	import { Loader } from 'lucide-svelte';
 
@@ -17,7 +18,7 @@
 		role="status"
 		aria-live="polite"
 		aria-label={message}
-		transition:fade={{ duration: 200 }}
+		transition:fade={{ easing: quintOut, duration: 260 }}
 	>
 		<div class="bg-bg-elevated border border-border rounded-lg p-8 flex flex-col items-center gap-4">
 			<Loader class="h-8 w-8 text-brand animate-spin" />
@@ -25,7 +26,7 @@
 			{#if progress !== undefined}
 				<div class="w-32 h-1 bg-bg-hover rounded-full overflow-hidden">
 					<div
-						class="h-full bg-brand transition-all duration-300"
+						class="h-full bg-brand transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
 						style={`width: ${progress}%`}
 					></div>
 				</div>

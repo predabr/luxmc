@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
 	import { 
@@ -104,11 +105,11 @@
 {#if open}
 	<div 
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md"
-		transition:fade={{ duration: 180 }}
+		transition:fade={{ easing: quintOut, duration: 240 }}
 	>
 		<div 
 			class="relative w-full max-w-xl bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col gap-5 max-h-[90vh]"
-			transition:scale={{ start: 0.95, duration: 200 }}
+			transition:scale={{ easing: backOut, start: 0.95, duration: 260 }}
 		>
 			<!-- Top Aura -->
 			<div class="absolute -top-24 -left-20 w-48 h-48 bg-brand-500/15 rounded-full blur-3xl pointer-events-none"></div>
@@ -138,14 +139,14 @@
 			<div class="flex bg-bg-subtle p-1 rounded-2xl border border-fg/5">
 				<button 
 					type="button"
-					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer {activeTab === 'visual' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
+					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'visual' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
 					onclick={() => activeTab = 'visual'}
 				>
 					Ajustes Visuais Rápidos
 				</button>
 				<button 
 					type="button"
-					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer {activeTab === 'raw' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
+					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'raw' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
 					onclick={() => activeTab = 'raw'}
 				>
 					Editor de Código / Arquivo
@@ -238,7 +239,7 @@
 					<div class="grid grid-cols-3 gap-2.5">
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.vsync ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col gap-1 items-center justify-center cursor-pointer {options.vsync ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.vsync = !options.vsync}
 						>
 							<span>VSync</span>
@@ -247,7 +248,7 @@
 
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.autoJump ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col gap-1 items-center justify-center cursor-pointer {options.autoJump ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.autoJump = !options.autoJump}
 						>
 							<span>Pulo Automático</span>
@@ -256,7 +257,7 @@
 
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-all flex flex-col gap-1 items-center justify-center cursor-pointer {options.bobView ? 'bg-blue-500/15 border-blue-500/30 text-blue-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col gap-1 items-center justify-center cursor-pointer {options.bobView ? 'bg-blue-500/15 border-blue-500/30 text-blue-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.bobView = !options.bobView}
 						>
 							<span>Balanço da Câmera</span>

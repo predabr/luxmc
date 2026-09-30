@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { fade } from 'svelte/transition';
 
 	interface Props {
@@ -35,7 +36,7 @@
 {#if visible}
 	<div
 		class={`p-4 rounded-lg border ${bgMap[variant]} flex items-start gap-3`}
-		transition:fade={{ duration: 200 }}
+		transition:fade={{ easing: quintOut, duration: 260 }}
 	>
 		<div class="flex-1">
 			{#if title}

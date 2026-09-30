@@ -20,8 +20,8 @@
         </label>
         <label class="space-y-2 text-sm text-fg-muted">
             <span>{t("settings.renderingOptions.fps")}</span>
-            <select class="w-full rounded-xl border border-border bg-bg-elevated p-3 text-fg" value={String(settings.value.wallpaperFps ?? 24)} onchange={e => update({ wallpaperFps: Number(e.currentTarget.value) as 15 | 24 | 30 })}>
-                <option value="15">15 FPS</option><option value="24">24 FPS</option><option value="30">30 FPS</option>
+            <select class="w-full rounded-xl border border-border bg-bg-elevated p-3 text-fg" value={String(settings.value.wallpaperFps ?? 60)} onchange={e => update({ wallpaperFps: Number(e.currentTarget.value) as 15 | 24 | 30 | 60 })}>
+                <option value="15">15 FPS</option><option value="24">24 FPS</option><option value="30">30 FPS</option><option value="60">60 FPS</option>
             </select>
         </label>
     </div>

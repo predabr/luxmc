@@ -254,7 +254,7 @@
 					<span>{t("logs.lastUpdate", { time: lastUpdate.toLocaleTimeString() })}</span>
 				{/if}
 				<button
-					class="flex items-center gap-1 rounded-lg px-2 py-1 transition-all cursor-pointer {autoScroll ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-fg/40 hover:text-fg hover:bg-fg/5'}"
+					class="flex items-center gap-1 rounded-lg px-2 py-1 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {autoScroll ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-fg/40 hover:text-fg hover:bg-fg/5'}"
 					onclick={() => {
 						autoScroll = !autoScroll;
 						if (autoScroll) scrollToBottom();

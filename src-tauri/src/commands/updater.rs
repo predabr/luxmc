@@ -347,82 +347,87 @@ pub async fn app_perform_update(
 
     #[cfg(target_os = "linux")]
     {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(&temp_file_path, std::fs::Permissions::from_mode(0o755));
+        let outcome = tokio::task::spawn_blocking(move || -> AppResult<UpdateOutcome> {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&temp_file_path, std::fs::Permissions::from_mode(0o755));
 
-        if let Ok(appimage_path) = std::env::var("APPIMAGE") {
-            let appimage_target = PathBuf::from(&appimage_path);
-            if temp_file_path.to_string_lossy().ends_with(".AppImage") {
-                let parent = appimage_target
-                    .parent()
-                    .ok_or_else(|| AppError::InvalidState("Caminho do AppImage inválido".into()))?;
-                let staged = parent.join(format!(
-                    ".{}.{}.update",
-                    appimage_target
-                        .file_name()
-                        .and_then(|name| name.to_str())
-                        .unwrap_or("luxmc"),
-                    uuid::Uuid::new_v4()
-                ));
-                let staged_result = (|| -> AppResult<()> {
-                    let mut source = std::fs::File::open(&temp_file_path)?;
-                    let mut target = std::fs::OpenOptions::new()
-                        .write(true)
-                        .create_new(true)
-                        .open(&staged)?;
-                    std::io::copy(&mut source, &mut target)?;
-                    target.sync_all()?;
-                    std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
-                    let old = replace_appimage(&staged, &appimage_target)?;
-                    let launched = std::process::Command::new(&appimage_target).spawn();
-                    match launched {
-                        Ok(_) => {
-                            if let Some(old) = old {
-                                let _ = std::fs::remove_file(old);
+            if let Ok(appimage_path) = std::env::var("APPIMAGE") {
+                let appimage_target = PathBuf::from(&appimage_path);
+                if temp_file_path.to_string_lossy().ends_with(".AppImage") {
+                    let parent = appimage_target
+                        .parent()
+                        .ok_or_else(|| AppError::InvalidState("Caminho do AppImage inválido".into()))?;
+                    let staged = parent.join(format!(
+                        ".{}.{}.update",
+                        appimage_target
+                            .file_name()
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("luxmc"),
+                        uuid::Uuid::new_v4()
+                    ));
+                    let staged_result = (|| -> AppResult<()> {
+                        let mut source = std::fs::File::open(&temp_file_path)?;
+                        let mut target = std::fs::OpenOptions::new()
+                            .write(true)
+                            .create_new(true)
+                            .open(&staged)?;
+                        std::io::copy(&mut source, &mut target)?;
+                        target.sync_all()?;
+                        std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))?;
+                        let old = replace_appimage(&staged, &appimage_target)?;
+                        let launched = std::process::Command::new(&appimage_target).spawn();
+                        match launched {
+                            Ok(_) => {
+                                if let Some(old) = old {
+                                    let _ = std::fs::remove_file(old);
+                                }
+                            }
+                            Err(error) => {
+                                if let Some(old) = old {
+                                    let _ = std::fs::remove_file(&appimage_target);
+                                    let _ = std::fs::rename(old, &appimage_target);
+                                }
+                                return Err(AppError::Internal(format!(
+                                    "Falha ao iniciar AppImage atualizado: {error}"
+                                )));
                             }
                         }
-                        Err(error) => {
-                            if let Some(old) = old {
-                                let _ = std::fs::remove_file(&appimage_target);
-                                let _ = std::fs::rename(old, &appimage_target);
-                            }
-                            return Err(AppError::Internal(format!(
-                                "Falha ao iniciar AppImage atualizado: {error}"
-                            )));
-                        }
+                        Ok(())
+                    })();
+                    if let Err(error) = staged_result {
+                        let _ = std::fs::remove_file(&staged);
+                        return Err(error);
                     }
-                    Ok(())
-                })();
-                if let Err(error) = staged_result {
-                    let _ = std::fs::remove_file(&staged);
-                    return Err(error);
+                    let _ = std::fs::remove_file(&temp_file_path);
+                    std::process::exit(0);
                 }
-                let _ = std::fs::remove_file(&temp_file_path);
-                std::process::exit(0);
             }
-        }
 
-        let environment = app_update_environment().mode;
-        let (program, arguments, terminal_command) =
-            linux_package_installer(&environment, &temp_file_path)?;
-        match std::process::Command::new("pkexec")
-            .arg(program)
-            .args(&arguments)
-            .spawn()
-        {
-            Ok(_) => {
-                return Ok(UpdateOutcome {
-                    action: "system-installer".into(),
-                    terminal_command: Some(terminal_command),
-                })
+            let environment = app_update_environment().mode;
+            let (program, arguments, terminal_command) =
+                linux_package_installer(&environment, &temp_file_path)?;
+            match std::process::Command::new("pkexec")
+                .arg(program)
+                .args(&arguments)
+                .spawn()
+            {
+                Ok(_) => {
+                    return Ok(UpdateOutcome {
+                        action: "system-installer".into(),
+                        terminal_command: Some(terminal_command),
+                    })
+                }
+                Err(_) => {
+                    return Ok(UpdateOutcome {
+                        action: "terminal".into(),
+                        terminal_command: Some(terminal_command),
+                    })
+                }
             }
-            Err(_) => {
-                return Ok(UpdateOutcome {
-                    action: "terminal".into(),
-                    terminal_command: Some(terminal_command),
-                })
-            }
-        }
+        })
+        .await
+        .map_err(|error| AppError::Internal(error.to_string()))??;
+        return Ok(outcome);
     }
 
     #[cfg(target_os = "windows")]

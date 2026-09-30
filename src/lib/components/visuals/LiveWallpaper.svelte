@@ -6,6 +6,7 @@
 	let canvasEl: HTMLCanvasElement | null = $state(null);
 	let animationFrameId: number | null = null;
 	let isActive = $state(true);
+	const wallpaperFps = $derived(Math.max(5, Math.min(60, settings.value.wallpaperFps || 60)));
 
 	type Particle = {
 		x: number;
@@ -60,20 +61,22 @@
 				return;
 			}
 
-			if (now - lastFrame < 1000 / 30) {
+			const frameInterval = 1000 / wallpaperFps - 1;
+			if (now - lastFrame < frameInterval) {
 				animationFrameId = requestAnimationFrame(render);
 				return;
 			}
+			const speed = Math.min((now - lastFrame) / 1000, 0.1) * 60;
 			lastFrame = now;
 			const width = canvas.width;
 			const height = canvas.height;
 
-			time += 0.02;
+			time += 0.02 * speed;
 			ctx.clearRect(0, 0, width, height);
 
 			for (const p of particles) {
-				p.x += p.vx + mouseX * 0.01 * p.z;
-				p.y += p.vy + mouseY * 0.01 * p.z;
+				p.x += (p.vx + mouseX * 0.01 * p.z) * speed;
+				p.y += (p.vy + mouseY * 0.01 * p.z) * speed;
 
 				if (p.x < -20) p.x = width + 20;
 				if (p.x > width + 20) p.x = -20;
@@ -175,5 +178,5 @@
 
 <canvas
 	bind:this={canvasEl}
-	class="fixed inset-0 pointer-events-none z-[-1] transition-opacity duration-700 {!isActive ? 'opacity-0' : 'opacity-100'}"
+	class="fixed inset-0 pointer-events-none z-[-1] transform-gpu transition-opacity duration-700 {!isActive ? 'opacity-0' : 'opacity-100'}"
 ></canvas>

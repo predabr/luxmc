@@ -57,7 +57,7 @@
 
 					<button
 						type="button"
-						class="shrink-0 bg-bg-subtle hover:bg-brand-400 hover:text-brand-foreground text-fg text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+						class="shrink-0 bg-bg-subtle hover:bg-brand-400 hover:text-brand-foreground text-fg text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm cursor-pointer"
 						onclick={() => onInstall(ver.id)}
 					>
 						{#if isModpack}

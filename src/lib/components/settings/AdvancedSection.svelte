@@ -42,7 +42,7 @@
 
 <div class="space-y-3">
 	<!-- Performance Mode -->
-	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-all">
+	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]">
 		<div class="flex items-center gap-3">
 			<div class="w-9 h-9 rounded-xl bg-fg/5 flex items-center justify-center text-orange-400">
 				<Zap class="w-4 h-4" />
@@ -65,7 +65,7 @@
 	</div>
 
 	<!-- Discord RPC -->
-	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-all">
+	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]">
 		<div class="flex items-center gap-3">
 			<div class="w-9 h-9 rounded-xl bg-fg/5 flex items-center justify-center text-indigo-400">
 				<Gamepad2 class="w-4 h-4" />

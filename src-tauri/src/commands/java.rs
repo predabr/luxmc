@@ -27,40 +27,45 @@ pub async fn java_scan(state: State<'_, AppState>, _app: tauri::AppHandle) -> Ap
 }
 
 pub async fn java_scan_core(state: &AppState) -> AppResult<JavaScanResult> {
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
-    let mgr = JavaRuntimeManager::new(state.http.clone(), base_dir.data_dir().to_path_buf());
+    let http = state.http.clone();
+    tokio::task::spawn_blocking(move || -> AppResult<JavaScanResult> {
+        let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+            .ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
+        let mgr = JavaRuntimeManager::new(http, base_dir.data_dir().to_path_buf());
 
-    let mut runtimes = Vec::new();
-    for major in [8u32, 17, 21] {
-        let bin = base_dir.data_dir().join("java").join(major.to_string()).join("bin")
-            .join(if cfg!(windows) { "java.exe" } else { "java" });
-        let is_managed = bin.exists();
+        let mut runtimes = Vec::new();
+        for major in [8u32, 17, 21] {
+            let bin = base_dir.data_dir().join("java").join(major.to_string()).join("bin")
+                .join(if cfg!(windows) { "java.exe" } else { "java" });
+            let is_managed = bin.exists();
 
-        let (found_path, version_string, is_system) = if is_managed {
-            let vs = get_version_string(&bin);
-            (Some(bin.to_string_lossy().to_string()), vs, false)
-        } else {
-            match mgr.find_system_java_pub(major) {
-                Ok(p) => {
-                    let vs = get_version_string(&p);
-                    let path_str = p.to_string_lossy().to_string();
-                    (Some(path_str), vs, true)
+            let (found_path, version_string, is_system) = if is_managed {
+                let vs = get_version_string(&bin);
+                (Some(bin.to_string_lossy().to_string()), vs, false)
+            } else {
+                match mgr.find_system_java_pub(major) {
+                    Ok(p) => {
+                        let vs = get_version_string(&p);
+                        let path_str = p.to_string_lossy().to_string();
+                        (Some(path_str), vs, true)
+                    }
+                    Err(_) => (None, None, false),
                 }
-                Err(_) => (None, None, false),
-            }
-        };
+            };
 
-        runtimes.push(JavaInstallStatus {
-            major,
-            installed: found_path.is_some(),
-            path: found_path,
-            version_string,
-            is_system,
-        });
-    }
+            runtimes.push(JavaInstallStatus {
+                major,
+                installed: found_path.is_some(),
+                path: found_path,
+                version_string,
+                is_system,
+            });
+        }
 
-    Ok(JavaScanResult { runtimes })
+        Ok(JavaScanResult { runtimes })
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]

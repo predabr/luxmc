@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
     import { focusTrap } from "$lib/utils/focusTrap";
 	import { Box, Check, Download, X, Cpu } from "lucide-svelte";
 	import { fade, scale } from "svelte/transition";
@@ -25,13 +26,13 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="fixed inset-0 z-[999999] bg-bg-overlay/80 backdrop-blur-sm flex items-center justify-center p-6"
-	transition:fade={{ duration: 150 }}
+	transition:fade={{ easing: quintOut, duration: 220 }}
 	onclick={onClose}
 >
 	<div
 		role="dialog" aria-modal="true" aria-label="Escolha a instância" tabindex="-1" use:focusTrap
         class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5"
-		transition:scale={{ start: 0.95, duration: 150 }}
+		transition:scale={{ easing: backOut, start: 0.95, duration: 220 }}
 		onclick={(e) => e.stopPropagation()}
         onkeydown={(event) => { if (event.key === "Escape") { event.stopPropagation(); onClose(); } }}
 	>
@@ -57,7 +58,7 @@
 		<div class="flex items-center gap-3 bg-bg-elevated p-3 rounded-2xl border border-fg/5">
 			<div class="w-10 h-10 rounded-xl bg-bg-subtle border border-fg/10 overflow-hidden shrink-0 flex items-center justify-center">
 				{#if item.iconUrl}
-					<img
+					<img loading="lazy" decoding="async"
 						src={item.iconUrl}
 						alt={item.title}
 						class="w-full h-full object-contain p-0.5"
@@ -77,12 +78,12 @@
 			{#each profiles.list as p}
 				<button
 					type="button"
-					class="w-full text-left p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 {chosenInstanceId === p.id ? 'bg-brand-500/15 border-brand-500 shadow-sm' : 'bg-bg-elevated border-fg/5 hover:border-fg/20'}"
+					class="w-full text-left p-3 rounded-2xl border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-between gap-3 {chosenInstanceId === p.id ? 'bg-brand-500/15 border-brand-500 shadow-sm' : 'bg-bg-elevated border-fg/5 hover:border-fg/20'}"
 					onclick={() => chosenInstanceId = p.id}
 				>
 					<div class="flex items-center gap-3 min-w-0">
 						<div class="w-9 h-9 rounded-xl bg-fg/5 border border-fg/10 flex items-center justify-center overflow-hidden shrink-0">
-							<img
+							<img loading="lazy" decoding="async"
 								src={getIconSrc(p.icon)}
 								alt={p.name}
 								class="w-full h-full object-contain p-0.5"
@@ -115,14 +116,14 @@
 		<div class="flex items-center justify-end gap-3 pt-2">
 			<button
 				type="button"
-				class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/70 hover:text-fg text-xs font-semibold transition-all cursor-pointer"
+				class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/70 hover:text-fg text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 				onclick={onClose}
 			>
 				Cancelar
 			</button>
 			<button
 				type="button"
-				class="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-500 text-fg font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 shadow-md shadow-elevated"
+				class="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-500 text-fg font-extrabold text-xs flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] disabled:opacity-50 shadow-md shadow-elevated"
 				disabled={!chosenInstanceId}
 				onclick={onConfirm}
 			>

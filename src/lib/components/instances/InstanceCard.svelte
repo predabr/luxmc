@@ -32,6 +32,7 @@
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { getIconSrc as defaultGetIconSrc } from "$lib/utils/icons";
 	import { resolveProfileBanner } from "$lib/utils/curatedBanners";
+	import { startTicker, stopTicker, tickerNow } from "$lib/stores/ticker.svelte";
 
 	const { t } = useTranslation();
 
@@ -104,15 +105,14 @@
 		});
 	}
 
-    let now = $state(Date.now());
-    onMount(() => { const timer = setInterval(() => now = Date.now(), 60000); return () => clearInterval(timer); });
+    onMount(() => { startTicker(); return () => stopTicker(); });
     const isRunningThis = $derived(appState.isGameRunning && appState.activeGameDetails?.profileId === profile.id);
     const isLaunchingThis = $derived(
         launchingInstanceId === profile.id ||
         (appState.isLaunching && (appState.launchingProfileId === profile.id || appState.activeGameDetails?.profileId === profile.id))
     );
     const isOpening = $derived(navigatingInstanceId === profile.id);
-    const lastPlayed = $derived.by(() => { now; return isRunningThis ? "Em execução agora" : (profile.lastPlayed ? formatTimeAgo(profile.lastPlayed) : 'Ainda não jogada'); });
+    const lastPlayed = $derived.by(() => { tickerNow(); return isRunningThis ? "Em execução agora" : (profile.lastPlayed ? formatTimeAgo(profile.lastPlayed) : 'Ainda não jogada'); });
     const minutes = $derived(gamingStats.profileMinutes(profile.id));
     const playtime = $derived(minutes <= 0 ? (isRunningThis ? '< 1 min' : '0 min') : (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`));
     const banner = $derived(bannerFailed ? '/bg_day.jpg' : resolveProfileBanner(profile));
@@ -180,6 +180,7 @@
                     alt={profile.name}
                     class="absolute bottom-2 left-4 z-10 h-12 w-12 rounded-xl border border-fg/15 bg-bg-elevated/90 p-1 object-contain shadow-elevated"
                     loading="lazy"
+                    decoding="async"
                     onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
                 />
             {/if}
@@ -190,6 +191,8 @@
             src={resolvedIcon}
             alt={profile.name}
             class="h-12 w-12 rounded-xl border border-fg/10 bg-bg-elevated/90 p-1 object-contain shrink-0"
+            loading="lazy"
+            decoding="async"
             onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
         />
     {/if}

@@ -25,7 +25,7 @@
 	};
 </script>
 
-<span class={`inline-flex items-center gap-2 rounded-full font-medium ${variantClasses[variant]} ${sizeClasses[size]} transition-all`}>
+<span class={`inline-flex items-center gap-2 rounded-full font-medium ${variantClasses[variant]} ${sizeClasses[size]} transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]`}>
 	{label}
 	{#if closable}
 		<button onclick={onClose} class="ml-1 hover:opacity-70">×</button>

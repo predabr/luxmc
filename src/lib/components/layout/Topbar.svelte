@@ -51,7 +51,7 @@
 				onclick={() => {
 					updaterStore.showModal = true;
 				}}
-				class="flex h-9 items-center gap-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 animate-pulse shadow-sm cursor-pointer active:scale-95"
+				class="flex h-9 items-center gap-2 px-3 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-400 animate-pulse shadow-sm cursor-pointer active:scale-95"
 				title={`Nova versão v${updaterStore.latestVersion} disponível. Clique para atualizar!`}
 			>
 				<Sparkles class="h-3.5 w-3.5 text-emerald-300" />
@@ -61,7 +61,7 @@
 
 		<button
 			onclick={togglePerformance}
-			class="flex h-9 items-center gap-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 border"
+			class="flex h-9 items-center gap-2 px-3 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 border"
 			style={appState.performanceMode ? "background: rgb(var(--danger) / 0.15); border-color: rgb(var(--danger) / 0.3); color: rgb(var(--danger));" : "background: rgb(var(--fg) / 0.05); border-color: transparent; color: rgb(var(--fg) / 0.6);"}
 			title="Toggle Performance Mode"
 		>
@@ -77,7 +77,7 @@
 		<button
 			type="button"
 			onclick={() => { void openPortal().catch(error => toast(String(error), "error")); }}
-			class="flex h-9 items-center gap-1.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 bg-fg/5 hover:bg-fg/10 hover:border-emerald-500/30 border border-fg/5 text-fg/80 hover:text-fg cursor-pointer active:scale-[0.98] shadow-sm"
+			class="flex h-9 items-center gap-1.5 px-3 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 bg-fg/5 hover:bg-fg/10 hover:border-emerald-500/30 border border-fg/5 text-fg/80 hover:text-fg cursor-pointer active:scale-[0.98] shadow-sm"
 			title="Abrir Portal Web & Studio 3D (luxmc-r92.pages.dev)"
 		>
 			<Globe class="h-3.5 w-3.5 text-emerald-400" />
@@ -89,7 +89,7 @@
 
 		<button
 			onclick={toggleLanguage}
-			class="flex h-9 items-center gap-1.5 px-2.5 rounded-lg text-xs font-bold transition-all duration-200 hover:bg-fg/10 text-fg/60 hover:text-fg"
+			class="flex h-9 items-center gap-1.5 px-2.5 rounded-lg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 hover:bg-fg/10 text-fg/60 hover:text-fg"
 			title={settings.value.language === "en" ? "English" : settings.value.language === "es" ? "Español" : "Português"}
 		>
 			<Globe class="h-4 w-4" />
@@ -98,7 +98,7 @@
 
 		<button
 			onclick={cycleTheme}
-			class="flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-200 hover:bg-fg/10 text-fg/60 hover:text-fg"
+			class="flex h-9 w-9 items-center justify-center rounded-lg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 hover:bg-fg/10 text-fg/60 hover:text-fg"
 		>
 			{#if settings.value.theme === "default-dark"}
 				<Moon class="h-4 w-4" />

@@ -1,3 +1,9 @@
+const SCROLL_IDLE_MS = 80;
+const LERP_FACTOR = 0.18;
+const STEP_MULTIPLIER = 1.8;
+const MAX_STEP = 320;
+const STOP_THRESHOLD = 0.5;
+
 export function initSmoothScroll(): () => void {
 	if (typeof window === "undefined") return () => {};
 
@@ -7,49 +13,54 @@ export function initSmoothScroll(): () => void {
 	let currentScroll = 0;
 	let targetScroll = 0;
 
-	function findScrollable(start: HTMLElement | null): HTMLElement | null {
-		let el: HTMLElement | null = start;
-		while (el && el !== document.body && el !== document.documentElement) {
-			const style = window.getComputedStyle(el);
-			const overflowY = style.overflowY;
-			if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight + 2) {
-				return el;
-			}
-			el = el.parentElement;
+	function markScrolling() {
+		document.body.classList.add("is-scrolling");
+		if (isScrollingTimer) clearTimeout(isScrollingTimer);
+		isScrollingTimer = setTimeout(() => {
+			document.body.classList.remove("is-scrolling");
+		}, SCROLL_IDLE_MS);
+	}
+
+	function hasRoom(el: HTMLElement) {
+		return el.scrollHeight - el.clientHeight > 2;
+	}
+
+	function findScrollable(start: EventTarget | null): HTMLElement | null {
+		if (!(start instanceof Element)) {
+			const fallback = document.querySelector<HTMLElement>("main");
+			return fallback && hasRoom(fallback) ? fallback : document.documentElement;
 		}
-		const main = document.querySelector("main");
-		if (main && main.scrollHeight > main.clientHeight + 2) return main as HTMLElement;
+
+		const dialog = start.closest<HTMLElement>("[role='dialog'], [data-no-page-scroll]");
+		if (dialog) {
+			const inner = start.closest<HTMLElement>("[data-scroll-root], .custom-scrollbar");
+			return inner && dialog.contains(inner) && hasRoom(inner) ? inner : null;
+		}
+
+		const explicit = start.closest<HTMLElement>("[data-scroll-root], .custom-scrollbar");
+		if (explicit && hasRoom(explicit)) return explicit;
+		const main = document.querySelector<HTMLElement>("main");
+		if (main && hasRoom(main)) return main;
 		return document.documentElement;
 	}
 
 	function onWheel(e: WheelEvent) {
-		// Ignore zoom (Ctrl/Cmd + wheel) or horizontal scrolls
+		if (e.defaultPrevented) return;
 		if (e.ctrlKey || e.metaKey || e.altKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+		if (Math.abs(e.deltaY) < 0.01) return;
 
-		// Precision trackpads emit continuous tiny fractional deltas (< 10) or non-standard steps.
-		// Mouse wheels on Linux/Windows emit discrete notches (usually >= 30 or deltaMode != 0).
-		const isTrackpad = Math.abs(e.deltaY) < 12 && Number.isInteger(e.deltaY) === false;
-		if (isTrackpad) return;
-
-		const target = findScrollable(e.target as HTMLElement);
+		const target = findScrollable(e.target);
 		if (!target) return;
 
 		const maxScroll = target.scrollHeight - target.clientHeight;
 		if (maxScroll <= 0) return;
 
-		// Don't intercept if already at bounds and trying to scroll further
 		if ((target.scrollTop <= 0 && e.deltaY < 0) || (target.scrollTop >= maxScroll && e.deltaY > 0)) {
 			return;
 		}
 
 		e.preventDefault();
-
-		// Disable pointer-events while scrolling to prevent expensive :hover / transition storms
-		document.body.classList.add("is-scrolling");
-		if (isScrollingTimer) clearTimeout(isScrollingTimer);
-		isScrollingTimer = setTimeout(() => {
-			document.body.classList.remove("is-scrolling");
-		}, 100);
+		markScrolling();
 
 		if (activeElement !== target) {
 			activeElement = target;
@@ -57,14 +68,12 @@ export function initSmoothScroll(): () => void {
 			targetScroll = target.scrollTop;
 		}
 
-		// Calculate delta
 		let delta = e.deltaY;
-		if (e.deltaMode === 1) delta *= 30; // lines
-		else if (e.deltaMode === 2) delta *= target.clientHeight; // pages
+		if (e.deltaMode === 1) delta *= 40;
+		else if (e.deltaMode === 2) delta *= target.clientHeight * 0.9;
 
-		// Dampen huge wheel bursts, then scale for comfortable travel
-		const step = Math.sign(delta) * Math.min(Math.abs(delta), 140);
-		targetScroll = Math.max(0, Math.min(maxScroll, targetScroll + step * 1.1));
+		const step = Math.max(-MAX_STEP, Math.min(MAX_STEP, delta * STEP_MULTIPLIER));
+		targetScroll = Math.max(0, Math.min(maxScroll, targetScroll + step));
 
 		if (animId === null) {
 			const tick = () => {
@@ -74,15 +83,14 @@ export function initSmoothScroll(): () => void {
 				}
 
 				const diff = targetScroll - currentScroll;
-				if (Math.abs(diff) < 0.6) {
+				if (Math.abs(diff) < STOP_THRESHOLD) {
 					currentScroll = targetScroll;
 					activeElement.scrollTop = currentScroll;
 					animId = null;
 					return;
 				}
 
-				// Silky smooth responsive lerp (0.2 gives snappy 60fps response with zero lag)
-				currentScroll += diff * 0.2;
+				currentScroll += diff * LERP_FACTOR;
 				activeElement.scrollTop = currentScroll;
 				animId = requestAnimationFrame(tick);
 			};

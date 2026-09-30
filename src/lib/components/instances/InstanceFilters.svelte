@@ -52,7 +52,7 @@
 		<Search class="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg/40" />
 		<input
 			bind:this={searchInput}
-			class="h-10 w-full rounded-full pl-10 pr-4 text-xs font-bold outline-none placeholder:text-fg/30 bg-bg-elevated border border-fg/10 focus:border-brand-500 text-fg transition-all"
+			class="h-10 w-full rounded-full pl-10 pr-4 text-xs font-bold outline-none placeholder:text-fg/30 bg-bg-elevated border border-fg/10 focus:border-brand-500 text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
 			placeholder={t("instances.searchPlaceholder")}
 			bind:value={searchQuery}
 			oninput={() => onSearchChange?.(searchQuery)}
@@ -90,14 +90,14 @@
 
 	<div class="flex items-center gap-1 p-1 bg-bg-elevated border border-fg/10 rounded-full h-10">
 		<button
-			class="grid h-8 w-8 place-items-center rounded-full transition-all cursor-pointer {viewMode === 'grid' ? 'bg-fg/10 text-brand-500 shadow-sm' : 'text-fg/40 hover:text-fg'}"
+			class="grid h-8 w-8 place-items-center rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {viewMode === 'grid' ? 'bg-fg/10 text-brand-500 shadow-sm' : 'text-fg/40 hover:text-fg'}"
 			onclick={() => { viewMode = "grid"; onViewChange?.("grid"); }}
 			aria-label={t("instances.gridView")}
 		>
 			<LayoutGrid class="h-3.5 w-3.5" />
 		</button>
 		<button
-			class="grid h-8 w-8 place-items-center rounded-full transition-all cursor-pointer {viewMode === 'list' ? 'bg-fg/10 text-brand-500 shadow-sm' : 'text-fg/40 hover:text-fg'}"
+			class="grid h-8 w-8 place-items-center rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {viewMode === 'list' ? 'bg-fg/10 text-brand-500 shadow-sm' : 'text-fg/40 hover:text-fg'}"
 			onclick={() => { viewMode = "list"; onViewChange?.("list"); }}
 			aria-label={t("instances.listView")}
 		>

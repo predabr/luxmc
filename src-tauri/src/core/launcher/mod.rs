@@ -1415,76 +1415,87 @@ pub async fn extract_natives(
 
     let os_name = platform_mojang_name(current_platform());
 
-    for lib in &detail.libraries {
-        if !is_library_allowed(lib) {
-            continue;
-        }
+    tokio::task::block_in_place(|| {
+        for lib in &detail.libraries {
+            if !is_library_allowed(lib) {
+                continue;
+            }
 
-        let mut candidate_paths = Vec::new();
+            let mut candidate_paths = Vec::new();
 
-        if lib.name.contains(&format!("natives-{}", os_name)) {
-            candidate_paths.push(lib_path_from_name(&base, &lib.name));
-        }
+            if lib.name.contains(&format!("natives-{}", os_name)) {
+                candidate_paths.push(lib_path_from_name(&base, &lib.name));
+            }
 
-        if let Some(ref downloads) = lib.downloads {
-            if let Some(ref classifiers) = downloads.classifiers {
-                for (classifier_key, _) in classifiers {
-                    let matches_os = match os_name {
-                        "windows" => classifier_key.starts_with("natives-windows"),
-                        "linux" => classifier_key.starts_with("natives-linux"),
-                        "osx" => classifier_key.starts_with("natives-osx") || classifier_key.starts_with("natives-macos"),
-                        _ => false,
-                    };
-                    if matches_os {
-                        let native_lib_name = format!("{}:{}", lib.name, classifier_key);
-                        candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
+            if let Some(ref downloads) = lib.downloads {
+                if let Some(ref classifiers) = downloads.classifiers {
+                    for (classifier_key, _) in classifiers {
+                        let matches_os = match os_name {
+                            "windows" => classifier_key.starts_with("natives-windows"),
+                            "linux" => classifier_key.starts_with("natives-linux"),
+                            "osx" => {
+                                classifier_key.starts_with("natives-osx")
+                                    || classifier_key.starts_with("natives-macos")
+                            }
+                            _ => false,
+                        };
+                        if matches_os {
+                            let native_lib_name = format!("{}:{}", lib.name, classifier_key);
+                            candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
+                        }
                     }
                 }
             }
-        }
 
-        if let Some(ref natives_map) = lib.natives {
-            if let Some(native_key) = natives_map.get(os_name) {
-                let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
-                let native_key = native_key.replace("${arch}", arch);
-                let native_lib_name = format!("{}:{}", lib.name, native_key);
-                candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
+            if let Some(ref natives_map) = lib.natives {
+                if let Some(native_key) = natives_map.get(os_name) {
+                    let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
+                    let native_key = native_key.replace("${arch}", arch);
+                    let native_lib_name = format!("{}:{}", lib.name, native_key);
+                    candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
+                }
             }
-        }
 
-        for path in candidate_paths {
-            if path.exists() {
-                if let Ok(file) = std::fs::File::open(&path) {
-                    if let Ok(mut archive) = zip::ZipArchive::new(file) {
-                        for i in 0..archive.len() {
-                            if let Ok(mut file) = archive.by_index(i) {
-                                if file.is_dir() {
-                                    continue;
-                                }
-                                let enclosed = match file.enclosed_name() {
-                                    Some(name) => name.to_path_buf(),
-                                    None => continue,
-                                };
-                                if enclosed.starts_with("META-INF") {
-                                    continue;
-                                }
-                                if let Some(file_name) = enclosed.file_name() {
-                                    let outpath = natives_dir.join(file_name);
-                                    if let Ok(mut outfile) = std::fs::File::create(&outpath) {
-                                        let _ = std::io::copy(&mut file, &mut outfile);
+            for path in candidate_paths {
+                if path.exists() {
+                    if let Ok(file) = std::fs::File::open(&path) {
+                        if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                            for i in 0..archive.len() {
+                                if let Ok(mut file) = archive.by_index(i) {
+                                    if file.is_dir() {
+                                        continue;
+                                    }
+                                    let enclosed = match file.enclosed_name() {
+                                        Some(name) => name.to_path_buf(),
+                                        None => continue,
+                                    };
+                                    if enclosed.starts_with("META-INF") {
+                                        continue;
+                                    }
+                                    if let Some(file_name) = enclosed.file_name() {
+                                        let outpath = natives_dir.join(file_name);
+                                        if let Ok(mut outfile) = std::fs::File::create(&outpath) {
+                                            let _ = std::io::copy(&mut file, &mut outfile);
+                                        }
                                     }
                                 }
                             }
+                        } else {
+                            log(&format!(
+                                "Failed to open native zip archive: {}",
+                                path.display()
+                            ));
                         }
                     } else {
-                        log(&format!("Failed to open native zip archive: {}", path.display()));
+                        log(&format!(
+                            "Failed to open native jar file: {}",
+                            path.display()
+                        ));
                     }
-                } else {
-                    log(&format!("Failed to open native jar file: {}", path.display()));
                 }
             }
         }
-    }
+    });
 
     if cfg!(target_os = "linux") {
         match ensure_flite_library(&natives_dir).await {
@@ -1496,71 +1507,75 @@ pub async fn extract_natives(
         }
     }
 
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        if let Ok(entries) = std::fs::read_dir(&natives_dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.is_file() {
-                    let is_lib = p.extension()
-                        .map(|ext| ext == "so" || ext == "dylib")
-                        .unwrap_or(false);
-                    if is_lib {
-                        let _ = std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755));
+    tokio::task::block_in_place(|| {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            if let Ok(entries) = std::fs::read_dir(&natives_dir) {
+                for entry in entries.flatten() {
+                    let p = entry.path();
+                    if p.is_file() {
+                        let is_lib = p
+                            .extension()
+                            .map(|ext| ext == "so" || ext == "dylib")
+                            .unwrap_or(false);
+                        if is_lib {
+                            let _ =
+                                std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755));
+                        }
                     }
                 }
             }
         }
-    }
 
-    #[cfg(target_os = "linux")]
-    {
-        let candidate_glfw_paths = [
-            "/usr/lib/libglfw.so",
-            "/usr/lib/libglfw.so.3",
-            "/usr/lib64/libglfw.so",
-            "/usr/lib64/libglfw.so.3",
-            "/usr/lib/x86_64-linux-gnu/libglfw.so",
-            "/usr/lib/x86_64-linux-gnu/libglfw.so.3",
-        ];
-        for path in candidate_glfw_paths {
-            let p = std::path::Path::new(path);
-            if p.exists() {
-                let target = natives_dir.join("libglfw.so");
-                let _ = std::fs::remove_file(&target);
-                #[cfg(unix)]
-                if std::os::unix::fs::symlink(p, &target).is_err() {
+        #[cfg(target_os = "linux")]
+        {
+            let candidate_glfw_paths = [
+                "/usr/lib/libglfw.so",
+                "/usr/lib/libglfw.so.3",
+                "/usr/lib64/libglfw.so",
+                "/usr/lib64/libglfw.so.3",
+                "/usr/lib/x86_64-linux-gnu/libglfw.so",
+                "/usr/lib/x86_64-linux-gnu/libglfw.so.3",
+            ];
+            for path in candidate_glfw_paths {
+                let p = std::path::Path::new(path);
+                if p.exists() {
+                    let target = natives_dir.join("libglfw.so");
+                    let _ = std::fs::remove_file(&target);
+                    #[cfg(unix)]
+                    if std::os::unix::fs::symlink(p, &target).is_err() {
+                        let _ = std::fs::copy(p, &target);
+                    }
+                    #[cfg(not(unix))]
                     let _ = std::fs::copy(p, &target);
+                    log(&format!("Using system GLFW library: {}", path));
+                    break;
                 }
-                #[cfg(not(unix))]
-                let _ = std::fs::copy(p, &target);
-                log(&format!("Using system GLFW library: {}", path));
-                break;
             }
         }
-    }
 
-    let native_count = std::fs::read_dir(&natives_dir)
-        .map(|rd| {
-            rd.filter(|e| {
-                e.as_ref()
-                    .map(|f| {
-                        f.path()
-                            .extension()
-                            .map(|ext| ext == "so" || ext == "dll" || ext == "dylib")
-                            .unwrap_or(false)
-                    })
-                    .unwrap_or(false)
+        let native_count = std::fs::read_dir(&natives_dir)
+            .map(|rd| {
+                rd.filter(|e| {
+                    e.as_ref()
+                        .map(|f| {
+                            f.path()
+                                .extension()
+                                .map(|ext| ext == "so" || ext == "dll" || ext == "dylib")
+                                .unwrap_or(false)
+                        })
+                        .unwrap_or(false)
+                })
+                .count()
             })
-            .count()
-        })
-        .unwrap_or(0);
-    log(&format!(
-        "Extracted {} native libraries to {}",
-        native_count,
-        natives_dir.display()
-    ));
+            .unwrap_or(0);
+        log(&format!(
+            "Extracted {} native libraries to {}",
+            native_count,
+            natives_dir.display()
+        ));
+    });
 
     Ok(natives_dir)
 }
@@ -2910,43 +2925,55 @@ async fn inject_player_skin(
         return Err(AppError::InvalidInput("A capa selecionada não pôde ser carregada. Selecione um PNG local antes de jogar.".into()));
     }
     if !cape_bytes.is_empty() {
-        let (normalized_cape_bytes, optifine_cape_bytes) = if let Ok(dyn_cape) = image::load_from_memory(&cape_bytes) {
-            use image::GenericImageView;
-            let (cw, ch) = dyn_cape.dimensions();
-            let cape_rgba = dyn_cape.to_rgba8();
+        let cape_source_bytes = cape_bytes;
+        let (normalized_cape_bytes, optifine_cape_bytes) = tokio::task::spawn_blocking(
+            move || -> AppResult<(Vec<u8>, Vec<u8>)> {
+                if let Ok(dyn_cape) = image::load_from_memory(&cape_source_bytes) {
+                    use image::GenericImageView;
+                    let (cw, ch) = dyn_cape.dimensions();
+                    let cape_rgba = dyn_cape.to_rgba8();
 
-            let (full_img, opti_img) = if (cw == 22 && ch == 17) || (cw == 44 && ch == 34) {
-                let scale = if cw == 22 { 1 } else { 2 };
-                let mut canvas = image::RgbaImage::new(64 * scale, 32 * scale);
-                image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
-                let opti = canvas.clone();
-                (canvas, opti)
-            } else if cw == ch * 2 {
-                (cape_rgba.clone(), cape_rgba)
-            } else {
-                format_custom_cape_texture(&cape_rgba, cw, ch)
-            };
+                    let (full_img, opti_img) = if (cw == 22 && ch == 17) || (cw == 44 && ch == 34)
+                    {
+                        let scale = if cw == 22 { 1 } else { 2 };
+                        let mut canvas = image::RgbaImage::new(64 * scale, 32 * scale);
+                        image::imageops::overlay(&mut canvas, &cape_rgba, 0, 0);
+                        let opti = canvas.clone();
+                        (canvas, opti)
+                    } else if cw == ch * 2 {
+                        (cape_rgba.clone(), cape_rgba)
+                    } else {
+                        format_custom_cape_texture(&cape_rgba, cw, ch)
+                    };
 
-            let mut full_buf = Vec::new();
-            let mut cursor = std::io::Cursor::new(&mut full_buf);
-            let full_bytes = if full_img.write_to(&mut cursor, image::ImageFormat::Png).is_ok() {
-                full_buf
-            } else {
-                cape_bytes.clone()
-            };
+                    let mut full_buf = Vec::new();
+                    let mut cursor = std::io::Cursor::new(&mut full_buf);
+                    let full_bytes = if full_img.write_to(&mut cursor, image::ImageFormat::Png).is_ok()
+                    {
+                        full_buf
+                    } else {
+                        cape_source_bytes.clone()
+                    };
 
-            let mut opti_buf = Vec::new();
-            let mut opti_cursor = std::io::Cursor::new(&mut opti_buf);
-            let opti_bytes = if opti_img.write_to(&mut opti_cursor, image::ImageFormat::Png).is_ok() {
-                opti_buf
-            } else {
-                full_bytes.clone()
-            };
+                    let mut opti_buf = Vec::new();
+                    let mut opti_cursor = std::io::Cursor::new(&mut opti_buf);
+                    let opti_bytes = if opti_img
+                        .write_to(&mut opti_cursor, image::ImageFormat::Png)
+                        .is_ok()
+                    {
+                        opti_buf
+                    } else {
+                        full_bytes.clone()
+                    };
 
-            (full_bytes, opti_bytes)
-        } else {
-            (cape_bytes.clone(), cape_bytes)
-        };
+                    Ok((full_bytes, opti_bytes))
+                } else {
+                    Ok((cape_source_bytes.clone(), cape_source_bytes))
+                }
+            },
+        )
+        .await
+        .map_err(|error| AppError::Internal(error.to_string()))??;
 
         set_active_cape_bytes(normalized_cape_bytes.clone()).await;
 

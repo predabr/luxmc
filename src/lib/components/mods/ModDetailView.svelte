@@ -65,7 +65,7 @@
 	<div class="flex items-center justify-between shrink-0">
 		<button
 			type="button"
-			class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/10 text-xs font-bold transition-all shadow-sm cursor-pointer active:scale-[0.98] shrink-0"
+			class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/10 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm cursor-pointer active:scale-[0.98] shrink-0"
 			onclick={onBack}
 		>
 			<ArrowLeft class="w-4 h-4" />
@@ -85,7 +85,7 @@
 			<div class="flex items-start sm:items-center gap-5 min-w-0 flex-1">
 				<div class="w-20 h-20 shrink-0 rounded-2xl bg-bg-subtle border border-fg/15 p-1 overflow-hidden shadow-2xl flex items-center justify-center">
 					{#if details?.iconUrl || item.iconUrl || item.bannerUrl}
-						<img
+						<img loading="lazy" decoding="async"
 							src={details?.iconUrl || item.iconUrl || item.bannerUrl || ""}
 							alt={item.title}
 							class="w-full h-full object-contain p-0.5 rounded-xl"
@@ -118,7 +118,7 @@
 			<div class="shrink-0 flex items-center gap-3 w-full lg:w-auto justify-end mt-2 lg:mt-0">
 				<button
 					type="button"
-					class="w-full lg:w-auto bg-gradient-to-r from-brand-400 to-brand-400 hover:from-brand-400 hover:to-brand-400 text-brand-foreground font-extrabold text-xs px-7 py-3.5 rounded-2xl flex items-center justify-center gap-2.5 shadow-elevated transition-all cursor-pointer active:scale-[0.98] disabled:opacity-50 shrink-0 hover:scale-[1.02]"
+					class="w-full lg:w-auto bg-gradient-to-r from-brand-400 to-brand-400 hover:from-brand-400 hover:to-brand-400 text-brand-foreground font-extrabold text-xs px-7 py-3.5 rounded-2xl flex items-center justify-center gap-2.5 shadow-elevated transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] disabled:opacity-50 shrink-0 hover:scale-[1.02]"
 					onclick={onInstall}
 					disabled={isInstalling || isInstalled}
 				>
@@ -148,7 +148,7 @@
 			] as const as tab}
 				<button
 					type="button"
-					class="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 {activeTab === tab.key ? 'bg-brand-400 text-brand-foreground font-black shadow-md' : 'text-fg/60 hover:text-fg'}"
+					class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-2 {activeTab === tab.key ? 'bg-brand-400 text-brand-foreground font-black shadow-md' : 'text-fg/60 hover:text-fg'}"
 					onclick={() => activeTab = tab.key}
 				>
 					<tab.icon class="w-3.5 h-3.5" />
@@ -159,7 +159,7 @@
 		<div class="flex items-center gap-2 flex-wrap text-xs font-bold">
 			<button
 				type="button"
-				class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all cursor-pointer"
+				class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 				onclick={onOpenGuide}
 			>
 				<HelpCircle class="w-3.5 h-3.5 text-brand-400" />
@@ -170,7 +170,7 @@
 					href={details.discordUrl}
 					target="_blank"
 					rel="noopener noreferrer"
-					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all cursor-pointer"
+					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 					onclick={(e) => { e.preventDefault(); if (details?.discordUrl) void openUrl(details.discordUrl); }}
 				>
 					<MessageSquare class="w-3.5 h-3.5 text-indigo-400" />
@@ -182,7 +182,7 @@
 					href={details.sourceUrl}
 					target="_blank"
 					rel="noopener noreferrer"
-					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all cursor-pointer"
+					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 					onclick={(e) => { e.preventDefault(); if (details?.sourceUrl) void openUrl(details.sourceUrl); }}
 				>
 					<Globe class="w-3.5 h-3.5 text-emerald-400" />
@@ -194,7 +194,7 @@
 					href={details.donationUrl}
 					target="_blank"
 					rel="noopener noreferrer"
-					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-all cursor-pointer"
+					class="px-3 py-1.5 rounded-xl bg-bg-subtle hover:bg-bg-subtle text-fg/70 hover:text-fg border border-fg/5 flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 					onclick={(e) => { e.preventDefault(); if (details?.donationUrl) void openUrl(details.donationUrl); }}
 				>
 					<Heart class="w-3.5 h-3.5 text-rose-400" />
@@ -222,7 +222,7 @@
 						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-widest block mb-2">AUTOR</span>
 						<div class="flex items-center gap-3 bg-bg-elevated p-3 rounded-2xl border border-fg/5">
 							{#if details.author.avatarUrl}
-								<img
+								<img loading="lazy" decoding="async"
 									src={details.author.avatarUrl}
 									alt={details.author.name}
 									class="w-10 h-10 rounded-full object-cover border border-fg/10 shrink-0"

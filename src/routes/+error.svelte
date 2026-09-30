@@ -20,7 +20,7 @@
 		<button
 			type="button"
 			onclick={() => window.location.reload()}
-			class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black transition-all cursor-pointer shadow-lg shadow-brand-500/20 active:scale-[0.98]"
+			class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-lg shadow-brand-500/20 active:scale-[0.98]"
 		>
 			<RotateCcw class="w-3.5 h-3.5" />
 			<span>Recarregar aplicativo</span>
@@ -28,7 +28,7 @@
 		<button
 			type="button"
 			onclick={() => goto("/")}
-			class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold transition-all cursor-pointer border border-fg/10 active:scale-[0.98]"
+			class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border border-fg/10 active:scale-[0.98]"
 		>
 			<Home class="w-3.5 h-3.5" />
 			<span>Ir para o Início</span>

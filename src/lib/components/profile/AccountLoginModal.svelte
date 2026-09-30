@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
     import LuxAccountForm from "./LuxAccountForm.svelte";
 	import { fade, scale } from "svelte/transition";
 	import { 
@@ -112,8 +113,8 @@
 	<!-- svelte-ignore a11y_click_events_have_key_events -->
 	<div 
 		class="fixed inset-0 z-[10001] flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md p-4 select-none"
-		in:fade={{ duration: 150 }}
-		out:fade={{ duration: 120 }}
+		in:fade={{ easing: quintOut, duration: 220 }}
+		out:fade={{ easing: quintOut, duration: 180 }}
 		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
 		role="dialog"
 		aria-modal="true"
@@ -121,8 +122,8 @@
 	>
 		<div 
 			class="w-full max-w-md rounded-3xl bg-bg-elevated border border-fg/10 shadow-2xl overflow-hidden flex flex-col"
-			in:scale={{ start: 0.95, duration: 180 }}
-			out:scale={{ start: 0.95, duration: 120 }}
+			in:scale={{ easing: backOut, start: 0.95, duration: 240 }}
+			out:scale={{ easing: backOut, start: 0.95, duration: 180 }}
 		>
 			<!-- Header -->
 			<div class="p-5 border-b border-fg/5 bg-bg-elevated flex items-center justify-between">
@@ -150,7 +151,7 @@
                     <button type="button" class="rounded-xl px-3 py-2 text-xs font-bold {tab === 'luxmc' ? 'bg-brand-500 text-brand-foreground' : 'text-fg-muted'}" onclick={() => tab = "luxmc"}>Luxmc</button>
 					<button 
 						type="button"
-						class="py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {tab === 'offline' ? 'bg-brand-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+						class="py-2 px-3 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-2 {tab === 'offline' ? 'bg-brand-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 						onclick={() => { tab = 'offline'; errorMsg = null; }}
 					>
 						<User class="w-3.5 h-3.5" />
@@ -158,7 +159,7 @@
 					</button>
 					<button 
 						type="button"
-						class="py-2 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {tab === 'microsoft' ? 'bg-emerald-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+						class="py-2 px-3 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-2 {tab === 'microsoft' ? 'bg-emerald-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 						onclick={() => { tab = 'microsoft'; errorMsg = null; }}
 					>
 						<MicrosoftLogo size={14} />
@@ -180,7 +181,7 @@
 									bind:value={offlineUsername}
 									placeholder="ex: Steve_123, ProMiner"
 									maxlength="16"
-									class="w-full h-11 px-4 rounded-xl bg-bg-subtle border border-fg/10 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-all placeholder:text-fg/30"
+									class="w-full h-11 px-4 rounded-xl bg-bg-subtle border border-fg/10 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] placeholder:text-fg/30"
 								/>
 							</div>
 							<p class="text-[10px] text-fg/40">Perfil local, sem sincronização com o site.</p>
@@ -196,7 +197,7 @@
 						<button 
 							type="submit"
 							disabled={isLoggingIn || !offlineUsername.trim()}
-							class="w-full h-11 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-brand-foreground font-black text-xs transition-all shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+							class="w-full h-11 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-brand-foreground font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
 						>
 							{#if isLoggingIn}
 								<div class="w-4 h-4 rounded-full border-2 border-bg-overlay border-t-transparent animate-spin"></div>
@@ -230,7 +231,7 @@
 							type="button"
 							disabled={isLoggingIn}
 							onclick={handleMicrosoftLogin}
-							class="w-full h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-brand-foreground font-black text-xs transition-all shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+							class="w-full h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-brand-foreground font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
 						>
 							{#if isLoggingIn}
 								<div class="w-4 h-4 rounded-full border-2 border-bg-overlay border-t-transparent animate-spin"></div>

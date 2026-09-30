@@ -119,10 +119,10 @@
 							class="relative h-10 w-10 rounded-xl overflow-hidden flex items-center justify-center transition-all duration-200 active:scale-[0.98] border cursor-pointer {active ? 'ring-2 ring-brand-500 border-transparent shadow-lg scale-105' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08] hover:border-fg/30'}"
 						>
 							{#if iconSrc !== "/grass_block.png"}
-								<img src={iconSrc} alt={prof.name} class="w-full h-full object-cover" onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }} />
+								<img loading="lazy" decoding="async" src={iconSrc} alt={prof.name} class="w-full h-full object-cover" onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }} />
 							{:else}
 								<div class="w-full h-full bg-fg/[0.04] border border-fg/[0.08] flex items-center justify-center">
-									<img src="/grass_block.png" alt={prof.name} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
+									<img loading="lazy" decoding="async" src="/grass_block.png" alt={prof.name} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
 								</div>
 							{/if}
 						</a>
@@ -211,7 +211,7 @@
 			onclick={() => appState.showProfileModal = true}
 		>
 			<div class="h-10 w-10 rounded-full overflow-hidden bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 transition-all duration-200 shadow-sm flex items-center justify-center p-0.5">
-				<img 
+				<img loading="lazy" decoding="async" 
 					src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + (account.value.username || account.value.uuid) + "/100" : "/logo.png")} 
 					alt="Avatar" 
 					class="w-full h-full object-cover rounded-full" 

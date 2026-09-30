@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
     import { focusTrap } from "$lib/utils/focusTrap";
     import { button } from "$lib/components/ui/button";
 	import { PackagePlus, Box, Loader2, X, Cpu } from "lucide-svelte";
@@ -38,13 +39,13 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	class="fixed inset-0 z-[999999] bg-bg-overlay/80 backdrop-blur-sm flex items-center justify-center p-6"
-	transition:fade={{ duration: 150 }}
+	transition:fade={{ easing: quintOut, duration: 220 }}
 	onclick={() => { if (!isInstalling) onClose(); }}
 >
 	<div
 		role="dialog" aria-modal="true" aria-label="Instalar modpack" tabindex="-1" use:focusTrap
         class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5"
-		transition:scale={{ start: 0.95, duration: 150 }}
+		transition:scale={{ easing: backOut, start: 0.95, duration: 220 }}
 		onclick={(e) => e.stopPropagation()}
         onkeydown={(event) => { if (event.key === "Escape" && !isInstalling) { event.stopPropagation(); onClose(); } }}
 	>
@@ -74,7 +75,7 @@
 		<div class="flex items-center gap-3 bg-bg-elevated p-3 rounded-2xl border border-fg/5">
 			<div class="w-12 h-12 rounded-xl bg-bg-subtle border border-fg/10 overflow-hidden shrink-0 flex items-center justify-center">
 				{#if modpack.iconUrl}
-					<img
+					<img loading="lazy" decoding="async"
 						src={modpack.iconUrl}
 						alt={modpack.title}
 						class="w-full h-full object-contain p-0.5"
@@ -107,7 +108,7 @@
 					bind:value={instanceName}
 					placeholder="Ex: Better MC, All the Mods..."
 					disabled={isInstalling}
-					class="w-full bg-bg-elevated border border-fg/10 focus:border-brand-400 rounded-xl px-3.5 py-2.5 text-xs text-fg placeholder-fg/30 focus:outline-none transition-all disabled:opacity-50"
+					class="w-full bg-bg-elevated border border-fg/10 focus:border-brand-400 rounded-xl px-3.5 py-2.5 text-xs text-fg placeholder-fg/30 focus:outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] disabled:opacity-50"
 				/>
 			</div>
 
@@ -142,7 +143,7 @@
 				{#if progressPercent > 0}
 					<div class="w-full h-1.5 bg-fg/10 rounded-full overflow-hidden">
 						<div
-							class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-all duration-300 ease-out"
+							class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 ease-out"
 							style="width: {progressPercent}%"
 						></div>
 					</div>

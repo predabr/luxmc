@@ -30,117 +30,121 @@ pub struct ImportResult {
 
 #[tauri::command]
 pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
-    let mut instances = Vec::new();
-    let home = etcetera::home_dir().unwrap_or_else(|_| PathBuf::from("/"));
+    tokio::task::spawn_blocking(move || -> AppResult<Vec<ExternalInstance>> {
+        let mut instances = Vec::new();
+        let home = etcetera::home_dir().unwrap_or_else(|_| PathBuf::from("/"));
 
-    let prism_dirs = vec![
-        home.join(".local/share/PrismLauncher/instances"),
-        home.join(".var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances"),
-        home.join("AppData/Roaming/PrismLauncher/instances"),
-    ];
+        let prism_dirs = vec![
+            home.join(".local/share/PrismLauncher/instances"),
+            home.join(".var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances"),
+            home.join("AppData/Roaming/PrismLauncher/instances"),
+        ];
 
-    for base in prism_dirs {
-        if base.is_dir() {
-            if let Ok(entries) = std::fs::read_dir(&base) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.is_dir() {
-                        let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
-                        if name.starts_with('.') || name == "_MMC_TEMP" {
-                            continue;
+        for base in prism_dirs {
+            if base.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&base) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_dir() {
+                            let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+                            if name.starts_with('.') || name == "_MMC_TEMP" {
+                                continue;
+                            }
+                            let (mc_version, loader) = parse_prism_instance_cfg(&p);
+                            let mod_count = count_mods_in_dir(&p.join(".minecraft/mods")).max(count_mods_in_dir(&p.join("mods")));
+                            let has_saves = p.join(".minecraft/saves").is_dir() || p.join("saves").is_dir();
+
+                            instances.push(ExternalInstance {
+                                launcher: "Prism Launcher".into(),
+                                name,
+                                path: p.to_string_lossy().to_string(),
+                                mc_version,
+                                loader,
+                                mod_count,
+                                has_saves,
+                            });
                         }
-                        let (mc_version, loader) = parse_prism_instance_cfg(&p);
-                        let mod_count = count_mods_in_dir(&p.join(".minecraft/mods")).max(count_mods_in_dir(&p.join("mods")));
-                        let has_saves = p.join(".minecraft/saves").is_dir() || p.join("saves").is_dir();
-
-                        instances.push(ExternalInstance {
-                            launcher: "Prism Launcher".into(),
-                            name,
-                            path: p.to_string_lossy().to_string(),
-                            mc_version,
-                            loader,
-                            mod_count,
-                            has_saves,
-                        });
                     }
                 }
             }
         }
-    }
 
-    let curseforge_dirs = vec![
-        home.join("curseforge/minecraft/Instances"),
-        home.join(".local/share/curseforge/minecraft/Instances"),
-        home.join("Documents/curseforge/minecraft/Instances"),
-        home.join("curseforge/minecraft/instances"),
-    ];
+        let curseforge_dirs = vec![
+            home.join("curseforge/minecraft/Instances"),
+            home.join(".local/share/curseforge/minecraft/Instances"),
+            home.join("Documents/curseforge/minecraft/Instances"),
+            home.join("curseforge/minecraft/instances"),
+        ];
 
-    for base in curseforge_dirs {
-        if base.is_dir() {
-            if let Ok(entries) = std::fs::read_dir(&base) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.is_dir() {
-                        let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
-                        if name.starts_with('.') {
-                            continue;
+        for base in curseforge_dirs {
+            if base.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&base) {
+                    for entry in entries.flatten() {
+                        let p = entry.path();
+                        if p.is_dir() {
+                            let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+                            if name.starts_with('.') {
+                                continue;
+                            }
+                            let (mc_version, loader) = parse_curseforge_manifest(&p);
+                            let mod_count = count_mods_in_dir(&p.join("mods"));
+                            let has_saves = p.join("saves").is_dir();
+
+                            instances.push(ExternalInstance {
+                                launcher: "CurseForge".into(),
+                                name,
+                                path: p.to_string_lossy().to_string(),
+                                mc_version,
+                                loader,
+                                mod_count,
+                                has_saves,
+                            });
                         }
-                        let (mc_version, loader) = parse_curseforge_manifest(&p);
-                        let mod_count = count_mods_in_dir(&p.join("mods"));
-                        let has_saves = p.join("saves").is_dir();
-
-                        instances.push(ExternalInstance {
-                            launcher: "CurseForge".into(),
-                            name,
-                            path: p.to_string_lossy().to_string(),
-                            mc_version,
-                            loader,
-                            mod_count,
-                            has_saves,
-                        });
                     }
                 }
             }
         }
-    }
 
-    let lunar_dirs = vec![
-        home.join(".lunarclient/offline/multiver"),
-        home.join(".lunarclient/offline"),
-        home.join(".lunarclient"),
-    ];
+        let lunar_dirs = vec![
+            home.join(".lunarclient/offline/multiver"),
+            home.join(".lunarclient/offline"),
+            home.join(".lunarclient"),
+        ];
 
-    for base in lunar_dirs {
-        if base.is_dir() {
-            let saves_dir = home.join(".minecraft/saves");
-            let has_saves = saves_dir.is_dir();
+        for base in lunar_dirs {
+            if base.is_dir() {
+                let saves_dir = home.join(".minecraft/saves");
+                let has_saves = saves_dir.is_dir();
+                instances.push(ExternalInstance {
+                    launcher: "Lunar Client".into(),
+                    name: "Lunar Client (Perfil Padrão)".into(),
+                    path: base.to_string_lossy().to_string(),
+                    mc_version: "1.8.9".into(),
+                    loader: "vanilla".into(),
+                    mod_count: 0,
+                    has_saves,
+                });
+                break;
+            }
+        }
+
+        let badlion_dir = home.join(".badlion");
+        if badlion_dir.is_dir() {
             instances.push(ExternalInstance {
-                launcher: "Lunar Client".into(),
-                name: "Lunar Client (Perfil Padrão)".into(),
-                path: base.to_string_lossy().to_string(),
+                launcher: "Badlion Client".into(),
+                name: "Badlion Client (Instalação Local)".into(),
+                path: badlion_dir.to_string_lossy().to_string(),
                 mc_version: "1.8.9".into(),
                 loader: "vanilla".into(),
                 mod_count: 0,
-                has_saves,
+                has_saves: home.join(".minecraft/saves").is_dir(),
             });
-            break;
         }
-    }
 
-    let badlion_dir = home.join(".badlion");
-    if badlion_dir.is_dir() {
-        instances.push(ExternalInstance {
-            launcher: "Badlion Client".into(),
-            name: "Badlion Client (Instalação Local)".into(),
-            path: badlion_dir.to_string_lossy().to_string(),
-            mc_version: "1.8.9".into(),
-            loader: "vanilla".into(),
-            mod_count: 0,
-            has_saves: home.join(".minecraft/saves").is_dir(),
-        });
-    }
-
-    Ok(instances)
+        Ok(instances)
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]

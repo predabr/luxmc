@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import {
 		AlertTriangle,
@@ -64,8 +65,8 @@
 </script>
 
 {#if isOpen && conflictsResult && conflictsResult.hasConflicts}
-	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/85 backdrop-blur-md select-none" in:fade={{ duration: 150 }}>
-		<div class="w-full max-w-lg rounded-3xl bg-bg-elevated border border-rose-500/30 p-6 shadow-2xl space-y-5" in:scale={{ start: 0.95, duration: 200 }}>
+	<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/85 backdrop-blur-md select-none" in:fade={{ easing: quintOut, duration: 220 }}>
+		<div class="w-full max-w-lg rounded-3xl bg-bg-elevated border border-rose-500/30 p-6 shadow-2xl space-y-5" in:scale={{ easing: backOut, start: 0.95, duration: 260 }}>
 			<!-- Header -->
 			<div class="flex items-center justify-between border-b border-fg/10 pb-4">
 				<div class="flex items-center gap-3">
@@ -105,7 +106,7 @@
 							<span class="text-[10px] font-bold text-emerald-400">{c.recommendedAction}</span>
 							<button
 								type="button"
-								class="px-4 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer active:scale-[0.98] shadow-sm"
+								class="px-4 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] shadow-sm"
 								onclick={() => handleFixConflict(c)}
 								disabled={resolving}
 							>
@@ -135,7 +136,7 @@
 
 				<button
 					type="button"
-					class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-brand-foreground font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-[0.98]"
+					class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-brand-foreground font-black text-xs uppercase tracking-wider transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-[0.98]"
 					onclick={handleFixAll}
 					disabled={resolving}
 				>

@@ -68,7 +68,8 @@ async fn install_legacy_client(
     let file_name = install
         .and_then(|i| i.get("filePath"))
         .and_then(|v| v.as_str())
-        .unwrap_or_default();
+        .unwrap_or_default()
+        .to_string();
 
     let parts: Vec<&str> = coords.split(':').collect();
     let unsafe_coords = parts.len() < 3
@@ -96,17 +97,23 @@ async fn install_legacy_client(
     );
     let universal_dest = libraries_dir.join(&universal_rel);
     if !universal_dest.exists() {
-        let mut archive =
-            zip::ZipArchive::new(Cursor::new(tokio::fs::read(installer).await?))
+        let installer_bytes = tokio::fs::read(installer).await?;
+        let dest_for_worker = universal_dest.clone();
+        tokio::task::spawn_blocking(move || -> AppResult<()> {
+            let mut archive = zip::ZipArchive::new(Cursor::new(installer_bytes))
                 .map_err(|e| AppError::Internal(format!("Failed to open installer zip: {e}")))?;
-        let mut entry = archive.by_name(file_name).map_err(|e| {
-            AppError::Internal(format!("Forge installer missing {file_name}: {e}"))
-        })?;
-        if let Some(parent) = universal_dest.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut out = std::fs::File::create(&universal_dest)?;
-        std::io::copy(&mut entry, &mut out)?;
+            let mut entry = archive.by_name(&file_name).map_err(|e| {
+                AppError::Internal(format!("Forge installer missing {file_name}: {e}"))
+            })?;
+            if let Some(parent) = dest_for_worker.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            let mut out = std::fs::File::create(&dest_for_worker)?;
+            std::io::copy(&mut entry, &mut out)?;
+            Ok(())
+        })
+        .await
+        .map_err(|error| AppError::Internal(error.to_string()))??;
     }
 
     let version_json = serde_json::to_vec_pretty(&version_info)?;

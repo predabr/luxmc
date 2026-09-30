@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import { goto } from "$app/navigation";
 	import { 
@@ -31,11 +32,11 @@
 {#if crashDoctor.isOpen && diagnosis}
 	<div 
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md"
-		transition:fade={{ duration: 150 }}
+		transition:fade={{ easing: quintOut, duration: 220 }}
 	>
 		<div 
 			class="relative w-full max-w-2xl bg-bg-elevated border border-amber-500/30 rounded-3xl p-6 md:p-8 shadow-2xl overflow-hidden"
-			transition:scale={{ duration: 200, start: 0.95 }}
+			transition:scale={{ easing: backOut, duration: 260, start: 0.95 }}
 		>
 			<div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-red-500 to-amber-500"></div>
 
@@ -109,7 +110,7 @@
 			<div class="flex flex-wrap items-center justify-end gap-3 mt-6 pt-5 border-t border-fg/5">
 				<button 
 					type="button"
-					class="px-4 py-2.5 rounded-xl text-xs font-bold text-fg/60 hover:text-fg hover:bg-fg/5 transition-all cursor-pointer"
+					class="px-4 py-2.5 rounded-xl text-xs font-bold text-fg/60 hover:text-fg hover:bg-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 					onclick={goToLogs}
 				>
 					Ver Log Completo
@@ -122,7 +123,7 @@
                 {:else if diagnosis.recommendedAction === 'repair_modpack'}
 					<button 
 						type="button"
-						class="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-brand-foreground shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+						class="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-brand-foreground shadow-lg shadow-emerald-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer disabled:opacity-50"
 						disabled={crashDoctor.isFixing}
 						onclick={handleFix}
 					>
@@ -132,7 +133,7 @@
 				{:else if diagnosis.recommendedAction === 'disable_optifine' || diagnosis.recommendedAction === 'disable_mod'}
 					<button 
 						type="button"
-						class="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-brand-foreground shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+						class="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-brand-foreground shadow-lg shadow-amber-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer disabled:opacity-50"
 						disabled={crashDoctor.isFixing}
 						onclick={handleFix}
 					>
@@ -143,7 +144,7 @@
 
 				<button 
 					type="button"
-					class="px-5 py-2.5 rounded-xl text-xs font-bold bg-fg/10 hover:bg-fg/15 text-fg transition-all cursor-pointer"
+					class="px-5 py-2.5 rounded-xl text-xs font-bold bg-fg/10 hover:bg-fg/15 text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 					onclick={() => crashDoctor.close()}
 				>
 					Entendido

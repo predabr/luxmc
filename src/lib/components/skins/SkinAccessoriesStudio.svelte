@@ -295,7 +295,7 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
 		{#each accessories as acc}
 			{@const Icon = acc.icon}
-			<div class="p-4 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-all flex flex-col justify-between group shadow-sm">
+			<div class="p-4 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col justify-between group shadow-sm">
 				<div class="space-y-2">
 					<div class="flex items-center justify-between">
 						<div class="w-9 h-9 rounded-xl flex items-center justify-center {acc.color} shadow-sm">
@@ -314,7 +314,7 @@
 
 				<button
 					type="button"
-					class="mt-4 w-full py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] {selectedAccessory === acc.id ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10'}"
+					class="mt-4 w-full py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] {selectedAccessory === acc.id ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10'}"
 					onclick={() => applyAccessory(acc)}
 					disabled={isApplying}
 				>

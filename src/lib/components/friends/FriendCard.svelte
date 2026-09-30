@@ -25,7 +25,7 @@
     }
 </script>
 
-<article class="surface-glass group relative flex flex-col justify-between gap-4 overflow-hidden p-5 transition-all duration-150 {playing ? 'border-purple-500/35 bg-purple-950/15 shadow-[0_4px_24px_-4px_rgba(168,85,247,0.2)]' : friend.status === 'online' ? 'border-emerald-500/25 hover:border-emerald-500/40' : 'hover:border-fg/20'}">
+<article class="surface-glass group relative flex flex-col justify-between gap-4 overflow-hidden p-5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-150 {playing ? 'border-purple-500/35 bg-purple-950/15 shadow-[0_4px_24px_-4px_rgba(168,85,247,0.2)]' : friend.status === 'online' ? 'border-emerald-500/25 hover:border-emerald-500/40' : 'hover:border-fg/20'}">
     {#if playing}
         <div class="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[radial-gradient(circle_at_center,rgb(168_85_247/0.2),transparent_70%)]"></div>
     {/if}
@@ -88,7 +88,7 @@
         {:else if friend.status === 'online' && onInvite}
             <button
                 type="button"
-                class="w-full py-2 px-3 rounded-xl bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/30 text-brand-300 hover:text-brand-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 shadow-sm"
+                class="w-full py-2 px-3 rounded-xl bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/30 text-brand-300 hover:text-brand-200 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 shadow-sm"
                 onclick={onInvite}
             >
                 <Share2 class="h-3.5 w-3.5 text-brand-400" />

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { ChevronUp, ChevronDown } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
 	import type { Snippet } from 'svelte';
@@ -33,7 +34,7 @@
 	</button>
 
 	{#if isOpen}
-		<div class="p-4 border-t border-border" transition:slide={{ duration: 200 }}>
+		<div class="p-4 border-t border-border" transition:slide={{ easing: quintOut, duration: 260 }}>
 			{#if children}{@render children()}{/if}
 		</div>
 	{/if}

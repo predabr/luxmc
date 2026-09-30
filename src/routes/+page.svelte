@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
     import LuxAccountForm from "$lib/components/profile/LuxAccountForm.svelte";
     let localProfile = $state(false);
     import { appState } from "$lib/stores/app.svelte";
@@ -168,7 +169,10 @@
 			const response = await versionsList();
 			if (response?.versions?.length > 0) {
 				availableVersions = response.versions;
-				localStorage.setItem("luxmc_cached_versions", JSON.stringify(response));
+				const payload = JSON.stringify(response);
+				setTimeout(() => {
+					try { localStorage.setItem("luxmc_cached_versions", payload); } catch {}
+				}, 0);
 			}
 		} catch {}
 	}
@@ -548,12 +552,12 @@
 
 		<div
 			class="w-full max-w-md bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-3xl p-8 shadow-elevated relative z-10 space-y-6"
-			in:fly={{ y: 20, duration: 200 }}
+			in:fly={{ easing: backOut, y: 20, duration: 260 }}
 		>
 			<div class="flex flex-col items-center text-center space-y-3">
 				<div class="w-16 h-16 rounded-2xl bg-gradient-to-b from-bg-subtle to-bg-elevated border border-fg/15 p-2.5 shadow-2xl flex items-center justify-center relative group">
-					<div class="absolute inset-0 bg-blue-500/15 rounded-2xl pointer-events-none group-hover:bg-blue-500/25 transition-all"></div>
-					<img src="/logo.png" alt="Luxmc" class="w-full h-full object-contain relative z-10" />
+					<div class="absolute inset-0 bg-blue-500/15 rounded-2xl pointer-events-none group-hover:bg-blue-500/25 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"></div>
+					<img loading="lazy" decoding="async" src="/logo.png" alt="Luxmc" class="w-full h-full object-contain relative z-10" />
 				</div>
 				<div>
 					<h1 class="text-xl font-black text-fg tracking-tight">Luxmc Launcher</h1>
@@ -565,7 +569,7 @@
 				<button
 					type="button"
 					onclick={() => loginTab = "microsoft"}
-					class="flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-blue-600 text-fg shadow-md' : 'text-fg/50 hover:text-fg'}"
+					class="flex-1 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-blue-600 text-fg shadow-md' : 'text-fg/50 hover:text-fg'}"
 				>
 					<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
 						<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
@@ -579,7 +583,7 @@
 				<button
 					type="button"
 					onclick={() => loginTab = "offline"}
-					class="flex-1 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-fg/15 text-fg shadow-md border border-fg/10' : 'text-fg/50 hover:text-fg'}"
+					class="flex-1 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-fg/15 text-fg shadow-md border border-fg/10' : 'text-fg/50 hover:text-fg'}"
 				>
 					<User class="w-3.5 h-3.5" />
 					<span>Conta Luxmc</span>
@@ -587,7 +591,7 @@
 			</div>
 
 			{#if loginTab === "microsoft"}
-				<div class="flex flex-col items-center text-center space-y-5 pt-1" in:fade={{ duration: 150 }}>
+				<div class="flex flex-col items-center text-center space-y-5 pt-1" in:fade={{ easing: quintOut, duration: 220 }}>
 					<div class="space-y-1">
 						<h2 class="text-base font-bold text-fg">Conta Microsoft Oficial</h2>
 						<p class="text-xs text-fg/50 max-w-xs leading-relaxed">
@@ -632,7 +636,7 @@
 						<div class="w-full space-y-2">
 							<button
 								type="button"
-								class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-blue-600/25 cursor-pointer disabled:opacity-50"
+								class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-blue-600/25 cursor-pointer disabled:opacity-50"
 								onclick={() => { playClick(); handleMicrosoftLogin(); }}
 								disabled={isLoggingIn || isLoggingInMicrosoft}
 							>
@@ -663,7 +667,7 @@
                     <button type="button" class="text-xs text-fg-muted hover:text-fg" onclick={() => localProfile = true}>Usar perfil local sem sincronização</button>
                 {:else}
                     <button type="button" class="text-xs text-brand-400" onclick={() => localProfile = false}>Voltar à conta Luxmc</button>
-				<div class="space-y-4 pt-1" in:fade={{ duration: 150 }}>
+				<div class="space-y-4 pt-1" in:fade={{ easing: quintOut, duration: 220 }}>
 					<div class="text-center space-y-1">
 						<h2 class="text-base font-bold text-fg">Entrar com Nickname</h2>
 						<p class="text-xs text-fg/50">Jogue instantaneamente com qualquer nome.</p>
@@ -675,7 +679,7 @@
 						</label>
 						<div class="relative flex items-center">
 							<div class="w-7 h-7 rounded-lg bg-bg-overlay/40 border border-fg/10 overflow-hidden absolute left-2.5 flex items-center justify-center pointer-events-none">
-								<img
+								<img loading="lazy" decoding="async"
 									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`}
 									alt="Avatar"
 									class="w-full h-full object-cover"
@@ -687,7 +691,7 @@
 								placeholder="Ex: SteveGamer"
 								bind:value={offlineName}
 								maxlength="16"
-								class="w-full bg-bg-overlay/40 border border-fg/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-fg outline-none transition-all placeholder:text-fg/20"
+								class="w-full bg-bg-overlay/40 border border-fg/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-fg outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] placeholder:text-fg/20"
 								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 							/>
 						</div>
@@ -695,7 +699,7 @@
 
 					<button
 						type="button"
-						class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-blue-600/25 hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+						class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-blue-600/25 hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50"
 						onclick={() => { playClick(); handleOfflineAuth(); }}
 						disabled={isLoggingIn || isLoggingInMicrosoft}
 					>
@@ -713,13 +717,13 @@
 							</span>
 							<div class="flex flex-wrap gap-1.5">
 								{#each savedAccounts as accName (accName)}
-									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/5 transition-all group">
+									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group">
 										<button
 											type="button"
 											onclick={() => handleOfflineAuth(accName)}
 											class="flex items-center gap-1.5 text-left cursor-pointer"
 										>
-											<img
+											<img loading="lazy" decoding="async"
 												src={`https://mc-heads.net/avatar/${accName}/32`}
 												alt={accName}
 												class="w-4 h-4 rounded object-cover"
@@ -774,8 +778,8 @@
 	</div>
 
 	{#if showMsClientIdModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-sm" in:fade={{ duration: 150 }}>
-			<div class="w-full max-w-md rounded-3xl bg-bg/35 backdrop-blur-xl border border-amber-500/30 p-6 shadow-2xl space-y-4" in:fly={{ y: 20, duration: 200 }}>
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80 backdrop-blur-sm" in:fade={{ easing: quintOut, duration: 220 }}>
+			<div class="w-full max-w-md rounded-3xl bg-bg/35 backdrop-blur-xl border border-amber-500/30 p-6 shadow-2xl space-y-4" in:fly={{ easing: backOut, y: 20, duration: 260 }}>
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2.5">
 						<Lock class="w-4 h-4 text-amber-400" />
@@ -824,7 +828,7 @@
 
 {:else}
 
-	<div class="flex min-h-full w-full select-none" in:fade={{ duration: 150 }}>
+	<div class="flex min-h-full w-full select-none" in:fade={{ easing: quintOut, duration: 220 }}>
 
 		<div class="flex-1 flex flex-col min-w-0 space-y-6 p-6">
 
@@ -873,7 +877,7 @@
 							type="button"
 							disabled={appState.isStopping}
 							onclick={handleStopGame}
-							class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
+							class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
 							title="Encerrar o Minecraft em execução"
 						>
 							{#if appState.isStopping}
@@ -917,21 +921,21 @@
 							</button>
 						</div>
 					{:else}
-						<div class="space-y-2.5" transition:slide={{ duration: 180 }}>
+						<div class="space-y-2.5" transition:slide={{ easing: quintOut, duration: 240 }}>
 							{#each jumpInInstances as inst (inst.id)}
 								{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
-								<div class="cv-auto flex items-center justify-between p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-all group shadow-sm">
+								<div class="cv-auto flex items-center justify-between p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group shadow-sm [contain-intrinsic-size:auto_76px]">
 									<div class="flex items-center gap-3.5 min-w-0">
 										<div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
 											{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
-												<img
+												<img loading="lazy" decoding="async"
 													src={inst.icon}
 													alt={inst.name}
 													class="w-full h-full object-cover"
 													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-7 h-7 object-contain [image-rendering:pixelated] drop-shadow'; }}
 												/>
 											{:else}
-												<img
+												<img loading="lazy" decoding="async"
 													src="/grass_block.png"
 													alt={inst.name}
 													class="w-7 h-7 object-contain [image-rendering:pixelated] drop-shadow"
@@ -980,7 +984,7 @@
 												type="button"
 												disabled={appState.isStopping}
 												onclick={handleStopGame}
-												class="px-5 py-2 rounded-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-fg font-black text-xs flex items-center gap-1.5 shadow-sm transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+												class="px-5 py-2 rounded-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-fg font-black text-xs flex items-center gap-1.5 shadow-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
 												title="Parar Jogo"
 											>
 												{#if appState.isStopping}
@@ -997,7 +1001,7 @@
 												type="button"
 												onclick={() => handleLaunch(inst)}
 												disabled={isLaunching || appState.isLaunching}
-												class="px-5 py-2 rounded-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-brand-foreground font-black text-xs flex items-center gap-1.5 shadow-button hover:shadow-button-hover transition-all hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
+												class="px-5 py-2 rounded-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-brand-foreground font-black text-xs flex items-center gap-1.5 shadow-button hover:shadow-button-hover transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
 												title={isThisLaunching ? (appState.launchStatusText || "Preparando...") : "Jogar"}
 											>
 												{#if isThisLaunching}
@@ -1027,7 +1031,7 @@
 											{#if activeContextMenuId === inst.id}
 												<div
 													class="absolute right-0 top-10 w-44 rounded-xl bg-bg-subtle border border-fg/10 shadow-2xl py-1 z-30 space-y-0.5"
-													transition:fly={{ y: -6, duration: 120 }}
+													transition:fly={{ easing: backOut, y: -6, duration: 180 }}
 												>
 													<button
 														type="button"
@@ -1077,14 +1081,14 @@
 								type="text"
 								placeholder={t("common.search")}
 								bind:value={searchQuery}
-								class="w-full bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500/60 transition-all"
+								class="w-full bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500/60 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
 							/>
 						</div>
 
 						<button
 							type="button"
 							onclick={() => showNewGroupPrompt = true}
-							class="px-4 py-2.5 rounded-xl bg-bg-subtle hover:bg-border-strong text-fg/80 hover:text-fg border border-fg/[0.08] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+							class="px-4 py-2.5 rounded-xl bg-bg-subtle hover:bg-border-strong text-fg/80 hover:text-fg border border-fg/[0.08] text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shrink-0"
 						>
 							<FolderPlus class="w-3.5 h-3.5 text-fg/50" />
 							<span>{t("library.newGroup")}</span>
@@ -1093,7 +1097,7 @@
 						<button
 							type="button"
 							onclick={() => showCreateModal = true}
-							class="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-brand-foreground text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 active:scale-[0.98]"
+							class="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 active:scale-[0.98]"
 						>
 							<Plus class="w-4 h-4 stroke-[3]" />
 							<span>{t("library.newInstance")}</span>
@@ -1101,13 +1105,13 @@
 					</div>
 
 					<div class="flex items-center gap-2 flex-wrap">
-						<div class="relative flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3 py-1.5 transition-all shadow-sm">
+						<div class="relative flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3 py-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm">
 							<ArrowUpDown class="w-3.5 h-3.5 text-brand-500 shrink-0 pointer-events-none" />
 							<GlassSelect bind:value={sortBy} label="Ordenar instâncias" options={[{value:"lastPlayed",label:"Recentes"},{value:"name",label:"Nome"},{value:"version",label:"Versão"}]} />
 							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
 						</div>
 
-						<div class="relative flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3 py-1.5 transition-all shadow-sm">
+						<div class="relative flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3 py-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm">
 							<Layers class="w-3.5 h-3.5 text-brand-500 shrink-0 pointer-events-none" />
 							<GlassSelect bind:value={selectedGroup} label="Grupo de instâncias" options={[{value:"all",label:"Todos os grupos"},...customGroups.map(group => ({value:group,label:group}))]} />
 							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
@@ -1115,7 +1119,7 @@
 
 						<button
 							type="button"
-							class="flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3.5 py-1.5 text-xs font-semibold text-fg/80 hover:text-fg transition-all cursor-pointer shadow-sm active:scale-[0.98] {showNewGroupPrompt ? 'border-brand-500/50 bg-brand-500/10 text-brand-500' : ''}"
+							class="flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3.5 py-1.5 text-xs font-semibold text-fg/80 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98] {showNewGroupPrompt ? 'border-brand-500/50 bg-brand-500/10 text-brand-500' : ''}"
 							onclick={() => showNewGroupPrompt = !showNewGroupPrompt}
 							title="Criar novo grupo de instâncias"
 						>
@@ -1126,7 +1130,7 @@
 				</div>
 
 				{#if showNewGroupPrompt}
-					<div class="p-3.5 rounded-2xl bg-bg/35 backdrop-blur-xl border border-brand-500/30 flex items-center gap-2.5" in:slide={{ duration: 150 }}>
+					<div class="p-3.5 rounded-2xl bg-bg/35 backdrop-blur-xl border border-brand-500/30 flex items-center gap-2.5" in:slide={{ easing: quintOut, duration: 220 }}>
 						<input
 							type="text"
 							placeholder="Nome do novo grupo..."
@@ -1171,7 +1175,7 @@
 							<div
 								role="button"
 								tabindex="0"
-								class="cv-auto rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.16] transition-all p-4 flex flex-col justify-between group relative shadow-md hover:shadow-xl cursor-pointer min-h-[215px]"
+								class="cv-auto rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.16] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] p-4 flex flex-col justify-between group relative shadow-md hover:shadow-xl cursor-pointer min-h-[215px] [contain-intrinsic-size:auto_232px]"
 								onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
 								onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
 								onclick={() => goto(`/instances/${inst.id}`)}
@@ -1180,14 +1184,14 @@
 								<div class="w-full flex-1 flex items-center justify-center relative my-2">
 									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-[1.03] shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
-											<img
+											<img loading="lazy" decoding="async"
 												src={inst.icon}
 												alt={inst.name}
 												class="w-full h-full object-cover"
 												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-14 h-14 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
 											/>
 										{:else}
-											<img
+											<img loading="lazy" decoding="async"
 												src="/grass_block.png"
 												alt={inst.name}
 												class="w-14 h-14 object-contain [image-rendering:pixelated] drop-shadow-md"
@@ -1202,7 +1206,7 @@
 											handleLaunch(inst);
 										}}
 										disabled={isLaunching || appState.isLaunching}
-										class="absolute bottom-1 right-2 w-10 h-10 rounded-full bg-brand-500 hover:bg-brand-600 text-brand-foreground flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-all transform scale-90 group-hover:scale-100 cursor-pointer disabled:opacity-50"
+										class="absolute bottom-1 right-2 w-10 h-10 rounded-full bg-brand-500 hover:bg-brand-600 text-brand-foreground flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] transform scale-90 group-hover:scale-100 cursor-pointer disabled:opacity-50"
 										title={isThisLaunching ? (appState.launchStatusText || "Preparando...") : "Jogar"}
 									>
 										{#if isThisLaunching}

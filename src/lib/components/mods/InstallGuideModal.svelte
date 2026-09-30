@@ -28,7 +28,7 @@
 		</div>
 		<button
 			type="button"
-			class="w-full py-2.5 rounded-xl bg-brand-400 text-brand-foreground font-extrabold text-xs transition-all cursor-pointer hover:bg-brand-400"
+			class="w-full py-2.5 rounded-xl bg-brand-400 text-brand-foreground font-extrabold text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer hover:bg-brand-400"
 			onclick={onClose}
 		>
 			Entendido

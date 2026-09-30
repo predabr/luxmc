@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { fade } from "svelte/transition";
@@ -155,9 +156,25 @@
 
 	const groups = ["all", "Modded", "Vanilla", "Servers", "Favorites"];
 
+	let activeSearch = $state("");
+	let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+	$effect(() => {
+		const query = searchQuery;
+		if (searchDebounce) clearTimeout(searchDebounce);
+		searchDebounce = setTimeout(() => {
+			activeSearch = query;
+		}, 150);
+		return () => {
+			if (searchDebounce) clearTimeout(searchDebounce);
+		};
+	});
+
+	const normalizedSearch = $derived(activeSearch.trim().toLowerCase());
+
 	const filteredInstances = $derived(
 		profiles.list
-			.filter((p) => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+			.filter((p) => !normalizedSearch || p.name.toLowerCase().includes(normalizedSearch))
 			.filter((p) => {
 				if (groupFilter === "all") return true;
 				if (groupFilter === "Favorites") return p.favorite;
@@ -240,19 +257,37 @@
 		}
 	}
 
+	let versionsRequested = false;
+	let specsRequested = false;
+
 	onMount(() => {
 		loadColors();
-		void loadVersions();
-		void loadSystemSpecs();
 		window.addEventListener("keydown", handleInstanceKeydown);
 		return () => window.removeEventListener("keydown", handleInstanceKeydown);
 	});
+
+	function ensureSystemSpecs() {
+		if (specsRequested) return;
+		specsRequested = true;
+		void loadSystemSpecs();
+	}
 
 	async function loadSystemSpecs() {
 		try {
 			const specs = await getSystemSpecs();
 			if (specs?.totalRamMb) systemRamMb = specs.totalRamMb;
 		} catch {}
+	}
+
+	function ensureModalData() {
+		ensureVersions();
+		ensureSystemSpecs();
+	}
+
+	function ensureVersions() {
+		if (versionsRequested) return;
+		versionsRequested = true;
+		void loadVersions();
 	}
 
 	async function loadVersions() {
@@ -267,7 +302,10 @@
 		try {
 			const response = await versionsList();
 			availableVersions = response.versions;
-			try { localStorage.setItem("luxmc_cached_versions", JSON.stringify(response)); } catch {}
+			const payload = JSON.stringify(response);
+			setTimeout(() => {
+				try { localStorage.setItem("luxmc_cached_versions", payload); } catch {}
+			}, 0);
 		} catch (error) {
 			if (availableVersions.length === 0) {
 				lastError = `Could not load Minecraft versions: ${String(error)}`;
@@ -431,6 +469,7 @@
 	let editSaving = $state(false);
 
 	function openEditInstance(p: Profile) {
+		ensureModalData();
 		editingInstance = {
 			id: p.id, name: p.name, mcVersion: p.mcVersion, loader: p.loader,
 			icon: p.icon || "grass_block", ramMb: p.ramMb || 4096, jvmArgs: p.jvmArgs || ""
@@ -771,7 +810,7 @@
 				<Button
 					variant="solid"
 					size="sm"
-					onclick={() => { showCreate = !showCreate; lastError = null; }}
+					onclick={() => { showCreate = !showCreate; lastError = null; if (showCreate) ensureModalData(); }}
 				>
 					<Plus class="h-4 w-4 stroke-[2.5]" />
 					Nova Instância
@@ -807,7 +846,7 @@
 						</div>
 						<div class="h-2 w-full overflow-hidden rounded-full" style="background: rgb(var(--bg-elevated));">
 							<div
-								class="h-full rounded-full transition-all duration-300"
+								class="h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
 								style="width: {importProgress.percent ?? 0}%; background: linear-gradient(90deg, rgb(var(--brand-500)), rgb(var(--brand-400)));"
 							></div>
 						</div>
@@ -823,7 +862,7 @@
 						</div>
 						<div class="w-36">
 							<label for="import-loader" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.loader")}</label>
-							<select id="import-loader" class="h-9 w-full rounded-md px-2 text-sm transition-all duration-300" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));" bind:value={importLoader}>
+							<select id="import-loader" class="h-9 w-full rounded-md px-2 text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));" bind:value={importLoader}>
 								<option value="fabric">Fabric</option>
 								<option value="forge">Forge</option>
 								<option value="neoforge">NeoForge</option>
@@ -857,7 +896,7 @@
 						</div>
 						<div class="h-2 w-full overflow-hidden rounded-full" style="background: rgb(var(--bg-elevated));">
 							<div
-								class="h-full rounded-full transition-all duration-300"
+								class="h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
 								style="width: {importProgress.percent ?? 0}%; background: linear-gradient(90deg, rgb(var(--brand-500)), rgb(var(--brand-400)));"
 							></div>
 						</div>
@@ -897,7 +936,7 @@
 	<InstanceGrid
 		instances={filteredInstances}
 		{viewMode}
-		{searchQuery}
+		searchQuery={activeSearch}
 		{selectionMode}
 		{selectedIds}
 		{instanceColors}
@@ -936,7 +975,7 @@
 			</div>
 		</div>
 		<div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-			<button type="button" class="px-5 py-2.5 rounded-full bg-fg/5 hover:bg-fg/10 border border-fg/[0.06] hover:border-fg/[0.15] text-fg/80 hover:text-fg text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-2"
+			<button type="button" class="px-5 py-2.5 rounded-full bg-fg/5 hover:bg-fg/10 border border-fg/[0.06] hover:border-fg/[0.15] text-fg/80 hover:text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 cursor-pointer flex items-center gap-2"
 				onclick={() => { if (profiles.active) openFolder(profiles.active.id); else toast("Nenhuma instância ativa selecionada", "info"); }}
 			>
 				<FolderOpen class="w-4 h-4 text-fg/35" /> Abrir Pasta das Instâncias
@@ -945,7 +984,7 @@
 	</div>
 
 	{#if showImportCode}
-		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80" transition:fade={{ duration: 150 }}>
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/80" transition:fade={{ easing: quintOut, duration: 220 }}>
 			<div class="w-full max-w-md bg-bg-elevated border border-brand-500/30 rounded-3xl p-6 shadow-2xl">
 				<div class="flex items-center justify-between mb-4">
 					<div class="flex items-center gap-2">
@@ -966,21 +1005,21 @@
 						type="text" 
 						bind:value={shareCodeInput} 
 						placeholder="LUX-XXXXXX" 
-						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-2xl px-4 py-3 text-sm text-fg font-mono uppercase tracking-widest outline-none transition-all duration-300"
+						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-2xl px-4 py-3 text-sm text-fg font-mono uppercase tracking-widest outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
 					/>
 				</div>
 
 				<div class="flex items-center justify-end gap-3">
 					<button 
 						type="button" 
-						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-xs font-bold text-fg/70 transition-all duration-300 cursor-pointer"
+						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-xs font-bold text-fg/70 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 cursor-pointer"
 						onclick={() => showImportCode = false}
 					>
 						Cancelar
 					</button>
 					<button 
 						type="button" 
-						class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-brand-foreground text-xs font-black transition-all duration-300 flex items-center gap-2 shadow-sm shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
+						class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 flex items-center gap-2 shadow-sm shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
 						disabled={isImportingCode}
 						onclick={handleImportShareCode}
 					>
@@ -993,7 +1032,7 @@
 	{/if}
 
 	{#if healthCheckId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ easing: quintOut, duration: 220 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeHealthCheck(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeHealthCheck(); }}
 			role="dialog" aria-modal="true" aria-label={t("health.title")} tabindex="-1"
@@ -1053,7 +1092,7 @@
 	{/if}
 
 	{#if fileBrowserId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ easing: quintOut, duration: 220 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeFileBrowser(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeFileBrowser(); }}
 			role="dialog" aria-modal="true" aria-label={t("files.title")} tabindex="-1"
@@ -1104,7 +1143,7 @@
 	{/if}
 
 	{#if screenshotsId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ easing: quintOut, duration: 220 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeScreenshots(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeScreenshots(); }}
 			role="dialog" aria-modal="true" aria-label={t("screenshots.title")} tabindex="-1"
@@ -1132,7 +1171,7 @@
 							{#each screenshots as shot}
 								<div class="overflow-hidden rounded-xl border border-fg/[0.12] bg-bg-overlay/40 shadow-sm group">
 									<div class="aspect-video overflow-hidden flex items-center justify-center bg-bg-overlay/60">
-										<img src={convertFileSrc(shot.path)} alt={shot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+										<img decoding="async" src={convertFileSrc(shot.path)} alt={shot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
 									</div>
 									<div class="px-2.5 py-1.5 flex items-center justify-between">
 										<div class="min-w-0 flex-1">
@@ -1150,7 +1189,7 @@
 	{/if}
 
 	{#if notesId}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ duration: 150 }}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80" transition:fade={{ easing: quintOut, duration: 220 }}
 			onclick={(e) => { if (e.target === e.currentTarget) closeNotes(); }}
 			onkeydown={(e) => { if (e.key === "Escape") closeNotes(); }}
 			role="dialog" aria-modal="true" aria-label={t("instances.notes")} tabindex="-1"
@@ -1183,7 +1222,7 @@
 					<label for="edit-instance-name" class="block text-xs font-bold text-fg/70 uppercase tracking-widest">{t("instances.name")}</label>
 					<div class="flex items-center gap-3">
 						<div class="h-11 w-11 rounded-2xl bg-bg-elevated border border-fg/[0.12] flex items-center justify-center shrink-0 p-1">
-							<img src={getIconSrc(editIcon)} alt="Ícone" class="w-8 h-8 object-contain [image-rendering:pixelated]" />
+							<img loading="lazy" decoding="async" src={getIconSrc(editIcon)} alt="Ícone" class="w-8 h-8 object-contain [image-rendering:pixelated]" />
 						</div>
 						<Input id="edit-instance-name" bind:value={editName} placeholder={t("instances.namePlaceholder")} />
 					</div>
@@ -1193,10 +1232,10 @@
 					<span class="block text-xs font-bold text-fg/70 uppercase tracking-widest">Ícone da Instância</span>
 					<div class="flex items-center gap-1.5 bg-bg-elevated p-1.5 rounded-2xl border border-fg/[0.12]">
 						{#each [{ id: "grass_block", label: "Grama", src: "/grass_block.png" }, { id: "modpack_fo", label: "FO", src: "/modpack_fo_icon.png" }, { id: "modpack_better_mc", label: "BMC", src: "/modpack_bmc_icon.webp" }, { id: "modpack_cobblemon", label: "Cobblemon", src: "/modpack_cobblemon_icon.png" }, { id: "logo", label: "Logo", src: "/logo.png" }, { id: "grass_head", label: "Steve", src: "/grass_head.png" }] as ip}
-							<button type="button" class="w-8 h-8 rounded-xl p-1 transition-all cursor-pointer flex items-center justify-center {editIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-fg/5 opacity-60 hover:opacity-100'}"
+							<button type="button" class="w-8 h-8 rounded-xl p-1 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center {editIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-fg/5 opacity-60 hover:opacity-100'}"
 								onclick={() => editIcon = ip.id} title={ip.label}
 							>
-								<img src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
+								<img loading="lazy" decoding="async" src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
 							</button>
 						{/each}
 					</div>
@@ -1228,7 +1267,7 @@
 				<div class="space-y-1.5">
 					<label for="edit-jvm-args" class="block text-xs font-bold text-fg/70 uppercase tracking-widest">Argumentos JVM Customizados</label>
 					<input id="edit-jvm-args" type="text" bind:value={editJvmArgs} placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch"
-						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none transition-all duration-300"
+						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
 					/>
 					<p class="text-[10px] text-fg/35">Parâmetros extras passados diretamente para a máquina virtual Java.</p>
 				</div>
@@ -1244,7 +1283,7 @@
 	</Modal>
 
 	{#if confirmDeleteInstance}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80 p-4" transition:fade={{ duration: 150 }}>
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80 p-4" transition:fade={{ easing: quintOut, duration: 220 }}>
 			<div class="w-full max-w-md bg-bg-elevated border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4 select-none">
 				<div class="flex items-center gap-3">
 					<div class="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
@@ -1261,10 +1300,10 @@
 					<p class="text-[11px] text-red-400/90 font-medium">Todos os mundos, saves, mods e arquivos salvos serão removidos permanentemente do disco.</p>
 				</div>
 				<div class="flex justify-end gap-2.5 pt-2">
-					<button type="button" class="px-5 py-2.5 rounded-full text-xs font-bold text-fg/60 hover:text-fg hover:bg-fg/10 transition-all duration-300 cursor-pointer"
+					<button type="button" class="px-5 py-2.5 rounded-full text-xs font-bold text-fg/60 hover:text-fg hover:bg-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 cursor-pointer"
 						onclick={() => (confirmDeleteInstance = null)}
 					>Cancelar</button>
-					<button type="button" class="px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-fg font-black text-xs transition-all duration-300 active:scale-[0.98] shadow-sm cursor-pointer flex items-center gap-2"
+					<button type="button" class="px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-fg font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 active:scale-[0.98] shadow-sm cursor-pointer flex items-center gap-2"
 						disabled={deleting}
 						onclick={async () => {
 							if (!confirmDeleteInstance) return;

@@ -284,7 +284,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "general"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'general' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'general' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Home class="w-4 h-4" />
 			<span>{t("settings.tabs.general")}</span>
@@ -293,7 +293,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "accounts"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'accounts' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'accounts' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Users class="w-4 h-4" />
 			<span>{t("settings.tabs.accounts")}</span>
@@ -302,7 +302,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "language"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'language' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'language' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Globe class="w-4 h-4" />
 			<span>{t("settings.tabs.language")}</span>
@@ -311,7 +311,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "appearance"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap relative {activeTab === 'appearance' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap relative {activeTab === 'appearance' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Palette class="w-4 h-4" />
 			<span>{t("settings.tabs.appearance")}</span>
@@ -321,7 +321,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "java"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'java' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'java' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Coffee class="w-4 h-4" />
 			<span>{t("settings.tabs.java")}</span>
@@ -330,7 +330,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "commands"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'commands' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'commands' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<Terminal class="w-4 h-4" />
 			<span>{t("settings.tabs.commands")}</span>
@@ -339,7 +339,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "privacy"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'privacy' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'privacy' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<ShieldCheck class="w-4 h-4" />
 			<span>{t("settings.tabs.privacy")}</span>
@@ -348,7 +348,7 @@
 		<button
 			type="button"
 			onclick={() => activeTab = "runtime"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap {activeTab === 'runtime' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
+			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'runtime' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
 		>
 			<FolderOpen class="w-4 h-4" />
 			<span>{t("settings.tabs.runtime")}</span>
@@ -403,7 +403,7 @@
 							type="button"
 							onclick={() => updaterStore.showModal = true}
 							disabled={updaterStore.isDownloading}
-							class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg-deep font-bold text-xs transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
+							class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg-deep font-bold text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
 						>
 							{#if updaterStore.isDownloading}
 								<RefreshCw class="w-4 h-4 animate-spin" /> {t("settings.downloadingProgress", { percent: updaterStore.downloadProgress })}
@@ -416,7 +416,7 @@
 							type="button"
 							onclick={() => updaterStore.check(true)}
 							disabled={updaterStore.isChecking}
-							class="px-4 py-2.5 rounded-xl bg-bg border border-fg/10 hover:border-brand-500/40 text-fg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer"
+							class="px-4 py-2.5 rounded-xl bg-bg border border-fg/10 hover:border-brand-500/40 text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer"
 						>
 							<RefreshCw class="w-4 h-4 {updaterStore.isChecking ? 'animate-spin text-brand-400' : 'text-fg/60'}" />
 							{updaterStore.isChecking ? t("settings.checking") : t("settings.checkUpdates")}
@@ -489,7 +489,7 @@
 						aria-checked={discordIntegration}
 						aria-label="Toggle Discord Integration"
 						onclick={() => { discordIntegration = !discordIntegration; saveGeneral(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {discordIntegration ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {discordIntegration ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {discordIntegration ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -522,7 +522,7 @@
 						aria-checked={showCloseWarning}
 						aria-label="Toggle Window Close Warning"
 						onclick={() => showCloseWarning = !showCloseWarning}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {showCloseWarning ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {showCloseWarning ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {showCloseWarning ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -539,7 +539,7 @@
 						aria-checked={performanceMode}
 						aria-label="Toggle Ultra Performance Mode"
 						onclick={() => { performanceMode = !performanceMode; appState.performanceMode = performanceMode; saveGeneral(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {performanceMode ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {performanceMode ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {performanceMode ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -557,7 +557,7 @@
 				<div class="flex items-center justify-between p-4 rounded-2xl bg-bg-elevated border border-fg/5">
 					<div class="flex items-center gap-4">
 						<div class="w-12 h-12 rounded-2xl bg-bg-overlay/40 border border-fg/10 overflow-hidden flex items-center justify-center">
-							<img
+							<img loading="lazy" decoding="async"
 								src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value?.uuid ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "/logo.png")}
 								alt="Avatar"
 								class="w-full h-full object-cover"
@@ -592,7 +592,7 @@
 
 					<a
 						href="/"
-						class="px-4 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
+						class="px-4 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98]"
 					>
 						{t("settings.switchAccount")}
 					</a>
@@ -606,7 +606,7 @@
 					<button
 						type="button"
 						onclick={() => openUrl("https://luxmc-r92.pages.dev")}
-						class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-2 active:scale-[0.98] shadow-md"
+						class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shrink-0 flex items-center gap-2 active:scale-[0.98] shadow-md"
 					>
 						<span>{t("settings.openWebPortal")}</span>
 						<ExternalLink class="w-3.5 h-3.5" />
@@ -626,7 +626,7 @@
 				<button
 					type="button"
 					onclick={() => handleLangChange("pt-BR")}
-					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-[0.98] text-left {currentLang === 'pt-BR' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] text-left {currentLang === 'pt-BR' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
 				>
 					<div class="flex items-center gap-3.5">
 						<span class="text-2xl">🇧🇷</span>
@@ -645,7 +645,7 @@
 				<button
 					type="button"
 					onclick={() => handleLangChange("en")}
-					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-[0.98] text-left {currentLang === 'en' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] text-left {currentLang === 'en' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
 				>
 					<div class="flex items-center gap-3.5">
 						<span class="text-2xl">🇺🇸</span>
@@ -664,7 +664,7 @@
 				<button
 					type="button"
 					onclick={() => handleLangChange("es")}
-					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-all cursor-pointer active:scale-[0.98] text-left {currentLang === 'es' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] text-left {currentLang === 'es' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
 				>
 					<div class="flex items-center gap-3.5">
 						<span class="text-2xl">🇪🇸</span>
@@ -752,7 +752,7 @@
 							<button
 								type="button"
 								onclick={() => setRamPreset(preset)}
-								class="px-3 py-1 rounded-lg text-xs font-mono font-bold border transition-all cursor-pointer {maxRamGb === preset ? 'bg-blue-600 border-blue-500 text-fg shadow-md' : 'bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg'}"
+								class="px-3 py-1 rounded-lg text-xs font-mono font-bold border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {maxRamGb === preset ? 'bg-blue-600 border-blue-500 text-fg shadow-md' : 'bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg'}"
 							>
 								{preset}G
 							</button>
@@ -760,7 +760,7 @@
 						<button
 							type="button"
 							onclick={() => setRamPreset(6)}
-							class="px-3 py-1 rounded-lg text-xs font-sans font-bold border transition-all cursor-pointer {maxRamGb === 6 ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300' : 'bg-fg/5 border-fg/10 text-fg/50 hover:bg-fg/10 hover:text-fg'}"
+							class="px-3 py-1 rounded-lg text-xs font-sans font-bold border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {maxRamGb === 6 ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300' : 'bg-fg/5 border-fg/10 text-fg/50 hover:bg-fg/10 hover:text-fg'}"
 						>
 							Auto (6G)
 						</button>
@@ -785,28 +785,28 @@
 						<button
 							type="button"
 							onclick={() => setJvmPreset('g1gc')}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-all cursor-pointer"
+							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 						>
 							{t("settings.flagsG1GC")}
 						</button>
 						<button
 							type="button"
 							onclick={() => setJvmPreset('aikar')}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-all cursor-pointer"
+							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 						>
 							{t("settings.flagsAikar")}
 						</button>
 						<button
 							type="button"
 							onclick={() => setJvmPreset('zgc')}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-all cursor-pointer"
+							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 						>
 							{t("settings.flagsZGC")}
 						</button>
 						<button
 							type="button"
 							onclick={() => setJvmPreset('shenandoah')}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-all cursor-pointer"
+							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 						>
 							{t("settings.flagsShenandoah")}
 						</button>
@@ -824,7 +824,7 @@
 						aria-checked={waylandNative}
 						aria-label="Toggle Wayland Mode"
 						onclick={() => { waylandNative = !waylandNative; saveJava(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {waylandNative ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {waylandNative ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {waylandNative ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -841,7 +841,7 @@
 						aria-checked={useVulkan}
 						aria-label="Toggle Vulkan Acceleration"
 						onclick={() => { useVulkan = !useVulkan; saveJava(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {useVulkan ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {useVulkan ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {useVulkan ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -921,7 +921,7 @@
 						aria-checked={streamerMode}
 						aria-label="Alternar Modo Streamer"
 						onclick={() => { streamerMode = !streamerMode; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {streamerMode ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {streamerMode ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {streamerMode ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -938,7 +938,7 @@
 						aria-checked={hideDiscordDetails}
 						aria-label="Alternar Ocultar Detalhes do Discord"
 						onclick={() => { hideDiscordDetails = !hideDiscordDetails; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {hideDiscordDetails ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {hideDiscordDetails ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {hideDiscordDetails ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -955,7 +955,7 @@
 						aria-checked={anonymousTelemetry}
 						aria-label="Alternar Telemetria Anônima"
 						onclick={() => { anonymousTelemetry = !anonymousTelemetry; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-all duration-200 relative cursor-pointer border {anonymousTelemetry ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {anonymousTelemetry ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {anonymousTelemetry ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -969,7 +969,7 @@
 					<button
 						type="button"
 						onclick={handleClearCache}
-						class="px-5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-all cursor-pointer shadow-sm active:scale-[0.98] flex items-center gap-2"
+						class="px-5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98] flex items-center gap-2"
 					>
 						<Trash2 class="w-3.5 h-3.5" />
 						<span>{t("settings.clearCache")}</span>
@@ -990,7 +990,7 @@
 					type="button"
 					onclick={loadStorageReport}
 					disabled={storageLoading}
-					class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.98]"
+					class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50 active:scale-[0.98]"
 				>
 					<RefreshCw class="w-3.5 h-3.5 {storageLoading ? 'animate-spin' : ''}" />
 					<span>{t("settings.refresh")}</span>
@@ -1012,7 +1012,7 @@
 					<button
 						type="button"
 						onclick={handleClearLogs}
-						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer flex items-center gap-2 active:scale-[0.98]"
+						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-2 active:scale-[0.98]"
 					>
 						<Trash2 class="w-3.5 h-3.5 text-fg/60" />
 						<span>{t("settings.clearLogs", { size: formatBytes(storageReport?.logsBytes || 0) })}</span>
@@ -1021,7 +1021,7 @@
 					<button
 						type="button"
 						onclick={handleClearCacheAction}
-						class="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-all cursor-pointer flex items-center gap-2 active:scale-[0.98]"
+						class="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-2 active:scale-[0.98]"
 					>
 						<Trash2 class="w-3.5 h-3.5 text-red-400" />
 						<span>{t("settings.clearCacheSize", { size: formatBytes(storageReport?.cacheBytes || 0) })}</span>
@@ -1071,14 +1071,14 @@
 				{:else}
 					<div class="divide-y divide-white/5">
 							{#each storageReport.instances as inst}
-							{@const iconSrc = getIconSrc(inst.icon)}
+								{@const iconSrc = getIconSrc(inst.icon)}
 							<div class="flex items-center justify-between py-3.5 gap-4">
 								<div class="flex items-center gap-3.5 min-w-0">
 									<div class="w-10 h-10 rounded-xl overflow-hidden bg-fg/5 border border-fg/10 flex items-center justify-center shrink-0">
 										{#if iconSrc !== "/grass_block.png"}
-											<img src={iconSrc} alt={inst.name} class="w-full h-full object-cover" onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }} />
+											<img loading="lazy" decoding="async" src={iconSrc} alt={inst.name} class="w-full h-full object-cover" onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }} />
 										{:else}
-											<img src="/grass_block.png" alt={inst.name} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
+											<img loading="lazy" decoding="async" src="/grass_block.png" alt={inst.name} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
 										{/if}
 									</div>
 									<div class="min-w-0">
@@ -1099,7 +1099,7 @@
 										type="button"
 										title="Excluir instância permanentemente do disco"
 										onclick={() => confirmingDeleteInstance = inst}
-										class="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-all cursor-pointer active:scale-95"
+										class="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-95"
 									>
 										<Trash2 class="w-4 h-4" />
 									</button>
@@ -1175,7 +1175,7 @@
 						type="button"
 						disabled={deletingInstanceId !== null}
 						onclick={() => handleDeleteInstance(confirmingDeleteInstance!)}
-						class="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-lg shadow-red-500/25 transition-all cursor-pointer disabled:opacity-50 active:scale-95 flex items-center gap-2"
+						class="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-lg shadow-red-500/25 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50 active:scale-95 flex items-center gap-2"
 					>
 						{#if deletingInstanceId}
 							<RefreshCw class="w-3.5 h-3.5 animate-spin" />

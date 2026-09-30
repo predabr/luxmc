@@ -84,6 +84,15 @@ const config: Config = {
                 button: "var(--shadow-button)",
                 "button-hover": "var(--shadow-button-hover)"
 			},
+			transitionTimingFunction: {
+				DEFAULT: "cubic-bezier(0.34, 1.4, 0.64, 1)",
+				spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+				smooth: "cubic-bezier(0.16, 1, 0.3, 1)",
+				linear: "linear",
+				in: "cubic-bezier(0.4, 0, 1, 1)",
+				out: "cubic-bezier(0, 0, 0.2, 1)",
+				inOut: "cubic-bezier(0.4, 0, 0.2, 1)"
+			},
 			keyframes: {
 				"fade-in": {
 					"0%": { opacity: "0" },
@@ -103,8 +112,8 @@ const config: Config = {
 				}
 			},
 			animation: {
-				"fade-in": "fade-in 200ms ease-out",
-				"slide-up": "slide-up 200ms ease-out",
+				"fade-in": "fade-in 260ms cubic-bezier(0.34, 1.4, 0.64, 1)",
+				"slide-up": "slide-up 320ms cubic-bezier(0.34, 1.4, 0.64, 1)",
 				shimmer: "shimmer 2s linear infinite",
 				"btn-shimmer": "btn-shimmer 0.6s ease-out"
 			}

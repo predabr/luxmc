@@ -20,7 +20,7 @@ export interface AppSettings {
 	hideDiscordDetails?: boolean;
 	anonymousTelemetry?: boolean;
 	performanceMode?: boolean;
-	wallpaperFps?: 15 | 24 | 30;
+	wallpaperFps?: 15 | 24 | 30 | 60;
 	wallpaperWidth?: 960 | 1280 | 1920;
 	pauseWallpaperOnBlur?: boolean;
 	animatedWallpaperBlur?: boolean;

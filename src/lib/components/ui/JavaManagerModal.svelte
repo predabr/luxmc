@@ -134,14 +134,14 @@
 								<div class="flex flex-col items-end gap-1.5 w-24">
 									<span class="text-[10px] text-fg/50">Instalando… {installProgress}%</span>
 									<div class="w-full h-1.5 rounded-full bg-fg/10 overflow-hidden">
-										<div class="h-full bg-brand-500 rounded-full transition-all duration-300" style="width:{installProgress}%"></div>
+										<div class="h-full bg-brand-500 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300" style="width:{installProgress}%"></div>
 									</div>
 								</div>
 							{:else if !runtime.installed}
 								<button
 									type="button"
 									onclick={() => install(runtime.major)}
-									class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/30 text-brand-400 text-[11px] font-bold transition-all cursor-pointer"
+									class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/30 text-brand-400 text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 								>
 									<Download class="w-3.5 h-3.5" />
 									Instalar
@@ -150,7 +150,7 @@
 								<button
 									type="button"
 									onclick={() => uninstall(runtime.major)}
-									class="p-2 rounded-xl text-fg/30 hover:text-danger hover:bg-danger/10 border border-fg/5 hover:border-danger/20 transition-all cursor-pointer"
+									class="p-2 rounded-xl text-fg/30 hover:text-danger hover:bg-danger/10 border border-fg/5 hover:border-danger/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 									title="Remover runtime gerenciado"
 								>
 									<Trash2 class="w-3.5 h-3.5" />

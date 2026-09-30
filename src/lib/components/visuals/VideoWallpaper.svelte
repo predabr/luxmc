@@ -180,7 +180,7 @@
 
 <div class="absolute inset-0 overflow-hidden bg-bg" aria-hidden="true">
     {#if poster}
-        <img
+        <img loading="lazy" decoding="async"
             src={poster}
             alt=""
             class="absolute inset-0 h-full w-full object-cover pointer-events-none"

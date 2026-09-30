@@ -137,7 +137,7 @@
                 </div>
                 {#if showQrCode && roomQrCode}
                     <div class="flex flex-col items-center gap-4 rounded-2xl border border-fg/10 bg-bg/55 p-4 sm:flex-row">
-                        <img class="h-28 w-28 rounded-xl bg-fg p-1" src={roomQrCode} alt="QR Code do convite da sala" />
+                        <img loading="lazy" decoding="async" class="h-28 w-28 rounded-xl bg-fg p-1" src={roomQrCode} alt="QR Code do convite da sala" />
                         <div><p class="text-sm font-bold text-fg">Convite pronto para escanear</p><p class="mt-1 text-xs leading-relaxed text-fg-muted">O QR abre o Luxmc no outro dispositivo com os dados completos e privados da sala.</p></div>
                     </div>
                 {/if}

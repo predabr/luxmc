@@ -146,7 +146,7 @@
 					href={release.url}
 					target="_blank"
 					rel="noopener noreferrer"
-					class="group rounded-2xl bg-bg-elevated border border-fg/5 hover:border-emerald-500/30 p-3.5 transition-all hover:bg-bg-subtle cursor-pointer"
+					class="group rounded-2xl bg-bg-elevated border border-fg/5 hover:border-emerald-500/30 p-3.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:bg-bg-subtle cursor-pointer"
 				>
 					<div class="flex items-center justify-between gap-2">
 						<div class="flex items-center gap-2 min-w-0">
@@ -155,7 +155,7 @@
 							</span>
 							<span class="text-[10px] text-fg/30 shrink-0">{release.publishedAt}</span>
 						</div>
-						<ArrowRight class="w-3 h-3 text-fg/20 group-hover:text-emerald-400 -rotate-45 transition-all shrink-0" />
+						<ArrowRight class="w-3 h-3 text-fg/20 group-hover:text-emerald-400 -rotate-45 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shrink-0" />
 					</div>
 					<h3 class="text-xs font-bold text-fg mt-1.5 group-hover:text-emerald-400 transition-colors truncate">
 						{release.title}

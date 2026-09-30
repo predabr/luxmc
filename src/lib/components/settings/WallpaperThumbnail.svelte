@@ -18,10 +18,10 @@
 
 {#if type === "video"}
     {#if poster}
-        <img src={poster} alt="" class="h-full w-full object-cover" />
+        <img loading="lazy" decoding="async" src={poster} alt="" class="h-full w-full object-cover" />
     {:else}
         <Film class="h-6 w-6 text-brand-400" />
     {/if}
 {:else}
-    <img src={resolveWallpaperImageUrl(url)} alt="" class="h-full w-full object-cover" />
+    <img loading="lazy" decoding="async" src={resolveWallpaperImageUrl(url)} alt="" class="h-full w-full object-cover" />
 {/if}

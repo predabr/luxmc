@@ -52,7 +52,7 @@
 			<div class="text-[10px] text-fg/60 mt-0.5">Detecta sua memória instalada e aplica as Aikar's Flags ideais para eliminar engasgos de FPS</div>
 		</div>
 		<button
-			class="bg-brand-500 hover:bg-brand-400 active:scale-[0.98] text-brand-foreground font-black text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shrink-0 flex items-center gap-1.5"
+			class="bg-brand-500 hover:bg-brand-400 active:scale-[0.98] text-brand-foreground font-black text-xs px-4 py-2.5 rounded-xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-md shrink-0 flex items-center gap-1.5"
 			onclick={autoOptimizeRam}
 		>
 			<Sparkles class="w-3.5 h-3.5" /> Otimizar Agora
@@ -104,7 +104,7 @@
 			{ title: 'Processamento Paralelo de Referências (-XX:+ParallelRefProcEnabled)', desc: 'Distribui a limpeza de referências fracas por todos os núcleos da CPU', val: parallelRefProc, toggle: () => parallelRefProc = !parallelRefProc },
 			{ title: 'Compilação JIT Tiered (-XX:+TieredCompilation)', desc: 'Compilação nativa em múltiplos níveis para carregamento rápido', val: tieredCompilation, toggle: () => tieredCompilation = !tieredCompilation }
 		] as opt}
-			<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-all">
+			<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]">
 				<div>
 					<div class="text-xs font-bold text-fg">{opt.title}</div>
 					<div class="text-[10px] text-fg/40">{opt.desc}</div>

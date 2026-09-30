@@ -50,23 +50,33 @@ async fn resolve_instance_existing_path(profile_id: &str, requested_path: &str) 
         .fetch_optional(db.pool())
         .await?
         .ok_or_else(|| AppError::NotFound(format!("profile {profile_id} not found")))?;
-    let root = std::fs::canonicalize(&row.game_dir)?;
-    let path = std::fs::canonicalize(requested_path)?;
-    if path == root || !path.starts_with(&root) {
-        return Err(AppError::InvalidInput("O arquivo não pertence à instância".into()));
-    }
-    Ok(path)
+    let game_dir = row.game_dir.clone();
+    let requested = requested_path.to_string();
+    tokio::task::spawn_blocking(move || -> AppResult<std::path::PathBuf> {
+        let root = std::fs::canonicalize(&game_dir)?;
+        let path = std::fs::canonicalize(&requested)?;
+        if path == root || !path.starts_with(&root) {
+            return Err(AppError::InvalidInput("O arquivo não pertence à instância".into()));
+        }
+        Ok(path)
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_file_read(profileId: String, path: String) -> AppResult<String> {
     let path = resolve_instance_existing_path(&profileId, &path).await?;
-    let metadata = std::fs::metadata(&path)?;
-    if !metadata.is_file() || metadata.len() > INSTANCE_EDITOR_MAX_BYTES {
-        return Err(AppError::InvalidInput("O arquivo não pode ser aberto no editor".into()));
-    }
-    std::fs::read_to_string(path).map_err(AppError::Io)
+    tokio::task::spawn_blocking(move || -> AppResult<String> {
+        let metadata = std::fs::metadata(&path)?;
+        if !metadata.is_file() || metadata.len() > INSTANCE_EDITOR_MAX_BYTES {
+            return Err(AppError::InvalidInput("O arquivo não pode ser aberto no editor".into()));
+        }
+        std::fs::read_to_string(path).map_err(AppError::Io)
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]
@@ -76,25 +86,33 @@ pub async fn instance_file_write(profileId: String, path: String, content: Strin
         return Err(AppError::InvalidInput("O conteúdo excede o limite do editor".into()));
     }
     let path = resolve_instance_existing_path(&profileId, &path).await?;
-    if !std::fs::metadata(&path)?.is_file() {
-        return Err(AppError::InvalidInput("Apenas arquivos podem ser editados".into()));
-    }
-    std::fs::write(path, content).map_err(AppError::Io)
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        if !std::fs::metadata(&path)?.is_file() {
+            return Err(AppError::InvalidInput("Apenas arquivos podem ser editados".into()));
+        }
+        std::fs::write(path, content).map_err(AppError::Io)
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_file_delete(profileId: String, path: String) -> AppResult<()> {
     let path = resolve_instance_existing_path(&profileId, &path).await?;
-    let metadata = std::fs::metadata(&path)?;
-    if metadata.is_dir() {
-        std::fs::remove_dir_all(path)?;
-    } else if metadata.is_file() {
-        std::fs::remove_file(path)?;
-    } else {
-        return Err(AppError::InvalidInput("Tipo de arquivo não suportado".into()));
-    }
-    Ok(())
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let metadata = std::fs::metadata(&path)?;
+        if metadata.is_dir() {
+            std::fs::remove_dir_all(path)?;
+        } else if metadata.is_file() {
+            std::fs::remove_file(path)?;
+        } else {
+            return Err(AppError::InvalidInput("Tipo de arquivo não suportado".into()));
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -137,11 +155,18 @@ pub async fn instances_duplicate(id: String) -> AppResult<ProfileRow> {
 
     let old_dir = std::path::PathBuf::from(&existing.game_dir);
     if old_dir.exists() && old_dir.is_dir() {
-        let _ = tokio::fs::create_dir_all(&target_game_dir).await;
-        let mut copy_options = fs_extra::dir::CopyOptions::new();
-        copy_options.content_only = true;
-        copy_options.overwrite = true;
-        fs_extra::dir::copy(&old_dir, &target_game_dir, &copy_options).map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
+        let target_dir = target_game_dir.clone();
+        tokio::task::spawn_blocking(move || -> crate::error::AppResult<()> {
+            std::fs::create_dir_all(&target_dir)?;
+            let mut copy_options = fs_extra::dir::CopyOptions::new();
+            copy_options.content_only = true;
+            copy_options.overwrite = true;
+            fs_extra::dir::copy(&old_dir, &target_dir, &copy_options)
+                .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| crate::error::AppError::Internal(e.to_string()))??;
     }
 
     let row = ProfileRow {
@@ -330,13 +355,13 @@ pub async fn instances_screenshots(
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {id} not found")))?;
 
     let dir = std::path::Path::new(&row.game_dir).join("screenshots");
-    if !dir.exists() {
-        return Ok(Vec::new());
-    }
 
-    let mut entries = Vec::new();
+    let entries = tokio::task::spawn_blocking(move || -> Vec<ScreenshotEntry> {
+        if !dir.is_dir() {
+            return Vec::new();
+        }
 
-    if dir.is_dir() {
+        let mut entries = Vec::new();
         if let Ok(read_dir) = std::fs::read_dir(&dir) {
             for entry in read_dir.flatten() {
                 let path = entry.path();
@@ -351,10 +376,7 @@ pub async fn instances_screenshots(
                     continue;
                 }
 
-                let modified_time = entry
-                    .metadata()
-                    .ok()
-                    .and_then(|m| m.modified().ok());
+                let modified_time = entry.metadata().ok().and_then(|m| m.modified().ok());
 
                 let modified_rfc3339 = modified_time
                     .map(|t| {
@@ -378,43 +400,45 @@ pub async fn instances_screenshots(
                 ));
             }
         }
-    }
 
-    // Sort newest first
-    entries.sort_by(|a, b| b.0.cmp(&a.0));
+        // Sort newest first
+        entries.sort_by(|a, b| b.0.cmp(&a.0));
 
-    // Provide lightweight data_url fallback only for the first 6 screenshots if <= 1.5MB
-    use base64::Engine;
-    let result: Vec<ScreenshotEntry> = entries
-        .into_iter()
-        .enumerate()
-        .map(|(idx, (_, mut entry))| {
-            if idx < 6 {
-                if let Ok(bytes) = std::fs::read(&entry.path) {
-                    if bytes.len() <= 1500 * 1024 {
-                        let ext = std::path::Path::new(&entry.path)
-                            .extension()
-                            .and_then(|e| e.to_str())
-                            .unwrap_or("png")
-                            .to_lowercase();
-                        let mime = if ext == "jpg" || ext == "jpeg" {
-                            "image/jpeg"
-                        } else {
-                            "image/png"
-                        };
-                        entry.data_url = Some(format!(
-                            "data:{};base64,{}",
-                            mime,
-                            base64::prelude::BASE64_STANDARD.encode(&bytes)
-                        ));
+        // Provide lightweight data_url fallback only for the first 6 screenshots if <= 1.5MB
+        use base64::Engine;
+        entries
+            .into_iter()
+            .enumerate()
+            .map(|(idx, (_, mut entry))| {
+                if idx < 6 {
+                    if let Ok(bytes) = std::fs::read(&entry.path) {
+                        if bytes.len() <= 1500 * 1024 {
+                            let ext = std::path::Path::new(&entry.path)
+                                .extension()
+                                .and_then(|e| e.to_str())
+                                .unwrap_or("png")
+                                .to_lowercase();
+                            let mime = if ext == "jpg" || ext == "jpeg" {
+                                "image/jpeg"
+                            } else {
+                                "image/png"
+                            };
+                            entry.data_url = Some(format!(
+                                "data:{};base64,{}",
+                                mime,
+                                base64::prelude::BASE64_STANDARD.encode(&bytes)
+                            ));
+                        }
                     }
                 }
-            }
-            entry
-        })
-        .collect();
+                entry
+            })
+            .collect()
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?;
 
-    Ok(result)
+    Ok(entries)
 }
 
 /// Delete a screenshot file by its absolute path.
@@ -422,37 +446,45 @@ pub async fn instances_screenshots(
 /// path-traversal attacks.
 #[tauri::command]
 pub async fn screenshot_delete(path: String) -> AppResult<()> {
-    let p = std::path::Path::new(&path);
-    let canonical = p.canonicalize().map_err(|_| {
-        crate::error::AppError::NotFound("Arquivo de screenshot não encontrado".to_string())
-    })?;
+    let canonical = tokio::task::spawn_blocking(move || -> AppResult<std::path::PathBuf> {
+        let p = std::path::Path::new(&path);
+        let canonical = p.canonicalize().map_err(|_| {
+            crate::error::AppError::NotFound("Arquivo de screenshot não encontrado".to_string())
+        })?;
 
-    if !canonical.is_file() {
-        return Err(crate::error::AppError::InvalidInput("O caminho não aponta para um arquivo".to_string()));
-    }
+        if !canonical.is_file() {
+            return Err(crate::error::AppError::InvalidInput(
+                "O caminho não aponta para um arquivo".to_string(),
+            ));
+        }
 
-    let parent_is_screenshots = canonical
-        .parent()
-        .and_then(|parent| parent.file_name())
-        .map_or(false, |name| name == "screenshots");
+        let parent_is_screenshots = canonical
+            .parent()
+            .and_then(|parent| parent.file_name())
+            .map_or(false, |name| name == "screenshots");
 
-    if !parent_is_screenshots {
-        return Err(crate::error::AppError::InvalidInput(
-            "O arquivo deve estar diretamente dentro de uma pasta screenshots".to_string(),
-        ));
-    }
+        if !parent_is_screenshots {
+            return Err(crate::error::AppError::InvalidInput(
+                "O arquivo deve estar diretamente dentro de uma pasta screenshots".to_string(),
+            ));
+        }
 
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .ok_or_else(|| crate::error::AppError::Internal("Data dir unavailable".to_string()))?;
-    let canonical_data = base_dir.data_dir().canonicalize().map_err(|_| {
-        crate::error::AppError::Internal("Data dir not found".to_string())
-    })?;
+        let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+            .ok_or_else(|| crate::error::AppError::Internal("Data dir unavailable".to_string()))?;
+        let canonical_data = base_dir.data_dir().canonicalize().map_err(|_| {
+            crate::error::AppError::Internal("Data dir not found".to_string())
+        })?;
 
-    if !canonical.starts_with(&canonical_data) {
-        return Err(crate::error::AppError::InvalidInput(
-            "Screenshot fora do diretório de dados do Luxmc".to_string(),
-        ));
-    }
+        if !canonical.starts_with(&canonical_data) {
+            return Err(crate::error::AppError::InvalidInput(
+                "Screenshot fora do diretório de dados do Luxmc".to_string(),
+            ));
+        }
+
+        Ok(canonical)
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
     tokio::fs::remove_file(&canonical).await?;
     Ok(())
@@ -759,56 +791,62 @@ pub async fn instance_import_modpack_core(
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     tracing::info!(file_path = %file_path, profile_name = %profile_name, mc_version = %mc_version, loader = %loader, "instance_import_modpack called");
-    let file = std::fs::File::open(&file_path).map_err(|e| {
-        tracing::error!(file_path = %file_path, error = %e, "failed to open modpack zip");
-        e
-    })?;
-    let file_size = file.metadata().map(|m| m.len()).unwrap_or(0);
-    tracing::info!(size = file_size, "modpack zip opened");
-    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
-        .map_err(|e| {
-            tracing::error!(error = %e, "failed to parse zip archive");
-            crate::error::AppError::InvalidState(format!("invalid zip: {e}"))
-        })?;
-    tracing::info!(entries = archive.len(), "zip archive opened");
+    type ModpackArchive = zip::ZipArchive<std::io::BufReader<std::fs::File>>;
+    let (mut archive, manifest, root_prefix) = tokio::task::block_in_place(
+        || -> AppResult<(ModpackArchive, CfManifest, String)> {
+            let file = std::fs::File::open(&file_path).map_err(|e| {
+                tracing::error!(file_path = %file_path, error = %e, "failed to open modpack zip");
+                e
+            })?;
+            let file_size = file.metadata().map(|m| m.len()).unwrap_or(0);
+            tracing::info!(size = file_size, "modpack zip opened");
+            let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
+                .map_err(|e| {
+                    tracing::error!(error = %e, "failed to parse zip archive");
+                    crate::error::AppError::InvalidState(format!("invalid zip: {e}"))
+                })?;
+            tracing::info!(entries = archive.len(), "zip archive opened");
 
-    let mut manifest_idx = None;
-    let mut root_prefix = String::new();
+            let mut manifest_idx = None;
+            let mut root_prefix = String::new();
 
-    for i in 0..archive.len() {
-        if let Ok(file) = archive.by_index(i) {
-            let name = file.name().replace('\\', "/");
-            let clean = name.trim_start_matches('/');
-            if clean == "manifest.json" {
-                manifest_idx = Some(i);
-                root_prefix = String::new();
-                break;
-            } else if clean.ends_with("/manifest.json")  {
-                if let Some(prefix) = clean.strip_suffix("manifest.json") {
-                    manifest_idx = Some(i);
-                    root_prefix = prefix.to_string();
+            for i in 0..archive.len() {
+                if let Ok(file) = archive.by_index(i) {
+                    let name = file.name().replace('\\', "/");
+                    let clean = name.trim_start_matches('/');
+                    if clean == "manifest.json" {
+                        manifest_idx = Some(i);
+                        root_prefix = String::new();
+                        break;
+                    } else if clean.ends_with("/manifest.json")  {
+                        if let Some(prefix) = clean.strip_suffix("manifest.json") {
+                            manifest_idx = Some(i);
+                            root_prefix = prefix.to_string();
+                        }
+                    }
                 }
             }
-        }
-    }
 
-    let manifest_idx = manifest_idx.ok_or_else(|| {
-        tracing::error!("manifest.json not found in zip");
-        crate::error::AppError::NotFound("manifest.json not found in zip".into())
-    })?;
+            let manifest_idx = manifest_idx.ok_or_else(|| {
+                tracing::error!("manifest.json not found in zip");
+                crate::error::AppError::NotFound("manifest.json not found in zip".into())
+            })?;
 
-    let manifest: CfManifest = {
-        let entry = archive.by_index(manifest_idx).map_err(|e| {
-            tracing::error!(error = %e, "failed to read manifest entry");
-            crate::error::AppError::InvalidState(format!("failed to read manifest entry: {e}"))
-        })?;
-        if entry.size() > 8 * 1024 * 1024 { return Err(crate::error::AppError::InvalidInput("Manifest exceeds 8 MiB".into())); }
-        serde_json::from_reader(entry).map_err(|e| {
-            tracing::error!(error = %e, "failed to parse manifest.json");
-            crate::error::AppError::InvalidState(format!("invalid manifest: {e}"))
-        })?
-    };
-    tracing::info!(files = manifest.files.len(), prefix = %root_prefix, "manifest parsed");
+            let manifest: CfManifest = {
+                let entry = archive.by_index(manifest_idx).map_err(|e| {
+                    tracing::error!(error = %e, "failed to read manifest entry");
+                    crate::error::AppError::InvalidState(format!("failed to read manifest entry: {e}"))
+                })?;
+                if entry.size() > 8 * 1024 * 1024 { return Err(crate::error::AppError::InvalidInput("Manifest exceeds 8 MiB".into())); }
+                serde_json::from_reader(entry).map_err(|e| {
+                    tracing::error!(error = %e, "failed to parse manifest.json");
+                    crate::error::AppError::InvalidState(format!("invalid manifest: {e}"))
+                })?
+            };
+            tracing::info!(files = manifest.files.len(), prefix = %root_prefix, "manifest parsed");
+            Ok((archive, manifest, root_prefix))
+        },
+    )?;
 
     let manifest_mc_version = manifest
         .minecraft
@@ -885,60 +923,65 @@ pub async fn instance_import_modpack_core(
     let shaderpacks_prefix = format!("{}shaderpacks/", root_prefix).to_lowercase();
     let mods_prefix = format!("{}mods/", root_prefix).to_lowercase();
 
-    let mut override_paths = std::collections::HashSet::new();
-    let mut extracted_count = 0;
-    let mut extracted_size = 0u64;
-    for i in 0..archive.len() {
-        crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
-        if let Ok(mut file) = archive.by_index(i) {
-            let raw_name = file.name().replace('\\', "/");
-            let clean_name = raw_name.trim_start_matches('/');
-            let lower_name = clean_name.to_lowercase();
+    let (override_paths, extracted_count) = tokio::task::block_in_place(
+        || -> AppResult<(std::collections::HashSet<String>, usize)> {
+        let mut override_paths = std::collections::HashSet::new();
+        let mut extracted_count = 0;
+        let mut extracted_size = 0u64;
+        for i in 0..archive.len() {
+            crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
+            if let Ok(mut file) = archive.by_index(i) {
+                let raw_name = file.name().replace('\\', "/");
+                let clean_name = raw_name.trim_start_matches('/');
+                let lower_name = clean_name.to_lowercase();
 
-            let rel_str = if lower_name.starts_with(&full_overrides_prefix) {
-                clean_name.get(full_overrides_prefix.len()..)
-            } else if lower_name.starts_with(&fallback_overrides_prefix) {
-                clean_name.get(fallback_overrides_prefix.len()..)
-            } else if lower_name.starts_with(&fallback_client_prefix) {
-                clean_name.get(fallback_client_prefix.len()..)
-            } else if lower_name.starts_with(&fallback_client_dir) {
-                clean_name.get(fallback_client_dir.len()..)
-            } else if lower_name.starts_with(&kubejs_prefix)
-                || lower_name.starts_with(&config_prefix)
-                || lower_name.starts_with(&defaultconfigs_prefix)
-                || lower_name.starts_with(&scripts_prefix)
-                || lower_name.starts_with(&patchouli_prefix)
-                || lower_name.starts_with(&openloader_prefix)
-                || lower_name.starts_with(&resourcepacks_prefix)
-                || lower_name.starts_with(&shaderpacks_prefix)
-                || lower_name.starts_with(&mods_prefix)
-            {
-                Some(&clean_name[root_prefix.len()..])
-            } else {
-                None
-            };
-
-            if let Some(rel) = rel_str {
-                if rel.is_empty() { continue; }
-                validate_pack_entry(rel)?;
-                let outpath = crate::core::mods::pack_download::destination(&instance_dir, rel)?;
-                extracted_size = extracted_size.saturating_add(file.size());
-                if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000)
-                    || file.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 {
-                    return Err(crate::error::AppError::InvalidInput("Unsafe pack archive entry".into()));
-                }
-                if file.is_dir() || clean_name.ends_with('/') {
-                    std::fs::create_dir_all(&outpath)?;
+                let rel_str = if lower_name.starts_with(&full_overrides_prefix) {
+                    clean_name.get(full_overrides_prefix.len()..)
+                } else if lower_name.starts_with(&fallback_overrides_prefix) {
+                    clean_name.get(fallback_overrides_prefix.len()..)
+                } else if lower_name.starts_with(&fallback_client_prefix) {
+                    clean_name.get(fallback_client_prefix.len()..)
+                } else if lower_name.starts_with(&fallback_client_dir) {
+                    clean_name.get(fallback_client_dir.len()..)
+                } else if lower_name.starts_with(&kubejs_prefix)
+                    || lower_name.starts_with(&config_prefix)
+                    || lower_name.starts_with(&defaultconfigs_prefix)
+                    || lower_name.starts_with(&scripts_prefix)
+                    || lower_name.starts_with(&patchouli_prefix)
+                    || lower_name.starts_with(&openloader_prefix)
+                    || lower_name.starts_with(&resourcepacks_prefix)
+                    || lower_name.starts_with(&shaderpacks_prefix)
+                    || lower_name.starts_with(&mods_prefix)
+                {
+                    Some(&clean_name[root_prefix.len()..])
                 } else {
-                    if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
-                    let mut output = std::fs::File::create(&outpath)?;
-                    std::io::copy(&mut file, &mut output)?;
-                    extracted_count += 1;
-                    override_paths.insert(rel.to_owned());
+                    None
+                };
+
+                if let Some(rel) = rel_str {
+                    if rel.is_empty() { continue; }
+                    validate_pack_entry(rel)?;
+                    let outpath = crate::core::mods::pack_download::destination(&instance_dir, rel)?;
+                    extracted_size = extracted_size.saturating_add(file.size());
+                    if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000)
+                        || file.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 {
+                        return Err(crate::error::AppError::InvalidInput("Unsafe pack archive entry".into()));
+                    }
+                    if file.is_dir() || clean_name.ends_with('/') {
+                        std::fs::create_dir_all(&outpath)?;
+                    } else {
+                        if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
+                        let mut output = std::fs::File::create(&outpath)?;
+                        std::io::copy(&mut file, &mut output)?;
+                        extracted_count += 1;
+                        override_paths.insert(rel.to_owned());
+                    }
                 }
             }
         }
-    }
+            Ok((override_paths, extracted_count))
+        },
+    )?;
     record_override_jars(&instance_dir, &override_paths).await?;
     tracing::info!(extracted = extracted_count, "overrides extraction completed");
 
@@ -1121,13 +1164,33 @@ pub async fn instance_repair_modpack_core(
 
     let root = std::path::Path::new(&row.game_dir);
     let mods_dir = root.join("mods");
-    let before: std::collections::HashMap<_, _> = std::fs::read_dir(&mods_dir).into_iter().flatten().filter_map(Result::ok)
-        .filter_map(|entry| entry.metadata().ok().map(|meta| (entry.file_name(), (meta.len(), meta.modified().ok())))).collect();
+    let before = {
+        let scan_dir = mods_dir.clone();
+        tokio::task::spawn_blocking(move || -> std::io::Result<std::collections::HashMap<_, _>> {
+            let map: std::collections::HashMap<_, _> = std::fs::read_dir(scan_dir)?
+                .flatten()
+                .filter_map(|entry| entry.metadata().ok().map(|meta| (entry.file_name(), (meta.len(), meta.modified().ok()))))
+                .collect();
+            Ok(map)
+        })
+        .await
+        .map_err(|error| crate::error::AppError::Internal(error.to_string()))??
+    };
     let _ = tokio::fs::remove_file(root.join(".luxmc/.healed")).await;
     heal_modpack(state, &row).await?;
-    let repaired = std::fs::read_dir(&mods_dir)?.filter_map(Result::ok).filter(|entry| {
-        entry.metadata().ok().is_some_and(|meta| before.get(&entry.file_name()) != Some(&(meta.len(), meta.modified().ok())))
-    }).count() as u32;
+    let repaired = {
+        let scan_dir = mods_dir.clone();
+        tokio::task::spawn_blocking(move || -> std::io::Result<u32> {
+            Ok(std::fs::read_dir(scan_dir)?
+                .flatten()
+                .filter(|entry| {
+                    entry.metadata().ok().is_some_and(|meta| before.get(&entry.file_name()) != Some(&(meta.len(), meta.modified().ok())))
+                })
+                .count() as u32)
+        })
+        .await
+        .map_err(|error| crate::error::AppError::Internal(error.to_string()))??
+    };
     if let Some(app) = app {
         let _ = app.emit("modpack-progress", serde_json::json!({ "phase": "complete", "percent": 100, "current": repaired, "total": repaired, "status": format!("{repaired} arquivos recuperados") }));
     }
@@ -1273,21 +1336,31 @@ pub async fn instance_file_tree(
     let mut keys_needed = std::collections::HashSet::new();
 
     if base.is_dir() {
-        for entry in std::fs::read_dir(&base)? {
-            let entry = entry?;
-            let path = entry.path();
-            let metadata = entry.metadata()?;
-            let is_dir = metadata.is_dir();
-            let is_jar_or_zip = !is_dir && path.extension().map_or(false, |e| {
-                let s = e.to_string_lossy().to_lowercase();
-                s == "jar" || s == "zip" || s == "disabled"
-            });
-            let fname = path
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_default();
+        let scanned = tokio::task::spawn_blocking(move || -> AppResult<Vec<(String, std::path::PathBuf, bool, std::fs::Metadata, bool)>> {
+            let mut raw = Vec::new();
+            for entry in std::fs::read_dir(&base)? {
+                let entry = entry?;
+                let path = entry.path();
+                let metadata = entry.metadata()?;
+                let is_dir = metadata.is_dir();
+                let is_jar_or_zip = !is_dir && path.extension().map_or(false, |e| {
+                    let s = e.to_string_lossy().to_lowercase();
+                    s == "jar" || s == "zip" || s == "disabled"
+                });
+                let fname = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
 
-            if is_jar_or_zip {
+                raw.push((fname, path, is_dir, metadata, is_jar_or_zip));
+            }
+            Ok(raw)
+        })
+        .await
+        .map_err(|error| AppError::Internal(error.to_string()))??;
+
+        for (fname, path, _, _, is_jar_or_zip) in &scanned {
+            if *is_jar_or_zip {
                 keys_needed.insert(fname.clone());
                 if let Some(stem) = path.file_stem().map(|s| s.to_string_lossy().to_string()) {
                     let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
@@ -1295,9 +1368,8 @@ pub async fn instance_file_tree(
                     keys_needed.insert(base_key);
                 }
             }
-
-            raw_entries.push((fname, path, is_dir, metadata, is_jar_or_zip));
         }
+        raw_entries = scanned;
     }
 
     let cached_icons: std::collections::HashMap<String, String> = if !keys_needed.is_empty() {
@@ -1812,46 +1884,52 @@ pub async fn instance_import_mrpack_core(
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     tracing::info!(file_path = %file_path, profile_name = %profile_name, "instance_import_mrpack called");
-    let file = std::fs::File::open(&file_path).map_err(|e| {
-        tracing::error!(file_path = %file_path, error = %e, "failed to open mrpack zip");
-        e
-    })?;
-    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
-        .map_err(|e| crate::error::AppError::InvalidState(format!("invalid zip: {e}")))?;
+    type MrpackArchive = zip::ZipArchive<std::io::BufReader<std::fs::File>>;
+    let (mut archive, mut manifest, root_prefix) = tokio::task::block_in_place(
+        || -> AppResult<(MrpackArchive, MrpackManifest, String)> {
+            let file = std::fs::File::open(&file_path).map_err(|e| {
+                tracing::error!(file_path = %file_path, error = %e, "failed to open mrpack zip");
+                e
+            })?;
+            let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file))
+                .map_err(|e| crate::error::AppError::InvalidState(format!("invalid zip: {e}")))?;
 
-    let mut manifest_idx = None;
-    let mut root_prefix = String::new();
+            let mut manifest_idx = None;
+            let mut root_prefix = String::new();
 
-    for i in 0..archive.len() {
-        if let Ok(f) = archive.by_index(i) {
-            let name = f.name().replace('\\', "/");
-            let clean = name.trim_start_matches('/');
-            if clean == "modrinth.index.json" {
-                manifest_idx = Some(i);
-                root_prefix = String::new();
-                break;
-            } else if clean.ends_with("/modrinth.index.json")  {
-                if let Some(prefix) = clean.strip_suffix("modrinth.index.json") {
-                    manifest_idx = Some(i);
-                    root_prefix = prefix.to_string();
+            for i in 0..archive.len() {
+                if let Ok(f) = archive.by_index(i) {
+                    let name = f.name().replace('\\', "/");
+                    let clean = name.trim_start_matches('/');
+                    if clean == "modrinth.index.json" {
+                        manifest_idx = Some(i);
+                        root_prefix = String::new();
+                        break;
+                    } else if clean.ends_with("/modrinth.index.json")  {
+                        if let Some(prefix) = clean.strip_suffix("modrinth.index.json") {
+                            manifest_idx = Some(i);
+                            root_prefix = prefix.to_string();
+                        }
+                    }
                 }
             }
-        }
-    }
 
-    let manifest_idx = manifest_idx.ok_or_else(|| {
-        crate::error::AppError::NotFound("modrinth.index.json not found in mrpack".into())
-    })?;
+            let manifest_idx = manifest_idx.ok_or_else(|| {
+                crate::error::AppError::NotFound("modrinth.index.json not found in mrpack".into())
+            })?;
 
-    let mut manifest: MrpackManifest = {
-        let entry = archive.by_index(manifest_idx).map_err(|e| {
-            crate::error::AppError::InvalidState(format!("failed to read modrinth.index.json entry: {e}"))
-        })?;
-        if entry.size() > 8 * 1024 * 1024 { return Err(crate::error::AppError::InvalidInput("Manifest exceeds 8 MiB".into())); }
-        serde_json::from_reader(entry).map_err(|e| {
-            crate::error::AppError::InvalidState(format!("invalid mrpack manifest: {e}"))
-        })?
-    };
+            let manifest: MrpackManifest = {
+                let entry = archive.by_index(manifest_idx).map_err(|e| {
+                    crate::error::AppError::InvalidState(format!("failed to read modrinth.index.json entry: {e}"))
+                })?;
+                if entry.size() > 8 * 1024 * 1024 { return Err(crate::error::AppError::InvalidInput("Manifest exceeds 8 MiB".into())); }
+                serde_json::from_reader(entry).map_err(|e| {
+                    crate::error::AppError::InvalidState(format!("invalid mrpack manifest: {e}"))
+                })?
+            };
+            Ok((archive, manifest, root_prefix))
+        },
+    )?;
 
     let mc_version = manifest
         .dependencies
@@ -1929,41 +2007,46 @@ pub async fn instance_import_mrpack_core(
     pack::cancelled(Some(&state.import_cancel))?;
     for result in results { result?; }
 
-    let mut overridden = std::collections::HashSet::new();
-    let mut extracted_size = 0u64;
-    for folder in ["overrides", "client-overrides"] {
-        let prefix = format!("{root_prefix}{folder}/");
-        let prefix_lower = prefix.to_ascii_lowercase();
-        for i in 0..archive.len() {
-            pack::cancelled(Some(&state.import_cancel))?;
-            let mut file = archive.by_index(i)?;
-            let name = file.name().replace('\\', "/");
-            let name_lower = name.to_ascii_lowercase();
-            let relative = if name_lower.starts_with(&prefix_lower) && name.len() > prefix.len() {
-                &name[prefix.len()..]
-            } else {
-                continue;
-            };
-            if relative.is_empty() { continue; }
-            validate_pack_entry(relative)?;
-            let outpath = pack::destination(&instance_dir, relative)?;
-            if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
-                return Err(crate::error::AppError::InvalidInput("Symlinks are not allowed in packs".into()));
-            }
-            extracted_size = extracted_size.saturating_add(file.size());
-            if file.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 {
-                return Err(crate::error::AppError::InvalidInput("Pack extraction limit exceeded".into()));
-            }
-            if file.is_dir() || name.ends_with('/') {
-                std::fs::create_dir_all(outpath)?;
-            } else {
-                if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
-                let mut output = std::fs::File::create(&outpath)?;
-                std::io::copy(&mut file, &mut output)?;
-                overridden.insert(relative.to_owned());
+    let overridden = tokio::task::block_in_place(
+        || -> AppResult<std::collections::HashSet<String>> {
+        let mut overridden = std::collections::HashSet::new();
+        let mut extracted_size = 0u64;
+        for folder in ["overrides", "client-overrides"] {
+            let prefix = format!("{root_prefix}{folder}/");
+            let prefix_lower = prefix.to_ascii_lowercase();
+            for i in 0..archive.len() {
+                pack::cancelled(Some(&state.import_cancel))?;
+                let mut file = archive.by_index(i)?;
+                let name = file.name().replace('\\', "/");
+                let name_lower = name.to_ascii_lowercase();
+                let relative = if name_lower.starts_with(&prefix_lower) && name.len() > prefix.len() {
+                    &name[prefix.len()..]
+                } else {
+                    continue;
+                };
+                if relative.is_empty() { continue; }
+                validate_pack_entry(relative)?;
+                let outpath = pack::destination(&instance_dir, relative)?;
+                if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
+                    return Err(crate::error::AppError::InvalidInput("Symlinks are not allowed in packs".into()));
+                }
+                extracted_size = extracted_size.saturating_add(file.size());
+                if file.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 {
+                    return Err(crate::error::AppError::InvalidInput("Pack extraction limit exceeded".into()));
+                }
+                if file.is_dir() || name.ends_with('/') {
+                    std::fs::create_dir_all(outpath)?;
+                } else {
+                    if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
+                    let mut output = std::fs::File::create(&outpath)?;
+                    std::io::copy(&mut file, &mut output)?;
+                    overridden.insert(relative.to_owned());
+                }
             }
         }
-    }
+            Ok(overridden)
+        },
+    )?;
     record_override_jars(&instance_dir, &overridden).await?;
     manifest.files.retain(|file| !overridden.contains(&file.path.replace('\\', "/")));
     pack::atomic_write(&instance_dir.join("modrinth.index.json"), &serde_json::to_vec_pretty(&manifest)?).await?;
@@ -2100,14 +2183,18 @@ pub async fn instance_export(
         "launcher": "Luxmc",
     });
 
-    let file = std::fs::File::create(&destPath).map_err(|e| {
-        crate::error::AppError::InvalidState(format!("cannot create export file: {e}"))
-    })?;
-    let writer = std::io::BufWriter::new(file);
-    serde_json::to_writer_pretty(writer, &manifest)
+    let manifest_json = serde_json::to_string_pretty(&manifest)
         .map_err(|e| crate::error::AppError::InvalidState(format!("serialize error: {e}")))?;
+    let result_path = destPath.clone();
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        std::fs::write(&destPath, manifest_json.as_bytes()).map_err(|e| {
+            crate::error::AppError::InvalidState(format!("cannot create export file: {e}"))
+        })
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
-    Ok(destPath)
+    Ok(result_path)
 }
 
 #[tauri::command]
@@ -2496,20 +2583,25 @@ pub async fn instance_worlds_list(
 
     let saves_dir = std::path::PathBuf::from(&row.game_dir).join("saves");
     let snapshots_base = std::path::PathBuf::from(&row.game_dir).join("snapshots");
-    let mut list = Vec::new();
 
-    if saves_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&saves_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    if let Some(detail) = inspect_world_dir(&path, &snapshots_base) {
-                        list.push(detail);
+    let list = tokio::task::spawn_blocking(move || {
+        let mut list = Vec::new();
+        if saves_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&saves_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        if let Some(detail) = inspect_world_dir(&path, &snapshots_base) {
+                            list.push(detail);
+                        }
                     }
                 }
             }
         }
-    }
+        list
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?;
 
     Ok(list)
 }
@@ -2548,13 +2640,18 @@ pub async fn instance_world_snapshot_create(
     let filename = format!("snapshot_{}_{}.tar.zst", timestamp, if safe_label.is_empty() { "Auto" } else { &safe_label });
     let dest_path = snapshots_dir.join(&filename);
 
-    let file = std::fs::File::create(&dest_path)?;
-    let zstd_writer = zstd::Encoder::new(file, 3)?.auto_finish();
-    let mut tar_builder = tar::Builder::new(zstd_writer);
-    tar_builder.append_dir_all(".", &world_dir)?;
-    tar_builder.finish()?;
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let file = std::fs::File::create(&dest_path)?;
+        let zstd_writer = zstd::Encoder::new(file, 3)?.auto_finish();
+        let mut tar_builder = tar::Builder::new(zstd_writer);
+        tar_builder.append_dir_all(".", &world_dir)?;
+        tar_builder.finish()?;
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
-    let size_bytes = dest_path.metadata().map(|m| m.len()).unwrap_or(0);
+    let size_bytes = std::path::Path::new(&snapshots_dir).join(&filename).metadata().map(|m| m.len()).unwrap_or(0);
     Ok(WorldSnapshotInfo {
         id: format!("{}_{}", folderName, timestamp),
         filename,
@@ -2582,36 +2679,41 @@ pub async fn instance_world_snapshots_list(
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
     let snapshots_dir = std::path::PathBuf::from(&row.game_dir).join("snapshots").join(&folderName);
-    let mut list = Vec::new();
-    if snapshots_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&snapshots_dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                let fname = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                if fname.ends_with(".tar.zst") && fname.starts_with("snapshot_") {
-                    let meta = entry.metadata().ok();
-                    let size_bytes = meta.as_ref().map(|m| m.len()).unwrap_or(0);
-                    let created_at = meta
-                        .and_then(|m| m.modified().ok())
-                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                        .map(|d| d.as_secs() as i64)
-                        .unwrap_or_else(|| chrono::Utc::now().timestamp());
+    let mut list = tokio::task::spawn_blocking(move || -> Vec<WorldSnapshotInfo> {
+        let mut list = Vec::new();
+        if snapshots_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&snapshots_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let fname = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    if fname.ends_with(".tar.zst") && fname.starts_with("snapshot_") {
+                        let meta = entry.metadata().ok();
+                        let size_bytes = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+                        let created_at = meta
+                            .and_then(|m| m.modified().ok())
+                            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                            .map(|d| d.as_secs() as i64)
+                            .unwrap_or_else(|| chrono::Utc::now().timestamp());
 
-                    let parts: Vec<&str> = fname.trim_end_matches(".tar.zst").splitn(3, '_').collect();
-                    let label = if parts.len() >= 3 { parts[2].to_string() } else { "Snapshot".to_string() };
+                        let parts: Vec<&str> = fname.trim_end_matches(".tar.zst").splitn(3, '_').collect();
+                        let label = if parts.len() >= 3 { parts[2].to_string() } else { "Snapshot".to_string() };
 
-                    list.push(WorldSnapshotInfo {
-                        id: fname.clone(),
-                        filename: fname,
-                        folder_name: folderName.clone(),
-                        label,
-                        created_at,
-                        size_bytes,
-                    });
+                        list.push(WorldSnapshotInfo {
+                            id: fname.clone(),
+                            filename: fname,
+                            folder_name: folderName.clone(),
+                            label,
+                            created_at,
+                            size_bytes,
+                        });
+                    }
                 }
             }
         }
-    }
+        list
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?;
 
     list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
     Ok(list)
@@ -2645,10 +2747,15 @@ pub async fn instance_world_snapshot_restore(
     }
     tokio::fs::create_dir_all(&world_dir).await?;
 
-    let file = std::fs::File::open(&snapshot_file)?;
-    let zstd_reader = zstd::Decoder::new(file)?;
-    let mut archive = tar::Archive::new(zstd_reader);
-    archive.unpack(&world_dir)?;
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let file = std::fs::File::open(&snapshot_file)?;
+        let zstd_reader = zstd::Decoder::new(file)?;
+        let mut archive = tar::Archive::new(zstd_reader);
+        archive.unpack(&world_dir)?;
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
     Ok(())
 }
@@ -2671,9 +2778,15 @@ pub async fn instance_world_snapshot_delete(
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
     let snapshot_file = std::path::PathBuf::from(&row.game_dir).join("snapshots").join(&folderName).join(&filename);
-    if snapshot_file.is_file() {
-        std::fs::remove_file(&snapshot_file)?;
-    }
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        if snapshot_file.is_file() {
+            std::fs::remove_file(&snapshot_file)?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
+
     Ok(())
 }
 
@@ -2698,11 +2811,18 @@ pub async fn instance_world_inspect_region(
         .join("region")
         .join(&target_file);
 
-    if region_path.is_file() {
-        Ok(crate::core::minecraft::anvil::inspect_region_file(&region_path))
-    } else {
-        Ok(None)
-    }
+    let summary = tokio::task::spawn_blocking(
+        move || -> Option<crate::core::minecraft::anvil::RegionSummary> {
+            if region_path.is_file() {
+                crate::core::minecraft::anvil::inspect_region_file(&region_path)
+            } else {
+                None
+            }
+        },
+    )
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?;
+    Ok(summary)
 }
 
 #[tauri::command]
@@ -2742,20 +2862,23 @@ pub async fn instance_world_delete(
             crate::error::AppError::NotFound(format!("profile {profileId} not found"))
         })?;
 
-    let world_path = std::path::PathBuf::from(&row.game_dir)
-        .join("saves")
-        .join(folderName);
-    let canonical_world = world_path.canonicalize().map_err(|_| {
-        crate::error::AppError::NotFound("World folder not found".to_string())
-    })?;
     let game_dir = std::path::PathBuf::from(&row.game_dir);
-    let canonical_game_dir = game_dir.canonicalize().unwrap_or(game_dir);
-    if !canonical_world.starts_with(&canonical_game_dir) {
-        return Err(crate::error::AppError::InvalidInput("Invalid world path".into()));
-    }
-    if canonical_world.is_dir() {
-        std::fs::remove_dir_all(&canonical_world)?;
-    }
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let world_path = game_dir.join("saves").join(folderName);
+        let canonical_world = world_path.canonicalize().map_err(|_| {
+            crate::error::AppError::NotFound("World folder not found".to_string())
+        })?;
+        let canonical_game_dir = game_dir.canonicalize().unwrap_or(game_dir);
+        if !canonical_world.starts_with(&canonical_game_dir) {
+            return Err(crate::error::AppError::InvalidInput("Invalid world path".into()));
+        }
+        if canonical_world.is_dir() {
+            std::fs::remove_dir_all(&canonical_world)?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
     Ok(())
 }
@@ -2775,163 +2898,169 @@ pub async fn instance_world_import(
             crate::error::AppError::NotFound(format!("profile {profileId} not found"))
         })?;
 
-    let src = std::path::PathBuf::from(&sourcePath);
-    if !src.exists() {
-        return Err(crate::error::AppError::NotFound(format!(
-            "Source path not found: {}",
-            sourcePath
-        )));
-    }
-
-    let saves_dir = std::path::PathBuf::from(&row.game_dir).join("saves");
-    std::fs::create_dir_all(&saves_dir)?;
     let snapshots_base = std::path::PathBuf::from(&row.game_dir).join("snapshots");
-
-    let get_unique_dir = |base_name: &str| -> std::path::PathBuf {
-        let clean: String = base_name
-            .chars()
-            .map(|c| {
-                if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
-                    c
-                } else {
-                    '_'
-                }
-            })
-            .collect();
-        let clean = clean.trim();
-        let clean = if clean.is_empty() {
-            "Mundo_Importado"
-        } else {
-            clean
-        };
-        let mut target = saves_dir.join(clean);
-        let mut counter = 1;
-        while target.exists() {
-            target = saves_dir.join(format!("{} ({})", clean, counter));
-            counter += 1;
+    let game_dir = row.game_dir.clone();
+    let target_dir = tokio::task::spawn_blocking(move || -> AppResult<std::path::PathBuf> {
+        let src = std::path::PathBuf::from(&sourcePath);
+        if !src.exists() {
+            return Err(crate::error::AppError::NotFound(format!(
+                "Source path not found: {}",
+                sourcePath
+            )));
         }
-        target
-    };
 
-    let target_dir: std::path::PathBuf;
+        let saves_dir = std::path::PathBuf::from(&game_dir).join("saves");
+        std::fs::create_dir_all(&saves_dir)?;
 
-    if src.is_file()
-        && src
-            .extension()
-            .map_or(false, |ext| ext.eq_ignore_ascii_case("zip"))
-    {
-        let file = std::fs::File::open(&src)?;
-        let mut archive = zip::ZipArchive::new(file)
-            .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
-
-        let mut level_dat_prefix: Option<String> = None;
-        let mut default_folder_name = src
-            .file_stem()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_else(|| "Mundo_Importado".into());
-
-        for i in 0..archive.len() {
-            if let Ok(entry) = archive.by_index(i) {
-                let name = entry.name().replace('\\', "/");
-                if name.ends_with("level.dat") {
-                    let prefix = if name == "level.dat" {
-                        "".to_string()
+        let get_unique_dir = |base_name: &str| -> std::path::PathBuf {
+            let clean: String = base_name
+                .chars()
+                .map(|c| {
+                    if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+                        c
                     } else {
-                        name.trim_end_matches("level.dat").to_string()
-                    };
-                    if let Some(parent) = prefix.trim_end_matches('/').split('/').last() {
-                        if !parent.is_empty() {
-                            default_folder_name = parent.to_string();
-                        }
+                        '_'
                     }
-                    level_dat_prefix = Some(prefix);
-                    break;
-                }
-            }
-        }
-
-        target_dir = get_unique_dir(&default_folder_name);
-        std::fs::create_dir_all(&target_dir)?;
-
-        let prefix = level_dat_prefix.unwrap_or_default();
-
-        for i in 0..archive.len() {
-            let mut file = archive.by_index(i)
-                .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
-            let entry_name = file.name().replace('\\', "/");
-
-            if !prefix.is_empty() && !entry_name.starts_with(&prefix) {
-                continue;
-            }
-
-            let rel_name = if !prefix.is_empty() {
-                entry_name.strip_prefix(&prefix).unwrap_or(&entry_name)
+                })
+                .collect();
+            let clean = clean.trim();
+            let clean = if clean.is_empty() {
+                "Mundo_Importado"
             } else {
-                &entry_name
+                clean
             };
-
-            let rel_path = std::path::Path::new(rel_name);
-            if rel_path
-                .components()
-                .any(|c| matches!(c, std::path::Component::ParentDir))
-            {
-                continue;
+            let mut target = saves_dir.join(clean);
+            let mut counter = 1;
+            while target.exists() {
+                target = saves_dir.join(format!("{} ({})", clean, counter));
+                counter += 1;
             }
+            target
+        };
 
-            let out_path = target_dir.join(rel_path);
-            if file.is_dir() {
-                std::fs::create_dir_all(&out_path)?;
-            } else {
-                if let Some(parent) = out_path.parent() {
-                    std::fs::create_dir_all(parent)?;
-                }
-                let mut out_file = std::fs::File::create(&out_path)?;
-                std::io::copy(&mut file, &mut out_file)?;
-            }
-        }
-    } else if src.is_dir() {
-        let actual_world_src = if src.join("level.dat").is_file() {
-            src.clone()
-        } else {
-            let mut found = None;
-            if let Ok(entries) = std::fs::read_dir(&src) {
-                for e in entries.flatten() {
-                    if e.path().is_dir() && e.path().join("level.dat").is_file() {
-                        found = Some(e.path());
+        let target_dir: std::path::PathBuf;
+
+        if src.is_file()
+            && src
+                .extension()
+                .map_or(false, |ext| ext.eq_ignore_ascii_case("zip"))
+        {
+            let file = std::fs::File::open(&src)?;
+            let mut archive = zip::ZipArchive::new(file)
+                .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+
+            let mut level_dat_prefix: Option<String> = None;
+            let mut default_folder_name = src
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Mundo_Importado".into());
+
+            for i in 0..archive.len() {
+                if let Ok(entry) = archive.by_index(i) {
+                    let name = entry.name().replace('\\', "/");
+                    if name.ends_with("level.dat") {
+                        let prefix = if name == "level.dat" {
+                            "".to_string()
+                        } else {
+                            name.trim_end_matches("level.dat").to_string()
+                        };
+                        if let Some(parent) = prefix.trim_end_matches('/').split('/').last() {
+                            if !parent.is_empty() {
+                                default_folder_name = parent.to_string();
+                            }
+                        }
+                        level_dat_prefix = Some(prefix);
                         break;
                     }
                 }
             }
-            found.unwrap_or(src.clone())
-        };
 
-        let folder_name = actual_world_src
-            .file_name()
-            .map(|s| s.to_string_lossy().to_string())
-            .unwrap_or_else(|| "Mundo_Importado".into());
-        target_dir = get_unique_dir(&folder_name);
+            target_dir = get_unique_dir(&default_folder_name);
+            std::fs::create_dir_all(&target_dir)?;
 
-        let mut options = fs_extra::dir::CopyOptions::new();
-        options.copy_inside = true;
-        std::fs::create_dir_all(&target_dir)?;
-        fs_extra::dir::copy(&actual_world_src, &target_dir, &options)
-            .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+            let prefix = level_dat_prefix.unwrap_or_default();
 
-        let sub = target_dir.join(&folder_name);
-        if sub.join("level.dat").is_file() {
-            if let Ok(entries) = std::fs::read_dir(&sub) {
-                for e in entries.flatten() {
-                    let dest = target_dir.join(e.file_name());
-                    let _ = std::fs::rename(e.path(), dest);
+            for i in 0..archive.len() {
+                let mut file = archive.by_index(i)
+                    .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))?;
+                let entry_name = file.name().replace('\\', "/");
+
+                if !prefix.is_empty() && !entry_name.starts_with(&prefix) {
+                    continue;
+                }
+
+                let rel_name = if !prefix.is_empty() {
+                    entry_name.strip_prefix(&prefix).unwrap_or(&entry_name)
+                } else {
+                    &entry_name
+                };
+
+                let rel_path = std::path::Path::new(rel_name);
+                if rel_path
+                    .components()
+                    .any(|c| matches!(c, std::path::Component::ParentDir))
+                {
+                    continue;
+                }
+
+                let out_path = target_dir.join(rel_path);
+                if file.is_dir() {
+                    std::fs::create_dir_all(&out_path)?;
+                } else {
+                    if let Some(parent) = out_path.parent() {
+                        std::fs::create_dir_all(parent)?;
+                    }
+                    let mut out_file = std::fs::File::create(&out_path)?;
+                    std::io::copy(&mut file, &mut out_file)?;
                 }
             }
-            let _ = std::fs::remove_dir(sub);
+        } else if src.is_dir() {
+            let actual_world_src = if src.join("level.dat").is_file() {
+                src.clone()
+            } else {
+                let mut found = None;
+                if let Ok(entries) = std::fs::read_dir(&src) {
+                    for e in entries.flatten() {
+                        if e.path().is_dir() && e.path().join("level.dat").is_file() {
+                            found = Some(e.path());
+                            break;
+                        }
+                    }
+                }
+                found.unwrap_or(src.clone())
+            };
+
+            let folder_name = actual_world_src
+                .file_name()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "Mundo_Importado".into());
+            target_dir = get_unique_dir(&folder_name);
+
+            let mut options = fs_extra::dir::CopyOptions::new();
+            options.copy_inside = true;
+            std::fs::create_dir_all(&target_dir)?;
+            fs_extra::dir::copy(&actual_world_src, &target_dir, &options)
+                .map_err(|e| crate::error::AppError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?;
+
+            let sub = target_dir.join(&folder_name);
+            if sub.join("level.dat").is_file() {
+                if let Ok(entries) = std::fs::read_dir(&sub) {
+                    for e in entries.flatten() {
+                        let dest = target_dir.join(e.file_name());
+                        let _ = std::fs::rename(e.path(), dest);
+                    }
+                }
+                let _ = std::fs::remove_dir(sub);
+            }
+        } else {
+            return Err(crate::error::AppError::InvalidInput(
+                "Invalid world source: must be a directory or .zip file".into(),
+            ));
         }
-    } else {
-        return Err(crate::error::AppError::InvalidInput(
-            "Invalid world source: must be a directory or .zip file".into(),
-        ));
-    }
+        Ok(target_dir)
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
     inspect_world_dir(&target_dir, &snapshots_base)
         .ok_or_else(|| crate::error::AppError::InvalidInput("Failed to read imported world level.dat".into()))
@@ -2972,12 +3101,18 @@ pub async fn instance_mod_toggle(
         fileName.clone()
     };
 
-    let target_path = mods_dir.join(&new_name);
-    if current_path.exists() && current_path != target_path {
-        std::fs::rename(&current_path, &target_path)?;
-    }
+    let result_name = new_name.clone();
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let target_path = mods_dir.join(&new_name);
+        if current_path.exists() && current_path != target_path {
+            std::fs::rename(&current_path, &target_path)?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
-    Ok(new_name)
+    Ok(result_name)
 }
 
 #[tauri::command]
@@ -2998,30 +3133,37 @@ pub async fn instance_mod_delete(
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
-    let mod_path = std::path::PathBuf::from(&row.game_dir).join("mods").join(&fileName);
-    let canonical_mod = mod_path.canonicalize().map_err(|_| {
-        crate::error::AppError::NotFound("Mod file not found".to_string())
-    })?;
-    let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
-    let canonical_mods_dir = mods_dir.canonicalize().unwrap_or(mods_dir);
-    if !canonical_mod.starts_with(&canonical_mods_dir) {
-        return Err(crate::error::AppError::InvalidInput("Invalid mod path".into()));
-    }
-    if canonical_mod.exists() {
-        std::fs::remove_file(&canonical_mod)?;
-    }
-
-    // Also remove from data_dir/mods/{profileId} if present
-    if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
-        let alt_path = base_dir.data_dir().join("mods").join(&profileId).join(&fileName);
-        if alt_path.exists() {
-            let _ = std::fs::remove_file(alt_path);
+    let game_dir = row.game_dir.clone();
+    let reconcile_profile_id = profileId.clone();
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let mod_path = std::path::PathBuf::from(&game_dir).join("mods").join(&fileName);
+        let canonical_mod = mod_path.canonicalize().map_err(|_| {
+            crate::error::AppError::NotFound("Mod file not found".to_string())
+        })?;
+        let mods_dir = std::path::PathBuf::from(&game_dir).join("mods");
+        let canonical_mods_dir = mods_dir.canonicalize().unwrap_or(mods_dir);
+        if !canonical_mod.starts_with(&canonical_mods_dir) {
+            return Err(crate::error::AppError::InvalidInput("Invalid mod path".into()));
         }
-    }
+        if canonical_mod.exists() {
+            std::fs::remove_file(&canonical_mod)?;
+        }
+
+        // Also remove from data_dir/mods/{profileId} if present
+        if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+            let alt_path = base_dir.data_dir().join("mods").join(&profileId).join(&fileName);
+            if alt_path.exists() {
+                let _ = std::fs::remove_file(alt_path);
+            }
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
     crate::db::schema::mods::reconcile_profile(
         &db,
-        &profileId,
+        &reconcile_profile_id,
         &std::path::PathBuf::from(&row.game_dir).join("mods"),
     )
     .await?;
@@ -3064,14 +3206,19 @@ pub async fn instance_mod_add(
     if !src.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| ext.eq_ignore_ascii_case("jar")) {
         return Err(AppError::InvalidInput("Selecione um arquivo .jar de mod".into()));
     }
-    let mut archive = zip::ZipArchive::new(std::fs::File::open(&src)?)
-        .map_err(|_| AppError::InvalidInput("O arquivo .jar está corrompido ou não é um arquivo ZIP válido".into()))?;
-    let fabric = archive.by_name("fabric.mod.json").is_ok();
-    let quilt = archive.by_name("quilt.mod.json").is_ok();
-    let neoforge = archive.by_name("META-INF/neoforge.mods.toml").is_ok();
-    let forge = archive.by_name("META-INF/mods.toml").is_ok() || archive.by_name("mcmod.info").is_ok();
+    let probe_path = src.clone();
+    let (fabric, quilt, neoforge, forge) = tokio::task::spawn_blocking(move || -> AppResult<(bool, bool, bool, bool)> {
+        let mut archive = zip::ZipArchive::new(std::fs::File::open(&probe_path)?)
+            .map_err(|_| AppError::InvalidInput("O arquivo .jar está corrompido ou não é um arquivo ZIP válido".into()))?;
+        let fabric = archive.by_name("fabric.mod.json").is_ok();
+        let quilt = archive.by_name("quilt.mod.json").is_ok();
+        let neoforge = archive.by_name("META-INF/neoforge.mods.toml").is_ok();
+        let forge = archive.by_name("META-INF/mods.toml").is_ok() || archive.by_name("mcmod.info").is_ok();
+        Ok((fabric, quilt, neoforge, forge))
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
     let has_metadata = fabric || quilt || neoforge || forge;
-    drop(archive);
 
     let file_name = src
         .file_name()
@@ -3107,23 +3254,31 @@ pub async fn instance_mod_add(
     }
 
     let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
-    if !mods_dir.exists() {
-        std::fs::create_dir_all(&mods_dir)?;
-    }
-
     let dest = mods_dir.join(&file_name);
-    if dest.exists() {
-        if !files_are_identical(&src, &dest)? {
-            return Err(AppError::InvalidInput(format!(
-                "Já existe um arquivo chamado {file_name} com conteúdo diferente nesta instância."
-            )));
+    let identical = dest.exists() && files_are_identical(&src, &dest)?;
+    let reconcile_dir = mods_dir.clone();
+    let result_file_name = file_name.clone();
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        if !mods_dir.exists() {
+            std::fs::create_dir_all(&mods_dir)?;
         }
-    } else {
-        std::fs::copy(&src, &dest)?;
-    }
-    crate::db::schema::mods::reconcile_profile(&db, &profileId, &mods_dir).await?;
 
-    Ok(file_name)
+        if dest.exists() {
+            if !identical {
+                return Err(AppError::InvalidInput(format!(
+                    "Já existe um arquivo chamado {file_name} com conteúdo diferente nesta instância."
+                )));
+            }
+        } else {
+            std::fs::copy(&src, &dest)?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
+    crate::db::schema::mods::reconcile_profile(&db, &profileId, &reconcile_dir).await?;
+
+    Ok(result_file_name)
 }
 
 #[tauri::command]
@@ -3154,10 +3309,14 @@ pub async fn instance_mod_add_bytes(
         ));
     }
 
-    let bytes = base64::engine::general_purpose::STANDARD
-        .decode(dataBase64.as_bytes())
-        .or_else(|_| base64::engine::general_purpose::STANDARD_NO_PAD.decode(dataBase64.as_bytes()))
-        .map_err(|_| AppError::InvalidInput("Não foi possível ler o conteúdo do ficheiro".into()))?;
+    let bytes = tokio::task::spawn_blocking(move || -> AppResult<Vec<u8>> {
+        base64::engine::general_purpose::STANDARD
+            .decode(dataBase64.as_bytes())
+            .or_else(|_| base64::engine::general_purpose::STANDARD_NO_PAD.decode(dataBase64.as_bytes()))
+            .map_err(|_| AppError::InvalidInput("Não foi possível ler o conteúdo do ficheiro".into()))
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
     if bytes.is_empty() || bytes.len() > MAX_BYTES {
         return Err(AppError::InvalidInput(
             "Ficheiro vazio ou acima do limite de 128 MB".into(),
@@ -3239,15 +3398,21 @@ pub async fn instance_pack_add(
         _ => "resourcepacks",
     };
 
-    let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
-    if !target_dir.exists() {
-        std::fs::create_dir_all(&target_dir)?;
-    }
+    let result_file_name = file_name.clone();
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
+        if !target_dir.exists() {
+            std::fs::create_dir_all(&target_dir)?;
+        }
 
-    let dest = target_dir.join(&file_name);
-    std::fs::copy(&src, &dest)?;
+        let dest = target_dir.join(&file_name);
+        std::fs::copy(&src, &dest)?;
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
-    Ok(file_name)
+    Ok(result_file_name)
 }
 
 #[tauri::command]
@@ -3274,19 +3439,24 @@ pub async fn instance_pack_delete(
         return Err(crate::error::AppError::InvalidInput("Invalid file name".into()));
     }
 
-    let pack_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
-    let target_path = pack_dir.join(&fileName);
-    let canonical = match target_path.canonicalize() {
-        Ok(canonical) => canonical,
-        Err(_) => return Ok(()),
-    };
-    let canonical_dir = pack_dir.canonicalize().unwrap_or(pack_dir);
-    if !canonical.starts_with(&canonical_dir) {
-        return Err(crate::error::AppError::InvalidInput("Invalid pack path".into()));
-    }
-    if canonical.is_file() {
-        std::fs::remove_file(&canonical)?;
-    }
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let pack_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
+        let target_path = pack_dir.join(&fileName);
+        let canonical = match target_path.canonicalize() {
+            Ok(canonical) => canonical,
+            Err(_) => return Ok(()),
+        };
+        let canonical_dir = pack_dir.canonicalize().unwrap_or(pack_dir);
+        if !canonical.starts_with(&canonical_dir) {
+            return Err(crate::error::AppError::InvalidInput("Invalid pack path".into()));
+        }
+        if canonical.is_file() {
+            std::fs::remove_file(&canonical)?;
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
     Ok(())
 }

@@ -16,38 +16,61 @@ pub struct VersionListResponse {
     pub latest_snapshot: String,
 }
 
+const VERSIONS_LIST_TTL: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+
+static VERSIONS_LIST_CACHE: std::sync::OnceLock<
+    tokio::sync::Mutex<Option<(std::time::Instant, VersionListResponse)>>,
+> = std::sync::OnceLock::new();
+
+fn versions_list_cache() -> &'static tokio::sync::Mutex<Option<(std::time::Instant, VersionListResponse)>> {
+    VERSIONS_LIST_CACHE.get_or_init(|| tokio::sync::Mutex::new(None))
+}
+
+async fn versions_list_from_db(db: &crate::db::Db) -> AppResult<VersionListResponse> {
+    let cached = crate::db::schema::versions::list(db).await?;
+    if cached.is_empty() {
+        return Err(crate::error::AppError::Internal(
+            "Nenhuma versão em cache".into(),
+        ));
+    }
+    let versions: Vec<VersionSummary> = cached
+        .iter()
+        .map(|v| VersionSummary {
+            id: v.id.clone(),
+            version_type: v.version_type.clone(),
+            url: v.url.clone(),
+            release_time: v.release_time.clone(),
+        })
+        .collect();
+    Ok(VersionListResponse {
+        latest_release: versions
+            .iter()
+            .find(|v| v.version_type == "release")
+            .map(|v| v.id.clone())
+            .unwrap_or_default(),
+        latest_snapshot: versions
+            .iter()
+            .find(|v| v.version_type == "snapshot")
+            .map(|v| v.id.clone())
+            .unwrap_or_default(),
+        versions,
+    })
+}
+
 pub async fn versions_list_core(http: &reqwest::Client) -> AppResult<VersionListResponse> {
+    if let Some(cached) = versions_list_cache().lock().await.as_ref() {
+        if cached.0.elapsed() < VERSIONS_LIST_TTL {
+            return Ok(cached.1.clone());
+        }
+    }
+
     let db = crate::db::shared_db().await?;
     let manifest = match minecraft::fetch_version_manifest(http).await {
         Ok(manifest) => manifest,
-        Err(error) => {
-            let cached = crate::db::schema::versions::list(&db).await?;
-            if cached.is_empty() {
-                return Err(error);
-            }
-            let versions: Vec<VersionSummary> = cached
-                .iter()
-                .map(|v| VersionSummary {
-                    id: v.id.clone(),
-                    version_type: v.version_type.clone(),
-                    url: v.url.clone(),
-                    release_time: v.release_time.clone(),
-                })
-                .collect();
-            return Ok(VersionListResponse {
-                latest_release: versions
-                    .iter()
-                    .find(|v| v.version_type == "release")
-                    .map(|v| v.id.clone())
-                    .unwrap_or_default(),
-                latest_snapshot: versions
-                    .iter()
-                    .find(|v| v.version_type == "snapshot")
-                    .map(|v| v.id.clone())
-                    .unwrap_or_default(),
-                versions,
-            });
-        }
+        Err(error) => match versions_list_from_db(&db).await {
+            Ok(response) => return Ok(response),
+            Err(_) => return Err(error),
+        },
     };
     let rows: Vec<crate::db::schema::versions::VersionRow> = manifest
         .versions
@@ -63,11 +86,14 @@ pub async fn versions_list_core(http: &reqwest::Client) -> AppResult<VersionList
         .collect();
     crate::db::schema::versions::upsert_many(&db, &rows).await?;
 
-    Ok(VersionListResponse {
+    let response = VersionListResponse {
         versions: manifest.versions,
         latest_release: manifest.latest.release,
         latest_snapshot: manifest.latest.snapshot,
-    })
+    };
+
+    *versions_list_cache().lock().await = Some((std::time::Instant::now(), response.clone()));
+    Ok(response)
 }
 
 #[tauri::command]

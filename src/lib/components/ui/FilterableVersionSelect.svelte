@@ -64,7 +64,7 @@
 				placeholder="Pesquisar versão (ex: 1.21.4, 1.20.1, 1.16.5, snapshot)..."
 				bind:value={search}
 				onfocus={() => (isDropdownOpen = true)}
-				class="w-full h-11 pl-9 pr-9 rounded-xl bg-bg-elevated border border-fg/10 focus:border-brand-500 text-xs font-bold text-fg placeholder:text-fg/30 outline-none transition-all"
+				class="w-full h-11 pl-9 pr-9 rounded-xl bg-bg-elevated border border-fg/10 focus:border-brand-500 text-xs font-bold text-fg placeholder:text-fg/30 outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
 			/>
 			{#if search}
 				<button
@@ -82,7 +82,7 @@
 			{#each filterTabs as tab}
 				<button
 					type="button"
-					class="px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition-all cursor-pointer {typeFilter === tab.id ? 'bg-brand-500 text-brand-foreground shadow' : 'text-fg/50 hover:text-fg hover:bg-fg/5'}"
+					class="px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {typeFilter === tab.id ? 'bg-brand-500 text-brand-foreground shadow' : 'text-fg/50 hover:text-fg hover:bg-fg/5'}"
 					onclick={() => { typeFilter = tab.id; isDropdownOpen = true; }}
 				>
 					{tab.label}
@@ -99,7 +99,7 @@
 		{#each popularVersions as pop}
 			<button
 				type="button"
-				class="px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 {value === pop.id ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40 shadow-sm' : 'bg-bg-elevated border border-fg/10 text-fg/70 hover:text-fg hover:border-fg/30'}"
+				class="px-2.5 py-1 rounded-lg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 {value === pop.id ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40 shadow-sm' : 'bg-bg-elevated border border-fg/10 text-fg/70 hover:text-fg hover:border-fg/30'}"
 				onclick={() => pick(pop.id)}
 			>
 				<span>{pop.label}</span>
@@ -138,7 +138,7 @@
 					{@const isSelected = value === v.id}
 					<button
 						type="button"
-						class="flex items-center justify-between px-3 py-2 rounded-xl text-left transition-all cursor-pointer border {isSelected ? 'bg-brand-500 text-brand-foreground border-brand-500 font-black shadow-md scale-[1.02]' : 'bg-bg-subtle hover:bg-bg-subtle text-fg/80 hover:text-fg border-fg/5 hover:border-fg/15'}"
+						class="flex items-center justify-between px-3 py-2 rounded-xl text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border {isSelected ? 'bg-brand-500 text-brand-foreground border-brand-500 font-black shadow-md scale-[1.02]' : 'bg-bg-subtle hover:bg-bg-subtle text-fg/80 hover:text-fg border-fg/5 hover:border-fg/15'}"
 						onclick={() => pick(v.id)}
 					>
 						<div class="min-w-0">

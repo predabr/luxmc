@@ -179,18 +179,18 @@
 				<button
 					type="button"
 					onclick={() => goto("/friends")}
-					class="px-3 py-1.5 rounded-xl bg-brand-400/10 hover:bg-brand-400/20 text-brand-400 text-[10px] font-bold border border-brand-400/20 transition-all cursor-pointer"
+					class="px-3 py-1.5 rounded-xl bg-brand-400/10 hover:bg-brand-400/20 text-brand-400 text-[10px] font-bold border border-brand-400/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 				>
 					Abrir Chat & Amigos
 				</button>
 			</div>
 		{:else}
 			{#each friends as friend}
-				<div class="rounded-2xl bg-bg-elevated border border-fg/5 hover:border-brand-400/40 p-3.5 flex flex-col justify-between gap-3 transition-all hover:bg-bg-subtle shadow-sm group">
+				<div class="rounded-2xl bg-bg-elevated border border-fg/5 hover:border-brand-400/40 p-3.5 flex flex-col justify-between gap-3 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:bg-bg-subtle shadow-sm group">
 					<div class="flex items-start justify-between gap-2">
 						<div class="flex items-center gap-2.5 min-w-0">
 							<div class="relative w-10 h-10 rounded-xl overflow-hidden bg-bg-overlay/40 border border-fg/10 shrink-0">
-								<img src={friend.skinUrl} alt={friend.name} class="w-full h-full object-cover" />
+								<img loading="lazy" decoding="async" src={friend.skinUrl} alt={friend.name} class="w-full h-full object-cover" />
 								<span class="absolute bottom-0.5 right-0.5 w-2.5 h-2.5 rounded-full border-2 border-border {friend.status === 'in_game' || friend.status === 'in_server' ? 'bg-emerald-400' : 'bg-blue-400'}"></span>
 							</div>
 							<div class="min-w-0">

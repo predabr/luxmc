@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
     import { skinAvatar, createSkinAvatar, inferSkinModelType, classifyTexture, textureCanvas } from "$lib/utils/textureImage";
 	import { onDestroy, onMount, untrack } from "svelte";
 	import { deepLinks } from "$lib/stores/deepLinks.svelte";
@@ -539,7 +540,7 @@
 			<button
 				type="button"
 				onclick={handleSyncWithWeb}
-				class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 text-fg/80 hover:text-fg text-xs font-bold border border-fg/10 transition-all cursor-pointer shadow-sm"
+				class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 text-fg/80 hover:text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm"
 				title="Abrir no NameMC / Web Studio"
 			>
 				<Share2 class="w-3.5 h-3.5 text-brand-400" />
@@ -576,7 +577,7 @@
 					<button
 						type="button"
 						onclick={() => isRotating = !isRotating}
-						class="p-2 rounded-xl bg-black/40 hover:bg-black/60 border border-fg/10 text-fg/70 hover:text-fg pointer-events-auto transition-all cursor-pointer shadow-sm"
+						class="p-2 rounded-xl bg-black/40 hover:bg-black/60 border border-fg/10 text-fg/70 hover:text-fg pointer-events-auto transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm"
 						title={isRotating ? "Pausar rotação" : "Ativar rotação"}
 					>
 						{#if isRotating}
@@ -615,7 +616,7 @@
 						<button
 							type="button"
 							onclick={() => activeAnimation = anim.id}
-							class="px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer {activeAnimation === anim.id ? 'bg-brand-500 text-brand-foreground shadow-sm' : 'text-fg/50 hover:text-fg hover:bg-fg/[0.06]'}"
+							class="px-3 py-1 rounded-lg text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeAnimation === anim.id ? 'bg-brand-500 text-brand-foreground shadow-sm' : 'text-fg/50 hover:text-fg hover:bg-fg/[0.06]'}"
 						>
 							{anim.label}
 						</button>
@@ -626,7 +627,7 @@
 					<button
 						type="button"
 						onclick={() => viewerRef?.setFrontView()}
-						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-all cursor-pointer"
+						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 						title="Ver de frente"
 					>
 						Frente
@@ -634,7 +635,7 @@
 					<button
 						type="button"
 						onclick={() => viewerRef?.setBackView()}
-						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-all cursor-pointer"
+						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 						title="Ver de costas (capa)"
 					>
 						Costas
@@ -642,7 +643,7 @@
 					<button
 						type="button"
 						onclick={() => viewerRef?.setIsometricView()}
-						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-all cursor-pointer"
+						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 						title="Visão 3D isométrica"
 					>
 						3D
@@ -650,7 +651,7 @@
 					<button
 						type="button"
 						onclick={() => viewerRef?.resetCamera()}
-						class="p-1 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-all cursor-pointer"
+						class="p-1 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
 						title="Resetar câmera"
 					>
 						<RotateCcw class="w-3 h-3" />
@@ -660,7 +661,7 @@
 				<button
 					type="button"
 					onclick={() => showEditModal = true}
-					class="w-full max-w-[200px] py-2 px-4 rounded-xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 text-fg border border-fg/10 hover:border-fg/20 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-[0.98]"
+					class="w-full max-w-[200px] py-2 px-4 rounded-xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 text-fg border border-fg/10 hover:border-fg/20 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-[0.98]"
 				>
 					<Pencil class="w-3.5 h-3.5 text-fg/70" />
 					<span>Editar skin</span>
@@ -681,9 +682,9 @@
                 </div>
                 <div class="flex gap-2.5 overflow-x-auto custom-scrollbar pb-2.5 snap-x snap-mandatory scroll-smooth px-0.5">
                     {#each capeList.filter(item => item.id !== "custom") as item}
-                        <button class="shrink-0 snap-start w-24 rounded-xl border p-2 text-xs text-fg flex flex-col items-center gap-2 transition-all cursor-pointer {selectedCape === item.id ? 'border-brand-400 bg-brand-500/15 shadow-sm ring-1 ring-brand-500' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08]'}" aria-pressed={selectedCape === item.id} onclick={() => selectedCape = item.id}>
+                        <button class="shrink-0 snap-start w-24 rounded-xl border p-2 text-xs text-fg flex flex-col items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedCape === item.id ? 'border-brand-400 bg-brand-500/15 shadow-sm ring-1 ring-brand-500' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08]'}" aria-pressed={selectedCape === item.id} onclick={() => selectedCape = item.id}>
                             {#if item.id !== "none"}
-                                <img class="h-14 w-9 object-contain [image-rendering:pixelated]" src={getCapePreviewDataUrl(item.id)} alt={item.name} />
+                                <img loading="lazy" decoding="async" class="h-14 w-9 object-contain [image-rendering:pixelated]" src={getCapePreviewDataUrl(item.id)} alt={item.name} />
                             {:else}
                                 <span class="h-14 flex items-center text-fg/40 font-medium">Sem capa</span>
                             {/if}
@@ -691,9 +692,9 @@
                         </button>
                     {/each}
                     {#if customCapeDataUrl}
-                        <button class="shrink-0 snap-start w-24 rounded-xl border p-2 text-xs text-fg flex flex-col items-center gap-2 transition-all cursor-pointer {selectedCape === 'custom' ? 'border-brand-400 bg-brand-500/15 shadow-sm ring-1 ring-brand-500' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08]'}" aria-pressed={selectedCape === "custom"} onclick={() => selectedCape = "custom"}>
+                        <button class="shrink-0 snap-start w-24 rounded-xl border p-2 text-xs text-fg flex flex-col items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedCape === 'custom' ? 'border-brand-400 bg-brand-500/15 shadow-sm ring-1 ring-brand-500' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08]'}" aria-pressed={selectedCape === "custom"} onclick={() => selectedCape = "custom"}>
                             {#if customCapePreview}
-                                <img class="h-14 w-9 object-contain [image-rendering:pixelated]" src={customCapePreview} alt="Capa importada" />
+                                <img loading="lazy" decoding="async" class="h-14 w-9 object-contain [image-rendering:pixelated]" src={customCapePreview} alt="Capa importada" />
                             {:else}
                                 <span class="h-14 flex items-center text-fg/40 font-medium">PNG</span>
                             {/if}
@@ -718,12 +719,12 @@
 				</button>
 
 				{#if savedSkinsExpanded}
-					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3.5" transition:slide={{ duration: 150 }}>
+					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3.5" transition:slide={{ easing: quintOut, duration: 220 }}>
 
 						<button
 							type="button"
 							onclick={handleAddSkinFile}
-							class="rounded-2xl border-2 border-dashed border-fg/15 hover:border-brand-500 bg-fg/[0.01] hover:bg-fg/[0.03] p-5 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer min-h-[170px] group shadow-sm"
+							class="rounded-2xl border-2 border-dashed border-fg/15 hover:border-brand-500 bg-fg/[0.01] hover:bg-fg/[0.03] p-5 flex flex-col items-center justify-center text-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer min-h-[170px] group shadow-sm"
 						>
 							<div class="w-10 h-10 rounded-full bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 flex items-center justify-center text-fg/60 group-hover:text-brand-400 transition-colors">
 								<Plus class="w-5 h-5 stroke-[2.5]" />
@@ -741,7 +742,7 @@
 								tabindex="0"
 								onclick={() => selectSavedSkin(s)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") selectSavedSkin(s); }}
-								class="rounded-2xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 border transition-all p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[170px] shadow-sm {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
+								class="rounded-2xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[170px] shadow-sm {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
 							>
 								{#if isSelected}
 									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-black border border-white flex items-center justify-center text-white shadow-md z-10">
@@ -823,8 +824,8 @@
 
 
 	{#if showEditModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" in:fade={{ duration: 150 }}>
-			<div class="w-full max-w-xl rounded-3xl bg-bg/35 backdrop-blur-xl border border-fg/10 p-6 shadow-2xl space-y-5" in:fly={{ y: 20, duration: 200 }}>
+		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" in:fade={{ easing: quintOut, duration: 220 }}>
+			<div class="w-full max-w-xl rounded-3xl bg-bg/35 backdrop-blur-xl border border-fg/10 p-6 shadow-2xl space-y-5" in:fly={{ easing: backOut, y: 20, duration: 260 }}>
 				<div class="flex items-center justify-between border-b border-fg/[0.06] pb-3">
 					<div class="flex items-center gap-2.5">
 						<Pencil class="w-4 h-4 text-brand-400" />
@@ -845,7 +846,7 @@
 						<button
 							type="button"
 							onclick={() => setModelType("steve")}
-							class="p-3 rounded-2xl border text-left transition-all cursor-pointer {skinType === 'steve' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
+							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {skinType === 'steve' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
 						>
 							<div class="text-xs font-extrabold">Clássico (Steve)</div>
 							<div class="text-[10px] opacity-70">Braços normais com 4 pixels</div>
@@ -853,7 +854,7 @@
 						<button
 							type="button"
 							onclick={() => setModelType("alex")}
-							class="p-3 rounded-2xl border text-left transition-all cursor-pointer {skinType === 'alex' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
+							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {skinType === 'alex' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
 						>
 							<div class="text-xs font-extrabold">Fino (Alex)</div>
 							<div class="text-[10px] opacity-70">Braços finos com 3 pixels</div>
@@ -914,17 +915,17 @@
 										selectedCape = c.id;
 									}
 								}}
-								class="p-2 rounded-xl border transition-all cursor-pointer flex flex-col items-center text-center gap-1 relative overflow-hidden {isCapeSelected ? 'bg-brand-500/15 border-brand-500' : 'bg-fg/[0.02] border-fg/10 hover:border-fg/20'}"
+								class="p-2 rounded-xl border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col items-center text-center gap-1 relative overflow-hidden {isCapeSelected ? 'bg-brand-500/15 border-brand-500' : 'bg-fg/[0.02] border-fg/10 hover:border-fg/20'}"
 							>
 								<div class="w-8 h-12 rounded-lg bg-black/40 border border-fg/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
 									{#if previewUrl}
-										<img
+										<img loading="lazy" decoding="async"
 											src={previewUrl}
 											alt={c.name}
 											class="w-full h-full object-contain [image-rendering:pixelated]"
 										/>
 									{:else if c.id === "custom" && customCapeDataUrl}
-										<img
+										<img loading="lazy" decoding="async"
 											src={customCapePreview || customCapeDataUrl}
 											alt="Capa personalizada"
 											class="w-full h-full object-cover [image-rendering:pixelated]"

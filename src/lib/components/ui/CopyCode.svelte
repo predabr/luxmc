@@ -24,7 +24,7 @@
 	{#if label}
 		<p class="text-sm font-medium fg-muted uppercase tracking-wide">{label}</p>
 	{/if}
-	<div class={`flex items-center justify-between p-3 rounded-lg border border-border transition-all ${
+	<div class={`flex items-center justify-between p-3 rounded-lg border border-border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] ${
 		variant === 'code' ? 'bg-bg-overlay/20 font-mono text-sm' : 'bg-bg-elevated'
 	}`}>
 		<span class="truncate fg-muted">{value}</span>

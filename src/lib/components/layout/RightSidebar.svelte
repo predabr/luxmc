@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { 
 		Users, 
 		UserPlus, 
@@ -100,7 +101,7 @@
 			>
 				<div class="flex items-center gap-2.5 min-w-0">
 					<div class="w-9 h-9 rounded-full overflow-hidden bg-fg/[0.04] border border-fg/10 shrink-0">
-						<img 
+						<img loading="lazy" decoding="async" 
 							src={activeSkinStore.current.avatarUrl || account.value.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`} 
 							alt="Avatar" 
 							class="w-full h-full object-cover rounded-full" 
@@ -133,7 +134,7 @@
 			{#if showAccountMenu}
 				<div 
 					class="absolute top-full left-0 right-0 mt-1 bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
-					transition:slide={{ duration: 120 }}
+					transition:slide={{ easing: quintOut, duration: 180 }}
 				>
 					<button
 						type="button"
@@ -186,7 +187,7 @@
 				{#if showPendingDropdown}
 					<div 
 						class="absolute right-0 top-full mt-2 w-64 bg-bg-elevated border border-fg/10 rounded-2xl shadow-2xl p-3 z-50 space-y-2.5 backdrop-blur-xl"
-						transition:slide={{ duration: 150 }}
+						transition:slide={{ easing: quintOut, duration: 220 }}
 					>
 						<div class="flex items-center justify-between border-b border-fg/5 pb-2">
 							<span class="text-xs font-black text-fg">Solicitações ({pendingFriends.length})</span>
@@ -240,7 +241,7 @@
 		</div>
 
 		{#if showAddInput}
-			<div class="flex items-center gap-1.5" in:slide={{ duration: 120 }}>
+			<div class="flex items-center gap-1.5" in:slide={{ easing: quintOut, duration: 180 }}>
 				<input
 					type="text"
 					bind:value={newFriendName}
@@ -270,7 +271,7 @@
 				</button>
 
 				{#if onlineExpanded}
-					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ duration: 150 }}>
+					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ easing: quintOut, duration: 220 }}>
 						{#if onlineFriends.length === 0}
 							<p class="text-[11px] text-fg/30 py-1">Nenhum amigo online</p>
 						{:else}
@@ -308,7 +309,7 @@
 				</button>
 
 				{#if offlineExpanded}
-					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ duration: 150 }}>
+					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ easing: quintOut, duration: 220 }}>
 						{#each offlineFriends as friend (friend.id)}
 							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group opacity-60 hover:opacity-100">
 								<div class="flex items-center gap-2 min-w-0">
@@ -342,7 +343,7 @@
 				</button>
 
 				{#if pendingExpanded}
-					<div class="space-y-1.5 pt-1 pb-1" transition:slide={{ duration: 150 }}>
+					<div class="space-y-1.5 pt-1 pb-1" transition:slide={{ easing: quintOut, duration: 220 }}>
 						{#if pendingFriends.length === 0}
 							<p class="text-[11px] text-fg/30 py-1">Nenhuma solicitação pendente</p>
 						{:else}
@@ -393,7 +394,7 @@
 			{#each newsState.items as item (item.id)}
 				<a
 					href="/news"
-					class="cv-auto group block bg-bg/35 backdrop-blur-xl border border-fg/[0.06] hover:border-brand-400/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer"
+					class="cv-auto group block bg-bg/35 backdrop-blur-xl border border-fg/[0.06] hover:border-brand-400/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer [contain-intrinsic-size:auto_72px]"
 				>
 					<div class="p-2.5 flex gap-2.5 items-center">
 						<div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-fg/10 bg-black/40 relative">

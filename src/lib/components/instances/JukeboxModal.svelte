@@ -85,7 +85,7 @@
 				{#each playlist as track}
 					<button
 						type="button"
-						class="flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all cursor-pointer {activeTrack.id === track.id ? 'bg-brand-400/15 border-brand-400/50' : 'bg-bg-subtle border-fg/5 hover:border-fg/20'}"
+						class="flex items-center gap-3 p-2.5 rounded-xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTrack.id === track.id ? 'bg-brand-400/15 border-brand-400/50' : 'bg-bg-subtle border-fg/5 hover:border-fg/20'}"
 						onclick={() => activeTrack = track}
 					>
 						<div 

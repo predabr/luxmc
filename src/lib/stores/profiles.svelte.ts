@@ -92,8 +92,9 @@ function createProfileStore() {
 			try {
 				const { profilesList } = await import("$lib/api/instances");
 				const rows = await profilesList();
+				const existing = new Map(list.map((p) => [p.id, p] as const));
 				list = rows.map((p) => ({
-					...list.find(existing => existing.id === p.id),
+					...existing.get(p.id),
 					id: p.id,
                     banner: savedBanner(p.id),
 					name: p.name,

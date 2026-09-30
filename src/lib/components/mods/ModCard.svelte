@@ -54,7 +54,7 @@
 	tabindex="0"
 	onclick={() => onOpenDetails(item)}
 	onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDetails(item); } }}
-	class="cv-auto group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-elevated cursor-pointer"
+	class="cv-auto group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-elevated cursor-pointer [contain-intrinsic-size:auto_400px]"
 >
 	<div class="relative h-48 bg-bg-subtle rounded-t-2xl overflow-hidden">
 		{#if effectiveBanner}

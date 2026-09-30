@@ -86,17 +86,23 @@ pub async fn reconcile_profile(
     profile_id: &str,
     mods_dir: &std::path::Path,
 ) -> AppResult<Vec<ModRow>> {
-    let mut present: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
-    if let Ok(entries) = std::fs::read_dir(mods_dir) {
-        for entry in entries.flatten() {
-            if !entry.path().is_file() {
-                continue;
-            }
-            if let Some(canonical) = canonical_mod_file(&entry.file_name().to_string_lossy()) {
-                present.insert(canonical);
+    let scan_dir = mods_dir.to_path_buf();
+    let present = tokio::task::spawn_blocking(move || -> std::collections::BTreeSet<String> {
+        let mut present: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+        if let Ok(entries) = std::fs::read_dir(scan_dir) {
+            for entry in entries.flatten() {
+                if !entry.path().is_file() {
+                    continue;
+                }
+                if let Some(canonical) = canonical_mod_file(&entry.file_name().to_string_lossy()) {
+                    present.insert(canonical);
+                }
             }
         }
-    }
+        present
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?;
 
     let rows = list_by_profile(db, profile_id).await?;
     let mut tracked: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();

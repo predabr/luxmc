@@ -155,7 +155,7 @@
 			<div class="flex items-center gap-3">
 				<button
 					type="button"
-					class="px-5 py-2.5 rounded-full text-xs font-bold bg-bg-overlay hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10 transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98]"
+					class="px-5 py-2.5 rounded-full text-xs font-bold bg-bg-overlay hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer active:scale-[0.98]"
 					onclick={refreshHost}
 					disabled={loadingHost}
 				>
@@ -209,7 +209,7 @@
 						</div>
 						<button
 							type="button"
-							class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg border border-fg/10 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+							class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shrink-0"
 							onclick={copyShareLink}
 						>
 							{#if copiedLink}
@@ -231,7 +231,7 @@
 						</div>
 						<button
 							type="button"
-							class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg border border-fg/10 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+							class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shrink-0"
 							onclick={copyDirect}
 						>
 							{#if copiedDirect}
@@ -311,10 +311,10 @@
 
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 			{#each partyMembers as member}
-				<div class="bg-bg-elevated border border-fg/5 hover:border-fg/15 rounded-2xl p-4 flex items-center justify-between transition-all group shadow-sm">
+				<div class="bg-bg-elevated border border-fg/5 hover:border-fg/15 rounded-2xl p-4 flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group shadow-sm">
 					<div class="flex items-center gap-3.5 min-w-0">
 						<div class="h-12 w-12 rounded-xl bg-bg-overlay/40 border border-fg/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
-							<img src={member.avatar} alt={member.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
+							<img loading="lazy" decoding="async" src={member.avatar} alt={member.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
 						</div>
 						<div class="min-w-0">
 							<div class="flex items-center gap-2">

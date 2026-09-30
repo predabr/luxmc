@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import {
 		X,
@@ -152,7 +153,7 @@
 {#if clientMods.isMenuOpen}
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md p-4 select-none"
-		transition:fade={{ duration: 150 }}
+		transition:fade={{ easing: quintOut, duration: 220 }}
 		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
 		onkeydown={(e) => { if (e.key === "Escape") handleClose(); }}
 		role="dialog"
@@ -161,7 +162,7 @@
 	>
 		<div
 			class="relative flex w-full max-w-5xl h-[680px] max-h-[92vh] rounded-3xl bg-bg/95 border border-fg/10 shadow-2xl shadow-black/90 overflow-hidden"
-			transition:scale={{ duration: 180, start: 0.96 }}
+			transition:scale={{ easing: backOut, duration: 240, start: 0.96 }}
 		>
 			<!-- Left Navigation Bar -->
 			<div class="flex flex-col items-center justify-between w-16 py-6 border-r border-fg/5 bg-bg">
@@ -241,7 +242,7 @@
 					<div class="flex items-center gap-3">
 						<button
 							onclick={() => { clientMods.isPreviewingHud = true; }}
-							class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-fg/5 border border-fg/10 text-xs font-medium text-fg/70 hover:text-brand-400 hover:border-brand-500/30 hover:bg-brand-500/10 transition-all"
+							class="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-fg/5 border border-fg/10 text-xs font-medium text-fg/70 hover:text-brand-400 hover:border-brand-500/30 hover:bg-brand-500/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
 							title="Visualizar HUD como aparece no jogo"
 						>
 							<LayoutTemplate class="w-3.5 h-3.5" />
@@ -274,7 +275,7 @@
 						{#each filteredModules as mod (mod.key)}
 							{@const isActive = !!clientMods.config[mod.key]}
 							<div
-								class="group relative flex items-center justify-between px-4 py-3 rounded-2xl border transition-all duration-200 cursor-pointer select-none {isActive ? 'border-fg/70 bg-fg/[0.07] shadow-lg shadow-black/40' : 'border-fg/10 bg-bg-elevated/60 hover:border-fg/25 hover:bg-fg/[0.03]'}"
+								class="group relative flex items-center justify-between px-4 py-3 rounded-2xl border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 cursor-pointer select-none {isActive ? 'border-fg/70 bg-fg/[0.07] shadow-lg shadow-black/40' : 'border-fg/10 bg-bg-elevated/60 hover:border-fg/25 hover:bg-fg/[0.03]'}"
 								onclick={() => handleToggle(mod.key)}
 								role="button"
 								tabindex="0"

@@ -49,6 +49,13 @@ pub async fn instance_export_modpack(
         .unwrap_or_else(|| game_dir.clone());
 
     let out_file_path = downloads_dir.join(format!("{}.{}", default_name, ext));
+    let export_out_path = out_file_path.clone();
+
+    let export_row = row.clone();
+    let export_game_dir = game_dir.clone();
+    let export_default_name = default_name.clone();
+    let (file_size, total_mods) = tokio::task::spawn_blocking(move || -> AppResult<(u64, usize)> {
+    let out_file_path = export_out_path;
     let file = std::fs::File::create(&out_file_path)
         .map_err(|e| AppError::Internal(format!("Falha ao criar arquivo de exportação: {e}")))?;
     let mut zip = zip::ZipWriter::new(file);
@@ -70,6 +77,7 @@ pub async fn instance_export_modpack(
     let mut total_mods = 0usize;
 
     let prefix = "overrides/";
+    let game_dir = export_game_dir;
 
     for folder_name in folders_to_include {
         let src = game_dir.join(folder_name);
@@ -95,6 +103,8 @@ pub async fn instance_export_modpack(
             }
         }
     }
+    let row = export_row;
+    let default_name = export_default_name;
 
     if ext == "mrpack" {
         let index = serde_json::json!({
@@ -141,6 +151,10 @@ pub async fn instance_export_modpack(
     let file_size = std::fs::metadata(&out_file_path)
         .map(|m| m.len())
         .unwrap_or(0);
+        Ok((file_size, total_mods))
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))??;
 
     Ok(ExportResult {
         success: true,

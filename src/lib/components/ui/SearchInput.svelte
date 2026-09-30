@@ -45,7 +45,7 @@
 		value={value}
 		oninput={(e) => onChange?.(e.currentTarget.value)}
 		onkeydown={(e) => e.key === 'Enter' && onSearch?.(value)}
-		class={`w-full pl-10 pr-10 rounded-lg border border-border bg-bg-elevated focus:outline-none focus:ring-2 focus:ring-brand/50 transition-all ${sizeClasses[size]}`}
+		class={`w-full pl-10 pr-10 rounded-lg border border-border bg-bg-elevated focus:outline-none focus:ring-2 focus:ring-brand/50 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] ${sizeClasses[size]}`}
 	/>
 	{#if clearable && value}
 		<button

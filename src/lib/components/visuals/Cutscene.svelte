@@ -64,7 +64,7 @@
 		<div class="portal mb-8 relative h-28 w-28 sm:h-36 sm:w-36 flex items-center justify-center">
 			<div class="portal-frame absolute inset-0 rounded-[2rem] border border-brand-300/30 bg-bg-elevated/80 shadow-glow"></div>
 			<div class="absolute inset-3 rounded-2xl border border-fg/10 bg-bg"></div>
-			<img
+			<img loading="lazy" decoding="async"
 				src="/logo.png"
 				alt="Luxmc"
 				class="emblem relative h-16 w-16 sm:h-20 sm:w-20 object-contain"

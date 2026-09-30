@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { focusTrap } from '$lib/utils/focusTrap';
 	import { fade } from 'svelte/transition';
 	import { X } from 'lucide-svelte';
@@ -39,7 +40,7 @@
 		tabindex="-1"
 		onclick={handleBackdropClick}
 		onkeydown={handleBackdropKeydown}
-		transition:fade={{ duration: 200 }}
+		transition:fade={{ easing: quintOut, duration: 260 }}
 	>
 		<div
 			class={`bg-bg-elevated/95 border border-fg/10 rounded-2xl shadow-elevated backdrop-blur-2xl ${maxWidth} w-full mx-4 max-h-[90vh] overflow-y-auto`}

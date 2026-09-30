@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { fade } from "svelte/transition";
 	import Card from "$lib/components/ui/Card.svelte";
 	import InstanceCard from "./InstanceCard.svelte";
@@ -77,7 +78,7 @@
 		</div>
 	</Card>
 {:else if viewMode === "grid"}
-	<div in:fade={{ duration: 150 }} class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+	<div in:fade={{ easing: quintOut, duration: 220 }} class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
 		{#each instances as p (p.id)}
 			<InstanceCard
 				profile={p}
@@ -106,7 +107,7 @@
 		{/each}
 	</div>
 {:else}
-	<div in:fade={{ duration: 150 }} class="flex flex-col gap-3">
+	<div in:fade={{ easing: quintOut, duration: 220 }} class="flex flex-col gap-3">
 		{#each instances as p (p.id)}
 			<InstanceCard
 				profile={p}

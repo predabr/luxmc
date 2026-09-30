@@ -56,13 +56,18 @@ pub async fn optimizer_install_perf_pack_core(
 
     // Update mod count in profile
     let mods_dir = game_dir.join("mods");
-    if let Ok(entries) = std::fs::read_dir(&mods_dir) {
-        let count = entries
+    if let Ok(count) = tokio::task::spawn_blocking(move || -> std::io::Result<usize> {
+        let entries = std::fs::read_dir(mods_dir)?;
+        Ok(entries
             .flatten()
             .filter(|e| e.path().extension().map_or(false, |ext| ext == "jar"))
-            .count() as i64;
+            .count())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
+    {
         let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
-            .bind(count)
+            .bind(count as i64)
             .bind(&instance_id)
             .execute(db.pool())
             .await;

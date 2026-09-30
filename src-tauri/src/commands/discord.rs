@@ -234,150 +234,158 @@ pub async fn discord_set_activity(
     clientId: Option<String>,
     buttons: Option<Vec<DiscordButton>>,
 ) -> AppResult<bool> {
-    let is_game = inGame.unwrap_or(false);
+    tokio::task::spawn_blocking(move || -> AppResult<bool> {
+        let is_game = inGame.unwrap_or(false);
 
-    let custom_env_id = std::env::var("LUXMC_DISCORD_CLIENT_ID")
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty());
+        let custom_env_id = std::env::var("LUXMC_DISCORD_CLIENT_ID")
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
 
-    let target_id = clientId
-        .or(custom_env_id)
-        .unwrap_or_else(|| MINECRAFT_CLIENT_ID.to_string());
+        let target_id = clientId
+            .or(custom_env_id)
+            .unwrap_or_else(|| MINECRAFT_CLIENT_ID.to_string());
 
-    let mut guard = DISCORD_CONN.lock().unwrap_or_else(|e| e.into_inner());
-    ensure_connection(&mut guard, &target_id);
+        let mut guard = DISCORD_CONN.lock().unwrap_or_else(|e| e.into_inner());
+        ensure_connection(&mut guard, &target_id);
 
-    let conn = match guard.as_mut() {
-        Some(c) => c,
-        None => return Ok(false),
-    };
+        let conn = match guard.as_mut() {
+            Some(c) => c,
+            None => return Ok(false),
+        };
 
-    let _ = conn.stream.set_read_timeout(Some(std::time::Duration::from_millis(200)));
+        let _ = conn.stream.set_read_timeout(Some(std::time::Duration::from_millis(200)));
 
-    let now = startTime.unwrap_or_else(|| chrono::Utc::now().timestamp());
+        let now = startTime.unwrap_or_else(|| chrono::Utc::now().timestamp());
 
-    let det = details.unwrap_or_else(|| {
-        if is_game {
-            "Jogando Minecraft".to_string()
-        } else {
-            "No Menu Principal".to_string()
-        }
-    });
-
-    let st = state.unwrap_or_else(|| {
-        if is_game {
-            "Luxmc Launcher".to_string()
-        } else {
-            format!("Luxmc v{}", LUXMC_VERSION)
-        }
-    });
-
-    let img = match largeImage.as_deref() {
-        Some("default") | Some("luxmc") | Some("") | None => LUXMC_ICON_URL.to_string(),
-        Some(val) => {
-            if val.starts_with("http://") || val.starts_with("https://") {
-                val.to_string()
-            } else if val == "grass" {
-                "grass".to_string()
+        let det = details.unwrap_or_else(|| {
+            if is_game {
+                "Jogando Minecraft".to_string()
             } else {
-                LUXMC_ICON_URL.to_string()
+                "No Menu Principal".to_string()
             }
-        }
-    };
+        });
 
-    let txt = largeText.unwrap_or_else(|| {
-        if is_game {
-            "Minecraft via Luxmc".to_string()
-        } else {
-            format!("Luxmc Launcher v{}", LUXMC_VERSION)
-        }
-    });
-
-    let s_img = match smallImage.as_deref() {
-        Some("") | None => MINECRAFT_GRASS_ASSET.to_string(),
-        Some(val) => {
-            if val.starts_with("http://") || val.starts_with("https://") || val == "grass" {
-                val.to_string()
+        let st = state.unwrap_or_else(|| {
+            if is_game {
+                "Luxmc Launcher".to_string()
             } else {
-                MINECRAFT_GRASS_ASSET.to_string()
+                format!("Luxmc v{}", LUXMC_VERSION)
             }
-        }
-    };
+        });
 
-    let s_txt = smallText.unwrap_or_else(|| {
-        if is_game {
-            "Minecraft".to_string()
-        } else {
-            format!("Luxmc v{}", LUXMC_VERSION)
-        }
-    });
-
-    let mut activity_obj = serde_json::json!({
-        "details": det,
-        "state": st,
-        "timestamps": { "start": now },
-        "assets": {
-            "large_image": img,
-            "large_text": txt,
-            "small_image": s_img,
-            "small_text": s_txt
-        }
-    });
-
-    if let Some(btns) = buttons {
-        if !btns.is_empty() {
-            activity_obj["buttons"] = serde_json::json!(btns);
-        }
-    } else {
-        activity_obj["buttons"] = serde_json::json!([
-            { "label": "Baixar Luxmc", "url": "https://luxmc-r92.pages.dev" }
-        ]);
-    }
-
-    let payload = serde_json::json!({
-        "cmd": "SET_ACTIVITY",
-        "args": {
-            "pid": std::process::id(),
-            "activity": activity_obj
-        },
-        "nonce": format!("{}", chrono::Utc::now().timestamp_millis())
-    })
-    .to_string();
-
-    if send_frame(&mut conn.stream, 1, &payload).is_ok() {
-        drain_response(&mut conn.stream);
-        Ok(true)
-    } else {
-        *guard = None;
-        if let Some(mut stream) = open_ipc_stream() {
-            if handshake(&mut stream, &target_id) {
-                if send_frame(&mut stream, 1, &payload).is_ok() {
-                    drain_response(&mut stream);
-                    *guard = Some(DiscordConn {
-                        stream,
-                        client_id: target_id,
-                    });
-                    return Ok(true);
+        let img = match largeImage.as_deref() {
+            Some("default") | Some("luxmc") | Some("") | None => LUXMC_ICON_URL.to_string(),
+            Some(val) => {
+                if val.starts_with("http://") || val.starts_with("https://") {
+                    val.to_string()
+                } else if val == "grass" {
+                    "grass".to_string()
+                } else {
+                    LUXMC_ICON_URL.to_string()
                 }
             }
+        };
+
+        let txt = largeText.unwrap_or_else(|| {
+            if is_game {
+                "Minecraft via Luxmc".to_string()
+            } else {
+                format!("Luxmc Launcher v{}", LUXMC_VERSION)
+            }
+        });
+
+        let s_img = match smallImage.as_deref() {
+            Some("") | None => MINECRAFT_GRASS_ASSET.to_string(),
+            Some(val) => {
+                if val.starts_with("http://") || val.starts_with("https://") || val == "grass" {
+                    val.to_string()
+                } else {
+                    MINECRAFT_GRASS_ASSET.to_string()
+                }
+            }
+        };
+
+        let s_txt = smallText.unwrap_or_else(|| {
+            if is_game {
+                "Minecraft".to_string()
+            } else {
+                format!("Luxmc v{}", LUXMC_VERSION)
+            }
+        });
+
+        let mut activity_obj = serde_json::json!({
+            "details": det,
+            "state": st,
+            "timestamps": { "start": now },
+            "assets": {
+                "large_image": img,
+                "large_text": txt,
+                "small_image": s_img,
+                "small_text": s_txt
+            }
+        });
+
+        if let Some(btns) = buttons {
+            if !btns.is_empty() {
+                activity_obj["buttons"] = serde_json::json!(btns);
+            }
+        } else {
+            activity_obj["buttons"] = serde_json::json!([
+                { "label": "Baixar Luxmc", "url": "https://luxmc-r92.pages.dev" }
+            ]);
         }
-        Ok(false)
-    }
+
+        let payload = serde_json::json!({
+            "cmd": "SET_ACTIVITY",
+            "args": {
+                "pid": std::process::id(),
+                "activity": activity_obj
+            },
+            "nonce": format!("{}", chrono::Utc::now().timestamp_millis())
+        })
+        .to_string();
+
+        if send_frame(&mut conn.stream, 1, &payload).is_ok() {
+            drain_response(&mut conn.stream);
+            Ok(true)
+        } else {
+            *guard = None;
+            if let Some(mut stream) = open_ipc_stream() {
+                if handshake(&mut stream, &target_id) {
+                    if send_frame(&mut stream, 1, &payload).is_ok() {
+                        drain_response(&mut stream);
+                        *guard = Some(DiscordConn {
+                            stream,
+                            client_id: target_id,
+                        });
+                        return Ok(true);
+                    }
+                }
+            }
+            Ok(false)
+        }
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]
 pub async fn discord_clear_activity() -> AppResult<()> {
-    let mut guard = DISCORD_CONN.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(ref mut conn) = *guard {
-        let payload = serde_json::json!({
-            "cmd": "SET_ACTIVITY",
-            "args": { "pid": std::process::id(), "activity": null },
-            "nonce": "clear"
-        })
-        .to_string();
-        let _ = send_frame(&mut conn.stream, 1, &payload);
-    }
-    *guard = None;
-    Ok(())
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let mut guard = DISCORD_CONN.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(ref mut conn) = *guard {
+            let payload = serde_json::json!({
+                "cmd": "SET_ACTIVITY",
+                "args": { "pid": std::process::id(), "activity": null },
+                "nonce": "clear"
+            })
+            .to_string();
+            let _ = send_frame(&mut conn.stream, 1, &payload);
+        }
+        *guard = None;
+        Ok(())
+    })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }

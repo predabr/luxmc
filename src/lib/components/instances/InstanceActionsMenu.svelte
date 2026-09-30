@@ -22,7 +22,7 @@
 
 <DropdownMenu.Root bind:open={isOpen}>
 	<DropdownMenu.Trigger
-		class="h-8 w-8 rounded-xl flex items-center justify-center text-fg/50 hover:text-fg bg-fg/[0.03] hover:bg-fg/10 border border-fg/5 transition-all cursor-pointer shadow-sm active:scale-[0.98] data-[state=open]:bg-brand-400/20 data-[state=open]:text-brand-400 data-[state=open]:border-brand-400/40"
+		class="h-8 w-8 rounded-xl flex items-center justify-center text-fg/50 hover:text-fg bg-fg/[0.03] hover:bg-fg/10 border border-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98] data-[state=open]:bg-brand-400/20 data-[state=open]:text-brand-400 data-[state=open]:border-brand-400/40"
 		title="Mais Opções"
 	>
 		<MoreVertical class="h-3.5 w-3.5" />

@@ -5,10 +5,9 @@
 	import { listenDeepLinks } from "$lib/api/deepLinks";
 	import { handleDeepLink } from "$lib/utils/handleDeepLink";
 	import { onMount, untrack } from "svelte";
-	import { fade, fly } from "svelte/transition";
-	import { cubicOut } from "svelte/easing";
+	import { fade } from "svelte/transition";
+	import { quintOut } from "svelte/easing";
 	import { page } from "$app/state";
-	import { beforeNavigate, afterNavigate } from "$app/navigation";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
 	import Toasts from "$lib/components/ui/Toasts.svelte";
 	import StatusBanner from "$lib/components/ui/StatusBanner.svelte";
@@ -56,6 +55,8 @@
 	import { achievements } from "$lib/stores/achievements.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
+	import { initSmoothScroll } from "$lib/utils/smoothScroll";
+	import { preloadRoute } from "$lib/utils/preloadRoute";
 	import { appInit, discordSetActivity, listenGameExit, listenGameStateChange, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
@@ -76,37 +77,7 @@
 	const launcherStartTime = Math.floor(Date.now() / 1000);
 	let gameStartTime = $state<number | null>(null);
 
-	const tabOrderMap: Record<string, number> = {
-		"/": 0,
-		"/news": 0.5,
-		"/mods": 1,
-		"/skins": 2,
-		"/instances": 3,
-		"/teamwork-preview": 3.5,
-		"/screenshots": 4,
-		"/logs": 5,
-		"/logs-history": 5.1,
-		"/settings": 6
-	};
 
-	function getRouteOrder(pathname: string): number {
-		if (tabOrderMap[pathname] !== undefined) return tabOrderMap[pathname];
-		if (pathname.startsWith("/instances/")) return 4.1;
-		for (const [key, idx] of Object.entries(tabOrderMap)) {
-			if (key !== "/" && pathname.startsWith(key)) return idx;
-		}
-		return 0;
-	}
-
-	let slideDirection = $state(1);
-
-	beforeNavigate((nav) => {
-		if (nav.from && nav.to && nav.from.url.pathname !== nav.to.url.pathname) {
-			const prevIdx = getRouteOrder(nav.from.url.pathname);
-			const curIdx = getRouteOrder(nav.to.url.pathname);
-			slideDirection = curIdx >= prevIdx ? 1 : -1;
-		}
-	});
 	onMount(() => {
 		const rejectNativeFileNavigation = (e: Event) => {
 			const types = (e as DragEvent).dataTransfer?.types;
@@ -124,6 +95,18 @@
 	onMount(() => {
 		themeStore.init();
 		void bootstrapSettings();
+		void profiles.refresh();
+
+		const warmRoutes = ["/", "/instances", "/mods", "/skins", "/news", "/settings", "/screenshots"];
+		let warmIndex = 0;
+		const warmTimer = setInterval(() => {
+			if (warmIndex >= warmRoutes.length) {
+				clearInterval(warmTimer);
+				return;
+			}
+			preloadRoute(warmRoutes[warmIndex++], true);
+		}, 160);
+
 		const initTimer = setTimeout(() => {
 			initialized = true;
 			showSplash = false;
@@ -503,6 +486,7 @@
 			window.removeEventListener("click", handleExternalLink, { capture: true });
 			stop();
 			clearInterval(rpcHeartbeat);
+			clearInterval(warmTimer);
 			if (unlistenGameExit) unlistenGameExit();
 			if (unlistenGameState) unlistenGameState();
             unlistenDeepLinks?.();
@@ -627,6 +611,12 @@
         };
     });
 
+	$effect(() => {
+		const enabled = settings.value.animations !== false && !appState.performanceMode;
+		if (!enabled) return;
+		return initSmoothScroll();
+	});
+
 </script>
 
 <div class="fixed inset-0 z-0 transition-colors duration-300 pointer-events-none overflow-hidden" style={themeStore.currentBackgroundStyle}>
@@ -634,7 +624,7 @@
 		{#if themeStore.customWallpaperType === "video"}
 			<VideoWallpaper src={resolvedVideoUrl} />
 		{:else}
-			<img
+			<img loading="lazy" decoding="async"
 				src={resolveWallpaperImageUrl(themeStore.customWallpaperUrl)}
 				alt="Plano de fundo personalizado"
 				class="absolute inset-0 w-full h-full object-cover pointer-events-none"
@@ -655,24 +645,26 @@
 {#if showSplash || appState.showCutscene}
 	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; initialized = true; }} />
 {:else if !initialized}
-	<div class="flex h-full w-full items-center justify-center bg-bg-overlay/70" in:fade={{ duration: 150 }}>
+	<div class="flex h-full w-full items-center justify-center bg-bg-overlay/70" in:fade={{ easing: quintOut, duration: 220 }}>
 		<div class="flex flex-col items-center gap-4">
 			<div class="h-10 w-10 border-4 border-t-brand-400 border-fg/10 rounded-full animate-spin"></div>
 			<p class="text-sm font-medium text-fg shadow-black drop-shadow-md">{t("app.loading")}</p>
 		</div>
 	</div>
 {:else if !account.value}
-	<div class="flex h-full w-full items-center justify-center bg-bg/90" in:fade={{ duration: 150 }}>
+	<div class="flex h-full w-full items-center justify-center bg-bg/90" in:fade={{ easing: quintOut, duration: 220 }}>
 		{@render children?.()}
 	</div>
 {:else}
-	<div class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ duration: 100 }}>
+	<div class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ easing: quintOut, duration: 150 }}>
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-h-0 min-w-0 flex-1 flex-col relative z-10">
-			<main class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto {page.url.pathname === "/" ? "p-0" : "px-6 py-6"} custom-scrollbar relative">
-				<div class="mx-auto {page.url.pathname === "/" ? "" : "max-w-[1600px]"} min-h-full flex flex-col w-full">
-					{@render children?.()}
-				</div>
+			<main data-scroll-root class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto {page.url.pathname === "/" ? "p-0" : "px-6 py-6"} custom-scrollbar custom-scrollbar-root relative">
+				{#key page.url.pathname}
+					<div class="mx-auto {page.url.pathname === "/" ? "" : "max-w-[1600px]"} min-h-full flex flex-col w-full" in:fade={{ duration: settings.value.animations === false ? 0 : 160, easing: quintOut }}>
+						{@render children?.()}
+					</div>
+				{/key}
 			</main>
 		</div>
 	</div>

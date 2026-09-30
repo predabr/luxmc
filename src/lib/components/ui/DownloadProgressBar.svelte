@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { quintOut } from "svelte/easing";
 	import { onMount, onDestroy } from "svelte";
 	import { fade, slide, scale } from "svelte/transition";
 	import { Download, CheckCircle2, Clock, Zap, X, HardDrive } from "lucide-svelte";
@@ -116,7 +117,7 @@
 {#if isVisible && progress}
 	<div 
 		class="fixed bottom-4 right-6 z-50 select-none max-w-xl w-[calc(100%-110px)]"
-		transition:slide={{ duration: 250, axis: "y" }}
+		transition:slide={{ easing: quintOut, duration: 250, axis: "y" }}
 	>
 		<div class="bg-bg-elevated border border-brand-400/30 rounded-2xl p-4 shadow-elevated space-y-2.5 relative overflow-hidden">
 			<!-- Subtle gold accent glow on top edge -->
@@ -190,7 +191,7 @@
 			<!-- Liquid Gold Progress Track -->
 			<div class="w-full h-2 bg-bg-overlay/40 rounded-full overflow-hidden p-0.5 border border-fg/5">
 				<div 
-					class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-all duration-200 ease-out relative shadow-elevated"
+					class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 ease-out relative shadow-elevated"
 					style="width: {percent}%"
 				>
 					<div class="absolute inset-0 bg-fg/25 animate-pulse"></div>

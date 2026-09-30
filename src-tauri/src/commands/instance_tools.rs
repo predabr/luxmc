@@ -61,41 +61,45 @@ fn tokenize_jvm_args(input: &str) -> Vec<String> {
 
 #[tauri::command]
 pub async fn jvm_args_validate(input: String) -> AppResult<JvmValidationResult> {
-    let tokens = tokenize_jvm_args(&input);
-    let mut rejected = Vec::new();
-    let mut accepted = Vec::new();
-    let mut suggestions = Vec::new();
+    tokio::task::spawn_blocking(move || -> AppResult<JvmValidationResult> {
+        let tokens = tokenize_jvm_args(&input);
+        let mut rejected = Vec::new();
+        let mut accepted = Vec::new();
+        let mut suggestions = Vec::new();
 
-    for token in &tokens {
-        if jvm_arg_allowed_on_current_os(token) {
-            accepted.push(token.clone());
-        } else {
-            rejected.push(token.clone());
-            if token == "-XstartOnFirstThread" {
-                suggestions.push(
-					"-XstartOnFirstThread is a macOS-only flag. It is unsafe on Linux and ignored on Windows."
-						.into(),
-				);
-            } else if token.starts_with("-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance") {
-                suggestions.push(
-                    "Heap dump paths are Windows-only Mojang driver workarounds. Strip on Linux."
-                        .into(),
-                );
+        for token in &tokens {
+            if jvm_arg_allowed_on_current_os(token) {
+                accepted.push(token.clone());
             } else {
-                suggestions.push(format!(
-                    "Remove the flag \"{token}\" — it is not safe on this OS."
-                ));
+                rejected.push(token.clone());
+                if token == "-XstartOnFirstThread" {
+                    suggestions.push(
+    					"-XstartOnFirstThread is a macOS-only flag. It is unsafe on Linux and ignored on Windows."
+    						.into(),
+    				);
+                } else if token.starts_with("-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance") {
+                    suggestions.push(
+                        "Heap dump paths are Windows-only Mojang driver workarounds. Strip on Linux."
+                            .into(),
+                    );
+                } else {
+                    suggestions.push(format!(
+                        "Remove the flag \"{token}\" — it is not safe on this OS."
+                    ));
+                }
             }
         }
-    }
 
-    let normalized = accepted.join(" ");
-    Ok(JvmValidationResult {
-        valid: rejected.is_empty(),
-        rejected,
-        normalized,
-        suggestions,
+        let normalized = accepted.join(" ");
+        Ok(JvmValidationResult {
+            valid: rejected.is_empty(),
+            rejected,
+            normalized,
+            suggestions,
+        })
     })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 pub async fn java_runtime_status_core(
@@ -131,65 +135,69 @@ pub async fn java_runtime_status(
 
 #[tauri::command]
 pub async fn crash_summary(lines: Vec<String>) -> AppResult<CrashSummary> {
-    let joined = lines.join("\n");
-    let lower = joined.to_lowercase();
+    tokio::task::spawn_blocking(move || -> AppResult<CrashSummary> {
+        let joined = lines.join("\n");
+        let lower = joined.to_lowercase();
 
-    if lower.contains("libflite.so") || lower.contains("flite") {
-        return Ok(CrashSummary {
-			category: "narrator".into(),
-			probable_cause: "The Minecraft narrator is missing libflite.so on Linux".into(),
-			hint: "Install the system package 'flite' (Arch: pacman -S flite) to enable narration. The game still runs without it.".into(),
-		});
-    }
-    if lower.contains("unsatisfiedlinkerror") || lower.contains("failed to load library") {
-        return Ok(CrashSummary {
-			category: "missing_native".into(),
-			probable_cause: "A required native library is missing or not in java.library.path".into(),
-			hint: "Re-run the version install to re-extract natives, or check that no custom JVM flags override the natives directory.".into(),
-		});
-    }
-    if lower.contains("invalidcredentials")
-        || lower.contains("401")
-        || lower.contains("rejected by")
-    {
-        return Ok(CrashSummary {
-			category: "auth".into(),
-			probable_cause: "The Microsoft or session token was rejected".into(),
-			hint: "Sign in again with Microsoft login, or use Dev/Offline mode if you do not need premium services.".into(),
-		});
-    }
-    if lower.contains("outofmemory")
-        || lower.contains("could not reserve enough space")
-        || lower.contains("gc overhead")
-    {
-        return Ok(CrashSummary {
-			category: "memory".into(),
-			probable_cause: "JVM ran out of memory".into(),
-			hint: "Increase the per-instance RAM in the instance settings (recommended 4–6 GB for modded 1.18+).".into(),
-		});
-    }
-    if lower.contains("java.lang.unsupportedclassversionerror")
-        || lower.contains("class file version")
-    {
-        return Ok(CrashSummary {
-			category: "java_version".into(),
-			probable_cause: "The installed Java is too old for this version".into(),
-			hint: "Luxmc should auto-download the correct Java. If it failed, check the launcher log for download errors.".into(),
-		});
-    }
-    if lower.contains("failed to bind") || lower.contains("address already in use") {
-        return Ok(CrashSummary {
-			category: "port".into(),
-			probable_cause: "A required port is already in use".into(),
-			hint: "Another game or tool is using the same port. Close other instances of Minecraft or change the server port.".into(),
-		});
-    }
+        if lower.contains("libflite.so") || lower.contains("flite") {
+            return Ok(CrashSummary {
+    			category: "narrator".into(),
+    			probable_cause: "The Minecraft narrator is missing libflite.so on Linux".into(),
+    			hint: "Install the system package 'flite' (Arch: pacman -S flite) to enable narration. The game still runs without it.".into(),
+    		});
+        }
+        if lower.contains("unsatisfiedlinkerror") || lower.contains("failed to load library") {
+            return Ok(CrashSummary {
+    			category: "missing_native".into(),
+    			probable_cause: "A required native library is missing or not in java.library.path".into(),
+    			hint: "Re-run the version install to re-extract natives, or check that no custom JVM flags override the natives directory.".into(),
+    		});
+        }
+        if lower.contains("invalidcredentials")
+            || lower.contains("401")
+            || lower.contains("rejected by")
+        {
+            return Ok(CrashSummary {
+    			category: "auth".into(),
+    			probable_cause: "The Microsoft or session token was rejected".into(),
+    			hint: "Sign in again with Microsoft login, or use Dev/Offline mode if you do not need premium services.".into(),
+    		});
+        }
+        if lower.contains("outofmemory")
+            || lower.contains("could not reserve enough space")
+            || lower.contains("gc overhead")
+        {
+            return Ok(CrashSummary {
+    			category: "memory".into(),
+    			probable_cause: "JVM ran out of memory".into(),
+    			hint: "Increase the per-instance RAM in the instance settings (recommended 4–6 GB for modded 1.18+).".into(),
+    		});
+        }
+        if lower.contains("java.lang.unsupportedclassversionerror")
+            || lower.contains("class file version")
+        {
+            return Ok(CrashSummary {
+    			category: "java_version".into(),
+    			probable_cause: "The installed Java is too old for this version".into(),
+    			hint: "Luxmc should auto-download the correct Java. If it failed, check the launcher log for download errors.".into(),
+    		});
+        }
+        if lower.contains("failed to bind") || lower.contains("address already in use") {
+            return Ok(CrashSummary {
+    			category: "port".into(),
+    			probable_cause: "A required port is already in use".into(),
+    			hint: "Another game or tool is using the same port. Close other instances of Minecraft or change the server port.".into(),
+    		});
+        }
 
-    Ok(CrashSummary {
-        category: "unknown".into(),
-        probable_cause: "No specific cause was identified".into(),
-        hint: "Check the full log for clues, or open an issue with the log attached.".into(),
+        Ok(CrashSummary {
+            category: "unknown".into(),
+            probable_cause: "No specific cause was identified".into(),
+            hint: "Check the full log for clues, or open an issue with the log attached.".into(),
+        })
     })
+    .await
+    .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]
@@ -204,50 +212,54 @@ pub async fn instance_export_zip(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
 
-    let file = std::fs::File::create(&outputPath)?;
-    let mut zip = zip::ZipWriter::new(file);
-    let options = zip::write::FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated)
-        .unix_permissions(0o644);
+    tokio::task::spawn_blocking(move || -> AppResult<String> {
+        let file = std::fs::File::create(&outputPath)?;
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::FileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .unix_permissions(0o644);
 
-    {
-        let manifest = serde_json::json!({
-            "formatVersion": 1,
-            "name": row.name,
-            "icon": row.icon,
-            "mcVersion": row.mc_version,
-            "loader": row.loader,
-            "loaderVersion": row.loader_version,
-            "javaPath": row.java_path,
-            "jvmArgs": row.jvm_args,
-            "resolutionW": row.resolution_w,
-            "resolutionH": row.resolution_h,
-            "fullscreen": row.fullscreen,
-            "ramMb": row.ram_mb,
-            "instanceGroup": row.instance_group,
-            "notes": row.notes,
-        });
-        zip.start_file("luxmc.profile.json", options)?;
-        zip.write_all(manifest.to_string().as_bytes())?;
-    }
+        {
+            let manifest = serde_json::json!({
+                "formatVersion": 1,
+                "name": row.name,
+                "icon": row.icon,
+                "mcVersion": row.mc_version,
+                "loader": row.loader,
+                "loaderVersion": row.loader_version,
+                "javaPath": row.java_path,
+                "jvmArgs": row.jvm_args,
+                "resolutionW": row.resolution_w,
+                "resolutionH": row.resolution_h,
+                "fullscreen": row.fullscreen,
+                "ramMb": row.ram_mb,
+                "instanceGroup": row.instance_group,
+                "notes": row.notes,
+            });
+            zip.start_file("luxmc.profile.json", options)?;
+            zip.write_all(manifest.to_string().as_bytes())?;
+        }
 
-    let game_dir = std::path::PathBuf::from(&row.game_dir);
-    if game_dir.is_dir() {
-        for entry in walkdir(&game_dir) {
-            let path = entry.path();
-            if path.is_file() {
-                let name = path
-                    .strip_prefix(&game_dir)
-                    .map_err(|e| AppError::Internal(format!("strip prefix: {e}")))?;
-                zip.start_file(name.to_string_lossy(), options)?;
-                let bytes = std::fs::read(path)?;
-                zip.write_all(&bytes)?;
+        let game_dir = std::path::PathBuf::from(&row.game_dir);
+        if game_dir.is_dir() {
+            for entry in walkdir(&game_dir) {
+                let path = entry.path();
+                if path.is_file() {
+                    let name = path
+                        .strip_prefix(&game_dir)
+                        .map_err(|e| AppError::Internal(format!("strip prefix: {e}")))?;
+                    zip.start_file(name.to_string_lossy(), options)?;
+                    let bytes = std::fs::read(path)?;
+                    zip.write_all(&bytes)?;
+                }
             }
         }
-    }
 
-    zip.finish()?;
-    Ok(outputPath)
+        zip.finish()?;
+        Ok(outputPath)
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -285,17 +297,22 @@ pub async fn instance_export_share_code(
 
     let game_dir = std::path::PathBuf::from(&row.game_dir);
     let mods_dir = game_dir.join("mods");
-    let mut mods = Vec::new();
-    if mods_dir.is_dir() {
-        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name.ends_with(".jar") || name.ends_with(".jar.disabled") {
-                    mods.push(name);
+    let mods = tokio::task::spawn_blocking(move || -> Vec<String> {
+        let mut mods = Vec::new();
+        if mods_dir.is_dir() {
+            if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if name.ends_with(".jar") || name.ends_with(".jar.disabled") {
+                        mods.push(name);
+                    }
                 }
             }
         }
-    }
+        mods
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?;
 
     let manifest = InstanceShareManifest {
         name: row.name,
@@ -350,8 +367,12 @@ pub async fn instance_export_share_code(
 
     if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
         let codes_dir = base_dir.data_dir().join("share_codes");
-        let _ = std::fs::create_dir_all(&codes_dir);
-        let _ = std::fs::write(codes_dir.join(format!("{}.json", short_code)), &manifest_json);
+        let manifest_json = manifest_json.clone();
+        let _ = tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+            std::fs::create_dir_all(&codes_dir)?;
+            std::fs::write(codes_dir.join(format!("{}.json", short_code)), &manifest_json)
+        })
+        .await;
     }
 
     Ok(b64_code)
@@ -407,7 +428,8 @@ pub async fn instance_import_share_code_core(
         } else if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
             let file_path = base_dir.data_dir().join("share_codes").join(format!("{}.json", clean_code));
             if file_path.exists() {
-                std::fs::read_to_string(&file_path)
+                tokio::fs::read_to_string(&file_path)
+                    .await
                     .map_err(|e| AppError::Internal(format!("ler arquivo de código: {e}")))?
             } else {
                 return Err(AppError::NotFound(format!("Código de compartilhamento '{clean_code}' não encontrado.")));
@@ -451,7 +473,7 @@ pub async fn instance_import_share_code_core(
     let new_profile = crate::commands::profiles::profiles_create(input).await?;
     let game_dir = std::path::PathBuf::from(&new_profile.game_dir);
     let mods_dir = game_dir.join("mods");
-    let _ = std::fs::create_dir_all(&mods_dir);
+    let _ = tokio::fs::create_dir_all(&mods_dir).await;
 
     for mod_source in manifest.mod_sources {
         crate::commands::mods::mods_install_core(state, crate::commands::mods::ModInstallRequest {
@@ -503,26 +525,30 @@ pub async fn instance_backup_saves(
         )));
     }
 
-    let file = std::fs::File::create(&outputPath)?;
-    let mut zip = zip::ZipWriter::new(file);
-    let options = zip::write::FileOptions::default()
-        .compression_method(zip::CompressionMethod::Deflated)
-        .unix_permissions(0o644);
+    tokio::task::spawn_blocking(move || -> AppResult<String> {
+        let file = std::fs::File::create(&outputPath)?;
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::FileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated)
+            .unix_permissions(0o644);
 
-    for entry in walkdir(&saves_dir) {
-        let path = entry.path();
-        if path.is_file() {
-            let name = path
-                .strip_prefix(&saves_dir)
-                .map_err(|e| AppError::Internal(format!("strip prefix: {e}")))?;
-            zip.start_file(format!("saves/{}", name.to_string_lossy()), options)?;
-            let bytes = std::fs::read(path)?;
-            zip.write_all(&bytes)?;
+        for entry in walkdir(&saves_dir) {
+            let path = entry.path();
+            if path.is_file() {
+                let name = path
+                    .strip_prefix(&saves_dir)
+                    .map_err(|e| AppError::Internal(format!("strip prefix: {e}")))?;
+                zip.start_file(format!("saves/{}", name.to_string_lossy()), options)?;
+                let bytes = std::fs::read(path)?;
+                zip.write_all(&bytes)?;
+            }
         }
-    }
 
-    zip.finish()?;
-    Ok(outputPath)
+        zip.finish()?;
+        Ok(outputPath)
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]
@@ -540,36 +566,42 @@ pub async fn instance_restore_saves(
     let saves_dir = std::path::PathBuf::from(&row.game_dir).join("saves");
     tokio::fs::create_dir_all(&saves_dir).await?;
 
-    let file = std::fs::File::open(&zipPath)?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| AppError::InvalidState(format!("invalid zip: {e}")))?;
+    let extract_dir = saves_dir.clone();
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let file = std::fs::File::open(&zipPath)?;
+        let mut archive = zip::ZipArchive::new(file)
+            .map_err(|e| AppError::InvalidState(format!("invalid zip: {e}")))?;
 
-    let mut extracted_size = 0u64;
-    for i in 0..archive.len() {
-        let mut entry = archive.by_index(i)?;
-        let raw_name = entry.name().replace('\\', "/");
-        extracted_size = extracted_size.saturating_add(entry.size());
-        if entry.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 || entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
-            return Err(AppError::InvalidInput("Arquivo de backup inseguro ou grande demais".into()));
-        }
-        let stripped = raw_name
-            .strip_prefix("saves/")
-            .or_else(|| Some(raw_name.as_str()))
-            .unwrap_or(raw_name.as_str());
-        if stripped.is_empty() {
-            continue;
-        }
-        let out_path = crate::core::mods::pack_download::destination(&saves_dir, stripped)?;
-        if entry.is_dir() {
-            std::fs::create_dir_all(&out_path)?;
-        } else {
-            if let Some(parent) = out_path.parent() {
-                std::fs::create_dir_all(parent)?;
+        let mut extracted_size = 0u64;
+        for i in 0..archive.len() {
+            let mut entry = archive.by_index(i)?;
+            let raw_name = entry.name().replace('\\', "/");
+            extracted_size = extracted_size.saturating_add(entry.size());
+            if entry.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 || entry.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000) {
+                return Err(AppError::InvalidInput("Arquivo de backup inseguro ou grande demais".into()));
             }
-            let mut output = std::fs::File::create(&out_path)?;
-            std::io::copy(&mut entry, &mut output)?;
+            let stripped = raw_name
+                .strip_prefix("saves/")
+                .or_else(|| Some(raw_name.as_str()))
+                .unwrap_or(raw_name.as_str());
+            if stripped.is_empty() {
+                continue;
+            }
+            let out_path = crate::core::mods::pack_download::destination(&extract_dir, stripped)?;
+            if entry.is_dir() {
+                std::fs::create_dir_all(&out_path)?;
+            } else {
+                if let Some(parent) = out_path.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let mut output = std::fs::File::create(&out_path)?;
+                std::io::copy(&mut entry, &mut output)?;
+            }
         }
-    }
+        Ok(())
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))??;
 
     Ok(saves_dir.to_string_lossy().to_string())
 }
@@ -624,16 +656,20 @@ pub async fn instance_disk_usage(profileId: String) -> AppResult<i64> {
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
 
     let game_dir = std::path::PathBuf::from(&row.game_dir);
-    let mut total: i64 = 0;
-    for entry in walkdir(&game_dir) {
-        let path = entry.path();
-        if path.is_file() {
-            if let Ok(meta) = path.metadata() {
-                total += meta.len() as i64;
+    tokio::task::spawn_blocking(move || -> AppResult<i64> {
+        let mut total: i64 = 0;
+        for entry in walkdir(&game_dir) {
+            let path = entry.path();
+            if path.is_file() {
+                if let Ok(meta) = path.metadata() {
+                    total += meta.len() as i64;
+                }
             }
         }
-    }
-    Ok(total)
+        Ok(total)
+    })
+    .await
+    .map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 pub async fn version_repair_core(

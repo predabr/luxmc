@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import {
 		X,
@@ -86,7 +87,7 @@
 
 <div
 	class="fixed inset-0 z-[60] flex items-center justify-center bg-bg-overlay/80 backdrop-blur-md p-4 select-none"
-	transition:fade={{ duration: 150 }}
+	transition:fade={{ easing: quintOut, duration: 220 }}
 	onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
 	onkeydown={(e) => { if (e.key === "Escape") handleClose(); }}
 	role="dialog"
@@ -95,7 +96,7 @@
 >
 	<div
 		class="relative flex flex-col w-full max-w-2xl max-h-[85vh] rounded-3xl bg-bg/98 border border-fg/15 shadow-2xl shadow-black/95 overflow-hidden"
-		transition:scale={{ duration: 180, start: 0.95 }}
+		transition:scale={{ easing: backOut, duration: 240, start: 0.95 }}
 	>
 		<!-- Header -->
 		<div class="flex items-center justify-between px-6 py-4 border-b border-fg/10 bg-bg-elevated/70">
@@ -421,7 +422,7 @@
 						<button
 							onmousedown={() => testKeyW = true}
 							onmouseup={() => testKeyW = false}
-							class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-all {testKeyW ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+							class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testKeyW ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 						>
 							W
 						</button>
@@ -431,21 +432,21 @@
 							<button
 								onmousedown={() => testKeyA = true}
 								onmouseup={() => testKeyA = false}
-								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-all {testKeyA ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testKeyA ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 							>
 								A
 							</button>
 							<button
 								onmousedown={() => testKeyS = true}
 								onmouseup={() => testKeyS = false}
-								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-all {testKeyS ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testKeyS ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 							>
 								S
 							</button>
 							<button
 								onmousedown={() => testKeyD = true}
 								onmouseup={() => testKeyD = false}
-								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-all {testKeyD ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testKeyD ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 							>
 								D
 							</button>
@@ -457,7 +458,7 @@
 								<button
 									onmousedown={() => testLmb = true}
 									onmouseup={() => testLmb = false}
-									class="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-bold font-mono text-xs transition-all {testLmb ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+									class="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testLmb ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 								>
 									<span>LMB</span>
 									{#if clientMods.moduleSettings.keystrokes.showCps}
@@ -467,7 +468,7 @@
 								<button
 									onmousedown={() => testRmb = true}
 									onmouseup={() => testRmb = false}
-									class="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-bold font-mono text-xs transition-all {testRmb ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+									class="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testRmb ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 								>
 									<span>RMB</span>
 									{#if clientMods.moduleSettings.keystrokes.showCps}
@@ -484,7 +485,7 @@
 								aria-label="Espaço"
 								onmousedown={() => testSpace = true}
 								onmouseup={() => testSpace = false}
-								class="w-full h-7 rounded-xl flex items-center justify-center font-bold font-mono text-xs transition-all {testSpace ? 'bg-emerald-400 text-black' : 'bg-white/10 text-white hover:bg-white/15'}"
+								class="w-full h-7 rounded-xl flex items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testSpace ? 'bg-emerald-400 text-black' : 'bg-white/10 text-white hover:bg-white/15'}"
 							>
 								<span class="w-12 h-1 rounded-full bg-current opacity-70"></span>
 							</button>
@@ -687,7 +688,7 @@
 			<span class="text-xs text-fg/40">Salvo automaticamente</span>
 			<button
 				onclick={handleClose}
-				class="px-5 py-2 rounded-2xl bg-emerald-500 text-black font-semibold text-xs hover:bg-emerald-400 active:scale-95 transition-all shadow-lg shadow-emerald-500/20"
+				class="px-5 py-2 rounded-2xl bg-emerald-500 text-black font-semibold text-xs hover:bg-emerald-400 active:scale-95 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-emerald-500/20"
 			>
 				Concluído
 			</button>
