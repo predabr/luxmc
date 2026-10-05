@@ -17,11 +17,22 @@ const svelteCssGuard = () => ({
 });
 
 // https://vite.dev/config/
-export default defineConfig(({ isSsrBuild }) => ({
+export default defineConfig(({ isSsrBuild, mode }) => ({
   plugins: [sveltekit(), svelteCssGuard(), { name: "luxmc-runtime-chunks", configResolved(config) { serverBuild = Boolean(config.build.ssr); } }],
 
   optimizeDeps: {
     include: [
+      "@tauri-apps/api/app",
+      "@tauri-apps/api/core",
+      "@tauri-apps/api/event",
+      "@tauri-apps/api/window",
+      "@tauri-apps/plugin-dialog",
+      "@tauri-apps/plugin-opener",
+      "@tauri-apps/plugin-store",
+      "@panzoom/panzoom",
+      "cmdk-svelte",
+      "i18next",
+      "zod",
       "bits-ui",
       "@tanstack/svelte-virtual",
       "canvas-confetti",
@@ -36,8 +47,24 @@ export default defineConfig(({ isSsrBuild }) => ({
       "howler",
       "colord",
       "marked",
-      "dompurify"
+      "dompurify",
+      ...(mode === "browser-test" ? [
+        "@codemirror/state",
+        "@threlte/core",
+        "@threlte/extras",
+        "@vibrant/core",
+        "@vibrant/generator-default",
+        "@vibrant/image-browser",
+        "@vibrant/quantizer-mmcq",
+        "codemirror",
+        "diff",
+        "idb-keyval",
+        "motion",
+        "qrcode",
+        "wavesurfer.js"
+      ] : [])
     ],
+    noDiscovery: mode === "browser-test",
     exclude: ["svelte-sonner"],
     holdUntilCrawlEnd: true,
   },

@@ -9,7 +9,7 @@ async function ready() {
 
 try {
     if (!await ready()) {
-        server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--host', '127.0.0.1'], { stdio: 'inherit' });
+        server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--mode', 'browser-test', '--host', '127.0.0.1'], { stdio: 'inherit' });
         for (let attempt = 0; attempt < 300 && !await ready(); attempt++) {
             if (server.exitCode !== null) throw new Error('O servidor de teste encerrou antes de iniciar.');
             await setTimeout(200);
