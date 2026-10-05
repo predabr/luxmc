@@ -5,7 +5,7 @@ describe("button", () => {
   it("renders with default variant", () => {
     const classes = button();
     expect(classes).toContain("inline-flex");
-    expect(classes).toContain("font-extrabold");
+    expect(classes).toContain("font-semibold");
   });
 
   it("renders with solid variant", () => {
@@ -25,12 +25,12 @@ describe("button", () => {
 
   it("renders with sm size", () => {
     const classes = button({ size: "sm" });
-    expect(classes).toContain("h-9");
+    expect(classes).toContain("h-10");
   });
 
   it("renders with lg size", () => {
     const classes = button({ size: "lg" });
-    expect(classes).toContain("h-11");
+    expect(classes).toContain("h-12");
   });
 
   it("renders block when specified", () => {

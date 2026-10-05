@@ -74,13 +74,30 @@ pub async fn prepare_quilt(
         QUILT_META, mc_version, chosen_version
     );
 
-    let profile: QuiltProfile = http
-        .get(&profile_url)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
+    let cache_key = format!("{:016x}.json", xxhash_rust::xxh3::xxh3_64(profile_url.as_bytes()));
+    let cache_dir = libraries_dir.join(".luxmc-quilt");
+    let cache_path = cache_dir.join(cache_key);
+    let cached = tokio::fs::read(&cache_path)
+        .await
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<QuiltProfile>(&bytes).ok());
+    let profile = match cached.filter(|profile| !profile.main_class.is_empty() && !profile.libraries.is_empty()) {
+        Some(profile) => profile,
+        None => {
+            let bytes = http.get(&profile_url).send().await?.error_for_status()?.bytes().await?;
+            let profile: QuiltProfile = serde_json::from_slice(&bytes)?;
+            if !profile.main_class.is_empty() && !profile.libraries.is_empty() {
+                let _ = tokio::fs::create_dir_all(&cache_dir).await;
+                let temporary = cache_path.with_extension(format!("{}.part", uuid::Uuid::new_v4()));
+                if tokio::fs::write(&temporary, &bytes).await.is_ok() {
+                    if tokio::fs::rename(&temporary, &cache_path).await.is_err() {
+                        let _ = tokio::fs::remove_file(&temporary).await;
+                    }
+                }
+            }
+            profile
+        }
+    };
 
     let mut classpath_entries = Vec::new();
 
@@ -155,6 +172,30 @@ async fn get_latest_loader_version(http: &reqwest::Client, mc_version: &str) -> 
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn fixed_quilt_version_uses_local_profile_and_libraries_without_network() {
+        use super::*;
+        let root = std::env::temp_dir().join(format!("luxmc-quilt-cache-{}", uuid::Uuid::new_v4()));
+        let cache_dir = root.join(".luxmc-quilt");
+        tokio::fs::create_dir_all(&cache_dir).await.unwrap();
+        let profile_url = format!("{QUILT_META}/versions/loader/1.21.1/0.28.1/profile/json");
+        let cache_key = format!("{:016x}.json", xxhash_rust::xxh3::xxh3_64(profile_url.as_bytes()));
+        tokio::fs::write(cache_dir.join(cache_key), serde_json::to_vec(&serde_json::json!({
+            "id": "fixture", "mainClass": "org.quiltmc.loader.impl.launch.knot.KnotClient",
+            "libraries": [{"name": "fixture:test:1", "url": "https://invalid.invalid/"}]
+        })).unwrap()).await.unwrap();
+        let library = root.join("fixture/test/1/test-1.jar");
+        tokio::fs::create_dir_all(library.parent().unwrap()).await.unwrap();
+        zip::ZipWriter::new(std::fs::File::create(&library).unwrap()).finish().unwrap();
+        let client = reqwest::Client::builder().timeout(std::time::Duration::from_millis(50)).build().unwrap();
+        let prepared = prepare_quilt(&client, &root, "1.21.1", Some("0.28.1")).await.unwrap();
+        assert_eq!(prepared.main_class, "org.quiltmc.loader.impl.launch.knot.KnotClient");
+        assert_eq!(prepared.classpath_entries, vec![library]);
+        let absolute = root.canonicalize().unwrap();
+        assert!(absolute.starts_with(std::env::temp_dir().canonicalize().unwrap()));
+        std::fs::remove_dir_all(absolute).unwrap();
+    }
+
     #[test]
     fn reads_nested_loader_version() {
         let response = serde_json::json!([

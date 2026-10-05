@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
@@ -53,7 +55,7 @@
 		try {
 			backups = await instanceListWorldBackups(profileId);
 		} catch (e) {
-			toast("Falha ao carregar lista de backups: " + String(e), "error");
+			toast(uiText("ui.083266c511d0f671") + String(e), "error");
 		} finally {
 			isLoading = false;
 		}
@@ -61,17 +63,17 @@
 
 	async function handleCreateBackup() {
 		if (!selectedWorldToBackup) {
-			toast("Selecione um mundo para fazer backup", "warning");
+			toast(uiText("ui.fc1ad215380be4fe"), "warning");
 			return;
 		}
 		isBackingUp = true;
 		try {
 			const entry = await instanceBackupWorld(profileId, selectedWorldToBackup);
-			toast(`Backup de "${entry.worldName}" criado com sucesso!`, "success");
+			toast(uiText("ui.746bb3ad8b64756e", {arg0: (entry.worldName)}), "success");
 			playSound("click");
 			loadBackups();
 		} catch (e) {
-			toast("Erro ao criar backup: " + String(e), "error");
+			toast(uiText("ui.b75153e767c784f6") + String(e), "error");
 		} finally {
 			isBackingUp = false;
 		}
@@ -88,14 +90,14 @@
 						<ShieldCheck class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-base font-black text-fg">Nuvem Local & Backups de Mundos</h3>
-						<p class="text-xs text-fg/50 mt-0.5">Snapshots compactados para nunca perder suas construções</p>
+						<h3 class="text-base font-black text-fg">{uiText("ui.0f9f54375d34efe4")}</h3>
+						<p class="text-xs text-fg/50 mt-0.5">{uiText("ui.98a4da599ed37e78")}</p>
 					</div>
 				</div>
 
 				<button
 					type="button"
-					class="p-2 rounded-xl text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={onClose}
 				>
 					<X class="w-5 h-5" />
@@ -105,12 +107,12 @@
 			<!-- Create Backup Action Card -->
 			<div class="p-4 rounded-2xl bg-bg-elevated border border-fg/10 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
 				<div class="flex items-center gap-3 w-full sm:w-auto">
-					<span class="text-xs font-bold text-fg whitespace-nowrap">Mundo:</span>
+					<span class="text-xs font-bold text-fg whitespace-nowrap">{uiText("ui.d56424910a34130b")}</span>
 					<select
 						bind:value={selectedWorldToBackup}
 						class="flex-1 sm:w-60 px-3 py-2 rounded-xl bg-bg-overlay/40 border border-fg/10 text-xs text-fg font-bold focus:outline-none focus:border-brand-500"
 					>
-						{#each worldsList as w}
+						{#each worldsList as w (w.folderName)}
 							<option value={w.folderName}>{w.name} ({w.folderName})</option>
 						{/each}
 					</select>
@@ -118,16 +120,16 @@
 
 				<button
 					type="button"
-					class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-lg shadow-emerald-500/20 active:scale-[0.98] disabled:opacity-50"
+					class={launcherButton({ variant: "primary", size: "sm", class: "w-full sm:w-auto uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50" })}
 					onclick={handleCreateBackup}
 					disabled={isBackingUp || !selectedWorldToBackup}
 				>
 					{#if isBackingUp}
 						<RefreshCw class="w-4 h-4 animate-spin" />
-						<span>Criando Backup...</span>
+						<span>{uiText("ui.69ee9c2aa5f3caf0")}</span>
 					{:else}
 						<Archive class="w-4 h-4 stroke-[2.5]" />
-						<span>Criar Backup Agora</span>
+						<span>{uiText("ui.154c293fbbed8dfe")}</span>
 					{/if}
 				</button>
 			</div>
@@ -135,23 +137,23 @@
 			<!-- Backups List -->
 			<div class="flex-1 overflow-y-auto pr-1 space-y-2.5 custom-scrollbar">
 				<div class="flex items-center justify-between text-xs text-fg/50 font-bold px-1">
-					<span>Backups Existentes ({backups.length})</span>
-					<span class="text-[10px] text-fg/40">Mantém automaticamente os últimos 5 backups por mundo</span>
+					<span>{uiText("ui.e0e6a8abdd00b5ef")}{backups.length})</span>
+					<span class="text-[10px] text-fg/40">{uiText("ui.d4285b24752a6e23")}</span>
 				</div>
 
 				{#if isLoading}
 					<div class="p-10 text-center text-fg/40 flex flex-col items-center justify-center gap-2">
 						<RefreshCw class="w-6 h-6 animate-spin text-emerald-400" />
-						<span class="text-xs font-bold">Verificando snapshots...</span>
+						<span class="text-xs font-bold">{uiText("ui.72203f5d85fc670e")}</span>
 					</div>
 				{:else if backups.length === 0}
 					<div class="p-12 text-center text-fg/40 rounded-2xl bg-bg-elevated border border-fg/5">
-						<p class="text-xs">Nenhum snapshot de backup encontrado ainda.</p>
-						<p class="text-[11px] text-fg/30 mt-1">Crie seu primeiro backup seguro acima.</p>
+						<p class="text-xs">{uiText("ui.70b86cc810ccdd39")}</p>
+						<p class="text-[11px] text-fg/30 mt-1">{uiText("ui.b350644e9ea7b638")}</p>
 					</div>
 				{:else}
-					{#each backups as b}
-						<div class="p-3.5 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center justify-between gap-3">
+					{#each backups as b (b.filePath)}
+						<div class="p-3.5 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center justify-between gap-3">
 							<div class="min-w-0 space-y-0.5">
 								<div class="flex items-center gap-2">
 									<h4 class="text-xs font-bold text-fg truncate">{b.worldName}</h4>
@@ -170,14 +172,14 @@
 							<div class="flex items-center gap-2 shrink-0">
 								<button
 									type="button"
-									class="px-3.5 py-1.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
+									class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 									onclick={() => {
 										navigator.clipboard.writeText(b.filePath);
 										toast("Caminho do backup copiado!", "success");
 									}}
-									title="Copiar caminho no disco"
+									title={uiText("ui.6012ca7178f15af1")}
 								>
-									<span>Copiar Caminho</span>
+									<span>{uiText("ui.1c031de96f1a554d")}</span>
 								</button>
 							</div>
 						</div>
@@ -189,10 +191,10 @@
 			<div class="flex items-center justify-end pt-3 border-t border-fg/10 shrink-0">
 				<button
 					type="button"
-					class="px-6 py-2.5 rounded-2xl bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg font-bold text-xs transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 					onclick={onClose}
 				>
-					Fechar
+					{uiText("statusBanner.dismiss")}
 				</button>
 			</div>
 		</div>

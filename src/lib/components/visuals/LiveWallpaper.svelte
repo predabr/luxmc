@@ -6,7 +6,18 @@
 	let canvasEl: HTMLCanvasElement | null = $state(null);
 	let animationFrameId: number | null = null;
 	let isActive = $state(true);
+	let focused = $state(true);
 	const wallpaperFps = $derived(Math.max(5, Math.min(60, settings.value.wallpaperFps || 60)));
+
+	const MAX_PIXELS = 200000;
+
+	function renderScale() {
+		const width = Math.max(1, window.innerWidth || 1);
+		const height = Math.max(1, window.innerHeight || 1);
+		const budget = Math.sqrt(MAX_PIXELS / (width * height));
+		const resolutionCap = (settings.value.wallpaperWidth ?? 1280) / width;
+		return Math.min(0.4, budget, resolutionCap);
+	}
 
 	type Particle = {
 		x: number;
@@ -34,7 +45,22 @@
 	}
 
 	function shouldRun() {
-		return !appState.performanceMode && !appState.isGameRunning && settings.value.liveWallpaper !== false && !document.hidden;
+		return (
+			!appState.performanceMode &&
+			!appState.isGameRunning &&
+			settings.value.liveWallpaper !== false &&
+			!document.hidden
+		);
+	}
+
+	function applyCanvasSize() {
+		const canvas = canvasEl;
+		if (!canvas) return;
+		const scale = renderScale();
+		const width = Math.max(2, Math.round((window.innerWidth || 1) * scale));
+		const height = Math.max(2, Math.round((window.innerHeight || 1) * scale));
+		if (canvas.width !== width) canvas.width = width;
+		if (canvas.height !== height) canvas.height = height;
 	}
 
 	function stopLoop() {
@@ -82,19 +108,23 @@
 				if (p.x > width + 20) p.x = -20;
 				if (p.y < -20) p.y = height + 20;
 				if (p.y > height + 20) p.y = -20;
+			}
 
-				const pulsingAlpha = p.alpha * (0.6 + 0.4 * Math.sin(time * 2 + p.pulseSpeed * 100));
-				ctx.save();
+			ctx.fillStyle = "rgb(215, 175, 120)";
+			for (const p of particles) {
+				ctx.globalAlpha = p.alpha * (0.6 + 0.4 * Math.sin(time * 2 + p.pulseSpeed * 100)) * 0.25;
 				ctx.beginPath();
 				ctx.arc(p.x, p.y, p.size * p.z, 0, Math.PI * 2);
-				ctx.fillStyle = `rgba(215, 175, 120, ${pulsingAlpha * 0.25})`;
 				ctx.fill();
-				ctx.beginPath();
-				ctx.arc(p.x, p.y, (p.size * 0.5) * p.z, 0, Math.PI * 2);
-				ctx.fillStyle = `rgba(240, 205, 150, ${pulsingAlpha * 0.6})`;
-				ctx.fill();
-				ctx.restore();
 			}
+			ctx.fillStyle = "rgb(240, 205, 150)";
+			for (const p of particles) {
+				ctx.globalAlpha = p.alpha * (0.6 + 0.4 * Math.sin(time * 2 + p.pulseSpeed * 100)) * 0.6;
+				ctx.beginPath();
+				ctx.arc(p.x, p.y, p.size * 0.5 * p.z, 0, Math.PI * 2);
+				ctx.fill();
+			}
+			ctx.globalAlpha = 1;
 
 			animationFrameId = requestAnimationFrame(render);
 		};
@@ -104,6 +134,11 @@
 	}
 
 	function checkAndToggle() {
+		if (appState.isScrolling) {
+			stopLoop();
+			return;
+		}
+		applyCanvasSize();
 		if (shouldRun()) {
 			startLoop();
 		} else {
@@ -124,19 +159,26 @@
 	onMount(() => {
 		if (!canvasEl) return;
 		const canvas = canvasEl;
-		const ctx = canvas.getContext("2d");
-		if (!ctx) return;
+		applyCanvasSize();
 
-		canvas.width = window.innerWidth;
-		canvas.height = window.innerHeight;
-
-		const handleResize = () => {
-			if (!canvasEl) return;
-			canvasEl.width = window.innerWidth;
-			canvasEl.height = window.innerHeight;
+		let blurTimer: ReturnType<typeof setTimeout> | null = null;
+		const handleResize = () => checkAndToggle();
+		const handleFocus = () => {
+			if (blurTimer) clearTimeout(blurTimer);
+			blurTimer = null;
+			focused = true;
 		};
+		const handleBlur = () => {
+			if (blurTimer) clearTimeout(blurTimer);
+			blurTimer = setTimeout(() => {
+				focused = document.hasFocus();
+			}, 250);
+		};
+		focused = document.hasFocus();
 		window.addEventListener("resize", handleResize);
 		window.addEventListener("mousemove", handleMouseMove);
+		window.addEventListener("focus", handleFocus);
+		window.addEventListener("blur", handleBlur);
 		document.addEventListener("visibilitychange", handleVisibilityChange);
 
 		const count = 45;
@@ -156,17 +198,25 @@
 		}
 
 		return () => {
+			if (blurTimer) clearTimeout(blurTimer);
 			stopLoop();
 			window.removeEventListener("resize", handleResize);
 			window.removeEventListener("mousemove", handleMouseMove);
+			window.removeEventListener("focus", handleFocus);
+			window.removeEventListener("blur", handleBlur);
 			document.removeEventListener("visibilitychange", handleVisibilityChange);
 		};
 	});
 
 	$effect(() => {
+		void appState.isScrolling;
 		void appState.performanceMode;
 		void appState.isGameRunning;
 		void settings.value.liveWallpaper;
+		void settings.value.wallpaperFps;
+		void settings.value.wallpaperWidth;
+		void settings.value.pauseWallpaperOnBlur;
+		void focused;
 		if (canvasEl) checkAndToggle();
 	});
 

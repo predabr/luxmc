@@ -180,7 +180,7 @@ fn restore_capsule_inner(row: &ProfileRow, filename: &str) -> AppResult<(Capsule
         let mut item = archive.by_name("luxmc.capsule.json")?;
         if item.size() > 16 * 1024 { return Err(AppError::InvalidInput("Manifesto da cápsula excede o limite".into())); }
         let mut text = String::new();
-        item.read_to_string(&mut text)?;
+        item.by_ref().take(16 * 1024).read_to_string(&mut text)?;
         serde_json::from_str(&text)?
     };
     if manifest.format_version != 1 || manifest.profile_id != row.id {
@@ -242,7 +242,9 @@ fn restore_capsule_inner(row: &ProfileRow, filename: &str) -> AppResult<(Capsule
             for name in moved_old.into_iter().rev() { let _ = std::fs::rename(rollback.join(name), game_dir.join(name)); }
             return Err(error);
         }
-        std::fs::remove_dir_all(&rollback)?;
+        if let Err(error) = std::fs::remove_dir_all(&rollback) {
+            tracing::warn!(target: "instance_lab", "Falha ao limpar o rollback da cápsula: {error}");
+        }
         Ok((backup, manifest))
     })();
     let _ = std::fs::remove_dir_all(&stage);
@@ -603,6 +605,7 @@ mod tests {
             ram_mb: Some(4096), instance_group: None, auto_optimize: true, use_vulkan: false,
             use_gamemode: false, use_mangohud: false, force_dedicated_gpu: false, use_gamescope: false,
             gamescope_width: None, gamescope_height: None, gamescope_fsr: false, force_full_verification: false,
+            pre_launch_hook: None, post_exit_hook: None,
         };
         let original = super::create_capsule_inner(&row, "Original").unwrap();
         std::fs::write(game_dir.join("mods/a.jar"), b"changed jar").unwrap();

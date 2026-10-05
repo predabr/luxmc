@@ -1,362 +1,400 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Conta Luxmc · Cloud &amp; Identidade</title>
-  <meta name="description" content="Crie ou acesse sua conta Luxmc para sincronizar capas 3D, skins em alta definição, amigos P2P e preferências com o launcher de alta performance.">
-  <meta name="robots" content="index, follow">
-  <link rel="canonical" href="https://luxmc-r92.pages.dev/conta">
-  <link rel="icon" type="image/png" href="assets/favicon.png">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="luxury.css?v=20260927-qrfix">
-</head>
-<body style="background: #000000; color: #ffffff;">
+  <head>
+    <link
+      rel="preload"
+      href="/assets/fonts/barlow-condensed-bold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Conta LuxMC — Entrar, criar conta ou recuperar acesso</title>
+    <meta
+      name="description"
+      content="Acesse sua conta LuxMC com nickname e senha. Gerencie preferências e amigos conectados ao launcher."
+    />
+    <meta name="theme-color" content="rgb(18 19 20)" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://luxmc-r92.pages.dev/conta" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LuxMC Launcher" />
+    <meta
+      property="og:title"
+      content="Conta LuxMC — Entrar, criar conta ou recuperar acesso"
+    />
+    <meta
+      property="og:description"
+      content="Acesse sua conta LuxMC com nickname e senha. Gerencie preferências e amigos conectados ao launcher."
+    />
+    <meta property="og:url" content="https://luxmc-r92.pages.dev/conta" />
+    <meta
+      property="og:image"
+      content="https://luxmc-r92.pages.dev/assets/launcher-home.webp"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="Conta LuxMC — Entrar, criar conta ou recuperar acesso"
+    />
+    <meta
+      name="twitter:description"
+      content="Acesse sua conta LuxMC com nickname e senha. Gerencie preferências e amigos conectados ao launcher."
+    />
+    <meta
+      name="twitter:image"
+      content="https://luxmc-r92.pages.dev/assets/launcher-home.webp"
+    />
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link
+      rel="preload"
+      href="/assets/fonts/space-grotesk-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/design.css?v=20261004" />
+  </head>
+  <body class="auth-page">
+    <a class="skip-link" href="#main">Ir para o conteúdo</a>
+    <div class="reading-progress" aria-hidden="true"></div>
+    <header class="navbar">
+      <div class="container">
+        <a href="/" class="nav-brand" aria-label="LuxMC — Início"
+          ><img
+            class="brand-symbol"
+            src="/assets/favicon.png"
+            width="48"
+            height="48"
+            alt=""
+          /><span class="nav-brand-text">LuxMC<small>™</small></span></a
+        >
 
-  <!-- Sticky Minimalist Navigation -->
-  <header class="navbar">
-    <div class="container">
-      <a href="index.html" class="nav-brand" title="Luxmc Launcher">
-        <img src="assets/logo.png" alt="Logo Luxmc" class="nav-logo">
-        <span class="nav-brand-text">LUXMC™</span>
-        <span class="nav-brand-sub">// PORTAL ID</span>
-      </a>
-
-      <div class="nav-actions">
-        <a href="index.html" class="nav-link" style="font-family: var(--lux-font-mono); font-size: 11px; text-transform: uppercase;">← Voltar ao Início</a>
-        <a href="skins.html" class="nav-link" style="font-family: var(--lux-font-mono); font-size: 11px; text-transform: uppercase;">Skins 3D</a>
-        <a href="index.html#download" class="btn-primary-nav"><span>Baixar Launcher ↗</span></a>
+        <div class="nav-actions">
+          <a href="/" class="nav-account-link" data-i18n="nav.home">← Início</a
+          ><a href="/#download" class="btn-primary-nav"
+            ><span data-i18n="nav.download">Baixar LuxMC</span
+            ><span aria-hidden="true">↗</span></a
+          >
+        </div>
       </div>
-    </div>
-  </header>
-
-  <!-- Main Portal Section -->
-  <main class="account-portal-section">
-    <div class="container">
-      <div class="portal-grid">
-
-        <!-- Left Column: Ecosystem & Benefits -->
-        <aside>
-          <span class="section-tag" style="margin-bottom: 12px; display: inline-block;">// 01 // ECOSSISTEMA &amp; IDENTIDADE</span>
-          <h1 style="font-size: clamp(32px, 3.5vw, 46px); font-weight: 800; line-height: 1.1; letter-spacing: -0.03em; margin: 0 0 16px;">
-            SUA IDENTIDADE.<br><span style="color: #ffffff;">SEM LIMITES.</span>
-          </h1>
-          <p style="font-size: 13.5px; color: #8e8e93; line-height: 1.6; margin: 0 0 28px; max-width: 480px;">
-            Uma única conta gratuita para sincronizar capas personalizadas, skins em alta definição, amigos em tempo real e preferências do launcher.
+    </header>
+    <main class="account-portal-section" id="main">
+      <aside class="account-story">
+        <span class="section-tag">SUA CONTA LUXMC</span>
+        <h2>Seu nickname.<br />Sua turma.<br /><span>Seu lugar.</span></h2>
+        <p>
+          Amigos, convites e preferências. Leve sua conta do site para o
+          launcher.
+        </p>
+        <a class="text-link" href="/#conta-luxmc"
+          >Conheça o multiplayer <span aria-hidden="true">↗</span></a
+        >
+      </aside>
+      <div class="portal-card">
+        <div id="authPanel">
+          <span class="eyebrow">LUXMC / CONTA</span>
+          <h1 id="authTitle">Entrar na sua conta.</h1>
+          <p id="authDescription">Seu nickname e sua senha. Simples assim.</p>
+          <div class="portal-tabs" role="group" aria-label="Acesso à conta">
+            <button
+              type="button"
+              class="portal-tab-btn"
+              aria-pressed="true"
+              data-mode="login"
+            >
+              Entrar</button
+            ><button
+              type="button"
+              class="portal-tab-btn"
+              aria-pressed="false"
+              data-mode="register"
+            >
+              Criar conta
+            </button>
+          </div>
+          <form id="authForm" novalidate>
+            <div class="form-group-lux">
+              <label class="form-label-lux" for="nickname"
+                ><span>Nickname Minecraft</span
+                ><span>3–16 caracteres</span></label
+              >
+              <div class="nick-input-group">
+                <img
+                  id="nickAvatar"
+                  src="assets/avatar-steve.png"
+                  class="nick-preview-icon"
+                  width="21"
+                  height="21"
+                  alt=""
+                /><input
+                  id="nickname"
+                  name="username"
+                  autocomplete="username"
+                  required
+                  minlength="3"
+                  maxlength="16"
+                  pattern="[A-Za-z0-9_]{3,16}"
+                  placeholder="Seu nickname"
+                  aria-describedby="authError"
+                />
+              </div>
+            </div>
+            <div id="recoveryField" class="form-group-lux" hidden>
+              <label class="form-label-lux" for="recoveryCode"
+                >Código de recuperação</label
+              ><input
+                id="recoveryCode"
+                name="recoveryCode"
+                autocomplete="off"
+                maxlength="64"
+                placeholder="Código recebido no cadastro"
+              />
+            </div>
+            <div class="form-group-lux">
+              <label class="form-label-lux" id="passwordLabel" for="password"
+                >Senha</label
+              >
+              <div class="pwd-input-group">
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                  minlength="8"
+                  maxlength="128"
+                  placeholder="Mínimo de 8 caracteres"
+                  aria-describedby="authError"
+                /><button
+                  type="button"
+                  id="revealPassword"
+                  class="reveal-btn-lux"
+                  aria-label="Mostrar senha"
+                  aria-pressed="false"
+                >
+                  Mostrar
+                </button>
+              </div>
+            </div>
+            <div id="confirmField" class="form-group-lux" hidden>
+              <label class="form-label-lux" for="confirmPassword"
+                >Confirme a senha</label
+              ><input
+                id="confirmPassword"
+                type="password"
+                autocomplete="new-password"
+                minlength="8"
+                maxlength="128"
+                placeholder="Digite novamente"
+              />
+            </div>
+            <p id="authError" class="auth-error-lux" role="alert" hidden></p>
+            <button type="submit" class="auth-submit-lux" id="authSubmit">
+              Entrar ↗
+            </button>
+          </form>
+          <button type="button" class="recovery-link-lux" data-mode="recover">
+            Esqueci minha senha
+          </button>
+          <p class="auth-note-lux">
+            Use esta conta também no launcher.<br /><a href="/privacidade"
+              >Privacidade</a
+            >
+            · <a href="/termos">Termos de uso</a>
           </p>
-
-          <!-- Realtime Avatar Live Card -->
-          <div style="background: #09090b; border: 1px solid var(--lux-border); border-radius: 6px; padding: 20px; display: flex; align-items: center; gap: 16px; margin-bottom: 28px; max-width: 480px;">
-            <div style="position: relative; width: 64px; height: 64px; border-radius: 6px; border: 1px solid var(--lux-border); background: #000000; padding: 4px; flex-shrink: 0;">
-              <img id="heroAvatar" src="https://mc-heads.net/avatar/Steve/100" style="width: 100%; height: 100%; border-radius: 4px; display: block;" alt="Avatar Preview">
-              <span style="position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background: #10b981; border: 2px solid #000000;"></span>
+        </div>
+        <div id="dashboard" hidden>
+          <div class="dashboard-heading">
+            <div class="dashboard-avatar-wrap">
+              <img id="accountAvatar" alt="Sua skin" width="64" height="64" />
             </div>
             <div>
-              <div style="font-family: var(--lux-font-mono); font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.08em;">PREVIEW EM TEMPO REAL</div>
-              <div id="heroNickPreview" style="font-family: var(--lux-font-mono); font-size: 18px; font-weight: 700; color: #ffffff;">Steve</div>
-              <div style="font-family: var(--lux-font-mono); font-size: 10px; color: #10b981; margin-top: 2px;">● CONEXÃO SEGURA LUXMC ID</div>
-            </div>
-          </div>
-
-          <!-- Feature Specs Grid -->
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 480px;">
-            <div style="background: #09090b; border: 1px solid var(--lux-border); border-radius: 6px; padding: 18px;">
-              <div style="font-family: var(--lux-font-mono); font-size: 10px; color: #52525b; margin-bottom: 6px;">[ 01 ]</div>
-              <div style="font-size: 13.5px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Capas &amp; Skins HD</div>
-              <div style="font-size: 11.5px; color: #8e8e93; line-height: 1.4;">Renderização 3D e compatibilidade entre instâncias.</div>
-            </div>
-
-            <div style="background: #09090b; border: 1px solid var(--lux-border); border-radius: 6px; padding: 18px;">
-              <div style="font-family: var(--lux-font-mono); font-size: 10px; color: #52525b; margin-bottom: 6px;">[ 02 ]</div>
-              <div style="font-size: 13.5px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Sincronização Cloud</div>
-              <div style="font-size: 11.5px; color: #8e8e93; line-height: 1.4;">Preferências e temas prontos em qualquer computador.</div>
-            </div>
-
-            <div style="background: #09090b; border: 1px solid var(--lux-border); border-radius: 6px; padding: 18px;">
-              <div style="font-family: var(--lux-font-mono); font-size: 10px; color: #52525b; margin-bottom: 6px;">[ 03 ]</div>
-              <div style="font-size: 13.5px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Multiplayer &amp; Amigos</div>
-              <div style="font-size: 11.5px; color: #8e8e93; line-height: 1.4;">Convite P2P sem necessidade de softwares externos.</div>
-            </div>
-
-            <div style="background: #09090b; border: 1px solid var(--lux-border); border-radius: 6px; padding: 18px;">
-              <div style="font-family: var(--lux-font-mono); font-size: 10px; color: #52525b; margin-bottom: 6px;">[ 04 ]</div>
-              <div style="font-size: 13.5px; font-weight: 700; color: #ffffff; margin-bottom: 4px;">Zero Telemetria</div>
-              <div style="font-size: 11.5px; color: #8e8e93; line-height: 1.4;">Código aberto, sem rastreadores e sem anúncios.</div>
-            </div>
-          </div>
-
-          <div style="margin-top: 28px; font-family: var(--lux-font-mono); font-size: 10px; color: #52525b; letter-spacing: 0.08em; text-transform: uppercase;">
-            ● LAUNCHER v2.0.2 · CLOUDFLARE EDGE · LUXMC ID
-          </div>
-        </aside>
-
-        <!-- Right Column: Authentication & Dashboard -->
-        <div class="portal-card">
-
-          <!-- Auth Box: Login, Register, Recover -->
-          <div id="authPanel">
-            <span class="section-tag" style="margin-bottom: 8px; display: inline-block;">// 02 // AUTENTICAÇÃO</span>
-            <h2 id="authTitle" style="font-size: 20px; font-weight: 800; color: #ffffff; margin: 4px 0 6px;">ACESSO AO PORTAL</h2>
-            <p id="authDescription" style="font-size: 12.5px; color: #8e8e93; margin-bottom: 20px; line-height: 1.5;">Entre com seu nickname e senha para sincronizar seus dados.</p>
-
-            <!-- Segmented Mode Tabs -->
-            <div class="portal-tabs" role="tablist" aria-label="Acesso à conta">
-              <button type="button" class="portal-tab-btn" role="tab" aria-selected="true" data-mode="login">Entrar</button>
-              <button type="button" class="portal-tab-btn" role="tab" aria-selected="false" data-mode="register">Criar Conta</button>
-            </div>
-
-            <!-- Auth Form -->
-            <form id="authForm" novalidate>
-
-              <!-- Nickname Field -->
-              <div class="form-group-lux">
-                <label class="form-label-lux" for="nickname">
-                  <span>Nickname Minecraft</span>
-                  <span style="font-size: 10px; color: #71717a;">3-16 caracteres</span>
-                </label>
-                <div class="nick-input-group">
-                  <img id="nickAvatar" src="https://mc-heads.net/avatar/Steve/64" class="nick-preview-icon" alt="Avatar">
-                  <input
-                    id="nickname"
-                    name="username"
-                    autocomplete="username"
-                    required
-                    minlength="3"
-                    maxlength="16"
-                    pattern="[A-Za-z0-9_]{3,16}"
-                    placeholder="Ex: Steve"
-                  >
-                </div>
+              <span>SUA CONTA LUXMC</span>
+              <h1 id="accountNickname"></h1>
+              <div class="sync-label">
+                <span></span>
+                <span>Site e Launcher sincronizados</span>
               </div>
+            </div>
+          </div>
 
-              <!-- Recovery Code Field (hidden by default) -->
-              <div id="recoveryField" class="form-group-lux" hidden>
-                <label class="form-label-lux" for="recoveryCode">Código de recuperação</label>
+          <div id="recoveryNotice" class="recovery-notice" hidden>
+            <h3>⚠️ Guarde seu código de recuperação!</h3>
+            <p>
+              Ele aparece apenas uma vez. Você precisará dele para recuperar o
+              acesso caso esqueça sua senha.
+            </p>
+            <textarea
+              id="generatedRecovery"
+              readonly
+              aria-label="Código de recuperação"
+              rows="3"
+            ></textarea>
+            <div>
+              <button type="button" id="copyRecovery">Copiar código</button>
+              <button type="button" id="savedRecovery">
+                Já guardei em segurança
+              </button>
+            </div>
+          </div>
+
+          <div class="dashboard-tabs">
+            <button
+              type="button"
+              data-panel="preferences"
+              class="active"
+              aria-pressed="true"
+            >
+              Preferências
+            </button>
+            <button type="button" data-panel="friends" aria-pressed="false">
+              Amigos
+            </button>
+            <button type="button" data-panel="security" aria-pressed="false">
+              Segurança
+            </button>
+          </div>
+
+          <form id="preferencesForm" data-dashboard-panel="preferences">
+            <h3>Preferências do Launcher</h3>
+            <p>
+              Estas preferências acompanham sua conta automaticamente no
+              launcher.
+            </p>
+
+            <div class="preference-row">
+              <label for="theme">Aparência do Launcher</label>
+              <select id="theme">
+                <option value="default-dark">Obsidian escuro (Padrão)</option>
+                <option value="default-light">Claro</option>
+              </select>
+            </div>
+
+            <div class="preference-row">
+              <label for="accentTheme">Cor de destaque</label>
+              <select id="accentTheme">
+                <option value="blue">Azul diamante</option>
+                <option value="cyan">Ciano</option>
+                <option value="emerald">Esmeralda</option>
+                <option value="violet">Violeta</option>
+                <option value="rose">Rosa</option>
+                <option value="gold">Dourado</option>
+                <option value="orange">Laranja</option>
+              </select>
+            </div>
+
+            <div class="preference-row">
+              <label for="language">Idioma padrão</label>
+              <select id="language">
+                <option value="pt-BR">Português (Brasil)</option>
+                <option value="en">English (US)</option>
+                <option value="es">Español</option>
+              </select>
+            </div>
+
+            <div class="preference-row">
+              <label for="animations">Animações de alta fluidez</label>
+              <input id="animations" type="checkbox" checked />
+            </div>
+
+            <button type="submit" class="auth-submit-lux">
+              SALVAR E SINCRONIZAR ↗
+            </button>
+          </form>
+
+          <section data-dashboard-panel="friends" hidden>
+            <h3>Amigos e Multiplayer P2P</h3>
+            <p>Os mesmos amigos que aparecem conectados no seu launcher.</p>
+
+            <form id="friendSearch">
+              <label for="friendNickname">Buscar jogador pelo Nickname</label>
+              <div>
                 <input
-                  id="recoveryCode"
+                  id="friendNickname"
                   class="form-input-lux"
-                  name="recoveryCode"
-                  autocomplete="off"
+                  minlength="3"
                   maxlength="64"
-                  placeholder="Código de 64 caracteres recebido no cadastro"
-                >
+                  required
+                  placeholder="Digite o nickname"
+                />
+                <button class="auth-submit-lux" type="submit">Buscar</button>
               </div>
+            </form>
 
-              <!-- Password Field -->
+            <div id="searchResults" aria-live="polite"></div>
+            <div id="friendsList" aria-live="polite"></div>
+          </section>
+
+          <section data-dashboard-panel="security" hidden>
+            <h3>Segurança da Conta</h3>
+            <p>
+              Alterar a senha encerra imediatamente as sessões ativas em outros
+              dispositivos.
+            </p>
+
+            <form id="passwordForm">
               <div class="form-group-lux">
-                <label class="form-label-lux" id="passwordLabel" for="password">
-                  <span>Senha</span>
-                  <span style="font-size: 10px; color: #71717a;">Mínimo 8 caracteres</span>
-                </label>
-                <div class="pwd-input-group">
-                  <input
-                    id="password"
-                    class="form-input-lux"
-                    name="password"
-                    type="password"
-                    autocomplete="current-password"
-                    required
-                    minlength="8"
-                    maxlength="128"
-                    placeholder="Digite sua senha"
-                  >
-                  <button type="button" id="revealPassword" class="reveal-btn-lux" aria-label="Mostrar senha" aria-pressed="false">Mostrar</button>
-                </div>
+                <label class="form-label-lux" for="currentPassword"
+                  >Senha atual</label
+                >
+                <input
+                  id="currentPassword"
+                  class="form-input-lux"
+                  type="password"
+                  autocomplete="current-password"
+                  required
+                  maxlength="128"
+                />
               </div>
 
-              <!-- Confirm Password Field (for register / recover) -->
-              <div id="confirmField" class="form-group-lux" hidden>
-                <label class="form-label-lux" for="confirmPassword">Confirme a senha</label>
-                <div class="pwd-input-group">
-                  <input
-                    id="confirmPassword"
-                    class="form-input-lux"
-                    type="password"
-                    autocomplete="new-password"
-                    minlength="8"
-                    maxlength="128"
-                    placeholder="Digite a senha novamente"
-                  >
-                </div>
+              <div class="form-group-lux">
+                <label class="form-label-lux" for="newPassword"
+                  >Nova senha</label
+                >
+                <input
+                  id="newPassword"
+                  class="form-input-lux"
+                  type="password"
+                  autocomplete="new-password"
+                  minlength="8"
+                  maxlength="128"
+                  required
+                />
               </div>
 
-              <!-- Error Alert -->
-              <p id="authError" class="auth-error-lux" role="alert" hidden></p>
-
-              <!-- Submit CTA -->
-              <button type="submit" class="auth-submit-lux" id="authSubmit">
-                ENTRAR NA MINHA CONTA ↗
+              <button class="auth-submit-lux" type="submit">
+                ATUALIZAR SENHA ↗
               </button>
             </form>
+          </section>
 
-            <button type="button" class="recovery-link-lux" data-mode="recover">Esqueci minha senha</button>
+          <p
+            id="dashboardMessage"
+            class="dashboard-message"
+            role="status"
+            aria-live="polite"
+          ></p>
 
-            <p class="auth-note-lux">
-              Use esta mesma conta em <strong>Conta Luxmc</strong> dentro do launcher. Contas Microsoft oficiais continuam disponíveis normalmente para servidores de rede.
-            </p>
+          <div class="dashboard-footer">
+            <a href="/#download">Baixar o launcher ↗</a>
+            <button type="button" id="logoutButton">Sair da Conta</button>
           </div>
-
-          <!-- Dashboard View (After Successful Login) -->
-          <div id="dashboard" hidden>
-            <div class="dashboard-heading">
-              <div class="dashboard-avatar-wrap">
-                <img id="accountAvatar" alt="Sua skin" width="64" height="64">
-              </div>
-              <div>
-                <span style="font-family: var(--lux-font-mono); font-size: 10px; color: #71717a; text-transform: uppercase; letter-spacing: 0.08em;">SUA CONTA LUXMC</span>
-                <h2 id="accountNickname" style="margin: 2px 0;"></h2>
-                <div class="sync-label">
-                  <span style="width: 6px; height: 6px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
-                  <span>Site e Launcher sincronizados</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Recovery Notice -->
-            <div id="recoveryNotice" class="recovery-notice" hidden>
-              <h3>⚠️ Guarde seu código de recuperação!</h3>
-              <p>Ele aparece apenas uma vez. Você precisará dele para recuperar o acesso caso esqueça sua senha.</p>
-              <textarea id="generatedRecovery" readonly aria-label="Código de recuperação" rows="3"></textarea>
-              <div>
-                <button type="button" id="copyRecovery" style="background: #ffffff; color: #000; font-family: var(--lux-font-mono); font-size: 10.5px; font-weight: 700; text-transform: uppercase; border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;">Copiar código</button>
-                <button type="button" id="savedRecovery" style="background: transparent; color: #d4d4d8; border: 1px solid var(--lux-border); padding: 6px 14px; border-radius: 4px; font-family: var(--lux-font-mono); font-size: 10px; text-transform: uppercase; cursor: pointer;">Já guardei em segurança</button>
-              </div>
-            </div>
-
-            <!-- Dashboard Tabs -->
-            <div class="dashboard-tabs">
-              <button type="button" data-panel="preferences" class="active">Preferências</button>
-              <button type="button" data-panel="friends">Amigos</button>
-              <button type="button" data-panel="security">Segurança</button>
-            </div>
-
-            <!-- Preferences Panel -->
-            <form id="preferencesForm" data-dashboard-panel="preferences">
-              <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px;">Preferências do Launcher</h3>
-              <p style="font-size: 12px; color: #8e8e93; margin-bottom: 16px;">Estas preferências acompanham sua conta automaticamente no launcher.</p>
-
-              <div class="preference-row">
-                <label for="theme">Aparência do Launcher</label>
-                <select id="theme">
-                  <option value="default-dark">Obsidian escuro (Padrão)</option>
-                  <option value="default-light">Claro</option>
-                </select>
-              </div>
-
-              <div class="preference-row">
-                <label for="accentTheme">Cor de destaque</label>
-                <select id="accentTheme">
-                  <option value="blue">Azul diamante</option>
-                  <option value="cyan">Ciano</option>
-                  <option value="emerald">Esmeralda</option>
-                  <option value="violet">Violeta</option>
-                  <option value="rose">Rosa</option>
-                  <option value="gold">Dourado</option>
-                  <option value="orange">Laranja</option>
-                </select>
-              </div>
-
-              <div class="preference-row">
-                <label for="language">Idioma padrão</label>
-                <select id="language">
-                  <option value="pt-BR">Português (Brasil)</option>
-                  <option value="en">English (US)</option>
-                  <option value="es">Español</option>
-                </select>
-              </div>
-
-              <div class="preference-row">
-                <label for="animations">Animações de alta fluidez</label>
-                <input id="animations" type="checkbox" checked>
-              </div>
-
-              <button type="submit" class="auth-submit-lux" style="margin-top: 20px;">SALVAR E SINCRONIZAR ↗</button>
-            </form>
-
-            <!-- Friends Panel -->
-            <section data-dashboard-panel="friends" hidden>
-              <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px;">Amigos e Multiplayer P2P</h3>
-              <p style="font-size: 12px; color: #8e8e93; margin-bottom: 16px;">Os mesmos amigos que aparecem conectados no seu launcher.</p>
-
-              <form id="friendSearch">
-                <label for="friendNickname" style="font-family: var(--lux-font-mono); font-size: 11px; text-transform: uppercase; color: #a1a1aa; margin-bottom: 6px; display: block;">Buscar jogador pelo Nickname</label>
-                <div style="display: flex; gap: 8px;">
-                  <input id="friendNickname" class="form-input-lux" minlength="3" maxlength="64" required placeholder="Digite o nickname">
-                  <button class="auth-submit-lux" type="submit" style="width: auto; padding: 0 20px; margin-top: 0; white-space: nowrap;">Buscar</button>
-                </div>
-              </form>
-
-              <div id="searchResults" aria-live="polite" style="margin-top: 14px;"></div>
-              <div id="friendsList" aria-live="polite" style="margin-top: 20px;"></div>
-            </section>
-
-            <!-- Security Panel -->
-            <section data-dashboard-panel="security" hidden>
-              <h3 style="font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 4px;">Segurança da Conta</h3>
-              <p style="font-size: 12px; color: #8e8e93; margin-bottom: 16px;">Alterar a senha encerra imediatamente as sessões ativas em outros dispositivos.</p>
-
-              <form id="passwordForm">
-                <div class="form-group-lux">
-                  <label class="form-label-lux" for="currentPassword">Senha atual</label>
-                  <input id="currentPassword" class="form-input-lux" type="password" autocomplete="current-password" required maxlength="128">
-                </div>
-
-                <div class="form-group-lux">
-                  <label class="form-label-lux" for="newPassword">Nova senha</label>
-                  <input id="newPassword" class="form-input-lux" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
-                </div>
-
-                <button class="auth-submit-lux" type="submit">ATUALIZAR SENHA ↗</button>
-              </form>
-            </section>
-
-            <p id="dashboardMessage" class="dashboard-message" role="status" aria-live="polite"></p>
-
-            <div class="dashboard-footer">
-              <a href="index.html#download" style="font-family: var(--lux-font-mono); font-size: 11px; color: #a1a1aa; text-decoration: none; text-transform: uppercase;">Abrir no Launcher ↗</a>
-              <button type="button" id="logoutButton">Sair da Conta</button>
-            </div>
-          </div>
-
         </div>
-
       </div>
-    </div>
-  </main>
-
-  <!-- Editorial Brutalist Footer -->
-  <footer style="border-top: 1px solid var(--lux-border); padding: 32px 0; background: #000000;">
-    <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
-      <span style="font-family: var(--lux-font-mono); font-size: 11px; color: #52525b; text-transform: uppercase;">
-        Luxmc Launcher © 2026 · Linux-First Minecraft Ecosystem
-      </span>
-      <div style="display: flex; gap: 18px; font-family: var(--lux-font-mono); font-size: 11px; text-transform: uppercase;">
-        <a href="index.html" style="color: #71717a; text-decoration: none;">Início</a>
-        <a href="skins.html" style="color: #71717a; text-decoration: none;">Skins &amp; Capas</a>
-        <a href="privacidade.html" style="color: #71717a; text-decoration: none;">Privacidade</a>
-        <a href="termos.html" style="color: #71717a; text-decoration: none;">Termos</a>
-        <a href="ads.txt" style="color: #71717a; text-decoration: none;">ads.txt</a>
+    </main>
+    <footer class="auth-footer">
+      <div class="container">
+        <span>© 2026 LuxMC · Minecraft, do seu jeito.</span>
+        <nav aria-label="Links legais">
+          <a href="/privacidade">Privacidade</a><a href="/termos">Termos</a
+          ><a href="https://github.com/predabr/luxmc">GitHub ↗</a>
+        </nav>
       </div>
-    </div>
-  </footer>
-
-  <script type="module" src="account.js"></script>
-
-  <!-- Live Nickname & Avatar Mirror -->
-  <script>
-    const nickInp = document.getElementById("nickname");
-    const heroAvt = document.getElementById("heroAvatar");
-    const heroTxt = document.getElementById("heroNickPreview");
-    if (nickInp && heroAvt && heroTxt) {
-      nickInp.addEventListener("input", () => {
-        const val = nickInp.value.trim();
-        const valid = /^[A-Za-z0-9_]{3,16}$/.test(val);
-        const name = valid ? val : "Steve";
-        heroAvt.src = `https://mc-heads.net/avatar/${name}/100`;
-        heroTxt.textContent = val || "Steve";
-      });
-    }
-  </script>
-  <script src="https://pl31422416.profitableratecpmnetwork.com/21/57/80/215780135ded866da59e26cae12afbac.js"></script>
-</body>
+    </footer>
+    <script defer src="app.js?v=20261004"></script>
+    <script type="module" src="account.js?v=20261004"></script>
+  </body>
 </html>

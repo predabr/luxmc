@@ -1,4 +1,16 @@
+function isRenderableBanner(value: string): boolean {
+	if (!value) return false;
+	if (value.startsWith("/")) return true;
+	try {
+		const protocol = new URL(value).protocol;
+		return protocol === "https:" || protocol === "asset:";
+	} catch {
+		return false;
+	}
+}
+
 export const curatedBanners: Record<string, string> = {
+	"vanilla perfected": "/modpack_vanilla_perfected.png",
 	"kimetsu": "https://www.bisecthosting.com/images/CF/Kimetsu_no_Yaiba/BH_KnYDS_header.webp",
 	"demon slayer": "https://www.bisecthosting.com/images/CF/Kimetsu_no_Yaiba/BH_KnYDS_header.webp",
 	"demon-slayer": "https://www.bisecthosting.com/images/CF/Kimetsu_no_Yaiba/BH_KnYDS_header.webp",
@@ -21,7 +33,6 @@ export const curatedBanners: Record<string, string> = {
 	"simply optimized": "https://cdn.modrinth.com/data/1KVo5zza/images/044a5b9cb85394be95656a1ebcfe135466420da9.png",
 	"prominence": "https://media.forgecdn.net/avatars/1969/863/639217114177376898.webp",
 	"deceasedcraft": "https://media.forgecdn.net/avatars/1577/605/639022081315858417.png",
-	"vanilla": "/vanilla_banner.png"
 };
 
 export function matchesCuratedBanner(name: string, key: string): boolean {
@@ -40,6 +51,7 @@ export function resolveProfileBanner(profile?: {
 
 	if (
 		profile.banner &&
+		isRenderableBanner(profile.banner.trim()) &&
 		profile.banner.trim().length > 0 &&
 		profile.banner !== profile.icon &&
 		profile.banner !== "/grass_block.png" &&
@@ -68,7 +80,7 @@ export function resolveProfileBanner(profile?: {
 		}
 	}
 
-	if (profile.loader === "vanilla" || nameLower.includes("vanilla")) {
+	if (profile.loader === "vanilla") {
 		return "/vanilla_banner.png";
 	}
 

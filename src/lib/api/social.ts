@@ -1,7 +1,8 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { z } from "zod";
 import { api } from "./client";
 
-const identitySchema = z.object({ id: z.string(), username: z.string() });
+const identitySchema = z.object({ id: z.string(), username: z.string(), avatarUrl: z.string().nullable().optional() });
 const friendSchema = identitySchema.extend({
 	status: z.enum(["online", "in_game", "offline", "pending"]),
 	incoming: z.boolean(),
@@ -21,6 +22,7 @@ export interface Presence {
 	loader?: string;
 	serverHost?: string;
 	serverPort?: number;
+    avatarUrl?: string;
 }
 
 export async function socialRegister(accountId: string, username: string): Promise<SocialIdentity> {
@@ -56,6 +58,6 @@ export async function socialCloseRoom(accountId: string): Promise<void> {
 export const friendsSnapshotSchema = z.object({ friends: z.array(friendSchema).max(200) });
 export async function socialStreamTicket(accountId: string): Promise<string | null> {
     const result = z.object({ url: z.string().url().nullable() }).parse(await api.invoke("social_request", { accountId, request: { action: "stream_ticket" } }));
-    if (result.url && new URL(result.url).protocol !== "wss:") throw new Error("Conexão social insegura");
+    if (result.url && new URL(result.url).protocol !== "wss:") throw new Error(uiText("ui.dae8daa6158ee9fa"));
     return result.url;
 }

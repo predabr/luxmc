@@ -1,8 +1,11 @@
 <script lang="ts">
+import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
     import { openUrl } from "@tauri-apps/plugin-opener";
     import { button } from "$lib/components/ui/button";
 	import { sanitizeHtml } from "$lib/utils/sanitizeHtml";
 	import { onMount, untrack } from "svelte";
+	import { page } from "$app/state";
 	import { deepLinks } from "$lib/stores/deepLinks.svelte";
 	import type { DeepLinkAction } from "$lib/utils/deepLink";
 	import {
@@ -11,6 +14,7 @@
 		Flame, Globe
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { catalogCompatibility } from "$lib/utils/catalogCompatibility";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
 	import {
@@ -21,6 +25,7 @@
 	} from "$lib/api";
 	import { listen } from "$lib/api/client";
 	import { marked } from "marked";
+	import CatalogResults from "$lib/components/mods/CatalogResults.svelte";
 	import ModCard from "$lib/components/mods/ModCard.svelte";
 	import ModCardList from "$lib/components/mods/ModCardList.svelte";
 	import ModSearchBar from "$lib/components/mods/ModSearchBar.svelte";
@@ -41,6 +46,7 @@
 
 	let showModpackInstallModal = $state(false);
 	let modpackToInstall = $state<ModSearchResultItem | null>(null);
+	let modpackVersionId = $state<string | undefined>();
 	let modpackInstanceName = $state("");
 	let modpackRamMb = $state(4096);
 	let isInstallingModpack = $state(false);
@@ -50,16 +56,34 @@
 
 	let showInstancePickerModal = $state(false);
 	let itemToInstall = $state<{ item: ModSearchResultItem; versionId?: string } | null>(null);
+	let chosenWorldName = $state("");
 	let chosenInstanceId = $state<string>(profiles.activeId ?? profiles.list[0]?.id ?? "");
 
 	let curseforgeActive = $state(true);
 	let searchQuery = $state("");
 	let selectedSource = $state<"all" | "modrinth" | "curseforge">("all");
 	let selectedType = $state("Modpack");
+    $effect(() => { if (selectedType === "World") untrack(() => { selectedSource = "curseforge"; }); });
 	let selectedLoader = $state<string | null>(null);
 	let selectedCategory = $state<string | null>(null);
 	let selectedVersion = $state("Qualquer Versão");
 	let selectedSort = $state<"downloads" | "relevance" | "updated" | "newest">("downloads");
+	$effect(() => {
+		const query = page.url.search;
+		untrack(() => {
+			const params = new URLSearchParams(query);
+			const contentTypes: Record<string, string> = { mod: "Mod", modpack: "Modpack", resourcepack: "Resource Pack", shader: "Shader", datapack: "Data Pack", world: "World" };
+			selectedType = contentTypes[params.get("type") ?? ""] ?? "Modpack";
+			searchQuery = params.get("search") ?? "";
+			const profile = profiles.list.find(profile => profile.id === params.get("instance"));
+			if (profile) {
+				targetInstanceId = profile.id;
+				chosenInstanceId = profile.id;
+				selectedVersion = profile.mcVersion;
+				selectedLoader = selectedType === "Mod" && profile.loader !== "vanilla" ? profile.loader : null;
+			}
+		});
+	});
 	let sortMenuOpen = $state(false);
 	let viewMode = $state<"grid" | "list">("grid");
 
@@ -67,13 +91,26 @@
     const resultColumns = $derived(resultsWidth >= 1050 ? 3 : resultsWidth >= 650 ? 2 : 1);
 
 	const sortOptions = [
-		{ id: "downloads", label: "Downloads" },
-		{ id: "relevance", label: "Relevância" },
-		{ id: "updated", label: "Atualizado recentemente" },
-		{ id: "newest", label: "Mais recentes" }
+		{ id: "downloads", label: uiText("mods.downloads") },
+		{ id: "relevance", label: uiText("mods.relevance") },
+		{ id: "updated", label: uiText("ui.115b65962f4c2815") },
+		{ id: "newest", label: uiText("ui.ade822bf50f985e6") }
 	] as const;
 
 	const currentSortLabel = $derived(sortOptions.find(s => s.id === selectedSort)?.label ?? "Downloads");
+	const activeFilters = $derived([
+		...(selectedVersion !== "Qualquer Versão" ? [{ label: selectedVersion, clear: () => selectedVersion = "Qualquer Versão" }] : []),
+		...(selectedLoader ? [{ label: selectedLoader, clear: () => selectedLoader = null }] : []),
+		...(selectedCategory ? [{ label: selectedCategory, clear: () => selectedCategory = null }] : [])
+	]);
+
+	function resetFilters() {
+		searchQuery = "";
+		selectedVersion = "Qualquer Versão";
+		selectedLoader = null;
+		selectedCategory = null;
+		selectedSource = "all";
+	}
 
 	let results = $state<Array<ModSearchResultItem>>([]);
 	let loading = $state(false);
@@ -85,17 +122,22 @@
 	let installedIds = $state<Set<string>>(new Set());
 	let hasSearched = $state(false);
 
-	const totalEstimateNumber = $derived(
-		selectedType === "Modpack" ? 18318 : selectedType === "Mod" ? 54210 :
-		selectedType === "Resource Pack" ? 12840 : selectedType === "Shader" ? 2450 :
-		selectedType === "Data Pack" ? 8120 : 4300
-	);
-	const totalPages = $derived(Math.max(1, Math.ceil(totalEstimateNumber / pageSize)));
+	const hasMoreResults = $derived(results.length >= pageSize);
+	const totalPages = $derived(hasMoreResults ? currentPage + 1 : Math.max(1, currentPage));
 	const totalEstimate = $derived(
-		selectedType === "Modpack" ? "18.318" : selectedType === "Mod" ? "54.210" :
-		selectedType === "Resource Pack" ? "12.840" : selectedType === "Shader" ? "2.450" :
-		selectedType === "Data Pack" ? "8.120" : "4.300"
+		hasMoreResults
+			? `${(currentPage * pageSize).toLocaleString(currentUiLocale())}+`
+			: `${Math.max(results.length, (currentPage - 1) * pageSize + results.length)}`
 	);
+	const pageNumbers = $derived.by(() => {
+		const windowSize = Math.min(4, Math.max(1, totalPages));
+		const start = Math.max(1, Math.min(currentPage - 1, totalPages - windowSize + 1));
+		const end = Math.min(totalPages, start + windowSize - 1);
+		const pages: number[] = [];
+		for (let p = start; p <= end; p++) pages.push(p);
+		return pages;
+	});
+	const showPager = $derived(hasSearched && !loading && !searchError && (results.length > 0 || currentPage > 1));
 
 	let selectedItem = $state<ModSearchResultItem | null>(null);
 	let modDetails = $state<ModProjectDetails | null>(null);
@@ -115,27 +157,32 @@
 	}
 
 	function createYouTubeVideoCard(vid: string): string {
-		return `
-			<div class="luxmc-video-card my-5 rounded-2xl overflow-hidden border border-fg/[0.1] bg-bg-elevated shadow-xl max-w-2xl">
-				<div class="video-player-container relative aspect-video w-full bg-black/95 flex items-center justify-center overflow-hidden" data-video-id="${vid}">
-					<img decoding="async" src="https://img.youtube.com/vi/${vid}/hqdefault.jpg" class="w-full h-full object-cover opacity-90 transition-opacity" alt="YouTube Preview" loading="lazy" />
-					<div role="button" tabindex="0" class="btn-play-video absolute inset-0 flex flex-col items-center justify-center bg-black/45 hover:bg-black/25 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer group" data-video-id="${vid}" title="Reproduzir no launcher">
-						<div class="w-16 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.5)] group-hover:scale-110 group-hover:bg-red-500 transition-transform">
-							<svg class="w-7 h-7 fill-current ml-0.5" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-						</div>
-						<span class="mt-2.5 px-3 py-1 rounded-full bg-black/75 backdrop-blur-md text-[11px] font-bold text-white border border-white/10 shadow-lg group-hover:bg-black/90 transition-colors">
-							Reproduzir no Launcher ▶
-						</span>
-					</div>
-				</div>
-				<div class="p-3 bg-bg-elevated flex items-center justify-between text-xs text-fg/70 font-medium border-t border-fg/5">
-					<span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span> Vídeo de Demonstração (YouTube)</span>
-					<a href="https://www.youtube.com/watch?v=${vid}" target="_blank" rel="noopener noreferrer" class="btn-browser-link flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 hover:underline font-bold px-2.5 py-1 rounded-lg hover:bg-fg/5 transition-colors">
-						<span>Assistir no Navegador</span>
-						<span>↗</span>
-					</a>
-				</div>
-			</div>`;
+		return uiText("ui.423dbb1457a25e45", {arg0: (vid), arg1: (vid), arg2: (vid), arg3: (vid)});
+	}
+
+	const YOUTUBE_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+
+	function playVideoFromElement(element: EventTarget | null): boolean {
+		const target = element as HTMLElement | null;
+		const playBtn = target?.closest(".btn-play-video");
+		if (!playBtn) return false;
+		const container = playBtn.closest(".video-player-container");
+		const vid = playBtn.getAttribute("data-video-id");
+		if (!container || !vid || !YOUTUBE_ID_PATTERN.test(vid)) return false;
+
+		const iframe = document.createElement("iframe");
+		iframe.src = `https://luxmc-r92.pages.dev/api/player?video=${encodeURIComponent(vid)}`;
+		iframe.referrerPolicy = "strict-origin-when-cross-origin";
+		iframe.title = "YouTube video player";
+		iframe.className = "w-full h-full border-0";
+		iframe.setAttribute(
+			"allow",
+			"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+		);
+		iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation");
+		iframe.setAttribute("allowfullscreen", "");
+		container.replaceChildren(iframe);
+		return true;
 	}
 
 	function processDescription(body: string, isHtml: boolean): string {
@@ -167,43 +214,12 @@
 			}
 		);
 
-		html = html.replace(/<iframe[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/iframe>/gi, (_m, src) => `
-			<div class="my-4 p-4 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-between gap-3 max-w-xl shadow-sm">
-				<div class="flex items-center gap-2.5">
-					<div class="w-8 h-8 rounded-xl bg-brand-500/20 text-brand-400 flex items-center justify-center font-bold text-xs">▶</div>
-					<span class="text-xs text-fg font-medium">Conteúdo Multimídia Incorporado</span>
-				</div>
-				<a href="${src}" target="_blank" rel="noopener noreferrer" class="text-xs text-brand-400 hover:underline font-bold">Abrir no Navegador ↗</a>
-			</div>`
+		html = html.replace(/<iframe[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/iframe>/gi, (_m, src) => uiText("ui.9a48920d166a8b5c", {arg0: (src)})
 		);
 
-		html = html.replace(/<video[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => `
-			<div class="my-5 rounded-2xl overflow-hidden border border-fg/[0.1] bg-bg-elevated shadow-xl max-w-2xl">
-				<div class="relative aspect-video w-full bg-black flex items-center justify-center">
-					<video src="${src}" controls class="w-full h-full object-contain" preload="metadata"></video>
-				</div>
-				<div class="p-3 bg-bg-elevated flex items-center justify-between text-xs text-fg/70 font-medium border-t border-fg/5">
-					<span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-brand-400"></span> Vídeo de Demonstração</span>
-					<a href="${src}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 hover:underline font-bold px-2.5 py-1 rounded-lg hover:bg-fg/5 transition-colors">
-						<span>Abrir no Navegador</span>
-						<span>↗</span>
-					</a>
-				</div>
-			</div>`
+		html = html.replace(/<video[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => uiText("ui.02ee3107a0e16bc0", {arg0: (src), arg1: (src)})
 		);
-		html = html.replace(/<video[^>]*>[\s\S]*?<source[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => `
-			<div class="my-5 rounded-2xl overflow-hidden border border-fg/[0.1] bg-bg-elevated shadow-xl max-w-2xl">
-				<div class="relative aspect-video w-full bg-black flex items-center justify-center">
-					<video src="${src}" controls class="w-full h-full object-contain" preload="metadata"></video>
-				</div>
-				<div class="p-3 bg-bg-elevated flex items-center justify-between text-xs text-fg/70 font-medium border-t border-fg/5">
-					<span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-brand-400"></span> Vídeo de Demonstração</span>
-					<a href="${src}" target="_blank" rel="noopener noreferrer" class="flex items-center gap-1.5 text-xs text-brand-400 hover:text-brand-300 hover:underline font-bold px-2.5 py-1 rounded-lg hover:bg-fg/5 transition-colors">
-						<span>Abrir no Navegador</span>
-						<span>↗</span>
-					</a>
-				</div>
-			</div>`
+		html = html.replace(/<video[^>]*>[\s\S]*?<source[^>]*src=["']([^"']+)["'][^>]*>[\s\S]*?<\/video>/gi, (_m, src) => uiText("ui.02ee3107a0e16bc0", {arg0: (src), arg1: (src)})
 		);
 
 		html = html.replace(/<a\s+(?![^>]*\btarget=)([^>]+)>/gi, '<a target="_blank" rel="noopener noreferrer" $1>');
@@ -211,26 +227,44 @@
 		return sanitizeHtml(html);
 	}
 
+	let searchToken = 0;
+    let previousQuery: string | undefined;
+
 	async function doSearch(page = 1) {
+		const token = ++searchToken;
+		const root = document.querySelector<HTMLElement>("[data-scroll-root]");
+		if (root) root.scrollTop = 0;
 		loading = true; searchError = null; hasSearched = true; currentPage = page;
 		try {
 			const ver = selectedVersion === "Qualquer Versão" ? "" : selectedVersion;
-			results = await modsSearch(searchQuery.trim(), ver, pageSize, (page - 1) * pageSize,
+			const found = await modsSearch(searchQuery.trim(), ver, pageSize, (page - 1) * pageSize,
 				selectedType.toLowerCase().replace(/\s+/g, ""), selectedSort,
 				selectedLoader ?? undefined, selectedCategory ?? undefined, selectedSource);
+			if (token !== searchToken) return;
+			results = found;
 		} catch (e) {
+			if (token !== searchToken) return;
 			searchError = e instanceof Error ? e.message : String(e); results = [];
-		} finally { loading = false; }
+		} finally { if (token === searchToken) loading = false; }
 	}
 
-	function goToPage(p: number) { if (p < 1 || loading) return; doSearch(p); }
+	function goToPage(p: number) {
+		if (p < 1 || loading) return;
+		const root = document.querySelector<HTMLElement>("[data-scroll-root]");
+		if (root) root.scrollTop = 0;
+		void doSearch(p);
+	}
 
 	$effect(() => {
 		searchQuery; selectedVersion; selectedType; selectedSource;
 		selectedLoader; selectedCategory; selectedSort;
+        const typing = previousQuery !== undefined && previousQuery !== searchQuery;
+        previousQuery = searchQuery;
+		searchToken++;
+		loading = true;
 		if (debounceTimer) clearTimeout(debounceTimer);
-		debounceTimer = setTimeout(() => doSearch(1), 250);
-		return () => { if (debounceTimer) clearTimeout(debounceTimer); };
+		debounceTimer = setTimeout(() => doSearch(1), typing ? 250 : 0);
+		return () => { searchToken++; if (debounceTimer) clearTimeout(debounceTimer); };
 	});
 
 	onMount(() => {
@@ -259,46 +293,59 @@
                 (!details.gameVersions.length || details.gameVersions.includes(profile.mcVersion)) &&
                 (!details.loaders.length || details.loaders.includes(profile.loader)));
             targetInstanceId = compatible.find(profile => profile.id === profiles.activeId)?.id ?? compatible[0]?.id ?? "";
-            if (!targetInstanceId) throw new Error("Crie uma instância com versão e loader compatíveis com este mod.");
+            if (!targetInstanceId) throw new Error(uiText("ui.844ab9e35683af6e"));
             itemToInstall = { item };
             chosenInstanceId = targetInstanceId;
             showInstancePickerModal = true;
-        } catch (error) { toast(`Não foi possível carregar o projeto: ${String(error)}`, "error"); }
+        } catch (error) { toast(uiText("ui.67ea146a2d807fae", {arg0: (String(error))}), "error"); }
     }
 
+	let detailsToken = 0;
+	const detailCache = new Map<string, { detail: Awaited<ReturnType<typeof modsProjectDetails>>; versions: Awaited<ReturnType<typeof modsVersions>>; time: number }>();
 	async function openDetails(item: ModSearchResultItem) {
+		const token = ++detailsToken;
+		const key = `${item.source}:${item.sourceId}`;
+		const cached = detailCache.get(key);
+		if (cached && Date.now() - cached.time < 300000) {
+			selectedItem = item; modDetails = cached.detail; modVersionsList = cached.versions;
+			loadingDetails = false; activeDetailTab = "overview"; return;
+		}
 		selectedItem = item; modDetails = null; modVersionsList = [];
 		loadingDetails = true; activeDetailTab = "overview";
 		try {
-			const [d, v] = await Promise.all([
-				modsProjectDetails(item.sourceId, item.source),
-				modsVersions(item.sourceId, "", item.source).catch(() => [])
-			]);
+			const detailRequest = modsProjectDetails(item.sourceId, item.source).then(detail => {
+				if (token === detailsToken) { modDetails = detail; loadingDetails = false; }
+				return detail;
+			});
+			const [d, v] = await Promise.all([detailRequest, modsVersions(item.sourceId, "", item.source).catch(() => [])]);
+			if (detailCache.size >= 30) detailCache.delete(detailCache.keys().next().value!);
+			detailCache.set(key, { detail: d, versions: v, time: Date.now() });
+			if (token !== detailsToken) return;
 			modDetails = d; modVersionsList = v;
 		} catch (e) {
-			toast("Falha ao carregar detalhes completos: " + String(e), "error");
-		} finally { loadingDetails = false; }
+			if (token !== detailsToken) return;
+			toast(uiText("ui.64e3285c73f9cf91") + String(e), "error");
+		} finally { if (token === detailsToken) loadingDetails = false; }
 	}
 
-	function closeDetails() { selectedItem = null; modDetails = null; modVersionsList = []; }
+	function closeDetails() { detailsToken++; selectedItem = null; modDetails = null; modVersionsList = []; loadingDetails = false; }
 
-	function isItemModpack(item: ModSearchResultItem): boolean {
-		if (selectedType === "Modpack") return true;
-		const lowerTitle = item.title.toLowerCase();
-		if (lowerTitle.includes("modpack") || lowerTitle.includes(" [pack]") || lowerTitle.includes(" pack ")) return true;
-		if (item.categories?.some(c => c.toLowerCase().includes("modpack") || c.toLowerCase().includes("modpacks"))) return true;
-		return false;
+	function isItemModpack(_item: ModSearchResultItem): boolean {
+		return selectedType === "Modpack";
 	}
 
 	function promptInstall(item: ModSearchResultItem, versionId?: string) {
-		if (isItemModpack(item)) { openModpackInstall(item); return; }
-		if (profiles.list.length === 0) { toast("Crie uma instância primeiro para instalar mods!", "error"); return; }
+		if (isItemModpack(item)) { openModpackInstall(item, versionId); return; }
+		if (profiles.list.length === 0) { toast(uiText("ui.f00ac39128b9de9d"), "error"); return; }
+		const compatible = profiles.list.filter(profile => !catalogCompatibility(item, profile, selectedType, false));
+		
 		itemToInstall = { item, versionId };
-		chosenInstanceId = targetInstanceId || profiles.activeId || profiles.list[0]?.id || "";
+		chosenInstanceId = compatible.find(profile => profile.id === targetInstanceId)?.id ?? compatible.find(profile => profile.id === profiles.activeId)?.id ?? compatible[0]?.id ?? "";
 		showInstancePickerModal = true;
 	}
 
-	function openModpackInstall(item: ModSearchResultItem) {
+	function openModpackInstall(item: ModSearchResultItem, versionId?: string) {
+		modpackVersionId = versionId;
 		modpackToInstall = item; modpackInstanceName = item.title; modpackRamMb = 4096;
 		modpackProgressText = ""; isInstallingModpack = false; showModpackInstallModal = true;
 	}
@@ -307,7 +354,7 @@
 		if (!modpackToInstall || isInstallingModpack) return;
 		const item = modpackToInstall; const name = modpackInstanceName.trim() || item.title;
 		cancelRequested = false;
-        isInstallingModpack = true; modpackProgressText = "Buscando arquivos do modpack...";
+        isInstallingModpack = true; modpackProgressText = uiText("ui.5a4fa7bb57930284");
 		modpackProgressPercent = 0;
 		let unlisten: (() => void) | null = null;
 		try {
@@ -315,29 +362,24 @@
 				modpackProgressText = ev.payload.status;
 				modpackProgressPercent = ev.payload.percent ?? 0;
 			});
-			let versions = await modsVersions(item.sourceId, "", item.source);
+			const ver = selectedVersion === "Qualquer Versão" || modpackVersionId ? "" : selectedVersion;
+			let versions = await modsVersions(item.sourceId, ver, item.source);
+			if (modpackVersionId) versions = versions.filter(version => version.id === modpackVersionId);
 			if (versions.length === 0) {
-				const ver = selectedVersion === "Qualquer Versão" ? "" : selectedVersion;
-				if (ver) {
-					versions = await modsVersions(item.sourceId, ver, item.source);
-				}
-			}
-			if (versions.length === 0) {
-				toast(`Nenhuma versão encontrada para "${item.title}". Verifique a conexão com o ${item.source === "curseforge" ? "CurseForge" : "Modrinth"}.`, "error");
+				toast(uiText("ui.c38446c7df13fc52", {arg0: (item.title), arg1: (item.source === "curseforge" ? "CurseForge" : "Modrinth")}), "error");
 				isInstallingModpack = false;
 				return;
 			}
 			const extension = item.source === "curseforge" ? ".zip" : ".mrpack";
             const f = versions.flatMap(version => version.files).find(file => file.url && file.filename.toLowerCase().endsWith(extension))
-				|| versions.flatMap(version => version.files).find(file => file.url && (file.filename.toLowerCase().endsWith(".zip") || file.filename.toLowerCase().endsWith(".mrpack")))
-				|| versions.flatMap(version => version.files).find(file => file.url);
-			if (!f?.url) { toast("Arquivo de download não disponível para este modpack.", "error"); isInstallingModpack = false; return; }
-			modpackProgressText = `Baixando pacote (${f.filename})...`;
+				|| versions.flatMap(version => version.files).find(file => file.url && (file.filename.toLowerCase().endsWith(".zip") || file.filename.toLowerCase().endsWith(".mrpack")));
+			if (!f?.url) { toast(uiText("ui.ebe5f9d75823b7c4"), "error"); isInstallingModpack = false; return; }
+			modpackProgressText = uiText("ui.18333ba6ce43048e", {arg0: (f.filename)});
 			modpackProgressPercent = -1;
-			if (cancelRequested) throw new Error("Importação cancelada");
+			if (cancelRequested) throw new Error(uiText("ui.bb9811b14ec4fb48"));
             const tempPath = await modsDownloadToTemp(f.url, f.filename);
-            if (cancelRequested) throw new Error("Importação cancelada");
-			modpackProgressText = "Configurando nova instância e extraindo mods...";
+            if (cancelRequested) throw new Error(uiText("ui.bb9811b14ec4fb48"));
+			modpackProgressText = uiText("ui.cbc82784c96e08ef");
 			modpackProgressPercent = 0;
 			const iconUrl = item.iconUrl || item.bannerUrl || "";
 			const detectedLoader = item.categories?.find(c => ["forge", "fabric", "neoforge", "quilt"].includes(c.toLowerCase()))?.toLowerCase()
@@ -367,14 +409,15 @@
 			targetInstanceId = cp.id;
 			await profiles.refresh();
 			fireModpackSuccessConfetti();
-			toast(`Instância "${name}" criada com sucesso!`, "success");
+			toast(uiText("ui.1b6566167e91c704", {arg0: (name)}), "success");
 			showModpackInstallModal = false;
 			modpackToInstall = null;
 		} catch (e) {
-			toast(cancelRequested ? "Importação cancelada." : `Erro ao criar instância: ${e instanceof Error ? e.message : String(e)}`, cancelRequested ? "info" : "error");
+			const cancelled = cancelRequested || String(e).toLowerCase().includes("cancelad");
+			toast(cancelled ? uiText("ui.e6c50b7bfe042bcf") : uiText("ui.66f69086d7d99519", {arg0: (e instanceof Error ? e.message : String(e))}), cancelled ? "info" : "error");
 		} finally {
 			if (unlisten) unlisten();
-			isInstallingModpack = false; modpackProgressText = ""; modpackProgressPercent = 0;
+			isInstallingModpack = false; cancelRequested = false; modpackProgressText = ""; modpackProgressPercent = 0;
 		}
 	}
 
@@ -399,30 +442,33 @@
 		try {
 			const pid = profileId || targetInstanceId || profiles.activeId || profiles.list[0]?.id || "default";
 			const prof = profiles.list.find(p => p.id === pid);
-			let vid = versionId;
-			if (!vid) {
-				const tv = prof?.mcVersion || (selectedVersion === "Qualquer Versão" ? "" : selectedVersion);
-				let vs = await modsVersions(item.sourceId, tv, item.source);
-				if (vs.length === 0) vs = await modsVersions(item.sourceId, "", item.source);
-				if (vs.length === 0) { toast(`Nenhuma versão compatível para "${item.title}"`, "error"); return; }
-				vid = vs[0].id;
-			}
+			if (!prof) throw new Error(uiText("ui.57d70370f60875d9"));
+			const incompatibility = catalogCompatibility(item, prof, selectedType, false);
+			if (incompatibility) throw new Error(incompatibility);
+            const tv = prof.mcVersion;
+            const vs = await modsVersions(item.sourceId, tv, item.source);
+            const candidates = vs.filter(version => selectedType !== "Mod" || !version.loaders?.length || version.loaders.includes(prof.loader));
+            const chosenVersion = versionId ? candidates.find(version => version.id === versionId) : candidates[0];
+            if (!chosenVersion) throw new Error(uiText("ui.6c519ffd1be4eabf", {arg0: (item.title), arg1: (tv), arg2: (selectedType === "Mod" ? ` / ${prof.loader}` : "")}));
+            const vid = chosenVersion.id;
+
 			const ct = selectedType.toLowerCase().replace(/\s+/g, "");
-			await modsInstall({ profileId: pid, projectId: item.sourceId, versionId: vid, source: item.source, contentType: ct });
+			await modsInstall({ profileId: pid, projectId: item.sourceId, versionId: vid, source: item.source, contentType: ct, worldName: ct === "datapack" ? chosenWorldName : undefined });
 			if (pid && pid !== "default") {
 				const p = profiles.list.find(p => p.id === pid);
-				if (p && ct === "mod") profiles.update(pid, { modCount: (p.modCount ?? 0) + 1, loader: p.loader === "vanilla" ? "fabric" : p.loader });
+				if (p && ct === "mod") profiles.update(pid, { modCount: (p.modCount ?? 0) + 1 });
 			}
-			installedIds = new Set([...installedIds, id]);
+			targetInstanceId = pid;
+			installedIds = new Set([...installedIds, `${pid}:${id}`]);
 			const pn = profiles.list.find(p => p.id === pid)?.name;
-			toast(pn ? `"${item.title}" instalado em "${pn}"!` : `"${item.title}" instalado com sucesso!`, "success");
+			toast(pn ? `"${item.title}" instalado em "${pn}"!` : uiText("ui.8cb332040d3078ab", {arg0: (item.title)}), "success");
 		} catch (e) {
-			toast(`Erro ao instalar "${item.title}": ${e instanceof Error ? e.message : String(e)}`, "error");
+			toast(uiText("ui.523804d745b0d9e4", {arg0: (item.title), arg1: (e instanceof Error ? e.message : String(e))}), "error");
 		} finally { const n = new Set(installingIds); n.delete(id); installingIds = n; }
 	}
 </script>
 
-<div class="min-h-full flex gap-6 select-none">
+<div class="min-h-full flex flex-col xl:flex-row gap-6 select-none">
 
 	{#if selectedItem}
 		{@const id = `${selectedItem.source}:${selectedItem.sourceId}`}
@@ -433,17 +479,17 @@
 			{loadingDetails}
 			bind:activeTab={activeDetailTab}
 			isInstalling={installingIds.has(id)}
-			isInstalled={installedIds.has(id)}
+			isInstalled={installedIds.has(`${targetInstanceId}:${id}`)}
 			contentType={selectedType}
 			onBack={closeDetails}
 			onInstall={() => (selectedItem && isItemModpack(selectedItem)) ? openModpackInstall(selectedItem) : promptInstall(selectedItem!)}
 			onOpenGuide={() => showInstallGuide = true}
-			onInstallVersion={(verId) => (selectedItem && isItemModpack(selectedItem)) ? openModpackInstall(selectedItem) : promptInstall(selectedItem!, verId)}
+			onInstallVersion={(verId) => promptInstall(selectedItem!, verId)}
 		>
 			{#if loadingDetails}
 				<div class="bg-bg-elevated border border-fg/[0.06] rounded-3xl p-12 flex flex-col items-center justify-center gap-3">
 					<Loader2 class="w-8 h-8 text-brand-500 animate-spin" />
-					<p class="text-xs text-fg/35 font-medium">Carregando informações completas...</p>
+					<p class="text-xs text-fg/35 font-medium">{uiText("ui.271713677d349e0f")}</p>
 				</div>
 			{:else if modDetails}
 				{#if activeDetailTab === 'overview'}
@@ -453,19 +499,12 @@
 						<div
 							class="prose prose-invert max-w-none text-xs text-fg/80 leading-relaxed font-sans [&_a]:text-brand-400 [&_a]:underline [&_a]:underline-offset-2 hover:[&_a]:text-brand-300 [&_h1]:text-fg [&_h1]:font-black [&_h2]:text-fg [&_h2]:font-bold [&_h3]:text-fg [&_h3]:font-bold [&_img]:rounded-2xl [&_img]:max-w-full [&_img]:shadow-md [&_table]:w-full [&_table]:border-collapse [&_th]:border [&_th]:border-fg/10 [&_td]:border [&_td]:border-fg/10 [&_th]:p-2.5 [&_td]:p-2.5 [&_th]:bg-fg/5 [&_code]:bg-fg/10 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:font-mono [&_pre]:bg-bg-subtle [&_pre]:p-4 [&_pre]:rounded-2xl [&_pre]:overflow-x-auto overflow-x-auto break-words select-text"
 							onclick={(e) => {
-								const target = e.target as HTMLElement | null;
-								const playBtn = target?.closest('.btn-play-video');
-								if (playBtn) {
+								if (playVideoFromElement(e.target)) {
 									e.preventDefault();
 									e.stopPropagation();
-									const vid = playBtn.getAttribute('data-video-id');
-									const container = playBtn.closest('.video-player-container');
-									if (vid && container) {
-										container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&rel=0&modestbranding=1" title="YouTube video player" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" sandbox="allow-scripts allow-same-origin allow-presentation" allowfullscreen></iframe>`;
-									}
 									return;
 								}
-
+								const target = e.target as HTMLElement | null;
 								const a = target?.closest('a');
 								if (a && a.href && (a.href.startsWith('http://') || a.href.startsWith('https://') || a.href.startsWith('mailto:'))) {
 									e.preventDefault();
@@ -475,16 +514,9 @@
 							}}
 							onkeydown={(e) => {
 								if (e.key === "Enter" || e.key === " ") {
-									const target = e.target as HTMLElement | null;
-									const playBtn = target?.closest('.btn-play-video');
-									if (playBtn) {
+									if (playVideoFromElement(e.target)) {
 										e.preventDefault();
 										e.stopPropagation();
-										const vid = playBtn.getAttribute('data-video-id');
-										const container = playBtn.closest('.video-player-container');
-										if (vid && container) {
-											container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&rel=0&modestbranding=1" title="YouTube video player" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" sandbox="allow-scripts allow-same-origin allow-presentation" allowfullscreen></iframe>`;
-										}
 									}
 								}
 							}}
@@ -495,14 +527,14 @@
 				{:else if activeDetailTab === 'gallery'}
 					{#if modDetails.gallery.length === 0}
 						<div class="bg-bg-elevated border border-fg/[0.06] rounded-3xl p-12 text-center text-fg/35 text-xs">
-							<p>Nenhuma screenshot disponível para este projeto.</p>
+							<p>{uiText("ui.eff657a1305cfb79")}</p>
 						</div>
 					{:else}
 						<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 							{#each modDetails.gallery as img}
 								<!-- svelte-ignore a11y_click_events_have_key_events -->
 								<!-- svelte-ignore a11y_no_static_element_interactions -->
-								<div class="group relative bg-bg-elevated border border-fg/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm" onclick={() => lightboxImage = img}>
+								<div class="group relative bg-bg-elevated border border-fg/[0.06] rounded-2xl overflow-hidden cursor-pointer hover:border-brand-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity] shadow-sm" onclick={() => lightboxImage = img}>
 									<div class="h-44 w-full bg-bg-subtle overflow-hidden">
 										<img decoding="async"
 											src={img.url}
@@ -537,22 +569,22 @@
 	{:else}
 		<div class="flex-1 flex flex-col min-w-0 pr-1">
 			<header class="relative mb-6 overflow-hidden rounded-2xl border border-fg/[0.08] bg-bg-elevated p-6 shadow-soft">
-                <p class="page-eyebrow mb-3">Descubra · Instale · Explore</p>
-                <h1 class="page-title">Seu Minecraft, sem limites.</h1>
-                <p class="page-description">Mods, modpacks e novos mundos. Tudo em um só lugar.</p>
+                <p class="page-eyebrow mb-3">{uiText("ui.63f0b3839bb0e4a4")}</p>
+                <h1 class="page-title">{uiText("ui.ec71124c5fcbe0e7")}</h1>
+                <p class="page-description">{uiText("ui.50241729d3a6fcdf")}</p>
                 <div class="mt-5 flex flex-wrap items-center gap-2.5">
                     <button
                         type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 {selectedSource === 'all' ? 'bg-fg/15 text-fg border border-fg/20 shadow-md' : 'bg-fg/5 text-fg/50 hover:text-fg hover:bg-fg/10 border border-transparent'}"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 {selectedSource === 'all' ? 'bg-fg/15 text-fg border border-fg/20 shadow-md' : 'bg-fg/5 text-fg/50 hover:text-fg hover:bg-fg/10 border border-transparent'}"
                         onclick={() => selectedSource = "all"}
                     >
                         <Globe class="w-3.5 h-3.5" />
-                        <span>Todos os Provedores</span>
+                        <span>{uiText("ui.8a0108a42be96e26")}</span>
                     </button>
 
                     <button
                         type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'modrinth' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/15 border border-emerald-500/20'}"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'modrinth' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/15 border border-emerald-500/20'}"
                         onclick={() => selectedSource = selectedSource === "modrinth" ? "all" : "modrinth"}
                     >
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -567,7 +599,7 @@
 
                     <button
                         type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'curseforge' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50 shadow-md shadow-orange-500/20 ring-1 ring-orange-500/40' : 'bg-orange-500/10 text-orange-400/80 hover:text-orange-300 hover:bg-orange-500/15 border border-orange-500/20'}"
+                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'curseforge' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50 shadow-md shadow-orange-500/20 ring-1 ring-orange-500/40' : 'bg-orange-500/10 text-orange-400/80 hover:text-orange-300 hover:bg-orange-500/15 border border-orange-500/20'}"
                         onclick={() => selectedSource = selectedSource === "curseforge" ? "all" : "curseforge"}
                     >
                         <Flame class="w-3.5 h-3.5 text-orange-400" />
@@ -581,17 +613,25 @@
 
 			<div class="relative w-full mb-4">
 				<Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30" />
-				<input type="text" bind:value={searchQuery} placeholder={`Buscar ${selectedType.toLowerCase()}…`}
-					class="w-full bg-bg-elevated border border-fg/[0.08] focus:border-brand-500/60 rounded-2xl py-3 pl-11 pr-4 text-xs text-fg placeholder-fg/30 focus:outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-inner" />
+				<input type="search" aria-label={uiText("ui.659ee868fc163d0e")} bind:value={searchQuery} placeholder={uiText("ui.859c2b032a83e5c7", {arg0: (selectedType.toLowerCase())})}
+					class="w-full bg-bg-elevated border border-fg/[0.08] focus:border-brand-500/60 rounded-2xl py-3 pl-11 pr-4 text-xs text-fg placeholder-fg/30 focus:outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity] shadow-inner" />
 			</div>
+			{#if activeFilters.length > 0 || searchQuery}
+				<div class="mb-4 flex flex-wrap items-center gap-2" aria-label={uiText("ui.505d23a2b73a2c49")}>
+					{#each activeFilters as filter}
+						<button type="button" class={button({ variant: "secondary", size: "sm" })} aria-label={uiText("ui.1333e427c3efc526", {arg0: (filter.label)})} onclick={filter.clear}>{filter.label} ×</button>
+					{/each}
+					<button type="button" class={button({ variant: "ghost", size: "sm" })} onclick={resetFilters}>{uiText("ui.937f8ee080a9f405")}</button>
+				</div>
+			{/if}
 
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<span class="text-xs font-extrabold text-fg">{selectedType}</span>
-					<span class="text-xs text-fg/35 font-medium">({results.length} nesta página)</span>
+					<span class="text-xs text-fg/35 font-medium">({results.length} {uiText("ui.a30d8d35304a5476")}</span>
 					{#if loading}
 						<span class="text-[10px] text-brand-500 font-mono font-medium flex items-center gap-1 ml-2">
-							<Loader2 class="w-3 h-3 animate-spin text-brand-500" /> buscando...
+							<Loader2 class="w-3 h-3 animate-spin text-brand-500" /> {uiText("ui.5f0db2a236d0014f")}
 						</span>
 					{/if}
 				</div>
@@ -602,7 +642,7 @@
 							<ChevronDown class="w-3.5 h-3.5 text-fg/35 transition-transform duration-300 {sortMenuOpen ? 'rotate-180' : ''}" />
 						</button>
 						{#if sortMenuOpen}
-							<button type="button" aria-label="Fechar menu" class="fixed inset-0 z-20 cursor-default bg-transparent border-none p-0 outline-none" onclick={() => sortMenuOpen = false}></button>
+							<button type="button" aria-label={uiText("ui.7ff31408d36adf67")} class={launcherButton({ variant: "secondary", size: "icon", class: "fixed inset-0 z-20 outline-none" })} onclick={() => sortMenuOpen = false}></button>
 							<div class="absolute right-0 mt-1.5 w-52 bg-bg-elevated border border-fg/[0.06] rounded-xl shadow-2xl py-1 z-30 divide-y divide-white/5">
 								{#each sortOptions as opt}
 									<button type="button" class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer {selectedSort === opt.id ? 'bg-brand-500/20 text-brand-500 font-bold' : 'text-fg/70 hover:bg-fg/5 hover:text-fg'}" onclick={() => { selectedSort = opt.id; sortMenuOpen = false; }}>
@@ -614,8 +654,8 @@
 						{/if}
 					</div>
 					<div class="flex bg-bg-elevated border border-fg/[0.06] rounded-xl p-0.5 gap-0.5">
-						<button type="button" class={button({ variant: viewMode === "grid" ? "primary" : "ghost", size: "icon" })} aria-pressed={viewMode === "grid"} onclick={() => viewMode = 'grid'} title="Grade"><LayoutGrid class="w-3.5 h-3.5" /></button>
-						<button type="button" class={button({ variant: viewMode === "list" ? "primary" : "ghost", size: "icon" })} aria-pressed={viewMode === "list"} onclick={() => viewMode = 'list'} title="Lista"><List class="w-3.5 h-3.5" /></button>
+						<button type="button" class={button({ variant: viewMode === "grid" ? "primary" : "ghost", size: "icon" })} aria-pressed={viewMode === "grid"} onclick={() => viewMode = 'grid'} title={uiText("ui.839e20fb3599fc74")}><LayoutGrid class="w-3.5 h-3.5" /></button>
+						<button type="button" class={button({ variant: viewMode === "list" ? "primary" : "ghost", size: "icon" })} aria-pressed={viewMode === "list"} onclick={() => viewMode = 'list'} title={uiText("ui.5e77e1785d574f9b")}><List class="w-3.5 h-3.5" /></button>
 					</div>
 				</div>
 			</div>
@@ -625,7 +665,7 @@
 				<div class="flex items-center gap-3 bg-red-500/10 border border-red-500/20 rounded-2xl p-4 mb-4">
 					<AlertTriangle class="w-5 h-5 text-red-400 shrink-0" />
 					<div>
-						<p class="text-xs font-bold text-red-400">Erro na busca</p>
+						<p class="text-xs font-bold text-red-400">{uiText("ui.d134bad3ef637359")}</p>
 						<p class="text-[10px] text-red-300/60 mt-0.5">{searchError}</p>
 					</div>
 				</div>
@@ -635,56 +675,62 @@
 				<div class="flex-1 flex items-center justify-center py-20">
 					<div class="flex flex-col items-center gap-3">
 						<Loader2 class="w-8 h-8 text-brand-500 animate-spin" />
-						<p class="text-xs text-fg/35 font-medium">Buscando em Modrinth e CurseForge...</p>
+						<p class="text-xs text-fg/35 font-medium">{uiText("ui.268872b3efb06a70")}</p>
 					</div>
 				</div>
 			{:else if results.length === 0 && hasSearched}
 				<div class="flex-1 flex items-center justify-center py-20">
 					<div class="flex flex-col items-center gap-3">
 						<Search class="w-8 h-8 text-fg/20" />
-						<p class="text-xs text-fg/35 font-medium">Nenhum resultado encontrado</p>
-						<p class="text-[10px] text-fg/30">Tente outro termo ou altere os filtros</p>
+						<p class="text-xs text-fg/35 font-medium">{uiText("ui.61c53e10c67742dc")}</p>
+						<p class="text-[10px] text-fg/30">{uiText("ui.08061693739daef1")}</p>
+						<button type="button" class={button({ variant: "secondary", size: "sm" })} onclick={resetFilters}>{uiText("ui.937f8ee080a9f405")}</button>
 					</div>
 				</div>
 			{:else}
-                <div bind:clientWidth={resultsWidth}>
-                    {#if viewMode === 'grid'}
-                        <div class="grid gap-4 pb-5" style:grid-template-columns={`repeat(${resultColumns}, minmax(0, 1fr))`}>
-                            {#each results as item (item.source + ':' + item.sourceId)}
-                                {@const id = `${item.source}:${item.sourceId}`}
-                                <ModCard {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
-                            {/each}
-                        </div>
-                    {:else}
-                        <div class="space-y-2.5 pb-5">
-                            {#each results as item (item.source + ':' + item.sourceId)}
-                                {@const id = `${item.source}:${item.sourceId}`}
-                                <ModCardList {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(id)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
-                            {/each}
-                        </div>
-                    {/if}
+                <div bind:clientWidth={resultsWidth} inert={loading} aria-busy={loading}>
+                    <CatalogResults items={results} columns={viewMode === 'grid' ? resultColumns : 1} rowHeight={viewMode === 'grid' ? 440 : resultsWidth < 650 ? 144 : 112}>
+                        {#snippet children(item)}
+                            {@const id = `${item.source}:${item.sourceId}`}
+                            {#if viewMode === 'grid'}
+                                <ModCard {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(`${targetInstanceId}:${id}`)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
+                            {:else}
+                                <ModCardList {item} isInstalling={installingIds.has(id)} isInstalled={installedIds.has(`${targetInstanceId}:${id}`)} contentType={selectedType} onOpenDetails={openDetails} onInstall={promptInstall} />
+                            {/if}
+                        {/snippet}
+                    </CatalogResults>
                 </div>
+			{/if}
 
-				{#if results.length > 0}
-					<div class="flex items-center justify-between pt-3 pb-8 border-t border-fg/[0.06]">
-						<div class="text-xs text-fg/35 font-medium">
-							Mostrando <span class="text-fg font-bold">{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, totalEstimateNumber)}</span> de <span class="text-fg font-bold">{totalEstimate}</span>
-						</div>
-						<div class="flex items-center gap-1 text-xs">
-							<button type="button" class={button({ variant: "secondary", size: "icon" })} onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
-							{#each [1, 2, 3, 4] as p}
-								{#if totalPages >= p}
-									<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {currentPage === p ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(p)}>{p}</button>
-								{/if}
-							{/each}
-							{#if totalPages > 5}
-								<span class="px-1 text-fg/35">...</span>
-								<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {currentPage === totalPages ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
-							{/if}
-							<button type="button" class={button({ variant: "secondary", size: "icon" })} onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
-						</div>
+			{#if showPager}
+				<div class="flex items-center justify-between pt-3 pb-8 border-t border-fg/[0.06]">
+					<div class="text-xs text-fg/35 font-medium">
+						{#if results.length > 0}
+							{uiText("ui.7c1679025ff67cf0")} <span class="text-fg font-bold">{(currentPage - 1) * pageSize + 1} - {(currentPage - 1) * pageSize + results.length}</span> {uiText("ui.959a45d44e6fcf58")} <span class="text-fg font-bold">{totalEstimate}</span>
+						{:else}
+							{uiText("ui.8f63f4d7594a823e")} <span class="text-fg font-bold">{currentPage}</span> {uiText("ui.9bddc2d54d195ce8")}
+						{/if}
 					</div>
-				{/if}
+					<div class="flex items-center gap-1 text-xs">
+						<button type="button" aria-label={uiText("ui.9bcad734827a849a")} class={button({ variant: "secondary", size: "icon" })} onclick={() => goToPage(currentPage - 1)} disabled={currentPage <= 1 || loading}><ChevronLeft class="w-4 h-4" /></button>
+						{#if pageNumbers[0] > 1}
+							<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "" })} onclick={() => goToPage(1)}>1</button>
+							{#if pageNumbers[0] > 2}
+								<span class="px-1 text-fg/35">...</span>
+							{/if}
+						{/if}
+						{#each pageNumbers as p}
+							<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {currentPage === p ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(p)}>{p}</button>
+						{/each}
+						{#if pageNumbers[pageNumbers.length - 1] < totalPages}
+							{#if pageNumbers[pageNumbers.length - 1] < totalPages - 1}
+								<span class="px-1 text-fg/35">...</span>
+							{/if}
+							<button type="button" class="h-8 w-8 rounded-xl font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {currentPage === totalPages ? 'bg-bg-subtle text-fg border border-fg/[0.06] shadow-sm' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}" onclick={() => goToPage(totalPages)}>{totalPages}</button>
+						{/if}
+						<button type="button" aria-label={uiText("ui.d537f9b442ea6fa2")} class={button({ variant: "secondary", size: "icon" })} onclick={() => goToPage(currentPage + 1)} disabled={currentPage >= totalPages || loading}><ChevronRight class="w-4 h-4" /></button>
+					</div>
+				</div>
 			{/if}
 		</div>
 
@@ -705,5 +751,5 @@
 {/if}
 
 {#if showInstancePickerModal && itemToInstall}
-	<InstancePickerModal item={itemToInstall.item} {selectedType} bind:chosenInstanceId onConfirm={confirmInstanceInstall} onClose={() => showInstancePickerModal = false} />
+	<InstancePickerModal item={itemToInstall.item} {selectedType} bind:chosenInstanceId bind:chosenWorldName onConfirm={confirmInstanceInstall} onClose={() => showInstancePickerModal = false} />
 {/if}

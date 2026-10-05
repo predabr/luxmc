@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { fade } from 'svelte/transition';
 
@@ -49,9 +51,9 @@
 		{#if dismissible}
 			<button
 				type="button"
-				aria-label="Dismiss"
+				aria-label={uiText("ui.48845bff334a50a5")}
 				onclick={handleDismiss}
-				class="flex-shrink-0 fg-muted hover:fg transition-colors"
+				class={launcherButton({ variant: "ghost", size: "icon", class: "flex-shrink-0 fg-muted hover:fg" })}
 			>
 				<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />

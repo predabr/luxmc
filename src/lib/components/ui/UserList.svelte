@@ -21,7 +21,7 @@
 <div class="space-y-2">
 	{#each items as item (item.id)}
 		<div
-			class="p-3 rounded-lg bg-bg-elevated border border-border hover:border-brand transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center justify-between cursor-pointer"
+			class="p-3 rounded-lg bg-bg-elevated border border-border hover:border-brand transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center justify-between cursor-pointer"
 			role="button"
 			tabindex="0"
 			onclick={item.action}

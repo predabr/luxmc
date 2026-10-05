@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { Copy, Check } from 'lucide-svelte';
 	import { useTranslation } from '$lib/i18n/useTranslation.svelte';
 
@@ -24,13 +25,13 @@
 	{#if label}
 		<p class="text-sm font-medium fg-muted uppercase tracking-wide">{label}</p>
 	{/if}
-	<div class={`flex items-center justify-between p-3 rounded-lg border border-border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] ${
+	<div class={`flex items-center justify-between p-3 rounded-lg border border-border transition-[color,background-color,border-color,box-shadow,transform,opacity] ${
 		variant === 'code' ? 'bg-bg-overlay/20 font-mono text-sm' : 'bg-bg-elevated'
 	}`}>
 		<span class="truncate fg-muted">{value}</span>
 		<button
 			onclick={handleCopy}
-			class="flex-shrink-0 ml-2 p-2 hover:bg-bg-hover rounded transition-colors"
+			class={launcherButton({ variant: "secondary", size: "sm", class: "flex-shrink-0 ml-2" })}
 			title={copied ? t("common.copied") : t("common.copy")}
 			aria-label={copied ? t("common.copied") : t("common.copy")}
 		>

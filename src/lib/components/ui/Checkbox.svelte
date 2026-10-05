@@ -20,7 +20,7 @@
 </script>
 
 <label class="flex items-center gap-3 cursor-pointer" class:opacity-50={disabled} class:cursor-not-allowed={disabled}>
-	<div class={`relative flex items-center justify-center ${sizeClasses[size]} rounded border-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] ${
+	<div class={`relative flex items-center justify-center ${sizeClasses[size]} rounded border-2 transition-[color,background-color,border-color,box-shadow,transform,opacity] ${
 		checked ? 'bg-brand border-brand' : 'border-border hover:border-brand'
 	}`}>
 		<input

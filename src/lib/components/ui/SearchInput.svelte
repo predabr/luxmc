@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { Search, X } from 'lucide-svelte';
 	import { useTranslation } from '$lib/i18n/useTranslation.svelte';
 
@@ -45,12 +46,12 @@
 		value={value}
 		oninput={(e) => onChange?.(e.currentTarget.value)}
 		onkeydown={(e) => e.key === 'Enter' && onSearch?.(value)}
-		class={`w-full pl-10 pr-10 rounded-lg border border-border bg-bg-elevated focus:outline-none focus:ring-2 focus:ring-brand/50 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] ${sizeClasses[size]}`}
+		class={`w-full pl-10 pr-10 rounded-lg border border-border bg-bg-elevated focus:outline-none focus:ring-2 focus:ring-brand/50 transition-[color,background-color,border-color,box-shadow,transform,opacity] ${sizeClasses[size]}`}
 	/>
 	{#if clearable && value}
 		<button
 			onclick={handleClear}
-			class="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-bg-hover rounded transition-colors"
+			class={launcherButton({ variant: "secondary", size: "icon", class: "absolute right-3 top-1/2 -translate-y-1/2" })}
 			aria-label={t("common.clear")}
 		>
 			<X size={18} class="text-fg-muted" />

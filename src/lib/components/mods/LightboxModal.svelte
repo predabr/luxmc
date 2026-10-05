@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { X } from "lucide-svelte";
 
 	let {
@@ -23,7 +24,7 @@
 	<div class="relative max-w-5xl max-h-[85vh] flex flex-col items-center" onclick={(e) => e.stopPropagation()}>
 		<button
 			type="button"
-			class="absolute -top-12 right-0 p-2 text-fg/60 hover:text-fg bg-fg/10 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+			class={launcherButton({ variant: "secondary", size: "icon", class: "absolute -top-12 right-0" })}
 			onclick={onClose}
 		>
 			<X class="w-5 h-5" />

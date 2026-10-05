@@ -226,6 +226,8 @@ pub struct LibraryRule {
 #[serde(rename_all = "camelCase")]
 pub struct LibraryOs {
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arch: Option<String>,
 }
 
 pub fn maven_lib_path_and_filename(artifact: &str, version: &str, classifier: Option<&str>) -> (String, String) {

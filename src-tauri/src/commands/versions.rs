@@ -16,7 +16,7 @@ pub struct VersionListResponse {
     pub latest_snapshot: String,
 }
 
-const VERSIONS_LIST_TTL: std::time::Duration = std::time::Duration::from_secs(10 * 60);
+const VERSIONS_LIST_TTL: std::time::Duration = std::time::Duration::from_secs(60);
 
 static VERSIONS_LIST_CACHE: std::sync::OnceLock<
     tokio::sync::Mutex<Option<(std::time::Instant, VersionListResponse)>>,

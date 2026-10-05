@@ -1,5 +1,6 @@
 import { api } from "./client";
 import type { DiscordActivityOptions } from "./types";
+import { settings } from "$lib/stores/settings.svelte";
 
 export async function discordSetActivity(
 	detailsOrOptions?: string | DiscordActivityOptions,
@@ -7,6 +8,7 @@ export async function discordSetActivity(
 	largeText?: string,
 	largeImage?: string
 ): Promise<boolean> {
+	if (settings.value.discordRpc === false) return false;
 	if (typeof detailsOrOptions === "object" && detailsOrOptions !== null) {
 		return api.invoke<boolean>("discord_set_activity", {
 			details: detailsOrOptions.details,

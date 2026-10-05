@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { wallpaperLocalPath } from "$lib/utils/wallpaperSource";
 export interface ThemeOption {
 	id: string;
@@ -109,7 +110,7 @@ export const BACKGROUNDS: Record<string, BackgroundOption> = {
 	},
 	aurora: {
 		id: "aurora",
-		name: "Aurora Boreal Ártica",
+		name: uiText("settings.appearanceOptions.bgAurora"),
 		preview: "#04151f",
 		style: "background: radial-gradient(ellipse at 50% -20%, rgba(56, 189, 248, 0.25) 0%, transparent 70%), radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.2) 0%, transparent 65%), #040810;"
 	},
@@ -157,7 +158,7 @@ function applyThemeVariables(tId: string, aId: string, bgId: string) {
 
 	if (tId === "light") {
 		root.style.setProperty("--bg-subtle", "255 255 255");
-		root.style.setProperty("--bg-overlay", "248 250 252");
+		root.style.setProperty("--bg-overlay", "15 23 42");
 		root.style.setProperty("--fg", "15 23 42");
 		root.style.setProperty("--fg-muted", "71 85 105");
 		root.style.setProperty("--fg-subtle", "100 116 139");
@@ -176,6 +177,10 @@ function applyThemeVariables(tId: string, aId: string, bgId: string) {
 	}
 
     const base = a.rgb.split(" ").map(Number);
+    let action = a.rgbDark.split(" ").map(Number);
+    const luminance = (channels: number[]) => channels.map(channel => channel / 255).map(channel => channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4).reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+    while (luminance(action) > 0.18) action = action.map(channel => Math.floor(channel * 0.92));
+    root.style.setProperty("--brand-action", action.join(" "));
     for (const [shade, amount] of [[50, 0.95], [100, 0.88], [200, 0.72], [300, 0.48]] as const) {
         root.style.setProperty(`--brand-${shade}`, base.map(channel => Math.round(channel + (255 - channel) * amount)).join(" "));
     }
@@ -183,7 +188,7 @@ function applyThemeVariables(tId: string, aId: string, bgId: string) {
         root.style.setProperty(`--brand-${shade}`, base.map(channel => Math.round(channel * amount)).join(" "));
     }
 	root.style.setProperty("--brand-500", a.rgb);
-	root.style.setProperty("--brand-400", a.rgbLight);
+	root.style.setProperty("--brand-400", tId === "light" ? a.rgbDark : a.rgbLight);
 	root.style.setProperty("--brand-600", a.rgbDark);
 	root.style.setProperty("--accent-color", a.hex);
 
@@ -276,11 +281,11 @@ export const themeStore = {
 		}
 	},
 
-	setCustomWallpaper(url: string, type: "image" | "video" = "image") {
+	setCustomWallpaper(url: string, type: "image" | "video" = "image", name?: string) {
 		const normalized = wallpaperLocalPath(url) || url;
 		if (!normalized) return;
 		const existing = wallpaperLibrary.find(item => item.url === normalized);
-		wallpaperLibrary = [existing ? { ...existing, type } : { url: normalized, type, name: wallpaperName(normalized) }, ...wallpaperLibrary.filter(item => item.url !== normalized)];
+		wallpaperLibrary = [existing ? { ...existing, type } : { url: normalized, type, name: wallpaperName(name || normalized) }, ...wallpaperLibrary.filter(item => item.url !== normalized)];
 		persistWallpaperLibrary();
 		customWallpaperUrl = normalized;
 		customWallpaperType = type;
@@ -292,6 +297,16 @@ export const themeStore = {
 		}
 		applyThemeVariables(activeTheme, activeAccent, "custom");
 	},
+
+    replaceWallpaper(source: string, destination: string) {
+        if (source === destination) return;
+        wallpaperLibrary = wallpaperLibrary.map(entry => entry.url === source ? { ...entry, url: destination } : entry).filter((entry, index, entries) => entries.findIndex(item => item.url === entry.url) === index);
+        persistWallpaperLibrary();
+        if (customWallpaperUrl === source) {
+            customWallpaperUrl = destination;
+            localStorage.setItem("luxmc_custom_wallpaper", destination);
+        }
+    },
 
 	selectWallpaper(url: string) {
 		const entry = wallpaperLibrary.find(item => item.url === url);
@@ -324,15 +339,16 @@ export const themeStore = {
 		const savedTheme = localStorage.getItem("luxmc_theme");
 		const savedAccent = localStorage.getItem("luxmc_accent");
 		const savedBg = localStorage.getItem("luxmc_background");
-		const savedCustomWp = localStorage.getItem("luxmc_custom_wallpaper");
+		let savedCustomWp = localStorage.getItem("luxmc_custom_wallpaper");
+        if (savedCustomWp === "luxmc-wallpaper:cherry") { savedCustomWp = null; localStorage.removeItem("luxmc_custom_wallpaper"); localStorage.removeItem("luxmc_custom_wallpaper_type"); localStorage.setItem("luxmc_background", "cosmos"); }
 		const savedCustomType = localStorage.getItem("luxmc_custom_wallpaper_type") as "image" | "video" | null;
 		try {
 			const parsed: unknown = JSON.parse(localStorage.getItem("luxmc_wallpaper_library") || "[]");
 			if (Array.isArray(parsed)) {
-				wallpaperLibrary = parsed.filter((item): item is WallpaperEntry => item && typeof item.url === "string" && item.url.length > 0 && item.url.length < 4096 && (item.type === "image" || item.type === "video") && typeof item.name === "string").slice(0, 100);
+				wallpaperLibrary = parsed.filter((item): item is WallpaperEntry => item && typeof item.url === "string" && item.url.length > 0 && item.url !== "luxmc-wallpaper:cherry" && item.url.length < 4096 && (item.type === "image" || item.type === "video") && typeof item.name === "string").slice(0, 100);
 			}
 		} catch {}
-		
+        persistWallpaperLibrary();
 		if (savedTheme) {
 			if (savedTheme === "light" || savedTheme === "default-light") activeTheme = "light";
 			else if (savedTheme === "dark" || savedTheme === "default-dark") activeTheme = "dark";
@@ -351,6 +367,14 @@ export const themeStore = {
         if (savedBg && BACKGROUNDS[savedBg]) {
 			activeBackground = savedBg;
 		}
-		applyThemeVariables(activeTheme, activeAccent, activeBackground);
-	}
+        applyThemeVariables(activeTheme, activeAccent, activeBackground);
+        const originals = wallpaperLibrary.map(entry => entry.url);
+        void import("$lib/api/wallpaper").then(async ({ importWallpaper }) => {
+            for (const original of originals) {
+                const path = wallpaperLocalPath(original);
+                if (!path) continue;
+                try { this.replaceWallpaper(original, await importWallpaper(path)); } catch {}
+            }
+        }).catch(() => {});
+    }
 };

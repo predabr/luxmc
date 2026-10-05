@@ -3,7 +3,52 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::db::models::ProfileRow;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
+
+const PROTECTED_ROOTS: &[&str] = &[
+    "/etc", "/usr", "/bin", "/sbin", "/boot", "/dev", "/proc", "/sys", "/run", "/var", "/lib",
+    "/lib64", "/snap", "/System", "/Windows", "/Program Files",
+];
+
+fn validate_game_dir(path: &str) -> AppResult<()> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() || trimmed == "." || trimmed == ".." || trimmed.contains('\0') {
+        return Err(AppError::InvalidInput("Caminho de diretório inválido".into()));
+    }
+    let candidate = std::path::Path::new(trimmed);
+    if !candidate.is_absolute() {
+        return Err(AppError::InvalidInput(
+            "O diretório do jogo precisa ser um caminho absoluto".into(),
+        ));
+    }
+    let mut parts = 0usize;
+    let mut text = String::new();
+    for component in candidate.components() {
+        match component {
+            std::path::Component::RootDir => {}
+            std::path::Component::Prefix(_) => {}
+            std::path::Component::CurDir | std::path::Component::ParentDir => {
+                return Err(AppError::InvalidInput("Caminho de diretório inválido".into()));
+            }
+            std::path::Component::Normal(value) => {
+                parts += 1;
+                text.push('/');
+                text.push_str(&value.to_string_lossy());
+            }
+        }
+    }
+    if parts < 3 {
+        return Err(AppError::InvalidInput(
+            "O diretório do jogo é profundo demais para ser usado com segurança".into(),
+        ));
+    }
+    if PROTECTED_ROOTS.iter().any(|root| text == *root || text.starts_with(&format!("{root}/"))) {
+        return Err(AppError::InvalidInput(
+            "O diretório do jogo não pode ficar em uma pasta do sistema".into(),
+        ));
+    }
+    Ok(())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,6 +92,10 @@ pub struct ProfileCreate {
     pub gamescope_fsr: Option<bool>,
     #[serde(default)]
     pub force_full_verification: Option<bool>,
+    #[serde(default)]
+    pub pre_launch_hook: Option<Option<String>>,
+    #[serde(default)]
+    pub post_exit_hook: Option<Option<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,6 +131,10 @@ pub struct ProfileUpdate {
     pub gamescope_height: Option<Option<i64>>,
     pub gamescope_fsr: Option<bool>,
     pub force_full_verification: Option<bool>,
+    #[serde(default)]
+    pub pre_launch_hook: Option<Option<String>>,
+    #[serde(default)]
+    pub post_exit_hook: Option<Option<String>>,
 }
 
 #[tauri::command]
@@ -108,15 +161,22 @@ pub async fn profiles_create(
     let db = crate::db::shared_db().await?;
     let now = Utc::now();
     let id = Uuid::new_v4().to_string();
-    let game_dir = input.game_dir.unwrap_or_else(|| {
-        let base = directories::ProjectDirs::from("io", "github", "Luxmc")
-            .map(|d| d.data_dir().to_string_lossy().to_string())
-            .unwrap_or_else(|| {
-                let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-                format!("{}/.local/share/luxmc", home)
-            });
-        format!("{}/instances/{}/.minecraft", base, id)
-    });
+    let game_dir = match input.game_dir {
+        Some(value) => {
+            let trimmed = value.trim().to_string();
+            validate_game_dir(&trimmed)?;
+            trimmed
+        }
+        None => {
+            let base = directories::ProjectDirs::from("io", "github", "Luxmc")
+                .map(|d| d.data_dir().to_string_lossy().to_string())
+                .unwrap_or_else(|| {
+                    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+                    format!("{}/.local/share/luxmc", home)
+                });
+            format!("{}/instances/{}/.minecraft", base, id)
+        }
+    };
     let mut row = ProfileRow {
         id,
         name: input.name,
@@ -150,6 +210,8 @@ pub async fn profiles_create(
         gamescope_height: input.gamescope_height.unwrap_or(None),
         gamescope_fsr: input.gamescope_fsr.unwrap_or(false),
         force_full_verification: input.force_full_verification.unwrap_or(false),
+        pre_launch_hook: input.pre_launch_hook.flatten().filter(|v| !v.trim().is_empty()),
+        post_exit_hook: input.post_exit_hook.flatten().filter(|v| !v.trim().is_empty()),
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     let base = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| crate::error::AppError::InvalidState("Diretório de dados indisponível".into()))?;
@@ -170,6 +232,15 @@ pub async fn profiles_update(
             crate::error::AppError::NotFound(format!("profile {} not found", input.id))
         })?;
 
+    let game_dir = match input.game_dir {
+        Some(value) => {
+            let trimmed = value.trim().to_string();
+            validate_game_dir(&trimmed)?;
+            trimmed
+        }
+        None => existing.game_dir.clone(),
+    };
+
     let now = Utc::now();
     let row = ProfileRow {
         id: existing.id,
@@ -183,7 +254,7 @@ pub async fn profiles_update(
         resolution_w: input.resolution_w.unwrap_or(existing.resolution_w),
         resolution_h: input.resolution_h.unwrap_or(existing.resolution_h),
         fullscreen: input.fullscreen.unwrap_or(existing.fullscreen),
-        game_dir: input.game_dir.unwrap_or(existing.game_dir),
+        game_dir,
         created_at: existing.created_at,
         updated_at: now,
         favorite: input.favorite.unwrap_or(existing.favorite),
@@ -207,6 +278,8 @@ pub async fn profiles_update(
         gamescope_height: input.gamescope_height.unwrap_or(existing.gamescope_height),
         gamescope_fsr: input.gamescope_fsr.unwrap_or(existing.gamescope_fsr),
         force_full_verification: input.force_full_verification.unwrap_or(existing.force_full_verification),
+        pre_launch_hook: input.pre_launch_hook.unwrap_or(existing.pre_launch_hook).filter(|v| !v.trim().is_empty()),
+        post_exit_hook: input.post_exit_hook.unwrap_or(existing.post_exit_hook).filter(|v| !v.trim().is_empty()),
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     Ok(row)
@@ -214,18 +287,34 @@ pub async fn profiles_update(
 
 #[tauri::command]
 pub async fn profiles_delete(id: String) -> AppResult<()> {
+    if id.is_empty()
+        || id.len() > 128
+        || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return Err(AppError::InvalidInput("ID de instância inválido".into()));
+    }
     let db = crate::db::shared_db().await?;
     if let Ok(Some(row)) = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&id)
         .fetch_optional(db.pool())
         .await
     {
-        let path = std::path::PathBuf::from(&row.game_dir);
-        if path.is_dir() {
-            let _ = tokio::fs::remove_dir_all(&path).await;
-        }
-
         if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+            let path = std::path::PathBuf::from(&row.game_dir);
+            let managed = path
+                .canonicalize()
+                .map(|canonical| canonical.starts_with(base_dir.data_dir()))
+                .unwrap_or(false);
+            if managed && path.is_dir() {
+                let _ = tokio::fs::remove_dir_all(&path).await;
+            } else if !managed && path.is_dir() {
+                tracing::warn!(
+                    target: "profiles",
+                    "Diretório de jogo fora do diretório do launcher; remoção ignorada: {}",
+                    path.display()
+                );
+            }
+
             let storage_mods_dir = base_dir.data_dir().join("mods").join(&id);
             if storage_mods_dir.is_dir() {
                 let _ = tokio::fs::remove_dir_all(&storage_mods_dir).await;

@@ -250,8 +250,11 @@ export function drawCapeToCanvas(ctx: CanvasRenderingContext2D, type: CapeType) 
 		ctx.fillRect(5, 7, 2, 3);
 	}
 
-	// Guarantee exterior back face (x=12..21, y=1..16) displays the emblem
 	ctx.drawImage(ctx.canvas, 1, 1, 10, 16, 12, 1, 10, 16);
+    ctx.drawImage(ctx.canvas, 1, 1, 1, 16, 0, 1, 1, 16);
+    ctx.drawImage(ctx.canvas, 10, 1, 1, 16, 11, 1, 1, 16);
+    ctx.drawImage(ctx.canvas, 1, 1, 10, 1, 1, 0, 10, 1);
+    ctx.drawImage(ctx.canvas, 1, 16, 10, 1, 11, 0, 10, 1);
 }
 
 const previewCache = new Map<string, string>();

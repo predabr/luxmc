@@ -32,12 +32,42 @@ export interface Profile {
 	gamescopeHeight?: number | null;
 	gamescopeFsr?: boolean;
 	forceFullVerification?: boolean;
+	preLaunchHook?: string | null;
+	postExitHook?: string | null;
 	banner?: string;
+}
+
+function isRenderableBanner(value: string): boolean {
+	if (!value) return false;
+	if (value.startsWith("/")) return true;
+	try {
+		const protocol = new URL(value).protocol;
+		return protocol === "https:" || protocol === "asset:";
+	} catch {
+		return false;
+	}
+}
+
+export function isSafeBannerUrl(value: string): boolean {
+	if (!value) return true;
+	try {
+		return new URL(value).protocol === "https:";
+	} catch {
+		return false;
+	}
 }
 
 function savedBanner(id: string): string | undefined {
     if (typeof localStorage === "undefined") return undefined;
-    try { return localStorage.getItem(`luxmc_banner_${id}`) || undefined; } catch { return undefined; }
+    try {
+        const stored = localStorage.getItem(`luxmc_banner_${id}`);
+        if (!stored) return undefined;
+        if (!isRenderableBanner(stored)) {
+            localStorage.removeItem(`luxmc_banner_${id}`);
+            return undefined;
+        }
+        return stored;
+    } catch { return undefined; }
 }
 
 function createProfileStore() {
@@ -52,7 +82,10 @@ function createProfileStore() {
 			return activeId;
 		},
 		set list(next: Profile[]) {
-			list = next.map(profile => ({ ...profile, banner: savedBanner(profile.id) || profile.banner }));
+			list = next.map(profile => {
+				const banner = savedBanner(profile.id) || profile.banner;
+				return { ...profile, banner: banner && isRenderableBanner(banner) ? banner : undefined };
+			});
 		},
 		set activeId(id: string | null) {
 			activeId = id;
@@ -82,11 +115,15 @@ function createProfileStore() {
 				p.id === id ? { ...p, lastPlayed: Date.now() } : p
 			);
 		},
-		setBanner(id: string, value: string) {
-            if (value && new URL(value).protocol !== "https:") throw new Error("Use uma imagem HTTPS.");
-            if (value) localStorage.setItem(`luxmc_banner_${id}`, value);
-            else localStorage.removeItem(`luxmc_banner_${id}`);
-            list = list.map(profile => profile.id === id ? { ...profile, banner: value || undefined } : profile);
+		setBanner(id: string, value: string): boolean {
+            const trimmed = value.trim();
+            if (trimmed && !isSafeBannerUrl(trimmed)) return false;
+            try {
+                if (trimmed) localStorage.setItem(`luxmc_banner_${id}`, trimmed);
+                else localStorage.removeItem(`luxmc_banner_${id}`);
+            } catch {}
+            list = list.map(profile => profile.id === id ? { ...profile, banner: trimmed || undefined } : profile);
+            return true;
         },
         async refresh() {
 			try {
@@ -115,6 +152,7 @@ function createProfileStore() {
 					forceDedicatedGpu: p.forceDedicatedGpu, useGamescope: p.useGamescope,
 					gamescopeWidth: p.gamescopeWidth, gamescopeHeight: p.gamescopeHeight,
 					gamescopeFsr: p.gamescopeFsr, forceFullVerification: p.forceFullVerification,
+					preLaunchHook: p.preLaunchHook ?? null, postExitHook: p.postExitHook ?? null,
 					notes: p.notes ?? undefined, group: p.instanceGroup ?? undefined,
 					lastPlayed: p.lastPlayed ? new Date(p.lastPlayed).getTime() : undefined, launchCount: p.launchCount,
 				}));

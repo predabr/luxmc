@@ -1,4 +1,8 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import ModpackVersions from "$lib/components/instances/ModpackVersions.svelte";
+	import { runtimePlatform } from "$lib/stores/platform.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
     import InstanceHero from "$lib/components/instances/InstanceHero.svelte";
 	import { button } from "$lib/components/ui/button";
@@ -6,6 +10,7 @@
 	import { javaScan } from "$lib/api/java";
 	import type { JavaInstallStatus } from "$lib/api/types";
 	import { page } from "$app/state";
+    import { goto } from "$app/navigation";
 	import { fade, scale } from "svelte/transition";
 	import { onMount, untrack } from "svelte";
 	import {
@@ -62,7 +67,8 @@
 		FolderPlus,
 		ArrowLeftRight,
 		Snowflake,
-		Link
+		Link,
+        Wrench
 	} from "lucide-svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import VirtualList from "$lib/components/ui/VirtualList.svelte";
@@ -76,7 +82,7 @@
 	import WorldBackupModal from "$lib/components/instances/WorldBackupModal.svelte";
 	import DeathDetectorModal from "$lib/components/instances/DeathDetectorModal.svelte";
 	import JukeboxModal from "$lib/components/instances/JukeboxModal.svelte";
-	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
+	import { profiles, isSafeBannerUrl, type Profile } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
@@ -84,7 +90,7 @@
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { resolveProfileBanner } from "$lib/utils/curatedBanners";
-	import { open, save } from "@tauri-apps/plugin-dialog";
+	import { open, save, confirm as confirmDialog } from "@tauri-apps/plugin-dialog";
 	import { convertFileSrc } from "@tauri-apps/api/core";
 	import { handlePostLaunchActions } from "$lib/utils/launcherLifecycle";
 	import {
@@ -110,6 +116,7 @@
 		instancePackDelete,
 		instancePackOpenFolder,
 		profilesUpdate,
+        profilesDelete,
 		discordSetActivity,
 		instanceFileRead,
 		instanceFileWrite,
@@ -159,13 +166,41 @@
 	import { getIconSrc } from "$lib/utils/icons";
 
 	const instanceId = $derived(page.params.id ?? "");
-	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) || profiles.active);
+	const activeProfile = $derived(profiles.list.find(p => p.id === instanceId) ?? null);
 
 	const settingsIcon = $derived(getIconSrc(activeProfile?.icon));
 
 	const heroBanner = $derived(resolveProfileBanner(activeProfile));
 
-	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros" | "configuracoes" | "laboratorio">("conteudo");
+    function loadWhenVisible(node: HTMLElement, initial: { id: string; section: DataSection }) {
+        let target = initial;
+        const observer = new IntersectionObserver(entries => {
+            if (entries.some(entry => entry.isIntersecting)) {
+                observer.disconnect();
+                if (target.id === instanceId) void loadSection(target.section);
+            }
+        }, { root: node.closest("main"), rootMargin: "400px" });
+        observer.observe(node);
+        return { update(next: typeof initial) { target = next; observer.disconnect(); observer.observe(node); }, destroy() { observer.disconnect(); } };
+    }
+
+    function handleTabKeys(event: KeyboardEvent) {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        const tabs = Array.from((event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+        const index = tabs.indexOf(event.target as HTMLButtonElement);
+        if (index < 0) return;
+        event.preventDefault();
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next].focus();
+        tabs[next].click();
+    }
+
+    function goToSection(section: typeof mainTab) {
+        mainTab = section;
+
+    }
+
+	let mainTab = $state<"conteudo" | "mundos" | "galeria" | "ficheiros" | "configuracoes">("conteudo");
 	let subTab = $state<"mods" | "resourcepacks" | "shaders" | "datapacks">("mods");
 	let modsDragOver = $state(false);
 	let isImportingDrop = $state(false);
@@ -185,11 +220,25 @@
 	let updateStatusText = $state("");
 	let updateProgressPercent = $state(0);
 
+    let deletingInstance = $state(false);
+    async function deleteCurrentInstance() {
+        const profile = activeProfile;
+        if (!profile || deletingInstance || appState.isGameRunning) return;
+        deletingInstance = true;
+        try {
+        const approved = await confirmDialog(uiText("ui.3e8cdb2fdd295340", {arg0: (profile.name)}), { title: uiText("ui.79ef883cba2c401e"), kind: "warning", okLabel: uiText("screenshots.deleteBtn"), cancelLabel: uiText("common.cancel") });
+        if (!approved) return;
+        await profilesDelete(profile.id); profiles.remove(profile.id); await goto("/instances"); }
+        catch (error) { toast(uiText("ui.28ba246943f0d64d", {arg0: (String(error))}), "error"); }
+        finally { deletingInstance = false; }
+    }
+
 	let showModConflictModal = $state(false);
 	let pendingLaunchConflicts = $state<PreLaunchCheckResult | null>(null);
 	let showModpackExportModal = $state(false);
 	let showWorldBackupModal = $state(false);
 	let showKeybindEditorModal = $state(false);
+    let toolsExpanded = $state(false);
 	let showDeathDetectorModal = $state(false);
 	let showJukeboxModal = $state(false);
 
@@ -220,8 +269,9 @@
 		return { initials, theme };
 	}
 
-	let showInstanceSettingsModal = $state(false);
-	let activeInstanceSection = $state<"geral" | "instalacao" | "otimizacao" | "janela" | "controlos" | "java" | "hooks">("geral");
+	const settingsVisible = $derived(!!activeProfile && mainTab === "configuracoes");
+    let savingInstanceSettings = $state(false);
+	let labExpanded = $state(false);
 	let instanceNameInput = $state("Latest Release");
 	let instanceRamMb = $state(4096);
     let instanceBanner = $state("");
@@ -234,10 +284,10 @@
 		catch (error) { toast(String(error), "error"); }
 		finally { scanningJava = false; }
 	}
-	function applyJvmPreset(preset: "aikar" | "zgc" | "shenandoah") {
-		instanceAutoOptimize = preset === "aikar";
-		instanceJvmArgs = preset === "aikar" ? "" : preset === "zgc" ? "-XX:+UseZGC" : "-XX:+UseShenandoahGC";
-	}
+	function applyJvmPreset(preset: "automatic" | "g1gc") {
+        instanceAutoOptimize = preset === "automatic";
+        instanceJvmArgs = preset === "g1gc" ? "-XX:+UseG1GC -XX:MaxGCPauseMillis=200" : "";
+    }
 
 	let instanceJvmArgs = $state("");
 	let instanceLoaderType = $state<string>("vanilla");
@@ -270,29 +320,38 @@
 		const options: { mb: number; label: string; desc: string }[] = [];
 
 		if (gb <= 4) {
-			options.push({ mb: 1024, label: "1 GB", desc: "Mínimo" });
-			options.push({ mb: 2048, label: "2 GB", desc: "Padrão" });
-			options.push({ mb: 3072, label: "3 GB", desc: "Recomendado" });
+			options.push({ mb: 1024, label: uiText("ui.6c31b63a02708634"), desc: uiText("ui.5d61b4a122c009e1") });
+			options.push({ mb: 2048, label: uiText("ui.b2dd6247c7a0cd98"), desc: uiText("settings.resolutionDefault") });
+			options.push({ mb: 3072, label: uiText("ui.485f66b700108977"), desc: uiText("ui.5fa7218b756e8f6d") });
 		} else if (gb <= 8) {
-			options.push({ mb: 2048, label: "2 GB", desc: "Vanilla" });
-			options.push({ mb: 4096, label: "4 GB", desc: "Ideal" });
-			options.push({ mb: 6144, label: "6 GB", desc: "Mods leves" });
+			options.push({ mb: 2048, label: uiText("ui.b2dd6247c7a0cd98"), desc: "Vanilla" });
+			options.push({ mb: 4096, label: uiText("ui.64a214401e793659"), desc: uiText("ui.4e3cfaa334cbafb5") });
+			options.push({ mb: 6144, label: uiText("ui.ba344e24e41f5b5c"), desc: uiText("ui.b8c4be44934868d3") });
 		} else if (gb <= 16) {
-			options.push({ mb: 4096, label: "4 GB", desc: "Vanilla" });
-			options.push({ mb: 6144, label: "6 GB", desc: "Ideal mods" });
-			options.push({ mb: 8192, label: "8 GB", desc: "Modpacks" });
-			options.push({ mb: 12288, label: "12 GB", desc: "Pesado" });
+			options.push({ mb: 4096, label: uiText("ui.64a214401e793659"), desc: "Vanilla" });
+			options.push({ mb: 6144, label: uiText("ui.ba344e24e41f5b5c"), desc: uiText("ui.2dd0dd57667f7e0b") });
+			options.push({ mb: 8192, label: uiText("ui.64b29b62d14dd300"), desc: "Modpacks" });
+			options.push({ mb: 12288, label: uiText("ui.f2d32ef1e01403f8"), desc: uiText("ui.f8c78cf86fbff9cc") });
 		} else {
-			options.push({ mb: 4096, label: "4 GB", desc: "Leve" });
-			options.push({ mb: 6144, label: "6 GB", desc: "Ideal" });
-			options.push({ mb: 8192, label: "8 GB", desc: "Modpacks" });
-			options.push({ mb: 12288, label: "12 GB", desc: "Pesado" });
-			options.push({ mb: 16384, label: "16 GB", desc: "Extremo" });
+			options.push({ mb: 4096, label: uiText("ui.64a214401e793659"), desc: uiText("ui.ba68d32e9584a982") });
+			options.push({ mb: 6144, label: uiText("ui.ba344e24e41f5b5c"), desc: uiText("ui.4e3cfaa334cbafb5") });
+			options.push({ mb: 8192, label: uiText("ui.64b29b62d14dd300"), desc: "Modpacks" });
+			options.push({ mb: 12288, label: uiText("ui.f2d32ef1e01403f8"), desc: uiText("ui.f8c78cf86fbff9cc") });
+			options.push({ mb: 16384, label: uiText("ui.c854bb56c3dc2210"), desc: uiText("ui.50ad1b4f7002320c") });
 		}
 		return options;
 	});
 
+	let settingsModalSyncedFor = $state<string | null>(null);
 	$effect(() => {
+		const open = settingsVisible;
+		const profileId = activeProfile?.id ?? null;
+		if (!open) {
+			settingsModalSyncedFor = null;
+			return;
+		}
+		if (settingsModalSyncedFor === profileId) return;
+		settingsModalSyncedFor = profileId;
 		if (activeProfile) {
 			instanceNameInput = activeProfile.name || "Latest Release";
             instanceBanner = activeProfile.banner || "";
@@ -310,6 +369,8 @@
 			instanceGamescopeHeight = activeProfile.gamescopeHeight ?? null;
 			instanceGamescopeFsr = activeProfile.gamescopeFsr === true;
 			instanceForceFullVerification = activeProfile.forceFullVerification === true;
+		instancePreLaunchHook = activeProfile.preLaunchHook || "";
+		instancePostExitHook = activeProfile.postExitHook || "";
 			instanceLoaderType = activeProfile.loader || "vanilla";
 			instanceLoaderVersion = activeProfile.loaderVersion || "";
 			instanceWindowWidth = activeProfile.resolutionW || activeProfile.resolution?.width || 1280;
@@ -326,7 +387,7 @@
 		if (aikarTimer) clearTimeout(aikarTimer);
 		aikarTimer = setTimeout(() => {
 			optimizerGetFlags(ram, opt)
-				.then(flags => generatedAikarFlags = flags)
+				.then(flags => generatedAikarFlags = flags ?? [])
 				.catch(() => {});
 		}, 300);
 		return () => {
@@ -335,14 +396,20 @@
 	});
 
 	async function saveInstanceSettings() {
-		if (activeProfile) {
-			if (instanceMinRamMb > instanceRamMb || instanceRamMb > systemRamMb) { toast("A RAM mínima deve ser menor que a máxima e caber na memória do sistema.", "error"); return; }
+        if (savingInstanceSettings) return;
+        const profile = activeProfile;
+		if (profile) {
+			if (instanceMinRamMb > instanceRamMb || instanceRamMb > systemRamMb) { toast(uiText("ui.064548a1a2e44056"), "error"); return; }
 			instanceJvmArgs = instanceJvmArgs.split(/\s+/).filter(value => value && !/^-Xm[sx]/.test(value)).concat(`-Xms${instanceMinRamMb}M`, `-Xmx${instanceRamMb}M`).join(" ");
 
-			try {
-				if (instanceBanner.trim() && new URL(instanceBanner.trim()).protocol !== "https:") throw new Error("Use uma imagem HTTPS para o banner.");
-                await profilesUpdate({
-                    id: activeProfile.id,
+			const bannerValue = instanceBanner.trim();
+			if (bannerValue && !isSafeBannerUrl(bannerValue)) {
+				toast(uiText("ui.78acfb25f932a189"), "error");
+				return;
+			}
+
+            const changes = {
+                    id: profile.id,
 					name: instanceNameInput,
 					ramMb: instanceRamMb,
 					jvmArgs: instanceJvmArgs,
@@ -362,29 +429,28 @@
 					resolutionH: instanceWindowHeight,
 					fullscreen: instanceStartFullscreen,
 					javaPath: instanceJavaPath || null,
-				});
-				profiles.update(activeProfile.id, {
-					name: instanceNameInput,
-					ramMb: instanceRamMb,
-					jvmArgs: instanceJvmArgs,
-					autoOptimize: instanceAutoOptimize,
-					useVulkan: instanceEnableVulkanOpt,
-					loader: instanceLoaderType as Profile["loader"],
-					loaderVersion: instanceLoaderVersion,
-					resolution: { width: instanceWindowWidth, height: instanceWindowHeight, fullscreen: instanceStartFullscreen },
-					resolutionW: instanceWindowWidth,
-					resolutionH: instanceWindowHeight,
-					fullscreen: instanceStartFullscreen,
-					javaPath: instanceJavaPath || null,
-				});
-				profiles.setBanner(activeProfile.id, instanceBanner.trim());
-                toast("Configurações salvas com sucesso!", "success");
+					preLaunchHook: instancePreLaunchHook,
+					postExitHook: instancePostExitHook,
+            };
+			savingInstanceSettings = true;
+            try {
+                await profilesUpdate(changes);
+                profiles.update(profile.id, {
+                    ...changes,
+                    loader: changes.loader as Profile["loader"],
+                    loaderVersion: changes.loaderVersion ?? undefined,
+                    resolution: { width: changes.resolutionW, height: changes.resolutionH, fullscreen: changes.fullscreen },
+                    preLaunchHook: changes.preLaunchHook || null,
+                    postExitHook: changes.postExitHook || null
+                });
+				profiles.setBanner(profile.id, bannerValue);
+                toast(uiText("ui.3f84cec002ac344d"), "success");
 			} catch (e) {
-				toast("Erro ao salvar no banco de dados: " + String(e), "error");
+				toast(uiText("ui.6900afcd83738036") + String(e), "error");
 				return;
-			}
+			} finally { savingInstanceSettings = false; }
 		}
-		showInstanceSettingsModal = false;
+		settingsModalSyncedFor = null;
 	}
 
 	async function handleInstallPerfPack() {
@@ -395,7 +461,7 @@
 			toast(`Pacote de performance instalado: ${installed.join(", ")}`, "success");
 			await refreshAllData();
 		} catch (e) {
-			toast(`Falha ao instalar pacote: ${String(e)}`, "error");
+			toast(uiText("ui.be9e90b474c96944", {arg0: (String(e))}), "error");
 		} finally {
 			installingPerfPack = false;
 		}
@@ -429,11 +495,11 @@
 		if (!activeProfile) return;
 		isRepairing = true;
 		try {
-			toast("Verificando integridade e reparando arquivos...", "info");
+			toast(uiText("ui.5691b2f0233aec20"), "info");
 			await instanceRepair(activeProfile.id);
-			toast("Instância e bibliotecas verificadas e reparadas com sucesso!", "success");
+			toast(uiText("ui.bf6fa5ceff7715e1"), "success");
 		} catch (e) {
-			toast("Erro ao reparar instância: " + String(e), "error");
+			toast(uiText("ui.2da9423a63e2c0d8") + String(e), "error");
 		} finally {
 			isRepairing = false;
 		}
@@ -443,14 +509,14 @@
 		if (!activeProfile || isRepairingAll) return;
 		isRepairingAll = true;
 		try {
-			toast("Reparando arquivos do jogo, Java e modpack sem tocar em mundos ou configurações...", "info");
+			toast(uiText("ui.9862d364182d7ac8"), "info");
 			const outcome = await doctorRepairAll(activeProfile.id);
 			const detail = outcome.repairedMods > 0 ? ` ${outcome.repairedMods} mod(s) recuperado(s).` : "";
-			toast(`Instância pronta para jogar.${detail}`, "success");
+			toast(uiText("ui.2564886d38d3a6f2", {arg0: (detail)}), "success");
 			for (const warning of outcome.warnings) toast(warning, "info");
 			await refreshAllData();
 		} catch (e) {
-			toast("Erro ao reparar tudo: " + String(e), "error");
+			toast(uiText("ui.85465570a78c6a06") + String(e), "error");
 		} finally {
 			isRepairingAll = false;
 		}
@@ -469,11 +535,11 @@
 				isBackingUp = false;
 				return;
 			}
-			toast("Criando backup dos mundos (saves)...", "info");
+			toast(uiText("ui.dff69f0e92b7de31"), "info");
 			await instanceBackupSaves(activeProfile.id, path);
-			toast(`Backup salvo com sucesso em: ${path}`, "success");
+			toast(uiText("ui.bd713228121fc570", {arg0: (path)}), "success");
 		} catch (e) {
-			toast("Erro ao criar backup: " + String(e), "error");
+			toast(uiText("ui.b75153e767c784f6") + String(e), "error");
 		} finally {
 			isBackingUp = false;
 		}
@@ -492,11 +558,11 @@
 				isExporting = false;
 				return;
 			}
-			toast("Exportando instância completa...", "info");
+			toast(uiText("ui.13cf2456c0828d9b"), "info");
 			await instanceExportZip(activeProfile.id, path);
-			toast(`Instância exportada com sucesso em: ${path}`, "success");
+			toast(uiText("ui.927050bd0e44fcd7", {arg0: (path)}), "success");
 		} catch (e) {
-			toast("Erro ao exportar instância: " + String(e), "error");
+			toast(uiText("ui.4028f2f1323faf44") + String(e), "error");
 		} finally {
 			isExporting = false;
 		}
@@ -518,9 +584,9 @@
 			}
 			achievements.unlock("share_code");
 			playSound("chime");
-			toast(`Código ${code} gerado e copiado!`, "success");
+			toast(uiText("ui.a0e0eb21133c533e", {arg0: (code)}), "success");
 		} catch (e) {
-			toast("Erro ao gerar código de compartilhamento: " + String(e), "error");
+			toast(uiText("ui.5c2df8114e58e959") + String(e), "error");
 		} finally {
 			isGeneratingShareCode = false;
 		}
@@ -532,20 +598,22 @@
 	let updatingModProjects = $state<string[]>([]);
 
 	async function handleCheckModUpdates() {
-		if (!instanceId) return;
+		if (!instanceId || isCheckingUpdates) return;
+		const id = instanceId;
 		isCheckingUpdates = true;
-		toast("Verificando atualizações de mods...", "info");
+		toast(uiText("ui.b007b33cf6aea8c4"), "info");
 		try {
-			const updates = await modsCheckUpdates(instanceId);
+			const updates = await modsCheckUpdates(id);
+			if (id !== instanceId) return;
 			availableModUpdates = updates || [];
 			if (availableModUpdates.length === 0) {
-				toast("Todos os mods estão atualizados!", "success");
+				toast(uiText("ui.ec926c5c381f50e2"), "success");
 			} else {
 				playSound("chime");
-				toast(`${availableModUpdates.length} atualização(ões) de mods encontrada(s)!`, "info");
+				toast(uiText("ui.c535dc1fd400aa4d", {arg0: (availableModUpdates.length)}), "info");
 			}
 		} catch (e) {
-			toast("Erro ao verificar atualizações: " + String(e), "error");
+			toast(uiText("ui.bf3e6e55e38be20f") + String(e), "error");
 		} finally {
 			isCheckingUpdates = false;
 		}
@@ -553,31 +621,36 @@
 
 	async function handleUpdateAllMods() {
 		if (!instanceId || availableModUpdates.length === 0 || isUpdatingAllMods) return;
+		const id = instanceId;
+		const toUpdate = availableModUpdates.filter(update => !isUpdateFrozen(update));
+		if (!toUpdate.length) { toast(uiText("ui.3c4b5076f892bd3c"), "info"); return; }
 		isUpdatingAllMods = true;
-		toast(`Atualizando ${availableModUpdates.length} mods...`, "info");
+		toast(`Atualizando ${toUpdate.length} mods...`, "info");
 		let count = 0;
-		const toUpdate = [...availableModUpdates];
 		for (const u of toUpdate) {
+			if (id !== instanceId) break;
 			try {
-				await modsUpdate(u.projectId, u.latestVersionId, instanceId);
+				await modsUpdate(u.projectId, u.latestVersionId, id);
 				count++;
-				availableModUpdates = availableModUpdates.filter(x => x.projectId !== u.projectId);
+				if (id === instanceId) availableModUpdates = availableModUpdates.filter(x => x.projectId !== u.projectId);
 			} catch (err) {
-				console.error("Falha ao atualizar mod:", u.projectId, err);
+				console.error(uiText("ui.3d6be3dde1520cbd"), u.projectId, err);
 			}
 		}
 		isUpdatingAllMods = false;
+		if (id !== instanceId) return;
 		if (count > 0) {
 			playSound("achievement");
-			toast(`${count} mod(s) atualizado(s) com sucesso!`, "success");
+			toast(uiText("ui.680c180aa27692cc", {arg0: (count)}), "success");
 			await refreshAllData();
 		} else {
-			toast("Nenhum mod pôde ser atualizado no momento.", "warning");
+			toast(uiText("ui.a316761ebd86ecb9"), "warning");
 		}
 	}
 
 	async function handleUpdateSingleMod(update: ModUpdateItem) {
 		if (!instanceId || updatingModProjects.includes(update.projectId) || isUpdatingAllMods) return;
+		if (isUpdateFrozen(update)) { toast(uiText("ui.2bc9659ccd079dda"), "info"); return; }
 		updatingModProjects = [...updatingModProjects, update.projectId];
 		try {
 			toast(`Atualizando ${update.projectName || update.projectTitle || 'mod'}...`, "info");
@@ -587,7 +660,7 @@
 			availableModUpdates = availableModUpdates.filter(x => x.projectId !== update.projectId);
 			await refreshAllData();
 		} catch (e) {
-			toast("Erro ao atualizar mod: " + String(e), "error");
+			toast(uiText("ui.f7262db82ed3f50a") + String(e), "error");
 		} finally {
 			updatingModProjects = updatingModProjects.filter(id => id !== update.projectId);
 		}
@@ -599,17 +672,17 @@
 		if (!instanceId) return;
 		isRepairingModpack = true;
 		try {
-			toast("Verificando integridade e baixando mods faltantes...", "info");
+			toast(uiText("ui.aa1e8e9534687c4d"), "info");
 			const count = await instanceRepairModpack(instanceId);
 			if (count > 0) {
 				toast(`Modpack reparado! ${count} mod(s) baixado(s).`, "success");
 				playSound("achievement");
 				await refreshAllData();
 			} else {
-				toast("Todos os mods do modpack já estão íntegros!", "success");
+				toast(uiText("ui.7e4c450d953a94b7"), "success");
 			}
 		} catch (e) {
-			toast("Erro ao reparar modpack: " + String(e), "error");
+			toast(uiText("ui.35c425e04f2b57c8") + String(e), "error");
 		} finally {
 			isRepairingModpack = false;
 		}
@@ -629,7 +702,7 @@
 			const res = await upnpOpenPort(customHostPort);
 			upnpResult = res;
 			if (res.success) {
-				toast("Porta UPnP aberta com sucesso no roteador!", "success");
+				toast(uiText("ui.8960ce11b29dc29d"), "success");
 			}
 		} catch (e) {
 			console.warn("UPnP automatic opening failed:", e);
@@ -644,7 +717,7 @@
 			showHostModal = true;
 			attemptUpnpOpen();
 		} catch (e) {
-			toast("Erro ao gerar link de host: " + String(e), "error");
+			toast(uiText("ui.b41df1ca12481eb2") + String(e), "error");
 		}
 	}
 
@@ -652,9 +725,9 @@
 		try {
 			hostLinkInfo = await p2pGetHostLink(customHostPort);
 			await attemptUpnpOpen();
-			toast("Link de conexão atualizado com a porta " + customHostPort, "success");
+			toast(uiText("ui.8da72df805e1a937") + customHostPort, "success");
 		} catch (e) {
-			toast("Erro ao atualizar porta: " + String(e), "error");
+			toast(uiText("ui.63825fe75c4da989") + String(e), "error");
 		}
 	}
 
@@ -662,7 +735,7 @@
 		if (!hostLinkInfo) return;
 		navigator.clipboard.writeText(hostLinkInfo.shareLink);
 		isCopiedHostLink = true;
-		toast("Link próprio de conexão copiado! Envie para seus amigos.", "success");
+		toast(uiText("ui.900c9ce79ac45e7d"), "success");
 		setTimeout(() => (isCopiedHostLink = false), 2500);
 	}
 
@@ -671,7 +744,7 @@
 		const addr = upnpResult?.externalIp ? `${upnpResult.externalIp}:${customHostPort}` : hostLinkInfo.directAddress;
 		navigator.clipboard.writeText(addr);
 		isCopiedDirectAddress = true;
-		toast("Endereço IP copiado!", "success");
+		toast(uiText("ui.54b20bf5531a8a89"), "success");
 		setTimeout(() => (isCopiedDirectAddress = false), 2000);
 	}
 
@@ -683,7 +756,7 @@
 
 	// Real Data from File System & Backend
 	let worldsList = $state<WorldDetail[]>([]);
-	let screenshotsList = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null }>>([]);
+	let screenshotsList = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null; thumbPath?: string | null }>>([]);
 	let previewScreenshot = $state<{ name: string; path: string; dataUrl?: string | null } | null>(null);
 	let screenshotZoom = $state(1);
 
@@ -709,11 +782,15 @@
 			await navigator.clipboard.write([
 				new ClipboardItem({ "image/png": pngBlob })
 			]);
-			toast("Imagem copiada para a área de transferência!", "success");
+			toast(uiText("screenshots.copied"), "success");
 			playSound("chime");
 		} catch {
-			await navigator.clipboard.writeText(previewScreenshot.path);
-			toast("Caminho da captura copiado!", "info");
+			try {
+				await navigator.clipboard.writeText(previewScreenshot.path);
+				toast("Caminho da captura copiado!", "info");
+			} catch (e) {
+				toast(String(e), "error");
+			}
 		}
 	}
 
@@ -759,7 +836,7 @@
 		try {
 			shieldResult = await instanceShieldScan(instanceId);
 			if (!shieldResult.isClean && shieldResult.threats.length > 0) {
-				toast(`⚠️ Luxmc Shield detectou ${shieldResult.threats.length} ameaça(s) nos mods!`, "error");
+				toast(uiText("ui.29f3471b4915d6e0", {arg0: (shieldResult.threats.length)}), "error");
 			}
 		} catch {
 			// Silent scan: do not show error toast when clean or idle
@@ -776,19 +853,40 @@
         }
 	});
 
-	const currentPacksList = $derived(
-		subTab === "resourcepacks" ? resourcePacks : subTab === "shaders" ? shaderPacks : dataPacks
-	);
+    const packGroups = $derived([
+        { id: 'resourcepacks', type: 'resourcepacks', label: uiText("ui.906d0853ece30a11"), icon: Box, items: resourcePacks },
+        { id: 'shaders', type: 'shaderpacks', label: 'Shaders', icon: Sparkles, items: shaderPacks },
+        { id: 'datapacks', type: 'datapacks', label: uiText("ui.f3260e4c97557038"), icon: Code, items: dataPacks }
+    ] as const);
+    const contentCatalogUrl = $derived(`/mods?instance=${encodeURIComponent(instanceId)}&type=mod`);
+    const enabledModCount = $derived(instanceMods.filter(mod => !mod.name.endsWith('.disabled')).length);
+    const normalizedSearch = $derived(debouncedSearch.trim().toLowerCase());
+    const filteredMods = $derived(normalizedSearch ? instanceMods.filter(mod =>
+        mod.name.toLowerCase().includes(normalizedSearch) || modRowInfo.get(mod.name)?.displayName.toLowerCase().includes(normalizedSearch)) : instanceMods);
+    let isChangingMods = $state(false);
 
-	const filteredMods = $derived(
-		debouncedSearch
-			? instanceMods.filter(m => m.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
-			: instanceMods
-	);
+    async function toggleSelectedMods(enabled: boolean) {
+        if (isChangingMods) return;
+        const id = instanceId;
+        const selected = instanceMods.filter(mod => selectedModSet.has(mod.name) && mod.name.endsWith('.disabled') === enabled);
+        isChangingMods = true;
+        let failed = 0;
+        try {
+            for (const mod of selected) {
+                try { await instanceModToggle(id, mod.name, enabled); }
+                catch { failed++; }
+            }
+            if (id !== instanceId) return;
+            selectedModNames = [];
+            await loadSection('mods', true);
+            toast(failed ? uiText("ui.b610fee7d4ca3c7e", {arg0: (failed)}) : 'Mods selecionados atualizados.', failed ? 'error' : 'success');
+        } finally { isChangingMods = false; }
+    }
 
 	let selectedModNames = $state<string[]>([]);
 	let frozenModNames = $state<string[]>([]);
 	let activeMenuMod = $state<string | null>(null);
+	let modMenuAbove = $state(false);
 
 	const allModsSelected = $derived(
 		filteredMods.length > 0 && filteredMods.every(m => selectedModSet.has(m.name))
@@ -796,9 +894,10 @@
 
 	function toggleSelectAllMods() {
 		if (allModsSelected) {
-			selectedModNames = [];
+			const visible = new Set(filteredMods.map(mod => mod.name));
+			selectedModNames = selectedModNames.filter(name => !visible.has(name));
 		} else {
-			selectedModNames = filteredMods.map(m => m.name);
+			selectedModNames = [...new Set([...selectedModNames, ...filteredMods.map(mod => mod.name)])];
 		}
 	}
 
@@ -811,21 +910,28 @@
 	}
 
 	function handleToggleFreeze(mod: FileTreeEntry) {
-		if (frozenModNames.includes(mod.name)) {
-			frozenModNames = frozenModNames.filter(n => n !== mod.name);
-			toast(`Versão de "${mod.name.replace('.disabled', '')}" descongelada.`, "info");
+		const name = mod.name.replace(/\.disabled$/, '');
+		if (frozenModNames.includes(name)) {
+			frozenModNames = frozenModNames.filter(n => n !== name);
+			toast(uiText("ui.1fb77f66fa869583", {arg0: (mod.name.replace('.disabled', ''))}), "info");
 		} else {
-			frozenModNames = [...frozenModNames, mod.name];
-			toast(`Versão de "${mod.name.replace('.disabled', '')}" congelada! Atualizações pausadas.`, "success");
+			frozenModNames = [...frozenModNames, name];
+			toast(uiText("ui.3ef436739a9288c8", {arg0: (mod.name.replace('.disabled', ''))}), "success");
 		}
+		try { localStorage.setItem(`luxmc:frozen-mods:${instanceId}`, JSON.stringify(frozenModNames)); }
+		catch { toast(uiText("ui.1a50574dacc105fc"), "warning"); }
+	}
+
+	function isUpdateFrozen(update: ModUpdateItem) {
+		return instanceMods.some(mod => frozenModSet.has(mod.name.replace(/\.disabled$/, '')) && modRowInfo.get(mod.name)?.update?.projectId === update.projectId);
 	}
 
 	function handleCopyModLink(mod: FileTreeEntry) {
 		const raw = mod.name.replace(/\.disabled$/, '').replace(/\.(jar|zip)$/, '');
-		const url = `https://modrinth.com/mod/${raw.toLowerCase().replace(/[^a-z0-9_-]/g, '-')}`;
+		const url = `https://modrinth.com/mods?q=${encodeURIComponent(parseModMeta(mod.name).title)}`;
 		if (navigator.clipboard) {
 			navigator.clipboard.writeText(url).then(() => {
-				toast("Link do mod copiado para a área de transferência!", "success");
+				toast(uiText("ui.8e2a04648fa7795b"), "success");
 			}).catch(() => {
 				toast(`Mod: ${raw}`, "info");
 			});
@@ -841,13 +947,13 @@
 	async function handleSyncMod(_mod: FileTreeEntry) {
 		toast("Sincronizando mod...", "info");
 		await refreshAllData();
-		toast("Mod sincronizado com sucesso!", "success");
+		toast(uiText("ui.1a7c0fe3efaf18ca"), "success");
 	}
 
 	function handleSwapVersion(mod: FileTreeEntry) {
 		const raw = mod.name.replace(/\.disabled$/, '').replace(/\.(jar|zip)$/, '');
 		import("$app/navigation").then(({ goto }) => {
-			goto(`/mods?search=${encodeURIComponent(raw)}`);
+			goto(`${contentCatalogUrl}&search=${encodeURIComponent(raw)}`);
 		});
 	}
 
@@ -963,13 +1069,14 @@
                         resolvedMetadata.add(id);
                         metadataTimer = setTimeout(() => {
                             void (async () => {
-                                let changed = 0;
-                                if (data.some(mod => /^\d+(_\d+)?\.jar$/.test(mod.name.replace('.disabled', '')))) changed += await modsResolveNames(id);
-                                if (!current()) return;
-                                if (data.some(mod => !mod.icon)) changed += await modsResolveIcons(id);
+                                const results = await Promise.allSettled([
+                                    data.some(mod => /^\d+(_\d+)?\.jar$/.test(mod.name.replace('.disabled', ''))) ? modsResolveNames(id) : Promise.resolve(0),
+                                    data.some(mod => !mod.icon) ? modsResolveIcons(id) : Promise.resolve(0)
+                                ]);
+                                const changed = results.reduce((total,result) => total + (result.status === "fulfilled" ? result.value : 0), 0);
                                 if (current() && changed > 0) await loadSection("mods", true);
                             })().catch(() => {});
-                        }, 1500);
+                        }, 0);
                     }
                 } else if (section === "resourcepacks") resourcePacks = data;
                 else if (section === "shaders") shaderPacks = data;
@@ -978,7 +1085,7 @@
             }
             if (current()) loadedSections.add(key);
         })().catch(error => {
-            if (generation === dataGeneration) toast("Falha ao carregar dados da instância: " + String(error), "error");
+            if (generation === dataGeneration) toast(uiText("ui.24951c37dc7ac3cd") + String(error), "error");
         }).finally(() => {
             if (sectionRequests.get(key) === request) sectionRequests.delete(key);
             pendingLoads--;
@@ -995,6 +1102,11 @@
             loadedSections.clear();
             resolvedMetadata.clear();
             mainTab = "conteudo"; subTab = "mods";
+            searchQuery = ""; debouncedSearch = ""; selectedModNames = []; activeMenuMod = null; availableModUpdates = [];
+            try {
+                const saved: unknown = JSON.parse(localStorage.getItem(`luxmc:frozen-mods:${id}`) ?? '[]');
+                frozenModNames = Array.isArray(saved) ? saved.filter((name): name is string => typeof name === 'string').slice(0, 10000) : [];
+            } catch { frozenModNames = []; }
             instanceMods = []; resourcePacks = []; shaderPacks = []; dataPacks = [];
             worldsList = []; screenshotsList = []; fileTree = [];
             fileSubPath = ""; fileBreadcrumbs = [];
@@ -1010,30 +1122,15 @@
 
     $effect(() => {
         const id = instanceId;
-        const section = mainTab === "conteudo" ? subTab : mainTab;
-        if (id && section !== "laboratorio") {
-            let timer: ReturnType<typeof setTimeout> | undefined;
-            untrack(() => {
-                void loadSection(section);
-                if (mainTab === "conteudo") {
-                    timer = setTimeout(() => {
-                        if (instanceId !== id) return;
-                        if (subTab !== "resourcepacks") void loadSection("resourcepacks");
-                        if (subTab !== "shaders") void loadSection("shaders");
-                        if (subTab !== "datapacks") void loadSection("datapacks");
-                        void loadSection("mundos");
-                    }, 400);
-                }
-            });
-            return () => {
-                if (timer) clearTimeout(timer);
-            };
-        }
+        if (!id) return;
+        untrack(() => { void loadSection("mods"); });
+        const timer = setTimeout(() => {
+            if (instanceId !== id) return;
+            for (const section of ["resourcepacks", "shaders", "datapacks"] as const) void loadSection(section);
+        }, 250);
+        return () => clearTimeout(timer);
     });
 
-    $effect(() => {
-        if (showInstanceSettingsModal) untrack(() => { void loadSection("configuracoes"); });
-    });
 
     onMount(() => {
         const timer = setTimeout(() => { void checkModpackUpdate(); }, 2000);
@@ -1042,48 +1139,40 @@
 
     async function refreshAllData() {
         loadedSections.clear();
-        const section = mainTab === "conteudo" ? subTab : mainTab;
-        if (section !== "laboratorio") {
-            if (mainTab === "conteudo") {
-                await Promise.allSettled([
-                    loadSection("mods", true),
-                    loadSection("resourcepacks", true),
-                    loadSection("shaders", true),
-                    loadSection("datapacks", true),
-                    loadSection("mundos", true)
-                ]);
-            } else {
-                await loadSection(section, true);
-            }
-        }
+        if (!instanceId) return;
+        await Promise.allSettled((["mods", "resourcepacks", "shaders", "datapacks", "mundos", "galeria", "ficheiros"] as const).map(section => loadSection(section, true)));
     }
 
 	async function handleToggleMod(mod: FileTreeEntry) {
+		if (isChangingMods) return;
+		isChangingMods = true;
+		const id = instanceId;
 		const isCurrentlyDisabled = mod.name.endsWith(".disabled");
 		try {
-			await instanceModToggle(instanceId, mod.name, isCurrentlyDisabled);
+			await instanceModToggle(id, mod.name, isCurrentlyDisabled);
+			if (id !== instanceId) return;
 			toast(isCurrentlyDisabled ? `Mod ativado!` : `Mod desativado!`, "success");
-			await refreshAllData();
+			await loadSection("mods", true);
 		} catch (e) {
-			toast("Erro ao alternar mod: " + String(e), "error");
-		}
+			toast(uiText("ui.602701edd10dcc87") + String(e), "error");
+		} finally { isChangingMods = false; }
 	}
 
 	async function handleDeleteMod(mod: FileTreeEntry) {
 		try {
 			await instanceModDelete(instanceId, mod.name);
 			playSound("delete");
-			toast(`Mod "${mod.name}" removido com sucesso!`, "success");
+			toast(uiText("ui.76da1453ec791bf3", {arg0: (mod.name)}), "success");
 			await refreshAllData();
 		} catch (e) {
-			toast("Erro ao remover mod: " + String(e), "error");
+			toast(uiText("ui.882c8bee40eaf46f") + String(e), "error");
 		}
 	}
 
 	async function handleAddModFile() {
 		try {
 			const selected = await open({
-				title: "Selecione o arquivo .JAR do Mod",
+				title: uiText("ui.1811d33a8372f4f0"),
 				multiple: true,
 				filters: [{ name: "Mod do Minecraft (.jar)", extensions: ["jar"] }]
 			});
@@ -1101,10 +1190,10 @@
 				}
 			}
 			await refreshAllData();
-			if (added) toast(`${added} mod(s) adicionado(s) com sucesso!`, "success");
-			if (failed.length) toast(`${failed.length} mod(s) não foram importados: ${failed.slice(0, 2).join("; ")}`, "error");
+			if (added) toast(uiText("ui.130c4ba5e16f85ca", {arg0: (added)}), "success");
+			if (failed.length) toast(uiText("ui.a10afc7c4031c1c0", {arg0: (failed.length), arg1: (failed.slice(0, 2).join("; "))}), "error");
 		} catch (e) {
-			toast("Erro ao adicionar mod: " + String(e), "error");
+			toast(uiText("ui.6de32492351b3bfe") + String(e), "error");
 		}
 	}
 
@@ -1112,7 +1201,7 @@
 		try {
 			await instanceModsOpenFolder(instanceId);
 		} catch (e) {
-			toast("Erro ao abrir pasta de mods: " + String(e), "error");
+			toast(uiText("ui.251b9aac7e9713f4") + String(e), "error");
 		}
 	}
 
@@ -1150,7 +1239,7 @@
 				const sep = raw.indexOf(",");
 				resolve(sep >= 0 ? raw.slice(sep + 1) : raw);
 			};
-			reader.onerror = () => reject(reader.error ?? new Error("Falha ao ler o ficheiro"));
+			reader.onerror = () => reject(reader.error ?? new Error(uiText("ui.4a07e3a9501f9478")));
 			reader.readAsDataURL(file);
 		});
 	}
@@ -1164,7 +1253,7 @@
 		const files = Array.from(e.dataTransfer?.files ?? []);
 		const jars = files.filter((f) => f.name.toLowerCase().endsWith(".jar"));
 		if (!jars.length) {
-			toast("Solte ficheiros .jar de mods nesta área", "error");
+			toast(uiText("ui.43da397ce0b54e88"), "error");
 			return;
 		}
 
@@ -1185,7 +1274,7 @@
 							await instanceModAdd(instanceId, direct);
 							ok = true;
 						} catch (err) {
-							console.warn("import por caminho falhou; a usar bytes:", err);
+							console.warn(uiText("ui.8f7680e47215af89"), err);
 						}
 					}
 					if (!ok) {
@@ -1199,8 +1288,8 @@
 				}
 			}
 			await refreshAllData();
-			if (added) toast(`${added} mod(s) adicionado(s) com sucesso!`, "success");
-			if (failed.length) toast(`${failed.length} mod(s) não foram importados: ${failed.slice(0, 2).join("; ")}`, "error");
+			if (added) toast(uiText("ui.130c4ba5e16f85ca", {arg0: (added)}), "success");
+			if (failed.length) toast(uiText("ui.a10afc7c4031c1c0", {arg0: (failed.length), arg1: (failed.slice(0, 2).join("; "))}), "error");
 		} finally {
 			isImportingDrop = false;
 		}
@@ -1236,7 +1325,7 @@
 			await navigateToFolder(file.name);
 		} else {
 			if (file.size > 300000) {
-				toast(`Arquivo grande (${Math.round(file.size / 1024)} KB). Abra com o gerenciador do sistema para melhor performance.`, "info");
+				toast(uiText("ui.21f8ab933ab2229b", {arg0: (Math.round(file.size / 1024))}), "info");
 				return;
 			}
 			const isText = /\.(txt|json|properties|toml|log|cfg|mcmeta|yaml|yml|ini|csv|md|sh|lock|json5)$/i.test(file.name);
@@ -1245,10 +1334,10 @@
 					const content = await instanceFileRead(instanceId, file.path);
 					activeEditorFile = { path: file.path, name: file.name, content };
 				} catch (e) {
-					toast("Não foi possível ler este arquivo: " + String(e), "error");
+					toast(uiText("ui.536cc065f204a1c1") + String(e), "error");
 				}
 			} else {
-				toast(`Arquivo binário (${Math.round(file.size / 1024)} KB). Abra com o gerenciador do sistema.`, "info");
+				toast(uiText("ui.e3785c74af0bd42f", {arg0: (Math.round(file.size / 1024))}), "info");
 			}
 		}
 	}
@@ -1258,36 +1347,36 @@
 		isSavingEditor = true;
 		try {
 			await instanceFileWrite(instanceId, activeEditorFile.path, activeEditorFile.content);
-			toast(`Arquivo "${activeEditorFile.name}" guardado com sucesso!`, "success");
+			toast(uiText("ui.97f3464fc2a2ebe4", {arg0: (activeEditorFile.name)}), "success");
 		} catch (e) {
-			toast("Erro ao salvar arquivo: " + String(e), "error");
+			toast(uiText("ui.18e5596b3983ad06") + String(e), "error");
 		} finally {
 			isSavingEditor = false;
 		}
 	}
 
 	async function handleDeleteFileEntry(file: FileTreeEntry) {
-		if (!confirm(`Tem certeza que deseja excluir "${file.name}" permanentemente?`)) return;
+		if (!confirm(uiText("ui.3d4f9b19fb69e3dc", {arg0: (file.name)}))) return;
 		try {
 			await instanceFileDelete(instanceId, file.path);
 			playSound("delete");
-			toast(`"${file.name}" excluído com sucesso!`, "success");
+			toast(uiText("ui.977616b756fa0a24", {arg0: (file.name)}), "success");
 			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
 		} catch (e) {
-			toast("Erro ao excluir arquivo: " + String(e), "error");
+			toast(uiText("ui.f1e8ee7a5d4f9972") + String(e), "error");
 		}
 	}
 
 	async function handleDeleteWorld(folderName: string) {
 		if (!instanceId) return;
-		if (!confirm(`Tem certeza que deseja excluir o mundo "${folderName}" permanentemente? Esta ação não pode ser desfeita.`)) return;
+		if (!confirm(uiText("ui.2538b779c071153e", {arg0: (folderName)}))) return;
 		try {
 			await instanceWorldDelete(instanceId, folderName);
 			playSound("delete");
-			toast(`Mundo "${folderName}" excluído com sucesso!`, "success");
+			toast(uiText("ui.6340a3cf6c8c240c", {arg0: (folderName)}), "success");
 			worldsList = worldsList.filter(w => w.folderName !== folderName);
 		} catch (e) {
-			toast("Erro ao excluir mundo: " + String(e), "error");
+			toast(uiText("ui.6cea4ae536ae622b") + String(e), "error");
 		}
 	}
 
@@ -1299,10 +1388,10 @@
 			const selected = await open({
 				multiple: false,
 				directory: false,
-				title: "Selecionar Mapa do Minecraft (.zip)",
+				title: uiText("ui.c2a914f873589639"),
 				filters: [
-					{ name: "Mundo Minecraft Comprimido (*.zip)", extensions: ["zip"] },
-					{ name: "Todos os Arquivos (*.*)", extensions: ["*"] }
+					{ name: uiText("ui.fb1184809a30129e"), extensions: ["zip"] },
+					{ name: uiText("ui.d2385f159b9df3d6"), extensions: ["*"] }
 				]
 			});
 			if (!selected) return;
@@ -1310,13 +1399,13 @@
 			if (!filePath) return;
 
 			isImportingWorld = true;
-			toast("Importando e descompactando mapa...", "info");
+			toast(uiText("ui.dfdec63dbc7386d1"), "info");
 			const imported = await instanceWorldImport(instanceId, filePath);
 			playSound("achievement");
-			toast(`Mundo "${imported.name}" importado com sucesso!`, "success");
+			toast(uiText("ui.33f1b4853e2883a1", {arg0: (imported.name)}), "success");
 			worldsList = await instanceWorldsList(instanceId);
 		} catch (e) {
-			toast("Erro ao importar mundo: " + String(e), "error");
+			toast(uiText("ui.3df571bd0d6c5ef9") + String(e), "error");
 		} finally {
 			isImportingWorld = false;
 		}
@@ -1328,20 +1417,20 @@
 			const selected = await open({
 				multiple: false,
 				directory: true,
-				title: "Selecionar Pasta de Mundo (contendo level.dat)"
+				title: uiText("ui.5e4b17f0588ebccd")
 			});
 			if (!selected) return;
 			const folderPath = typeof selected === "string" ? selected : selected[0];
 			if (!folderPath) return;
 
 			isImportingWorld = true;
-			toast("Importando pasta do mundo...", "info");
+			toast(uiText("ui.3a897767fb77dda4"), "info");
 			const imported = await instanceWorldImport(instanceId, folderPath);
 			playSound("achievement");
-			toast(`Mundo "${imported.name}" importado com sucesso!`, "success");
+			toast(uiText("ui.33f1b4853e2883a1", {arg0: (imported.name)}), "success");
 			worldsList = await instanceWorldsList(instanceId);
 		} catch (e) {
-			toast("Erro ao importar mundo: " + String(e), "error");
+			toast(uiText("ui.3df571bd0d6c5ef9") + String(e), "error");
 		} finally {
 			isImportingWorld = false;
 		}
@@ -1355,14 +1444,31 @@
 				pendingLaunchConflicts = res;
 				showModConflictModal = true;
 			} else {
-				toast("Nenhum conflito de mods detectado! Seus mods estão compatíveis.", "success");
+				toast(uiText("ui.102a8ab0170c6104"), "success");
 			}
 		} catch (e) {
-			toast("Falha ao checar conflitos: " + String(e), "error");
+			toast(uiText("ui.3f8f4932b9580466") + String(e), "error");
 		}
 	}
 
+	let launchResetTimer: ReturnType<typeof setTimeout> | null = null;
+	let launchGuard = false;
+
 	async function handlePlay(skipConflictCheck: boolean = false) {
+		if (launchGuard || isLaunching) return;
+		launchGuard = true;
+		try {
+			await runPlay(skipConflictCheck);
+		} finally {
+			launchGuard = false;
+		}
+	}
+
+	async function runPlay(skipConflictCheck: boolean = false) {
+		if (launchResetTimer) {
+			clearTimeout(launchResetTimer);
+			launchResetTimer = null;
+		}
 		if (isLaunching) return;
 
 		const targetProfileId = activeProfile?.id || instanceId || "";
@@ -1376,27 +1482,27 @@
 				}
 				if (!readiness.ready && readiness.repairable) {
 					appState.isLaunching = true;
-					appState.launchStatusText = "Reparando arquivos do Minecraft...";
-					toast("Arquivos do Minecraft ausentes. Reparando a instância...", "info");
+					appState.launchStatusText = uiText("ui.b6d484d52a57df94");
+					toast(uiText("ui.5d2502a90ec845c1"), "info");
 					try {
 						const outcome = await doctorRepairAll(targetProfileId);
 						for (const warning of outcome.warnings) toast(warning, "warning");
 					} catch (repairError) {
 						console.error("Auto repair failed:", repairError);
-						toast("Falha ao reparar a instância: " + String(repairError), "error");
+						toast(uiText("ui.793b29f6f9f9c6e2") + String(repairError), "error");
 						appState.isLaunching = false;
 						return;
 					}
 					readiness = await doctorInstanceReadiness(targetProfileId);
 					if (!readiness.ready) {
-						toast(readiness.blockers[0] || "A instância continua precisando de reparo.", "error");
+						toast(readiness.blockers[0] || uiText("ui.0a6aaa8e4cd3261f"), "error");
 						appState.isLaunching = false;
 						return;
 					}
 					appState.isLaunching = false;
 				}
 				if (!readiness.ready) {
-					toast(`${readiness.blockers[0] || "A instância precisa de reparo."} Use “Reparar Tudo” na página da instância.`, "error");
+					toast(uiText("ui.bb62da2d79a47c08", {arg0: (readiness.blockers[0] || uiText("ui.9e8298233a54f645"))}), "error");
 					return;
 				}
 				for (const warning of readiness.warnings) toast(warning, "info");
@@ -1413,7 +1519,7 @@
 
 		appState.isLaunching = true;
 		downloadProgressPercent = 15;
-		appState.launchStatusText = "Preparando autenticação da conta...";
+		appState.launchStatusText = uiText("ui.99900384cb24abb8");
 
 		try {
 			// Ensure valid account
@@ -1434,20 +1540,21 @@
 
 			const verId = activeProfile?.mcVersion || "1.20.4";
 			downloadProgressPercent = 35;
-			appState.launchStatusText = "Verificando bibliotecas e integridade do jogo...";
+			appState.launchStatusText = uiText("ui.8fbc6893bdbc6efd");
 
 			// If not installed, download version
 			if (!isInstalled) {
 				downloadProgressPercent = 55;
-				appState.launchStatusText = "Baixando client.jar do Minecraft " + verId + "...";
+				appState.launchStatusText = uiText("ui.4d7cbc3453407632") + verId + "...";
 				await versionsDownload(verId);
 				isInstalled = true;
 			}
 
 			downloadProgressPercent = 85;
-			appState.launchStatusText = "Injetando parâmetros JVM, flags e inicializando Minecraft...";
+			appState.launchStatusText = uiText("ui.dc11fbd10f868b09");
 			const targetProfileId = activeProfile?.id || instanceId || "";
-			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
+			const globalVulkan = typeof window !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true";
+			const isVulkan = globalVulkan || activeProfile?.useVulkan === true;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
 			const effectiveCape = activeSkinStore.current.hasCape
 				? (activeSkinStore.current.customCapeUrl || (activeSkinStore.current.capeType && activeSkinStore.current.capeType !== "none" ? getFullCapeDataUrl(activeSkinStore.current.capeType) : null))
@@ -1498,8 +1605,8 @@
 				smallText: `Luxmc · ${loaderText}`,
 				startTime: Math.floor(Date.now() / 1000),
 				buttons: [
-					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
-					{ label: "Site Oficial", url: "https://luxmc-r92.pages.dev" }
+					{ label: uiText("ui.4c8757fab2a21345"), url: "https://luxmc-r92.pages.dev" },
+					{ label: uiText("ui.d4fb4e24ae3c7a8f"), url: "https://luxmc-r92.pages.dev" }
 				]
 			}).catch(() => {});
 
@@ -1513,17 +1620,19 @@
 			};
 			if (activeProfile?.id) profiles.setLastPlayed(activeProfile.id);
 			downloadProgressPercent = 100;
-			appState.launchStatusText = `Minecraft em execução (PID: ${result.pid})`;
-			toast(`🎮 Minecraft ${verId} iniciado com sucesso! (PID: ${result.pid})`, "success");
+			appState.launchStatusText = uiText("ui.56374a8d934236e2", {arg0: (result.pid)});
+			toast(uiText("ui.f9462c8ca5b0a2ac", {arg0: (verId), arg1: (result.pid)}), "success");
 			void handlePostLaunchActions();
 		} catch (e) {
 			console.error("Launch error:", e);
-			toast("Falha ao iniciar o jogo: " + String(e), "error");
+			toast(uiText("ui.ea9a9c9188e1f662") + String(e), "error");
 			appState.launchStatusText = "";
 			downloadProgressPercent = 0;
 			appState.isGameRunning = false;
 		} finally {
-			setTimeout(() => {
+			if (launchResetTimer) clearTimeout(launchResetTimer);
+			launchResetTimer = setTimeout(() => {
+				launchResetTimer = null;
 				appState.isLaunching = false;
 				appState.launchingProfileId = null;
 				appState.launchStatusText = "";
@@ -1539,20 +1648,21 @@
 			await stopGame();
 			appState.isGameRunning = false;
 			gamingStats.onGameExit();
-			toast("Instância encerrada com sucesso.", "info");
+			toast(uiText("ui.ac75d5c7df6f61ef"), "info");
 		} catch (e) {
-			toast("Erro ao tentar encerrar o jogo: " + String(e), "error");
+			appState.isGameRunning = false;
+			gamingStats.onGameExit();
+			toast(uiText("ui.f635cd0acfe6def9") + String(e), "error");
 		} finally {
 			appState.isStopping = false;
 		}
 	}
 
-	async function handleAddResourcePack() {
-		const packType = subTab === 'shaders' ? 'shaderpacks' : subTab === 'datapacks' ? 'datapacks' : 'resourcepacks';
-		const label = subTab === 'shaders' ? 'Shader' : subTab === 'datapacks' ? 'Datapack' : 'Pacote de Recursos';
+	async function handleAddResourcePack(packType: "shaderpacks" | "datapacks" | "resourcepacks" = "resourcepacks") {
+		const label = packType === 'shaderpacks' ? 'Shader' : packType === 'datapacks' ? 'Datapack' : uiText("ui.963f78de2df74f50");
 		try {
 			const selected = await open({
-				title: `Selecionar ${label} (.zip)`,
+				title: uiText("ui.3afa608d3f7b29df", {arg0: (label)}),
 				multiple: true,
 				filters: [{ name: "Arquivo Compactado (.zip)", extensions: ["zip"] }]
 			});
@@ -1561,31 +1671,29 @@
 			for (const p of paths) {
 				await instancePackAdd(instanceId, packType, p);
 			}
-			toast(`${paths.length} ${label.toLowerCase()}(s) adicionado(s) com sucesso!`, "success");
+			toast(uiText("ui.fd5be19f7f80fe28", {arg0: (paths.length), arg1: (label.toLowerCase())}), "success");
 			await refreshAllData();
 		} catch (e) {
-			toast("Erro ao adicionar arquivo: " + String(e), "error");
+			toast(uiText("ui.9723ec0453e0c16f") + String(e), "error");
 		}
 	}
 
-	async function handleDeletePack(fileName: string) {
-		const packType = subTab === 'shaders' ? 'shaderpacks' : subTab === 'datapacks' ? 'datapacks' : 'resourcepacks';
+	async function handleDeletePack(fileName: string, packType: "shaderpacks" | "datapacks" | "resourcepacks") {
 		try {
 			await instancePackDelete(instanceId, packType, fileName);
 			playSound("delete");
-			toast("Item removido com sucesso!", "success");
+			toast(uiText("ui.f3e43f3065bf2a2b"), "success");
 			await refreshAllData();
 		} catch (e) {
-			toast("Erro ao remover: " + String(e), "error");
+			toast(uiText("ui.22fc4b84ee52a446") + String(e), "error");
 		}
 	}
 
-	async function handleOpenPackFolder() {
-		const packType = subTab === 'shaders' ? 'shaderpacks' : subTab === 'datapacks' ? 'datapacks' : 'resourcepacks';
+	async function handleOpenPackFolder(packType: "shaderpacks" | "datapacks" | "resourcepacks") {
 		try {
 			await instancePackOpenFolder(instanceId, packType);
 		} catch (e) {
-			toast("Erro ao abrir pasta: " + String(e), "error");
+			toast(uiText("ui.b9f5a23e16422403") + String(e), "error");
 		}
 	}
 
@@ -1594,9 +1702,9 @@
 			await screenshotDelete(path);
 			playSound("delete");
 			screenshotsList = screenshotsList.filter(s => s.path !== path);
-			toast("Captura de tela removida!", "info");
+			toast(uiText("ui.37c8bb8f8416b9a5"), "info");
 		} catch (e) {
-			toast("Erro ao excluir captura: " + String(e), "error");
+			toast(uiText("ui.2132eacd3690c6de") + String(e), "error");
 		}
 	}
 
@@ -1621,9 +1729,9 @@
 
 	async function handleApplyModpackUpdate() {
 		if (!modpackUpdate || !instanceId || isUpdatingModpack) return;
-        if (appState.isGameRunning) { toast("Feche o Minecraft antes de atualizar o modpack.", "warning"); return; }
+        if (appState.isGameRunning) { toast(uiText("ui.5c121f6239aa0903"), "warning"); return; }
 		isUpdatingModpack = true;
-		updateStatusText = "Iniciando atualização protegida...";
+		updateStatusText = uiText("ui.b35e32e9887ce30f");
 		updateProgressPercent = 5;
 
 		let unlistenProgress: (() => void) | null = null;
@@ -1643,15 +1751,15 @@
 				modpackUpdate.projectId || ""
 			);
 
-			toast(`🎉 Modpack atualizado com sucesso para a versão ${modpackUpdate.latestVersion || "mais recente"}! Seus mundos, prints e opções foram 100% preservados.`, "success");
+			toast(uiText("ui.5f480d299789b92c", {arg0: (modpackUpdate.latestVersion || "mais recente")}), "success");
 			playSound("chime");
 			modpackUpdate = null;
 			modpackDiff = null;
 			await profiles.refresh();
             await refreshAllData();
 		} catch (e) {
-			console.error("Falha ao atualizar modpack:", e);
-			toast("Erro ao atualizar modpack: " + String(e), "error");
+			console.error(uiText("ui.5a393de14381bc7c"), e);
+			toast(uiText("ui.f3b332eeaeaf27ca") + String(e), "error");
 		} finally {
 			if (unlistenProgress) unlistenProgress();
 			isUpdatingModpack = false;
@@ -1665,7 +1773,7 @@
 		try {
 			await instancesOpenFolder(instanceId);
 		} catch (e) {
-			toast("Erro ao abrir pasta: " + String(e), "error");
+			toast(uiText("ui.b9f5a23e16422403") + String(e), "error");
 		}
 	}
 
@@ -1674,30 +1782,54 @@
 		try {
 			await screenshotsOpenFolder(instanceId);
 		} catch (e) {
-			toast("Erro ao abrir pasta de capturas: " + String(e), "error");
+			toast(uiText("ui.4a03c8f6feb5584d") + String(e), "error");
 		}
 	}
 </script>
 
-<div class="flex gap-8 h-full w-full select-none">
+<div class="flex gap-6 w-full select-none">
 
-	<div class="flex-1 flex flex-col min-w-0 h-full overflow-y-auto custom-scrollbar pr-2 space-y-5">
+	<div class="flex-1 flex flex-col min-w-0 space-y-5">
 
-		<a href="/instances" class="flex items-center gap-2 text-xs font-bold text-fg/50 hover:text-fg transition-colors w-fit group">
-			<ArrowLeft class="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" /> Voltar
+		<a href="/instances" class={button({ variant: "ghost", size: "sm", class: "w-fit group" })}>
+			<ArrowLeft class="w-3.5 h-3.5 transition-transform group-hover:-translate-x-1" /> {uiText("common.back")}
 		</a>
 
         <InstanceHero profile={activeProfile} banner={heroBanner} launching={isLaunching} running={appState.isGameRunning} stopping={appState.isStopping} status={launchStatusText} progress={downloadProgressPercent}
-            javaLabel={javaRuntimes.find(runtime => runtime.path === activeProfile?.javaPath)?.versionString || (activeProfile?.javaPath ? 'Personalizado' : 'Automático')}
-            onPlay={() => handlePlay()} onStop={handleStopGame} onSettings={() => showInstanceSettingsModal = true} onHost={() => showP2PHost = true}>
+            javaLabel={javaRuntimes.find(runtime => runtime.path === activeProfile?.javaPath)?.versionString || (activeProfile?.javaPath ? 'Personalizado' : uiText("ui.b803f24d52edd7bc"))}
+            onPlay={() => handlePlay()} onStop={handleStopGame} onSettings={() => goToSection("configuracoes")} onHost={() => showP2PHost = true}>
             {#snippet actions()}
-                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={openInstanceFolder}><FolderOpen class="h-4 w-4" />Abrir pasta</button>
-                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showP2PHost = true}><Radio class="h-4 w-4" />Jogar com amigos</button>
-                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showModpackExportModal = true}><Package class="h-4 w-4" />Exportar pack</button>
-                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showWorldBackupModal = true}><HardDrive class="h-4 w-4" />Backups</button>
-                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showDeathDetectorModal = true}><Skull class="h-4 w-4" />Última morte</button>
+                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={openInstanceFolder}><FolderOpen class="h-4 w-4" />{uiText("screenshots.openFolderBtn")}</button>
+                <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => showP2PHost = true}><Radio class="h-4 w-4" />{uiText("ui.4cab082a07901725")}</button>
+                <button type="button" class={button({ variant: toolsExpanded ? 'secondary' : 'ghost', size: 'sm' })} aria-expanded={toolsExpanded} aria-controls="instance-toolbox" onclick={() => toolsExpanded = !toolsExpanded}><Wrench class="h-4 w-4" />{uiText("settings.refinement.instanceTools")}</button>
             {/snippet}
         </InstanceHero>
+        {#if toolsExpanded}
+            <section id="instance-toolbox" class="surface-glass space-y-5 p-5 sm:p-6" aria-label={uiText("settings.refinement.instanceTools")} in:fade={{ duration: 150 }}>
+                <header class="flex items-start justify-between gap-4">
+                    <div class="space-y-1"><p class="page-eyebrow">{uiText("settings.refinement.instanceTools")}</p><h2 class="text-lg font-semibold text-fg">{uiText("ui.fa18e9c316c39701")}</h2><p class="text-sm text-fg-muted">{uiText("ui.5cccec99fd3f2ff4")}</p></div>
+                    <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={uiText("common.close")} onclick={() => toolsExpanded = false}><X class="h-4 w-4" /></button>
+                </header>
+<section class="instance-settings-group" aria-label={uiText("ui.fa18e9c316c39701")}>
+                        <div class="space-y-5">
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                <button type="button" class={button({ variant: "secondary", class: "h-auto justify-start whitespace-normal p-4 text-left" })} onclick={() => showKeybindEditorModal = true}><Keyboard class="h-5 w-5 shrink-0 text-brand-400" /><span><span class="block text-sm font-semibold">{uiText("ui.66098554bb521658")}</span><span class="mt-1 block text-xs font-normal text-fg-muted">{uiText("ui.2ed6f8926780ee51")}</span></span></button>
+                                <button type="button" class={button({ variant: "secondary", class: "h-auto justify-start whitespace-normal p-4 text-left" })} onclick={() => showConfigEditor = true}><Code class="h-5 w-5 shrink-0 text-brand-400" /><span><span class="block text-sm font-semibold">{uiText("ui.4d54a8d687f8a2ff")}</span><span class="mt-1 block text-xs font-normal text-fg-muted">{uiText("ui.a7fbda48ffe03520")}</span></span></button>
+                                <button type="button" class={button({ variant: "secondary", class: "h-auto justify-start whitespace-normal p-4 text-left" })} onclick={() => showJukeboxModal = true}><Disc class="h-5 w-5 shrink-0 text-brand-400" /><span><span class="block text-sm font-semibold">{uiText("ui.b2ced5c6bc6abca1")}</span><span class="mt-1 block text-xs font-normal text-fg-muted">{uiText("ui.71031146a0ac2853")}</span></span></button>
+                                <button type="button" class={button({ variant: "secondary", class: "h-auto justify-start whitespace-normal p-4 text-left" })} onclick={() => showModpackExportModal = true}><Package class="h-5 w-5 shrink-0 text-brand-400" /><span><span class="block text-sm font-semibold">{uiText("ui.1cbf90a624d3ece6")}</span><span class="mt-1 block text-xs font-normal text-fg-muted">{uiText("ui.c2d63059db8afdbb")}</span></span></button>
+                                <button type="button" class={button({ variant: "secondary", class: "h-auto justify-start whitespace-normal p-4 text-left" })} onclick={() => showWorldBackupModal = true}><HardDrive class="h-5 w-5 shrink-0 text-brand-400" /><span><span class="block text-sm font-semibold">{uiText("ui.adc2b8d01a4c7a79")}</span><span class="mt-1 block text-xs font-normal text-fg-muted">{uiText("ui.eb9382115d772ec9")}</span></span></button>
+                                <button type="button" class={button({ variant: "secondary", class: "h-auto justify-start whitespace-normal p-4 text-left" })} onclick={() => showDeathDetectorModal = true}><Skull class="h-5 w-5 shrink-0 text-brand-400" /><span class="text-sm font-semibold">{uiText("ui.d88bf4aee9b1d26f")}</span></button>
+                                <button type="button" class={button({ variant: "secondary", class: "h-auto justify-start whitespace-normal p-4 text-left" })} onclick={openInstanceFolder}><FolderOpen class="h-5 w-5 shrink-0 text-brand-400" /><span><span class="block text-sm font-semibold">{uiText("screenshots.openFolderBtn")}</span><span class="mt-1 block text-xs font-normal text-fg-muted">{uiText("ui.780c409845e4aae2")}</span></span></button>
+                            </div>
+                        </div>
+                    </section>
+                    <details class="instance-settings-group" ontoggle={(event) => labExpanded = event.currentTarget.open}>
+                        <summary class="flex cursor-pointer items-center gap-3 text-sm font-semibold text-fg"><Activity class="h-5 w-5 text-brand-400" />{uiText("ui.ff0415cca9ac2e70")}<span class="ml-auto text-xs font-normal text-fg-muted">{uiText("ui.c57da88ed5af4812")}</span></summary>
+                        {#if labExpanded}<div class="mt-5"><InstanceLab profileId={instanceId} /></div>{/if}
+                    </details>
+                                </section>
+        {/if}
+        {#if modpackUpdate?.projectId}<ModpackVersions profileId={instanceId} info={modpackUpdate} onChanged={refreshAllData} />{/if}
 
 		{#if modpackUpdate?.hasUpdate || isUpdatingModpack}
 			<div class="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-bg-elevated border border-amber-500/30 rounded-3xl p-5 shadow-xl relative overflow-hidden">
@@ -1709,28 +1841,28 @@
 						</div>
 						<div class="space-y-1">
 							<div class="flex items-center gap-2 flex-wrap">
-								<span class="font-extrabold text-sm text-fg">Nova Versão do Modpack Disponível!</span>
+								<span class="font-extrabold text-sm text-fg">{uiText("ui.5f428ec2d324f417")}</span>
 								<span class="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
-									{modpackUpdate?.latestVersion || "Atualização Oficial"}
+									{modpackUpdate?.latestVersion || uiText("ui.a23951e91db1e2cb")}
 								</span>
 								{#if modpackUpdate?.currentVersion}
 									<span class="text-[10px] text-fg/40 font-mono">
-										(Instalado: {modpackUpdate.currentVersion})
+										{uiText("ui.c70c18c86e1e73ea")} {modpackUpdate.currentVersion})
 									</span>
 								{/if}
 							</div>
 							<p class="text-xs text-fg/60">
-								Uma atualização oficial foi detectada no {modpackUpdate?.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}.
+								{uiText("ui.06ba47775007165a")} {modpackUpdate?.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}.
 							</p>
 							<div class="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 pt-0.5">
 								<ShieldCheck class="w-3.5 h-3.5 shrink-0" />
-								<span>Backups versionados dos mundos serão criados antes da atualização.</span>
+								<span>{uiText("ui.40411658f011d85a")}</span>
 							</div>
 							{#if modpackDiff?.available}
 								<div class="mt-2 flex flex-wrap gap-1.5 text-[10px]">
-									{#if modpackDiff.added.length}<span class="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">+{modpackDiff.added.length} mod(s)</span>{/if}
-									{#if modpackDiff.updated.length}<span class="rounded-full bg-amber-500/15 px-2 py-1 text-amber-300">↻{modpackDiff.updated.length} atualizado(s)</span>{/if}
-									{#if modpackDiff.removed.length}<span class="rounded-full bg-rose-500/15 px-2 py-1 text-rose-300">−{modpackDiff.removed.length} removido(s)</span>{/if}
+									{#if modpackDiff.added.length}<span class="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">+{modpackDiff.added.length} {uiText("ui.b14d07bdc43e1b12")}</span>{/if}
+									{#if modpackDiff.updated.length}<span class="rounded-full bg-amber-500/15 px-2 py-1 text-amber-300">↻{modpackDiff.updated.length} {uiText("ui.9dfce32f7678d26e")}</span>{/if}
+									{#if modpackDiff.removed.length}<span class="rounded-full bg-rose-500/15 px-2 py-1 text-rose-300">−{modpackDiff.removed.length} {uiText("ui.538851c9c49de0bf")}</span>{/if}
 								</div>
 							{/if}
 						</div>
@@ -1746,16 +1878,16 @@
 									<span>{updateProgressPercent}%</span>
 								</div>
 								<div class="w-full h-2 bg-fg/10 rounded-full overflow-hidden">
-									<div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 rounded-full" style="width: {updateProgressPercent}%"></div>
+									<div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300 rounded-full" style="width: {updateProgressPercent}%"></div>
 								</div>
 							</div>
 						{:else}
 							<button
 								type="button"
-								class="w-full md:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-brand-foreground font-black text-xs shadow-lg hover:shadow-amber-500/25 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:scale-105 active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+								class={launcherButton({ variant: "secondary", size: "lg", class: "w-full md:w-auto from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 flex items-center justify-center gap-2" })}
 								onclick={handleApplyModpackUpdate}
 							>
-								<Download class="w-4 h-4" /> Atualizar em 1 Clique
+								<Download class="w-4 h-4" /> {uiText("ui.5b3d667989437e73")}
 							</button>
 						{/if}
 					</div>
@@ -1763,25 +1895,26 @@
 			</div>
 		{/if}
 
-		<div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="section-tabs" role="tablist" aria-label="Conteúdo da instância">
-                {#each [{ id: 'conteudo', label: 'Mods e conteúdo', icon: Layers }, { id: 'mundos', label: `Mundos · ${worldsList.length}`, icon: Globe2 }, { id: 'galeria', label: `Screenshots · ${screenshotsList.length}`, icon: Image }, { id: 'ficheiros', label: 'Arquivos', icon: Folder }] as tab}
-                    <button type="button" role="tab" class="section-tab" aria-selected={mainTab === tab.id} onclick={() => mainTab = tab.id as typeof mainTab}><tab.icon class="h-4 w-4" />{tab.label}</button>
-                {/each}
-                <button type="button" role="tab" class="section-tab" aria-selected={mainTab === "configuracoes"} onclick={() => mainTab = "configuracoes"}><SettingsIcon class="h-4 w-4" />Configurações</button>
-                <button type="button" role="tab" class="section-tab" aria-selected={mainTab === "laboratorio"} onclick={() => mainTab = "laboratorio"}><Activity class="h-4 w-4" />Laboratório</button>
-            </div>
-            <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label="Atualizar dados" onclick={refreshAllData}><RefreshCw class="h-4 w-4 {isLoadingData ? 'animate-spin' : ''}" /></button>
+        <div class="instance-overview-nav" role="tablist" tabindex="-1" onkeydown={handleTabKeys} aria-label={uiText("ui.afb02856c2b1242c")}>
+            {#each [{ id: 'mods', label: 'Mods', icon: Puzzle }, { id: 'resourcepacks', label: uiText("ui.906d0853ece30a11"), icon: Box }, { id: 'shaders', label: 'Shaders', icon: Sparkles }, { id: 'datapacks', label: uiText("ui.f3260e4c97557038"), icon: Code }, { id: 'mundos', label: uiText("files.saves"), icon: Globe2 }, { id: 'galeria', label: uiText("ui.067348ce68943b63"), icon: Image }, { id: 'ficheiros', label: uiText("ui.c11445cb4fe129bf"), icon: Folder }, { id: 'configuracoes', label: uiText("ui.76b0fb6ad18939ac"), icon: SettingsIcon }] as section}
+                {@const selected = mainTab === section.id || (mainTab === 'conteudo' && subTab === section.id)}
+                <button type="button" role="tab" tabindex={selected ? 0 : -1} id={`instance-tab-${section.id}`} aria-selected={selected} aria-controls={`instance-${['mods', 'resourcepacks', 'shaders', 'datapacks'].includes(section.id) ? 'conteudo' : section.id}`} class={button({ variant: selected ? "secondary" : "ghost", size: "sm", class: selected ? 'text-brand-400 border-brand-400/30 bg-brand-500/10' : '' })} onclick={() => {
+                    if (['mods', 'resourcepacks', 'shaders', 'datapacks'].includes(section.id)) {
+                        subTab = section.id as typeof subTab;
+                        goToSection('conteudo');
+                    } else goToSection(section.id as typeof mainTab);
+                }}><section.icon class="h-4 w-4" />{section.label}</button>
+            {/each}
+            <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={uiText("ui.f289ac48d636afd5")} onclick={refreshAllData}><RefreshCw class="h-4 w-4 {isLoadingData ? 'animate-spin' : ''}" /></button>
         </div>
+        {#if mainTab === 'conteudo'}
 
-		{#if mainTab === 'laboratorio'}
-			<InstanceLab profileId={instanceId} />
-		{:else if mainTab === 'conteudo'}
+		<div id="instance-conteudo" role="tabpanel" aria-labelledby={`instance-tab-${subTab}`} class="instance-overview-section">
 			<div
 				class="relative flex flex-col gap-4"
 				in:fade={{ easing: quintOut, duration: 220 }}
 				role="group"
-				aria-label="Conteúdo da instância"
+				aria-label={uiText("ui.afb02856c2b1242c")}
 				ondragenter={handleModsDragEnter}
 				ondragover={handleModsDragOver}
 				ondragleave={handleModsDragLeave}
@@ -1792,90 +1925,43 @@
 						<div class="h-14 w-14 rounded-2xl bg-brand-500/15 border border-brand-400/40 text-brand-300 flex items-center justify-center">
 							<Puzzle class="w-7 h-7" />
 						</div>
-						<p class="text-sm font-black text-fg">{isImportingDrop ? 'Importando .jar...' : 'Solte os .jar aqui'}</p>
-						<p class="text-xs text-fg/60 max-w-sm text-center">{isImportingDrop ? 'A validar e copiar os mods para esta instância.' : 'Cada .jar é validado contra o loader da instância antes de entrar na pasta mods/.'}</p>
+						<p class="text-sm font-black text-fg">{isImportingDrop ? uiText("ui.ce5c1c3f264d0643") : uiText("ui.daed1ac225487b5d")}</p>
+						<p class="text-xs text-fg/60 max-w-sm text-center">{isImportingDrop ? uiText("ui.cc81a4152cf3d83b") : uiText("ui.2f9ee9f26673dcd3")}</p>
 					</div>
 				{/if}
-				<div class="flex flex-wrap items-center justify-between gap-3">
-					<div class="flex bg-bg-elevated border border-fg/10 rounded-full p-1 gap-1">
-						<button
-							class="px-4 py-1.5 rounded-full text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 {subTab === 'mods' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/70 hover:text-fg hover:bg-bg-subtle'}"
-							onclick={() => subTab = 'mods'}
-						>
-							<Puzzle class="w-3.5 h-3.5 text-blue-400" /> Mods ({instanceMods.length})
-						</button>
-						<button
-							class="px-4 py-1.5 rounded-full text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 {subTab === 'resourcepacks' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/70 hover:text-fg hover:bg-bg-subtle'}"
-							onclick={() => subTab = 'resourcepacks'}
-						>
-							<Box class="w-3.5 h-3.5 text-amber-400" /> Pacotes de recursos ({resourcePacks.length})
-						</button>
-						<button
-							class="px-4 py-1.5 rounded-full text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 {subTab === 'shaders' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/70 hover:text-fg hover:bg-bg-subtle'}"
-							onclick={() => subTab = 'shaders'}
-						>
-							<Sparkles class="w-3.5 h-3.5 text-purple-400" /> Shaders ({shaderPacks.length})
-						</button>
-						<button
-							class="px-4 py-1.5 rounded-full text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 {subTab === 'datapacks' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/70 hover:text-fg hover:bg-bg-subtle'}"
-							onclick={() => subTab = 'datapacks'}
-						>
-							<Code class="w-3.5 h-3.5 text-emerald-400" /> {"{}"} Datapacks ({dataPacks.length})
-						</button>
-					</div>
+                {#if subTab === "mods"}
+                <section class="rounded-2xl border border-border bg-bg-elevated overflow-hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-3 p-5 border-b border-border">
+                        <div>
+                            <h2 class="text-base font-semibold text-fg">{uiText("home.installedMods")}</h2>
+                            <p class="mt-1 text-xs text-fg-muted">{uiText("ui.38f7365f2d19005d")} {activeProfile?.name ?? uiText("ui.9c95cb0e794ba1f0")}.</p>
+                        </div>
+                        <a href={contentCatalogUrl} class={button({ variant: 'primary', size: 'sm' })}><Download class="h-4 w-4" />{uiText("ui.491774c8d38fada1")}</a>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 p-4 border-t border-border">
+                        <div class="relative min-w-48 flex-1">
+                            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-fg-subtle pointer-events-none" />
+                            <input type="search" aria-label={uiText("ui.1bae8d6a32c4bf2f")} bind:value={searchQuery} placeholder={uiText("ui.958087c3687d84e7")} class="w-full h-10 rounded-xl border border-border bg-bg-subtle pl-10 pr-3 text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:border-brand-400" />
+                        </div>
+                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={handleOpenModsFolder}><FolderOpen class="h-4 w-4" />{uiText("screenshots.openFolderBtn")}</button>
+                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={handleCheckModUpdates} disabled={isCheckingUpdates || isLoadingData}><RefreshCw class="h-4 w-4 {isCheckingUpdates ? 'animate-spin' : ''}" />{isCheckingUpdates ? 'Verificando…' : uiText("mods.checkUpdates")}</button>
+                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isImportingDrop} onclick={handleAddModFile}><Plus class="h-4 w-4" />{uiText("ui.21ce7cc4e47f9c45")}</button>
+                    </div>
+                    <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4 text-xs text-fg-muted" aria-live="polite">
+                        <span>{isLoadingData ? uiText("ui.318209e40ba847c9") : `${filteredMods.length} mods · ${resourcePacks.length + shaderPacks.length + dataPacks.length} pacotes`} · {enabledModCount} {uiText("ui.089963539b553aec")}</span>
+                        <span>{uiText("ui.0129b013747c67a1")}</span>
+                    </div>
+                </section>
+                {#if selectedModNames.length > 0}
+                    <div class="flex flex-wrap items-center gap-2 rounded-xl border border-brand-500/20 bg-brand-500/5 px-4 py-3">
+                        <span class="text-xs font-semibold text-fg mr-auto">{selectedModNames.length} {uiText("ui.b86f90bb0eaec7af")}</span>
+                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isChangingMods} onclick={() => toggleSelectedMods(true)}><ToggleRight class="h-4 w-4" />{uiText("ui.631205572827d2f7")}</button>
+                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} disabled={isChangingMods} onclick={() => toggleSelectedMods(false)}><ToggleLeft class="h-4 w-4" />{uiText("ui.67afbeec3df01c59")}</button>
+                        <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => selectedModNames = []}>{uiText("ui.33a042c0fd071ccc")}</button>
+                    </div>
+                {/if}
 
-					<div class="flex items-center gap-2 flex-wrap">
-						{#if subTab === 'mods'}
-							<button
-								class="bg-bg-subtle hover:bg-fg/10 text-fg/80 hover:text-fg px-4 py-2 rounded-full border border-fg/10 text-xs font-bold flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-								onclick={handleOpenModsFolder}
-							>
-								<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta mods/
-							</button>
-							<button
-								type="button"
-								class="bg-bg-subtle hover:bg-fg/10 text-fg/80 hover:text-fg px-4 py-2 rounded-full border border-fg/10 text-xs font-bold flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50"
-								onclick={handleCheckModUpdates}
-								disabled={isCheckingUpdates}
-							>
-								<RefreshCw class="w-3.5 h-3.5 {isCheckingUpdates ? 'animate-spin' : ''}" />
-								{isCheckingUpdates ? 'Verificando...' : 'Verificar Atualizações'}
-							</button>
-							<a
-								href="/mods"
-								class="bg-bg-subtle hover:bg-fg/10 text-fg/80 hover:text-fg px-4 py-2 rounded-full border border-fg/10 text-xs font-bold flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-							>
-								<Search class="w-3.5 h-3.5" /> Obter Mais Mods
-							</a>
-							<button
-								class="text-brand-foreground px-5 py-2 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-105 active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
-								style="background-color: rgb(var(--brand-500));"
-								onclick={handleAddModFile}
-							>
-								<Plus class="w-4 h-4 stroke-[3]" /> Adicionar .JAR
-							</button>
-							<span class="hidden xl:inline-flex items-center rounded-full border border-dashed border-fg/25 px-3 py-2 text-[10px] font-bold text-fg/45">
-								ou arraste .jar para esta página
-							</span>
-						{:else}
-							<button
-								class="bg-bg-subtle hover:bg-fg/10 text-fg/70 hover:text-fg px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 border border-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-								onclick={handleOpenPackFolder}
-							>
-								<FolderOpen class="w-3.5 h-3.5" /> Abrir Pasta
-							</button>
-							<button
-								class="text-brand-foreground px-5 py-2 rounded-full text-xs font-black flex items-center gap-1.5 shadow-sm cursor-pointer hover:scale-105 active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
-								style="background-color: rgb(var(--brand-500));"
-								onclick={handleAddResourcePack}
-							>
-								<Plus class="w-4 h-4" /> Adicionar .ZIP
-							</button>
-						{/if}
-					</div>
-				</div>
 
-				{#if subTab === 'mods'}
 					{#if shieldResult && !shieldResult.isClean}
 						<div class="bg-red-500/15 border border-red-500/40 rounded-2xl p-4 flex items-center justify-between gap-3 mb-4 text-red-200 shadow-md">
 							<div class="flex items-center gap-3">
@@ -1884,10 +1970,10 @@
 								</div>
 								<div>
 									<div class="text-xs font-black text-red-100 flex items-center gap-2">
-										Luxmc Shield · {shieldResult.threats.length} Ameaça(s) Crítica(s) Detectada(s)!
+										{uiText("ui.1154eb1419b0554c")} {shieldResult.threats.length} {uiText("ui.359a77d94bcc8b33")}
 									</div>
 									<div class="text-[11px] text-red-200/80 mt-0.5">
-										Foram encontrados arquivos maliciosos ou suspeitos de roubo de sessão / CVEs. Desative ou remova os mods indicados.
+										{uiText("ui.16eb14fc759a4af8")}
 									</div>
 								</div>
 							</div>
@@ -1902,82 +1988,59 @@
 								</div>
 								<div>
 									<h4 class="text-xs font-black text-fg uppercase tracking-wider">
-										{availableModUpdates.length} Mod{availableModUpdates.length > 1 ? 's' : ''} com Atualização Disponível
+										{availableModUpdates.length} {uiText("ui.2fe83d132e3db243")}{availableModUpdates.length > 1 ? 's' : ''} {uiText("ui.fd1ba6017af56df1")}
 									</h4>
 									<p class="text-[11px] text-fg-muted">
-										Atualize todos de uma vez ou atualize individualmente os que desejar na lista abaixo.
+										{uiText("ui.c887f1209d82794b")}
 									</p>
 								</div>
 							</div>
 							<button
 								type="button"
-								class="bg-amber-500 hover:bg-amber-400 text-bg font-extrabold text-xs px-4 py-2 rounded-xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50 shrink-0"
+								class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2 disabled:opacity-50 shrink-0" })}
 								disabled={isUpdatingAllMods}
 								onclick={handleUpdateAllMods}
 							>
 								<RefreshCw class="w-4 h-4 {isUpdatingAllMods ? 'animate-spin' : ''}" />
-								{isUpdatingAllMods ? 'Atualizando Mods...' : `Atualizar Todos os Mods (${availableModUpdates.length})`}
+								{isUpdatingAllMods ? 'Atualizando Mods...' : uiText("ui.b756d6a044e058bd", {arg0: (availableModUpdates.length)})}
 							</button>
 						</div>
 					{/if}
 
-					{#if instanceMods.length === 0}
-						<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
-							<div class="h-16 w-16 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-4 text-blue-400">
-								<Puzzle class="w-8 h-8" />
-							</div>
-							<h3 class="text-base font-extrabold text-fg">Nenhum mod instalado nesta instância</h3>
-							<p class="text-xs text-fg/40 mt-1 max-w-md">
-								Você pode instalar mods incríveis diretamente pela Central de Conteúdo, importar arquivos .jar do seu computador ou simplesmente arrastá-los para esta área.
-							</p>
-							<div class="flex items-center gap-3 mt-6">
-								<a
-									href="/mods"
-									class="text-brand-foreground px-6 py-2.5 rounded-full text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:scale-105 active:scale-[0.98] shadow-md flex items-center gap-2"
-									style="background-color: rgb(var(--brand-500));"
-								>
-									<Sparkles class="w-4 h-4" /> Baixar Mods na Central
-								</a>
-								<button
-									class="bg-bg-subtle hover:bg-fg/10 border border-fg/10 text-fg text-xs font-bold px-6 py-2.5 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer"
-									onclick={handleAddModFile}
-								>
-									<Plus class="w-4 h-4" /> Importar .JAR Local
-								</button>
-							</div>
-						</div>
-					{:else}
-						<!-- Modrinth Table Header -->
-						<div class="grid grid-cols-[auto_1fr_180px_160px] items-center gap-4 px-4 py-3 border-b border-fg/10 text-xs font-semibold text-fg/50 select-none bg-bg-elevated/80 rounded-t-2xl">
+                    {#if instanceMods.length > 0 && filteredMods.length === 0}
+                        <p class="py-6 text-center text-sm text-fg-muted">{uiText("ui.96eec50d7e6f654e")}</p>
+                    {:else if instanceMods.length > 0}
+						<div class="instance-mod-row items-center gap-4 px-4 py-3 border-b border-fg/10 text-xs font-semibold text-fg/50 select-none bg-bg-elevated/80 rounded-t-2xl">
 							<div class="flex items-center gap-3">
 								<input
 									type="checkbox"
 									checked={allModsSelected}
+                                    aria-label={uiText("ui.ee74c55ed89254ee")}
 									onchange={toggleSelectAllMods}
 									class="w-4 h-4 rounded border border-fg/20 bg-bg-subtle accent-emerald-500 cursor-pointer"
 								/>
-								<span>Projeto</span>
+								<span>{uiText("ui.4c7877d7558fe41d")}</span>
 							</div>
-							<div></div>
-							<div class="text-left font-medium">Versão</div>
-							<div class="text-right font-medium pr-2">Ações</div>
+							<div class="text-left font-medium">{uiText("instances.sortVersion")}</div>
+							<div class="text-right font-medium pr-2">{uiText("instances.actions")}</div>
 						</div>
 
-						<VirtualList items={filteredMods} itemHeight={76} height="600px" class="rounded-b-2xl border-x border-b border-fg/5 bg-bg-elevated/40">
+						<VirtualList items={filteredMods} getKey={(mod) => mod.name} itemHeight={76} fixedHeight overscan={2} height="600px" class="rounded-b-2xl border-x border-b border-fg/5 bg-bg-elevated/40">
 							{#snippet children(mod: FileTreeEntry, _index: number)}
 								{@const isDisabled = mod.name.endsWith('.disabled')}
 								{@const info = modRowInfo.get(mod.name)}
 								{@const displayName = info?.displayName ?? mod.name}
 								{@const badge = info?.badge ?? { initials: "MD", theme: "" }}
-								{@const isFrozen = frozenModSet.has(mod.name)}
+								{@const isFrozen = frozenModSet.has(mod.name.replace(/\.disabled$/, ''))}
 								{@const isSelected = selectedModSet.has(mod.name)}
 								{@const modUpdate = info?.update ?? null}
-								<div class="grid grid-cols-[auto_1fr_180px_160px] items-center gap-4 px-4 py-3 hover:bg-fg/[0.03] border-b border-fg/5 transition-colors group {isDisabled ? 'opacity-50' : ''}">
+								<div class="instance-mod-row h-full items-center gap-4 px-4 py-3 hover:bg-fg/[0.03] border-b border-fg/5 transition-colors group {isDisabled ? 'opacity-50' : ''}">
 									<!-- Checkbox & Project Info -->
 									<div class="flex items-center gap-3.5 min-w-0">
 										<input
 											type="checkbox"
 											checked={isSelected}
+                                            aria-label={uiText("ui.cdcc8c2293d065b1", {arg0: (displayName)})}
 											onchange={() => toggleModSelection(mod.name)}
 											class="w-4 h-4 rounded border border-fg/20 bg-bg-subtle accent-emerald-500 cursor-pointer shrink-0"
 										/>
@@ -1990,8 +2053,8 @@
 													src={mod.icon}
 													alt={displayName}
 													loading="lazy"
-													class="relative z-10 w-full h-full object-contain p-0.5 [image-rendering:pixelated]"
-													onerror={(e) => { (e.currentTarget as HTMLImageElement).remove(); }}
+													class="relative z-10 w-full h-full object-contain"
+													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
 												/>
 											{/if}
 										</div>
@@ -2000,8 +2063,9 @@
 												<h5 class="text-xs font-bold text-fg truncate max-w-[280px] group-hover:text-emerald-400 transition-colors" title={displayName}>
 													{displayName}
 												</h5>
+												{#if isFrozen}<span title={uiText("ui.b37959a62adebf5c")}><Snowflake class="w-3.5 h-3.5 text-cyan-400 shrink-0" /></span>{/if}
 												{#if modUpdate}
-													<span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse" title={`Atualização disponível: ${modUpdate.latestVersionNumber}`}>
+													<span class="text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse" title={uiText("ui.b9ef98f7cd528e18", {arg0: (modUpdate.latestVersionNumber)})}>
 														v{modUpdate.latestVersionNumber}
 													</span>
 												{/if}
@@ -2013,17 +2077,11 @@
 										</div>
 									</div>
 
-									<div></div>
 
 									<!-- Versão -->
 									<div class="min-w-0">
 										<div class="flex items-center gap-1.5">
 											<span class="text-xs font-bold text-fg font-mono">{info?.version ?? ''}</span>
-											{#if isFrozen}
-												<span title="Versão congelada">
-													<Snowflake class="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-												</span>
-											{/if}
 										</div>
 										<div class="text-[10px] text-fg/40 font-mono truncate max-w-[160px]" title={mod.name}>
 											{mod.name.replace('.disabled', '')}
@@ -2034,8 +2092,8 @@
 										<button
 											type="button"
 											onclick={() => handleSwapVersion(mod)}
-											class="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
-											title="Trocar versão"
+											class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+											title={uiText("ui.3a14ec141d94c628")}
 										>
 											<ArrowLeftRight class="w-4 h-4" />
 										</button>
@@ -2043,10 +2101,12 @@
 										<button
 											type="button"
 											onclick={() => handleToggleMod(mod)}
-											class="w-10 h-5 rounded-full transition-colors relative cursor-pointer shadow-inner {isDisabled ? 'bg-fg/20' : 'bg-emerald-500'}"
-											title={isDisabled ? 'Ativar mod' : 'Desativar mod'}
+											class="w-10 h-5 shrink-0 rounded-full transition-colors relative cursor-pointer {isDisabled ? 'bg-fg/20' : 'bg-emerald-500'}"
+											title={isDisabled ? uiText("ui.271352f466c82af2") : uiText("ui.c8452ddeb7bbcd26")}
 											role="switch"
 											aria-checked={!isDisabled}
+                                            aria-label={`${isDisabled ? uiText("ui.631205572827d2f7") : uiText("ui.67afbeec3df01c59")} ${displayName}`}
+                                            disabled={isChangingMods}
 										>
 											<span class="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-md {isDisabled ? 'left-0.5' : 'left-[22px]'}"></span>
 										</button>
@@ -2054,8 +2114,8 @@
 										<button
 											type="button"
 											onclick={() => handleDeleteMod(mod)}
-											class="p-1.5 rounded-lg text-fg/50 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
-											title="Excluir mod"
+											class={launcherButton({ variant: "ghostDanger", size: "icon", class: "" })}
+											title={uiText("ui.fd78244374fec86b")} aria-label={uiText("ui.a03c3b676aa5e5d1", {arg0: (displayName)})}
 										>
 											<Trash2 class="w-4 h-4" />
 										</button>
@@ -2065,17 +2125,19 @@
 												type="button"
 												onclick={(e) => {
 													e.stopPropagation();
+													const viewport = e.currentTarget.closest('[data-virtual-list]');
+													modMenuAbove = !!viewport && e.currentTarget.getBoundingClientRect().bottom + 210 > viewport.getBoundingClientRect().bottom;
 													activeMenuMod = activeMenuMod === mod.name ? null : mod.name;
 												}}
-												class="p-1.5 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
-												title="Mais opções"
+												class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+												title={uiText("ui.5d951376c42f3cf3")}
 											>
 												<MoreVertical class="w-4 h-4" />
 											</button>
 
 											{#if activeMenuMod === mod.name}
 												<div
-													class="absolute right-0 top-full mt-1.5 w-44 rounded-2xl bg-bg-elevated/95 backdrop-blur-xl border border-fg/10 p-1.5 shadow-2xl z-30 space-y-0.5"
+													class="absolute right-0 {modMenuAbove ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-44 rounded-2xl bg-bg-elevated border border-fg/10 p-1.5 shadow-2xl z-30 space-y-0.5"
 													transition:scale={{ easing: backOut, duration: 180, start: 0.95 }}
 												>
 													<button
@@ -2084,9 +2146,9 @@
 															activeMenuMod = null;
 															handleSyncMod(mod);
 														}}
-														class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-fg/80 hover:text-fg hover:bg-fg/5 transition-colors text-left cursor-pointer"
+														class={launcherButton({ variant: "secondary", size: "sm", class: "w-full flex items-center gap-2 text-left" })}
 													>
-														<RefreshCw class="w-3.5 h-3.5 text-emerald-400" /> Sincronizar
+														<RefreshCw class="w-3.5 h-3.5 text-emerald-400" /> {uiText("ui.87628281a7e1468e")}
 													</button>
 													<button
 														type="button"
@@ -2094,9 +2156,9 @@
 															activeMenuMod = null;
 															handleShowModFile(mod);
 														}}
-														class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-fg/80 hover:text-fg hover:bg-fg/5 transition-colors text-left cursor-pointer"
+														class={launcherButton({ variant: "secondary", size: "sm", class: "w-full flex items-center gap-2 text-left" })}
 													>
-														<FolderOpen class="w-3.5 h-3.5 text-blue-400" /> Exibir arquivo
+														<FolderOpen class="w-3.5 h-3.5 text-blue-400" /> {uiText("ui.364b8b026f67b5d6")}
 													</button>
 													<button
 														type="button"
@@ -2104,9 +2166,9 @@
 															activeMenuMod = null;
 															handleCopyModLink(mod);
 														}}
-														class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-fg/80 hover:text-fg hover:bg-fg/5 transition-colors text-left cursor-pointer"
+														class={launcherButton({ variant: "secondary", size: "sm", class: "w-full flex items-center gap-2 text-left" })}
 													>
-														<Link class="w-3.5 h-3.5 text-amber-400" /> Copiar link
+														<Link class="w-3.5 h-3.5 text-amber-400" /> {uiText("ui.411f814c83c97626")}
 													</button>
 													<button
 														type="button"
@@ -2114,9 +2176,9 @@
 															activeMenuMod = null;
 															handleToggleFreeze(mod);
 														}}
-														class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium text-fg/80 hover:text-fg hover:bg-fg/5 transition-colors text-left cursor-pointer"
+														class={launcherButton({ variant: "secondary", size: "sm", class: "w-full flex items-center gap-2 text-left" })}
 													>
-														<Snowflake class="w-3.5 h-3.5 text-cyan-400" /> {isFrozen ? "Descongelar versão" : "Congelar versão"}
+														<Snowflake class="w-3.5 h-3.5 text-cyan-400" /> {isFrozen ? uiText("ui.f44db915d1c4f82a") : uiText("ui.384f1f4bf26edf60")}
 													</button>
 												</div>
 											{/if}
@@ -2126,126 +2188,71 @@
 							{/snippet}
 						</VirtualList>
 					{/if}
-				{:else}
-					<div class="flex items-center justify-between mb-3">
-						<h4 class="text-xs font-bold text-fg uppercase tracking-wider">
-							{subTab === 'resourcepacks' ? 'Pacotes de Textura Instalados' : subTab === 'shaders' ? 'Shaders Instalados' : 'Datapacks Instalados'} ({currentPacksList.length})
-						</h4>
-						<div class="flex items-center gap-2">
-							<button
-								type="button"
-								class="bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg px-3 py-1.5 rounded-xl border border-fg/10 text-xs font-bold flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98]"
-								onclick={handleAddResourcePack}
-							>
-								<Plus class="w-3.5 h-3.5" /> Importar .ZIP Local
-							</button>
-							<button
-								class="text-xs font-bold text-fg/40 hover:text-fg flex items-center gap-1 cursor-pointer transition-colors"
-								onclick={handleOpenPackFolder}
-							>
-								<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta
-							</button>
-						</div>
-					</div>
-
-					{#if currentPacksList.length === 0}
-						<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-12 flex flex-col items-center justify-center text-center">
-							<div class="h-14 w-14 rounded-full bg-fg/5 flex items-center justify-center mb-3 text-fg/20">
-								<Box class="w-7 h-7" />
-							</div>
-							<h3 class="text-sm font-extrabold text-fg">
-								{subTab === 'resourcepacks' ? 'Nenhum pacote de textura instalado' : subTab === 'shaders' ? 'Nenhum shader instalado' : 'Nenhum datapack instalado'}
-							</h3>
-							<p class="text-xs text-fg/40 mt-1 max-w-sm">
-								{subTab === 'shaders' ? 'Clique em Importar .ZIP acima ou adicione shaders na pasta shaderpacks.' : subTab === 'resourcepacks' ? 'Clique em Importar .ZIP acima ou importe pacotes de textura do seu computador.' : 'Adicione datapacks para modificar o comportamento do jogo.'}
-							</p>
-						</div>
-					{:else}
-						<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-							{#each currentPacksList as pack}
-								<div class="bg-bg-elevated border border-fg/5 hover:border-fg/15 p-4 rounded-2xl flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group shadow-sm">
-									<div class="flex items-center gap-3.5 min-w-0">
-										<div class="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center shrink-0 shadow-sm">
-											<Box class="w-5 h-5" />
-										</div>
-										<div class="min-w-0">
-											<span class="text-xs font-bold text-fg truncate block max-w-[220px]" title={pack.name}>{pack.name}</span>
-											<span class="text-[10px] text-fg/40 font-mono mt-0.5 block">{pack.size > 1048576 ? (pack.size / (1024 * 1024)).toFixed(2) + ' MB' : Math.round(pack.size / 1024) + ' KB'}</span>
-										</div>
-									</div>
-									<button
-										type="button"
-										class="p-2 rounded-xl text-fg/70 hover:text-red-300 hover:bg-red-500/20 border border-fg/10 hover:border-red-500/40 bg-bg-subtle transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] shadow-sm"
-										onclick={() => handleDeletePack(pack.name)}
-										title="Excluir arquivo"
-									>
-										<Trash2 class="w-4 h-4" />
-									</button>
-								</div>
-							{/each}
-						</div>
-					{/if}
-				{/if}
+                {/if}
+                {#each packGroups.filter(group => group.id === subTab) as group (group.id)}
+                    {@const packs = normalizedSearch ? group.items.filter(pack => pack.name.toLowerCase().includes(normalizedSearch)) : group.items}
+                    <section class="rounded-2xl border border-border bg-bg-elevated" aria-label={group.label}>
+                        <header class="flex flex-wrap items-center gap-3 p-4 border-b border-border">
+                            <group.icon class="h-5 w-5 text-brand-400" /><h3 class="text-sm font-semibold text-fg">{group.label}</h3><span class="content-count text-xs text-fg-muted">{group.items.length}</span>
+                            <div class="ml-auto flex flex-wrap gap-2">
+                                <a class={button({ variant: 'ghost', size: 'sm' })} href={`/mods?instance=${encodeURIComponent(instanceId)}&type=${group.id === 'resourcepacks' ? 'resourcepack' : group.id === 'shaders' ? 'shader' : 'datapack'}`}><Download class="h-4 w-4" />{uiText("ui.aa56664d77c69c69")}</a>
+                                <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={() => handleOpenPackFolder(group.type)}><FolderOpen class="h-4 w-4" />{uiText("screenshots.openFolderBtn")}</button>
+                                <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={() => handleAddResourcePack(group.type)}><Plus class="h-4 w-4" />{uiText("ui.e517797b6ffe1f2c")}</button>
+                            </div>
+                        </header>
+                        {#if packs.length > 0}
+                            <div class="grid gap-2 p-3 sm:grid-cols-2">
+                                {#each packs as pack (pack.name)}
+                                    <div class="flex min-w-0 items-center gap-3 rounded-xl border border-border p-3">
+                                        <group.icon class="h-5 w-5 shrink-0 text-fg-muted" />
+                                        <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}</p><p class="mt-1 text-[10px] text-fg-muted">{(pack.size / 1048576).toFixed(2)} MB</p></div>
+                                        <button type="button" class={button({ variant: 'ghostDanger', size: 'icon' })} aria-label={uiText("ui.a03c3b676aa5e5d1", {arg0: (pack.name)})} onclick={() => handleDeletePack(pack.name, group.type)}><Trash2 class="h-4 w-4" /></button>
+                                    </div>
+                                {/each}
+                            </div>
+                        {/if}
+                    </section>
+                {/each}
 
 			</div>
 
-        {:else if mainTab === 'configuracoes'}
-            <section class="surface-glass space-y-6 p-6" in:fade={{ easing: quintOut, duration: 220 }}>
-                <div class="flex flex-wrap items-center justify-between gap-4"><div><h2 class="text-lg font-semibold text-fg">Do seu jeito</h2><p class="mt-1 text-xs text-fg-muted">Memória e Java exclusivos desta instância.</p></div><button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={() => showInstanceSettingsModal = true}><SettingsIcon class="h-4 w-4" />Todas as configurações</button></div>
-                <div class="grid gap-6 md:grid-cols-2">
-                    <div class="space-y-4 rounded-2xl border border-fg/5 bg-bg/30 p-5">
-                        <h3 class="text-sm font-semibold text-fg">Alocação de memória</h3>
-                        <label for="inline-ram-min" class="flex justify-between text-xs text-fg-muted"><span>Mínima</span><span>{(instanceMinRamMb / 1024).toFixed(1)} GB</span></label>
-                        <input id="inline-ram-min" type="range" min="512" max={instanceRamMb} step="256" bind:value={instanceMinRamMb} class="w-full accent-brand-500" />
-                        <label for="inline-ram-max" class="flex justify-between text-xs text-fg-muted"><span>Máxima</span><span>{(instanceRamMb / 1024).toFixed(1)} GB</span></label>
-                        <input id="inline-ram-max" type="range" min="1024" max={Math.max(1024, Math.floor(systemRamMb / 256) * 256)} step="256" bind:value={instanceRamMb} class="w-full accent-brand-500" />
-                        <p class="text-xs text-fg-subtle">{(systemRamMb / 1024).toFixed(1)} GB no sistema. Reserve memória para os outros aplicativos.</p>
-                    </div>
-                    <div class="space-y-4 rounded-2xl border border-fg/5 bg-bg/30 p-5">
-                        <label for="inline-java" class="block text-sm font-semibold text-fg">Instalação Java</label>
-                        <select id="inline-java" bind:value={instanceJavaPath} class="w-full rounded-xl border border-border bg-bg-subtle px-3 py-3 text-xs text-fg"><option value="">Automático · compatível com o Minecraft</option>{#each javaRuntimes as runtime}{#if runtime.path}<option value={runtime.path}>Java {runtime.major} · {runtime.versionString || runtime.path}</option>{/if}{/each}{#if instanceJavaPath && !javaRuntimes.some(runtime => runtime.path === instanceJavaPath)}<option value={instanceJavaPath}>{instanceJavaPath}</option>{/if}</select>
-                        <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={detectJava} disabled={scanningJava}><RefreshCw class="h-3.5 w-3.5 {scanningJava ? 'animate-spin' : ''}" />{scanningJava ? 'Detectando…' : 'Detectar instalações'}</button>
-                        <p class="text-xs text-fg-subtle">O modo automático escolhe o Java necessário para a versão do jogo.</p>
-                    </div>
-                </div>
-                <div class="space-y-3"><label for="inline-jvm" class="text-sm font-semibold text-fg">Argumentos JVM</label><div class="flex flex-wrap gap-2">{#each ['aikar', 'zgc', 'shenandoah'] as preset}<button type="button" class={button({ variant: 'outline', size: 'sm' })} onclick={() => applyJvmPreset(preset as 'aikar' | 'zgc' | 'shenandoah')}>{preset.toUpperCase()}</button>{/each}</div><textarea id="inline-jvm" bind:value={instanceJvmArgs} rows="3" class="w-full rounded-xl border-border bg-bg-subtle font-mono text-xs text-fg" placeholder="Argumentos adicionais da JVM"></textarea><p class="text-xs text-fg-subtle">Aikar usa G1GC. ZGC e Shenandoah dependem do suporte da instalação Java.</p></div>
-                <div class="flex justify-end border-t border-fg/5 pt-4"><button type="button" class={button({ variant: 'primary' })} onclick={saveInstanceSettings}>Salvar configurações</button></div>
-            </section>
-		{:else if mainTab === 'mundos'}
+        </div>
+        {:else if mainTab === "mundos"}
+        <div use:loadWhenVisible={{ id: instanceId, section: "mundos" }} id="instance-mundos" role="tabpanel" aria-labelledby="instance-tab-mundos" class="instance-overview-section" aria-label={uiText("ui.9ac3a6eca765a04a")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between flex-wrap gap-2">
-					<h3 class="text-sm font-bold text-fg">Mundos Salvos nesta Instância</h3>
+					<h3 class="text-sm font-bold text-fg">{uiText("ui.5df9580dc4ce92a4")}</h3>
 					<div class="flex items-center flex-wrap gap-2">
 						<button
 							type="button"
-							class="bg-brand-500 hover:bg-brand-400 text-brand-foreground px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-md active:scale-95 disabled:opacity-50"
+							class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5 disabled:opacity-50" })}
 							onclick={handleImportWorld}
 							disabled={isImportingWorld}
-							title="Importar Mapa baixado em arquivo .zip"
+							title={uiText("ui.ef346900326a3128")}
 						>
 							<Download class="w-3.5 h-3.5" />
-							<span>{isImportingWorld ? "Importando..." : "Importar Mundo (.zip)"}</span>
+							<span>{isImportingWorld ? uiText("ui.eeb8c8bbcaab66e1") : uiText("ui.5825de6edcc4b718")}</span>
 						</button>
 						<button
 							type="button"
-							class="bg-bg-subtle hover:bg-fg/10 text-fg/90 hover:text-fg px-3 py-1.5 rounded-full border border-fg/15 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm active:scale-95 disabled:opacity-50"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5 disabled:opacity-50" })}
 							onclick={handleImportWorldFolder}
 							disabled={isImportingWorld}
-							title="Importar pasta descompactada de save"
+							title={uiText("ui.cf689b540d90f342")}
 						>
 							<FolderPlus class="w-3.5 h-3.5 text-amber-400" />
-							<span>Importar Pasta</span>
+							<span>{uiText("ui.88d40f96b904a0b4")}</span>
 						</button>
 						<button
 							type="button"
-							class="bg-bg-subtle hover:bg-cyan-500/20 text-fg/90 hover:text-cyan-300 px-3.5 py-1.5 rounded-full border border-fg/15 hover:border-cyan-500/40 text-xs font-bold flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 							onclick={() => showWorldBackupModal = true}
-							title="Nuvem Pessoal & Backups Automáticos de Saves"
+							title={uiText("ui.521b761de5247db8")}
 						>
-							<HardDrive class="w-3.5 h-3.5 text-cyan-400" /> Backups de Saves ({worldsList.length})
+							<HardDrive class="w-3.5 h-3.5 text-cyan-400" /> {uiText("ui.50c6370959cfedfa")}{worldsList.length})
 						</button>
-						<button class="bg-bg-subtle hover:bg-fg/10 text-fg/90 hover:text-fg px-3.5 py-1.5 rounded-full border border-fg/15 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm" onclick={openInstanceFolder}>
-							<FolderOpen class="w-3.5 h-3.5 text-emerald-400" /> Abrir pasta saves/
+						<button class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })} onclick={openInstanceFolder}>
+							<FolderOpen class="w-3.5 h-3.5 text-emerald-400" /> {uiText("ui.0cac89af486b57d0")}
 						</button>
 					</div>
 				</div>
@@ -2254,47 +2261,47 @@
 					<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center gap-4">
 						<Globe2 class="w-12 h-12 text-fg/20" />
 						<div>
-							<h4 class="text-sm font-bold text-fg">Nenhum mundo encontrado</h4>
-							<p class="text-xs text-fg/40 mt-1">Abra o Minecraft e crie um mundo, ou importe um mapa baixado (.zip ou pasta)!</p>
+							<h4 class="text-sm font-bold text-fg">{uiText("ui.ffb9bcfef0dec831")}</h4>
+							<p class="text-xs text-fg/40 mt-1">{uiText("ui.38175563e63f18a2")}</p>
 						</div>
 						<div class="flex items-center gap-2 mt-2">
 							<button
 								type="button"
-								class="bg-brand-500 hover:bg-brand-400 text-brand-foreground px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md active:scale-95"
+								class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2" })}
 								onclick={handleImportWorld}
 							>
-								<Download class="w-4 h-4" /> Importar Mundo (.zip)
+								<Download class="w-4 h-4" /> {uiText("ui.5825de6edcc4b718")}
 							</button>
 							<button
 								type="button"
-								class="bg-bg-subtle hover:bg-fg/10 text-fg px-4 py-2 rounded-xl text-xs font-bold border border-fg/10 flex items-center gap-2 cursor-pointer active:scale-95"
+								class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 								onclick={handleImportWorldFolder}
 							>
-								<FolderPlus class="w-4 h-4 text-amber-400" /> Importar Pasta
+								<FolderPlus class="w-4 h-4 text-amber-400" /> {uiText("ui.88d40f96b904a0b4")}
 							</button>
 						</div>
 					</div>
 				{:else}
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-						{#each worldsList as world}
-							<div class="bg-bg-elevated border border-fg/5 p-4 rounded-2xl flex flex-col justify-between hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group gap-3">
+						{#each worldsList as world (world.folderName)}
+							<div class="bg-bg-elevated border border-fg/5 p-4 rounded-2xl flex flex-col justify-between hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity] group gap-3 ">
 								<div class="flex items-start gap-3.5 min-w-0">
 									<div class="h-14 w-14 rounded-xl bg-bg-overlay/40 border border-fg/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
 										{#if world.iconBase64}
 											<img loading="lazy" decoding="async" src={world.iconBase64} alt={world.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
 										{:else}
-											<img loading="lazy" decoding="async" src="/grass_block.png" alt="Mundo" class="w-8 h-8 object-contain drop-shadow" />
+											<img loading="lazy" decoding="async" src="/grass_block.png" alt={uiText("ui.43c6d4bb0a0dbcff")} class="w-8 h-8 object-contain drop-shadow" />
 										{/if}
 									</div>
 									<div class="min-w-0 flex-1">
 										<div class="flex items-center gap-2">
 											<h5 class="text-xs font-bold text-fg truncate">{world.name}</h5>
 											{#if world.hardcore}
-												<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-red-500/20 text-red-400 border border-red-500/30">HARDCORE</span>
+												<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-red-500/20 text-red-400 border border-red-500/30">{uiText("ui.cd67305f256ee549")}</span>
 											{/if}
 										</div>
 										<div class="flex flex-wrap items-center gap-1.5 mt-1 text-[10px] text-fg/50">
-											<span class="text-emerald-400 font-semibold">{world.gameMode || 'Sobrevivência'}</span>
+											<span class="text-emerald-400 font-semibold">{world.gameMode || uiText("ui.c7fb9a1ec7e64301")}</span>
 											<span>·</span>
 											<span>{(world.sizeBytes / (1024 * 1024)).toFixed(1)} MB</span>
 											{#if world.versionName}
@@ -2307,40 +2314,40 @@
 											{#if world.seed != null}
 												<button
 													type="button"
-													class="flex items-center gap-1 bg-fg/5 hover:bg-fg/10 text-fg/70 hover:text-fg px-2 py-0.5 rounded-md border border-fg/5 transition-colors cursor-pointer"
+													class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1" })}
 													onclick={() => {
 														if (world.seed != null) {
 															navigator.clipboard.writeText(world.seed.toString());
 															toast(`Seed copiada: ${world.seed}`, "success");
 														}
 													}}
-													title="Copiar Seed"
+													title={uiText("ui.92051bdae9a22112")}
 												>
 													<Compass class="w-3 h-3 text-brand-500" />
-													<span>Seed: {world.seed}</span>
+													<span>{uiText("ui.b784ffe8db315c0a")} {world.seed}</span>
 													<Copy class="w-2.5 h-2.5 opacity-50" />
 												</button>
 											{/if}
 											{#if world.spawnX != null && world.spawnZ != null}
-												<div class="flex items-center gap-1 text-fg/40" title="Coordenadas de Spawn">
+												<div class="flex items-center gap-1 text-fg/40" title={uiText("ui.159b06a44a0d05ce")}>
 													<MapPin class="w-3 h-3 text-emerald-400" />
-													<span>Spawn: {world.spawnX}, {world.spawnY ?? 64}, {world.spawnZ}</span>
+													<span>{uiText("ui.ea818c2605b6e30f")} {world.spawnX}, {world.spawnY ?? 64}, {world.spawnZ}</span>
 												</div>
 											{/if}
 											{#if world.dayCount != null}
-												<span class="text-amber-300/70">Dia {world.dayCount}</span>
+												<span class="text-amber-300/70">{uiText("ui.8ed570950d8312cd")} {world.dayCount}</span>
 											{/if}
 											{#if world.playerHealth != null}
 												<span class="text-rose-400 font-semibold">❤️ {Math.round(world.playerHealth)}/20</span>
 											{/if}
 											{#if world.playerLevel != null && world.playerLevel > 0}
-												<span class="text-emerald-300 font-semibold">⭐ Nvl {world.playerLevel}</span>
+												<span class="text-emerald-300 font-semibold">{uiText("ui.6c82b07ec01cb52e")} {world.playerLevel}</span>
 											{/if}
 										</div>
 
 										{#if world.playerInventory && world.playerInventory.length > 0}
 											<div class="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-fg/5">
-												<span class="text-[9px] uppercase tracking-wider text-fg/40 font-bold mr-1">Inventário:</span>
+												<span class="text-[9px] uppercase tracking-wider text-fg/40 font-bold mr-1">{uiText("ui.edf17c7751526329")}</span>
 												{#each world.playerInventory.slice(0, 9) as item}
 													<span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-bg-overlay/40 border border-fg/10 text-[10px] font-mono text-fg/80" title={`Slot ${item.slot}: ${item.id} (x${item.count})`}>
 														<span class="text-brand-400 font-bold">{item.id.replace(/^minecraft:/, '')}</span>
@@ -2361,38 +2368,38 @@
 									<div class="flex items-center gap-1.5">
 										<button
 											type="button"
-											class="bg-bg-subtle hover:bg-brand-500/20 text-fg/80 hover:text-brand-400 px-3 py-1.5 rounded-full text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 border border-fg/10 hover:border-brand-500/30 active:scale-[0.98]"
+											class={launcherButton({ variant: "ghostBrand", size: "sm", class: "flex items-center gap-1.5" })}
 											onclick={() => selectedSnapshotWorld = { name: world.name, folder: world.folderName }}
-											title="Time Machine: Gerenciar snapshots e backups deste mundo"
+											title={uiText("ui.5b46d1550e2e65ae")}
 										>
 											<Archive class="w-3 h-3 text-brand-500" />
-											<span>Snapshots {world.snapshotsCount != null && world.snapshotsCount > 0 ? `(${world.snapshotsCount})` : ''}</span>
+											<span>{uiText("ui.f187f78e07efb26e")} {world.snapshotsCount != null && world.snapshotsCount > 0 ? `(${world.snapshotsCount})` : ''}</span>
 										</button>
 										<button
 											type="button"
-											class="bg-bg-subtle hover:bg-purple-500/20 text-fg/80 hover:text-purple-300 px-2.5 py-1.5 rounded-full text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 border border-fg/10 hover:border-purple-500/30 active:scale-[0.98]"
+											class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 											onclick={openHostWorldModal}
-											title="Hospedar este mundo para amigos via P2P / UPnP"
+											title={uiText("ui.d5bb9c1b94510b4a")}
 										>
 											<Radio class="w-3 h-3 text-purple-400" />
-											<span>Hospedar</span>
+											<span>{uiText("ui.79366e5761e99168")}</span>
 										</button>
 									</div>
 
 									<div class="flex items-center gap-2">
 										<button
 											type="button"
-											class="bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-brand-foreground border border-emerald-500/40 px-4 py-1.5 rounded-full text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 active:scale-[0.98] shadow-sm"
+											class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5" })}
 											onclick={() => handlePlay()}
-											title="Jogar este mundo"
+											title={uiText("ui.0354cb2b38d6235c")}
 										>
-											<Play class="w-3 h-3 fill-current" /> Jogar
+											<Play class="w-3 h-3 fill-current" /> {uiText("instances.play")}
 										</button>
 										<button
 											type="button"
-											class="p-1.5 rounded-xl bg-bg-subtle text-fg/70 hover:text-red-400 hover:bg-red-500/20 border border-fg/10 hover:border-red-500/40 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] shadow-sm"
+											class={launcherButton({ variant: "ghostDanger", size: "icon", class: "" })}
 											onclick={() => handleDeleteWorld(world.folderName)}
-											title="Excluir este mundo"
+											title={uiText("ui.36b29bbcb53deb0e")}
 										>
 											<Trash2 class="w-3.5 h-3.5" />
 										</button>
@@ -2404,26 +2411,28 @@
 				{/if}
 			</div>
 
-		{:else if mainTab === 'galeria'}
+		</div>
+        {:else if mainTab === "galeria"}
+        <div use:loadWhenVisible={{ id: instanceId, section: "galeria" }} id="instance-galeria" role="tabpanel" aria-labelledby="instance-tab-galeria" class="instance-overview-section" aria-label={uiText("ui.c66873c6ffa75714")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
-					<h3 class="text-sm font-bold text-fg">Capturas de Tela (F2)</h3>
-					<button class="text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer" style="color: rgb(var(--brand-500));" onclick={openScreenshotsFolder}>
-						<FolderOpen class="w-3.5 h-3.5" /> Abrir pasta screenshots/
+					<h3 class="text-sm font-bold text-fg">{uiText("ui.2cbb69c6cee5108c")}</h3>
+					<button class={launcherButton({ variant: "ghost", size: "sm", class: "hover:underline flex items-center gap-1" })} style="color: rgb(var(--brand-500));" onclick={openScreenshotsFolder}>
+						<FolderOpen class="w-3.5 h-3.5" /> {uiText("ui.c8afa99d42ab9309")}
 					</button>
 				</div>
 
 				{#if screenshotsList.length === 0}
 					<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center">
 						<Image class="w-12 h-12 text-fg/20 mb-3" />
-						<h4 class="text-sm font-bold text-fg">Nenhuma captura de tela</h4>
-						<p class="text-xs text-fg/40 mt-1">Pressione F2 dentro do jogo para capturar momentos épicos!</p>
+						<h4 class="text-sm font-bold text-fg">{uiText("ui.7758915dd2dea905")}</h4>
+						<p class="text-xs text-fg/40 mt-1">{uiText("ui.997499ecbd594d77")}</p>
 					</div>
 				{:else}
 					<div class="columns-2 gap-4 xl:columns-3">
-						{#each screenshotsList as shot}
+						{#each screenshotsList as shot (shot.path)}
 							<div
-								class="mb-4 break-inside-avoid bg-bg-elevated border border-fg/5 rounded-2xl overflow-hidden group relative cursor-pointer hover:border-brand-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-soft"
+								class="mb-4 break-inside-avoid bg-bg-elevated border border-fg/5 rounded-2xl overflow-hidden group relative cursor-pointer hover:border-brand-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity] shadow-soft "
 								onclick={() => previewScreenshot = shot}
 								role="button"
 								tabindex="0"
@@ -2431,7 +2440,7 @@
 							>
 								<div class="bg-bg-overlay/60 overflow-hidden">
 									<img decoding="async"
-										src={shot.dataUrl || convertFileSrc(shot.path)}
+										src={shot.thumbPath ? convertFileSrc(shot.thumbPath) : shot.dataUrl || convertFileSrc(shot.path)}
 										alt={shot.name}
 										class="w-full h-auto object-contain group-hover:scale-105 transition-transform duration-300"
 										loading="lazy"
@@ -2440,9 +2449,9 @@
 								<div class="p-3 flex items-center justify-between bg-bg-elevated/90">
 									<span class="text-xs font-medium text-fg truncate max-w-[80%]">{shot.name}</span>
 									<button
-										class="text-fg/40 hover:text-red-400 transition-colors p-1 rounded-full hover:bg-fg/5"
+										class={launcherButton({ variant: "ghostDanger", size: "icon", class: "" })}
 										onclick={(e) => { e.stopPropagation(); handleDeleteScreenshot(shot.path); }}
-										title="Excluir captura"
+										title={uiText("screenshots.deleteTitle")}
 									>
 										<Trash2 class="w-3.5 h-3.5" />
 									</button>
@@ -2453,15 +2462,17 @@
 				{/if}
 			</div>
 
-		{:else if mainTab === 'ficheiros'}
+		</div>
+        {:else if mainTab === "ficheiros"}
+        <div use:loadWhenVisible={{ id: instanceId, section: "ficheiros" }} id="instance-ficheiros" role="tabpanel" aria-labelledby="instance-tab-ficheiros" class="instance-overview-section" aria-label={uiText("ui.99c85eb6aa2966e3")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
-						<h3 class="text-sm font-bold text-fg">Explorador de Arquivos</h3>
-						<span class="text-[10px] text-fg/40 font-mono">({fileTree.length} itens)</span>
+						<h3 class="text-sm font-bold text-fg">{uiText("ui.9a52d147c628ff95")}</h3>
+						<span class="text-[10px] text-fg/40 font-mono">({fileTree.length} {uiText("ui.01839461d49555e3")}</span>
 					</div>
-					<button class="text-xs font-bold hover:underline flex items-center gap-1 cursor-pointer" style="color: rgb(var(--brand-500));" onclick={openInstanceFolder}>
-						<FolderOpen class="w-3.5 h-3.5" /> Abrir no Gerenciador Linux
+					<button class={launcherButton({ variant: "ghost", size: "sm", class: "hover:underline flex items-center gap-1" })} style="color: rgb(var(--brand-500));" onclick={openInstanceFolder}>
+						<FolderOpen class="w-3.5 h-3.5" /> {runtimePlatform.isWindows ? uiText("ui.ecc618681b1eadd0") : uiText("screenshots.openFolderBtn")}
 					</button>
 				</div>
 
@@ -2469,16 +2480,16 @@
 					<div class="flex items-center gap-1 text-xs font-mono overflow-x-auto custom-scrollbar py-0.5">
 						<button
 							type="button"
-							class="text-xs font-bold px-2.5 py-1 rounded-full hover:bg-fg/10 text-fg/60 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shrink-0"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "shrink-0" })}
 							onclick={() => navigateBreadcrumb(-1)}
 						>
-							~ raiz
+							{uiText("ui.aec5f2db004d631f")}
 						</button>
 						{#each fileBreadcrumbs as seg, idx}
 							<ChevronRight class="w-3.5 h-3.5 text-fg/30 shrink-0" />
 							<button
 								type="button"
-								class="text-xs font-bold px-2.5 py-1 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shrink-0 {idx === fileBreadcrumbs.length - 1 ? 'bg-fg/10 text-fg' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+								class="text-xs font-bold px-2.5 py-1 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer shrink-0 {idx === fileBreadcrumbs.length - 1 ? 'bg-fg/10 text-fg' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 								onclick={() => navigateBreadcrumb(idx)}
 							>
 								{seg}
@@ -2490,8 +2501,8 @@
 						{#if fileBreadcrumbs.length > 0}
 							<button
 								type="button"
-								class="p-1.5 rounded-full bg-fg/5 hover:bg-fg/15 text-fg transition-colors cursor-pointer"
-								title="Subir nível"
+								class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+								title={uiText("ui.c73dd525d1706a85")}
 								onclick={navigateUp}
 							>
 								<ArrowUp class="w-4 h-4" />
@@ -2499,8 +2510,8 @@
 						{/if}
 						<button
 							type="button"
-							class="p-1.5 rounded-full bg-fg/5 hover:bg-fg/15 text-fg transition-colors cursor-pointer"
-							title="Atualizar pasta"
+							class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+							title={uiText("ui.65532457b454b2c6")}
 							onclick={refreshAllData}
 						>
 							<RefreshCw class="w-4 h-4 {isLoadingData ? 'animate-spin' : ''}" />
@@ -2510,11 +2521,11 @@
 
 				<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-2 space-y-1 shadow-md max-h-[500px] overflow-y-auto custom-scrollbar">
 					{#if fileTree.length === 0}
-						<div class="text-xs text-fg/40 py-8 text-center">Nenhum arquivo nesta pasta.</div>
+						<div class="text-xs text-fg/40 py-8 text-center">{uiText("ui.04b603403f5f1b60")}</div>
 					{:else}
-						{#each fileTree as file}
+						{#each fileTree as file (file.path)}
 							<div
-								class="flex items-center justify-between p-2.5 hover:bg-fg/5 rounded-xl text-xs transition-colors group cursor-pointer"
+								class="flex items-center justify-between p-2.5 hover:bg-fg/5 rounded-xl text-xs transition-colors group cursor-pointer "
 								onclick={() => handleOpenFile(file)}
 								role="button"
 								tabindex="0"
@@ -2531,13 +2542,13 @@
 
 								<div class="flex items-center gap-3 shrink-0">
 									<span class="text-[10px] text-fg/30 font-mono">
-										{file.isDir ? 'Pasta' : `${Math.round(file.size / 1024)} KB`}
+										{file.isDir ? uiText("ui.518e479153a320df") : `${Math.round(file.size / 1024)} KB`}
 									</span>
 									<button
 										type="button"
-										class="p-1.5 rounded-lg bg-bg-subtle text-fg/70 hover:text-red-400 hover:bg-red-500/20 border border-fg/10 hover:border-red-500/40 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] opacity-0 group-hover:opacity-100 cursor-pointer shadow-sm"
+										class={launcherButton({ variant: "danger", size: "icon", class: "opacity-0 group-hover:opacity-100" })}
 										onclick={(e) => { e.stopPropagation(); handleDeleteFileEntry(file); }}
-										title="Excluir"
+										title={uiText("screenshots.deleteBtn")}
 									>
 										<Trash2 class="w-3.5 h-3.5" />
 									</button>
@@ -2547,7 +2558,573 @@
 					{/if}
 				</div>
 			</div>
-		{/if}
+        </div>
+
+        {:else if mainTab === "configuracoes"}
+        <div use:loadWhenVisible={{ id: instanceId, section: "configuracoes" }} id="instance-configuracoes" role="tabpanel" aria-labelledby="instance-tab-configuracoes" class="instance-overview-section">
+            <section aria-label={uiText("ui.6c5b8d86c6726795")} class="rounded-2xl border border-border bg-bg-elevated p-5 sm:p-6 space-y-6">
+            <header class="relative shrink-0 overflow-hidden rounded-2xl border border-border bg-bg-subtle">
+                <img loading="lazy" decoding="async" src={instanceBanner || heroBanner} alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
+                <div class="relative flex items-center gap-4 bg-gradient-to-r from-bg-elevated via-bg-elevated/80 to-transparent p-5">
+                    <img loading="lazy" decoding="async"
+                        src={settingsIcon}
+                        alt=""
+                        class="h-14 w-14 rounded-xl object-contain border border-fg/10 bg-bg-elevated p-1"
+                        onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
+                    />
+                    <div class="min-w-0 flex-1"><p class="text-xs text-brand-400 font-semibold">{uiText("ui.6c5b8d86c6726795")}</p><h2 class="mt-1 text-xl font-bold text-fg truncate">{instanceNameInput}</h2><p class="mt-1 text-xs text-fg-muted">Minecraft {activeProfile?.mcVersion} {uiText("ui.0347a27f4ae5be7b")}</p></div>
+
+                </div>
+            </header>
+			<div inert={savingInstanceSettings} class="space-y-6">
+
+				<div class="min-w-0 flex-1 space-y-6">
+
+					<section id="instance-settings-geral" class="instance-settings-group">
+						<div class="space-y-6">
+							<div>
+								<div class="flex items-center gap-2">
+									<Box class="w-4 h-4 text-emerald-400" />
+									<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("settings.general")}</h3>
+								</div>
+								<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.d5de5a5144fadbfa")}</p>
+							</div>
+
+							<div class="space-y-3">
+								<span class="text-xs font-bold text-fg/70 block">{uiText("instances.name")}</span>
+								<div class="flex items-center gap-4">
+									<div class="h-14 w-14 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-center shrink-0 p-1">
+										<img loading="lazy" decoding="async" src={settingsIcon} alt={uiText("ui.e76907efa549eca8")} class="w-10 h-10 rounded-lg object-contain" />
+									</div>
+									<input
+										type="text"
+										aria-label={uiText("instances.namePlaceholder")} bind:value={instanceNameInput}
+										class="flex-1 bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-3 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-colors"
+									/>
+								</div>
+							</div>
+
+							<label class="block space-y-2 text-xs text-fg-muted">
+                                <span>{uiText("ui.94318b08bcae561f")}</span>
+                                <input type="url" aria-label={uiText("ui.94318b08bcae561f")} bind:value={instanceBanner} placeholder="https://…/banner.webp" class="w-full rounded-xl border border-border bg-bg-elevated px-4 py-3 text-fg focus:border-brand-500" />
+                            </label>
+                            <div class="space-y-3 pt-2">
+								<div>
+									<span class="text-xs font-bold text-fg/80 block">{uiText("ui.064fc30a68b2488a")}</span>
+									<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.a22fca1bf720bf8b")}</p>
+								</div>
+
+								<button
+									type="button"
+									class={button({ variant: "secondary", class: "w-full h-auto justify-start gap-4 whitespace-normal p-4 text-left group border-amber-500/25" })}
+									onclick={handleRepairModpack}
+                                    disabled={isRepairingModpack}
+								>
+									<div class="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400 group-hover:scale-110 transition-transform">
+										<Sparkles class="w-5 h-5" />
+									</div>
+									<div>
+										<h4 class="text-xs font-bold text-amber-400">{uiText("ui.598a4670601ddf97")}</h4>
+										<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.fb2ba1a357ce9b2d")}</p>
+									</div>
+								</button>
+
+								<button
+									type="button"
+									class={button({ variant: "danger", class: "w-full h-auto justify-start gap-4 whitespace-normal p-4 text-left group" })}
+									onclick={deleteCurrentInstance} disabled={deletingInstance || appState.isGameRunning}
+								>
+									<div class="h-10 w-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0 text-rose-400 group-hover:scale-110 transition-transform">
+										<Trash2 class="w-5 h-5" />
+									</div>
+									<div>
+										<h4 class="text-xs font-bold text-rose-400">{uiText("ui.79ef883cba2c401e")}</h4>
+										<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.58df83b9244fd69a")}</p>
+									</div>
+								</button>
+							</div>
+						</div>
+
+					</section><section id="instance-settings-instalacao" class="instance-settings-group">
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("ui.c30103f0b0461371")}</h3>
+								<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.c77441d30550b560")}</p>
+							</div>
+
+							<div class="space-y-3">
+								<span class="text-xs font-bold text-fg/70 block">{uiText("ui.afd4e4e867ce4d76")}</span>
+								<div class="grid grid-cols-2 gap-3">
+									{#each ["fabric", "forge", "neoforge", "quilt", "vanilla"] as loader}
+										<button
+											type="button"
+											aria-pressed={instanceLoaderType === loader}
+                                            class={button({ variant: instanceLoaderType === loader ? "primary" : "secondary", class: "justify-between" })}
+											onclick={() => instanceLoaderType = loader}
+										>
+											<span class="capitalize">{loader}</span>
+											{#if instanceLoaderType === loader}<Check class="w-4 h-4" />{/if}
+										</button>
+									{/each}
+								</div>
+							</div>
+
+							<div class="space-y-2">
+								<span class="text-xs font-bold text-fg/70 block">{uiText("ui.b927179f42538736")}</span>
+								<input type="text" bind:value={instanceLoaderVersion} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-brand-500" />
+							</div>
+						</div>
+
+					</section><section id="instance-settings-otimizacao" class="instance-settings-group">
+						<div class="space-y-5">
+							<div>
+								<div class="flex items-center gap-2">
+									<Zap class="w-4 h-4 text-emerald-400" />
+									<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("ui.a38614a12123f0eb")}</h3>
+								</div>
+								<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.ae23252a007d7244")}</p>
+							</div>
+
+							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-bold text-fg/90 flex items-center gap-2">
+										<Cpu class="w-3.5 h-3.5 text-brand-500" /> {uiText("ui.4c49e2c6fdf378cf")}
+									</span>
+									<span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+										{uiText("ui.1fc12aa36d25d2fa")}
+									</span>
+								</div>
+								<div class="grid grid-cols-2 gap-2 text-xs">
+									<div class="bg-bg-overlay/30 p-2.5 rounded-xl border border-fg/5">
+										<span class="text-[10px] text-fg/40 block">{uiText("ui.d4b6159f5b365816")}</span>
+										<span class="text-xs font-bold text-fg truncate block mt-0.5" title={gpuInfo?.renderer || 'Buscando...'}>
+											{gpuInfo?.renderer || uiText("ui.eff6696501ec9ecd")}
+										</span>
+										<span class="text-[10px] text-brand-500 font-mono block mt-0.5">
+											{uiText("ui.8bc4a5ebed894826")} {gpuInfo?.driver || uiText("ui.eff6696501ec9ecd")}
+										</span>
+									</div>
+									<div class="bg-bg-overlay/30 p-2.5 rounded-xl border border-fg/5">
+										<span class="text-[10px] text-fg/40 block">{uiText("ui.2bd57c28deb45064")}</span>
+										<span class="text-xs font-bold text-fg block mt-0.5">
+											{Math.round(systemRamMb / 1024)} {uiText("ui.1fdb78b55e9d4eb5")}
+										</span>
+										<span class="text-[10px] text-fg/40 font-mono block mt-0.5">
+											{uiText("ui.80c56ce36ecb212b")} {(instanceRamMb / 1024).toFixed(1)} GB
+										</span>
+									</div>
+								</div>
+							</div>
+
+							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
+								<div class="flex items-center justify-between">
+									<div>
+										<div class="flex items-center gap-2">
+											<span class="text-xs font-bold text-fg">{uiText("ui.8ff821a4aea0985d")}</span>
+											<span class="text-[9px] bg-brand-500/20 text-brand-500 px-1.5 py-0.5 rounded font-bold">{uiText("ui.2aa20679b65d4368")}</span>
+										</div>
+										<span class="text-[10px] text-fg/40 block mt-0.5">
+											{uiText("ui.465353a6e568f0af")} {instanceRamMb} {uiText("ui.cd328bf785bc5db7")}
+										</span>
+									</div>
+									<button
+										type="button"
+										role="switch" aria-checked={instanceAutoOptimize} aria-label={uiText("ui.2223c19072c10de7")}
+										class="w-10 h-5 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative flex items-center px-0.5 cursor-pointer {instanceAutoOptimize ? 'bg-emerald-500 shadow-glow' : 'bg-bg-subtle'}"
+										onclick={() => instanceAutoOptimize = !instanceAutoOptimize}
+									>
+										<span class="w-4 h-4 rounded-full bg-fg transition-transform duration-200 shadow-md {instanceAutoOptimize ? 'translate-x-5' : 'translate-x-0'}"></span>
+									</button>
+								</div>
+
+								<div class="space-y-1.5">
+									<div class="flex items-center justify-between text-[10px]">
+										<span class="text-fg/50">{uiText("ui.602df047702d4df1")}</span>
+										<span class="font-mono text-fg/30">{generatedAikarFlags.length} {uiText("ui.4069611a089d3052")}</span>
+									</div>
+									<div class="bg-bg-overlay/50 p-2.5 rounded-xl border border-fg/5 max-h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] text-emerald-400 leading-relaxed break-all">
+										{generatedAikarFlags.join(" ")}
+									</div>
+								</div>
+							</div>
+
+							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
+								<div class="flex items-center justify-between">
+									<div>
+										<div class="flex items-center gap-2">
+											<span class="text-xs font-bold text-fg">{uiText("ui.62718b0470023b1d")}</span>
+											{#if perfPackInfo?.available}
+												<span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-bold">{uiText("ui.9b99805faf33cdc0")}</span>
+											{:else}
+												<span class="text-[9px] bg-fg/10 text-fg/40 px-1.5 py-0.5 rounded font-bold">{uiText("ui.60cf6b61c55f4a3f")}</span>
+											{/if}
+										</div>
+										<span class="text-[10px] text-fg/40 block mt-0.5">
+											{perfPackInfo?.available ? uiText("ui.a46c9eb6f8195594") : (perfPackInfo?.reason || 'Requer modloader')}
+										</span>
+									</div>
+									{#if perfPackInfo?.available}
+										<button
+											type="button"
+											disabled={installingPerfPack}
+											class={launcherButton({ variant: "primary", size: "sm", class: "disabled:opacity-50 flex items-center gap-1.5" })}
+											onclick={handleInstallPerfPack}
+										>
+											{#if installingPerfPack}
+												<RefreshCw class="w-3.5 h-3.5 animate-spin" /> {uiText("ui.b1e8e68efcbda240")}
+											{:else}
+												<Download class="w-3.5 h-3.5" /> {uiText("ui.d47e2e9b2eef0b10")}
+											{/if}
+										</button>
+									{/if}
+								</div>
+
+								{#if perfPackInfo?.available && perfPackInfo.mods.length > 0}
+									<div class="grid grid-cols-3 gap-2 pt-1">
+										{#each perfPackInfo.mods as mod}
+											<div class="bg-bg-overlay/30 p-2 rounded-xl border border-fg/5">
+												<span class="font-bold text-[11px] text-fg block">{mod.title}</span>
+												<span class="text-[9px] text-fg/40 block line-clamp-2 mt-0.5">{mod.description}</span>
+											</div>
+										{/each}
+									</div>
+								{/if}
+							</div>
+
+							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 flex items-center justify-between">
+								<div>
+									<div class="flex items-center gap-2">
+										<span class="text-xs font-bold text-fg">{uiText("ui.7cde29d5642062fa")}</span>
+										<span class="text-[9px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded font-bold">{uiText("ui.b74b99727ed37f3a")}</span>
+									</div>
+									<span class="text-[10px] text-fg/40 block mt-0.5">
+										{uiText("ui.fa9cc525f5941eec")}
+									</span>
+								</div>
+								<button
+									type="button"
+									role="switch" aria-checked={instanceEnableVulkanOpt} aria-label={uiText("ui.13bfca46695c5ffe")}
+									class="w-10 h-5 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-emerald-500 shadow-glow' : 'bg-bg-subtle'}"
+									onclick={() => instanceEnableVulkanOpt = !instanceEnableVulkanOpt}
+								>
+									<span class="w-4 h-4 rounded-full bg-fg transition-transform duration-200 shadow-md {instanceEnableVulkanOpt ? 'translate-x-5' : 'translate-x-0'}"></span>
+								</button>
+							</div>
+						</div>
+
+							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
+								<div><span class="text-xs font-bold text-fg">{uiText("ui.cf5346ca62930ed6")}</span><span class="mt-0.5 block text-[10px] text-fg/40">{uiText("ui.110aacf7b0065c8b")}</span></div>
+								<div class="grid gap-2 sm:grid-cols-2">
+{#if runtimePlatform.isLinux}
+									<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center justify-between text-left" })} aria-pressed={instanceUseGameMode} onclick={() => instanceUseGameMode = !instanceUseGameMode}><span><span class="block font-bold text-fg">{uiText("ui.d0fba50ac6075a55")}</span><span class="block text-[10px] text-fg/40">{uiText("ui.3dbb98af2279bcb7")}</span></span><span class="h-2.5 w-2.5 rounded-full {instanceUseGameMode ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
+									<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center justify-between text-left" })} aria-pressed={instanceUseMangoHud} onclick={() => instanceUseMangoHud = !instanceUseMangoHud}><span><span class="block font-bold text-fg">{uiText("ui.b424331359cf27e5")}</span><span class="block text-[10px] text-fg/40">{uiText("ui.8cac59e97e95d402")}</span></span><span class="h-2.5 w-2.5 rounded-full {instanceUseMangoHud ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
+									<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center justify-between text-left" })} aria-pressed={instanceForceDedicatedGpu} onclick={() => instanceForceDedicatedGpu = !instanceForceDedicatedGpu}><span><span class="block font-bold text-fg">{uiText("ui.ed43d0e547b9621c")}</span><span class="block text-[10px] text-fg/40">{uiText("ui.e1f6fe8e2a2809b6")}</span></span><span class="h-2.5 w-2.5 rounded-full {instanceForceDedicatedGpu ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
+									{/if}
+<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center justify-between text-left" })} aria-pressed={instanceForceFullVerification} onclick={() => instanceForceFullVerification = !instanceForceFullVerification}><span><span class="block font-bold text-fg">{uiText("ui.760daec3c6095582")}</span><span class="block text-[10px] text-fg/40">{uiText("ui.e5d1aaf3521787c0")}</span></span><span class="h-2.5 w-2.5 rounded-full {instanceForceFullVerification ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
+								</div>
+								{#if runtimePlatform.isLinux}
+<div class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3"><div><span class="block text-xs font-bold text-fg">{uiText("ui.bbc209cb23b5013e")}</span><span class="block text-[10px] text-fg/40">{uiText("ui.f6bd97809dcbafe8")}</span></div><button type="button" role="switch" aria-checked={instanceUseGamescope} aria-label={uiText("ui.590148ebf7358843")} class="w-10 h-5 rounded-full px-0.5 {instanceUseGamescope ? 'bg-emerald-500' : 'bg-bg-subtle'}" onclick={() => instanceUseGamescope = !instanceUseGamescope}><span class="block h-4 w-4 rounded-full bg-fg transition-transform {instanceUseGamescope ? 'translate-x-5' : ''}"></span></button></div>
+								{#if instanceUseGamescope}<div class="grid grid-cols-2 gap-2"><input type="number" bind:value={instanceGamescopeWidth} placeholder={uiText("ui.09b171027051a68c")} class="rounded-xl border border-fg/10 bg-bg-overlay/30 px-3 py-2 text-xs text-fg outline-none" /><input type="number" bind:value={instanceGamescopeHeight} placeholder={uiText("ui.3031040a64870128")} class="rounded-xl border border-fg/10 bg-bg-overlay/30 px-3 py-2 text-xs text-fg outline-none" /></div><label class="flex items-center gap-2 text-xs text-fg/70"><input type="checkbox" bind:checked={instanceGamescopeFsr} class="accent-brand-500" /> {uiText("ui.c5ca752901a0f010")}</label>{/if}
+							{/if}
+</div>
+					</section><section id="instance-settings-janela" class="instance-settings-group">
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("ui.56342ebec923727e")}</h3>
+								<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.9a9496fbd02e9c15")}</p>
+							</div>
+
+							<div class="grid grid-cols-2 gap-4">
+								<div class="space-y-1.5">
+									<span class="text-xs font-bold text-fg/70 block">{uiText("ui.b11e7ca5545ba841")}</span>
+									<input type="number" bind:value={instanceWindowWidth} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2 text-xs text-fg font-mono outline-none" />
+								</div>
+								<div class="space-y-1.5">
+									<span class="text-xs font-bold text-fg/70 block">{uiText("ui.de73d011d72d3759")}</span>
+									<input type="number" bind:value={instanceWindowHeight} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2 text-xs text-fg font-mono outline-none" />
+								</div>
+							</div>
+
+							<div class="flex items-center justify-between bg-bg-elevated border border-fg/5 rounded-2xl p-4">
+								<div>
+									<span class="text-xs font-bold text-fg block">{uiText("ui.7c88f13b0bafe58a")}</span>
+									<span class="text-[10px] text-fg/40 block mt-0.5">{uiText("ui.ed605bc2ba679639")}</span>
+								</div>
+								<button
+									type="button"
+									role="switch" aria-checked={instanceStartFullscreen} aria-label={uiText("ui.3eb3041b45e2c37e")}
+									class="w-10 h-5 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative flex items-center px-0.5 cursor-pointer {instanceStartFullscreen ? 'bg-brand-500 shadow-glow' : 'bg-bg-subtle'}"
+									onclick={() => instanceStartFullscreen = !instanceStartFullscreen}
+								>
+									<span class="w-4 h-4 rounded-full bg-fg transition-transform duration-200 shadow-md {instanceStartFullscreen ? 'translate-x-5' : 'translate-x-0'}"></span>
+								</button>
+							</div>
+						</div>
+
+					</section><section id="instance-settings-java" class="instance-settings-group">
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("settings.javaMemory")}</h3>
+								<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.3b67a722513ae251")}</p>
+							</div>
+
+							<div class="bg-bg-elevated border border-emerald-500/25 rounded-2xl p-4 space-y-2">
+								<div class="flex items-center justify-between text-xs">
+									<div class="flex items-center gap-2.5">
+										<div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+											<Cpu class="w-4 h-4" />
+										</div>
+										<div>
+											<span class="font-bold text-fg block">{uiText("ui.5dfcd498d1d1a355")}</span>
+											<span class="text-[10px] text-fg/50 block">{uiText("ui.1a2bd1d28cb68c00")} {Math.round(systemRamMb / 1024)} {uiText("ui.87f3475ed0cc3d56")}</span>
+										</div>
+									</div>
+									<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
+										<Sparkles class="w-3 h-3" /> {instanceAutoOptimize ? uiText("ui.05a7d7f600ea7daa") : uiText("ui.eb2e7856f69c6e4d")}
+									</span>
+								</div>
+								<p class="text-[11px] text-fg/50 leading-relaxed">
+									{uiText("ui.1a6d4e6c6b0bab9c")}
+								</p>
+							</div>
+
+							<div class="rounded-2xl border border-border bg-bg-subtle p-4 space-y-4">
+                            <h3 class="text-sm font-semibold text-fg">{uiText("ui.d6558f3825d66efd")}</h3>
+                            <label for="instance-ram-min" class="flex justify-between text-xs text-fg-muted"><span>{uiText("ui.40b336d098b84bde")}</span><span>{(instanceMinRamMb / 1024).toFixed(1)} GB</span></label>
+                            <input id="instance-ram-min" type="range" min="512" max={instanceRamMb} step="256" bind:value={instanceMinRamMb} class="w-full accent-brand-500" />
+                            <label for="instance-ram-max" class="flex justify-between text-xs text-fg-muted"><span>{uiText("ui.6c14c547e5a5577b")}</span><span>{(instanceRamMb / 1024).toFixed(1)} GB</span></label>
+                            <input id="instance-ram-max" type="range" min="1024" max={Math.max(1024, Math.floor(systemRamMb / 256) * 256)} step="256" bind:value={instanceRamMb} class="w-full accent-brand-500" />
+                            <p class="text-xs text-fg-muted">{uiText("ui.26d3b594b40df6af")}</p>
+                        </div>
+                        <div class="rounded-2xl border border-border bg-bg-subtle p-4 space-y-3">
+                            <label for="instance-java" class="block text-sm font-semibold text-fg">{uiText("ui.6980b7f402766d81")}</label>
+                            <select id="instance-java" bind:value={instanceJavaPath} class="w-full rounded-xl border border-border bg-bg-elevated px-3 py-3 text-xs text-fg"><option value="">{uiText("ui.1cd6b3e855b28ecc")}</option>{#each javaRuntimes as runtime}{#if runtime.path}<option value={runtime.path}>Java {runtime.major} · {runtime.versionString || runtime.path}</option>{/if}{/each}{#if instanceJavaPath && !javaRuntimes.some(runtime => runtime.path === instanceJavaPath)}<option value={instanceJavaPath}>{instanceJavaPath}</option>{/if}</select>
+                            <button type="button" class={button({ variant: "secondary", size: "sm" })} onclick={detectJava} disabled={scanningJava}><RefreshCw class="h-4 w-4 {scanningJava ? 'animate-spin' : ''}" />{scanningJava ? 'Detectando…' : uiText("ui.e78537280b2f6241")}</button>
+                            <div class="flex flex-wrap gap-2" aria-label={uiText("ui.2afd44d7e0ca9df4")}>{#each ['automatic', 'g1gc'] as preset}<button type="button" class={button({ variant: (preset === 'automatic' ? instanceAutoOptimize : instanceJvmArgs.includes('-XX:+UseG1GC')) ? "primary" : "secondary", size: "sm" })} onclick={() => applyJvmPreset(preset as 'automatic' | 'g1gc')}>{preset === 'automatic' ? uiText("settings.refinement.automaticJvm") : 'G1GC'}</button>{/each}</div>
+                        </div>
+                        <div class="space-y-2 bg-bg-elevated border border-fg/5 rounded-2xl p-4">
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-bold text-fg/80">{uiText("ui.e033a695dae655ab")}</span>
+									<span class="text-[10px] text-fg/40">{instanceJavaPath ? 'Customizado' : uiText("ui.bd6464b216ad9deb")}</span>
+								</div>
+								<div class="flex gap-2">
+									<input
+										type="text"
+										bind:value={instanceJavaPath}
+										placeholder={uiText("ui.2ef129a3d9f14f60")}
+										class="flex-1 bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-emerald-500"
+									/>
+									<button
+										type="button"
+										class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5 shrink-0" })}
+										onclick={async () => {
+											const selected = await open({
+												title: uiText("ui.7161f9f39f03b19c"),
+												multiple: false,
+												directory: false
+											});
+											if (typeof selected === "string") {
+												instanceJavaPath = selected;
+											}
+										}}
+									>
+										<FolderOpen class="w-3.5 h-3.5" /> {uiText("ui.6e7780ca6921c098")}
+									</button>
+								</div>
+							</div>
+
+							<div class="space-y-2 bg-bg-elevated border border-fg/5 rounded-2xl p-4">
+								<div class="flex items-center justify-between">
+									<span class="text-xs font-bold text-fg/80">{uiText("ui.ee15867ed5aa0c3e")}</span>
+									{#if jvmValidation}
+										{#if jvmValidation.valid}
+											<span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+												<Check class="w-3 h-3 text-emerald-400" /> {uiText("ui.5ef52a0077620be1")} {runtimePlatform.label}
+											</span>
+										{:else}
+											<span class="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+												<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> {jvmValidation.rejected.length} {uiText("ui.3955baf1163f00d5")}
+											</span>
+										{/if}
+									{/if}
+								</div>
+
+								<input
+									type="text"
+									aria-label={uiText("ui.1a419508e060780b")} bind:value={instanceJvmArgs}
+									placeholder={uiText("ui.5854817f5f7815b4")}
+									class="w-full bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-emerald-500"
+								/>
+
+								{#if jvmValidation && !jvmValidation.valid}
+									<div class="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-2 mt-2">
+										<div class="text-[11px] font-bold text-amber-300">
+											{uiText("ui.eb46f0dd3f439727")} {jvmValidation.rejected.join(", ")}
+										</div>
+										<ul class="text-[10px] text-fg/70 space-y-1 list-disc pl-4">
+											{#each jvmValidation.suggestions as sug}
+												<li>{sug}</li>
+											{/each}
+										</ul>
+										<button
+											type="button"
+											class={launcherButton({ variant: "primary", size: "sm", class: "mt-1" })}
+											onclick={() => {
+												if (jvmValidation) {
+													instanceJvmArgs = jvmValidation.normalized;
+												}
+											}}
+										>
+											{uiText("ui.2f6cbbb8bf61ec90")}
+										</button>
+									</div>
+								{/if}
+							</div>
+
+							<div class="space-y-3 bg-bg-elevated border border-fg/5 rounded-2xl p-4">
+								<div>
+									<h4 class="text-xs font-bold text-fg/80">{uiText("ui.1e8ac000017d6279")}</h4>
+									<p class="text-[10px] text-fg/40 mt-0.5">{uiText("ui.091d6d888c29fde3")}</p>
+								</div>
+
+								<div class="grid grid-cols-3 gap-2 pt-1">
+									<button
+										type="button"
+										class="p-3 rounded-xl bg-bg-subtle hover:bg-bg-subtle border border-fg/5 hover:border-fg/20 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleRepairInstance}
+										disabled={isRepairing}
+									>
+										<div class="flex items-center justify-between w-full">
+											<RefreshCw class="w-4 h-4 text-emerald-400 {isRepairing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}" />
+											{#if isRepairing}
+												<span class="text-[9px] text-emerald-400 font-bold">{uiText("ui.0c3d47e9c33210d2")}</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-fg">{uiText("ui.598a4670601ddf97")}</p>
+											<p class="text-[10px] text-fg/40">{uiText("ui.7db65939dfe2db30")}</p>
+										</div>
+									</button>
+
+									<button
+										type="button"
+										class="p-3 rounded-xl bg-bg-subtle hover:bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleRepairAll}
+										disabled={isRepairingAll}
+									>
+										<div class="flex items-center justify-between w-full">
+											<ShieldCheck class="w-4 h-4 text-emerald-400 {isRepairingAll ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'}" />
+											{#if isRepairingAll}
+												<span class="text-[9px] text-emerald-400 font-bold">{uiText("ui.dc0546b3e22c8f9e")}</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-fg">{uiText("ui.96653c8b1e652f01")}</p>
+											<p class="text-[10px] text-fg/40">{uiText("ui.671f31669fabe344")}</p>
+										</div>
+									</button>
+
+									<button
+										type="button"
+										class="p-3 rounded-xl bg-bg-subtle hover:bg-bg-subtle border border-fg/5 hover:border-fg/20 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleBackupSaves}
+										disabled={isBackingUp}
+									>
+										<div class="flex items-center justify-between w-full">
+											<Save class="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
+											{#if isBackingUp}
+												<span class="text-[9px] text-emerald-400 font-bold">{uiText("ui.f16f04e767446b97")}</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-fg">{uiText("ui.b19db652c4f0c998")}</p>
+											<p class="text-[10px] text-fg/40">{uiText("ui.d2210529056f4ca9")}</p>
+										</div>
+									</button>
+
+									<button
+										type="button"
+										class="p-3 rounded-xl bg-bg-subtle hover:bg-bg-subtle border border-fg/5 hover:border-fg/20 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleExportZip}
+										disabled={isExporting}
+									>
+										<div class="flex items-center justify-between w-full">
+											<Share2 class="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
+											{#if isExporting}
+												<span class="text-[9px] text-purple-400 font-bold">{uiText("ui.e50a7ac800f3396c")}</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-fg">{uiText("ui.ff014bfdd1352508")}</p>
+											<p class="text-[10px] text-fg/40">{uiText("ui.7525e73f46d28721")}</p>
+										</div>
+									</button>
+
+									<button
+										type="button"
+										class="p-3 rounded-xl bg-bg-subtle hover:bg-bg-subtle border border-fg/5 hover:border-brand-500/40 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
+										onclick={handleExportShareCode}
+										disabled={isGeneratingShareCode}
+									>
+										<div class="flex items-center justify-between w-full">
+											<Sparkles class="w-4 h-4 text-brand-500 group-hover:scale-110 transition-transform" />
+											{#if isGeneratingShareCode}
+												<span class="text-[9px] text-brand-500 font-bold">{uiText("ui.f16f04e767446b97")}</span>
+											{/if}
+										</div>
+										<div class="mt-2">
+											<p class="text-xs font-bold text-fg">{uiText("ui.e401c3353dbf4918")}</p>
+											<p class="text-[10px] text-fg/40">{uiText("ui.e223b0257858f237")}</p>
+										</div>
+									</button>
+								</div>
+							</div>
+						</div>
+
+					</section><section id="instance-settings-hooks" class="instance-settings-group">
+						<div class="space-y-6">
+							<div>
+								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">{uiText("ui.b9dac8db6dc5de93")}</h3>
+								<p class="text-[11px] text-fg/40 mt-0.5">{uiText("ui.d7fc7773fcae43a9")}</p>
+							</div>
+
+							<div class="space-y-2">
+								<span class="text-xs font-bold text-fg/70 block">{uiText("ui.a5d2b4869274d3b7")}</span>
+								<input type="text" bind:value={instancePreLaunchHook} placeholder={uiText("ui.020ca0f4c7f03f88")} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg font-mono outline-none" />
+							</div>
+
+							<div class="space-y-2">
+								<span class="text-xs font-bold text-fg/70 block">{uiText("ui.c353a1ff17495f64")}</span>
+								<input type="text" bind:value={instancePostExitHook} placeholder={uiText("ui.020ca0f4c7f03f88")} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg font-mono outline-none" />
+							</div>
+						</div>
+                    </section>
+
+				</div>
+			</div>
+
+			<div class="flex items-center justify-end gap-3 pt-4 border-t border-fg/5">
+				<button
+					type="button"
+					class={button({ variant: "secondary" })}
+					onclick={() => { settingsModalSyncedFor = null; }}
+				>
+					{uiText("common.cancel")}
+				</button>
+				<button
+					type="button"
+					class={button({ variant: "primary" })}
+                    disabled={savingInstanceSettings}
+                    aria-busy={savingInstanceSettings}
+					onclick={saveInstanceSettings}
+				>
+					<Check class="w-4 h-4 stroke-[3]" /> {uiText("ui.fdc83a1f4dac7cb0")}
+				</button>
+			</div>
+
+            </section>
+		</div>
+        {/if}
 
 	</div>
 
@@ -2568,19 +3145,19 @@
 			</div>
 			<div class="flex items-center gap-2">
 				<div class="flex items-center gap-1 bg-fg/10 backdrop-blur-md rounded-full px-2 py-1 border border-fg/10">
-					<button type="button" class="p-1.5 text-fg/70 hover:text-fg rounded-full hover:bg-fg/10 cursor-pointer" onclick={zoomOutScreenshot} title="Diminuir Zoom (-)">
+					<button type="button" class={launcherButton({ variant: "secondary", size: "icon", class: "" })} onclick={zoomOutScreenshot} title={uiText("ui.f433fd692956a9ac")}>
 						<ZoomOut class="w-3.5 h-3.5" />
 					</button>
-					<button type="button" class="px-2 text-[10px] font-mono text-fg/90 hover:text-fg cursor-pointer" onclick={resetScreenshotZoom} title="Resetar Zoom">
+					<button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "" })} onclick={resetScreenshotZoom} title={uiText("ui.b3c135b66a00b0ef")}>
 						{Math.round(screenshotZoom * 100)}%
 					</button>
-					<button type="button" class="p-1.5 text-fg/70 hover:text-fg rounded-full hover:bg-fg/10 cursor-pointer" onclick={zoomInScreenshot} title="Aumentar Zoom (+)">
+					<button type="button" class={launcherButton({ variant: "secondary", size: "icon", class: "" })} onclick={zoomInScreenshot} title={uiText("ui.dbdc887294502696")}>
 						<ZoomIn class="w-3.5 h-3.5" />
 					</button>
 				</div>
 				<button
 					type="button"
-					class="p-2 rounded-full bg-fg/10 hover:bg-fg/20 text-fg transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={() => previewScreenshot = null}
 				>
 					<X class="w-4 h-4" />
@@ -2607,30 +3184,30 @@
 		<div class="absolute bottom-6 flex flex-wrap items-center gap-3 z-10" onclick={(e) => e.stopPropagation()}>
 			<button
 				type="button"
-				class="px-5 py-2 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-black flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
+				class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2" })}
 				onclick={copyScreenshotImage}
 			>
-				<Copy class="w-3.5 h-3.5" /> Copiar Imagem (Ctrl+C)
+				<Copy class="w-3.5 h-3.5" /> {uiText("ui.fcfa0a511cf841dd")}
 			</button>
 			<button
 				type="button"
-				class="px-4 py-2 rounded-full bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border border-fg/10"
+				class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 				onclick={() => {
 					navigator.clipboard.writeText(previewScreenshot!.path);
 					toast("Caminho copiado!", "success");
 				}}
 			>
-				<Copy class="w-3.5 h-3.5" /> Copiar Caminho
+				<Copy class="w-3.5 h-3.5" /> {uiText("ui.1c031de96f1a554d")}
 			</button>
 			<button
 				type="button"
-				class="px-4 py-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border border-red-500/20"
+				class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-1.5" })}
 				onclick={async () => {
 					await handleDeleteScreenshot(previewScreenshot!.path);
 					previewScreenshot = null;
 				}}
 			>
-				<Trash2 class="w-3.5 h-3.5" /> Excluir
+				<Trash2 class="w-3.5 h-3.5" /> {uiText("screenshots.deleteBtn")}
 			</button>
 		</div>
 	</div>
@@ -2642,38 +3219,38 @@
 			<div class="flex items-center justify-between mb-4">
 				<div class="flex items-center gap-2">
 					<Sparkles class="w-5 h-5 text-brand-500" />
-					<h3 class="text-sm font-black text-fg">Compartilhar Instância</h3>
+					<h3 class="text-sm font-black text-fg">{uiText("ui.4a39ff112f3ab0c4")}</h3>
 				</div>
-				<button type="button" class="text-fg/40 hover:text-fg p-1 rounded-lg cursor-pointer" onclick={() => showShareCodeModal = false}>
+				<button type="button" class={launcherButton({ variant: "ghost", size: "icon", class: "" })} onclick={() => showShareCodeModal = false}>
 					<X class="w-4 h-4" />
 				</button>
 			</div>
 
 			<p class="text-xs text-fg/60 mb-4 leading-relaxed">
-				Envie este código rápido para seus amigos. Eles só precisam clicar em <strong>"Importar por Código"</strong> na tela de instâncias para baixar a mesma versão, loader e mods!
+				{uiText("ui.6eec56b2ea50c77b")} <strong>{uiText("ui.715776ad6c3fa0be")}</strong> {uiText("ui.04b80ba98201a877")}
 			</p>
 
 			<div class="bg-bg-overlay/50 border border-brand-500/40 rounded-2xl p-4 flex items-center justify-between mb-5">
 				<span class="font-mono text-xl font-black text-brand-500 tracking-wider select-all">{generatedShareCode}</span>
 				<button
 					type="button"
-					class="px-3.5 py-1.5 bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-black rounded-xl cursor-pointer flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
+					class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5" })}
 					onclick={() => {
 						navigator.clipboard.writeText(generatedShareCode!);
-						toast("Código copiado para a área de transferência!", "success");
+						toast(uiText("ui.02de8de8a052c934"), "success");
 						playSound("chime");
 					}}
 				>
-					<Copy class="w-3.5 h-3.5" /> Copiar
+					<Copy class="w-3.5 h-3.5" /> {uiText("common.copy")}
 				</button>
 			</div>
 
 			<button
 				type="button"
-				class="w-full py-2.5 rounded-xl bg-fg/10 hover:bg-fg/15 text-xs font-bold text-fg transition-colors cursor-pointer"
+				class={launcherButton({ variant: "secondary", size: "sm", class: "w-full" })}
 				onclick={() => showShareCodeModal = false}
 			>
-				Fechar
+				{uiText("statusBanner.dismiss")}
 			</button>
 		</div>
 	</div>
@@ -2691,16 +3268,16 @@
 				<div class="flex items-center gap-2 shrink-0">
 					<button
 						type="button"
-						class="px-5 py-2 rounded-full text-xs font-black text-brand-foreground flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer hover:scale-105 active:scale-[0.98] shadow-md"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 						style="background-color: rgb(var(--brand-500));"
 						disabled={isSavingEditor}
 						onclick={handleSaveEditorFile}
 					>
-						<Save class="w-3.5 h-3.5 stroke-[2.5]" /> {isSavingEditor ? 'Salvando...' : 'Guardar Alterações'}
+						<Save class="w-3.5 h-3.5 stroke-[2.5]" /> {isSavingEditor ? 'Salvando...' : uiText("ui.67a528de00957b92")}
 					</button>
 					<button
 						type="button"
-						class="p-1.5 rounded-full bg-fg/5 hover:bg-fg/15 text-fg/60 hover:text-fg transition-colors cursor-pointer ml-2"
+						class={launcherButton({ variant: "secondary", size: "icon", class: "ml-2" })}
 						onclick={() => activeEditorFile = null}
 					>
 						<X class="w-4 h-4" />
@@ -2715,8 +3292,8 @@
 				></textarea>
 			</div>
 			<div class="p-2.5 bg-bg-elevated border-t border-fg/5 text-[10px] text-fg/40 font-mono px-4 flex justify-between">
-				<span>Tamanho: {Math.round(activeEditorFile.content.length / 1024)} KB</span>
-				<span>Editor de Arquivos do Luxmc</span>
+				<span>{uiText("ui.999e8aab92fc9678")} {Math.round(activeEditorFile.content.length / 1024)} KB</span>
+				<span>{uiText("ui.d19967ef17fbcb07")}</span>
 			</div>
 		</div>
 	</div>
@@ -2733,13 +3310,13 @@
 						<Share2 class="w-5 h-5 text-brand-500" />
 					</div>
 					<div>
-						<h3 class="font-extrabold text-fg text-base">Hostear Mundo com Link Próprio</h3>
-						<p class="text-xs text-fg/50">Compartilhe com amigos para entrarem no seu mundo</p>
+						<h3 class="font-extrabold text-fg text-base">{uiText("ui.c8bf774680dc473c")}</h3>
+						<p class="text-xs text-fg/50">{uiText("ui.839eed5aebf9543e")}</p>
 					</div>
 				</div>
 				<button
 					type="button"
-					class="p-1.5 rounded-full bg-fg/5 hover:bg-fg/15 text-fg/60 hover:text-fg transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={() => showHostModal = false}
 				>
 					<X class="w-4 h-4" />
@@ -2751,18 +3328,18 @@
 				<div class="flex items-center gap-2">
 					{#if isOpeningUpnp}
 						<RefreshCw class="w-4 h-4 animate-spin text-blue-400" />
-						<span class="text-xs font-bold">Abrindo porta no roteador (UPnP)...</span>
+						<span class="text-xs font-bold">{uiText("ui.8990bc947c33eed4")}</span>
 					{:else if upnpResult?.success}
 						<Globe2 class="w-4 h-4 text-emerald-400" />
-						<span class="text-xs font-extrabold">UPnP Ativo · Aberto para Internet</span>
+						<span class="text-xs font-extrabold">{uiText("ui.0ebfbaca769305a7")}</span>
 					{:else}
 						<Radio class="w-4 h-4 text-amber-400" />
-						<span class="text-xs font-bold">Modo LAN (Rede Local)</span>
+						<span class="text-xs font-bold">{uiText("ui.cce4fa137bd9cfc9")}</span>
 					{/if}
 				</div>
 				<button
 					type="button"
-					class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-fg/10 hover:bg-fg/15 text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "disabled:opacity-50" })}
 					disabled={isOpeningUpnp}
 					onclick={attemptUpnpOpen}
 				>
@@ -2772,7 +3349,7 @@
 
 			<div class="bg-bg-elevated border border-fg/10 rounded-2xl p-4 space-y-3 shadow-inner">
 				<div>
-					<span class="text-[10px] font-extrabold text-brand-500 uppercase tracking-wider block mb-1">Link Próprio do Luxmc (Compartilhável)</span>
+					<span class="text-[10px] font-extrabold text-brand-500 uppercase tracking-wider block mb-1">{uiText("ui.d7cb6fd6ba75193c")}</span>
 					<div class="flex items-center gap-2">
 						<input
 							type="text"
@@ -2782,13 +3359,13 @@
 						/>
 						<button
 							type="button"
-							class="px-4 py-2 rounded-xl bg-brand-500 hover:brightness-110 text-brand-foreground font-black text-xs flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-md active:scale-[0.98]"
+							class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5" })}
 							onclick={copyHostLink}
 						>
 							{#if isCopiedHostLink}
-								<Check class="w-3.5 h-3.5 stroke-[3]" /> Copiado!
+								<Check class="w-3.5 h-3.5 stroke-[3]" /> {uiText("ui.a8fe0fc805d5fd50")}
 							{:else}
-								<Copy class="w-3.5 h-3.5 stroke-[3]" /> Copiar Link
+								<Copy class="w-3.5 h-3.5 stroke-[3]" /> {uiText("ui.b9cfc7837360c373")}
 							{/if}
 						</button>
 					</div>
@@ -2796,7 +3373,7 @@
 
 				{#if upnpResult?.success && upnpResult.externalIp}
 					<div class="pt-2 border-t border-fg/5">
-						<span class="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider block mb-1">IP Público (Amigos fora da rede local)</span>
+						<span class="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider block mb-1">{uiText("ui.976577f5da8962bc")}</span>
 						<div class="flex items-center gap-2">
 							<input
 								type="text"
@@ -2806,13 +3383,13 @@
 							/>
 							<button
 								type="button"
-								class="px-3.5 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-extrabold text-xs flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98]"
+								class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 								onclick={copyDirectAddress}
 							>
 								{#if isCopiedDirectAddress}
-									<Check class="w-3.5 h-3.5" /> Copiado!
+									<Check class="w-3.5 h-3.5" /> {uiText("ui.a8fe0fc805d5fd50")}
 								{:else}
-									<Copy class="w-3.5 h-3.5" /> Copiar IP
+									<Copy class="w-3.5 h-3.5" /> {uiText("ui.50dbccc70acc7869")}
 								{/if}
 							</button>
 						</div>
@@ -2821,11 +3398,11 @@
 
 				<div class="grid grid-cols-2 gap-2 pt-2 border-t border-fg/5">
 					<div>
-						<span class="text-[10px] text-fg/40 block font-bold">Endereço IP Local:</span>
+						<span class="text-[10px] text-fg/40 block font-bold">{uiText("ui.a661481fb87eb8cf")}</span>
 						<span class="text-xs font-mono text-emerald-400 font-bold">{hostLinkInfo.directAddress}</span>
 					</div>
 					<div>
-						<span class="text-[10px] text-fg/40 block font-bold">Porta do Servidor:</span>
+						<span class="text-[10px] text-fg/40 block font-bold">{uiText("ui.77b322e21110fd34")}</span>
 						<div class="flex items-center gap-1 mt-0.5">
 							<input
 								type="number"
@@ -2839,9 +3416,9 @@
 			</div>
 
 			<div class="text-[11px] text-fg/50 leading-relaxed space-y-1 bg-amber-500/10 border border-amber-500/20 p-3 rounded-2xl">
-				<div class="font-bold text-amber-300">Como funciona?</div>
-				<div>1. Abra seu mundo no Minecraft e clique em <b>"Aberto para LAN"</b> na porta <b>{customHostPort}</b>.</div>
-				<div>2. Envie o <b>Link Próprio</b> ou <b>IP Público</b> para seus amigos colarem no Luxmc.</div>
+				<div class="font-bold text-amber-300">{uiText("ui.0cca698beb04034a")}</div>
+				<div>{uiText("ui.2c687c3fb44a7abd")} <b>{uiText("ui.0bf00d4fe11a2575")}</b> {uiText("ui.c39f5640596dfdd2")} <b>{customHostPort}</b>.</div>
+				<div>{uiText("ui.b914be67fab72283")} <b>{uiText("ui.50fcf243a3406348")}</b> {uiText("ui.fc74181ece96ac0d")} <b>{uiText("ui.2834161ad11b509f")}</b> {uiText("ui.74332bae5db24084")}</div>
 			</div>
 		</div>
 	</div>
@@ -2849,632 +3426,6 @@
 
 
 
-{#if showInstanceSettingsModal}
-	<div class="fixed inset-0 z-50 bg-bg-overlay/55 flex items-center justify-center p-4 sm:p-6" in:fade={{ easing: quintOut, duration: 220 }}>
-		<div role="dialog" aria-modal="true" aria-label="Configurações da instância" tabindex="-1" class="w-full max-w-5xl bg-bg-elevated border border-fg/10 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-5 flex flex-col select-none h-[min(780px,90vh)]">
-
-            <header class="relative shrink-0 overflow-hidden rounded-2xl border border-border bg-bg-subtle">
-                <img loading="lazy" decoding="async" src={instanceBanner || heroBanner} alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />
-                <div class="relative flex items-center gap-4 bg-gradient-to-r from-bg-elevated via-bg-elevated/80 to-transparent p-5">
-                    <img loading="lazy" decoding="async"
-                        src={settingsIcon}
-                        alt=""
-                        class="h-14 w-14 rounded-xl object-contain border border-fg/10 bg-bg-elevated p-1"
-                        onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
-                    />
-                    <div class="min-w-0 flex-1"><p class="text-xs text-brand-400 font-semibold">Configurações da instância</p><h2 class="mt-1 text-xl font-bold text-fg truncate">{instanceNameInput}</h2><p class="mt-1 text-xs text-fg-muted">Minecraft {activeProfile?.mcVersion} · Ajustes exclusivos deste perfil</p></div>
-                    <button type="button" onclick={() => showInstanceSettingsModal = false} aria-label="Fechar configurações" class="p-2 rounded-xl border border-border text-fg-muted hover:bg-fg/10 hover:text-fg"><X class="h-5 w-5" /></button>
-                </div>
-            </header>
-			<div class="flex gap-4 min-h-0 flex-1 overflow-hidden">
-				<div class="w-40 sm:w-52 shrink-0 border-r border-fg/5 pr-4 flex flex-col justify-between">
-					<div class="space-y-4">
-						<h2 class="text-sm font-extrabold text-fg px-2">Configurações da Instância</h2>
-						<nav class="flex flex-col gap-1">
-							<button
-								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] w-full text-left cursor-pointer {activeInstanceSection === 'geral' ? 'bg-bg-subtle text-fg border border-fg/10 shadow-sm' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-								onclick={() => activeInstanceSection = 'geral'}
-							>
-								<Box class="w-4 h-4 text-emerald-400" /> Geral
-							</button>
-							<button
-								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] w-full text-left cursor-pointer {activeInstanceSection === 'instalacao' ? 'bg-bg-subtle text-fg border border-fg/10 shadow-sm' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-								onclick={() => activeInstanceSection = 'instalacao'}
-							>
-								<Download class="w-4 h-4 text-cyan-400" /> Instalação
-							</button>
-							<button
-								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] w-full text-left cursor-pointer {activeInstanceSection === 'otimizacao' ? 'bg-bg-subtle text-emerald-400 border border-emerald-500/30 shadow-sm' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-								onclick={() => activeInstanceSection = 'otimizacao'}
-							>
-								<Zap class="w-4 h-4 text-emerald-400" /> Otimização Luxmc
-							</button>
-							<button
-								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] w-full text-left cursor-pointer {activeInstanceSection === 'janela' ? 'bg-bg-subtle text-fg border border-fg/10 shadow-sm' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-								onclick={() => activeInstanceSection = 'janela'}
-							>
-								<Layers class="w-4 h-4 text-purple-400" /> Janela
-							</button>
-							<button
-								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] w-full text-left cursor-pointer {activeInstanceSection === 'java' ? 'bg-bg-subtle text-fg border border-fg/10 shadow-sm' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-								onclick={() => activeInstanceSection = 'java'}
-							>
-								<Sparkles class="w-4 h-4 text-amber-400" /> Java e Memória
-							</button>
-							<button
-								type="button"
-								class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] w-full text-left cursor-pointer {activeInstanceSection === 'hooks' ? 'bg-bg-subtle text-fg border border-fg/10 shadow-sm' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-								onclick={() => activeInstanceSection = 'hooks'}
-							>
-								<Code class="w-4 h-4 text-rose-400" /> Launch Hooks
-							</button>
-						</nav>
-					</div>
-
-					<div class="text-[10px] text-fg/30 font-mono px-2">
-						Minecraft {activeProfile?.mcVersion || '1.21.4'}
-					</div>
-				</div>
-
-				<div class="flex-1 flex flex-col justify-between overflow-y-auto custom-scrollbar pr-1 space-y-6">
-
-					{#if activeInstanceSection === 'geral'}
-						<div class="space-y-6">
-							<div>
-								<div class="flex items-center gap-2">
-									<Box class="w-4 h-4 text-emerald-400" />
-									<h3 class="text-xs font-bold text-fg uppercase tracking-wider">Geral</h3>
-								</div>
-								<p class="text-[11px] text-fg/40 mt-0.5">Nome, ícone e ações da instância</p>
-							</div>
-
-							<div class="space-y-3">
-								<span class="text-xs font-bold text-fg/70 block">Nome da Instância</span>
-								<div class="flex items-center gap-4">
-									<div class="h-14 w-14 rounded-2xl bg-bg-elevated border border-fg/10 flex items-center justify-center shrink-0 p-1">
-										<img loading="lazy" decoding="async" src={settingsIcon} alt="Ícone da instância" class="w-10 h-10 rounded-lg object-contain" />
-									</div>
-									<input
-										type="text"
-										bind:value={instanceNameInput}
-										class="flex-1 bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-3 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-colors"
-									/>
-								</div>
-							</div>
-
-							<label class="block space-y-2 text-xs text-fg-muted">
-                                <span>Banner da instância</span>
-                                <input type="url" bind:value={instanceBanner} placeholder="https://…/banner.webp" class="w-full rounded-xl border border-border bg-bg-elevated px-4 py-3 text-fg focus:border-brand-500" />
-                            </label>
-                            <div class="space-y-3 pt-2">
-								<div>
-									<span class="text-xs font-bold text-fg/80 block">Ações da Instância</span>
-									<p class="text-[11px] text-fg/40 mt-0.5">Verifique os arquivos do modpack ou remova a instância.</p>
-								</div>
-
-								<button
-									type="button"
-									class="w-full bg-bg-elevated hover:bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer text-left group"
-									onclick={handleRepairModpack}
-                                    disabled={isRepairingModpack}
-								>
-									<div class="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center shrink-0 text-amber-400 group-hover:scale-110 transition-transform">
-										<Sparkles class="w-5 h-5" />
-									</div>
-									<div>
-										<h4 class="text-xs font-bold text-amber-400">Reparar Instância</h4>
-										<p class="text-[11px] text-fg/40 mt-0.5">Verificar e recuperar arquivos do manifesto do modpack</p>
-									</div>
-								</button>
-
-								<button
-									type="button"
-									class="w-full bg-bg-elevated hover:bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 flex items-center gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer text-left group"
-									onclick={() => toast("Dados da instância removidos.", "info")}
-								>
-									<div class="h-10 w-10 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center shrink-0 text-rose-400 group-hover:scale-110 transition-transform">
-										<Trash2 class="w-5 h-5" />
-									</div>
-									<div>
-										<h4 class="text-xs font-bold text-rose-400">Apagar dados da instância</h4>
-										<p class="text-[11px] text-fg/40 mt-0.5">Remover permanentemente os ficheiros desta Instância e começar de novo</p>
-									</div>
-								</button>
-							</div>
-						</div>
-
-					{:else if activeInstanceSection === 'instalacao'}
-						<div class="space-y-6">
-							<div>
-								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">Instalação & Mod Loaders</h3>
-								<p class="text-[11px] text-fg/40 mt-0.5">Gerencie o loader (Fabric, Forge, NeoForge, Quilt) e versão do jogo</p>
-							</div>
-
-							<div class="space-y-3">
-								<span class="text-xs font-bold text-fg/70 block">Mod Loader Ativo</span>
-								<div class="grid grid-cols-2 gap-3">
-									{#each ["fabric", "forge", "neoforge", "quilt", "vanilla"] as loader}
-										<button
-											type="button"
-											class="p-3 rounded-2xl border text-xs font-bold flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {instanceLoaderType === loader ? 'bg-brand-500/20 border-brand-500 text-brand-500' : 'bg-bg-elevated border-fg/10 text-fg/60 hover:text-fg'}"
-											onclick={() => instanceLoaderType = loader}
-										>
-											<span class="capitalize">{loader}</span>
-											{#if instanceLoaderType === loader}<Check class="w-4 h-4" />{/if}
-										</button>
-									{/each}
-								</div>
-							</div>
-
-							<div class="space-y-2">
-								<span class="text-xs font-bold text-fg/70 block">Versão do Mod Loader</span>
-								<input type="text" bind:value={instanceLoaderVersion} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-brand-500" />
-							</div>
-						</div>
-
-					{:else if activeInstanceSection === 'otimizacao'}
-						<div class="space-y-5">
-							<div>
-								<div class="flex items-center gap-2">
-									<Zap class="w-4 h-4 text-emerald-400" />
-									<h3 class="text-xs font-bold text-fg uppercase tracking-wider">Sistema de Otimização Luxmc</h3>
-								</div>
-								<p class="text-[11px] text-fg/40 mt-0.5">Tuning inteligente de JVM, detecção de hardware e aceleração gráfica Linux</p>
-							</div>
-
-							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
-								<div class="flex items-center justify-between">
-									<span class="text-xs font-bold text-fg/90 flex items-center gap-2">
-										<Cpu class="w-3.5 h-3.5 text-brand-500" /> Hardware Detectado no Sistema
-									</span>
-									<span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
-										Linux-First
-									</span>
-								</div>
-								<div class="grid grid-cols-2 gap-2 text-xs">
-									<div class="bg-bg-overlay/30 p-2.5 rounded-xl border border-fg/5">
-										<span class="text-[10px] text-fg/40 block">GPU & Renderizador</span>
-										<span class="text-xs font-bold text-fg truncate block mt-0.5" title={gpuInfo?.renderer || 'Buscando...'}>
-											{gpuInfo?.renderer || 'AMD Radeon / Mesa RADV'}
-										</span>
-										<span class="text-[10px] text-brand-500 font-mono block mt-0.5">
-											Driver: {gpuInfo?.driver || 'amdgpu'}
-										</span>
-									</div>
-									<div class="bg-bg-overlay/30 p-2.5 rounded-xl border border-fg/5">
-										<span class="text-[10px] text-fg/40 block">Memória RAM do Sistema</span>
-										<span class="text-xs font-bold text-fg block mt-0.5">
-											{Math.round(systemRamMb / 1024)} GB Totais
-										</span>
-										<span class="text-[10px] text-fg/40 font-mono block mt-0.5">
-											Alocado p/ instância: {(instanceRamMb / 1024).toFixed(1)} GB
-										</span>
-									</div>
-								</div>
-							</div>
-
-							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
-								<div class="flex items-center justify-between">
-									<div>
-										<div class="flex items-center gap-2">
-											<span class="text-xs font-bold text-fg">Flags de JVM Inteligentes (Aikar G1GC)</span>
-											<span class="text-[9px] bg-brand-500/20 text-brand-500 px-1.5 py-0.5 rounded font-bold">Base do Sistema</span>
-										</div>
-										<span class="text-[10px] text-fg/40 block mt-0.5">
-											Ajusta dinamicamente tamanhos de região e new-generation para os {instanceRamMb} MB alocados
-										</span>
-									</div>
-									<button
-										type="button"
-										aria-label="Alternar Flags Aikar"
-										class="w-10 h-5 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative flex items-center px-0.5 cursor-pointer {instanceAutoOptimize ? 'bg-emerald-500 shadow-glow' : 'bg-bg-subtle'}"
-										onclick={() => instanceAutoOptimize = !instanceAutoOptimize}
-									>
-										<span class="w-4 h-4 rounded-full bg-fg transition-transform duration-200 shadow-md {instanceAutoOptimize ? 'translate-x-5' : 'translate-x-0'}"></span>
-									</button>
-								</div>
-
-								<div class="space-y-1.5">
-									<div class="flex items-center justify-between text-[10px]">
-										<span class="text-fg/50">Flags aplicadas em tempo real:</span>
-										<span class="font-mono text-fg/30">{generatedAikarFlags.length} parâmetros</span>
-									</div>
-									<div class="bg-bg-overlay/50 p-2.5 rounded-xl border border-fg/5 max-h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] text-emerald-400 leading-relaxed break-all">
-										{generatedAikarFlags.join(" ")}
-									</div>
-								</div>
-							</div>
-
-							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
-								<div class="flex items-center justify-between">
-									<div>
-										<div class="flex items-center gap-2">
-											<span class="text-xs font-bold text-fg">Pacote de Mods de Performance</span>
-											{#if perfPackInfo?.available}
-												<span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-bold">Disponível</span>
-											{:else}
-												<span class="text-[9px] bg-fg/10 text-fg/40 px-1.5 py-0.5 rounded font-bold">Indisponível</span>
-											{/if}
-										</div>
-										<span class="text-[10px] text-fg/40 block mt-0.5">
-											{perfPackInfo?.available ? 'Conjunto homologado de mods de taxa de quadros e redução de RAM' : (perfPackInfo?.reason || 'Requer modloader')}
-										</span>
-									</div>
-									{#if perfPackInfo?.available}
-										<button
-											type="button"
-											disabled={installingPerfPack}
-											class="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-brand-foreground rounded-xl font-bold text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20"
-											onclick={handleInstallPerfPack}
-										>
-											{#if installingPerfPack}
-												<RefreshCw class="w-3.5 h-3.5 animate-spin" /> Instalando...
-											{:else}
-												<Download class="w-3.5 h-3.5" /> Aplicar Pacote
-											{/if}
-										</button>
-									{/if}
-								</div>
-
-								{#if perfPackInfo?.available && perfPackInfo.mods.length > 0}
-									<div class="grid grid-cols-3 gap-2 pt-1">
-										{#each perfPackInfo.mods as mod}
-											<div class="bg-bg-overlay/30 p-2 rounded-xl border border-fg/5">
-												<span class="font-bold text-[11px] text-fg block">{mod.title}</span>
-												<span class="text-[9px] text-fg/40 block line-clamp-2 mt-0.5">{mod.description}</span>
-											</div>
-										{/each}
-									</div>
-								{/if}
-							</div>
-
-							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 flex items-center justify-between">
-								<div>
-									<div class="flex items-center gap-2">
-										<span class="text-xs font-bold text-fg">Mesa Zink / Vulkan (Linux)</span>
-										<span class="text-[9px] bg-cyan-500/20 text-cyan-400 px-1.5 py-0.5 rounded font-bold">Opt-in</span>
-									</div>
-									<span class="text-[10px] text-fg/40 block mt-0.5">
-										Executa o OpenGL sobre Vulkan via Mesa Zink no Linux (recomendado para AMD RADV / Intel)
-									</span>
-								</div>
-								<button
-									type="button"
-									aria-label="Alternar Aceleração Vulkan"
-									class="w-10 h-5 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-emerald-500 shadow-glow' : 'bg-bg-subtle'}"
-									onclick={() => instanceEnableVulkanOpt = !instanceEnableVulkanOpt}
-								>
-									<span class="w-4 h-4 rounded-full bg-fg transition-transform duration-200 shadow-md {instanceEnableVulkanOpt ? 'translate-x-5' : 'translate-x-0'}"></span>
-								</button>
-							</div>
-						</div>
-
-							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
-								<div><span class="text-xs font-bold text-fg">Linux Gaming</span><span class="mt-0.5 block text-[10px] text-fg/40">Integrações aplicadas somente a esta instância.</span></div>
-								<div class="grid gap-2 sm:grid-cols-2">
-									<button type="button" class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3 text-left text-xs hover:bg-fg/5" onclick={() => instanceUseGameMode = !instanceUseGameMode}><span><span class="block font-bold text-fg">GameMode</span><span class="block text-[10px] text-fg/40">Prioriza CPU e I/O</span></span><span class="h-2.5 w-2.5 rounded-full {instanceUseGameMode ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
-									<button type="button" class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3 text-left text-xs hover:bg-fg/5" onclick={() => instanceUseMangoHud = !instanceUseMangoHud}><span><span class="block font-bold text-fg">MangoHud</span><span class="block text-[10px] text-fg/40">FPS e frame times</span></span><span class="h-2.5 w-2.5 rounded-full {instanceUseMangoHud ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
-									<button type="button" class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3 text-left text-xs hover:bg-fg/5" onclick={() => instanceForceDedicatedGpu = !instanceForceDedicatedGpu}><span><span class="block font-bold text-fg">GPU dedicada</span><span class="block text-[10px] text-fg/40">PRIME ou DRI_PRIME</span></span><span class="h-2.5 w-2.5 rounded-full {instanceForceDedicatedGpu ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
-									<button type="button" class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3 text-left text-xs hover:bg-fg/5" onclick={() => instanceForceFullVerification = !instanceForceFullVerification}><span><span class="block font-bold text-fg">Verificação completa</span><span class="block text-[10px] text-fg/40">No próximo jogo</span></span><span class="h-2.5 w-2.5 rounded-full {instanceForceFullVerification ? 'bg-emerald-400' : 'bg-fg/20'}"></span></button>
-								</div>
-								<div class="flex items-center justify-between rounded-xl border border-fg/10 bg-bg-overlay/30 p-3"><div><span class="block text-xs font-bold text-fg">Gamescope e FSR</span><span class="block text-[10px] text-fg/40">Escala a resolução interna com frame pacing preciso.</span></div><button type="button" aria-label="Alternar Gamescope" class="w-10 h-5 rounded-full px-0.5 {instanceUseGamescope ? 'bg-emerald-500' : 'bg-bg-subtle'}" onclick={() => instanceUseGamescope = !instanceUseGamescope}><span class="block h-4 w-4 rounded-full bg-fg transition-transform {instanceUseGamescope ? 'translate-x-5' : ''}"></span></button></div>
-								{#if instanceUseGamescope}<div class="grid grid-cols-2 gap-2"><input type="number" bind:value={instanceGamescopeWidth} placeholder="Largura interna" class="rounded-xl border border-fg/10 bg-bg-overlay/30 px-3 py-2 text-xs text-fg outline-none" /><input type="number" bind:value={instanceGamescopeHeight} placeholder="Altura interna" class="rounded-xl border border-fg/10 bg-bg-overlay/30 px-3 py-2 text-xs text-fg outline-none" /></div><label class="flex items-center gap-2 text-xs text-fg/70"><input type="checkbox" bind:checked={instanceGamescopeFsr} class="accent-brand-500" /> FSR upscaling</label>{/if}
-							</div>
-					{:else if activeInstanceSection === 'janela'}
-						<div class="space-y-6">
-							<div>
-								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">Janela & Display</h3>
-								<p class="text-[11px] text-fg/40 mt-0.5">Dimensões da janela e modo de exibição do Minecraft</p>
-							</div>
-
-							<div class="grid grid-cols-2 gap-4">
-								<div class="space-y-1.5">
-									<span class="text-xs font-bold text-fg/70 block">Largura (px)</span>
-									<input type="number" bind:value={instanceWindowWidth} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2 text-xs text-fg font-mono outline-none" />
-								</div>
-								<div class="space-y-1.5">
-									<span class="text-xs font-bold text-fg/70 block">Altura (px)</span>
-									<input type="number" bind:value={instanceWindowHeight} class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2 text-xs text-fg font-mono outline-none" />
-								</div>
-							</div>
-
-							<div class="flex items-center justify-between bg-bg-elevated border border-fg/5 rounded-2xl p-4">
-								<div>
-									<span class="text-xs font-bold text-fg block">Iniciar em Tela Cheia (Fullscreen)</span>
-									<span class="text-[10px] text-fg/40 block mt-0.5">Abre o Minecraft ocupando todo o monitor nativamente</span>
-								</div>
-								<button
-									type="button"
-									aria-label="Alternar Tela Cheia"
-									class="w-10 h-5 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative flex items-center px-0.5 cursor-pointer {instanceStartFullscreen ? 'bg-brand-500 shadow-glow' : 'bg-bg-subtle'}"
-									onclick={() => instanceStartFullscreen = !instanceStartFullscreen}
-								>
-									<span class="w-4 h-4 rounded-full bg-fg transition-transform duration-200 shadow-md {instanceStartFullscreen ? 'translate-x-5' : 'translate-x-0'}"></span>
-								</button>
-							</div>
-						</div>
-
-					{:else if activeInstanceSection === 'java'}
-						<div class="space-y-6">
-							<div>
-								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">Java e Memória</h3>
-								<div class="mt-4 space-y-3 rounded-2xl border border-border bg-bg-elevated p-4">
-									<label for="ram-min" class="block text-xs text-fg-muted">RAM mínima · {instanceMinRamMb} MB</label>
-									<input id="ram-min" class="w-full accent-brand-500" type="range" min="512" max={instanceRamMb} step="256" bind:value={instanceMinRamMb} />
-									<label for="ram-max" class="block text-xs text-fg-muted">RAM máxima · {instanceRamMb} MB</label>
-									<input id="ram-max" class="w-full accent-brand-500" type="range" min="1024" max={Math.max(1024, Math.floor(systemRamMb / 256) * 256)} step="256" bind:value={instanceRamMb} />
-									<div class="flex flex-wrap gap-2">{#each ["aikar", "zgc", "shenandoah"] as preset}<button type="button" class={button({ variant: "secondary", size: "sm" })} onclick={() => applyJvmPreset(preset as "aikar" | "zgc" | "shenandoah")}>{preset.toUpperCase()}</button>{/each}</div>
-									<p class="text-xs text-fg-subtle">ZGC e Shenandoah exigem um Java compatível. Aikar usa o G1GC.</p>
-									<button type="button" class={button({ variant: "secondary", size: "sm" })} onclick={detectJava} disabled={scanningJava}>{scanningJava ? "Detectando..." : "Detectar instalações Java"}</button>
-									<label class="block text-xs text-fg-muted" for="java-runtime">Java da instância</label>
-									<select id="java-runtime" bind:value={instanceJavaPath} class="w-full rounded-xl border border-border bg-bg-subtle px-3 py-3 text-xs text-fg"><option value="">Automático</option>{#each javaRuntimes as runtime}{#if runtime.path}<option value={runtime.path}>Java {runtime.major} · {runtime.versionString || runtime.path}</option>{/if}{/each}{#if instanceJavaPath && !javaRuntimes.some(runtime => runtime.path === instanceJavaPath)}<option value={instanceJavaPath}>{instanceJavaPath}</option>{/if}</select>
-								</div>
-
-								<p class="text-[11px] text-fg/40 mt-0.5">Alocação de RAM, presets rápidos e validação de flags JVM</p>
-							</div>
-
-							<div class="flex items-center justify-between bg-bg-elevated border border-emerald-500/30 rounded-2xl p-4">
-								<div>
-									<span class="text-xs font-bold text-emerald-400 block">Luxmc Vulkan Zero-Lag Optimizer</span>
-									<span class="text-[10px] text-fg/40 block mt-0.5">Otimização própria de renderização Mesa Zink e flags G1GC sem bugs visuais</span>
-								</div>
-								<button
-									type="button"
-									aria-label="Alternar Otimização Vulkan"
-									class="w-10 h-5 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative flex items-center px-0.5 cursor-pointer {instanceEnableVulkanOpt ? 'bg-emerald-500 shadow-glow' : 'bg-bg-subtle'}"
-									onclick={() => instanceEnableVulkanOpt = !instanceEnableVulkanOpt}
-								>
-									<span class="w-4 h-4 rounded-full bg-fg transition-transform duration-200 shadow-md {instanceEnableVulkanOpt ? 'translate-x-5' : 'translate-x-0'}"></span>
-								</button>
-							</div>
-
-							<div class="bg-bg-elevated border border-emerald-500/25 rounded-2xl p-4 space-y-2">
-								<div class="flex items-center justify-between text-xs">
-									<div class="flex items-center gap-2.5">
-										<div class="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-											<Cpu class="w-4 h-4" />
-										</div>
-										<div>
-											<span class="font-bold text-fg block">Memória e otimização</span>
-											<span class="text-[10px] text-fg/50 block">Hardware: {Math.round(systemRamMb / 1024)} GB Totais detectados</span>
-										</div>
-									</div>
-									<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
-										<Sparkles class="w-3 h-3" /> {instanceAutoOptimize ? "Otimização ativa" : "Configuração manual"}
-									</span>
-								</div>
-								<p class="text-[11px] text-fg/50 leading-relaxed">
-									O Luxmc calcula e aloca dinamicamente a quantidade ótima de RAM ao iniciar com base no peso dos mods da instância e na memória livre do Linux, prevenindo travamentos e otimizando o Garbage Collector.
-								</p>
-							</div>
-
-							<div class="space-y-2 bg-bg-elevated border border-fg/5 rounded-2xl p-4">
-								<div class="flex items-center justify-between">
-									<span class="text-xs font-bold text-fg/80">Executável Java do Perfil</span>
-									<span class="text-[10px] text-fg/40">{instanceJavaPath ? 'Customizado' : 'Auto-detectar (Padrão)'}</span>
-								</div>
-								<div class="flex gap-2">
-									<input
-										type="text"
-										bind:value={instanceJavaPath}
-										placeholder="Deixe vazio para usar a versão recomendada automaticamente"
-										class="flex-1 bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-emerald-500"
-									/>
-									<button
-										type="button"
-										class="px-3.5 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 shrink-0"
-										onclick={async () => {
-											const selected = await open({
-												title: "Selecionar Executável Java",
-												multiple: false,
-												directory: false
-											});
-											if (typeof selected === "string") {
-												instanceJavaPath = selected;
-											}
-										}}
-									>
-										<FolderOpen class="w-3.5 h-3.5" /> Procurar
-									</button>
-								</div>
-							</div>
-
-							<div class="space-y-2 bg-bg-elevated border border-fg/5 rounded-2xl p-4">
-								<div class="flex items-center justify-between">
-									<span class="text-xs font-bold text-fg/80">Argumentos JVM Customizados</span>
-									{#if jvmValidation}
-										{#if jvmValidation.valid}
-											<span class="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-												<Check class="w-3 h-3 text-emerald-400" /> Compatível com Linux
-											</span>
-										{:else}
-											<span class="text-[10px] font-bold text-amber-400 flex items-center gap-1">
-												<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> {jvmValidation.rejected.length} flag(s) inseguras
-											</span>
-										{/if}
-									{/if}
-								</div>
-
-								<input
-									type="text"
-									bind:value={instanceJvmArgs}
-									placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch"
-									class="w-full bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-emerald-500"
-								/>
-
-								{#if jvmValidation && !jvmValidation.valid}
-									<div class="p-3 bg-amber-500/10 border border-amber-500/25 rounded-xl space-y-2 mt-2">
-										<div class="text-[11px] font-bold text-amber-300">
-											Flags rejeitadas para Linux: {jvmValidation.rejected.join(", ")}
-										</div>
-										<ul class="text-[10px] text-fg/70 space-y-1 list-disc pl-4">
-											{#each jvmValidation.suggestions as sug}
-												<li>{sug}</li>
-											{/each}
-										</ul>
-										<button
-											type="button"
-											class="text-[10px] font-bold text-brand-foreground bg-emerald-500 hover:bg-emerald-400 px-3 py-1 rounded-lg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer mt-1"
-											onclick={() => {
-												if (jvmValidation) {
-													instanceJvmArgs = jvmValidation.normalized;
-												}
-											}}
-										>
-											Aplicar Sugestão e Limpar Incompatíveis
-										</button>
-									</div>
-								{/if}
-							</div>
-
-							<div class="space-y-3 bg-bg-elevated border border-fg/5 rounded-2xl p-4">
-								<div>
-									<h4 class="text-xs font-bold text-fg/80">Manutenção & Backup da Instância</h4>
-									<p class="text-[10px] text-fg/40 mt-0.5">Verifique integridade de arquivos ou exporte backups com segurança</p>
-								</div>
-
-								<div class="grid grid-cols-3 gap-2 pt-1">
-									<button
-										type="button"
-										class="p-3 rounded-xl bg-bg-subtle hover:bg-bg-subtle border border-fg/5 hover:border-fg/20 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
-										onclick={handleRepairInstance}
-										disabled={isRepairing}
-									>
-										<div class="flex items-center justify-between w-full">
-											<RefreshCw class="w-4 h-4 text-emerald-400 {isRepairing ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}" />
-											{#if isRepairing}
-												<span class="text-[9px] text-emerald-400 font-bold">Reparando...</span>
-											{/if}
-										</div>
-										<div class="mt-2">
-											<p class="text-xs font-bold text-fg">Reparar Instância</p>
-											<p class="text-[10px] text-fg/40">Checar SHA1 e baixar arquivos faltantes</p>
-										</div>
-									</button>
-
-									<button
-										type="button"
-										class="p-3 rounded-xl bg-bg-subtle hover:bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-500/40 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
-										onclick={handleRepairAll}
-										disabled={isRepairingAll}
-									>
-										<div class="flex items-center justify-between w-full">
-											<ShieldCheck class="w-4 h-4 text-emerald-400 {isRepairingAll ? 'animate-pulse' : 'group-hover:scale-110 transition-transform'}" />
-											{#if isRepairingAll}
-												<span class="text-[9px] text-emerald-400 font-bold">Preparando...</span>
-											{/if}
-										</div>
-										<div class="mt-2">
-											<p class="text-xs font-bold text-fg">Reparar Tudo</p>
-											<p class="text-[10px] text-fg/40">Jogo, Java e mods; saves preservados</p>
-										</div>
-									</button>
-
-									<button
-										type="button"
-										class="p-3 rounded-xl bg-bg-subtle hover:bg-bg-subtle border border-fg/5 hover:border-fg/20 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
-										onclick={handleBackupSaves}
-										disabled={isBackingUp}
-									>
-										<div class="flex items-center justify-between w-full">
-											<Save class="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
-											{#if isBackingUp}
-												<span class="text-[9px] text-emerald-400 font-bold">Gerando...</span>
-											{/if}
-										</div>
-										<div class="mt-2">
-											<p class="text-xs font-bold text-fg">Backup dos Mundos</p>
-											<p class="text-[10px] text-fg/40">Compactar saves em arquivo .zip</p>
-										</div>
-									</button>
-
-									<button
-										type="button"
-										class="p-3 rounded-xl bg-bg-subtle hover:bg-bg-subtle border border-fg/5 hover:border-fg/20 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
-										onclick={handleExportZip}
-										disabled={isExporting}
-									>
-										<div class="flex items-center justify-between w-full">
-											<Share2 class="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
-											{#if isExporting}
-												<span class="text-[9px] text-purple-400 font-bold">Exportando...</span>
-											{/if}
-										</div>
-										<div class="mt-2">
-											<p class="text-xs font-bold text-fg">Exportar Instância</p>
-											<p class="text-[10px] text-fg/40">Criar pacote completo .zip</p>
-										</div>
-									</button>
-
-									<button
-										type="button"
-										class="p-3 rounded-xl bg-bg-subtle hover:bg-bg-subtle border border-fg/5 hover:border-brand-500/40 text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between group disabled:opacity-50"
-										onclick={handleExportShareCode}
-										disabled={isGeneratingShareCode}
-									>
-										<div class="flex items-center justify-between w-full">
-											<Sparkles class="w-4 h-4 text-brand-500 group-hover:scale-110 transition-transform" />
-											{#if isGeneratingShareCode}
-												<span class="text-[9px] text-brand-500 font-bold">Gerando...</span>
-											{/if}
-										</div>
-										<div class="mt-2">
-											<p class="text-xs font-bold text-fg">Compartilhar Código</p>
-											<p class="text-[10px] text-fg/40">Gerar código LUX-XXXX</p>
-										</div>
-									</button>
-								</div>
-							</div>
-						</div>
-
-					{:else if activeInstanceSection === 'hooks'}
-						<div class="space-y-6">
-							<div>
-								<h3 class="text-xs font-bold text-fg uppercase tracking-wider">Launch Hooks</h3>
-								<p class="text-[11px] text-fg/40 mt-0.5">Executar scripts pré e pós inicialização do Minecraft</p>
-							</div>
-
-							<div class="space-y-2">
-								<span class="text-xs font-bold text-fg/70 block">Script Pré-Inicialização (Pre-Launch)</span>
-								<input type="text" bind:value={instancePreLaunchHook} placeholder="/path/to/script.sh" class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg font-mono outline-none" />
-							</div>
-
-							<div class="space-y-2">
-								<span class="text-xs font-bold text-fg/70 block">Script Pós-Encerramento (Post-Exit)</span>
-								<input type="text" bind:value={instancePostExitHook} placeholder="/path/to/script.sh" class="w-full bg-bg-elevated border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg font-mono outline-none" />
-							</div>
-						</div>
-					{/if}
-
-				</div>
-			</div>
-
-			<div class="flex items-center justify-end gap-3 pt-4 border-t border-fg/5">
-				<button
-					type="button"
-					class="px-6 py-2.5 rounded-full text-xs font-bold text-fg/60 hover:text-fg hover:bg-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-					onclick={() => showInstanceSettingsModal = false}
-				>
-					Cancelar
-				</button>
-				<button
-					type="button"
-					class="px-7 py-2.5 rounded-full text-xs font-black text-brand-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-lg hover:scale-105 active:scale-[0.98] flex items-center gap-2"
-					style="background-color: rgb(var(--brand-500));"
-					onclick={saveInstanceSettings}
-				>
-					<Check class="w-4 h-4 stroke-[3]" /> Guardar alterações
-				</button>
-			</div>
-
-		</div>
-	</div>
-{/if}
 
 {#if selectedSnapshotWorld}
 	<WorldSnapshotsModal

@@ -27,11 +27,7 @@ const assert = require('node:assert/strict');
     await page.getByText('Modo Local / P2P Ativo').waitFor({ timeout: 30000 });
     await page.getByRole('heading', { name: 'Seu mundo, um convite' }).waitFor();
     await page.getByRole('button', { name: 'Hospedar meu mundo' }).waitFor();
-    await page.getByText('Mundos LAN detectados').waitFor();
-    await page.waitForFunction(() => {
-        const label = [...document.querySelectorAll('p')].find(element => element.textContent === 'Mundos LAN detectados');
-        return label?.parentElement?.textContent?.includes('1');
-    });
+    await page.getByText('1 mundos LAN', { exact: true }).waitFor();
     assert.equal(await page.getByText('Invalid state: Serviço social temporariamente indisponível.').count(), 0);
     await page.goto('http://127.0.0.1:1420/teamwork-preview');
     await page.getByRole('heading', { name: 'Jogar com amigos' }).waitFor();

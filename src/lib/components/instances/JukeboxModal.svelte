@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { untrack } from "svelte";
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { 
 		Disc, 
 		Music, 
@@ -28,7 +30,7 @@
 
 	let { open, onClose }: Props = $props();
 
-	const playlist: Track[] = [
+	const playlist: Track[] = $derived([
 		{
 			id: "pigstep",
 			title: "Pigstep",
@@ -64,15 +66,15 @@
 			discColor: "rgb(var(--loader-quilt))",
 			url: "https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.20.1/assets/minecraft/sounds/records/relic.ogg"
 		}
-	];
+	]);
 
-	let activeTrack = $state<Track>(playlist[0]);
+	let activeTrack = $state<Track>(untrack(() => playlist[0]));
 </script>
 
-<Modal isOpen={open} {onClose} title="Jukebox do Launcher — Discos e Sons">
+<Modal isOpen={open} {onClose} title={uiText("ui.28786aa5dd0af384")}>
 	<div class="flex flex-col gap-4 text-xs">
 		<p class="text-fg/70 leading-relaxed">
-			Escute os discos de música clássicos e pré-visualize trilhas sonoras de Resource Packs com onda sonora interativa diretamente no launcher antes de entrar no Minecraft.
+			{uiText("ui.79182cc08de11373")}
 		</p>
 
 		<!-- Visualizer Card -->
@@ -80,12 +82,12 @@
 
 		<!-- Playlist Grid -->
 		<div class="flex flex-col gap-2">
-			<span class="text-[11px] font-bold text-fg/50 uppercase tracking-wider">Discos Disponíveis</span>
+			<span class="text-[11px] font-bold text-fg/50 uppercase tracking-wider">{uiText("ui.1f4e6beded2357c1")}</span>
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
 				{#each playlist as track}
 					<button
 						type="button"
-						class="flex items-center gap-3 p-2.5 rounded-xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTrack.id === track.id ? 'bg-brand-400/15 border-brand-400/50' : 'bg-bg-subtle border-fg/5 hover:border-fg/20'}"
+						class="flex items-center gap-3 p-2.5 rounded-xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {activeTrack.id === track.id ? 'bg-brand-400/15 border-brand-400/50' : 'bg-bg-subtle border-fg/5 hover:border-fg/20'}"
 						onclick={() => activeTrack = track}
 					>
 						<div 
@@ -102,7 +104,7 @@
 
 						{#if activeTrack.id === track.id}
 							<span class="text-[10px] font-bold text-brand-400 px-2 py-0.5 rounded-full bg-brand-400/20">
-								Tocando
+								{uiText("ui.b6f1f2a32314859e")}
 							</span>
 						{/if}
 					</button>
@@ -112,7 +114,7 @@
 
 		<div class="flex items-center justify-end pt-2 border-t border-fg/5">
 			<Button variant="secondary" size="sm" onclick={onClose}>
-				Fechar
+				{uiText("statusBanner.dismiss")}
 			</Button>
 		</div>
 	</div>

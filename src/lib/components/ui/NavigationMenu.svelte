@@ -21,7 +21,7 @@
 			aria-current={item.active ? "page" : undefined}
 			aria-label={item.label}
 			onclick={item.onClick}
-			class={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] relative ${
+			class={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] relative ${
 				item.active
 					? 'bg-brand text-fg shadow-lg'
 					: 'hover:bg-bg-hover text-fg-muted hover:text-fg'

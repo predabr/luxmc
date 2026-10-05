@@ -1,7 +1,8 @@
 <script lang="ts">
+import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation.svelte";
     import { z } from "zod";
 	import { Newspaper, ExternalLink, Tag, ArrowRight } from "lucide-svelte";
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 
 	type Release = {
 		id: string;
@@ -12,59 +13,67 @@
 		url: string;
 	};
 
-	const defaultNews: Release[] = [
+	const defaultNews: Release[] = $derived([
+        {
+            id: "luxmc-v3-0-0",
+            title: uiText("release3.title"),
+            body: uiText("release3.summary"),
+            publishedAt: "2026-10-05",
+            tag: "v3.0.0",
+            url: "/news"
+        },
 		{
 			id: "pale-garden-1-21-5",
-			title: "Minecraft Drop: The Pale Garden & The Creaking",
-			body: "Novo bioma Pale Garden com madeira Pale Oak, mob Creaking e novos blocos de resina.",
+			title: uiText("ui.a0dc4bdd46f44954"),
+			body: uiText("ui.e4e24ba39a1d2b8c"),
 			publishedAt: "Set 2026",
 			tag: "Minecraft 1.21.5",
 			url: "/news"
 		},
 		{
 			id: "modrinth-api-v3",
-			title: "Modrinth v3: Servidores CDN no Brasil",
-			body: "Downloads de modpacks e shaders até 4x mais rápidos com novo nó em São Paulo.",
+			title: uiText("ui.0b175611a05abdd1"),
+			body: uiText("ui.741f8d7308bc3f93"),
 			publishedAt: "Set 2026",
 			tag: "Modrinth",
 			url: "https://modrinth.com"
 		},
 		{
 			id: "sodium-iris-update",
-			title: "Sodium 0.6: OpenGL Multi-Draw & Vulkan",
-			body: "Salto de taxa de quadros e renderização suave a 144+ FPS no Linux e Windows.",
+			title: uiText("ui.755904314ac4e964"),
+			body: uiText("ui.b3ce699de94c41a1"),
 			publishedAt: "Set 2026",
-			tag: "Desempenho",
+			tag: uiText("ui.ce274629c3f2e125"),
 			url: "https://modrinth.com/mod/sodium"
 		},
 		{
 			id: "luxmc-v2-0-2",
-			title: "Luxmc v2.0.2: Auto-Updater Atômico, Correções de UI & P2P",
-			body: "Atualizador atômico para Linux, cutscene fluida, novos cards nítidos e wallpapers com reprodução instantânea.",
+			title: uiText("ui.08cc6505298cb2a2"),
+			body: uiText("ui.1c55c5b0af246549"),
 			publishedAt: "Hoje",
 			tag: "v2.0.2",
 			url: "/news"
 		},
 		{
 			id: "luxmc-v2-0-1",
-			title: "Luxmc v2.0.1: Fast Launch, GameMode & Salas P2P",
-			body: "Inicialização ultrarrápida (<2s), GameMode, MangoHud, códigos de sala P2P com QR code e Reparar Tudo.",
+			title: uiText("ui.c8f273aadcdff865"),
+			body: uiText("ui.18e4119c21f0f77e"),
 			publishedAt: "Hoje",
 			tag: "v2.0.1",
 			url: "/news"
 		},
 		{
 			id: "luxmc-v2-0-0",
-			title: "Luxmc v2.0.0: O Lançamento Oficial da Nova Geração",
-			body: "CrashDoctor Auto-Heal, Mod Shield, 50k+ mods, P2P mesh multiplayer e integração total no Linux & Windows.",
+			title: uiText("ui.18136eecf74dab47"),
+			body: uiText("ui.f5429eaba599b0a1"),
 			publishedAt: "Ontem",
 			tag: "v2.0.0",
 			url: "/news"
 		},
 		{
 			id: "luxmc-v1-7-6",
-			title: "Luxmc v1.7.6: Barra Sincronizada & NeoForge ATM10",
-			body: "Barra lateral translúcida conectada ao wallpaper, correções gráficas e performance extrema.",
+			title: uiText("ui.5b50668b7ba4294b"),
+			body: uiText("ui.beb0db02e674fe92"),
 			publishedAt: "20 Set",
 			tag: "v1.7.6",
 			url: "/news"
@@ -72,15 +81,15 @@
 
 		{
 			id: "luxmc-v1-7-5",
-			title: "Luxmc v1.7.5: Aceleração GPU & Modo Streamer",
-			body: "Interface ultra smooth com WebKit GPU, suporte a Espanhol e privacidade avançada.",
+			title: uiText("ui.baf3262cf3b7e92c"),
+			body: uiText("ui.c9346a5d54ec7869"),
 			publishedAt: "19 Set",
 			tag: "v1.7.5",
 			url: "/news"
 		}
-	];
+	]);
 
-	let releases = $state<Release[]>(defaultNews);
+	let releases = $state<Release[]>(untrack(() => defaultNews));
 	let loading = $state(false);
 	let error = $state(false);
 
@@ -94,7 +103,7 @@
 					id: String(r.id),
 					title: r.name || r.tag_name,
 					body: (r.body || "").slice(0, 160).replace(/[#*`\n]/g, " ").trim(),
-					publishedAt: new Date(r.published_at).toLocaleDateString("pt-BR", {
+					publishedAt: new Date(r.published_at).toLocaleDateString(currentUiLocale(), {
 						day: "2-digit",
 						month: "short"
 					}),
@@ -111,13 +120,13 @@
 	<div class="flex items-center justify-between mb-3">
 		<h2 class="text-xs font-bold text-fg uppercase tracking-wider flex items-center gap-2">
 			<Newspaper class="w-3.5 h-3.5 text-emerald-400" />
-			Notícias & Atualizações
+			{uiText("ui.27c583af31e6c157")}
 		</h2>
 		<a
 			href="/news"
 			class="text-xs text-emerald-400 hover:text-emerald-300 hover:underline font-bold flex items-center gap-1"
 		>
-			Ver Central <ArrowRight class="w-3 h-3" />
+			{uiText("ui.0e5eca22a3ced66b")} <ArrowRight class="w-3 h-3" />
 		</a>
 	</div>
 
@@ -129,14 +138,14 @@
 		</div>
 	{:else if error}
 		<div class="rounded-2xl bg-bg-elevated border border-fg/5 p-5 text-center">
-			<p class="text-xs text-fg/40">Não foi possível carregar as notícias.</p>
+			<p class="text-xs text-fg/40">{uiText("ui.0c3ed25494067a4f")}</p>
 			<a
 				href="https://github.com/predabr/luxmc/releases"
 				target="_blank"
 				rel="noopener noreferrer"
 				class="text-[10px] text-emerald-400 hover:underline font-bold mt-1 inline-block"
 			>
-				Abrir no GitHub
+				{uiText("ui.5c3f24bca8de14ee")}
 			</a>
 		</div>
 	{:else}
@@ -146,7 +155,7 @@
 					href={release.url}
 					target="_blank"
 					rel="noopener noreferrer"
-					class="group rounded-2xl bg-bg-elevated border border-fg/5 hover:border-emerald-500/30 p-3.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:bg-bg-subtle cursor-pointer"
+					class="group rounded-2xl bg-bg-elevated border border-fg/5 hover:border-emerald-500/30 p-3.5 transition-[color,background-color,border-color,box-shadow,transform,opacity] hover:bg-bg-subtle cursor-pointer"
 				>
 					<div class="flex items-center justify-between gap-2">
 						<div class="flex items-center gap-2 min-w-0">
@@ -155,7 +164,7 @@
 							</span>
 							<span class="text-[10px] text-fg/30 shrink-0">{release.publishedAt}</span>
 						</div>
-						<ArrowRight class="w-3 h-3 text-fg/20 group-hover:text-emerald-400 -rotate-45 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shrink-0" />
+						<ArrowRight class="w-3 h-3 text-fg/20 group-hover:text-emerald-400 -rotate-45 transition-[color,background-color,border-color,box-shadow,transform,opacity] shrink-0" />
 					</div>
 					<h3 class="text-xs font-bold text-fg mt-1.5 group-hover:text-emerald-400 transition-colors truncate">
 						{release.title}

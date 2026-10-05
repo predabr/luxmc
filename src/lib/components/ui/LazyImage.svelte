@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { cn } from "$lib/utils/cn";
   let { 
     src, 
     alt = "", 
@@ -32,7 +33,7 @@
   }
 </script>
 
-<div class="relative h-full w-full overflow-hidden">
+<div class={cn("relative h-full w-full overflow-hidden", klass)}>
   {#if !loaded && !error}
     <div class="absolute inset-0 bg-bg-subtle rounded animate-pulse"></div>
   {/if}
@@ -43,7 +44,7 @@
       {loading}
       decoding="async"
       referrerpolicy="no-referrer"
-      class="h-full w-full transition-opacity duration-200 {loaded ? 'opacity-100' : 'opacity-0'} {klass}"
+      class="h-full w-full transition-opacity duration-150 {loaded ? 'opacity-100' : 'opacity-0'} {klass.includes('object-cover') ? 'object-cover' : 'object-contain'}"
       onload={handleLoad}
       onerror={handleError}
     />

@@ -1,6 +1,9 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { fade, slide } from "svelte/transition";
+	import { focusTrap } from "$lib/utils/focusTrap";
 	import FilterableVersionSelect from "$lib/components/ui/FilterableVersionSelect.svelte";
 	import {
 		Plus,
@@ -65,9 +68,9 @@
 		onCreate
 	}: Props = $props();
 
-	let newName = $state("Fabric 1.21.4");
-	let newVersion = $state("1.21.4");
-	let newLoader = $state("fabric");
+	let newName = $state("Vanilla");
+	let newVersion = $state("");
+	let newLoader = $state("vanilla");
 	let loaderReleaseType = $state<"stable" | "latest" | "other">("stable");
 	let availableLoaderVersions = $state<Array<{ id: string; stable: boolean }>>([]);
 	let selectedLoaderVersion = $state("");
@@ -79,7 +82,7 @@
 	let selectedRamGb = $state(4);
 	let newAutoOptimize = $state(true);
 	let newUseVulkan = $state(false);
-	let newInstallPerfPack = $state(true);
+	let newInstallPerfPack = $state(false);
 	let showAdvanced = $state(false);
 	let customResW = $state(settings.value.defaultResWidth ?? 1920);
 	let customResH = $state(settings.value.defaultResHeight ?? 1080);
@@ -91,29 +94,29 @@
 	let lastError = $state<string | null>(null);
 	let createSuccess = $state(false);
 
-	const iconPresets = [
-		{ id: "grass_block", label: "Bloco de Grama", src: "/grass_block.png" },
-		{ id: "modpack_fo", label: "Fabulously Optimized", src: "/modpack_fo_icon.png" },
-		{ id: "modpack_better_mc", label: "Better MC", src: "/modpack_bmc_icon.webp" },
-		{ id: "modpack_cobblemon", label: "Cobblemon", src: "/modpack_cobblemon_icon.png" },
-		{ id: "logo", label: "Luxmc Logo", src: "/logo.png" },
+	const iconPresets = $derived([
+		{ id: "grass_block", label: uiText("ui.5ceea7c54da592b2"), src: "/grass_block.png" },
+		{ id: "modpack_fo", label: uiText("ui.91ad8c25ff27e75e"), src: "/modpack_fo_icon.png" },
+		{ id: "modpack_better_mc", label: uiText("ui.0ac0494022a49a66"), src: "/modpack_bmc_icon.webp" },
+		{ id: "modpack_cobblemon", label: uiText("ui.7f1c6e0fb0701436"), src: "/modpack_cobblemon_icon.png" },
+		{ id: "logo", label: uiText("ui.3e3da60bcc8c4452"), src: "/logo.png" },
 		{ id: "grass_head", label: "Steve", src: "/grass_head.png" }
-	];
+	]);
 
 	async function handleCustomIconUpload() {
 		try {
 			const file = await open({
-				title: "Selecione uma imagem para o ícone",
+				title: uiText("ui.d59c8a2192bc82cd"),
 				multiple: false,
 				filters: [{ name: "Imagens", extensions: ["png", "jpg", "jpeg", "webp"] }]
 			});
 			if (file && typeof file === "string") {
 				newIcon = convertFileSrc(file);
 				showIconPicker = false;
-				toast("Ícone personalizado carregado!", "success");
+				toast(uiText("ui.8e20eafc85920ffa"), "success");
 			}
 		} catch (e) {
-			toast("Erro ao carregar imagem: " + String(e), "error");
+			toast(uiText("ui.30db10065a2fd909") + String(e), "error");
 		}
 	}
 
@@ -151,14 +154,15 @@
 			if (!result.versions.some(candidate => candidate.id === selectedLoaderVersion)) {
 				selectedLoaderVersion = result.versions[0]?.id ?? "";
 			}
-			if (!result.versions.length) loaderVersionError = `Não há ${loader} disponível para Minecraft ${version}.`;
+			if (!result.versions.length) loaderVersionError = uiText("ui.4a1b977af3b86f73", {arg0: (loader), arg1: (version)});
 		}).catch(error => {
-			if (active) loaderVersionError = `Não foi possível consultar ${loader}: ${String(error)}`;
+			if (active) loaderVersionError = uiText("ui.dbaeff1adfd85859", {arg0: (loader), arg1: (String(error))});
 		}).finally(() => { if (active) loaderVersionsLoading = false; });
 		return () => { active = false; };
 	});
 
 	function selectLoader(ldrId: string) {
+        versionTouched = true;
 		newLoader = ldrId;
 		const ldr = loaderOptions.find(l => l.id === ldrId);
 		const ldrName = ldr?.name || "Vanilla";
@@ -166,21 +170,32 @@
 	}
 
 	function handleVersionChange(ver: string) {
+        versionTouched = true;
 		const ldr = loaderOptions.find(l => l.id === newLoader);
 		const ldrName = ldr?.name || "Vanilla";
 		newName = newLoader === 'vanilla' ? `Vanilla ${ver}` : `${ldrName} ${ver}`;
 	}
 
+    let wasOpen = false;
+    let versionTouched = false;
+    $effect(() => {
+        if (isOpen && !wasOpen) { resetForm(); versionTouched = false; }
+        if (isOpen && !versionTouched && newLoader === "vanilla") {
+            const latest = versions.filter(version => version.versionType === "release").toSorted((a,b) => b.releaseTime.localeCompare(a.releaseTime))[0]?.id;
+            if (latest) { newVersion = latest; newName = `Vanilla ${latest}`; }
+        }
+        wasOpen = isOpen;
+    });
 	function resetForm() {
-		newName = "Fabric 1.21.4";
-		newLoader = "fabric";
-		newVersion = "1.21.4";
+		newVersion = versions.filter(version => version.versionType === "release").toSorted((a,b) => b.releaseTime.localeCompare(a.releaseTime))[0]?.id || "";
+        newLoader = "vanilla";
+        newName = newVersion ? `Vanilla ${newVersion}` : "Vanilla";
 		newIcon = "grass_block";
 		loaderReleaseType = "stable";
 		selectedLoaderVersion = "";
 		newAutoOptimize = true;
 		newUseVulkan = false;
-		newInstallPerfPack = true;
+		newInstallPerfPack = false;
 		lastError = null;
 		createSuccess = false;
 		showIconPicker = false;
@@ -193,14 +208,14 @@
 	}
 
 	async function handleCreate() {
-		if (!newName.trim()) return;
+		if (!newName.trim() || !newVersion || versionsLoading) return;
 		const chosenLoaderVersion = loaderReleaseType === "other"
 			? selectedLoaderVersion
 			: (loaderReleaseType === "stable"
 				? availableLoaderVersions.find(candidate => candidate.stable)?.id ?? availableLoaderVersions[0]?.id
 				: availableLoaderVersions[0]?.id);
 		if (newLoader !== "vanilla" && !chosenLoaderVersion) {
-			lastError = loaderVersionError || "Aguarde a consulta da versão do loader.";
+			lastError = loaderVersionError || uiText("ui.53a3efc325fa11fd");
 			return;
 		}
 		creating = true;
@@ -228,7 +243,7 @@
 			toast(t("instances.createdSuccess"), "success");
 			setTimeout(() => handleClose(), 1200);
 		} catch (e) {
-			lastError = "Falha ao criar instância: " + String(e);
+			lastError = uiText("ui.ba3d218390288dc6") + String(e);
 			toast(lastError, "error");
 		} finally {
 			creating = false;
@@ -240,11 +255,13 @@
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80 backdrop-blur-md p-4 overflow-y-auto"
 		transition:fade={{ easing: quintOut, duration: 220 }}
+		use:focusTrap
 		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
-		onkeydown={(e) => { if (e.key === "Escape") handleClose(); }}
+		onkeydown={(e) => { if (e.key === "Escape") { e.stopPropagation(); handleClose(); } }}
 		role="dialog"
 		tabindex="-1"
 		aria-modal="true"
+		aria-label={uiText("mods.createInstance")}
 	>
 		<div
 			class="rounded-3xl bg-bg-elevated border border-fg/10 p-6 shadow-2xl space-y-5 select-none max-w-lg w-full max-h-[92vh] overflow-y-auto custom-scrollbar my-auto"
@@ -252,21 +269,21 @@
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between">
-				<h3 class="text-base font-bold text-fg tracking-tight">Criar instância</h3>
+				<h3 class="text-base font-bold text-fg tracking-tight">{uiText("mods.createInstance")}</h3>
 				<button
 					type="button"
-					class="h-8 w-8 rounded-full bg-fg/5 hover:bg-fg/10 text-fg/60 hover:text-fg flex items-center justify-center transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "flex items-center justify-center" })}
 					onclick={handleClose}
-					title="Fechar"
+					title={uiText("statusBanner.dismiss")}
 				>
 					<X class="w-4 h-4" />
 				</button>
 			</div>
 
 			{#if createSuccess}
-				<div class="flex items-center gap-3 rounded-2xl p-4 text-sm bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold">
+				<div class="flex items-center gap-3 rounded-2xl p-4 text-sm bg-success/10 border border-success/30 text-success font-bold">
 					<Check class="h-5 w-5" />
-					Instância "{newName}" criada com sucesso! Redirecionando...
+					{uiText("ui.c14dce9ce6cc09c2")}{newName}{uiText("ui.f9fbbf8636c544e7")}
 				</div>
 			{:else}
 				<!-- Top: Icon & 3 Stacked Buttons -->
@@ -274,8 +291,8 @@
 					<div class="w-20 h-20 rounded-2xl bg-bg-subtle border border-fg/10 flex items-center justify-center p-2 shrink-0 shadow-inner overflow-hidden">
 						<img loading="lazy" decoding="async"
 							src={getIconSrc(newIcon)}
-							alt="Ícone da Instância"
-							class="w-14 h-14 object-contain [image-rendering:pixelated]"
+							alt={uiText("ui.f15f8f19139853cf")}
+							class="w-16 h-16 object-contain [image-rendering:pixelated]"
 							onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
 						/>
 					</div>
@@ -284,23 +301,23 @@
 						<button
 							type="button"
 							onclick={handleCustomIconUpload}
-							class="h-8 px-3 rounded-xl bg-bg-subtle hover:bg-fg/10 border border-fg/10 text-xs font-semibold text-fg/80 hover:text-fg flex items-center gap-2 transition-colors cursor-pointer"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 						>
-							<Upload class="w-3.5 h-3.5" /> Enviar
+							<Upload class="w-3.5 h-3.5" /> {uiText("ui.e1d12d1a29a77b00")}
 						</button>
 						<button
 							type="button"
 							onclick={handleRandomizeIcon}
-							class="h-8 px-3 rounded-xl bg-bg-subtle hover:bg-fg/10 border border-fg/10 text-xs font-semibold text-fg/80 hover:text-fg flex items-center gap-2 transition-colors cursor-pointer"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 						>
-							<RefreshCw class="w-3.5 h-3.5" /> Aleatorizar
+							<RefreshCw class="w-3.5 h-3.5" /> {uiText("ui.b095078f355b4721")}
 						</button>
 						<button
 							type="button"
 							onclick={() => showIconPicker = !showIconPicker}
-							class="h-8 px-3 rounded-xl bg-bg-subtle hover:bg-fg/10 border border-fg/10 text-xs font-semibold text-fg/80 hover:text-fg flex items-center gap-2 transition-colors cursor-pointer"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 						>
-							<Palette class="w-3.5 h-3.5" /> Personalizar
+							<Palette class="w-3.5 h-3.5" /> {uiText("ui.af283098bccceacd")}
 						</button>
 					</div>
 				</div>
@@ -308,13 +325,13 @@
 				<!-- Icon Picker Popover / Drawer -->
 				{#if showIconPicker}
 					<div class="p-3 bg-bg-subtle rounded-2xl border border-fg/10 space-y-2" transition:slide={{ easing: quintOut, duration: 220 }}>
-						<span class="text-[11px] font-bold text-fg/70 block">Escolha um ícone pré-definido:</span>
+						<span class="text-[11px] font-bold text-fg/70 block">{uiText("ui.3b640f8f1bd94d4b")}</span>
 						<div class="flex items-center gap-2 flex-wrap">
 							{#each iconPresets as ip}
 								<button
 									type="button"
 									onclick={() => { newIcon = ip.id; showIconPicker = false; }}
-									class="w-9 h-9 rounded-xl p-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center border {newIcon === ip.id ? 'bg-emerald-500/20 border-emerald-500' : 'bg-bg-elevated border-fg/10 hover:border-fg/30'}"
+									class="w-9 h-9 rounded-xl p-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center justify-center border {newIcon === ip.id ? 'bg-success/20 border-success' : 'bg-bg-elevated border-fg/10 hover:border-fg/30'}"
 									title={ip.label}
 								>
 									<img loading="lazy" decoding="async" src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
@@ -326,26 +343,26 @@
 
 				<!-- Nome -->
 				<div class="space-y-1.5">
-					<label for="instance-name" class="block text-xs font-bold text-fg/80">Nome</label>
+					<label for="instance-name" class="block text-xs font-bold text-fg/80">{uiText("instances.sortName")}</label>
 					<input
 						id="instance-name"
 						type="text"
 						bind:value={newName}
-						class="w-full h-10 rounded-xl px-3.5 text-xs font-medium text-fg bg-bg-subtle border border-fg/10 focus:border-emerald-500 outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
-						placeholder="ex: Fabric 1.21.4"
+						class="w-full h-10 rounded-xl px-3.5 text-xs font-medium text-fg bg-bg-subtle border border-fg/10 focus:border-success outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity]"
+						placeholder={uiText("ui.9169b7ddb239cac2")}
 					/>
 				</div>
 
 				<!-- Loader -->
 				<div class="space-y-1.5">
-					<span class="block text-xs font-bold text-fg/80">Loader</span>
+					<span class="block text-xs font-bold text-fg/80">{uiText("instances.loader")}</span>
 					<div class="flex flex-wrap gap-2">
 						{#each loaderOptions as ldr}
 							{@const isSelected = newLoader === ldr.id}
 							<button
 								type="button"
 								onclick={() => selectLoader(ldr.id)}
-								class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
+								class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-success/20 text-success border-success/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
 							>
 								{#if isSelected}
 									<Check class="w-3.5 h-3.5 stroke-[2.5]" />
@@ -358,7 +375,7 @@
 
 				<!-- Versão do jogo -->
 				<div class="space-y-1.5">
-					<span class="block text-xs font-bold text-fg/80">Versão do jogo</span>
+					<span class="block text-xs font-bold text-fg/80">{uiText("ui.be772845450077f0")}</span>
 					<FilterableVersionSelect
 						{versions}
 						bind:value={newVersion}
@@ -370,18 +387,18 @@
 				<!-- Versão do loader (quando loader != vanilla) -->
 				{#if newLoader !== 'vanilla'}
 					<div class="space-y-1.5">
-						<span class="block text-xs font-bold text-fg/80">Versão do loader</span>
+						<span class="block text-xs font-bold text-fg/80">{uiText("instances.loaderVersion")}</span>
 						<div class="flex gap-2">
 							{#each [
-								{ id: 'stable' as const, label: 'Estável' },
-								{ id: 'latest' as const, label: 'Última' },
-								{ id: 'other' as const, label: 'Outra' }
+								{ id: 'stable' as const, label: uiText("ui.a26ad010d2b24254") },
+								{ id: 'latest' as const, label: uiText("ui.57dc95cb14ce4165") },
+								{ id: 'other' as const, label: uiText("ui.f26d93169aee9bf9") }
 							] as lv}
 								{@const isSelected = loaderReleaseType === lv.id}
 								<button
 									type="button"
 									onclick={() => loaderReleaseType = lv.id}
-									class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
+									class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-success/20 text-success border-success/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
 								>
 									{#if isSelected}
 										<Check class="w-3.5 h-3.5 stroke-[2.5]" />
@@ -390,11 +407,11 @@
 								</button>
 							{/each}
 						</div>
-						{#if loaderVersionsLoading}<p class="text-xs text-fg/50">Consultando versões compatíveis…</p>{/if}
+						{#if loaderVersionsLoading}<p class="text-xs text-fg/50">{uiText("ui.39928af4a13cacba")}</p>{/if}
 						{#if loaderVersionError}<p class="text-xs text-danger" role="alert">{loaderVersionError}</p>{/if}
 						{#if loaderReleaseType === 'other' && availableLoaderVersions.length > 0}
 							<select bind:value={selectedLoaderVersion} class="w-full rounded-xl border border-fg/10 bg-bg-subtle px-3 py-2 text-xs text-fg">
-								{#each availableLoaderVersions as loaderVersion}<option value={loaderVersion.id}>{loaderVersion.id}{loaderVersion.stable ? ' · estável' : ''}</option>{/each}
+								{#each availableLoaderVersions as loaderVersion}<option value={loaderVersion.id}>{loaderVersion.id}{loaderVersion.stable ? uiText("ui.9b83b2b7eb93f7ff") : ''}</option>{/each}
 							</select>
 						{/if}
 					</div>
@@ -409,7 +426,7 @@
 					>
 						<div class="flex items-center gap-1.5">
 							<Sliders class="w-3.5 h-3.5" />
-							<span>Opções avançadas (RAM, Otimizações, Java)</span>
+							<span>{uiText("ui.50889396f5bb48f1")}</span>
 						</div>
 						{#if showAdvanced}
 							<ChevronUp class="w-3.5 h-3.5" />
@@ -423,8 +440,8 @@
 							<!-- Memória RAM -->
 							<div class="space-y-1.5">
 								<div class="flex justify-between text-xs">
-									<span class="font-bold text-fg/80">Alocação de RAM</span>
-									<span class="font-mono text-emerald-400 font-bold">{selectedRamGb} GB</span>
+									<span class="font-bold text-fg/80">{uiText("ui.0b6c9817a5ae09a9")}</span>
+									<span class="font-mono text-success font-bold">{selectedRamGb} GB</span>
 								</div>
 								<input
 									type="range"
@@ -439,12 +456,12 @@
 							<div class="space-y-2 pt-1">
 								<label class="flex items-center gap-2 text-xs text-fg/80 cursor-pointer">
 									<input type="checkbox" bind:checked={newAutoOptimize} class="accent-emerald-500 rounded" />
-									<span>Aikar G1GC Flags (Eliminar microtravamentos)</span>
+									<span>{uiText("ui.4a00b64876baefdd")}</span>
 								</label>
 								{#if newLoader !== "vanilla"}
 									<label class="flex items-center gap-2 text-xs text-fg/80 cursor-pointer">
 										<input type="checkbox" bind:checked={newInstallPerfPack} class="accent-emerald-500 rounded" />
-										<span>Instalar mods de desempenho compatíveis com este loader</span>
+										<span>{uiText("ui.76ce558dd6842f19")}</span>
 									</label>
 								{/if}
 							</div>
@@ -456,21 +473,21 @@
 					<button
 						type="button"
 						onclick={handleClose}
-						class="px-4 py-2 rounded-xl text-xs font-bold text-fg/70 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer flex items-center gap-1.5"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 					>
-						<ArrowLeft class="w-3.5 h-3.5" /> Voltar
+						<ArrowLeft class="w-3.5 h-3.5" /> {uiText("common.back")}
 					</button>
 					<button
 						type="button"
-						disabled={creating || !newName.trim() || (newLoader !== 'vanilla' && (loaderVersionsLoading || availableLoaderVersions.length === 0))}
+						disabled={creating || versionsLoading || !newVersion || !newName.trim() || (newLoader !== 'vanilla' && (loaderVersionsLoading || availableLoaderVersions.length === 0))}
 						onclick={handleCreate}
-						class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50"
+						class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2 disabled:opacity-50" })}
 					>
 						{#if creating}
 							<div class="w-4 h-4 rounded-full border-2 border-black border-t-transparent animate-spin"></div>
-							Criando...
+							{uiText("ui.7000cd83756f9135")}
 						{:else}
-							<Plus class="w-4 h-4 stroke-[3]" /> Criar instância
+							<Plus class="w-4 h-4 stroke-[3]" /> {uiText("mods.createInstance")}
 						{/if}
 					</button>
 				</div>
@@ -484,7 +501,7 @@
 					</div>
 					<button
 						type="button"
-						class="p-1 rounded hover:bg-fg/10 cursor-pointer"
+						class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 						onclick={() => (lastError = null)}
 					>
 						<X class="h-3.5 h-3.5" />

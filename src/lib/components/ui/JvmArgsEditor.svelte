@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { Cog, ShieldAlert, Sparkles, X } from "lucide-svelte";
 	import { jvmArgsValidate, type JvmValidationResult } from "$lib/api";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
@@ -83,7 +85,7 @@
 		{#each [1024, 2048, 3072, 4096, 6144, 8192, 12288, 16384] as preset (preset)}
 			<button
 				type="button"
-				class="rounded-md px-2 py-1 text-[11px] transition-colors"
+				class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 				style="border: 1px solid rgb(var(--border)); color: {ramMb === preset
 					? 'rgb(var(--brand-400))'
 					: 'rgb(var(--fg-muted))'}; background: {ramMb === preset
@@ -107,7 +109,7 @@
 		{#if value}
 			<button
 				type="button"
-				class="grid h-6 w-6 place-items-center rounded transition-colors hover:bg-fg/5"
+				class={launcherButton({ variant: "secondary", size: "icon", class: "grid place-items-center" })}
 				style="color: rgb(var(--fg-subtle));"
 				onclick={clear}
 				aria-label={t("jvmEditor.clearArgs")}
@@ -120,7 +122,7 @@
 		id="jvm-args"
 		class="min-h-[5rem] w-full resize-y rounded-md p-2 font-mono text-xs outline-none"
 		style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));"
-		placeholder="-XX:+UseG1GC -XX:MaxGCPauseMillis=50 -Dfile.encoding=UTF-8"
+		placeholder={uiText("ui.bee7b55635dfef42")}
 		bind:value
 		oninput={notify}
 	></textarea>

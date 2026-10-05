@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { Search, Trash2, RefreshCw, X } from "lucide-svelte";
 	import { onMount } from "svelte";
 	import { launchLogsList, launchLogsGet, launchLogsSearch, launchLogsClear, type LaunchLogSummary, type LaunchLogLine } from "$lib/api";
@@ -103,7 +104,7 @@
 		</select>
 		<button
 			type="button"
-			class="grid h-8 w-8 place-items-center rounded-md"
+			class={launcherButton({ variant: "ghost", size: "icon", class: "grid place-items-center" })}
 			style="border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));"
 			onclick={loadList}
 			aria-label={t("logs.refresh")}
@@ -112,7 +113,7 @@
 		</button>
 		<button
 			type="button"
-			class="grid h-8 w-8 place-items-center rounded-md"
+			class={launcherButton({ variant: "ghost", size: "icon", class: "grid place-items-center" })}
 			style="border: 1px solid rgb(var(--border)); color: rgb(var(--danger));"
 			onclick={clearAll}
 			aria-label={t("logs.clearAll")}
@@ -190,7 +191,7 @@
 				{#if selected}
 					<button
 						type="button"
-						class="grid h-6 w-6 place-items-center rounded transition-colors hover:bg-fg/5"
+						class={launcherButton({ variant: "secondary", size: "icon", class: "grid place-items-center" })}
 						onclick={() => {
 							selected = null;
 							lines = [];

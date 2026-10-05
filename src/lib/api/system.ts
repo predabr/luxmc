@@ -10,12 +10,25 @@ export async function ping(): Promise<string> {
 	return api.invoke<string>("ping");
 }
 
+export async function appSystemLocale(): Promise<string | null> {
+	return api.invoke<string | null>("app_system_locale");
+}
+
+export async function appDataDirectory(): Promise<string> {
+    return api.invoke<string>("app_data_directory");
+}
+
+export async function appOpenDataDirectory(): Promise<void> {
+    return api.invoke<void>("app_open_data_directory");
+}
+
 export async function mediaServerPort(): Promise<number | null> {
 	return api.invoke<number | null>("media_server_port");
 }
 
 export async function appInit(): Promise<{
 	devMode: boolean;
+	tokenWarning?: string | null;
 	account: {
 		id: string;
 		username: string;

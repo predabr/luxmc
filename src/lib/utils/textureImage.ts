@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { authResolveTexture } from "$lib/api/auth";
 
 export function loadTextureImage(src: string, signal: AbortSignal, timeoutMs = 15000): Promise<HTMLImageElement> {
@@ -6,7 +7,7 @@ export function loadTextureImage(src: string, signal: AbortSignal, timeoutMs = 1
 		if (src.startsWith("http://") || src.startsWith("https://")) {
 			image.crossOrigin = "anonymous";
 		}
-		const timeout = setTimeout(() => finish(new Error("Tempo limite ao carregar textura")), timeoutMs);
+		const timeout = setTimeout(() => finish(new Error(uiText("ui.a5ba2552601d7b97"))), timeoutMs);
 		const cancel = () => finish(new DOMException("Cancelado", "AbortError"));
 		function finish(error?: Error) {
 			clearTimeout(timeout);
@@ -17,7 +18,7 @@ export function loadTextureImage(src: string, signal: AbortSignal, timeoutMs = 1
 			else resolve(image);
 		}
 		image.onload = () => finish();
-		image.onerror = () => finish(new Error("Não foi possível carregar a textura"));
+		image.onerror = () => finish(new Error(uiText("ui.9779190602bb4ea9")));
 		signal.addEventListener("abort", cancel, { once: true });
 		if (signal.aborted) cancel();
 		else image.src = src;
@@ -51,29 +52,29 @@ export function isCapeUVPattern(ctx: CanvasRenderingContext2D): boolean {
 }
 
 export function textureCanvas(image: HTMLImageElement): HTMLCanvasElement {
-    if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth > 2048 || image.naturalHeight > 2048) throw new Error("Dimensões de textura inválidas");
+    if (!image.naturalWidth || !image.naturalHeight || image.naturalWidth > 2048 || image.naturalHeight > 2048) throw new Error(uiText("ui.685f5a70b09fa2ad"));
     const canvas = document.createElement("canvas");
     canvas.width = image.naturalWidth;
     canvas.height = image.naturalHeight;
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) throw new Error("Canvas indisponível");
+    if (!ctx) throw new Error(uiText("ui.facb67b092a4f99b"));
     ctx.drawImage(image, 0, 0);
     return canvas;
 }
 
 export function classifyTexture(canvas: HTMLCanvasElement, name = ""): "skin" | "cape" {
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas indisponível");
+    if (!ctx) throw new Error(uiText("ui.facb67b092a4f99b"));
     if (isCapeTexture(canvas.width, canvas.height) && (/cape|capa/i.test(name) || !isSkinTexture(canvas.width, canvas.height) || isCapeUVPattern(ctx))) return "cape";
     if (isSkinTexture(canvas.width, canvas.height)) return "skin";
     if (/cape|capa/i.test(name)) return "cape";
-    throw new Error("Use uma skin PNG/WebP (64×64 ou 64×32) ou uma capa em qualquer resolução proporcional");
+    throw new Error(uiText("ui.d1b100a4bbe3a3e7"));
 }
 
 export function normalizeCape(image: HTMLImageElement): HTMLCanvasElement {
 	const w = image.naturalWidth;
 	const h = image.naturalHeight;
-	if (!w || !h || w > 2048 || h > 2048) throw new Error("Dimensões de capa inválidas");
+	if (!w || !h || w > 2048 || h > 2048) throw new Error(uiText("ui.8899004fc5527d76"));
 
 	if (w === h * 2) {
 		return textureCanvas(image);
@@ -87,7 +88,7 @@ export function normalizeCape(image: HTMLImageElement): HTMLCanvasElement {
 		canvas.width = 64 * s;
 		canvas.height = 32 * s;
 		const ctx = canvas.getContext("2d");
-		if (!ctx) throw new Error("Canvas indisponível");
+		if (!ctx) throw new Error(uiText("ui.facb67b092a4f99b"));
 		ctx.imageSmoothingEnabled = false;
 		ctx.drawImage(image, 0, 0);
 		return canvas;
@@ -124,7 +125,7 @@ export function normalizeCape(image: HTMLImageElement): HTMLCanvasElement {
 	canvas.width = targetW;
 	canvas.height = targetH;
 	const ctx = canvas.getContext("2d");
-	if (!ctx) throw new Error("Canvas indisponível");
+	if (!ctx) throw new Error(uiText("ui.facb67b092a4f99b"));
 	ctx.imageSmoothingEnabled = false;
 
 	const artW = 10 * s;
@@ -188,7 +189,7 @@ export async function createSkinAvatar(src: string, signal: AbortSignal, model: 
     const canvas = document.createElement("canvas");
     canvas.width = 64; canvas.height = 64;
     const context = canvas.getContext("2d");
-    if (!context) throw new Error("Canvas indisponível");
+    if (!context) throw new Error(uiText("ui.facb67b092a4f99b"));
     context.imageSmoothingEnabled = false;
     for (const x of [8, 40]) context.drawImage(image, x * scale, 8 * scale, 8 * scale, 8 * scale, 0, 0, 64, 64);
     const result = canvas.toDataURL("image/png");

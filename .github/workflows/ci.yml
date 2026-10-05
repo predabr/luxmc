@@ -35,7 +35,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.30.3
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
@@ -71,8 +71,17 @@ jobs:
       - name: Frontend tests
         run: pnpm test:run
 
+      - name: Install browser for content regression tests
+        run: pnpm exec playwright-core install --with-deps chromium
+
+      - name: Content and scrolling regression tests
+        run: pnpm test:browser:content
+
       - name: Website tests
         run: pnpm test:website
+
+      - name: Release manifest tests
+        run: node --test tests/release-manifest.test.mjs
 
       - name: Dependency audit
         run: pnpm audit --audit-level=high || true
@@ -88,9 +97,13 @@ jobs:
         run: pnpm tauri build --no-bundle
 
       - name: Rust Tests
+        working-directory: src-tauri
+        run: cargo test --lib --locked
+
+      - name: Rust integration tests
         if: runner.os == 'Linux'
         working-directory: src-tauri
-        run: cargo test --locked
+        run: cargo test --tests --locked
 
       - name: Rust dependency audit
         if: runner.os == 'Linux'

@@ -1,6 +1,8 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import { fade } from "svelte/transition";
 	import {
 		Server,
@@ -21,14 +23,14 @@
 
 	let { onQuickJoin }: { onQuickJoin?: (host: string, port: number) => void } = $props();
 
-	const presetServers = [
-		{ name: "MushMC", host: "jogar.mush.com.br", port: 25565, banner: "🇧🇷 Maior Servidor Brasileiro" },
-		{ name: "Hypixel Network", host: "mc.hypixel.net", port: 25565, banner: "🌍 Maior Rede Global" },
+	const presetServers = $derived([
+		{ name: "MushMC", host: "jogar.mush.com.br", port: 25565, banner: uiText("ui.8fa0c22a3830408d") },
+		{ name: "Hypixel Network", host: "mc.hypixel.net", port: 25565, banner: uiText("home.globalServerBanner") },
 		{ name: "Rede Sky", host: "jogar.redesky.com", port: 25565, banner: "⚔️ Minigames & PvP" },
 		{ name: "Complex Gaming", host: "hub.mc-complex.com", port: 25565, banner: "🎮 Pixelmon & Survival" }
-	];
+	]);
 
-	let selectedServer = $state(presetServers[0]);
+	let selectedServer = $state(untrack(() => presetServers[0]));
 	let isCustomServer = $state(false);
 	let customHost = $state("");
 	let customPort = $state("25565");
@@ -43,9 +45,15 @@
 		const saved = localStorage.getItem("luxmc_favorite_server");
 		if (saved) {
 			try {
-				const parsed = JSON.parse(saved);
-				if (parsed.host) {
-					selectedServer = parsed;
+				const parsed: unknown = JSON.parse(saved);
+				const loaded = normalizeServer(parsed);
+				if (loaded) {
+					selectedServer = loaded;
+					if (!presetServers.some((srv) => srv.host === loaded.host)) {
+						isCustomServer = true;
+						customHost = loaded.host;
+						customPort = String(loaded.port);
+					}
 				}
 			} catch {}
 		}
@@ -55,6 +63,22 @@
 			if (pingInterval) clearInterval(pingInterval);
 		};
 	});
+
+	function normalizeServer(value: unknown): { name: string; host: string; port: number; banner: string } | null {
+		if (!value || typeof value !== "object") return null;
+		const candidate = value as { name?: unknown; host?: unknown; port?: unknown; banner?: unknown };
+		if (typeof candidate.host !== "string") return null;
+		const host = candidate.host.trim();
+		if (!host || /\s/.test(host) || host.includes("://")) return null;
+		const port = Number(candidate.port);
+		if (!Number.isInteger(port) || port < 1 || port > 65535) return null;
+		return {
+			name: typeof candidate.name === "string" && candidate.name.trim() ? candidate.name.trim() : host,
+			host,
+			port,
+			banner: typeof candidate.banner === "string" ? candidate.banner : uiText("ui.2170dbb2a4bdf485")
+		};
+	}
 
 	async function pingServer() {
 		if (isPinging) return;
@@ -66,10 +90,10 @@
 		} catch (e) {
 			status = {
 				online: false,
-				version: "Inacessível",
+				version: uiText("ui.71d770406cf1cc87"),
 				playersMax: 0,
 				playersOnline: 0,
-				motd: "Não foi possível conectar ao servidor.",
+				motd: uiText("ui.b4993fa570f5c595"),
 				latencyMs: 999
 			};
 		} finally {
@@ -79,27 +103,38 @@
 
 	function handleSaveServer() {
 		if (isCustomServer) {
-			const h = customHost.trim();
-			const p = parseInt(customPort.trim()) || 25565;
-			if (!h) {
-				toast("Digite um endereço de servidor válido", "error");
+			const h = customHost.trim().replace(/^minecraft:\/\//i, "");
+			const rawPort = customPort.trim() || "25565";
+			const p = Number(rawPort);
+			if (!h || /\s/.test(h) || h.includes("://")) {
+				toast(uiText("ui.56b4cdadd243761c"), "error");
+				return;
+			}
+			if (!Number.isInteger(p) || p < 1 || p > 65535) {
+				toast(uiText("ui.c97bc476f9660df0"), "error");
 				return;
 			}
 			selectedServer = {
 				name: h,
 				host: h,
 				port: p,
-				banner: "Servidor Personalizado"
+				banner: uiText("ui.2170dbb2a4bdf485")
 			};
 		}
+		const normalized = normalizeServer(selectedServer);
+		if (!normalized) {
+			toast(uiText("ui.5fa88f255abbb5c3"), "error");
+			return;
+		}
+		selectedServer = normalized;
 		localStorage.setItem("luxmc_favorite_server", JSON.stringify(selectedServer));
 		showEditModal = false;
-		toast(`Servidor favorito definido como ${selectedServer.name}!`, "success");
+		toast(uiText("ui.91b9e64467b10a2a", {arg0: (selectedServer.name)}), "success");
 		pingServer();
 	}
 
 	function cleanMotd(raw?: string): string {
-		if (!raw) return "Servidor online e pronto para jogar.";
+		if (!raw) return uiText("ui.3e97792dfec4f9d7");
 		return raw.replace(/§[0-9a-fk-or]/gi, "").trim();
 	}
 
@@ -108,12 +143,12 @@
 		if (onQuickJoin) {
 			onQuickJoin(selectedServer.host, selectedServer.port);
 		} else {
-			toast(`Conectando a ${selectedServer.host}:${selectedServer.port}...`, "info");
+			toast(uiText("ui.a41c2bc9d451a5ab", {arg0: (selectedServer.host), arg1: (selectedServer.port)}), "info");
 		}
 	}
 </script>
 
-<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-elevated to-bg-elevated border border-fg/10 p-5 shadow-xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 hover:border-fg/20 group">
+<div class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-bg-elevated via-bg-elevated to-bg-elevated border border-fg/10 p-5 shadow-xl transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300 hover:border-fg/20 group">
 	<!-- Background subtle ambient glow based on status -->
 	<div class="absolute -right-12 -top-12 w-44 h-44 rounded-full pointer-events-none transition-colors duration-500 {status?.online ? 'bg-[radial-gradient(circle_at_center,rgb(16_185_129/0.15),transparent_70%)]' : 'bg-[radial-gradient(circle_at_center,rgb(244_63_94/0.15),transparent_70%)]'}"></div>
 
@@ -175,9 +210,9 @@
 		<div class="flex items-center gap-2.5 w-full md:w-auto shrink-0 justify-end pt-2 md:pt-0 border-t md:border-t-0 border-fg/5">
 			<button
 				type="button"
-				class="p-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 text-fg/70 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98]"
+				class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 				onclick={pingServer}
-				title="Atualizar Ping"
+				title={uiText("ui.363617910a89f3ef")}
 				disabled={isPinging}
 			>
 				<RefreshCw class="w-4 h-4 {isPinging ? 'animate-spin text-brand-400' : ''}" />
@@ -185,23 +220,23 @@
 
 			<button
 				type="button"
-				class="px-3.5 py-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle border border-fg/10 hover:border-fg/20 text-xs font-bold text-fg/80 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-[0.98]"
+				class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 				onclick={() => showEditModal = true}
-				title="Alterar Servidor Monitorado"
+				title={uiText("ui.997bccf129529f0e")}
 			>
 				<Edit2 class="w-3.5 h-3.5 text-brand-400" />
-				<span class="hidden sm:inline">Trocar</span>
+				<span class="hidden sm:inline">{uiText("ui.a5575a1a9fa7978f")}</span>
 			</button>
 
 			<button
 				type="button"
-				class="px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-lg active:scale-[0.98] {status?.online ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-brand-foreground shadow-emerald-500/20' : 'bg-fg/10 text-fg/40 cursor-not-allowed'}"
+				class="px-5 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer shadow-lg active:scale-[0.98] {status?.online ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-brand-foreground shadow-emerald-500/20' : 'bg-fg/10 text-fg/40 cursor-not-allowed'}"
 				onclick={handleConnect}
 				disabled={!status?.online}
-				title={status?.online ? "Entrar diretamente neste servidor" : "Servidor offline no momento"}
+				title={status?.online ? uiText("ui.a716da6b2932de5e") : uiText("ui.4685a6fc5a37f9c5")}
 			>
 				<Play class="w-3.5 h-3.5 fill-current" />
-				<span>Conectar</span>
+				<span>{uiText("home.connect")}</span>
 			</button>
 		</div>
 	</div>
@@ -217,13 +252,13 @@
 						<Server class="w-4 h-4" />
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-fg">Servidor favorito do início</h3>
-						<p class="text-[11px] text-fg/50">Monitore o status e conecte com 1 clique</p>
+						<h3 class="text-sm font-black text-fg">{uiText("ui.deeefc89c2d49a2b")}</h3>
+						<p class="text-[11px] text-fg/50">{uiText("ui.571f8dd958b62695")}</p>
 					</div>
 				</div>
 				<button
 					type="button"
-					class="text-fg/40 hover:text-fg p-1 rounded-lg"
+					class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 					onclick={() => showEditModal = false}
 				>
 					✕
@@ -232,12 +267,12 @@
 
 			<!-- Presets -->
 			<div class="space-y-2">
-				<span class="text-[11px] font-bold text-fg/60 uppercase tracking-wider block">Servidores Populares</span>
+				<span class="text-[11px] font-bold text-fg/60 uppercase tracking-wider block">{uiText("ui.a01363c13ca70960")}</span>
 				<div class="grid grid-cols-2 gap-2">
-					{#each presetServers as srv}
+					{#each presetServers as srv (srv.name)}
 						<button
 							type="button"
-							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col justify-between {selectedServer.host === srv.host && !isCustomServer ? 'bg-brand-500/15 border-brand-500/40 shadow-sm' : 'bg-bg-subtle hover:bg-bg-subtle border-fg/5'}"
+							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex flex-col justify-between {selectedServer.host === srv.host && !isCustomServer ? 'bg-brand-500/15 border-brand-500/40 shadow-sm' : 'bg-bg-subtle hover:bg-bg-subtle border-fg/5'}"
 							onclick={() => { selectedServer = srv; isCustomServer = false; }}
 						>
 							<div class="flex items-center justify-between">
@@ -256,7 +291,7 @@
 			<div class="space-y-2 pt-2 border-t border-fg/5">
 				<label class="flex items-center gap-2 cursor-pointer">
 					<input type="checkbox" bind:checked={isCustomServer} class="accent-brand-500 rounded" />
-					<span class="text-xs font-bold text-fg">Inserir IP Personalizado / Servidor de Amigos</span>
+					<span class="text-xs font-bold text-fg">{uiText("ui.408b86eea08552f2")}</span>
 				</label>
 
 				{#if isCustomServer}
@@ -264,7 +299,7 @@
 						<input
 							type="text"
 							bind:value={customHost}
-							placeholder="ex: jogar.meuservidor.com"
+							placeholder={uiText("ui.1448383d6aea5a7e")}
 							class="flex-1 px-4 py-2.5 rounded-xl bg-bg-overlay/40 border border-fg/10 text-xs text-fg focus:outline-none focus:border-brand-500 font-mono"
 						/>
 						<input
@@ -281,17 +316,17 @@
 			<div class="flex items-center justify-end gap-2.5 pt-2">
 				<button
 					type="button"
-					class="px-5 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/60 hover:text-fg font-bold text-xs transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 					onclick={() => showEditModal = false}
 				>
-					Cancelar
+					{uiText("common.cancel")}
 				</button>
 				<button
 					type="button"
-					class="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md cursor-pointer"
+					class={launcherButton({ variant: "primary", size: "sm", class: "" })}
 					onclick={handleSaveServer}
 				>
-					Salvar Servidor
+					{uiText("ui.2bf7003afaa2e5da")}
 				</button>
 			</div>
 		</div>

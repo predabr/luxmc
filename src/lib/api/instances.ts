@@ -57,6 +57,8 @@ export async function profilesCreate(input: {
 	gamescopeHeight?: number | null;
 	gamescopeFsr?: boolean;
 	forceFullVerification?: boolean;
+	preLaunchHook?: string | null;
+	postExitHook?: string | null;
 }): Promise<{
 	id: string;
 	name: string;
@@ -103,6 +105,8 @@ export async function profilesUpdate(input: {
 	gamescopeHeight?: number | null;
 	gamescopeFsr?: boolean;
 	forceFullVerification?: boolean;
+	preLaunchHook?: string | null;
+	postExitHook?: string | null;
 	lastPlayed?: string;
 	launchCount?: number;
 }): Promise<{
@@ -173,6 +177,7 @@ export async function instancesScreenshots(id: string): Promise<Array<{
 	path: string;
 	modified: string;
 	dataUrl?: string | null;
+	thumbPath?: string | null;
 }>> {
 	return api.invoke("instances_screenshots", { id });
 }

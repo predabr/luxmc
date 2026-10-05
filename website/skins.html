@@ -1,654 +1,460 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Luxmc Skin Studio 3D — Integração NameMC & Visualizador 3D</title>
-  <meta name="description" content="Personalize sua skin em 3D em tempo real. Integração com NameMC, suporte a modelos Steve (4px) e Alex (3px), capas comemorativas e sincronização com o Luxmc Launcher.">
-  <link rel="canonical" href="https://luxmc-r92.pages.dev/skins">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="luxury.css?v=20260927-qrfix">
-  <link rel="icon" type="image/png" href="assets/favicon.png">
-  <meta name="theme-color" content="#060709">
-  <!-- Google AdSense: Insira sua tag quando sua conta for aprovada -->
-  <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script> -->
-  <!-- SkinView3D WebGL Library from jsdelivr CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/skinview3d@3.0.1/bundles/skinview3d.bundle.js"></script>
-</head>
-<body>
-  <canvas id="bgCanvas"></canvas>
-
-  <!-- Navbar -->
-  <header class="navbar">
-    <div class="container">
-      <a href="index.html" class="nav-brand" title="Luxmc Launcher">
-        <img src="assets/logo.png" alt="Luxmc" class="nav-logo">
-        <span class="nav-brand-text">LUXMC™</span>
-        <span class="nav-brand-sub">// LINUX-FIRST</span>
-      </a>
-
-      <nav class="nav-menu">
-        <ul class="nav-links">
-          <li><a href="index.html#recursos" class="nav-link">Recursos</a></li>
-          <li><a href="index.html#mods" class="nav-link">Mods</a></li>
-          <li><a href="index.html#servidores" class="nav-link">Servidores</a></li>
-          <li><a href="skins.html" class="nav-link active">Skins 3D</a></li>
-          <li><a href="index.html#doacoes" class="nav-link nav-link-donate">Apoiar 💛</a></li>
-        </ul>
-      </nav>
-
-      <div class="nav-actions">
-        <a href="conta?mode=register" class="nav-account-link" title="Criar Conta Luxmc">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
-          <span>Criar Conta</span>
-        </a>
-        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-github-nav" title="Código no GitHub" aria-label="GitHub">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-        </a>
-        <a href="index.html#download" class="btn-primary-nav">
-          <span>Baixar v2.0.2 ↗</span>
-        </a>
-        <button type="button" class="nav-mobile-toggle" id="navMobileToggle" aria-label="Abrir menu de navegação" aria-expanded="false">
-          <span class="hamburger-bar"></span>
-          <span class="hamburger-bar"></span>
-          <span class="hamburger-bar"></span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Mobile Drawer / Overlay -->
-    <div class="mobile-nav-drawer" id="mobileNavDrawer" aria-hidden="true">
-      <div class="mobile-nav-content">
-        <ul class="mobile-nav-links">
-          <li><a href="index.html#inicio" class="mobile-nav-link">Início</a></li>
-          <li><a href="index.html#mods" class="mobile-nav-link">Central de Mods & Modpacks</a></li>
-          <li><a href="index.html#recursos" class="mobile-nav-link">Recursos Principais</a></li>
-          <li><a href="index.html#desempenho" class="mobile-nav-link">Desempenho & Instalação</a></li>
-          <li><a href="index.html#privacidade" class="mobile-nav-link">Privacidade &amp; Segurança</a></li>
-          <li><a href="skins.html" class="mobile-nav-link">Estúdio 3D de Skins</a></li>
-          <li><a href="index.html#doacoes" class="mobile-nav-link" style="color: var(--lux-gold-light) !important; font-weight: 700;">Apoiar o Projeto (Doações) 💛</a></li>
-          <li><a href="index.html#download" class="mobile-nav-link">Downloads</a></li>
-          <li><a href="index.html#faq" class="mobile-nav-link">Perguntas Frequentes</a></li>
-        </ul>
-        <div class="mobile-nav-divider"></div>
-        <div class="mobile-nav-actions">
-          <a href="index.html#doacoes" class="mobile-btn-donate">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-            <span>Apoiar o Projeto (Doações)</span>
-          </a>
-          <a href="conta.html" class="mobile-btn-account">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
-            <span>Portal da Minha Conta</span>
-          </a>
-          <a href="index.html#download" class="mobile-btn-download">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Baixar Launcher Oficial</span>
-          </a>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- Studio Header -->
-  <main class="container" style="padding-top: 130px; padding-bottom: 90px;">
-    <div class="section-header">
-      <span class="section-tag">WebGL 3D Studio & NameMC</span>
-      <h1 class="section-title">Visualizador 3D & Catálogo de Skins</h1>
-      <p class="section-desc">
-        Explore skins da comunidade NameMC, teste animações em 3D em tempo real e 
-        vincule sua skin ao seu jogador no Luxmc Launcher.
-      </p>
-    </div>
-
-    <!-- 3D Studio Workspace -->
-    <div class="skin-studio-grid">
-      
-      <!-- Left: 3D WebGL Viewport (Zero Overlap) -->
-      <div class="skin-viewport-card spotlight-card">
-        <div class="skin-viewport-header">
-          <div class="status-badge">Renderizador 3D Interativo</div>
-          <div id="currentModelBadge" style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); background: var(--bg-card); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border);">
-            Steve (4px)
+  <head>
+    <link
+      rel="preload"
+      href="/assets/fonts/barlow-condensed-bold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LuxMC Skin Studio — Seu estilo em cada pixel</title>
+    <meta
+      name="description"
+      content="Visualize skins Minecraft em 3D, gire o personagem, teste modelos clássico e slim, importe PNGs e abra a aparência no LuxMC Launcher."
+    />
+    <meta name="theme-color" content="rgb(18 19 20)" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://luxmc-r92.pages.dev/skins" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LuxMC Launcher" />
+    <meta
+      property="og:title"
+      content="LuxMC Skin Studio — Seu estilo em cada pixel"
+    />
+    <meta
+      property="og:description"
+      content="Visualize skins Minecraft em 3D, gire o personagem, teste modelos clássico e slim, importe PNGs e abra a aparência no LuxMC Launcher."
+    />
+    <meta property="og:url" content="https://luxmc-r92.pages.dev/skins" />
+    <meta
+      property="og:image"
+      content="https://luxmc-r92.pages.dev/assets/launcher-home.webp"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="LuxMC Skin Studio — Seu estilo em cada pixel"
+    />
+    <meta
+      name="twitter:description"
+      content="Visualize skins Minecraft em 3D, gire o personagem, teste modelos clássico e slim, importe PNGs e abra a aparência no LuxMC Launcher."
+    />
+    <meta
+      name="twitter:image"
+      content="https://luxmc-r92.pages.dev/assets/launcher-home.webp"
+    />
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link
+      rel="preload"
+      href="/assets/fonts/space-grotesk-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="/design.css?v=20261004" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Ir para o conteúdo</a>
+    <div class="reading-progress" aria-hidden="true"></div>
+    <header class="navbar">
+      <div class="container">
+        <a href="/" class="nav-brand" aria-label="LuxMC — Início"
+          ><img
+            class="brand-symbol"
+            src="/assets/favicon.png"
+            width="48"
+            height="48"
+            alt=""
+          /><span class="nav-brand-text">LuxMC<small>™</small></span></a
+        >
+        <nav class="nav-menu" aria-label="Navegação principal">
+          <div class="nav-links">
+            <a class="nav-link" href="/#recursos" data-i18n="nav.features"
+              >Recursos</a
+            ><a class="nav-link" href="/#mods" data-i18n="nav.mods">Mods</a
+            ><a class="nav-link" href="/skins" data-i18n="nav.skins"
+              >Skin Studio</a
+            ><a class="nav-link" href="/privacidade" data-i18n="nav.privacy"
+              >Privacidade</a
+            ><a
+              class="nav-link"
+              href="https://github.com/predabr/luxmc"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub ↗</a
+            >
           </div>
-        </div>
-
-        <div id="skinCanvasContainer" class="skin-canvas-container">
-          <canvas id="skinCanvas" width="380" height="420"></canvas>
-        </div>
-
-        <div class="skin-viewport-controls">
-          <button type="button" class="btn-secondary" onclick="toggleAnimation('idle')" id="btnAnimIdle" style="padding: 6px 12px; font-size: 0.78rem;">
-            Parado
-          </button>
-          <button type="button" class="btn-secondary" onclick="toggleAnimation('walk')" id="btnAnimWalk" style="padding: 6px 12px; font-size: 0.78rem;">
-            Caminhando
-          </button>
-          <button type="button" class="btn-secondary" onclick="toggleAnimation('run')" id="btnAnimRun" style="padding: 6px 12px; font-size: 0.78rem;">
-            Correndo
-          </button>
-          <button type="button" class="btn-secondary" onclick="toggleAnimation('fly')" id="btnAnimFly" style="padding: 6px 12px; font-size: 0.78rem;">
-            Voando (Elytra)
-          </button>
-          <button type="button" class="btn-secondary" onclick="resetCamera()" style="padding: 6px 12px; font-size: 0.78rem;" title="Resetar Câmera">
-            🔄 Centralizar
+        </nav>
+        <div class="nav-actions">
+          <a
+            href="/conta?mode=login"
+            class="nav-account-link"
+            data-i18n="nav.account"
+            >Minha conta</a
+          ><a href="/#download" class="btn-primary-nav"
+            ><span data-i18n="nav.download">Baixar LuxMC</span
+            ><span aria-hidden="true">↗</span></a
+          ><button
+            type="button"
+            class="nav-mobile-toggle"
+            id="navMobileToggle"
+            aria-label="Abrir menu"
+            aria-expanded="false"
+            aria-controls="mobileNavDrawer"
+          >
+            <span class="hamburger-bar"></span
+            ><span class="hamburger-bar"></span>
           </button>
         </div>
       </div>
-
-      <!-- Right: Skin, NameMC & Cape Controls -->
-      <div class="skin-config-card spotlight-card">
-        <h3 style="font-size: 1.35rem; font-weight: 850; color: var(--text-main); margin-bottom: 20px;">
-          Configurações da Skin
-        </h3>
-
-        <!-- Search by Minecraft / NameMC Nick -->
-        <div class="form-group">
-          <label class="form-label" for="playerNickInput">Buscar Skin por Nickname (Mojang & NameMC)</label>
-          <div style="display: flex; gap: 10px;">
-            <input type="text" id="playerNickInput" class="form-input" placeholder="Ex: Technoblade, Dream, Mumbo, Steve..." value="Steve">
-            <button type="button" class="btn-primary" onclick="loadSkinByNick()" style="shrink-0; padding: 10px 20px;">
-              Carregar
+      <div
+        class="mobile-nav-drawer"
+        id="mobileNavDrawer"
+        aria-hidden="true"
+        inert
+      >
+        <nav class="mobile-nav-content" aria-label="Navegação mobile">
+          <a href="/#recursos" class="mobile-nav-link"
+            ><span>01</span><b data-i18n="nav.features">Recursos</b></a
+          ><a href="/#mods" class="mobile-nav-link"
+            ><span>02</span><b data-i18n="nav.mods">Mods</b></a
+          ><a href="/skins" class="mobile-nav-link"
+            ><span>03</span><b data-i18n="nav.skins">Skin Studio</b></a
+          ><a href="/conta?mode=login" class="mobile-nav-link"
+            ><span>04</span><b data-i18n="nav.account">Minha conta</b></a
+          ><a href="/privacidade" class="mobile-nav-link"
+            ><span>05</span><b data-i18n="nav.privacy">Privacidade</b></a
+          ><a
+            href="https://github.com/predabr/luxmc"
+            class="mobile-nav-link"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub <span>↗</span></a
+          ><a href="/#download" class="mobile-nav-link"
+            ><span>↗</span><b data-i18n="nav.download">Baixar LuxMC</b></a
+          >
+        </nav>
+      </div>
+    </header>
+    <main class="container inner-main" id="main">
+      <header class="page-heading">
+        <span class="eyebrow">LUXMC / SKIN STUDIO</span>
+        <h1>Vista sua<br /><span class="accent">identidade.</span></h1>
+        <p>
+          Importe uma textura ou busque um nickname. Confira o personagem em 3D
+          e leve sua skin para o launcher.
+        </p>
+      </header>
+      <div class="studio-grid">
+        <section class="studio-viewport" aria-label="Visualizador 3D de skins">
+          <div class="studio-bar">
+            <span
+              ><i class="signal" aria-hidden="true"></i>3D / LIVE PREVIEW</span
+            ><span id="currentModelBadge">Classic / 4px</span>
+          </div>
+          <div class="studio-canvas-wrap" id="studioCanvasWrap">
+            <canvas
+              id="skinCanvas"
+              aria-label="Skin em 3D; use os botões ou arraste para girar"
+            ></canvas>
+            <div class="studio-loading" id="studioLoading" role="status">
+              <img
+                src="assets/avatar-steve.png"
+                alt="Avatar Steve"
+                width="64"
+                height="64"
+              /><span>Preparando o Studio 3D…</span>
+            </div>
+          </div>
+          <div
+            class="studio-controls"
+            role="group"
+            aria-label="Animação do personagem"
+          >
+            <button
+              type="button"
+              id="btnAnimIdle"
+              data-animation="idle"
+              aria-pressed="true"
+            >
+              Parado</button
+            ><button
+              type="button"
+              id="btnAnimWalk"
+              data-animation="walk"
+              aria-pressed="false"
+            >
+              Caminhar</button
+            ><button
+              type="button"
+              id="btnAnimRun"
+              data-animation="run"
+              aria-pressed="false"
+            >
+              Correr</button
+            ><button
+              type="button"
+              id="btnAnimFly"
+              data-animation="fly"
+              aria-pressed="false"
+            >
+              Voar</button
+            ><button
+              type="button"
+              id="rotateSkinLeft"
+              aria-label="Girar personagem para a esquerda"
+            >
+              ↶</button
+            ><button
+              type="button"
+              id="rotateSkinRight"
+              aria-label="Girar personagem para a direita"
+            >
+              ↷</button
+            ><button type="button" id="resetCamera">Centralizar</button>
+          </div>
+          <p class="studio-hint">ARRASTE PARA GIRAR / SCROLL PARA APROXIMAR</p>
+        </section>
+        <section class="studio-config" aria-labelledby="skinSettingsTitle">
+          <h2 id="skinSettingsTitle">Monte seu visual.</h2>
+          <form id="skinSearchForm" novalidate>
+            <div class="form-group">
+              <label class="form-label" for="playerNickInput"
+                >Nickname Minecraft</label
+              >
+              <div class="input-action">
+                <input
+                  type="text"
+                  id="playerNickInput"
+                  aria-describedby="skinStatus"
+                  placeholder="Ex.: Steve"
+                  value="Steve"
+                  pattern="[A-Za-z0-9_]{1,16}"
+                  maxlength="16"
+                  required
+                  autocomplete="off"
+                /><button type="submit" class="btn-primary" id="loadSkinButton">
+                  Carregar ↗
+                </button>
+              </div>
+              <p class="field-note">
+                <a
+                  id="nameMcProfileLink"
+                  href="https://namemc.com/profile/Steve"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >Ver perfil no NameMC ↗</a
+                >
+              </p>
+              <div class="skin-presets">
+                <button
+                  type="button"
+                  data-skin-nick="Steve"
+                  data-skin-model="classic"
+                >
+                  Steve</button
+                ><button
+                  type="button"
+                  data-skin-nick="Alex"
+                  data-skin-model="slim"
+                >
+                  Alex</button
+                ><button
+                  type="button"
+                  data-skin-nick="Technoblade"
+                  data-skin-model="classic"
+                >
+                  Technoblade</button
+                ><button
+                  type="button"
+                  data-skin-nick="Dream"
+                  data-skin-model="slim"
+                >
+                  Dream</button
+                ><button
+                  type="button"
+                  data-skin-nick="Grian"
+                  data-skin-model="classic"
+                >
+                  Grian
+                </button>
+              </div>
+            </div>
+          </form>
+          <fieldset class="form-group">
+            <legend class="form-label">Modelo dos braços</legend>
+            <div class="model-radio-group">
+              <label id="labelModelClassic" class="model-radio-label selected"
+                ><input
+                  type="radio"
+                  name="skinModel"
+                  value="classic"
+                  checked
+                />Classic · 4px</label
+              ><label id="labelModelSlim" class="model-radio-label"
+                ><input type="radio" name="skinModel" value="slim" />Slim ·
+                3px</label
+              >
+            </div>
+          </fieldset>
+          <div class="form-group">
+            <label class="form-label" for="skinFileInput"
+              >Sua própria textura</label
+            ><label
+              class="upload-dropzone"
+              id="skinDropzone"
+              for="skinFileInput"
+              >Escolher ou arrastar um PNG<br />64 × 64 ou 64 × 32</label
+            ><input
+              type="file"
+              id="skinFileInput"
+              accept="image/png"
+              class="skin-file-input"
+              aria-label="Importar arquivo PNG de skin"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="capeSelection"
+              >Capa para testar no Studio</label
+            ><select id="capeSelection">
+              <option value="none">Nenhuma Capa</option>
+              <option value="luxmc" selected>
+                Capa LuxMC (Ouro & Obsidiana)
+              </option>
+              <option value="migrator">Capa Migrator (Mojang)</option>
+              <option value="optifine">Capa Clássica OptiFine HD</option>
+              <option value="cherry">
+                Capa Cherry Blossom (Minecraft 1.20)
+              </option>
+              <option value="vanilla">Capa Vanilla (Java / Bedrock)</option>
+              <option value="minecon2011">
+                Minecon 2011 (Creeper Vermelho)
+              </option>
+              <option value="minecon2012">
+                Minecon 2012 (Picareta Dourada)
+              </option>
+              <option value="minecon2013">
+                Minecon 2013 (Pistão Redstone)
+              </option>
+              <option value="minecon2015">
+                Minecon 2015 (Iron Golem & Flor)
+              </option>
+              <option value="minecon2016">Minecon 2016 (Enderman Roxo)</option>
+              <option value="tiktok">Capa TikTok Comemorativa</option>
+              <option value="twitch">Capa Twitch Glitch</option>
+            </select>
+            <p class="field-note">
+              Prévias estilizadas. Não concedem capas oficiais à sua conta.
+            </p>
+          </div>
+          <p
+            id="skinStatus"
+            class="field-note"
+            role="status"
+            aria-live="polite"
+          ></p>
+          <div class="studio-submit-row">
+            <button type="button" class="btn-secondary" id="downloadSkin">
+              Baixar PNG ↓</button
+            ><button type="button" class="btn-primary" id="applySkin">
+              Usar no launcher ↗
             </button>
           </div>
-          <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
-            <a id="nameMcProfileLink" href="https://namemc.com/profile/Steve" target="_blank" rel="noopener noreferrer" style="font-size: 0.78rem; color: var(--text-secondary); text-decoration: underline; display: flex; align-items: center; gap: 4px;">
-              <span>Ver perfil no NameMC</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </a>
+          <p class="studio-notice">
+            <strong>Como a aparência é aplicada?</strong><br />No launcher,
+            confira o modelo e aplique à sua conta. Skins Microsoft podem ser
+            sincronizadas ao perfil oficial. Perfis LuxMC e locais dependem de
+            suporte compatível nos outros clientes. Capas importadas são
+            locais.<br /><br />Um arquivo enviado aqui fica no navegador. Para
+            usá-lo no launcher, baixe o PNG e importe no Studio.
+          </p>
+          <details class="studio-notice">
+            <summary>Ver o Studio dentro do launcher</summary>
+            <video
+              controls
+              playsinline
+              preload="none"
+              poster="assets/launcher-personalizer.webp"
+              width="1920"
+              height="1080"
+              aria-label="Gravação real do personalizador do LuxMC no Linux"
+            >
+              <source src="assets/launcher-personalizer.mp4" type="video/mp4" />
+            </video>
+          </details>
+        </section>
+      </div>
+    </main>
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-main">
+          <div class="footer-brand">
+            <a href="/" class="nav-brand" aria-label="LuxMC — Início"
+              ><img
+                class="brand-symbol"
+                src="/assets/favicon.png"
+                width="48"
+                height="48"
+                alt=""
+              /><span class="nav-brand-text">LuxMC<small>™</small></span></a
+            >
+            <p data-i18n="footer.desc">
+              Seus mundos, mods e amigos.<br />Um launcher feito para ser seu.
+            </p>
           </div>
-        </div>
-
-        <!-- NameMC Trending Quick Skins -->
-        <div class="form-group">
-          <label class="form-label">Skins Populares do NameMC (1 Clique)</label>
-          <div class="namemc-quick-skins">
-            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Technoblade', 'classic')">🗡️ Technoblade</button>
-            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Dream', 'classic')">👑 Dream</button>
-            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Mumbo', 'classic')">⚙️ Mumbo Jumbo</button>
-            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('DanTDM', 'classic')">💎 DanTDM</button>
-            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Grian', 'classic')">🏰 Grian</button>
-            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Alex', 'slim')">🌿 Alex (Slim)</button>
-            <button type="button" class="namemc-skin-chip" onclick="quickLoadSkin('Steve', 'classic')">⛏️ Steve Padrão</button>
-          </div>
-        </div>
-
-        <!-- Model Type: Classic (4px) vs Slim (3px) -->
-        <div class="form-group">
-          <label class="form-label">Modelo dos Braços</label>
-          <div class="model-radio-group">
-            <label id="labelModelClassic" class="model-radio-label selected">
-              <input type="radio" name="skinModel" value="classic" checked onchange="changeModel('classic')" style="display: none;">
-              <div>
-                <div style="font-weight: 750; color: var(--text-main);">Classic (Steve)</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Braços normais com 4 pixels</div>
-              </div>
-            </label>
-
-            <label id="labelModelSlim" class="model-radio-label">
-              <input type="radio" name="skinModel" value="slim" onchange="changeModel('slim')" style="display: none;">
-              <div>
-                <div style="font-weight: 750; color: var(--text-main);">Slim (Alex)</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Braços finos com 3 pixels</div>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- File Upload -->
-        <div class="form-group">
-          <label class="form-label">Enviar Arquivo de Skin PNG (.png)</label>
-          <div class="upload-dropzone" onclick="document.getElementById('skinFileInput').click()">
-            <div style="font-size: 1.6rem; margin-bottom: 6px;">📁</div>
-            <div style="font-size: 0.88rem; font-weight: 600; color: var(--text-main); margin-bottom: 2px;">
-              Clique ou arraste seu arquivo .png
+          <nav class="footer-links" aria-label="Links do rodapé">
+            <div>
+              <strong data-i18n="footer.product">Produto</strong
+              ><a href="/#recursos" data-i18n="nav.features">Recursos</a
+              ><a href="/#mods" data-i18n="nav.mods">Mods</a
+              ><a href="/skins" data-i18n="nav.skins">Skin Studio</a
+              ><a href="/#download" data-i18n="footer.downloads">Downloads</a>
             </div>
-            <div style="font-size: 0.76rem; color: var(--text-muted);">
-              Compatível com skins 64x64 e 64x32 clássicas
+            <div>
+              <strong data-i18n="footer.community">Projeto</strong
+              ><a href="/conta?mode=register" data-i18n="nav.createAccount"
+                >Criar conta</a
+              ><a
+                href="https://github.com/predabr/luxmc"
+                target="_blank"
+                rel="noopener noreferrer"
+                >GitHub ↗</a
+              ><a
+                href="https://github.com/predabr/luxmc/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-i18n="footer.support"
+                >Suporte ↗</a
+              ><a href="/#doacoes" data-i18n="footer.donate">Apoiar o LuxMC</a>
             </div>
-            <input type="file" id="skinFileInput" accept="image/png" style="display: none;" onchange="handleSkinFileUpload(event)">
-          </div>
+            <div>
+              <strong data-i18n="footer.legal">Transparência</strong
+              ><a href="/privacidade" data-i18n="nav.privacy">Privacidade</a
+              ><a href="/termos" data-i18n="footer.terms">Termos de uso</a
+              ><a
+                href="https://github.com/predabr/luxmc/blob/main/LICENSE"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-i18n="footer.license"
+                >Licença ↗</a
+              >
+            </div>
+          </nav>
         </div>
-
-        <!-- Cape Selection -->
-        <div class="form-group">
-          <label class="form-label" for="capeSelection">Escolha de Capa HD Exclusiva & Oficial</label>
-          <select id="capeSelection" class="form-input" onchange="changeCape(this.value)">
-            <option value="none">Nenhuma Capa</option>
-            <option value="luxmc" selected>⭐ Capa Oficial Luxmc (Ouro & Obsidiana)</option>
-            <option value="migrator">👑 Capa Oficial Migrator (Mojang)</option>
-            <option value="optifine">🔴 Capa Clássica OptiFine HD</option>
-            <option value="cherry">🌸 Capa Cherry Blossom (Minecraft 1.20)</option>
-            <option value="vanilla">⚔️ Capa Vanilla (Java / Bedrock)</option>
-            <option value="minecon2011">💥 Minecon 2011 (Creeper Vermelho)</option>
-            <option value="minecon2012">⛏️ Minecon 2012 (Picareta Dourada)</option>
-            <option value="minecon2013">⚙️ Minecon 2013 (Pistão Redstone)</option>
-            <option value="minecon2015">🌹 Minecon 2015 (Iron Golem & Flor)</option>
-            <option value="minecon2016">🔮 Minecon 2016 (Enderman Roxo)</option>
-            <option value="tiktok">🎵 Capa TikTok Comemorativa</option>
-            <option value="twitch">🟣 Capa Twitch Glitch</option>
-          </select>
-        </div>
-
-        <!-- Action Buttons -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 24px;">
-          <button type="button" class="btn-primary" onclick="downloadCurrentSkin()" style="padding: 12px 18px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Baixar Skin (.png)
-          </button>
-          <button type="button" class="btn-secondary" onclick="saveToLauncher()" style="padding: 12px 18px;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-            Usar no Launcher
-          </button>
-        </div>
-
-        <!-- Integration Help Card -->
-        <div style="margin-top: 24px; padding: 18px; border-radius: 14px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); font-size: 0.82rem; color: var(--text-secondary); line-height: 1.6;">
-          <strong style="color: var(--text-main); display: block; margin-bottom: 6px;">Como jogar com essa skin no Luxmc Launcher:</strong>
-          1. Clique em <strong>Usar no Launcher</strong> para abrir esta textura na aba Skins do Luxmc.<br>
-          2. Confira o modelo e aplique à sua conta Microsoft ou Offline. Para arquivos locais, baixe o PNG e importe no launcher.
-        </div>
-
-        <!-- Publicidade 300x250 -->
-        <div class="ad-box-300" style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 24px auto 0; text-align: center; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 12px; max-width: 320px;">
-          <span class="ad-badge" style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.35); margin-bottom: 8px;">Publicidade</span>
-          <script>
-            atOptions = {
-              'key' : '3c36d4030f4052a937d50c30c888d6bf',
-              'format' : 'iframe',
-              'height' : 250,
-              'width' : 300,
-              'params' : {}
-            };
-          </script>
-          <script src="https://www.highrevenueformat.com/3c36d4030f4052a937d50c30c888d6bf/invoke.js"></script>
+        <div class="footer-bottom">
+          <span data-i18n="footer.copyright"
+            >© 2026 LuxMC. Projeto independente. Não afiliado à Mojang Studios
+            ou Microsoft.</span
+          ><a href="#main" data-i18n="footer.top">Voltar ao topo ↑</a>
         </div>
       </div>
-
-    </div>
-  </main>
-
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-bottom" style="border: none; padding-top: 0; text-align: center;">
-        <p>© 2026 Luxmc Launcher · Desenvolvido por predabr · Renderizador WebGL 3D integrado com NameMC.</p>
-        <p style="margin-top: 8px;">
-          <a href="index.html" class="footer-link" style="display:inline; margin-right: 14px;">Início</a>
-          <a href="privacidade.html" class="footer-link" style="display:inline; margin-right: 14px;">Privacidade</a>
-          <a href="termos.html" class="footer-link" style="display:inline; margin-right: 14px;">Termos de Uso</a>
-          <a href="ads.txt" class="footer-link" style="display:inline;">ads.txt</a>
-        </p>
-      </div>
-    </div>
-  </footer>
-
-  <script src="app.js?v=20260927-minimalist"></script>
-  <script>
-    let skinViewer = null;
-    let currentSkinUrl = "https://mineskin.eu/skin/Steve";
-    let currentCapeKey = "luxmc";
-    let activeAnimation = "idle";
-
-    function generateCapeDataUrl(type) {
-      if (!type || type === "none") return null;
-      const canvas = document.createElement("canvas");
-      canvas.width = 64;
-      canvas.height = 32;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-      ctx.imageSmoothingEnabled = false;
-
-      if (type === "luxmc") {
-        ctx.fillStyle = "#0a0e17"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#060910"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#0e1422"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#a17c24"; ctx.fillRect(12, 1, 10, 1); ctx.fillRect(12, 16, 10, 1); ctx.fillRect(12, 1, 1, 16); ctx.fillRect(21, 1, 1, 16);
-        ctx.fillStyle = "#e5b546"; ctx.fillRect(13, 2, 8, 1); ctx.fillRect(13, 15, 8, 1); ctx.fillRect(13, 2, 1, 14); ctx.fillRect(20, 2, 1, 14);
-        ctx.fillStyle = "#fadb70"; ctx.fillRect(15, 5, 4, 1); ctx.fillRect(14, 6, 6, 2);
-        ctx.fillStyle = "#e5b546"; ctx.fillRect(15, 8, 4, 3); ctx.fillRect(16, 11, 2, 2);
-        ctx.fillStyle = "#38bdf8"; ctx.fillRect(16, 7, 2, 2); ctx.fillStyle = "#ffffff"; ctx.fillRect(16, 7, 1, 1);
-      } else if (type === "migrator") {
-        ctx.fillStyle = "#4a0612"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#33030b"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#5c0817"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#946f1d"; ctx.fillRect(12, 15, 10, 2); ctx.fillStyle = "#deb038"; ctx.fillRect(13, 15, 8, 1);
-        ctx.fillStyle = "#fae58c"; ctx.fillRect(14, 15, 6, 1);
-        ctx.fillStyle = "#946f1d"; ctx.fillRect(15, 4, 4, 1); ctx.fillStyle = "#deb038"; ctx.fillRect(14, 5, 6, 2);
-        ctx.fillStyle = "#fae58c"; ctx.fillRect(15, 5, 4, 1); ctx.fillStyle = "#deb038"; ctx.fillRect(16, 7, 2, 5);
-        ctx.fillStyle = "#fae58c"; ctx.fillRect(16, 8, 1, 3); ctx.fillStyle = "#deb038"; ctx.fillRect(15, 12, 4, 1);
-      } else if (type === "optifine") {
-        ctx.fillStyle = "#991414"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#730c0c"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#b81818"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(14, 5, 3, 6); ctx.fillStyle = "#b81818"; ctx.fillRect(15, 6, 1, 4);
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(18, 5, 3, 1); ctx.fillRect(18, 5, 1, 6); ctx.fillRect(18, 7, 2, 1);
-      } else if (type === "minecon2011") {
-        ctx.fillStyle = "#6e1010"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#4a0a0a"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#8a1515"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#1e3d1b"; ctx.fillRect(14, 5, 2, 2); ctx.fillRect(18, 5, 2, 2); ctx.fillRect(16, 7, 2, 3);
-        ctx.fillRect(15, 9, 4, 3); ctx.fillRect(14, 10, 1, 3); ctx.fillRect(19, 10, 1, 3);
-        ctx.fillStyle = "#8a1515"; ctx.fillRect(16, 11, 2, 1);
-      } else if (type === "minecon2012") {
-        ctx.fillStyle = "#0e1529"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#070b17"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#15203d"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#9e7519"; ctx.fillRect(13, 6, 1, 2); ctx.fillRect(20, 6, 1, 2);
-        ctx.fillStyle = "#e5b533"; ctx.fillRect(14, 4, 6, 2); ctx.fillStyle = "#fced8a"; ctx.fillRect(15, 4, 4, 1);
-        ctx.fillStyle = "#54371b"; ctx.fillRect(16, 6, 2, 8); ctx.fillStyle = "#704b26"; ctx.fillRect(16, 6, 1, 7);
-      } else if (type === "minecon2013") {
-        ctx.fillStyle = "#16381e"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#0c2112"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#1f4d2a"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#784b23"; ctx.fillRect(14, 4, 6, 2); ctx.fillStyle = "#996231"; ctx.fillRect(14, 4, 6, 1);
-        ctx.fillStyle = "#5c5e63"; ctx.fillRect(15, 6, 4, 8); ctx.fillStyle = "#3d3e42"; ctx.fillRect(16, 7, 2, 5);
-        ctx.fillStyle = "#b81d1d"; ctx.fillRect(16, 12, 2, 1);
-      } else if (type === "minecon2015") {
-        ctx.fillStyle = "#172f33"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#0c1a1c"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#1f3e42"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#d1d5db"; ctx.fillRect(14, 4, 6, 3); ctx.fillStyle = "#9ca3af"; ctx.fillRect(15, 7, 4, 4);
-        ctx.fillStyle = "#dc2626"; ctx.fillRect(18, 10, 2, 2); ctx.fillStyle = "#15803d"; ctx.fillRect(18, 12, 1, 2);
-      } else if (type === "minecon2016") {
-        ctx.fillStyle = "#11071c"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#07020d"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#1a0b2b"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#c084fc"; ctx.fillRect(13, 7, 3, 1); ctx.fillRect(18, 7, 3, 1);
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(14, 7, 1, 1); ctx.fillRect(19, 7, 1, 1);
-        ctx.fillStyle = "#7e22ce"; ctx.fillRect(13, 8, 3, 1); ctx.fillRect(18, 8, 3, 1);
-      } else if (type === "cherry") {
-        ctx.fillStyle = "#ec4899"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#be185d"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#f472b6"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#fdf2f8"; ctx.fillRect(14, 5, 2, 2); ctx.fillRect(18, 6, 2, 2); ctx.fillRect(15, 11, 2, 2);
-        ctx.fillStyle = "#db2777"; ctx.fillRect(15, 6, 1, 1); ctx.fillRect(19, 7, 1, 1); ctx.fillRect(16, 12, 1, 1);
-        ctx.fillStyle = "#15803d"; ctx.fillRect(14, 13, 1, 2);
-      } else if (type === "vanilla") {
-        ctx.fillStyle = "#1e1b4b"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#0f0e26"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#2e2a72"; ctx.fillRect(12, 1, 5, 16);
-        ctx.fillStyle = "#d97706"; ctx.fillRect(17, 1, 5, 16);
-        ctx.fillStyle = "#fbbf24"; ctx.fillRect(15, 6, 4, 5); ctx.fillStyle = "#ffffff"; ctx.fillRect(16, 7, 2, 3);
-      } else if (type === "tiktok") {
-        ctx.fillStyle = "#09090b"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#000000"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#18181b"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#06b6d4"; ctx.fillRect(14, 5, 4, 7);
-        ctx.fillStyle = "#f43f5e"; ctx.fillRect(16, 6, 4, 7);
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(15, 5, 4, 7);
-        ctx.fillStyle = "#18181b"; ctx.fillRect(16, 7, 2, 3);
-      } else if (type === "twitch") {
-        ctx.fillStyle = "#581c87"; ctx.fillRect(0, 0, 22, 17);
-        ctx.fillStyle = "#3b0764"; ctx.fillRect(1, 1, 10, 16);
-        ctx.fillStyle = "#7e22ce"; ctx.fillRect(12, 1, 10, 16);
-        ctx.fillStyle = "#ffffff"; ctx.fillRect(14, 4, 6, 7); ctx.fillRect(14, 11, 2, 2);
-        ctx.fillStyle = "#7e22ce"; ctx.fillRect(15, 6, 1, 2); ctx.fillRect(18, 6, 1, 2);
-      }
-      return canvas.toDataURL("image/png");
-    }
-
-    window.addEventListener("DOMContentLoaded", () => {
-      try { init3DSkinViewer(); } catch { showToast("Visualização 3D indisponível. Você ainda pode escolher e enviar sua skin."); }
-      const params = new URLSearchParams(location.search);
-      const nick = params.get("nick");
-      if (nick && /^[a-zA-Z0-9_]{1,16}$/.test(nick)) {
-        document.getElementById("playerNickInput").value = nick;
-        loadSkinByNick();
-      }
-      const model = params.get("model");
-      if (model) changeModel(model === "alex" || model === "slim" ? "slim" : "classic");
-    });
-
-    function init3DSkinViewer() {
-      const canvas = document.getElementById("skinCanvas");
-      if (!canvas || typeof skinview3d === "undefined") {
-        return;
-      }
-
-      skinViewer = new skinview3d.SkinViewer({
-        canvas: canvas,
-        width: 380,
-        height: 420,
-        skin: "https://mineskin.eu/skin/Steve",
-        model: "default"
-      });
-
-      skinViewer.camera.position.x = 20;
-      skinViewer.camera.position.y = 15;
-      skinViewer.camera.position.z = 45;
-
-      const control = skinViewer.controls;
-      control.enableRotate = true;
-      control.enableZoom = true;
-      control.enablePan = false;
-
-      skinViewer.animation = new skinview3d.IdleAnimation();
-      skinViewer.animation.speed = 0.8;
-      highlightAnimBtn("btnAnimIdle");
-    }
-
-    function toggleAnimation(anim) {
-      if (!skinViewer) return;
-      activeAnimation = anim;
-      if (anim === "idle") {
-        skinViewer.animation = new skinview3d.IdleAnimation();
-        skinViewer.animation.speed = 0.8;
-        highlightAnimBtn("btnAnimIdle");
-      } else if (anim === "walk") {
-        skinViewer.animation = new skinview3d.WalkingAnimation();
-        skinViewer.animation.speed = 0.8;
-        highlightAnimBtn("btnAnimWalk");
-      } else if (anim === "run") {
-        skinViewer.animation = new skinview3d.RunningAnimation();
-        skinViewer.animation.speed = 0.9;
-        highlightAnimBtn("btnAnimRun");
-      } else if (anim === "fly") {
-        skinViewer.animation = new skinview3d.FlyingAnimation();
-        skinViewer.animation.speed = 0.8;
-        highlightAnimBtn("btnAnimFly");
-      }
-    }
-
-    function highlightAnimBtn(btnId) {
-      ["btnAnimIdle", "btnAnimWalk", "btnAnimRun", "btnAnimFly"].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-          if (id === btnId) {
-            el.style.borderColor = "var(--text-main)";
-            el.style.background = "var(--text-main)";
-            el.style.color = "var(--bg-base)";
-          } else {
-            el.style.borderColor = "";
-            el.style.background = "";
-            el.style.color = "";
-          }
-        }
-      });
-    }
-
-    function resetCamera() {
-      if (!skinViewer) return;
-      skinViewer.camera.position.set(20, 15, 45);
-      skinViewer.camera.lookAt(0, 0, 0);
-    }
-
-    function loadSkinByNick() {
-      const nick = document.getElementById("playerNickInput").value.trim() || "Steve";
-      currentSkinUrl = `https://mineskin.eu/skin/${encodeURIComponent(nick)}`;
-      if (skinViewer) {
-        skinViewer.loadSkin(currentSkinUrl);
-      }
-      const link = document.getElementById("nameMcProfileLink");
-      if (link) {
-        link.href = `https://namemc.com/profile/${encodeURIComponent(nick)}`;
-      }
-      showToast(`Skin do jogador "${nick}" carregada em 3D!`);
-    }
-
-    function quickLoadSkin(nick, model) {
-      const input = document.getElementById("playerNickInput");
-      if (input) input.value = nick;
-      changeModel(model);
-      loadSkinByNick();
-    }
-
-    function changeModel(model) {
-      const isSlim = model === "slim";
-      const radio = document.querySelector(`input[name="skinModel"][value="${isSlim ? "slim" : "classic"}"]`);
-      if (radio) radio.checked = true;
-      document.getElementById("labelModelClassic").classList.toggle("selected", !isSlim);
-      document.getElementById("labelModelSlim").classList.toggle("selected", isSlim);
-      const badge = document.getElementById("currentModelBadge");
-      if (badge) {
-        badge.innerText = isSlim ? "Alex (3px)" : "Steve (4px)";
-      }
-      if (skinViewer) {
-        skinViewer.loadSkin(currentSkinUrl, { model: isSlim ? "slim" : "default" });
-      }
-      showToast(`Modelo alterado para ${isSlim ? "Slim (Alex 3px)" : "Classic (Steve 4px)"}`);
-    }
-
-    function handleSkinFileUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        currentSkinUrl = e.target.result;
-        if (skinViewer) {
-          const isSlim = document.querySelector('input[name="skinModel"]:checked')?.value === "slim";
-          skinViewer.loadSkin(currentSkinUrl, { model: isSlim ? "slim" : "default" });
-        }
-        showToast("Skin personalizada carregada no visualizador 3D!");
-      };
-      reader.readAsDataURL(file);
-    }
-
-    function changeCape(capeKey) {
-      currentCapeKey = capeKey;
-      if (!skinViewer) return;
-      if (capeKey === "none") {
-        skinViewer.loadCape(null);
-        showToast("Capa removida.");
-      } else {
-        const capeUrl = generateCapeDataUrl(capeKey);
-        if (capeUrl) {
-          skinViewer.loadCape(capeUrl);
-          showToast("Capa oficial HD aplicada no visualizador 3D!");
-        }
-      }
-    }
-
-    function saveToLauncher() {
-      const model = document.querySelector('input[name="skinModel"]:checked')?.value || "classic";
-      if (!currentSkinUrl.startsWith("https://")) {
-        showToast("Para uma skin enviada do computador, baixe o PNG e use Importar no Studio do launcher.");
-        return;
-      }
-      openLuxmc(`luxmc://skin/apply?${new URLSearchParams({ url: currentSkinUrl, model })}`);
-    }
-
-    function downloadCurrentSkin() {
-      const link = document.createElement("a");
-      link.download = `luxmc_skin_${Date.now()}.png`;
-      link.href = currentSkinUrl;
-      link.target = "_blank";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast("Download da skin (.png) iniciado!");
-    }
-
-    // Particle Animation & Spotlight
-    function initBackgroundParticles() {
-      const canvas = document.getElementById("bgCanvas");
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      let width = (canvas.width = window.innerWidth);
-      let height = (canvas.height = window.innerHeight);
-      window.addEventListener("resize", () => {
-        width = canvas.width = window.innerWidth;
-        height = canvas.height = window.innerHeight;
-      }, { passive: true });
-      const count = Math.min(50, Math.floor(window.innerWidth / 26));
-      const particles = [];
-      const mouse = { x: -1000, y: -1000, active: false };
-      window.addEventListener("mousemove", (e) => {
-        mouse.x = e.clientX;
-        mouse.y = e.clientY;
-        mouse.active = true;
-      }, { passive: true });
-      window.addEventListener("mouseleave", () => { mouse.active = false; }, { passive: true });
-      for (let i = 0; i < count; i++) {
-        particles.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.4,
-          vy: (Math.random() - 0.5) * 0.4,
-          radius: Math.random() * 1.5 + 0.8,
-          alpha: Math.random() * 0.35 + 0.15
-        });
-      }
-      function frame() {
-        ctx.clearRect(0, 0, width, height);
-        for (let i = 0; i < particles.length; i++) {
-          const p = particles[i];
-          if (mouse.active) {
-            const dx = mouse.x - p.x;
-            const dy = mouse.y - p.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 130) {
-              const force = (130 - dist) / 130;
-              p.x -= (dx / dist) * force * 1.6;
-              p.y -= (dy / dist) * force * 1.6;
-            }
-          }
-          p.x += p.vx;
-          p.y += p.vy;
-          if (p.x < 0) p.x = width;
-          if (p.x > width) p.x = 0;
-          if (p.y < 0) p.y = height;
-          if (p.y > height) p.y = 0;
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255, 255, 255, ${p.alpha})`;
-          ctx.fill();
-          for (let j = i + 1; j < particles.length; j++) {
-            const p2 = particles[j];
-            const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-            if (dist < 95) {
-              ctx.beginPath();
-              ctx.moveTo(p.x, p.y);
-              ctx.lineTo(p2.x, p2.y);
-              ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 * (1 - dist / 95)})`;
-              ctx.lineWidth = 0.6;
-              ctx.stroke();
-            }
-          }
-        }
-        requestAnimationFrame(frame);
-      }
-      requestAnimationFrame(frame);
-    }
-
-    function initSpotlightCards() {
-      const cards = document.querySelectorAll(".spotlight-card");
-      cards.forEach(card => {
-        card.addEventListener("mousemove", (e) => {
-          const rect = card.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          card.style.setProperty("--mouse-x", `${x}px`);
-          card.style.setProperty("--mouse-y", `${y}px`);
-        });
-      });
-    }
-
-    initBackgroundParticles();
-    initSpotlightCards();
-  </script>
-  <script src="https://pl31422416.profitableratecpmnetwork.com/21/57/80/215780135ded866da59e26cae12afbac.js"></script>
-  <script src="https://pl31422481.profitableratecpmnetwork.com/20/ce/cc/20cecce2a0480467d00b0b7c66306efc.js"></script>
-</body>
+    </footer>
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+    <script defer src="app.js?v=20261004"></script>
+    <script type="module" src="studio.js?v=20261004"></script>
+  </body>
 </html>

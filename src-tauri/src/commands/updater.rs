@@ -219,8 +219,13 @@ fn linux_package_installer(
 #[tauri::command]
 pub async fn app_perform_update(
     app: tauri::AppHandle,
+    state: tauri::State<'_, crate::state::AppState>,
     download_url: String,
 ) -> AppResult<UpdateOutcome> {
+    let _launch_guard = state.launch_lock.try_lock().map_err(|_| {
+        AppError::InvalidState("Aguarde o lançamento ou a atualização em andamento.".into())
+    })?;
+    ensure_update_idle(crate::core::launcher::get_active_game_pid())?;
     let source_url = Url::parse(&download_url)
         .map_err(|_| AppError::InvalidInput("URL de atualização inválida".into()))?;
     if !is_official_release_url(&source_url) {
@@ -228,6 +233,7 @@ pub async fn app_perform_update(
             "A atualização deve ser baixada da versão oficial no GitHub".into(),
         ));
     }
+    let file_name = update_file_name(&source_url)?;
     tracing::info!(url = %source_url, "Iniciando download da atualização");
 
     let _ = app.emit(
@@ -241,6 +247,8 @@ pub async fn app_perform_update(
     );
 
     let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .timeout(std::time::Duration::from_secs(900))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
             if attempt.previous().len() >= 5 || !is_allowed_redirect_url(attempt.url()) {
                 attempt.stop()
@@ -269,7 +277,6 @@ pub async fn app_perform_update(
             "O download foi redirecionado para uma origem não confiável".into(),
         ));
     }
-    let file_name = update_file_name(resp.url())?;
     let total_bytes = resp.content_length().unwrap_or(0);
     if total_bytes > MAX_UPDATE_BYTES {
         return Err(AppError::InvalidInput(
@@ -290,23 +297,22 @@ pub async fn app_perform_update(
     let mut stream = resp.bytes_stream();
     let mut downloaded: u64 = 0;
 
-    while let Some(chunk) = stream.next().await {
+    let download_result: AppResult<()> = async {
+    while let Some(chunk) = tokio::time::timeout(std::time::Duration::from_secs(30), stream.next())
+        .await.map_err(|_| AppError::Internal("O download ficou sem resposta. Tente novamente.".into()))? {
         let chunk = match chunk {
             Ok(chunk) => chunk,
             Err(error) => {
-                let _ = tokio::fs::remove_file(&temp_file_path).await;
                 return Err(AppError::Internal(format!("Erro de transmissão: {error}")));
             }
         };
         downloaded += chunk.len() as u64;
         if downloaded > MAX_UPDATE_BYTES {
-            let _ = tokio::fs::remove_file(&temp_file_path).await;
             return Err(AppError::InvalidInput(
                 "A atualização excede o tamanho máximo permitido".into(),
             ));
         }
         if let Err(error) = out_file.write_all(&chunk).await {
-            let _ = tokio::fs::remove_file(&temp_file_path).await;
             return Err(AppError::Io(error));
         }
 
@@ -330,8 +336,18 @@ pub async fn app_perform_update(
         );
     }
 
-    out_file.flush().await.map_err(AppError::Io)?;
+    if downloaded == 0 || (total_bytes > 0 && downloaded != total_bytes) {
+        return Err(AppError::Internal("O arquivo de atualização está incompleto. Tente novamente.".into()));
+    }
+    out_file.sync_all().await.map_err(AppError::Io)?;
+    Ok(())
+    }.await;
     drop(out_file);
+    if let Err(error) = download_result {
+        let _ = tokio::fs::remove_file(&temp_file_path).await;
+        return Err(error);
+    }
+    ensure_update_idle(crate::core::launcher::get_active_game_pid())?;
 
     let _ = app.emit(
         "update-progress",
@@ -411,7 +427,10 @@ pub async fn app_perform_update(
                 .args(&arguments)
                 .spawn()
             {
-                Ok(_) => {
+                Ok(mut child) => {
+                    std::thread::spawn(move || {
+                        let _ = child.wait();
+                    });
                     return Ok(UpdateOutcome {
                         action: "system-installer".into(),
                         terminal_command: Some(terminal_command),
@@ -468,9 +487,22 @@ pub async fn app_perform_update(
     })
 }
 
+fn ensure_update_idle(game_pid: u32) -> AppResult<()> {
+    if game_pid != 0 {
+        return Err(AppError::InvalidState("Feche o Minecraft antes de atualizar o Luxmc. Seu jogo continuará aberto.".into()));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn update_requires_minecraft_to_be_closed() {
+        assert!(ensure_update_idle(0).is_ok());
+        assert!(ensure_update_idle(42).is_err());
+    }
 
     #[cfg(target_os = "linux")]
     #[test]

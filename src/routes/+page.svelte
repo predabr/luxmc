@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
     import LuxAccountForm from "$lib/components/profile/LuxAccountForm.svelte";
     let localProfile = $state(false);
@@ -39,6 +41,7 @@
 		Square
 	} from "lucide-svelte";
 	import GlassSelect from "$lib/components/ui/GlassSelect.svelte";
+	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
 	import { account, saveCurrentAccount, loadCurrentAccount } from "$lib/stores/account.svelte";
@@ -98,16 +101,16 @@
 	let showNewGroupPrompt = $state(false);
 	let newGroupName = $state("");
 
-	const tilePalette = [
-		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: "text-fg/60" },
-		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: "text-fg/60" },
-		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: "text-fg/60" },
-		{ bg: "bg-bg-subtle border border-fg/[0.06]", text: "text-fg/60" },
-		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: "text-fg/60" },
-		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: "text-fg/60" },
-		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: "text-fg/60" },
-		{ bg: "bg-bg-subtle border border-fg/[0.06]", text: "text-fg/60" }
-	];
+	const tilePalette = $derived([
+		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: uiText("ui.6beab8bced7f50bb") },
+		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: uiText("ui.6beab8bced7f50bb") },
+		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: uiText("ui.6beab8bced7f50bb") },
+		{ bg: "bg-bg-subtle border border-fg/[0.06]", text: uiText("ui.6beab8bced7f50bb") },
+		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: uiText("ui.6beab8bced7f50bb") },
+		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: uiText("ui.6beab8bced7f50bb") },
+		{ bg: "bg-bg-subtle border border-fg/[0.07]", text: uiText("ui.6beab8bced7f50bb") },
+		{ bg: "bg-bg-subtle border border-fg/[0.06]", text: uiText("ui.6beab8bced7f50bb") }
+	]);
 
 	function getInstanceTileColor(id: string): { bg: string; text: string } {
 		let hash = 0;
@@ -121,8 +124,8 @@
         let unsubscribe: (() => void) | undefined;
         void listenDownloadProgress(progress => {
             if (disposed) return;
-            const labels: Record<string, string> = { assets: "Baixando assets", libraries: "Preparando bibliotecas", client: "Baixando Minecraft", java: "Preparando Java", done: "Verificando arquivos" };
-            const label = labels[progress.phase] || "Baixando arquivos";
+            const labels: Record<string, string> = { assets: uiText("download.phaseAssets"), libraries: uiText("ui.6de2d03fd96e5b9b"), client: uiText("ui.595883002f54bbf0"), java: uiText("ui.6839bd679d968a68"), done: uiText("ui.62ccae77aeae6db8") };
+            const label = labels[progress.phase] || uiText("ui.29e59575e38eaf03");
             const percent = progress.total > 0 ? Math.min(100, Math.round(progress.completed / progress.total * 100)) : 0;
             appState.launchStatusText = `${label} · ${percent}%`;
         }).then(unlisten => { if (disposed) unlisten(); else unsubscribe = unlisten; }).catch(() => {});
@@ -154,7 +157,10 @@
 			activeContextMenuId = null;
 		};
 		window.addEventListener("click", handleClickOutside);
-		return () => window.removeEventListener("click", handleClickOutside);
+		const refreshVersions = () => { if (!document.hidden) void loadVersions(); };
+        const timer = setInterval(refreshVersions, 60000);
+        window.addEventListener("focus", refreshVersions);
+        return () => { window.removeEventListener("click", handleClickOutside); window.removeEventListener("focus", refreshVersions); clearInterval(timer); };
 	});
 
 	async function loadVersions() {
@@ -187,13 +193,14 @@
 	function deleteSavedAccount(name: string) {
 		const updated = savedAccounts.filter(n => n.toLowerCase() !== name.toLowerCase());
 		saveSavedAccounts(updated);
-		toast(`Conta "${name}" removida.`, "info");
+		toast(uiText("ui.e73a0a4974f82317", {arg0: (name)}), "info");
 	}
 
 	async function handleOfflineAuth(customNick?: string) {
+		if (isLoggingIn || isLoggingInMicrosoft) return;
 		const name = (customNick || offlineName).trim();
 		if (!name) {
-			toast("Digite seu Nickname para jogar.", "error");
+			toast(uiText("ui.2ea8d2dc1d25389a"), "error");
 			return;
 		}
 
@@ -230,13 +237,15 @@
 			playSuccess();
 			account.value = newAcc;
 		} catch (e) {
-			toast("Erro ao entrar: " + String(e), "error");
+			toast(uiText("ui.86b8a84c140df857") + String(e), "error");
 		} finally {
 			isLoggingIn = false;
 		}
 	}
 
 	async function handleMicrosoftLogin() {
+		if (isLoggingIn || isLoggingInMicrosoft) return;
+		isLoggingInMicrosoft = true;
 		try {
 			const existingId = await authGetClientId().catch(() => "");
 			if (!existingId || existingId === "00000000-0000-0000-0000-000000000000") {
@@ -245,13 +254,15 @@
 			await startMsLogin();
 		} catch (e) {
 			toast(String(e), "error");
+		} finally {
+			isLoggingInMicrosoft = false;
 		}
 	}
 
 	async function startMsLogin() {
 		isLoggingInMicrosoft = true;
 		try {
-			toast("Iniciando autenticação com a Microsoft no navegador...", "info");
+			toast(uiText("ui.9e5f8df7532c38f7"), "info");
 			const acc = await authLogin();
 			const skinModel = acc.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve";
 			const skinUrl = acc.skinUrl || `https://minotar.net/skin/${acc.username}`;
@@ -301,11 +312,11 @@
 				saveSavedAccounts([newAcc.username, ...savedAccounts]);
 			}
 
-			toast(`Conectado com a conta Microsoft: ${newAcc.username}`, "success");
+			toast(uiText("ui.d4d05ee9d7210443", {arg0: (newAcc.username)}), "success");
 			playSuccess();
 			account.value = newAcc;
 		} catch (e) {
-			toast("Falha na autenticação Microsoft: " + String(e), "error");
+			toast(uiText("ui.03393fa87c1c9fd7") + String(e), "error");
 		} finally {
 			isLoggingInMicrosoft = false;
 		}
@@ -314,23 +325,24 @@
 	async function saveAndLoginWithClientId() {
 		const val = msClientIdInput.trim();
 		if (!val) {
-			toast("Digite um Client ID válido", "error");
+			toast(uiText("ui.45642234f6e7ced3"), "error");
 			return;
 		}
 		isSavingClientId = true;
 		try {
 			await authSetClientId(val);
 			showMsClientIdModal = false;
-			toast("Azure Client ID salvo com sucesso!", "success");
+			toast(uiText("ui.69958948b529e62f"), "success");
 			await startMsLogin();
 		} catch (e) {
-			toast("Erro ao salvar Client ID: " + String(e), "error");
+			toast(uiText("ui.7fa73e80e61671ca") + String(e), "error");
 		} finally {
 			isSavingClientId = false;
 		}
 	}
 
 	async function handleDevLogin() {
+		if (isLoggingIn || isLoggingInMicrosoft) return;
 		isLoggingIn = true;
 		try {
 			const devAcc = await authDevLogin();
@@ -346,7 +358,7 @@
 			playSuccess();
 			account.value = newAcc;
 		} catch (e) {
-			toast("Erro no modo dev: " + String(e), "error");
+			toast(uiText("ui.d4d9fa06ecf42be8") + String(e), "error");
 		} finally {
 			isLoggingIn = false;
 		}
@@ -356,7 +368,7 @@
 		if (appState.isLaunching) return;
 		appState.isLaunching = true;
 		appState.launchingProfileId = targetProfile.id;
-		appState.launchStatusText = serverIp ? `Conectando a ${serverIp}...` : "Iniciando...";
+		appState.launchStatusText = serverIp ? uiText("ui.31b4e9ae9f49ca91", {arg0: (serverIp)}) : "Iniciando...";
 
 		try {
 			let userUuid = account.value?.uuid;
@@ -366,16 +378,17 @@
 			}
 
 			const verId = targetProfile.mcVersion || "1.20.4";
-			appState.launchStatusText = "Verificando arquivos do jogo...";
+			appState.launchStatusText = uiText("ui.778d3006d213fe60");
 
 			const installed = await versionsCheckInstalled(verId).catch(() => false);
 			if (!installed) {
-				appState.launchStatusText = `Baixando Minecraft ${verId}...`;
+				appState.launchStatusText = uiText("ui.1d9893e36eabb20a", {arg0: (verId)});
 				await versionsDownload(verId);
 			}
 
-			appState.launchStatusText = serverIp ? `Conectando a ${serverIp}...` : "Iniciando Minecraft...";
-			const isVulkan = typeof window !== "undefined" ? localStorage.getItem("luxmc_enable_vulkan") === "true" : false;
+			appState.launchStatusText = serverIp ? uiText("ui.31b4e9ae9f49ca91", {arg0: (serverIp)}) : "Iniciando Minecraft...";
+			const globalVulkan = typeof window !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true";
+			const isVulkan = globalVulkan || targetProfile.useVulkan === true;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
 			const effectiveCape = activeSkinStore.current.hasCape
 				? (activeSkinStore.current.customCapeUrl || (activeSkinStore.current.capeType && activeSkinStore.current.capeType !== "none" ? getFullCapeDataUrl(activeSkinStore.current.capeType) : null))
@@ -408,15 +421,15 @@
 				smallText: `Luxmc · ${targetProfile.loader.toUpperCase()}`,
 				startTime: Math.floor(Date.now() / 1000),
 				buttons: [
-					{ label: "Baixar Luxmc", url: "https://luxmc-r92.pages.dev" },
-					{ label: "Site Oficial", url: "https://luxmc-r92.pages.dev" }
+					{ label: uiText("ui.4c8757fab2a21345"), url: "https://luxmc-r92.pages.dev" },
+					{ label: uiText("ui.d4fb4e24ae3c7a8f"), url: "https://luxmc-r92.pages.dev" }
 				]
 			}).catch(() => {});
 
 			toast(`🎮 Minecraft ${verId} iniciado! (PID: ${result.pid})`, "success");
 			void handlePostLaunchActions();
 		} catch (e) {
-			toast("Falha ao iniciar o Minecraft: " + String(e), "error");
+			toast(uiText("ui.5a696268f07e8812") + String(e), "error");
 		} finally {
 			appState.isLaunching = false;
 			appState.launchingProfileId = null;
@@ -431,9 +444,11 @@
 			await stopGame();
 			appState.isGameRunning = false;
 			gamingStats.onGameExit();
-			toast("Minecraft encerrado com sucesso.", "info");
+			toast(uiText("ui.69429e8fd4528906"), "info");
 		} catch (e) {
-			toast("Erro ao tentar encerrar o jogo: " + String(e), "error");
+			appState.isGameRunning = false;
+			gamingStats.onGameExit();
+			toast(uiText("ui.f635cd0acfe6def9") + String(e), "error");
 		} finally {
 			appState.isStopping = false;
 		}
@@ -491,9 +506,9 @@
 			});
 
 			showCreateModal = false;
-			toast(`Instância "${input.name}" criada com sucesso!`, "success");
+			toast(uiText("ui.1b6566167e91c704", {arg0: (input.name)}), "success");
 		} catch (e) {
-			toast("Erro ao criar instância: " + String(e), "error");
+			toast(uiText("ui.e9e569706d7fbe7a") + String(e), "error");
 		}
 	}
 
@@ -502,7 +517,7 @@
 		if (!name) return;
 		if (!customGroups.includes(name)) {
 			customGroups = [...customGroups, name];
-			toast(`Grupo "${name}" criado!`, "success");
+			toast(uiText("ui.4e66ec1ac77df784", {arg0: (name)}), "success");
 		}
 		newGroupName = "";
 		showNewGroupPrompt = false;
@@ -545,23 +560,23 @@
 {#if !account.value}
 
 	<div
-		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none bg-bg overflow-hidden"
+		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none overflow-hidden"
 	>
 		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
-		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(59_130_246/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
+		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(var(--brand-500)/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
 
 		<div
-			class="w-full max-w-md bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-3xl p-8 shadow-elevated relative z-10 space-y-6"
+			class="auth-surface w-full max-w-[460px] bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-3xl p-8 relative z-10 space-y-6"
 			in:fly={{ easing: backOut, y: 20, duration: 260 }}
 		>
 			<div class="flex flex-col items-center text-center space-y-3">
 				<div class="w-16 h-16 rounded-2xl bg-gradient-to-b from-bg-subtle to-bg-elevated border border-fg/15 p-2.5 shadow-2xl flex items-center justify-center relative group">
-					<div class="absolute inset-0 bg-blue-500/15 rounded-2xl pointer-events-none group-hover:bg-blue-500/25 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"></div>
+					<div class="absolute inset-0 bg-blue-500/15 rounded-2xl pointer-events-none group-hover:bg-blue-500/25 transition-[color,background-color,border-color,box-shadow,transform,opacity]"></div>
 					<img loading="lazy" decoding="async" src="/logo.png" alt="Luxmc" class="w-full h-full object-contain relative z-10" />
 				</div>
 				<div>
-					<h1 class="text-xl font-black text-fg tracking-tight">Luxmc Launcher</h1>
-					<p class="text-xs text-fg/40 mt-0.5">Selecione o método de autenticação</p>
+					<h1 class="text-xl font-black text-fg tracking-tight">{uiText("ui.d3094029aa08ec2c")}</h1>
+					<p class="text-sm text-fg/60 mt-2 leading-relaxed">{uiText("design.loginDescription")}</p>
 				</div>
 			</div>
 
@@ -569,93 +584,73 @@
 				<button
 					type="button"
 					onclick={() => loginTab = "microsoft"}
-					class="flex-1 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-blue-600 text-fg shadow-md' : 'text-fg/50 hover:text-fg'}"
+					disabled={isLoggingIn || isLoggingInMicrosoft}
+					aria-pressed={loginTab === "microsoft"}
+					class="launcher-tab flex-1 flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-brand-500/15 text-fg' : 'text-fg/60 hover:text-fg'}"
 				>
-					<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-						<rect x="1" y="1" width="10" height="10" fill="#f25022" rx="1"/>
-						<rect x="13" y="1" width="10" height="10" fill="#7fba00" rx="1"/>
-						<rect x="1" y="13" width="10" height="10" fill="#00a4ef" rx="1"/>
-						<rect x="13" y="13" width="10" height="10" fill="#ffb900" rx="1"/>
-					</svg>
+					<MicrosoftLogo size={16} />
 					<span>Microsoft</span>
 				</button>
 
 				<button
 					type="button"
 					onclick={() => loginTab = "offline"}
-					class="flex-1 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-fg/15 text-fg shadow-md border border-fg/10' : 'text-fg/50 hover:text-fg'}"
+					disabled={isLoggingIn || isLoggingInMicrosoft}
+					aria-pressed={loginTab === "offline"}
+					class="launcher-tab flex-1 flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-brand-500/15 text-fg' : 'text-fg/60 hover:text-fg'}"
 				>
 					<User class="w-3.5 h-3.5" />
-					<span>Conta Luxmc</span>
+					<span>{uiText("ui.2b1b28fd69149858")}</span>
 				</button>
 			</div>
 
 			{#if loginTab === "microsoft"}
 				<div class="flex flex-col items-center text-center space-y-5 pt-1" in:fade={{ easing: quintOut, duration: 220 }}>
 					<div class="space-y-1">
-						<h2 class="text-base font-bold text-fg">Conta Microsoft Oficial</h2>
+						<h2 class="text-base font-bold text-fg">{uiText("ui.e5b61bd78d85758f")}</h2>
 						<p class="text-xs text-fg/50 max-w-xs leading-relaxed">
-							Autenticação segura via OAuth2. É necessário possuir o Minecraft original na conta.
+							{uiText("ui.95d14a94c1dc9be5")}
 						</p>
 					</div>
 
 					{#if isLoggingInMicrosoft}
-						<div class="w-full bg-bg-subtle/90 border border-blue-500/30 rounded-2xl p-6 text-center space-y-4 shadow-xl relative overflow-hidden">
-							<div class="relative w-16 h-16 mx-auto flex items-center justify-center">
-								<div class="absolute inset-0 rounded-full border-2 border-blue-500/20 animate-ping pointer-events-none"></div>
-								<div class="w-14 h-14 rounded-full border-2 border-dashed border-blue-400 animate-spin flex items-center justify-center"></div>
-								<Loader2 class="w-6 h-6 text-blue-400 animate-spin absolute" />
+						<div role="status" aria-live="polite" class="w-full bg-bg/35 border border-brand-400/25 rounded-2xl p-6 text-left space-y-4">
+							<div class="flex items-center justify-between">
+								<MicrosoftLogo size={28} />
+								<Loader2 class="w-5 h-5 text-brand-400 animate-spin motion-reduce:animate-none" />
 							</div>
 
 							<div class="space-y-1">
-								<p class="text-xs font-black text-fg tracking-wide">Aguardando no Navegador...</p>
-								<p class="text-[11px] text-fg/40 leading-relaxed">
-									Conclua a autorização na janela segura da Microsoft que se abriu.
+								<p class="text-sm font-semibold text-fg">{uiText("design.browserLogin")}</p>
+								<p class="text-xs text-fg/60 leading-relaxed">
+									{uiText("design.browserLoginHint")}
 								</p>
 							</div>
 
-							<button
-								type="button"
-								onclick={() => isLoggingInMicrosoft = false}
-								class="px-4 py-1.5 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/10 text-[11px] font-bold text-fg/60 hover:text-fg cursor-pointer transition-colors"
-							>
-								Cancelar
-							</button>
 						</div>
 					{:else}
-						<div class="w-20 h-20 rounded-2xl bg-bg-subtle border border-fg/10 flex items-center justify-center shadow-inner relative group">
-							<div class="absolute inset-0 bg-blue-500/10 rounded-2xl pointer-events-none"></div>
-							<svg class="w-10 h-10 relative z-10" viewBox="0 0 24 24" fill="none">
-								<rect x="2" y="2" width="9" height="9" fill="#f25022" rx="1.5"/>
-								<rect x="13" y="2" width="9" height="9" fill="#7fba00" rx="1.5"/>
-								<rect x="2" y="13" width="9" height="9" fill="#00a4ef" rx="1.5"/>
-								<rect x="13" y="13" width="9" height="9" fill="#ffb900" rx="1.5"/>
-							</svg>
-						</div>
-
 						<div class="w-full space-y-2">
 							<button
 								type="button"
-								class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-[0.98] text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-blue-600/25 cursor-pointer disabled:opacity-50"
+								class={launcherButton({ variant: "microsoft", size: "hero", class: "w-full" })}
 								onclick={() => { playClick(); handleMicrosoftLogin(); }}
 								disabled={isLoggingIn || isLoggingInMicrosoft}
 							>
-								<svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-									<path d="M1 1h10v10H1V1zm12 0h10v10H13V1zM1 13h10v10H1V13zm12 0h10v10H13V13z"/>
-								</svg>
-								<span>Entrar com Microsoft</span>
+								<MicrosoftLogo size={20} />
+								<span>{uiText("auth.signIn")}</span>
 							</button>
-							<span class="text-[11px] text-fg/40 font-medium block">Conexão oficial criptografada</span>
+							<span class="text-[11px] text-fg/40 font-medium block">{uiText("ui.9d92ae200eb167d0")}</span>
 						</div>
 					{/if}
 
 					<div class="pt-1">
 						<button
 							type="button"
-							class="text-[11px] text-fg/40 hover:text-blue-400 transition-colors cursor-pointer"
+							class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 							onclick={() => showMsClientIdModal = true}
+							disabled={isLoggingInMicrosoft}
 						>
-							Problemas com o login? Configurar Azure ID
+							{uiText("ui.d3553826a596a75a")}
 						</button>
 					</div>
 				</div>
@@ -663,35 +658,35 @@
 			{:else}
 
 				{#if !localProfile}
-                    <LuxAccountForm />
-                    <button type="button" class="text-xs text-fg-muted hover:text-fg" onclick={() => localProfile = true}>Usar perfil local sem sincronização</button>
+                    <LuxAccountForm bind:busy={isLoggingIn} />
+                    <button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "" })} disabled={isLoggingIn} onclick={() => localProfile = true}>{uiText("ui.8d82fb65b8a91eab")}</button>
                 {:else}
-                    <button type="button" class="text-xs text-brand-400" onclick={() => localProfile = false}>Voltar à conta Luxmc</button>
+                    <button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "" })} disabled={isLoggingIn} onclick={() => localProfile = false}>{uiText("ui.0cf9a9775845e7f8")}</button>
 				<div class="space-y-4 pt-1" in:fade={{ easing: quintOut, duration: 220 }}>
 					<div class="text-center space-y-1">
-						<h2 class="text-base font-bold text-fg">Entrar com Nickname</h2>
-						<p class="text-xs text-fg/50">Jogue instantaneamente com qualquer nome.</p>
+						<h2 class="text-base font-bold text-fg">{uiText("ui.d90b39bcf2e9d5be")}</h2>
+						<p class="text-xs text-fg/50">{uiText("ui.1e6ebd3ae27cc1c6")}</p>
 					</div>
 
 					<div class="space-y-1.5">
 						<label for="offline-nick-input" class="text-[11px] font-bold text-fg/60 block text-left">
-							Nickname do Jogador:
+							{uiText("ui.2e2972baf919c7b6")}
 						</label>
 						<div class="relative flex items-center">
 							<div class="w-7 h-7 rounded-lg bg-bg-overlay/40 border border-fg/10 overflow-hidden absolute left-2.5 flex items-center justify-center pointer-events-none">
 								<img loading="lazy" decoding="async"
 									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`}
-									alt="Avatar"
+									alt={uiText("ui.ca8e826d9c2ec401")}
 									class="w-full h-full object-cover"
 								/>
 							</div>
 							<input
 								id="offline-nick-input"
 								type="text"
-								placeholder="Ex: SteveGamer"
+								placeholder={uiText("ui.44c104681ef49837")}
 								bind:value={offlineName}
 								maxlength="16"
-								class="w-full bg-bg-overlay/40 border border-fg/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-fg outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] placeholder:text-fg/20"
+								class="w-full bg-bg-overlay/40 border border-fg/10 focus:border-blue-500/60 rounded-2xl pl-12 pr-4 py-3 text-xs font-bold text-fg outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity] placeholder:text-fg/20"
 								onkeydown={(e) => { if (e.key === "Enter") handleOfflineAuth(); }}
 							/>
 						</div>
@@ -699,25 +694,25 @@
 
 					<button
 						type="button"
-						class="w-full py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-blue-600/25 hover:scale-[1.01] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+						class={launcherButton({ variant: "primary", size: "lg", class: "w-full uppercase tracking-wider flex items-center justify-center gap-2 disabled:opacity-50" })}
 						onclick={() => { playClick(); handleOfflineAuth(); }}
 						disabled={isLoggingIn || isLoggingInMicrosoft}
 					>
 						{#if isLoggingIn}
-							<Loader2 class="w-4 h-4 animate-spin text-fg" /> Entrando...
+							<Loader2 class="w-4 h-4 animate-spin text-fg" /> {uiText("ui.a89d514549530e6e")}
 						{:else}
-							<Play class="w-3.5 h-3.5 fill-current" /> Jogar Offline
+							<Play class="w-3.5 h-3.5 fill-current" /> {uiText("home.offlineCta")}
 						{/if}
 					</button>
 
 					{#if savedAccounts.length > 0}
 						<div class="space-y-2 pt-1 border-t border-fg/5">
 							<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block text-left">
-								Contas recentes:
+								{uiText("ui.e7f8cb3ab06ffcd0")}
 							</span>
 							<div class="flex flex-wrap gap-1.5">
 								{#each savedAccounts as accName (accName)}
-									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group">
+									<div class="inline-flex items-center gap-1.5 pl-1.5 pr-2 py-1 rounded-xl bg-fg/5 hover:bg-fg/10 border border-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity] group">
 										<button
 											type="button"
 											onclick={() => handleOfflineAuth(accName)}
@@ -733,8 +728,8 @@
 										<button
 											type="button"
 											onclick={() => deleteSavedAccount(accName)}
-											class="opacity-0 group-hover:opacity-100 text-fg/30 hover:text-red-400 transition-opacity cursor-pointer p-0.5"
-											title="Remover"
+											class={launcherButton({ variant: "danger", size: "icon", class: "opacity-0 group-hover:opacity-100" })}
+											title={uiText("mods.remove")}
 										>
 											<Trash2 class="w-2.5 h-2.5" />
 										</button>
@@ -752,25 +747,25 @@
 				<button
 					type="button"
 					onclick={() => openUrl("https://luxmc-r92.pages.dev/#skin-studio")}
-					class="text-[11px] text-fg/50 hover:text-blue-400 transition-colors flex items-center gap-1 cursor-pointer"
+					class={launcherButton({ variant: "ghost", size: "sm", class: "flex items-center gap-1" })}
 				>
-					Personalizar skins e capas no Studio 3D Web <ExternalLink class="w-3 h-3" />
+					{uiText("ui.24f0ab7c60925e32")} <ExternalLink class="w-3 h-3" />
 				</button>
 
 				<div class="flex items-center justify-between w-full pt-1">
 					<button
 						type="button"
-						class="text-[10px] text-fg/30 hover:text-amber-400 transition-colors cursor-pointer"
+						class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 						onclick={() => showMsClientIdModal = true}
 					>
-						Configurar Azure ID
+						{uiText("ui.563dfb14d03e1d7f")}
 					</button>
 					<button
 						type="button"
-						class="text-[10px] text-fg/30 hover:text-fg transition-colors cursor-pointer"
+						class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 						onclick={handleDevLogin}
 					>
-						Acesso Desenvolvedor
+						{uiText("ui.ab7d9b0dcfe1bfa6")}
 					</button>
 				</div>
 			</div>
@@ -783,11 +778,11 @@
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2.5">
 						<Lock class="w-4 h-4 text-amber-400" />
-						<h3 class="text-sm font-bold text-fg">Configurar Microsoft Azure</h3>
+						<h3 class="text-sm font-bold text-fg">{uiText("ui.8321c188043638f2")}</h3>
 					</div>
 					<button
 						type="button"
-						class="text-fg/40 hover:text-fg text-xs cursor-pointer"
+						class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 						onclick={() => showMsClientIdModal = false}
 					>
 						✕
@@ -795,12 +790,12 @@
 				</div>
 
 				<p class="text-xs text-fg/60 leading-relaxed">
-					Insira o <span class="text-amber-400 font-bold">Client ID</span> do seu registro de aplicativo no Azure Portal (Redirect URI: <code class="text-amber-300">http://localhost:8453/callback</code>).
+					{uiText("ui.99f83892f7beaf79")} <span class="text-amber-400 font-bold">{uiText("ui.8726db013948f070")}</span> {uiText("ui.5100f327ab279e1d")} <code class="text-amber-300">http://localhost:8453/callback</code>).
 				</p>
 
 				<input
 					type="text"
-					placeholder="9750ebbe-21e9-4a4d-b808-f451a3e0af7f"
+					placeholder={uiText("ui.8fc44ad7924e6bda")}
 					bind:value={msClientIdInput}
 					class="w-full bg-bg-overlay/40 border border-fg/10 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none focus:border-amber-500/50"
 				/>
@@ -808,18 +803,18 @@
 				<div class="flex items-center gap-2 pt-1">
 					<button
 						type="button"
-						class="flex-1 py-2 rounded-xl bg-fg/5 text-fg/60 text-xs font-bold hover:bg-fg/10 cursor-pointer"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "flex-1" })}
 						onclick={() => showMsClientIdModal = false}
 					>
-						Cancelar
+						{uiText("common.cancel")}
 					</button>
 					<button
 						type="button"
-						class="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-brand-foreground text-xs font-bold cursor-pointer"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "flex-1" })}
 						onclick={saveAndLoginWithClientId}
 						disabled={isSavingClientId}
 					>
-						Salvar e Conectar
+						{uiText("ui.c967d69697ef24b8")}
 					</button>
 				</div>
 			</div>
@@ -837,16 +832,16 @@
 					<div class="flex items-center gap-1 bg-bg/35 backdrop-blur-xl border border-fg/[0.08] rounded-xl p-1 shadow-sm">
 						<button
 							type="button"
-							class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/[0.06] transition-colors cursor-pointer"
-							title="Voltar"
+							class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+							title={uiText("common.back")}
 							onclick={() => history.back()}
 						>
 							<ArrowLeft class="w-3.5 h-3.5" />
 						</button>
 						<button
 							type="button"
-							class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/[0.06] transition-colors cursor-pointer"
-							title="Avançar"
+							class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+							title={uiText("ui.859e48c3c9333657")}
 							onclick={() => history.forward()}
 						>
 							<ChevronRight class="w-3.5 h-3.5" />
@@ -866,7 +861,7 @@
 							<span class="text-amber-300 font-bold">{launchStatusText || "Iniciando..."}</span>
 						{:else if appState.isGameRunning}
 							<span class="w-2 h-2 rounded-full bg-brand-500 shadow-[0_0_6px_rgba(59,130,246,0.8)]"></span>
-							<span class="text-brand-500 font-bold">Jogando {appState.activeGameDetails?.name || "Minecraft"}</span>
+							<span class="text-brand-500 font-bold">{uiText("ui.476e526adee711e8")} {appState.activeGameDetails?.name || "Minecraft"}</span>
 						{:else}
 							<span class="w-2 h-2 rounded-full bg-fg/30"></span>
 							<span>{t("library.noneRunning")}</span>
@@ -877,15 +872,15 @@
 							type="button"
 							disabled={appState.isStopping}
 							onclick={handleStopGame}
-							class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 text-red-400 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-95 disabled:opacity-50"
-							title="Encerrar o Minecraft em execução"
+							class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-1.5 disabled:opacity-50" })}
+							title={uiText("ui.6e69939266949462")}
 						>
 							{#if appState.isStopping}
 								<Loader2 class="w-3.5 h-3.5 animate-spin" />
-								<span>Parando...</span>
+								<span>{uiText("ui.ea90df15a5385905")}</span>
 							{:else}
 								<Square class="w-3.5 h-3.5 fill-current" />
-								<span>Parar Jogo</span>
+								<span>{uiText("ui.e4027f055ce88dd0")}</span>
 							{/if}
 						</button>
 					{/if}
@@ -897,7 +892,7 @@
 					<button
 						type="button"
 						onclick={() => jumpInExpanded = !jumpInExpanded}
-						class="flex items-center gap-2 text-sm font-black text-fg uppercase tracking-wider hover:text-brand-500 transition-colors cursor-pointer"
+						class={launcherButton({ variant: "ghost", size: "sm", class: "flex items-center gap-2 uppercase tracking-wider" })}
 					>
 						<span>{t("library.jumpIn")}</span>
 						{#if jumpInExpanded}
@@ -911,40 +906,40 @@
 				{#if jumpInExpanded}
 					{#if jumpInInstances.length === 0}
 						<div class="p-6 rounded-2xl bg-bg/35 backdrop-blur-xl border border-fg/[0.06] text-center space-y-2">
-							<p class="text-xs text-fg/40">Nenhuma instância encontrada para início rápido.</p>
+							<p class="text-xs text-fg/40">{uiText("ui.88282960c9bdaa99")}</p>
 							<button
 								type="button"
 								onclick={() => showCreateModal = true}
-								class="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black transition-colors cursor-pointer"
+								class={launcherButton({ variant: "primary", size: "sm", class: "" })}
 							>
-								+ Criar Primeira Instância
+								{uiText("ui.8f652a01b5f78123")}
 							</button>
 						</div>
 					{:else}
 						<div class="space-y-2.5" transition:slide={{ easing: quintOut, duration: 240 }}>
 							{#each jumpInInstances as inst (inst.id)}
 								{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
-								<div class="cv-auto flex items-center justify-between p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group shadow-sm [contain-intrinsic-size:auto_76px]">
-									<div class="flex items-center gap-3.5 min-w-0">
+								<div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-[color,background-color,border-color,box-shadow,transform,opacity] group shadow-sm ">
+									<div class="flex flex-1 items-center gap-3.5 min-w-[220px]">
 										<div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
 											{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 												<img loading="lazy" decoding="async"
 													src={inst.icon}
 													alt={inst.name}
 													class="w-full h-full object-cover"
-													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-7 h-7 object-contain [image-rendering:pixelated] drop-shadow'; }}
+													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-10 h-10 object-contain [image-rendering:pixelated] drop-shadow'; }}
 												/>
 											{:else}
 												<img loading="lazy" decoding="async"
 													src="/grass_block.png"
 													alt={inst.name}
-													class="w-7 h-7 object-contain [image-rendering:pixelated] drop-shadow"
+													class="w-10 h-10 object-contain [image-rendering:pixelated] drop-shadow"
 												/>
 											{/if}
 										</div>
 
 										<div class="min-w-0 space-y-0.5">
-											<div class="flex items-center gap-2">
+											<div class="flex flex-wrap items-center gap-2">
 												<h3 class="text-sm font-bold text-fg truncate leading-tight group-hover:text-brand-500 transition-colors">
 													{inst.name}
 												</h3>
@@ -955,13 +950,13 @@
 												{/if}
 											</div>
 
-											<div class="flex items-center gap-2 text-[11px] text-fg/50">
+											<div class="flex flex-wrap items-center gap-2 text-[11px] text-fg/50">
 												<span class="font-semibold text-fg/70">
 													{inst.loader} {inst.mcVersion}
 												</span>
 												<span>•</span>
 												{#if inst.lastPlayed}
-													<span>Jogado recentemente</span>
+													<span>{uiText("ui.9183147acd1e7a10")}</span>
 												{:else}
 													<span>{t("library.neverPlayed")}</span>
 												{/if}
@@ -969,12 +964,12 @@
 										</div>
 									</div>
 
-									<div class="flex items-center gap-2 shrink-0">
+									<div class="ml-auto flex items-center gap-2 shrink-0">
 										{#if isLaunching && launchingProfileId === inst.id}
 											<button
 												type="button"
 												disabled
-												class="px-5 py-2 rounded-full bg-brand-500 text-brand-foreground font-black text-xs flex items-center gap-1.5 shadow-sm opacity-70"
+												class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5 opacity-70" })}
 											>
 												<Loader2 class="w-3.5 h-3.5 animate-spin text-brand-foreground" />
 												<span aria-live="polite">{launchStatusText || "Iniciando…"}</span>
@@ -984,15 +979,15 @@
 												type="button"
 												disabled={appState.isStopping}
 												onclick={handleStopGame}
-												class="px-5 py-2 rounded-full bg-red-500 hover:bg-red-600 active:bg-red-700 text-fg font-black text-xs flex items-center gap-1.5 shadow-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
-												title="Parar Jogo"
+												class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-1.5 disabled:opacity-50" })}
+												title={uiText("ui.e4027f055ce88dd0")}
 											>
 												{#if appState.isStopping}
 													<Loader2 class="w-3.5 h-3.5 animate-spin" />
-													<span>Parando...</span>
+													<span>{uiText("ui.ea90df15a5385905")}</span>
 												{:else}
 													<Square class="w-3.5 h-3.5 fill-current" />
-													<span>Parar</span>
+													<span>{uiText("ui.d36c5e504eb7c04c")}</span>
 												{/if}
 											</button>
 										{:else}
@@ -1001,15 +996,15 @@
 												type="button"
 												onclick={() => handleLaunch(inst)}
 												disabled={isLaunching || appState.isLaunching}
-												class="px-5 py-2 rounded-full bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-brand-foreground font-black text-xs flex items-center gap-1.5 shadow-button hover:shadow-button-hover transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:scale-105 active:scale-[0.98] cursor-pointer disabled:opacity-50"
-												title={isThisLaunching ? (appState.launchStatusText || "Preparando...") : "Jogar"}
+												class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5 disabled:opacity-50" })}
+												title={isThisLaunching ? (appState.launchStatusText || uiText("ui.dc0546b3e22c8f9e")) : uiText("instances.play")}
 											>
 												{#if isThisLaunching}
 													<Loader2 class="w-3.5 h-3.5 animate-spin" />
-													<span>{appState.launchStatusText || "Preparando..."}</span>
+													<span>{appState.launchStatusText || uiText("ui.dc0546b3e22c8f9e")}</span>
 												{:else}
 													<Play class="w-3.5 h-3.5 fill-current" />
-													<span>Jogar</span>
+													<span>{uiText("instances.play")}</span>
 												{/if}
 											</button>
 										{/if}
@@ -1021,9 +1016,9 @@
 													e.stopPropagation();
 													activeContextMenuId = activeContextMenuId === inst.id ? null : inst.id;
 												}}
-												aria-label={`Opções de ${inst.name}`}
+												aria-label={uiText("ui.1bf82bb374333f9d", {arg0: (inst.name)})}
                                                 aria-expanded={activeContextMenuId === inst.id}
-                                                class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
+                                                class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 											>
 												<MoreVertical class="w-4 h-4" />
 											</button>
@@ -1038,23 +1033,28 @@
 														onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
 														onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
 														onclick={() => goto(`/instances/${inst.id}`)}
-														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer font-medium"
+														class={launcherButton({ variant: "secondary", size: "sm", class: "w-full text-left flex items-center gap-2" })}
 													>
-														<Settings class="w-3.5 h-3.5 text-fg/60" /> Detalhes & Mods
+														<Settings class="w-3.5 h-3.5 text-fg/60" /> {uiText("ui.286eb0604961b4d1")}
 													</button>
 													<button
 														type="button"
-														onclick={() => instancesOpenFolder(inst.id)}
-														class="w-full px-3 py-2 text-left text-xs text-fg hover:bg-fg/5 flex items-center gap-2 cursor-pointer font-medium"
+														onclick={() => void instancesOpenFolder(inst.id).catch((e) => toast(String(e), "error"))}
+														class={launcherButton({ variant: "secondary", size: "sm", class: "w-full text-left flex items-center gap-2" })}
 													>
-														<FolderOpen class="w-3.5 h-3.5 text-fg/60" /> Abrir Pasta
+														<FolderOpen class="w-3.5 h-3.5 text-fg/60" /> {uiText("screenshots.openFolder")}
 													</button>
 													<button
 														type="button"
-														onclick={() => profiles.remove(inst.id)}
-														class="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer font-bold"
+														onclick={() => {
+															void api
+																.invoke("profiles_delete", { id: inst.id })
+																.then(() => profiles.remove(inst.id))
+																.catch((e) => toast(String(e), "error"));
+														}}
+														class={launcherButton({ variant: "danger", size: "sm", class: "w-full text-left flex items-center gap-2" })}
 													>
-														<Trash2 class="w-3.5 h-3.5" /> Excluir Instância
+														<Trash2 class="w-3.5 h-3.5" /> {uiText("instances.deleteConfirmTitle")}
 													</button>
 												</div>
 											{/if}
@@ -1074,21 +1074,21 @@
 						{t("library.title")}
 					</h2>
 
-					<div class="flex items-center gap-2.5">
-						<div class="relative flex-1">
+					<div class="flex flex-wrap items-center gap-2.5">
+						<div class="relative min-w-[180px] flex-1">
 							<Search class="w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 text-fg/30" />
 							<input
 								type="text"
 								placeholder={t("common.search")}
 								bind:value={searchQuery}
-								class="w-full bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500/60 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
+								class="w-full bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-xl pl-9 pr-3 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500/60 transition-[color,background-color,border-color,box-shadow,transform,opacity]"
 							/>
 						</div>
 
 						<button
 							type="button"
 							onclick={() => showNewGroupPrompt = true}
-							class="px-4 py-2.5 rounded-xl bg-bg-subtle hover:bg-border-strong text-fg/80 hover:text-fg border border-fg/[0.08] text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shrink-0"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5 shrink-0" })}
 						>
 							<FolderPlus class="w-3.5 h-3.5 text-fg/50" />
 							<span>{t("library.newGroup")}</span>
@@ -1097,7 +1097,7 @@
 						<button
 							type="button"
 							onclick={() => showCreateModal = true}
-							class="px-4 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0 active:scale-[0.98]"
+							class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5 shrink-0" })}
 						>
 							<Plus class="w-4 h-4 stroke-[3]" />
 							<span>{t("library.newInstance")}</span>
@@ -1105,23 +1105,14 @@
 					</div>
 
 					<div class="flex items-center gap-2 flex-wrap">
-						<div class="relative flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3 py-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm">
-							<ArrowUpDown class="w-3.5 h-3.5 text-brand-500 shrink-0 pointer-events-none" />
-							<GlassSelect bind:value={sortBy} label="Ordenar instâncias" options={[{value:"lastPlayed",label:"Recentes"},{value:"name",label:"Nome"},{value:"version",label:"Versão"}]} />
-							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
-						</div>
-
-						<div class="relative flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3 py-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm">
-							<Layers class="w-3.5 h-3.5 text-brand-500 shrink-0 pointer-events-none" />
-							<GlassSelect bind:value={selectedGroup} label="Grupo de instâncias" options={[{value:"all",label:"Todos os grupos"},...customGroups.map(group => ({value:group,label:group}))]} />
-							<ChevronDown class="w-3 h-3 text-fg/40 pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2" />
-						</div>
+                        <GlassSelect icon={ArrowUpDown} bind:value={sortBy} label={uiText("ui.bffb787c611dc6a7")} options={[{value:"lastPlayed",label:uiText("ui.3068eba03d591c16")},{value:"name",label:uiText("instances.sortName")},{value:"version",label:uiText("instances.sortVersion")}]} />
+                        <GlassSelect icon={Layers} bind:value={selectedGroup} label={uiText("ui.0e068d966d594ff3")} options={[{value:"all",label:uiText("ui.bf0a7c270bd43693")},...customGroups.map(group => ({value:group,label:group}))]} />
 
 						<button
 							type="button"
-							class="flex items-center gap-1.5 luxmc-control border border-fg/[0.08] hover:border-fg/[0.15] rounded-xl px-3.5 py-1.5 text-xs font-semibold text-fg/80 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98] {showNewGroupPrompt ? 'border-brand-500/50 bg-brand-500/10 text-brand-500' : ''}"
+							class={launcherButton({ variant: showNewGroupPrompt ? "ghostBrand" : "secondary", size: "sm" })}
 							onclick={() => showNewGroupPrompt = !showNewGroupPrompt}
-							title="Criar novo grupo de instâncias"
+							title={uiText("ui.206f6d5e7122233e")}
 						>
 							<Filter class="w-3.5 h-3.5 text-fg/50" />
 							<span>{t("library.addFilter")}</span>
@@ -1133,7 +1124,7 @@
 					<div class="p-3.5 rounded-2xl bg-bg/35 backdrop-blur-xl border border-brand-500/30 flex items-center gap-2.5" in:slide={{ easing: quintOut, duration: 220 }}>
 						<input
 							type="text"
-							placeholder="Nome do novo grupo..."
+							placeholder={uiText("ui.bf96010119f10b2f")}
 							bind:value={newGroupName}
 							class="flex-1 bg-black/40 border border-fg/10 rounded-xl px-3 py-2 text-xs text-fg outline-none focus:border-brand-500"
 							onkeydown={(e) => { if (e.key === "Enter") handleAddGroup(); }}
@@ -1141,16 +1132,16 @@
 						<button
 							type="button"
 							onclick={handleAddGroup}
-							class="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black cursor-pointer"
+							class={launcherButton({ variant: "primary", size: "sm", class: "" })}
 						>
-							Adicionar
+							{uiText("ui.967bcf34a9138e10")}
 						</button>
 						<button
 							type="button"
 							onclick={() => showNewGroupPrompt = false}
-							class="px-3 py-2 rounded-xl bg-fg/5 text-fg/50 hover:text-fg text-xs cursor-pointer"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 						>
-							Cancelar
+							{uiText("common.cancel")}
 						</button>
 					</div>
 				{/if}
@@ -1158,43 +1149,43 @@
 				{#if filteredProfiles.length === 0}
 					<div class="p-12 rounded-3xl bg-bg/35 backdrop-blur-xl border border-fg/[0.06] text-center space-y-3">
 						<Layers class="w-8 h-8 text-fg/20 mx-auto" />
-						<p class="text-sm text-fg/40">Nenhuma instância encontrada para os filtros aplicados.</p>
+						<p class="text-sm text-fg/40">{uiText("ui.7c552b2c03b6eb16")}</p>
 						<button
 							type="button"
 							onclick={() => { searchQuery = ""; selectedGroup = "all"; }}
-							class="text-xs text-brand-500 hover:underline font-bold cursor-pointer"
+							class={launcherButton({ variant: "ghost", size: "sm", class: "hover:underline" })}
 						>
-							Limpar filtros
+							{uiText("ui.fade927f9c6169bd")}
 						</button>
 					</div>
 				{:else}
-					<div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
+					<div class="home-instance-grid grid grid-cols-[repeat(auto-fill,minmax(min(260px,100%),1fr))] gap-5">
 						{#each filteredProfiles as inst (inst.id)}
 							{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
 							{@const isThisLaunching = (isLaunching || appState.isLaunching) && (launchingProfileId === inst.id || appState.launchingProfileId === inst.id)}
 							<div
 								role="button"
 								tabindex="0"
-								class="cv-auto rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.16] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] p-4 flex flex-col justify-between group relative shadow-md hover:shadow-xl cursor-pointer min-h-[215px] [contain-intrinsic-size:auto_232px]"
+								class="home-instance-card rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.08] hover:border-brand-500/35 transition-[background-color,border-color,box-shadow,transform] p-6 flex flex-col justify-between group relative shadow-soft hover:shadow-elevated cursor-pointer min-h-[280px]"
 								onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
 								onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
 								onclick={() => goto(`/instances/${inst.id}`)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
 							>
 								<div class="w-full flex-1 flex items-center justify-center relative my-2">
-									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform group-hover:scale-[1.03] shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
+									<div class="w-36 h-36 rounded-3xl flex items-center justify-center overflow-hidden transition-transform motion-reduce:transition-none group-hover:scale-[1.03] {inst.icon && !inst.icon.includes('grass_block') ? 'bg-fg/5 border border-fg/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 											<img loading="lazy" decoding="async"
 												src={inst.icon}
 												alt={inst.name}
 												class="w-full h-full object-cover"
-												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-14 h-14 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
+												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-28 h-28 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
 											/>
 										{:else}
 											<img loading="lazy" decoding="async"
 												src="/grass_block.png"
 												alt={inst.name}
-												class="w-14 h-14 object-contain [image-rendering:pixelated] drop-shadow-md"
+												class="w-28 h-28 object-contain [image-rendering:pixelated] drop-shadow-md"
 											/>
 										{/if}
 									</div>
@@ -1206,8 +1197,9 @@
 											handleLaunch(inst);
 										}}
 										disabled={isLaunching || appState.isLaunching}
-										class="absolute bottom-1 right-2 w-10 h-10 rounded-full bg-brand-500 hover:bg-brand-600 text-brand-foreground flex items-center justify-center shadow-xl opacity-0 group-hover:opacity-100 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] transform scale-90 group-hover:scale-100 cursor-pointer disabled:opacity-50"
-										title={isThisLaunching ? (appState.launchStatusText || "Preparando...") : "Jogar"}
+										class={launcherButton({ variant: "play", size: "icon", class: "absolute bottom-0 right-0 h-12 w-12 rounded-2xl" })}
+										aria-label={`${uiText("instances.play")} ${inst.name}`}
+										title={isThisLaunching ? (appState.launchStatusText || uiText("ui.dc0546b3e22c8f9e")) : uiText("instances.play")}
 									>
 										{#if isThisLaunching}
 											<Loader2 class="w-4 h-4 animate-spin" />
@@ -1218,10 +1210,10 @@
 								</div>
 
 								<div class="w-full space-y-1 text-center mt-2 px-1">
-									<h3 class="text-sm font-black text-fg group-hover:text-brand-500 transition-colors truncate">
+									<h3 class="text-base font-bold text-fg transition-colors truncate">
 										{inst.name}
 									</h3>
-									<p class="text-[11px] text-fg/50 truncate font-semibold">
+									<p class="text-xs text-fg-muted truncate font-medium">
 										{inst.loader} • {inst.mcVersion}
 									</p>
 								</div>

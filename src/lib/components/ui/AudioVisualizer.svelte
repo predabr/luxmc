@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { Play, Pause, RotateCcw } from "lucide-svelte";
 	import WaveSurfer from "wavesurfer.js";
 
@@ -7,7 +9,7 @@
 		title?: string;
 	};
 
-	let { url, title = "Pré-visualização de Áudio" }: Props = $props();
+	let { url, title = uiText("ui.a7cde0366e7b9efb") }: Props = $props();
 
 	let container = $state<HTMLDivElement | null>(null);
 	let isPlaying = $state(false);
@@ -89,23 +91,23 @@
 	<div class="flex items-center gap-2">
 		<button
 			type="button"
-			class="px-3 py-1.5 rounded-xl bg-brand-500/20 hover:bg-brand-500/30 text-brand-300 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+			class={launcherButton({ variant: "ghostBrand", size: "sm", class: "flex items-center gap-1.5" })}
 			onclick={togglePlay}
 		>
 			{#if isPlaying}
 				<Pause class="w-3.5 h-3.5" />
-				<span>Pausar</span>
+				<span>{uiText("ui.cd25ee5b1db8f5b0")}</span>
 			{:else}
 				<Play class="w-3.5 h-3.5" />
-				<span>Tocar</span>
+				<span>{uiText("ui.6e11a30e8703bef8")}</span>
 			{/if}
 		</button>
 
 		<button
 			type="button"
-			class="p-1.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/70 text-xs transition cursor-pointer"
+			class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 			onclick={restart}
-			aria-label="Reiniciar áudio"
+			aria-label={uiText("ui.0b81a13d6a01cb50")}
 		>
 			<RotateCcw class="w-3.5 h-3.5" />
 		</button>

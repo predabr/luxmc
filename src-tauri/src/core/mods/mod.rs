@@ -30,6 +30,8 @@ pub struct ModVersion {
     pub name: String,
     pub version_number: String,
     pub files: Vec<ModFile>,
+    #[serde(default)]
+    pub loaders: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -134,6 +136,7 @@ impl ModrinthClient {
         offset: u32,
         sort_by: Option<&str>,
     ) -> AppResult<Vec<ModSearchResult>> {
+        if matches!(content_type.to_lowercase().as_str(), "world" | "worlds") { return Ok(Vec::new()); }
         let project_type = match content_type.to_lowercase().as_str() {
             "modpack" => "modpack",
             "resource pack" | "resourcepack" => "resourcepack",
@@ -398,6 +401,7 @@ impl ModrinthClient {
                 .unwrap_or_default();
 
             versions.push(ModVersion {
+                loaders: v.get("loaders").and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str().map(str::to_owned)).collect()).unwrap_or_default(),
                 id: v
                     .get("id")
                     .and_then(|i| i.as_str())
@@ -697,3 +701,14 @@ pub fn calculate_xxh3_file_hash<P: AsRef<std::path::Path>>(path: P) -> Option<u6
     Some(xxhash_rust::xxh3::xxh3_64(&mmap[..]))
 }
 
+
+#[cfg(test)]
+mod catalog_type_tests {
+    #[tokio::test]
+    async fn worlds_never_fall_back_to_modrinth_mods() {
+        let client = super::ModrinthClient::new(reqwest::Client::new());
+        for kind in ["world", "World", "worlds"] {
+            assert!(client.search_mods("", "", kind, None, None, 36, 0, None).await.unwrap().is_empty());
+        }
+    }
+}

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { ChevronUp, ChevronDown } from 'lucide-svelte';
 	import { slide } from 'svelte/transition';
@@ -22,7 +23,7 @@
 		type="button"
 		aria-expanded={isOpen}
 		onclick={() => (isOpen = !isOpen)}
-		class="w-full flex items-center justify-between p-4 hover:bg-bg-hover transition-colors"
+		class={launcherButton({ variant: "secondary", size: "sm", class: "w-full flex items-center justify-between" })}
 	>
 		<div class="flex items-center gap-3">
 			{#if Icon}

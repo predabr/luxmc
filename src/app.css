@@ -32,6 +32,7 @@
   --brand-600: 37 99 235;
   --brand-700: 29 78 216;
   --brand-foreground: 255 255 255;
+  --brand-action: 37 99 235;
   --success: 34 197 94;
   --warning: 234 179 8;
   --danger: 239 68 68;
@@ -51,11 +52,9 @@ select {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
   appearance: none !important;
-  background-color: transparent !important;
-  background-image: none !important;
-  border: none !important;
-  outline: none !important;
-  box-shadow: none !important;
+  background-color: rgb(var(--bg-subtle));
+  border: 1px solid rgb(var(--border-strong));
+  border-radius: 0.75rem;
 }
 
 select::-ms-expand {
@@ -71,7 +70,7 @@ select option {
   --bg: 245 247 250;
   --bg-elevated: 255 255 255;
   --bg-subtle: 238 242 248;
-  --bg-overlay: 220 226 236;
+  --bg-overlay: 15 23 42;
   --fg: 15 23 42;
   --fg-muted: 71 85 105;
   --fg-subtle: 100 116 139;
@@ -79,6 +78,12 @@ select option {
   --border-strong: 195 205 220;
   --brand-500: 59 130 246;
   --brand-600: 37 99 235;
+  --brand-400: 37 99 235;
+  --success: 5 120 80;
+  --warning: 146 90 0;
+  --danger: 185 28 28;
+  --info: 14 101 133;
+  --loader-quilt: 126 34 150;
   --brand-foreground: 255 255 255;
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -218,19 +223,16 @@ html.density-spacious { font-size: 15px; }
   background: linear-gradient(145deg, rgb(var(--bg-elevated) / 0.96), rgb(var(--bg-subtle) / 0.88));
   border-radius: var(--radius-xl);
   box-shadow: inset 0 1px 0 rgb(var(--surface-shine) / 0.06);
-  transition: border-color 200ms cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow 200ms cubic-bezier(0.34, 1.4, 0.64, 1);
-  will-change: transform;
 }
 
 .luxmc-card:hover {
   border-color: rgb(var(--brand-400) / 0.4);
   box-shadow: 0 8px 32px -8px rgb(var(--brand-500) / 0.16), inset 0 1px 0 rgb(var(--surface-shine) / 0.08);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .luxmc-glass {
-  background: rgb(var(--bg-elevated) / 0.8);
-  backdrop-filter: blur(24px) saturate(1.2);
-  -webkit-backdrop-filter: blur(24px) saturate(1.2);
+  background: rgb(var(--bg-elevated) / 0.95);
   border: 1px solid rgb(var(--surface-shine) / 0.08);
   box-shadow: inset 0 1px 0 rgb(var(--surface-shine) / 0.06), var(--shadow-soft);
 }
@@ -308,27 +310,17 @@ html.density-spacious { font-size: 15px; }
 }
 
 
-body.is-scrolling *,
-body.is-scrolling *::before,
-body.is-scrolling *::after {
-  pointer-events: none !important;
-  transition: none !important;
-}
-
-button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
-  transition-property: background-color, border-color, color, opacity;
-  transition-duration: 180ms;
-  transition-timing-function: cubic-bezier(0.34, 1.4, 0.64, 1);
-}
-
-button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active {
-  transform: scale(0.985);
-  transition-duration: 90ms;
-}
-
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  button:not(:disabled):hover, [role="button"]:not([aria-disabled="true"]):hover {
-    border-color: rgb(var(--brand-500) / 0.35);
+@layer base {
+  button, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:not(:disabled):not([aria-disabled="true"]):active {
+    translate: 0 1px;
+  }
+  button[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.5;
   }
 }
 
@@ -353,10 +345,7 @@ html.no-anim .hover-lift:hover {
   transform: none;
 }
 
-.cv-auto {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 240px;
-}
+
 
 @keyframes slideIn {
   from {
@@ -396,15 +385,17 @@ html {
   scroll-behavior: auto !important;
 }
 
+main *, main *::before, main *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 .gpu-accelerated {
   transform: translateZ(0);
   backface-visibility: hidden;
-  perspective: 1000px;
 }
 
 html.perf-mode *, html.perf-mode *::before, html.perf-mode *::after {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
   animation-duration: 0.01ms !important;
   transition-duration: 0.01ms !important;
 }
@@ -412,12 +403,63 @@ html.perf-mode *, html.perf-mode *::before, html.perf-mode *::after {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgb(var(--fg) / 0.18) transparent;
-  -webkit-overflow-scrolling: touch;
   scroll-behavior: auto !important;
 }
 .custom-scrollbar-root {
   overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+html.scroll-active :is(.animate-pulse, .animate-pulse-glow, .animate-shimmer) { animation-play-state: paused; }
+.is-scrolling :is(.hover-lift, .luxmc-card, .surface-glass, .catalog-card, .content-card) {
+  box-shadow: none;
+}
+[data-scroll-root] {
+  isolation: isolate;
+}
+html.scroll-active :is(aside, [class*="backdrop-blur"]) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.virtual-scroll-viewport {
   contain: layout style;
+  isolation: isolate;
+}
+.skin-preview-stage {
+  background-image: radial-gradient(ellipse at 50% 65%, rgb(var(--brand-500) / 0.08), transparent 65%);
+}
+@media (prefers-reduced-motion: reduce) {
+  button:active { translate: none !important; }
+}
+.content-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 460px;
+}
+.catalog-list-card { contain-intrinsic-size: auto 112px; }
+.content-card { contain-intrinsic-size: auto 82px; }
+.instance-content-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0.75rem;
+}
+.instance-content-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(var(--fg) / 0.6);
+}
+.instance-content-tab:hover { background: rgb(var(--fg) / 0.05); color: rgb(var(--fg)); }
+.instance-content-tab[aria-selected="true"] { background: rgb(var(--brand-500) / 0.12); color: rgb(var(--brand-400)); }
+.content-count { padding: 0.125rem 0.5rem; border-radius: 0.375rem; background: rgb(var(--fg) / 0.06); font-variant-numeric: tabular-nums; }
+.instance-mod-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(80px, 160px) 192px; }
+@media (max-width: 1100px) {
+  .instance-mod-row { grid-template-columns: minmax(0, 1fr) 192px; }
+  .instance-mod-row > :nth-child(2) { display: none; }
+  .instance-content-tab { flex: 1 1 auto; justify-content: center; padding: 0.625rem; }
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
@@ -441,10 +483,6 @@ html.perf-mode *, html.perf-mode *::before, html.perf-mode *::after {
 button { border-radius: var(--radius-lg); }
 
 /* --- GLASSMORPHISM FOR CUSTOM WALLPAPER --- */
-html.has-custom-wallpaper {
-  --bg-overlay: 10 12 18 / 0.70;
-}
-
 html.has-custom-wallpaper [class*="bg-[#14171d]"],
 html.has-custom-wallpaper [class*="bg-[#181c26]"],
 html.has-custom-wallpaper [class*="bg-[#1a1e28]"],
@@ -487,7 +525,7 @@ html.has-custom-wallpaper button.bg-brand-500,
 html.has-custom-wallpaper button.bg-blue-600,
 html.has-custom-wallpaper button.bg-\[\#1bd96a\],
 html.has-custom-wallpaper button.bg-emerald-500 {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: none;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
@@ -546,40 +584,110 @@ select.luxmc-filter { background-color: transparent !important; background-image
 .luxmc-control > span, .luxmc-control > svg { background: transparent; }
 
 .luxmc-control:focus-visible, .luxmc-control:has(.glass-select-trigger:focus-visible) { outline: 2px solid rgb(var(--brand-400) / 0.65); outline-offset: 3px; }
-.glass-select-trigger { appearance: none; border: 0; background: transparent !important; box-shadow: none !important; }
+.glass-select-trigger { appearance: none; }
 
 html.has-custom-wallpaper main .bg-bg {
-  background-color: rgb(var(--bg) / 0.85);
+  background-color: rgb(var(--bg-elevated) / var(--interface-opacity, .18));
 }
 
 html.no-blur :is(aside, main, nav, header, section, div, button, [class*="backdrop-blur"], .luxmc-control, .luxmc-glass) {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
-html.no-blur .bg-bg\/35 {
+html.no-blur:not(.has-custom-wallpaper) .bg-bg\/35 {
   background-color: rgb(var(--bg-elevated) / 0.94) !important;
 }
-html.no-blur aside {
+html.no-blur:not(.has-custom-wallpaper) aside {
   background-color: rgb(var(--bg-elevated) / 0.96) !important;
 }
 
-html.efficient-wallpaper :is(aside, main, [class*="backdrop-blur"], .bg-bg-elevated, .bg-bg-subtle) {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-html.efficient-wallpaper :is(.bg-bg-elevated, .bg-bg-subtle, aside) {
-  background-color: rgb(var(--bg-elevated) / 0.88) !important;
-}
 button:focus-visible, a:focus-visible, select:focus-visible {
   outline: 2px solid rgb(var(--brand-400));
   outline-offset: 3px;
 }
 
-aside {
-  will-change: contents;
-  isolation: isolate;
-}
+.instance-overview-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; padding: 0.5rem; border: 1px solid rgb(var(--border)); border-radius: 1rem; background: rgb(var(--bg-elevated)); }
+.instance-overview-section { scroll-margin-top: 1.5rem; min-width: 0; }
+.instance-settings-group { padding: 1.25rem; border: 1px solid rgb(var(--border)); border-radius: 1rem; background: rgb(var(--bg-subtle)); }
+.launcher-button > svg { flex: none; display: block; filter: none; stroke-width: 1.8; }
+button[role="switch"] { flex-shrink: 0; width: 2.75rem !important; min-width: 2.75rem; height: 1.5rem !important; padding: 0 !important; border: 1px solid rgb(var(--fg) / 0.16) !important; border-radius: 999px !important; background: rgb(var(--fg) / 0.1) !important; box-shadow: none !important; overflow: visible; }
+button[role="switch"][aria-checked="true"] { background: rgb(var(--brand-500)) !important; border-color: rgb(var(--brand-500)) !important; }
+button[role="switch"] > span { position: absolute !important; top: 2px !important; left: 2px !important; width: 18px !important; height: 18px !important; border-radius: 999px; background: rgb(var(--fg)) !important; transform: translateX(0) !important; transition: transform 150ms ease; box-shadow: none !important; }
+button[role="switch"][aria-checked="true"] > span { transform: translateX(20px) !important; }
+.settings-page select { appearance: none; min-height: 2.5rem; flex-shrink: 0; background-color: rgb(var(--bg-subtle)); background-image: linear-gradient(45deg, transparent 50%, rgb(var(--fg) / 0.65) 50%), linear-gradient(135deg, rgb(var(--fg) / 0.65) 50%, transparent 50%); background-position: calc(100% - 15px) center, calc(100% - 10px) center; background-size: 5px 5px; background-repeat: no-repeat; border: 1px solid rgb(var(--fg) / 0.16); border-radius: 0.75rem; padding: 0.625rem 2.25rem 0.625rem 0.875rem; }
+@media (max-width: 700px) { .settings-page .gap-6 { gap: 1rem; } .instance-mod-row { grid-template-columns: minmax(0, 1fr) 192px; gap: 0.5rem; padding-left: 0.5rem; padding-right: 0.5rem; } }
 
-main[data-scroll-root] {
-  will-change: scroll-position;
+.catalog-result-row { contain: layout style; }
+.catalog-result-row .catalog-card { min-width: 0; height: 100%; backdrop-filter: none; box-shadow: none; }
+.catalog-card > div:first-child { flex-shrink: 0; }
+
+.installer-progress-fill { height: 100%; background-color: rgb(var(--brand-500)); }
+
+.luxmc-control:has(.glass-select-trigger) { padding: 0.25rem 0.625rem; background: rgb(var(--fg) / 0.035); box-shadow: none; }
+.luxmc-control > .relative { min-width: 0; }
+.luxmc-control .glass-select-trigger { background: transparent; border-color: transparent; box-shadow: none; }
+.luxmc-control .glass-select-trigger:hover { background: rgb(var(--fg) / 0.045); }
+html.has-custom-wallpaper .luxmc-control { background: rgb(var(--bg-elevated) / 0.38); border-color: rgb(var(--fg) / 0.12); }
+html.has-custom-wallpaper .launcher-button { box-shadow: inset 0 1px 0 rgb(var(--fg) / 0.07); }
+html.has-custom-wallpaper .surface-glass { background-color: rgb(var(--bg-elevated) / 0.62); }
+html.has-custom-wallpaper .bg-bg-elevated, html.has-custom-wallpaper .bg-bg-subtle { background-color: rgb(var(--bg-elevated) / 0.58) !important; }
+html.has-custom-wallpaper .glass-select-trigger { background-color: transparent !important; }
+html.has-custom-wallpaper :is(select, input[type="text"]) { background-color: rgb(var(--bg-elevated) / 0.45) !important; }
+html.has-custom-wallpaper select.appearance-none { background-color: transparent !important; }
+
+html.has-custom-wallpaper aside,
+html.has-custom-wallpaper :is(main, aside) :is(button:not([role="switch"]), .luxmc-control, .surface-glass, .luxmc-card, .instance-overview-nav, .instance-settings-group),
+html.has-custom-wallpaper :is(main, aside) [class~="bg-bg/35"],
+html.has-custom-wallpaper :is(main, aside) [class*="bg-bg-elevated"],
+html.has-custom-wallpaper :is(main, aside) [class*="bg-bg-subtle"] { background-color: rgb(var(--bg-elevated) / var(--interface-opacity, .18)) !important; }
+html.has-custom-wallpaper main .luxmc-control .glass-select-trigger,
+html.has-custom-wallpaper main .glass-select-trigger,
+html.has-custom-wallpaper main select.appearance-none { background: transparent !important; box-shadow: none; }
+html.has-custom-wallpaper main [role="listbox"],
+html.has-custom-wallpaper main [role="dialog"][class*="bg-bg-elevated"],
+html.has-custom-wallpaper main [role="dialog"] > div[class],
+html.has-custom-wallpaper [role="dialog"] > div { background-color: rgb(var(--bg-elevated) / .94) !important; }
+html.has-custom-wallpaper main button:hover:not(:disabled) { border-color: rgb(var(--brand-400) / .5); box-shadow: inset 0 1px 0 rgb(var(--fg) / .1); }
+html.has-custom-wallpaper .skin-preview-stage { background-color: rgb(var(--bg-elevated) / .8) !important; }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.no-anim) main > div { animation: launcher-page-enter 220ms cubic-bezier(.2,.7,.2,1) both; }
+  html:not(.no-anim) .launcher-button { transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease; }
+  html:not(.no-anim) .launcher-button:active:not(:disabled) { transform: translateY(1px); }
+}
+@keyframes launcher-page-enter { from { opacity: .7; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+.launcher-button { isolation: isolate; letter-spacing: 0.01em; }
+.launcher-button:not(.launcher-button--ghost)::before { content: ""; position: absolute; pointer-events: none; inset: 0; border-radius: inherit; box-shadow: inset 0 1px 0 rgb(var(--surface-shine) / .12); }
+.launcher-button--secondary, .launcher-button--outline { background-image: linear-gradient(180deg, rgb(var(--fg) / .035), transparent); }
+.launcher-button--primary { background-image: linear-gradient(135deg, rgb(var(--brand-400) / .28), transparent 65%); }
+.launcher-button--microsoft { background-image: linear-gradient(180deg, rgb(var(--fg) / .06), transparent); }
+.launcher-button--ghost { box-shadow: none; }
+.launcher-button[aria-busy="true"] { cursor: progress; }
+html.light :is(.text-fg\/40, .text-fg\/50, .text-fg\/60) { color: rgb(var(--fg-muted)); }
+html.light :is(.text-brand-300, .text-brand-400) { color: rgb(var(--brand-action)); }
+html.light :is(.text-green-300, .text-green-400, .text-emerald-300, .text-emerald-400, [class~="text-emerald-400/80"]) { color: rgb(var(--success)); }
+html.light :is(.text-sky-300, .text-sky-400, .text-cyan-300, .text-cyan-400) { color: rgb(var(--info)); }
+html.light :is(.text-amber-300, .text-amber-400, .text-orange-300, .text-orange-400, .text-yellow-300, .text-yellow-400, [class~="text-orange-400/80"]) { color: rgb(var(--warning)); }
+html.light :is(.text-purple-300, .text-purple-400) { color: rgb(var(--loader-quilt)); }
+html.light.has-custom-wallpaper :is(.launcher-button--primary, .launcher-button--play) { color: rgb(var(--fg)); border-color: rgb(var(--brand-600) / .45); }
+html.light.has-custom-wallpaper :is(main, aside) [class~="text-brand-foreground"] { color: rgb(var(--fg)); }
+html.light:not(.has-custom-wallpaper) :is(.launcher-button--primary, .launcher-button--play),
+html.has-custom-wallpaper :is(main, aside) [role="dialog"] :is(.launcher-button--primary, .launcher-button--play, .selection-control),
+html [role="dialog"] :is(.launcher-button--primary, .launcher-button--play, .selection-control) { background-color: rgb(var(--brand-action)) !important; background-image: none; color: rgb(var(--brand-foreground)); border-color: rgb(var(--brand-action)); }
+html.has-custom-wallpaper [role="dialog"] .selection-control .text-brand-foreground { color: rgb(var(--brand-foreground)); }
+html.has-custom-wallpaper :is(.launcher-button--primary, .launcher-button--play) { background-image: linear-gradient(135deg, rgb(var(--brand-500) / clamp(.18, var(--interface-opacity, .18), .55)), rgb(var(--brand-400) / clamp(.12, var(--interface-opacity, .18), .4))); border-color: rgb(var(--brand-300) / .4); box-shadow: inset 0 1px 0 rgb(var(--fg) / .12), 0 3px 10px rgb(var(--shadow-color) / .12); }
+html.has-custom-wallpaper .launcher-button--danger { background-image: linear-gradient(135deg, rgb(var(--danger) / .12), transparent); }
+html.has-custom-wallpaper :is(main, aside) .launcher-button--ghost { background-color: transparent !important; }
+.launcher-nav-link { min-height: 44px; border-radius: var(--radius-xl); }
+.launcher-nav-link[aria-current="page"] { box-shadow: inset 0 1px 0 rgb(var(--fg) / .12); }
+.launcher-tab { min-height: 42px; padding-inline: 1rem; border-radius: var(--radius-lg); font-weight: 600; }
+.launcher-tab[aria-pressed="true"] { color: rgb(var(--brand-300)); border: 1px solid rgb(var(--brand-400) / .3); }
+.auth-surface { box-shadow: 0 24px 70px rgb(var(--shadow-color) / .25), inset 0 1px 0 rgb(var(--fg) / .08); }
+@media (max-width: 1100px) { .launcher-right-sidebar { display: none; } }
+@media (prefers-reduced-motion: no-preference) {
+  html:not(.no-anim) .launcher-button:hover:not(:disabled):not([aria-disabled="true"]) { transform: translateY(-1px); box-shadow: inset 0 1px 0 rgb(var(--fg) / .1), 0 4px 12px rgb(var(--shadow-color) / .12); }
+  html:not(.no-anim) .launcher-button:active:not(:disabled) { transform: translateY(0) scale(.98); }
+  html:not(.no-anim) .launcher-nav-link { transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease; }
+  html:not(.no-anim) .launcher-nav-link:active { transform: scale(.98); }
+  html:not(.no-anim) .launcher-tab { transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease; }
 }

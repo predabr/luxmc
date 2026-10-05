@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import {
@@ -36,11 +38,11 @@
 		resolving = true;
 		try {
 			await instanceModToggle(profileId, c.fileToDisable, false);
-			toast(`Mod conflitante "${c.fileToDisable}" desativado com sucesso!`, "success");
+			toast(uiText("ui.0a7a8e884d0d0a53", {arg0: (c.fileToDisable)}), "success");
 			playSound("click");
 			onResolved();
 		} catch (e) {
-			toast("Falha ao desativar mod: " + String(e), "error");
+			toast(uiText("ui.1f8172ccbfdea83c") + String(e), "error");
 		} finally {
 			resolving = false;
 		}
@@ -53,11 +55,11 @@
 			for (const c of conflictsResult.conflicts) {
 				await instanceModToggle(profileId, c.fileToDisable, false);
 			}
-			toast("Todos os conflitos resolvidos automaticamente!", "success");
+			toast(uiText("ui.1fe2e66643f2b34e"), "success");
 			playSound("click");
 			onResolved();
 		} catch (e) {
-			toast("Falha ao resolver conflitos: " + String(e), "error");
+			toast(uiText("ui.507ea47b65b10764") + String(e), "error");
 		} finally {
 			resolving = false;
 		}
@@ -74,14 +76,14 @@
 						<ShieldAlert class="w-6 h-6" />
 					</div>
 					<div>
-						<h3 class="text-base font-black text-fg">Incompatibilidade Detectada!</h3>
-						<p class="text-xs text-rose-300/80">Evite que o jogo feche antes de abrir</p>
+						<h3 class="text-base font-black text-fg">{uiText("ui.c5a37f47c43c4086")}</h3>
+						<p class="text-xs text-rose-300/80">{uiText("ui.b6614b670d15e66d")}</p>
 					</div>
 				</div>
 
 				<button
 					type="button"
-					class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={onClose}
 				>
 					<X class="w-5 h-5" />
@@ -90,7 +92,7 @@
 
 			<!-- Description -->
 			<p class="text-xs text-fg/60 leading-relaxed">
-				O Luxmc analisou seus mods e encontrou conflitos conhecidos que causam travamentos imediatos na inicialização do Minecraft. Recomendamos desativar o mod conflitante:
+				{uiText("ui.a45b17833c52cb94")}
 			</p>
 
 			<!-- Conflicts List -->
@@ -99,19 +101,19 @@
 					<div class="p-4 rounded-2xl bg-bg-elevated border border-rose-500/20 space-y-2.5">
 						<div class="flex items-center justify-between">
 							<span class="text-xs font-black text-rose-300">{c.title}</span>
-							<span class="text-[10px] font-mono text-fg/40 bg-fg/5 px-2 py-0.5 rounded">Crash Crítico</span>
+							<span class="text-[10px] font-mono text-fg/40 bg-fg/5 px-2 py-0.5 rounded">{uiText("ui.bc8c15d67161c8c5")}</span>
 						</div>
 						<p class="text-[11px] text-fg/50 leading-relaxed">{c.description}</p>
 						<div class="flex items-center justify-between pt-1">
 							<span class="text-[10px] font-bold text-emerald-400">{c.recommendedAction}</span>
 							<button
 								type="button"
-								class="px-4 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 font-bold text-xs flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] shadow-sm"
+								class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 								onclick={() => handleFixConflict(c)}
 								disabled={resolving}
 							>
 								<Wrench class="w-3.5 h-3.5" />
-								<span>Corrigir com 1 Clique</span>
+								<span>{uiText("ui.bcebd53d539ad6fa")}</span>
 							</button>
 						</div>
 					</div>
@@ -128,19 +130,19 @@
 			<div class="flex items-center justify-between pt-2 border-t border-fg/10">
 				<button
 					type="button"
-					class="text-xs text-fg/40 hover:text-fg transition-colors cursor-pointer hover:underline"
+					class={launcherButton({ variant: "ghost", size: "sm", class: "hover:underline" })}
 					onclick={onProceedAnyway}
 				>
-					Ignorar e Iniciar Mesmo Assim
+					{uiText("ui.2a84a857a609900b")}
 				</button>
 
 				<button
 					type="button"
-					class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-brand-foreground font-black text-xs uppercase tracking-wider transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-emerald-500/20 cursor-pointer active:scale-[0.98]"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 uppercase tracking-wider" })}
 					onclick={handleFixAll}
 					disabled={resolving}
 				>
-					Corrigir Todos
+					{uiText("ui.64cd32a49ef9ef71")}
 				</button>
 			</div>
 		</div>

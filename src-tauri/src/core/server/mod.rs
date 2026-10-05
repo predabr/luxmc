@@ -23,7 +23,8 @@ pub struct ServerStatus {
     pub latency_ms: Option<u32>,
 }
 
-fn write_varint(buf: &mut Vec<u8>, mut value: i32) {
+fn write_varint(buf: &mut Vec<u8>, value: i32) {
+    let mut value = value as u32;
     loop {
         let mut byte = (value & 0x7F) as u8;
         value >>= 7;

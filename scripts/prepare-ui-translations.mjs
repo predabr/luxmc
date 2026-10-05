@@ -1,0 +1,12 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const flatten=(value,prefix='')=>Object.fromEntries(Object.entries(value).flatMap(([key,item])=>typeof item==='string'?[[prefix+key,item]]:Object.entries(flatten(item,prefix+key+'.'))));
+const dictionaries=Object.fromEntries(['pt-BR','en','es'].map(lang=>[lang,JSON.parse(readFileSync(`src/lib/i18n/${lang}.json`,'utf8'))]));
+const flat=Object.fromEntries(Object.entries(dictionaries).map(([lang,dict])=>[lang,flatten(dict)]));
+const existing=new Map(Object.entries(flat['pt-BR']).map(([key,value])=>[value,key]));
+const candidates=JSON.parse(readFileSync('docs/validation/ui-translation-candidates.json','utf8')).filter(item=>!/^https?:|^[\w.-]+\.(?:com|br|net)|^Português \(Brasil\)$/.test(item.value));
+const phrases=[...new Set(candidates.map(item=>item.value))];
+const entries=phrases.map(source=>({source,key:existing.get(source)||'ui.'+createHash('sha256').update(source).digest('hex').slice(0,16),en:flat.en[existing.get(source)],es:flat.es[existing.get(source)]}));
+writeFileSync('docs/validation/ui-translation-candidates.json',JSON.stringify(candidates,null,2));
+writeFileSync('docs/validation/ui-translation-work.json',JSON.stringify(entries,null,2));
+console.log(JSON.stringify({occurrences:candidates.length,phrases:phrases.length,missing:entries.filter(e=>!e.en||!e.es).length}));

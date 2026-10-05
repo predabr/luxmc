@@ -170,17 +170,28 @@ fn add_dir_to_zip(
     prefix: &str,
     options: zip::write::FileOptions,
 ) -> AppResult<()> {
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let name = entry.file_name().to_string_lossy().to_string();
-            let zip_path = format!("{}{}", prefix, name);
-            if path.is_dir() {
-                add_dir_to_zip(zip, &path, &format!("{}/", zip_path), options)?;
-            } else if path.is_file() {
-                if let Ok(bytes) = std::fs::read(&path) {
-                    let _ = zip.start_file(zip_path, options);
-                    let _ = zip.write_all(&bytes);
+    use std::io::Write;
+    let entries = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(dir = %dir.display(), error = %e, "unreadable directory during export");
+            return Ok(());
+        }
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+        let zip_path = format!("{}{}", prefix, name);
+        if path.is_dir() {
+            add_dir_to_zip(zip, &path, &format!("{}/", zip_path), options)?;
+        } else if path.is_file() {
+            match std::fs::read(&path) {
+                Ok(bytes) => {
+                    zip.start_file(zip_path, options)?;
+                    zip.write_all(&bytes)?;
+                }
+                Err(e) => {
+                    tracing::warn!(path = %path.display(), error = %e, "skipped unreadable file during export");
                 }
             }
         }

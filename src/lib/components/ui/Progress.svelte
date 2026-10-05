@@ -25,7 +25,7 @@
 <div class="relative {klass}">
   <div class="h-2 overflow-hidden rounded-full bg-bg-subtle">
     <div
-      class="h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 ease-out {variants[variant]}"
+      class="h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300 ease-out {variants[variant]}"
       style="width: {percentage}%"
     ></div>
   </div>

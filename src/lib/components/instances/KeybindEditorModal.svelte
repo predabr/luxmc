@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
@@ -49,7 +51,7 @@
 			keybinds = res.keybinds;
 			totalConflicts = res.totalConflicts;
 		} catch (e) {
-			toast("Falha ao ler opções de controles: " + String(e), "error");
+			toast(uiText("ui.8cb70fab848dec17") + String(e), "error");
 		} finally {
 			isLoading = false;
 		}
@@ -108,12 +110,12 @@
 		isSaving = true;
 		try {
 			await keybindsUpdate(profileId, pendingUpdates);
-			toast("Controles salvos com sucesso!", "success");
+			toast(uiText("ui.3e9b650bc548eabe"), "success");
 			pendingUpdates = {};
 			loadKeybinds();
 			onClose();
 		} catch (e) {
-			toast("Erro ao salvar controles: " + String(e), "error");
+			toast(uiText("ui.bc6e26732b5528a9") + String(e), "error");
 		} finally {
 			isSaving = false;
 		}
@@ -133,22 +135,23 @@
 					</div>
 					<div>
 						<div class="flex items-center gap-2">
-							<h3 class="text-base font-black text-fg">Gerenciador de Controles & Teclas</h3>
+							<h3 class="text-base font-black text-fg">{uiText("ui.de0b867e7c3eb8d5")}</h3>
 							{#if totalConflicts > 0}
 								<span class="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1">
 									<AlertTriangle class="w-3 h-3" />
-									{totalConflicts} Conflito(s)
+									{totalConflicts} {uiText("ui.6da93a563e93f964")}
 								</span>
 							{/if}
 						</div>
-						<p class="text-xs text-fg/50 mt-0.5">Edite atalhos e resolva teclas conflitantes sem precisar entrar no jogo</p>
+						<p class="text-xs text-fg/50 mt-0.5">{uiText("ui.7b71c746a9487eae")}</p>
 					</div>
 				</div>
 
 				<button
 					type="button"
-					class="p-2 rounded-xl text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={onClose}
+                    aria-label={uiText("ui.f5058ad040397ade")}
 				>
 					<X class="w-5 h-5" />
 				</button>
@@ -160,10 +163,10 @@
 					{#each categories as cat}
 						<button
 							type="button"
-							class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeCategory === cat ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/40 hover:text-fg'}"
+							class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer whitespace-nowrap {activeCategory === cat ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/40 hover:text-fg'}"
 							onclick={() => activeCategory = cat}
 						>
-							{cat}
+							{cat === "Todos" ? uiText("mods.categoryAll") : cat}
 						</button>
 					{/each}
 				</div>
@@ -173,7 +176,7 @@
 					<input
 						type="text"
 						bind:value={searchQuery}
-						placeholder="Buscar controle..."
+						placeholder={uiText("ui.6e1d3413fb4f3434")}
 						class="w-full pl-9 pr-3 py-1.5 rounded-full bg-bg-elevated border border-fg/10 text-xs text-fg focus:outline-none focus:border-brand-500"
 					/>
 				</div>
@@ -184,21 +187,21 @@
 				{#if isLoading}
 					<div class="p-12 text-center text-fg/40 flex flex-col items-center justify-center gap-2">
 						<RefreshCw class="w-6 h-6 animate-spin text-brand-400" />
-						<span class="text-xs font-bold">Lendo options.txt...</span>
+						<span class="text-xs font-bold">{uiText("ui.4b4bfde86cd679f4")}</span>
 					</div>
 				{:else if filteredKeybinds.length === 0}
 					<div class="p-12 text-center text-fg/40 rounded-2xl bg-bg-elevated border border-fg/5">
-						<p class="text-xs">Nenhum controle encontrado com este filtro.</p>
+						<p class="text-xs">{uiText("ui.cba7124b7f9f3d95")}</p>
 					</div>
 				{:else}
-					{#each filteredKeybinds as k}
-						<div class="p-3 rounded-2xl border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center justify-between {k.isConflict ? 'bg-rose-500/10 border-rose-500/30' : 'bg-bg-elevated border-fg/5 hover:border-fg/15'}">
+					{#each filteredKeybinds as k (k.id)}
+						<div class="p-3 rounded-2xl border transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center justify-between {k.isConflict ? 'bg-rose-500/10 border-rose-500/30' : 'bg-bg-elevated border-fg/5 hover:border-fg/15'}">
 							<div class="min-w-0 pr-4">
 								<div class="flex items-center gap-2">
 									<span class="text-xs font-bold text-fg truncate">{k.label}</span>
 									<span class="text-[9px] font-mono text-fg/40 bg-fg/5 px-2 py-0.5 rounded">{k.category}</span>
 									{#if k.isConflict}
-										<span class="text-[9px] font-extrabold text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/30">CONFLITO</span>
+										<span class="text-[9px] font-extrabold text-rose-400 bg-rose-500/20 px-1.5 py-0.5 rounded border border-rose-500/30">{uiText("ui.3f490145e2e4ea68")}</span>
 									{/if}
 								</div>
 								<span class="text-[10px] text-fg/40 font-mono block mt-0.5">{k.id}</span>
@@ -206,7 +209,7 @@
 
 							<button
 								type="button"
-								class="px-4 py-2 rounded-xl text-xs font-mono font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer min-w-[90px] text-center {listeningKeyId === k.id ? 'bg-brand-500 text-brand-foreground animate-pulse shadow-lg' : k.isConflict ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30' : 'bg-bg-subtle hover:bg-bg-subtle text-fg/90 border border-fg/10'}"
+								class="px-4 py-2 rounded-xl text-xs font-mono font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer min-w-[90px] text-center {listeningKeyId === k.id ? 'bg-brand-500 text-brand-foreground animate-pulse shadow-lg' : k.isConflict ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30' : 'bg-bg-subtle hover:bg-bg-subtle text-fg/90 border border-fg/10'}"
 								onclick={() => startListening(k)}
 							>
 								{listeningKeyId === k.id ? "Pressione..." : k.displayKey}
@@ -218,24 +221,24 @@
 
 			<!-- Footer -->
 			<div class="flex items-center justify-between pt-3 border-t border-fg/10 shrink-0">
-				<span class="text-xs text-fg/40">Clique em qualquer tecla para redefinir pelo teclado</span>
+				<span class="text-xs text-fg/40">{uiText("ui.bc99604d78dda252")}</span>
 
 				<div class="flex items-center gap-2.5">
 					<button
 						type="button"
-						class="px-5 py-2.5 rounded-2xl bg-fg/5 hover:bg-fg/10 text-fg/60 hover:text-fg font-bold text-xs transition-colors cursor-pointer"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 						onclick={onClose}
 					>
-						Cancelar
+						{uiText("common.cancel")}
 					</button>
 
 					<button
 						type="button"
-						class="px-7 py-2.5 rounded-2xl bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md cursor-pointer disabled:opacity-50"
+						class={launcherButton({ variant: "primary", size: "sm", class: "disabled:opacity-50" })}
 						onclick={handleSave}
 						disabled={isSaving}
 					>
-						{isSaving ? "Salvando..." : "Salvar Controles"}
+						{isSaving ? "Salvando..." : uiText("ui.1fd800c616a0b723")}
 					</button>
 				</div>
 			</div>

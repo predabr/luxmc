@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
@@ -83,20 +85,20 @@
 	async function handleImportShareCode() {
 		const code = shareCodeInput.trim();
 		if (!code) {
-			toast("Insira um código válido (ex: LUX-XXXXXX)", "warning");
+			toast(uiText("ui.199a854cf6c43a1f"), "warning");
 			return;
 		}
 		isImportingCode = true;
 		try {
 			const profile = await instanceImportShareCode(code);
-			toast(`Instância "${profile.name}" importada com sucesso!`, "success");
+			toast(uiText("ui.fd91cd11f65f22fb", {arg0: (profile.name)}), "success");
 			showImportCode = false;
 			shareCodeInput = "";
 			achievements.unlock("share_code");
 			playSound("chime");
 			await profiles.refresh();
 		} catch (e) {
-			toast("Erro ao importar código: " + String(e), "error");
+			toast(uiText("ui.bd7b4afa8b3f0462") + String(e), "error");
 		} finally {
 			isImportingCode = false;
 		}
@@ -122,7 +124,7 @@
 	let groupFilter = $state<string>("all");
 
 	let screenshotsId = $state<string | null>(null);
-	let screenshots = $state<Array<{ name: string; path: string; modified: string }>>([]);
+	let screenshots = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null; thumbPath?: string | null }>>([]);
 	let screenshotsLoading = $state(false);
 
 	let healthCheckId = $state<string | null>(null);
@@ -200,15 +202,15 @@
 	}
 
 	function formatTimeAgo(timestamp: number): string {
-		if (!timestamp) return "Ainda não jogada";
+		if (!timestamp) return uiText("ui.307a3b6fb9276530");
 		const diff = Date.now() - timestamp;
 		const minutes = Math.floor(diff / 60000);
 		if (minutes < 1) return "Agora";
-		if (minutes < 60) return `há ${minutes} min`;
+		if (minutes < 60) return uiText("ui.203ff49e070cca53", {arg0: (minutes)});
 		const hours = Math.floor(minutes / 60);
-		if (hours < 24) return `há ${hours} h`;
+		if (hours < 24) return uiText("ui.aea1c7314c6793d9", {arg0: (hours)});
 		const days = Math.floor(hours / 24);
-		return `há ${days} d`;
+		return uiText("ui.48a43c7197b246ae", {arg0: (days)});
 	}
 
 	function loadColors() {
@@ -258,12 +260,16 @@
 	}
 
 	let versionsRequested = false;
+    let versionsUpdatedAt = 0;
 	let specsRequested = false;
 
 	onMount(() => {
 		loadColors();
 		window.addEventListener("keydown", handleInstanceKeydown);
-		return () => window.removeEventListener("keydown", handleInstanceKeydown);
+        const refreshVersions = () => { if (!document.hidden) ensureVersions(); };
+        window.addEventListener("focus", refreshVersions);
+        const timer = setInterval(refreshVersions, 60000);
+        return () => { window.removeEventListener("keydown", handleInstanceKeydown); window.removeEventListener("focus", refreshVersions); clearInterval(timer); };
 	});
 
 	function ensureSystemSpecs() {
@@ -285,8 +291,9 @@
 	}
 
 	function ensureVersions() {
-		if (versionsRequested) return;
+		if (versionsRequested && Date.now() - versionsUpdatedAt < 60000) return;
 		versionsRequested = true;
+        versionsUpdatedAt = Date.now();
 		void loadVersions();
 	}
 
@@ -353,8 +360,8 @@
 					message.includes("O pacote de otimização requer");
 				toast(
 					withoutMods
-						? `Instância criada sem mods de desempenho: não há versões compatíveis com ${input.version} ${input.loader}.`
-						: `Instância criada, mas os mods de desempenho não foram instalados: ${message}`,
+						? uiText("ui.40614d4fd6779ff5", {arg0: (input.version), arg1: (input.loader)})
+						: uiText("ui.c523fdbb3da2b7ee", {arg0: (message)}),
 					withoutMods ? "info" : "error"
 				);
 			}
@@ -389,7 +396,7 @@
 		launchingInstanceId = p.id;
 		appState.isLaunching = true;
 		appState.launchingProfileId = p.id;
-		appState.launchStatusText = "Preparando autenticação...";
+		appState.launchStatusText = uiText("ui.897c3c2e65f8c77d");
 		profiles.activeId = p.id;
 		try {
 			let accountId = account.value?.uuid;
@@ -398,19 +405,20 @@
 				accountId = dev.uuid;
 			}
 			const verId = p.mcVersion || "1.21.4";
-			appState.launchStatusText = `Verificando versão ${verId}...`;
+			appState.launchStatusText = uiText("ui.a4446717f1d89dbb", {arg0: (verId)});
 			const installed = await versionsCheckInstalled(verId).catch(() => false);
 			if (!installed) {
-				appState.launchStatusText = `Baixando Minecraft ${verId}...`;
-				toast(`Baixando Minecraft ${verId}...`, "info");
+				appState.launchStatusText = uiText("ui.1d9893e36eabb20a", {arg0: (verId)});
+				toast(uiText("ui.1d9893e36eabb20a", {arg0: (verId)}), "info");
 				await versionsDownload(verId);
 			}
-			const isVulkan = p.useVulkan === true;
+			const globalVulkan = typeof window !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true";
+			const isVulkan = globalVulkan || p.useVulkan === true;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
 			const effectiveCape = activeSkinStore.current.hasCape
 				? (activeSkinStore.current.customCapeUrl || (activeSkinStore.current.capeType && activeSkinStore.current.capeType !== "none" ? getFullCapeDataUrl(activeSkinStore.current.capeType) : null))
 				: (account.value?.capeUrl || null);
-			appState.launchStatusText = "Injetando parâmetros JVM e iniciando...";
+			appState.launchStatusText = uiText("ui.d3144d88da48de3b");
 			const res = await launchGame({
 				versionId: verId,
 				accountId: accountId || "",
@@ -448,7 +456,7 @@
 			toast(`🎮 Minecraft ${verId} (${p.name}) iniciado! (PID: ${res.pid})`, "success");
 			void handlePostLaunchActions();
 		} catch (e) {
-			toast("Falha ao iniciar jogo: " + String(e), "error");
+			toast(uiText("ui.ca8c81cc4b1149af") + String(e), "error");
 		} finally {
 			appState.isLaunching = false;
 			appState.launchingProfileId = null;
@@ -495,10 +503,10 @@
 				name: editName.trim(), mcVersion: editVersion,
 				icon: editIcon, ramMb: editRamGb * 1024, jvmArgs: editJvmArgs
 			});
-			toast("Instância atualizada com sucesso!", "success");
+			toast(uiText("ui.97db9771d03340dc"), "success");
 			editingInstance = null;
 		} catch (e) {
-			lastError = "Falha ao atualizar instância: " + String(e);
+			lastError = uiText("ui.5187b2d53dfa23cd") + String(e);
 			toast(t("instances.failedUpdate", { error: String(e) }), "error");
 		} finally {
 			editSaving = false;
@@ -533,7 +541,7 @@
 		selectionMode = false;
 		if (count > 0) {
 			playSound("delete");
-			toast(`${count} instâncias removidas com sucesso.`, "success");
+			toast(uiText("ui.0a0f81bf7b3cf421", {arg0: (count)}), "success");
 		}
 	}
 
@@ -671,7 +679,7 @@
 			);
 			const p = await instanceImportModpack(importFile, importName.trim(), importVersion, importLoader);
 			if (wasCancelled) {
-				toast("Importação cancelada.", "info");
+				toast(uiText("ui.e6c50b7bfe042bcf"), "info");
 			} else {
 				profiles.add({
 					id: p.id, name: p.name, icon: p.icon || "",
@@ -685,7 +693,10 @@
 				fireModpackSuccessConfetti();
 				toast(t("instances.createdSuccess"), "success");
 			}
-		} catch (e) { toast(t("instances.failedImportModpack", { error: String(e) }), "error"); }
+		} catch (e) {
+			if (wasCancelled || String(e).toLowerCase().includes("cancelad")) toast(uiText("ui.e6c50b7bfe042bcf"), "info");
+			else toast(t("instances.failedImportModpack", { error: String(e) }), "error");
+		}
 		finally { importing = false; importProgress = null; unlisten?.(); }
 	}
 
@@ -721,7 +732,7 @@
 			);
 			const p = await instanceImportMrpack(importMrpackFile, importMrpackName.trim());
 			if (wasCancelled) {
-				toast("Importação cancelada.", "info");
+				toast(uiText("ui.e6c50b7bfe042bcf"), "info");
 			} else {
 				profiles.add({
 					id: p.id,
@@ -739,14 +750,17 @@
 				fireModpackSuccessConfetti();
 				toast(t("instances.createdSuccess"), "success");
 			}
-		} catch (e) { toast(t("instances.failedImportMrpack", { error: String(e) }), "error"); }
+		} catch (e) {
+			if (wasCancelled || String(e).toLowerCase().includes("cancelad")) toast(uiText("ui.e6c50b7bfe042bcf"), "info");
+			else toast(t("instances.failedImportMrpack", { error: String(e) }), "error");
+		}
 		finally { importingMrpack = false; importProgress = null; unlisten?.(); }
 	}
 </script>
 
 <div class="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-6">
 	<div class="flex flex-wrap items-end justify-between gap-5 pb-2">
-		<div class="shrink-0"><p class="page-eyebrow mb-2">Biblioteca pessoal</p><h1 class="page-title">Suas instâncias<span class="ml-3 text-lg font-medium text-fg-subtle">{profiles.list.length}</span></h1><p class="page-description">Cada mundo, do seu jeito.</p></div>
+		<div class="shrink-0"><p class="page-eyebrow mb-2">{uiText("ui.d6e609c3c2349aac")}</p><h1 class="page-title">{uiText("ui.dd0b0bf4b8398672")}<span class="ml-3 text-lg font-medium text-fg-subtle">{profiles.list.length}</span></h1><p class="page-description">{uiText("ui.dd78c3a38366515f")}</p></div>
 		<div class="flex flex-wrap items-center gap-2">
 			{#if selectionMode && selectedIds.size > 0}
 				<Button variant="danger" size="sm" onclick={bulkDelete}>
@@ -775,7 +789,7 @@
 					onclick={() => showUniversalImport = true}
 				>
 					<FolderTree class="h-3.5 w-3.5 text-brand-400" />
-					Migrar Launchers
+					{uiText("ui.4bd2faff3cc4d942")}
 				</Button>
 
 				<Button
@@ -784,7 +798,7 @@
 					onclick={() => showImportCode = true}
 				>
 					<Sparkles class="h-3.5 w-3.5 text-brand-400" />
-					Código
+					{uiText("ui.f58b85570398c0cc")}
 				</Button>
 
 				<Button
@@ -793,7 +807,7 @@
 					onclick={pickModpackFile}
 				>
 					<Import class="h-3.5 w-3.5 text-brand-400" />
-					.zip
+					{uiText("ui.679e0f3cda397a79")}
 				</Button>
 
 				<Button
@@ -804,7 +818,7 @@
 					<div class="w-3 h-3 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center">
 						<div class="w-1 h-1 rounded-full bg-emerald-400"></div>
 					</div>
-					.mrpack
+					{uiText("ui.ed8aff80815983e4")}
 				</Button>
 
 				<Button
@@ -813,7 +827,7 @@
 					onclick={() => { showCreate = !showCreate; lastError = null; if (showCreate) ensureModalData(); }}
 				>
 					<Plus class="h-4 w-4 stroke-[2.5]" />
-					Nova Instância
+					{uiText("instances.newInstance")}
 				</Button>
 			</div>
 		</div>
@@ -842,16 +856,16 @@
 					<div class="flex flex-col gap-2">
 						<div class="flex items-center justify-between text-xs" style="color: rgb(var(--fg-muted));">
 							<span>{importProgress.status}</span>
-							<span>{importProgress.current}/{importProgress.total}</span>
+							{#if importProgress.total}<span>{importProgress.current ?? 0}/{importProgress.total}</span>{/if}
 						</div>
 						<div class="h-2 w-full overflow-hidden rounded-full" style="background: rgb(var(--bg-elevated));">
 							<div
-								class="h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
+								class="h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300"
 								style="width: {importProgress.percent ?? 0}%; background: linear-gradient(90deg, rgb(var(--brand-500)), rgb(var(--brand-400)));"
 							></div>
 						</div>
 						<Button variant="danger" size="sm" onclick={cancelImport}>
-							<X class="h-4 w-4" /> Cancelar Download
+							<X class="h-4 w-4" /> {uiText("ui.7cdc678d82b8a405")}
 						</Button>
 					</div>
 				{:else}
@@ -862,7 +876,7 @@
 						</div>
 						<div class="w-36">
 							<label for="import-loader" class="mb-1 block text-xs" style="color: rgb(var(--fg-subtle));">{t("instances.loader")}</label>
-							<select id="import-loader" class="h-9 w-full rounded-md px-2 text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));" bind:value={importLoader}>
+							<select id="import-loader" class="h-9 w-full rounded-md px-2 text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300" style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg)); color: rgb(var(--fg));" bind:value={importLoader}>
 								<option value="fabric">Fabric</option>
 								<option value="forge">Forge</option>
 								<option value="neoforge">NeoForge</option>
@@ -891,17 +905,17 @@
 				{#if importingMrpack && importProgress}
 					<div class="flex flex-col gap-2">
 						<div class="flex items-center justify-between text-xs" style="color: rgb(var(--fg-muted));">
-							<span>{importProgress.status ?? "Processando modpack..."}</span>
+							<span>{importProgress.status ?? uiText("ui.31e6fe00c185a198")}</span>
 							<span>{importProgress.percent ?? 0}%</span>
 						</div>
 						<div class="h-2 w-full overflow-hidden rounded-full" style="background: rgb(var(--bg-elevated));">
 							<div
-								class="h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
+								class="h-full rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300"
 								style="width: {importProgress.percent ?? 0}%; background: linear-gradient(90deg, rgb(var(--brand-500)), rgb(var(--brand-400)));"
 							></div>
 						</div>
 						<Button variant="danger" size="sm" onclick={cancelImport}>
-							<X class="h-4 w-4" /> Cancelar Download
+							<X class="h-4 w-4" /> {uiText("ui.7cdc678d82b8a405")}
 						</Button>
 					</div>
 				{:else}
@@ -966,19 +980,19 @@
 			</div>
 			<div>
 				<div class="text-xs font-black text-fg flex items-center gap-2">
-					<span>Biblioteca Luxmc</span>
+					<span>{uiText("ui.a8e9a7046fb6f751")}</span>
 					<span class="text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full bg-fg/5 text-fg/60 border border-fg/[0.12]">
-						{filteredInstances.length} {filteredInstances.length === 1 ? 'Instância instalada' : 'Instâncias instaladas'}
+						{filteredInstances.length} {filteredInstances.length === 1 ? uiText("ui.a48ea8949d3ec2ab") : uiText("ui.3e9ebd1203add9dc")}
 					</span>
 				</div>
-				<p class="text-[11px] text-fg/35 mt-0.5">Gerencie suas versões com carregamento rápido e perfis isolados.</p>
+				<p class="text-[11px] text-fg/35 mt-0.5">{uiText("ui.2f63f5e1db3d4813")}</p>
 			</div>
 		</div>
 		<div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
-			<button type="button" class="px-5 py-2.5 rounded-full bg-fg/5 hover:bg-fg/10 border border-fg/[0.06] hover:border-fg/[0.15] text-fg/80 hover:text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 cursor-pointer flex items-center gap-2"
-				onclick={() => { if (profiles.active) openFolder(profiles.active.id); else toast("Nenhuma instância ativa selecionada", "info"); }}
+			<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
+				onclick={() => { if (profiles.active) openFolder(profiles.active.id); else toast(uiText("ui.5c273c589e2cff6c"), "info"); }}
 			>
-				<FolderOpen class="w-4 h-4 text-fg/35" /> Abrir Pasta das Instâncias
+				<FolderOpen class="w-4 h-4 text-fg/35" /> {uiText("ui.421131d86551a38d")}
 			</button>
 		</div>
 	</div>
@@ -989,42 +1003,42 @@
 				<div class="flex items-center justify-between mb-4">
 					<div class="flex items-center gap-2">
 						<Sparkles class="w-5 h-5 text-brand-500" />
-						<h3 class="text-sm font-black text-fg">Importar Instância por Código</h3>
+						<h3 class="text-sm font-black text-fg">{uiText("ui.0032f36998624ab3")}</h3>
 					</div>
-					<button type="button" class="text-fg/35 hover:text-fg p-1 rounded-lg cursor-pointer" onclick={() => showImportCode = false}>
+					<button type="button" class={launcherButton({ variant: "ghost", size: "icon", class: "" })} onclick={() => showImportCode = false}>
 						<X class="w-4 h-4" />
 					</button>
 				</div>
 
 				<p class="text-xs text-fg/60 mb-4 leading-relaxed">
-					Cole o código de compartilhamento recebido (ex: <span class="font-mono text-brand-400">LUX-XXXXXX</span>) para importar a instância automaticamente.
+					{uiText("ui.b7932d55d1d821ed")} <span class="font-mono text-brand-400">{uiText("ui.3b76dd3f39108941")}</span>{uiText("ui.99905187d486e33d")}
 				</p>
 
 				<div class="mb-5">
 					<input 
 						type="text" 
 						bind:value={shareCodeInput} 
-						placeholder="LUX-XXXXXX" 
-						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-2xl px-4 py-3 text-sm text-fg font-mono uppercase tracking-widest outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
+						placeholder={uiText("ui.3b76dd3f39108941")} 
+						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-2xl px-4 py-3 text-sm text-fg font-mono uppercase tracking-widest outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300"
 					/>
 				</div>
 
 				<div class="flex items-center justify-end gap-3">
 					<button 
 						type="button" 
-						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-xs font-bold text-fg/70 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 cursor-pointer"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 						onclick={() => showImportCode = false}
 					>
-						Cancelar
+						{uiText("common.cancel")}
 					</button>
 					<button 
 						type="button" 
-						class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 flex items-center gap-2 shadow-sm shadow-emerald-500/20 cursor-pointer disabled:opacity-50"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "from-emerald-500 via-teal-500 to-emerald-600 flex items-center gap-2 disabled:opacity-50" })}
 						disabled={isImportingCode}
 						onclick={handleImportShareCode}
 					>
 						<Sparkles class="w-3.5 h-3.5 fill-current" />
-						{isImportingCode ? 'Importando...' : 'Importar'}
+						{isImportingCode ? uiText("ui.eeb8c8bbcaab66e1") : uiText("settings.import")}
 					</button>
 				</div>
 			</div>
@@ -1043,7 +1057,7 @@
 						<HeartPulse class="h-5 w-5" style="color: rgb(var(--fg-muted));" />
 						<h2 class="text-lg font-medium">{t("health.title")}</h2>
 					</div>
-					<button class="grid h-8 w-8 place-items-center rounded-md transition-colors" style="color: rgb(var(--fg-subtle));" onclick={closeHealthCheck} aria-label={t("common.close")}>
+					<button class={launcherButton({ variant: "ghost", size: "icon", class: "grid place-items-center" })} style="color: rgb(var(--fg-subtle));" onclick={closeHealthCheck} aria-label={t("common.close")}>
 						<X class="h-4 w-4" />
 					</button>
 				</div>
@@ -1103,12 +1117,12 @@
 						<FolderTree class="h-5 w-5" style="color: rgb(var(--fg-muted));" />
 						<h2 class="text-lg font-medium">{t("files.title")}</h2>
 					</div>
-					<button class="grid h-8 w-8 place-items-center rounded-md transition-colors" style="color: rgb(var(--fg-subtle));" onclick={closeFileBrowser} aria-label={t("common.close")}>
+					<button class={launcherButton({ variant: "ghost", size: "icon", class: "grid place-items-center" })} style="color: rgb(var(--fg-subtle));" onclick={closeFileBrowser} aria-label={t("common.close")}>
 						<X class="h-4 w-4" />
 					</button>
 				</div>
 				{#if fileTreePath}
-					<button class="mb-2 text-left text-xs" style="color: rgb(var(--brand-500));" onclick={() => navigateFileTree(null)}>
+					<button class={launcherButton({ variant: "ghost", size: "sm", class: "mb-2 text-left" })} style="color: rgb(var(--brand-500));" onclick={() => navigateFileTree(null)}>
 						.. / {fileTreePath}
 					</button>
 				{/if}
@@ -1122,8 +1136,8 @@
 						</div>
 					{:else}
 						<div class="flex flex-col gap-0.5">
-							{#each fileTree as entry}
-								<button class="flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors"
+							{#each fileTree as entry (entry.path)}
+								<button class={launcherButton({ variant: "ghost", size: "sm", class: "flex items-center gap-2 text-left" })}
 									onclick={() => { if (entry.isDir) { navigateFileTree(fileTreePath ? `${fileTreePath}/${entry.name}` : entry.name); } }}
 								>
 									{#if entry.isDir}<FolderOpen class="h-4 w-4 shrink-0" style="color: rgb(var(--brand-500));" />{:else}<span class="h-4 w-4 shrink-0"></span>{/if}
@@ -1154,7 +1168,7 @@
 						<Image class="h-5 w-5" style="color: rgb(var(--fg-muted));" />
 						<h2 class="text-lg font-medium">{t("screenshots.title")}</h2>
 					</div>
-					<button class="grid h-8 w-8 place-items-center rounded-md transition-colors" style="color: rgb(var(--fg-subtle));" onclick={closeScreenshots} aria-label={t("common.close")}>
+					<button class={launcherButton({ variant: "ghost", size: "icon", class: "grid place-items-center" })} style="color: rgb(var(--fg-subtle));" onclick={closeScreenshots} aria-label={t("common.close")}>
 						<X class="h-4 w-4" />
 					</button>
 				</div>
@@ -1168,10 +1182,10 @@
 						</div>
 					{:else}
 						<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
-							{#each screenshots as shot}
+							{#each screenshots as shot (shot.path)}
 								<div class="overflow-hidden rounded-xl border border-fg/[0.12] bg-bg-overlay/40 shadow-sm group">
 									<div class="aspect-video overflow-hidden flex items-center justify-center bg-bg-overlay/60">
-										<img decoding="async" src={convertFileSrc(shot.path)} alt={shot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
+										<img decoding="async" src={shot.thumbPath ? convertFileSrc(shot.thumbPath) : convertFileSrc(shot.path)} alt={shot.name} class="w-full h-full object-cover group-hover:scale-105 transition-transform" loading="lazy" />
 									</div>
 									<div class="px-2.5 py-1.5 flex items-center justify-between">
 										<div class="min-w-0 flex-1">
@@ -1200,7 +1214,7 @@
 						<StickyNote class="h-5 w-5" style="color: rgb(var(--fg-muted));" />
 						<h2 class="text-lg font-medium">{t("instances.notes")}</h2>
 					</div>
-					<button class="grid h-8 w-8 place-items-center rounded-md transition-colors" style="color: rgb(var(--fg-subtle));" onclick={closeNotes} aria-label={t("common.close")}>
+					<button class={launcherButton({ variant: "ghost", size: "icon", class: "grid place-items-center" })} style="color: rgb(var(--fg-subtle));" onclick={closeNotes} aria-label={t("common.close")}>
 						<X class="h-4 w-4" />
 					</button>
 				</div>
@@ -1222,17 +1236,17 @@
 					<label for="edit-instance-name" class="block text-xs font-bold text-fg/70 uppercase tracking-widest">{t("instances.name")}</label>
 					<div class="flex items-center gap-3">
 						<div class="h-11 w-11 rounded-2xl bg-bg-elevated border border-fg/[0.12] flex items-center justify-center shrink-0 p-1">
-							<img loading="lazy" decoding="async" src={getIconSrc(editIcon)} alt="Ícone" class="w-8 h-8 object-contain [image-rendering:pixelated]" />
+							<img loading="lazy" decoding="async" src={getIconSrc(editIcon)} alt={uiText("ui.665ba1908fbc76bf")} class="w-8 h-8 object-contain [image-rendering:pixelated]" />
 						</div>
 						<Input id="edit-instance-name" bind:value={editName} placeholder={t("instances.namePlaceholder")} />
 					</div>
 				</div>
 
 				<div class="space-y-1.5">
-					<span class="block text-xs font-bold text-fg/70 uppercase tracking-widest">Ícone da Instância</span>
+					<span class="block text-xs font-bold text-fg/70 uppercase tracking-widest">{uiText("ui.f15f8f19139853cf")}</span>
 					<div class="flex items-center gap-1.5 bg-bg-elevated p-1.5 rounded-2xl border border-fg/[0.12]">
-						{#each [{ id: "grass_block", label: "Grama", src: "/grass_block.png" }, { id: "modpack_fo", label: "FO", src: "/modpack_fo_icon.png" }, { id: "modpack_better_mc", label: "BMC", src: "/modpack_bmc_icon.webp" }, { id: "modpack_cobblemon", label: "Cobblemon", src: "/modpack_cobblemon_icon.png" }, { id: "logo", label: "Logo", src: "/logo.png" }, { id: "grass_head", label: "Steve", src: "/grass_head.png" }] as ip}
-							<button type="button" class="w-8 h-8 rounded-xl p-1 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center {editIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-fg/5 opacity-60 hover:opacity-100'}"
+						{#each [{ id: "grass_block", label: uiText("ui.40d7347a8c8fa495"), src: "/grass_block.png" }, { id: "modpack_fo", label: uiText("ui.e6e64f0d1eeaced1"), src: "/modpack_fo_icon.png" }, { id: "modpack_better_mc", label: uiText("ui.aaa7a30b891a76cc"), src: "/modpack_bmc_icon.webp" }, { id: "modpack_cobblemon", label: uiText("ui.7f1c6e0fb0701436"), src: "/modpack_cobblemon_icon.png" }, { id: "logo", label: uiText("ui.d707dc2f1936efd8"), src: "/logo.png" }, { id: "grass_head", label: "Steve", src: "/grass_head.png" }] as ip}
+							<button type="button" class="w-8 h-8 rounded-xl p-1 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center justify-center {editIcon === ip.id ? 'bg-brand-500/20 border border-brand-500 scale-105' : 'hover:bg-fg/5 opacity-60 hover:opacity-100'}"
 								onclick={() => editIcon = ip.id} title={ip.label}
 							>
 								<img loading="lazy" decoding="async" src={ip.src} alt={ip.label} class="w-6 h-6 object-contain [image-rendering:pixelated]" />
@@ -1253,23 +1267,23 @@
 								<Cpu class="w-3.5 h-3.5" />
 							</div>
 							<div>
-								<span class="font-bold text-fg block">Memória RAM 100% Automática</span>
-								<span class="text-[10px] text-fg/35 block">Hardware: {Math.round(systemRamMb / 1024)} GB Totais</span>
+								<span class="font-bold text-fg block">{uiText("ui.2583ad9ceffb7cc1")}</span>
+								<span class="text-[10px] text-fg/35 block">{uiText("ui.1a2bd1d28cb68c00")} {Math.round(systemRamMb / 1024)} {uiText("ui.1fdb78b55e9d4eb5")}</span>
 							</div>
 						</div>
-						<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">Auto Tuning</span>
+						<span class="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">{uiText("ui.dde4960e8bbb2c8b")}</span>
 					</div>
 					<p class="text-[10px] text-fg/35 leading-relaxed">
-						O Luxmc aloca a quantidade ideal de RAM dinamicamente com base na quantidade de mods da instância e recursos livres do seu Linux.
+						{uiText("ui.c19e0e6e3c39cf15")}
 					</p>
 				</div>
 
 				<div class="space-y-1.5">
-					<label for="edit-jvm-args" class="block text-xs font-bold text-fg/70 uppercase tracking-widest">Argumentos JVM Customizados</label>
-					<input id="edit-jvm-args" type="text" bind:value={editJvmArgs} placeholder="-XX:+UseG1GC -XX:+AlwaysPreTouch"
-						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
+					<label for="edit-jvm-args" class="block text-xs font-bold text-fg/70 uppercase tracking-widest">{uiText("ui.ee15867ed5aa0c3e")}</label>
+					<input id="edit-jvm-args" type="text" bind:value={editJvmArgs} placeholder={uiText("ui.5854817f5f7815b4")}
+						class="w-full bg-bg-elevated border border-fg/[0.06] focus:border-emerald-500/50 rounded-xl px-4 py-2.5 text-xs text-fg font-mono outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300"
 					/>
-					<p class="text-[10px] text-fg/35">Parâmetros extras passados diretamente para a máquina virtual Java.</p>
+					<p class="text-[10px] text-fg/35">{uiText("ui.cc1ba216a6957757")}</p>
 				</div>
 
 				<div class="flex justify-end gap-2 border-t pt-4" style="border-color: rgb(var(--border));">
@@ -1290,20 +1304,20 @@
 						<Trash2 class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-fg">Excluir Instância</h3>
-						<p class="text-[11px] text-fg/35">Esta ação não poderá ser desfeita</p>
+						<h3 class="text-sm font-black text-fg">{uiText("instances.deleteConfirmTitle")}</h3>
+						<p class="text-[11px] text-fg/35">{uiText("ui.4d2a771f48f9cbaa")}</p>
 					</div>
 				</div>
 				<div class="bg-bg-elevated p-3.5 rounded-2xl border border-fg/[0.06] text-xs text-fg/70 space-y-1.5">
-					<p>Tem certeza que deseja apagar a instância <strong class="text-fg">"{confirmDeleteInstance.name}"</strong>?</p>
-					<p class="text-[10px] text-fg/35 font-mono break-all">Pasta: {confirmDeleteInstance.gameDir}</p>
-					<p class="text-[11px] text-red-400/90 font-medium">Todos os mundos, saves, mods e arquivos salvos serão removidos permanentemente do disco.</p>
+					<p>{uiText("ui.1af399ce0ececeb2")} <strong class="text-fg">"{confirmDeleteInstance.name}"</strong>?</p>
+					<p class="text-[10px] text-fg/35 font-mono break-all">{uiText("ui.cc9f3b6a13a0719a")} {confirmDeleteInstance.gameDir}</p>
+					<p class="text-[11px] text-red-400/90 font-medium">{uiText("ui.fb29cb4d3bcf8336")}</p>
 				</div>
 				<div class="flex justify-end gap-2.5 pt-2">
-					<button type="button" class="px-5 py-2.5 rounded-full text-xs font-bold text-fg/60 hover:text-fg hover:bg-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 cursor-pointer"
+					<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 						onclick={() => (confirmDeleteInstance = null)}
-					>Cancelar</button>
-					<button type="button" class="px-5 py-2.5 rounded-full bg-red-500 hover:bg-red-600 text-fg font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 active:scale-[0.98] shadow-sm cursor-pointer flex items-center gap-2"
+					>{uiText("common.cancel")}</button>
+					<button type="button" class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-2" })}
 						disabled={deleting}
 						onclick={async () => {
 							if (!confirmDeleteInstance) return;
@@ -1313,10 +1327,10 @@
 							confirmDeleteInstance = null;
 							await deleteInstance(id);
 							deleting = false;
-							toast(`Instância "${name}" excluída com sucesso!`, "success");
+							toast(uiText("ui.bc3196ede9748fff", {arg0: (name)}), "success");
 						}}
 					>
-						<Trash2 class="w-3.5 h-3.5" /> Excluir Definitivamente
+						<Trash2 class="w-3.5 h-3.5" /> {uiText("ui.37045d507711e562")}
 					</button>
 				</div>
 			</div>

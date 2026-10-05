@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { Wifi, WifiOff } from "lucide-svelte";
 	import { onMount } from "svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
@@ -45,7 +46,7 @@
 		</span>
 		<button
 			type="button"
-			class="rounded-lg px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition-colors hover:bg-fg/10 border border-warning/30 cursor-pointer"
+			class={launcherButton({ variant: "secondary", size: "sm", class: "uppercase tracking-wide" })}
 			onclick={dismiss}
 		>
 			{t("statusBanner.dismiss")}

@@ -29,9 +29,10 @@ function disconnectNode(node: AudioNode) {
 export function playSound(type: "click" | "launch" | "chime" | "warning" | "achievement" | "delete") {
 	try {
 		if (typeof window === "undefined") return;
-		const s = settings.value as { soundEnabled?: boolean; soundVolume?: number };
+		const s = settings.value as { soundEnabled?: boolean; sfxVolume?: number; soundVolume?: number };
 		if (s && s.soundEnabled === false) return;
-		const volume = typeof s?.soundVolume === "number" ? Math.max(0, Math.min(1, s.soundVolume)) : 0.5;
+		const selectedVolume = s.sfxVolume ?? s.soundVolume ?? 0.5;
+		const volume = Number.isFinite(selectedVolume) ? Math.max(0, Math.min(1, selectedVolume)) : 0.5;
 
 		const ctx = getAudioContext();
 		if (!ctx) return;

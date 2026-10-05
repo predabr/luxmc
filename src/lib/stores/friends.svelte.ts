@@ -1,6 +1,10 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+import { goto } from "$app/navigation";
 import { toast } from "./toasts.svelte";
 import { joinWorld } from "$lib/utils/directJoin";
 import { socialStreamTicket, friendsSnapshotSchema, socialCreateRoom, socialJoinRoom, socialCloseRoom, socialRegister, socialSync, socialSearch, socialFriendAction, type Friend, type SocialIdentity } from "$lib/api/social";
+import { settings } from "./settings.svelte";
+import { activeSkinStore } from "./skin.svelte";
 import { account } from "./account.svelte";
 import { appState } from "./app.svelte";
 
@@ -15,13 +19,20 @@ let reconnect: ReturnType<typeof setTimeout> | undefined;
 let identity = "";
 let generation = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
+let wake: (() => void) | undefined;
+let refreshing: { run: number; promise: Promise<void> } | null = null;
 
 function applyFriends(next: Friend[]) {
         for (const friend of next) {
             const previous = list.find(item => item.id === friend.id);
+            if (friend.status === "pending" && friend.incoming && (!previous || !previous.incoming)) {
+                toast(uiText("ui.d12511055139d26b", {arg0: (friend.username)}), "info", {
+                    label: uiText("ui.768ddf45541f26d2"), run: () => { void goto("/friends?tab=pending"); }
+                });
+            }
             if (previous && friend.serverIp && friend.serverPort && (friend.serverIp !== previous.serverIp || friend.serverPort !== previous.serverPort)) {
-                toast(`${friend.username} abriu ${friend.activity || "um mundo LAN"}.`, "info", {
-                    label: "Entrar agora", run: () => { void joinWorld(`${friend.serverIp}:${friend.serverPort}`, friend).catch(cause => toast(String(cause), "error")); }
+                toast(`${friend.username} abriu ${friend.activity || uiText("ui.e7195a83674adfd2")}.`, "info", {
+                    label: uiText("ui.42f2d3f3d3821670"), run: () => { void joinWorld(`${friend.serverIp}:${friend.serverPort}`, friend).catch(cause => toast(String(cause), "error")); }
                 });
             }
         }
@@ -39,7 +50,7 @@ async function connectStream(run: number, attempt = 0) {
             if (run !== generation || typeof event.data !== "string" || event.data.length > 262144) return;
             try { applyFriends(friendsSnapshotSchema.parse(JSON.parse(event.data)).friends); error = ""; } catch { connection.close(1008, "Invalid snapshot"); }
         };
-        connection.onopen = () => { attempt = 0; };
+        connection.onopen = () => { attempt = 0; void refresh(run); };
         connection.onclose = () => {
             if (socket === connection) socket = null;
             if (run === generation) reconnect = setTimeout(() => void connectStream(run, attempt + 1), Math.min(60000, 2000 * 2 ** Math.min(attempt, 5)));
@@ -47,18 +58,20 @@ async function connectStream(run: number, attempt = 0) {
     } catch { if (run === generation) reconnect = setTimeout(() => void connectStream(run, attempt + 1), 60000); }
 }
 
-async function refresh(run = generation) {
+async function refreshNow(run: number) {
 	if (!identity || run !== generation) return;
 	try {
 		const game = appState.activeGameDetails;
 		const result = await socialSync(identity, {
-			status: appState.isGameRunning ? "in_game" : "online",
-			instanceName: game?.name, mcVersion: game?.version, loader: game?.loader,
-			serverHost: appState.isGameRunning ? sharedWorld?.host : undefined,
-			serverPort: appState.isGameRunning ? sharedWorld?.port : undefined
+			status: appState.isGameRunning && settings.value.publishGameActivity !== false ? "in_game" : "online",
+            avatarUrl: settings.value.shareCustomAvatar === false ? "" : activeSkinStore.current.avatarUrl || account.value?.avatarUrl || undefined,
+			instanceName: settings.value.publishGameActivity === false ? undefined : game?.name, mcVersion: settings.value.publishGameActivity === false ? undefined : game?.version, loader: settings.value.publishGameActivity === false ? undefined : game?.loader,
+			serverHost: appState.isGameRunning && settings.value.publishGameActivity !== false ? sharedWorld?.host : undefined,
+			serverPort: appState.isGameRunning && settings.value.publishGameActivity !== false ? sharedWorld?.port : undefined
 		});
 		if (run !== generation) return;
         applyFriends(result.friends);
+        me = result.me;
 		error = "";
 	} catch (cause) {
 		if (run !== generation) return;
@@ -67,9 +80,18 @@ async function refresh(run = generation) {
 	}
 }
 
+function refresh(run = generation): Promise<void> {
+    if (!identity || run !== generation) return Promise.resolve();
+    if (refreshing?.run === run) return refreshing.promise;
+    const promise = refreshNow(run);
+    refreshing = { run, promise };
+    void promise.finally(() => { if (refreshing?.promise === promise) refreshing = null; });
+    return promise;
+}
+
 async function poll(run: number) {
 	await refresh(run);
-	if (run === generation) timer = setTimeout(() => void poll(run), 25000);
+	if (run === generation) { clearTimeout(timer); timer = setTimeout(() => void poll(run), socket?.readyState === WebSocket.OPEN ? 25000 : 5000); }
 }
 
 export const friendsState = {
@@ -95,12 +117,17 @@ export const friendsState = {
 			me = result;
 			try { const saved: unknown = JSON.parse(localStorage.getItem(`luxmc_social_favourites_${identity}`) || "[]"); favourites = Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : []; } catch { favourites = []; }
 			void connectStream(run);
+            wake = () => { if (!document.hidden && run === generation) { clearTimeout(timer); void poll(run); } };
+            window.addEventListener("focus", wake);
+            document.addEventListener("visibilitychange", wake);
 			await poll(run);
-		} catch (cause) { if (run === generation) error = String(cause); }
+		} catch (cause) { if (run === generation) { error = String(cause); timer = setTimeout(() => void friendsState.connect(), 15000); } }
 		finally { if (run === generation) busy = false; }
 	},
 	disconnect() {
 		generation += 1;
+        if (wake) { window.removeEventListener("focus", wake); document.removeEventListener("visibilitychange", wake); wake = undefined; }
+        refreshing = null;
         clearTimeout(reconnect);
         if (socket) { socket.onclose = null; socket.onmessage = null; socket.close(); socket = null; }
 		clearTimeout(timer);
@@ -112,11 +139,11 @@ export const friendsState = {
 		error = "";
 	},
 	async search(query: string) {
-		if (!me) throw new Error("Conecte-se à rede social primeiro.");
+		if (!me) throw new Error(uiText("ui.4567cd01684fa7fb"));
 		return socialSearch(identity, query);
 	},
 	async action(action: "invite" | "accept" | "remove" | "block" | "unblock", targetId: string) {
-		if (!me) throw new Error("Conecte-se à rede social primeiro.");
+		if (!me) throw new Error(uiText("ui.4567cd01684fa7fb"));
 		const run = generation;
 		await socialFriendAction(identity, action, targetId);
 		await refresh(run);

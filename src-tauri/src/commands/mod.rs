@@ -14,6 +14,7 @@ pub mod launch_logs;
 pub mod loaders;
 pub mod modpack_update;
 pub mod mods;
+pub mod namemc;
 pub mod optimizer;
 pub mod options_editor;
 pub mod p2p;

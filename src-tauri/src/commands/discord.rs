@@ -12,7 +12,7 @@ use std::fs::OpenOptions;
 const MINECRAFT_CLIENT_ID: &str = "450485984333660181";
 const LUXMC_ICON_URL: &str =
     "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
-const LUXMC_VERSION: &str = "2.0.1";
+const LUXMC_VERSION: &str = env!("CARGO_PKG_VERSION");
 const MINECRAFT_GRASS_ASSET: &str = "grass";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,7 +69,20 @@ impl IpcStream {
             #[cfg(unix)]
             IpcStream::Unix(s) => s.read_exact(buf),
             #[cfg(windows)]
-            IpcStream::Pipe(f) => f.read_exact(buf),
+            IpcStream::Pipe(f) => {
+                use std::os::windows::io::AsRawHandle;
+                #[link(name = "kernel32")]
+                unsafe extern "system" { fn PeekNamedPipe(handle: *mut std::ffi::c_void, buffer: *mut std::ffi::c_void, size: u32, read: *mut u32, available: *mut u32, left: *mut u32) -> i32; }
+                let deadline = std::time::Instant::now() + std::time::Duration::from_millis(300);
+                loop {
+                    let mut available = 0;
+                    let ok = unsafe { PeekNamedPipe(f.as_raw_handle(), std::ptr::null_mut(), 0, std::ptr::null_mut(), &mut available, std::ptr::null_mut()) };
+                    if ok == 0 { return Err(std::io::Error::last_os_error()); }
+                    if available as usize >= buf.len() { return f.read_exact(buf); }
+                    if std::time::Instant::now() >= deadline { return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "Discord IPC timeout")); }
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+            },
         }
     }
 
@@ -109,11 +122,12 @@ fn read_frame_header(stream: &mut IpcStream) -> std::io::Result<u32> {
     Ok(u32::from_le_bytes([header[4], header[5], header[6], header[7]]))
 }
 
-fn drain_response(stream: &mut IpcStream) {
-    if let Ok(len) = read_frame_header(stream) {
-        let mut buf = vec![0u8; len as usize];
-        let _ = stream.read_exact(&mut buf);
-    }
+fn drain_response(stream: &mut IpcStream) -> bool {
+    let Ok(len) = read_frame_header(stream) else { return false; };
+    if len == 0 || len > 65536 { return false; }
+    let mut bytes = vec![0; len as usize];
+    if stream.read_exact(&mut bytes).is_err() { return false; }
+    serde_json::from_slice::<serde_json::Value>(&bytes).is_ok_and(|reply| reply.get("evt").and_then(|value| value.as_str()) != Some("ERROR"))
 }
 
 #[cfg(unix)]
@@ -197,8 +211,7 @@ fn handshake(stream: &mut IpcStream, client_id: &str) -> bool {
     if send_frame(stream, 0, &payload).is_err() {
         return false;
     }
-    drain_response(stream);
-    true
+    drain_response(stream)
 }
 
 fn ensure_connection(guard: &mut Option<DiscordConn>, target_id: &str) {
@@ -328,7 +341,7 @@ pub async fn discord_set_activity(
 
         if let Some(btns) = buttons {
             if !btns.is_empty() {
-                activity_obj["buttons"] = serde_json::json!(btns);
+                activity_obj["buttons"] = serde_json::json!(btns.into_iter().filter(|button| button.url.starts_with("https://")).take(2).collect::<Vec<_>>());
             }
         } else {
             activity_obj["buttons"] = serde_json::json!([
@@ -347,14 +360,14 @@ pub async fn discord_set_activity(
         .to_string();
 
         if send_frame(&mut conn.stream, 1, &payload).is_ok() {
-            drain_response(&mut conn.stream);
-            Ok(true)
+            let accepted = drain_response(&mut conn.stream);
+            if !accepted { *guard = None; }
+            Ok(accepted)
         } else {
             *guard = None;
             if let Some(mut stream) = open_ipc_stream() {
                 if handshake(&mut stream, &target_id) {
-                    if send_frame(&mut stream, 1, &payload).is_ok() {
-                        drain_response(&mut stream);
+                    if send_frame(&mut stream, 1, &payload).is_ok() && drain_response(&mut stream) {
                         *guard = Some(DiscordConn {
                             stream,
                             client_id: target_id,

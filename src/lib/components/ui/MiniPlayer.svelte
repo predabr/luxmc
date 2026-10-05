@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { fade, slide } from "svelte/transition";
 	import { 
@@ -23,12 +25,14 @@
 	let isLaunching = $state(false);
 
 	async function handlePlay() {
+		if (isLaunching || appState.isLaunching) return;
 		if (!activeInstance || !account.value) {
-			toast("Selecione uma conta e instância para jogar", "warning");
+			toast(uiText("ui.4cf884f78e1be613"), "warning");
 			return;
 		}
 
 		isLaunching = true;
+		appState.isLaunching = true;
 		playSound("launch");
 
 		try {
@@ -49,19 +53,22 @@
 			};
 			toast(`Iniciando ${activeInstance.name}...`, "success");
 		} catch (e) {
-			toast("Erro ao iniciar jogo: " + String(e), "error");
+			toast(uiText("ui.61910b3c799dce6f") + String(e), "error");
 		} finally {
 			isLaunching = false;
+			appState.isLaunching = false;
 		}
 	}
 
 	async function handleQuickJoin() {
+		if (isLaunching || appState.isLaunching) return;
 		if (!activeInstance || !account.value) {
-			toast("Selecione uma conta e instância", "warning");
+			toast(uiText("ui.f79c6bf8346b292f"), "warning");
 			return;
 		}
 
 		isLaunching = true;
+		appState.isLaunching = true;
 		playSound("launch");
 
 		try {
@@ -78,9 +85,10 @@
 			});
 			toast(`Conectando diretamente ao MushMC...`, "success");
 		} catch (e) {
-			toast("Erro ao conectar ao servidor: " + String(e), "error");
+			toast(uiText("ui.9ef3feaaface462b") + String(e), "error");
 		} finally {
 			isLaunching = false;
+			appState.isLaunching = false;
 		}
 	}
 </script>
@@ -93,14 +101,14 @@
 		<div class="flex items-center gap-3 pr-2 border-r border-fg/10">
 			<div class="w-9 h-9 rounded-full bg-bg-overlay/60 border border-fg/10 overflow-hidden flex items-center justify-center shrink-0">
 				{#if account.value?.skinUrl}
-					<img loading="lazy" decoding="async" src={account.value.skinUrl} alt="Skin" class="w-full h-full object-cover scale-150" />
+					<img loading="lazy" decoding="async" src={account.value.skinUrl} alt={uiText("ui.1fc91201eedbfcb7")} class="w-full h-full object-cover scale-150" />
 				{:else}
 					<ShieldCheck class="w-5 h-5 text-brand-500" />
 				{/if}
 			</div>
 			<div class="flex flex-col">
 				<span class="text-xs font-black text-fg truncate max-w-[140px]">
-					{activeInstance?.name ?? "Nenhuma instância"}
+					{activeInstance?.name ?? uiText("ui.928243013c6d235d")}
 				</span>
 				<span class="text-[10px] text-fg/40 font-mono">
 					{activeInstance ? `${activeInstance.mcVersion} · ${activeInstance.loader}` : "Modo Compacto"}
@@ -111,23 +119,23 @@
 		<div class="flex items-center gap-2">
 			<button 
 				type="button"
-				class="bg-brand-500 hover:bg-brand-400 text-brand-foreground font-black text-xs px-5 py-2 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer disabled:opacity-50"
+				class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2 disabled:opacity-50" })}
 				disabled={isLaunching || !activeInstance}
 				onclick={handlePlay}
 			>
 				{#if isLaunching}
 					<Loader2 class="w-3.5 h-3.5 animate-spin" />
-					<span>Iniciando...</span>
+					<span>{uiText("home.starting")}</span>
 				{:else}
 					<Play class="w-3.5 h-3.5 fill-current" />
-					<span>Jogar</span>
+					<span>{uiText("instances.play")}</span>
 				{/if}
 			</button>
 
 			<button 
 				type="button"
-				class="bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg p-2 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border border-fg/5"
-				title="Conectar ao MushMC"
+				class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+				title={uiText("ui.73f523998b1903ee")}
 				disabled={isLaunching || !activeInstance}
 				onclick={handleQuickJoin}
 			>
@@ -136,8 +144,8 @@
 
 			<button 
 				type="button"
-				class="bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg p-2 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border border-fg/5"
-				title="Restaurar visualização completa"
+				class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+				title={uiText("ui.0e53c33c6c67c5fc")}
 				onclick={() => { layoutStore.isCompactMode = false; playSound("click"); }}
 			>
 				<Maximize2 class="w-4 h-4" />

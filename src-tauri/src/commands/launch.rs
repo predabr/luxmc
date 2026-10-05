@@ -43,6 +43,11 @@ pub async fn launch_game_core(
     app: Option<tauri::AppHandle>,
     request: LaunchRequest,
 ) -> AppResult<LaunchResponse> {
+    let _launch_guard = state
+        .launch_lock
+        .try_lock()
+        .map_err(|_| AppError::InvalidState("Já existe um lançamento em andamento.".into()))?;
+
     if request.enable_vulkan == Some(false) {
         std::env::set_var("LUXMC_DISABLE_VULKAN", "1");
     } else {
@@ -56,6 +61,7 @@ pub async fn launch_game_core(
         tracing::info!(target: "launch", "{}", msg);
     };
 
+    let preparation_started = std::time::Instant::now();
     emit_log(&format!("Starting launch for version {}", request.version_id));
 
     let db = crate::db::shared_db().await?;
@@ -128,11 +134,6 @@ pub async fn launch_game_core(
             crate::db::schema::profiles::upsert(&db, &profile).await?;
         }
         emit_log(&format!("Integridade concluída em {:.1}s. Preparando Java e loader...", integrity_started.elapsed().as_secs_f32()));
-    }
-
-    emit_log("Verificando shaderpacks do modpack...");
-    if let Err(e) = crate::commands::instances::ensure_modpack_shaders(&state.http, std::path::Path::new(&profile.game_dir)).await {
-        emit_log(&format!("Aviso na verificação de shaders: {}. Continuando lançamento...", e));
     }
 
     let raw_req = request.version_id.trim().trim_matches('\'').trim_matches('"');
@@ -236,9 +237,15 @@ pub async fn launch_game_core(
         java = java.with_app(a.clone());
     }
 
-    downloader.download_version(&detail).await?;
+    let assets_ready = detail.asset_index.as_ref().map_or(true, |index| downloader.assets_dir().join(format!(".complete_{}", index.id)).exists());
+    let version_ready = fast_launch && assets_ready && downloader.validate_version(&detail).await.is_ok();
+    if version_ready {
+        emit_log("Fast Launch: Minecraft e bibliotecas já estão instalados; usando arquivos locais.");
+    } else {
+        downloader.download_version(&detail).await?;
+        downloader.validate_version(&detail).await?;
+    }
     emit_log("Download verified. Validating version...");
-    downloader.validate_version(&detail).await?;
     emit_log("Version validated.");
 
     let mut launcher = GameLauncher::new(downloader, java);
@@ -250,20 +257,40 @@ pub async fn launch_game_core(
     tokio::fs::create_dir_all(&game_dir).await?;
 
 
-    if !account.refresh_token.is_empty() {
+    if !account.refresh_token.is_empty() && account.expires_at.map_or(true, |expiry| expiry <= chrono::Utc::now() + chrono::Duration::minutes(10)) {
         let client_id = crate::commands::auth::get_configured_client_id().await;
-        if let Ok(refreshed) = state.auth.refresh_account_with_client_id(&account.refresh_token, Some(&client_id)).await {
-            account.access_token = Some(refreshed.access_token.clone());
-            account.refresh_token = refreshed.refresh_token.clone();
-            account.expires_at = Some(chrono::DateTime::from_timestamp(refreshed.expires_at, 0).unwrap_or_default());
-            if account.skin_url.is_none() && refreshed.skin_url.is_some() {
-                account.skin_url = refreshed.skin_url;
+        match state.auth.refresh_account_with_client_id(&account.refresh_token, Some(&client_id)).await {
+            Ok(refreshed) => {
+                account.access_token = Some(refreshed.access_token.clone());
+                account.refresh_token = refreshed.refresh_token.clone();
+                account.expires_at = Some(chrono::DateTime::from_timestamp(refreshed.expires_at, 0).unwrap_or_default());
+                if account.skin_url.is_none() && refreshed.skin_url.is_some() {
+                    account.skin_url = refreshed.skin_url;
+                }
+                if account.skin_variant.is_none() && refreshed.skin_variant.is_some() {
+                    account.skin_variant = refreshed.skin_variant;
+                }
+                account.updated_at = chrono::Utc::now();
+                if let Err(error) = crate::db::schema::accounts::upsert(&db, &account).await {
+                    tracing::error!(
+                        target: "auth",
+                        "Falha ao persistir o refresh_token rotacionado para {}: {error}. A sessão pode exigir novo login na próxima execução.",
+                        account.username
+                    );
+                }
             }
-            if account.skin_variant.is_none() && refreshed.skin_variant.is_some() {
-                account.skin_variant = refreshed.skin_variant;
+            Err(error) => {
+                emit_log(&format!("Aviso: falha ao renovar a sessão Microsoft: {}", error));
+                let expired = account
+                    .expires_at
+                    .map(|exp| exp <= chrono::Utc::now() - chrono::Duration::minutes(5))
+                    .unwrap_or(true);
+                if expired {
+                    return Err(AppError::InvalidState(
+                        "Sessão Microsoft expirada e não foi possível renová-la. Faça login novamente antes de jogar.".into(),
+                    ));
+                }
             }
-            account.updated_at = chrono::Utc::now();
-            let _ = crate::db::schema::accounts::upsert(&db, &account).await;
         }
     }
 
@@ -299,7 +326,8 @@ pub async fn launch_game_core(
 
     let mods_dir = game_dir.join("mods");
     if mods_dir.is_dir() {
-        let shield_result = crate::commands::shield::scan_mods_directory(&mods_dir);
+        let shield_result = tokio::task::spawn_blocking(move || crate::commands::shield::scan_mods_directory(&mods_dir)).await
+            .map_err(|error| AppError::Internal(error.to_string()))?;
         if !shield_result.is_clean {
             if let Some(ref a) = app {
                 a.emit("launcher-shield-warning", &shield_result).ok();
@@ -315,6 +343,19 @@ pub async fn launch_game_core(
                 ));
             }
         }
+    }
+
+    if let Some(hook) = profile.pre_launch_hook.as_deref() {
+        emit_log(&format!("Executando hook pré-lançamento: {}", hook.trim()));
+        let hook_env = crate::core::hooks::HookEnv {
+            profile_id: &profile.id,
+            profile_name: &profile.name,
+            version_id: &detail.id,
+            game_dir: &game_dir,
+            exit_code: None,
+        };
+        crate::core::hooks::run("pré-lançamento", hook, &hook_env).await?;
+        emit_log("Hook pré-lançamento concluído.");
     }
 
     emit_log(&format!(
@@ -338,7 +379,7 @@ pub async fn launch_game_core(
         )
         .await?;
 
-    emit_log(&format!("Game launched with PID {}", pid));
+    emit_log(&format!("Game launched with PID {}. Launcher preparation: {:.2}s", pid, preparation_started.elapsed().as_secs_f64()));
     Ok(LaunchResponse { pid })
 }
 
@@ -356,6 +397,26 @@ pub async fn launch_game_daemon(
     request: LaunchRequest,
 ) -> AppResult<LaunchResponse> {
     launch_game_core(state, None, request).await
+}
+
+async fn is_process_alive(pid: u32) -> bool {
+    let spid = sysinfo::Pid::from_u32(pid);
+    let mut sys = sysinfo::System::new();
+    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[spid]), true);
+    sys.process(spid).is_some()
+}
+
+async fn wait_for_process_exit(pid: u32, timeout_ms: u64) -> bool {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(timeout_ms);
+    loop {
+        if !is_process_alive(pid).await {
+            return true;
+        }
+        if std::time::Instant::now() >= deadline {
+            return false;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    }
 }
 
 #[tauri::command]
@@ -382,39 +443,71 @@ pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
     }
 
     #[cfg(unix)]
-    {
-        let _ = tokio::process::Command::new("pkill")
-            .args(["-9", "-f", "CrashAssistantApp"])
+    let exited = {
+        let _ = crate::core::process::tokio_command("pkill")
+            .args(["-TERM", "-P", &target_pid.to_string()])
             .output()
             .await;
-
-        let _ = tokio::process::Command::new("pkill")
-            .args(["-9", "-f", &format!("-parentPID {}", target_pid)])
+        let _ = crate::core::process::tokio_command("kill")
+            .args(["-TERM", &target_pid.to_string()])
             .output()
             .await;
-
-        let _ = tokio::process::Command::new("pkill")
-            .args(["-9", "-P", &target_pid.to_string()])
-            .output()
-            .await;
-
-        let _ = tokio::process::Command::new("kill")
-            .args(["-9", &format!("-{}", target_pid)])
-            .output()
-            .await;
-
-        let _ = tokio::process::Command::new("kill")
-            .args(["-9", &target_pid.to_string()])
-            .output()
-            .await;
-    }
+        wait_for_process_exit(target_pid, 6_000).await
+    };
 
     #[cfg(windows)]
-    {
-        let _ = tokio::process::Command::new("taskkill")
-            .args(["/PID", &target_pid.to_string(), "/F", "/T"])
+    let exited = {
+        let _ = crate::core::process::tokio_command("taskkill")
+            .args(["/PID", &target_pid.to_string(), "/T"])
             .output()
             .await;
+        wait_for_process_exit(target_pid, 6_000).await
+    };
+
+    if !exited {
+        tracing::info!(target: "launch", "PID {} ignored graceful shutdown, forcing termination", target_pid);
+        #[cfg(unix)]
+        {
+            let _ = crate::core::process::tokio_command("pkill")
+                .args(["-9", "-P", &target_pid.to_string()])
+                .output()
+                .await;
+
+            let _ = crate::core::process::tokio_command("kill")
+                .args(["-9", "--", &format!("-{}", target_pid)])
+                .output()
+                .await;
+
+            let _ = crate::core::process::tokio_command("kill")
+                .args(["-9", &target_pid.to_string()])
+                .output()
+                .await;
+        }
+
+        #[cfg(windows)]
+        {
+            let _ = crate::core::process::tokio_command("taskkill")
+                .args(["/PID", &target_pid.to_string(), "/F", "/T"])
+                .output()
+                .await;
+        }
+
+    } else {
+        #[cfg(unix)]
+        {
+            let _ = crate::core::process::tokio_command("pkill")
+                .args(["-KILL", "-P", &target_pid.to_string()])
+                .output()
+                .await;
+        }
+        #[cfg(windows)]
+        {
+            let _ = crate::core::process::tokio_command("taskkill")
+                .args(["/PID", &target_pid.to_string(), "/T", "/F"])
+                .output()
+                .await;
+        }
+        tracing::info!(target: "launch", "PID {} stopped gracefully", target_pid);
     }
 
     crate::core::launcher::clear_active_game_pid();

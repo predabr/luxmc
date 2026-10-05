@@ -113,7 +113,8 @@ pub async fn instance_options_set(
     let mut existing_keys = std::collections::HashSet::new();
 
     if options_path.is_file() {
-        if let Ok(content) = tokio::fs::read_to_string(&options_path).await {
+        let content = tokio::fs::read_to_string(&options_path).await?;
+        {
             for line in content.lines() {
                 let trimmed = line.trim();
                 if let Some((k, _)) = trimmed.split_once(':') {
@@ -197,7 +198,7 @@ pub async fn instance_config_read(
     };
 
     let content = if target.is_file() {
-        tokio::fs::read_to_string(&target).await.unwrap_or_default()
+        tokio::fs::read_to_string(&target).await?
     } else {
         String::new()
     };

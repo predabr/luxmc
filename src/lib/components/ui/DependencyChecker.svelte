@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { PackageCheck, AlertTriangle, Download, ChevronDown, ChevronUp, Loader2 } from "lucide-svelte";
 	import { modsCheckMissingDeps, modsInstallMissingDeps } from "$lib/api/java";
 	import type { MissingDep } from "$lib/api/types";
@@ -27,7 +29,7 @@
 			checked = true;
 			expanded = result.missing.length > 0;
 		} catch {
-			toast("Erro ao verificar dependências", "error");
+			toast(uiText("ui.78493f8c2d0378e4"), "error");
 		} finally {
 			checking = false;
 		}
@@ -39,36 +41,36 @@
 		try {
 			const ids = missing.map((d) => d.projectId);
 			const count = await modsInstallMissingDeps(profileId, mcVersion, loader, ids);
-			toast(`${count} dependência(s) instalada(s) com sucesso!`, "success");
+			toast(uiText("ui.0ff2c7badb0c731d", {arg0: (count)}), "success");
 			missing = [];
 			onInstalled?.();
 		} catch (e) {
-			toast(`Erro ao instalar dependências: ${e}`, "error");
+			toast(uiText("ui.8d1ee235e8a8c05f", {arg0: (e)}), "error");
 		} finally {
 			installing = false;
 		}
 	}
 </script>
 
-<div class="rounded-2xl border overflow-hidden transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {checked && missing.length > 0 ? 'border-warning/30 bg-warning/5' : checked ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-fg/5 bg-bg-subtle'}">
+<div class="rounded-2xl border overflow-hidden transition-[color,background-color,border-color,box-shadow,transform,opacity] {checked && missing.length > 0 ? 'border-warning/30 bg-warning/5' : checked ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-fg/5 bg-bg-subtle'}">
 	<button
 		type="button"
 		onclick={() => { if (!checked) { check(); } else { expanded = !expanded; } }}
-		class="w-full flex items-center justify-between gap-3 px-4 py-3 cursor-pointer"
+		class={launcherButton({ variant: "ghost", size: "lg", class: "w-full flex items-center justify-between gap-3" })}
 	>
 		<div class="flex items-center gap-3">
 			{#if checking}
 				<Loader2 class="w-4 h-4 text-brand-400 animate-spin" />
-				<span class="text-xs font-bold text-fg/70">Verificando dependências...</span>
+				<span class="text-xs font-bold text-fg/70">{uiText("ui.7fbef0cca076a951")}</span>
 			{:else if checked && missing.length === 0}
 				<PackageCheck class="w-4 h-4 text-emerald-400" />
-				<span class="text-xs font-bold text-emerald-400">Todas as dependências estão instaladas</span>
+				<span class="text-xs font-bold text-emerald-400">{uiText("ui.4dfe0abf2163132a")}</span>
 			{:else if checked && missing.length > 0}
 				<AlertTriangle class="w-4 h-4 text-warning" />
-				<span class="text-xs font-bold text-warning">{missing.length} dependência(s) faltando</span>
+				<span class="text-xs font-bold text-warning">{missing.length} {uiText("ui.d17c6d73091795d2")}</span>
 			{:else}
 				<PackageCheck class="w-4 h-4 text-fg/40" />
-				<span class="text-xs font-medium text-fg/50">Verificar dependências de mods</span>
+				<span class="text-xs font-medium text-fg/50">{uiText("ui.27f65aaf2b21e7dc")}</span>
 			{/if}
 		</div>
 		{#if checked && missing.length > 0}
@@ -94,14 +96,14 @@
 				type="button"
 				disabled={installing}
 				onclick={installAll}
-				class="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-60 text-fg text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-glow"
+				class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center justify-center gap-2 w-full disabled:opacity-60" })}
 			>
 				{#if installing}
 					<Loader2 class="w-3.5 h-3.5 animate-spin" />
-					Instalando...
+					{uiText("ui.b1e8e68efcbda240")}
 				{:else}
 					<Download class="w-3.5 h-3.5" />
-					Instalar {missing.length} Dependência(s) — 1 Clique
+					{uiText("mods.install")} {missing.length} {uiText("ui.7d8663a85b884e8c")}
 				{/if}
 			</button>
 		</div>

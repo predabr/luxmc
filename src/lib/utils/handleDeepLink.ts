@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { goto } from "$app/navigation";
 import { deepLinks } from "$lib/stores/deepLinks.svelte";
 import { friendsState } from "$lib/stores/friends.svelte";
@@ -31,7 +32,7 @@ export async function handleDeepLink(value: string): Promise<void> {
             await joinWorld(action.code);
         } else {
             await goto("/friends");
-            throw new Error("Este amigo não tem um mundo compartilhado disponível. Atualize a conexão na aba Amigos.");
+            throw new Error(uiText("ui.77e5eaf0f406c70f"));
         }
     }
 }

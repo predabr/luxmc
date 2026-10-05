@@ -1,4 +1,10 @@
 <script lang="ts">
+import { APP_VERSION } from "$lib/version";
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
+	import { getSystemSpecs, appDataDirectory, appOpenDataDirectory } from "$lib/api/system";
+	import { recommendMemory } from "$lib/utils/platform";
+	import { runtimePlatform } from "$lib/stores/platform.svelte";
 	import { onMount } from "svelte";
 	import {
 		Home,
@@ -19,9 +25,11 @@
 		HardDrive,
 		Layers,
 		FileText,
-		Database
+		Database,
+        SlidersHorizontal
 	} from "lucide-svelte";
 	import { storageFullReport, storageClearLogs, storageClearCache, storageDeleteInstance } from "$lib/api/system";
+	import { settingsSetConcurrentDownloads } from "$lib/api/settings";
 	import type { StorageFullReport, InstanceStorageInfo } from "$lib/api/types";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { settings, type AppSettings } from "$lib/stores/settings.svelte";
@@ -35,10 +43,11 @@
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { openUrl } from "@tauri-apps/plugin-opener";
-	import { appDataDir } from "@tauri-apps/api/path";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 	import RenderingSection from "$lib/components/settings/RenderingSection.svelte";
 	import { getIconSrc } from "$lib/utils/icons";
+	import SettingsExtras from "$lib/components/settings/SettingsExtras.svelte";
+    import { profilesUpdate } from "$lib/api/instances";
 	import ThemeSection from "$lib/components/settings/ThemeSection.svelte";
 
 	const { t } = useTranslation();
@@ -55,17 +64,24 @@
 
 	let activeTab = $state<SettingsTab>("general");
 
-	let releaseChannel = $state("stable");
-	let concurrentDownloads = $state(settings.value.animations ? 5 : 3);
-	let gameResolution = $state(settings.value.startFullscreen ? "fullscreen" : "1920x1080");
+	let releaseChannel = $state<AppSettings["releaseChannel"]>(settings.value.releaseChannel === "beta" ? "beta" : "stable");
+	let concurrentDownloads = $state(settings.value.concurrentDownloads ?? 24);
+    function resolveDefaultResolution(value: AppSettings) {
+        if (value.startFullscreen) return "fullscreen";
+        const dimensions = `${value.defaultResWidth ?? 1920}x${value.defaultResHeight ?? 1080}`;
+        return dimensions === "854x480" ? "default" : ["1920x1080", "1280x720"].includes(dimensions) ? dimensions : "custom";
+    }
+    let gameResolution = $state(resolveDefaultResolution(settings.value));
+    let customResWidth = $state(settings.value.defaultResWidth ?? 1920);
+    let customResHeight = $state(settings.value.defaultResHeight ?? 1080);
 	let discordIntegration = $state(settings.value.discordRpc !== false);
 	let launcherAction = $state<"keep_open" | "hide_reopen" | "close">(
 		settings.value.launcherActionOnLaunch ?? "hide_reopen"
 	);
-	let showCloseWarning = $state(true);
+	let showCloseWarning = $state(settings.value.closeWarningOnGameRunning !== false);
 	let performanceMode = $state(settings.value.performanceMode ?? false);
 
-	const currentUsername = $derived(account.value?.username || "Nenhuma conta");
+	const currentUsername = $derived(account.value?.username || uiText("ui.33a5fcdce7adb8a8"));
 	const isMicrosoft = $derived(
 		Boolean(
 			account.value?.minecraftToken &&
@@ -80,33 +96,45 @@
 	let selectedAccent = $state(settings.value.accentTheme || themeStore.accent || "blue");
 	let density = $state(settings.value.density || "comfortable");
 
-	let maxRamGb = $state(Math.round((settings.value.maxRamMb || 4096) / 1024));
+	let maxRamGb = $state((settings.value.maxRamMb || 4096) / 1024);
 	let javaPathInput = $state(settings.value.javaPath || "");
-	let jvmArgsInput = $state(settings.value.jvmArgs || "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646");
-	let useVulkan = $state(false);
+	let jvmArgsInput = $state(settings.value.jvmArgs || "");
 	let waylandNative = $state(settings.value.waylandNative ?? false);
 
-	const ramPresets = [2, 4, 6, 8, 10, 12, 16];
+	let recommendingRam = $state(false);
+    const ramPresets = [2, 4, 6, 8, 10, 12, 16];
+    async function applyRecommendedRam() {
+        recommendingRam = true;
+        try {
+            const specs = await getSystemSpecs();
+            const memory = recommendMemory(specs.totalRamMb);
+            maxRamGb = memory.maxRamMb / 1024;
+            settings.patch(memory);
+            schedulePersist();
+            toast(uiText("settings.refinement.ramApplied", { amount: maxRamGb }), "success");
+        } catch (error) { toast(String(error), "error"); }
+        finally { recommendingRam = false; }
+    }
 
 	function setRamPreset(gb: number) {
 		maxRamGb = gb;
 		saveJava();
 	}
 
-	function setJvmPreset(preset: "g1gc" | "aikar" | "zgc" | "shenandoah") {
-		if (preset === "g1gc") {
-			jvmArgsInput = "-XX:+UseG1GC -Dsun.rmi.dgc.server.gcInterval=2147483646";
-		} else if (preset === "aikar") {
-			jvmArgsInput = "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40 -XX:G1ReservePercent=20 -XX:G1HeapWastePercent=5 -XX:G1MixedGCCountTarget=4 -XX:InitiatingHeapOccupancyPercent=15 -XX:G1MixedGCLiveThresholdPercent=90 -XX:G1RSetUpdatingPauseTimePercent=5 -XX:SurvivorRatio=32 -XX:+PerfDisableSharedMem -XX:MaxTenuringThreshold=1";
-		} else if (preset === "zgc") {
-			jvmArgsInput = "-XX:+UseZGC -XX:+UnlockExperimentalVMOptions -XX:+ZGenerational";
-		} else if (preset === "shenandoah") {
-			jvmArgsInput = "-XX:+UseShenandoahGC -XX:+UnlockExperimentalVMOptions -XX:ShenandoahGCHeuristics=adaptive";
-		}
-		saveJava();
-	}
+    function setJvmPreset(preset: "automatic" | "g1gc") {
+        jvmArgsInput = preset === "g1gc" ? "-XX:+UseG1GC -XX:MaxGCPauseMillis=200" : "";
+        saveJava();
+    }
 
 	let preLaunchCmd = $state("");
+    let savingCommands = $state(false);
+    $effect(() => { preLaunchCmd = profiles.active?.preLaunchHook || ""; postExitCmd = profiles.active?.postExitHook || ""; gameWrapper = profiles.active?.useGamemode ? "gamemoderun" : ""; });
+    async function saveCommands() {
+        const profile = profiles.active;
+        if (!profile || savingCommands || appState.isGameRunning) return;
+        savingCommands = true;
+        try { await profilesUpdate({ id: profile.id, preLaunchHook: preLaunchCmd.trim() || null, postExitHook: postExitCmd.trim() || null, useGamemode: runtimePlatform.isLinux && gameWrapper === "gamemoderun" }); profiles.update(profile.id, { preLaunchHook: preLaunchCmd.trim() || null, postExitHook: postExitCmd.trim() || null, useGamemode: runtimePlatform.isLinux && gameWrapper === "gamemoderun" }); toast(uiText("ui.c0050c10a8091f36") + profile.name, "success"); } catch(error) { toast(String(error), "error"); } finally { savingCommands = false; }
+    }
 	let postExitCmd = $state("");
 	let gameWrapper = $state(settings.value.gamemode ? "gamemoderun" : "");
 
@@ -114,26 +142,168 @@
 	let hideDiscordDetails = $state(settings.value.hideDiscordDetails ?? false);
 	let anonymousTelemetry = $state(settings.value.anonymousTelemetry ?? true);
 
-	let runtimePath = $state("~/.local/share/luxmc");
+	let runtimePath = $state("");
 
-	onMount(async () => {
-		try {
-			const dataDir = await appDataDir();
-			if (dataDir) runtimePath = dataDir;
-		} catch {}
-		if (typeof window !== "undefined") {
-			useVulkan = localStorage.getItem("luxmc_enable_vulkan") === "true";
+	let syncedSettings = {
+		theme: settings.value.theme,
+		accentTheme: settings.value.accentTheme,
+		density: settings.value.density,
+		animations: settings.value.animations,
+		startFullscreen: settings.value.startFullscreen,
+        defaultResWidth: settings.value.defaultResWidth,
+        defaultResHeight: settings.value.defaultResHeight,
+		discordRpc: settings.value.discordRpc,
+		launcherActionOnLaunch: settings.value.launcherActionOnLaunch,
+		releaseChannel: settings.value.releaseChannel,
+		concurrentDownloads: settings.value.concurrentDownloads,
+		closeWarningOnGameRunning: settings.value.closeWarningOnGameRunning,
+		performanceMode: settings.value.performanceMode,
+		maxRamMb: settings.value.maxRamMb,
+		javaPath: settings.value.javaPath,
+		jvmArgs: settings.value.jvmArgs,
+		waylandNative: settings.value.waylandNative,
+		gamemode: settings.value.gamemode,
+		streamerMode: settings.value.streamerMode,
+		hideDiscordDetails: settings.value.hideDiscordDetails,
+		anonymousTelemetry: settings.value.anonymousTelemetry
+	};
+
+	$effect(() => {
+		const current = settings.value;
+		if (current.theme !== syncedSettings.theme) {
+			syncedSettings.theme = current.theme;
+			selectedTheme = current.theme;
+		}
+		if (current.accentTheme !== syncedSettings.accentTheme) {
+			syncedSettings.accentTheme = current.accentTheme;
+			selectedAccent = current.accentTheme;
+		}
+		if (current.density !== syncedSettings.density) {
+			syncedSettings.density = current.density;
+			density = current.density;
+		}
+		if (current.animations !== syncedSettings.animations) {
+			syncedSettings.animations = current.animations;
+		}
+		if (current.releaseChannel !== syncedSettings.releaseChannel) {
+			syncedSettings.releaseChannel = current.releaseChannel;
+			releaseChannel = current.releaseChannel === "beta" ? "beta" : "stable";
+		}
+		if (current.concurrentDownloads !== syncedSettings.concurrentDownloads) {
+			syncedSettings.concurrentDownloads = current.concurrentDownloads;
+			concurrentDownloads = current.concurrentDownloads ?? 24;
+		}
+		if (current.closeWarningOnGameRunning !== syncedSettings.closeWarningOnGameRunning) {
+			syncedSettings.closeWarningOnGameRunning = current.closeWarningOnGameRunning;
+			showCloseWarning = current.closeWarningOnGameRunning !== false;
+		}
+		if (current.startFullscreen !== syncedSettings.startFullscreen || current.defaultResWidth !== syncedSettings.defaultResWidth || current.defaultResHeight !== syncedSettings.defaultResHeight) {
+            syncedSettings.startFullscreen = current.startFullscreen;
+            syncedSettings.defaultResWidth = current.defaultResWidth;
+            syncedSettings.defaultResHeight = current.defaultResHeight;
+            if (gameResolution !== "custom" || current.startFullscreen) gameResolution = resolveDefaultResolution(current);
+            customResWidth = current.defaultResWidth ?? 1920;
+            customResHeight = current.defaultResHeight ?? 1080;
+        }
+		if (current.discordRpc !== syncedSettings.discordRpc) {
+			syncedSettings.discordRpc = current.discordRpc;
+			discordIntegration = current.discordRpc !== false;
+		}
+		if (current.launcherActionOnLaunch !== syncedSettings.launcherActionOnLaunch) {
+			syncedSettings.launcherActionOnLaunch = current.launcherActionOnLaunch;
+			launcherAction = current.launcherActionOnLaunch ?? "hide_reopen";
+		}
+		if (current.performanceMode !== syncedSettings.performanceMode) {
+			syncedSettings.performanceMode = current.performanceMode;
+			performanceMode = current.performanceMode ?? false;
+		}
+		if (current.maxRamMb !== syncedSettings.maxRamMb) {
+			syncedSettings.maxRamMb = current.maxRamMb;
+			maxRamGb = (current.maxRamMb || 4096) / 1024;
+		}
+		if (current.javaPath !== syncedSettings.javaPath) {
+			syncedSettings.javaPath = current.javaPath;
+			javaPathInput = current.javaPath || "";
+		}
+		if (current.jvmArgs !== syncedSettings.jvmArgs) {
+			syncedSettings.jvmArgs = current.jvmArgs;
+			jvmArgsInput = current.jvmArgs || "";
+		}
+		if (current.waylandNative !== syncedSettings.waylandNative) {
+			syncedSettings.waylandNative = current.waylandNative;
+			waylandNative = current.waylandNative ?? false;
+		}
+		if (current.gamemode !== syncedSettings.gamemode) {
+			syncedSettings.gamemode = current.gamemode;
+			gameWrapper = current.gamemode ? "gamemoderun" : "";
+		}
+		if (current.streamerMode !== syncedSettings.streamerMode) {
+			syncedSettings.streamerMode = current.streamerMode;
+			streamerMode = current.streamerMode ?? false;
+		}
+		if (current.hideDiscordDetails !== syncedSettings.hideDiscordDetails) {
+			syncedSettings.hideDiscordDetails = current.hideDiscordDetails;
+			hideDiscordDetails = current.hideDiscordDetails ?? false;
+		}
+		if (current.anonymousTelemetry !== syncedSettings.anonymousTelemetry) {
+			syncedSettings.anonymousTelemetry = current.anonymousTelemetry;
+			anonymousTelemetry = current.anonymousTelemetry ?? true;
 		}
 	});
 
+	onMount(async () => {
+		try {
+			const dataDir = await appDataDirectory();
+			if (dataDir) runtimePath = dataDir;
+		} catch {}
+	});
+
+    const settingsTabs = $derived([
+        { id: "general", label: t("settings.tabs.general"), icon: Home },
+        { id: "accounts", label: t("settings.tabs.accounts"), icon: Users },
+        { id: "language", label: t("settings.tabs.language"), icon: Globe },
+        { id: "appearance", label: t("settings.tabs.appearance"), icon: Palette },
+        { id: "java", label: t("settings.tabs.java"), icon: Coffee },
+        { id: "commands", label: t("settings.tabs.commands"), icon: Terminal },
+        { id: "privacy", label: t("settings.tabs.privacy"), icon: ShieldCheck },
+        { id: "runtime", label: t("settings.tabs.runtime"), icon: FolderOpen }
+    ]);
+    function handleSettingsTabKeys(event: KeyboardEvent) {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        const tabs = Array.from((event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>("[role='tab']"));
+        const index = tabs.indexOf(event.target as HTMLButtonElement);
+        if (index < 0) return;
+        event.preventDefault();
+        const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[next].focus();
+        tabs[next].click();
+    }
+    function updateDefaultResolution() {
+        customResWidth = Math.max(640, Math.min(7680, Math.round(Number(customResWidth) || 1920)));
+        customResHeight = Math.max(360, Math.min(4320, Math.round(Number(customResHeight) || 1080)));
+        settings.patch({ defaultResWidth: customResWidth, defaultResHeight: customResHeight, startFullscreen: false });
+        gameResolution = "custom";
+        schedulePersist();
+    }
 	function saveGeneral() {
+        const dimensions = /^([0-9]+)x([0-9]+)$/.exec(gameResolution);
+        if (dimensions) { customResWidth = Number(dimensions[1]); customResHeight = Number(dimensions[2]); }
+        if (gameResolution === "default") { customResWidth = 854; customResHeight = 480; }
 		settings.patch({
 			discordRpc: discordIntegration,
 			launcherActionOnLaunch: launcherAction,
 			startFullscreen: gameResolution === "fullscreen",
+            defaultResWidth: customResWidth,
+            defaultResHeight: customResHeight,
 			performanceMode: performanceMode,
+			releaseChannel,
+			concurrentDownloads,
+			closeWarningOnGameRunning: showCloseWarning,
 		});
 		schedulePersist();
+		settingsSetConcurrentDownloads(concurrentDownloads).catch((error) => {
+			console.error(uiText("ui.04c442acd84772fd"), error);
+		});
 	}
 
 	function savePrivacy() {
@@ -180,25 +350,22 @@
 			jvmArgs: jvmArgsInput ? jvmArgsInput.trim() : undefined,
 			waylandNative: waylandNative
 		});
-		if (typeof window !== "undefined") {
-			localStorage.setItem("luxmc_enable_vulkan", String(useVulkan));
-		}
 		schedulePersist();
-		toast("Configurações do Java salvas!", "success");
+		toast(uiText("ui.847c046302f1f7c7"), "success");
 	}
 
 	async function browseJavaPath() {
 		try {
 			const sel = await open({
 				multiple: false,
-				title: "Selecionar Executável Java"
+				title: uiText("ui.7161f9f39f03b19c")
 			});
 			if (sel && typeof sel === "string") {
 				javaPathInput = sel;
 				saveJava();
 			}
 		} catch (e) {
-			toast("Erro ao selecionar caminho: " + String(e), "error");
+			toast(uiText("ui.74073fe81c568fb3") + String(e), "error");
 		}
 	}
 
@@ -207,11 +374,13 @@
 			const keys = ["luxmc_cache_mods", "luxmc_cache_search", "luxmc_temp_skins"];
 			for (const k of keys) localStorage.removeItem(k);
 		} catch {}
-		toast(t("settings.cacheCleared") || "Cache limpo com sucesso!", "success");
+		toast(t("settings.cacheCleared") || uiText("ui.b1f36d2fc6a6621d"), "success");
 	}
 
 	let storageReport = $state<StorageFullReport | null>(null);
 	let storageLoading = $state(false);
+    let storageError = $state("");
+    const storageLabels: Record<string, string> = $derived({ libraries: uiText("settings.catLibraries"), assets: uiText("ui.beb65d096de336b3"), versions: uiText("settings.catVersions"), instances: uiText("instances.title"), mods: "Mods", logs: "Logs", cache: uiText("ui.ca803301db3bf0aa"), downloads: "Downloads", java: "Java do launcher", launcher_data: uiText("ui.2b5c717f30be9c31"), configuration: uiText("ui.76b0fb6ad18939ac"), launcher_cache: "Cache do launcher", application: uiText("ui.4fe101016fd71f92"), external_instances: uiText("ui.b59623f79c0f2cf9") });
 	let deletingInstanceId = $state<string | null>(null);
 	let confirmingDeleteInstance = $state<InstanceStorageInfo | null>(null);
 
@@ -225,10 +394,12 @@
 
 	async function loadStorageReport() {
 		storageLoading = true;
+        storageError = "";
 		try {
 			storageReport = await storageFullReport();
 		} catch (e) {
-			toast("Erro ao carregar dados de armazenamento: " + String(e), "error");
+            storageError = String(e);
+			toast(uiText("ui.ed80732875192710") + String(e), "error");
 		} finally {
 			storageLoading = false;
 		}
@@ -243,10 +414,10 @@
 	async function handleClearLogs() {
 		try {
 			const freed = await storageClearLogs();
-			toast(`Logs limpos com sucesso! (${formatBytes(freed)} liberados)`, "success");
+			toast(uiText("ui.936e9d5fd6166fd7", {arg0: (formatBytes(freed))}), "success");
 			void loadStorageReport();
 		} catch (e) {
-			toast("Erro ao limpar logs: " + String(e), "error");
+			toast(uiText("ui.74755bfde4f77642") + String(e), "error");
 		}
 	}
 
@@ -254,10 +425,10 @@
 		try {
 			const freed = await storageClearCache();
 			await handleClearCache();
-			toast(`Cache limpo com sucesso! (${formatBytes(freed)} liberados)`, "success");
+			toast(uiText("ui.1e23968a10a33a9c", {arg0: (formatBytes(freed))}), "success");
 			void loadStorageReport();
 		} catch (e) {
-			toast("Erro ao limpar cache: " + String(e), "error");
+			toast(uiText("ui.7e5495197cd64b80") + String(e), "error");
 		}
 	}
 
@@ -266,102 +437,36 @@
 		try {
 			await storageDeleteInstance(inst.id);
 			profiles.remove(inst.id);
-			toast(`Instância "${inst.name}" excluída do disco com sucesso!`, "success");
+			toast(uiText("ui.bea8996b09fea4ce", {arg0: (inst.name)}), "success");
 			confirmingDeleteInstance = null;
 			void loadStorageReport();
 		} catch (e) {
-			toast("Erro ao excluir instância: " + String(e), "error");
+			toast(uiText("ui.66317b8a4bb467bc") + String(e), "error");
 		} finally {
 			deletingInstanceId = null;
 		}
 	}
 </script>
 
-<div class="h-full flex flex-col select-none overflow-y-auto custom-scrollbar pr-2 pb-16 max-w-5xl mx-auto w-full">
+<div class="settings-page flex flex-col gap-6 pb-16 max-w-6xl mx-auto w-full">
 	
-	<div class="flex items-center gap-1.5 p-1.5 rounded-2xl bg-bg-elevated border border-fg/5 mb-8 overflow-x-auto custom-scrollbar shrink-0 shadow-md">
-		
-		<button
-			type="button"
-			onclick={() => activeTab = "general"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'general' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-		>
-			<Home class="w-4 h-4" />
-			<span>{t("settings.tabs.general")}</span>
-		</button>
-
-		<button
-			type="button"
-			onclick={() => activeTab = "accounts"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'accounts' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-		>
-			<Users class="w-4 h-4" />
-			<span>{t("settings.tabs.accounts")}</span>
-		</button>
-
-		<button
-			type="button"
-			onclick={() => activeTab = "language"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'language' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-		>
-			<Globe class="w-4 h-4" />
-			<span>{t("settings.tabs.language")}</span>
-		</button>
-
-		<button
-			type="button"
-			onclick={() => activeTab = "appearance"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap relative {activeTab === 'appearance' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-		>
-			<Palette class="w-4 h-4" />
-			<span>{t("settings.tabs.appearance")}</span>
-			<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-400 text-black ml-0.5">PRO</span>
-		</button>
-
-		<button
-			type="button"
-			onclick={() => activeTab = "java"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'java' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-		>
-			<Coffee class="w-4 h-4" />
-			<span>{t("settings.tabs.java")}</span>
-		</button>
-
-		<button
-			type="button"
-			onclick={() => activeTab = "commands"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'commands' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-		>
-			<Terminal class="w-4 h-4" />
-			<span>{t("settings.tabs.commands")}</span>
-		</button>
-
-		<button
-			type="button"
-			onclick={() => activeTab = "privacy"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'privacy' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-		>
-			<ShieldCheck class="w-4 h-4" />
-			<span>{t("settings.tabs.privacy")}</span>
-		</button>
-
-		<button
-			type="button"
-			onclick={() => activeTab = "runtime"}
-			class="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer whitespace-nowrap {activeTab === 'runtime' ? 'bg-brand-500 text-brand-foreground shadow-md shadow-brand-500/30' : 'text-fg/70 hover:text-fg hover:bg-fg/5'}"
-		>
-			<FolderOpen class="w-4 h-4" />
-			<span>{t("settings.tabs.runtime")}</span>
-		</button>
-
-	</div>
+    <header class="flex items-center gap-4">
+        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-brand-400/20 bg-brand-500/10 text-brand-400"><SlidersHorizontal class="h-6 w-6" /></span>
+        <div><p class="page-eyebrow">Luxmc</p><h1 class="mt-1 text-2xl font-semibold tracking-tight text-fg">{uiText("settings.refinement.settingsTitle")}</h1></div>
+    </header>
+    <div class="surface-glass grid grid-cols-2 gap-2 p-2 sm:grid-cols-4 xl:grid-cols-8" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
+        {#each settingsTabs as tab}
+            <button type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls="settings-panel" aria-selected={activeTab === tab.id} tabindex={activeTab === tab.id ? 0 : -1} onclick={() => activeTab = tab.id as SettingsTab} class={launcherButton({ variant: activeTab === tab.id ? "primary" : "ghost", class: "h-auto min-h-16 w-full flex-col gap-2 px-3 py-3" })}><tab.icon class="h-5 w-5" /><span>{tab.label}</span></button>
+        {/each}
+    </div>
+    <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} class="space-y-6">
 
 	{#if activeTab === "general"}
 		<div class="space-y-6">
 			<div class="flex items-center justify-between">
 				<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.general")}</h2>
 				<span class="text-xs font-mono font-semibold px-2.5 py-1 rounded-lg bg-fg/5 text-fg/60 border border-fg/10">
-					{t("settings.version", { version: "2.0.2" })}
+					{t("settings.version", { version: APP_VERSION })}
 				</span>
 			</div>
 
@@ -375,17 +480,23 @@
 							<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-pulse">
 								{t("settings.newVersionAvailable")}
 							</span>
-						{:else}
+						{:else if updaterStore.verificationStatus === "current"}
 							<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-fg/5 text-fg/60 border border-fg/10">
 								{t("settings.systemUpToDate")}
+							</span>
+						{:else}
+							<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-fg/5 text-fg/60 border border-fg/10">
+								{updaterStore.verificationStatus === "failed" ? t("settings.updateCheckUnavailable") : updaterStore.isChecking ? t("settings.checking") : t("settings.installedVersionBadge")}
 							</span>
 						{/if}
 					</div>
 					<h3 class="text-base font-bold text-fg">
 						{#if updaterStore.updateAvailable}
-							{t("settings.versionReady", { version: updaterStore.newVersion || "2.0.2" })}
+							{t("settings.versionReady", { version: updaterStore.newVersion || APP_VERSION })}
+						{:else if updaterStore.verificationStatus === "current"}
+							{t("settings.versionLatest", { version: updaterStore.currentVersion || APP_VERSION })}
 						{:else}
-							{t("settings.versionLatest", { version: "2.0.2" })}
+							{t("settings.versionInstalled", { version: updaterStore.currentVersion || APP_VERSION })}
 						{/if}
 					</h3>
 					<p class="text-xs text-fg/50">
@@ -403,7 +514,7 @@
 							type="button"
 							onclick={() => updaterStore.showModal = true}
 							disabled={updaterStore.isDownloading}
-							class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-bg-deep font-bold text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
+							class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2" })}
 						>
 							{#if updaterStore.isDownloading}
 								<RefreshCw class="w-4 h-4 animate-spin" /> {t("settings.downloadingProgress", { percent: updaterStore.downloadProgress })}
@@ -416,7 +527,7 @@
 							type="button"
 							onclick={() => updaterStore.check(true)}
 							disabled={updaterStore.isChecking}
-							class="px-4 py-2.5 rounded-xl bg-bg border border-fg/10 hover:border-brand-500/40 text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 						>
 							<RefreshCw class="w-4 h-4 {updaterStore.isChecking ? 'animate-spin text-brand-400' : 'text-fg/60'}" />
 							{updaterStore.isChecking ? t("settings.checking") : t("settings.checkUpdates")}
@@ -434,11 +545,12 @@
 					</div>
 					<select
 						bind:value={releaseChannel}
+                        aria-label={t("settings.releaseChannel")}
+						onchange={saveGeneral}
 						class="bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2 text-xs font-semibold text-fg outline-none focus:border-blue-500 cursor-pointer min-w-[140px]"
 					>
-						<option value="stable">Stable ↕</option>
-						<option value="beta">Beta ↕</option>
-						<option value="nightly">Nightly ↕</option>
+						<option value="stable">{uiText("ui.90ee305714d71033")}</option>
+						<option value="beta">{uiText("ui.703390318bd55aef")}</option>
 					</select>
 				</div>
 
@@ -449,12 +561,15 @@
 					</div>
 					<select
 						bind:value={concurrentDownloads}
+                        aria-label={t("settings.concurrentDownloads")}
+						onchange={saveGeneral}
 						class="bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2 text-xs font-semibold text-fg outline-none focus:border-blue-500 cursor-pointer min-w-[100px]"
 					>
-						<option value={2}>2 ↕</option>
-						<option value={3}>3 ↕</option>
-						<option value={5}>5 ↕</option>
-						<option value={10}>10 ↕</option>
+						<option value={2}>2</option>
+						<option value={4}>4</option>
+						<option value={8}>8</option>
+						<option value={16}>16</option>
+						<option value={24}>24</option>
 					</select>
 				</div>
 
@@ -465,21 +580,29 @@
 					</div>
 					<select
 						bind:value={gameResolution}
+                        aria-label={t("settings.gameResolution")}
 						onchange={saveGeneral}
 						class="bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2 text-xs font-semibold text-fg outline-none focus:border-blue-500 cursor-pointer min-w-[140px]"
 					>
-						<option value="default">{t("settings.resolutionDefault")} ↕</option>
-						<option value="1920x1080">1920x1080 ↕</option>
-						<option value="1280x720">1280x720 ↕</option>
-						<option value="fullscreen">{t("settings.resolutionFullscreen")} ↕</option>
+						<option value="default">{t("settings.resolutionDefault")}</option>
+						<option value="1920x1080">{uiText("ui.b885a510fc820652")}</option>
+						<option value="1280x720">{uiText("ui.1c3b80a3b75d7074")}</option>
+						<option value="fullscreen">{t("settings.resolutionFullscreen")}</option>
+                        <option value="custom">{uiText("settings.refinement.customResolution")}</option>
 					</select>
 				</div>
 
+                {#if gameResolution === "custom"}
+                    <div class="grid grid-cols-1 gap-4 py-5 sm:grid-cols-2">
+                        <label class="space-y-2 text-sm text-fg"><span>{uiText("settings.refinement.resolutionWidth")}</span><input type="number" min="640" max="7680" step="1" bind:value={customResWidth} onchange={updateDefaultResolution} class="w-full rounded-xl border border-border bg-bg-elevated p-3 text-fg" /></label>
+                        <label class="space-y-2 text-sm text-fg"><span>{uiText("settings.refinement.resolutionHeight")}</span><input type="number" min="360" max="4320" step="1" bind:value={customResHeight} onchange={updateDefaultResolution} class="w-full rounded-xl border border-border bg-bg-elevated p-3 text-fg" /></label>
+                    </div>
+                {/if}
 				<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
 						<div class="flex items-center gap-2">
 							<h3 class="text-sm font-bold text-fg">{t("settings.discordRpcTitle")}</h3>
-							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">v2.0.2</span>
+							<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400">{uiText("app.version")}</span>
 						</div>
 						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.discordRpcDesc")}</p>
 					</div>
@@ -487,9 +610,9 @@
 						type="button"
 						role="switch"
 						aria-checked={discordIntegration}
-						aria-label="Toggle Discord Integration"
+						aria-label={uiText("ui.d2c28d6a2e6a0a47")}
 						onclick={() => { discordIntegration = !discordIntegration; saveGeneral(); }}
-						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {discordIntegration ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative cursor-pointer border {discordIntegration ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {discordIntegration ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -502,12 +625,13 @@
 					</div>
 					<select
 						bind:value={launcherAction}
+                        aria-label={t("settings.launcherActionTitle")}
 						onchange={saveGeneral}
 						class="bg-bg-elevated border border-fg/10 rounded-xl px-4 py-2 text-xs font-semibold text-fg outline-none focus:border-brand-500 cursor-pointer min-w-[150px]"
 					>
-						<option value="keep_open">{t("settings.launcherActionNone")} ↕</option>
-						<option value="hide_reopen">{t("settings.launcherActionHide")} ↕</option>
-						<option value="close">{t("settings.launcherActionClose")} ↕</option>
+						<option value="keep_open">{t("settings.launcherActionNone")}</option>
+						<option value="hide_reopen">{t("settings.launcherActionHide")}</option>
+						<option value="close">{t("settings.launcherActionClose")}</option>
 					</select>
 				</div>
 
@@ -520,9 +644,9 @@
 						type="button"
 						role="switch"
 						aria-checked={showCloseWarning}
-						aria-label="Toggle Window Close Warning"
-						onclick={() => showCloseWarning = !showCloseWarning}
-						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {showCloseWarning ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						aria-label={uiText("ui.879656dc191a6a26")}
+						onclick={() => { showCloseWarning = !showCloseWarning; saveGeneral(); }}
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative cursor-pointer border {showCloseWarning ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {showCloseWarning ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -537,9 +661,9 @@
 						type="button"
 						role="switch"
 						aria-checked={performanceMode}
-						aria-label="Toggle Ultra Performance Mode"
+						aria-label={uiText("ui.64b61bb4b7584561")}
 						onclick={() => { performanceMode = !performanceMode; appState.performanceMode = performanceMode; saveGeneral(); }}
-						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {performanceMode ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative cursor-pointer border {performanceMode ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {performanceMode ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -559,7 +683,7 @@
 						<div class="w-12 h-12 rounded-2xl bg-bg-overlay/40 border border-fg/10 overflow-hidden flex items-center justify-center">
 							<img loading="lazy" decoding="async"
 								src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value?.uuid ? "https://mc-heads.net/avatar/" + account.value.uuid + "/100" : "/logo.png")}
-								alt="Avatar"
+								alt={uiText("ui.ca8e826d9c2ec401")}
 								class="w-full h-full object-cover"
 								onerror={(e) => {
 									const img = e.currentTarget as HTMLImageElement;
@@ -592,7 +716,7 @@
 
 					<a
 						href="/"
-						class="px-4 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98]"
+						class={launcherButton({ variant: "secondary" })}
 					>
 						{t("settings.switchAccount")}
 					</a>
@@ -606,7 +730,7 @@
 					<button
 						type="button"
 						onclick={() => openUrl("https://luxmc-r92.pages.dev")}
-						class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shrink-0 flex items-center gap-2 active:scale-[0.98] shadow-md"
+						class={launcherButton({ variant: "primary", size: "sm", class: "shrink-0 flex items-center gap-2" })}
 					>
 						<span>{t("settings.openWebPortal")}</span>
 						<ExternalLink class="w-3.5 h-3.5" />
@@ -626,13 +750,13 @@
 				<button
 					type="button"
 					onclick={() => handleLangChange("pt-BR")}
-					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] text-left {currentLang === 'pt-BR' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer active:scale-[0.98] text-left {currentLang === 'pt-BR' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
 				>
 					<div class="flex items-center gap-3.5">
 						<span class="text-2xl">🇧🇷</span>
 						<div>
 							<div class="text-sm font-bold text-fg">Português (Brasil)</div>
-							<div class="text-[11px] text-fg/40">Idioma nativo da comunidade Luxmc</div>
+							<div class="text-[11px] text-fg/40">{uiText("ui.40e3de31827f82c2")}</div>
 						</div>
 					</div>
 					{#if currentLang === "pt-BR"}
@@ -645,13 +769,13 @@
 				<button
 					type="button"
 					onclick={() => handleLangChange("en")}
-					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] text-left {currentLang === 'en' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer active:scale-[0.98] text-left {currentLang === 'en' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
 				>
 					<div class="flex items-center gap-3.5">
 						<span class="text-2xl">🇺🇸</span>
 						<div>
-							<div class="text-sm font-bold text-fg">English</div>
-							<div class="text-[11px] text-fg/40">Global language</div>
+							<div class="text-sm font-bold text-fg">{uiText("settings.languageEnglish")}</div>
+							<div class="text-[11px] text-fg/40">{uiText("ui.e0c91282ad522a2b")}</div>
 						</div>
 					</div>
 					{#if currentLang === "en"}
@@ -664,13 +788,13 @@
 				<button
 					type="button"
 					onclick={() => handleLangChange("es")}
-					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] text-left {currentLang === 'es' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
+					class="p-5 rounded-2xl border flex items-center justify-between gap-4 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer active:scale-[0.98] text-left {currentLang === 'es' ? 'border-brand-500 bg-bg-subtle ring-2 ring-brand-500/30 shadow-lg' : 'border-fg/5 bg-bg-elevated hover:border-fg/20'}"
 				>
 					<div class="flex items-center gap-3.5">
 						<span class="text-2xl">🇪🇸</span>
 						<div>
-							<div class="text-sm font-bold text-fg">Español</div>
-							<div class="text-[11px] text-fg/40">Comunidad hispanohablante</div>
+							<div class="text-sm font-bold text-fg">{uiText("ui.94b382b61b9dde0f")}</div>
+							<div class="text-[11px] text-fg/40">{uiText("ui.54349b39698bfa7f")}</div>
 						</div>
 					</div>
 					{#if currentLang === "es"}
@@ -718,7 +842,7 @@
 						<button
 							type="button"
 							onclick={browseJavaPath}
-							class="px-3 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 cursor-pointer"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 						>
 							{t("settings.browse")}
 						</button>
@@ -734,9 +858,9 @@
 						<div class="flex items-center gap-3">
 							<input
 								type="range"
-								min={2}
+								min={1}
 								max={16}
-								step={1}
+								step={0.5}
 								bind:value={maxRamGb}
 								onchange={saveJava}
 								class="w-36 accent-blue-500 cursor-pointer"
@@ -752,17 +876,18 @@
 							<button
 								type="button"
 								onclick={() => setRamPreset(preset)}
-								class="px-3 py-1 rounded-lg text-xs font-mono font-bold border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {maxRamGb === preset ? 'bg-blue-600 border-blue-500 text-fg shadow-md' : 'bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg'}"
+								class={launcherButton({ variant: maxRamGb === preset ? "primary" : "secondary", size: "sm" })}
 							>
 								{preset}G
 							</button>
 						{/each}
 						<button
 							type="button"
-							onclick={() => setRamPreset(6)}
-							class="px-3 py-1 rounded-lg text-xs font-sans font-bold border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {maxRamGb === 6 ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300' : 'bg-fg/5 border-fg/10 text-fg/50 hover:bg-fg/10 hover:text-fg'}"
+							onclick={applyRecommendedRam}
+                            disabled={recommendingRam}
+							class={launcherButton({ variant: "secondary", size: "sm" })}
 						>
-							Auto (6G)
+							{uiText(recommendingRam ? "settings.checking" : "settings.refinement.recommendRam")}
 						</button>
 					</div>
 				</div>
@@ -776,44 +901,22 @@
 						<input
 							type="text"
 							bind:value={jvmArgsInput}
+							aria-label={t("settings.jvmFlags")}
 							onchange={saveJava}
 							class="bg-bg-elevated border border-fg/10 rounded-xl px-3 py-2 text-xs text-fg font-mono placeholder:text-fg/30 outline-none w-80 focus:border-blue-500"
 						/>
 					</div>
 					<div class="flex flex-wrap items-center gap-2 pt-1">
-						<span class="text-[11px] font-semibold text-fg/40 mr-1">Presets:</span>
-						<button
-							type="button"
-							onclick={() => setJvmPreset('g1gc')}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-						>
-							{t("settings.flagsG1GC")}
-						</button>
-						<button
-							type="button"
-							onclick={() => setJvmPreset('aikar')}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-						>
-							{t("settings.flagsAikar")}
-						</button>
-						<button
-							type="button"
-							onclick={() => setJvmPreset('zgc')}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-						>
-							{t("settings.flagsZGC")}
-						</button>
-						<button
-							type="button"
-							onclick={() => setJvmPreset('shenandoah')}
-							class="px-2.5 py-1 rounded-lg text-[11px] font-medium border bg-fg/5 border-fg/10 text-fg/70 hover:bg-fg/10 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-						>
-							{t("settings.flagsShenandoah")}
-						</button>
+                        <span class="text-[11px] font-semibold text-fg-muted mr-1">{uiText("ui.1d096828d28c5cc3")}</span>
+                        <button type="button" onclick={() => setJvmPreset('automatic')} class={launcherButton({ variant: jvmArgsInput ? "secondary" : "primary", size: "sm" })}>{uiText("settings.refinement.automaticJvm")}</button>
+                        <button type="button" onclick={() => setJvmPreset('g1gc')} class={launcherButton({ variant: jvmArgsInput === '-XX:+UseG1GC -XX:MaxGCPauseMillis=200' ? "primary" : "secondary", size: "sm" })}>G1GC</button>
+                        <p class="w-full pt-2 text-xs leading-relaxed text-fg-muted">{uiText("settings.refinement.jvmPresetsDesc")}</p>
+
 					</div>
 				</div>
 
-				<div class="flex items-center justify-between py-5 gap-6">
+				{#if runtimePlatform.isLinux}
+<div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
 						<h3 class="text-sm font-bold text-fg">{t("settings.waylandTitle")}</h3>
 						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.waylandDesc")}</p>
@@ -822,30 +925,16 @@
 						type="button"
 						role="switch"
 						aria-checked={waylandNative}
-						aria-label="Toggle Wayland Mode"
+						aria-label={uiText("ui.e3793b5f9778ce4c")}
 						onclick={() => { waylandNative = !waylandNative; saveJava(); }}
-						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {waylandNative ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative cursor-pointer border {waylandNative ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {waylandNative ? 'translate-x-6' : ''}"></span>
 					</button>
 				</div>
 
-				<div class="flex items-center justify-between py-5 gap-6">
-					<div class="space-y-1 max-w-xl">
-						<h3 class="text-sm font-bold text-fg">{t("settings.vulkanTitle")}</h3>
-						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.vulkanDesc")}</p>
-					</div>
-					<button
-						type="button"
-						role="switch"
-						aria-checked={useVulkan}
-						aria-label="Toggle Vulkan Acceleration"
-						onclick={() => { useVulkan = !useVulkan; saveJava(); }}
-						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {useVulkan ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
-					>
-						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {useVulkan ? 'translate-x-6' : ''}"></span>
-					</button>
-				</div>
+				{/if}
+
 
 			</div>
 		</div>
@@ -853,6 +942,8 @@
 	{:else if activeTab === "commands"}
 		<div class="space-y-6">
 			<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.tabs.commands")}</h2>
+            <p class="text-sm text-fg-muted">{uiText("ui.cb504267d059e7fa")} {profiles.active?.name || uiText("ui.64a557b3767a7f20")}{uiText("ui.a913800b3da80d80")}</p>
+            <button class={launcherButton({ variant: "primary" })} disabled={!profiles.active || savingCommands || appState.isGameRunning} onclick={saveCommands}>{uiText("ui.69c0d3db22b1c35b")}</button>
 
 			<div class="bg-bg-elevated border border-fg/5 rounded-3xl px-6 py-2 shadow-sm divide-y divide-white/5">
 				
@@ -863,7 +954,7 @@
 					</div>
 					<input
 						type="text"
-						placeholder="ex: notify-send 'Iniciando Minecraft'"
+						placeholder={runtimePlatform.isWindows ? "ex: echo Iniciando Minecraft" : "ex: notify-send 'Iniciando Minecraft'"}
 						bind:value={preLaunchCmd}
 						class="bg-bg-elevated border border-fg/10 rounded-xl px-3 py-2 text-xs text-fg font-mono placeholder:text-fg/30 outline-none w-72"
 					/>
@@ -874,12 +965,7 @@
 						<h3 class="text-sm font-bold text-fg">{t("settings.gameWrapperTitle")}</h3>
 						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.gameWrapperDesc")}</p>
 					</div>
-					<input
-						type="text"
-						placeholder="ex: gamemoderun"
-						bind:value={gameWrapper}
-						class="bg-bg-elevated border border-fg/10 rounded-xl px-3 py-2 text-xs text-fg font-mono placeholder:text-fg/30 outline-none w-72"
-					/>
+					<select bind:value={gameWrapper} disabled={!runtimePlatform.isLinux} class="rounded-xl border border-border bg-bg-elevated p-3 text-sm"><option value="">{uiText("ui.12780577b0b8c5c7")}</option>{#if runtimePlatform.isLinux}<option value="gamemoderun">{uiText("ui.d0fba50ac6075a55")}</option>{/if}</select>
 				</div>
 
 				<div class="flex items-center justify-between py-5 gap-6">
@@ -889,7 +975,7 @@
 					</div>
 					<input
 						type="text"
-						placeholder="ex: sync"
+						placeholder={runtimePlatform.isWindows ? "ex: echo Minecraft encerrado" : "ex: sync"}
 						bind:value={postExitCmd}
 						class="bg-bg-elevated border border-fg/10 rounded-xl px-3 py-2 text-xs text-fg font-mono placeholder:text-fg/30 outline-none w-72"
 					/>
@@ -919,9 +1005,9 @@
 						type="button"
 						role="switch"
 						aria-checked={streamerMode}
-						aria-label="Alternar Modo Streamer"
+						aria-label={uiText("ui.a0dfc9fa1730ed71")}
 						onclick={() => { streamerMode = !streamerMode; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {streamerMode ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative cursor-pointer border {streamerMode ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {streamerMode ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -936,9 +1022,9 @@
 						type="button"
 						role="switch"
 						aria-checked={hideDiscordDetails}
-						aria-label="Alternar Ocultar Detalhes do Discord"
+						aria-label={uiText("ui.d86d8509da3b38ca")}
 						onclick={() => { hideDiscordDetails = !hideDiscordDetails; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {hideDiscordDetails ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative cursor-pointer border {hideDiscordDetails ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {hideDiscordDetails ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -953,9 +1039,9 @@
 						type="button"
 						role="switch"
 						aria-checked={anonymousTelemetry}
-						aria-label="Alternar Telemetria Anônima"
+						aria-label={uiText("ui.6e81faba288eafe9")}
 						onclick={() => { anonymousTelemetry = !anonymousTelemetry; savePrivacy(); }}
-						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 relative cursor-pointer border {anonymousTelemetry ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
+						class="w-12 h-6 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 relative cursor-pointer border {anonymousTelemetry ? 'bg-brand-500 border-brand-400 shadow-md shadow-brand-500/30' : 'bg-fg/15 border-fg/15 hover:bg-fg/25 backdrop-blur-md'}"
 					>
 						<span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform duration-200 shadow-md {anonymousTelemetry ? 'translate-x-6' : ''}"></span>
 					</button>
@@ -969,7 +1055,7 @@
 					<button
 						type="button"
 						onclick={handleClearCache}
-						class="px-5 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm active:scale-[0.98] flex items-center gap-2"
+						class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-2" })}
 					>
 						<Trash2 class="w-3.5 h-3.5" />
 						<span>{t("settings.clearCache")}</span>
@@ -981,6 +1067,8 @@
 
 	{:else if activeTab === "runtime"}
 		<div class="space-y-6">
+            {#if storageError}<p role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger">{uiText("ui.5211323645b21734")} {storageError}</p>{/if}
+            {#if storageReport?.warnings?.length}<p role="status" class="rounded-xl border border-warning/30 bg-warning/10 p-4 text-sm text-warning">{uiText("ui.3a8133c8b1e3bd1f")} {storageReport.warnings.length} {uiText("ui.c86d9d021e1cfe8c")}</p>{/if}
 			<div class="flex items-center justify-between">
 				<div>
 					<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.tabs.runtime")}</h2>
@@ -990,7 +1078,7 @@
 					type="button"
 					onclick={loadStorageReport}
 					disabled={storageLoading}
-					class="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50 active:scale-[0.98]"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2 disabled:opacity-50" })}
 				>
 					<RefreshCw class="w-3.5 h-3.5 {storageLoading ? 'animate-spin' : ''}" />
 					<span>{t("settings.refresh")}</span>
@@ -1002,7 +1090,7 @@
 					<span class="text-xs font-bold uppercase tracking-wider text-fg/40">{t("settings.totalDiskUsage")}</span>
 					<div class="flex items-baseline gap-3">
 						<span class="text-3xl font-black text-fg font-mono tracking-tight">
-							{formatBytes(storageReport?.totalBytes || 0)}
+							{storageReport ? formatBytes(storageReport.totalBytes) : storageLoading ? "Calculando…" : uiText("ui.60cf6b61c55f4a3f")}
 						</span>
 						<span class="text-xs text-fg/50">{t("settings.usedByLuxmc")}</span>
 					</div>
@@ -1012,7 +1100,7 @@
 					<button
 						type="button"
 						onclick={handleClearLogs}
-						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-2 active:scale-[0.98]"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 					>
 						<Trash2 class="w-3.5 h-3.5 text-fg/60" />
 						<span>{t("settings.clearLogs", { size: formatBytes(storageReport?.logsBytes || 0) })}</span>
@@ -1021,7 +1109,7 @@
 					<button
 						type="button"
 						onclick={handleClearCacheAction}
-						class="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold border border-red-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-2 active:scale-[0.98]"
+						class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-2" })}
 					>
 						<Trash2 class="w-3.5 h-3.5 text-red-400" />
 						<span>{t("settings.clearCacheSize", { size: formatBytes(storageReport?.cacheBytes || 0) })}</span>
@@ -1034,7 +1122,7 @@
 					<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 shadow-sm flex flex-col justify-between gap-2">
 						<div class="flex items-center justify-between">
 							<span class="text-xs font-semibold text-fg/60 capitalize">
-								{cat.category === "libraries" ? t("settings.catLibraries") : cat.category === "assets" ? t("settings.catAssets") : cat.category === "versions" ? t("settings.catVersions") : cat.category === "instances" ? t("settings.catInstances") : cat.category === "mods" ? t("settings.catMods") : cat.category === "logs" ? t("settings.catLogs") : t("settings.catCache")}
+								{storageLabels[cat.category] || cat.category}
 							</span>
 							{#if cat.category === "instances"}
 								<Layers class="w-3.5 h-3.5 text-brand-400" />
@@ -1056,21 +1144,21 @@
 			<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-6 shadow-sm space-y-4">
 				<div class="flex items-center justify-between">
 					<div class="space-y-0.5">
-						<h3 class="text-sm font-bold text-fg">Armazenamento por Instância & Modpack</h3>
-						<p class="text-xs text-fg/50">Espaço real consumido no disco por cada perfil instalado</p>
+						<h3 class="text-sm font-bold text-fg">{uiText("ui.4329f6fb2641e622")}</h3>
+						<p class="text-xs text-fg/50">{uiText("ui.e15ab977c040680c")}</p>
 					</div>
 					<span class="text-xs font-mono font-bold text-fg/50">
-						{storageReport?.instances.length || 0} instaladas
+						{storageReport?.instances.length || 0} {uiText("ui.0f3119365532fb7c")}
 					</span>
 				</div>
 
 				{#if !storageReport?.instances || storageReport.instances.length === 0}
 					<div class="py-8 text-center text-xs text-fg/40">
-						Nenhuma instância encontrada no diretório local.
+						{uiText("ui.0adaa187d69a7cca")}
 					</div>
 				{:else}
 					<div class="divide-y divide-white/5">
-							{#each storageReport.instances as inst}
+							{#each storageReport.instances as inst (inst.id)}
 								{@const iconSrc = getIconSrc(inst.icon)}
 							<div class="flex items-center justify-between py-3.5 gap-4">
 								<div class="flex items-center gap-3.5 min-w-0">
@@ -1097,9 +1185,9 @@
 									</span>
 									<button
 										type="button"
-										title="Excluir instância permanentemente do disco"
+										title={uiText("ui.1f67d13e9ea1c02c")}
 										onclick={() => confirmingDeleteInstance = inst}
-										class="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-95"
+										class={launcherButton({ variant: "danger", size: "icon", class: "" })}
 									>
 										<Trash2 class="w-4 h-4" />
 									</button>
@@ -1113,7 +1201,7 @@
 			<div class="bg-bg-elevated border border-fg/5 rounded-3xl px-6 py-6 shadow-sm space-y-4">
 				<div class="space-y-1 max-w-xl">
 					<h3 class="text-sm font-bold text-fg">{t("settings.runtimeTitle")}</h3>
-					<p class="text-xs text-fg/50 leading-relaxed">Diretório onde instâncias, mods, bibliotecas, assets e arquivos de configuração são armazenados</p>
+					<p class="text-xs text-fg/50 leading-relaxed">{uiText("ui.2b7fcd195a237a22")}</p>
 				</div>
 
 				<div class="flex items-center gap-3">
@@ -1125,10 +1213,11 @@
 					/>
 					<button
 						type="button"
-						onclick={() => openUrl(runtimePath)}
-						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 cursor-pointer shrink-0"
+						disabled={!runtimePath}
+                        onclick={() => appOpenDataDirectory().catch(error => toast(String(error), "error"))}
+						class={launcherButton({ variant: "secondary", size: "sm", class: "shrink-0" })}
 					>
-						Abrir Pasta
+						{uiText("screenshots.openFolder")}
 					</button>
 				</div>
 			</div>
@@ -1143,22 +1232,22 @@
 						<AlertCircle class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-base font-bold text-fg">Excluir Instância do Disco?</h3>
-						<p class="text-xs text-fg/50">Esta ação é irreversível e liberará espaço no armazenamento.</p>
+						<h3 class="text-base font-bold text-fg">{uiText("ui.91d84bee8890761b")}</h3>
+						<p class="text-xs text-fg/50">{uiText("ui.c7842b815f11bb3e")}</p>
 					</div>
 				</div>
 
 				<div class="bg-fg/[0.03] border border-fg/5 rounded-2xl p-4 space-y-2 text-xs">
 					<div class="flex justify-between text-fg">
-						<span class="text-fg/50">Instância:</span>
+						<span class="text-fg/50">{uiText("ui.cb504267d059e7fa")}</span>
 						<span class="font-bold">{confirmingDeleteInstance.name}</span>
 					</div>
 					<div class="flex justify-between text-fg">
-						<span class="text-fg/50">Versão / Loader:</span>
+						<span class="text-fg/50">{uiText("ui.c4a9358e97dbf5b0")}</span>
 						<span class="font-mono">{confirmingDeleteInstance.mcVersion} ({confirmingDeleteInstance.loader})</span>
 					</div>
 					<div class="flex justify-between text-fg">
-						<span class="text-fg/50">Espaço a ser liberado:</span>
+						<span class="text-fg/50">{uiText("ui.1f681dc01135f8fe")}</span>
 						<span class="font-bold font-mono text-emerald-400">{formatBytes(confirmingDeleteInstance.bytes)}</span>
 					</div>
 				</div>
@@ -1167,22 +1256,22 @@
 					<button
 						type="button"
 						onclick={() => confirmingDeleteInstance = null}
-						class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg text-xs font-bold border border-fg/10 cursor-pointer"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 					>
-						Cancelar
+						{uiText("common.cancel")}
 					</button>
 					<button
 						type="button"
 						disabled={deletingInstanceId !== null}
 						onclick={() => handleDeleteInstance(confirmingDeleteInstance!)}
-						class="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-bold shadow-lg shadow-red-500/25 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer disabled:opacity-50 active:scale-95 flex items-center gap-2"
+						class={launcherButton({ variant: "danger", size: "sm", class: "disabled:opacity-50 flex items-center gap-2" })}
 					>
 						{#if deletingInstanceId}
 							<RefreshCw class="w-3.5 h-3.5 animate-spin" />
-							<span>Excluindo...</span>
+							<span>{uiText("ui.abba6d98c1f6fc8f")}</span>
 						{:else}
 							<Trash2 class="w-3.5 h-3.5" />
-							<span>Excluir do Disco</span>
+							<span>{uiText("ui.6930e70bb14980df")}</span>
 						{/if}
 					</button>
 				</div>
@@ -1190,4 +1279,6 @@
 		</div>
 	{/if}
 
+    <SettingsExtras section={activeTab} />
+    </div>
 </div>

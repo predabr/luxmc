@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+	import { runtimePlatform } from "$lib/stores/platform.svelte";
 	import { Zap, Gamepad2 } from "lucide-svelte";
 	import { discordSetActivity } from "$lib/api";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -22,17 +24,17 @@
 		onDiscordRpcChange(next);
 		if (next) {
 			const ok = await discordSetActivity({
-				details: "Configurações do Launcher",
-				state: "v1.5.4-beta · Linux",
-				largeText: "Luxmc Launcher (Linux)",
+				details: uiText("ui.7cccac6544c65648"),
+				state: runtimePlatform.label,
+				largeText: "Luxmc Launcher",
 				largeImage: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png",
 				smallImage: "grass",
-				smallText: "Minecraft Linux"
+				smallText: `Minecraft · ${runtimePlatform.label}`
 			});
 			if (ok) {
-				toast("Discord Rich Presence conectado com sucesso!", "success");
+				toast(uiText("ui.3bbe0b4ae4fb2b8d"), "success");
 			} else {
-				toast("Discord RPC ativado! Certifique-se de que o Discord está aberto.", "info");
+				toast(uiText("ui.72db757d4478c417"), "info");
 			}
 		} else {
 			toast("Discord Rich Presence desativado.", "info");
@@ -42,20 +44,20 @@
 
 <div class="space-y-3">
 	<!-- Performance Mode -->
-	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]">
+	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity]">
 		<div class="flex items-center gap-3">
 			<div class="w-9 h-9 rounded-xl bg-fg/5 flex items-center justify-center text-orange-400">
 				<Zap class="w-4 h-4" />
 			</div>
 			<div>
-				<div class="text-xs font-bold text-fg">Modo Desempenho</div>
-				<div class="text-[10px] text-fg/40">Remove efeitos visuais pesados para melhorar FPS</div>
+				<div class="text-xs font-bold text-fg">{uiText("ui.7cf5d0f1963a5634")}</div>
+				<div class="text-[10px] text-fg/40">{uiText("ui.192a4a5f179f5e06")}</div>
 			</div>
 		</div>
 		<button
 			type="button"
 			role="switch"
-			aria-label="Modo desempenho"
+			aria-label={uiText("ui.4e4fd99bf0431ab4")}
 			aria-checked={performanceMode}
 			class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {performanceMode ? 'bg-brand-400' : 'bg-bg-subtle'}"
 			onclick={() => onPerformanceModeChange(!performanceMode)}
@@ -65,20 +67,20 @@
 	</div>
 
 	<!-- Discord RPC -->
-	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]">
+	<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3 flex items-center justify-between hover:border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity]">
 		<div class="flex items-center gap-3">
 			<div class="w-9 h-9 rounded-xl bg-fg/5 flex items-center justify-center text-indigo-400">
 				<Gamepad2 class="w-4 h-4" />
 			</div>
 			<div>
-				<div class="text-xs font-bold text-fg">Discord Rich Presence</div>
-				<div class="text-[10px] text-fg/40">Mostra seu status no Discord enquanto joga</div>
+				<div class="text-xs font-bold text-fg">{uiText("settings.discordRpcTitle")}</div>
+				<div class="text-[10px] text-fg/40">{uiText("ui.097c7496deda1697")}</div>
 			</div>
 		</div>
 		<button
 			type="button"
 			role="switch"
-			aria-label="Discord Rich Presence"
+			aria-label={uiText("settings.discordRpcTitle")}
 			aria-checked={discordRpc}
 			class="w-11 h-6 rounded-full transition-colors duration-200 relative flex items-center px-0.5 cursor-pointer shrink-0 {discordRpc ? 'bg-brand-400' : 'bg-bg-subtle'}"
 			onclick={toggleDiscordRpc}

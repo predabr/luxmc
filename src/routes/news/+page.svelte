@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
     import { onMount } from "svelte";
     import { newsState } from "$lib/stores/news.svelte";
     onMount(() => { void newsState.load(); });
@@ -35,227 +37,239 @@
 		image: string;
 	};
 
-	const launcherNews: LauncherArticle[] = [
+	const launcherNews: LauncherArticle[] = $derived([
+        {
+            id: "v3.0.0",
+            title: uiText("release3.title"),
+            tag: "3.0",
+            tagColor: "text-brand-400 bg-brand-500/10 border-brand-500/30",
+            date: "2026-10-05",
+            version: "v3.0.0",
+            image: "/news_1.jpg",
+            summary: uiText("release3.summary"),
+            highlights: ["appearance", "skins", "content", "social", "updates"].map(key => uiText(`release3.${key}`)),
+            link: "https://github.com/predabr/luxmc/releases/tag/v3.0.0"
+        },
 		{
 			id: "v2.0.2",
-			title: "Luxmc v2.0.2 — Correções Críticas: Auto-Updater Atômico, Wallpapers & P2P",
+			title: uiText("ui.d05d6076df593be8"),
 			tag: "Hotfix",
 			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
 			date: "28 de Setembro, 2026",
 			version: "v2.0.2",
 			image: "/news_1.jpg",
-			summary: "A versão 2.0.2 traz correções essenciais para estabilidade: auto-atualizador atômico para AppImage/RPM/DEB, correção do streaming de vídeo de wallpapers, cutscene otimizada sem travamento no WebKitGTK, logos e banners com proporção preservada e modo local P2P à prova de falhas.",
+			summary: uiText("ui.d9dd7981b343ed2b"),
 			highlights: [
-				"Atualizador atômico para AppImages em execução e suporte automático a RPM via DNF/Zypper",
-				"Recuperação graciosa de migrações SQLite do banco de dados local",
-				"Wallpapers de vídeo com streaming nativo convertFileSrc sem dependência de portas locais",
-				"Cutscene leve com aceleração por hardware e fade-out suave sem lag de GPU/CPU",
-				"Banners e cards com proporção nativa e logos nítidos sem desfoque forçado",
-				"Painel de amigos com detecção instantânea de mundos LAN e modo offline resiliente"
+				uiText("ui.406b155788ea227f"),
+				uiText("ui.4f9ae0da40497eaa"),
+				uiText("ui.0090fb5de03ddb62"),
+				uiText("ui.fabd1dc579c5aa69"),
+				uiText("ui.cd9d119904babd9d"),
+				uiText("ui.a0ff55212743dab4")
 			],
 			link: "https://luxmc-r92.pages.dev"
 		},
 		{
 			id: "v2.0.1",
-			title: "Luxmc v2.0.1 — Fast Launch (<2s), GameMode/MangoHud, P2P Rooms & 1-Click Reparar Tudo",
+			title: uiText("ui.2e815bd562b6418c"),
 			tag: "Oficial",
 			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
 			date: "28 de Setembro, 2026",
 			version: "v2.0.1",
 			image: "/news_1.jpg",
-			summary: "A versão 2.0.1 traz Fast Launch com cache de integridade (<2s), integração nativa com GameMode, MangoHud e GPU dedicada, salas P2P com código curto LUX-XXXX e QR Code, além do botão Reparar Tudo com 1 clique.",
+			summary: uiText("ui.89e8aafdb7738026"),
 			highlights: [
-				"Fast Launch: cache SHA-256 de integridade iniciando instâncias em menos de 2 segundos",
+				uiText("ui.952e6935c7823d18"),
 				"Suporte a Feral GameMode, MangoHud, GPU Dedicada e Gamescope no Linux e Windows",
-				"Salas P2P com códigos curtos (LUX-XXXX), QR Code local e links diretos luxmc://",
-				"Atualização diferencial de modpacks com backup versionado e automático de mundos",
-				"Diagnóstico do sistema e botão Reparar Tudo em 1 clique nas instâncias"
+				uiText("ui.0fda044922482302"),
+				uiText("ui.bf90e88095e4ecd8"),
+				uiText("ui.8a402f9eaeba58d2")
 			],
 			link: "https://luxmc-r92.pages.dev"
 		},
 		{
 			id: "v2.0.0",
-			title: "Luxmc v2.0.0 — Nova Geração: Auto-Reparo de Modpacks, Capas HD e Máxima Performance",
+			title: uiText("ui.862b234fda958684"),
 			tag: "Oficial",
 			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
 			date: "27 de Setembro, 2026",
 			version: "v2.0.0",
 			image: "/news_1.jpg",
-			summary: "O grande marco da versão 2.0.0: auto-reparo silencioso de modpacks com CrashDoctor, renderização de capas sem distorção para qualquer proporção, controle manual absoluto de RAM e carregamento instantâneo de instâncias sem delays.",
+			summary: uiText("ui.1ac3832574384277"),
 			highlights: [
-				"Auto-reparo automático e silencioso de erros e dependências em modpacks",
-				"Suporte a capas HD, WebP e PNG mantendo proporções sem distorções",
-				"Controle total de alocação de memória RAM sem overrides automáticos",
-				"Navegação instantânea nas instâncias com pré-carregamento dinâmico",
-				"Otimização avançada de inicialização e redução drástica de stutters via AlwaysPreTouch"
+				uiText("ui.a55ba9203f33a180"),
+				uiText("ui.d052a2ae110003ce"),
+				uiText("ui.a16708645bc7060c"),
+				uiText("ui.bb4ee284878ded9b"),
+				uiText("ui.19be1747280647d3")
 			],
 			link: "https://luxmc-r92.pages.dev/#destaques"
 		},
 		{
 			id: "v1.9.2",
-			title: "Luxmc v1.9.2 — Pacotes .RPM, Correções de Modpacks e Personalização Total",
+			title: uiText("ui.b0ec68f51f5ceac6"),
 			tag: "Oficial",
 			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
 			date: "20 de Setembro, 2026",
 			version: "v1.9.2",
 			image: "/news_1.jpg",
-			summary: "Atualização v1.9.2 com suporte nativo a pacotes .rpm (Fedora/RHEL/openSUSE), correção de inicialização de modpacks pesados, skins 3D pixel-perfect e importação de wallpapers animados.",
+			summary: uiText("ui.b945108fc4ed55d8"),
 			highlights: [
-				"Atualizador automático oficial do Tauri 2 com verificação em background",
-				"Interface com layout fluído e personalizador de ponta a ponta",
-				"Controle estrito de memória e zero vazamentos de RAM",
-				"Suporte aprimorado a instâncias, capas e modpacks pesados",
-				"Transições suaves entre abas e renderização acelerada por hardware"
+				uiText("ui.ab8debedbcd9234f"),
+				uiText("ui.ffec3b78fca7316d"),
+				uiText("ui.170ee654508e01af"),
+				uiText("ui.8bbb8dcfb9e00775"),
+				uiText("ui.2fd10527b9912607")
 			],
 			link: "https://luxmc-r92.pages.dev/#destaques"
 		},
 		{
 			id: "v1.7.7",
-			title: "Luxmc v1.7.7 — Capas In-Game, Resolução Inteligente ATM10 & Shift Direito em Mods",
+			title: uiText("ui.285a4a6dc4b26f5d"),
 			tag: "Oficial",
 			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
 			date: "20 de Setembro, 2026",
 			version: "v1.7.7",
 			image: "/news_1.jpg",
-			summary: "Correção definitiva da colisão de dependências do modpack All The Mods 10 (ATM10), persistência de capas customizadas in-game e suporte a Shift Direito em instâncias com mods.",
+			summary: uiText("ui.0425ec60f7de9623"),
 			highlights: [
-				"Resolução inteligente de mods com prioridade a overrides e semver para ATM10",
-				"Persistência de capas do launcher (Enderman Minecon, Luxmc) in-game para contas MSA",
-				"Menu in-game com Shift Direito habilitado em instâncias modded (NeoForge, Forge, Fabric, Quilt)",
-				"Debounce atômico de 500ms prevenindo saída acidental do modo tela cheia",
-				"Correção de miniaturas quebradas na visualização de mods da instância"
+				uiText("ui.3c48838a82c3dde4"),
+				uiText("ui.868680ab3adfd364"),
+				uiText("ui.bdeb127f2c6e6e38"),
+				uiText("ui.c8c8b2f76ad805aa"),
+				uiText("ui.252cbc324c42d602")
 			],
 			link: "https://luxmc-r92.pages.dev/#destaques"
 		},
 		{
 			id: "v1.7.6",
-			title: "Luxmc v1.7.6 — Barra Lateral Translúcida, Suporte NeoForge ATM10 & Zero GLFW Crash",
+			title: uiText("ui.1c6695f79ab5078a"),
 			tag: "Oficial",
 			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
 
 			date: "20 de Setembro, 2026",
 			version: "v1.7.6",
 			image: "/news_1.jpg",
-			summary: "Atualização focada na sincronização estética da barra lateral com os temas e wallpapers dinâmicos, aceleração OpenGL WGL para modpacks NeoForge como All The Mods 11 e estabilidade total no Linux Wayland.",
+			summary: uiText("ui.096d2e6121729927"),
 			highlights: [
-				"Barra lateral com transparência adaptativa e desfoque ultra suave (backdrop-blur-2xl)",
-				"Resolução da falha de driver OpenGL WGL no Windows para modpacks NeoForge",
-				"Eliminação de travamentos de ícones GLFW no Linux Wayland nativo",
-				"Renovação perpétua e invisível de tokens Microsoft",
+				uiText("ui.369498434fdd39f4"),
+				uiText("ui.0b98e28831100ee5"),
+				uiText("ui.08f3db03d3231c8a"),
+				uiText("ui.dc34523bec6cd82f"),
 				"Consumo reduzido para menos de 85 MB de RAM em repouso"
 			],
 			link: "https://luxmc-r92.pages.dev/#destaques"
 		},
 		{
 			id: "v1.7.5",
-			title: "Luxmc v1.7.5 — GPU Acceleration, Suporte ao Espanhol & Modo Streamer",
+			title: uiText("ui.78a4a3c2094f520e"),
 			tag: "Oficial",
 			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
 			date: "19 de Setembro, 2026",
 			version: "v1.7.5",
 			image: "/news_1.jpg",
-			summary: "Nova versão trazendo aceleração de hardware nativa no WebKit, clique integral nos cards da biblioteca, novo idioma Espanhol (Español), painel de privacidade completo e capas de modpack dinâmicas.",
+			summary: uiText("ui.cbc2ab335e51d833"),
 			highlights: [
-				"Composição por GPU ativada com DMA-BUF / EGL sem travamentos ou lag de interface",
-				"Biblioteca responsiva: clique em qualquer lugar do card para abrir a instância",
-				"Novo idioma Espanhol (Español) integrado em toda a interface",
-				"Painel de Privacidade avançado com Modo Streamer e discrição no Discord Rich Presence",
-				"Tratamento automático de capas e banners para todos os modpacks CurseForge e Modrinth",
-				"Adicionar amigo simplificado com auto-busca e salvamento instantâneo"
+				uiText("ui.76f2b171999ace50"),
+				uiText("ui.94d9592a021f722a"),
+				uiText("ui.f7c8688222a21ebe"),
+				uiText("ui.a9bed1602167fdcd"),
+				uiText("ui.db03c8d72fc71e64"),
+				uiText("ui.19da4f5cb0f4f908")
 			],
 			link: "https://luxmc-r92.pages.dev/#releases"
 		},
 		{
 			id: "v1.7.4",
-			title: "Luxmc v1.7.4 — Correção Definitiva de Modpacks & CDN Resiliente",
+			title: uiText("ui.6aefc3733d8ff056"),
 			tag: "Oficial",
 			tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
 			date: "18 de Setembro, 2026",
 			version: "v1.7.4",
 			image: "/news_1.jpg",
-			summary: "Atualização com foco dedicado na estabilidade total do CurseForge e Modrinth, eliminação do bug de exclusão de mods, importação nativa de .mrpack e reparo automático no lançamento.",
+			summary: uiText("ui.2a1f490346077e93"),
 			highlights: [
-				"Correção definitiva da importação de modpacks CurseForge com preservação de 100% dos arquivos .jar",
+				uiText("ui.10d19756db00943d"),
 				"Download concorrente com pool de 6 workers e espelhos de CDN resilientes (Edge, Mediafilez)",
-				"Importação completa de modpacks Modrinth (.mrpack) com extração integral de overrides",
-				"Detecção inteligente de versão e arquitetura entre NeoForge e Forge clássico",
-				"Reparo automático de mods faltantes antes do lançamento da instância"
+				uiText("ui.c22f058a9b4e0a10"),
+				uiText("ui.6ffca4c4426897c7"),
+				uiText("ui.fdb88223360e88a2")
 			],
 			link: "https://luxmc-r92.pages.dev/#releases"
 		},
 		{
 			id: "v1.7.3",
-			title: "Luxmc v1.7.3 — Obsidian Performance & Paridade Total",
+			title: uiText("ui.fa5205d0d40662c9"),
 			tag: "Oficial",
 			tagColor: "text-blue-400 bg-blue-500/10 border-blue-500/30",
 			date: "18 de Setembro, 2026",
 			version: "v1.7.3",
 			image: "/news_1.jpg",
-			summary: "Atualização essencial focada na estabilidade da inicialização, paridade completa com Wayland/X11, novo sistema de amizades P2P com aceitação de convites em tempo real e visual de alto contraste.",
+			summary: uiText("ui.85a9ff3016b236b4"),
 			highlights: [
-				"Correção de inicialização direta do Minecraft Vanilla e Modpacks com tratamento de resolução adaptativa",
-				"Novo Hub de Amigos com gerenciamento de convites, aceitar/recusar solicitações e Direct Join UPnP",
-				"Renderização 3D de skins sem artefatos ou blocos pretos nas capas e texturas de braço",
-				"Botões de ação da instância redesenhados com contraste elevado e badges luminosos",
-				"Integração bidirecional direta com o site oficial e Studio 3D (luxmc-r92.pages.dev)"
+				uiText("ui.0ebe37a05e777add"),
+				uiText("ui.1bc603cc01017a00"),
+				uiText("ui.8fd495197fa8e1cc"),
+				uiText("ui.1ddb12a965b032dc"),
+				uiText("ui.0a47ae1305f6e136")
 			],
 			link: "https://luxmc-r92.pages.dev/#releases"
 		},
 		{
 			id: "v1.7.2",
-			title: "Lançamento do Portal Web e Studio 3D no Cloudflare Pages",
+			title: uiText("ui.23de5f9b1fac72b8"),
 			tag: "Ecossistema",
 			tagColor: "text-sky-400 bg-sky-500/10 border-sky-500/30",
 			date: "17 de Setembro, 2026",
 			version: "v1.7.2",
 			image: "/news_2.jpg",
-			summary: "O Luxmc agora possui um portal web moderno em luxmc-r92.pages.dev com estúdio tridimensional de skins, catálogo de modificações e downloads rápidos para Linux e Windows.",
+			summary: uiText("ui.a333a28110216834"),
 			highlights: [
-				"Visualizador e customizador 3D em tempo real na nuvem",
-				"Sincronização de skins do launcher com o portal",
-				"Bento grid interativo com métricas e benchmarks de memória RAM",
-				"Deploy global ultrarrápido na borda da Cloudflare"
+				uiText("ui.915ae50070789650"),
+				uiText("ui.422e2777c699f4ce"),
+				uiText("ui.2febcf68a5a44202"),
+				uiText("ui.a7a647bcdd203080")
 			],
 			link: "https://luxmc-r92.pages.dev"
 		},
 		{
 			id: "v1.7.0",
-			title: "Motor Zero-Lag e Hospedagem P2P com UPnP Nativo",
+			title: uiText("ui.2634d53dad9751d9"),
 			tag: "Recurso",
 			tagColor: "text-purple-400 bg-purple-500/10 border-purple-500/30",
 			date: "14 de Setembro, 2026",
 			version: "v1.7.0",
 			image: "/news_3.jpg",
-			summary: "Jogue com seus amigos em qualquer mundo de Minecraft sem precisar de portas manuais no roteador, Hamachi ou programas de terceiros.",
+			summary: uiText("ui.aaff198025de76ab"),
 			highlights: [
-				"Mapeamento dinâmico de portas UPnP residencial com zero configuração",
-				"Compartilhamento de link próprio de conexão direta luxmc://host/...",
-				"Radar de amigos em segundo plano com Ghost Ping de baixa latência"
+				uiText("ui.9c490ae8163316d8"),
+				uiText("ui.942166f7fc3901ee"),
+				uiText("ui.5158d73a8ba1db05")
 			],
 			link: "https://luxmc-r92.pages.dev"
 		},
 		{
 			id: "v1.6.5",
-			title: "Otimização Aikar's Flags e Ghost Mode de Memória RAM",
-			tag: "Otimização",
+			title: uiText("ui.f4c1660f63f6fb62"),
+			tag: uiText("ui.50289b98d5904394"),
 			tagColor: "text-amber-400 bg-amber-500/10 border-amber-500/30",
 			date: "10 de Setembro, 2026",
 			version: "v1.6.5",
 			image: "/news_4.jpg",
-			summary: "Inclusão de rotinas automáticas de redução de consumo de memória. O Luxmc libera memória ociosa assim que o jogo é lançado, garantindo FPS máximo.",
+			summary: uiText("ui.d53f3e061bd5f0e6"),
 			highlights: [
-				"Chamada de malloc_trim e liberação de cache em background",
-				"Aikar's Flags calculadas de acordo com a quantidade de RAM da sua máquina",
-				"Integração com GameMode do Linux para priorização de núcleos de CPU"
+				uiText("ui.35134f7e37f446dc"),
+				uiText("ui.f549caaa9f79b580"),
+				uiText("ui.bb37364bf8f81835")
 			],
 			link: "https://luxmc-r92.pages.dev"
 		}
-	];
+	]);
 
 	let selectedTab = $state<"news" | "launcher" | "changelog">("news");
     const officialNews: LauncherArticle[] = $derived(selectedTab === "launcher" ? launcherNews : newsState.items.map(item => ({
         ...item, tag: item.category, tagColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30", highlights: [],
-        date: new Date(`${item.date}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })
+        date: new Date(`${item.date}T12:00:00Z`).toLocaleDateString(currentUiLocale(), { timeZone: "UTC" })
     })));
 
 	async function openWebsite(url?: string) {
@@ -278,12 +292,12 @@
 			</div>
 			<div>
 				<h1 class="text-2xl font-black text-fg tracking-tight flex items-center gap-2.5">
-					Notícias do Luxmc
+					{uiText("ui.a698fb88fcb732dd")}
 					<span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-						Oficial
+						{uiText("ui.301b911d50083056")}
 					</span>
 				</h1>
-				<p class="text-xs text-fg/50 mt-0.5">Notas de atualização, novos recursos, melhorias do launcher e avisos da comunidade</p>
+				<p class="text-xs text-fg/50 mt-0.5">{uiText("ui.3ad808a60d02d8dc")}</p>
 			</div>
 		</div>
 
@@ -291,10 +305,10 @@
 			<button
 				type="button"
 				onclick={() => openWebsite("https://luxmc-r92.pages.dev")}
-				class="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold border border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-md active:scale-[0.98]"
+				class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 			>
 				<Globe class="w-4 h-4 text-emerald-400" />
-				<span>Visitar Site Oficial</span>
+				<span>{uiText("ui.969d6043dbac376f")}</span>
 				<ExternalLink class="w-3 h-3 text-fg/40" />
 			</button>
 		</div>
@@ -305,25 +319,25 @@
 		<button
 			type="button"
 			onclick={() => selectedTab = "news"}
-			class="px-5 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedTab === 'news' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
+			class="px-5 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {selectedTab === 'news' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 		>
-			Minecraft ({newsState.items.length})
+			{uiText("ui.71651d2d36a58ca8")}{newsState.items.length})
 		</button>
-        <button type="button" onclick={() => selectedTab = "launcher"} class="px-5 py-2 rounded-xl text-xs font-bold transition-colors {selectedTab === 'launcher' ? 'bg-fg/15 text-fg' : 'text-fg/60 hover:text-fg'}">Luxmc ({launcherNews.length})</button>
+        <button type="button" onclick={() => selectedTab = "launcher"} class="px-5 py-2 rounded-xl text-xs font-bold transition-colors {selectedTab === 'launcher' ? 'bg-fg/15 text-fg' : 'text-fg/60 hover:text-fg'}">{uiText("ui.c95fb566afc11204")}{launcherNews.length})</button>
 		<button
 			type="button"
 			onclick={() => selectedTab = "changelog"}
-			class="px-5 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedTab === 'changelog' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
+			class="px-5 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {selectedTab === 'changelog' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
 		>
-			Changelog Técnico
+			{uiText("ui.287076c525481ecf")}
 		</button>
 	</div>
 
 	{#if selectedTab !== "changelog"}
         {#if selectedTab === "news"}
             <div class="flex flex-wrap items-center justify-between gap-3 text-xs text-fg-muted" role="status">
-                <span>{newsState.loading ? "Atualizando notícias oficiais…" : newsState.error || (newsState.offline ? "Publicações salvas — confira as datas dos artigos." : `Fonte oficial Minecraft · atualizado ${new Date(newsState.updatedAt).toLocaleTimeString("pt-BR")}`)}</span>
-                <button type="button" class="luxmc-control" disabled={newsState.loading} onclick={() => newsState.load(true)}>Atualizar notícias</button>
+                <span>{newsState.loading ? uiText("ui.d449a2691da0e880") : newsState.error || (newsState.offline ? uiText("ui.9198ccb48ed7bd1c") : uiText("ui.72ac8ad3be3dd73b", {arg0: (new Date(newsState.updatedAt).toLocaleTimeString(currentUiLocale()))}))}</span>
+                <button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "luxmc-control" })} disabled={newsState.loading} onclick={() => newsState.load(true)}>{uiText("ui.8f1e47af1f2c6d7f")}</button>
             </div>
         {/if}
 		<!-- Featured Article -->
@@ -364,7 +378,7 @@
 
 						<div class="pt-2">
 							<h3 class="text-xs font-bold uppercase tracking-wider text-blue-400 mb-2.5 flex items-center gap-1.5">
-								<Sparkles class="w-3.5 h-3.5" /> Principais Destaques:
+								<Sparkles class="w-3.5 h-3.5" /> {uiText("ui.f3bec1b7ad6df31a")}
 							</h3>
 							<div class="grid grid-cols-1 gap-2">
 								{#each featured.highlights.slice(0, 3) as hl}
@@ -381,9 +395,9 @@
 						<button
 							type="button"
 							onclick={() => openWebsite(featured.link)}
-							class="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-fg text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-blue-600/20 active:scale-[0.98] cursor-pointer"
+							class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2" })}
 						>
-							<span>Ver Notas Completas</span>
+							<span>{uiText("ui.664e7082f85b56f5")}</span>
 							<ExternalLink class="w-3.5 h-3.5" />
 						</button>
 					</div>
@@ -393,11 +407,11 @@
 
 		<!-- Other Updates Grid -->
 		<div class="space-y-3 pt-2">
-			<h3 class="text-xs font-bold uppercase tracking-wider text-fg/50">Histórico de Atualizações</h3>
+			<h3 class="text-xs font-bold uppercase tracking-wider text-fg/50">{uiText("ui.f1bca52a404d541e")}</h3>
 
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 				{#each officialNews.slice(1) as article (article.id)}
-					<div class="rounded-3xl bg-bg-elevated border border-fg/10 hover:border-blue-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col justify-between overflow-hidden shadow-lg group">
+					<div class="rounded-3xl bg-bg-elevated border border-fg/10 hover:border-blue-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity] flex flex-col justify-between overflow-hidden shadow-lg group">
 						<div class="w-full h-36 relative overflow-hidden bg-bg">
 							<img loading="lazy" decoding="async" 
 								src={article.image} 
@@ -429,13 +443,13 @@
 							</div>
 
 							<div class="pt-2 border-t border-fg/5 flex items-center justify-between">
-								<span class="text-[10px] text-fg/40">Luxmc Launcher</span>
+								<span class="text-[10px] text-fg/40">{uiText("ui.d3094029aa08ec2c")}</span>
 								<button
 									type="button"
 									onclick={() => openWebsite(article.link)}
-									class="text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer transition-colors"
+									class={launcherButton({ variant: "ghost", size: "sm", class: "flex items-center gap-1" })}
 								>
-									<span>Detalhes</span>
+									<span>{uiText("ui.62c95076dbeb3160")}</span>
 									<ExternalLink class="w-3 h-3" />
 								</button>
 							</div>
@@ -450,7 +464,7 @@
 			{#snippet header()}
 				<div class="flex items-center gap-2">
 					<Sliders class="h-4 w-4 text-emerald-400" />
-					<span class="font-medium text-fg">Changelog Oficial do Projeto</span>
+					<span class="font-medium text-fg">{uiText("ui.dfd2f97727f4e2e8")}</span>
 				</div>
 			{/snippet}
 			<ChangelogPanel />

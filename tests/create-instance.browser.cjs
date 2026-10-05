@@ -1,4 +1,4 @@
-const { chromium } = require(process.env.LUXMC_PLAYWRIGHT_MODULE || 'playwright');
+const { chromium } = require(process.env.LUXMC_PLAYWRIGHT_MODULE || 'playwright-core');
 const assert = require('node:assert/strict');
 
 (async () => {
@@ -20,7 +20,8 @@ const assert = require('node:assert/strict');
             }
             if (command === 'plugin:store|load' || command === 'plugin:event|listen') return 1;
             if (command === 'plugin:store|get') return [{ animations: false, liveWallpaper: false, soundscapesEnabled: false }, true];
-            if (command === 'deep_links_take' || command === 'profiles_list' || command === 'instances_list' || command === 'java_scan' || command === 'screenshots_list') return [];
+            if (command === 'java_scan') return { runtimes: [] };
+            if (command === 'deep_links_take' || command === 'profiles_list' || command === 'instances_list' || command === 'screenshots_list') return [];
             if (command === 'get_system_specs') return { totalRamMb: 16384, osDistro: 'Linux', arch: 'x86_64' };
             if (command === 'optimizer_install_perf_pack') return [];
             return null;
@@ -30,19 +31,25 @@ const assert = require('node:assert/strict');
     });
     await page.goto('http://127.0.0.1:1420/instances');
     await page.getByRole('button', { name: 'Nova Instância' }).click();
+    await page.getByRole('button', { name: 'Criar instância' }).click();
+    await page.waitForFunction(() => window.createdProfiles.length === 1);
+    const vanilla = await page.evaluate(() => window.createdProfiles[0]);
+    assert.equal(vanilla.loader, 'vanilla');
+    assert.equal(vanilla.mcVersion, '1.21.4');
+    await page.getByRole('button', { name: 'Nova Instância' }).click();
     await page.getByRole('button', { name: 'NeoForge', exact: true }).click();
     await page.getByRole('button', { name: 'Criar instância' }).isEnabled();
     await page.getByRole('button', { name: 'Criar instância' }).click();
-    await page.waitForFunction(() => window.createdProfiles.length === 1);
-    const created = await page.evaluate(() => window.createdProfiles[0]);
+    await page.waitForFunction(() => window.createdProfiles.length === 2);
+    const created = await page.evaluate(() => window.createdProfiles[1]);
     assert.equal(created.loader, 'neoforge');
     assert.equal(created.loaderVersion, '21.4.158');
     await page.getByRole('button', { name: 'Nova Instância' }).click();
     await page.getByRole('button', { name: 'NeoForge', exact: true }).click();
     await page.getByRole('button', { name: 'Última', exact: true }).click();
     await page.getByRole('button', { name: 'Criar instância' }).click();
-    await page.waitForFunction(() => window.createdProfiles.length === 2);
-    const latest = await page.evaluate(() => window.createdProfiles[1]);
+    await page.waitForFunction(() => window.createdProfiles.length === 3);
+    const latest = await page.evaluate(() => window.createdProfiles[2]);
     assert.equal(latest.loaderVersion, '21.4.159-beta');
     assert.deepEqual(errors, []);
     console.log(JSON.stringify({ loader: created.loader, stable: created.loaderVersion, latest: latest.loaderVersion, errors }));

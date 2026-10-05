@@ -5,6 +5,9 @@ import type {
 	ModProjectDetails,
 } from "./types";
 
+const searchCache = new Map<string, { expires: number; items: ModSearchResultItem[] }>();
+const pendingSearches = new Map<string, Promise<ModSearchResultItem[]>>();
+
 export async function modsSearch(
 	query: string,
 	mcVersion: string,
@@ -16,17 +19,20 @@ export async function modsSearch(
 	category?: string,
 	source?: string
 ): Promise<Array<ModSearchResultItem>> {
-	return api.invoke("mods_search", {
-		query,
-		mcVersion,
-		limit,
-		offset,
-		contentType,
-		sortBy,
-		loader,
-		category,
-		source
-	});
+    const args = { query, mcVersion, limit, offset, contentType, sortBy, loader, category, source };
+    const key = JSON.stringify(args);
+    const cached = searchCache.get(key);
+    if (cached && cached.expires > Date.now()) return cached.items;
+    if (cached) searchCache.delete(key);
+    const pending = pendingSearches.get(key);
+    if (pending) return pending;
+    const request = api.invoke<ModSearchResultItem[]>("mods_search", args).then(items => {
+        if (searchCache.size >= 48) searchCache.delete(searchCache.keys().next().value!);
+        searchCache.set(key, { items, expires: Date.now() + 120_000 });
+        return items;
+    }).finally(() => pendingSearches.delete(key));
+    pendingSearches.set(key, request);
+    return request;
 }
 
 export async function modsSearchTyped(
@@ -79,6 +85,7 @@ export async function modsInstall(request: {
 	versionId: string;
 	source: string;
 	contentType?: string;
+    worldName?: string;
 }): Promise<void> {
 	return api.invoke("mods_install", { request });
 }

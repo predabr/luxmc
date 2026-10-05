@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { quintOut } from "svelte/easing";
 	import { fade } from 'svelte/transition';
 	import { Loader } from 'lucide-svelte';
@@ -9,7 +10,7 @@
 		progress?: number;
 	}
 
-	let { isOpen, message = 'Carregando...', progress }: Props = $props();
+	let { isOpen, message = uiText("app.loading"), progress }: Props = $props();
 </script>
 
 {#if isOpen}
@@ -26,7 +27,7 @@
 			{#if progress !== undefined}
 				<div class="w-32 h-1 bg-bg-hover rounded-full overflow-hidden">
 					<div
-						class="h-full bg-brand transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300"
+						class="h-full bg-brand transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300"
 						style={`width: ${progress}%`}
 					></div>
 				</div>

@@ -21,6 +21,8 @@ pub struct ModInstallRequest {
     #[serde(default = "default_source")]
     pub source: String,
     pub content_type: Option<String>,
+    #[serde(default)]
+    pub world_name: Option<String>,
 }
 
 fn default_source() -> String {
@@ -32,6 +34,15 @@ fn normalize_slug(s: &str) -> String {
         .replace(['-', '_'], "")
         .trim()
         .to_string()
+}
+
+fn safe_file_name(name: &str) -> String {
+    std::path::Path::new(name)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .filter(|n| !n.is_empty() && *n != "." && *n != "..")
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| "mod.jar".to_string())
 }
 
 fn dedup_results(mut combined: Vec<ModSearchResult>) -> Vec<ModSearchResult> {
@@ -56,7 +67,6 @@ fn get_mods_search_cache() -> &'static DashMap<String, (Instant, Vec<ModSearchRe
     MODS_SEARCH_CACHE.get_or_init(DashMap::new)
 }
 
-#[tauri::command]
 pub async fn mods_search_core(
     state: &AppState,
     query: String,
@@ -293,13 +303,34 @@ pub async fn mods_list(profileId: String) -> AppResult<Vec<ModRow>> {
     crate::db::schema::mods::list_by_profile(&db, &profileId).await
 }
 
+async fn datapack_directory(game_dir: &str, name: Option<&str>) -> AppResult<std::path::PathBuf> {
+        let name = name.ok_or_else(|| crate::error::AppError::InvalidInput("Selecione o mundo que receberá o datapack".into()))?;
+        if name.is_empty() || name.contains(['/', '\\']) || name == "." || name == ".." { return Err(crate::error::AppError::InvalidInput("Mundo inválido".into())); }
+        let saves = tokio::fs::canonicalize(std::path::PathBuf::from(game_dir).join("saves")).await?;
+        let world = tokio::fs::canonicalize(saves.join(name)).await?;
+        if world.parent() != Some(saves.as_path()) || !world.join("level.dat").is_file() { return Err(crate::error::AppError::InvalidInput("Mundo inválido".into())); }
+        let dir = world.join("datapacks");
+        tokio::fs::create_dir_all(&dir).await?;
+        if tokio::fs::canonicalize(&dir).await?.parent() != Some(world.as_path()) { return Err(crate::error::AppError::InvalidInput("Pasta de datapacks inválida".into())); }
+        Ok(dir)
+}
+
 pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> AppResult<()> {
     tracing::info!(profile_id = %request.profile_id, project_id = %request.project_id, version_id = %request.version_id, source = %request.source, content_type = ?request.content_type, "mods_install called");
-    let target_subfolder = match request.content_type.as_deref().unwrap_or("mod").to_lowercase().as_str() {
-        "shader" | "shaders" => "shaderpacks",
-        "resourcepack" | "resource pack" | "resource_pack" => "resourcepacks",
-        "datapack" | "data pack" | "data_pack" | "datapacks" => "datapacks",
-        _ => "mods",
+    let content_type = request.content_type.as_deref().unwrap_or("mod").to_lowercase();
+    let is_world = matches!(
+        content_type.as_str(),
+        "world" | "worlds" | "world pack" | "world_pack" | "worldpack"
+    );
+    let target_subfolder = if is_world {
+        "world-import"
+    } else {
+        match content_type.as_str() {
+            "shader" | "shaders" => "shaderpacks",
+            "resourcepack" | "resource pack" | "resource_pack" => "resourcepacks",
+            "datapack" | "data pack" | "data_pack" | "datapacks" => "datapacks",
+            _ => "mods",
+        }
     };
 
     let db = crate::db::shared_db().await?;
@@ -308,8 +339,15 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
         .fetch_optional(db.pool())
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {} not found", request.profile_id)))?;
-    let target_dir = std::path::PathBuf::from(&profile.game_dir).join(target_subfolder);
-    tokio::fs::create_dir_all(&target_dir).await?;
+    let target_dir = if is_world {
+        std::env::temp_dir().join(format!("luxmc-world-{}", uuid::Uuid::new_v4()))
+    } else if target_subfolder == "datapacks" {
+        datapack_directory(&profile.game_dir, request.world_name.as_deref()).await?
+    } else {
+        let dir = std::path::PathBuf::from(&profile.game_dir).join(target_subfolder);
+        tokio::fs::create_dir_all(&dir).await?;
+        dir
+    };
 
     let (file_url, file_name, _file_size, file_sha1) = match request.source.as_str() {
         "curseforge" => {
@@ -354,6 +392,7 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
             )
         }
     };
+    let file_name = safe_file_name(&file_name);
 
     tracing::info!(
         source = %request.source,
@@ -364,7 +403,6 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
         url = %file_url,
         "downloading item"
     );
-
     let edge_fallback_url = if request.source == "curseforge" {
         if let Ok(id_num) = request.version_id.parse::<u64>() {
             let p1 = id_num / 1000;
@@ -409,10 +447,11 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
 
     use futures_util::StreamExt;
     use tokio::io::AsyncWriteExt;
+    let fallback_name = if is_world { "world.zip" } else { "mod.jar" };
     let safe_name = std::path::Path::new(&file_name)
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or("mod.jar");
+        .unwrap_or(fallback_name);
     let file_path = target_dir.join(safe_name);
     let tmp_path = target_dir.join(format!("{}.{}.part", safe_name, uuid::Uuid::new_v4()));
     let write_result: AppResult<()> = async {
@@ -437,6 +476,14 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
     if let Err(error) = write_result {
         let _ = tokio::fs::remove_file(&tmp_path).await;
         return Err(error);
+    }
+
+    if is_world {
+        let source = file_path.to_string_lossy().to_string();
+        let imported =
+            crate::commands::instances::instance_world_import(profile.id.clone(), source).await;
+        let _ = tokio::fs::remove_dir_all(&target_dir).await;
+        return imported.map(|_| ());
     }
 
     let resolved_profile_id = profile.id.clone();
@@ -559,7 +606,7 @@ pub async fn mods_install_with_deps_core(
                     profile_id: resolved_profile_id.clone(),
                     project_id: project_id.clone(),
                     version_id: version.id.clone(),
-                    file_name: file.filename.clone(),
+                    file_name: safe_dep_name.to_string(),
                     sha1: file.sha1.clone(),
                     source: source.clone(),
                     installed_at: String::new(),
@@ -630,8 +677,9 @@ pub async fn mods_remove(
     .await?;
 
     if let Some(m) = old {
+        let file_name = safe_file_name(&m.file_name);
         if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
-            let p = base_dir.data_dir().join("mods").join(&profileId).join(&m.file_name);
+            let p = base_dir.data_dir().join("mods").join(&profileId).join(&file_name);
             let _ = tokio::fs::remove_file(p).await;
         }
         let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -639,9 +687,9 @@ pub async fn mods_remove(
             .fetch_optional(db.pool())
             .await?;
         if let Some(prof) = profile {
-            let p = std::path::PathBuf::from(&prof.game_dir).join("mods").join(&m.file_name);
+            let p = std::path::PathBuf::from(&prof.game_dir).join("mods").join(&file_name);
             let _ = tokio::fs::remove_file(p).await;
-            let p_disabled = std::path::PathBuf::from(&prof.game_dir).join("mods").join(format!("{}.disabled", m.file_name));
+            let p_disabled = std::path::PathBuf::from(&prof.game_dir).join("mods").join(format!("{}.disabled", file_name));
             let _ = tokio::fs::remove_file(p_disabled).await;
         }
     }
@@ -766,7 +814,8 @@ pub async fn mods_update_core(
     )
     .bind(&profile_id)
     .fetch_optional(db.pool())
-    .await?;
+    .await?
+    .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profile_id} not found")))?;
 
     let source = old
         .as_ref()
@@ -780,7 +829,7 @@ pub async fn mods_update_core(
     tokio::fs::create_dir_all(&mods_dir).await?;
 
     if let Some(ref old_mod) = old {
-        let old_path = mods_dir.join(&old_mod.file_name);
+        let old_path = mods_dir.join(safe_file_name(&old_mod.file_name));
         let _ = tokio::fs::remove_file(&old_path).await;
     }
 
@@ -813,6 +862,7 @@ pub async fn mods_update_core(
             (file.url.clone(), file.filename.clone(), file.sha1.clone())
         }
     };
+    let file_name = safe_file_name(&file_name);
 
     let resp = state.http.get(&file_url).send().await?.error_for_status()?;
     let file_path = mods_dir.join(&file_name);
@@ -825,17 +875,16 @@ pub async fn mods_update_core(
     dest_file.flush().await?;
     drop(dest_file);
 
-    if let Some(ref prof) = profile {
-        let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
-        let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
-        if let Some(ref old_mod) = old {
-            let old_game_path = prof_mods_dir.join(&old_mod.file_name);
-            let _ = tokio::fs::remove_file(&old_game_path).await;
-            let old_disabled_path = prof_mods_dir.join(format!("{}.disabled", old_mod.file_name));
-            let _ = tokio::fs::remove_file(&old_disabled_path).await;
-        }
-        let _ = tokio::fs::copy(&file_path, prof_mods_dir.join(&file_name)).await;
+    let prof_mods_dir = std::path::PathBuf::from(&profile.game_dir).join("mods");
+    tokio::fs::create_dir_all(&prof_mods_dir).await?;
+    if let Some(ref old_mod) = old {
+        let old_file_name = safe_file_name(&old_mod.file_name);
+        let old_game_path = prof_mods_dir.join(&old_file_name);
+        let _ = tokio::fs::remove_file(&old_game_path).await;
+        let old_disabled_path = prof_mods_dir.join(format!("{}.disabled", old_file_name));
+        let _ = tokio::fs::remove_file(&old_disabled_path).await;
     }
+    tokio::fs::copy(&file_path, prof_mods_dir.join(&file_name)).await?;
 
     let mod_row = crate::db::schema::mods::ModRow {
         profile_id: profile_id.clone(),
@@ -956,8 +1005,8 @@ pub fn extract_mod_name_from_jar(jar_path: &std::path::Path) -> Option<String> {
     let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file)).ok()?;
 
     // 1. Try fabric.mod.json
-    if let Ok(entry) = archive.by_name("fabric.mod.json") {
-        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+    if let Ok(mut entry) = archive.by_name("fabric.mod.json") {
+        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(std::io::Read::take(&mut entry, 4 * 1024 * 1024)) {
             if let Some(name) = json.get("name").and_then(|n| n.as_str()) {
                 if !name.trim().is_empty() {
                     return Some(name.trim().to_string());
@@ -972,8 +1021,8 @@ pub fn extract_mod_name_from_jar(jar_path: &std::path::Path) -> Option<String> {
     }
 
     // 2. Try quilt.mod.json
-    if let Ok(entry) = archive.by_name("quilt.mod.json") {
-        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+    if let Ok(mut entry) = archive.by_name("quilt.mod.json") {
+        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(std::io::Read::take(&mut entry, 4 * 1024 * 1024)) {
             if let Some(name) = json.pointer("/quilt_loader/metadata/name").and_then(|n| n.as_str()) {
                 if !name.trim().is_empty() {
                     return Some(name.trim().to_string());
@@ -987,7 +1036,7 @@ pub fn extract_mod_name_from_jar(jar_path: &std::path::Path) -> Option<String> {
         if let Ok(mut entry) = archive.by_name(toml_name) {
             use std::io::Read;
             let mut content = String::new();
-            if entry.read_to_string(&mut content).is_ok() {
+            if entry.by_ref().take(1024 * 1024).read_to_string(&mut content).is_ok() {
                 for line in content.lines() {
                     let trimmed = line.trim();
                     if trimmed.starts_with("displayName") {
@@ -1004,8 +1053,8 @@ pub fn extract_mod_name_from_jar(jar_path: &std::path::Path) -> Option<String> {
     }
 
     // 4. Try mcmod.info
-    if let Ok(entry) = archive.by_name("mcmod.info") {
-        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+    if let Ok(mut entry) = archive.by_name("mcmod.info") {
+        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(std::io::Read::take(&mut entry, 4 * 1024 * 1024)) {
             let item = if let Some(arr) = json.as_array() {
                 arr.first()
             } else if let Some(modlist) = json.get("modList").and_then(|m| m.as_array()) {
@@ -1026,8 +1075,77 @@ pub fn extract_mod_name_from_jar(jar_path: &std::path::Path) -> Option<String> {
     None
 }
 
-pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
+fn mod_icon_data_url(bytes: &[u8]) -> Option<String> {
     use base64::Engine;
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().ok()?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(8192);
+    limits.max_image_height = Some(8192);
+    limits.max_alloc = Some(32 * 1024 * 1024);
+    reader.limits(limits);
+    let source = reader.decode().ok()?;
+    let icon = source.thumbnail(128, 128);
+    let mut output = std::io::Cursor::new(Vec::new());
+    icon.write_to(&mut output, image::ImageFormat::Png).ok()?;
+    if output.get_ref().len() > 24_000 {
+        output = std::io::Cursor::new(Vec::new());
+        source.thumbnail(64, 64).write_to(&mut output, image::ImageFormat::Png).ok()?;
+    }
+    Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(output.into_inner())))
+}
+
+pub(crate) fn compact_mod_icon(icon: &str) -> String {
+    use base64::Engine;
+    if icon.len() > 32_768 && icon.len() < 2_700_000 && icon.starts_with("data:image/") {
+        if let Some((header, encoded)) = icon.split_once(',') {
+            if header.ends_with(";base64") {
+                if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(encoded) {
+                    if let Some(compact) = mod_icon_data_url(&bytes) { return compact; }
+                }
+            }
+        }
+    }
+    icon.to_owned()
+}
+
+pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
+    type IconKey = (std::path::PathBuf, u64, Option<std::time::SystemTime>);
+    #[derive(Default)]
+    struct IconCache {
+        entries: std::collections::HashMap<IconKey, Option<String>>,
+        bytes: usize,
+    }
+    static CACHE: std::sync::LazyLock<std::sync::Mutex<IconCache>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(IconCache::default()));
+    let metadata = std::fs::metadata(jar_path).ok()?;
+    let key = (jar_path.to_path_buf(), metadata.len(), metadata.modified().ok());
+    if let Ok(cache) = CACHE.lock() {
+        if let Some(icon) = cache.entries.get(&key) { return icon.clone(); }
+    }
+    let icon = read_mod_icon_from_jar(jar_path);
+    if let Ok(mut cache) = CACHE.lock() {
+        let bytes = icon.as_ref().map_or(0, String::len);
+        if cache.entries.len() >= 4096 || cache.bytes + bytes > 32 * 1024 * 1024 {
+            cache.entries.clear();
+            cache.bytes = 0;
+        }
+        if !cache.entries.contains_key(&key) {
+            cache.bytes += bytes;
+            cache.entries.insert(key, icon.clone());
+        }
+    }
+    icon
+}
+
+fn metadata_icon_path(value: &serde_json::Value) -> Option<String> {
+    let path = value.as_str().map(str::to_owned).or_else(|| {
+        value.as_object()?.iter().filter_map(|(size, path)| Some((size.parse::<u32>().ok()?, path.as_str()?)))
+            .min_by_key(|(size, _)| size.abs_diff(128)).map(|(_, path)| path.to_owned())
+    })?;
+    let normalized = path.replace('\\', "/");
+    Some(normalized.trim_start_matches('/').trim_start_matches("./").to_owned())
+}
+
+fn read_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
     use std::io::Read;
     let file = std::fs::File::open(jar_path).ok()?;
     let mut archive = zip::ZipArchive::new(std::io::BufReader::new(file)).ok()?;
@@ -1035,30 +1153,22 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
     let mut icon_path: Option<String> = None;
     let mut mod_id: Option<String> = None;
 
-    if let Ok(entry) = archive.by_name("fabric.mod.json") {
-        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+    if let Ok(mut entry) = archive.by_name("fabric.mod.json") {
+        if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(std::io::Read::take(&mut entry, 4 * 1024 * 1024)) {
             if let Some(id) = json.get("id").and_then(|i| i.as_str()) {
                 mod_id = Some(id.trim().to_string());
             }
-            if let Some(icon) = json.get("icon").and_then(|i| i.as_str()) {
-                icon_path = Some(icon.trim_start_matches('/').to_string());
-            } else if let Some(icons) = json.get("icon").and_then(|i| i.as_object()) {
-                if let Some(first) = icons.values().next().and_then(|v| v.as_str()) {
-                    icon_path = Some(first.trim_start_matches('/').to_string());
-                }
-            }
+            icon_path = json.get("icon").and_then(metadata_icon_path);
         }
     }
 
     if icon_path.is_none() {
-        if let Ok(entry) = archive.by_name("quilt.mod.json") {
-            if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+        if let Ok(mut entry) = archive.by_name("quilt.mod.json") {
+            if let Ok(json) = serde_json::from_reader::<_, serde_json::Value>(std::io::Read::take(&mut entry, 4 * 1024 * 1024)) {
                 if let Some(id) = json.pointer("/quilt_loader/id").and_then(|i| i.as_str()) {
                     mod_id = Some(id.trim().to_string());
                 }
-                if let Some(icon) = json.pointer("/quilt_loader/metadata/icon").and_then(|i| i.as_str()) {
-                    icon_path = Some(icon.trim_start_matches('/').to_string());
-                }
+                icon_path = json.pointer("/quilt_loader/metadata/icon").and_then(metadata_icon_path);
             }
         }
     }
@@ -1066,8 +1176,9 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
     if icon_path.is_none() || mod_id.is_none() {
         for toml_name in &["META-INF/neoforge.mods.toml", "META-INF/mods.toml"] {
             if let Ok(mut entry) = archive.by_name(toml_name) {
+                use std::io::Read;
                 let mut content = String::new();
-                if entry.read_to_string(&mut content).is_ok() {
+                if entry.by_ref().take(1024 * 1024).read_to_string(&mut content).is_ok() {
                     for line in content.lines() {
                         let trimmed = line.trim();
                         if (trimmed.starts_with("modId") || trimmed.starts_with("mod_id")) && mod_id.is_none() {
@@ -1097,8 +1208,9 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
 
     if icon_path.is_none() {
         if let Ok(mut entry) = archive.by_name("mcmod.info") {
+            use std::io::Read;
             let mut content = String::new();
-            if entry.read_to_string(&mut content).is_ok() {
+            if entry.by_ref().take(1024 * 1024).read_to_string(&mut content).is_ok() {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
                     let first = if let Some(arr) = json.as_array() {
                         arr.first()
@@ -1149,16 +1261,8 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
         if let Ok(mut entry) = archive.by_name(candidate) {
             if entry.size() > 0 && entry.size() < 2_000_000 {
                 let mut buf = Vec::new();
-                if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
-                    let mime = if candidate.ends_with(".jpg") || candidate.ends_with(".jpeg") {
-                        "jpeg"
-                    } else if candidate.ends_with(".webp") {
-                        "webp"
-                    } else {
-                        "png"
-                    };
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
-                    return Some(format!("data:image/{};base64,{}", mime, b64));
+                if entry.by_ref().take(2_000_000).read_to_end(&mut buf).is_ok() && !buf.is_empty() {
+                    if let Some(icon) = mod_icon_data_url(&buf) { return Some(icon); }
                 }
             }
         }
@@ -1181,16 +1285,8 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
 
             if (matches_icon_name || is_generic_icon) && entry.size() > 0 && entry.size() < 2_000_000 {
                 let mut buf = Vec::new();
-                if entry.read_to_end(&mut buf).is_ok() && !buf.is_empty() {
-                    let mime = if name.ends_with(".jpg") || name.ends_with(".jpeg") {
-                        "jpeg"
-                    } else if name.ends_with(".webp") {
-                        "webp"
-                    } else {
-                        "png"
-                    };
-                    let b64 = base64::engine::general_purpose::STANDARD.encode(&buf);
-                    return Some(format!("data:image/{};base64,{}", mime, b64));
+                if entry.by_ref().take(2_000_000).read_to_end(&mut buf).is_ok() && !buf.is_empty() {
+                    if let Some(icon) = mod_icon_data_url(&buf) { return Some(icon); }
                 }
             }
         }
@@ -1422,6 +1518,10 @@ pub async fn mods_resolve_icons_core(
                                 .bind(icon)
                                 .execute(db.pool())
                                 .await;
+                                for installed in db_mods.iter().filter(|installed| installed.project_id == id) {
+                                    let _ = sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
+                                        .bind(&installed.file_name).bind(icon).execute(db.pool()).await;
+                                }
                                 resolved_count += 1;
                             }
                         }
@@ -1446,6 +1546,47 @@ pub async fn mods_resolve_icons(
 mod download_cancellation_tests {
     use super::*;
 
+    #[test]
+    fn mod_icons_are_bounded_and_source_is_preserved() {
+        use base64::Engine;
+        let source = image::DynamicImage::new_rgba8(1024, 512);
+        let mut encoded = std::io::Cursor::new(Vec::new());
+        source.write_to(&mut encoded, image::ImageFormat::Png).unwrap();
+        let bytes = encoded.into_inner();
+        let original = bytes.clone();
+        let uri = mod_icon_data_url(&bytes).unwrap();
+        let decoded = base64::engine::general_purpose::STANDARD.decode(uri.split_once(',').unwrap().1).unwrap();
+        let thumbnail = image::load_from_memory(&decoded).unwrap();
+        assert_eq!((thumbnail.width(), thumbnail.height()), (128, 64));
+        assert_eq!(bytes, original);
+        assert!(mod_icon_data_url(b"invalid image").is_none());
+    }
+
+    #[test]
+    fn metadata_icons_use_best_resolution_and_normalized_paths() {
+        assert_eq!(metadata_icon_path(&serde_json::json!({ "16": "tiny.png", "128": "./assets/logo.png", "512": "large.png" })), Some("assets/logo.png".into()));
+        assert_eq!(metadata_icon_path(&serde_json::json!("/assets\\test\\logo.png")), Some("assets/test/logo.png".into()));
+        assert_eq!(metadata_icon_path(&serde_json::json!({ "bad": 1 })), None);
+    }
+
+    #[test]
+    fn missing_mod_icon_cache_expires_after_file_changes() {
+        let path = std::env::temp_dir().join(format!("luxmc-icon-{}.jar", uuid::Uuid::new_v4()));
+        std::fs::write(&path, b"not a jar").unwrap();
+        assert!(extract_mod_icon_from_jar(&path).is_none());
+        let file = std::fs::File::create(&path).unwrap();
+        let mut archive = zip::ZipWriter::new(file);
+        archive.start_file("icon.png", zip::write::FileOptions::default()).unwrap();
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgba8(16, 16).write_to(&mut png, image::ImageFormat::Png).unwrap();
+        std::io::Write::write_all(&mut archive, &png.into_inner()).unwrap();
+        archive.finish().unwrap();
+        let original = std::fs::read(&path).unwrap();
+        assert!(extract_mod_icon_from_jar(&path).is_some());
+        assert_eq!(std::fs::read(&path).unwrap(), original);
+        std::fs::remove_file(path).unwrap();
+    }
+
     #[tokio::test]
     async fn concurrent_download_cannot_reset_import_cancellation() {
         let state = AppState::default();
@@ -1454,5 +1595,26 @@ mod download_cancellation_tests {
         let result = mods_download_to_temp_core(&state, "https://cdn.modrinth.com/test.mrpack".into(), "test.mrpack".into()).await;
         assert!(result.is_err());
         assert!(state.import_cancel.load(std::sync::atomic::Ordering::SeqCst));
+    }
+}
+
+#[cfg(test)]
+mod datapack_target_tests {
+    #[tokio::test]
+    async fn installs_only_inside_the_selected_existing_world() {
+        let temporary = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+        let root = temporary.join(format!("luxmc-datapack-test-{}", uuid::Uuid::new_v4()));
+        let world = root.join("saves").join("Meu mundo");
+        std::fs::create_dir_all(&world).unwrap();
+        std::fs::write(world.join("level.dat"), b"fixture").unwrap();
+        let game_dir = root.to_str().unwrap();
+        let target = super::datapack_directory(game_dir, Some("Meu mundo")).await.unwrap();
+        assert_eq!(target, std::fs::canonicalize(&world).unwrap().join("datapacks"));
+        for invalid in [None, Some("../outro"), Some(".."), Some("missing"), Some("x\\y")] {
+            assert!(super::datapack_directory(game_dir, invalid).await.is_err());
+        }
+        assert_eq!(std::fs::read(world.join("level.dat")).unwrap(), b"fixture");
+        assert!(std::fs::canonicalize(&root).unwrap().starts_with(&temporary));
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

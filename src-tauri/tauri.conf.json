@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Luxmc",
-  "version": "2.0.2",
+  "version": "3.0.0",
   "identifier": "io.github.luxmc.Luxmc",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -26,7 +26,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' asset: http://asset.localhost https: data: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' wss: http://127.0.0.1:* ipc: http://ipc.localhost https: asset: http://asset.localhost; media-src 'self' http://127.0.0.1:* asset: http://asset.localhost https: blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' asset: http://asset.localhost https: data: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' wss: http://127.0.0.1:* ipc: http://ipc.localhost https: asset: http://asset.localhost; media-src 'self' http://127.0.0.1:* asset: http://asset.localhost https: blob: data:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src https://luxmc-r92.pages.dev",
       "assetProtocol": {
         "enable": true,
         "scope": {
@@ -62,8 +62,11 @@
       "dmg"
     ],
     "category": "Game",
-    "shortDescription": "Linux-first Minecraft launcher.",
-    "longDescription": "Luxmc is a modern, Linux-first Minecraft launcher built with Tauri and SvelteKit.",
+    "publisher": "Luxmc",
+    "homepage": "https://luxmc-r92.pages.dev",
+    "copyright": "Luxmc",
+    "shortDescription": "Minecraft launcher for Windows and Linux.",
+    "longDescription": "Luxmc manages Minecraft versions, modpacks, player appearance and multiplayer rooms on Windows and Linux.",
     "icon": [
       "icons/32x32.png",
       "icons/64x64.png",
@@ -103,7 +106,19 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "displayLanguageSelector": false
+        "displayLanguageSelector": false,
+        "languages": ["PortugueseBR"],
+        "headerImage": "../packaging/windows/header.bmp",
+        "sidebarImage": "../packaging/windows/sidebar.bmp",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "installerHooks": "../packaging/windows/hooks.nsh",
+        "compression": "lzma",
+        "startMenuFolder": "Luxmc"
+      },
+      "webviewInstallMode": {
+        "type": "embedBootstrapper",
+        "silent": true
       },
       "wix": {
         "language": "en-US"

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { settings, type AppSettings } from "$lib/stores/settings.svelte";
     import { schedulePersist } from "$lib/stores/persistence.svelte";
     import { useTranslation } from "$lib/i18n/useTranslation.svelte";
@@ -15,13 +16,13 @@
         <label class="space-y-2 text-sm text-fg-muted">
             <span>{t("settings.renderingOptions.resolution")}</span>
             <select class="w-full rounded-xl border border-border bg-bg-elevated p-3 text-fg" value={String(settings.value.wallpaperWidth ?? 1280)} onchange={e => update({ wallpaperWidth: Number(e.currentTarget.value) as 960 | 1280 | 1920 })}>
-                <option value="960">960 px</option><option value="1280">1280 px</option><option value="1920">1920 px</option>
+                <option value="960">{uiText("ui.4a5fcbf1566396b6")}</option><option value="1280">{uiText("ui.3618a68de4effc07")}</option><option value="1920">{uiText("ui.1b13606c49b549e7")}</option>
             </select>
         </label>
         <label class="space-y-2 text-sm text-fg-muted">
             <span>{t("settings.renderingOptions.fps")}</span>
             <select class="w-full rounded-xl border border-border bg-bg-elevated p-3 text-fg" value={String(settings.value.wallpaperFps ?? 60)} onchange={e => update({ wallpaperFps: Number(e.currentTarget.value) as 15 | 24 | 30 | 60 })}>
-                <option value="15">15 FPS</option><option value="24">24 FPS</option><option value="30">30 FPS</option><option value="60">60 FPS</option>
+                <option value="15">{uiText("ui.97ca8cc7edf289d5")}</option><option value="24">{uiText("ui.ad73871f299ad4a9")}</option><option value="30">{uiText("ui.39f81d21015af161")}</option><option value="60">{uiText("ui.8de37d25b5895bd4")}</option>
             </select>
         </label>
     </div>

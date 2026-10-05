@@ -1,5 +1,6 @@
 let devMode = $state(false);
 let performanceMode = $state(false);
+let isScrolling = $state(false);
 let showCutscene = $state(false);
 let showProfileModal = $state(false);
 let isGameRunning = $state(false);
@@ -11,6 +12,8 @@ let wasManuallyTerminated = $state(false);
 let activeGameDetails = $state<{ name: string; version: string; loader: string; profileId?: string } | null>(null);
 
 export const appState = {
+    get isScrolling() { return isScrolling; },
+    set isScrolling(v: boolean) { isScrolling = v; },
 	get performanceMode() { return performanceMode; },
 	set performanceMode(v: boolean) { performanceMode = v; },
 	get devMode() { return devMode; },

@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
 	import { appState } from "$lib/stores/app.svelte";
 
@@ -44,7 +46,7 @@
 	class:opacity-0={leaving}
 	class:pointer-events-none={leaving}
 	role="status"
-	aria-label="Abrindo Luxmc"
+	aria-label={uiText("ui.6b516b49d3d1f7a3")}
 >
 	<div class="cutscene-background absolute inset-0 pointer-events-none">
 		<div class="absolute inset-0 bg-gradient-to-br from-brand-500/10 via-bg to-success/5"></div>
@@ -53,8 +55,8 @@
 	</div>
 
 	<div class="absolute left-8 right-8 top-8 flex items-center justify-between text-[10px] uppercase tracking-[.25em] text-fg-muted z-20">
-		<span class="font-bold">Luxmc Launcher</span>
-		<span class="font-mono text-fg/40">Java Edition</span>
+		<span class="font-bold">{uiText("ui.d3094029aa08ec2c")}</span>
+		<span class="font-mono text-fg/40">{uiText("ui.8716240ed98f4639")}</span>
 	</div>
 
 	<div
@@ -72,10 +74,10 @@
 		</div>
 
 		<div class="wordmark text-center">
-			<p class="text-[10px] font-bold uppercase tracking-[.45em] text-brand-300">Explore · Construa · Compartilhe</p>
-			<h1 class="mt-4 text-5xl sm:text-7xl font-black tracking-[-.05em] text-fg">Seu próximo mundo<span class="text-brand-400">.</span></h1>
+			<p class="text-[10px] font-bold uppercase tracking-[.45em] text-brand-300">{uiText("ui.6de19ebb5131493a")}</p>
+			<h1 class="mt-4 text-5xl sm:text-7xl font-black tracking-[-.05em] text-fg">{uiText("ui.25b864d32d113927")}<span class="text-brand-400">.</span></h1>
 			<p class="mt-4 max-w-md truncate px-4 text-xs text-fg/60 font-medium">
-				{destination || "Inicializando ambiente e carregando recursos..."}
+				{destination || uiText("ui.4b0cf162292d0110")}
 			</p>
 		</div>
 
@@ -85,13 +87,13 @@
 	</div>
 
 	<div class="absolute bottom-6 inset-x-8 flex items-center justify-between text-[10px] uppercase tracking-[.2em] text-fg-muted z-20">
-		<span>Feito para jogar do seu jeito</span>
+		<span>{uiText("ui.93d5cdb8270a3dc1")}</span>
 		<button
 			type="button"
-			class="rounded-xl border border-fg/15 px-4 py-2 hover:bg-fg/10 hover:text-fg focus-visible:outline-brand-400 transition-colors cursor-pointer"
+			class={launcherButton({ variant: "secondary", size: "sm", class: "focus-visible:outline-brand-400" })}
 			onclick={() => finish(true)}
 		>
-			Pular <span class="ml-2 text-fg/40 font-mono">Esc</span>
+			{uiText("app.skip")} <span class="ml-2 text-fg/40 font-mono">{uiText("ui.52f878edb34fa14f")}</span>
 		</button>
 	</div>
 </div>

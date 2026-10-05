@@ -7,7 +7,13 @@ export function assetFor(assets, platform) {
   if (!extension || !Array.isArray(assets)) return null;
   return assets.filter(asset => typeof asset.name === "string" && asset.name.toLowerCase().endsWith(extension)
     && typeof asset.browser_download_url === "string" && safeAssetUrl(asset.browser_download_url))
-    .sort((a, b) => Number(/(?:x86_64|x64|amd64)/i.test(b.name)) - Number(/(?:x86_64|x64|amd64)/i.test(a.name)))[0] || null;
+    .sort((a, b) => Number(extension === ".exe" && /^lux\s*mc\s+launcher\.exe$/i.test(b.name)) - Number(extension === ".exe" && /^lux\s*mc\s+launcher\.exe$/i.test(a.name)) ||
+      Number(isWindowsInstaller(b.name, extension)) - Number(isWindowsInstaller(a.name, extension)) ||
+      Number(/(?:x86_64|x64|amd64)/i.test(b.name)) - Number(/(?:x86_64|x64|amd64)/i.test(a.name)))[0] || null;
+}
+
+function isWindowsInstaller(name, extension) {
+  return extension === ".exe" && (/setup|install(?:er|ador)?/i.test(name) || /^lux\s*mc\s+launcher\.exe$/i.test(name));
 }
 
 export function safeAssetUrl(value) {
@@ -20,7 +26,7 @@ export function safeAssetUrl(value) {
 
 export async function latestRelease() {
   const response = await fetch(`https://api.github.com/repos/${repository}/releases/latest`, {
-    headers: { "User-Agent": "Luxmc-Cloudflare-Pages/2.0.2", Accept: "application/vnd.github+json" },
+    headers: { "User-Agent": "Luxmc-Cloudflare-Pages/3.0.0", Accept: "application/vnd.github+json" },
     signal: AbortSignal.timeout(10000),
     cf: { cacheTtl: 60, cacheEverything: true }
   });

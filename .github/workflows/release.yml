@@ -7,12 +7,16 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v2.0.1)"
+        description: "Release tag (e.g. v3.0.0)"
         required: true
-        default: "v2.0.1"
+        default: "v3.0.0"
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   create-release:
@@ -21,6 +25,10 @@ jobs:
       release_id: ${{ steps.create-release.outputs.result }}
       tag: ${{ steps.get-tag.outputs.tag }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
       - name: Get tag
         id: get-tag
         env:
@@ -32,6 +40,13 @@ jobs:
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
+
+      - name: Validate release version
+        env:
+          RELEASE_TAG: ${{ steps.get-tag.outputs.tag }}
+        run: |
+          node scripts/check-release-version.mjs "$RELEASE_TAG"
+          node --test tests/release-manifest.test.mjs
 
       - name: Create or Find GitHub Release
         id: create-release
@@ -57,38 +72,8 @@ jobs:
                 repo: context.repo.repo,
                 tag_name: tag,
                 name: `Luxmc ${tag}`,
-                body: [
-                  "## 🚀 Luxmc " + tag + " — Lançamento Oficial",
-                  "",
-                  "### ✨ Principais Recursos",
-                  "- 🛡️ **CrashDoctor™ Auto-Heal**: Detecção automática de falhas e sugestão de reparo.",
-                  "- 🛡️ **Mod Shield™**: Prevenção ativa de conflitos e validação de compatibilidade pré-jogo.",
-                  "- 📦 **Catálogo Unificado**: 50.000+ mods e modpacks do Modrinth e CurseForge em 1 clique.",
-                  "- 🌐 **Multiplayer P2P Mesh**: Conexão privada direta entre amigos sem abrir portas no roteador.",
-                  "- 🎨 **Estúdio 3D de Skins & Capas**: Prévia em tempo real e suporte a capas HD sem distorção.",
-                  "- ☕ **Java Auto-Manager**: Download e gestão automática de runtimes Temurin (Java 8, 17, 21).",
-                  "- 🐧 **Integração Linux Nativa**: Suporte a Wayland e X11, GameMode e ícone oficial na barra de tarefas.",
-                  "- 🔒 **Zero Telemetria**: Todos os dados e credenciais ficam 100% locais na sua máquina.",
-                  "",
-                  "### 📥 Instaladores",
-                  "| Plataforma | Arquivo | Formato |",
-                  "| --- | --- | --- |",
-                  `| 🪟 Windows | \`Luxmc_${v}_x64-setup.exe\` | Instalador NSIS |`,
-                  `| 🐧 Linux (Arch Linux) | \`luxmc-${v}-1-x86_64.pkg.tar.zst\` | Pacman |`,
-                  `| 🐧 Universal Linux | \`Luxmc_${v}_amd64.AppImage\` | AppImage |`,
-                  `| 🐧 Ubuntu / Debian | \`Luxmc_${v}_amd64.deb\` | Pacote DEB |`,
-                  `| 🐧 Fedora / openSUSE | \`Luxmc-${v}-1.x86_64.rpm\` | Pacote RPM |`,
-                  `| 🍎 macOS (Universal) | \`Luxmc_${v}_universal.dmg\` | DMG |`,
-                  "",
-                  "### Como instalar",
-                  `- **Arch Linux**: \`curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst && sudo pacman -U /tmp/luxmc.pkg.tar.zst && rm -f /tmp/luxmc.pkg.tar.zst\``,
-                  "- **Linux Universal**: `curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash`",
-                  `- **Windows**: Baixe o \`Luxmc_${v}_x64-setup.exe\` e execute o instalador`,
-                  `- **Ubuntu/Debian**: \`sudo dpkg -i Luxmc_${v}_amd64.deb\``,
-                  `- **Fedora/RHEL**: \`sudo dnf install ./Luxmc-${v}-1.x86_64.rpm\``,
-                  "- **macOS**: Abra o `.dmg` e arraste para a pasta `/Applications`",
-                ].join("\n"),
-                draft: false,
+                body: require("fs").readFileSync(`docs/releases/${tag}.md`, "utf8"),
+                draft: true,
                 prerelease: tag.includes("beta") || tag.includes("alpha") || tag.includes("rc"),
               });
               releaseId = data.id;
@@ -101,6 +86,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Install Linux system dependencies
         run: |
@@ -122,7 +109,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.30.3
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -176,11 +163,13 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.30.3
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -215,16 +204,30 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target x86_64-pc-windows-msvc --bundles nsis
 
+      - name: Publish Windows installer with unchanged filename
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem -LiteralPath 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis' -Filter '*-setup.exe' | Select-Object -First 1
+          if (!$installer) { throw 'Windows installer was not built.' }
+          Copy-Item -LiteralPath $installer.FullName -Destination 'Lux MC Launcher.exe' -Force
+          gh release upload $env:RELEASE_TAG 'Lux MC Launcher.exe' --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Windows installer upload failed.' }
+
   build-macos:
     needs: create-release
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 10
+          version: 10.30.3
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -259,6 +262,14 @@ jobs:
     needs: [create-release, build-linux, build-windows, build-macos]
     runs-on: ubuntu-22.04
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Download and verify every published installer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -277,9 +288,13 @@ jobs:
             "Luxmc_${version}_amd64.deb"
             "Luxmc_${version}_universal.dmg"
             "Luxmc_${version}_x64-setup.exe"
+            "Lux MC Launcher.exe"
           )
           for artifact in "${expected[@]}"; do
             test -s "$artifact"
           done
-          sha256sum "${expected[@]}" > SHA256SUMS
-          gh release upload "$RELEASE_TAG" SHA256SUMS --repo "$REPOSITORY" --clobber
+          gh api "repos/$REPOSITORY/releases/tags/$RELEASE_TAG" > release.json
+          node ../scripts/build-release-manifest.mjs release.json .
+          sha256sum --check SHA256SUMS
+          gh release upload "$RELEASE_TAG" SHA256SUMS latest.json --repo "$REPOSITORY" --clobber
+          gh release edit "$RELEASE_TAG" --repo "$REPOSITORY" --draft=false --latest

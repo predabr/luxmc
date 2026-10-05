@@ -120,7 +120,7 @@ pub fn client() -> AppResult<reqwest::Client> {
         .pool_idle_timeout(Some(Duration::from_secs(90)))
         .pool_max_idle_per_host(32)
         .tcp_nodelay(true)
-        .user_agent("Luxmc/2.0.1")
+        .user_agent(concat!("Luxmc/", env!("CARGO_PKG_VERSION")))
         .build()?)
 }
 
@@ -293,7 +293,8 @@ mod tests {
         let server = tokio::spawn(async move {
             let (mut socket, _) = listener.accept().await.unwrap();
             let mut request = [0; 2048];
-            socket.read(&mut request).await.unwrap();
+            let read = socket.read(&mut request).await.unwrap();
+            assert!(read > 0);
             socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\np").await.unwrap();
             tokio::time::sleep(Duration::from_secs(16)).await;
             socket.write_all(b"ack").await.unwrap();

@@ -1,7 +1,12 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
+    import Button from "$lib/components/ui/Button.svelte";
+    import NameMcPicker from "$lib/components/skins/NameMcPicker.svelte";
+    import type { NameMcSkin } from "$lib/api/namemc";
 	import { backOut, quintOut } from "svelte/easing";
     import { skinAvatar, createSkinAvatar, inferSkinModelType, classifyTexture, textureCanvas } from "$lib/utils/textureImage";
-	import { onDestroy, onMount, untrack } from "svelte";
+	import { onDestroy, onMount, untrack, tick } from "svelte";
 	import { deepLinks } from "$lib/stores/deepLinks.svelte";
 	import { authChangeSkin } from "$lib/api/auth";
 	import {
@@ -25,7 +30,9 @@
 		X,
 		ArrowLeft,
 		ChevronRight,
-		Shirt
+		Shirt,
+        Globe2,
+        ArrowUpRight
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { open } from "@tauri-apps/plugin-dialog";
@@ -41,7 +48,7 @@
 	import { authResolveTexture, authReadLocalTexture } from "$lib/api/auth";
 	import { fade, slide, fly } from "svelte/transition";
 
-	let isUpdating = $state(false);
+	let syncError = $state("");
 	let skinType = $state<"steve" | "alex">("steve");
 	let isRotating = $state(true);
 	let activeAnimation = $state<"idle" | "walk" | "run" | "fly" | "none">("walk");
@@ -49,7 +56,9 @@
 
 	let searchNick = $state("");
 	let isSearchingNick = $state(false);
-	let selectedCape = $state<CapeType>("luxmc");
+	let selectedCape = $state<CapeType>("none");
+    let showNameMc = $state(false);
+    let nameMcPicker = $state<NameMcPicker | null>(null);
 	let customCapeDataUrl = $state("");
     let customCapePreview = $state("");
 	let showEditModal = $state(false);
@@ -60,12 +69,12 @@
 	let saveError = $state("");
 
 	let savedSkinsExpanded = $state(true);
-	type SavedSkinItem = { id: string; name: string; url: string; model: "steve" | "alex" };
+	type SavedSkinItem = { id: string; name: string; url: string; model: "steve" | "alex"; capeType?: CapeType; capeUrl?: string };
 	const defaultSavedSkins: SavedSkinItem[] = [];
 	let savedSkins = $state<SavedSkinItem[]>(defaultSavedSkins);
 
 	let selectedSkinId = $state("");
-	let selectedSkinNick = $state("Nenhuma skin salva");
+	let selectedSkinNick = $state(uiText("ui.0419454263a82604"));
 	let editingSkinId = $state<string | null>(null);
 	let editingSkinName = $state("");
 
@@ -90,25 +99,13 @@
 
 	const selection = $derived(JSON.stringify([currentSkinUrl, skinType, selectedCape, customCapeDataUrl]));
 	const hasPendingChange = $derived(hydrated && selection !== appliedSelection);
+    const canApplyAppearance = $derived(hydrated && Boolean(account.value && currentSkinUrl) && !saving);
 
-	const capeList: { id: CapeType; name: string; desc: string }[] = [
-		{ id: "none", name: "Nenhuma", desc: "Sem capa" },
-		{ id: "luxmc", name: "Luxmc Oficial", desc: "Ouro & Obsidiana" },
-		{ id: "optifine", name: "OptiFine OF", desc: "Clássica vermelha" },
-		{ id: "migrator", name: "Migração", desc: "Ouro Mojang" },
-		{ id: "cherry", name: "Flor de cerejeira", desc: "Flor de Cerejeira" },
-		{ id: "vanilla", name: "Capa Vanilla", desc: "Edição Especial" },
-		{ id: "minecon2011", name: "Minecon 2011", desc: "Creeper Vermelho" },
-		{ id: "minecon2012", name: "Minecon 2012", desc: "Picareta Noturna" },
-		{ id: "minecon2013", name: "Minecon 2013", desc: "Pistão Redstone" },
-		{ id: "minecon2015", name: "Minecon 2015", desc: "Golem de Ferro" },
-		{ id: "minecon2016", name: "Minecon 2016", desc: "Enderman Roxo" },
-		{ id: "tiktok", name: "TikTok", desc: "Comemorativa" },
-		{ id: "twitch", name: "Twitch", desc: "Roxa Glitch" },
-		{ id: "custom", name: "Customizada", desc: "Arquivo .PNG local" },
-	];
+    const capeTypes: readonly CapeType[] = ["none", "custom", "luxmc", "optifine", "migrator", "cherry", "vanilla", "minecon2011", "minecon2012", "minecon2013", "minecon2015", "minecon2016", "tiktok", "twitch"];
+    const currentCapePreview = $derived(selectedCape === "none" ? "" : selectedCape === "custom" ? customCapePreview : getCapePreviewDataUrl(selectedCape));
+    const accountCapeUrl = $derived(account.value?.capeUrl || "");
 
-	onMount(() => {
+	function hydrateAppearance() {
 		if (activeSkinStore.current.type) {
 			skinType = activeSkinStore.current.type;
 		}
@@ -149,14 +146,14 @@
 			void loadTextureImage(initialSkin, new AbortController().signal).then(img => {
 				const canvas = textureCanvas(img);
 				const inferred = inferSkinModelType(canvas);
-				if (!account.value?.skinVariant) {
+				if (!account.value?.skinVariant && !selectedSkinId && previewSkinUrl === initialSkin) {
 					skinType = inferred;
 				}
 			}).catch(() => {});
 		}
 		let persistedSkinId = "";
 		try {
-			persistedSkinId = localStorage.getItem("luxmc_selected_skin_id") || "";
+			persistedSkinId = localStorage.getItem(`luxmc_selected_skin_id:${account.value?.id || "local"}`) || localStorage.getItem("luxmc_selected_skin_id") || "";
 		} catch {}
 
 		if (persistedSkinId) {
@@ -180,7 +177,7 @@
 					skinType = savedSkins[0].model;
 			} else {
 				selectedSkinId = "";
-				selectedSkinNick = "Nenhuma skin salva";
+				selectedSkinNick = uiText("ui.0419454263a82604");
 			}
 			}
 		}
@@ -190,12 +187,17 @@
             const savedApplication = JSON.parse(localStorage.getItem(`luxmc_applied_skin_selection:${draftOwner}`) || "null");
             if (savedApplication?.accountAppearance === accountAppearance && Array.isArray(savedApplication.selection)) {
                 appliedSelection = JSON.stringify(savedApplication.selection);
+                const [skin, model, cape, capeUrl] = savedApplication.selection;
+                if ((savedApplication.skinId === selectedSkinId || skin === previewSkinUrl) && typeof skin === "string" &&
+                    (model === "steve" || model === "alex") && capeTypes.includes(cape) && typeof capeUrl === "string") {
+                    previewSkinUrl = skin; skinType = model; selectedCape = cape; customCapeDataUrl = capeUrl;
+                }
             }
         } catch {}
         try {
             const draft = JSON.parse(sessionStorage.getItem(`luxmc_skin_draft:${draftOwner}`) || "null");
             if (draft && typeof draft.skinUrl === "string" && /^(data:image\/png;base64,|https:\/\/|\/)/.test(draft.skinUrl) &&
-                (draft.model === "steve" || draft.model === "alex") && capeList.some(cape => cape.id === draft.cape) &&
+                (draft.model === "steve" || draft.model === "alex") && capeTypes.includes(draft.cape) &&
                 typeof draft.customCapeUrl === "string" && typeof draft.id === "string" && typeof draft.name === "string" && savedSkins.some(saved => saved.id === draft.id)) {
                 previewSkinUrl = draft.skinUrl;
                 skinType = draft.model;
@@ -205,8 +207,18 @@
                 selectedSkinNick = draft.name;
             }
         } catch {}
+        const pairedSkin = savedSkins.find(skin => skin.id === selectedSkinId);
+        if (pairedSkin?.capeType && capeTypes.includes(pairedSkin.capeType)) {
+            selectedCape = pairedSkin.capeType;
+            customCapeDataUrl = pairedSkin.capeUrl || "";
+        }
         hydrated = true;
-	});
+	}
+    onMount(hydrateAppearance);
+    $effect(() => {
+        const id = account.value?.id || "local";
+        if (hydrated && draftOwner !== id) untrack(hydrateAppearance);
+    });
 
     $effect(() => {
         if (!hydrated || draftOwner !== (account.value?.id || "local")) return;
@@ -216,6 +228,25 @@
             else sessionStorage.setItem(key, JSON.stringify({ skinUrl: currentSkinUrl, model: skinType, cape: selectedCape, customCapeUrl: customCapeDataUrl, id: selectedSkinId, name: selectedSkinNick }));
         } catch {}
     });
+
+    $effect(() => {
+        if (!hydrated || !selectedSkinId) return;
+        const id = selectedSkinId;
+        const cape = selectedCape;
+        const url = cape === "custom" ? customCapeDataUrl : "";
+        untrack(() => {
+            const skin = savedSkins.find(item => item.id === id);
+            if (!skin || (skin.capeType === cape && skin.capeUrl === url)) return;
+            savedSkins = savedSkins.map(item => item.id === id ? { ...item, capeType: cape, capeUrl: url } : item);
+            try { localStorage.setItem("luxmc_saved_skins", JSON.stringify(savedSkins)); } catch {}
+        });
+    });
+
+    async function openNameMcCatalog() {
+        showNameMc = true;
+        await tick();
+        await nameMcPicker?.browse();
+    }
 
     $effect(() => {
         const skin = deepLinks.skin;
@@ -258,12 +289,12 @@
                 customCapeDataUrl = normalizeCape(image).toDataURL("image/png");
                 selectedCape = "custom";
                 removeSavedSkin(skin.id);
-                toast("Capa identificada e atribuída automaticamente à aba de Capas!", "success");
+                toast(uiText("ui.14a0c4f82ef22bf5"), "success");
                 return;
             }
             selectValidatedSkin(skin, (skin.model as string === "alex" || skin.model as string === "slim") ? "alex" : (skin.model as string === "steve" || skin.model as string === "classic") ? "steve" : inferSkinModelType(canvas));
         } catch (error) {
-            if (!controller.signal.aborted) toast("Não foi possível selecionar a skin: " + String(error), "error");
+            if (!controller.signal.aborted) toast(uiText("ui.787f24e28eef8258") + String(error), "error");
         }
     }
 
@@ -272,6 +303,8 @@
         selectedSkinNick = skin.name;
         skinType = model;
         previewSkinUrl = skin.url;
+        selectedCape = skin.capeType && capeTypes.includes(skin.capeType) ? skin.capeType : "none";
+        customCapeDataUrl = selectedCape === "custom" ? skin.capeUrl || "" : "";
         try {
             localStorage.setItem("luxmc_selected_skin_id", skin.id);
             localStorage.setItem("luxmc_selected_skin_nick", skin.name);
@@ -285,7 +318,7 @@
 				void selectSavedSkin(savedSkins[0]);
 			} else {
 				selectedSkinId = "";
-				selectedSkinNick = "Nenhuma skin salva";
+				selectedSkinNick = uiText("ui.0419454263a82604");
 				previewSkinUrl = "";
 			}
 		}
@@ -324,11 +357,31 @@
 		}
 	}
 
+    async function importNameMcSkin(skin: NameMcSkin) {
+        importController?.abort();
+        const controller = new AbortController();
+        importController = controller;
+        const image = await loadTextureImage(skin.skinUrl, controller.signal);
+        if (controller.signal.aborted) return;
+        const canvas = textureCanvas(image);
+        if (classifyTexture(canvas) !== "skin") throw new Error(uiText("ui.4b23da27cc1f6901"));
+        const model = inferSkinModelType(canvas);
+        const existing = savedSkins.find(item => item.url === skin.skinUrl);
+        const saved: SavedSkinItem = existing || { id: crypto.randomUUID(), name: `NameMC ${skin.skinId}`, url: skin.skinUrl, model };
+        if (!existing) {
+            const next = [saved, ...savedSkins];
+            localStorage.setItem("luxmc_saved_skins", JSON.stringify(next));
+            savedSkins = next;
+        }
+        selectValidatedSkin(saved, model);
+        toast(uiText("skinsStudio.nameMcImported"), "success");
+    }
+
     let importController: AbortController | null = null;
     onMount(() => () => importController?.abort());
     async function handleAddSkinFile() {
         try {
-            const selected = await open({ multiple: false, filters: [{ name: "Skin ou Capa (PNG, WebP)", extensions: ["png", "webp", "jpeg", "jpg"] }] });
+            const selected = await open({ multiple: false, filters: [{ name: uiText("ui.74f0c431111d3350"), extensions: ["png", "webp", "jpeg", "jpg"] }] });
             if (!selected || typeof selected !== "string") return;
             importController?.abort();
             const controller = new AbortController();
@@ -342,7 +395,7 @@
             if (classifyTexture(canvas, filename) === "cape") {
                 customCapeDataUrl = normalizeCape(image).toDataURL("image/png");
                 selectedCape = "custom";
-                toast("Capa identificada e atribuída automaticamente à aba de Capas!", "success");
+                toast(uiText("ui.14a0c4f82ef22bf5"), "success");
                 return;
             }
             const name = filename.replace(/\.(png|webp|jpe?g)$/i, "").replace(/[-_]+/g, " ").trim() || `Skin ${savedSkins.length + 1}`;
@@ -354,9 +407,9 @@
             if (controller.signal.aborted) return;
             savedSkins = nextSkins;
             selectValidatedSkin(skin, model);
-            toast(`Skin "${name}" adicionada (${model === "alex" ? "Fino / Alex" : "Clássico / Steve"})!`, "success");
+            toast(`Skin "${name}" adicionada (${model === "alex" ? "Fino / Alex" : uiText("ui.0c681eeca1e08ff9")})!`, "success");
         } catch (error) {
-            if (!(error instanceof DOMException && error.name === "AbortError")) toast("Erro ao carregar textura: " + String(error), "error");
+            if (!(error instanceof DOMException && error.name === "AbortError")) toast(uiText("ui.97bfa663aaafe580") + String(error), "error");
         }
     }
 
@@ -364,7 +417,7 @@
     onMount(() => () => searchController?.abort());
     async function handleSearchNick() {
         const nick = searchNick.trim();
-        if (!/^[A-Za-z0-9_]{3,16}$/.test(nick)) { toast("Use um nickname de 3 a 16 letras, números ou _.", "info"); return; }
+        if (!/^[A-Za-z0-9_]{3,16}$/.test(nick)) { toast(uiText("ui.c5679f576d780243"), "info"); return; }
         searchController?.abort();
         const controller = new AbortController();
         searchController = controller;
@@ -389,7 +442,7 @@
 		try {
 			const selected = await open({
 				multiple: false,
-				filters: [{ name: "Capa do Minecraft (PNG, WebP)", extensions: ["png", "webp", "jpeg", "jpg"] }]
+				filters: [{ name: uiText("ui.1ffd2b659842ed2b"), extensions: ["png", "webp", "jpeg", "jpg"] }]
 			});
 			if (!selected || typeof selected !== "string") return;
 
@@ -399,9 +452,9 @@
             const image = await loadTextureImage(await authReadLocalTexture(selected), controller.signal);
             customCapeDataUrl = normalizeCape(image).toDataURL("image/png");
 			selectedCape = "custom";
-			toast("Capa personalizada carregada!", "success");
+			toast(uiText("ui.97e744321263c71e"), "success");
 		} catch (e) {
-			toast("Erro ao carregar capa personalizada: " + String(e), "error");
+			toast(uiText("ui.b57990d4f3de61f4") + String(e), "error");
 		}
 	}
 
@@ -436,8 +489,9 @@
     });
 
     async function applyAppearance() {
-        if (!hydrated || saving || !hasPendingChange) return;
+        if (!canApplyAppearance) return;
         const applied = selection;
+        const owner = account.value?.id;
         const source = currentSkinUrl;
         const model = skinType;
         const cape = selectedCape;
@@ -445,6 +499,7 @@
         const controller = new AbortController();
         saving = true;
         saveError = "";
+        syncError = "";
         const normalize = async (url: string, isCape = false) => {
             if (url.startsWith("https://")) url = await authResolveTexture(url);
             const image = await loadTextureImage(url, controller.signal);
@@ -454,9 +509,9 @@
             canvas.height = image.naturalHeight;
             if (canvas.width > 2048 || canvas.height > 2048) throw new Error("Textura muito grande");
             const ctx = canvas.getContext("2d");
-            if (!ctx) throw new Error("Canvas indisponível");
+            if (!ctx) throw new Error(uiText("ui.facb67b092a4f99b"));
             ctx.drawImage(image, 0, 0);
-            if (classifyTexture(canvas) !== "skin") throw new Error("Esta textura é uma capa. Importe-a na seção de Capas.");
+            if (classifyTexture(canvas) !== "skin") throw new Error(uiText("ui.4b23da27cc1f6901"));
             return url.startsWith("data:image/png;base64,") ? url : canvas.toDataURL("image/png");
         };
         await Promise.all([normalize(source), capeSource ? normalize(capeSource, true) : Promise.resolve(null)]).then(async ([skin, capeUrl]) => {
@@ -464,35 +519,36 @@
             const avatarUrl = await createSkinAvatar(skin, controller.signal, model);
             if (controller.signal.aborted) return;
             await saveAppearance(skin, model === "alex" ? "slim" : "classic", capeUrl, avatarUrl);
+            if (account.value?.id !== owner) throw new Error(uiText("ui.10552831b711a961"));
             if (controller.signal.aborted) return;
             appliedSelection = applied;
             try {
                 localStorage.setItem(`luxmc_applied_skin_selection:${account.value?.id || "local"}`, JSON.stringify({
                     accountAppearance: JSON.stringify([account.value?.skinUrl || "", account.value?.skinVariant || "", account.value?.capeUrl || ""]),
+                    skinId: selectedSkinId,
                     selection: JSON.parse(applied)
                 }));
             } catch {}
-            toast("Skin e capa aplicadas. As alterações serão usadas na próxima abertura do jogo.", "success");
             activeSkinStore.setSkin({ id: selectedSkinId, name: selectedSkinNick, avatarUrl, skinUrl: skin, type: model, capeType: cape, hasCape: cape !== "none", customCapeUrl: capeUrl || "" });
             try {
                 localStorage.setItem("luxmc_selected_skin_id", selectedSkinId);
+                localStorage.setItem(`luxmc_selected_skin_id:${account.value?.id || "local"}`, selectedSkinId);
                 localStorage.setItem("luxmc_selected_skin_nick", selectedSkinNick);
             } catch {}
+            if (isMicrosoft && account.value) {
+                try {
+                    await authChangeSkin(account.value.id, model === "alex" ? "slim" : "classic", skin);
+                    toast(uiText("ui.5ee886e3e6e1e5b9"), "success");
+                } catch (error) {
+                    syncError = uiText("ui.ae2e64d560aac426", {arg0: (String(error))});
+                    toast(syncError, "error");
+                }
+            } else {
+                toast(uiText("ui.74dcc7a5ad4bea2f"), "success");
+            }
         }).catch(error => {
             if (!controller.signal.aborted) { saveError = String(error); toast(saveError, "error"); }
         }).finally(() => { if (!controller.signal.aborted) saving = false; });
-    }
-
-    async function handleApplyToAccount(): Promise<void> {
-        if (!account.value || isUpdating || saving) return;
-        if (!isMicrosoft) { toast("Entre com Microsoft para sincronizar com o perfil oficial. Sua aparência local já foi salva.", "info"); return; }
-        isUpdating = true;
-        try {
-            await authChangeSkin(account.value.id, skinType === "alex" ? "slim" : "classic", account.value.skinUrl || currentSkinUrl);
-
-            toast("Skin sincronizada com o perfil oficial.", "success");
-        } catch (error) { toast(String(error), "error"); }
-        finally { isUpdating = false; }
     }
 
 	async function handleSyncWithWeb(): Promise<void> {
@@ -500,7 +556,7 @@
 		const webUrl = `https://luxmc-r92.pages.dev/skins.html?nick=${encodeURIComponent(nick)}&model=${skinType}&cape=${selectedCape}`;
 		try {
 			await openUrl(webUrl);
-			toast("Abrindo Estúdio de Skins no navegador...", "info");
+			toast(uiText("ui.9824b68a0ca569df"), "info");
 		} catch (error) {
 			toast(String(error), "error");
 		}
@@ -511,19 +567,19 @@
 
 	<header class="flex items-center justify-between gap-4 py-1">
 		<div class="flex items-center gap-3">
-			<div class="flex items-center gap-1 bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-xl p-1 shadow-sm">
+			<div class="flex items-center gap-1 bg-bg-elevated border border-fg/10 rounded-xl p-1 shadow-sm">
 				<button
 					type="button"
-					class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
-					title="Voltar"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+					title={uiText("common.back")}
 					onclick={() => history.back()}
 				>
 					<ArrowLeft class="w-3.5 h-3.5" />
 				</button>
 				<button
 					type="button"
-					class="p-1.5 rounded-lg text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
-					title="Avançar"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+					title={uiText("ui.859e48c3c9333657")}
 					onclick={() => history.forward()}
 				>
 					<ChevronRight class="w-3.5 h-3.5" />
@@ -532,7 +588,7 @@
 
 			<div class="flex items-center gap-2 text-xs font-bold text-fg/80">
 				<Shirt class="w-3.5 h-3.5 text-fg/60" />
-				<span class="text-fg font-extrabold">Skins e capas</span>
+				<span class="text-fg font-extrabold">{uiText("ui.786aa1f40fcdff95")}</span>
 			</div>
 		</div>
 
@@ -540,45 +596,37 @@
 			<button
 				type="button"
 				onclick={handleSyncWithWeb}
-				class="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 text-fg/80 hover:text-fg text-xs font-bold border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm"
-				title="Abrir no NameMC / Web Studio"
+				class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
+				title={uiText("ui.596fb3bb01539cb0")}
 			>
 				<Share2 class="w-3.5 h-3.5 text-brand-400" />
-				<span>Web Studio</span>
+				<span>{uiText("ui.d812f36fd857abac")}</span>
 			</button>
 		</div>
 	</header>
 
-    <div class="sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fg/10 bg-bg/35 p-4 shadow-elevated backdrop-blur-xl">
-        <p class="text-sm text-fg-muted" role="status">{saving ? "Aplicando aparência…" : saveError ? "Falha ao aplicar: " + saveError : hasPendingChange ? "Você tem alterações não aplicadas." : "Sua aparência está aplicada."}</p>
+    <div class="sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fg/10 bg-bg-elevated p-4 shadow-elevated backdrop-blur-xl">
+        <p class="text-sm text-fg-muted" role="status">{saving ? isMicrosoft ? uiText("skinsStudio.syncing") : uiText("ui.c96a5ffa4c9a8e9c") : saveError ? uiText("ui.f3e4295a34844bee") + saveError : syncError || (hasPendingChange ? uiText("ui.69e9fbeba0d02d87") : uiText("ui.0d8e3ff973d2531e"))}</p>
         <div class="flex gap-2">
-            {#if isMicrosoft}<button class="luxmc-control" disabled={saving || isUpdating || hasPendingChange} onclick={handleApplyToAccount}>{isUpdating ? "Sincronizando…" : "Sincronizar com Microsoft"}</button>{/if}
-            <button class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-brand-foreground disabled:opacity-50" disabled={saving || !hasPendingChange} onclick={applyAppearance}>{saving ? "Aplicando…" : "Aplicar skin e capa"}</button>
+            <Button variant="primary" size="lg" loading={saving} disabled={!canApplyAppearance} onclick={applyAppearance}>{saving ? uiText("skinsStudio.applying") : isMicrosoft ? uiText("ui.96d74ee46d837a1f") : uiText("ui.24e056555b501d83")}</Button>
         </div>
     </div>
+    <p class="text-sm text-fg-muted rounded-2xl border border-fg/10 bg-bg-elevated p-4"><Info class="inline h-4 w-4 mr-2 text-brand-400" />{isMicrosoft ? uiText("ui.bd7f21aa535401a7") : uiText("ui.94f1dcc188ae22b5")}</p>
 
 
 	<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
 
 		<div class="lg:col-span-4 flex flex-col items-center gap-4 lg:sticky lg:top-2">
 
-			<div class="w-full h-[520px] rounded-3xl bg-bg/35 backdrop-blur-xl border border-fg/10 relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-4">
+			<div class="skin-preview-stage w-full h-[520px] rounded-3xl bg-bg-elevated border border-fg/10 relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-4">
 
-				<div class="absolute top-3 left-3 right-3 flex items-center justify-between z-10 pointer-events-none">
-					<div class="flex items-center gap-1.5 min-w-0">
-						<span class="text-[11px] font-black uppercase tracking-wider text-fg/70 bg-fg/[0.06] border border-fg/10 px-2.5 py-1 rounded-full max-w-[130px] truncate" title={selectedSkinNick || "Skin"}>
-							{selectedSkinNick || "Skin"}
-						</span>
-						<span class="text-[11px] font-black uppercase tracking-wider text-fg/50 bg-fg/[0.04] border border-fg/10 px-2.5 py-1 rounded-full shrink-0">
-							{skinType === "alex" ? "Fino (3 px)" : "Clássico (4 px)"}
-						</span>
-					</div>
+				<div class="absolute top-3 left-3 right-3 flex items-center justify-end z-10 pointer-events-none">
 
 					<button
 						type="button"
 						onclick={() => isRotating = !isRotating}
-						class="p-2 rounded-xl bg-black/40 hover:bg-black/60 border border-fg/10 text-fg/70 hover:text-fg pointer-events-auto transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm"
-						title={isRotating ? "Pausar rotação" : "Ativar rotação"}
+						class={launcherButton({ variant: "secondary", size: "sm", class: "pointer-events-auto" })}
+						title={isRotating ? uiText("ui.6ed3c3a7bd4a365f") : uiText("ui.e7d44cc64970d022")}
 					>
 						{#if isRotating}
 							<Pause class="w-3.5 h-3.5 text-brand-400" />
@@ -603,56 +651,56 @@
 			<div class="flex flex-col items-center gap-2.5 w-full">
 				<div class="flex items-center gap-1.5 text-xs text-fg/40 font-medium">
 					<Move class="w-3.5 h-3.5" />
-					<span>Arraste para girar</span>
+					<span>{uiText("ui.7d6a6d773e0cd710")}</span>
 				</div>
 
-				<div class="flex items-center gap-1 bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-xl p-1 shadow-sm">
+				<div class="flex items-center gap-1 bg-bg-elevated border border-fg/10 rounded-xl p-1 shadow-sm">
 					{#each [
-						{ id: "idle" as const, label: "Parado" },
-						{ id: "walk" as const, label: "Andar" },
-						{ id: "run" as const, label: "Correr" },
-						{ id: "fly" as const, label: "Voar" }
+						{ id: "idle" as const, label: uiText("ui.31e8729fef873dd7") },
+						{ id: "walk" as const, label: uiText("ui.e3691dd454b50eb6") },
+						{ id: "run" as const, label: uiText("ui.f58a67a713c98dd0") },
+						{ id: "fly" as const, label: uiText("ui.011029a4827dc053") }
 					] as anim}
 						<button
 							type="button"
 							onclick={() => activeAnimation = anim.id}
-							class="px-3 py-1 rounded-lg text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeAnimation === anim.id ? 'bg-brand-500 text-brand-foreground shadow-sm' : 'text-fg/50 hover:text-fg hover:bg-fg/[0.06]'}"
+							class={launcherButton({ variant: activeAnimation === anim.id ? "primary" : "ghost", size: "sm" })} aria-pressed={activeAnimation === anim.id}
 						>
 							{anim.label}
 						</button>
 					{/each}
 				</div>
 
-				<div class="flex items-center gap-1 bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-xl p-1 shadow-sm">
+				<div class="flex items-center gap-1 bg-bg-elevated border border-fg/10 rounded-xl p-1 shadow-sm">
 					<button
 						type="button"
 						onclick={() => viewerRef?.setFrontView()}
-						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-						title="Ver de frente"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
+						title={uiText("ui.ce1785248bf1aa9e")}
 					>
-						Frente
+						{uiText("ui.ba711a7a53056618")}
 					</button>
 					<button
 						type="button"
 						onclick={() => viewerRef?.setBackView()}
-						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-						title="Ver de costas (capa)"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
+						title={uiText("ui.bddf50fe294ea9a8")}
 					>
-						Costas
+						{uiText("ui.357ac3567b470c10")}
 					</button>
 					<button
 						type="button"
 						onclick={() => viewerRef?.setIsometricView()}
-						class="px-2.5 py-1 rounded-lg text-[10px] font-bold text-fg/60 hover:text-fg hover:bg-fg/[0.06] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-						title="Visão 3D isométrica"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
+						title={uiText("ui.3618d6380d8c5b40")}
 					>
 						3D
 					</button>
 					<button
 						type="button"
 						onclick={() => viewerRef?.resetCamera()}
-						class="p-1 rounded-lg text-fg/50 hover:text-fg hover:bg-fg/[0.06] transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-						title="Resetar câmera"
+						class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+						title={uiText("ui.3fdd339b0d171ddb")}
 					>
 						<RotateCcw class="w-3 h-3" />
 					</button>
@@ -661,10 +709,10 @@
 				<button
 					type="button"
 					onclick={() => showEditModal = true}
-					class="w-full max-w-[200px] py-2 px-4 rounded-xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 text-fg border border-fg/10 hover:border-fg/20 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center justify-center gap-2 cursor-pointer shadow-sm active:scale-[0.98]"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "w-full max-w-[200px] flex items-center justify-center gap-2" })}
 				>
 					<Pencil class="w-3.5 h-3.5 text-fg/70" />
-					<span>Editar skin</span>
+					<span>{uiText("skinsStudio.model")}</span>
 				</button>
 			</div>
 
@@ -673,49 +721,52 @@
 
 		<div class="lg:col-span-8 flex flex-col gap-6">
 
-            <section class="rounded-2xl p-4 space-y-3 bg-bg/35 backdrop-blur-xl border border-fg/10 shadow-sm" aria-label="Capas">
-                <div class="flex items-center justify-between gap-3">
-                    <h2 class="font-semibold text-fg">Capas</h2>
-                    <button class="luxmc-control" onclick={handleCustomCapeUpload}>
-                        <Upload class="inline h-4 w-4 mr-2" />Importar PNG
-                    </button>
+            <section class="rounded-2xl p-5 space-y-4 bg-bg-elevated border border-fg/10 shadow-sm" aria-label={uiText("ui.cd41a52072c213e4")}>
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="font-semibold text-fg">{uiText("ui.cd41a52072c213e4")}</h2>
+                        <p class="mt-1 text-xs leading-relaxed text-fg-muted">{uiText("skinsStudio.capeDescription")}</p>
+                    </div>
+                    <Button variant="secondary" size="xl" onclick={handleCustomCapeUpload}><Upload class="h-5 w-5" />{uiText("skinsStudio.addCape")}</Button>
                 </div>
-                <div class="flex gap-2.5 overflow-x-auto custom-scrollbar pb-2.5 snap-x snap-mandatory scroll-smooth px-0.5">
-                    {#each capeList.filter(item => item.id !== "custom") as item}
-                        <button class="shrink-0 snap-start w-24 rounded-xl border p-2 text-xs text-fg flex flex-col items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedCape === item.id ? 'border-brand-400 bg-brand-500/15 shadow-sm ring-1 ring-brand-500' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08]'}" aria-pressed={selectedCape === item.id} onclick={() => selectedCape = item.id}>
-                            {#if item.id !== "none"}
-                                <img loading="lazy" decoding="async" class="h-14 w-9 object-contain [image-rendering:pixelated]" src={getCapePreviewDataUrl(item.id)} alt={item.name} />
-                            {:else}
-                                <span class="h-14 flex items-center text-fg/40 font-medium">Sem capa</span>
-                            {/if}
-                            <span class="truncate w-full text-center">{item.name}</span>
-                        </button>
-                    {/each}
-                    {#if customCapeDataUrl}
-                        <button class="shrink-0 snap-start w-24 rounded-xl border p-2 text-xs text-fg flex flex-col items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedCape === 'custom' ? 'border-brand-400 bg-brand-500/15 shadow-sm ring-1 ring-brand-500' : 'border-fg/10 bg-fg/[0.03] hover:bg-fg/[0.08]'}" aria-pressed={selectedCape === "custom"} onclick={() => selectedCape = "custom"}>
-                            {#if customCapePreview}
-                                <img loading="lazy" decoding="async" class="h-14 w-9 object-contain [image-rendering:pixelated]" src={customCapePreview} alt="Capa importada" />
-                            {:else}
-                                <span class="h-14 flex items-center text-fg/40 font-medium">PNG</span>
-                            {/if}
-                            <span class="truncate w-full text-center">Capa importada</span>
-                        </button>
+                <div class="flex flex-wrap items-center gap-3">
+                    {#if selectedCape !== "none"}
+                        <div class="flex items-center gap-3 rounded-xl border border-fg/10 bg-fg/[0.03] px-4 py-3">
+                            {#if currentCapePreview}<img class="h-14 w-9 object-contain [image-rendering:pixelated]" src={currentCapePreview} alt={uiText("skinsStudio.currentCape")} />{/if}
+                            <span class="text-sm font-medium text-fg">{uiText("skinsStudio.currentCape")}</span>
+                        </div>
+                    {/if}
+                    <Button variant={selectedCape === "none" ? "outline" : "ghost"} size="lg" aria-pressed={selectedCape === "none"} onclick={() => selectedCape = "none"}>{uiText("skinsStudio.removeCape")}</Button>
+                    {#if customCapeDataUrl && selectedCape !== "custom"}
+                        <Button variant="secondary" size="lg" onclick={() => selectedCape = "custom"}>{uiText("ui.b0dcf66f807f8b19")}</Button>
+                    {/if}
+                    {#if accountCapeUrl && accountCapeUrl !== customCapeDataUrl}
+                        <Button variant="secondary" size="lg" onclick={() => { customCapeDataUrl = accountCapeUrl; selectedCape = "custom"; }}>{uiText("skinsStudio.accountCape")}</Button>
                     {/if}
                 </div>
             </section>
+
+            <div class="rounded-2xl border border-brand-400/20 bg-brand-500/[0.06] p-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+                <div class="min-w-0 flex-1">
+                    <h2 class="font-semibold text-fg">{uiText("skinsStudio.collection")}</h2>
+                    <p class="mt-1 text-sm leading-relaxed text-fg-muted">{uiText("skinsStudio.collectionDescription")}</p>
+                </div>
+                <Button variant="ghost" size="lg" onclick={async () => { showNameMc = true; await tick(); nameMcPicker?.showLinkImport(); }}>{uiText("skinsStudio.nameMcLink")}</Button>
+                <Button variant="primary" size="xl" onclick={openNameMcCatalog}><Globe2 class="h-5 w-5" />{uiText("skinsStudio.nameMcBrowse")}<ArrowUpRight class="h-4 w-4" /></Button>
+            </div>
 
 			<section class="space-y-3">
 				<button
 					type="button"
 					onclick={() => savedSkinsExpanded = !savedSkinsExpanded}
-					class="flex items-center gap-2 text-sm font-black text-fg hover:text-brand-400 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "ghost", size: "sm", class: "flex items-center gap-2" })}
 				>
 					{#if savedSkinsExpanded}
 						<ChevronUp class="w-4 h-4 text-fg/50" />
 					{:else}
 						<ChevronDown class="w-4 h-4 text-fg/50" />
 					{/if}
-					<span>Skins salvas</span>
+					<span>{uiText("ui.a28ec08e13c3486e")}</span>
 				</button>
 
 				{#if savedSkinsExpanded}
@@ -724,14 +775,14 @@
 						<button
 							type="button"
 							onclick={handleAddSkinFile}
-							class="rounded-2xl border-2 border-dashed border-fg/15 hover:border-brand-500 bg-fg/[0.01] hover:bg-fg/[0.03] p-5 flex flex-col items-center justify-center text-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer min-h-[170px] group shadow-sm"
+							class="rounded-2xl border-2 border-dashed border-fg/15 hover:border-brand-500 bg-fg/[0.01] hover:bg-fg/[0.03] p-6 flex flex-col items-center justify-center text-center gap-3 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer min-h-[200px] group shadow-sm"
 						>
 							<div class="w-10 h-10 rounded-full bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 flex items-center justify-center text-fg/60 group-hover:text-brand-400 transition-colors">
 								<Plus class="w-5 h-5 stroke-[2.5]" />
 							</div>
 							<div>
-								<span class="text-xs font-bold text-fg block">Adicionar skin</span>
-								<span class="text-[11px] text-fg/40 block mt-0.5">Arraste e solte</span>
+								<span class="text-sm font-bold text-fg block">{uiText("ui.4c9f7bf72839140b")}</span>
+								<span class="text-[11px] text-fg/40 block mt-0.5">{uiText("ui.bff1b507008c4ae1")}</span>
 							</div>
 						</button>
 
@@ -742,7 +793,7 @@
 								tabindex="0"
 								onclick={() => selectSavedSkin(s)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") selectSavedSkin(s); }}
-								class="rounded-2xl bg-bg/35 backdrop-blur-xl hover:bg-fg/10 border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[170px] shadow-sm {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
+								class="rounded-2xl bg-bg-elevated hover:bg-fg/10 border transition-[color,background-color,border-color,box-shadow,transform,opacity] p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[170px] shadow-sm {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
 							>
 								{#if isSelected}
 									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-black border border-white flex items-center justify-center text-white shadow-md z-10">
@@ -784,8 +835,8 @@
 													e.stopPropagation();
 													startRenameSkin(s);
 												}}
-												class="text-fg/30 hover:text-brand-400 transition-colors p-1 cursor-pointer"
-												title="Renomear skin"
+												class={launcherButton({ variant: "ghost", size: "icon", class: "" })}
+												title={uiText("ui.a8a60a5f8ce44324")}
 											>
 												<Pencil class="w-3 h-3" />
 											</button>
@@ -795,8 +846,8 @@
 													e.stopPropagation();
 													removeSavedSkin(s.id);
 												}}
-												class="text-fg/30 hover:text-red-400 transition-colors p-1 cursor-pointer"
-												title="Remover skin salva"
+												class={launcherButton({ variant: "danger", size: "icon", class: "" })}
+												title={uiText("ui.02a395e8e81169aa")}
 											>
 												<Trash2 class="w-3 h-3" />
 											</button>
@@ -808,9 +859,9 @@
 						{#if savedSkins.length === 0}
 							<div class="col-span-full min-h-[170px] rounded-2xl border border-fg/10 bg-fg/[0.025] p-6 text-center flex flex-col items-center justify-center gap-2">
 								<Shirt class="w-7 h-7 text-brand-400" />
-								<p class="text-sm font-bold text-fg">Sua coleção está pronta para começar</p>
-								<p class="max-w-sm text-xs text-fg/50">Importe sua primeira skin personalizada em PNG, no modelo Steve ou Alex.</p>
-								<button type="button" onclick={handleAddSkinFile} class="mt-1 text-xs font-bold text-brand-400 hover:text-brand-300">Importar skin PNG</button>
+								<p class="text-sm font-bold text-fg">{uiText("ui.ed03cfca46dfa4bd")}</p>
+								<p class="max-w-sm text-xs text-fg/50">{uiText("ui.1447b4b57ec95585")}</p>
+								<button type="button" onclick={handleAddSkinFile} class={launcherButton({ variant: "ghost", size: "sm", class: "mt-1" })}>{uiText("ui.c59a739c055d2700")}</button>
 							</div>
 						{/if}
 
@@ -823,17 +874,19 @@
 	</div>
 
 
+    <NameMcPicker bind:this={nameMcPicker} isOpen={showNameMc} onClose={() => showNameMc = false} onImport={importNameMcSkin} onImportFile={handleAddSkinFile} />
+
 	{#if showEditModal}
 		<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" in:fade={{ easing: quintOut, duration: 220 }}>
-			<div class="w-full max-w-xl rounded-3xl bg-bg/35 backdrop-blur-xl border border-fg/10 p-6 shadow-2xl space-y-5" in:fly={{ easing: backOut, y: 20, duration: 260 }}>
+			<div class="w-full max-w-xl rounded-3xl bg-bg-elevated border border-fg/10 p-6 shadow-2xl space-y-5" in:fly={{ easing: backOut, y: 20, duration: 260 }}>
 				<div class="flex items-center justify-between border-b border-fg/[0.06] pb-3">
 					<div class="flex items-center gap-2.5">
 						<Pencil class="w-4 h-4 text-brand-400" />
-						<h3 class="text-sm font-extrabold text-fg">Editar Configurações da Skin</h3>
+						<h3 class="text-sm font-extrabold text-fg">{uiText("ui.71d4b9b16931a1e6")}</h3>
 					</div>
 					<button
 						type="button"
-						class="text-fg/40 hover:text-fg text-xs cursor-pointer p-1"
+						class={launcherButton({ variant: "ghost", size: "icon", class: "" })}
 						onclick={() => showEditModal = false}
 					>
 						<X class="w-4 h-4" />
@@ -841,34 +894,34 @@
 				</div>
 
 				<div class="space-y-2">
-					<span class="text-xs font-bold text-fg/70 block">Modelo dos Braços</span>
+					<span class="text-xs font-bold text-fg/70 block">{uiText("ui.cba1dbb98b38725c")}</span>
 					<div class="grid grid-cols-2 gap-2">
 						<button
 							type="button"
 							onclick={() => setModelType("steve")}
-							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {skinType === 'steve' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
+							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {skinType === 'steve' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
 						>
-							<div class="text-xs font-extrabold">Clássico (Steve)</div>
-							<div class="text-[10px] opacity-70">Braços normais com 4 pixels</div>
+							<div class="text-xs font-extrabold">{uiText("ui.96a64cbea1a373fc")}</div>
+							<div class="text-[10px] opacity-70">{uiText("ui.1ff20d38849b2834")}</div>
 						</button>
 						<button
 							type="button"
 							onclick={() => setModelType("alex")}
-							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {skinType === 'alex' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
+							class="p-3 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {skinType === 'alex' ? 'bg-brand-500/15 border-brand-500 text-brand-400' : 'bg-fg/[0.02] border-fg/10 text-fg/60 hover:text-fg'}"
 						>
-							<div class="text-xs font-extrabold">Fino (Alex)</div>
-							<div class="text-[10px] opacity-70">Braços finos com 3 pixels</div>
+							<div class="text-xs font-extrabold">{uiText("ui.d3371d4701fa915a")}</div>
+							<div class="text-[10px] opacity-70">{uiText("ui.9d48e239645d29a3")}</div>
 						</button>
 					</div>
 				</div>
 
 				<div class="space-y-2">
-					<label for="search-nickname-input" class="text-xs font-bold text-fg/70 block">Buscar por Nickname (Mojang / NameMC)</label>
+					<label for="search-nickname-input" class="text-xs font-bold text-fg/70 block">{uiText("ui.2482dbad375ed2ad")}</label>
 					<div class="flex items-center gap-2">
 						<input
 							id="search-nickname-input"
 							type="text"
-							placeholder="Ex: Technoblade, Dream, MumboJumbo..."
+							placeholder={uiText("ui.745ee544a80d6267")}
 							bind:value={searchNick}
 							onkeydown={(e) => e.key === 'Enter' && handleSearchNick()}
 							class="flex-1 bg-black/40 border border-fg/10 rounded-xl px-3.5 py-2 text-xs text-fg placeholder-fg/30 outline-none focus:border-brand-500"
@@ -877,68 +930,14 @@
 							type="button"
 							onclick={handleSearchNick}
 							disabled={isSearchingNick}
-							class="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground font-black text-xs cursor-pointer disabled:opacity-50"
+							class={launcherButton({ variant: "primary", size: "sm", class: "disabled:opacity-50" })}
 						>
 							{#if isSearchingNick}
 								<RefreshCw class="w-3.5 h-3.5 animate-spin" />
 							{:else}
-								<span>Buscar</span>
+								<span>{uiText("mods.searchButton")}</span>
 							{/if}
 						</button>
-					</div>
-				</div>
-
-				<div class="space-y-2">
-					<div class="flex items-center justify-between">
-						<span class="text-xs font-bold text-fg/70 block">Escolha de Capa HD</span>
-						{#if true}
-							<button
-								type="button"
-								onclick={handleCustomCapeUpload}
-								class="text-[11px] font-bold text-brand-400 hover:underline flex items-center gap-1 cursor-pointer"
-							>
-								<Upload class="w-3 h-3" /> Importar capa PNG
-							</button>
-						{/if}
-					</div>
-
-					<div class="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[160px] overflow-y-auto custom-scrollbar pr-1">
-						{#each capeList as c}
-							{@const isCapeSelected = selectedCape === c.id}
-							{@const previewUrl = c.id !== "none" && c.id !== "custom" ? getCapePreviewDataUrl(c.id) : null}
-							<button
-								type="button"
-								onclick={() => {
-									if (c.id === "custom" && !customCapeDataUrl) {
-										handleCustomCapeUpload();
-									} else {
-										selectedCape = c.id;
-									}
-								}}
-								class="p-2 rounded-xl border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex flex-col items-center text-center gap-1 relative overflow-hidden {isCapeSelected ? 'bg-brand-500/15 border-brand-500' : 'bg-fg/[0.02] border-fg/10 hover:border-fg/20'}"
-							>
-								<div class="w-8 h-12 rounded-lg bg-black/40 border border-fg/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-									{#if previewUrl}
-										<img loading="lazy" decoding="async"
-											src={previewUrl}
-											alt={c.name}
-											class="w-full h-full object-contain [image-rendering:pixelated]"
-										/>
-									{:else if c.id === "custom" && customCapeDataUrl}
-										<img loading="lazy" decoding="async"
-											src={customCapePreview || customCapeDataUrl}
-											alt="Capa personalizada"
-											class="w-full h-full object-cover [image-rendering:pixelated]"
-										/>
-									{:else if c.id === "custom"}
-										<Upload class="w-4 h-4 text-fg/50" />
-									{:else}
-										<span class="text-[9px] text-fg/30 font-bold uppercase">Sem capa</span>
-									{/if}
-								</div>
-								<span class="text-[10px] font-bold truncate block text-fg w-full">{c.name}</span>
-							</button>
-						{/each}
 					</div>
 				</div>
 
@@ -946,9 +945,9 @@
 					<button
 						type="button"
 						onclick={() => showEditModal = false}
-						class="px-5 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-brand-foreground text-xs font-black cursor-pointer"
+						class={launcherButton({ variant: "primary", size: "sm", class: "" })}
 					>
-						Pronto
+						{uiText("ui.039eb59231cce07c")}
 					</button>
 				</div>
 			</div>

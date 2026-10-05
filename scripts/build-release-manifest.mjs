@@ -1,0 +1,33 @@
+import { createHash } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import { basename, resolve } from "node:path";
+
+const [metadataFile, directory = "."] = process.argv.slice(2);
+if (!metadataFile) throw new Error("Pass the GitHub release metadata JSON file.");
+const release = JSON.parse(readFileSync(metadataFile, "utf8"));
+const version = release.tag_name.replace(/^v/, "");
+const files = {
+  "windows-x86_64": "Lux MC Launcher.exe",
+  "linux-x86_64": `Luxmc_${version}_amd64.AppImage`,
+  "darwin-x86_64": `Luxmc_${version}_universal.dmg`,
+  "darwin-aarch64": `Luxmc_${version}_universal.dmg`,
+};
+const platforms = {};
+const sums = new Map();
+for (const asset of release.assets) {
+  if (!/\.(?:exe|AppImage|deb|rpm|dmg|pkg\.tar\.zst)$/.test(asset.name)) continue;
+  if (basename(asset.name) !== asset.name) throw new Error("Invalid release asset name.");
+  const bytes = readFileSync(resolve(directory, asset.name));
+  if (!bytes.length || bytes.length !== asset.size) throw new Error(`Release asset size mismatch: ${asset.name}`);
+  const url = new URL(asset.browser_download_url);
+  if (url.origin !== "https://github.com" || !url.pathname.startsWith(`/predabr/luxmc/releases/download/${release.tag_name}/`)) throw new Error("Unofficial release URL.");
+  const sha256 = createHash("sha256").update(bytes).digest("hex");
+  sums.set(asset.name, sha256);
+  for (const [platform, filename] of Object.entries(files)) {
+    if (filename === asset.name) platforms[platform] = { url: asset.browser_download_url, sha256, size: bytes.length };
+  }
+}
+if (Object.keys(platforms).length !== Object.keys(files).length) throw new Error("Missing supported platform installer.");
+writeFileSync(resolve(directory, "SHA256SUMS"), [...sums].sort(([a], [b]) => a.localeCompare(b)).map(([name, hash]) => `${hash}  ${name}`).join("\n") + "\n");
+writeFileSync(resolve(directory, "latest.json"), JSON.stringify({ version, notes: release.body, pub_date: release.published_at || new Date().toISOString(), platforms }, null, 2) + "\n");
+console.log(`Verified ${sums.size} installers; update manifest created for ${version}.`);

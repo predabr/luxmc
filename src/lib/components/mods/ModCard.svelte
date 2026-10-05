@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { Download, Users, Loader2, Check, PackagePlus, Box } from "lucide-svelte";
 	import LazyImage from "$lib/components/ui/LazyImage.svelte";
 	import SourceBadge from "./SourceBadge.svelte";
@@ -27,6 +28,7 @@
 	import { curatedBanners, matchesCuratedBanner } from "$lib/utils/curatedBanners";
 
 	let bannerAttempt = $state(0);
+    let bannerLoaded = $state(false);
 
 	$effect(() => {
 		item.slug;
@@ -43,27 +45,35 @@
 		for (const [key, banner] of Object.entries(curatedBanners)) {
 			if ((matchesCuratedBanner(lowerTitle, key) || matchesCuratedBanner(lowerSlug, key)) && !candidates.includes(banner)) candidates.push(banner);
 		}
-		if (isModpack && item.iconUrl && !candidates.includes(item.iconUrl)) candidates.push(item.iconUrl);
+
+        if (item.iconUrl && !candidates.includes(item.iconUrl)) candidates.push(item.iconUrl);
+
 		return candidates;
 	});
 	const effectiveBanner = $derived(bannerCandidates[bannerAttempt] ?? null);
+    $effect(() => { effectiveBanner; bannerLoaded = false; });
 </script>
 
-<div 
+<div
 	role="button"
 	tabindex="0"
 	onclick={() => onOpenDetails(item)}
-	onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDetails(item); } }}
-	class="cv-auto group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated shadow-soft transition-all duration-150 hover:-translate-y-0.5 hover:border-brand-500/40 hover:shadow-elevated cursor-pointer [contain-intrinsic-size:auto_400px]"
+	onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onOpenDetails(item); } }}
+	class="catalog-card group relative h-full flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated cursor-pointer"
 >
-	<div class="relative h-48 bg-bg-subtle rounded-t-2xl overflow-hidden">
+	<div class="relative h-48 shrink-0 bg-bg-subtle rounded-t-2xl overflow-hidden">
+        {#if item.iconUrl && effectiveBanner !== item.iconUrl}
+            <img src={item.iconUrl} alt="" loading="eager" decoding="async" class="absolute inset-0 h-full w-full object-cover" />
+        {/if}
 		{#if effectiveBanner}
-			<img 
-				src={effectiveBanner} 
-				alt="" 
-				loading="lazy"
+			<img
+				src={effectiveBanner}
+				alt=""
+				loading="eager"
 				decoding="async"
-				class="h-full w-full rounded-t-2xl object-cover transition-transform duration-500 group-hover:scale-105" 
+				class="relative h-full w-full rounded-t-2xl object-cover"
+                style:opacity={effectiveBanner === item.iconUrl || bannerLoaded ? 1 : 0}
+                onload={() => bannerLoaded = true}
 				onerror={() => { bannerAttempt += 1; }}
 			/>
 		{:else}
@@ -72,7 +82,7 @@
 				<div class="card-mesh absolute inset-0 opacity-40"></div>
 				<div class="absolute inset-0 flex items-center justify-center p-6">
 					{#if item.iconUrl}
-						<LazyImage src={item.iconUrl} alt={item.title} class="h-20 w-20 rounded-2xl border border-fg/10 bg-bg-elevated/70 p-2 object-contain shadow-elevated transition-transform duration-300 group-hover:scale-105" fallback="/grass_block.png" />
+						<LazyImage src={item.iconUrl} alt={item.title} class="h-24 w-24 rounded-2xl border border-fg/10 bg-bg-elevated p-2 object-contain shadow-elevated" fallback="/grass_block.png" />
 					{:else}
 						<Box class="h-12 w-12 text-brand-400" />
 					{/if}
@@ -82,7 +92,7 @@
 		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent"></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
 		{#if effectiveBanner && item.iconUrl && item.iconUrl !== effectiveBanner}
-			<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated transition-transform duration-150 group-hover:-translate-y-0.5">
+			<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
 				<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
 			</div>
 		{/if}
@@ -95,15 +105,15 @@
 		<div class="flex items-center gap-1.5 text-xs text-fg-subtle"><Users class="h-3 w-3" /><span class="truncate">{item.author || item.slug}</span></div>
 		{#if loaders.length}<div class="flex flex-wrap gap-1.5">{#each loaders as loader}<LoaderBadge {loader} />{/each}</div>{/if}
 		<div class="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
-			<div class="space-y-1 text-xs text-fg-muted"><span class="flex items-center gap-1"><Download class="h-3 w-3" />{downloads}</span>{#if latest}<span class="block text-[10px] text-fg-subtle">MC {latest}</span>{/if}</div>
-			<button 
-				type="button" 
-				class={button({ variant: isInstalled ? "secondary" : "primary", size: "sm", class: "relative z-10" })} 
-				onclick={(e) => { e.stopPropagation(); onInstall(item); }} 
-				disabled={isInstalling || isInstalled} 
-				aria-label={`${isInstalled ? "Instalado" : "Instalar"}: ${item.title}`}
+			<div class="space-y-1 text-xs text-fg-muted"><span class="flex items-center gap-1"><Download class="h-3 w-3" />{downloads}</span>{#if latest}<span class="block text-[10px] text-fg-subtle">{uiText("ui.ca34ab5c748c6607")} {latest}</span>{/if}</div>
+			<button
+				type="button"
+				class={button({ variant: isInstalled ? "secondary" : "primary", size: "sm", class: "relative z-10" })}
+				onclick={(e) => { e.stopPropagation(); onInstall(item); }}
+				disabled={isInstalling || isInstalled}
+				aria-label={`${isInstalled ? "Instalado" : uiText("mods.install")}: ${item.title}`}
 			>
-				{#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />Instalando{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />Instalado{:else if isModpack}<PackagePlus class="h-3.5 w-3.5" />Criar{:else}<Download class="h-3.5 w-3.5" />Instalar{/if}
+				{#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />{uiText("ui.f4200333ccfd750e")}{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />{uiText("mods.installed")}{:else if isModpack}<PackagePlus class="h-3.5 w-3.5" />{uiText("common.create")}{:else}<Download class="h-3.5 w-3.5" />{uiText("mods.install")}{/if}
 			</button>
 		</div>
 	</div>

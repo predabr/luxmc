@@ -47,36 +47,36 @@ fn format_key_display(raw: &str) -> String {
     }
 }
 
-fn categorize_key(id: &str) -> (&'static str, &'static str) {
+fn categorize_key(id: &str) -> (String, String) {
     match id {
-        "key_key.forward" => ("Movimentação", "Andar para Frente"),
-        "key_key.back" => ("Movimentação", "Andar para Trás"),
-        "key_key.left" => ("Movimentação", "Esquerda"),
-        "key_key.right" => ("Movimentação", "Direita"),
-        "key_key.jump" => ("Movimentação", "Pular"),
-        "key_key.sneak" => ("Movimentação", "Agachar"),
-        "key_key.sprint" => ("Movimentação", "Correr"),
+        "key_key.forward" => ("Movimentação".to_string(), "Andar para Frente".to_string()),
+        "key_key.back" => ("Movimentação".to_string(), "Andar para Trás".to_string()),
+        "key_key.left" => ("Movimentação".to_string(), "Esquerda".to_string()),
+        "key_key.right" => ("Movimentação".to_string(), "Direita".to_string()),
+        "key_key.jump" => ("Movimentação".to_string(), "Pular".to_string()),
+        "key_key.sneak" => ("Movimentação".to_string(), "Agachar".to_string()),
+        "key_key.sprint" => ("Movimentação".to_string(), "Correr".to_string()),
 
-        "key_key.attack" => ("Combate", "Atacar / Destruir"),
-        "key_key.use" => ("Combate", "Usar Item / Colocar"),
-        "key_key.pickItem" => ("Combate", "Copiar Bloco"),
-        "key_key.drop" => ("Combate", "Largar Item"),
-        "key_key.swapOffhand" => ("Combate", "Trocar Item de Mão"),
+        "key_key.attack" => ("Combate".to_string(), "Atacar / Destruir".to_string()),
+        "key_key.use" => ("Combate".to_string(), "Usar Item / Colocar".to_string()),
+        "key_key.pickItem" => ("Combate".to_string(), "Copiar Bloco".to_string()),
+        "key_key.drop" => ("Combate".to_string(), "Largar Item".to_string()),
+        "key_key.swapOffhand" => ("Combate".to_string(), "Trocar Item de Mão".to_string()),
 
-        "key_key.inventory" => ("Interface", "Abrir Inventário"),
-        "key_key.chat" => ("Interface", "Abrir Chat"),
-        "key_key.command" => ("Interface", "Abrir Linha de Comando"),
-        "key_key.playerlist" => ("Interface", "Lista de Jogadores (Tab)"),
-        "key_key.screenshot" => ("Interface", "Tirar Captura de Tela (F2)"),
-        "key_key.togglePerspective" => ("Interface", "Mudar Visão da Câmera (F5)"),
-        "key_key.smoothCamera" => ("Interface", "Câmera Cinemática"),
-        "key_key.fullscreen" => ("Interface", "Tela Cheia (F11)"),
-        "key_key.spectatorOutlines" => ("Interface", "Destacar Jogadores"),
-        "key_key.advancements" => ("Interface", "Progresso / Avanços (L)"),
+        "key_key.inventory" => ("Interface".to_string(), "Abrir Inventário".to_string()),
+        "key_key.chat" => ("Interface".to_string(), "Abrir Chat".to_string()),
+        "key_key.command" => ("Interface".to_string(), "Abrir Linha de Comando".to_string()),
+        "key_key.playerlist" => ("Interface".to_string(), "Lista de Jogadores (Tab)".to_string()),
+        "key_key.screenshot" => ("Interface".to_string(), "Tirar Captura de Tela (F2)".to_string()),
+        "key_key.togglePerspective" => ("Interface".to_string(), "Mudar Visão da Câmera (F5)".to_string()),
+        "key_key.smoothCamera" => ("Interface".to_string(), "Câmera Cinemática".to_string()),
+        "key_key.fullscreen" => ("Interface".to_string(), "Tela Cheia (F11)".to_string()),
+        "key_key.spectatorOutlines" => ("Interface".to_string(), "Destacar Jogadores".to_string()),
+        "key_key.advancements" => ("Interface".to_string(), "Progresso / Avanços (L)".to_string()),
 
         _ => {
             let label = id.strip_prefix("key_key.").unwrap_or(id).replace('.', " ");
-            ("Mods & Diversos", Box::leak(label.into_boxed_str()))
+            ("Mods & Diversos".to_string(), label)
         }
     }
 }
@@ -176,7 +176,7 @@ pub async fn keybinds_update(
         return Ok(false);
     }
 
-    let content = tokio::fs::read_to_string(&options_path).await.unwrap_or_default();
+    let content = tokio::fs::read_to_string(&options_path).await?;
     let mut new_lines = Vec::new();
 
     for line in content.lines() {

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let { size = 32, class: klass = "" }: { size?: number; class?: string } = $props();
 	const uid = Math.random().toString(36).slice(2, 8);
 	const frameId = `logoFrame_${uid}`;
@@ -6,7 +7,7 @@
 	const glowId = `logoGlow_${uid}`;
 </script>
 
-<svg viewBox="0 0 100 100" width={size} height={size} class={klass} aria-label="Luxmc logo" role="img">
+<svg viewBox="0 0 100 100" width={size} height={size} class={klass} aria-label={uiText("ui.c4befcd3cc8f5a0b")} role="img">
 	<defs>
 		<linearGradient id={frameId} x1="18%" y1="8%" x2="82%" y2="92%">
 			<stop offset="0" stop-color="#607582"/>

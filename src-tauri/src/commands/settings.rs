@@ -34,3 +34,33 @@ pub async fn settings_set(value: Value) -> AppResult<()> {
     .map_err(AppError::from)?;
     Ok(())
 }
+
+#[tauri::command]
+pub async fn settings_set_concurrent_downloads(value: u32) -> AppResult<()> {
+    let limit = value.clamp(1, 64);
+    crate::core::downloader::set_max_concurrent_downloads(limit as usize);
+    let conn = db::shared_db().await?;
+    sqlx::query(
+        "INSERT INTO app_settings (key, value) VALUES ('concurrent_downloads', ?) \
+		 ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    )
+    .bind(limit.to_string())
+    .execute(conn.pool())
+    .await
+    .map_err(AppError::from)?;
+    Ok(())
+}
+
+pub async fn apply_stored_download_limit(conn: &crate::db::Db) -> AppResult<()> {
+    use sqlx::Row;
+    if let Ok(Some(row)) = sqlx::query("SELECT value FROM app_settings WHERE key = 'concurrent_downloads'")
+        .fetch_optional(conn.pool())
+        .await
+    {
+        let raw: String = row.try_get("value").unwrap_or_default();
+        if let Ok(limit) = raw.parse::<usize>() {
+            crate::core::downloader::set_max_concurrent_downloads(limit);
+        }
+    }
+    Ok(())
+}

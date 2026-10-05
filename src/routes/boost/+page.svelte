@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
 	import { 
@@ -40,20 +42,20 @@
 	let copiedFlags = $state(false);
 	let activeProfile = $derived(profiles.active);
 
-	const ramPresets = [
-		{ mb: 2048, label: "2 GB", desc: "Vanilla Leve", icon: "🌱" },
-		{ mb: 4096, label: "4 GB", desc: "Padrão / Mods Moderados", icon: "⚡" },
-		{ mb: 6144, label: "6 GB", desc: "Modpacks Médios (100+ mods)", icon: "🔥" },
-		{ mb: 8192, label: "8 GB", desc: "Heavy Modpacks (200+ mods / Shaders)", icon: "🚀" },
-		{ mb: 12288, label: "12 GB", desc: "Extremo / Texturas 256x+", icon: "💎" }
-	];
+	const ramPresets = $derived([
+		{ mb: 2048, label: uiText("ui.b2dd6247c7a0cd98"), desc: uiText("ui.8b37ff10118189bf"), icon: "🌱" },
+		{ mb: 4096, label: uiText("ui.64a214401e793659"), desc: uiText("ui.8d2833400aa6d9ca"), icon: "⚡" },
+		{ mb: 6144, label: uiText("ui.ba344e24e41f5b5c"), desc: uiText("ui.950761d9e7b41dae"), icon: "🔥" },
+		{ mb: 8192, label: uiText("ui.64b29b62d14dd300"), desc: uiText("ui.d48b5926e7871f36"), icon: "🚀" },
+		{ mb: 12288, label: uiText("ui.f2d32ef1e01403f8"), desc: uiText("ui.f0848910981ca1ea"), icon: "💎" }
+	]);
 
 	async function loadSpecs() {
 		loadingSpecs = true;
 		try {
 			specs = await getSystemSpecs();
 		} catch (e) {
-			console.warn("Falha ao carregar specs do sistema:", e);
+			console.warn(uiText("ui.26b05fbe7c7a5150"), e);
 		} finally {
 			loadingSpecs = false;
 		}
@@ -64,7 +66,7 @@
 		try {
 			generatedFlags = await optimizerGetFlags(ramMb, true);
 		} catch (e) {
-			console.warn("Falha ao gerar flags:", e);
+			console.warn(uiText("ui.5b5479b36ac80588"), e);
 		}
 	}
 
@@ -81,12 +83,12 @@
 			const freed = await optimizerTrimMemory();
 			if (freed) {
 				playSound("chime");
-				toast("Memória RAM da aplicação purgada e compactada com sucesso!", "success");
+				toast(uiText("ui.960cf645c805c439"), "success");
 			} else {
-				toast("Limpeza concluída no sistema.", "info");
+				toast(uiText("ui.8306b22090417500"), "info");
 			}
 		} catch (e) {
-			toast(`Falha ao purgar memória: ${String(e)}`, "error");
+			toast(uiText("ui.d3956d124f4a851d", {arg0: (String(e))}), "error");
 		} finally {
 			trimming = false;
 		}
@@ -94,7 +96,7 @@
 
 	async function handleInstallPerfPack() {
 		if (!activeProfile) {
-			toast("Selecione ou crie uma instância primeiro", "error");
+			toast(uiText("ui.94ed7f3735d7c0af"), "error");
 			return;
 		}
 		installingPack = true;
@@ -104,7 +106,7 @@
 			playSound("achievement");
 			toast(`Pacote de Performance instalado: ${installed.join(", ")}`, "success");
 		} catch (e) {
-			toast(`Erro ao instalar pacote: ${String(e)}`, "error");
+			toast(uiText("ui.13955fe0e626bc38", {arg0: (String(e))}), "error");
 		} finally {
 			installingPack = false;
 		}
@@ -125,9 +127,9 @@
 			activeProfile.jvmArgs = argsString;
 			activeProfile.autoOptimize = true;
 			playSound("chime");
-			toast("Flags Aikar e RAM aplicadas à instância ativa!", "success");
+			toast(uiText("ui.56a49ac0592f7861"), "success");
 		} catch (e) {
-			toast(`Erro ao aplicar configurações: ${String(e)}`, "error");
+			toast(uiText("ui.7a916bb8e0104909", {arg0: (String(e))}), "error");
 		}
 	}
 
@@ -135,9 +137,9 @@
 		const text = generatedFlags.join(" ");
 		navigator.clipboard.writeText(text).then(() => {
 			copiedFlags = true;
-			toast("Flags JVM copiadas para a área de transferência!", "success");
+			toast(uiText("ui.b1bd70e209fd2186"), "success");
 			setTimeout(() => copiedFlags = false, 2500);
-		});
+		}).catch((e) => toast(uiText("ui.25be28c16b3339a8") + String(e), "error"));
 	}
 </script>
 
@@ -152,28 +154,28 @@
 				</div>
 				<div>
 					<div class="flex items-center gap-2">
-						<h1 class="text-2xl font-black text-fg tracking-tight">Luxmc Turbo Booster</h1>
+						<h1 class="text-2xl font-black text-fg tracking-tight">{uiText("ui.8ef1131ad4861779")}</h1>
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-500 text-brand-foreground shadow-md">
-							Engine
+							{uiText("ui.8e75ebbdb21505d2")}
 						</span>
 					</div>
-					<p class="text-xs text-fg/50 mt-1">Otimizador de Baixo Nível, Purga de Memória & Afinação JVM</p>
+					<p class="text-xs text-fg/50 mt-1">{uiText("ui.38c251943d6c688f")}</p>
 				</div>
 			</div>
 
 			<div class="flex items-center gap-3">
 				<button
 					type="button"
-					class="px-5 py-2.5 rounded-full text-xs font-bold bg-bg-overlay hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer active:scale-[0.98]"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 					onclick={loadSpecs}
 					disabled={loadingSpecs}
 				>
 					<RefreshCw class="w-3.5 h-3.5 {loadingSpecs ? 'animate-spin' : ''}" />
-					<span>Atualizar Dados</span>
+					<span>{uiText("ui.b7ac1eb6ee6512e5")}</span>
 				</button>
 				<button
 					type="button"
-					class="px-6 py-2.5 rounded-full text-xs font-black bg-brand-500 hover:brightness-110 text-brand-foreground transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer active:scale-[0.98] disabled:opacity-50"
+					class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2 disabled:opacity-50" })}
 					onclick={handleTrimMemory}
 					disabled={trimming}
 				>
@@ -191,7 +193,7 @@
 				<Cpu class="w-5 h-5" />
 			</div>
 			<div class="min-w-0">
-				<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 block">Arquitetura / CPU</span>
+				<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 block">{uiText("ui.73da38361010f47b")}</span>
 				<span class="text-xs font-bold text-fg truncate block" title={specs?.arch || "Linux x86_64"}>
 					{specs?.arch ? `${specs.arch} (${specs.osDistro})` : (loadingSpecs ? "Analisando..." : "x86_64")}
 				</span>
@@ -203,9 +205,9 @@
 				<Gauge class="w-5 h-5" />
 			</div>
 			<div class="min-w-0">
-				<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 block">Memória RAM</span>
+				<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 block">{uiText("ui.99fdbbe208962a9d")}</span>
 				<span class="text-xs font-bold text-fg block">
-					{specs ? `${Math.round(specs.totalRamMb / 1024)} GB Alocável` : "8 GB Total"}
+					{specs ? uiText("ui.59b8dcf609e819df", {arg0: (Math.round(specs.totalRamMb / 1024))}) : uiText("ui.06984d799243cd84")}
 				</span>
 			</div>
 		</div>
@@ -215,7 +217,7 @@
 				<Activity class="w-5 h-5" />
 			</div>
 			<div class="min-w-0">
-				<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 block">Placa de Vídeo (GPU)</span>
+				<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 block">{uiText("ui.a7d1cd383f8baa2b")}</span>
 				<span class="text-xs font-bold text-fg truncate block" title={specs ? `${specs.gpuVendor} - ${specs.gpuRenderer}` : "GPU Acelerada"}>
 					{specs ? `${specs.gpuVendor} · ${specs.gpuRenderer}` : "GPU Acelerada"}
 				</span>
@@ -227,7 +229,7 @@
 				<HardDrive class="w-5 h-5" />
 			</div>
 			<div class="min-w-0">
-				<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 block">Kernel & Versão</span>
+				<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 block">{uiText("ui.34d2c5f186d6bcf1")}</span>
 				<span class="text-xs font-bold text-fg truncate block" title={specs ? `${specs.kernelVersion}` : "Linux Nativo"}>
 					{specs ? `${specs.kernelVersion} · v${specs.launcherVersion}` : "Linux Nativo"}
 				</span>
@@ -243,13 +245,13 @@
 					<Sparkles class="w-6 h-6" />
 				</div>
 				<div>
-					<h3 class="text-sm font-bold text-fg">Pacote de Otimização Extrema (1-Clique)</h3>
+					<h3 class="text-sm font-bold text-fg">{uiText("ui.f034c8c78e3c85e4")}</h3>
 					<p class="text-xs text-fg/50 mt-1 max-w-xl">
-						Instala automaticamente mods de ponta na instância ativa: <strong class="text-fg">FerriteCore</strong> (reduz uso de RAM pela metade), <strong class="text-fg">ModernFix</strong> (carregamento ultra-rápido), <strong class="text-fg">ImmediatelyFast</strong> e <strong class="text-fg">Lithium</strong>.
+						{uiText("ui.368bf33325fe2891")} <strong class="text-fg">FerriteCore</strong> {uiText("ui.35d30ad990c06194")} <strong class="text-fg">ModernFix</strong> {uiText("ui.ffaa72d8a10f8564")} <strong class="text-fg">ImmediatelyFast</strong> {uiText("ui.3f79bb7b435b0532")} <strong class="text-fg">Lithium</strong>.
 					</p>
 					{#if activeProfile}
 						<div class="flex items-center gap-2 mt-2 text-[11px] text-fg/60">
-							<span>Instância Selecionada:</span>
+							<span>{uiText("ui.49b1aa18edb7f21a")}</span>
 							<span class="font-bold text-brand-500">{activeProfile.name}</span>
 							<span class="px-1.5 py-0.5 rounded bg-fg/5 text-fg/40 font-mono">{activeProfile.loader} · {activeProfile.mcVersion}</span>
 						</div>
@@ -264,7 +266,7 @@
 				class="shrink-0"
 			>
 				<Download class="w-4 h-4 mr-1.5" />
-				Instalar Pacote de Performance
+				{uiText("ui.d75f243a714bed40")}
 			</Button>
 		</div>
 	</div>
@@ -275,23 +277,23 @@
 			<div>
 				<h3 class="text-sm font-bold text-fg flex items-center gap-2">
 					<Sliders class="w-4 h-4 text-brand-500" />
-					Gerador Inteligente de Flags JVM (Aikar's Flags)
+					{uiText("ui.6bbbf8e999fc75be")}
 				</h3>
-				<p class="text-xs text-fg/50 mt-0.5">Calcula as flags ideais para Garbage Collection (G1GC) e estabilização de framerate</p>
+				<p class="text-xs text-fg/50 mt-0.5">{uiText("ui.246c4acad7cf557b")}</p>
 			</div>
 
 			<div class="flex items-center gap-2">
 				<button
 					type="button"
-					class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 					onclick={copyFlags}
 				>
 					{#if copiedFlags}
 						<Check class="w-3.5 h-3.5 text-emerald-400" />
-						<span class="text-emerald-400">Copiado!</span>
+						<span class="text-emerald-400">{uiText("ui.a8fe0fc805d5fd50")}</span>
 					{:else}
 						<Copy class="w-3.5 h-3.5" />
-						<span>Copiar Flags</span>
+						<span>{uiText("ui.33d4b5ed611992a1")}</span>
 					{/if}
 				</button>
 				<Button
@@ -300,19 +302,19 @@
 					disabled={!activeProfile}
 				>
 					<Check class="w-4 h-4 mr-1.5" />
-					Aplicar à Instância
+					{uiText("ui.86522217c086587f")}
 				</Button>
 			</div>
 		</div>
 
 		<!-- RAM Presets -->
 		<div class="space-y-2">
-			<span class="text-xs font-bold text-fg/70 block">Selecione a Alocação de Memória RAM:</span>
+			<span class="text-xs font-bold text-fg/70 block">{uiText("ui.4c5586a758b8178e")}</span>
 			<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
 				{#each ramPresets as preset}
 					<button
 						type="button"
-						class="p-3.5 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {selectedRamPreset === preset.mb ? 'border-brand-500 bg-brand-500/10 shadow-md ring-1 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/15'}"
+						class="p-3.5 rounded-2xl border text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {selectedRamPreset === preset.mb ? 'border-brand-500 bg-brand-500/10 shadow-md ring-1 ring-brand-500/30' : 'border-fg/5 bg-bg-subtle hover:border-fg/15'}"
 						onclick={() => updateFlags(preset.mb)}
 					>
 						<div class="text-lg">{preset.icon}</div>
@@ -325,12 +327,12 @@
 
 		<!-- Generated Flags Output -->
 		<div class="space-y-2">
-			<span class="text-xs font-bold text-fg/70 block">Flags Geradas Automaticamente:</span>
+			<span class="text-xs font-bold text-fg/70 block">{uiText("ui.039b25151841684b")}</span>
 			<div class="bg-bg-subtle border border-fg/10 rounded-2xl p-4 font-mono text-[11px] text-emerald-400/90 leading-relaxed break-all select-all shadow-inner">
 				{#if generatedFlags.length > 0}
 					{generatedFlags.join(" ")}
 				{:else}
-					<span class="text-fg/30 font-sans">Gerando flags de otimização...</span>
+					<span class="text-fg/30 font-sans">{uiText("ui.9148680d26a1705a")}</span>
 				{/if}
 			</div>
 		</div>

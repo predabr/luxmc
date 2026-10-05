@@ -51,6 +51,8 @@ async fn test_instance_crud_and_persistence() {
         gamescope_height: None,
         gamescope_fsr: false,
         force_full_verification: false,
+        pre_launch_hook: None,
+        post_exit_hook: None,
     };
 
     luxmc_lib::db::schema::profiles::upsert(&db, &initial_profile)

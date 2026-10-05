@@ -73,7 +73,7 @@ export default defineConfig(({ isSsrBuild }) => ({
           overlay: false,
         },
     watch: {
-      ignored: ["**/src-tauri/**"],
+      ignored: ["**/src-tauri/**", "**/release-windows/**", "**/release-electron/**", "**/build/**"],
     },
   },
 }));

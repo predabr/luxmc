@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { appState } from "./app.svelte";
 import { gamingStatsGet, gamingStatsSave } from "$lib/api/skins";
 
@@ -146,7 +147,7 @@ export const gamingStats = {
 
 	get last7Days(): DayStat[] {
 		const days: DayStat[] = [];
-		const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+		const dayNames = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", uiText("ui.8caa81ea46301662")];
 		const now = new Date();
 		for (let i = 6; i >= 0; i--) {
 			const d = new Date(now);
@@ -219,7 +220,7 @@ export const gamingStats = {
 	get formattedTodayTime() {
 		const mins = gamingStats.todayMinutes;
 		if (mins < 60) {
-			return `${mins} ${mins === 1 ? 'minuto' : 'minutos'}`;
+			return `${mins} ${mins === 1 ? 'minuto' : uiText("ui.aeb6183e322c8d69")}`;
 		}
 		const h = Math.floor(mins / 60);
 		const m = mins % 60;
@@ -237,7 +238,7 @@ export const gamingStats = {
 
 	get formattedLastSession() {
 		if (activeGameStartTime !== null) {
-			return `${activeSessionMinutes}m (Em jogo)`;
+			return uiText("ui.3eb96048b97bf86b", {arg0: (activeSessionMinutes)});
 		}
 		const h = Math.floor(lastSessionMinutes / 60);
 		const m = lastSessionMinutes % 60;

@@ -49,19 +49,17 @@ pub async fn p2p_scan_lan_worlds() -> AppResult<Vec<DiscoveredLanWorld>> {
     use std::net::Ipv4Addr;
 
     let multicast_addr = Ipv4Addr::new(224, 0, 2, 60);
-    let socket = match tokio::net::UdpSocket::bind("0.0.0.0:4445").await {
-        Ok(s) => s,
-        Err(_) => {
-            return Ok(Vec::new());
-        }
-    };
-
-    let _ = socket.join_multicast_v4(multicast_addr, Ipv4Addr::UNSPECIFIED);
+    let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP))?;
+    socket.set_reuse_address(true)?;
+    socket.bind(&std::net::SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 4445).into())?;
+    socket.join_multicast_v4(&multicast_addr, &Ipv4Addr::UNSPECIFIED)?;
+    socket.set_nonblocking(true)?;
+    let socket = tokio::net::UdpSocket::from_std(socket.into())?;
 
     let mut worlds = Vec::new();
     let mut buf = [0u8; 1024];
 
-    let end_time = tokio::time::Instant::now() + std::time::Duration::from_millis(1500);
+    let end_time = tokio::time::Instant::now() + std::time::Duration::from_millis(2200);
     while tokio::time::Instant::now() < end_time {
         let remaining = end_time.saturating_duration_since(tokio::time::Instant::now());
         if let Ok(Ok((len, src))) = tokio::time::timeout(remaining, socket.recv_from(&mut buf)).await {

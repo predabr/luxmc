@@ -13,7 +13,17 @@ use crate::error::{AppError, AppResult};
 
 const MAX_RETRIES: u32 = 3;
 const RETRY_BASE_DELAY_MS: u64 = 1000;
-const MAX_CONCURRENT_DOWNLOADS: usize = 24;
+const DEFAULT_CONCURRENT_DOWNLOADS: usize = 24;
+static MAX_CONCURRENT_DOWNLOADS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(DEFAULT_CONCURRENT_DOWNLOADS);
+
+pub fn set_max_concurrent_downloads(limit: usize) {
+    MAX_CONCURRENT_DOWNLOADS.store(limit.clamp(1, 64), std::sync::atomic::Ordering::SeqCst);
+}
+
+pub fn max_concurrent_downloads() -> usize {
+    MAX_CONCURRENT_DOWNLOADS.load(std::sync::atomic::Ordering::SeqCst)
+}
 const SPEED_UPDATE_INTERVAL_MS: u64 = 250;
 
 pub struct DownloadManager {
@@ -50,7 +60,7 @@ impl DownloadManager {
             http,
             base_dir,
             app: None,
-            semaphore: Arc::new(Semaphore::new(MAX_CONCURRENT_DOWNLOADS)),
+            semaphore: Arc::new(Semaphore::new(max_concurrent_downloads())),
             progress_clock: Arc::new(Mutex::new(None)),
         }
     }
@@ -319,7 +329,7 @@ impl DownloadManager {
                 }
             });
 
-            while join_set.len() >= MAX_CONCURRENT_DOWNLOADS {
+            while join_set.len() >= max_concurrent_downloads() {
                 if let Some(result) = join_set.join_next().await {
                     match result {
                         Ok((dl_bytes, Ok(()))) => {
@@ -453,7 +463,7 @@ impl DownloadManager {
                             "osx" => classifier_key.starts_with("natives-osx") || classifier_key.starts_with("natives-macos"),
                             _ => false,
                         };
-                        if matches_os {
+                        if matches_os && crate::core::launcher::is_native_classifier_allowed(classifier_key) {
                             let native_lib_name = format!("{}:{}", lib.name, classifier_key);
                             let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
                             if !fast_cached_file(&native_path, entry.size) && !valid_cached_file(&native_path, entry.size, &entry.sha1).await? {
@@ -550,7 +560,7 @@ impl DownloadManager {
                 }
             });
 
-            while join_set.len() >= MAX_CONCURRENT_DOWNLOADS {
+            while join_set.len() >= max_concurrent_downloads() {
                 if let Some(result) = join_set.join_next().await {
                     match result {
                         Ok((lib_name, dl_bytes, Ok(()))) => {
@@ -731,7 +741,7 @@ impl DownloadManager {
                             "osx" => classifier_key.starts_with("natives-osx") || classifier_key.starts_with("natives-macos"),
                             _ => false,
                         };
-                        if matches_os {
+                        if matches_os && crate::core::launcher::is_native_classifier_allowed(classifier_key) {
                             let native_lib_name = format!("{}:{}", lib.name, classifier_key);
                             let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
                             if !native_path.exists() {
@@ -784,6 +794,13 @@ impl DownloadManager {
     }
 }
 
+fn partial_path(path: &PathBuf, url: &str) -> PathBuf {
+    let digest = xxhash_rust::xxh3::xxh3_64(url.as_bytes());
+    let mut name = path.as_os_str().to_os_string();
+    name.push(format!(".{:016x}.part", digest));
+    PathBuf::from(name)
+}
+
 async fn download_file_retry(
     mgr: &DownloadManager,
     entry: &DownloadEntry,
@@ -792,7 +809,7 @@ async fn download_file_retry(
 ) -> AppResult<()> {
     let mut last_err = None;
 
-    let temporary = path.with_extension(format!("{}.part", uuid::Uuid::new_v4()));
+    let temporary = partial_path(path, &entry.url);
     for attempt in 1..=MAX_RETRIES {
         match download_file_once(mgr, entry, &temporary, label).await {
             Ok(()) => {
@@ -813,10 +830,10 @@ async fn download_file_retry(
                         attempt, MAX_RETRIES, label, e
                     ),
                 );
-                let _ = tokio::fs::remove_file(&temporary).await;
                 let not_found = matches!(&e, AppError::Http(re) if re.status() == Some(reqwest::StatusCode::NOT_FOUND));
                 last_err = Some(e);
                 if not_found {
+                    let _ = tokio::fs::remove_file(&temporary).await;
                     break;
                 }
 
@@ -838,12 +855,27 @@ async fn download_file_once(
     path: &PathBuf,
     label: &str,
 ) -> AppResult<()> {
-    let mut resp = mgr.http.get(&entry.url).send().await;
+    let existing = tokio::fs::metadata(path).await.map(|m| m.len()).unwrap_or(0);
+    let resume_from = if existing > 0 && entry.size > 0 && existing < entry.size { existing } else { 0 };
+    if resume_from > 0 {
+        DownloadManager::emit_log(mgr, &format!("Resuming {} from {} bytes", label, resume_from));
+    }
+
+    let send = |url: &str| {
+        let builder = mgr.http.get(url);
+        if resume_from > 0 {
+            builder.header(reqwest::header::RANGE, format!("bytes={}-", resume_from))
+        } else {
+            builder
+        }
+    };
+
+    let mut resp = send(&entry.url).send().await;
 
     if let Ok(ref r) = resp {
         if r.status() == reqwest::StatusCode::NOT_FOUND && entry.url.starts_with("https://libraries.minecraft.net/") {
             let mirror_url = entry.url.replace("https://libraries.minecraft.net/", "https://bmclapi2.bangbang93.com/libraries/");
-            if let Ok(m_resp) = mgr.http.get(&mirror_url).send().await {
+            if let Ok(m_resp) = send(&mirror_url).send().await {
                 if m_resp.status().is_success() {
                     resp = Ok(m_resp);
                 }
@@ -852,26 +884,45 @@ async fn download_file_once(
     }
 
     let resp = match resp {
-        Ok(r) => match r.error_for_status() {
-            Ok(val) => val,
-            Err(e) => {
-                if (label.contains("twitch") || entry.url.contains("tv/twitch")) && e.status() == Some(reqwest::StatusCode::NOT_FOUND) {
-                    DownloadManager::emit_log(mgr, &format!("Ignored missing legacy optional library: {}", label));
-                    return Ok(());
-                }
-                return Err(e.into());
+        Ok(r) => {
+            if r.status() == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+                let _ = tokio::fs::remove_file(path).await;
+                return Err(AppError::Internal(format!("partial download of {} is unusable, restarting", label)));
             }
-        },
+            match r.error_for_status() {
+                Ok(val) => val,
+                Err(e) => {
+                    if (label.contains("twitch") || entry.url.contains("tv/twitch")) && e.status() == Some(reqwest::StatusCode::NOT_FOUND) {
+                        DownloadManager::emit_log(mgr, &format!("Ignored missing legacy optional library: {}", label));
+                        return Ok(());
+                    }
+                    return Err(e.into());
+                }
+            }
+        }
         Err(e) => return Err(e.into()),
     };
 
-    let total_size = resp.content_length().unwrap_or(entry.size);
+    let resumed = resume_from > 0 && resp.status() == reqwest::StatusCode::PARTIAL_CONTENT;
+    let append_offset = if resumed { resume_from } else { 0 };
+    let total_size = if resumed {
+        resume_from + resp.content_length().unwrap_or(entry.size.saturating_sub(resume_from))
+    } else {
+        resp.content_length().unwrap_or(entry.size)
+    };
 
     let mut stream = resp.bytes_stream();
-    let mut file = tokio::fs::File::create(path).await.map_err(|e| {
-        AppError::Internal(format!("failed to create file {}: {}", path.display(), e))
-    })?;
-    let mut bytes_downloaded = 0u64;
+    let mut file = if resumed {
+        tokio::fs::OpenOptions::new().append(true).open(path).await.map_err(|e| {
+            AppError::Internal(format!("failed to append file {}: {}", path.display(), e))
+        })?
+    } else {
+        tokio::fs::File::create(path).await.map_err(|e| {
+            AppError::Internal(format!("failed to create file {}: {}", path.display(), e))
+        })?
+    };
+    let mut bytes_downloaded = append_offset;
+    let mut session_bytes = 0u64;
     let start = Instant::now();
     let mut last_report = Instant::now();
 
@@ -882,6 +933,7 @@ async fn download_file_once(
         let chunk =
             chunk.map_err(|e| AppError::Internal(format!("stream error for {}: {}", label, e)))?;
         bytes_downloaded += chunk.len() as u64;
+        session_bytes += chunk.len() as u64;
         file.write_all(&chunk).await.map_err(|e| {
             AppError::Internal(format!("write error for {}: {}", label, e))
         })?;
@@ -889,7 +941,7 @@ async fn download_file_once(
         if last_report.elapsed().as_millis() >= SPEED_UPDATE_INTERVAL_MS as u128 {
             let elapsed = start.elapsed().as_millis() as u64;
             let bps = if elapsed > 0 {
-                bytes_downloaded * 1000 / elapsed
+                session_bytes * 1000 / elapsed
             } else {
                 0
             };
@@ -919,6 +971,7 @@ async fn download_file_once(
     drop(file);
 
     if bytes_downloaded == 0 || (entry.size > 0 && bytes_downloaded != entry.size) {
+        let _ = tokio::fs::remove_file(path).await;
         return Err(AppError::Internal(format!("invalid download size for {label}: {bytes_downloaded}, expected {}", entry.size)));
     }
     if !entry.sha1.is_empty() {
@@ -946,7 +999,7 @@ async fn download_file_once(
 
     let elapsed = start.elapsed().as_millis() as u64;
     let bps = if elapsed > 0 {
-        bytes_downloaded * 1000 / elapsed
+        session_bytes * 1000 / elapsed
     } else {
         0
     };
@@ -1028,6 +1081,74 @@ mod tests {
         while files.next_entry().await.unwrap().is_some() { count += 1; }
         assert_eq!(count, 1);
         assert!(!valid_cached_file(&path, 18, "0000000000000000000000000000000000000000").await.unwrap());
+        server.await.unwrap();
+        tokio::fs::remove_dir_all(directory).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn resumed_transfer_sends_range_and_completes() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = tokio::spawn(async move {
+            let read_request = |mut connection: tokio::net::TcpStream| {
+                async move {
+                    let mut request = [0u8; 4096];
+                    let read = connection.read(&mut request).await.unwrap();
+                    let text = String::from_utf8_lossy(&request[..read]).to_string();
+                    (connection, text)
+                }
+            };
+
+            let (mut first, first_request) = read_request(listener.accept().await.unwrap().0).await;
+            assert!(
+                !first_request.to_lowercase().contains("range:"),
+                "fresh download must not resume: {first_request}"
+            );
+            first
+                .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nConnection: close\r\n\r\n")
+                .await
+                .unwrap();
+            first.write_all(&vec![b'a'; 40]).await.unwrap();
+            drop(first);
+
+            let (mut second, second_request) = read_request(listener.accept().await.unwrap().0).await;
+            assert!(
+                second_request.to_lowercase().contains("range: bytes=40-"),
+                "second attempt must resume at 40 bytes: {second_request}"
+            );
+            second
+                .write_all(
+                    b"HTTP/1.1 206 Partial Content\r\nContent-Length: 60\r\nContent-Range: bytes 40-99/100\r\nConnection: close\r\n\r\n",
+                )
+                .await
+                .unwrap();
+            second.write_all(&vec![b'b'; 60]).await.unwrap();
+            drop(second);
+        });
+
+        let directory = std::env::temp_dir().join(format!("luxmc-resume-{}", uuid::Uuid::new_v4()));
+        tokio::fs::create_dir_all(&directory).await.unwrap();
+        let path = directory.join("resumed.bin");
+        let manager = DownloadManager::new(reqwest::Client::new(), directory.clone());
+
+        let mut payload = vec![b'a'; 40];
+        payload.extend(std::iter::repeat(b'b').take(60));
+        let mut hasher = Sha1::new();
+        hasher.update(&payload);
+        let entry = DownloadEntry {
+            url: format!("http://{address}/resumed.bin"),
+            size: 100,
+            sha1: format!("{:x}", hasher.finalize()),
+        };
+
+        download_file_retry(&manager, &entry, &path, "resume-test").await.unwrap();
+        assert_eq!(tokio::fs::read(&path).await.unwrap(), payload);
+
+        let mut leftovers = tokio::fs::read_dir(&directory).await.unwrap();
+        let mut count = 0;
+        while leftovers.next_entry().await.unwrap().is_some() { count += 1; }
+        assert_eq!(count, 1, "partial file must be promoted to the final path");
+
         server.await.unwrap();
         tokio::fs::remove_dir_all(directory).await.unwrap();
     }

@@ -13,6 +13,10 @@ function flatten(value: Record<string, unknown>, prefix = ""): Record<string, st
 function files(directory: string): string[] {
     return readdirSync(directory, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? files(join(directory, entry.name)) : /\.(svelte|ts)$/.test(entry.name) ? [join(directory, entry.name)] : []);
 }
+const dictionaries = { en, "pt-BR": pt, es } as const;
+function missingKeys(source: Record<string, string>, target: Record<string, string>): string[] {
+    return Object.keys(source).filter(key => !target[key]);
+}
 describe("Português do Brasil", () => {
     it("cobre todas as chaves dos outros idiomas e mantém os parâmetros", () => {
         const translated = flatten(pt);
@@ -21,11 +25,25 @@ describe("Português do Brasil", () => {
             expect((translated[key].match(/{{[^}]+}}/g) || []).sort(), key).toEqual((value.match(/{{[^}]+}}/g) || []).sort());
         }
     });
-    it("resolve as chaves literais usadas nas telas", () => {
-        const translated = flatten(pt);
+});
+describe("Cobertura dos idiomas", () => {
+    it("cobre todas as chaves do inglês e mantém os parâmetros", () => {
+        const sources = Object.fromEntries(Object.entries(dictionaries).map(([locale, dictionary]) => [locale, flatten(dictionary)]));
+        for (const [locale, translated] of Object.entries(sources)) {
+            expect(missingKeys(sources.en, translated), locale).toEqual([]);
+            expect(missingKeys(sources["pt-BR"], translated), locale).toEqual([]);
+            for (const [key, value] of Object.entries(sources.en)) {
+                expect((translated[key].match(/{{[^}]+}}/g) || []).sort(), `${locale}: ${key}`).toEqual((value.match(/{{[^}]+}}/g) || []).sort());
+            }
+        }
+    });
+    it("resolve as chaves literais usadas nas telas em todos os idiomas", () => {
+        const translated = Object.fromEntries(Object.entries(dictionaries).map(([locale, dictionary]) => [locale, flatten(dictionary)]));
         for (const file of files("src")) {
             const source = readFileSync(file, "utf8");
-            for (const match of source.matchAll(/\bt\(["']([\w.-]+)["']/g)) expect(translated[match[1]], `${file}: ${match[1]}`).toBeTruthy();
+            for (const match of source.matchAll(/\b(?:t|uiText)\(["']([\w.-]+)["']/g)) {
+                for (const [locale, dictionary] of Object.entries(translated)) expect(dictionary[match[1]], `${locale} ${file}: ${match[1]}`).toBeTruthy();
+            }
         }
     });
 });

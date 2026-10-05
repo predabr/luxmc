@@ -1,10 +1,10 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc Logo" width="140" />
-  <h1>Luxmc <code>v2.0.1</code></h1>
+  <h1>Luxmc <code>v3.0.0</code></h1>
   <p><strong>Launcher de Minecraft moderno, Linux-first e de altíssima performance.</strong></p>
   <p><a href="https://luxmc-r92.pages.dev"><strong>🌐 Site Oficial: luxmc-r92.pages.dev</strong></a></p>
 
-  [![Release](https://img.shields.io/badge/Release-v2.0.1-emerald?style=flat&logo=github)](https://github.com/predabr/luxmc/releases/tag/v2.0.1)
+  [![Release](https://img.shields.io/badge/Release-v3.0.0-emerald?style=flat&logo=github)](https://github.com/predabr/luxmc/releases/tag/v3.0.0)
   [![Website](https://img.shields.io/badge/Website-luxmc--r92.pages.dev-10b981?style=flat&logo=cloudflare)](https://luxmc-r92.pages.dev)
   ![Svelte](https://img.shields.io/badge/Svelte_5-FF3E00?logo=svelte&logoColor=white)
   ![Tauri](https://img.shields.io/badge/Tauri_2-FFC131?logo=tauri&logoColor=black)
@@ -25,7 +25,7 @@ Todas as chamadas pesadas, verificações de arquivos, downloads paralelos e inj
 
 ---
 
-## 🚀 Funcionalidades da Versão 2.0.1
+## 🚀 Funcionalidades da Versão 3.0.0
 
 | Recurso | Descrição |
 |---|---|
@@ -38,11 +38,11 @@ Todas as chamadas pesadas, verificações de arquivos, downloads paralelos e inj
 | ☕ **Java Auto-Manager** | Download e configuração automática dos runtimes Eclipse Temurin (Java 8, 17, 21) |
 | ⚡ **Otimizador Nativo de Memória** | Gestão ativa de memória via `malloc_trim` no Linux e `EmptyWorkingSet` no Windows |
 | 🐧 **Integração Linux Completa** | Suporte refinado a **Wayland** e **X11**, **Feral GameMode**, **MangoHud** e registro automático de ícones no dock |
-| 🔒 **Zero Telemetria** | 100% dos seus dados, senhas e configurações permanecem armazenados localmente na sua máquina |
+| 🔒 **Zero Telemetria** | Dados de instâncias ficam no computador; contas Luxmc, skins compartilhadas e recursos sociais usam o portal quando ativados |
 
 ---
 
-## 📸 Demonstração Visual (v2.0.1)
+## 📸 Demonstração Visual (v3.0.0)
 
 <div align="center">
 
@@ -76,7 +76,7 @@ paru -S luxmc-launcher
 
 Ou instale o pacote `.pkg.tar.zst` diretamente via pacman:
 ```bash
-sudo pacman -U https://github.com/predabr/luxmc/releases/latest/download/luxmc-2.0.1-1-x86_64.pkg.tar.zst
+sudo pacman -U https://github.com/predabr/luxmc/releases/latest/download/luxmc-3.0.0-1-x86_64.pkg.tar.zst
 ```
 
 #### 2. Instalador Automático Universal (Qualquer Distribuição Linux)
@@ -86,22 +86,22 @@ curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash
 ```
 
 #### 3. AppImage Portátil
-Baixe o [Luxmc_2.0.1_amd64.AppImage](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_2.0.1_amd64.AppImage), conceda permissão de execução e inicie:
+Baixe o [Luxmc_3.0.0_amd64.AppImage](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_3.0.0_amd64.AppImage), conceda permissão de execução e inicie:
 ```bash
-chmod +x Luxmc_2.0.1_amd64.AppImage
-./Luxmc_2.0.1_amd64.AppImage
+chmod +x Luxmc_3.0.0_amd64.AppImage
+./Luxmc_3.0.0_amd64.AppImage
 ```
 
 #### 4. Ubuntu / Debian / Pop!_OS / Linux Mint
 Baixe e instale o pacote `.deb`:
 ```bash
-sudo dpkg -i Luxmc_2.0.1_amd64.deb
+sudo dpkg -i Luxmc_3.0.0_amd64.deb
 ```
 
 #### 5. Fedora / RHEL / openSUSE
 Baixe e instale o pacote `.rpm`:
 ```bash
-sudo rpm -i Luxmc-2.0.1-1.x86_64.rpm
+sudo rpm -i Luxmc-3.0.0-1.x86_64.rpm
 ```
 
 ---
@@ -109,7 +109,7 @@ sudo rpm -i Luxmc-2.0.1-1.x86_64.rpm
 ### 🪟 Windows
 
 Baixe o instalador oficial executável:
-- **Instalador NSIS**: [Luxmc_2.0.1_x64-setup.exe](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_2.0.1_x64-setup.exe)
+- **Instalador NSIS**: [Lux MC Launcher.exe](https://github.com/predabr/luxmc/releases/latest/download/Lux%20MC%20Launcher.exe)
 
 Dê um duplo clique no instalador e siga o assistente. O Luxmc configurará automaticamente os atalhos da área de trabalho e menu Iniciar.
 
@@ -117,7 +117,7 @@ Dê um duplo clique no instalador e siga o assistente. O Luxmc configurará auto
 
 ### 🍎 macOS
 
-- **Universal DMG (Apple Silicon & Intel)**: [Luxmc_2.0.1_universal.dmg](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_2.0.1_universal.dmg)
+- **Universal DMG (Apple Silicon & Intel)**: [Luxmc_3.0.0_universal.dmg](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_3.0.0_universal.dmg)
 
 Abra o arquivo `.dmg` e arraste o **Luxmc** para a sua pasta **Aplicativos**.
 

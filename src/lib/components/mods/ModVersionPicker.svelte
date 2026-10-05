@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { Download, PackagePlus, Layers } from "lucide-svelte";
 	import type { ModVersion } from "$lib/api";
 
@@ -29,12 +31,12 @@
 {#if versions.length === 0}
 	<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-12 text-center text-fg/40 text-xs">
 		<Layers class="w-10 h-10 text-fg/20 mx-auto mb-3" />
-		<p>Nenhuma versão listada para este projeto.</p>
+		<p>{uiText("ui.9135dcfa3a4a2e7f")}</p>
 	</div>
 {:else}
 	<div class="bg-bg-elevated border border-fg/5 rounded-3xl overflow-hidden shadow-md">
 		<div class="divide-y divide-white/5">
-			{#each displayedVersions as ver}
+			{#each displayedVersions as ver (ver.id)}
 				{@const file = ver.files[0]}
 				<div class="p-4 flex items-center justify-between hover:bg-fg/[0.02] transition-colors gap-4">
 					<div class="min-w-0">
@@ -57,15 +59,15 @@
 
 					<button
 						type="button"
-						class="shrink-0 bg-bg-subtle hover:bg-brand-400 hover:text-brand-foreground text-fg text-xs font-bold px-3.5 py-1.5 rounded-xl flex items-center gap-1.5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm cursor-pointer"
+						class={launcherButton({ variant: "primary", size: "sm", class: "shrink-0 flex items-center gap-1.5" })}
 						onclick={() => onInstall(ver.id)}
 					>
 						{#if isModpack}
 							<PackagePlus class="w-3 h-3" />
-							<span>Criar</span>
+							<span>{uiText("common.create")}</span>
 						{:else}
 							<Download class="w-3 h-3" />
-							<span>Instalar</span>
+							<span>{uiText("mods.install")}</span>
 						{/if}
 					</button>
 				</div>
@@ -75,10 +77,10 @@
 			<div class="p-3 text-center border-t border-fg/5 bg-fg/[0.01]">
 				<button
 					type="button"
-					class="text-xs text-brand-400 hover:underline font-bold cursor-pointer"
+					class={launcherButton({ variant: "ghost", size: "sm", class: "hover:underline" })}
 					onclick={() => showAll = true}
 				>
-					Mostrar todas as {versions.length} versões
+					{uiText("ui.c52bf495166dfc20")} {versions.length} {uiText("ui.e270e835d3dd8b85")}
 				</button>
 			</div>
 		{/if}

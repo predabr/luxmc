@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { onMount } from "svelte";
     import { settings } from "$lib/stores/settings.svelte";
     import { appState } from "$lib/stores/app.svelte";
@@ -19,7 +20,7 @@
     const paused = $derived(
         preview || !visible ||
         (settings.value.pauseWallpaperOnBlur !== false && !focused) ||
-        appState.isGameRunning || appState.performanceMode
+        appState.isGameRunning || appState.performanceMode || appState.isScrolling
     );
 
     onMount(() => {
@@ -51,7 +52,7 @@
         const currentSource = src;
         const localPath = wallpaperLocalPath(currentSource);
         fallbackSource = resolveWallpaperVideoUrl(currentSource);
-        source = localPath ? "" : currentSource;
+        source = localPath ? "" : fallbackSource;
         triedFallback = false;
         failed = false;
         poster = "";
@@ -202,6 +203,6 @@
         ></video>
     {/if}
     {#if failed && preview}
-        <span class="absolute inset-0 flex items-center justify-center text-xs text-fg-muted">Prévia indisponível</span>
+        <span class="absolute inset-0 flex items-center justify-center text-xs text-fg-muted">{uiText("ui.03d8e08e0311b042")}</span>
     {/if}
 </div>

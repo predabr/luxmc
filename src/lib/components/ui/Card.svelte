@@ -4,7 +4,7 @@
 	import type { Snippet } from "svelte";
 
 	const card = tv({
-		base: "rounded-xl border border-border bg-bg-elevated transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 ease-out",
+		base: "rounded-xl border border-border bg-bg-elevated transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 ease-out",
 		variants: {
 			padding: { none: "", sm: "p-3", md: "p-5", lg: "p-7" },
 			interactive: { true: "hover:-translate-y-0.5 hover:shadow-lg hover:border-brand-500/30 cursor-pointer" },

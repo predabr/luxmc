@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { onMount, onDestroy } from "svelte";
 	import { CheckCircle2, AlertCircle, Info, X, Bell } from "lucide-svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
@@ -83,11 +84,11 @@
 		>
 			<cfg.Icon class="h-4 w-4 shrink-0" style="color: {cfg.color};" />
 			<div class="flex-1"><p>{toastItem.message}</p>
-                {#if toastItem.action}<button class="mt-2 font-semibold underline" onclick={() => { toastItem.action?.run(); dismiss(toastItem.id); }}>{toastItem.action.label}</button>{/if}
+                {#if toastItem.action}<button class={launcherButton({ variant: "ghost", size: "sm", class: "mt-2 underline" })} onclick={() => { toastItem.action?.run(); dismiss(toastItem.id); }}>{toastItem.action.label}</button>{/if}
             </div>
 			<button
 				type="button"
-				class="grid h-5 w-5 place-items-center rounded transition-colors hover:bg-fg/5"
+				class={launcherButton({ variant: "secondary", size: "icon", class: "grid place-items-center" })}
 				style="color: rgb(var(--fg-subtle));"
 				onclick={() => dismiss(toastItem.id)}
 				aria-label={t("common.close")}

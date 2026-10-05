@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
     import LuxAccountForm from "./LuxAccountForm.svelte";
 	import { fade, scale } from "svelte/transition";
@@ -13,6 +15,7 @@
 		AlertCircle
 	} from "lucide-svelte";
 	import { account, saveCurrentAccount } from "$lib/stores/account.svelte";
+	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import { authLogin, authOfflineLogin, type AuthAccount } from "$lib/api";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -32,7 +35,23 @@
 	let isLoggingIn = $state(false);
 	let errorMsg = $state<string | null>(null);
 
+	function updateActiveAppearance(acc: { uuid: string; username: string; skinUrl?: string; skinVariant?: string; capeUrl?: string }) {
+		const skinUrl = acc.skinUrl || `https://minotar.net/skin/${acc.username}`;
+		activeSkinStore.setSkin({
+			id: acc.uuid,
+			name: acc.username,
+			url: `https://mc-heads.net/body/${acc.username}/300`,
+			skinUrl,
+			avatarUrl: `https://mc-heads.net/avatar/${acc.username}/100`,
+			type: acc.skinVariant?.toLowerCase() === "slim" ? "alex" : "steve",
+			hasCape: Boolean(acc.capeUrl),
+			capeType: acc.capeUrl ? "custom" : "none",
+			customCapeUrl: acc.capeUrl || ""
+		});
+	}
+
 	async function handleOfflineLogin() {
+		if (isLoggingIn) return;
 		const trimmed = offlineUsername.trim();
 		if (!trimmed) {
 			errorMsg = "Por favor, digite um nickname.";
@@ -43,7 +62,7 @@
 			return;
 		}
 		if (!/^[a-zA-Z0-9_]+$/.test(trimmed)) {
-			errorMsg = "O nickname pode conter apenas letras, números e underline (_).";
+			errorMsg = uiText("ui.ed9583ced94dc1a4");
 			return;
 		}
 
@@ -56,14 +75,19 @@
 				username: acc.username,
 				uuid: acc.uuid,
 				minecraftToken: acc.accessToken,
-				expiresAt: acc.expiresAt
+				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0,
+				skinUrl: acc.skinUrl ?? null,
+				skinVariant: acc.skinVariant ?? "classic",
+				capeUrl: acc.capeUrl ?? null
 			};
 			void saveCurrentAccount(account.value);
-			toast(`Conta offline "${trimmed}" adicionada com sucesso!`, "success");
+			updateActiveAppearance(acc);
+			toast(uiText("ui.953b1b10d0d549e9", {arg0: (trimmed)}), "success");
 			onAccountAdded?.(acc);
+			isLoggingIn = false;
 			handleClose();
 		} catch (e) {
-			errorMsg = "Falha ao entrar offline: " + String(e);
+			errorMsg = uiText("ui.9538dd9126533a1c") + String(e);
 			toast(errorMsg, "error");
 		} finally {
 			isLoggingIn = false;
@@ -71,6 +95,7 @@
 	}
 
 	async function handleMicrosoftLogin() {
+		if (isLoggingIn) return;
 		isLoggingIn = true;
 		errorMsg = null;
 		try {
@@ -80,14 +105,19 @@
 				username: acc.username,
 				uuid: acc.uuid,
 				minecraftToken: acc.accessToken,
-				expiresAt: acc.expiresAt
+				expiresAt: acc.expiresAt ? (acc.expiresAt < 1e11 ? acc.expiresAt * 1000 : acc.expiresAt) : 0,
+				skinUrl: acc.skinUrl ?? null,
+				skinVariant: acc.skinVariant ?? "classic",
+				capeUrl: acc.capeUrl ?? null
 			};
 			void saveCurrentAccount(account.value);
-			toast(`Conta Microsoft de ${acc.username} conectada!`, "success");
+			updateActiveAppearance(acc);
+			toast(uiText("ui.fbb71389641a9e1d", {arg0: (acc.username)}), "success");
 			onAccountAdded?.(acc as AuthAccount);
+			isLoggingIn = false;
 			handleClose();
 		} catch (e) {
-			errorMsg = "Falha no login Microsoft: " + String(e);
+			errorMsg = uiText("ui.62406a19962ea989") + String(e);
 			toast(errorMsg, "error");
 		} finally {
 			isLoggingIn = false;
@@ -95,6 +125,7 @@
 	}
 
 	function handleClose() {
+		if (isLoggingIn) return;
 		offlineUsername = "";
 		errorMsg = null;
 		isLoggingIn = false;
@@ -121,7 +152,7 @@
 		tabindex="-1"
 	>
 		<div 
-			class="w-full max-w-md rounded-3xl bg-bg-elevated border border-fg/10 shadow-2xl overflow-hidden flex flex-col"
+			class="auth-surface w-full max-w-[480px] max-h-[90dvh] overflow-y-auto rounded-3xl bg-bg-elevated border border-fg/10 flex flex-col"
 			in:scale={{ easing: backOut, start: 0.95, duration: 240 }}
 			out:scale={{ easing: backOut, start: 0.95, duration: 180 }}
 		>
@@ -132,14 +163,16 @@
 						<Gamepad2 class="w-4 h-4" />
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-fg">Adicionar Conta</h3>
-						<p class="text-[10px] text-fg/40">Selecione o tipo de conta para jogar</p>
+						<h3 class="text-sm font-black text-fg">{uiText("ui.d1f39e30f9b200a4")}</h3>
+						<p class="text-[10px] text-fg/40">{uiText("ui.a62914dff8852842")}</p>
 					</div>
 				</div>
 				<button 
 					type="button" 
-					class="w-7 h-7 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/50 hover:text-fg flex items-center justify-center transition-colors cursor-pointer text-xs"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center justify-center" })}
 					onclick={handleClose}
+					disabled={isLoggingIn}
+					aria-label={uiText("common.close")}
 				>
 					✕
 				</button>
@@ -148,18 +181,22 @@
 			<!-- Tab Switcher (Offline vs Microsoft) -->
 			<div class="p-4">
 				<div class="grid grid-cols-3 gap-2 p-1 bg-bg-elevated rounded-2xl border border-fg/5">
-                    <button type="button" class="rounded-xl px-3 py-2 text-xs font-bold {tab === 'luxmc' ? 'bg-brand-500 text-brand-foreground' : 'text-fg-muted'}" onclick={() => tab = "luxmc"}>Luxmc</button>
+                    <button type="button" class="launcher-tab {tab === 'luxmc' ? 'bg-brand-500/15 text-fg' : 'text-fg-muted'}" aria-pressed={tab === "luxmc"} disabled={isLoggingIn} onclick={() => tab = "luxmc"}>Luxmc</button>
 					<button 
 						type="button"
-						class="py-2 px-3 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-2 {tab === 'offline' ? 'bg-brand-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+						class="launcher-tab flex items-center justify-center gap-2 {tab === 'offline' ? 'bg-brand-500/15 text-fg' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+						aria-pressed={tab === "offline"}
+						disabled={isLoggingIn}
 						onclick={() => { tab = 'offline'; errorMsg = null; }}
 					>
 						<User class="w-3.5 h-3.5" />
-						Conta Offline
+						{uiText("ui.2793472a35db2b80")}
 					</button>
 					<button 
 						type="button"
-						class="py-2 px-3 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-2 {tab === 'microsoft' ? 'bg-emerald-500 text-brand-foreground shadow-md' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+						class="launcher-tab flex items-center justify-center gap-2 {tab === 'microsoft' ? 'bg-brand-500/15 text-fg' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+						aria-pressed={tab === "microsoft"}
+						disabled={isLoggingIn}
 						onclick={() => { tab = 'microsoft'; errorMsg = null; }}
 					>
 						<MicrosoftLogo size={14} />
@@ -169,22 +206,22 @@
 
 				<!-- Offline Tab Body -->
 				{#if tab === 'luxmc'}
-                    <LuxAccountForm onAuthenticated={(value) => { onAccountAdded?.(value); handleClose(); }} />
+                    <LuxAccountForm bind:busy={isLoggingIn} onAuthenticated={(value) => { onAccountAdded?.(value); handleClose(); }} />
                 {:else if tab === 'offline'}
 					<form onsubmit={(e) => { e.preventDefault(); handleOfflineLogin(); }} class="space-y-4 pt-4">
 						<div class="space-y-1.5">
-							<label for="offline-nick" class="text-xs font-bold text-fg/70 block">Nickname (Nome de Jogador)</label>
+							<label for="offline-nick" class="text-xs font-bold text-fg/70 block">{uiText("ui.3984c02f20c59f47")}</label>
 							<div class="relative">
 								<input 
 									id="offline-nick"
 									type="text"
 									bind:value={offlineUsername}
-									placeholder="ex: Steve_123, ProMiner"
+									placeholder={uiText("ui.7cecfb21a92e00f4")}
 									maxlength="16"
-									class="w-full h-11 px-4 rounded-xl bg-bg-subtle border border-fg/10 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] placeholder:text-fg/30"
+									class="w-full h-11 px-4 rounded-xl bg-bg-subtle border border-fg/10 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-[color,background-color,border-color,box-shadow,transform,opacity] placeholder:text-fg/30"
 								/>
 							</div>
-							<p class="text-[10px] text-fg/40">Perfil local, sem sincronização com o site.</p>
+							<p class="text-[10px] text-fg/40">{uiText("ui.60b07bd459a3c12a")}</p>
 						</div>
 
 						{#if errorMsg}
@@ -197,14 +234,14 @@
 						<button 
 							type="submit"
 							disabled={isLoggingIn || !offlineUsername.trim()}
-							class="w-full h-11 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-brand-foreground font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+							class={launcherButton({ variant: "primary", size: "sm", class: "w-full disabled:opacity-50 flex items-center justify-center gap-2" })}
 						>
 							{#if isLoggingIn}
 								<div class="w-4 h-4 rounded-full border-2 border-bg-overlay border-t-transparent animate-spin"></div>
-								Entrando...
+								{uiText("ui.a89d514549530e6e")}
 							{:else}
 								<Check class="w-4 h-4 stroke-[3]" />
-								Entrar com Conta Offline
+								{uiText("ui.6c88e3c5a5292efb")}
 							{/if}
 						</button>
 					</form>
@@ -213,10 +250,10 @@
 					<div class="space-y-4 pt-4 text-center">
 						<div class="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-1 text-left">
 							<span class="text-xs font-bold text-emerald-400 block flex items-center gap-1.5">
-								<ShieldCheck class="w-4 h-4" /> Autenticação Oficial Microsoft
+								<ShieldCheck class="w-4 h-4" /> {uiText("ui.43663057e1279e6e")}
 							</span>
 							<p class="text-[10px] text-fg/60 leading-relaxed">
-								Acesse servidores oficiais da Mojang (Hypixel, Realms) e sincronize sua skin original com segurança.
+								{uiText("ui.1ed3a3f3494e993b")}
 							</p>
 						</div>
 
@@ -231,16 +268,18 @@
 							type="button"
 							disabled={isLoggingIn}
 							onclick={handleMicrosoftLogin}
-							class="w-full h-11 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-brand-foreground font-black text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
+							aria-busy={isLoggingIn}
+							class={launcherButton({ variant: "microsoft", size: "hero", class: "w-full" })}
 						>
 							{#if isLoggingIn}
 								<div class="w-4 h-4 rounded-full border-2 border-bg-overlay border-t-transparent animate-spin"></div>
-								Aguardando login no navegador...
+								{uiText("ui.acaa8fe1f2207472")}
 							{:else}
-								<LogIn class="w-4 h-4" />
-								Entrar com a Microsoft
+								<MicrosoftLogo size={20} />
+								{uiText("ui.e9a973d6fbcd7875")}
 							{/if}
 						</button>
+						{#if isLoggingIn}<p role="status" class="text-xs text-fg/60 leading-relaxed">{uiText("design.browserLoginHint")}</p>{/if}
 					</div>
 				{/if}
 			</div>

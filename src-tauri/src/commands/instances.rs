@@ -7,6 +7,37 @@ use crate::db::models::ProfileRow;
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
+fn is_valid_path_segment(name: &str) -> bool {
+    !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.contains("..")
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains('\0')
+}
+
+fn reject_invalid_segment(name: &str) -> AppResult<()> {
+    if is_valid_path_segment(name) {
+        Ok(())
+    } else {
+        Err(AppError::InvalidInput("Invalid path segment".into()))
+    }
+}
+
+fn ensure_within(base: &std::path::Path, candidate: &std::path::Path) -> AppResult<std::path::PathBuf> {
+    let canonical_base = base
+        .canonicalize()
+        .map_err(|_| AppError::InvalidInput("Invalid base path".into()))?;
+    let canonical_candidate = candidate
+        .canonicalize()
+        .map_err(|_| AppError::NotFound("Path not found".into()))?;
+    if !canonical_candidate.starts_with(&canonical_base) {
+        return Err(AppError::InvalidInput("Path escapes its base directory".into()));
+    }
+    Ok(canonical_candidate)
+}
+
 fn dir_size_recursive(p: &std::path::Path) -> u64 {
     let mut total = 0u64;
     if let Ok(entries) = std::fs::read_dir(p) {
@@ -122,6 +153,69 @@ pub struct ScreenshotEntry {
     pub path: String,
     pub modified: String,
     pub data_url: Option<String>,
+    pub thumb_path: Option<String>,
+}
+
+const THUMB_MAX_EDGE: u32 = 480;
+const THUMB_QUALITY: u8 = 78;
+const THUMB_MIN_SOURCE_BYTES: u64 = 120 * 1024;
+const THUMB_GENERATION_BUDGET: usize = 150;
+
+fn screenshot_thumb_cache_dir() -> Option<std::path::PathBuf> {
+    directories::ProjectDirs::from("io", "github", "Luxmc")
+        .map(|dirs| dirs.cache_dir().join("thumbs"))
+}
+
+/// Returns `(thumbnail_path, freshly_generated)`.
+fn screenshot_thumb(
+    src: &std::path::Path,
+    cache_dir: &std::path::Path,
+    allow_generate: bool,
+) -> Option<(std::path::PathBuf, bool)> {
+    let meta = std::fs::metadata(src).ok()?;
+    let key = screenshot_thumb_key(src, &meta)?;
+    let out = cache_dir.join(format!("{key}.jpg"));
+    if out.is_file() {
+        return Some((out, false));
+    }
+    if !allow_generate || meta.len() < THUMB_MIN_SOURCE_BYTES {
+        return None;
+    }
+
+    let image = image::open(src).ok()?;
+    let thumb = image.thumbnail(THUMB_MAX_EDGE, THUMB_MAX_EDGE);
+    let rgb = image::DynamicImage::ImageRgb8(thumb.to_rgb8());
+    let mut buffer = std::io::Cursor::new(Vec::new());
+    image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buffer, THUMB_QUALITY)
+        .encode_image(&rgb)
+        .ok()?;
+    let bytes = buffer.into_inner();
+    if bytes.is_empty() {
+        return None;
+    }
+
+    std::fs::create_dir_all(cache_dir).ok()?;
+    let tmp = cache_dir.join(format!("{key}.{}.part", std::process::id()));
+    std::fs::write(&tmp, &bytes).ok()?;
+    std::fs::rename(&tmp, &out).ok()?;
+    Some((out, true))
+}
+
+fn screenshot_thumb_key(src: &std::path::Path, meta: &std::fs::Metadata) -> Option<String> {
+    use sha1::Digest;
+
+    let modified = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs().to_string())
+        .unwrap_or_default();
+    Some(format!(
+        "{:x}",
+        sha1::Sha1::digest(
+            format!("{}|{}|{}", src.to_string_lossy(), modified, meta.len()).as_bytes()
+        )
+    ))
 }
 
 #[tauri::command]
@@ -202,6 +296,8 @@ pub async fn instances_duplicate(id: String) -> AppResult<ProfileRow> {
         gamescope_height: existing.gamescope_height,
         gamescope_fsr: existing.gamescope_fsr,
         force_full_verification: false,
+        pre_launch_hook: existing.pre_launch_hook.clone(),
+        post_exit_hook: existing.post_exit_hook.clone(),
     };
     crate::db::schema::profiles::upsert(&db, &row).await?;
     Ok(row)
@@ -396,6 +492,7 @@ pub async fn instances_screenshots(
                         path: path.to_string_lossy().to_string(),
                         modified: modified_rfc3339,
                         data_url: None,
+                        thumb_path: None,
                     },
                 ));
             }
@@ -404,12 +501,31 @@ pub async fn instances_screenshots(
         // Sort newest first
         entries.sort_by(|a, b| b.0.cmp(&a.0));
 
-        // Provide lightweight data_url fallback only for the first 6 screenshots if <= 1.5MB
+        let cache_dir = screenshot_thumb_cache_dir();
+        let mut generation_budget = THUMB_GENERATION_BUDGET;
+
+        // Provide a lightweight inline data URL only for the newest screenshots
+        // when no cached thumbnail could be produced.
         use base64::Engine;
         entries
             .into_iter()
             .enumerate()
             .map(|(idx, (_, mut entry))| {
+                let thumb = cache_dir.as_deref().and_then(|dir| {
+                    screenshot_thumb(
+                        std::path::Path::new(&entry.path),
+                        dir,
+                        generation_budget > 0,
+                    )
+                });
+                if let Some((path, generated)) = thumb {
+                    if generated {
+                        generation_budget = generation_budget.saturating_sub(1);
+                    }
+                    entry.thumb_path = Some(path.to_string_lossy().to_string());
+                    return entry;
+                }
+
                 if idx < 6 {
                     if let Ok(bytes) = std::fs::read(&entry.path) {
                         if bytes.len() <= 1500 * 1024 {
@@ -446,7 +562,10 @@ pub async fn instances_screenshots(
 /// path-traversal attacks.
 #[tauri::command]
 pub async fn screenshot_delete(path: String) -> AppResult<()> {
-    let canonical = tokio::task::spawn_blocking(move || -> AppResult<std::path::PathBuf> {
+    let (canonical, thumb_key) = tokio::task::spawn_blocking(move || -> AppResult<(
+        std::path::PathBuf,
+        Option<String>,
+    )> {
         let p = std::path::Path::new(&path);
         let canonical = p.canonicalize().map_err(|_| {
             crate::error::AppError::NotFound("Arquivo de screenshot não encontrado".to_string())
@@ -481,12 +600,20 @@ pub async fn screenshot_delete(path: String) -> AppResult<()> {
             ));
         }
 
-        Ok(canonical)
+        let thumb_key = std::fs::metadata(&canonical)
+            .ok()
+            .and_then(|meta| screenshot_thumb_key(p, &meta));
+        Ok((canonical, thumb_key))
     })
     .await
     .map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
     tokio::fs::remove_file(&canonical).await?;
+    if let Some(key) = thumb_key {
+        if let Some(dir) = screenshot_thumb_cache_dir() {
+            let _ = tokio::fs::remove_file(dir.join(format!("{key}.jpg"))).await;
+        }
+    }
     Ok(())
 }
 
@@ -648,8 +775,20 @@ pub fn instance_cancel_import_core(state: &AppState) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub async fn instance_cancel_import(state: State<'_, AppState>) -> AppResult<()> {
-    instance_cancel_import_core(&state)
+pub async fn instance_cancel_import(state: State<'_, AppState>, app: tauri::AppHandle) -> AppResult<()> {
+    instance_cancel_import_core(&state)?;
+    app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "phase": "cancelled",
+            "current": 0,
+            "total": 0,
+            "percent": 0,
+            "status": "Importação cancelada"
+        }),
+    )
+    .ok();
+    Ok(())
 }
 
 pub(crate) async fn download_cf_mod_file(
@@ -953,7 +1092,7 @@ pub async fn instance_import_modpack_core(
                     || lower_name.starts_with(&shaderpacks_prefix)
                     || lower_name.starts_with(&mods_prefix)
                 {
-                    Some(&clean_name[root_prefix.len()..])
+                    clean_name.get(root_prefix.len()..)
                 } else {
                     None
                 };
@@ -962,7 +1101,6 @@ pub async fn instance_import_modpack_core(
                     if rel.is_empty() { continue; }
                     validate_pack_entry(rel)?;
                     let outpath = crate::core::mods::pack_download::destination(&instance_dir, rel)?;
-                    extracted_size = extracted_size.saturating_add(file.size());
                     if file.unix_mode().is_some_and(|mode| mode & 0o170000 == 0o120000)
                         || file.size() > 1024 * 1024 * 1024 || extracted_size > 8 * 1024 * 1024 * 1024 {
                         return Err(crate::error::AppError::InvalidInput("Unsafe pack archive entry".into()));
@@ -972,7 +1110,21 @@ pub async fn instance_import_modpack_core(
                     } else {
                         if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
                         let mut output = std::fs::File::create(&outpath)?;
-                        std::io::copy(&mut file, &mut output)?;
+                        let written = std::io::copy(
+                            &mut std::io::Read::take(&mut file, 1024 * 1024 * 1024),
+                            &mut output,
+                        )?;
+                        if written >= 1024 * 1024 * 1024 {
+                            drop(output);
+                            let _ = std::fs::remove_file(&outpath);
+                            return Err(crate::error::AppError::InvalidInput("Unsafe pack archive entry".into()));
+                        }
+                        extracted_size = extracted_size.saturating_add(written);
+                        if extracted_size > 8 * 1024 * 1024 * 1024 {
+                            drop(output);
+                            let _ = std::fs::remove_file(&outpath);
+                            return Err(crate::error::AppError::InvalidInput("Pack archive exceeds the size limit".into()));
+                        }
                         extracted_count += 1;
                         override_paths.insert(rel.to_owned());
                     }
@@ -1051,7 +1203,7 @@ pub async fn instance_import_modpack_core(
             let current = completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
             let percent = ((current as f64 / total_files as f64) * 100.0) as u32;
 
-            if current % 16 == 0 {
+            if !cfg!(windows) && current % 16 == 0 {
                 crate::commands::optimizer::optimizer_trim_memory();
             }
 
@@ -1125,6 +1277,8 @@ pub async fn instance_import_modpack_core(
         gamescope_height: None,
         gamescope_fsr: false,
         force_full_verification: false,
+        pre_launch_hook: None,
+        post_exit_hook: None,
     };
 
     let db = crate::db::shared_db().await?;
@@ -1363,9 +1517,7 @@ pub async fn instance_file_tree(
             if *is_jar_or_zip {
                 keys_needed.insert(fname.clone());
                 if let Some(stem) = path.file_stem().map(|s| s.to_string_lossy().to_string()) {
-                    let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
                     keys_needed.insert(stem);
-                    keys_needed.insert(base_key);
                 }
             }
         }
@@ -1398,16 +1550,13 @@ pub async fn instance_file_tree(
         let mut out = Vec::with_capacity(raw_entries.len());
         for (fname, path, is_dir, metadata, is_jar_or_zip) in raw_entries {
             let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-            let base_key = stem.split('-').next().unwrap_or(&stem).split('_').next().unwrap_or(&stem).to_lowercase();
             let mut icon = None;
             let mut from_cache = false;
             if is_jar_or_zip {
-                if let Some(cached) = cached_icons.get(&fname).or_else(|| cached_icons.get(&stem)).or_else(|| cached_icons.get(&base_key)) {
-                    icon = Some(cached.clone());
-                    from_cache = true;
-                } else if !base_key.starts_with("luxmc") {
-                    icon = crate::commands::mods::extract_mod_icon_from_jar(&path);
-                }
+                if let Some(cached) = cached_icons.get(&fname).or_else(|| cached_icons.get(&stem)) {
+                    icon = Some(crate::commands::mods::compact_mod_icon(cached));
+                    from_cache = icon.as_ref() == Some(cached);
+                } else { icon = crate::commands::mods::extract_mod_icon_from_jar(&path); }
             }
             let size = if is_dir { compute_dir_size(&path) } else { metadata.len() };
             out.push((fname, path, is_dir, size, icon, from_cache));
@@ -1417,17 +1566,27 @@ pub async fn instance_file_tree(
     .await
     .map_err(|e| AppError::Internal(format!("file tree worker failed: {e}")))?;
 
-    let mut entries = Vec::new();
-    for (fname, path, is_dir, size, icon, from_cache) in computed {
-        if !from_cache {
-            if let Some(ref jar_icon) = icon {
-                let _ = sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
-                    .bind(&fname)
-                    .bind(jar_icon)
-                    .execute(db.pool())
-                    .await;
+    if computed.iter().any(|entry| !entry.5 && entry.4.is_some()) {
+        if let Ok(mut transaction) = db.pool().begin().await {
+            let mut success = true;
+            for (fname, _, _, _, icon, from_cache) in &computed {
+                if !from_cache {
+                    if let Some(icon) = icon {
+                        if sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
+                            .bind(fname).bind(icon).execute(&mut *transaction).await.is_err() {
+                            success = false;
+                            break;
+                        }
+                    }
+                }
             }
+            if success { let _ = transaction.commit().await; }
+            else { let _ = transaction.rollback().await; }
         }
+    }
+
+    let mut entries = Vec::new();
+    for (fname, path, is_dir, size, icon, _) in computed {
         entries.push(FileTreeEntry {
             name: fname,
             path: path.to_string_lossy().to_string(),
@@ -1593,9 +1752,9 @@ async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
             .bind(&row.sha1)
             .bind(&row.source)
             .execute(&mut *tx)
-            .await;
+            .await?;
         }
-        let _ = tx.commit().await;
+        tx.commit().await?;
     }
 
     Ok(())
@@ -1808,7 +1967,7 @@ pub(crate) async fn ensure_modpack_shaders(http: &reqwest::Client, root: &std::p
 
     if let Ok(resp) = http
         .get("https://api.modrinth.com/v2/project/complementary-reimagined/version")
-        .header("User-Agent", "Luxmc/2.0.1")
+        .header("User-Agent", concat!("Luxmc/", env!("CARGO_PKG_VERSION")))
         .send()
         .await
     {
@@ -2131,6 +2290,8 @@ pub async fn instance_import_mrpack_core(
         gamescope_height: None,
         gamescope_fsr: false,
         force_full_verification: false,
+        pre_launch_hook: None,
+        post_exit_hook: None,
     };
 
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;
@@ -2349,7 +2510,7 @@ struct PlayerDataCompound {
 fn parse_level_dat(level_dat_path: &std::path::Path) -> Option<LevelDataCompound> {
     use std::io::Read;
     let file = std::fs::File::open(level_dat_path).ok()?;
-    let mut decoder = flate2::read::GzDecoder::new(file);
+    let mut decoder = flate2::read::GzDecoder::new(file).take(32 * 1024 * 1024);
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed).ok()?;
     let root: LevelDatRoot = fastnbt::from_bytes(&decompressed).ok()?;
@@ -2386,7 +2547,7 @@ fn parse_player_inventory(
                 if let Some(p) = best_file {
                     use std::io::Read;
                     if let Ok(file) = std::fs::File::open(&p) {
-                        let mut decoder = flate2::read::GzDecoder::new(file);
+                        let mut decoder = flate2::read::GzDecoder::new(file).take(32 * 1024 * 1024);
                         let mut decompressed = Vec::new();
                         if decoder.read_to_end(&mut decompressed).is_ok() {
                             if let Ok(player) = fastnbt::from_bytes::<PlayerDataCompound>(&decompressed) {
@@ -2726,9 +2887,8 @@ pub async fn instance_world_snapshot_restore(
     folderName: String,
     filename: String,
 ) -> AppResult<()> {
-    if folderName.is_empty() || folderName.contains("..") || filename.contains("..") || filename.contains('/') || filename.contains('\\') {
-        return Err(crate::error::AppError::InvalidInput("Invalid arguments".into()));
-    }
+    reject_invalid_segment(&folderName)?;
+    reject_invalid_segment(&filename)?;
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&profileId)
@@ -2736,12 +2896,15 @@ pub async fn instance_world_snapshot_restore(
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
-    let snapshot_file = std::path::PathBuf::from(&row.game_dir).join("snapshots").join(&folderName).join(&filename);
+    let game_dir = std::path::PathBuf::from(&row.game_dir);
+    let snapshot_file = game_dir.join("snapshots").join(&folderName).join(&filename);
     if !snapshot_file.is_file() {
         return Err(crate::error::AppError::NotFound("Snapshot archive not found".into()));
     }
+    let snapshot_file = ensure_within(&game_dir.join("snapshots"), &snapshot_file)?;
 
-    let world_dir = std::path::PathBuf::from(&row.game_dir).join("saves").join(&folderName);
+    let saves_dir = game_dir.join("saves");
+    let world_dir = saves_dir.join(&folderName);
     if world_dir.is_dir() {
         let _ = tokio::fs::remove_dir_all(&world_dir).await;
     }
@@ -2767,9 +2930,8 @@ pub async fn instance_world_snapshot_delete(
     folderName: String,
     filename: String,
 ) -> AppResult<()> {
-    if folderName.is_empty() || folderName.contains("..") || filename.contains("..") || filename.contains('/') || filename.contains('\\') {
-        return Err(crate::error::AppError::InvalidInput("Invalid arguments".into()));
-    }
+    reject_invalid_segment(&folderName)?;
+    reject_invalid_segment(&filename)?;
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&profileId)
@@ -2777,11 +2939,14 @@ pub async fn instance_world_snapshot_delete(
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
-    let snapshot_file = std::path::PathBuf::from(&row.game_dir).join("snapshots").join(&folderName).join(&filename);
+    let snapshots_dir = std::path::PathBuf::from(&row.game_dir).join("snapshots");
+    let snapshot_file = snapshots_dir.join(&folderName).join(&filename);
+    if !snapshot_file.is_file() {
+        return Ok(());
+    }
+    let snapshot_file = ensure_within(&snapshots_dir, &snapshot_file)?;
     tokio::task::spawn_blocking(move || -> AppResult<()> {
-        if snapshot_file.is_file() {
-            std::fs::remove_file(&snapshot_file)?;
-        }
+        std::fs::remove_file(&snapshot_file)?;
         Ok(())
     })
     .await
@@ -2797,6 +2962,7 @@ pub async fn instance_world_inspect_region(
     folderName: String,
     regionFile: Option<String>,
 ) -> AppResult<Option<crate::core::minecraft::anvil::RegionSummary>> {
+    reject_invalid_segment(&folderName)?;
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&profileId)
@@ -2805,11 +2971,16 @@ pub async fn instance_world_inspect_region(
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {profileId} not found")))?;
 
     let target_file = regionFile.unwrap_or_else(|| "r.0.0.mca".to_string());
-    let region_path = std::path::PathBuf::from(&row.game_dir)
+    reject_invalid_segment(&target_file)?;
+    let region_dir = std::path::PathBuf::from(&row.game_dir)
         .join("saves")
         .join(&folderName)
-        .join("region")
-        .join(&target_file);
+        .join("region");
+    let region_path = region_dir.join(&target_file);
+    let region_path = match ensure_within(&region_dir, &region_path) {
+        Ok(p) => p,
+        Err(_) => return Ok(None),
+    };
 
     let summary = tokio::task::spawn_blocking(
         move || -> Option<crate::core::minecraft::anvil::RegionSummary> {
@@ -2996,10 +3167,14 @@ pub async fn instance_world_import(
                 };
 
                 let rel_path = std::path::Path::new(rel_name);
-                if rel_path
-                    .components()
-                    .any(|c| matches!(c, std::path::Component::ParentDir))
-                {
+                if rel_path.components().any(|c| {
+                    matches!(
+                        c,
+                        std::path::Component::ParentDir
+                            | std::path::Component::RootDir
+                            | std::path::Component::Prefix(_)
+                    )
+                }) {
                     continue;
                 }
 

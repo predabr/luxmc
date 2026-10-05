@@ -1,0 +1,16 @@
+{
+  "name": "LuxMC Launcher",
+  "short_name": "LuxMC",
+  "description": "Minecraft, mods, skins e amigos em um só launcher.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "browser",
+  "icons": [
+    {
+      "src": "/assets/favicon.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

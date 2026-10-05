@@ -60,6 +60,8 @@ impl Db {
             }
         }
 
+        normalize_account_expirations(&pool).await?;
+
         let _ = sqlx::query("ALTER TABLE accounts ADD COLUMN skin_url TEXT").execute(&pool).await;
         let _ = sqlx::query("ALTER TABLE accounts ADD COLUMN skin_variant TEXT").execute(&pool).await;
         let _ = sqlx::query("ALTER TABLE accounts ADD COLUMN cape_url TEXT").execute(&pool).await;
@@ -125,6 +127,44 @@ impl Db {
 
     pub fn pool(&self) -> &SqlitePool {
         &self.pool
+    }
+}
+
+async fn normalize_account_expirations(pool: &SqlitePool) -> AppResult<()> {
+    let rows = sqlx::query_as::<_, (String, String)>(
+        "SELECT id, CAST(expires_at AS TEXT) FROM accounts WHERE expires_at IS NOT NULL",
+    ).fetch_all(pool).await?;
+    for (id, value) in rows {
+        let Ok(epoch) = value.parse::<i64>() else { continue };
+        let date = if epoch.unsigned_abs() > 100_000_000_000 {
+            chrono::DateTime::from_timestamp_millis(epoch)
+        } else {
+            chrono::DateTime::from_timestamp(epoch, 0)
+        }.ok_or_else(|| AppError::InvalidState("Data de expiração da conta fora do intervalo permitido".into()))?;
+        sqlx::query("UPDATE accounts SET expires_at = ? WHERE id = ?")
+            .bind(date.to_rfc3339()).bind(id).execute(pool).await?;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod expiry_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn normalizes_epoch_seconds_and_milliseconds_without_changing_dates() {
+        let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
+        sqlx::query("CREATE TABLE accounts (id TEXT, expires_at TEXT)").execute(&pool).await.unwrap();
+        for (id, expiry) in [("seconds", Some("1791129970")), ("milliseconds", Some("1791129970000")), ("iso", Some("2026-10-04T00:00:00Z")), ("empty", None)] {
+            sqlx::query("INSERT INTO accounts VALUES (?, ?)").bind(id).bind(expiry).execute(&pool).await.unwrap();
+        }
+        normalize_account_expirations(&pool).await.unwrap();
+        normalize_account_expirations(&pool).await.unwrap();
+        let rows = sqlx::query_as::<_, (String, Option<chrono::DateTime<chrono::Utc>>)>("SELECT id, expires_at FROM accounts ORDER BY id").fetch_all(&pool).await.unwrap();
+        assert!(rows[0].1.is_none());
+        assert_eq!(rows[1].1.unwrap().to_rfc3339(), "2026-10-04T00:00:00+00:00");
+        assert_eq!(rows[2].1, rows[3].1);
+        assert_eq!(rows[2].1.unwrap().timestamp_millis(), 1791129970000);
     }
 }
 

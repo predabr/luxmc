@@ -18,8 +18,9 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
 			 resolution_w, resolution_h, fullscreen, game_dir, created_at, updated_at,
 			 favorite, notes, last_played, launch_count, mod_count, disk_usage, ram_mb, instance_group,
 			 auto_optimize, use_vulkan, use_gamemode, use_mangohud, force_dedicated_gpu, use_gamescope,
-			 gamescope_width, gamescope_height, gamescope_fsr, force_full_verification)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+			 gamescope_width, gamescope_height, gamescope_fsr, force_full_verification,
+			pre_launch_hook, post_exit_hook)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET
 			name=excluded.name, icon=excluded.icon, mc_version=excluded.mc_version,
 			loader=excluded.loader, loader_version=excluded.loader_version,
@@ -35,7 +36,8 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
 			use_gamemode=excluded.use_gamemode, use_mangohud=excluded.use_mangohud,
 			force_dedicated_gpu=excluded.force_dedicated_gpu, use_gamescope=excluded.use_gamescope,
 			gamescope_width=excluded.gamescope_width, gamescope_height=excluded.gamescope_height,
-			gamescope_fsr=excluded.gamescope_fsr, force_full_verification=excluded.force_full_verification
+			gamescope_fsr=excluded.gamescope_fsr, force_full_verification=excluded.force_full_verification,
+			pre_launch_hook=excluded.pre_launch_hook, post_exit_hook=excluded.post_exit_hook
 		"#,
     )
     .bind(&p.id)
@@ -70,6 +72,8 @@ pub async fn upsert(db: &Db, p: &ProfileRow) -> AppResult<()> {
     .bind(p.gamescope_height)
     .bind(p.gamescope_fsr)
     .bind(p.force_full_verification)
+    .bind(&p.pre_launch_hook)
+    .bind(&p.post_exit_hook)
     .execute(db.pool())
     .await
     .map_err(AppError::from)?;

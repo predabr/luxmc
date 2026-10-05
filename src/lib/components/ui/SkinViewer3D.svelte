@@ -1,12 +1,17 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
 	import { authResolveTexture } from "$lib/api/auth";
 	import type { SkinViewer } from "skinview3d";
 	import type { CapeType } from "$lib/stores/skin.svelte";
+	import { settings } from "$lib/stores/settings.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { loadTextureImage, normalizeCape, classifyTexture, textureCanvas, inferSkinModelType } from "$lib/utils/textureImage";
-	import { DirectionalLight } from "three";
+
+	import { createAnimationClock } from "$lib/utils/animationClock";
+	import { createCapeCloth } from "$lib/utils/capeCloth";
 	import Skin2DPreview from "./Skin2DPreview.svelte";
 
 	export type AnimationType = "idle" | "walk" | "run" | "fly" | "none";
@@ -41,6 +46,8 @@
 	let hasMountedViewer = $state(false);
 	let unavailable = $state(false);
 	let textureError = $state(false);
+    let capeError = $state(false);
+    let capeCloth: ReturnType<typeof createCapeCloth> | null = null;
 	let fallbackUsed = $state(false);
 	let lastTexture = $state("");
 
@@ -48,7 +55,7 @@
 	let lastPointerX = 0;
 	let lastPointerY = 0;
 
-	const running = $derived(active && visible && foreground && !appState.isGameRunning && !appState.performanceMode);
+	const running = $derived(active && visible && foreground && !(settings.value.pauseSkinWhileGaming && appState.isGameRunning) && !appState.performanceMode);
 
 	onMount(() => {
 		let disposed = false;
@@ -115,7 +122,7 @@
 	function renderViewer(target: SkinViewer): boolean {
 		if (target.disposed) return false;
 		try {
-			if (target.renderer.getContext().isContextLost()) throw new Error("Contexto gráfico indisponível");
+			if (target.renderer.getContext().isContextLost()) throw new Error(uiText("ui.fcc0b41d0274c482"));
 			target.renderer.setRenderTarget(null);
 			target.renderer.render(target.scene, target.camera);
 			return true;
@@ -126,10 +133,12 @@
 		}
 	}
 
-	function applySkinMaterial(target: SkinViewer) {
-		const texture = target.playerObject.skin.map as unknown as import("three").Texture | null;
+	function applyTextureMaterial(objectRoot: SkinViewer["playerObject"]["skin"] | SkinViewer["playerObject"]["cape"]) {
+		const texture = objectRoot.map as unknown as import("three").Texture | null;
 		if (!texture) return;
-		target.playerObject.skin.traverse(object => {
+        texture.colorSpace = "srgb";
+        texture.needsUpdate = true;
+		objectRoot.traverse(object => {
 			const mesh = object as unknown as import("three").Mesh;
 			if (!mesh.isMesh) return;
 			for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
@@ -139,6 +148,9 @@
 				skinMaterial.emissive.setRGB(1, 1, 1);
 				skinMaterial.emissiveMap = texture;
 				skinMaterial.emissiveIntensity = 1;
+                skinMaterial.toneMapped = false;
+                skinMaterial.depthWrite = !skinMaterial.transparent;
+                if (skinMaterial.transparent) skinMaterial.alphaTest = 0.01;
 				skinMaterial.needsUpdate = true;
 			}
 		});
@@ -174,22 +186,14 @@
 				height: containerEl.clientHeight || 400,
 				renderPaused: true,
 				preserveDrawingBuffer: false,
-				pixelRatio: Math.min(window.devicePixelRatio || 1, 1.25),
+				pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
 				enableControls: false
 			});
 			target.controls.dispose();
+            canvasEl.style.touchAction = "pan-y";
 			target.renderer.setClearColor(0, 0);
-			target.cameraLight.decay = 0;
-			target.cameraLight.intensity = 1.0;
-			target.globalLight.intensity = 1.8;
-
-			const frontLight = new DirectionalLight(0xffffff, 1.4);
-			frontLight.position.set(15, 25, 30);
-			(target.scene as any).add(frontLight);
-
-			const backLight = new DirectionalLight(0xffffff, 0.7);
-			backLight.position.set(-15, 15, -30);
-			(target.scene as any).add(backLight);
+			target.cameraLight.intensity = 0;
+			target.globalLight.intensity = 0;
 
 			target.fov = 46;
 			viewer = target;
@@ -239,7 +243,8 @@
 
 	function handleWheel(e: WheelEvent) {
 		if (!viewer || unavailable) return;
-		e.preventDefault();
+		if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
 		viewer.zoom = Math.max(0.5, Math.min(2.2, viewer.zoom - e.deltaY * 0.0015));
 		renderViewer(viewer);
 	}
@@ -272,16 +277,16 @@
 					const image = await loadTextureImage(url, controller.signal, 5000);
 					if (controller.signal.aborted) return;
 					if (image.naturalWidth > 2048 || image.naturalHeight > 2048) throw new Error("Textura muito grande");
-					if (classifyTexture(textureCanvas(image)) !== "skin") throw new Error("Uma capa não pode ser usada como skin");
+					if (classifyTexture(textureCanvas(image)) !== "skin") throw new Error(uiText("ui.905da204b0bceda1"));
 					try {
 						await target.loadSkin(image, { model });
 						if (controller.signal.aborted) return;
-						applySkinMaterial(target);
+						applyTextureMaterial(target.playerObject.skin);
 						target.playerObject.skin.visible = true;
 						target.playerObject.visible = true;
 						target.playerObject.skin.setOuterLayerVisible(true);
 						ready = renderViewer(target);
-						if (!ready) throw new Error("Não foi possível renderizar a skin");
+						if (!ready) throw new Error(uiText("ui.4b64ead299549268"));
 						hasMountedViewer = true;
 						fallbackUsed = index > 0;
 					} finally {
@@ -320,19 +325,30 @@
 		const source = cape === "custom" ? customCapeUrl : cape === "none" ? "" : getFullCapeDataUrl(cape);
 		if (!target) return;
 		if (!source) {
+            capeError = false;
 			target.resetCape();
 			try { renderViewer(target); } catch {}
 			return;
 		}
-		const controller = new AbortController();
-		void loadTextureImage(source, controller.signal).then((image) => {
-			if (!controller.signal.aborted) {
-				try {
-					target.loadCape(normalizeCape(image), { backEquipment: "cape" });
-					renderViewer(target);
-				} catch {}
-			}
-		}).catch(() => {});
+        const controller = new AbortController();
+        capeError = false;
+        target.resetCape();
+        const load = async () => {
+            const url = source.startsWith("https://") ? await authResolveTexture(source).catch(() => source) : source;
+            const image = await loadTextureImage(url, controller.signal);
+            if (controller.signal.aborted || target.disposed) return;
+            await target.loadCape(normalizeCape(image), { backEquipment: "cape" });
+            if (controller.signal.aborted || target.disposed) return;
+            capeCloth = createCapeCloth(target.playerObject.cape.cape);
+            applyTextureMaterial(target.playerObject.cape);
+            renderViewer(target);
+        };
+        void load().catch(() => {
+            if (controller.signal.aborted || target.disposed) return;
+            target.resetCape();
+            capeError = true;
+            renderViewer(target);
+        });
 		return () => controller.abort();
 	});
 
@@ -365,8 +381,7 @@
 		}
 
 		let frame = 0;
-		let previous = performance.now();
-		const targetInterval = 1000 / 30;
+		const clock = createAnimationClock(performance.now());
 
 		let capePitch = 0.18;
 		let capeRoll = 0.0;
@@ -375,15 +390,13 @@
 
 		const renderLoop = (now: number) => {
 			if (isLoadingSkin) {
-				previous = now;
+				clock.reset(now);
 				if (target) lastWrapperRotY = target.playerWrapper.rotation.y;
 				frame = requestAnimationFrame(renderLoop);
 				return;
 			}
-			const elapsed = now - previous;
-			if (elapsed >= targetInterval - 1) {
-				const delta = Number.isFinite(elapsed) ? Math.max(0, Math.min(elapsed / 1000, 0.05)) : 0;
-				previous = now;
+			const delta = clock.take(now);
+			if (delta > 0) {
 				try {
 					if (hasAnimation) {
 						target.animation?.update(target.playerObject, delta);
@@ -420,6 +433,7 @@
 						if (!Number.isFinite(capeRoll)) capeRoll = 0.0;
 						if (!Number.isFinite(capeYaw)) capeYaw = 0.0;
 
+                        capeCloth?.update(now / 1000, animation === "run" ? 1 : animation === "walk" ? .45 : animation === "fly" ? .8 : 0, deltaRotY, Math.max(0,Math.min(1,(settings.value.capeWindStrength ?? 50)/100)), settings.value.capePhysics !== false);
 						target.playerObject.cape.rotation.x = Math.max(0.05, Math.min(1.2, capePitch));
 						target.playerObject.cape.rotation.z = Math.max(-0.4, Math.min(0.4, capeRoll));
 						target.playerObject.cape.rotation.y = Math.PI + Math.max(-0.35, Math.min(0.35, capeYaw));
@@ -507,11 +521,11 @@
 	bind:this={containerEl}
 	class="relative w-full h-full cursor-grab active:cursor-grabbing select-none overflow-hidden {className}"
 	role="region"
-	aria-label="Visualizador 3D de Skin"
+	aria-label={uiText("ui.1c1c2ce7dd2b664c")}
 >
 	<canvas
 		bind:this={canvasEl}
-		class="w-full h-full block touch-none"
+		class="w-full h-full block touch-pan-y"
 		class:invisible={unavailable || !ready}
 		onpointerdown={handlePointerDown}
 		onpointermove={handlePointerMove}
@@ -520,9 +534,12 @@
 		onlostpointercapture={handlePointerUp}
 		onwheel={handleWheel}
 	></canvas>
+    {#if capeError && ready}
+        <p role="status" class="absolute bottom-2 left-2 right-2 rounded-xl bg-bg-elevated/95 p-2 text-center text-xs text-fg-muted pointer-events-none">{uiText("ui.5740e1169dfb725f")}</p>
+    {/if}
 	{#if fallbackUsed && ready}
 		<p class="absolute bottom-2 left-2 right-2 text-center text-xs text-fg-muted pointer-events-none">
-			Prévia alternativa; sua seleção foi preservada.
+			{uiText("ui.4fd46e83f5b3b346")}
 		</p>
 	{/if}
 	{#if unavailable || !ready}
@@ -530,12 +547,12 @@
 			<Skin2DPreview src={skinUrl || (slim ? "/alex.png" : "/steve.png")} model={slim ? "alex" : "steve"} className="h-48" />
 			<p class="text-sm text-fg-muted">
 				{textureError
-					? "Não foi possível carregar a textura selecionada."
+					? uiText("ui.d655ffb0cdb020b7")
 					: unavailable
-						? "A prévia 3D foi interrompida. Sua seleção está preservada."
-						: "Carregando prévia 3D…"}
+						? uiText("ui.b4cbcb90151637bd")
+						: uiText("ui.8dcfa22d22226499")}
 			</p>
-			{#if unavailable}<button type="button" class="luxmc-control pointer-events-auto" onclick={createViewer}>Reiniciar prévia 3D</button>{/if}
+			{#if unavailable}<button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "luxmc-control pointer-events-auto" })} onclick={createViewer}>{uiText("ui.17d7b742f087ae47")}</button>{/if}
 		</div>
 	{/if}
 </div>

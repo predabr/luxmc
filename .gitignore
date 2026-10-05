@@ -11,6 +11,8 @@ vite.config.ts.timestamp-*
 /src-tauri/target
 dist-electron
 release-electron
+/release-windows/
+/Luxmc.exe
 *.log
 /logs
 /config
@@ -24,3 +26,8 @@ src-csharp/**/obj
 *.pkg.tar.zst
 packaging/arch/*.pkg.tar.zst
 packaging/arch/pkg_build/
+__pycache__/
+*.pyc
+/docs/media/*/captures/
+/docs/media/*/production/
+/docs/media/*/audio/

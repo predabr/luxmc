@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { Download, Users, Loader2, Check, PackagePlus } from "lucide-svelte";
 	import LazyImage from "$lib/components/ui/LazyImage.svelte";
 	import { button } from "$lib/components/ui/button";
@@ -34,8 +35,8 @@
     role="button"
     tabindex="0"
     onclick={() => onOpenDetails(item)}
-    onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenDetails(item); } }}
-    class="surface-glass group relative flex flex-wrap items-center gap-4 p-4 transition-colors duration-200 hover:border-brand-500/30 cursor-pointer"
+    onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onOpenDetails(item); } }}
+    class="catalog-card catalog-list-card surface-glass group relative flex flex-wrap items-center gap-4 p-4 transition-colors duration-200 hover:border-brand-500/30 cursor-pointer"
 >
     <div class="flex min-w-48 flex-1 items-center gap-4">
         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-fg/10 bg-brand-500/10 shadow-elevated">
@@ -58,7 +59,7 @@
             disabled={isInstalling || isInstalled} 
             aria-busy={isInstalling}
         >
-            {#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />Instalando{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />Instalado{:else if isModpack}<PackagePlus class="h-3.5 w-3.5" />Criar instância{:else}<Download class="h-3.5 w-3.5" />Instalar{/if}
+            {#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />{uiText("ui.f4200333ccfd750e")}{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />{uiText("mods.installed")}{:else if isModpack}<PackagePlus class="h-3.5 w-3.5" />{uiText("mods.createInstance")}{:else}<Download class="h-3.5 w-3.5" />{uiText("mods.install")}{/if}
         </button>
     </div>
 </div>

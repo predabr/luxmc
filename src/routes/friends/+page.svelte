@@ -1,23 +1,13 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import MeshPanel from "$lib/components/friends/MeshPanel.svelte";
     import FriendCard from "$lib/components/friends/FriendCard.svelte";
     import { button } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
-	import {
-		Users,
-		UserPlus,
-		UserCheck,
-		Radio,
-		Check,
-		X,
-			Search,
-			Copy,
-			Gamepad2,
-			CloudOff,
-			ShieldCheck,
-			Sparkles,
-			Wifi
-		} from "lucide-svelte";
+    import { goto } from "$app/navigation";
+    import { page } from "$app/state";
+    import { tunnelStatus } from "$lib/api/tunnel";
+    import { Users, UserPlus, UserCheck, Radio, Check, X, Search, Copy, CloudOff, ShieldCheck, Wifi, ArrowRight, RefreshCw, LoaderCircle } from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { account } from "$lib/stores/account.svelte";
 
@@ -36,6 +26,8 @@
 			if (Array.isArray(saved)) localContacts = saved.flatMap((item: unknown) => item && typeof item === "object" && "username" in item && typeof item.username === "string" ? [item.username] : []);
 		} catch { localContacts = []; }
 		let disposed = false;
+        if (page.url.searchParams.get("tab") === "add") activeTab = "add";
+        void tunnelStatus().then(room => { if (!disposed && room && !page.url.searchParams.has("tab")) void goto("/hosting", { replaceState: true }); }).catch(() => {});
 		let scanTimer: ReturnType<typeof setTimeout>;
 		const scanLan = async () => {
 			try {
@@ -53,6 +45,7 @@
 		};
 	});
 	let activeTab = $state<"all" | "online" | "pending" | "add" | "p2p">("all");
+    $effect(() => { const tab = page.url.searchParams.get("tab"); if (tab === "add" || tab === "pending") activeTab = tab; });
 	let searchQuery = $state("");
 	let newFriendUsername = $state("");
 
@@ -67,7 +60,7 @@
 	const cloudOffline = $derived(Boolean(friendsState.error));
 
 	$effect(() => {
-		if (cloudOffline && !offlineRedirected) {
+		if (cloudOffline && !offlineRedirected && activeTab !== "add" && activeTab !== "pending") {
 			offlineRedirected = true;
 			activeTab = "p2p";
 		} else if (!cloudOffline) {
@@ -114,26 +107,27 @@
 	function handleAddFriend() {
 		return perform(async () => {
 			const query = newFriendUsername.trim();
-			if (!query) throw new Error("Digite o nickname do jogador.");
+			if (!query) throw new Error(uiText("friendsDesign.enterNickname"));
 
-			let target = selectedFriend || (suggestions.length > 0 ? suggestions[0] : null);
-			if (!target && friendsState.me) {
-				try {
-					const found = await friendsState.search(query);
-					if (found.length > 0) target = found[0];
-				} catch {}
-			}
+            const [name, code] = query.split("#");
+            let target = selectedFriend;
+            if (!target && friendsState.me) {
+                const found = await friendsState.search(query);
+                const exact = found.filter(user => user.username.toLowerCase() === name.toLowerCase() && (!code || user.id.startsWith(code.toLowerCase())));
+                if (exact.length > 1) throw new Error(uiText("ui.e2d8bd7afe1dc542"));
+                target = exact[0] || null;
+            }
 
 			if (target) {
 				await friendsState.action("invite", target.id);
-				toast(`Convite enviado para ${target.username}!`, "success");
+				toast(uiText("friendsDesign.inviteSent", { name: target.username }), "success");
             } else {
-                throw new Error("Jogador não encontrado na rede. Peça que ele abra o Luxmc e confira o nickname.");
+                throw new Error(uiText("ui.d7433f454fe54e8a"));
             }
 
 			newFriendUsername = "";
 			selectedFriend = null;
-			activeTab = "all";
+			activeTab = "pending";
 		});
 	}
 
@@ -145,252 +139,130 @@
 		return perform(() => joinWorld(`${friend.serverIp}:${friend.serverPort || 25565}`, friend));
 	}
 	function inviteFriend(_friend: Friend) { activeTab = "p2p"; }
+    async function copyCode() {
+        if (!friendsState.me) return;
+        try {
+            await navigator.clipboard.writeText(`${friendsState.me.username}#${friendsState.me.id.slice(0, 8)}`);
+            toast(uiText("ui.31b0fc0e4eaf096e"), "success");
+        } catch (error) { toast(String(error), "error"); }
+    }
+
+    const listTitle = $derived(activeTab === "online" ? uiText("friendsDesign.onlineTitle") : uiText("friendsDesign.directory"));
+    const sortedFriends = $derived([...filteredFriends].sort((a, b) => {
+        const rank = (friend: Friend) => (friendsState.favourites.includes(friend.id) ? 0 : 10) + (friend.status === "in_game" ? 0 : friend.status === "online" ? 1 : 2);
+        return rank(a) - rank(b) || a.username.localeCompare(b.username);
+    }));
 </script>
 
-<div class="h-full flex flex-col gap-6 select-none overflow-y-auto custom-scrollbar pb-10 max-w-7xl mx-auto w-full">
-	<header class="surface-glass relative overflow-hidden border-brand-500/20 p-6 sm:p-8">
-		<div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-brand-500/15 via-transparent to-success/10"></div>
-		<div class="friends-grid pointer-events-none absolute inset-0 opacity-30"></div>
-		<div class="relative flex flex-wrap items-end justify-between gap-6">
-			<div>
-				<p class="page-eyebrow mb-3">Conexões que viram aventuras</p>
-				<h1 class="page-title">Melhor com amigos.</h1>
-				<p class="page-description max-w-2xl">Salas diretas, descoberta LAN e sua turma em um só lugar.</p>
-				<div class="mt-4 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-widest {cloudOffline ? 'border-success/30 bg-success/10 text-success' : 'border-brand-500/30 bg-brand-500/10 text-brand-300'}">
-					{#if cloudOffline}<CloudOff class="h-3.5 w-3.5" /> Modo Local / P2P Ativo{:else}<ShieldCheck class="h-3.5 w-3.5" /> Rede social conectada{/if}
-				</div>
-			</div>
-			<div class="flex flex-wrap gap-2">
-				<button type="button" class={button({ variant: 'secondary' })} onclick={() => activeTab = 'p2p'}><Radio class="h-4 w-4" />Sala P2P</button>
-				<button type="button" class={button({ variant: 'primary' })} onclick={() => activeTab = 'add'} disabled={cloudOffline}><UserPlus class="h-4 w-4" />Adicionar amigo</button>
-			</div>
-		</div>
-	</header>
+<div class="friends-page mx-auto flex h-full w-full max-w-screen-2xl flex-col gap-5 overflow-y-auto pb-8 select-none custom-scrollbar">
+    <header class="friends-header flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+            <div class="grid h-11 w-11 place-items-center rounded-2xl border border-brand-400/20 bg-brand-500/10 text-brand-300"><Users class="h-5 w-5" /></div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight text-fg">{uiText("nav.friends")}</h1>
+                <p class="mt-1 text-sm text-fg-muted">{uiText("friendsDesign.subtitle")}</p>
+            </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <button type="button" class={button({ variant: 'secondary', size: 'lg' })} onclick={() => activeTab = 'p2p'} aria-pressed={activeTab === 'p2p'}><Radio class="h-4 w-4" />{uiText("ui.88231d3da6438407")}</button>
+            <button type="button" class={button({ variant: 'primary', size: 'lg' })} onclick={() => activeTab = 'add'} aria-pressed={activeTab === 'add'} disabled={cloudOffline}><UserPlus class="h-4 w-4" />{uiText("ui.fcaaf1906cc6c7a6")}</button>
+        </div>
+    </header>
 
-		{#if activeTab !== "p2p"}
-			<div class="surface-glass flex flex-wrap items-center justify-between gap-3 border-brand-500/15 p-4">
-				<div class="flex items-center gap-3">
-					<p class="text-xs text-fg-muted">{friendsState.me ? `Seu código: ` : "Conecte seu perfil para buscar jogadores e receber convites."}</p>
-					{#if friendsState.me}
-						<span class="font-mono text-xs font-bold text-fg bg-bg-subtle px-2 py-0.5 rounded-lg border border-fg/10">{friendsState.me.username}#{friendsState.me.id.slice(0, 8)}</span>
-						<button
-							type="button"
-							title="Copiar código para compartilhar com amigos"
-							class="px-2.5 py-1 rounded-lg bg-fg/10 hover:bg-fg/20 text-fg text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1 active:scale-95"
-							onclick={() => {
-								navigator.clipboard.writeText(`${friendsState.me?.username}#${friendsState.me?.id.slice(0, 8)}`);
-								toast("Código de amigo copiado!", "success");
-							}}
-						>
-							<Copy class="w-3 h-3" />
-							<span>Copiar</span>
-						</button>
-					{/if}
-				</div>
-				<button type="button" class="rounded-xl bg-brand-500 px-4 py-2 text-xs font-bold text-brand-foreground hover:bg-brand-400 disabled:opacity-50 cursor-pointer" onclick={() => friendsState.connect()} disabled={friendsState.busy || !account.value}>{friendsState.busy ? "Conectando..." : friendsState.me ? "Reconectar" : "Conectar rede social"}</button>
-				{#if cloudOffline}<div class="flex w-full items-center gap-2 rounded-xl border border-success/20 bg-success/10 px-3 py-2 text-xs text-success" role="status"><Wifi class="h-4 w-4" /><span>O serviço de nuvem está offline. Suas salas P2P e mundos LAN continuam disponíveis.</span><button type="button" class="ml-auto font-bold underline" onclick={() => activeTab = 'p2p'}>Abrir P2P</button></div>{/if}
-			</div>
-			{#if localContacts.length}
-				<details class="rounded-xl border border-border bg-bg-elevated p-4 text-xs text-fg-muted">
-					<summary class="cursor-pointer">Contatos salvos neste dispositivo ({localContacts.length})</summary>
-					<p class="my-3">Seus contatos anteriores foram preservados. Procure cada jogador para enviar um convite na rede social.</p>
-					<div class="flex flex-wrap gap-2">{#each localContacts as name}<button type="button" class="rounded-xl border border-border px-3 py-2 hover:bg-brand-500/10" onclick={() => { newFriendUsername = name; activeTab = "add"; }}>{name}</button>{/each}</div>
-				</details>
-			{/if}
-		{/if}
-	<div class="grid gap-3 sm:grid-cols-3">
-		{#each [{label:'Na sua turma',value:totalFriends,icon:Users,tone:'text-brand-400 bg-brand-500/10 border-brand-500/20'}, {label:'Online agora',value:onlineCount,icon:Gamepad2,tone:'text-success bg-success/10 border-success/20'}, {label:'Mundos LAN detectados',value:lanWorldCount,icon:Wifi,tone:'text-info bg-info/10 border-info/20'}] as stat}
-			<div class="surface-glass group flex items-center gap-4 p-4 hover:border-brand-500/25"><div class="grid h-11 w-11 place-items-center rounded-2xl border {stat.tone}"><stat.icon class="h-5 w-5" /></div><div><p class="text-2xl font-black text-fg">{stat.value}</p><p class="mt-0.5 text-[10px] font-bold uppercase tracking-wider text-fg-muted">{stat.label}</p></div></div>
-		{/each}
-	</div>
-	<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-		<div class="flex items-center gap-2 p-1.5 rounded-2xl bg-bg-elevated border border-fg/10 w-fit">
-			<button
-				type="button"
-				onclick={() => activeTab = "all"}
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'all' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
-			>
-				Todos ({totalFriends})
-			</button>
-			<button
-				type="button"
-				onclick={() => activeTab = "online"}
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'online' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-sm' : 'text-fg/60 hover:text-fg'}"
-			>
-				Online ({onlineCount})
-			</button>
-			<button
-				type="button"
-				onclick={() => activeTab = "pending"}
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer relative {activeTab === 'pending' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm' : 'text-fg/60 hover:text-fg'}"
-			>
-				Solicitações
-				{#if pendingCount > 0}
-					<span class="ml-1 px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-brand-foreground font-black">
-						{pendingCount}
-					</span>
-				{/if}
-			</button>
-			<button
-				type="button"
-				onclick={() => activeTab = "p2p"}
-				class="px-4 py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'p2p' ? 'bg-fg/15 text-fg shadow-sm' : 'text-fg/60 hover:text-fg'}"
-			>
-				Jogar com amigos
-			</button>
-		</div>
+    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-fg/10 pb-4 text-xs text-fg-muted" role="status">
+        <span class="inline-flex items-center gap-2 {cloudOffline ? 'text-warning' : friendsState.me ? 'text-success' : ''}">{#if cloudOffline}<CloudOff class="h-3.5 w-3.5" />{uiText("ui.c81bb1c4da9eb81e")}{:else}<ShieldCheck class="h-3.5 w-3.5" />{friendsState.me ? uiText("friendsDesign.connected") : uiText("ui.098304fee8dd79fc")}{/if}</span>
+        <span class="inline-flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-success"></span>{uiText("friendsDesign.onlineCount", { count: onlineCount })}</span>
+        <span class="inline-flex items-center gap-2"><Wifi class="h-3.5 w-3.5" />{uiText("friendsDesign.lanCount", { count: lanWorldCount })}</span>
+    </div>
 
-		{#if activeTab !== "add" && activeTab !== "p2p"}
-			<div class="relative min-w-[260px]">
-				<Search class="w-4 h-4 text-fg/40 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-				<input
-					type="text"
-					bind:value={searchQuery}
-					placeholder="Buscar por nome de usuário..."
-					class="w-full bg-bg-elevated border border-fg/10 rounded-2xl pl-10 pr-4 py-2 text-xs text-fg placeholder:text-fg/40 outline-none focus:border-emerald-500/50 transition-colors"
-				/>
-			</div>
-		{/if}
-	</div>
-
-	{#if activeTab === "pending"}
-		<div class="space-y-4">
-			<div class="flex items-center justify-between">
-				<h2 class="text-sm font-bold text-fg uppercase tracking-wider">Solicitações de Amizade</h2>
-				<span class="text-xs text-fg/40">{pendingCount} convite(s) pendentes</span>
-			</div>
-
-			{#if friends.filter(f => f.status === "pending").length === 0}
-				<div class="p-12 text-center rounded-3xl bg-bg-elevated border border-fg/10 space-y-3">
-					<div class="w-12 h-12 rounded-2xl bg-fg/5 border border-fg/10 flex items-center justify-center mx-auto text-fg/30">
-						<UserCheck class="w-6 h-6" />
-					</div>
-					<h3 class="text-sm font-bold text-fg">Nenhum convite pendente</h3>
-					<p class="text-xs text-fg/40 max-w-sm mx-auto">Quando outro jogador enviar um pedido de amizade para você, ele aparecerá aqui com as opções de aceitar ou recusar.</p>
-				</div>
-			{:else}
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					{#each friends.filter(f => f.status === "pending") as req (req.id)}
-						<div class="p-5 rounded-3xl bg-bg-elevated border border-fg/10 hover:border-amber-500/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col justify-between gap-4 shadow-xl">
-							<div class="flex items-center gap-3.5">
-								<MinecraftAvatar username={req.username} status={req.status} activity={req.activity} lastSeen={req.lastSeen} />
-								<div class="min-w-0">
-									<h3 class="text-sm font-extrabold text-fg truncate">{req.username}</h3>
-									<p class="text-[11px] text-amber-400 font-medium mt-0.5">{req.incoming ? "Deseja ser seu amigo" : "Aguardando resposta"}</p>
-								</div>
-							</div>
-
-							<div class="flex items-center gap-2 pt-2 border-t border-fg/5">
-								<button
-									type="button"
-									onclick={() => acceptFriend(req)}
-									disabled={!req.incoming || working}
-									class="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-md active:scale-[0.98] cursor-pointer"
-								>
-									<Check class="w-3.5 h-3.5" />
-									<span>{req.incoming ? "Aceitar Convite" : "Convite enviado"}</span>
-								</button>
-								<button
-									type="button"
-									onclick={() => declineFriend(req)}
-									class="flex items-center justify-center py-2 px-3 rounded-xl bg-fg/5 hover:bg-rose-500/20 text-fg/70 hover:text-rose-400 border border-fg/10 hover:border-rose-500/30 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] active:scale-[0.98] cursor-pointer"
-									title="Recusar"
-								>
-									<X class="w-4 h-4" />
-								</button>
-							</div>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-
-	{:else if activeTab === "add"}
-		<div class="p-8 rounded-3xl bg-bg-elevated border border-fg/10 shadow-xl max-w-2xl space-y-6">
-			<div>
-				<h2 class="text-lg font-black text-fg">Adicionar Novo Amigo</h2>
-				<p class="text-xs text-fg/50 mt-1">Digite o nickname do Minecraft para adicionar o jogador à sua lista de conexões do Luxmc.</p>
-			</div>
-
-			<div class="flex items-center gap-4">
-				<MinecraftAvatar username={selectedFriend?.username || newFriendUsername.trim() || "Steve"} class="h-16 w-16" />
-
-				<div class="flex-1 space-y-2">
-					<input
-						type="text"
-						bind:value={newFriendUsername}
-						placeholder="Digite o nick ex: Spect3rBW"
-						class="w-full bg-bg-subtle border border-fg/15 rounded-2xl px-4 py-3 text-sm text-fg font-medium placeholder:text-fg/30 outline-none focus:border-emerald-400 transition-colors"
-						onkeydown={(e) => { if (e.key === "Enter") handleAddFriend(); }}
-					/>
-				</div>
-			</div>
-
-			<div class="space-y-2" aria-live="polite">
-				{#each suggestions as suggestion (suggestion.id)}
-					<button type="button" class="flex w-full items-center gap-3 rounded-xl border border-border p-3 text-left hover:bg-brand-500/10" onclick={() => selectedFriend = suggestion} aria-pressed={selectedFriend?.id === suggestion.id}>
-						<MinecraftAvatar username={suggestion.username} class="h-8 w-8" />
-						<span>{suggestion.username}<span class="text-fg-subtle">#{suggestion.id.slice(0, 8)}</span></span>
-						{#if selectedFriend?.id === suggestion.id}<Check class="h-4 w-4 text-success" />{/if}
-					</button>
-				{/each}
-				{#if searchError}<p class="text-xs text-danger">{searchError}</p>{/if}
-				<p class="text-xs text-fg-muted">Confirme o código com seu amigo. O nickname e a skin não verificam a identidade Microsoft.</p>
-			</div>
-
-			<div class="flex items-center justify-end gap-3 pt-4 border-t border-fg/5">
-				<button
-					type="button"
-					onclick={() => activeTab = "all"}
-					class="px-5 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/70 hover:text-fg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-				>
-					Cancelar
-				</button>
-				<button
-					type="button"
-					onclick={handleAddFriend}
-					disabled={working || !newFriendUsername.trim()}
-					class="px-6 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-400 disabled:opacity-50 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-brand-500/20 cursor-pointer active:scale-[0.98]"
-				>
-					Adicionar Amigo
-				</button>
-			</div>
-		</div>
-
-	{:else if activeTab === "p2p"}
+    {#if activeTab === 'p2p'}
+        <div class="flex items-center justify-between gap-3">
+            <h2 class="text-base font-semibold text-fg">{uiText("ui.4cab082a07901725")}</h2>
+            <button type="button" class={button({ variant: 'ghost', size: 'sm' })} onclick={() => activeTab = 'all'}><Users class="h-4 w-4" />{uiText("friendsDesign.directory")}</button>
+        </div>
         <MeshPanel />
+    {:else}
+        <div class="friends-workspace grid items-start gap-5">
+            <section class="friends-directory surface-glass min-w-0" aria-label={uiText("friendsDesign.directory")}>
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-fg/10 p-4">
+                    <div class="flex flex-wrap items-center gap-1" aria-label={uiText("friendsDesign.filters")}>
+                        <button type="button" onclick={() => activeTab = 'all'} aria-pressed={activeTab === 'all'} class="launcher-tab flex items-center gap-2 text-xs {activeTab === 'all' ? 'bg-brand-500/10 text-brand-300' : 'text-fg-muted hover:text-fg'}">{uiText("friendsDesign.all")}<span class="text-[10px] text-fg-muted">{totalFriends}</span></button>
+                        <button type="button" onclick={() => activeTab = 'online'} aria-pressed={activeTab === 'online'} class="launcher-tab flex items-center gap-2 text-xs {activeTab === 'online' ? 'bg-brand-500/10 text-brand-300' : 'text-fg-muted hover:text-fg'}">{uiText("friendsDesign.online")}<span class="text-[10px] text-fg-muted">{onlineCount}</span></button>
+                        <button type="button" onclick={() => activeTab = 'pending'} aria-pressed={activeTab === 'pending'} class="launcher-tab flex items-center gap-2 text-xs {activeTab === 'pending' ? 'bg-brand-500/10 text-brand-300' : 'text-fg-muted hover:text-fg'}">{uiText("ui.07d0b754cc7cc62b")}{#if pendingCount > 0}<span class="grid h-5 min-w-5 place-items-center rounded-full bg-warning/15 px-1 text-[10px] text-warning">{pendingCount}</span>{/if}</button>
+                    </div>
+                    {#if activeTab !== 'add'}
+                        <div class="relative min-w-0 flex-1 sm:max-w-60">
+                            <Search class="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-subtle" />
+                            <input type="text" bind:value={searchQuery} aria-label={uiText("friendsDesign.search")} placeholder={uiText("friendsDesign.search")} class="h-10 w-full rounded-xl border border-fg/10 bg-bg-elevated pl-9 pr-3 text-xs text-fg outline-none placeholder:text-fg-subtle focus:border-brand-400/50" />
+                        </div>
+                    {/if}
+                </div>
 
-		{:else}
-			{#if filteredFriends.length === 0}
-				<div class="surface-glass relative overflow-hidden border-brand-500/15 p-10 text-center">
-					<div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-500/10 via-transparent to-success/10"></div>
-					<div class="relative space-y-4">
-						<div class="mx-auto grid h-16 w-16 place-items-center rounded-2xl border border-brand-500/25 bg-brand-500/10 text-brand-300 shadow-glow"><Sparkles class="h-8 w-8" /></div>
-						<h3 class="text-lg font-black text-fg">Sua próxima aventura começa aqui</h3>
-						<p class="text-sm text-fg-muted max-w-md mx-auto">
-						{searchQuery ? `Nenhum amigo corresponde a "${searchQuery}".` : "Você ainda não adicionou amigos nesta categoria."}
-						</p>
-						<div class="flex flex-wrap justify-center gap-2 pt-2">
-							<button type="button" class={button({ variant: 'primary' })} onclick={() => activeTab = 'p2p'}><Radio class="h-4 w-4" />Hospedar um mundo</button>
-							<button type="button" class={button({ variant: 'secondary' })} onclick={() => activeTab = 'add'} disabled={cloudOffline}><UserPlus class="h-4 w-4" />Adicionar amigo</button>
-						</div>
-					</div>
-				</div>
-		{:else}
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                 {#each filteredFriends as friend (friend.id)}
-                    <FriendCard {friend} favourite={friendsState.favourites.includes(friend.id)} busy={working} onJoin={() => joinFriend(friend)} onFavourite={() => friendsState.toggleFavourite(friend.id)} onBlock={() => perform(() => friendsState.action("block", friend.id))} onRemove={() => removeFriend(friend.id, friend.username)} onInvite={() => inviteFriend(friend)} />
-                {/each}
-			</div>
-		{/if}
-		{/if}
+                {#if activeTab === 'add'}
+                    <form class="space-y-5 p-5 sm:p-6" onsubmit={(event) => { event.preventDefault(); void handleAddFriend(); }}>
+                        <div class="flex items-center gap-3"><div class="grid h-10 w-10 place-items-center rounded-xl bg-brand-500/10 text-brand-300"><UserPlus class="h-5 w-5" /></div><div><h2 class="text-lg font-semibold text-fg">{uiText("ui.f0c074065c9343fd")}</h2><p class="mt-1 text-xs text-fg-muted">{uiText("friendsDesign.findDescription")}</p></div></div>
+                        <div class="space-y-2"><label for="friend-username" class="text-xs font-medium text-fg-muted">{uiText("friendsDesign.nickname")}</label><input id="friend-username" type="text" bind:value={newFriendUsername} disabled={working} placeholder={uiText("ui.f2402c145aed8cc4")} class="h-12 w-full rounded-xl border border-fg/15 bg-bg-subtle px-4 text-sm text-fg outline-none placeholder:text-fg-subtle focus:border-brand-400/60" /></div>
+                        <div class="space-y-2" aria-live="polite">
+                            {#each suggestions as suggestion (suggestion.id)}
+                                <button type="button" class={button({ variant: 'outline', size: 'lg', block: true, class: 'justify-start text-left' })} onclick={() => selectedFriend = suggestion} aria-pressed={selectedFriend?.id === suggestion.id} disabled={working}>
+                                    <MinecraftAvatar username={suggestion.username} avatarUrl={suggestion.avatarUrl} class="h-8 w-8" /><span class="min-w-0 truncate">{suggestion.username}<span class="text-fg-subtle">#{suggestion.id.slice(0, 8)}</span></span>{#if selectedFriend?.id === suggestion.id}<Check class="ml-auto h-4 w-4 text-success" />{/if}
+                                </button>
+                            {/each}
+                            {#if searchError}<p class="text-xs text-danger">{searchError}</p>{/if}
+                            <p class="text-xs leading-relaxed text-fg-muted">{uiText("ui.fb90fef4fd93e1b1")}</p>
+                        </div>
+                        <div class="flex flex-wrap items-center justify-end gap-2 border-t border-fg/10 pt-4"><button type="button" onclick={() => activeTab = 'all'} disabled={working} class={button({ variant: 'secondary', size: 'md' })}>{uiText("common.cancel")}</button><button type="submit" disabled={working || !newFriendUsername.trim() || !friendsState.me} aria-busy={working} class={button({ variant: 'primary', size: 'md' })}>{#if working}<LoaderCircle class="h-4 w-4 animate-spin motion-reduce:animate-none" />{:else}<UserPlus class="h-4 w-4" />{/if}{uiText("ui.f05b1fd40631dfae")}</button></div>
+                    </form>
+                {:else if activeTab === 'pending'}
+                    <div class="flex items-center justify-between gap-3 px-5 pt-5"><h2 class="text-sm font-semibold text-fg">{uiText("ui.431a4a4d99085d78")}</h2><span class="text-xs text-fg-subtle">{pendingCount}</span></div>
+                    {#if filteredFriends.length === 0}
+                        <div class="friends-empty flex items-center gap-4 p-5 sm:p-6"><div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-fg/10 bg-fg/5 text-fg-muted"><UserCheck class="h-5 w-5" /></div><div><h3 class="text-sm font-semibold text-fg">{uiText("ui.5d5e8132384ed1f0")}</h3><p class="mt-1.5 text-xs leading-relaxed text-fg-muted">{uiText("ui.2c4bc5f81729898d")}</p></div></div>
+                    {:else}
+                        <div class="space-y-2 p-3">
+                            {#each filteredFriends as req (req.id)}
+                                <article class="flex flex-wrap items-center gap-3 rounded-xl border border-fg/10 p-3"><MinecraftAvatar username={req.username} avatarUrl={req.avatarUrl} status={req.status} activity={req.activity} lastSeen={req.lastSeen} class="h-10 w-10" /><div class="min-w-0 flex-1"><h3 class="truncate text-sm font-semibold text-fg">{req.username}</h3><p class="mt-1 text-xs text-warning">{req.incoming ? uiText("ui.f20243fb0d307b75") : uiText("friendsDesign.awaiting")}</p></div><div class="ml-auto flex items-center gap-2">{#if req.incoming}<button type="button" onclick={() => acceptFriend(req)} disabled={working} class={button({ variant: 'primary', size: 'sm' })}><Check class="h-3.5 w-3.5" />{uiText("ui.f48583546c33511f")}</button>{:else}<span class="px-2 text-xs text-fg-muted">{uiText("friendsDesign.sent")}</span>{/if}<button type="button" onclick={() => declineFriend(req)} disabled={working} class={button({ variant: 'ghostDanger', size: 'icon' })} aria-label={uiText("friendsDesign.cancelRequest", { name: req.username })} title={uiText("ui.ce432849d60ed1ca")}><X class="h-4 w-4" /></button></div></article>
+                            {/each}
+                        </div>
+                    {/if}
+                {:else}
+                    <div class="flex items-center justify-between gap-3 px-5 pt-5"><h2 class="text-sm font-semibold text-fg">{listTitle}</h2><span class="text-xs text-fg-subtle">{filteredFriends.length}</span></div>
+                    {#if sortedFriends.length === 0}
+                        <div class="friends-empty p-5 sm:p-6">
+                            <div class="flex items-center gap-4"><div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-brand-400/20 bg-brand-500/10 text-brand-300"><Users class="h-5 w-5" /></div><div><h3 class="text-base font-semibold text-fg">{searchQuery ? uiText("friendsDesign.noResults") : activeTab === 'online' ? uiText("friendsDesign.noOnline") : uiText("design.emptyFriends")}</h3><p class="mt-1.5 max-w-lg text-xs leading-relaxed text-fg-muted">{searchQuery ? uiText("ui.b8b75050effab5b9", { arg0: searchQuery }) : activeTab === 'online' ? uiText("friendsDesign.noOnlineHint") : uiText("friendsDesign.emptyHint")}</p></div></div>
+                            {#if !searchQuery && activeTab === 'all'}<div class="mt-5 grid gap-3 border-t border-fg/10 pt-4 sm:grid-cols-2">{#each [{ title: uiText('friendsDesign.stepOne'), hint: uiText('friendsDesign.stepOneHint') }, { title: uiText('friendsDesign.stepTwo'), hint: uiText('friendsDesign.stepTwoHint') }] as step, index}<div class="flex gap-3"><span class="grid h-6 w-6 shrink-0 place-items-center rounded-lg border border-fg/10 text-[10px] font-semibold text-fg-muted">0{index + 1}</span><div><p class="text-xs font-medium text-fg">{step.title}</p><p class="mt-1 text-[11px] leading-relaxed text-fg-muted">{step.hint}</p></div></div>{/each}</div>{/if}
+                        </div>
+                    {:else}
+                        <div class="friends-list space-y-1 p-3">{#each sortedFriends as friend (friend.id)}<FriendCard {friend} favourite={friendsState.favourites.includes(friend.id)} busy={working} onJoin={() => joinFriend(friend)} onFavourite={() => friendsState.toggleFavourite(friend.id)} onBlock={() => perform(() => friendsState.action('block', friend.id))} onRemove={() => removeFriend(friend.id, friend.username)} onInvite={() => inviteFriend(friend)} />{/each}</div>
+                    {/if}
+                {/if}
+            </section>
+
+            <aside class="friends-context flex min-w-0 flex-col gap-4">
+                <section class="surface-glass min-w-0 p-5">
+                    <h2 class="mb-4 text-xs font-semibold text-fg-muted">{uiText("friendsDesign.yourProfile")}</h2>
+                    <div class="flex items-center gap-3"><MinecraftAvatar username={friendsState.me?.username || account.value?.username || 'Steve'} avatarUrl={friendsState.me?.avatarUrl || account.value?.avatarUrl} status={friendsState.me ? 'online' : 'offline'} class="h-10 w-10" /><div class="min-w-0"><p class="truncate text-sm font-semibold text-fg">{friendsState.me?.username || account.value?.username || uiText('friendsDesign.profileUnavailable')}</p><p class="mt-1 text-[11px] text-fg-muted">{friendsState.me ? uiText('friendsDesign.ready') : uiText('friendsDesign.connectHint')}</p></div></div>
+                    {#if friendsState.me}<div class="mt-5 space-y-2"><p class="text-[11px] text-fg-muted">{uiText("friendsDesign.yourCode")}</p><div class="flex min-w-0 items-center gap-2"><code class="min-w-0 flex-1 break-all rounded-lg border border-fg/10 px-2.5 py-2 font-mono text-xs text-fg">{friendsState.me.username}#{friendsState.me.id.slice(0, 8)}</code><button type="button" title={uiText("ui.767b6747b7b7888f")} aria-label={uiText("friendsDesign.copyCode")} class={button({ variant: 'secondary', size: 'icon' })} onclick={copyCode}><Copy class="h-4 w-4" /></button></div></div>{/if}
+                    <button type="button" class={button({ variant: friendsState.me ? 'ghost' : 'primary', size: 'sm', block: true, class: 'mt-3' })} onclick={() => friendsState.connect()} disabled={friendsState.busy || !account.value} aria-busy={friendsState.busy}>{#if friendsState.busy}<LoaderCircle class="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />{:else}<RefreshCw class="h-3.5 w-3.5" />{/if}{friendsState.busy ? uiText("ui.d6ac190ed5df66c8") : friendsState.me ? uiText("ui.ce410cef725982fa") : uiText("ui.48997b767b4a201a")}</button>
+                </section>
+                <section class="surface-glass p-5"><div class="flex items-center gap-2 text-brand-300"><Radio class="h-4 w-4" /><h2 class="text-sm font-semibold">{uiText("friendsDesign.playTogether")}</h2></div><p class="mt-3 text-xs leading-relaxed text-fg-muted">{uiText("friendsDesign.roomHint")}</p><button type="button" class={button({ variant: 'outline', size: 'md', block: true, class: 'mt-4 justify-between' })} onclick={() => activeTab = 'p2p'}>{uiText("friendsDesign.openRoom")}<ArrowRight class="h-4 w-4" /></button><p class="mt-3 text-[11px] leading-relaxed text-fg-subtle">{uiText("friendsDesign.compatibility")}</p></section>
+                {#if localContacts.length}<details class="surface-glass p-4 text-xs text-fg-muted"><summary class="cursor-pointer">{uiText("ui.0258395a2887b1f4")}{localContacts.length})</summary><p class="my-3 leading-relaxed">{uiText("ui.408b9eb2fb314ad0")}</p><div class="flex flex-wrap gap-2">{#each localContacts as name}<button type="button" class={button({ variant: 'ghostBrand', size: 'sm' })} onclick={() => { newFriendUsername = name; activeTab = 'add'; }}>{name}</button>{/each}</div></details>{/if}
+            </aside>
+        </div>
+    {/if}
 </div>
 
 <style>
-	.friends-grid {
-		background-image:
-			linear-gradient(rgb(var(--fg) / 0.04) 1px, transparent 1px),
-			linear-gradient(90deg, rgb(var(--fg) / 0.04) 1px, transparent 1px);
-		background-size: 32px 32px;
-	}
+    .friends-workspace { grid-template-columns: minmax(0, 1fr) 264px; }
+    .friends-context { background: transparent !important; }
+    .friends-directory { box-shadow: inset 0 1px 0 rgb(var(--fg) / .04); }
+    .friends-empty { min-height: 152px; }
+    :global(html.has-custom-wallpaper) .friends-page { text-shadow: 0 1px 3px rgb(var(--bg) / .65); }
+    @media (max-width: 1200px) {
+        .friends-workspace { grid-template-columns: minmax(0, 1fr); }
+        .friends-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 680px) {
+        .friends-context { grid-template-columns: minmax(0, 1fr); }
+        .friends-header { align-items: flex-start; }
+    }
 </style>

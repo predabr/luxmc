@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { onMount } from "svelte";
+	import { untrack } from "svelte";
 	import { EditorView, basicSetup } from "codemirror";
-	import { EditorState } from "@codemirror/state";
+	import { Compartment, EditorState } from "@codemirror/state";
 
 	type Props = {
 		value: string;
@@ -14,9 +14,13 @@
 	let container = $state<HTMLDivElement | null>(null);
 	let view: EditorView | null = null;
 	let isUpdatingFromProp = false;
+	const readOnlyCompartment = new Compartment();
 
 	$effect(() => {
-		if (!container) return;
+		const el = container;
+		if (!el) return;
+		const initialDoc = untrack(() => value);
+		const initialReadOnly = untrack(() => readOnly);
 
 		const updateListener = EditorView.updateListener.of((update) => {
 			if (update.docChanged && !isUpdatingFromProp) {
@@ -51,18 +55,18 @@
 		});
 
 		const state = EditorState.create({
-			doc: value,
+			doc: initialDoc,
 			extensions: [
 				basicSetup,
 				updateListener,
 				theme,
-				EditorState.readOnly.of(readOnly)
+				readOnlyCompartment.of(EditorState.readOnly.of(initialReadOnly))
 			]
 		});
 
 		view = new EditorView({
 			state,
-			parent: container
+			parent: el
 		});
 
 		return () => {
@@ -81,6 +85,13 @@
 			});
 			isUpdatingFromProp = false;
 		}
+	});
+
+	$effect(() => {
+		const mode = readOnly;
+		view?.dispatch({
+			effects: readOnlyCompartment.reconfigure(EditorState.readOnly.of(mode))
+		});
 	});
 </script>
 

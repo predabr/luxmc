@@ -1,183 +1,50 @@
 <script lang="ts">
-	import { backOut, quintOut } from "svelte/easing";
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { focusTrap } from "$lib/utils/focusTrap";
     import { button } from "$lib/components/ui/button";
-	import { PackagePlus, Box, Loader2, X, Cpu } from "lucide-svelte";
-	import { fade, scale } from "svelte/transition";
-	import type { ModSearchResultItem } from "$lib/api";
-
-	let {
-		modpack,
-		instanceName = $bindable(""),
-		ramMb = $bindable(4096),
-		isInstalling = false,
-		progressText = "",
-		progressPercent = 0,
-		onConfirm,
-		onClose, onCancel, cancelling = false
-	}: {
-		modpack: ModSearchResultItem;
-		instanceName?: string;
-		ramMb?: number;
-		isInstalling?: boolean;
-		progressText?: string;
-		progressPercent?: number;
-		onConfirm: () => void;
-		onClose: () => void;
-        onCancel: () => void;
-        cancelling?: boolean;
-	} = $props();
-
-	function formatDownloads(n: number): string {
-		if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-		return n.toString();
-	}
+    import LazyImage from "$lib/components/ui/LazyImage.svelte";
+    import SourceBadge from "./SourceBadge.svelte";
+    import { PackagePlus, Download, Loader2, X, Cpu, Check, FolderCheck } from "lucide-svelte";
+    import { fade } from "svelte/transition";
+    import type { ModSearchResultItem } from "$lib/api";
+    let { modpack, instanceName = $bindable(""), ramMb = $bindable(4096), isInstalling = false, progressText = "", progressPercent = 0, onConfirm, onClose, onCancel, cancelling = false }: {
+        modpack: ModSearchResultItem; instanceName?: string; ramMb?: number; isInstalling?: boolean; progressText?: string; progressPercent?: number; onConfirm: () => void; onClose: () => void; onCancel: () => void; cancelling?: boolean;
+    } = $props();
+    const percent = $derived(Math.max(0, Math.min(100, progressPercent)));
+    const indeterminate = $derived(progressPercent < 0);
+    const status = $derived(progressText.toLowerCase());
+    const stage = $derived(/finaliz|conclu|verific/.test(status) ? 3 : /mods|extraindo|instalando|configurando/.test(status) && !/buscando/.test(status) ? 2 : /baixando pacote|download|baixando arquivo/.test(status) ? 1 : 0);
+    const stages = $derived([{ label: uiText("ui.edbadf0d55e84195"), icon: PackagePlus }, { label: uiText("ui.d7e616e73950c566"), icon: Download }, { label: uiText("ui.a52fd8beef3c087f"), icon: FolderCheck }, { label: uiText("ui.80a5037a33b80200"), icon: Check }]);
+    const downloads = $derived(new Intl.NumberFormat("pt-BR", { notation: "compact" }).format(modpack.downloads));
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-	class="fixed inset-0 z-[999999] bg-bg-overlay/80 backdrop-blur-sm flex items-center justify-center p-6"
-	transition:fade={{ easing: quintOut, duration: 220 }}
-	onclick={() => { if (!isInstalling) onClose(); }}
->
-	<div
-		role="dialog" aria-modal="true" aria-label="Instalar modpack" tabindex="-1" use:focusTrap
-        class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5"
-		transition:scale={{ easing: backOut, start: 0.95, duration: 220 }}
-		onclick={(e) => e.stopPropagation()}
-        onkeydown={(event) => { if (event.key === "Escape" && !isInstalling) { event.stopPropagation(); onClose(); } }}
-	>
-		<!-- Header -->
-		<div class="flex items-center justify-between border-b border-fg/5 pb-3">
-			<div class="flex items-center gap-2.5">
-				<div class="w-8 h-8 rounded-xl bg-brand-400/10 text-brand-400 flex items-center justify-center">
-					<PackagePlus class="w-4 h-4" />
-				</div>
-				<div>
-					<h3 class="text-sm font-bold text-fg">Criar Instância a partir do Modpack</h3>
-					<p class="text-[11px] text-fg/40 font-medium">Configure a nova instância para este modpack</p>
-				</div>
-			</div>
-			{#if !isInstalling}
-				<button
-					type="button"
-					class="text-fg/40 hover:text-fg p-1 rounded-lg hover:bg-fg/5 transition-colors cursor-pointer"
-					aria-label="Fechar instalação" onclick={onClose}
-				>
-					<X class="w-4 h-4" />
-				</button>
-			{/if}
-		</div>
-
-		<!-- Modpack Preview Card -->
-		<div class="flex items-center gap-3 bg-bg-elevated p-3 rounded-2xl border border-fg/5">
-			<div class="w-12 h-12 rounded-xl bg-bg-subtle border border-fg/10 overflow-hidden shrink-0 flex items-center justify-center">
-				{#if modpack.iconUrl}
-					<img loading="lazy" decoding="async"
-						src={modpack.iconUrl}
-						alt={modpack.title}
-						class="w-full h-full object-contain p-0.5"
-						onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; }}
-					/>
-				{:else}
-					<Box class="w-6 h-6 text-brand-400" />
-				{/if}
-			</div>
-			<div class="min-w-0 flex-1">
-				<h4 class="text-xs font-extrabold text-fg truncate">{modpack.title}</h4>
-				<p class="text-[11px] text-fg/40 truncate mt-0.5">{modpack.description}</p>
-				<div class="flex items-center gap-2 mt-1 text-[10px] text-fg/50">
-					<span class="capitalize font-semibold text-fg/70">{modpack.source}</span>
-					<span>•</span>
-					<span>{formatDownloads(modpack.downloads)} downloads</span>
-				</div>
-			</div>
-		</div>
-
-		<!-- Form Fields -->
-		<div class="space-y-4">
-			<div>
-				<label for="modpack-inst-name" class="block text-[11px] font-bold text-fg/60 uppercase tracking-wider mb-1.5">
-					Nome da Instância
-				</label>
-				<input
-					id="modpack-inst-name"
-					type="text"
-					bind:value={instanceName}
-					placeholder="Ex: Better MC, All the Mods..."
-					disabled={isInstalling}
-					class="w-full bg-bg-elevated border border-fg/10 focus:border-brand-400 rounded-xl px-3.5 py-2.5 text-xs text-fg placeholder-fg/30 focus:outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] disabled:opacity-50"
-				/>
-			</div>
-
-			<div class="bg-bg-elevated border border-emerald-500/20 rounded-xl p-3 flex items-center justify-between">
-				<div class="flex items-center gap-2.5">
-					<div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-						<Cpu class="w-4 h-4" />
-					</div>
-					<div>
-						<span class="text-xs font-bold text-fg block">Memória da Instância</span>
-						<span class="text-[10px] text-fg/50 block">Ajuste conforme os requisitos do modpack</span>
-					</div>
-				</div>
-				<span class="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">{ramMb / 1024} GB</span>
-			</div>
-            <label class="block text-xs text-fg-muted" for="modpack-ram">RAM: {ramMb / 1024} GB</label>
-            <input id="modpack-ram" type="range" min="1024" max="16384" step="512" bind:value={ramMb} disabled={isInstalling} class="w-full accent-brand-500" />
-		</div>
-
-		{#if isInstalling}
-			<div class="bg-bg-elevated border border-brand-400/20 rounded-2xl p-4 space-y-3">
-				<div class="flex items-center gap-3">
-					<Loader2 class="w-5 h-5 text-brand-400 animate-spin shrink-0" />
-					<div class="min-w-0 flex-1">
-						<p class="text-xs font-bold text-fg">Instalando Modpack...</p>
-						<p class="text-[11px] text-fg/60 truncate mt-0.5">{progressText || "Por favor, aguarde..."}</p>
-					</div>
-					{#if progressPercent > 0}
-						<span class="text-xs font-mono font-bold text-brand-400 shrink-0">{progressPercent}%</span>
-					{/if}
-				</div>
-				{#if progressPercent > 0}
-					<div class="w-full h-1.5 bg-fg/10 rounded-full overflow-hidden">
-						<div
-							class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 ease-out"
-							style="width: {progressPercent}%"
-						></div>
-					</div>
-				{:else if progressPercent === -1}
-					<div class="w-full h-1.5 bg-fg/10 rounded-full overflow-hidden">
-						<div class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full animate-pulse" style="width: 100%"></div>
-					</div>
-				{/if}
-			</div>
-		{/if}
-
-		<div class="flex items-center justify-end gap-3 pt-2">
-			<button
-				type="button"
-				class={button({ variant: "secondary", size: "sm" })}
-                disabled={isInstalling && cancelling}
-                onclick={isInstalling ? onCancel : onClose}
-			>
-                {isInstalling && cancelling ? "Cancelando…" : "Cancelar"}
-			</button>
-			<button
-				type="button"
-				class={button({ variant: "primary", size: "sm" })}
-				disabled={isInstalling || !instanceName.trim()}
-				onclick={onConfirm}
-			>
-				{#if isInstalling}
-					<Loader2 class="w-4 h-4 animate-spin text-brand-foreground" />
-					<span>Instalando...</span>
-				{:else}
-					<PackagePlus class="w-4 h-4" />
-					<span>Criar e Baixar Instância</span>
-				{/if}
-			</button>
-		</div>
-	</div>
+<div class="fixed inset-0 z-[999999] flex items-center justify-center bg-bg-overlay/90 p-4" transition:fade={{ duration: 140 }}>
+    <button type="button" class="absolute inset-0 cursor-default" tabindex="-1" aria-label={uiText("ui.2de7443df5f6a877")} disabled={isInstalling} onclick={onClose}></button>
+    <div role="dialog" aria-modal="true" aria-label={uiText("ui.ae9010b55c74629b")} tabindex="-1" use:focusTrap class="relative w-full max-w-2xl overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated shadow-elevated" onkeydown={(event) => { if (event.key === "Escape" && !isInstalling) { event.stopPropagation(); onClose(); } }}>
+        <header class="relative overflow-hidden border-b border-border bg-bg-subtle p-6">
+            {#if modpack.bannerUrl && modpack.bannerUrl !== modpack.iconUrl}<img src={modpack.bannerUrl} alt="" decoding="async" class="absolute inset-0 h-full w-full object-cover opacity-20" onerror={(event) => (event.currentTarget as HTMLImageElement).style.visibility = "hidden"} />{/if}
+            <div class="absolute inset-0 bg-gradient-to-r from-bg-elevated via-bg-elevated/80 to-brand-500/10"></div>
+            <div class="relative flex items-start gap-4">
+                <div class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-border-strong bg-bg-subtle p-1"><LazyImage src={modpack.iconUrl || '/grass_block.png'} alt="" loading="eager" class="object-contain" /></div>
+                <div class="min-w-0 flex-1"><div class="mb-2 flex items-center gap-2"><SourceBadge source={modpack.source} /><span class="text-[10px] font-semibold uppercase tracking-widest text-brand-400">{uiText("ui.456abc53629fc5af")}</span></div><h2 class="truncate text-xl font-bold text-fg">{modpack.title}</h2><p class="mt-1 text-xs text-fg-muted">{modpack.author || modpack.slug} · {downloads} {uiText("ui.4eed41d911d75723")}</p></div>
+                {#if !isInstalling}<button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={uiText("ui.2de7443df5f6a877")} onclick={onClose}><X class="h-5 w-5" /></button>{/if}
+            </div>
+            <p class="relative mt-4 line-clamp-2 text-xs leading-relaxed text-fg-muted">{modpack.description}</p>
+        </header>
+        <div class="max-h-[60vh] overflow-y-auto custom-scrollbar p-6 space-y-6">
+            {#if !isInstalling}
+                <div><h3 class="text-base font-semibold text-fg">{uiText("ui.d271c5645474da6d")}</h3><p class="mt-1 text-xs text-fg-muted">{uiText("ui.dd01b055a7d23328")}</p></div>
+                <label class="block space-y-2 text-xs font-semibold text-fg" for="modpack-inst-name"><span>{uiText("instances.namePlaceholder")}</span><input id="modpack-inst-name" type="text" bind:value={instanceName} placeholder={modpack.title} class="w-full rounded-xl border border-border-strong bg-bg-subtle px-4 py-3 text-sm text-fg focus:border-brand-400 focus:outline-none" /></label>
+                <div class="space-y-4"><div class="flex items-center gap-3"><Cpu class="h-5 w-5 text-brand-400" /><div class="flex-1"><label for="modpack-ram" class="text-xs font-semibold text-fg">{uiText("ui.27d363405331c831")}</label><p class="mt-1 text-xs text-fg-muted">{uiText("ui.7e24067202e46e23")}</p></div><output for="modpack-ram" class="text-lg font-bold tabular-nums text-brand-400">{ramMb / 1024} <span class="text-xs">GB</span></output></div>
+                    <input id="modpack-ram" type="range" min="1024" max="16384" step="512" bind:value={ramMb} class="w-full accent-brand-500" />
+                    <div class="flex flex-wrap items-center gap-2">{#each [4096, 6144, 8192, 12288] as value}<button type="button" aria-pressed={ramMb === value} class={button({ variant: ramMb === value ? 'ghostBrand' : 'secondary', size: 'sm' })} onclick={() => ramMb = value}>{value / 1024} GB</button>{/each}<span class="ml-auto text-[10px] text-fg-muted">{uiText("ui.3410fe309bb2f912")}</span></div>
+                </div>
+            {:else}
+                <div class="flex flex-wrap items-center gap-3 text-xs text-fg-muted"><span class="font-semibold text-fg">{instanceName}</span><span class="ml-auto flex items-center gap-2"><Cpu class="h-4 w-4" />{ramMb / 1024} {uiText("ui.48e64b8ad7aed3b9")}</span></div>
+                <ol class="grid grid-cols-4 gap-2" aria-label={uiText("ui.19108679a75dbdf5")}>{#each stages as step, index}<li class="flex flex-col items-center gap-2 text-center text-[10px] {index <= stage ? 'text-brand-400' : 'text-fg-subtle'}"><span class="flex h-9 w-9 items-center justify-center rounded-xl border {index <= stage ? 'border-brand-500/30 bg-brand-500/10' : 'border-border bg-bg-subtle'}">{#if index < stage}<Check class="h-4 w-4" />{:else if index === stage}<Loader2 class="h-4 w-4 animate-spin" />{:else}<step.icon class="h-4 w-4" />{/if}</span>{step.label}</li>{/each}</ol>
+                <div class="space-y-3 rounded-xl border border-brand-500/20 bg-brand-500/5 p-5"><div class="flex items-center justify-between gap-3"><h3 class="text-sm font-semibold text-fg">{cancelling ? uiText("ui.6ae6319c82afbb57") : stages[stage].label}</h3>{#if !indeterminate}<span class="text-lg font-bold tabular-nums text-brand-400">{Math.round(percent)}%</span>{/if}</div><div role="progressbar" aria-label={uiText("ui.84fb8a36577543fb")} aria-valuemin="0" aria-valuemax="100" aria-valuenow={indeterminate ? undefined : percent} class="h-2 overflow-hidden rounded-full bg-fg/10"><div class="installer-progress-fill h-full rounded-full bg-brand-500 {indeterminate ? 'animate-pulse' : ''}" style:width={indeterminate ? '100%' : `${percent}%`}></div></div><p class="break-words text-xs leading-relaxed text-fg-muted" role="status">{progressText || uiText("ui.27fb477239f6b217")}</p></div>
+            {/if}
+        </div>
+        <footer class="flex items-center justify-between gap-3 border-t border-border bg-bg-subtle px-6 py-4"><button type="button" class={button({ variant: 'secondary' })} disabled={isInstalling && cancelling} onclick={isInstalling ? onCancel : onClose}>{cancelling ? 'Cancelando…' : isInstalling ? uiText("ui.bf526874f31d132e") : uiText("common.cancel")}</button>{#if !isInstalling}<button type="button" class={button({ variant: 'primary', size: 'lg' })} disabled={!instanceName.trim()} onclick={onConfirm}><Download class="h-4 w-4" />{uiText("ui.ae9010b55c74629b")}</button>{:else}<span class="flex items-center gap-2 text-xs font-semibold text-fg-muted"><Loader2 class="h-4 w-4 animate-spin" />{cancelling ? 'Encerrando tarefas' : uiText("ui.e767cd8c5098119b")}</span>{/if}</footer>
+    </div>
 </div>

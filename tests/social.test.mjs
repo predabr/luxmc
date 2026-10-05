@@ -11,6 +11,7 @@ function fixture() {
   sqlite.exec(readFileSync(new URL("../website/migrations/0002_accounts.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0003_mesh_social.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0004_social_stream.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0005_social_avatars.sql", import.meta.url), "utf8"));
   const db = { prepare(sql) {
     const statement = sqlite.prepare(sql);
     return { bind(...values) {
@@ -40,6 +41,10 @@ test("invites require recipient consent and hide presence until accepted", async
     const pending = (await request("sync", aliceToken, {})).body.friends[0];
     assert.equal(pending.serverIp, null);
     assert.equal(pending.incoming, false);
+    const received = (await request("sync", bobToken, { readOnly: true })).body.friends[0];
+    assert.equal(received.id, alice.id);
+    assert.equal(received.status, "pending");
+    assert.equal(received.incoming, true);
     assert.equal((await request("accept", aliceToken, { targetId: bob.id })).status, 404);
     assert.equal((await request("accept", eveToken, { targetId: alice.id })).status, 404);
     assert.equal((await request("accept", bobToken, { targetId: alice.id })).status, 200);
@@ -74,7 +79,9 @@ test("downloads select installers and reject off-repository redirects", () => {
   assert.equal(safeAssetUrl("https://github.com/other/project/releases/download/v1/a.exe"), false);
   const asset = name => ({ name, browser_download_url: `https://github.com/predabr/luxmc/releases/download/v1/${name}` });
   assert.equal(assetFor([asset("arm64.AppImage"), asset("x86_64.AppImage"), asset("app.exe.sig")], "linux").name, "x86_64.AppImage");
-  assert.equal(assetFor([asset("app.exe.sig")], "windows"), null);
+    assert.equal(assetFor([asset("app.exe.sig")], "windows"), null);
+    assert.equal(assetFor([asset("Luxmc-x64.exe"), asset("Lux MC Launcher.exe")], "windows").name, "Lux MC Launcher.exe");
+    assert.equal(assetFor([asset("Luxmc_3.0.0_x64-setup.exe"), asset("Lux MC Launcher.exe")], "windows").name, "Lux MC Launcher.exe");
   assert.equal(assetFor([asset("Luxmc.deb")], "debian").name, "Luxmc.deb");
   assert.equal(assetFor([asset("Luxmc.rpm")], "fedora").name, "Luxmc.rpm");
   assert.equal(assetFor([asset("luxmc.pkg.tar.zst")], "arch").name, "luxmc.pkg.tar.zst");
@@ -155,5 +162,41 @@ test("websocket tickets are short-lived and only their hash is stored", async ()
     assert.equal(stored.token_hash.length, 64);
     assert.ok(stored.expires_at <= Date.now()/1000 + 30);
     assert.equal((await request("stream_ticket", aliceToken, {}, "ws://stream.example/connect")).status, 503);
+  } finally { sqlite.close(); }
+});
+
+
+test("custom skin avatars round-trip to the portal and friend snapshots", async () => {
+  const { sqlite, request } = fixture();
+  try {
+    const avatar = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1cAAAAASUVORK5CYII=";
+    const alice = (await request("register", aliceToken, { username: "Alice" })).body.me;
+    const bob = (await request("register", bobToken, { username: "Bob" })).body.me;
+    await request("invite", aliceToken, { targetId: bob.id });
+    await request("accept", bobToken, { targetId: alice.id });
+    const updated = await request("sync", bobToken, { status: "online", avatarUrl: avatar });
+    assert.equal(updated.body.me.avatarUrl, avatar);
+    assert.equal((await request("sync", aliceToken, {})).body.friends[0].avatarUrl, avatar);
+    assert.equal((await request("search", aliceToken, { query: "Bob" })).body.users[0].avatarUrl, avatar);
+    await request("sync", bobToken, { avatarUrl: "data:image/svg+xml,<svg onload=alert(1)>" });
+    assert.equal((await request("sync", aliceToken, {})).body.friends[0].avatarUrl, null);
+  } finally { sqlite.close(); }
+});
+
+
+test("duplicate nicknames remain distinct and friend codes select the recipient", async () => {
+  const { sqlite, request } = fixture();
+  try {
+    const first = (await request("register", aliceToken, { username: "SameNick" })).body.me;
+    const second = (await request("register", bobToken, { username: "SameNick" })).body.me;
+    await request("register", eveToken, { username: "Sender" });
+    assert.equal((await request("search", eveToken, { query: "SameNick" })).body.users.length, 2);
+    const exact = await request("search", eveToken, { query: `SameNick#${second.id.slice(0,8)}` });
+    assert.equal(exact.body.users.length, 1);
+    assert.equal(exact.body.users[0].id, second.id);
+    await request("invite", eveToken, { targetId: second.id });
+    assert.deepEqual((await request("sync", aliceToken, {})).body.friends, []);
+    assert.equal((await request("sync", bobToken, {})).body.friends[0].incoming, true);
+    assert.notEqual(first.id, second.id);
   } finally { sqlite.close(); }
 });

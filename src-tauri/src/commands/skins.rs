@@ -25,6 +25,63 @@ fn get_skins_dir() -> AppResult<PathBuf> {
     Ok(dir)
 }
 
+const MAX_IMAGE_BYTES: u64 = 2 * 1024 * 1024;
+
+fn sanitize_asset_id(id: &str) -> String {
+    let cleaned: String = id
+        .trim()
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+        .collect();
+    if cleaned.is_empty() || cleaned.len() > 64 {
+        uuid::Uuid::new_v4().to_string()
+    } else {
+        cleaned
+    }
+}
+
+fn asset_path(dir: &PathBuf, id: &str) -> AppResult<PathBuf> {
+    let path = dir.join(format!("{}.png", id));
+    if path.parent() != Some(dir.as_path()) {
+        return Err(AppError::InvalidState("Caminho de imagem inválido".into()));
+    }
+    Ok(path)
+}
+
+async fn load_asset_bytes(http: &reqwest::Client, source: &str) -> Option<Vec<u8>> {
+    let bytes: Vec<u8> = if source.starts_with("data:image/") {
+        let pos = source.find(',')?;
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD
+            .decode(&source[pos + 1..])
+            .ok()?
+    } else if source.starts_with("http://") || source.starts_with("https://") {
+        let mut resp = http.get(source).send().await.ok()?;
+        if resp.content_length().unwrap_or(0) > MAX_IMAGE_BYTES {
+            return None;
+        }
+        let mut out: Vec<u8> = Vec::new();
+        while let Ok(Some(chunk)) = resp.chunk().await {
+            if out.len() as u64 + chunk.len() as u64 > MAX_IMAGE_BYTES {
+                return None;
+            }
+            out.extend_from_slice(&chunk);
+        }
+        out
+    } else {
+        let p = std::path::Path::new(source);
+        let meta = tokio::fs::metadata(p).await.ok()?;
+        if !meta.is_file() || meta.len() > MAX_IMAGE_BYTES {
+            return None;
+        }
+        tokio::fs::read(p).await.ok()?
+    };
+    if bytes.len() as u64 > MAX_IMAGE_BYTES || bytes.is_empty() {
+        return None;
+    }
+    Some(bytes)
+}
+
 #[tauri::command]
 pub async fn skins_list() -> AppResult<Vec<SavedSkinRow>> {
     let db = crate::db::shared_db().await?;
@@ -42,38 +99,17 @@ pub async fn skins_save_core(
     let id = if request.id.trim().is_empty() {
         uuid::Uuid::new_v4().to_string()
     } else {
-        request.id.trim().to_string()
+        sanitize_asset_id(&request.id)
     };
 
-    let skin_file_path = skins_dir.join(format!("{}.png", id));
+    let skin_file_path = asset_path(&skins_dir, &id)?;
 
-    // Decode and save skin PNG bytes to disk
-    let skin_bytes: Vec<u8> = if request.skin_url.starts_with("data:image/") {
-        if let Some(pos) = request.skin_url.find(',') {
-            use base64::Engine;
-            base64::engine::general_purpose::STANDARD
-                .decode(&request.skin_url[pos + 1..])
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    } else if request.skin_url.starts_with("http://") || request.skin_url.starts_with("https://") {
-        if let Ok(resp) = http.get(&request.skin_url).send().await {
-            resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    } else {
-        let p = std::path::Path::new(&request.skin_url);
-        if p.exists() {
-            tokio::fs::read(p).await.unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    };
+    let skin_bytes = load_asset_bytes(http, &request.skin_url).await;
 
-    if !skin_bytes.is_empty() {
-        let _ = tokio::fs::write(&skin_file_path, &skin_bytes).await;
+    if let Some(bytes) = skin_bytes {
+        if let Err(e) = tokio::fs::write(&skin_file_path, &bytes).await {
+            tracing::warn!("failed to write skin {}: {e}", skin_file_path.display());
+        }
     }
 
     let avatar_url = request.avatar_url.unwrap_or_default();
@@ -107,9 +143,13 @@ pub async fn skins_delete(id: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     crate::db::schema::skins::delete(&db, &id).await?;
 
-    if let Ok(skins_dir) = get_skins_dir() {
-        let p = skins_dir.join(format!("{}.png", id));
-        let _ = tokio::fs::remove_file(p).await;
+    let safe_id = sanitize_asset_id(&id);
+    if safe_id == id.trim() {
+        if let Ok(skins_dir) = get_skins_dir() {
+            if let Ok(p) = asset_path(&skins_dir, &safe_id) {
+                let _ = tokio::fs::remove_file(p).await;
+            }
+        }
     }
 
     Ok(())
@@ -141,7 +181,7 @@ pub async fn skins_import_file(
     }
 
     let id = uuid::Uuid::new_v4().to_string();
-    let skin_file_path = skins_dir.join(format!("{}.png", id));
+    let skin_file_path = asset_path(&skins_dir, &id)?;
     tokio::fs::write(&skin_file_path, &bytes).await?;
 
     use base64::Engine;
@@ -228,37 +268,17 @@ pub async fn capes_save_core(
     let id = if request.id.trim().is_empty() {
         uuid::Uuid::new_v4().to_string()
     } else {
-        request.id.trim().to_string()
+        sanitize_asset_id(&request.id)
     };
 
-    let cape_file_path = capes_dir.join(format!("{}.png", id));
+    let cape_file_path = asset_path(&capes_dir, &id)?;
 
-    let cape_bytes: Vec<u8> = if request.cape_url.starts_with("data:image/") {
-        if let Some(pos) = request.cape_url.find(',') {
-            use base64::Engine;
-            base64::engine::general_purpose::STANDARD
-                .decode(&request.cape_url[pos + 1..])
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    } else if request.cape_url.starts_with("http://") || request.cape_url.starts_with("https://") {
-        if let Ok(resp) = http.get(&request.cape_url).send().await {
-            resp.bytes().await.map(|b| b.to_vec()).unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    } else {
-        let p = std::path::Path::new(&request.cape_url);
-        if p.exists() {
-            tokio::fs::read(p).await.unwrap_or_default()
-        } else {
-            Vec::new()
-        }
-    };
+    let cape_bytes = load_asset_bytes(http, &request.cape_url).await;
 
-    if !cape_bytes.is_empty() {
-        let _ = tokio::fs::write(&cape_file_path, &cape_bytes).await;
+    if let Some(bytes) = cape_bytes {
+        if let Err(e) = tokio::fs::write(&cape_file_path, &bytes).await {
+            tracing::warn!("failed to write cape {}: {e}", cape_file_path.display());
+        }
     }
 
     let row = crate::db::schema::skins::SavedCapeRow {
@@ -286,8 +306,12 @@ pub async fn capes_delete(id: String) -> AppResult<()> {
     crate::db::schema::skins::delete_cape(&db, &id).await?;
 
     if let Ok(capes_dir) = get_capes_dir() {
-        let p = capes_dir.join(format!("{}.png", id));
-        let _ = tokio::fs::remove_file(p).await;
+        let safe_id = sanitize_asset_id(&id);
+        if safe_id == id.trim() {
+            if let Ok(p) = asset_path(&capes_dir, &safe_id) {
+                let _ = tokio::fs::remove_file(p).await;
+            }
+        }
     }
 
     Ok(())

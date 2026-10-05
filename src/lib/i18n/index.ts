@@ -3,6 +3,7 @@ import i18next, { type i18n as I18nInstance } from "i18next";
 import en from "./en.json";
 import ptBR from "./pt-BR.json";
 import es from "./es.json";
+import { detectBrowserLocale, isSupportedLocale } from "./locale";
 
 const resources = {
 	en: { translation: en },
@@ -31,12 +32,11 @@ export function subscribeLocale(fn: () => void) {
 
 export function detectInitialLocale(): Locale {
 	if (!browser) return "en";
-	const stored = localStorage.getItem("luxmc.locale") as Locale | null;
-	if (stored && stored in resources) return stored;
-	const nav = browser ? navigator.language : "en";
-	if (nav.toLowerCase().startsWith("pt")) return "pt-BR";
-	if (nav.toLowerCase().startsWith("es")) return "es";
-	return "en";
+	try {
+		const stored = localStorage.getItem("luxmc.locale");
+		if (isSupportedLocale(stored)) return stored;
+	} catch {}
+	return detectBrowserLocale();
 }
 
 let initialised = false;

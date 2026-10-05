@@ -1,3 +1,4 @@
+import { validAvatar } from "../../../lib/avatar.js";
 import { friendSnapshot } from "../../../lib/social.js";
 import { authenticate, sameOrigin, sessionToken } from "../../../lib/accounts.js";
 const headers = { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" };
@@ -57,7 +58,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
     if (Math.random() < 0.01) waitUntil(db.prepare("DELETE FROM social_limits WHERE expires_at < ?").bind(now).run());
     const registered = await authenticate(request, db);
     if (!registered && (body.registeredAccount === true || request.headers.has("Cookie"))) return respond({ error: "Sua sessão expirou. Entre novamente." }, 401);
-    let me = registered ? { id: registered.social_id, username: registered.username } : await db.prepare("SELECT id, username FROM social_users WHERE token_hash = ?").bind(tokenHash).first();
+    let me = registered ? { id: registered.social_id, username: registered.username } : await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE token_hash = ?").bind(tokenHash).first();
     if (action === "register") {
       if (registered) return respond({ me });
       if (!nickname(body.username)) return respond({ error: "Nickname inválido (3–16 letras, números ou _)." }, 400);
@@ -65,7 +66,7 @@ export async function onRequest({ request, env, params, waitUntil }) {
         if (await limited(db, `register:${ipHash}`, now, 3600, 5)) return respond({ error: "Limite de novos perfis atingido." }, 429);
         const id = crypto.randomUUID();
         await db.prepare("INSERT INTO social_users(id, token_hash, username) VALUES (?, ?, ?) ON CONFLICT(token_hash) DO NOTHING").bind(id, tokenHash, body.username).run();
-        me = await db.prepare("SELECT id, username FROM social_users WHERE token_hash = ?").bind(tokenHash).first();
+        me = await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE token_hash = ?").bind(tokenHash).first();
       }
       return respond({ me });
     }
@@ -113,15 +114,16 @@ export async function onRequest({ request, env, params, waitUntil }) {
       if (query.length < 3 || !/^[A-Za-z0-9_#-]+$/.test(query)) return respond({ users: [] });
       const [name, code] = query.split("#");
       const escaped = name.replace(/_/g, "!_");
-      const { results } = await db.prepare("SELECT id, username FROM social_users WHERE username LIKE ? ESCAPE '!' COLLATE NOCASE AND id != ? AND NOT EXISTS (SELECT 1 FROM social_blocks b WHERE (b.owner = ? AND b.target = social_users.id) OR (b.target = ? AND b.owner = social_users.id)) AND (? = '' OR id LIKE ?) LIMIT 8")
+      const { results } = await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE username LIKE ? ESCAPE '!' COLLATE NOCASE AND id != ? AND NOT EXISTS (SELECT 1 FROM social_blocks b WHERE (b.owner = ? AND b.target = social_users.id) OR (b.target = ? AND b.owner = social_users.id)) AND (? = '' OR id LIKE ?) ORDER BY last_seen DESC, id LIMIT 8")
         .bind(`${escaped}%`, me.id, me.id, me.id, code || "", `${code || ""}%`).all();
       return respond({ users: results });
     }
     if (action === "sync") {
       const activity = ["online", "in_game", "offline"].includes(body.status) ? body.status : "online";
       const server = activity === "in_game" && validServer(body.serverHost, body.serverPort);
-      if (body.readOnly !== true) await db.prepare("UPDATE social_users SET last_seen = ?, activity = ?, instance_name = ?, mc_version = ?, loader = ?, server_host = ?, server_port = ? WHERE id = ?")
-        .bind(activity === "offline" ? 0 : now, activity, shortText(body.instanceName, 80), shortText(body.mcVersion, 40), shortText(body.loader, 20), server ? body.serverHost : null, server ? body.serverPort : null, me.id).run();
+      if (body.readOnly !== true) await db.prepare("UPDATE social_users SET last_seen = ?, activity = ?, instance_name = ?, mc_version = ?, loader = ?, server_host = ?, server_port = ?, avatar_url = CASE WHEN ? THEN ? ELSE avatar_url END WHERE id = ?")
+        .bind(activity === "offline" ? 0 : now, activity, shortText(body.instanceName, 80), shortText(body.mcVersion, 40), shortText(body.loader, 20), server ? body.serverHost : null, server ? body.serverPort : null, Object.hasOwn(body, "avatarUrl") ? 1 : 0, validAvatar(body.avatarUrl) ? body.avatarUrl : null, me.id).run();
+      me = await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE id = ?").bind(me.id).first();
       const friends = await friendSnapshot(db, me.id, now);
       return respond({ me, friends });
     }

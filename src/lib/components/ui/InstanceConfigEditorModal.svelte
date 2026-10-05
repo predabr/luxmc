@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
@@ -79,10 +81,10 @@
 		saving = true;
 		try {
 			await instanceOptionsSet(profileId, options);
-			toast("Configurações salvas com sucesso no options.txt!", "success");
+			toast(uiText("ui.ff2f3c2e0f1e7588"), "success");
 			onClose();
 		} catch (e) {
-			toast("Erro ao salvar opções: " + String(e), "error");
+			toast(uiText("ui.3e3076893c80075e") + String(e), "error");
 		} finally {
 			saving = false;
 		}
@@ -92,10 +94,10 @@
 		saving = true;
 		try {
 			await instanceConfigWrite(profileId, rawFilePath, rawContent);
-			toast(`Arquivo "${rawFilePath}" gravado com sucesso!`, "success");
+			toast(uiText("ui.e81df41f94aae1ec", {arg0: (rawFilePath)}), "success");
 			await loadOptions();
 		} catch (e) {
-			toast("Erro ao salvar arquivo: " + String(e), "error");
+			toast(uiText("ui.18e5596b3983ad06") + String(e), "error");
 		} finally {
 			saving = false;
 		}
@@ -121,15 +123,15 @@
 						<Sliders class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-base font-bold text-fg">Editor Visual de Configurações</h3>
-						<p class="text-xs text-fg/50">Ajuste Gamma / Fullbright, Render Distance e arquivos de configuração</p>
+						<h3 class="text-base font-bold text-fg">{uiText("ui.c413474b7c94a819")}</h3>
+						<p class="text-xs text-fg/50">{uiText("ui.70e98e057b908a14")}</p>
 					</div>
 				</div>
 				<button 
 					type="button" 
-					class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={onClose}
-					aria-label="Fechar"
+					aria-label={uiText("statusBanner.dismiss")}
 				>
 					<X class="w-4 h-4" />
 				</button>
@@ -139,17 +141,17 @@
 			<div class="flex bg-bg-subtle p-1 rounded-2xl border border-fg/5">
 				<button 
 					type="button"
-					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'visual' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
+					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {activeTab === 'visual' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
 					onclick={() => activeTab = 'visual'}
 				>
-					Ajustes Visuais Rápidos
+					{uiText("ui.3261315c5dadc284")}
 				</button>
 				<button 
 					type="button"
-					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {activeTab === 'raw' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
+					class="flex-1 py-1.5 text-xs font-bold rounded-xl transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {activeTab === 'raw' ? 'bg-bg-overlay text-fg shadow-sm' : 'text-fg/40 hover:text-fg'}"
 					onclick={() => activeTab = 'raw'}
 				>
-					Editor de Código / Arquivo
+					{uiText("ui.a6a595254b1a6116")}
 				</button>
 			</div>
 
@@ -160,7 +162,7 @@
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2 text-xs font-bold text-fg">
 								<Sun class="w-4 h-4 text-amber-400" />
-								Brilho & Gamma (Fullbright)
+								{uiText("ui.96b4515b74367912")}
 							</div>
 							<span class="text-xs font-mono font-bold text-amber-400">
 								{options.gamma <= 1.0 ? `${Math.round(options.gamma * 100)}%` : `Fullbright (${options.gamma.toFixed(1)}x)`}
@@ -175,9 +177,9 @@
 							class="w-full accent-amber-400 cursor-pointer"
 						/>
 						<div class="flex justify-between text-[10px] text-fg/40 font-semibold">
-							<span>Sombrio (0%)</span>
-							<span>Padrão Claro (100%)</span>
-							<span>Visão Noturna / Fullbright (500%)</span>
+							<span>{uiText("ui.c252c21da8d87d15")}</span>
+							<span>{uiText("ui.99999c1d39dd8a47")}</span>
+							<span>{uiText("ui.b005cdf77aace500")}</span>
 						</div>
 					</div>
 
@@ -186,7 +188,7 @@
 						<div class="flex items-center justify-between">
 							<div class="flex items-center gap-2 text-xs font-bold text-fg">
 								<Eye class="w-4 h-4 text-emerald-400" />
-								Campo de Visão (FOV)
+								{uiText("ui.c07fe1f006f7c60c")}
 							</div>
 							<span class="text-xs font-mono font-bold text-emerald-400">
 								{Math.round(options.fov)}° {options.fov >= 110 ? '(Quake Pro)' : ''}
@@ -206,8 +208,8 @@
 					<div class="grid grid-cols-2 gap-3">
 						<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex flex-col gap-2">
 							<div class="flex items-center justify-between text-xs font-bold text-fg">
-								<span>Renderização</span>
-								<span class="text-blue-400">{options.renderDistance} chunks</span>
+								<span>{uiText("ui.ea44d3e6ef8894c6")}</span>
+								<span class="text-blue-400">{options.renderDistance} {uiText("ui.903998a13c261114")}</span>
 							</div>
 							<input 
 								type="range" 
@@ -221,7 +223,7 @@
 
 						<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex flex-col gap-2">
 							<div class="flex items-center justify-between text-xs font-bold text-fg">
-								<span>Limite de FPS</span>
+								<span>{uiText("ui.fcc9fc31dffb9b3c")}</span>
 								<span class="text-purple-400">{options.maxFps >= 260 ? 'Ilimitado' : `${options.maxFps} FPS`}</span>
 							</div>
 							<input 
@@ -239,28 +241,28 @@
 					<div class="grid grid-cols-3 gap-2.5">
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col gap-1 items-center justify-center cursor-pointer {options.vsync ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex flex-col gap-1 items-center justify-center cursor-pointer {options.vsync ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.vsync = !options.vsync}
 						>
-							<span>VSync</span>
+							<span>{uiText("ui.052810dae19607f5")}</span>
 							<span class="text-[10px] font-semibold">{options.vsync ? 'Ativado' : 'Desativado'}</span>
 						</button>
 
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col gap-1 items-center justify-center cursor-pointer {options.autoJump ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex flex-col gap-1 items-center justify-center cursor-pointer {options.autoJump ? 'bg-amber-500/15 border-amber-500/30 text-amber-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.autoJump = !options.autoJump}
 						>
-							<span>Pulo Automático</span>
+							<span>{uiText("ui.27bf6498eb09e210")}</span>
 							<span class="text-[10px] font-semibold">{options.autoJump ? 'Ativado' : 'Desativado'}</span>
 						</button>
 
 						<button 
 							type="button"
-							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col gap-1 items-center justify-center cursor-pointer {options.bobView ? 'bg-blue-500/15 border-blue-500/30 text-blue-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
+							class="p-3 rounded-2xl border text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex flex-col gap-1 items-center justify-center cursor-pointer {options.bobView ? 'bg-blue-500/15 border-blue-500/30 text-blue-300' : 'bg-bg-subtle border-fg/5 text-fg/50'}"
 							onclick={() => options.bobView = !options.bobView}
 						>
-							<span>Balanço da Câmera</span>
+							<span>{uiText("ui.8ab9e76c3c0c8e2b")}</span>
 							<span class="text-[10px] font-semibold">{options.bobView ? 'Ativado' : 'Desativado'}</span>
 						</button>
 					</div>
@@ -269,17 +271,17 @@
 				<!-- Actions -->
 				<div class="pt-3 border-t border-fg/5 flex items-center justify-end gap-2.5">
 					<Button variant="secondary" size="sm" onclick={onClose}>
-						Cancelar
+						{uiText("common.cancel")}
 					</Button>
 					<Button variant="primary" size="sm" disabled={saving} onclick={handleSaveVisual}>
 						<Save class="w-3.5 h-3.5" />
-						{saving ? "Salvando..." : "Salvar Configurações"}
+						{saving ? "Salvando..." : uiText("ui.f28b2e26db4dcbd8")}
 					</Button>
 				</div>
 			{:else}
 				<div class="flex flex-col gap-3 flex-1 overflow-hidden">
 					<div class="flex items-center gap-2">
-						<label for="config-file-path" class="text-xs font-semibold text-fg/60 shrink-0">Arquivo:</label>
+						<label for="config-file-path" class="text-xs font-semibold text-fg/60 shrink-0">{uiText("ui.01b27f9c9a539b33")}</label>
 						<input 
 							id="config-file-path"
 							type="text" 
@@ -291,7 +293,7 @@
 							rawContent = c.content;
 							toast("Arquivo carregado!", "info");
 						}}>
-							Recarregar
+							{uiText("ui.9b6bb68d29b191b4")}
 						</Button>
 					</div>
 
@@ -301,7 +303,7 @@
 
 					<div class="pt-2 border-t border-fg/5 flex items-center justify-end gap-2.5">
 						<Button variant="secondary" size="sm" onclick={onClose}>
-							Fechar
+							{uiText("statusBanner.dismiss")}
 						</Button>
 						<Button variant="primary" size="sm" disabled={saving} onclick={handleSaveRaw}>
 							<Save class="w-3.5 h-3.5" />

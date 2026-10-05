@@ -233,6 +233,18 @@ impl JavaRuntimeManager {
                     return Ok(p);
                 }
             }
+            for variable in ["ProgramW6432", "ProgramFiles", "ProgramFiles(x86)"] {
+                let Some(base) = std::env::var_os(variable) else { continue };
+                for vendor in ["Eclipse Adoptium", "Java", "Microsoft", "Amazon Corretto", "Zulu"] {
+                    let Ok(entries) = std::fs::read_dir(PathBuf::from(&base).join(vendor)) else { continue };
+                    for entry in entries.flatten() {
+                        let binary = entry.path().join("bin").join("java.exe");
+                        if binary.is_file() && check_binary(&binary, major) {
+                            return Ok(binary);
+                        }
+                    }
+                }
+            }
         } else {
             let specific_linux_paths: &[&str] = match major {
                 8 => &[

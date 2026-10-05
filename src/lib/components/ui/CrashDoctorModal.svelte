@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import { goto } from "$app/navigation";
@@ -47,7 +49,7 @@
 					</div>
 					<div>
 						<span class="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-							Crash Doctor · Diagnóstico em Português
+							{uiText("ui.6e6395afe8f4010d")}
 						</span>
 						<h3 class="text-lg font-black text-fg mt-1">
 							{diagnosis.title}
@@ -57,7 +59,7 @@
 
 				<button 
 					type="button"
-					class="text-fg/40 hover:text-fg p-2 rounded-xl hover:bg-fg/5 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={() => crashDoctor.close()}
 				>
 					<X class="w-5 h-5" />
@@ -68,7 +70,7 @@
 				<div class="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-xs text-red-200 leading-relaxed">
 					<div class="flex items-center gap-2 font-bold text-red-400 mb-1">
 						<AlertTriangle class="w-4 h-4 shrink-0" />
-						O que aconteceu:
+						{uiText("ui.b09ca51e68b1750c")}
 					</div>
 					{diagnosis.message}
 				</div>
@@ -76,7 +78,7 @@
 				<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-xs text-emerald-200 leading-relaxed">
 					<div class="flex items-center gap-2 font-bold text-emerald-400 mb-1">
 						<CheckCircle2 class="w-4 h-4 shrink-0" />
-						Como resolver:
+						{uiText("ui.1e09f1225b2e98c6")}
 					</div>
 					{diagnosis.solution}
 				</div>
@@ -85,12 +87,12 @@
 					<div class="border border-fg/5 rounded-2xl bg-bg-overlay/40 overflow-hidden text-xs">
 						<button 
 							type="button"
-							class="w-full flex items-center justify-between p-3.5 text-fg/50 hover:text-fg transition-colors cursor-pointer select-none"
+							class={launcherButton({ variant: "ghost", size: "sm", class: "w-full flex items-center justify-between" })}
 							onclick={() => showSnippet = !showSnippet}
 						>
 							<span class="flex items-center gap-2 font-mono text-[11px]">
 								<FileText class="w-3.5 h-3.5 text-amber-400" />
-								Trecho do erro detectado no log
+								{uiText("ui.609466ff1e25d164")}
 							</span>
 							{#if showSnippet}
 								<ChevronUp class="w-4 h-4" />
@@ -110,44 +112,44 @@
 			<div class="flex flex-wrap items-center justify-end gap-3 mt-6 pt-5 border-t border-fg/5">
 				<button 
 					type="button"
-					class="px-4 py-2.5 rounded-xl text-xs font-bold text-fg/60 hover:text-fg hover:bg-fg/5 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 					onclick={goToLogs}
 				>
-					Ver Log Completo
+					{uiText("ui.7b6364fb7c71ffd9")}
 				</button>
 
 				{#if diagnosis.recommendedAction === 'increase_ram' || diagnosis.recommendedAction === 'install_java'}
-                    <button class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-semibold text-brand-foreground disabled:opacity-50" disabled={crashDoctor.isFixing} onclick={handleFix}>
-                        {crashDoctor.isFixing ? 'Aplicando…' : diagnosis.recommendedAction === 'increase_ram' ? 'Ajustar memória' : 'Instalar Java compatível'}
+                    <button class={launcherButton({ variant: "primary", size: "sm", class: "disabled:opacity-50" })} disabled={crashDoctor.isFixing} onclick={handleFix}>
+                        {crashDoctor.isFixing ? 'Aplicando…' : diagnosis.recommendedAction === 'increase_ram' ? uiText("ui.903dc5af4673a6a8") : uiText("ui.154995d8266e1321")}
                     </button>
                 {:else if diagnosis.recommendedAction === 'repair_modpack'}
 					<button 
 						type="button"
-						class="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-brand-foreground shadow-lg shadow-emerald-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer disabled:opacity-50"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 flex items-center gap-2 disabled:opacity-50" })}
 						disabled={crashDoctor.isFixing}
 						onclick={handleFix}
 					>
 						<Wrench class="w-4 h-4 fill-current" />
-						{crashDoctor.isFixing ? 'Reparando...' : 'Reparar Modpack e Baixar Faltantes'}
+						{crashDoctor.isFixing ? 'Reparando...' : uiText("ui.833a431b68e5e822")}
 					</button>
 				{:else if diagnosis.recommendedAction === 'disable_optifine' || diagnosis.recommendedAction === 'disable_mod'}
 					<button 
 						type="button"
-						class="px-5 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-brand-foreground shadow-lg shadow-amber-500/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer disabled:opacity-50"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 flex items-center gap-2 disabled:opacity-50" })}
 						disabled={crashDoctor.isFixing}
 						onclick={handleFix}
 					>
 						<Zap class="w-4 h-4 fill-current" />
-						{crashDoctor.isFixing ? 'Aplicando...' : 'Desativar Mod Automaticamente'}
+						{crashDoctor.isFixing ? 'Aplicando...' : uiText("ui.23b4182f3e5afbc2")}
 					</button>
 				{/if}
 
 				<button 
 					type="button"
-					class="px-5 py-2.5 rounded-xl text-xs font-bold bg-fg/10 hover:bg-fg/15 text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 					onclick={() => crashDoctor.close()}
 				>
-					Entendido
+					{uiText("ui.3f3f7d88e05abb17")}
 				</button>
 			</div>
 		</div>

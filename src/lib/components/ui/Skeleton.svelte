@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
   let { 
     class: klass = "",
     variant = "text",
@@ -12,11 +13,11 @@
   } = $props();
   
   const baseClass = "animate-pulse bg-bg-subtle";
-  const variants = {
-    text: "rounded h-4",
+  const variants = $derived({
+    text: uiText("ui.c37976ec4c559578"),
     circular: "rounded-full",
     rectangular: "rounded-xl"
-  };
+  });
 </script>
 
 <div 

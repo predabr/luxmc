@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { javaInstall } from "$lib/api/java";
 import { getSystemSpecs } from "$lib/api/system";
 import { crashDoctorDiagnose, type CrashDiagnosis } from "$lib/api/doctor";
@@ -31,32 +32,32 @@ function createCrashDoctorStore() {
                 const current = profile.ramMb || 2048;
                 const maximum = Math.floor((system.totalRamMb - 2048) / 1024) * 1024;
                 const next = Math.min(current + 2048, maximum);
-                if (next <= current) throw new Error("Não há RAM livre suficiente para aumentar a alocação com segurança. Reduza mods ou texturas.");
+                if (next <= current) throw new Error(uiText("ui.126a59a278b613a9"));
                 await profilesUpdate({ id: currentProfileId, ramMb: next });
-                toast(`Memória da instância ajustada para ${next} MB.`, "success");
+                toast(uiText("ui.3d5656930afe1979", {arg0: (next)}), "success");
                 isOpen = false;
                 return true;
             } else if (diagnosis.recommendedAction === "install_java") {
                 const match = diagnosis.logSnippet?.match(/class file version (\d+)/i);
                 const major = match ? Number(match[1]) - 44 : null;
-                if (!major || major < 8 || major > 25) throw new Error("Versão necessária não identificada. Consulte o log completo.");
+                if (!major || major < 8 || major > 25) throw new Error(uiText("ui.ffadc841ac9e219f"));
                 const runtime = await javaInstall(major);
-                if (!runtime.installed || !runtime.path) throw new Error("Java não foi instalado.");
+                if (!runtime.installed || !runtime.path) throw new Error(uiText("ui.c97eacf109e4ba54"));
                 await profilesUpdate({ id: currentProfileId, javaPath: runtime.path });
-                toast(`Java ${major} configurado para esta instância.`, "success");
+                toast(uiText("ui.e0f323901b02af6e", {arg0: (major)}), "success");
                 isOpen = false;
                 return true;
             } else if (diagnosis.recommendedAction === "repair_modpack") {
-				toast("Reparando modpack e baixando mods faltantes...", "info");
+				toast(uiText("ui.7d50972e0c11f170"), "info");
 				const { instanceRepairModpack } = await import("$lib/api/instances");
 				const repaired = await instanceRepairModpack(currentProfileId);
 				if (repaired > 0) {
-					toast(`${repaired} mod(s) faltante(s) baixado(s) com sucesso!`, "success");
+					toast(uiText("ui.f1a81e409926c472", {arg0: (repaired)}), "success");
 					isOpen = false;
 					playSound("chime");
 					return true;
 				} else {
-					toast("Todos os mods do modpack já estão instalados.", "info");
+					toast(uiText("ui.a8e28760d82cbdc0"), "info");
 				}
 			} else if (diagnosis.recommendedAction === "disable_optifine" || diagnosis.recommendedAction === "disable_mod") {
 				const files = await instanceFileTree(currentProfileId, "mods").catch(() => []);
@@ -64,12 +65,12 @@ function createCrashDoctorStore() {
 				const modToDisable = files.find(f => f.name.toLowerCase().includes(target) && !f.name.endsWith(".disabled"));
 				if (modToDisable) {
 					await instanceModToggle(currentProfileId, modToDisable.name, false);
-					toast(`Mod "${modToDisable.name}" desativado com sucesso!`, "success");
+					toast(uiText("ui.96696ff6138514f7", {arg0: (modToDisable.name)}), "success");
 					isOpen = false;
 					playSound("chime");
 					return true;
 				} else {
-					toast("Arquivo do mod conflitante não encontrado na pasta de mods.", "warning");
+					toast(uiText("ui.930aa3d35d10eeee"), "warning");
 				}
 			} else if (diagnosis.recommendedAction === "fix_jvm_args") {
 				const profile = await profilesGet(currentProfileId);
@@ -83,13 +84,13 @@ function createCrashDoctorStore() {
 				} else {
 					await profilesUpdate({ id: currentProfileId, jvmArgs: "" });
 				}
-				toast("Argumentos JVM incompatíveis corrigidos com sucesso!", "success");
+				toast(uiText("ui.15bc37994b17ae25"), "success");
 				isOpen = false;
 				playSound("chime");
 				return true;
 			}
 		} catch (e) {
-			toast("Falha ao aplicar correção automática: " + String(e), "error");
+			toast(uiText("ui.3c2d793fe97ffdce") + String(e), "error");
 		} finally {
 			isFixing = false;
 		}
@@ -105,7 +106,7 @@ function createCrashDoctorStore() {
 			if (d.recommendedAction && d.recommendedAction !== "increase_ram") {
 				const fixed = await applyFix();
 				if (fixed) {
-					toast(`Luxmc Auto-Reparo: ${d.title} corrigido automaticamente com sucesso!`, "success");
+					toast(uiText("ui.a974c6296b413f19", {arg0: (d.title)}), "success");
 					playSound("chime");
 					return true;
 				}

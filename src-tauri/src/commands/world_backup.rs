@@ -134,7 +134,15 @@ fn add_folder_to_zip(
 ) -> AppResult<()> {
     use std::io::Write;
 
-    if let Ok(entries) = std::fs::read_dir(dir) {
+    let listing = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::warn!(dir = %dir.display(), error = %e, "unreadable directory during backup");
+            return Ok(());
+        }
+    };
+    {
+        let entries = listing;
         for entry in entries.flatten() {
             let path = entry.path();
             let name = entry.file_name().to_string_lossy().to_string();
@@ -147,9 +155,14 @@ fn add_folder_to_zip(
             if path.is_dir() {
                 add_folder_to_zip(zip, &path, &zip_path, options)?;
             } else if path.is_file() {
-                if let Ok(bytes) = std::fs::read(&path) {
-                    let _ = zip.start_file(&zip_path, options);
-                    let _ = zip.write_all(&bytes);
+                match std::fs::read(&path) {
+                    Ok(bytes) => {
+                        zip.start_file(&zip_path, options)?;
+                        zip.write_all(&bytes)?;
+                    }
+                    Err(e) => {
+                        tracing::warn!(path = %path.display(), error = %e, "skipped unreadable file during backup");
+                    }
                 }
             }
         }

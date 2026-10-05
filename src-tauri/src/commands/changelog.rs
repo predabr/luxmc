@@ -15,6 +15,18 @@ pub struct ChangelogEntry {
 pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
     tokio::task::spawn_blocking(move || -> AppResult<Vec<ChangelogEntry>> {
         Ok(vec![
+            ChangelogEntry {
+                version: env!("CARGO_PKG_VERSION").into(),
+                date: "2026-10-05".into(),
+                title: "Luxmc 3.0".into(),
+                highlights: vec![
+                    "Refreshed instance cards and light theme contrast".into(),
+                    "NameMC catalog, saved skin and cape pairs, Microsoft synchronization".into(),
+                    "Compatible content catalogs, cached game preparation and multiplayer room fixes".into(),
+                    "Official Minecraft news refresh and system language detection".into(),
+                    "Updated portal, Windows installer and data-preserving uninstaller".into(),
+                ],
+            },
     		ChangelogEntry {
     			version: "0.2.0".into(),
     			date: "14 Oct 2024".into(),

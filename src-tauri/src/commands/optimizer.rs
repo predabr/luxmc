@@ -9,7 +9,7 @@ use crate::state::AppState;
 #[tauri::command]
 pub fn optimizer_get_flags(ram_mb: u64, auto_optimize: bool) -> Vec<String> {
     if auto_optimize {
-        generate_aikar_flags(ram_mb)
+        if cfg!(windows) { crate::core::optimizer::generate_client_flags(ram_mb) } else { generate_aikar_flags(ram_mb) }
     } else {
         generate_standard_flags(ram_mb)
     }
@@ -105,4 +105,3 @@ pub fn optimizer_trim_memory() -> bool {
 pub fn optimizer_native_cpu_profile() -> crate::core::native_cpp::NativeCpuProfile {
     crate::core::native_cpp::get_cpu_profile()
 }
-

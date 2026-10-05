@@ -20,6 +20,7 @@ pub struct AppInitState {
     pub profiles: Vec<ProfileRow>,
     pub active_profile_id: Option<String>,
     pub stress_test: bool,
+    pub token_warning: Option<String>,
 }
 
 #[tauri::command]
@@ -28,11 +29,43 @@ pub async fn ping() -> Result<String, crate::error::AppError> {
 }
 
 #[tauri::command]
+pub fn app_data_directory() -> crate::error::AppResult<String> {
+    let directories = directories::ProjectDirs::from("io", "github", "Luxmc")
+        .ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
+    Ok(directories.data_dir().to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub fn app_open_data_directory() -> crate::error::AppResult<()> {
+    let path = app_data_directory()?;
+    open::that(path).map_err(|error| crate::error::AppError::Internal(error.to_string()))
+}
+
+#[tauri::command]
 pub fn app_info() -> AppInfo {
     AppInfo {
         name: "Luxmc",
         version: env!("CARGO_PKG_VERSION"),
         identifier: "io.github.luxmc",
+    }
+}
+
+#[tauri::command]
+pub fn app_system_locale() -> Option<String> {
+    #[cfg(target_os = "windows")]
+    {
+        #[link(name = "kernel32")]
+        extern "system" {
+            fn GetUserDefaultUILanguage() -> u16;
+            fn LCIDToLocaleName(locale: u32, name: *mut u16, length: i32, flags: u32) -> i32;
+        }
+        let mut name = [0u16; 85];
+        let length = unsafe { LCIDToLocaleName(GetUserDefaultUILanguage() as u32, name.as_mut_ptr(), name.len() as i32, 0) };
+        return (length > 1).then(|| String::from_utf16_lossy(&name[..length as usize - 1]));
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        ["LC_ALL", "LC_MESSAGES", "LANG"].into_iter().find_map(|key| std::env::var(key).ok().filter(|value| !value.is_empty()))
     }
 }
 
@@ -107,6 +140,8 @@ pub async fn app_init_core(
         }
     };
 
+    let _ = crate::commands::settings::apply_stored_download_limit(&db).await;
+
     let active_account_id = settings
         .get("activeAccountId")
         .and_then(|v| v.as_str());
@@ -121,6 +156,8 @@ pub async fn app_init_core(
         crate::db::schema::accounts::list(&db).await?.into_iter().next()
     };
 
+    let mut token_warning: Option<String> = None;
+
     // Auto-refresh token if expired or close to expiry for Microsoft accounts
     if let Some(ref acc) = account {
         if !acc.refresh_token.is_empty() {
@@ -131,7 +168,9 @@ pub async fn app_init_core(
             };
             if is_expired {
                 let client_id = crate::commands::auth::get_configured_client_id().await;
-                if let Ok(refreshed) = state.auth.refresh_account_with_client_id(&acc.refresh_token, Some(&client_id)).await {
+                match state.auth.refresh_account_with_client_id(&acc.refresh_token, Some(&client_id)).await {
+                Ok(mut refreshed) => {
+                    crate::commands::auth::preserve_local_appearance(&mut refreshed, acc);
                     let is_custom_cape = acc.cape_url.as_deref().map(|c| {
                         let trimmed = c.trim();
                         !trimmed.is_empty()
@@ -157,8 +196,22 @@ pub async fn app_init_core(
                         skin_variant: refreshed.skin_variant.or_else(|| acc.skin_variant.clone()),
                         cape_url: effective_cape,
                     };
-                    let _ = crate::db::schema::accounts::upsert(&db, &updated_row).await;
+                    if let Err(error) = crate::db::schema::accounts::upsert(&db, &updated_row).await {
+                        tracing::error!(
+                            target: "auth",
+                            "Falha ao persistir o refresh_token rotacionado para {}: {error}",
+                            updated_row.username
+                        );
+                    }
                     account = Some(updated_row);
+                }
+                Err(error) => {
+                    tracing::warn!(target: "auth", "Falha ao renovar a sessão Microsoft: {}", error);
+                    token_warning = Some(format!(
+                        "Não foi possível renovar a sessão Microsoft ({}). Faça login novamente se o Minecraft não iniciar.",
+                        error
+                    ));
+                }
                 }
             }
         }
@@ -172,7 +225,7 @@ pub async fn app_init_core(
                 && !trimmed.starts_with("http://textures.minecraft.net/")
         }).unwrap_or(false);
 
-        if (acc.skin_url.is_none() || (acc.cape_url.is_none() && !is_custom_cape)) && !acc.uuid.is_empty() {
+        if acc.skin_url.is_none() && !acc.refresh_token.is_empty() && !acc.uuid.is_empty() {
             if let Some((skin_url, skin_variant, cape_url)) = fetch_mojang_textures(&acc.uuid).await {
                 if acc.skin_url.is_none() {
                     acc.skin_url = Some(skin_url);
@@ -189,7 +242,9 @@ pub async fn app_init_core(
             acc.skin_url = Some(format!("https://minotar.net/skin/{}", acc.username));
         }
         acc.updated_at = chrono::Utc::now();
-        let _ = crate::db::schema::accounts::upsert(&db, acc).await;
+        if let Err(error) = crate::db::schema::accounts::upsert(&db, acc).await {
+            tracing::error!(target: "auth", "Falha ao salvar a conta {}: {error}", acc.username);
+        }
     }
 
     let active_profile_id = settings
@@ -203,6 +258,7 @@ pub async fn app_init_core(
         profiles,
         active_profile_id,
         stress_test,
+        token_warning,
     })
 }
 
@@ -308,4 +364,3 @@ pub fn client_overlay_close(app: tauri::AppHandle) -> Result<(), String> {
     }
     Ok(())
 }
-

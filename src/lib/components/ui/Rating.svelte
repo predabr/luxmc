@@ -22,7 +22,7 @@
 <div class="flex gap-1">
 	{#each Array.from({ length: maxRating }) as _, i}
 		<button
-			class={`transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] ${sizeMap[size]}`}
+			class={`transition-[color,background-color,border-color,box-shadow,transform,opacity] ${sizeMap[size]}`}
 			onmouseenter={() => (hoverRating = i + 1)}
 			onmouseleave={() => (hoverRating = 0)}
 			onclick={() => onRate?.(i + 1)}
@@ -30,7 +30,7 @@
 		>
 			<Star
 				size={16}
-				class={`w-full h-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] ${
+				class={`w-full h-full transition-[color,background-color,border-color,box-shadow,transform,opacity] ${
 					(interactive && hoverRating > i) || (!interactive && rating > i)
 						? 'fill-yellow-400 text-yellow-400'
 						: 'text-fg-muted'

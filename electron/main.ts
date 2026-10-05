@@ -128,11 +128,12 @@ function findSidecarBinary(): string | null {
 
 function findCsharpLauncher(): string | null {
   const binaryName = process.platform === "win32" ? "Luxmc.Launcher.exe" : "Luxmc.Launcher";
+  const runtimeId = `${process.platform === "win32" ? "win" : process.platform === "darwin" ? "osx" : "linux"}-${process.arch === "arm64" ? "arm64" : "x64"}`;
   const isDev = !app.isPackaged;
 
   if (isDev) {
     const candidates = [
-      path.join(__dirname, "../src-csharp/Luxmc.Launcher/bin/Release/net8.0/linux-x64/publish", binaryName),
+      path.join(__dirname, `../src-csharp/Luxmc.Launcher/bin/Release/net8.0/${runtimeId}/publish`, binaryName),
       path.join(__dirname, "bin", binaryName),
       path.join(__dirname, "../dist-electron/bin", binaryName),
       path.join(os.homedir(), ".local/share/luxmc/bin", binaryName),
@@ -169,7 +170,8 @@ function executeCsharpCommand(subcommand: string, inputArgs: string[]): Promise<
   }
 
   return new Promise((resolve, reject) => {
-    const proc = spawn(launcherBin, [subcommand, ...inputArgs]);
+    const proc = spawn(launcherBin, [subcommand, ...inputArgs], { windowsHide: true });
+    proc.on("error", reject);
     let out = "";
     let err = "";
 
@@ -200,6 +202,7 @@ function startSidecar() {
   try {
     const csharpBin = findCsharpLauncher();
     sidecarProcess = spawn(binaryPath, ["--daemon"], {
+      windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
       env: {
         ...process.env,

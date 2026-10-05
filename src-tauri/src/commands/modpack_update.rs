@@ -81,7 +81,7 @@ pub async fn modpack_version_diff_core(
         .ok_or_else(|| AppError::NotFound(format!("profile {profile_id} not found")))?;
     let current: serde_json::Value = serde_json::from_slice(&tokio::fs::read(std::path::Path::new(&row.game_dir).join("modrinth.index.json")).await?)?;
     let version: serde_json::Value = state.http.get(format!("https://api.modrinth.com/v2/version/{version_id}"))
-        .header("User-Agent", "Luxmc/2.0.1")
+        .header("User-Agent", concat!("Luxmc/", env!("CARGO_PKG_VERSION")))
         .send().await?.error_for_status()?.json().await?;
     let url = version.get("files").and_then(serde_json::Value::as_array)
         .and_then(|files| files.iter().find(|file| file.get("primary").and_then(serde_json::Value::as_bool) == Some(true)).or_else(|| files.first()))
@@ -324,7 +324,7 @@ pub async fn modpack_update_atomic(
     let original = std::path::PathBuf::from(&row.game_dir);
     let saves_dir = original.join("saves");
     if saves_dir.is_dir() {
-        let _ = app.emit("modpack-progress", serde_json::json!({"phase":"backup","percent":2,"status":"Criando backups versionados dos mundos antes da atualização..."}));
+        let _ = app.emit("modpack-progress", serde_json::json!({"phase":"backup","current":0,"total":0,"percent":2,"status":"Criando backups versionados dos mundos antes da atualização..."}));
         for entry in std::fs::read_dir(&saves_dir)? {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
@@ -336,7 +336,7 @@ pub async fn modpack_update_atomic(
     let managed = owned_pack_paths(&original).await?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     let client = pack::client()?;
-    let _ = app.emit("modpack-progress", serde_json::json!({"phase":"downloading","percent":5,"status":"Preparando nova versão sem alterar a instância atual..."}));
+    let _ = app.emit("modpack-progress", serde_json::json!({"phase":"downloading","current":0,"total":0,"percent":5,"status":"Preparando nova versão sem alterar a instância atual..."}));
     let (urls, size, sha1, sha512) = if source == "modrinth" {
         let version: serde_json::Value = client.get(format!("https://api.modrinth.com/v2/version/{versionId}"))
             .send().await?.error_for_status()?.json().await?;
@@ -421,7 +421,7 @@ pub async fn modpack_update_atomic(
         sqlx::query("DELETE FROM profiles WHERE id = ?").bind(&staged.id).execute(db.pool()).await?;
         return Err(error);
     }
-    let _ = app.emit("modpack-progress", serde_json::json!({"phase":"complete","percent":100,"status":"Modpack atualizado; a pasta anterior foi preservada como backup.","backupPath":original,"projectId":projectId}));
+    let _ = app.emit("modpack-progress", serde_json::json!({"phase":"complete","current":1,"total":1,"percent":100,"status":"Modpack atualizado; a pasta anterior foi preservada como backup.","backupPath":original,"projectId":projectId}));
     Ok(())
 }
 

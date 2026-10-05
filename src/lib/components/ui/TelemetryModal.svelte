@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import { 
@@ -53,15 +55,15 @@
 						<Sparkles class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-base font-bold text-fg">Relatório Pós-Partida</h3>
+						<h3 class="text-base font-bold text-fg">{uiText("ui.6b4c2576adca4c08")}</h3>
 						<p class="text-xs text-fg/50">{summary.profileName} · {summary.versionId}</p>
 					</div>
 				</div>
 				<button 
 					type="button" 
-					class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={onClose}
-					aria-label="Fechar"
+					aria-label={uiText("statusBanner.dismiss")}
 				>
 					<X class="w-4 h-4" />
 				</button>
@@ -73,7 +75,7 @@
 				<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex flex-col gap-1">
 					<div class="flex items-center gap-1.5 text-fg/50 text-[11px] font-semibold">
 						<Timer class="w-3.5 h-3.5 text-amber-400" />
-						Tempo de Jogo
+						{uiText("ui.4ea691a877c5cfeb")}
 					</div>
 					<div class="text-lg font-black text-fg">
 						{formatDuration(summary.durationSeconds)}
@@ -84,7 +86,7 @@
 				<div class="bg-bg-subtle border border-fg/5 rounded-2xl p-3.5 flex flex-col gap-1">
 					<div class="flex items-center gap-1.5 text-fg/50 text-[11px] font-semibold">
 						<Cpu class="w-3.5 h-3.5 text-blue-400" />
-						Pico de Memória RAM
+						{uiText("ui.57f3dae6f993c39f")}
 					</div>
 					<div class="text-lg font-black text-fg">
 						{(summary.peakRamMb / 1024).toFixed(1)} GB
@@ -97,14 +99,14 @@
 				{#if summary.cleanExit}
 					<CheckCircle2 class="w-5 h-5 shrink-0 text-emerald-400" />
 					<div class="text-xs">
-						<div class="font-bold">Partida Encerrada com Sucesso</div>
-						<div class="text-[10px] opacity-75">Nenhuma anomalia de crash ou perda de chunks detectada.</div>
+						<div class="font-bold">{uiText("ui.3ec71c1979ba6b3f")}</div>
+						<div class="text-[10px] opacity-75">{uiText("ui.dccde811775eb863")}</div>
 					</div>
 				{:else}
 					<AlertTriangle class="w-5 h-5 shrink-0 text-amber-400" />
 					<div class="text-xs">
-						<div class="font-bold">Processo Finalizado (Código {summary.exitCode})</div>
-						<div class="text-[10px] opacity-75">O jogo encerrou inesperadamente. Verifique a aba de Logs.</div>
+						<div class="font-bold">{uiText("ui.5444322ee7c2b179")} {summary.exitCode})</div>
+						<div class="text-[10px] opacity-75">{uiText("ui.571063fb89953cff")}</div>
 					</div>
 				{/if}
 			</div>
@@ -113,10 +115,10 @@
 			<div class="flex items-center justify-end gap-2.5 pt-2 border-t border-fg/5">
 				<button 
 					type="button" 
-					class="px-4 py-2 rounded-xl text-xs font-bold text-fg/70 hover:text-fg bg-fg/5 hover:bg-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 					onclick={() => { onClose(); goto(`/logs`); }}
 				>
-					<FileText class="w-3.5 h-3.5" /> Ver Logs
+					<FileText class="w-3.5 h-3.5" /> {uiText("ui.5a52736799b5335a")}
 				</button>
 				{#if onPlayAgain}
 					<Button 
@@ -125,11 +127,11 @@
 						class="flex items-center gap-1.5"
 						onclick={() => { onClose(); onPlayAgain?.(); }}
 					>
-						<Play class="w-3.5 h-3.5 fill-current" /> Jogar Novamente
+						<Play class="w-3.5 h-3.5 fill-current" /> {uiText("ui.79c5cb116ea84d99")}
 					</Button>
 				{:else}
 					<Button variant="secondary" size="sm" onclick={onClose}>
-						Fechar
+						{uiText("statusBanner.dismiss")}
 					</Button>
 				{/if}
 			</div>

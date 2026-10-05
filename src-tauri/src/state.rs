@@ -7,6 +7,7 @@ pub struct AppState {
     pub auth: AuthService,
     pub import_cancel: Arc<AtomicBool>,
     pub import_lock: tokio::sync::Mutex<()>,
+    pub launch_lock: tokio::sync::Mutex<()>,
 }
 
 impl Default for AppState {
@@ -15,9 +16,10 @@ impl Default for AppState {
             .user_agent("Luxmc/1.5.5-beta (Linux; Minecraft Launcher)")
             .pool_max_idle_per_host(32)
             .tcp_nodelay(true)
+            .connect_timeout(std::time::Duration::from_secs(15))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         let auth = AuthService::new(http.clone());
-        Self { http, auth, import_cancel: Arc::new(AtomicBool::new(false)), import_lock: tokio::sync::Mutex::new(()) }
+        Self { http, auth, import_cancel: Arc::new(AtomicBool::new(false)), import_lock: tokio::sync::Mutex::new(()), launch_lock: tokio::sync::Mutex::new(()) }
     }
 }

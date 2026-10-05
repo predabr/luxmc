@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
 	import { 
@@ -47,8 +49,8 @@
 	const partyMembers = $derived<TeamMember[]>([
 		{
 			id: account.value?.uuid || "host",
-			name: account.value?.username || "Você (Host)",
-			role: "Líder da Sala",
+			name: account.value?.username || uiText("ui.19f3a7d6565fc863"),
+			role: uiText("ui.7e8cacdd73b03f5b"),
 			avatar: activeSkinStore.current.avatarUrl || "https://mc-heads.net/avatar/steve/100",
 			ping: 0,
 			status: "online",
@@ -82,7 +84,7 @@
 		try {
 			hostInfo = await p2pGetHostLink(hostPort);
 		} catch (e) {
-			console.warn("Falha ao gerar host info:", e);
+			console.warn(uiText("ui.86631a41a8aa68fb"), e);
 		} finally {
 			loadingHost = false;
 		}
@@ -97,7 +99,7 @@
 		if (!hostInfo) return;
 		navigator.clipboard.writeText(hostInfo.shareLink).then(() => {
 			copiedLink = true;
-			toast("Link de convite copiado com sucesso!", "success");
+			toast(uiText("ui.747cdb9983e94824"), "success");
 			setTimeout(() => copiedLink = false, 2500);
 		});
 	}
@@ -106,7 +108,7 @@
 		if (!hostInfo) return;
 		navigator.clipboard.writeText(hostInfo.directAddress).then(() => {
 			copiedDirect = true;
-			toast("Endereço IP:Porta copiado!", "success");
+			toast(uiText("ui.ea8db2febaea62ea"), "success");
 			setTimeout(() => copiedDirect = false, 2500);
 		});
 	}
@@ -114,20 +116,20 @@
 	async function handleJoin() {
 		const raw = joinInput.trim();
 		if (!raw) {
-			toast("Informe um link de convite ou endereço IP:porta!", "error");
+			toast(uiText("ui.d0487a3761a7c7a3"), "error");
 			return;
 		}
 
 		try {
 			const invitation = raw.startsWith("luxmc://") ? new URL(raw).searchParams.get("invitation") : raw;
 			if (!invitation?.startsWith("luxmc-world:") && !invitation?.startsWith("LUX-")) {
-				toast("Para endereço IP:porta, use Multijogador → Conexão direta no Minecraft.", "info");
+				toast(uiText("ui.23493da434a2283d"), "info");
 				return;
 			}
 			await joinTunnel(invitation);
-			toast("Conectado. Abra o Minecraft em Multijogador para entrar no mundo LAN.", "success");
+			toast(uiText("ui.55329aa25f36055f"), "success");
 		} catch (error) {
-			toast(`Não foi possível entrar na sala: ${String(error)}`, "error");
+			toast(uiText("ui.1b48018eeccbf815", {arg0: (String(error))}), "error");
 		}
 	}
 </script>
@@ -143,24 +145,24 @@
 				</div>
 				<div>
 					<div class="flex items-center gap-2">
-						<h1 class="text-2xl font-black text-fg tracking-tight">Jogar com amigos</h1>
+						<h1 class="text-2xl font-black text-fg tracking-tight">{uiText("ui.4cab082a07901725")}</h1>
 						<span class="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-brand-foreground shadow-md">
-							P2P Host
+							{uiText("ui.cda824134ee7ed5e")}
 						</span>
 					</div>
-					<p class="text-xs text-fg/50 mt-1">Abra o mundo para LAN, crie uma sala privada e envie o convite</p>
+					<p class="text-xs text-fg/50 mt-1">{uiText("ui.fbebe4027edb17bb")}</p>
 				</div>
 			</div>
 
 			<div class="flex items-center gap-3">
 				<button
 					type="button"
-					class="px-5 py-2.5 rounded-full text-xs font-bold bg-bg-overlay hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-2 cursor-pointer active:scale-[0.98]"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 					onclick={refreshHost}
 					disabled={loadingHost}
 				>
 					<RefreshCw class="w-3.5 h-3.5 {loadingHost ? 'animate-spin' : ''}" />
-					<span>Atualizar Conexão</span>
+					<span>{uiText("ui.072e169baabac208")}</span>
 				</button>
 			</div>
 		</div>
@@ -169,8 +171,8 @@
 	<MeshPanel />
 
 	<div class="rounded-2xl border border-fg/10 bg-bg-subtle px-5 py-4 text-xs leading-relaxed text-fg-muted">
-		<strong class="block text-fg">Endereço direto por IP · opção avançada</strong>
-		As informações abaixo servem para conexão direta no Minecraft. Gerar um endereço não inicia uma sala P2P; para jogar pela internet sem configurar o roteador, use a sala acima.
+		<strong class="block text-fg">{uiText("ui.22675b735d524075")}</strong>
+		{uiText("ui.ad53c0bd58247fbc")}
 	</div>
 
 	<!-- P2P Room Generation Card -->
@@ -182,13 +184,13 @@
 						<Radio class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-sm font-bold text-fg">Endereço direto do Minecraft</h3>
-						<p class="text-xs text-fg/40">Consulta seu IP e porta LAN; a conexão pela internet pode exigir configurar o roteador</p>
+						<h3 class="text-sm font-bold text-fg">{uiText("ui.e124368c29024961")}</h3>
+						<p class="text-xs text-fg/40">{uiText("ui.7219fd14d83b7dcf")}</p>
 					</div>
 				</div>
 
 				<div class="flex items-center gap-2">
-					<span class="text-xs text-fg/50">Porta LAN:</span>
+					<span class="text-xs text-fg/50">{uiText("ui.9e9ef900bf86a821")}</span>
 					<input
 						type="number"
 						bind:value={hostPort}
@@ -202,44 +204,44 @@
 				<div class="space-y-3">
 					<div class="bg-bg-subtle border border-fg/10 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-inner">
 						<div class="min-w-0 flex-1">
-						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block">Link de endereço direto</span>
+						<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block">{uiText("ui.b37575889e526098")}</span>
 							<span class="font-mono text-xs text-emerald-400 font-semibold truncate block mt-0.5">
 								{hostInfo.shareLink}
 							</span>
 						</div>
 						<button
 							type="button"
-							class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shrink-0"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5 shrink-0" })}
 							onclick={copyShareLink}
 						>
 							{#if copiedLink}
 								<Check class="w-3.5 h-3.5 text-emerald-400" />
-								<span class="text-emerald-400">Copiado!</span>
+								<span class="text-emerald-400">{uiText("ui.a8fe0fc805d5fd50")}</span>
 							{:else}
 								<Copy class="w-3.5 h-3.5" />
-								<span>Copiar Link</span>
+								<span>{uiText("ui.b9cfc7837360c373")}</span>
 							{/if}
 						</button>
 					</div>
 
 					<div class="bg-bg-subtle border border-fg/10 rounded-2xl p-4 flex items-center justify-between gap-4 shadow-inner">
 						<div class="min-w-0 flex-1">
-							<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block">Endereço Direto (IP:Porta)</span>
+							<span class="text-[10px] font-bold text-fg/40 uppercase tracking-wider block">{uiText("ui.4b2013b503df1f22")}</span>
 							<span class="font-mono text-xs text-fg/80 truncate block mt-0.5">
 								{hostInfo.directAddress}
 							</span>
 						</div>
 						<button
 							type="button"
-							class="px-4 py-2 rounded-full text-xs font-bold bg-fg/5 hover:bg-fg/10 text-fg border border-fg/10 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer shrink-0"
+							class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5 shrink-0" })}
 							onclick={copyDirect}
 						>
 							{#if copiedDirect}
 								<Check class="w-3.5 h-3.5 text-emerald-400" />
-								<span class="text-emerald-400">Copiado!</span>
+								<span class="text-emerald-400">{uiText("ui.a8fe0fc805d5fd50")}</span>
 							{:else}
 								<Copy class="w-3.5 h-3.5" />
-								<span>Copiar IP</span>
+								<span>{uiText("ui.50dbccc70acc7869")}</span>
 							{/if}
 						</button>
 					</div>
@@ -251,7 +253,7 @@
 				<input
 					type="text"
 					bind:value={joinInput}
-					placeholder="Cole o convite da sala acima ou um IP:porta"
+					placeholder={uiText("ui.012834d3e4bff99a")}
 					class="flex-1 bg-bg-subtle border border-fg/10 rounded-2xl px-4 py-2.5 text-xs text-fg placeholder:text-fg/30 outline-none focus:border-brand-500 transition-colors"
 				/>
 				<Button
@@ -260,7 +262,7 @@
 					class="shrink-0"
 				>
 					<Play class="w-4 h-4 mr-1.5 fill-current" />
-					Entrar na Sala
+					{uiText("ui.ad207d12bdc1c355")}
 				</Button>
 			</div>
 		</div>
@@ -270,25 +272,25 @@
 			<div>
 				<div class="flex items-center gap-2.5 text-emerald-400">
 					<ShieldCheck class="w-5 h-5" />
-					<h4 class="text-xs font-black uppercase tracking-wider">Sobre o endereço direto</h4>
+					<h4 class="text-xs font-black uppercase tracking-wider">{uiText("ui.3a2892c63bd3fc0d")}</h4>
 				</div>
 				<p class="text-xs text-fg/50 mt-2 leading-relaxed">
-					O endereço abaixo é só uma referência para entrada direta no Minecraft. Use a sala P2P acima para criar um convite de túnel.
+					{uiText("ui.45017772f9cbcdcb")}
 				</p>
 			</div>
 
 			<div class="space-y-2 pt-4 border-t border-fg/5">
 				<div class="flex items-center justify-between text-xs">
-						<span class="text-fg/40">Status do Túnel:</span>
-						<span class="font-bold text-fg/80">Veja a sala acima</span>
+						<span class="text-fg/40">{uiText("ui.82ea13edaad37d9f")}</span>
+						<span class="font-bold text-fg/80">{uiText("ui.a5c15b4d05994fa7")}</span>
 				</div>
 				<div class="flex items-center justify-between text-xs">
-					<span class="text-fg/40">Descoberta LAN:</span>
-					<span class="font-bold text-fg/80">Multicast 224.0.2.60</span>
+					<span class="text-fg/40">{uiText("ui.0913b2aef52380be")}</span>
+					<span class="font-bold text-fg/80">{uiText("ui.aa594a6fd26ab113")}</span>
 				</div>
 				<div class="flex items-center justify-between text-xs">
-					<span class="text-fg/40">Latência Média:</span>
-						<span class="font-mono font-bold text-fg/80">Depende da conexão</span>
+					<span class="text-fg/40">{uiText("ui.9913d324e033bf70")}</span>
+						<span class="font-mono font-bold text-fg/80">{uiText("ui.77addb4041653398")}</span>
 				</div>
 			</div>
 		</div>
@@ -300,18 +302,18 @@
 			<div>
 				<h3 class="text-sm font-bold text-fg flex items-center gap-2">
 					<Users class="w-4 h-4 text-emerald-400" />
-					Prévia de equipe
+					{uiText("ui.8f50edd328881020")}
 				</h3>
-				<p class="text-xs text-fg/40 mt-0.5">Exemplo visual; os jogadores conectados aparecem na sala real acima</p>
+				<p class="text-xs text-fg/40 mt-0.5">{uiText("ui.c6a33d7aed2b7bc7")}</p>
 			</div>
 			<span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20">
-				Demonstração
+				{uiText("ui.7d9aaa875a9e6516")}
 			</span>
 		</div>
 
 		<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 			{#each partyMembers as member}
-				<div class="bg-bg-elevated border border-fg/5 hover:border-fg/15 rounded-2xl p-4 flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group shadow-sm">
+				<div class="bg-bg-elevated border border-fg/5 hover:border-fg/15 rounded-2xl p-4 flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity] group shadow-sm">
 					<div class="flex items-center gap-3.5 min-w-0">
 						<div class="h-12 w-12 rounded-xl bg-bg-overlay/40 border border-fg/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
 							<img loading="lazy" decoding="async" src={member.avatar} alt={member.name} class="w-full h-full object-cover [image-rendering:pixelated]" />
@@ -333,7 +335,7 @@
 							{member.status}
 						</span>
 						{#if member.hasCape}
-							<span class="text-[9px] text-purple-400 font-semibold">Capa Ativa</span>
+							<span class="text-[9px] text-purple-400 font-semibold">{uiText("ui.09e80776bd815caf")}</span>
 						{/if}
 					</div>
 				</div>

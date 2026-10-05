@@ -7,7 +7,7 @@ pub enum SocialRequest {
     #[serde(rename = "register")]
     Register { username: String },
     #[serde(rename = "sync", rename_all = "camelCase")]
-    Sync { status: String, instance_name: Option<String>, mc_version: Option<String>, loader: Option<String>, server_host: Option<String>, server_port: Option<u16> },
+    Sync { status: String, instance_name: Option<String>, mc_version: Option<String>, loader: Option<String>, server_host: Option<String>, server_port: Option<u16>, avatar_url: Option<String> },
     #[serde(rename = "search")]
     Search { query: String },
     #[serde(rename = "invite", rename_all = "camelCase")]

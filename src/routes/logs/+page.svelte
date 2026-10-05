@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { onMount, onDestroy } from "svelte";
 	import Heading from "$lib/components/ui/Heading.svelte";
 	import Card from "$lib/components/ui/Card.svelte";
@@ -38,32 +39,60 @@
 		return gameLogs.entries.filter((e) => e.message.toLowerCase().includes(q));
 	});
 
-	onMount(async () => {
+	let disposed = false;
+
+	async function registerListener(
+		setup: () => Promise<() => void>,
+		assign: (unlisten: () => void) => void
+	) {
+		try {
+			const unlisten = await setup();
+			if (disposed) unlisten();
+			else assign(unlisten);
+		} catch (e) {
+			console.error("log listener registration failed", e);
+		}
+	}
+
+	onMount(() => {
 		gameLogs.add("system", "Log viewer initialized. Game logs will appear here.");
 		lastUpdate = new Date();
 
-		unlistenGameLog = await listenGameLog((entry) => {
-			gameLogs.add(entry.stream as "stdout" | "stderr", entry.message);
-			touchUpdate();
-		});
+		void registerListener(
+			() =>
+				listenGameLog((entry) => {
+					gameLogs.add(entry.stream as "stdout" | "stderr", entry.message);
+					touchUpdate();
+				}),
+			(u) => (unlistenGameLog = u)
+		);
 
-		unlistenGameExit = await listenGameExit((event) => {
-			exitInfo = event;
-			const code = event.code;
-			const msg = event.success
-				? `Game exited normally (code ${code})`
-				: `Game exited with error (code ${code})`;
-			gameLogs.add("system", msg);
-			lastUpdate = new Date();
-		});
+		void registerListener(
+			() =>
+				listenGameExit((event) => {
+					exitInfo = event;
+					const code = event.code;
+					const msg = event.success
+						? `Game exited normally (code ${code})`
+						: `Game exited with error (code ${code})`;
+					gameLogs.add("system", msg);
+					lastUpdate = new Date();
+				}),
+			(u) => (unlistenGameExit = u)
+		);
 
-		unlistenLauncherLog = await listenLauncherLog((message) => {
-			gameLogs.add("system", message);
-			touchUpdate();
-		});
+		void registerListener(
+			() =>
+				listenLauncherLog((message) => {
+					gameLogs.add("system", message);
+					touchUpdate();
+				}),
+			(u) => (unlistenLauncherLog = u)
+		);
 	});
 
 	onDestroy(() => {
+		disposed = true;
 		unlistenGameLog?.();
 		unlistenGameExit?.();
 		unlistenLauncherLog?.();
@@ -81,12 +110,12 @@
 			.map((e) => `[${e.timestamp.toLocaleTimeString()}] [${e.stream}] ${e.message}`)
 			.join("\n");
 		if (!text.trim()) {
-			toast(t("logs.noLogs") || "Não há logs para copiar.", "error");
+			toast(t("logs.noLogs") || uiText("ui.45d2aec74778700a"), "error");
 			return;
 		}
 		navigator.clipboard.writeText(text)
-			.then(() => toast(t("logs.copied") || "Logs copiados para a área de transferência!", "success"))
-			.catch((e) => toast("Falha ao copiar logs: " + String(e), "error"));
+			.then(() => toast(t("logs.copied") || uiText("ui.bc02f456cb82194f"), "success"))
+			.catch((e) => toast(uiText("ui.135a395402e6e60f") + String(e), "error"));
 	}
 
 	function exportLogs() {
@@ -107,7 +136,7 @@
 			.map((e) => `[${e.timestamp.toLocaleTimeString()}] [${e.stream}] ${e.message}`)
 			.join("\n");
 		if (!text.trim()) {
-			toast("Não há logs para compartilhar.", "error");
+			toast(uiText("ui.faf79cc06f684730"), "error");
 			return;
 		}
 		isSharing = true;
@@ -116,7 +145,7 @@
 			await navigator.clipboard.writeText(url);
 			toast(`Log publicado no mclo.gs! Link copiado: ${url}`, "success");
 		} catch (e) {
-			toast("Falha ao enviar log para mclo.gs: " + String(e), "error");
+			toast(uiText("ui.af7ed0f08fa536ca") + String(e), "error");
 		} finally {
 			isSharing = false;
 		}
@@ -202,7 +231,7 @@
 				</Button>
 				<Button variant="solid" size="sm" onclick={handleShareMclogs} loading={isSharing}>
 					<Share2 class="h-3.5 w-3.5" />
-					Compartilhar (mclo.gs)
+					{uiText("ui.0b9e28ba7cefdf8d")}
 				</Button>
 				<Button variant="secondary" size="sm" onclick={clearLogs}>
 					<Trash2 class="h-3.5 w-3.5" />
@@ -254,7 +283,7 @@
 					<span>{t("logs.lastUpdate", { time: lastUpdate.toLocaleTimeString() })}</span>
 				{/if}
 				<button
-					class="flex items-center gap-1 rounded-lg px-2 py-1 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {autoScroll ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-fg/40 hover:text-fg hover:bg-fg/5'}"
+					class="flex items-center gap-1 rounded-lg px-2 py-1 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {autoScroll ? 'text-brand-500 bg-brand-500/10 font-bold' : 'text-fg/40 hover:text-fg hover:bg-fg/5'}"
 					onclick={() => {
 						autoScroll = !autoScroll;
 						if (autoScroll) scrollToBottom();

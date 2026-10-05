@@ -23,7 +23,7 @@ async function pull(run: number) {
         const prefs: CloudPreferences = {};
         if (remote.preferences.theme) prefs.theme = remote.preferences.theme;
         if (remote.preferences.accentTheme) prefs.accentTheme = remote.preferences.accentTheme;
-        if (remote.preferences.language) prefs.language = remote.preferences.language;
+        if (remote.preferences.language && settings.value.languageMode !== "system") prefs.language = remote.preferences.language;
         if (typeof remote.preferences.animations === "boolean") prefs.animations = remote.preferences.animations;
         revision = remote.revision;
         settings.patch(prefs);

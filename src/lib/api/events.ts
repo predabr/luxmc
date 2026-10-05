@@ -59,3 +59,39 @@ export async function listenGameStateChange(
 	});
 }
 
+
+export type LaunchStage =
+	| "preparing"
+	| "checkingJava"
+	| "resolvingClasspath"
+	| "extractingNatives"
+	| "resolvingArgs"
+	| "validatingArgs"
+	| "spawning"
+	| "running"
+	| "finished"
+	| "failed";
+
+export async function listenLaunchStage(
+	callback: (stage: LaunchStage) => void,
+): Promise<UnlistenFn> {
+	return listen<LaunchStage>("launch-stage", (event) => {
+		callback(event.payload);
+	});
+}
+
+export async function listenOverlayToggle(
+	callback: () => void,
+): Promise<UnlistenFn> {
+	return listen<null>("luxmc-toggle-overlay", () => {
+		callback();
+	});
+}
+
+export async function listenShieldWarning(
+	callback: (result: import("./types").ShieldScanResult) => void,
+): Promise<UnlistenFn> {
+	return listen<import("./types").ShieldScanResult>("launcher-shield-warning", (event) => {
+		callback(event.payload);
+	});
+}

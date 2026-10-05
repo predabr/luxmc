@@ -29,6 +29,8 @@ export interface ProfileRow {
 	gamescopeHeight?: number | null;
 	gamescopeFsr?: boolean;
 	forceFullVerification?: boolean;
+	preLaunchHook?: string | null;
+	postExitHook?: string | null;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -78,6 +80,7 @@ export interface ModFile {
 }
 
 export interface ModVersion {
+    loaders?: string[];
 	id: string;
 	name: string;
 	versionNumber: string;
@@ -232,6 +235,7 @@ export interface StorageFullReport {
 	instances: InstanceStorageInfo[];
 	logsBytes: number;
 	cacheBytes: number;
+    warnings?: string[];
 }
 
 export interface ChangelogEntry {

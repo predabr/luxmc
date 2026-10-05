@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
     import { focusTrap } from "$lib/utils/focusTrap";
 	import { Box, Check, Download, X, Cpu } from "lucide-svelte";
@@ -6,20 +8,39 @@
 	import type { ModSearchResultItem } from "$lib/api";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { getIconSrc } from "$lib/utils/icons";
+	import { instanceWorldsList } from "$lib/api/instances";
+    import type { WorldDetail } from "$lib/api/types";
+	import { catalogCompatibility } from "$lib/utils/catalogCompatibility";
 
 	let {
 		item,
 		selectedType = "Mod",
 		chosenInstanceId = $bindable(""),
+        chosenWorldName = $bindable(""),
 		onConfirm,
 		onClose
 	}: {
 		item: ModSearchResultItem;
 		selectedType?: string;
 		chosenInstanceId?: string;
+        chosenWorldName?: string;
 		onConfirm: () => void;
 		onClose: () => void;
 	} = $props();
+	const chosenProfile = $derived(profiles.list.find(profile => profile.id === chosenInstanceId));
+	let worlds = $state<WorldDetail[]>([]);
+    let loadingWorlds = $state(false);
+    let worldError = $state("");
+    $effect(() => {
+        const id = chosenInstanceId;
+        chosenWorldName = ""; worlds = []; worldError = "";
+        if (selectedType !== "Data Pack" || !id) { loadingWorlds = false; return; }
+        loadingWorlds = true;
+        let active = true;
+        void instanceWorldsList(id).then(value => { if (active) { worlds = value; chosenWorldName = value[0]?.folderName ?? ""; } }).catch(error => { if (active) worldError = String(error); }).finally(() => { if (active) loadingWorlds = false; });
+        return () => { active = false; };
+    });
+    const canInstall = $derived(!!chosenProfile && !catalogCompatibility(item, chosenProfile, selectedType, false) && (selectedType !== "Data Pack" || (!loadingWorlds && worlds.some(world => world.folderName === chosenWorldName))));
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -30,7 +51,7 @@
 	onclick={onClose}
 >
 	<div
-		role="dialog" aria-modal="true" aria-label="Escolha a instância" tabindex="-1" use:focusTrap
+		role="dialog" aria-modal="true" aria-label={uiText("ui.328774e0b805dc97")} tabindex="-1" use:focusTrap
         class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5"
 		transition:scale={{ easing: backOut, start: 0.95, duration: 220 }}
 		onclick={(e) => e.stopPropagation()}
@@ -42,14 +63,14 @@
 					<Box class="w-4 h-4" />
 				</div>
 				<div>
-					<h3 class="text-sm font-bold text-fg">Escolha a Instância</h3>
-					<p class="text-[11px] text-fg/40 font-medium">Onde você deseja instalar este {selectedType}?</p>
+					<h3 class="text-sm font-bold text-fg">{uiText("ui.6f8f37a5a2949fc1")}</h3>
+					<p class="text-[11px] text-fg/40 font-medium">{uiText("ui.0e50c0ecaa67b780")} {selectedType}?</p>
 				</div>
 			</div>
 			<button
 				type="button"
-				class="text-fg/40 hover:text-fg p-1 rounded-lg hover:bg-fg/5 transition-colors cursor-pointer"
-				aria-label="Fechar seleção de instância" onclick={onClose}
+				class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+				aria-label={uiText("ui.4c8167f0e34958d5")} onclick={onClose}
 			>
 				<X class="w-4 h-4" />
 			</button>
@@ -75,10 +96,12 @@
 		</div>
 
 		<div class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
-			{#each profiles.list as p}
+			{#each profiles.list as p (p.id)}
+				{@const incompatibility = catalogCompatibility(item, p, selectedType, false)}
 				<button
 					type="button"
-					class="w-full text-left p-3 rounded-2xl border transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-between gap-3 {chosenInstanceId === p.id ? 'bg-brand-500/15 border-brand-500 shadow-sm' : 'bg-bg-elevated border-fg/5 hover:border-fg/20'}"
+					disabled={!!incompatibility}
+					class="w-full text-left p-3 rounded-2xl border transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer disabled:cursor-default disabled:opacity-50 flex items-center justify-between gap-3 {chosenInstanceId === p.id ? 'bg-brand-500/15 border-brand-500 shadow-sm' : 'bg-bg-elevated border-fg/5 hover:border-fg/20'}"
 					onclick={() => chosenInstanceId = p.id}
 				>
 					<div class="flex items-center gap-3 min-w-0">
@@ -98,9 +121,10 @@
 								<span class="uppercase font-semibold text-brand-400">{p.loader}</span>
 								{#if p.modCount}
 									<span>•</span>
-									<span>{p.modCount} mods</span>
+									<span>{p.modCount} {uiText("ui.695073cb6649c0a4")}</span>
 								{/if}
 							</div>
+							{#if incompatibility}<p class="mt-1 text-[10px] text-warning">{incompatibility}</p>{/if}
 						</div>
 					</div>
 
@@ -113,22 +137,26 @@
 			{/each}
 		</div>
 
-		<div class="flex items-center justify-end gap-3 pt-2">
+		{#if selectedType === "Data Pack"}
+            <label class="block text-sm text-fg">{uiText("ui.223c439bca70a997")}<select class="mt-2 w-full rounded-xl border border-border bg-bg-elevated p-3" bind:value={chosenWorldName} disabled={loadingWorlds || !worlds.length}><option value="">{loadingWorlds ? uiText("ui.d226527f72cf37cc") : uiText("ui.4d4ad367ef234911")}</option>{#each worlds as world}<option value={world.folderName}>{world.name}</option>{/each}</select></label>
+            {#if worldError}<p role="alert" class="text-xs text-danger">{worldError}</p>{:else if !loadingWorlds && chosenInstanceId && !worlds.length}<p class="text-xs text-fg-muted">{uiText("ui.b76f47993283f0b9")}</p>{/if}
+        {/if}
+        <div class="flex items-center justify-end gap-3 pt-2">
 			<button
 				type="button"
-				class="px-4 py-2.5 rounded-xl bg-fg/5 hover:bg-fg/10 text-fg/70 hover:text-fg text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+				class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
 				onclick={onClose}
 			>
-				Cancelar
+				{uiText("common.cancel")}
 			</button>
 			<button
 				type="button"
-				class="px-5 py-2.5 rounded-xl bg-brand-500 hover:bg-brand-500 text-fg font-extrabold text-xs flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] disabled:opacity-50 shadow-md shadow-elevated"
-				disabled={!chosenInstanceId}
+				class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2 disabled:opacity-50" })}
+				disabled={!canInstall}
 				onclick={onConfirm}
 			>
 				<Download class="w-4 h-4" />
-				<span>Confirmar e Instalar</span>
+				<span>{uiText("ui.b883a5e2c7c7e016")}</span>
 			</button>
 		</div>
 	</div>

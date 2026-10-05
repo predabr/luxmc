@@ -52,6 +52,15 @@ describe("resolveProfileBanner", () => {
 		expect(resolveProfileBanner({ name: "Survival", loader: "vanilla" })).toBe("/vanilla_banner.png");
 	});
 
+	it("uses the Vanilla Perfected artwork instead of the vanilla fallback", () => {
+		expect(resolveProfileBanner({ name: "Vanilla Perfected", loader: "fabric", icon: "grass_block" })).toBe("/modpack_vanilla_perfected.png");
+	});
+
+	it("preserves artwork for modpacks whose names contain vanilla", () => {
+		expect(resolveProfileBanner({ name: "Vanilla Adventure", loader: "fabric", icon: "https://example.com/pack.webp" })).toBe("https://example.com/pack.webp");
+		expect(resolveProfileBanner({ name: "Vanilla Adventure", loader: "fabric" })).toBe("/bg_day.jpg");
+	});
+
 	it("defaults to bg_day.jpg when nothing is specified", () => {
 		expect(resolveProfileBanner(null)).toBe("/bg_day.jpg");
 		expect(resolveProfileBanner({ name: "Unknown" })).toBe("/bg_day.jpg");

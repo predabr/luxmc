@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 export interface MinecraftArticle {
     id: string;
     title: string;
@@ -27,7 +28,7 @@ export function parseMinecraftNews(feed: unknown): MinecraftArticle[] {
         const id = typeof entry.id === "string" ? entry.id : link;
         articles.set(id, {
             id, title: entry.title.slice(0, 200), date: entry.date,
-            summary: typeof entry.text === "string" ? entry.text.slice(0, 1200) : "Leia a publicação oficial no site do Minecraft.",
+            summary: typeof entry.text === "string" ? entry.text.slice(0, 1200) : uiText("ui.ecd7d76c453b1c5e"),
             image: officialUrl(entry.newsPageImage?.url || entry.playPageImage?.url, true) || "/news_1.jpg",
             link, category: typeof entry.category === "string" ? entry.category.slice(0, 80) : "Minecraft"
         });

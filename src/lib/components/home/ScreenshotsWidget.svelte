@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
     import { z } from "zod";
 	import { Camera, Image, ExternalLink, ChevronLeft, ChevronRight } from "lucide-svelte";
 	import { goto } from "$app/navigation";
@@ -23,7 +25,7 @@
 					screenshots = data.slice(0, 10).map((s) => ({
 						id: String(s.id || Date.now()),
 						url: s.url || s.path || "",
-						timestamp: s.timestamp ? new Date(s.timestamp).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }) : ""
+						timestamp: s.timestamp ? new Date(s.timestamp).toLocaleDateString(currentUiLocale(), { day: "2-digit", month: "short" }) : ""
 					}));
 				}
 			}
@@ -45,20 +47,20 @@
 	<div class="flex items-center justify-between mb-3">
 		<h2 class="text-xs font-bold text-fg uppercase tracking-wider flex items-center gap-2">
 			<Camera class="w-3.5 h-3.5 text-brand-400" />
-			Capturas de Tela
+			{uiText("files.screenshots")}
 		</h2>
 		{#if screenshots.length > 0}
 			<div class="flex items-center gap-1">
 				<button
 					type="button"
-					class="p-1 rounded-lg bg-fg/5 hover:bg-fg/10 text-fg/40 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={() => scroll("left")}
 				>
 					<ChevronLeft class="w-3 h-3" />
 				</button>
 				<button
 					type="button"
-					class="p-1 rounded-lg bg-fg/5 hover:bg-fg/10 text-fg/40 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={() => scroll("right")}
 				>
 					<ChevronRight class="w-3 h-3" />
@@ -67,7 +69,7 @@
 					href="/screenshots"
 					class="text-xs text-brand-400 hover:underline font-bold ml-1"
 				>
-					Ver Todas
+					{uiText("ui.1687a2e63017520d")}
 				</a>
 			</div>
 		{/if}
@@ -84,8 +86,8 @@
 			<div class="w-10 h-10 rounded-xl bg-fg/5 border border-fg/10 flex items-center justify-center mb-3">
 				<Image class="w-5 h-5 text-fg/30" />
 			</div>
-			<p class="text-xs font-semibold text-fg/50 mb-1">Nenhuma captura ainda</p>
-			<p class="text-[10px] text-fg/35">Suas screenshots aparecerão aqui automaticamente</p>
+			<p class="text-xs font-semibold text-fg/50 mb-1">{uiText("ui.1c944f552cd8e61b")}</p>
+			<p class="text-[10px] text-fg/35">{uiText("ui.c91df366ae337aea")}</p>
 		</div>
 	{:else}
 		<div
@@ -94,9 +96,9 @@
 			style="scrollbar-width: none; -ms-overflow-style: none;"
 		>
 			{#each screenshots as shot (shot.id)}
-				<div class="relative h-28 w-40 rounded-2xl overflow-hidden bg-bg-elevated border border-fg/5 hover:border-brand-400/30 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shrink-0 group cursor-pointer">
+				<div class="relative h-28 w-40 rounded-2xl overflow-hidden bg-bg-elevated border border-fg/5 hover:border-brand-400/30 transition-[color,background-color,border-color,box-shadow,transform,opacity] shrink-0 group cursor-pointer">
 					{#if shot.url}
-						<img loading="lazy" decoding="async" src={shot.url} alt="Screenshot" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+						<img loading="lazy" decoding="async" src={shot.url} alt={uiText("ui.029320ad166c1807")} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
 					{:else}
 						<div class="w-full h-full flex items-center justify-center">
 							<Camera class="w-6 h-6 text-fg/15" />

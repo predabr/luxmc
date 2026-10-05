@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { Globe } from "lucide-svelte";
 	import { setLocale } from "$lib/stores/persistence.svelte";
 
@@ -16,15 +17,15 @@
 </script>
 
 <div>
-	<div class="text-xs font-bold text-fg mb-2">Idioma</div>
+	<div class="text-xs font-bold text-fg mb-2">{uiText("settings.language")}</div>
 	<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-3.5 flex items-center justify-between">
 		<div class="flex items-center gap-3">
 			<div class="w-9 h-9 rounded-xl bg-fg/5 flex items-center justify-center text-fg/40">
 				<Globe class="w-4 h-4" />
 			</div>
 			<div>
-				<div class="text-xs font-bold text-fg">Idioma</div>
-				<div class="text-[10px] text-fg/40">Escolha o seu idioma preferido</div>
+				<div class="text-xs font-bold text-fg">{uiText("settings.language")}</div>
+				<div class="text-[10px] text-fg/40">{uiText("ui.473da15829a892f3")}</div>
 			</div>
 		</div>
 		<select
@@ -33,8 +34,8 @@
 			class="bg-bg-subtle border border-fg/10 rounded-xl px-4 py-2 text-xs text-fg font-bold focus:outline-none focus:border-brand-400 cursor-pointer"
 		>
 			<option value="pt-BR">Português (Brasil)</option>
-			<option value="en">English (US)</option>
-			<option value="es">Español</option>
+			<option value="en">{uiText("ui.1448ee070f465dc3")}</option>
+			<option value="es">{uiText("ui.94b382b61b9dde0f")}</option>
 		</select>
 	</div>
 </div>

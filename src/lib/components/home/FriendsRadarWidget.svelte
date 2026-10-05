@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
     import { parseJoinAddress } from "$lib/utils/directJoin";
 	import { 
 		Radio, 
@@ -66,7 +68,7 @@
 				capeUrl: activeSkinStore.current.customCapeUrl || account.value?.capeUrl || null
 			});
 		} catch (e) {
-			toast("Falha ao iniciar o jogo: " + String(e), "error");
+			toast(uiText("ui.ea9a9c9188e1f662") + String(e), "error");
 			throw e;
 		}
 	}
@@ -74,24 +76,24 @@
 	async function handleQuickJoin(friend: FriendStatus) {
 		const targetProfile = profiles.active || profiles.list[0];
 		if (!targetProfile) {
-			toast("Crie ou selecione uma instância antes de conectar.", "error");
+			toast(uiText("ui.6c4f3148d4036873"), "error");
 			return;
 		}
 
 		if (friend.serverAddress) {
-			toast(`Iniciando Minecraft e conectando a ${friend.serverAddress}...`, "info");
+			toast(uiText("ui.060a298c5e2119c2", {arg0: (friend.serverAddress)}), "info");
 			try {
 				await launchWithTarget(targetProfile, friend.serverAddress, 25565);
 			} catch (e) {
-				toast(`Erro ao conectar: ${e}`, "error");
+				toast(uiText("ui.eaf63d5aed7e674e", {arg0: (e)}), "error");
 			}
 		} else if (friend.p2pCode) {
-			toast(`Conectando ao mundo P2P de ${friend.name} (${friend.p2pCode})...`, "info");
+			toast(uiText("ui.cfe07735c879d2ac", {arg0: (friend.name), arg1: (friend.p2pCode)}), "info");
 			try {
 				const target = parseJoinAddress(friend.p2pCode);
                 await launchWithTarget(targetProfile, target.host, target.port);
 			} catch (e) {
-				toast(`Erro ao conectar: ${e}`, "error");
+				toast(uiText("ui.eaf63d5aed7e674e", {arg0: (e)}), "error");
 			}
 		}
 	}
@@ -100,7 +102,7 @@
         try {
             const { host, port } = parseJoinAddress(directJoinCode);
             const targetProfile = profiles.active || profiles.list[0];
-            if (!targetProfile) throw new Error("Selecione uma instância primeiro.");
+            if (!targetProfile) throw new Error(uiText("ui.533d82c485c89647"));
             await launchWithTarget(targetProfile, host, port);
             showDirectJoinModal = false;
         } catch (error) { toast(String(error), "error"); }
@@ -111,12 +113,12 @@
 		try {
 			hostResult = await upnpOpenPort(hostPort);
 			if (hostResult.success) {
-				toast("Porta UPnP aberta com sucesso no roteador!", "success");
+				toast(uiText("ui.8960ce11b29dc29d"), "success");
 			} else {
 				toast(hostResult.message, "error");
 			}
 		} catch (e) {
-			toast(`Erro ao abrir porta UPnP: ${e}`, "error");
+			toast(uiText("ui.c221f5fe32e4605f", {arg0: (e)}), "error");
 		} finally {
 			isHosting = false;
 		}
@@ -127,7 +129,7 @@
 		const link = `luxmc://join/${hostResult.externalIp}:${hostPort}`;
 		navigator.clipboard.writeText(link);
 		hasCopiedCode = true;
-		toast("Link de convite copiado para a área de transferência!", "success");
+		toast(uiText("ui.7b7b3db4059029b7"), "success");
 		setTimeout(() => hasCopiedCode = false, 2500);
 	}
 </script>
@@ -139,30 +141,30 @@
 			<div class="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]"></div>
 			<h2 class="text-xs font-bold text-fg uppercase tracking-wider flex items-center gap-1.5">
 				<Radio class="w-3.5 h-3.5 text-brand-400" />
-				Radar de Amigos (Ghost Ping)
+				{uiText("ui.f37d700f4d9eca09")}
 			</h2>
 			<span class="text-[10px] bg-fg/5 text-fg/50 px-2 py-0.5 rounded-full font-mono font-semibold border border-fg/5">
-				{friends.filter(f => f.status !== 'idle').length} online
+				{friends.filter(f => f.status !== 'idle').length} {uiText("ui.f6fc84c9f21c2490")}
 			</span>
 		</div>
 
 		<div class="flex items-center gap-2">
 			<button
 				type="button"
-				class="text-[11px] font-bold text-brand-400 hover:text-brand-400 transition flex items-center gap-1 bg-brand-400/10 hover:bg-brand-400/20 px-2.5 py-1 rounded-xl border border-brand-400/20 cursor-pointer"
+				class={launcherButton({ variant: "ghostBrand", size: "sm", class: "flex items-center gap-1" })}
 				onclick={() => showDirectJoinModal = true}
 			>
 				<ExternalLink class="w-3 h-3" />
-				Entrar com Código
+				{uiText("ui.ce76754cde6723ce")}
 			</button>
 
 			<button
 				type="button"
-				class="text-[11px] font-bold text-fg/70 hover:text-fg transition flex items-center gap-1 bg-fg/5 hover:bg-fg/10 px-2.5 py-1 rounded-xl border border-fg/5 cursor-pointer"
+				class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1" })}
 				onclick={() => showHostLanModal = true}
 			>
 				<Share2 class="w-3 h-3 text-emerald-400" />
-				Abrir Mundo (UPnP)
+				{uiText("ui.2bbdf2aae9d64f7a")}
 			</button>
 		</div>
 	</div>
@@ -174,19 +176,19 @@
 				<div class="w-10 h-10 rounded-xl bg-brand-400/10 border border-brand-400/20 flex items-center justify-center mb-3">
 					<Users class="w-5 h-5 text-brand-400" />
 				</div>
-				<p class="text-xs font-semibold text-fg/60 mb-1">Nenhum amigo conectado</p>
-				<p class="text-[10px] text-fg/35 mb-3">Adicione amigos ou entre em servidores para vê-los aqui</p>
+				<p class="text-xs font-semibold text-fg/60 mb-1">{uiText("ui.a6612dce72867a0d")}</p>
+				<p class="text-[10px] text-fg/35 mb-3">{uiText("ui.2a71a371672ac10a")}</p>
 				<button
 					type="button"
 					onclick={() => goto("/friends")}
-					class="px-3 py-1.5 rounded-xl bg-brand-400/10 hover:bg-brand-400/20 text-brand-400 text-[10px] font-bold border border-brand-400/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+					class={launcherButton({ variant: "ghostBrand", size: "sm", class: "" })}
 				>
-					Abrir Chat & Amigos
+					{uiText("ui.8343992ed5c76b01")}
 				</button>
 			</div>
 		{:else}
-			{#each friends as friend}
-				<div class="rounded-2xl bg-bg-elevated border border-fg/5 hover:border-brand-400/40 p-3.5 flex flex-col justify-between gap-3 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:bg-bg-subtle shadow-sm group">
+			{#each friends as friend (friend.id)}
+				<div class="rounded-2xl bg-bg-elevated border border-fg/5 hover:border-brand-400/40 p-3.5 flex flex-col justify-between gap-3 transition-[color,background-color,border-color,box-shadow,transform,opacity] hover:bg-bg-subtle shadow-sm group">
 					<div class="flex items-start justify-between gap-2">
 						<div class="flex items-center gap-2.5 min-w-0">
 							<div class="relative w-10 h-10 rounded-xl overflow-hidden bg-bg-overlay/40 border border-fg/10 shrink-0">
@@ -213,14 +215,14 @@
 						{#if friend.serverAddress || friend.p2pCode}
 							<button
 								type="button"
-								class="text-[10px] font-extrabold px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1 cursor-pointer"
+								class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1" })}
 								onclick={() => handleQuickJoin(friend)}
 							>
 								<Play class="w-2.5 h-2.5 fill-current" />
-								Entrar
+								{uiText("home.loginTab")}
 							</button>
 						{:else}
-							<span class="text-[10px] font-semibold text-fg/30">Online</span>
+							<span class="text-[10px] font-semibold text-fg/30">{uiText("statusBanner.online")}</span>
 						{/if}
 					</div>
 				</div>
@@ -230,45 +232,45 @@
 </section>
 
 <!-- Modal: Entrar com Código Direct Join -->
-<Modal isOpen={showDirectJoinModal} onClose={() => showDirectJoinModal = false} title="Conectar Direto a Amigo (Direct Join)">
+<Modal isOpen={showDirectJoinModal} onClose={() => showDirectJoinModal = false} title={uiText("ui.b3b9347132ed1591")}>
 	<div class="flex flex-col gap-4 text-xs">
 		<p class="text-fg/70 leading-relaxed">
-			Insira o código de convite (ex: <code class="text-brand-400 font-mono">192.168.1.100:25565</code>) ou link gerado pelo launcher do seu amigo para entrar diretamente no mundo dele sem precisar de mods adicionais ou Hamachi.
+			{uiText("ui.62da8a4f5eb7248a")} <code class="text-brand-400 font-mono">192.168.1.100:25565</code>{uiText("ui.c0d80d7ff231b165")}
 		</p>
 
 		<div class="flex flex-col gap-1.5">
-			<label for="direct-join-code-input" class="text-fg/60 font-semibold">Código ou Link de Convite:</label>
+			<label for="direct-join-code-input" class="text-fg/60 font-semibold">{uiText("ui.5088f15c10d00ecf")}</label>
 			<input 
 				id="direct-join-code-input"
 				type="text" 
 				bind:value={directJoinCode}
-				placeholder="Ex: luxmc://join/192.168.1.100:25565 ou 192.168.1.100:25565"
+				placeholder={uiText("ui.05bac35dd2233d86")}
 				class="w-full bg-bg-subtle border border-fg/10 rounded-xl px-3.5 py-2 text-fg font-mono outline-none focus:border-brand-400"
 			/>
 		</div>
 
 		<div class="flex items-center justify-end gap-2 pt-2 border-t border-fg/5">
 			<Button variant="secondary" size="sm" onclick={() => showDirectJoinModal = false}>
-				Cancelar
+				{uiText("common.cancel")}
 			</Button>
 			<Button variant="primary" size="sm" onclick={handleDirectJoinSubmit}>
 				<Play class="w-3.5 h-3.5 fill-current" />
-				Conectar Agora
+				{uiText("ui.15a89e5fb2ad184b")}
 			</Button>
 		</div>
 	</div>
 </Modal>
 
 <!-- Modal: Abrir Mundo LAN via UPnP -->
-<Modal isOpen={showHostLanModal} onClose={() => showHostLanModal = false} title="Hospedar Mundo para Amigos (UPnP)">
+<Modal isOpen={showHostLanModal} onClose={() => showHostLanModal = false} title={uiText("ui.6b112e00ff910480")}>
 	<div class="flex flex-col gap-4 text-xs">
 		<p class="text-fg/70 leading-relaxed">
-			O Luxmc usa o protocolo UPnP nativo para abrir automaticamente uma porta no seu roteador residencial. Seus amigos poderão entrar no seu mundo diretamente pela internet sem configurar nada!
+			{uiText("ui.4651d9e01a9e6880")}
 		</p>
 
 		<div class="flex items-center gap-3">
 			<div class="flex-1 flex flex-col gap-1.5">
-				<label for="host-port-input" class="text-fg/60 font-semibold">Porta LAN do Minecraft:</label>
+				<label for="host-port-input" class="text-fg/60 font-semibold">{uiText("ui.9bb50d7aeb7eb8be")}</label>
 				<input 
 					id="host-port-input"
 					type="number" 
@@ -279,7 +281,7 @@
 
 			<div class="self-end">
 				<Button variant="primary" size="sm" disabled={isHosting} onclick={handleStartHost}>
-					{isHosting ? "Abrindo..." : "Abrir Porta UPnP"}
+					{isHosting ? "Abrindo..." : uiText("ui.6bafe2ace76df9b7")}
 				</Button>
 			</div>
 		</div>
@@ -288,24 +290,24 @@
 			<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex flex-col gap-2">
 				<div class="flex items-center gap-1.5 text-emerald-400 font-bold text-xs">
 					<Check class="w-4 h-4" />
-					Porta {hostPort} aberta com sucesso!
+					{uiText("servers.port")} {hostPort} {uiText("ui.876d1041e2983499")}
 				</div>
-				<p class="text-fg/80">Envie este link para seu amigo colar no launcher dele:</p>
+				<p class="text-fg/80">{uiText("ui.9fb1c0a3add1d247")}</p>
 				<div class="flex items-center gap-2">
 					<input 
 						type="text" 
 						readonly 
-						aria-label="Link de convite gerado"
+						aria-label={uiText("ui.d4cb44ccb0d25924")}
 						value={`luxmc://join/${hostResult.externalIp || 'meu-ip'}:${hostPort}`}
 						class="flex-1 bg-bg-overlay/40 border border-fg/10 rounded-lg px-2.5 py-1.5 font-mono text-[11px] text-fg"
 					/>
 					<Button variant="secondary" size="sm" onclick={copyGeneratedLink}>
 						{#if hasCopiedCode}
 							<Check class="w-3.5 h-3.5 text-emerald-400" />
-							Copiado!
+							{uiText("ui.a8fe0fc805d5fd50")}
 						{:else}
 							<Copy class="w-3.5 h-3.5" />
-							Copiar
+							{uiText("common.copy")}
 						{/if}
 					</Button>
 				</div>
@@ -314,7 +316,7 @@
 
 		<div class="flex items-center justify-end pt-2 border-t border-fg/5">
 			<Button variant="secondary" size="sm" onclick={() => showHostLanModal = false}>
-				Fechar
+				{uiText("statusBanner.dismiss")}
 			</Button>
 		</div>
 	</div>

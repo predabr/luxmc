@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
 	import {
@@ -122,39 +124,39 @@
 				<div>
 					<h3 class="text-sm font-bold text-fg">
 						{#if moduleKey === "armorHud"}
-							Configurações de Armor HUD
+							{uiText("ui.837c573831c9e244")}
 						{:else if moduleKey === "keystrokes"}
-							Configurações de Keystrokes
+							{uiText("ui.bcd217f17dfe36ba")}
 						{:else if moduleKey === "cps"}
-							Configurações do Contador de CPS
+							{uiText("ui.ad3b27e86d77f534")}
 						{:else if moduleKey === "toggleSprint"}
-							Configurações de ToggleSprint
+							{uiText("ui.feb67671ed628f02")}
 						{:else if moduleKey === "directionHud"}
-							Configurações de Direction HUD
+							{uiText("ui.827406144dc938b1")}
 						{:else if moduleKey === "potionEffects"}
-							Configurações de Efeitos de Poção
+							{uiText("ui.c8c5e130fbf2ccfe")}
 						{:else}
-							Configurar Módulo ({moduleKey})
+							{uiText("ui.df0765b76b9d3f01")}{moduleKey})
 						{/if}
 					</h3>
-					<p class="text-[11px] text-fg/50">Personalize o comportamento e a aparência in-game</p>
+					<p class="text-[11px] text-fg/50">{uiText("ui.e3e5c61ab1665c39")}</p>
 				</div>
 			</div>
 
 			<div class="flex items-center gap-2">
 				<button
 					onclick={resetCurrentModule}
-					class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors"
-					title="Restaurar padrão deste módulo"
+					class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
+					title={uiText("ui.6a79dae77021221c")}
 				>
 					<RotateCcw class="w-3.5 h-3.5" />
-					<span>Padrão</span>
+					<span>{uiText("settings.resolutionDefault")}</span>
 				</button>
 
 				<button
 					onclick={handleClose}
-					class="w-8 h-8 rounded-xl flex items-center justify-center text-fg/40 hover:text-fg hover:bg-fg/10 transition-colors"
-					aria-label="Fechar"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "flex items-center justify-center" })}
+					aria-label={uiText("statusBanner.dismiss")}
 				>
 					<X class="w-4 h-4" />
 				</button>
@@ -172,9 +174,9 @@
 					<div class="flex items-center justify-between text-xs text-fg/60">
 						<span class="flex items-center gap-1.5 font-semibold text-emerald-400">
 							<Eye class="w-3.5 h-3.5" />
-							Pré-visualização do HUD
+							{uiText("ui.07a69721a705912e")}
 						</span>
-						<span class="text-[10px] uppercase tracking-wider text-fg/40">Minecraft 1.8.9 & Moderno</span>
+						<span class="text-[10px] uppercase tracking-wider text-fg/40">{uiText("ui.b4dcf2a137e6e3f2")}</span>
 					</div>
 
 					<!-- HUD Element Rendering Simulator -->
@@ -271,10 +273,10 @@
 									<div class="relative w-7 h-7 rounded bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 text-[11px] font-bold shadow-sm">
 										🛡️
 										{#if clientMods.moduleSettings.armorHud.showItemCount}
-											<span class="absolute -bottom-1 -right-1 px-1 rounded bg-black/90 text-[8px] font-mono text-yellow-300 border border-yellow-500/30">x2</span>
+											<span class="absolute -bottom-1 -right-1 px-1 rounded bg-black/90 text-[8px] font-mono text-yellow-300 border border-yellow-500/30">{uiText("ui.844ecc08164e2eab")}</span>
 										{/if}
 									</div>
-									<span class="text-[11px] font-mono text-purple-300">Off-hand</span>
+									<span class="text-[11px] font-mono text-purple-300">{uiText("ui.6dcb0b43ee5c55dd")}</span>
 								</div>
 							{/if}
 						</div>
@@ -286,21 +288,21 @@
 					<!-- Orientação -->
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Orientação do HUD</div>
-							<div class="text-xs text-fg/50">Disposição vertical (coluna) ou horizontal (linha)</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.17f96b8a1bafbead")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.cef2420dfd241190")}</div>
 						</div>
 						<div class="flex items-center gap-1.5 p-1 rounded-xl bg-fg/5 border border-fg/10">
 							<button
 								onclick={() => { clientMods.updateModuleSetting("armorHud", "orientation", "vertical"); }}
 								class="px-3 py-1 rounded-lg text-xs font-medium transition-colors {clientMods.moduleSettings.armorHud.orientation === 'vertical' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-fg/60 hover:text-fg'}"
 							>
-								Vertical
+								{uiText("ui.727cd3a64d792ad4")}
 							</button>
 							<button
 								onclick={() => { clientMods.updateModuleSetting("armorHud", "orientation", "horizontal"); }}
 								class="px-3 py-1 rounded-lg text-xs font-medium transition-colors {clientMods.moduleSettings.armorHud.orientation === 'horizontal' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-fg/60 hover:text-fg'}"
 							>
-								Horizontal
+								{uiText("ui.0abba441f16eff90")}
 							</button>
 						</div>
 					</div>
@@ -308,8 +310,8 @@
 					<!-- Modo de Durabilidade -->
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Exibição de Durabilidade</div>
-							<div class="text-xs text-fg/50">Como a vida restante do equipamento é indicada</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.4c563c308b017b25")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.aa7655926b9105b2")}</div>
 						</div>
 						<div class="flex items-center gap-1 p-1 rounded-xl bg-fg/5 border border-fg/10">
 							<button
@@ -328,13 +330,13 @@
 								onclick={() => { clientMods.updateModuleSetting("armorHud", "durabilityMode", "bar"); }}
 								class="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors {clientMods.moduleSettings.armorHud.durabilityMode === 'bar' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-fg/60 hover:text-fg'}"
 							>
-								Barra
+								{uiText("ui.797ff8f0ba41da55")}
 							</button>
 							<button
 								onclick={() => { clientMods.updateModuleSetting("armorHud", "durabilityMode", "none"); }}
 								class="px-2.5 py-1 rounded-lg text-xs font-medium transition-colors {clientMods.moduleSettings.armorHud.durabilityMode === 'none' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-fg/60 hover:text-fg'}"
 							>
-								Ocultar
+								{uiText("ui.dd680772877e1917")}
 							</button>
 						</div>
 					</div>
@@ -343,10 +345,10 @@
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
 							<div class="text-sm font-medium text-fg flex items-center gap-1.5">
-								<span>Alerta de Quebra Crítica</span>
+								<span>{uiText("ui.b2e60441d437ba99")}</span>
 								<span class="px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold border border-red-500/20">&lt; 20%</span>
 							</div>
-							<div class="text-xs text-fg/50">Piscar em vermelho quando a armadura estiver prestes a quebrar</div>
+							<div class="text-xs text-fg/50">{uiText("ui.671a4d0be0716ddd")}</div>
 						</div>
 						<input
 							type="checkbox"
@@ -360,8 +362,8 @@
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3">
 						<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 							<div>
-								<div class="text-sm font-medium text-fg">Mão Principal</div>
-								<div class="text-xs text-fg/50">Arma equipada (Espada/Arco)</div>
+								<div class="text-sm font-medium text-fg">{uiText("ui.b4400a61ec69dbec")}</div>
+								<div class="text-xs text-fg/50">{uiText("ui.b672b21a7ce07fff")}</div>
 							</div>
 							<input
 								type="checkbox"
@@ -373,8 +375,8 @@
 
 						<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 							<div>
-								<div class="text-sm font-medium text-fg">Off-hand</div>
-								<div class="text-xs text-fg/50">Escudo ou Totem secundário</div>
+								<div class="text-sm font-medium text-fg">{uiText("ui.6dcb0b43ee5c55dd")}</div>
+								<div class="text-xs text-fg/50">{uiText("ui.596b4cb5305766ea")}</div>
 							</div>
 							<input
 								type="checkbox"
@@ -388,7 +390,7 @@
 					<!-- Escala do HUD -->
 					<div class="p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10 space-y-2">
 						<div class="flex items-center justify-between text-sm font-medium text-fg">
-							<span>Escala do HUD</span>
+							<span>{uiText("ui.c53ed157cef28922")}</span>
 							<span class="text-xs font-mono text-emerald-400 font-bold">{Math.round(clientMods.moduleSettings.armorHud.scale * 100)}%</span>
 						</div>
 						<input
@@ -412,9 +414,9 @@
 					<div class="w-full flex items-center justify-between text-xs text-fg/60">
 						<span class="flex items-center gap-1.5 font-semibold text-emerald-400">
 							<Eye class="w-3.5 h-3.5" />
-							Simulador Interativo
+							{uiText("ui.15b062385fce6395")}
 						</span>
-						<span class="text-[10px] text-fg/40">Clique nas teclas abaixo para testar o feedback</span>
+						<span class="text-[10px] text-fg/40">{uiText("ui.b8cb66e7441da09a")}</span>
 					</div>
 
 					<div class="flex flex-col items-center gap-1.5 p-4 rounded-2xl bg-black/60 border border-fg/10">
@@ -422,7 +424,7 @@
 						<button
 							onmousedown={() => testKeyW = true}
 							onmouseup={() => testKeyW = false}
-							class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testKeyW ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+							class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity] {testKeyW ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 						>
 							W
 						</button>
@@ -432,21 +434,21 @@
 							<button
 								onmousedown={() => testKeyA = true}
 								onmouseup={() => testKeyA = false}
-								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testKeyA ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity] {testKeyA ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 							>
 								A
 							</button>
 							<button
 								onmousedown={() => testKeyS = true}
 								onmouseup={() => testKeyS = false}
-								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testKeyS ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity] {testKeyS ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 							>
 								S
 							</button>
 							<button
 								onmousedown={() => testKeyD = true}
 								onmouseup={() => testKeyD = false}
-								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testKeyD ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+								class="w-12 h-12 rounded-xl flex items-center justify-center font-bold font-mono text-sm transition-[color,background-color,border-color,box-shadow,transform,opacity] {testKeyD ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 							>
 								D
 							</button>
@@ -458,21 +460,21 @@
 								<button
 									onmousedown={() => testLmb = true}
 									onmouseup={() => testLmb = false}
-									class="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testLmb ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+									class="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity] {testLmb ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 								>
-									<span>LMB</span>
+									<span>{uiText("ui.a0b0cf417d0b4c7d")}</span>
 									{#if clientMods.moduleSettings.keystrokes.showCps}
-										<span class="text-[9px] opacity-75">{simulatedCpsL} CPS</span>
+										<span class="text-[9px] opacity-75">{simulatedCpsL} {uiText("ui.f0c5fdda4d5fe35b")}</span>
 									{/if}
 								</button>
 								<button
 									onmousedown={() => testRmb = true}
 									onmouseup={() => testRmb = false}
-									class="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testRmb ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
+									class="flex-1 h-12 rounded-xl flex flex-col items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity] {testRmb ? 'bg-emerald-400 text-black shadow-lg shadow-emerald-500/40' : 'bg-white/10 text-white hover:bg-white/15'}"
 								>
-									<span>RMB</span>
+									<span>{uiText("ui.02cb6fa562753c7e")}</span>
 									{#if clientMods.moduleSettings.keystrokes.showCps}
-										<span class="text-[9px] opacity-75">{simulatedCpsR} CPS</span>
+										<span class="text-[9px] opacity-75">{simulatedCpsR} {uiText("ui.f0c5fdda4d5fe35b")}</span>
 									{/if}
 								</button>
 							</div>
@@ -482,10 +484,10 @@
 						{#if clientMods.moduleSettings.keystrokes.showSpace}
 							<button
 								type="button"
-								aria-label="Espaço"
+								aria-label={uiText("ui.f53807aa6cf5d027")}
 								onmousedown={() => testSpace = true}
 								onmouseup={() => testSpace = false}
-								class="w-full h-7 rounded-xl flex items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] {testSpace ? 'bg-emerald-400 text-black' : 'bg-white/10 text-white hover:bg-white/15'}"
+								class="w-full h-7 rounded-xl flex items-center justify-center font-bold font-mono text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity] {testSpace ? 'bg-emerald-400 text-black' : 'bg-white/10 text-white hover:bg-white/15'}"
 							>
 								<span class="w-12 h-1 rounded-full bg-current opacity-70"></span>
 							</button>
@@ -496,8 +498,8 @@
 				<div class="space-y-4">
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Exibir CPS nos Botões do Mouse</div>
-							<div class="text-xs text-fg/50">Mostra cliques/segundo em tempo real em LMB e RMB</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.94baaaaae71fcba2")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.099b320ce565cad2")}</div>
 						</div>
 						<input
 							type="checkbox"
@@ -509,8 +511,8 @@
 
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Exibir Barra de Espaço</div>
-							<div class="text-xs text-fg/50">Tecla de pulo na parte inferior</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.d88d389a8cad5423")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.8aaba0162a203e73")}</div>
 						</div>
 						<input
 							type="checkbox"
@@ -522,29 +524,29 @@
 
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Modo de Cor</div>
-							<div class="text-xs text-fg/50">Esquema cromático das teclas pressionadas</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.54fb011ca72a6881")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.d5ece5a1bfe5177b")}</div>
 						</div>
 						<div class="flex items-center gap-1.5">
 							<button
 								onclick={() => clientMods.updateModuleSetting("keystrokes", "colorMode", "emerald")}
 								class="w-6 h-6 rounded-full bg-emerald-400 border-2 {clientMods.moduleSettings.keystrokes.colorMode === 'emerald' ? 'border-white scale-110' : 'border-transparent opacity-60'}"
-								title="Verde Esmeralda"
+								title={uiText("ui.dc19d29e20082151")}
 							></button>
 							<button
 								onclick={() => clientMods.updateModuleSetting("keystrokes", "colorMode", "cyan")}
 								class="w-6 h-6 rounded-full bg-cyan-400 border-2 {clientMods.moduleSettings.keystrokes.colorMode === 'cyan' ? 'border-white scale-110' : 'border-transparent opacity-60'}"
-								title="Ciano Luxmc"
+								title={uiText("ui.23e30f4e242d53d0")}
 							></button>
 							<button
 								onclick={() => clientMods.updateModuleSetting("keystrokes", "colorMode", "white")}
 								class="w-6 h-6 rounded-full bg-white border-2 {clientMods.moduleSettings.keystrokes.colorMode === 'white' ? 'border-emerald-400 scale-110' : 'border-transparent opacity-60'}"
-								title="Branco Neve"
+								title={uiText("ui.feab5ef2c4df4ea5")}
 							></button>
 							<button
 								onclick={() => clientMods.updateModuleSetting("keystrokes", "colorMode", "chroma")}
 								class="w-6 h-6 rounded-full bg-gradient-to-tr from-pink-500 via-amber-400 to-cyan-400 border-2 {clientMods.moduleSettings.keystrokes.colorMode === 'chroma' ? 'border-white scale-110' : 'border-transparent opacity-60'}"
-								title="Chroma Arco-íris"
+								title={uiText("ui.a8e3e0394e17b20e")}
 							></button>
 						</div>
 					</div>
@@ -559,7 +561,7 @@
 						<span class="text-emerald-400">14 {clientMods.moduleSettings.cps.suffix}</span>
 						{#if clientMods.moduleSettings.cps.showRight}
 							<span class="text-fg/30">|</span>
-							<span class="text-cyan-400">18 RMB {clientMods.moduleSettings.cps.suffix}</span>
+							<span class="text-cyan-400">{uiText("ui.29d3cbd4a3e384b1")} {clientMods.moduleSettings.cps.suffix}</span>
 						{/if}
 					</div>
 				</div>
@@ -567,8 +569,8 @@
 				<div class="space-y-4">
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Exibir Botão Direito (RMB)</div>
-							<div class="text-xs text-fg/50">Mede cliques do botão direito para drag-clicking e blockhit</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.8307f129f015a7e1")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.7648d19e288933ee")}</div>
 						</div>
 						<input
 							type="checkbox"
@@ -580,8 +582,8 @@
 
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Sufixo de Texto</div>
-							<div class="text-xs text-fg/50">Ex: "CPS", "Cliques", "c/s"</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.5e501de43d6b2045")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.f0e3b9f131cd6466")}</div>
 						</div>
 						<input
 							type="text"
@@ -600,7 +602,7 @@
 					<div class="flex items-center gap-2 p-3 rounded-xl bg-black/60 border border-fg/10 font-mono font-bold text-sm text-emerald-400">
 						{#if clientMods.moduleSettings.toggleSprint.style === "icon"}
 							<Zap class="w-4 h-4 fill-current" />
-							<span>ATIVO</span>
+							<span>{uiText("ui.ba2d8673aef57cb0")}</span>
 						{:else}
 							<span>{clientMods.moduleSettings.toggleSprint.text}</span>
 						{/if}
@@ -610,21 +612,21 @@
 				<div class="space-y-4">
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Estilo de Exibição</div>
-							<div class="text-xs text-fg/50">Texto tradicional ou ícone minimalista</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.75195ba3203af76b")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.8289d9ffc738a437")}</div>
 						</div>
 						<div class="flex items-center gap-1.5 p-1 rounded-xl bg-fg/5 border border-fg/10">
 							<button
 								onclick={() => clientMods.updateModuleSetting("toggleSprint", "style", "text")}
 								class="px-3 py-1 rounded-lg text-xs font-medium transition-colors {clientMods.moduleSettings.toggleSprint.style === 'text' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-fg/60 hover:text-fg'}"
 							>
-								Texto
+								{uiText("ui.6df3d6661c095ce7")}
 							</button>
 							<button
 								onclick={() => clientMods.updateModuleSetting("toggleSprint", "style", "icon")}
 								class="px-3 py-1 rounded-lg text-xs font-medium transition-colors {clientMods.moduleSettings.toggleSprint.style === 'icon' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'text-fg/60 hover:text-fg'}"
 							>
-								Ícone
+								{uiText("ui.665ba1908fbc76bf")}
 							</button>
 						</div>
 					</div>
@@ -632,8 +634,8 @@
 					{#if clientMods.moduleSettings.toggleSprint.style === "text"}
 						<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 							<div>
-								<div class="text-sm font-medium text-fg">Texto Customizado</div>
-								<div class="text-xs text-fg/50">Mensagem exibida quando correndo</div>
+								<div class="text-sm font-medium text-fg">{uiText("ui.f3fd3f578dd90709")}</div>
+								<div class="text-xs text-fg/50">{uiText("ui.69d8c06e2135a860")}</div>
 							</div>
 							<input
 								type="text"
@@ -651,17 +653,17 @@
 			{:else if moduleKey === "directionHud"}
 				<div class="p-4 rounded-2xl bg-bg-elevated/40 border border-fg/10 flex flex-col items-center gap-3">
 					<div class="flex items-center justify-center p-3 rounded-xl bg-black/60 border border-fg/10 font-mono text-xs w-full">
-						<span class="text-fg/40">W · NW · </span>
-						<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/40">[ N ]</span>
-						<span class="text-fg/40"> · NE · E</span>
+						<span class="text-fg/40">{uiText("ui.4aec8dbb389c7792")} </span>
+						<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold border border-emerald-500/40">{uiText("ui.6c598b8e463df413")}</span>
+						<span class="text-fg/40"> {uiText("ui.a54e695390ed9d59")}</span>
 					</div>
 				</div>
 
 				<div class="space-y-4">
 					<div class="flex items-center justify-between p-3.5 rounded-2xl bg-bg-elevated/50 border border-fg/10">
 						<div>
-							<div class="text-sm font-medium text-fg">Exibir Bioma Atual</div>
-							<div class="text-xs text-fg/50">Mostra o nome do bioma abaixo da bússola</div>
+							<div class="text-sm font-medium text-fg">{uiText("ui.d5b0d7845a9040aa")}</div>
+							<div class="text-xs text-fg/50">{uiText("ui.61d0fe64b1e840e2")}</div>
 						</div>
 						<input
 							type="checkbox"
@@ -677,20 +679,20 @@
 			<!-- ============================================== -->
 			{:else}
 				<div class="p-6 rounded-2xl bg-bg-elevated/40 border border-fg/10 text-center space-y-2">
-					<div class="text-sm font-medium text-fg">Módulo Ativo e Otimizado</div>
-					<p class="text-xs text-fg/50">Este módulo utiliza presets de alta performance com zero impacto no FPS.</p>
+					<div class="text-sm font-medium text-fg">{uiText("ui.8e8328d13809fa1c")}</div>
+					<p class="text-xs text-fg/50">{uiText("ui.4103a52427b679f6")}</p>
 				</div>
 			{/if}
 		</div>
 
 		<!-- Footer -->
 		<div class="flex items-center justify-between px-6 py-4 border-t border-fg/10 bg-bg">
-			<span class="text-xs text-fg/40">Salvo automaticamente</span>
+			<span class="text-xs text-fg/40">{uiText("ui.bfde85ea50c5a998")}</span>
 			<button
 				onclick={handleClose}
-				class="px-5 py-2 rounded-2xl bg-emerald-500 text-black font-semibold text-xs hover:bg-emerald-400 active:scale-95 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-lg shadow-emerald-500/20"
+				class={launcherButton({ variant: "primary", size: "sm", class: "" })}
 			>
-				Concluído
+				{uiText("ui.2801cb53f1fa6f08")}
 			</button>
 		</div>
 	</div>

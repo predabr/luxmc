@@ -1,5 +1,5 @@
-import { browser } from "$app/environment";
-import { settings } from "$lib/stores/settings.svelte";
+const browser = typeof window !== "undefined";
+import { detectBrowserLocale, isSupportedLocale } from "./locale";
 import en from "./en.json";
 import ptBR from "./pt-BR.json";
 import es from "./es.json";
@@ -12,18 +12,15 @@ const dictionaries: Record<string, any> = {
 
 export type Locale = "en" | "pt-BR" | "es";
 
-let activeLocale = $state<Locale>("pt-BR");
+let activeLocale = $state<Locale>(detectBrowserLocale());
 
 if (browser) {
 	try {
 		const saved = localStorage.getItem("luxmc.locale") as Locale | null;
-		if (saved && saved in dictionaries) {
+		if (isSupportedLocale(saved)) {
 			activeLocale = saved;
 		} else {
-			const nav = navigator.language.toLowerCase();
-			if (nav.startsWith("es")) activeLocale = "es";
-			else if (nav.startsWith("pt")) activeLocale = "pt-BR";
-			else activeLocale = "en";
+			activeLocale = detectBrowserLocale();
 		}
 	} catch {}
 }
@@ -44,7 +41,7 @@ export function useTranslation() {
 	return {
 		t(key: string, params?: Record<string, unknown>): string {
 			const loc = activeLocale;
-			const dict = dictionaries[loc] || dictionaries["pt-BR"] || dictionaries.en;
+			const dict = dictionaries[loc] || dictionaries.en;
 			const parts = key.split(".");
 			let val: any = dict;
 			for (const p of parts) {
@@ -56,7 +53,7 @@ export function useTranslation() {
 				}
 			}
 			if (typeof val !== "string") {
-				let fb: any = dictionaries["pt-BR"];
+				let fb: any = dictionaries.en;
 				for (const p of parts) {
 					if (fb && typeof fb === "object" && p in fb) fb = fb[p];
 					else { fb = undefined; break; }
@@ -87,3 +84,10 @@ export function useTranslation() {
 	};
 }
 
+export function translateUi(key: string, params?: Record<string, unknown>): string {
+	return useTranslation().t(key, params);
+}
+
+export function currentUiLocale(): Locale {
+	return activeLocale;
+}

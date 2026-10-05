@@ -73,6 +73,10 @@ pub struct ProfileRow {
     pub gamescope_fsr: bool,
     #[serde(default)]
     pub force_full_verification: bool,
+    #[serde(default)]
+    pub pre_launch_hook: Option<String>,
+    #[serde(default)]
+    pub post_exit_hook: Option<String>,
 }
 
 impl ProfileRow {

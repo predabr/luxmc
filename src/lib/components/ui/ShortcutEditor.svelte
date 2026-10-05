@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { onMount, tick } from "svelte";
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
+	import { onMount, tick, untrack } from "svelte";
 	import { Keyboard } from "lucide-svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 
@@ -17,19 +19,19 @@
 
 	const STORAGE_KEY = "luxmc.shortcuts";
 
-	const defaults: Shortcut[] = [
-		{ id: "open-instances", label: "Go to Instances", combo: "g i" },
-		{ id: "open-news", label: "Go to News", combo: "g n" },
-		{ id: "open-logs", label: "Go to Logs", combo: "g l" },
-		{ id: "open-settings", label: "Go to Settings", combo: "g ," },
-		{ id: "open-mods", label: "Go to Mods", combo: "g m" },
-		{ id: "open-screenshots", label: "Go to Screenshots", combo: "g p" },
-		{ id: "show-shortcuts", label: "Show shortcut help", combo: "?" },
-		{ id: "focus-search", label: "Focus search", combo: "/" },
-		{ id: "close-modal", label: "Close any modal", combo: "Escape" },
-	];
+	const defaults: Shortcut[] = $derived([
+		{ id: "open-instances", label: uiText("ui.5faa648328782347"), combo: "g i" },
+		{ id: "open-news", label: uiText("ui.cac75d9a6a71d22e"), combo: "g n" },
+		{ id: "open-logs", label: uiText("ui.e94b6655679c3e4d"), combo: "g l" },
+		{ id: "open-settings", label: uiText("ui.b7b98613dbf13d28"), combo: "g ," },
+		{ id: "open-mods", label: uiText("ui.1064a15d2ae1efcf"), combo: "g m" },
+		{ id: "open-screenshots", label: uiText("ui.ec75bfb97a315783"), combo: "g p" },
+		{ id: "show-shortcuts", label: uiText("ui.63e7080bb7680d4d"), combo: "?" },
+		{ id: "focus-search", label: uiText("ui.512c84789fba7aa4"), combo: "/" },
+		{ id: "close-modal", label: uiText("ui.777c2ac2b4943da4"), combo: "Escape" },
+	]);
 
-	let shortcuts = $state<Shortcut[]>(defaults);
+	let shortcuts = $state<Shortcut[]>(untrack(() => defaults));
 	let recordingId = $state<string | null>(null);
 
 	onMount(() => {
@@ -105,7 +107,7 @@
 		</h3>
 		<button
 			type="button"
-			class="rounded-md px-2 py-1 text-[11px] transition-colors"
+			class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 			style="border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted));"
 			onclick={resetAll}
 		>
@@ -133,7 +135,7 @@
 				{:else}
 					<button
 						type="button"
-						class="rounded-md px-2 py-0.5 font-mono text-[11px] transition-colors"
+						class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 						style="border: 1px solid rgb(var(--border)); color: rgb(var(--fg-muted)); background: rgb(var(--bg-subtle));"
 						onclick={() => (recordingId = s.id)}
 						aria-label={`${getShortcutLabel(s.id, s.label)}: ${s.combo}`}
@@ -142,7 +144,7 @@
 					</button>
 					<button
 						type="button"
-						class="rounded-md px-1.5 py-0.5 text-[10px] transition-colors"
+						class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 						style="color: rgb(var(--fg-subtle));"
 						onclick={() => reset(s)}
 					>

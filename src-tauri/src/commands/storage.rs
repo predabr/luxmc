@@ -1,262 +1,155 @@
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, path::{Path, PathBuf}};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct StorageBreakdown {
-    pub category: String,
-    pub bytes: i64,
-    pub path: String,
-}
+pub struct StorageBreakdown { pub category: String, pub bytes: i64, pub path: String }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InstanceStorageInfo {
-    pub id: String,
-    pub name: String,
-    pub mc_version: String,
-    pub loader: String,
-    pub icon: String,
-    pub bytes: u64,
-    pub path: String,
+    pub id: String, pub name: String, pub mc_version: String, pub loader: String,
+    pub icon: String, pub bytes: u64, pub path: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageFullReport {
-    pub total_bytes: u64,
-    pub categories: Vec<StorageBreakdown>,
-    pub instances: Vec<InstanceStorageInfo>,
-    pub logs_bytes: u64,
-    pub cache_bytes: u64,
+    pub total_bytes: u64, pub categories: Vec<StorageBreakdown>, pub instances: Vec<InstanceStorageInfo>,
+    pub logs_bytes: u64, pub cache_bytes: u64, pub warnings: Vec<String>,
 }
 
-fn dir_size_recursive(p: &std::path::Path) -> u64 {
-    let mut total = 0u64;
-    if let Ok(entries) = std::fs::read_dir(p) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                total += dir_size_recursive(&path);
-            } else if let Ok(meta) = path.metadata() {
-                total += meta.len();
+#[derive(Default)]
+struct DiskScan { seen: HashSet<PathBuf>, warnings: Vec<String> }
+impl DiskScan {
+    fn size(&mut self, root: &Path) -> u64 {
+        let mut pending = vec![root.to_path_buf()];
+        let mut total = 0u64;
+        while let Some(path) = pending.pop() {
+            let metadata = match std::fs::symlink_metadata(&path) {
+                Ok(value) => value,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(_) => { self.warnings.push(format!("Não foi possível ler {}", path.display())); continue; }
+            };
+            if metadata.file_type().is_symlink() { continue; }
+            let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+            if !self.seen.insert(canonical) { continue; }
+            if metadata.is_file() { total = total.saturating_add(metadata.len()); }
+            else if metadata.is_dir() {
+                match std::fs::read_dir(&path) {
+                    Ok(entries) => for entry in entries {
+                        match entry { Ok(entry) => pending.push(entry.path()), Err(_) => self.warnings.push(format!("Leitura parcial de {}", path.display())) }
+                    },
+                    Err(_) => self.warnings.push(format!("Não foi possível ler {}", path.display())),
+                }
             }
         }
+        total
     }
-    total
+}
+
+fn dir_size_recursive(path: &Path) -> u64 { DiskScan::default().size(path) }
+
+fn storage_dirs() -> AppResult<directories::ProjectDirs> {
+    directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| AppError::InvalidState("Diretório de dados indisponível".into()))
+}
+
+fn collect_report(base: &Path, config: &Path, cache: &Path, executable: Option<&Path>, profiles: Vec<crate::db::models::ProfileRow>) -> StorageFullReport {
+    let mut scan = DiskScan::default();
+    let mut categories = Vec::new();
+    let mut add = |category: &str, path: &Path| {
+        let bytes = scan.size(path);
+        categories.push(StorageBreakdown { category: category.into(), bytes: bytes.min(i64::MAX as u64) as i64, path: path.to_string_lossy().into_owned() });
+    };
+    let known = ["libraries", "assets", "versions", "instances", "mods", "logs", "cache", "downloads", "java"];
+    for category in known { add(category, &base.join(category)); }
+    if let Ok(entries) = std::fs::read_dir(base) {
+        for entry in entries.flatten() {
+            if !known.contains(&entry.file_name().to_string_lossy().as_ref()) { add("launcher_data", &entry.path()); }
+        }
+    }
+    add("configuration", config);
+    add("launcher_cache", cache);
+    if let Some(path) = executable { add("application", path); }
+    let mut instance_items = Vec::new();
+    let mut logs = DiskScan::default();
+    let mut logs_bytes = logs.size(&base.join("logs"));
+    for profile in profiles {
+        let configured = PathBuf::from(&profile.game_dir);
+        let path = if !profile.game_dir.is_empty() && configured.is_dir() { configured } else { base.join("instances").join(&profile.id).join(".minecraft") };
+        add("external_instances", &path);
+        logs_bytes = logs_bytes.saturating_add(logs.size(&path.join("logs"))).saturating_add(logs.size(&path.join("crash-reports")));
+        instance_items.push(InstanceStorageInfo { id: profile.id, name: profile.name, mc_version: profile.mc_version, loader: profile.loader, icon: profile.icon, bytes: dir_size_recursive(&path), path: path.to_string_lossy().into_owned() });
+    }
+    instance_items.sort_by(|a,b| b.bytes.cmp(&a.bytes));
+    let mut grouped: std::collections::BTreeMap<String, StorageBreakdown> = std::collections::BTreeMap::new();
+    for category in categories.into_iter().filter(|category| category.bytes > 0) {
+        grouped.entry(category.category.clone()).and_modify(|existing| { existing.bytes = existing.bytes.saturating_add(category.bytes); existing.path.push_str("; "); existing.path.push_str(&category.path); }).or_insert(category);
+    }
+    let categories: Vec<_> = grouped.into_values().collect();
+    let mut cleanup = DiskScan::default();
+    let cache_bytes = ["cache", "downloads", "migration-staging"].iter().map(|sub| cleanup.size(&base.join(sub))).sum();
+    StorageFullReport { total_bytes: categories.iter().map(|category| category.bytes as u64).sum(), categories, instances: instance_items, logs_bytes, cache_bytes, warnings: scan.warnings }
 }
 
 #[tauri::command]
-pub async fn storage_breakdown() -> AppResult<Vec<StorageBreakdown>> {
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .map(|d| d.data_dir().to_path_buf())
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp/luxmc"));
-
-    let out = tokio::task::spawn_blocking(move || {
-        let mut results = Vec::new();
-        for (category, sub) in &[
-            ("libraries", "libraries"),
-            ("assets", "assets"),
-            ("versions", "versions"),
-            ("instances", "instances"),
-            ("mods", "mods"),
-            ("logs", "logs"),
-            ("cache", "cache"),
-        ] {
-            let path = base_dir.join(sub);
-            let total = if path.is_dir() {
-                dir_size_recursive(&path) as i64
-            } else {
-                0
-            };
-            results.push(StorageBreakdown {
-                category: category.to_string(),
-                bytes: total,
-                path: path.to_string_lossy().to_string(),
-            });
-        }
-        results
-    })
-    .await
-    .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
-
-    Ok(out)
-}
+pub async fn storage_breakdown() -> AppResult<Vec<StorageBreakdown>> { Ok(storage_full_report().await?.categories) }
 
 #[tauri::command]
 pub async fn storage_full_report() -> AppResult<StorageFullReport> {
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .map(|d| d.data_dir().to_path_buf())
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp/luxmc"));
-
+    let dirs = storage_dirs()?;
+    let base = dirs.data_dir().to_path_buf();
+    let config = dirs.config_dir().to_path_buf();
+    let cache = dirs.cache_dir().to_path_buf();
+    let executable = std::env::current_exe().ok();
     let db = crate::db::shared_db().await?;
-    let profiles = crate::db::schema::profiles::list(&db).await.unwrap_or_default();
+    let profiles = crate::db::schema::profiles::list(&db).await?;
+    tokio::task::spawn_blocking(move || collect_report(&base, &config, &cache, executable.as_deref(), profiles)).await.map_err(|error| AppError::Internal(error.to_string()))
+}
 
-    let base_dir_clone = base_dir.clone();
-    let report = tokio::task::spawn_blocking(move || {
-        let mut categories = Vec::new();
-        let mut total_bytes = 0u64;
-
-        for (category, sub) in &[
-            ("libraries", "libraries"),
-            ("assets", "assets"),
-            ("versions", "versions"),
-            ("instances", "instances"),
-            ("mods", "mods"),
-            ("logs", "logs"),
-            ("cache", "cache"),
-        ] {
-            let path = base_dir_clone.join(sub);
-            let cat_bytes = if path.is_dir() {
-                dir_size_recursive(&path)
-            } else {
-                0
-            };
-            total_bytes += cat_bytes;
-            categories.push(StorageBreakdown {
-                category: category.to_string(),
-                bytes: cat_bytes as i64,
-                path: path.to_string_lossy().to_string(),
-            });
-        }
-
-        let mut instance_items = Vec::new();
-        let instances_dir = base_dir_clone.join("instances");
-
-        for p in profiles {
-            let mut inst_dir = instances_dir.join(&p.id);
-            if !inst_dir.is_dir() {
-                let alt = std::path::PathBuf::from(&p.game_dir);
-                if alt.is_dir() {
-                    inst_dir = alt;
-                }
+fn clear_log_files(roots: Vec<PathBuf>) -> u64 {
+    let mut seen = HashSet::new();
+    let mut freed = 0u64;
+    for root in roots {
+        let Ok(root_meta) = std::fs::symlink_metadata(&root) else { continue; };
+        if !root_meta.is_dir() || root_meta.file_type().is_symlink() { continue; }
+        let Ok(boundary) = root.canonicalize() else { continue; };
+        let mut pending = vec![root];
+        while let Some(path) = pending.pop() {
+            let Ok(metadata) = std::fs::symlink_metadata(&path) else { continue; };
+            if metadata.file_type().is_symlink() { continue; }
+            let Ok(canonical) = path.canonicalize() else { continue; };
+            if !canonical.starts_with(&boundary) || !seen.insert(canonical) { continue; }
+            if metadata.is_file() {
+                if std::fs::remove_file(&path).is_ok() { freed = freed.saturating_add(metadata.len()); }
+            } else if metadata.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(&path) { pending.extend(entries.flatten().map(|entry| entry.path())); }
             }
-
-            let inst_bytes = if inst_dir.is_dir() {
-                dir_size_recursive(&inst_dir)
-            } else {
-                0
-            };
-
-            instance_items.push(InstanceStorageInfo {
-                id: p.id,
-                name: p.name,
-                mc_version: p.mc_version,
-                loader: p.loader,
-                icon: p.icon,
-                bytes: inst_bytes,
-                path: inst_dir.to_string_lossy().to_string(),
-            });
         }
-
-        instance_items.sort_by(|a, b| b.bytes.cmp(&a.bytes));
-
-        let logs_path = base_dir_clone.join("logs");
-        let logs_bytes = if logs_path.is_dir() {
-            dir_size_recursive(&logs_path)
-        } else {
-            0
-        };
-
-        let cache_path = base_dir_clone.join("cache");
-        let dl_path = base_dir_clone.join("downloads");
-        let cache_bytes = (if cache_path.is_dir() {
-            dir_size_recursive(&cache_path)
-        } else {
-            0
-        }) + (if dl_path.is_dir() {
-            dir_size_recursive(&dl_path)
-        } else {
-            0
-        });
-
-        StorageFullReport {
-            total_bytes,
-            categories,
-            instances: instance_items,
-            logs_bytes,
-            cache_bytes,
-        }
-    })
-    .await
-    .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
-
-    Ok(report)
+    }
+    freed
 }
 
 #[tauri::command]
 pub async fn storage_clear_logs() -> AppResult<u64> {
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .map(|d| d.data_dir().to_path_buf())
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp/luxmc"));
-
-    let freed = tokio::task::spawn_blocking(move || {
-        let mut total_freed = 0u64;
-
-        let logs_dir = base_dir.join("logs");
-        if logs_dir.is_dir() {
-            if let Ok(entries) = std::fs::read_dir(&logs_dir) {
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_file() {
-                        if let Ok(meta) = path.metadata() {
-                            total_freed += meta.len();
-                        }
-                        let _ = std::fs::remove_file(path);
-                    }
-                }
-            }
-        }
-
-        let instances_dir = base_dir.join("instances");
-        if instances_dir.is_dir() {
-            if let Ok(inst_entries) = std::fs::read_dir(&instances_dir) {
-                for inst_entry in inst_entries.flatten() {
-                    let inst_logs = inst_entry.path().join(".minecraft").join("logs");
-                    if inst_logs.is_dir() {
-                        if let Ok(files) = std::fs::read_dir(&inst_logs) {
-                            for f in files.flatten() {
-                                let path = f.path();
-                                if path.is_file() {
-                                    if let Ok(meta) = path.metadata() {
-                                        total_freed += meta.len();
-                                    }
-                                    let _ = std::fs::remove_file(path);
-                                }
-                            }
-                        }
-                    }
-                    let inst_crash_reports = inst_entry.path().join(".minecraft").join("crash-reports");
-                    if inst_crash_reports.is_dir() {
-                        if let Ok(files) = std::fs::read_dir(&inst_crash_reports) {
-                            for f in files.flatten() {
-                                let path = f.path();
-                                if path.is_file() {
-                                    if let Ok(meta) = path.metadata() {
-                                        total_freed += meta.len();
-                                    }
-                                    let _ = std::fs::remove_file(path);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        total_freed
-    })
-    .await
-    .map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
-
-    Ok(freed)
+    let base = storage_dirs()?.data_dir().to_path_buf();
+    let db = crate::db::shared_db().await?;
+    let profiles = crate::db::schema::profiles::list(&db).await?;
+    let mut roots = vec![base.join("logs")];
+    for profile in profiles {
+        let configured = PathBuf::from(&profile.game_dir);
+        let game_dir = if !profile.game_dir.is_empty() && configured.is_dir() { configured } else { base.join("instances").join(&profile.id).join(".minecraft") };
+        roots.extend([game_dir.join("logs"), game_dir.join("crash-reports")]);
+    }
+    tokio::task::spawn_blocking(move || clear_log_files(roots)).await.map_err(|error| AppError::Internal(error.to_string()))
 }
 
 #[tauri::command]
 pub async fn storage_clear_cache() -> AppResult<u64> {
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
-        .map(|d| d.data_dir().to_path_buf())
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp/luxmc"));
+    let base_dir = storage_dirs()?.data_dir().to_path_buf();
+
+    let _migration_guard = crate::core::instance_paths::migration_guard().await;
 
     let freed = tokio::task::spawn_blocking(move || {
         let mut total_freed = 0u64;
@@ -264,8 +157,8 @@ pub async fn storage_clear_cache() -> AppResult<u64> {
         for sub in &["cache", "downloads", "migration-staging"] {
             let path = base_dir.join(sub);
             if path.is_dir() {
-                total_freed += dir_size_recursive(&path);
-                let _ = std::fs::remove_dir_all(&path);
+                let bytes = dir_size_recursive(&path);
+                if std::fs::remove_dir_all(&path).is_ok() { total_freed += bytes; }
                 let _ = std::fs::create_dir_all(&path);
             }
         }
@@ -281,4 +174,35 @@ pub async fn storage_clear_cache() -> AppResult<u64> {
 #[tauri::command]
 pub async fn storage_delete_instance(id: String) -> AppResult<()> {
     crate::commands::profiles::profiles_delete(id).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn file(root: &Path, path: &str, bytes: usize) {
+        let path = root.join(path); std::fs::create_dir_all(path.parent().unwrap()).unwrap(); std::fs::write(path, vec![0; bytes]).unwrap();
+    }
+    fn profile(id: &str, path: &Path) -> crate::db::models::ProfileRow {
+        serde_json::from_value(serde_json::json!({ "id": id, "name": id, "icon": "grass", "mcVersion": "1.21.1", "loader": "vanilla", "fullscreen": false, "gameDir": path.to_string_lossy(), "createdAt": "2026-10-03T00:00:00Z", "updatedAt": "2026-10-03T00:00:00Z" })).unwrap()
+    }
+    #[test]
+    fn reports_java_database_executable_caches_and_external_profiles_without_double_counting() {
+        let root = std::env::temp_dir().join(format!("luxmc-storage-{}", uuid::Uuid::new_v4()));
+        let base = root.join("data"); let cache = root.join("cache"); let external = root.join("external");
+        for (path, bytes) in [("assets/file", 8), ("java/runtime", 17), ("luxmc.db", 31), ("instances/inside/.minecraft/worlds/world", 42), ("instances/inside/.minecraft/logs/log", 4), ("cache/file", 5), ("downloads/file", 7), ("migration-staging/file", 9), ("logs/log", 3)] { file(&base, path, bytes); }
+        file(&external, "worlds/world", 49); file(&external, "logs/log", 6); file(&cache, "file", 23); file(&root, "Luxmc.exe", 47);
+        let inside = base.join("instances/inside/.minecraft");
+        let report = collect_report(&base, &base, &cache, Some(&root.join("Luxmc.exe")), vec![profile("inside", &inside), profile("external", &external), profile("legacy-duplicate", &external)]);
+        assert_eq!(report.total_bytes, 251);
+        assert_eq!(report.categories.iter().find(|category| category.category == "java").unwrap().bytes, 17);
+        assert_eq!(report.categories.iter().find(|category| category.category == "application").unwrap().bytes, 47);
+        assert_eq!(report.instances.iter().find(|item| item.id == "inside").unwrap().bytes, 46);
+        assert_eq!(report.instances.iter().find(|item| item.id == "external").unwrap().bytes, 55);
+        assert_eq!(report.cache_bytes, 21); assert_eq!(report.logs_bytes, 13); assert!(report.warnings.is_empty());
+        assert_eq!(clear_log_files(vec![base.join("logs"), inside.join("logs"), external.join("logs"), external.join("logs")]), 13);
+        assert!(external.join("worlds/world").is_file());
+        assert_eq!(clear_log_files(vec![external.join("logs")]), 0);
+        assert!(root.canonicalize().unwrap().starts_with(std::env::temp_dir().canonicalize().unwrap()));
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }

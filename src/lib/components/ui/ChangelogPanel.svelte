@@ -31,7 +31,7 @@
 		<p class="text-xs" style="color: rgb(var(--fg-subtle));">{t("changelog.loading")}</p>
 	{:else}
 		<ol class="flex flex-col gap-3">
-			{#each entries as e (e.version)}
+			{#each entries as e (`${e.version}:${e.date}`)}
 				<li
 					class="rounded-lg p-3"
 					style="border: 1px solid rgb(var(--border)); background: rgb(var(--bg-subtle));"

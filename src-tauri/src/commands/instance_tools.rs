@@ -320,7 +320,7 @@ pub async fn instance_export_share_code(
         loader: row.loader,
         loader_version: row.loader_version,
         ram_mb: row.ram_mb,
-        jvm_args: row.jvm_args,
+        jvm_args: None,
         mods,
         mod_sources: crate::db::schema::mods::list_by_profile(&db, &profileId).await?
             .into_iter()
@@ -345,7 +345,7 @@ pub async fn instance_export_share_code(
     let b64_code = format!("luxpack://{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&compressed));
 
     let now = chrono::Utc::now().to_rfc3339();
-    let _ = sqlx::query(
+    sqlx::query(
         "INSERT INTO share_codes (code, data, created_at) VALUES (?, ?, ?)
          ON CONFLICT(code) DO UPDATE SET data = excluded.data, created_at = excluded.created_at",
     )
@@ -353,9 +353,10 @@ pub async fn instance_export_share_code(
     .bind(&manifest_json)
     .bind(&now)
     .execute(db.pool())
-    .await;
+    .await
+    .map_err(|e| AppError::Internal(format!("Falha ao registrar o código de compartilhamento: {e}")))?;
 
-    let _ = sqlx::query(
+    sqlx::query(
         "INSERT INTO share_codes (code, data, created_at) VALUES (?, ?, ?)
          ON CONFLICT(code) DO UPDATE SET data = excluded.data, created_at = excluded.created_at",
     )
@@ -363,19 +364,25 @@ pub async fn instance_export_share_code(
     .bind(&manifest_json)
     .bind(&now)
     .execute(db.pool())
-    .await;
+    .await
+    .map_err(|e| AppError::Internal(format!("Falha ao registrar o código de compartilhamento: {e}")))?;
 
     if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
         let codes_dir = base_dir.data_dir().join("share_codes");
         let manifest_json = manifest_json.clone();
-        let _ = tokio::task::spawn_blocking(move || -> std::io::Result<()> {
+        match tokio::task::spawn_blocking(move || -> std::io::Result<()> {
             std::fs::create_dir_all(&codes_dir)?;
             std::fs::write(codes_dir.join(format!("{}.json", short_code)), &manifest_json)
         })
-        .await;
+        .await
+        {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => tracing::warn!(target: "share", "Falha ao gravar o código localmente: {error}"),
+            Err(error) => tracing::warn!(target: "share", "Falha ao gravar o código localmente: {error}"),
+        }
     }
 
-    Ok(b64_code)
+    crate::core::share_codes::publish("instance", &manifest_json).await
 }
 
 #[tauri::command]
@@ -390,6 +397,8 @@ pub async fn instance_import_share_code_core(
     state: &AppState,
     shareCode: String,
 ) -> AppResult<crate::db::models::ProfileRow> {
+    let cleaned = shareCode.trim().to_uppercase();
+    let resolved = if crate::core::share_codes::is_short_code(&cleaned) { Some(crate::core::share_codes::resolve(&cleaned, "instance").await?) } else { None };
     let raw_trimmed = shareCode.trim();
     if raw_trimmed.is_empty() {
         return Err(AppError::InvalidInput("Código de compartilhamento não pode ser vazio.".into()));
@@ -397,7 +406,7 @@ pub async fn instance_import_share_code_core(
 
     let db = db::shared_db().await?;
 
-    let json_data: String = if let Some(encoded) = raw_trimmed.strip_prefix("luxpack://").or_else(|| raw_trimmed.strip_prefix("LUX-B64:")).or_else(|| raw_trimmed.strip_prefix("lux-b64:")) {
+    let json_data: String = if let Some(resolved) = resolved { resolved } else if let Some(encoded) = raw_trimmed.strip_prefix("luxpack://").or_else(|| raw_trimmed.strip_prefix("LUX-B64:")).or_else(|| raw_trimmed.strip_prefix("lux-b64:")) {
         use base64::Engine;
         use flate2::read::GzDecoder;
         use std::io::Read;
@@ -408,9 +417,13 @@ pub async fn instance_import_share_code_core(
             .or_else(|_| base64::engine::general_purpose::STANDARD.decode(encoded))
             .map_err(|_| AppError::InvalidInput("Código de compartilhamento Base64 inválido.".into()))?;
 
-        let mut decoder = GzDecoder::new(&bytes[..]);
+        const MAX_DECOMPRESSED: u64 = 16 * 1024 * 1024;
+        let mut decoder = GzDecoder::new(&bytes[..]).take(MAX_DECOMPRESSED + 1);
         let mut decompressed = String::new();
-        if decoder.read_to_string(&mut decompressed).is_ok() && !decompressed.is_empty() {
+        if decoder.read_to_string(&mut decompressed).is_ok() && decompressed.len() as u64 > MAX_DECOMPRESSED {
+            return Err(AppError::InvalidInput("Código de compartilhamento descomprimido excede o limite.".into()));
+        }
+        if !decompressed.is_empty() {
             decompressed
         } else if let Ok(s) = String::from_utf8(bytes) {
             s
@@ -419,6 +432,7 @@ pub async fn instance_import_share_code_core(
         }
     } else {
         let clean_code = raw_trimmed.to_uppercase();
+        if !clean_code.strip_prefix("LUX-").is_some_and(|value| value.len() == 6 && value.bytes().all(|b| b.is_ascii_hexdigit())) { return Err(AppError::InvalidInput("Código de instância inválido".into())); }
         if let Some(row) = sqlx::query_as::<_, (String,)>("SELECT data FROM share_codes WHERE code = ?")
             .bind(&clean_code)
             .fetch_optional(db.pool())
@@ -468,6 +482,8 @@ pub async fn instance_import_share_code_core(
         gamescope_height: Some(None),
         gamescope_fsr: Some(false),
         force_full_verification: Some(false),
+        pre_launch_hook: None,
+        post_exit_hook: None,
     };
 
     let new_profile = crate::commands::profiles::profiles_create(input).await?;
@@ -482,6 +498,7 @@ pub async fn instance_import_share_code_core(
             version_id: mod_source.version_id,
             source: mod_source.source,
             content_type: Some("mod".into()),
+            world_name: None,
         }).await?;
     }
 

@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
@@ -120,15 +122,15 @@
 			ctx.fillStyle = color("fg", 0.5);
 			ctx.font = "600 13px system-ui, sans-serif";
 			const isOnlineAcc = account.value?.minecraftToken && !account.value?.id.startsWith("offline_");
-			ctx.fillText(isOnlineAcc ? "🛡️ Conta Microsoft Oficial" : "⚡ Jogador Luxmc", 210, 145);
+			ctx.fillText(isOnlineAcc ? uiText("ui.eca633249b985c66") : "⚡ Jogador Luxmc", 210, 145);
 
 			ctx.fillStyle = color("fg", 0.1);
 			ctx.fillRect(210, 165, 540, 4);
 			ctx.fillStyle = color("brand-400");
 			ctx.fillRect(210, 165, 340, 4);
 
-			drawStatBox(ctx, 40, 250, 220, 120, "TEMPO TOTAL", totalTime, "Horas de diversão no launcher", color("brand-400"));
-			drawStatBox(ctx, 290, 250, 220, 120, "INSTÂNCIA ATIVA", activeProfileName, "Perfil mais jogado", color("brand-300"));
+			drawStatBox(ctx, 40, 250, 220, 120, uiText("ui.7bae9616f3a82389"), totalTime, uiText("ui.b5842e496b99eaf6"), color("brand-400"));
+			drawStatBox(ctx, 290, 250, 220, 120, uiText("ui.92adde8a277eb570"), activeProfileName, uiText("ui.5e549533fc47bd5d"), color("brand-300"));
 			drawStatBox(ctx, 540, 250, 220, 120, "CONQUISTAS", `${unlockedCount} / ${totalAchievements}`, "Desafios desbloqueados", color("success"));
 
 			ctx.fillStyle = color("fg", 0.3);
@@ -167,15 +169,15 @@
         if (!canvasElem) return;
         try {
             const blob = await new Promise<Blob>((resolve, reject) => {
-                canvasElem!.toBlob(value => value ? resolve(value) : reject(new Error("PNG indisponível")), "image/png");
+                canvasElem!.toBlob(value => value ? resolve(value) : reject(new Error(uiText("ui.9c6aa26cc4db2931"))), "image/png");
             });
             await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
             copied = true;
             playSound("click");
-            toast("Card de Gamer copiado para a área de transferência!", "success");
+            toast(uiText("ui.3c6f6a5224cdab05"), "success");
             setTimeout(() => copied = false, 2500);
         } catch {
-            toast("Não foi possível copiar diretamente. Clique em Baixar Imagem.", "warning");
+            toast(uiText("ui.6f18281b59f3d6ce"), "warning");
         }
     }
 
@@ -186,7 +188,7 @@
 		a.download = `luxmc_card_${username.toLowerCase()}.png`;
 		a.click();
 		playSound("click");
-		toast("Card salvo no seu computador com sucesso!", "success");
+		toast(uiText("ui.89b744ea9ffeecaf"), "success");
 	}
 </script>
 
@@ -201,16 +203,16 @@
 						<Sparkles class="w-5 h-5" />
 					</div>
 					<div>
-						<h2 class="text-base font-black text-fg tracking-tight">Card de Gamer Compartilhável</h2>
-						<p class="text-xs text-fg/50">Mostre suas conquistas, horas jogadas e sua skin para amigos no Discord e redes sociais</p>
+						<h2 class="text-base font-black text-fg tracking-tight">{uiText("ui.6f8d215ede0cf5b5")}</h2>
+						<p class="text-xs text-fg/50">{uiText("ui.ef2fb2b53a3c44c2")}</p>
 					</div>
 				</div>
 
 				<button
 					type="button"
-					class="p-2 rounded-xl text-fg/50 hover:text-fg hover:bg-fg/10 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={onClose}
-					aria-label="Fechar card de jogador"
+					aria-label={uiText("ui.236becab291a25ea")}
 				>
 					<X class="w-5 h-5" />
 				</button>
@@ -221,31 +223,31 @@
 				</div>
 			</div>
 			<div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-fg/10 relative z-10">
-				<span class="text-xs text-fg/40 font-mono">Resolução Nativa: 800 x 450 px (PNG HD)</span>
+				<span class="text-xs text-fg/40 font-mono">{uiText("ui.e88fee0792748319")}</span>
 
 				<div class="flex items-center gap-3 w-full sm:w-auto justify-end">
 					<button
 						type="button"
-						class="px-5 py-2.5 rounded-2xl bg-bg-subtle hover:bg-bg-subtle text-fg/80 hover:text-fg font-bold text-xs border border-fg/10 flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] shadow-sm"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 						onclick={handleDownloadCard}
 						disabled={isGenerating}
 					>
 						<Download class="w-4 h-4 text-brand-400" />
-						<span>Baixar PNG</span>
+						<span>{uiText("ui.285d56738d52c27d")}</span>
 					</button>
 
 					<button
 						type="button"
-						class="px-7 py-2.5 rounded-2xl bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 hover:from-brand-400 hover:to-brand-400 text-brand-foreground font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer active:scale-[0.98] shadow-lg shadow-glow"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "from-brand-400 via-brand-400 to-brand-400 hover:from-brand-400 hover:to-brand-400 uppercase tracking-wider flex items-center gap-2" })}
 						onclick={handleCopyCard}
 						disabled={isGenerating}
 					>
 						{#if copied}
 							<Check class="w-4 h-4 stroke-[3]" />
-							<span>Copiado!</span>
+							<span>{uiText("ui.a8fe0fc805d5fd50")}</span>
 						{:else}
 							<Copy class="w-4 h-4" />
-							<span>Copiar Imagem</span>
+							<span>{uiText("ui.639f190727af2da0")}</span>
 						{/if}
 					</button>
 				</div>

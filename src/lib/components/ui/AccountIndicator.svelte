@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
 	import { LogOut, LogIn, User, Settings, CircleCheck, Users, Plus, Check } from "lucide-svelte";
 	import Button from "./Button.svelte";
@@ -65,7 +67,7 @@
 	function handleLogout() {
 		account.clear();
 		showMenu = false;
-		toast("Conta desconectada.", "info");
+		toast(uiText("ui.9d8b8ef2c83318b4"), "info");
 	}
 
 	function toggleMenu() {
@@ -109,7 +111,7 @@
 		account.value = newAcc;
 		void saveCurrentAccount(newAcc);
 		showMenu = false;
-		toast(`Alternado para a conta ${acc.username}!`, "success");
+		toast(uiText("ui.469397bc9e6ea5aa", {arg0: (acc.username)}), "success");
 	}
 </script>
 
@@ -118,7 +120,7 @@
 		{@const status = statusConfig}
 		<button
 			onclick={toggleMenu}
-			class="flex items-center gap-2 h-9 px-2.5 rounded-full bg-bg-elevated border border-fg/10 hover:border-brand-500/50 hover:bg-bg-subtle transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer shadow-sm"
+			class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 			title={account.value.username}
 		>
 			<span class="relative inline-flex">
@@ -152,7 +154,7 @@
 							</span>
 						{:else}
 							<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-fg/5 text-fg/60">
-								Offline
+								{uiText("servers.offline")}
 							</span>
 						{/if}
 					</div>
@@ -176,12 +178,12 @@
 				<!-- Saved accounts list -->
 				{#if savedAccounts.length > 1}
 					<div class="p-2 border-b border-fg/5 max-h-36 overflow-y-auto custom-scrollbar">
-						<div class="text-[9px] font-extrabold text-fg/40 uppercase px-2 py-1">Trocar Conta</div>
+						<div class="text-[9px] font-extrabold text-fg/40 uppercase px-2 py-1">{uiText("settings.switchAccount")}</div>
 						{#each savedAccounts as acc}
 							{@const isActive = acc.username.toLowerCase() === account.value.username.toLowerCase()}
 							<button 
 								type="button"
-								class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {isActive ? 'bg-brand-500/10 text-brand-500 font-bold border border-brand-500/20' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
+								class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {isActive ? 'bg-brand-500/10 text-brand-500 font-bold border border-brand-500/20' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
 								onclick={() => handleSwitchAccount(acc)}
 							>
 								<div class="flex items-center gap-2 min-w-0">
@@ -204,14 +206,14 @@
 				<div class="p-2 space-y-1">
 					<button
 						type="button"
-						class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-fg/70 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer text-left"
+						class={launcherButton({ variant: "secondary", size: "sm", class: "w-full flex items-center gap-2 text-left" })}
 						onclick={() => {
 							showMenu = false;
 							showLoginModal = true;
 						}}
 					>
 						<Plus size={14} class="text-brand-500" />
-						Adicionar Outra Conta
+						{uiText("ui.d0a53bcd69b4b631")}
 					</button>
 					<a
 						href="/settings"
@@ -223,7 +225,7 @@
 					</a>
 					<button
 						onclick={handleLogout}
-						class="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+						class={launcherButton({ variant: "danger", size: "sm", class: "w-full flex items-center gap-2" })}
 					>
 						<LogOut size={14} />
 						{t("accountIndicator.logout")}
@@ -235,10 +237,10 @@
 		<button 
 			type="button"
 			onclick={() => showLoginModal = true}
-			class="flex items-center gap-1.5 h-9 px-3 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-black transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] shadow-sm active:scale-[0.98] cursor-pointer"
+			class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-1.5" })}
 		>
 			<LogIn size={14} />
-			<span>Entrar</span>
+			<span>{uiText("home.loginTab")}</span>
 		</button>
 	{/if}
 

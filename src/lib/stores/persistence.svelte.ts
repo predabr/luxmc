@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { browser } from "$app/environment";
 import { LazyStore } from "@tauri-apps/plugin-store";
 import { settings, registerSettingsListener, type AppSettings, type ThemeName } from "./settings.svelte";
@@ -5,6 +6,8 @@ import { profiles } from "./profiles.svelte";
 import { appState } from "./app.svelte";
 import { setupI18n, notifyLocaleChange, type Locale } from "$lib/i18n";
 import { setActiveLocale } from "$lib/i18n/useTranslation.svelte";
+import { detectBrowserLocale, isSupportedLocale, resolveLocale } from "$lib/i18n/locale";
+import { appSystemLocale } from "$lib/api/system";
 
 import { themeStore } from "./theme.svelte";
 
@@ -23,6 +26,8 @@ export async function bootstrapSettings() {
 	const s = getStore();
 	const stored = (await s.get<Partial<AppSettings>>(STORE_KEY)) ?? {};
 	const merged: AppSettings = { ...settings.value, ...stored };
+	merged.languageMode = stored.languageMode || (isSupportedLocale(stored.language) ? "manual" : "system");
+	merged.language = merged.languageMode === "system" ? await detectSystemLocale() : resolveLocale(stored.language);
 	settings.value = merged;
 	appState.performanceMode = merged.performanceMode === true;
 	setupI18n(merged.language);
@@ -43,18 +48,29 @@ export async function bootstrapSettings() {
 registerSettingsListener(() => schedulePersist());
 
 let lastSaved = "";
-export async function persistNow() {
+let saveChain: Promise<void> = Promise.resolve();
+
+export async function persistNow(): Promise<void> {
 	if (!browser) return;
-	const s = getStore();
-	const toSave = {
-		...settings.value,
-		activeProfileId: profiles.activeId || settings.value.activeProfileId
+	const run = async () => {
+		try {
+			const s = getStore();
+			const toSave = {
+				...settings.value,
+				activeProfileId: profiles.activeId || settings.value.activeProfileId
+			};
+			const currentStr = JSON.stringify(toSave);
+			if (currentStr === lastSaved) return;
+			await s.set(STORE_KEY, toSave);
+			await s.save();
+			lastSaved = currentStr;
+		} catch (error) {
+			console.error(uiText("ui.5534995aef529ef0"), error);
+		}
 	};
-	const currentStr = JSON.stringify(toSave);
-	if (currentStr === lastSaved) return;
-	lastSaved = currentStr;
-	await s.set(STORE_KEY, toSave);
-	await s.save();
+	const next = saveChain.then(run, run);
+	saveChain = next;
+	await next;
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -62,6 +78,7 @@ export function schedulePersist() {
 	if (!browser) return;
 	if (persistTimer) clearTimeout(persistTimer);
 	persistTimer = setTimeout(() => {
+		persistTimer = null;
 		void persistNow();
 	}, 500);
 }
@@ -71,8 +88,19 @@ export async function setTheme(theme: ThemeName) {
 	await persistNow();
 }
 
-export async function setLocale(locale: Locale) {
-	settings.patch({ language: locale });
+export async function detectSystemLocale(): Promise<Locale> {
+	try {
+		const language = await appSystemLocale();
+		return language ? resolveLocale(language) : detectBrowserLocale();
+	} catch { return detectBrowserLocale(); }
+}
+
+export async function useSystemLocale() {
+	await setLocale(await detectSystemLocale(), "system");
+}
+
+export async function setLocale(locale: Locale, languageMode: "manual" | "system" = "manual") {
+	settings.patch({ language: locale, languageMode });
 	setupI18n(locale);
 	setActiveLocale(locale);
 	if (browser) {

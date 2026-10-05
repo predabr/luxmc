@@ -52,7 +52,7 @@ fn fingerprint(profile: &ProfileRow) -> String {
     hasher.update(profile.mc_version.as_bytes());
     hasher.update(profile.loader.as_bytes());
     hasher.update(profile.loader_version.as_deref().unwrap_or_default().as_bytes());
-    for name in ["mods", "config", "defaultconfigs", "kubejs", "options.txt"] {
+    for name in ["mods", "kubejs", "modrinth.index.json", "manifest.json"] {
         let path = game_dir.join(name);
         if path.is_dir() {
             fingerprint_tree(game_dir, &path, &mut hasher);
@@ -92,4 +92,27 @@ pub fn store(profile: &ProfileRow) -> AppResult<()> {
     std::fs::write(&temporary, serde_json::to_vec(&state)?)?;
     std::fs::rename(temporary, path)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn game_preferences_do_not_invalidate_verified_mod_files() {
+        let root = std::env::temp_dir().join(format!("luxmc-launch-state-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("mods")).unwrap();
+        let profile: ProfileRow = serde_json::from_value(serde_json::json!({"id":"fixture","name":"Fixture","icon":"grass","mcVersion":"26.3","loader":"fabric","fullscreen":false,"gameDir":root.to_string_lossy(),"createdAt":"2026-10-03T00:00:00Z","updatedAt":"2026-10-03T00:00:00Z"})).unwrap();
+        std::fs::write(root.join("mods/library.jar"), b"mod").unwrap();
+        let original = fingerprint(&profile);
+        std::fs::write(root.join("options.txt"), b"fullscreen:true").unwrap();
+        std::fs::create_dir(root.join("config")).unwrap();
+        std::fs::write(root.join("config/mod.json"), b"{}").unwrap();
+        assert_eq!(original, fingerprint(&profile));
+        std::fs::write(root.join("mods/library.jar"), b"changed mod").unwrap();
+        assert_ne!(original, fingerprint(&profile));
+        for path in ["mods/library.jar", "options.txt", "config/mod.json"] { std::fs::remove_file(root.join(path)).unwrap(); }
+        std::fs::remove_dir(root.join("mods")).unwrap();
+        std::fs::remove_dir(root.join("config")).unwrap();
+        std::fs::remove_dir(root).unwrap();
+    }
 }

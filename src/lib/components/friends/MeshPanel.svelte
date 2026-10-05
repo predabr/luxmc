@@ -1,5 +1,8 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
     import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
     import { Copy, Link2, LogOut, Network, Play, QrCode, RadioTower, RefreshCw } from "lucide-svelte";
     import { hostWorld, joinTunnel, stopSession, tunnelStatus, type TunnelStatus } from "$lib/api/tunnel";
     import { p2pScanLanWorlds, p2pGetLocalInfo } from "$lib/api/p2p";
@@ -75,8 +78,9 @@
             await scanWorlds();
             if (!port) return;
         }
-        if (!Number.isInteger(port) || !port || port < 1 || port > 65535) throw new Error("Porta LAN inválida");
+        if (!Number.isInteger(port) || !port || port < 1 || port > 65535) throw new Error(uiText("ui.04fe5c82270d3b7c"));
         status = await hostWorld(port);
+        await goto("/hosting");
     }
 
     function invitationValue(value: string): string {
@@ -88,8 +92,9 @@
 
     async function join() {
         if (!status) status = await joinTunnel(invitationValue(invitation));
-        if (!status.localAddress) throw new Error("Encerre a hospedagem antes de entrar em outro mundo.");
-        toast("Rede P2P conectada. Abra o Minecraft em Multijogador para encontrar o mundo LAN.", "success");
+        if (!status.localAddress) throw new Error(uiText("ui.be429bcb3db8683b"));
+        await goto("/hosting");
+        toast(uiText("ui.db7636da2b6357d8"), "success");
     }
 
     async function copyInvite() {
@@ -106,54 +111,55 @@
     }
 </script>
 
-<div class="grid items-start gap-5 xl:grid-cols-[1.15fr_0.85fr]" aria-label="Salas diretas P2P">
+<div class="grid items-start gap-5 xl:grid-cols-[1.15fr_0.85fr]" aria-label={uiText("ui.093b9cfdd3e22b82")}>
     <section class="surface-glass relative overflow-hidden border-success/20 p-6 hover:border-success/35">
         <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-success/10 via-transparent to-brand-500/5"></div>
         <div class="relative flex flex-col gap-5">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-success/25 bg-success/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-success"><RadioTower class="h-3.5 w-3.5" /> Sala direta P2P</div>
-                    <h2 class="text-xl font-black text-fg">Seu mundo, um convite</h2>
-                    <p class="mt-2 max-w-xl text-sm leading-relaxed text-fg/70">Abra o mundo para LAN. O Luxmc cria um túnel privado e um link que funciona mesmo sem o serviço social.</p>
+                    <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-success/25 bg-success/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-success"><RadioTower class="h-3.5 w-3.5" /> {uiText("ui.4457e711663bca74")}</div>
+                    <h2 class="text-xl font-black text-fg">{uiText("ui.adcb51a850322231")}</h2>
+                    <p class="mt-2 max-w-xl text-sm leading-relaxed text-fg/70">{uiText("ui.693613f1a1d9124e")}</p>
                 </div>
                 <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-success/25 bg-success/10 text-success shadow-glow"><Network class="h-6 w-6" /></div>
             </div>
-            <ol class="grid gap-2 text-xs text-fg-muted sm:grid-cols-3" aria-label="Passos para hospedar">
-                <li class="rounded-xl border border-fg/10 bg-bg/45 p-3"><strong class="mb-1 block text-fg">1 · Abra o Minecraft</strong>Entre no seu mundo e clique em Abrir para LAN.</li>
-                <li class="rounded-xl border border-fg/10 bg-bg/45 p-3"><strong class="mb-1 block text-fg">2 · Crie a sala</strong>O Luxmc encontra a porta LAN ou você informa a porta exibida no jogo.</li>
-                <li class="rounded-xl border border-fg/10 bg-bg/45 p-3"><strong class="mb-1 block text-fg">3 · Envie o link</strong>Seu amigo cola o convite no Luxmc e entra pelo Multijogador.</li>
+            <ol class="grid gap-2 text-xs text-fg-muted sm:grid-cols-3" aria-label={uiText("ui.a0996d4eca5aa651")}>
+                <li class="rounded-xl border border-fg/10 bg-bg/45 p-3"><strong class="mb-1 block text-fg">{uiText("ui.36674be5215f5f24")}</strong>{uiText("ui.452bb4b1e70adb7a")}</li>
+                <li class="rounded-xl border border-fg/10 bg-bg/45 p-3"><strong class="mb-1 block text-fg">{uiText("ui.2e2d6fc6d51333cf")}</strong>{uiText("ui.ddc3f5afc4101f2d")}</li>
+                <li class="rounded-xl border border-fg/10 bg-bg/45 p-3"><strong class="mb-1 block text-fg">{uiText("ui.1bb8197e9a465bb3")}</strong>{uiText("ui.4d312dab820e7496")}</li>
             </ol>
             {#if actionError}<p class="rounded-xl border border-danger/30 bg-danger/10 p-3 text-xs text-danger" role="alert">{actionError}</p>{/if}
 
             {#if status?.mode === "host"}
+                <button type="button" class={launcherButton({ variant: "primary", size: "lg" })} onclick={() => goto("/hosting")}>{uiText("ui.531c8fca7703588a")}</button>
                 <div class="rounded-2xl border border-success/25 bg-bg/60 p-5 text-center">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.24em] text-fg-subtle">Código rápido da sala</p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.24em] text-fg-subtle">{uiText("ui.c4ad21c272ed73fd")}</p>
                     <p class="mt-2 font-mono text-4xl font-black tracking-wider text-success">{status.roomCode}</p>
-                    <p class="mt-2 text-xs text-fg-muted">Válido por uma hora · {status.transport}</p>
+                    <p class="mt-2 text-xs text-fg-muted">{uiText("ui.98ffdf0881e44b01")} {status.transport}</p>
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
-                    <button type="button" class="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-black text-brand-foreground shadow-button hover:bg-brand-400" disabled={busy} onclick={() => perform(copyInvite)}><Link2 class="h-4 w-4" /> Copiar link de convite</button>
-                    <button type="button" class="luxmc-control inline-flex items-center justify-center gap-2 py-3" disabled={busy} onclick={() => showQrCode = !showQrCode}><QrCode class="h-4 w-4" /> {showQrCode ? "Ocultar QR Code" : "Gerar QR Code"}</button>
+                    <button type="button" class={launcherButton({ variant: "primary", size: "lg", class: "inline-flex items-center justify-center gap-2" })} disabled={busy} onclick={() => perform(copyInvite)}><Link2 class="h-4 w-4" /> {uiText("ui.82276f48efc21b37")}</button>
+                    <button type="button" class={launcherButton({ variant: "ghost", size: "lg", class: "luxmc-control inline-flex items-center justify-center gap-2" })} disabled={busy} onclick={() => showQrCode = !showQrCode}><QrCode class="h-4 w-4" /> {showQrCode ? uiText("ui.25e9a918675270e2") : "Gerar QR Code"}</button>
                 </div>
                 {#if showQrCode && roomQrCode}
                     <div class="flex flex-col items-center gap-4 rounded-2xl border border-fg/10 bg-bg/55 p-4 sm:flex-row">
-                        <img loading="lazy" decoding="async" class="h-28 w-28 rounded-xl bg-fg p-1" src={roomQrCode} alt="QR Code do convite da sala" />
-                        <div><p class="text-sm font-bold text-fg">Convite pronto para escanear</p><p class="mt-1 text-xs leading-relaxed text-fg-muted">O QR abre o Luxmc no outro dispositivo com os dados completos e privados da sala.</p></div>
+                        <img loading="lazy" decoding="async" class="h-28 w-28 rounded-xl bg-fg p-1" src={roomQrCode} alt={uiText("ui.97e01819f6f87736")} />
+                        <div><p class="text-sm font-bold text-fg">{uiText("ui.f6a28d1298d2f279")}</p><p class="mt-1 text-xs leading-relaxed text-fg-muted">{uiText("ui.d3f28df7257a9ea2")}</p></div>
                     </div>
                 {/if}
-                <button type="button" class="inline-flex items-center justify-center gap-2 text-xs font-bold text-danger hover:text-danger/80" disabled={busy} onclick={() => perform(closeSession)}><LogOut class="h-4 w-4" />Encerrar sala</button>
+                <button type="button" class={launcherButton({ variant: "danger", size: "sm", class: "inline-flex items-center justify-center gap-2" })} disabled={busy} onclick={() => perform(closeSession)}><LogOut class="h-4 w-4" />{uiText("ui.71b96dcef1a240f4")}</button>
             {:else}
                 {#if choosePort}
                     <div class="space-y-3 rounded-2xl border border-fg/10 bg-bg/50 p-4">
-                        <div class="flex items-center justify-between gap-2"><p class="text-xs font-bold text-fg">Mundo aberto para LAN</p><button type="button" class="inline-flex items-center gap-1 text-xs text-brand-300 hover:text-brand-400" disabled={busy} onclick={() => perform(scanWorlds)}><RefreshCw class="h-3.5 w-3.5" /> Buscar novamente</button></div>
+                        <div class="flex items-center justify-between gap-2"><p class="text-xs font-bold text-fg">{uiText("ui.d3d747ec77476176")}</p><button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "inline-flex items-center gap-1" })} disabled={busy} onclick={() => perform(scanWorlds)}><RefreshCw class="h-3.5 w-3.5" /> {uiText("ui.7ae3384a6fd3b6da")}</button></div>
                         {#each localWorlds as world}
-                            <button type="button" class="w-full rounded-xl border px-3 py-2 text-left text-xs {port === world.port ? 'border-success/50 bg-success/10 text-success' : 'border-fg/10 bg-bg-subtle text-fg-muted'}" onclick={() => port = world.port}>{world.motd} · porta {world.port}</button>
+                            <button type="button" class="w-full rounded-xl border px-3 py-2 text-left text-xs {port === world.port ? 'border-success/50 bg-success/10 text-success' : 'border-fg/10 bg-bg-subtle text-fg-muted'}" onclick={() => port = world.port}>{world.motd} {uiText("ui.2c16071093a06464")} {world.port}</button>
                         {/each}
-                        {#if !localWorlds.length}<p class="text-xs text-fg-muted">Nenhum mundo LAN detectado. Informe abaixo a porta mostrada no chat do Minecraft.</p>{/if}
-                        <label class="block text-xs font-bold text-fg-muted">Porta LAN<input class="mt-2 w-full rounded-xl border border-border bg-bg/60 px-4 py-3 text-fg outline-none focus:border-success/50" type="number" min="1" max="65535" bind:value={port} placeholder="Ex.: 54321" /></label>
+                        {#if !localWorlds.length}<p class="text-xs text-fg-muted">{uiText("ui.cc982413f0ee060a")}</p>{/if}
+                        <label class="block text-xs font-bold text-fg-muted">{uiText("ui.7d350c927b1d90cb")}<input class="mt-2 w-full rounded-xl border border-border bg-bg/60 px-4 py-3 text-fg outline-none focus:border-success/50" type="number" min="1" max="65535" bind:value={port} placeholder={uiText("ui.ccac667e7a9b5e3a")} /></label>
                     </div>
                 {/if}
-                <button type="button" class="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3.5 text-sm font-black text-brand-foreground shadow-button hover:bg-brand-400 disabled:opacity-50" disabled={busy || !!status} onclick={() => perform(host)}><RadioTower class="h-4 w-4" /> {busy ? "Preparando sala…" : "Hospedar meu mundo"}</button>
+                <button type="button" class={launcherButton({ variant: "primary", size: "lg", class: "mt-2 inline-flex items-center justify-center gap-2 disabled:opacity-50" })} disabled={busy || !!status} onclick={() => perform(host)}><RadioTower class="h-4 w-4" /> {busy ? uiText("ui.8072a1679aaf96f2") : uiText("ui.a57d1b367f1a3034")}</button>
             {/if}
         </div>
     </section>
@@ -162,21 +168,21 @@
         <div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-500/10 via-transparent to-info/5"></div>
         <div class="relative flex flex-col gap-5">
             <div>
-                <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-500/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-brand-300"><Play class="h-3.5 w-3.5" /> Entrar em uma sala</div>
-                <h2 class="text-xl font-black text-fg">Cole o convite do amigo</h2>
-                <p class="mt-2 text-sm leading-relaxed text-fg/70">Aceita o link luxmc:// ou o convite completo iniciado por LUX-XXXX.</p>
+                <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-brand-500/25 bg-brand-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-brand-300"><Play class="h-3.5 w-3.5" /> {uiText("ui.09734f8580f8a1ac")}</div>
+                <h2 class="text-xl font-black text-fg">{uiText("ui.c280780b6f1025f3")}</h2>
+                <p class="mt-2 text-sm leading-relaxed text-fg/70">{uiText("ui.86ece3da96bcde03")}</p>
             </div>
             {#if status?.mode === "client"}
                 <div class="rounded-2xl border border-success/25 bg-success/10 p-4" role="status">
-                    <p class="font-bold text-success">Conectado à rede do amigo</p>
-                    <p class="mt-1 text-xs text-fg-muted">Abra Minecraft → Multijogador. O mundo aparecerá como uma partida LAN.</p>
-                    <p class="mt-3 font-mono text-xs text-success">{status.transport}{status.pingMs !== null ? ` · ${status.pingMs} ms` : " · conexão ativa"}</p>
+                    <p class="font-bold text-success">{uiText("ui.c0c59016932fc3b8")}</p>
+                    <p class="mt-1 text-xs text-fg-muted">{uiText("ui.8e3579ff9bbff33c")}</p>
+                    <p class="mt-3 select-text font-mono text-sm text-success">{status.localAddress}</p><button type="button" class={launcherButton({ variant: "primary", size: "sm" })} onclick={() => goto("/hosting")}>{uiText("ui.31b34fd59207a45d")}</button><p class="mt-3 font-mono text-xs text-success">{status.transport}{status.pingMs !== null ? ` · ${status.pingMs} ms` : uiText("ui.e7955a952babc778")}</p>
                 </div>
-                <button type="button" class="luxmc-control mt-auto inline-flex items-center justify-center gap-2 py-3" disabled={busy} onclick={() => perform(closeSession)}><LogOut class="h-4 w-4" />Sair da conexão</button>
+                <button type="button" class={launcherButton({ variant: "ghost", size: "lg", class: "luxmc-control mt-auto inline-flex items-center justify-center gap-2" })} disabled={busy} onclick={() => perform(closeSession)}><LogOut class="h-4 w-4" />{uiText("ui.30243d5d7e645abb")}</button>
             {:else}
-                <label class="text-xs font-bold text-fg-muted">Link ou convite completo<textarea class="mt-2 min-h-28 w-full resize-none rounded-xl border border-border bg-bg/60 px-4 py-3 font-mono text-xs text-fg outline-none placeholder:text-fg-subtle focus:border-brand-500/50" bind:value={invitation} placeholder="LUX-4821|luxmc-world:…" maxlength="4096"></textarea></label>
-                <button type="button" class="mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-brand-500 px-5 py-3.5 text-sm font-black text-brand-foreground shadow-button hover:bg-brand-400 disabled:opacity-50" disabled={busy || status?.mode === "host" || !invitation.trim()} onclick={() => perform(join)}><Play class="h-4 w-4" /> {busy ? "Conectando…" : "Entrar no mundo"}</button>
-                <button type="button" class="inline-flex items-center justify-center gap-2 text-xs font-bold text-fg-muted hover:text-fg" onclick={() => navigator.clipboard.readText().then(value => invitation = value)}><Copy class="h-3.5 w-3.5" />Colar da área de transferência</button>
+                <label class="text-xs font-bold text-fg-muted">{uiText("ui.fd777080c5cbd2dc")}<textarea class="mt-2 min-h-28 w-full resize-none rounded-xl border border-border bg-bg/60 px-4 py-3 font-mono text-xs text-fg outline-none placeholder:text-fg-subtle focus:border-brand-500/50" bind:value={invitation} placeholder={uiText("ui.a11d8206931fce10")} maxlength="4096"></textarea></label>
+                <button type="button" class={launcherButton({ variant: "primary", size: "lg", class: "mt-2 inline-flex items-center justify-center gap-2 disabled:opacity-50" })} disabled={busy || status?.mode === "host" || !invitation.trim()} onclick={() => perform(join)}><Play class="h-4 w-4" /> {busy ? uiText("ui.cc190ab9f5ec058f") : uiText("ui.44f68496b27a46b7")}</button>
+                <button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "inline-flex items-center justify-center gap-2" })} onclick={() => navigator.clipboard.readText().then(value => invitation = value)}><Copy class="h-3.5 w-3.5" />{uiText("ui.1bc650e965fe107a")}</button>
             {/if}
         </div>
     </section>

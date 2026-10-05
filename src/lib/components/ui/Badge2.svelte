@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	interface Props {
 		label: string;
 		variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'brand';
@@ -25,9 +26,9 @@
 	};
 </script>
 
-<span class={`inline-flex items-center gap-2 rounded-full font-medium ${variantClasses[variant]} ${sizeClasses[size]} transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]`}>
+<span class={`inline-flex items-center gap-2 rounded-full font-medium ${variantClasses[variant]} ${sizeClasses[size]} transition-[color,background-color,border-color,box-shadow,transform,opacity]`}>
 	{label}
 	{#if closable}
-		<button onclick={onClose} class="ml-1 hover:opacity-70">×</button>
+		<button onclick={onClose} class={launcherButton({ variant: "ghost", size: "sm", class: "ml-1 hover:opacity-70" })}>×</button>
 	{/if}
 </span>

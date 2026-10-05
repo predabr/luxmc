@@ -1,10 +1,12 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 #[cfg(all(not(debug_assertions), dev))]
 compile_error!("Release requires embedded assets: use pnpm tauri build");
 
 fn main() {
+    luxmc_lib::core::panic_log::install();
+
     #[cfg(target_os = "linux")]
     {
         extern "C" {
@@ -19,7 +21,6 @@ fn main() {
         if std::env::var("G_PRGNAME").is_err() {
             std::env::set_var("G_PRGNAME", "luxmc");
         }
-        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
         std::env::set_var("GDK_BACKEND", "wayland,x11");
 
         if let Ok(appdir) = std::env::var("APPDIR") {
@@ -46,14 +47,15 @@ fn main() {
             .map(|path| root.join(path))
             .filter(|path| path.is_dir())
             .collect();
-            let gst_path = std::env::join_paths(&gst_dirs).expect("Invalid AppDir plugin path");
-            for key in [
-                "GST_PLUGIN_SYSTEM_PATH_1_0",
-                "GST_PLUGIN_PATH_1_0",
-                "GST_PLUGIN_SYSTEM_PATH",
-                "GST_PLUGIN_PATH",
-            ] {
-                std::env::set_var(key, &gst_path);
+            if let Ok(gst_path) = std::env::join_paths(&gst_dirs) {
+                for key in [
+                    "GST_PLUGIN_SYSTEM_PATH_1_0",
+                    "GST_PLUGIN_PATH_1_0",
+                    "GST_PLUGIN_SYSTEM_PATH",
+                    "GST_PLUGIN_PATH",
+                ] {
+                    std::env::set_var(key, &gst_path);
+                }
             }
             std::env::set_var("GST_REGISTRY_REUSE_PLUGIN_SCANNER", "no");
             let scanner = [

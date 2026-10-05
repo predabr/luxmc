@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { X, HelpCircle } from "lucide-svelte";
 
 	let { onClose }: { onClose: () => void } = $props();
@@ -14,24 +16,24 @@
 		<div class="flex items-center justify-between border-b border-fg/5 pb-3">
 			<div class="flex items-center gap-2 text-fg font-extrabold text-sm">
 				<HelpCircle class="w-4 h-4 text-brand-400" />
-				<span>Como Instalar Mods no Luxmc</span>
+				<span>{uiText("ui.655fb2b73364e8cf")}</span>
 			</div>
-			<button type="button" class="text-fg/40 hover:text-fg cursor-pointer" onclick={onClose}>
+			<button type="button" class={launcherButton({ variant: "ghost", size: "icon", class: "" })} onclick={onClose}>
 				<X class="w-4 h-4" />
 			</button>
 		</div>
 		<div class="text-xs text-fg/70 space-y-3 leading-relaxed">
-			<p>1. Certifique-se de que sua instância possui um <strong>Mod Loader</strong> instalado (Fabric, NeoForge ou Forge).</p>
-			<p>2. Clique no botão <strong>Instalar</strong> no topo da página ou escolha uma versão específica na aba <strong>Versões</strong>.</p>
-			<p>3. O Luxmc fará o download e adicionará o arquivo diretamente à pasta de mods da sua instância.</p>
-			<p>4. Inicie o Minecraft pela tela de instâncias e aproveite!</p>
+			<p>{uiText("ui.64a83f7b3227dcdf")} <strong>{uiText("ui.e80f086fb0ca1156")}</strong> {uiText("ui.499561d0651881b0")}</p>
+			<p>{uiText("ui.8208e3b6eb7b3c5a")} <strong>{uiText("mods.install")}</strong> {uiText("ui.dfbf3a14b058d399")} <strong>{uiText("settings.catVersions")}</strong>.</p>
+			<p>{uiText("ui.fb48432b1f8a7b07")}</p>
+			<p>{uiText("ui.d9dc783e81c1d42e")}</p>
 		</div>
 		<button
 			type="button"
-			class="w-full py-2.5 rounded-xl bg-brand-400 text-brand-foreground font-extrabold text-xs transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer hover:bg-brand-400"
+			class={launcherButton({ variant: "primary", size: "sm", class: "w-full" })}
 			onclick={onClose}
 		>
-			Entendido
+			{uiText("ui.3f3f7d88e05abb17")}
 		</button>
 	</div>
 </div>

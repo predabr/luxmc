@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { Cpu, MemoryStick } from "lucide-svelte";
 
 	type Reading = {
@@ -57,7 +58,7 @@
 		<MemoryStick class="h-3.5 w-3.5" style="color: rgb(var(--brand-400));" />
 		<div class="flex-1">
 			<p class="text-[10px] uppercase tracking-wide" style="color: rgb(var(--fg-subtle));">
-				Memory (RSS)
+				{uiText("ui.85a389ca028406b9")}
 			</p>
 			<p class="text-sm font-medium" style="color: rgb(var(--fg));">
 				{current ? `${(current.memMb / 1024).toFixed(1)} GB` : "—"}
@@ -77,7 +78,7 @@
 		<Cpu class="h-3.5 w-3.5" style="color: rgb(var(--brand-400));" />
 		<div class="flex-1">
 			<p class="text-[10px] uppercase tracking-wide" style="color: rgb(var(--fg-subtle));">
-				CPU (rough)
+				{uiText("ui.e418d7715b448bbe")}
 			</p>
 			<p class="text-sm font-medium" style="color: rgb(var(--fg));">
 				{current ? `${current.cpuPercent.toFixed(1)} %` : "—"}

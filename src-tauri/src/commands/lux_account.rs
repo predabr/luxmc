@@ -93,14 +93,20 @@ pub async fn lux_account_login(username: String, password: String) -> AppResult<
     tokio::fs::rename(temporary, path).await?;
     let now = chrono::Utc::now();
     let skin = format!("https://minotar.net/skin/{}", response.account.username);
-    let row = AccountRow {
+    let mut row = AccountRow {
         id: id.clone(), uuid: response.account.id.clone(), username: response.account.username.clone(), refresh_token: String::new(), access_token: Some(String::new()),
         expires_at: None, created_at: now, updated_at: now, skin_url: Some(skin.clone()), skin_variant: Some("classic".into()), cape_url: None,
     };
     let db = crate::db::shared_db().await?;
+    if let Some(existing) = crate::db::schema::accounts::get_by_id(&db, &id).await? {
+        row.skin_url = existing.skin_url.or(row.skin_url);
+        row.skin_variant = existing.skin_variant.or(row.skin_variant);
+        row.cape_url = existing.cape_url;
+        row.created_at = existing.created_at;
+    }
     crate::db::schema::accounts::upsert(&db, &row).await?;
     super::auth::set_active_account_id(&id).await?;
-    Ok(AuthAccount { id, uuid: response.account.id, username: response.account.username, access_token: String::new(), refresh_token: String::new(), expires_at: 0, skin_url: Some(skin), skin_variant: Some("classic".into()), cape_url: None })
+    Ok(AuthAccount { id, uuid: response.account.id, username: response.account.username, access_token: String::new(), refresh_token: String::new(), expires_at: 0, skin_url: row.skin_url, skin_variant: row.skin_variant, cape_url: row.cape_url })
 }
 
 #[tauri::command]

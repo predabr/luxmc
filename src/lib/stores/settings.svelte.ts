@@ -1,3 +1,5 @@
+import { detectBrowserLocale } from "$lib/i18n/locale";
+
 export type ThemeName = "default-dark" | "default-light";
 export type AccentTheme = "gold" | "cyan" | "emerald" | "rose" | "violet" | "orange" | "blue";
 
@@ -8,15 +10,21 @@ export interface AppSettings {
 	blur: boolean;
 	sidebarPosition: "left" | "right";
 	language: "en" | "pt-BR" | "es";
+	languageMode?: "system" | "manual";
 	accentTheme: AccentTheme;
 	activeProfileId: string | null;
 	javaPath?: string;
+    rightSidebarWidth?: 280 | 320 | 360;
+    pauseSkinWhileGaming?: boolean;
+    shareCustomAvatar?: boolean;
+    publishGameActivity?: boolean;
 	maxRamMb?: number;
 	minRamMb?: number;
 	closeOnLaunch?: boolean;
 	showCrashLogs?: boolean;
 	autoCheckUpdates?: boolean;
 	discordRpc?: boolean;
+    discordClientId?: string;
 	hideDiscordDetails?: boolean;
 	anonymousTelemetry?: boolean;
 	performanceMode?: boolean;
@@ -24,6 +32,10 @@ export interface AppSettings {
 	wallpaperWidth?: 960 | 1280 | 1920;
 	pauseWallpaperOnBlur?: boolean;
 	animatedWallpaperBlur?: boolean;
+    interfaceOpacity?: number;
+    wallpaperDim?: number;
+    capePhysics?: boolean;
+    capeWindStrength?: number;
 	customBackground?: string;
 	jvmArgs?: string;
 	gamemode?: boolean;
@@ -38,20 +50,13 @@ export interface AppSettings {
 	soundscapesEnabled?: boolean;
 	soundscapeVolume?: number;
 	launcherActionOnLaunch?: "keep_open" | "hide_reopen" | "close";
+	releaseChannel?: "stable" | "beta";
+	concurrentDownloads?: number;
+	closeWarningOnGameRunning?: boolean;
 	showLogsOnLaunch?: "never" | "on_crash" | "always";
 	defaultResWidth?: number;
 	defaultResHeight?: number;
 	startFullscreen?: boolean;
-}
-
-function detectDefaultLanguage(): "en" | "pt-BR" | "es" {
-	if (typeof window !== "undefined" && typeof navigator !== "undefined" && navigator.language) {
-		const nav = navigator.language.toLowerCase();
-		if (nav.startsWith("pt")) return "pt-BR";
-		if (nav.startsWith("es")) return "es";
-		return "en";
-	}
-	return "en";
 }
 
 const defaults: AppSettings = {
@@ -60,8 +65,11 @@ const defaults: AppSettings = {
 	animations: true,
 	blur: false,
 	sidebarPosition: "left",
-	language: detectDefaultLanguage(),
+	language: detectBrowserLocale(),
+	languageMode: "system",
 	accentTheme: "blue",
+    soundEnabled: true,
+    sfxVolume: 0.5,
 	activeProfileId: null,
 	pauseWallpaperOnBlur: true,
 	autoCheckUpdates: true,
@@ -69,6 +77,9 @@ const defaults: AppSettings = {
 	soundscapesEnabled: false,
 	soundscapeVolume: 0.2,
 	launcherActionOnLaunch: "hide_reopen",
+	releaseChannel: "stable",
+	concurrentDownloads: 24,
+	closeWarningOnGameRunning: true,
 	showLogsOnLaunch: "on_crash",
 	defaultResWidth: 1920,
 	defaultResHeight: 1080,
@@ -103,3 +114,4 @@ function createSettingsStore() {
 }
 
 export const settings = createSettingsStore();
+

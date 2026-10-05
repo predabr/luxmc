@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
 	import { X, Coffee, Download, Trash2, CheckCircle, AlertCircle, RefreshCw, ExternalLink } from "lucide-svelte";
 	import { javaScan, javaInstall, javaUninstall } from "$lib/api/java";
@@ -14,11 +16,11 @@
 	let installing = $state<number | null>(null);
 	let installProgress = $state(0);
 
-	const javaInfo: Record<number, { label: string; use: string; color: string }> = {
-		8:  { label: "Java 8",  use: "Minecraft 1.7 – 1.16.x",  color: "text-orange-400" },
-		17: { label: "Java 17", use: "Minecraft 1.17 – 1.20.4",  color: "text-blue-400" },
-		21: { label: "Java 21", use: "Minecraft 1.20.5+",        color: "text-emerald-400" },
-	};
+	const javaInfo: Record<number, { label: string; use: string; color: string }> = $derived({
+		8:  { label: uiText("ui.1fa3a6ee50fe3351"),  use: "Minecraft 1.7 – 1.16.x",  color: "text-orange-400" },
+		17: { label: uiText("ui.ee8852e3c233dc78"), use: "Minecraft 1.17 – 1.20.4",  color: "text-blue-400" },
+		21: { label: uiText("ui.d143f4078cca268c"), use: "Minecraft 1.20.5+",        color: "text-emerald-400" },
+	});
 
 	onMount(() => {
 		scan();
@@ -30,7 +32,7 @@
 			const result = await javaScan();
 			runtimes = result.runtimes;
 		} catch {
-			toast("Erro ao verificar runtimes Java", "error");
+			toast(uiText("ui.3cfa105c3ddb5e04"), "error");
 		} finally {
 			loading = false;
 		}
@@ -52,9 +54,9 @@
 		try {
 			const result = await javaInstall(major);
 			runtimes = runtimes.map((r) => (r.major === major ? result : r));
-			toast(`Java ${major} instalado com sucesso!`, "success");
+			toast(uiText("ui.c8145ea096806f8b", {arg0: (major)}), "success");
 		} catch (e) {
-			toast(`Erro ao instalar Java ${major}: ${e}`, "error");
+			toast(uiText("ui.7b801b420236a069", {arg0: (major), arg1: (e)}), "error");
 		} finally {
 			installing = null;
 			installProgress = 0;
@@ -68,7 +70,7 @@
 			runtimes = runtimes.map((r) => r.major === major ? { ...r, installed: false, path: null, versionString: null, isSystem: false } : r);
 			toast(`Java ${major} removido`, "info");
 		} catch (e) {
-			toast(`Erro ao remover Java ${major}: ${e}`, "error");
+			toast(uiText("ui.f84bd43980dfffa1", {arg0: (major), arg1: (e)}), "error");
 		}
 	}
 </script>
@@ -82,15 +84,15 @@
 					<Coffee class="w-4 h-4" />
 				</div>
 				<div>
-					<h2 class="text-sm font-black text-fg">Gerenciador de Java</h2>
-					<p class="text-[11px] text-fg/40">Detectar e instalar runtimes automaticamente</p>
+					<h2 class="text-sm font-black text-fg">{uiText("ui.ed7ad2f20f94a37f")}</h2>
+					<p class="text-[11px] text-fg/40">{uiText("ui.e9e0057c53057015")}</p>
 				</div>
 			</div>
 			<div class="flex items-center gap-2">
-				<button type="button" onclick={scan} class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer" title="Verificar novamente">
+				<button type="button" onclick={scan} class={launcherButton({ variant: "secondary", size: "icon", class: "" })} title={uiText("ui.0faf36fe47518b6f")}>
 					<RefreshCw class="w-4 h-4 {loading ? 'animate-spin' : ''}" />
 				</button>
-				<button type="button" onclick={onClose} class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer">
+				<button type="button" onclick={onClose} class={launcherButton({ variant: "secondary", size: "icon", class: "" })}>
 					<X class="w-4 h-4" />
 				</button>
 			</div>
@@ -117,9 +119,9 @@
 								<div class="flex items-center gap-2">
 									<span class="text-sm font-bold {info?.color ?? 'text-fg'}">{info?.label}</span>
 									{#if runtime.isSystem}
-										<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">SISTEMA</span>
+										<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">{uiText("ui.c3351d694be19355")}</span>
 									{:else if runtime.installed}
-										<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">GERENCIADO</span>
+										<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">{uiText("ui.bee46d607ffc221b")}</span>
 									{/if}
 								</div>
 								<p class="text-[11px] text-fg/40 truncate">{info?.use}</p>
@@ -132,26 +134,26 @@
 						<div class="flex items-center gap-2 shrink-0">
 							{#if installing === runtime.major}
 								<div class="flex flex-col items-end gap-1.5 w-24">
-									<span class="text-[10px] text-fg/50">Instalando… {installProgress}%</span>
+									<span class="text-[10px] text-fg/50">{uiText("mods.installing")} {installProgress}%</span>
 									<div class="w-full h-1.5 rounded-full bg-fg/10 overflow-hidden">
-										<div class="h-full bg-brand-500 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300" style="width:{installProgress}%"></div>
+										<div class="h-full bg-brand-500 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300" style="width:{installProgress}%"></div>
 									</div>
 								</div>
 							{:else if !runtime.installed}
 								<button
 									type="button"
 									onclick={() => install(runtime.major)}
-									class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-500/15 hover:bg-brand-500/25 border border-brand-500/30 text-brand-400 text-[11px] font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
+									class={launcherButton({ variant: "ghostBrand", size: "sm", class: "flex items-center gap-1.5" })}
 								>
 									<Download class="w-3.5 h-3.5" />
-									Instalar
+									{uiText("mods.install")}
 								</button>
 							{:else if !runtime.isSystem}
 								<button
 									type="button"
 									onclick={() => uninstall(runtime.major)}
-									class="p-2 rounded-xl text-fg/30 hover:text-danger hover:bg-danger/10 border border-fg/5 hover:border-danger/20 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer"
-									title="Remover runtime gerenciado"
+									class={launcherButton({ variant: "danger", size: "icon", class: "" })}
+									title={uiText("ui.9f907f87b3394364")}
 								>
 									<Trash2 class="w-3.5 h-3.5" />
 								</button>
@@ -170,9 +172,9 @@
 				class="flex items-center gap-1.5 text-[11px] text-fg/30 hover:text-fg/70 transition-colors"
 			>
 				<ExternalLink class="w-3 h-3" />
-				Adoptium Temurin
+				{uiText("ui.5f4d06ae57f92432")}
 			</a>
-			<p class="text-[11px] text-fg/30">Instalação automática via Mojang Launcher Meta</p>
+			<p class="text-[11px] text-fg/30">{uiText("ui.0a3eec6e5b13761c")}</p>
 		</div>
 	</div>
 </div>

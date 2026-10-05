@@ -32,7 +32,7 @@
 			role="tab"
 			aria-selected={active === tab.id}
 			onclick={() => onChange?.(tab.id)}
-			class={`flex items-center gap-2 font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] ${sizeClasses[size]} ${
+			class={`flex items-center gap-2 font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] ${sizeClasses[size]} ${
 				active === tab.id
 					? 'text-brand border-b-2 border-brand -mb-[2px]'
 					: 'text-fg-muted hover:text-fg'

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { fade } from "svelte/transition";
 	import {
 		Sparkles,
@@ -27,39 +28,39 @@
 		color: string;
 	};
 
-	const accessories: Accessory[] = [
+	const accessories: Accessory[] = $derived([
 		{
 			id: "headphones",
 			name: "Headset Gamer RGB",
-			category: "Áudio",
-			desc: "Fones circumaurais com detalhes neon nos lados da cabeça.",
+			category: uiText("ui.195c60bb232551a9"),
+			desc: uiText("ui.801cc310e8d1d13f"),
 			icon: Headphones,
 			badge: "Popular",
 			color: "text-blue-400 bg-blue-500/10 border-blue-500/30"
 		},
 		{
 			id: "sunglasses",
-			name: "Óculos Escuros Pixel",
+			name: uiText("ui.ab74823750ac9fa0"),
 			category: "Estilo",
-			desc: "Lentes escuras clássicas estilo Thug Life na face externa.",
+			desc: uiText("ui.5ffbe9ee8e3cab28"),
 			icon: Glasses,
-			badge: "Clássico",
+			badge: uiText("ui.1540997a0a571cce"),
 			color: "text-amber-400 bg-amber-500/10 border-amber-500/30"
 		},
 		{
 			id: "crown",
 			name: "Coroa Dourada Real",
 			category: "Realeza",
-			desc: "Coroa de ouro com detalhes de rubi no topo da cabeça.",
+			desc: uiText("ui.2930722c3b43e70e"),
 			icon: Crown,
-			badge: "Lendário",
+			badge: uiText("ui.fe3124671a34d798"),
 			color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30"
 		},
 		{
 			id: "bandana",
 			name: "Bandana Ninja Vermelha",
-			category: "Ação",
-			desc: "Faixa de combate estilo anime ao redor da testa.",
+			category: uiText("ui.1dfbdde6410ab51a"),
+			desc: uiText("ui.02be48f70da4bd87"),
 			icon: Sparkles,
 			badge: "Combate",
 			color: "text-rose-400 bg-rose-500/10 border-rose-500/30"
@@ -67,13 +68,13 @@
 		{
 			id: "jacket",
 			name: "Casaco Gamer Preto",
-			category: "Vestuário",
-			desc: "Jaqueta esportiva estilosa na camada de overlay do tronco e braços.",
+			category: uiText("ui.dac9444278be53db"),
+			desc: uiText("ui.68537f7f50c1a17f"),
 			icon: Sliders,
-			badge: "Novo",
+			badge: uiText("ui.2b1d9b4b4ba45903"),
 			color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
 		}
-	];
+	]);
 
 	let selectedAccessory = $state<string | null>(null);
 	let isApplying = $state(false);
@@ -81,7 +82,7 @@
 	async function applyAccessory(acc: Accessory) {
 		const currentUrl = activeSkinStore.current.skinUrl;
 		if (!currentUrl) {
-			toast("Selecione uma skin primeiro para adicionar acessórios", "warning");
+			toast(uiText("ui.bc37930964fd3cf7"), "warning");
 			return;
 		}
 
@@ -269,10 +270,10 @@
 
 			selectedAccessory = acc.id;
 			playSound("click");
-			toast(`${acc.name} adicionado à sua skin!`, "success");
+			toast(uiText("ui.e8c6cc9a613dde94", {arg0: (acc.name)}), "success");
 			if (onSkinUpdated) onSkinUpdated();
 		} catch (e) {
-			toast("Falha ao adicionar acessório: " + String(e), "error");
+			toast(uiText("ui.b158baa36ff30377") + String(e), "error");
 		} finally {
 			isApplying = false;
 		}
@@ -284,10 +285,10 @@
 		<div>
 			<h3 class="text-xs font-black text-fg uppercase tracking-wider flex items-center gap-2">
 				<Sparkles class="w-3.5 h-3.5 text-brand-400" />
-				Estúdio de Acessórios 3D
+				{uiText("ui.493170194e32b120")}
 			</h3>
 			<p class="text-[11px] text-fg/40 mt-0.5">
-				Estampe acessórios visuais diretamente na 2ª camada da sua skin sem precisar de softwares de edição
+				{uiText("ui.aae410375a62dffb")}
 			</p>
 		</div>
 	</div>
@@ -295,7 +296,7 @@
 	<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
 		{#each accessories as acc}
 			{@const Icon = acc.icon}
-			<div class="p-4 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex flex-col justify-between group shadow-sm">
+			<div class="p-4 rounded-2xl bg-bg-elevated border border-fg/5 hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity] flex flex-col justify-between group shadow-sm">
 				<div class="space-y-2">
 					<div class="flex items-center justify-between">
 						<div class="w-9 h-9 rounded-xl flex items-center justify-center {acc.color} shadow-sm">
@@ -314,16 +315,16 @@
 
 				<button
 					type="button"
-					class="mt-4 w-full py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] {selectedAccessory === acc.id ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10'}"
+					class="mt-4 w-full py-2 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.98] {selectedAccessory === acc.id ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-fg/5 hover:bg-fg/10 text-fg/80 hover:text-fg border border-fg/10'}"
 					onclick={() => applyAccessory(acc)}
 					disabled={isApplying}
 				>
 					{#if selectedAccessory === acc.id}
 						<Check class="w-3.5 h-3.5 text-emerald-400" />
-						<span>Aplicado</span>
+						<span>{uiText("ui.63fa4d75a44700fc")}</span>
 					{:else}
 						<Sparkles class="w-3.5 h-3.5 text-brand-400" />
-						<span>Aplicar na Skin</span>
+						<span>{uiText("ui.6f4eb3ffdbbdcb4a")}</span>
 					{/if}
 				</button>
 			</div>

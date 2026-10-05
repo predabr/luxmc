@@ -26,4 +26,12 @@ describe("resolveUpdateAssetUrl", () => {
 		expect(resolveUpdateAssetUrl(assets, "system")).toBe("");
 		expect(resolveUpdateAssetUrl(assets, "manual")).toBe("");
 	});
+	it("selects the stable installer instead of launching a portable executable", () => {
+		const windows: UpdateAsset[] = [
+			{ name: "Luxmc-x64.exe", browser_download_url: "portable", size: 1 },
+			{ name: "Lux MC Launcher.exe", browser_download_url: "installer", size: 1 }
+		];
+		expect(resolveUpdateAssetUrl(windows, "windows")).toBe("installer");
+		expect(resolveUpdateAssetUrl(windows.slice(0, 1), "windows")).toBe("");
+	});
 });

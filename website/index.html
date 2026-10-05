@@ -1,1228 +1,1183 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Luxmc Launcher — Minecraft, mods e amigos em um só lugar</title>
-  <meta name="description" content="O Launcher definitivo de Minecraft para Linux e Windows. Desenvolvido em Rust e Tauri com controles de desempenho, 50.000+ mods do Modrinth e CurseForge, skins 3D NameMC e multiplayer P2P sem Hamachi.">
-  <meta name="keywords" content="Minecraft launcher, Luxmc, Modrinth, CurseForge, Linux Minecraft, Minecraft Wayland, launcher leve, Rust Minecraft, shaders, modpacks">
-  <meta name="author" content="Luxmc Contributors">
-  <meta name="google-site-verification" content="2QHmYrByldZJTDfep1st8QYKaSEHjklYb_4W">
-  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-  <meta name="googlebot" content="index, follow">
-  <link rel="canonical" href="https://luxmc-r92.pages.dev/">
-  
-  <!-- Open Graph -->
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Luxmc Launcher">
-  <meta property="og:url" content="https://luxmc-r92.pages.dev/">
-  <meta property="og:title" content="Luxmc Launcher — Minecraft, mods e amigos em um só lugar">
-  <meta property="og:description" content="Backend em Rust, controles gráficos, 50k+ mods integrados e multiplayer P2P sem Hamachi. 100% gratuito e código aberto.">
-  <meta property="og:image" content="https://luxmc-r92.pages.dev/assets/launcher-home.png">
-
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Luxmc Launcher — Mais rápido. Mais leve. 100% Nativo.">
-  <meta name="twitter:description" content="Launcher de Minecraft em Rust e Tauri. Mods, skins e configurações por instância.">
-  <meta name="twitter:image" content="https://luxmc-r92.pages.dev/assets/launcher-home.png">
-
-  <!-- Structured Data / JSON-LD -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "Luxmc Launcher",
-    "operatingSystem": "Linux, Windows",
-    "applicationCategory": "GameApplication",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "description": "Launcher definitivo de Minecraft desenvolvido em Rust e Tauri com controles de desempenho, 50.000+ mods do Modrinth e CurseForge, estúdio de skins 3D e multiplayer P2P nativo.",
-    "softwareVersion": "2.0.2",
-    "downloadUrl": "https://luxmc-r92.pages.dev/#download"
-  }
-  </script>
-
-  <link rel="stylesheet" href="style.css?v=2.0.2">
-  <link rel="icon" type="image/png" href="assets/favicon.png">
-  <link rel="stylesheet" href="luxury.css?v=2.0.2">
-</head>
-<body>
-
-  <!-- Sticky Glass Navbar (Hermes Agent Style) -->
-  <header class="navbar">
-    <div class="container">
-      <a href="index.html" class="nav-brand" title="Luxmc Launcher">
-        <img src="assets/logo.png" alt="Logo Luxmc" class="nav-logo">
-        <span class="nav-brand-text">LUXMC™</span>
-        <span class="nav-brand-sub">// LINUX-FIRST</span>
-      </a>
-
-      <nav class="nav-menu">
-        <ul class="nav-links">
-          <li><a href="#recursos" class="nav-link" data-i18n="nav.features">Recursos</a></li>
-          <li><a href="#mods" class="nav-link" data-i18n="nav.mods">Mods</a></li>
-          <li><a href="#servidores" class="nav-link" data-i18n="nav.servers">Servidores</a></li>
-          <li><a href="#conta-luxmc" class="nav-link" data-i18n="nav.account">Conta ID</a></li>
-          <li><a href="skins.html" class="nav-link" data-i18n="nav.skins">Skins 3D</a></li>
-          <li><a href="#doacoes" class="nav-link nav-link-donate" data-i18n="nav.donate">Apoiar 💛</a></li>
-        </ul>
-      </nav>
-
-      <div class="nav-actions">
-        <div class="lang-switcher" id="langSwitcher" title="Idioma / Language">
-          <button type="button" class="lang-btn" data-lang="pt">PT</button>
-          <button type="button" class="lang-btn" data-lang="en">EN</button>
-          <button type="button" class="lang-btn" data-lang="es">ES</button>
-        </div>
-        <a href="conta?mode=register" class="nav-account-link" title="Criar Conta Luxmc">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
-          <span data-i18n="nav.createAccount">Criar Conta</span>
-        </a>
-        <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-github-nav" title="Código no GitHub" aria-label="GitHub">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-        </a>
-        <a href="#download" class="btn-primary-nav">
-          <span data-i18n="nav.download">Baixar <span class="live-version-tag">v2.0.2</span> ↗</span>
-        </a>
-        <button type="button" class="nav-mobile-toggle" id="navMobileToggle" aria-label="Abrir menu de navegação" aria-expanded="false">
-          <span class="hamburger-bar"></span>
-          <span class="hamburger-bar"></span>
-          <span class="hamburger-bar"></span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Mobile Drawer / Overlay -->
-    <div class="mobile-nav-drawer" id="mobileNavDrawer" aria-hidden="true">
-      <div class="mobile-nav-content">
-        <ul class="mobile-nav-links">
-          <li><a href="#inicio" class="mobile-nav-link" data-i18n="mobile.home">Início</a></li>
-          <li><a href="#recursos" class="mobile-nav-link" data-i18n="mobile.features">Recursos Principais</a></li>
-          <li><a href="#estabilidade" class="mobile-nav-link" data-i18n="mobile.stability">Estabilidade &amp; Auto-Cura</a></li>
-          <li><a href="#mods" class="mobile-nav-link" data-i18n="mobile.mods">Central de Mods &amp; Modpacks</a></li>
-          <li><a href="#servidores" class="mobile-nav-link" data-i18n="mobile.servers">Status de Servidores</a></li>
-          <li><a href="#desempenho" class="mobile-nav-link" data-i18n="mobile.install">Instalação Rápida</a></li>
-          <li><a href="#privacidade" class="mobile-nav-link" data-i18n="mobile.privacy">Privacidade &amp; Segurança</a></li>
-          <li><a href="skins" class="mobile-nav-link" data-i18n="mobile.skins">Estúdio 3D de Skins</a></li>
-          <li><a href="#doacoes" class="mobile-nav-link" data-i18n="mobile.donate" style="color: var(--lux-gold-light) !important; font-weight: 700;">Apoiar o Projeto (Doações) 💛</a></li>
-          <li><a href="#download" class="mobile-nav-link" data-i18n="mobile.downloads">Downloads</a></li>
-          <li><a href="#faq" class="mobile-nav-link" data-i18n="mobile.faq">Perguntas Frequentes</a></li>
-        </ul>
-        <div class="mobile-nav-divider"></div>
-        <div class="mobile-lang-bar" style="display:flex; justify-content:center; gap:8px; margin:16px 0;">
-          <button type="button" class="lang-btn" data-lang="pt">PT</button>
-          <button type="button" class="lang-btn" data-lang="en">EN</button>
-          <button type="button" class="lang-btn" data-lang="es">ES</button>
-        </div>
-        <div class="mobile-nav-actions">
-          <a href="#doacoes" class="mobile-btn-donate">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-            <span data-i18n="mobile.btnDonate">Apoiar o Projeto (Doações)</span>
-          </a>
-          <a href="conta" class="mobile-btn-account">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
-            <span data-i18n="mobile.btnAccount">Portal da Minha Conta</span>
-          </a>
-          <a href="#download" class="mobile-btn-download">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span data-i18n="mobile.btnDownload">Baixar Launcher Oficial</span>
-          </a>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- Hero Section (Hermes Agent Style) -->
-  <section id="inicio" class="hero-section">
-    <div class="hero-glow-bg"></div>
-    <div class="container hero-container">
-      
-      <div class="hero-copy">
-      <!-- Pill Badge -->
-      <a href="#download" class="hero-pill">
-        <span class="pill-dot"></span>
-        <span data-i18n="hero.pill">// 01.0 // SISTEMA MINECRAFT // RUST &amp; TAURI CORE</span>
-      </a>
-
-      <!-- Headline -->
-      <h1 class="hero-title" data-i18n="hero.title">
-        SEUS MUNDOS.<br><span>UM SÓ LUGAR.</span>
-      </h1>
-
-      <!-- Subtitle -->
-      <p class="hero-subtitle" data-i18n="hero.subtitle">
-        Do primeiro bloco ao próximo modpack. Organize suas instâncias, personalize seu personagem e encontre seus amigos em um launcher ultraveloz, livre de telemetria e com controles nativos de desempenho.
-      </p>
-
-      <!-- CTA Buttons -->
-      <div class="hero-actions">
-        <a id="heroPrimaryBtn" href="/download/linux" class="btn-hero-primary">
-          <span id="heroBtnLabel">BAIXAR PARA LINUX (.APPIMAGE) ↗</span>
-        </a>
-        <a href="#doacoes" class="btn-hero-donate">
-          <span data-i18n="hero.donate">APOIAR O PROJETO 💛</span>
-        </a>
-      </div>
-
-      <p class="hero-meta">
-        <span class="live-version-tag">RELEASES OFICIAIS</span> · <span data-i18n="hero.meta">LINUX · WINDOWS · MACOS</span>
-      </p>
-
-      </div>
-      <!-- Stats Ribbon (Damn Good Brands 4-column spec grid) -->
-      <div class="stats-ribbon">
-        <div class="stat-card">
-          <div class="stat-tag" data-i18n="stat.arch.tag">// 01 ARQUITETURA</div>
-          <div class="stat-num" data-i18n="stat.arch.num">Rust &amp; Tauri</div>
-          <div class="stat-desc" data-i18n="stat.arch.desc">Binário nativo leve e rápido</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-tag" data-i18n="stat.cat.tag">// 02 CATÁLOGO</div>
-          <div class="stat-num" data-i18n="stat.cat.num">50.000+ Mods</div>
-          <div class="stat-desc" data-i18n="stat.cat.desc">Modrinth e CurseForge unificados</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-tag" data-i18n="stat.multi.tag">// 03 MULTIPLAYER</div>
-          <div class="stat-num" data-i18n="stat.multi.num">Túnel P2P</div>
-          <div class="stat-desc" data-i18n="stat.multi.desc">Convite criptografado sem Hamachi</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-tag" data-i18n="stat.priv.tag">// 04 PRIVACIDADE</div>
-          <div class="stat-num" data-i18n="stat.priv.num">Zero Telemetria</div>
-          <div class="stat-desc" data-i18n="stat.priv.desc">100% livre e código aberto</div>
-        </div>
-      </div>
-
-      <!-- Window Mockup / Interactive Tabs Showcase -->
-      <div class="window-showcase" data-tilt>
-        <div class="window-bar">
-          <div class="window-dots">
-            <span class="dot dot-red"></span>
-            <span class="dot dot-yellow"></span>
-            <span class="dot dot-green"></span>
+  <head>
+    <link
+      rel="preload"
+      href="/assets/fonts/barlow-condensed-bold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LuxMC Launcher — Seu mundo. Suas escolhas.</title>
+    <meta
+      name="description"
+      content="Minecraft, mods, skins e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
+    />
+    <meta name="theme-color" content="rgb(18 19 20)" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://luxmc-r92.pages.dev/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LuxMC Launcher" />
+    <meta
+      property="og:title"
+      content="LuxMC Launcher — Seu mundo. Suas escolhas."
+    />
+    <meta
+      property="og:description"
+      content="Minecraft, mods, skins e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
+    />
+    <meta property="og:url" content="https://luxmc-r92.pages.dev/" />
+    <meta
+      property="og:image"
+      content="https://luxmc-r92.pages.dev/assets/launcher-home.webp"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="LuxMC Launcher — Seu mundo. Suas escolhas."
+    />
+    <meta
+      name="twitter:description"
+      content="Minecraft, mods, skins e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
+    />
+    <meta
+      name="twitter:image"
+      content="https://luxmc-r92.pages.dev/assets/launcher-home.webp"
+    />
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link
+      rel="preload"
+      href="/assets/fonts/space-grotesk-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="/design.css?v=20261004" />
+    <meta
+      name="google-site-verification"
+      content="2QHmYrByldZJTDfep1st8QYKaSEHjklYb_4W"
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "LuxMC Launcher",
+        "operatingSystem": "Linux, Windows, macOS",
+        "applicationCategory": "GameApplication",
+        "description": "Launcher de Minecraft com gestão de instâncias, integração Modrinth e CurseForge, skins 3D e multiplayer.",
+        "url": "https://luxmc-r92.pages.dev/",
+        "downloadUrl": "https://luxmc-r92.pages.dev/#download",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
+      }
+    </script>
+  </head>
+  <body class="home-page">
+    <a class="skip-link" href="#main">Ir para o conteúdo</a>
+    <div class="reading-progress" aria-hidden="true"></div>
+    <header class="navbar">
+      <div class="container">
+        <a href="/" class="nav-brand" aria-label="LuxMC — Início"
+          ><img
+            class="brand-symbol"
+            src="/assets/favicon.png"
+            width="48"
+            height="48"
+            alt=""
+          /><span class="nav-brand-text">LuxMC<small>™</small></span></a
+        >
+        <nav class="nav-menu" aria-label="Navegação principal">
+          <div class="nav-links">
+            <a class="nav-link" href="#recursos" data-i18n="nav.features"
+              >Recursos</a
+            ><a class="nav-link" href="#mods" data-i18n="nav.mods">Mods</a
+            ><a class="nav-link" href="/skins" data-i18n="nav.skins"
+              >Skin Studio</a
+            ><a class="nav-link" href="/privacidade" data-i18n="nav.privacy"
+              >Privacidade</a
+            ><a
+              class="nav-link"
+              href="https://github.com/predabr/luxmc"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub ↗</a
+            >
           </div>
-
-          <div class="showcase-tabs" role="group" aria-label="Recursos do launcher">
-            <button type="button" class="tab-btn active" data-mockup="assets/launcher-home-v2.png" data-title="Menu Principal" data-title-key="showcase.badge.home">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-              <span data-i18n="showcase.home">Início</span>
-            </button>
-            <button type="button" class="tab-btn" data-mockup="assets/launcher-mods-v2.png" data-title="Central de Mods & Modpacks" data-title-key="showcase.badge.mods">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16.5 9.4 7.55 4.24a1.79 1.79 0 0 0-2.5 1.48v12.56a1.79 1.79 0 0 0 2.5 1.48L16.5 14.6a1.79 1.79 0 0 0 0-3.2z"/></svg>
-              <span data-i18n="showcase.mods">Mods</span>
-            </button>
-            <button type="button" class="tab-btn" data-mockup="assets/launcher-skins-v2.png" data-title="Estúdio 3D de Skins & Capas" data-title-key="showcase.badge.skins">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
-              <span data-i18n="showcase.skins">Skins 3D</span>
-            </button>
-            <button type="button" class="tab-btn" data-mockup="assets/launcher-instance-v2.png" data-title="Instâncias & Importação de Mundos" data-title-key="showcase.badge.instances">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-              <span data-i18n="showcase.instances">Instâncias</span>
+        </nav>
+        <div class="nav-actions">
+          <div class="lang-switcher" id="langSwitcher" aria-label="Idioma">
+            <button
+              type="button"
+              class="lang-btn active"
+              data-lang="pt"
+              aria-label="Português"
+            >
+              PT</button
+            ><button
+              type="button"
+              class="lang-btn"
+              data-lang="en"
+              aria-label="English"
+            >
+              EN</button
+            ><button
+              type="button"
+              class="lang-btn"
+              data-lang="es"
+              aria-label="Español"
+            >
+              ES
             </button>
           </div>
-
-          <div class="window-title-badge">
-            <span class="live-dot"></span>
-            <span id="showcaseBadgeText" data-i18n="showcase.badge.home">Menu Principal</span>
-          </div>
-        </div>
-
-        <div class="window-frame" id="showcaseWindowFrame" title="Clique para expandir visualização">
-          <img id="showcaseImage" src="assets/launcher-home-v2.png" alt="Interface oficial do Luxmc Launcher" class="showcase-img" fetchpriority="high">
-          <button type="button" class="btn-zoom-showcase" id="btnZoomShowcase" aria-label="Expandir visualização">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-            <span data-i18n="showcase.expand">Expandir</span>
+          <a
+            href="/conta?mode=login"
+            class="nav-account-link"
+            data-i18n="nav.account"
+            >Minha conta</a
+          ><a href="#download" class="btn-primary-nav"
+            ><span data-i18n="nav.download">Baixar LuxMC</span
+            ><span aria-hidden="true">↗</span></a
+          ><button
+            type="button"
+            class="nav-mobile-toggle"
+            id="navMobileToggle"
+            aria-label="Abrir menu"
+            aria-expanded="false"
+            aria-controls="mobileNavDrawer"
+          >
+            <span class="hamburger-bar"></span
+            ><span class="hamburger-bar"></span>
           </button>
         </div>
       </div>
-
-    </div>
-  </section>
-
-  <!-- Features Section (Damn Good Brands Bento Grid) -->
-  <section id="demonstracao" class="demo-section">
-    <div class="container demo-layout">
-      <div>
-        <span class="section-tag" data-i18n="demo.tag">// 02 // CAPTURADO NO LAUNCHER</span>
-        <h2 class="section-title" data-i18n="demo.title">VEJA SUA SKIN GANHAR MOVIMENTO.</h2>
-        <p class="section-subtitle" data-i18n="demo.subtitle">Uma gravação real no Linux: prévia 3D de skin e wallpaper animado. Escolha seu visual, confira o resultado e aplique quando estiver pronto.</p>
-        <div style="font-family: var(--lux-font-mono); font-size: 11px; color: var(--lux-text-muted); margin-top: 16px; letter-spacing: 0.05em; text-transform: uppercase;" data-i18n="demo.badge">
-          18 SEGUNDOS // SEM ÁUDIO // REPRODUÇÃO SOB DEMANDA
-        </div>
+      <div
+        class="mobile-nav-drawer"
+        id="mobileNavDrawer"
+        aria-hidden="true"
+        inert=""
+      >
+        <nav class="mobile-nav-content" aria-label="Navegação mobile">
+          <a href="#recursos" class="mobile-nav-link"
+            ><span>01</span><b data-i18n="nav.features">Recursos</b></a
+          ><a href="#mods" class="mobile-nav-link"
+            ><span>02</span><b data-i18n="nav.mods">Mods</b></a
+          ><a href="/skins" class="mobile-nav-link"
+            ><span>03</span><b data-i18n="nav.skins">Skin Studio</b></a
+          ><a href="/conta?mode=login" class="mobile-nav-link"
+            ><span>04</span><b data-i18n="nav.account">Minha conta</b></a
+          ><a href="/privacidade" class="mobile-nav-link"
+            ><span>05</span><b data-i18n="nav.privacy">Privacidade</b></a
+          ><a
+            href="https://github.com/predabr/luxmc"
+            class="mobile-nav-link"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub <span>↗</span></a
+          ><a href="#download" class="mobile-nav-link"
+            ><span>↗</span><b data-i18n="nav.download">Baixar LuxMC</b></a
+          >
+          <div class="lang-switcher">
+            <button type="button" class="lang-btn active" data-lang="pt">
+              PT</button
+            ><button type="button" class="lang-btn" data-lang="en">EN</button
+            ><button type="button" class="lang-btn" data-lang="es">ES</button>
+          </div>
+        </nav>
       </div>
-      <video controls playsinline preload="none" poster="assets/launcher-personalizer.png" aria-label="Gravação real do personalizador de skins do Luxmc no Linux" style="max-height:640px">
-        <source src="assets/launcher-personalizer.mp4" type="video/mp4">
-        <a href="assets/launcher-personalizer.mp4" data-i18n="demo.videoLink">Assistir à demonstração do personalizador</a>
-      </video>
-    </div>
-  </section>
-
-  <section id="recursos" class="features-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="features.tag">// 03 // ESPECIFICAÇÕES DO SISTEMA</span>
-        <h2 class="section-title" data-i18n="features.title">TUDO EM UM ÚNICO SISTEMA NATIVO.</h2>
-        <p class="section-subtitle" data-i18n="features.subtitle">Sua biblioteca organizada, seu personagem com a sua cara e os ajustes que você precisa sempre à mão.</p>
-      </div>
-
-      <div class="bento-grid">
-        <!-- Card 1: Desempenho -->
-        <div class="bento-card">
-          <div class="bento-index" data-i18n="bento.card1.tag">[ 01 ] // ARQUITETURA</div>
-          <div class="bento-icon bento-gradient-blue">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+    </header>
+    <main id="main">
+      <section id="inicio" class="hero-section" aria-labelledby="heroTitle">
+        <div class="container hero-poster">
+          <div class="hero-kicker">
+            <span data-i18n="hero.pill"
+              >UM LAUNCHER PARA QUEM JOGA DO PRÓPRIO JEITO.</span
+            ><span class="hero-edition">LUXMC / DESKTOP</span>
           </div>
-          <h3 class="bento-title" data-i18n="bento.card1.title">Desempenho sob seu controle</h3>
-          <p class="bento-desc" data-i18n="bento.card1.desc">
-            Backend em Rust e interface Svelte. Ajuste a qualidade do wallpaper e pause efeitos durante o jogo. O consumo depende do hardware, dos efeitos e do conteúdo aberto.
-          </p>
-        </div>
-
-        <!-- Card 2: Modrinth & CurseForge -->
-        <div class="bento-card">
-          <div class="bento-index" data-i18n="bento.card2.tag">[ 02 ] // CATÁLOGO</div>
-          <div class="bento-icon bento-gradient-purple">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          </div>
-          <h3 class="bento-title" data-i18n="bento.card2.title">Modrinth & CurseForge Unificados</h3>
-          <p class="bento-desc" data-i18n="bento.card2.desc">
-            Pesquise, instale e atualize mais de 50.000 mods, modpacks, shaders e resource packs diretamente no launcher, com 1 clique e sem abrir o navegador.
-          </p>
-        </div>
-
-        <!-- Card 3: Multiplayer P2P -->
-        <div class="bento-card">
-          <div class="bento-index" data-i18n="bento.card3.tag">[ 03 ] // CONECTIVIDADE</div>
-          <div class="bento-icon bento-gradient-green">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          </div>
-          <h3 class="bento-title" data-i18n="bento.card3.title">Multiplayer P2P & Host Direto</h3>
-          <p class="bento-desc" data-i18n="bento.card3.desc">
-            Abra seu mundo para LAN e gere um convite privado. O túnel criptografado conecta seus amigos diretamente ou por relay, conforme a rede.
-          </p>
-        </div>
-
-        <!-- Card 4: Skins 3D -->
-        <div class="bento-card">
-          <div class="bento-index" data-i18n="bento.card4.tag">[ 04 ] // ESTÚDIO 3D</div>
-          <div class="bento-icon bento-gradient-cyan">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/></svg>
-          </div>
-          <h3 class="bento-title" data-i18n="bento.card4.title">Estúdio 3D de Skins & NameMC</h3>
-          <p class="bento-desc" data-i18n="bento.card4.desc">
-            Importe suas skins, escolha o modelo clássico ou fino e combine com uma capa. Confira a prévia antes de aplicar sua aparência.
-          </p>
-        </div>
-
-        <!-- Card 5: Otimizador JVM -->
-        <div class="bento-card">
-          <div class="bento-index" data-i18n="bento.card5.tag">[ 05 ] // RUNTIME & JVM</div>
-          <div class="bento-icon bento-gradient-orange">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          </div>
-          <h3 class="bento-title" data-i18n="bento.card5.title">Otimizador de JVM & Mundos</h3>
-          <p class="bento-desc" data-i18n="bento.card5.desc">
-            Presets profissionais (Aikar flags, Shenandoah GC, ZGC) e detecção automática de Java 8, 17 e 21. Importe mundos (.zip ou pasta) com apenas 1 clique.
-          </p>
-        </div>
-
-        <!-- Card 6: PvP Client Suite In-Game -->
-        <div class="bento-card">
-          <div class="bento-index" data-i18n="bento.card6.tag">[ 06 ] // OVERLAY IN-GAME</div>
-          <div class="bento-icon bento-gradient-purple">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          </div>
-          <h3 class="bento-title" data-i18n="bento.card6.title">PvP Client Suite In-Game</h3>
-          <p class="bento-desc" data-i18n="bento.card6.desc">
-            Display e HUD in-game completo com FPS, CPS, Keystrokes, Armor HUD, Coordenadas e Ping. Abra o menu flutuante no Minecraft com Shift Direito.
-          </p>
-        </div>
-
-        <!-- Card 7: Capas & Cosméticos -->
-        <div class="bento-card">
-          <div class="bento-index" data-i18n="bento.card7.tag">[ 07 ] // COSMÉTICOS</div>
-          <div class="bento-icon bento-gradient-cyan">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          </div>
-          <h3 class="bento-title" data-i18n="bento.card7.title">Capas Minecon & Cosméticos</h3>
-          <p class="bento-desc" data-i18n="bento.card7.desc">
-            Equipe capas épicas da Minecon (Creeper 2011, Enderman 2016, etc.), capas de evento ou PNGs locais customizados com injeção automática e suporte a OptiFine e ETF.
-          </p>
-        </div>
-
-        <!-- Card 8: Open Source -->
-        <div class="bento-card">
-          <div class="bento-index" data-i18n="bento.card8.tag">[ 08 ] // LICENÇA & CÓDIGO</div>
-          <div class="bento-icon bento-gradient-rose">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          </div>
-          <h3 class="bento-title" data-i18n="bento.card8.title">Desenvolvimento Aberto</h3>
-          <p class="bento-desc" data-i18n="bento.card8.desc">
-            Acompanhe o desenvolvimento, consulte o código e participe das melhorias pelo repositório público no GitHub.
-          </p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Stability & Auto-Healing (CrashDoctor & Mod Shield) Section -->
-  <section id="estabilidade" class="stability-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="stability.tag">// 04 // ENGENHARIA DE ESTABILIDADE &amp; AUTO-CURA</span>
-        <h2 class="section-title" data-i18n="stability.title">MODPACKS SEM DOR DE CABEÇA.</h2>
-        <p class="section-subtitle" data-i18n="stability.subtitle">CrashDoctor™ e Mod Shield integrados ao núcleo em Rust: o launcher analisa os logs em tempo real, auto-repara argumentos incompatíveis e garante que seu Minecraft inicie suavemente de primeira.</p>
-      </div>
-
-      <div class="stability-container">
-        <div class="stability-features-col">
-          <div class="stability-feature-item">
-            <div class="stability-feature-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
-            </div>
-            <div class="stability-feature-text">
-              <h3 data-i18n="stability.feat1.title">CrashDoctor™ Auto-Heal</h3>
-              <p data-i18n="stability.feat1.desc">Identifica e corrige automaticamente opções obsoletas de JVM (como flags do Java 17/21), bibliotecas ausentes do Fabric/Forge e arquivos corrompidos antes de exibir qualquer erro.</p>
-            </div>
-          </div>
-
-          <div class="stability-feature-item">
-            <div class="stability-feature-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
-            </div>
-            <div class="stability-feature-text">
-              <h3 data-i18n="stability.feat2.title">Mod Shield™ Anti-Conflito</h3>
-              <p data-i18n="stability.feat2.desc">Verificação preventiva de colisões entre mods conhecidos (como OptiFine e Iris/Sodium) e dependências faltantes, sugerindo soluções em 1 clique.</p>
-            </div>
-          </div>
-
-          <div class="stability-feature-item">
-            <div class="stability-feature-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-            </div>
-            <div class="stability-feature-text">
-              <h3 data-i18n="stability.feat3.title">Controle Preciso de RAM &amp; Java</h3>
-              <p data-i18n="stability.feat3.desc">Sem reajustes automáticos indesejados: você decide exatamente quantos gigabytes cada instância usará, com seleção transparente de Java 8, 17 ou 21.</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="stability-terminal-col">
-          <div class="diagnostic-window">
-            <div class="diagnostic-header">
-              <div class="diagnostic-dots">
-                <span class="dot dot-red"></span>
-                <span class="dot dot-yellow"></span>
-                <span class="dot dot-green"></span>
+          <h1 class="hero-title" id="heroTitle" data-i18n="hero.title">
+            <span>Seu mundo.</span><span>Suas escolhas.</span>
+          </h1>
+          <div class="hero-product">
+            <div class="hero-copy">
+              <p data-i18n="hero.subtitle">
+                Um modpack novo. Aquele mundo antigo. Sua turma online. Tudo
+                começa no seu launcher.
+              </p>
+              <div class="hero-actions">
+                <a
+                  class="btn-primary"
+                  id="heroPrimaryBtn"
+                  href="/download/windows"
+                  ><span id="heroBtnLabel">Baixar LuxMC</span
+                  ><span class="button-arrow" aria-hidden="true">↓</span></a
+                ><a class="text-link" href="#download"
+                  ><span data-i18n="hero.platforms">Outras plataformas</span
+                  ><span aria-hidden="true">↗</span></a
+                >
               </div>
-              <span class="diagnostic-title">luxmc-doctor // live-instance-integrity</span>
-              <div class="diagnostic-badge">
-                <span class="pulse-dot"></span>
-                <span>PROTEGIDO</span>
+              <div class="hero-meta">
+                <b class="live-version-tag">v3.0.0</b
+                ><span data-i18n="hero.meta">Linux · Windows · macOS</span
+                ><span id="heroReleaseSize"></span>
               </div>
             </div>
-            <div class="diagnostic-body">
-              <div class="diagnostic-line"><span class="diag-time">[00:00.01]</span> <span class="diag-tag info">[CORE]</span> Inspecionando manifesto da instância...</div>
-              <div class="diagnostic-line"><span class="diag-time">[00:00.04]</span> <span class="diag-tag success">[JAVA]</span> Java 21 LTS detectado (OpenJDK 64-Bit Server VM).</div>
-              <div class="diagnostic-line"><span class="diag-time">[00:00.08]</span> <span class="diag-tag warn">[JVM-CHECK]</span> Flag obsoleta encontrada: <span class="diag-hl">-XX:+UseFastAccessorMethods</span></div>
-              <div class="diagnostic-line"><span class="diag-time">[00:00.09]</span> <span class="diag-tag success">[AUTOCURA]</span> CrashDoctor removeu a flag legada com sucesso.</div>
-              <div class="diagnostic-line"><span class="diag-time">[00:00.12]</span> <span class="diag-tag success">[MOD-SHIELD]</span> 164 mods verificados por hash. 0 conflitos detectados.</div>
-              <div class="diagnostic-line"><span class="diag-time">[00:00.15]</span> <span class="diag-tag success">[P2P]</span> Túnel P2P criptografado pronto na porta local.</div>
-              <div class="diagnostic-line diag-ready"><span class="diag-time">[00:00.18]</span> <span class="diag-tag ready">[STATUS]</span> ✓ Processo do Minecraft iniciado sem anomalias.</div>
+            <figure class="hero-capture">
+              <img
+                src="assets/launcher-home.webp"
+                width="1024"
+                height="576"
+                alt="Tela inicial real do LuxMC com a biblioteca de modpacks e painel de amigos"
+                fetchpriority="high"
+                decoding="async"
+              />
+              <figcaption>
+                <span data-i18n="hero.capture"
+                  >Sua biblioteca. Seu ponto de partida.</span
+                ><a
+                  href="#recursos"
+                  aria-label="Conhecer os recursos do launcher"
+                  >↗</a
+                >
+              </figcaption>
+            </figure>
+          </div>
+          <div class="hero-bottom">
+            <span data-i18n="hero.built"
+              >Feito para o seu desktop. Com raízes no Linux.</span
+            ><a href="#recursos" class="scroll-cue"
+              ><span data-i18n="hero.scroll">Conheça o LuxMC</span
+              ><span aria-hidden="true">↓</span></a
+            >
+          </div>
+        </div>
+      </section>
+      <section id="recursos" class="section product-section">
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <span class="section-tag" data-i18n="product.label"
+                >POR DENTRO DO LAUNCHER</span
+              >
+              <h2 data-i18n="product.title">Um lugar para<br />cada versão.</h2>
             </div>
-            <div class="diagnostic-footer">
-              <div class="diag-metric">
-                <span class="diag-metric-label">Verificação Pré-Launch:</span>
-                <span class="diag-metric-val">18ms</span>
-              </div>
-              <div class="diag-metric">
-                <span class="diag-metric-label">Auto-Reparo Ativo:</span>
-                <span class="diag-metric-val text-emerald">100% Automático</span>
+            <p data-i18n="product.desc">
+              Vanilla hoje. Um modpack amanhã. Cada instância guarda seus
+              próprios mods, mundos e configurações.
+            </p>
+          </div>
+          <div class="product-layout">
+            <div
+              class="product-steps"
+              role="group"
+              aria-label="Conheça o launcher"
+            >
+              <article class="product-step">
+                <button
+                  type="button"
+                  data-product-screen="assets/launcher-instances.webp"
+                  data-product-alt="Biblioteca de instâncias do LuxMC"
+                  aria-label="01 · Sua biblioteca"
+                  aria-pressed="true"
+                >
+                  <span>01</span>
+                  <h3 data-i18n="product.library">Sua biblioteca.</h3>
+                </button>
+                <p data-i18n="product.libraryDesc">
+                  Cada mundo com seus mods, versão e configurações. Organize
+                  instâncias sem misturar arquivos.
+                </p>
+              </article>
+              <article class="product-step">
+                <button
+                  type="button"
+                  data-product-screen="assets/launcher-mods.webp"
+                  data-product-alt="Catálogo de mods no LuxMC"
+                  aria-label="02 · Seus mods"
+                  aria-pressed="false"
+                >
+                  <span>02</span>
+                  <h3 data-i18n="product.mods">Seus mods.</h3>
+                </button>
+                <p data-i18n="product.modsDesc">
+                  Encontre conteúdo no Modrinth e CurseForge. Instale na
+                  instância certa, dentro do launcher.
+                </p>
+              </article>
+              <article class="product-step">
+                <button
+                  type="button"
+                  data-product-screen="assets/launcher-personalizer.webp"
+                  data-product-alt="Estúdio de skins real do LuxMC"
+                  aria-label="03 · Seu personagem"
+                  aria-pressed="false"
+                >
+                  <span>03</span>
+                  <h3 data-i18n="product.skin">Seu personagem.</h3>
+                </button>
+                <p data-i18n="product.skinDesc">
+                  Importe uma skin, combine uma capa e confira a aparência em 3D
+                  antes de aplicar.
+                </p>
+              </article>
+            </div>
+            <div class="product-stage">
+              <figure class="product-window">
+                <div class="product-window-bar">
+                  <span class="window-dots" aria-hidden="true"
+                    ><i></i><i></i><i></i></span
+                  ><span>LUXMC / LAUNCHER</span
+                  ><span id="productScreenLabel">01 / INSTANCES</span>
+                </div>
+                <button
+                  type="button"
+                  class="product-image-wrap"
+                  id="btnZoomShowcase"
+                  aria-label="Expandir captura real do launcher"
+                >
+                  <img
+                    id="productTourImage"
+                    src="assets/launcher-instances.webp"
+                    alt="Biblioteca de instâncias do LuxMC"
+                    width="1920"
+                    height="1080"
+                    loading="lazy"
+                    decoding="async"
+                  /><span data-i18n="product.expand">EXPANDIR ↗</span>
+                </button>
+              </figure>
+              <div class="product-footnote">
+                <span data-i18n="product.real"
+                  >Interface do LuxMC · capturas reais</span
+                ><span>VANILLA / FABRIC / FORGE / NEOFORGE / QUILT</span>
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Mods & Modpacks Explorer Section (Modrinth API) -->
-  <section id="mods" class="section mods-explorer-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="mods.tag">// 05 // CATÁLOGO MODRINTH &amp; CURSEFORGE</span>
-        <h2 class="section-title" data-i18n="mods.title">CENTRAL DE MODS &amp; MODPACKS</h2>
-        <p class="section-subtitle" data-i18n="mods.subtitle">Pesquise, explore e instale mais de 50.000 mods, shaders, modpacks e texturas do Modrinth com 1 clique direto no launcher.</p>
-      </div>
-
-      <div class="mod-search-wrapper">
-        <div class="mod-search-bar">
-          <svg class="mod-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="modSearchInput" class="mod-search-input" data-i18n="mods.searchPlaceholder" placeholder="Pesquisar mods, modpacks, shaders, texturas..." autocomplete="off">
-          <span class="mod-search-kbd">/</span>
-        </div>
-        <div class="mod-search-pills">
-          <button type="button" class="search-pill active" data-type="mod" data-i18n="mods.pill.mod">Mods</button>
-          <button type="button" class="search-pill" data-type="modpack" data-i18n="mods.pill.modpack">Modpacks</button>
-          <button type="button" class="search-pill" data-type="shader" data-i18n="mods.pill.shader">Shaders</button>
-          <button type="button" class="search-pill" data-type="resourcepack" data-i18n="mods.pill.resourcepack">Texturas</button>
-        </div>
-      </div>
-
-      <div id="modsGrid" class="mod-grid">
-        <!-- Renderizado dinamicamente via Modrinth API ou dados integrados -->
-      </div>
-    </div>
-  </section>
-
-  <!-- Live Minecraft Server Status & Ping Checker Section -->
-  <section id="servidores" class="servers-checker-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="servers.tag">// 06 // REDE &amp; TELEMETRIA EM TEMPO REAL</span>
-        <h2 class="section-title" data-i18n="servers.title">STATUS DE SERVIDORES &amp; PING</h2>
-        <p class="section-subtitle" data-i18n="servers.subtitle">Verifique a latência, quantidade de jogadores online e o MOTD de qualquer servidor de Minecraft do mundo antes de entrar.</p>
-      </div>
-
-      <div class="server-checker-card">
-        <div class="server-input-wrapper">
-          <div class="server-input-box">
-            <svg class="server-icon-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            <input type="text" id="serverIpInput" class="server-ip-input" data-i18n="servers.placeholder" placeholder="Digite o IP (ex: hypixel.net, mush.com.br, pvp.land)" value="hypixel.net" spellcheck="false" autocomplete="off">
-            <button type="button" id="btnCheckServer" class="btn-check-server">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              <span data-i18n="servers.btnCheck">Consultar</span>
-            </button>
-          </div>
-          <div class="server-quick-pills">
-            <span class="quick-pill-label" data-i18n="servers.popularLabel">Populares:</span>
-            <button type="button" class="quick-server-pill active" data-ip="hypixel.net">Hypixel</button>
-            <button type="button" class="quick-server-pill" data-ip="mush.com.br">MushMC</button>
-            <button type="button" class="quick-server-pill" data-ip="minemen.club">MinemenClub</button>
-            <button type="button" class="quick-server-pill" data-ip="play.cubecraft.net">CubeCraft</button>
-            <button type="button" class="quick-server-pill" data-ip="pvp.land">PvP Land</button>
+          <div class="feature-strip">
+            <article>
+              <span class="index">[ 01 ]</span>
+              <h3 data-i18n="feature.control">Performance sob controle.</h3>
+              <p data-i18n="feature.controlDesc">
+                Escolha Java, memória e argumentos JVM por instância. Pause
+                efeitos do launcher durante o jogo.
+              </p>
+            </article>
+            <article>
+              <span class="index">[ 02 ]</span>
+              <h3 data-i18n="feature.import">Sua biblioteca vem junto.</h3>
+              <p data-i18n="feature.importDesc">
+                Importe mundos, arquivos .mrpack e pacotes CurseForge. Faça
+                backup e exporte quando quiser.
+              </p>
+            </article>
+            <article>
+              <span class="index">[ 03 ]</span>
+              <h3 data-i18n="feature.freedom">Feito para o seu desktop.</h3>
+              <p data-i18n="feature.freedomDesc">
+                Backend em Rust e interface Svelte. Desenvolvimento público, com
+                raízes no Linux.
+              </p>
+            </article>
           </div>
         </div>
-
-        <div id="serverResultBox" class="server-result-box">
-          <!-- Renderizado dinamicamente via JS -->
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Account & Cloud ID Section (Damn Good Brands Obsidian Style) -->
-  <section id="conta-luxmc" class="account-feature-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="account.tag">// 07 // CONTA LUXMC // CLOUD &amp; IDENTIDADE</span>
-        <h2 class="section-title" data-i18n="account.title">SUA IDENTIDADE NO MINECRAFT. 100% GRATUITA.</h2>
-        <p class="section-subtitle" data-i18n="account.subtitle">Crie sua conta Luxmc para sincronizar capas personalizadas, skins 3D, lista de amigos P2P e preferências entre todos os seus dispositivos.</p>
-      </div>
-
-      <div class="account-feature-card">
-        <div class="account-card-left">
-          <div class="donation-badge-tag">
-            <span class="donation-dot"></span>
-            <span data-i18n="account.cardTag">Luxmc Cloud ID · Grátis &amp; Criptografado</span>
+      </section>
+      <section id="mods" class="section catalog-section">
+        <div class="container">
+          <div class="section-heading">
+            <div>
+              <span class="section-tag" data-i18n="catalog.label"
+                >CATÁLOGO MODRINTH</span
+              >
+              <h2 data-i18n="catalog.title">
+                O próximo mod<br />da sua lista.
+              </h2>
+            </div>
+            <p data-i18n="catalog.desc">
+              Explore o catálogo ao vivo do Modrinth. No LuxMC, o CurseForge
+              também está integrado.
+            </p>
           </div>
-          <h3 class="account-card-title" data-i18n="account.cardTitle">Uma conta única. Sincronização em tempo real no launcher.</h3>
-          <p class="account-card-desc" data-i18n="account.cardDesc">
-            Não precisa de assinatura nem de dados invasivos. Basta escolher seu nickname do Minecraft e uma senha. Suas skins, capas, lista de amigos e servidores favoritos ficam salvos e prontos em qualquer instalação.
+          <div class="catalog-shell">
+            <div class="catalog-topbar">
+              <strong>LUXMC / CONTENT EXPLORER</strong
+              ><span
+                ><i class="signal" aria-hidden="true"></i>MODRINTH API</span
+              >
+            </div>
+            <div class="catalog-controls">
+              <div class="search-input-wrapper">
+                <svg
+                  width="19"
+                  height="19"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.3"
+                  aria-hidden="true"
+                >
+                  <circle cx="10.5" cy="10.5" r="6.5"></circle>
+                  <path d="m16 16 5 5"></path></svg
+                ><input
+                  type="search"
+                  id="modSearchInput"
+                  aria-label="Pesquisar no catálogo"
+                  class="mod-search-input"
+                  data-i18n-placeholder="mods.searchPlaceholder"
+                  placeholder="O que você vai adicionar ao seu mundo?"
+                  autocomplete="off"
+                /><kbd class="search-shortcut">/</kbd>
+              </div>
+              <div class="catalog-filter-row">
+                <div
+                  class="search-pills"
+                  role="group"
+                  aria-label="Tipo de conteúdo"
+                >
+                  <button
+                    type="button"
+                    class="search-pill active"
+                    data-type="mod"
+                    aria-pressed="true"
+                    data-i18n="mods.type.mods"
+                  >
+                    Mods</button
+                  ><button
+                    type="button"
+                    class="search-pill"
+                    data-type="modpack"
+                    aria-pressed="false"
+                    data-i18n="mods.type.modpacks"
+                  >
+                    Modpacks</button
+                  ><button
+                    type="button"
+                    class="search-pill"
+                    data-type="shader"
+                    aria-pressed="false"
+                    data-i18n="mods.type.shaders"
+                  >
+                    Shaders</button
+                  ><button
+                    type="button"
+                    class="search-pill"
+                    data-type="resourcepack"
+                    aria-pressed="false"
+                    data-i18n="mods.type.textures"
+                  >
+                    Texturas
+                  </button>
+                </div>
+                <div class="catalog-filters">
+                  <label
+                    ><span>Loader</span
+                    ><select id="modLoader" aria-label="Loader">
+                      <option value="" data-i18n="mods.anyLoader">Todos</option>
+                      <option value="fabric">Fabric</option>
+                      <option value="forge">Forge</option>
+                      <option value="neoforge">NeoForge</option>
+                      <option value="quilt">Quilt</option>
+                    </select></label
+                  ><label
+                    ><span>Minecraft</span
+                    ><select id="modGameVersion" aria-label="Minecraft">
+                      <option value="" data-i18n="mods.anyVersion">
+                        Todas as versões
+                      </option>
+                    </select></label
+                  ><label
+                    ><span data-i18n="mods.sort">Ordenar por</span
+                    ><select id="modSort" aria-label="Ordenar por">
+                      <option value="relevance" data-i18n="mods.relevance">
+                        Relevância
+                      </option>
+                      <option value="downloads" data-i18n="mods.downloads">
+                        Downloads
+                      </option>
+                      <option value="updated" data-i18n="mods.updated">
+                        Atualizados
+                      </option>
+                      <option value="newest" data-i18n="mods.newest">
+                        Mais recentes
+                      </option>
+                    </select></label
+                  ><button type="button" id="modReset" data-i18n="mods.reset">
+                    Limpar filtros
+                  </button>
+                </div>
+              </div>
+            </div>
+            <p
+              id="modSearchStatus"
+              class="catalog-status"
+              role="status"
+              aria-live="polite"
+            ></p>
+            <div id="modsGrid" class="mod-grid" aria-busy="true">
+              <div class="skeleton" aria-hidden="true"></div>
+              <div class="skeleton" aria-hidden="true"></div>
+              <div class="skeleton" aria-hidden="true"></div>
+              <div class="skeleton" aria-hidden="true"></div>
+              <div class="skeleton" aria-hidden="true"></div>
+              <div class="skeleton" aria-hidden="true"></div>
+            </div>
+            <nav class="catalog-pagination" aria-label="Paginação do catálogo">
+              <button
+                type="button"
+                id="modPrevious"
+                disabled=""
+                data-i18n="mods.previous"
+              >
+                Anterior</button
+              ><span id="modPageNumber">1</span
+              ><button
+                type="button"
+                id="modNext"
+                disabled=""
+                data-i18n="mods.next"
+              >
+                Próxima
+              </button>
+            </nav>
+          </div>
+          <p class="catalog-note" data-i18n="catalog.note">
+            Os filtros mostram versões e loaders declarados pelos autores. A
+            instalação e a seleção de arquivos continuam no launcher.
           </p>
-
-          <div class="account-perks-list">
-            <div class="account-perk">
-              <span class="account-perk-index">[ 01 ]</span>
+        </div>
+      </section>
+      <section id="estabilidade" class="diagnostic-section">
+        <div class="container diagnostic-layout">
+          <div class="diagnostic-copy">
+            <span class="section-tag" data-i18n="doctor.label"
+              >CRASHDOCTOR + MOD SHIELD</span
+            >
+            <h2 data-i18n="doctor.title">Deu crash?<br />Tem diagnóstico.</h2>
+            <p data-i18n="doctor.desc">
+              Um log enorme não precisa encerrar a partida. O CrashDoctor traduz
+              problemas conhecidos e aponta o próximo passo.
+            </p>
+            <div class="diagnostic-feature">
+              <span>01</span>
               <div>
-                <strong data-i18n="account.perk1.title">Capas e Skins HD Visíveis no Jogo</strong>
-                <p data-i18n="account.perk1.desc">Equipe capas animadas e skins de alta definição com renderização 3D visível para você e outros jogadores.</p>
+                <h3>CrashDoctor</h3>
+                <p data-i18n="doctor.feature1">
+                  Diagnóstico de logs e ações para Java, memória, mods
+                  incompatíveis e arquivos ausentes.
+                </p>
               </div>
             </div>
-
-            <div class="account-perk">
-              <span class="account-perk-index">[ 02 ]</span>
+            <div class="diagnostic-feature">
+              <span>02</span>
               <div>
-                <strong data-i18n="account.perk2.title">Amigos &amp; Multiplayer P2P Instantâneo</strong>
-                <p data-i18n="account.perk2.desc">Adicione amigos pelo nickname, acompanhe status online e jogue mundos locais sem Hamachi ou Radmin.</p>
-              </div>
-            </div>
-
-            <div class="account-perk">
-              <span class="account-perk-index">[ 03 ]</span>
-              <div>
-                <strong data-i18n="account.perk3.title">Backup Cloud de Preferências e Modpacks</strong>
-                <p data-i18n="account.perk3.desc">Seus temas, cores de destaque, alocação de RAM e configs sincronizados automaticamente via Cloudflare Edge.</p>
+                <h3>Mod Shield</h3>
+                <p data-i18n="doctor.feature2">
+                  Verifica hashes de ameaças conhecidas e estruturas suspeitas
+                  nos arquivos .jar. Não substitui um antivírus.
+                </p>
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="account-card-right">
-          <div class="account-cta-box">
-            <div class="account-avatar-preview-wrap">
-              <img src="https://mc-heads.net/avatar/Steve/100" alt="Avatar Preview" class="account-preview-avatar">
-              <span class="account-online-indicator" title="Online no ecossistema"></span>
+          <div>
+            <div class="diagnostic-window">
+              <div class="diagnostic-window-bar">
+                <span>LUXMC / CRASHDOCTOR</span
+                ><span class="accent" data-i18n="doctor.example"
+                  >EXEMPLO DE DIAGNÓSTICO</span
+                >
+              </div>
+              <div class="diagnostic-body" id="diagnosticBody">
+                <div class="diagnostic-line">
+                  <span>01 / runtime</span><strong>JAVA 21</strong>
+                </div>
+                <div class="diagnostic-line">
+                  <span>02 / JVM arguments</span><strong>CHECK</strong>
+                </div>
+                <div class="diagnostic-line warning">
+                  <span>-XX:+UseFastAccessorMethods</span
+                  ><strong>LEGACY</strong>
+                </div>
+                <div class="diagnostic-line">
+                  <span>03 / incompatible option</span><strong>REMOVED</strong>
+                </div>
+                <div class="diagnostic-line">
+                  <span>04 / launch arguments</span><strong>READY</strong>
+                </div>
+                <div class="diagnostic-line">
+                  <span data-i18n="doctor.log"
+                    >Diagnóstico disponível no launcher.</span
+                  ><strong>↗</strong>
+                </div>
+              </div>
+              <div class="diagnostic-result">
+                <span class="signal" aria-hidden="true"></span
+                ><span data-i18n="doctor.result"
+                  >Menos adivinhação. Mais informação.</span
+                >
+              </div>
             </div>
-            <div class="account-cta-tag" data-i18n="account.portalTag">// ACESSO AO PORTAL //</div>
-            <h4 class="account-cta-heading" data-i18n="account.portalHeading">Crie sua conta agora</h4>
-            <p class="account-cta-sub" data-i18n="account.portalSub">Leva menos de 10 segundos. Basta seu nickname e uma senha segura.</p>
-            <div class="account-cta-buttons">
-              <a href="conta?mode=register" class="btn-account-cta-primary" data-i18n="account.btnRegister">[ CRIAR MINHA CONTA LUXMC ↗ ]</a>
-              <a href="conta?mode=login" class="btn-account-cta-secondary" data-i18n="account.btnLogin">[ JÁ TENHO UMA CONTA · ENTRAR ]</a>
-            </div>
-            <div class="account-cta-micro" data-i18n="account.portalMicro">● Cloudflare D1 · Criptografia Argon2/SHA-256 · Zero Telemetria</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Quick Start Section (Hermes Agent Style Step-by-Step) -->
-  <section id="desempenho" class="quickstart-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="quickstart.tag">// 08 // FLUXO DE EXECUÇÃO</span>
-        <h2 class="section-title" data-i18n="quickstart.title">DA INSTALAÇÃO AO JOGO EM 3 ETAPAS.</h2>
-        <p class="section-subtitle" data-i18n="quickstart.subtitle">Sem dependências complicadas. Binários nativos para Linux e instalador leve para Windows.</p>
-      </div>
-
-      <div class="steps-container">
-        <!-- Step 1 -->
-        <div class="step-card">
-          <div class="step-num">1</div>
-          <div class="step-content">
-            <h3 class="step-title" data-i18n="quickstart.step1.title">Baixe o Luxmc</h3>
-            <p class="step-desc" data-i18n="quickstart.step1.desc">Selecione o binário para o seu sistema operacional ou instale via terminal no Linux:</p>
-            <div class="install-tabs">
-              <button type="button" class="install-tab active" data-cmd="curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Universal (curl)</button>
-              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; sudo pacman -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (pacman)</button>
-              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; yay -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (yay)</button>
-              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; paru -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Arch (paru)</button>
-              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/deb -o /tmp/luxmc.deb &amp;&amp; sudo apt-get install -y /tmp/luxmc.deb &amp;&amp; rm -f /tmp/luxmc.deb" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Ubuntu/Debian</button>
-              <button type="button" class="install-tab" data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/rpm -o /tmp/luxmc.rpm &amp;&amp; sudo dnf install -y /tmp/luxmc.rpm &amp;&amp; rm -f /tmp/luxmc.rpm" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))">Fedora/RHEL</button>
-              <button type="button" class="install-tab uninstall-tab" data-cmd="curl -fsSL https://luxmc-r92.pages.dev/uninstall.sh | bash" onclick="setInstallCmd(this, this.getAttribute('data-cmd'))" data-i18n="quickstart.tabUninstall">Desinstalar</button>
-            </div>
-            <div class="terminal-box">
-              <span class="terminal-cmd" id="terminal-cmd-text">curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash</span>
-              <button type="button" class="btn-copy-cmd" id="btnCopyTerminalCmd" onclick="copyTerminalCmd(this)" title="Copiar comando">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <span data-i18n="quickstart.btnCopy">Copiar</span>
+            <div class="diagnostic-footnote">
+              <button
+                type="button"
+                id="motionToggle"
+                class="motion-toggle"
+                aria-label="Pausar movimento"
+                aria-pressed="false"
+              >
+                Ⅱ
+              </button>
+              <span data-i18n="doctor.note"
+                >DEMONSTRAÇÃO VISUAL · SEM ACESSO AO SEU COMPUTADOR</span
+              ><button
+                type="button"
+                id="replayDiagnostic"
+                data-i18n="doctor.replay"
+              >
+                Rever ↻
               </button>
             </div>
           </div>
         </div>
-
-        <!-- Step 2 -->
-        <div class="step-card">
-          <div class="step-num">2</div>
-          <div class="step-content">
-            <h3 class="step-title" data-i18n="quickstart.step2.title">Escolha sua versão ou modpack</h3>
-            <p class="step-desc" data-i18n="quickstart.step2.desc">Vanilla, Fabric, Forge, NeoForge ou Quilt. Instale All The Mods 10, Prominence II ou qualquer pacote do Modrinth com 1 clique.</p>
-          </div>
-        </div>
-
-        <!-- Step 3 -->
-        <div class="step-card">
-          <div class="step-num">3</div>
-          <div class="step-content">
-            <h3 class="step-title" data-i18n="quickstart.step3.title">Entre no seu mundo</h3>
-            <p class="step-desc" data-i18n="quickstart.step3.desc">Conecte amigos via P2P ou jogue seus servidores favoritos. O launcher pode se ocultar e pausar efeitos visuais enquanto você joga.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Privacy & Freedom Section -->
-  <section id="privacidade" class="privacy-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="privacy.tag">// 09 // PRIVACIDADE, LIBERDADE &amp; AUDITORIA</span>
-        <h2 class="section-title" data-i18n="privacy.title">PRIVACIDADE REAL. ZERO TELEMETRIA.</h2>
-        <p class="section-subtitle" data-i18n="privacy.subtitle">Construído do zero com foco absoluto em respeito ao usuário, velocidade nativa e independência total. Sem anúncios, sem rastreamento de comportamento e sem códigos ocultos.</p>
-      </div>
-
-      <div class="privacy-grid">
-        <div class="privacy-card">
-          <div class="privacy-card-tag">[ 01 ] // ZERO TELEMETRIA</div>
-          <div class="privacy-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-          </div>
-          <h3 class="privacy-title" data-i18n="privacy.card1.title">Zero Rastreamento &amp; Sem Anúncios</h3>
-          <p class="privacy-desc" data-i18n="privacy.card1.desc">Não monitoramos seus cliques, seus mundos, modpacks jogados ou especificações da sua máquina. Não há telemetria nem parcerias comerciais com anunciantes.</p>
-        </div>
-
-        <div class="privacy-card">
-          <div class="privacy-card-tag">[ 02 ] // 100% OPEN SOURCE</div>
-          <div class="privacy-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-          </div>
-          <h3 class="privacy-title" data-i18n="privacy.card2.title">Código Auditável sob Licença MIT</h3>
-          <p class="privacy-desc" data-i18n="privacy.card2.desc">Tanto a interface (Svelte 5) quanto o backend (Rust + Tauri) têm código 100% público e auditável no GitHub para que qualquer um possa verificar a segurança.</p>
-        </div>
-
-        <div class="privacy-card">
-          <div class="privacy-card-tag">[ 03 ] // CONEXÃO P2P</div>
-          <div class="privacy-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
-          </div>
-          <h3 class="privacy-title" data-i18n="privacy.card3.title">Multiplayer Direto Criptografado</h3>
-          <p class="privacy-desc" data-i18n="privacy.card3.desc">Conecte-se com seus amigos para jogar mundos LAN à distância através de túnel criptografado direto ponta a ponta, sem passar dados de voz ou jogo por servidores centrais.</p>
-        </div>
-
-        <div class="privacy-card">
-          <div class="privacy-card-tag">[ 04 ] // DADOS LOCAIS</div>
-          <div class="privacy-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-          </div>
-          <h3 class="privacy-title" data-i18n="privacy.card4.title">Armazenamento Aberto Sem Bloqueio</h3>
-          <p class="privacy-desc" data-i18n="privacy.card4.desc">Seus mundos, saves, capturas de tela e mods ficam em formatos padrão no seu disco. Exporte, faça backup ou migre suas instâncias quando quiser, sem aprisionamento.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Community Testimonials Section -->
-  <section id="depoimentos" class="testimonials-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="community.tag">// 10 // COMUNIDADE</span>
-        <h2 class="section-title" data-i18n="community.title">A PRÓXIMA MELHORIA COMEÇA COM VOCÊ.</h2>
-        <p class="section-subtitle" data-i18n="community.subtitle">Conte como foi sua experiência, compartilhe seu modpack e acompanhe os relatos públicos. Depoimentos serão publicados com autorização e referência.</p>
-        <a class="btn-hero-secondary" href="https://github.com/predabr/luxmc/issues" target="_blank" rel="noopener noreferrer" data-i18n="community.btn">Ver relatos e enviar feedback ↗</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Donations & Supporter Tiers Section -->
-  <section id="doacoes" class="donations-section">
-    <div class="container">
-      <div class="section-heading" style="text-align: center; max-width: 780px; margin: 0 auto 50px;">
-        <span class="section-tag" data-i18n="donations.tag">// 11 // FINANCIAMENTO COLETIVO</span>
-        <h2 class="section-title" style="font-size: clamp(32px, 4.5vw, 48px); font-weight: 800; color: #fff; letter-spacing: -0.03em;" data-i18n="donations.title">APOIE O LUXMC E MANTENHA O PROJETO VIVO</h2>
-        <p class="section-subtitle" style="font-size: 16px; color: var(--lux-text-secondary); line-height: 1.7; margin-top: 14px;" data-i18n="donations.subtitle">
-          O Luxmc é um projeto independente, livre e sem anúncios. Suas doações voluntárias ajudam diretamente nos custos de servidores, hospedagem de downloads e horas de desenvolvimento.
-        </p>
-      </div>
-
-      <div class="donation-clean-card">
-        <div class="donation-clean-inner">
-          <div class="donation-clean-left">
-            <div class="donation-badge-tag">
-              <span class="donation-dot"></span>
-              <span data-i18n="donations.badge">100% Livre &amp; Open Source</span>
-            </div>
-            <h3 class="donation-clean-title" data-i18n="donations.cardTitle">Apoie o Luxmc de forma direta e transparente</h3>
-            <p class="donation-clean-desc" data-i18n="donations.cardDesc">
-              O Luxmc é desenvolvido com carinho para a comunidade gamer no Linux e além. Qualquer valor doado via PIX é reinvestido diretamente em custos de infraestrutura de download, túneis de conexão e horas dedicadas ao desenvolvimento contínuo do launcher.
+      </section>
+      <section class="section identity-section">
+        <div class="container identity-layout">
+          <div class="skin-preview-copy">
+            <span class="section-tag" data-i18n="skin.label"
+              >SEU PERSONAGEM</span
+            >
+            <h2 data-i18n="skin.title">
+              Não é só uma skin.<br />É você no jogo.
+            </h2>
+            <p data-i18n="skin.desc">
+              Importe seu PNG, escolha o modelo dos braços e experimente capas.
+              O Skin Studio mostra cada detalhe antes de aplicar.
             </p>
-            <div class="donation-perks-real">
-              <div class="donation-perk-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span data-i18n="donations.perk1">Ajuda a manter a distribuição de downloads rápida e estável</span>
-              </div>
-              <div class="donation-perk-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span data-i18n="donations.perk2">Financia melhorias contínuas de compatibilidade e desempenho</span>
-              </div>
-              <div class="donation-perk-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                <span data-i18n="donations.perk3">Incentiva o ecossistema Linux gamer com código limpo e sem telemetria</span>
-              </div>
-            </div>
+            <a class="btn-secondary" href="/skins"
+              ><span data-i18n="skin.open">Abrir Skin Studio</span
+              ><span class="button-arrow" aria-hidden="true">↗</span></a
+            >
           </div>
-
-          <div class="donation-clean-right">
-            <div class="pix-box-card">
-              <div class="pix-qr-wrap" data-darkreader-ignore>
-                <img src="assets/pix-qr.png" alt="QR Code PIX Luxmc" class="pix-qr-img" width="180" height="180" data-darkreader-ignore>
-              </div>
-              <div class="pix-instruction" data-i18n="donations.pixInstruction">Escaneie o QR Code no app do seu banco ou copie a chave:</div>
-              <div class="pix-copy-row">
-                <input type="text" id="inlinePixKey" class="pix-input-inline" value="06a84b9e-71b9-4c36-9ebd-07105ce54808" readonly aria-label="Chave PIX Oficial">
-                <button type="button" class="btn-copy-pix-inline" id="btnCopyInlinePix" onclick="copyInlinePix()" data-i18n="donations.btnCopy">Copiar</button>
-              </div>
-              <div class="pix-disclaimer" data-i18n="donations.disclaimer">Qualquer valor faz a diferença! Obrigado de coração 💛</div>
-            </div>
+          <figure class="identity-capture">
+            <a href="/skins" aria-label="Abrir o estúdio de skins"
+              ><img
+                src="assets/launcher-personalizer.webp"
+                width="1440"
+                height="900"
+                alt="Personalizador de skins real do LuxMC"
+                loading="lazy"
+                decoding="async"
+            /></a>
+            <figcaption data-i18n="skin.caption">
+              O personalizador, por dentro do launcher.
+            </figcaption>
+          </figure>
+        </div>
+      </section>
+      <section id="conta-luxmc" class="container social-section">
+        <div class="social-copy">
+          <span class="section-tag" data-i18n="social.label"
+            >MULTIPLAYER LUXMC</span
+          >
+          <h2 data-i18n="social.title">Chama a turma.<br />Abre o mundo.</h2>
+          <p data-i18n="social.desc">
+            Amigos pelo nickname, convites para mundos LAN e preferências
+            ligadas à sua conta. O túnel usa conexão direta ou relay, conforme a
+            rede.
+          </p>
+          <div class="social-actions">
+            <a class="btn-primary" href="/conta?mode=register"
+              ><span data-i18n="nav.createAccount">Criar conta LuxMC</span
+              ><span aria-hidden="true">↗</span></a
+            ><a class="text-link" href="/conta?mode=login"
+              ><span data-i18n="social.login">Já tenho conta</span
+              ><span aria-hidden="true">↗</span></a
+            >
           </div>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Download Section -->
-  <section id="download" class="download-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="download.tag">// 12 // DOWNLOADS OFICIAIS</span>
-        <h2 class="section-title" data-i18n="download.title">BAIXE O LUXMC AGORA. É 100% GRÁTIS.</h2>
-        <p class="section-subtitle" data-i18n="download.subtitle">Escolha seu sistema operacional. Sem necessidade de cadastro ou anúncios forçados.</p>
-      </div>
-
-      <div class="download-grid">
-        <!-- Linux Card -->
-        <div id="card-linux" class="download-card">
-          <div class="download-header">
-            <div class="platform-icon">
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M12.504 0c-.155 0-.315.008-.48.021-4.226.333-3.105 4.807-3.17 6.298-.076 1.092-.3 1.953-1.05 3.02-.885 1.051-2.127 2.75-2.716 4.521-.278.832-.41 1.684-.287 2.489a.424.424 0 00-.11.135c-.26.268-.45.6-.663.839-.199.199-.485.267-.797.4-.313.136-.658.269-.864.68-.09.189-.136.394-.132.602 0 .199.027.4.055.536.058.399.116.728.04.97-.249.68-.28 1.145-.106 1.484.174.334.535.47.94.601.81.2 1.91.135 2.774.6.926.466 1.866.67 2.616.47.526-.116.97-.464 1.208-.946.587-.003 1.23-.269 2.26-.334.699-.058 1.574.267 2.577.2.025.134.063.198.114.333l.003.003c.391.778 1.113 1.132 1.884 1.071.771-.06 1.592-.536 2.257-1.306.631-.765 1.683-1.084 2.378-1.503.348-.199.629-.469.649-.853.023-.4-.2-.811-.714-1.376v-.097l-.003-.003c-.17-.2-.25-.535-.338-.926-.085-.401-.182-.786-.492-1.046h-.003c-.059-.054-.123-.067-.188-.135a.357.357 0 00-.19-.064c.431-1.278.264-2.55-.173-3.694-.533-1.41-1.465-2.638-2.175-3.483-.796-1.005-1.576-1.957-1.56-3.368.026-2.152.236-6.133-3.544-6.139z"/></svg>
+        <div>
+          <div class="party-card">
+            <span class="party-caption" data-i18n="social.map"
+              >SEU MUNDO LAN, COM A SUA TURMA.</span
+            >
+            <h3 data-i18n="social.inviteTitle">
+              O convite começa<br />pelo nickname.
+            </h3>
+            <ol class="party-steps">
+              <li>
+                <span>1</span>
+                <p data-i18n="social.step1">
+                  Adicione seus amigos à conta LuxMC.
+                </p>
+              </li>
+              <li>
+                <span>2</span>
+                <p data-i18n="social.step2">
+                  Abra seu mundo para LAN no Minecraft.
+                </p>
+              </li>
+              <li>
+                <span>3</span>
+                <p data-i18n="social.step3">
+                  Crie o convite pelo launcher e compartilhe.
+                </p>
+              </li>
+            </ol>
+            <span class="party-note" data-i18n="social.inviteNote"
+              >Conexão direta ou relay. Túnel criptografado.</span
+            >
+          </div>
+          <details id="servidores" class="server-tool">
+            <summary data-i18n="social.server">
+              Consultar um servidor Minecraft
+            </summary>
+            <div class="server-content">
+              <div class="server-search">
+                <input
+                  type="text"
+                  id="serverIpInput"
+                  class="server-ip-input"
+                  aria-label="Endereço do servidor"
+                  placeholder="IP ou endereço do servidor"
+                  value="hypixel.net"
+                  maxlength="253"
+                  spellcheck="false"
+                /><button
+                  type="button"
+                  id="btnCheckServer"
+                  class="btn-check-server"
+                  data-i18n="social.check"
+                >
+                  Consultar ↗
+                </button>
+              </div>
+              <div class="quick-servers">
+                <button
+                  type="button"
+                  class="quick-server-pill"
+                  data-ip="hypixel.net"
+                >
+                  Hypixel</button
+                ><button
+                  type="button"
+                  class="quick-server-pill"
+                  data-ip="mush.com.br"
+                >
+                  Mush</button
+                ><button
+                  type="button"
+                  class="quick-server-pill"
+                  data-ip="pvp.land"
+                >
+                  PvP Land
+                </button>
+              </div>
+              <div
+                id="serverResultBox"
+                class="server-result-box"
+                role="status"
+                aria-live="polite"
+              ></div>
             </div>
+          </details>
+        </div>
+      </section>
+      <section id="privacidade" class="privacy-band">
+        <div class="container privacy-layout">
+          <div>
+            <span class="section-tag" data-i18n="privacy.label"
+              >SEUS ARQUIVOS, NO SEU DISCO</span
+            >
+            <h2 data-i18n="privacy.title">
+              Você joga.<br />Você tem o controle.
+            </h2>
+            <p data-i18n="privacy.desc">
+              Instâncias e arquivos no seu disco. Código público para consultar.
+              Serviços externos identificados na política de privacidade.
+            </p>
+            <a class="text-link" href="/privacidade"
+              ><span data-i18n="privacy.link"
+                >Entenda como seus dados são usados</span
+              ><span aria-hidden="true">↗</span></a
+            >
+          </div>
+          <div class="privacy-facts">
+            <span data-i18n="privacy.local">Arquivos locais</span
+            ><span data-i18n="privacy.public">Código público</span
+            ><span data-i18n="privacy.ads">Site sem anúncios</span
+            ><span data-i18n="privacy.export">Importar &amp; exportar</span>
+          </div>
+        </div>
+      </section>
+      <section id="download" class="download-section">
+        <div class="container">
+          <div class="section-heading">
             <div>
-              <h3 class="platform-title" data-i18n="download.card.linux.title">Linux</h3>
-              <p class="platform-sub" data-i18n="download.card.linux.sub">Ubuntu, Fedora, Arch, Debian & Wayland</p>
+              <span class="section-tag" data-i18n="download.label"
+                >COMECE A JOGAR</span
+              >
+              <h2 data-i18n="download.title">
+                Escolha seu sistema.<br />O resto é LuxMC.
+              </h2>
             </div>
+            <p data-i18n="download.desc">
+              Gratuito para uso pessoal. Baixe o pacote oficial para o seu
+              desktop, direto do release.
+            </p>
           </div>
-
-          <div class="download-action-wrap">
-            <a id="downloadAppImageLink" href="/download/linux" class="btn-download-main">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span data-i18n="download.card.linux.btn">Baixar .AppImage (x64)</span>
-            </a>
+          <div class="download-grid">
+            <article id="card-windows" class="download-card">
+              <svg
+                class="platform-icon"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  d="m2 5 9-1v7H2V5Zm11-1 9-2v9h-9V4ZM2 13h9v7l-9-1v-6Zm11 0h9v9l-9-2v-7Z"
+                ></path>
+              </svg>
+              <h3>Windows</h3>
+              <p>Windows 10 / 11 · x64</p>
+              <a
+                id="downloadExeLink"
+                href="/download/windows"
+                class="btn-download-main"
+                ><span data-i18n="download.exe">Baixar instalador .exe</span
+                ><span aria-hidden="true">↗</span></a
+              >
+              <div class="alt-downloads">
+                <span id="exeSize" data-i18n="download.official"
+                  >Release oficial</span
+                >
+              </div>
+            </article>
+            <article id="card-linux" class="download-card">
+              <svg
+                class="platform-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                aria-hidden="true"
+              >
+                <path d="m5 7 5 5-5 5m8 0h6"></path>
+              </svg>
+              <h3>Linux</h3>
+              <p>Ubuntu / Fedora / Arch / Debian</p>
+              <a
+                id="downloadAppImageLink"
+                href="/download/linux"
+                class="btn-download-main"
+                ><span data-i18n="download.appimage">Baixar .AppImage</span
+                ><span aria-hidden="true">↗</span></a
+              >
+              <div class="alt-downloads">
+                <a id="downloadDebLink" href="/download/deb">.deb</a
+                ><a id="downloadRpmLink" href="/download/rpm">.rpm</a
+                ><a href="/download/arch">Arch .pkg.tar.zst</a>
+              </div>
+            </article>
+            <article id="card-macos" class="download-card">
+              <svg
+                class="platform-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                aria-hidden="true"
+              >
+                <rect x="3" y="3" width="18" height="14" rx="2"></rect>
+                <path d="M8 21h8m-4-4v4"></path>
+              </svg>
+              <h3>macOS</h3>
+              <p data-i18n="download.macDesc">
+                Confira a arquitetura no release.
+              </p>
+              <a
+                id="downloadMacLink"
+                href="/download/macos"
+                class="btn-download-main"
+                ><span data-i18n="download.mac">Conferir pacote .dmg</span
+                ><span aria-hidden="true">↗</span></a
+              >
+              <div class="alt-downloads">
+                <a
+                  href="https://github.com/predabr/luxmc/releases"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-i18n="download.releases"
+                  >Todos os releases ↗</a
+                >
+              </div>
+            </article>
           </div>
-
-          <div class="alt-downloads">
-            <span class="alt-label" data-i18n="download.card.linux.alt">Outros formatos:</span>
-            <div class="alt-tags">
-              <a id="downloadDebLink" href="/download/deb" class="alt-tag" data-i18n="download.alt.deb">Pacote .deb</a>
-              <a id="downloadRpmLink" href="/download/rpm" class="alt-tag" data-i18n="download.alt.rpm">Pacote .rpm</a>
-              <a href="/download/arch" class="alt-tag" data-i18n="download.alt.arch">Arch (.pkg.tar.zst)</a>
+          <p class="release-note">
+            <span class="live-version-tag">v3.0.0</span> ·
+            <span data-i18n="download.note"
+              >Disponibilidade consultada no GitHub. Sem cadastro
+              obrigatório.</span
+            >
+          </p>
+          <details id="desempenho" class="install-terminal-wrapper">
+            <summary data-i18n="download.terminal">
+              Prefere o terminal? Instale no Linux.
+            </summary>
+            <div class="install-body">
+              <div class="install-tabs">
+                <button
+                  type="button"
+                  class="install-tab active"
+                  data-cmd="curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash"
+                >
+                  Universal (curl)
+                </button>
+                <button
+                  type="button"
+                  class="install-tab"
+                  data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; sudo pacman -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst"
+                >
+                  Arch (pacman)
+                </button>
+                <button
+                  type="button"
+                  class="install-tab"
+                  data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; yay -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst"
+                >
+                  Arch (yay)
+                </button>
+                <button
+                  type="button"
+                  class="install-tab"
+                  data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/arch -o /tmp/luxmc.pkg.tar.zst &amp;&amp; paru -U /tmp/luxmc.pkg.tar.zst &amp;&amp; rm -f /tmp/luxmc.pkg.tar.zst"
+                >
+                  Arch (paru)
+                </button>
+                <button
+                  type="button"
+                  class="install-tab"
+                  data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/deb -o /tmp/luxmc.deb &amp;&amp; sudo apt-get install -y /tmp/luxmc.deb &amp;&amp; rm -f /tmp/luxmc.deb"
+                >
+                  Ubuntu/Debian
+                </button>
+                <button
+                  type="button"
+                  class="install-tab"
+                  data-cmd="curl -fSL https://luxmc-r92.pages.dev/download/rpm -o /tmp/luxmc.rpm &amp;&amp; sudo dnf install -y /tmp/luxmc.rpm &amp;&amp; rm -f /tmp/luxmc.rpm"
+                >
+                  Fedora/RHEL
+                </button>
+                <button
+                  type="button"
+                  class="install-tab uninstall-tab"
+                  data-cmd="curl -fsSL https://luxmc-r92.pages.dev/uninstall.sh | bash"
+                >
+                  Desinstalar
+                </button>
+              </div>
+              <div class="terminal-box">
+                <code class="terminal-cmd" id="terminal-cmd-text"
+                  >curl -fsSL https://luxmc-r92.pages.dev/install.sh |
+                  bash</code
+                ><button
+                  type="button"
+                  class="btn-copy-cmd"
+                  id="btnCopyTerminalCmd"
+                  data-i18n="download.copy"
+                >
+                  Copiar
+                </button>
+              </div>
             </div>
-          </div>
+          </details>
         </div>
-
-        <!-- macOS Card -->
-        <div id="card-macos" class="download-card">
-          <div class="download-header"><h3 data-i18n="download.card.macos.title">macOS</h3><p data-i18n="download.card.macos.sub">Para computadores Apple. Confira a arquitetura do pacote no release.</p></div>
-          <div class="download-action-wrap"><a id="downloadMacLink" href="/download/macos" class="btn-download-main" data-i18n="download.card.macos.btn">Baixar .dmg</a></div>
-        </div>
-
-        <!-- Windows Card -->
-        <div id="card-windows" class="download-card">
-          <div class="download-header">
-            <div class="platform-icon">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-            </div>
-            <div>
-              <h3 class="platform-title" data-i18n="download.card.windows.title">Windows</h3>
-              <p class="platform-sub" data-i18n="download.card.windows.sub">Windows 10 e Windows 11 (64-bit)</p>
-            </div>
-          </div>
-
-          <div class="download-action-wrap">
-            <a id="downloadExeLink" href="/download/windows" class="btn-download-main">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span data-i18n="download.card.windows.btn">Baixar Instalador .exe (x64)</span>
-            </a>
-          </div>
-
-          <div class="alt-downloads">
-            <span class="alt-label" data-i18n="download.card.windows.alt">Outros formatos:</span>
-            <div class="alt-tags">
-              <a href="https://github.com/predabr/luxmc/releases" target="_blank" rel="noopener noreferrer" class="alt-tag" data-i18n="download.alt.all">Todas as Releases ↗</a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Banner Publicitário 728x90 -->
-  <div class="ad-leaderboard-section" style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 40px auto; text-align: center; max-width: 1200px; padding: 0 16px;">
-    <span class="ad-badge" style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.35); margin-bottom: 8px;">Publicidade</span>
-    <div class="ad-leaderboard-wrap" style="max-width: 100%; overflow-x: auto; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 10px;">
-      <script>
-        atOptions = {
-          'key' : '71a11c48393c8c0a6d94e9a335ff5fac',
-          'format' : 'iframe',
-          'height' : 90,
-          'width' : 728,
-          'params' : {}
-        };
-      </script>
-      <script src="https://www.highrevenueformat.com/71a11c48393c8c0a6d94e9a335ff5fac/invoke.js"></script>
-    </div>
-  </div>
-
-  <!-- FAQ Section -->
-  <section id="faq" class="faq-section">
-    <div class="container">
-      <div class="section-heading">
-        <span class="section-tag" data-i18n="faq.tag">// 13 // DOCUMENTAÇÃO &amp; FAQ</span>
-        <h2 class="section-title" data-i18n="faq.title">PERGUNTAS FREQUENTES</h2>
-        <p class="section-subtitle" data-i18n="faq.subtitle">Tire suas dúvidas sobre o Luxmc, compatibilidade e recursos.</p>
-      </div>
-
-      <div class="faq-accordion">
-        <div class="faq-item">
-          <button type="button" class="faq-question">
-            <span data-i18n="faq.q1">O Luxmc Launcher é gratuito?</span>
-            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="faq-answer">
-            <p data-i18n="faq.a1">Sim! O Luxmc é 100% gratuito e de código aberto sob licença MIT. Você pode usar, inspecionar o código-fonte e contribuir no GitHub sem custos ou assinaturas.</p>
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button type="button" class="faq-question">
-            <span data-i18n="faq.q2">Preciso de uma conta original da Microsoft?</span>
-            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="faq-answer">
-            <p data-i18n="faq.a2">O Luxmc suporta login oficial da Microsoft (com renovação de sessão quando permitida pela Microsoft) e também permite criar perfis locais/offline com nickname customizado para jogar singleplayer e em servidores que permitem.</p>
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button type="button" class="faq-question">
-            <span data-i18n="faq.q3">Como funciona o multiplayer P2P sem Hamachi?</span>
-            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="faq-answer">
-            <p data-i18n="faq.a3">Abra o mundo para LAN, informe a porta no painel Jogar com amigos e compartilhe o convite privado. A conexão usa um túnel criptografado com relay quando necessário. Todos precisam de versões e mods compatíveis.</p>
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button type="button" class="faq-question">
-            <span data-i18n="faq.q4">Posso importar meus mundos e modpacks existentes?</span>
-            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="faq-answer">
-            <p data-i18n="faq.a4">Com certeza. O Luxmc possui um importador direto de mundos para arquivos <code>.zip</code> e pastas de saves, além de importar modpacks completos em formato <code>.mrpack</code> (Modrinth) e pacotes do CurseForge com 1 clique.</p>
-          </div>
-        </div>
-
-        <div class="faq-item">
-          <button type="button" class="faq-question">
-            <span data-i18n="faq.q5">O Luxmc funciona no Linux com Wayland nativo?</span>
-            <svg class="faq-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="faq-answer">
-            <p data-i18n="faq.a5">O Luxmc oferece suporte a Linux e Wayland. A fluidez depende da GPU, do driver e do WebKit instalado. Os controles gráficos permitem reduzir efeitos e a qualidade do wallpaper.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Banner Nativo de Alta Conversão -->
-  <section class="ad-native-section" style="margin: 40px 0;">
-    <div class="container" style="text-align: center;">
-      <span class="ad-badge" style="display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.35); margin-bottom: 12px;">Conteúdo Patrocinado</span>
-      <div class="ad-native-card" style="display: inline-block; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 20px; padding: 16px; max-width: 100%; overflow-x: auto;">
-        <script async="async" data-cfasync="false" src="https://pl31422484.profitableratecpmnetwork.com/48aa6b245794b919093d16714a0e93bc/invoke.js"></script>
-        <div id="container-48aa6b245794b919093d16714a0e93bc"></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA Banner (Damn Good Brands Inverted Card) -->
-  <section class="bottom-cta-section">
-    <div class="container">
-      <div class="bottom-cta-card">
-        <span class="section-tag" style="color: #000000 !important; margin-bottom: 8px;" data-i18n="cta.tag">// SISTEMA PRONTO // BUILD <span class="live-version-tag">v2.0.2</span></span>
-        <h2 class="bottom-cta-title" data-i18n="cta.title">PRONTO PARA SEU PRÓXIMO MUNDO?</h2>
-        <p class="bottom-cta-sub" data-i18n="cta.subtitle">Escolha sua plataforma e comece a montar sua próxima aventura com inicialização instantânea e zero telemetria.</p>
-        <div class="hero-actions">
-          <a href="#download" class="btn-hero-primary" data-i18n="cta.btnDownload">BAIXAR LUXMC <span class="live-version-tag">v2.0.2</span> GRÁTIS ↗</a>
-          <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" class="btn-hero-secondary" style="border-color: rgba(0,0,0,0.3) !important; color: #000000 !important;" data-i18n="cta.btnGithub">VER NO GITHUB ↗</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Editorial 4-Column Footer (Damn Good Brands System) -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-hero-bar">
-        <div class="footer-brand-huge">LUXMC™</div>
-        <div class="footer-brand-meta">
-          <div data-i18n="footer.status"><span class="live-status-dot">●</span> STATUS: 100% OPERACIONAL // BUILD <span class="live-version-tag">v2.0.2</span></div>
-          <div data-i18n="footer.tagline">LINUX-FIRST MINECRAFT ECOSYSTEM // TAURI &amp; RUST</div>
-        </div>
-      </div>
-
-      <div class="footer-grid">
-        <div class="footer-brand-col">
-          <div class="footer-brand">
-            <img src="assets/logo.png" alt="Luxmc" class="footer-logo">
-            <span class="footer-title">LUXMC™</span>
-          </div>
-          <p class="footer-desc" data-i18n="footer.desc">
-            Seus mundos, modpacks e amigos em um só lugar. Feito para a comunidade Minecraft, com desenvolvimento aberto e arquitetura nativa em Rust.
+      </section>
+      <section id="doacoes" class="container support-strip">
+        <div>
+          <h3 data-i18n="support.title">
+            Independente. E feito para continuar.
+          </h3>
+          <p data-i18n="support.desc">
+            Quer ajudar nos custos do projeto? O apoio é voluntário, via PIX.
           </p>
         </div>
-
-        <div class="footer-col">
-          <h4 class="footer-heading" data-i18n="footer.col1.title">Recursos</h4>
-          <ul class="footer-links">
-            <li><a href="#inicio" data-i18n="footer.col1.link1">Início</a></li>
-            <li><a href="#recursos" data-i18n="footer.col1.link2">Recursos</a></li>
-            <li><a href="#desempenho" data-i18n="footer.col1.link3">Desempenho</a></li>
-            <li><a href="skins.html" data-i18n="footer.col1.link4">Estúdio de Skins 3D</a></li>
-            <li><a href="#privacidade" data-i18n="footer.col1.link5">Privacidade &amp; Segurança</a></li>
-          </ul>
+        <button type="button" class="btn-secondary" id="openDonate">
+          <span data-i18n="support.cta">Apoiar o LuxMC</span
+          ><span aria-hidden="true">↗</span>
+        </button>
+      </section>
+      <section id="faq" class="container faq-layout">
+        <div>
+          <span class="section-tag" data-i18n="faq.label">ANTES DE ENTRAR</span>
+          <h2 data-i18n="faq.title">Alguma dúvida?</h2>
+          <a
+            class="text-link"
+            href="https://github.com/predabr/luxmc/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><span data-i18n="faq.support"
+              >Converse com o projeto no GitHub</span
+            ><span aria-hidden="true">↗</span></a
+          >
         </div>
-
-        <div class="footer-col">
-          <h4 class="footer-heading" data-i18n="footer.col2.title">Plataformas</h4>
-          <ul class="footer-links">
-            <li><a href="#download" data-i18n="footer.col2.link1">Linux (.AppImage)</a></li>
-            <li><a href="#download" data-i18n="footer.col2.link2">Linux (.deb / .rpm / Arch)</a></li>
-            <li><a href="#download" data-i18n="footer.col2.link3">Windows (Setup .exe)</a></li>
-            <li><a href="https://github.com/predabr/luxmc/releases" target="_blank" rel="noopener noreferrer" data-i18n="footer.col2.link4">Todas as Releases ↗</a></li>
-          </ul>
+        <div>
+          <details class="faq-item">
+            <summary data-i18n="faq.q1">O LuxMC é gratuito?</summary>
+            <p data-i18n="faq.a1">
+              Sim, para uso pessoal. O projeto tem uma licença própria; consulte
+              as condições no repositório antes de distribuir ou usar
+              comercialmente.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary data-i18n="faq.q2">
+              Preciso de uma conta Microsoft?
+            </summary>
+            <p data-i18n="faq.a2">
+              O launcher aceita login Microsoft e perfis locais. Servidores com
+              autenticação oficial exigem uma conta Microsoft com Minecraft. A
+              conta LuxMC é opcional e não substitui a licença do jogo.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary data-i18n="faq.q3">
+              Posso trazer meus mundos e modpacks?
+            </summary>
+            <p data-i18n="faq.a3">
+              Sim. Importe mundos em pasta ou .zip, modpacks .mrpack e pacotes
+              CurseForge. Cada instância mantém seu próprio conteúdo e
+              configurações.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary data-i18n="faq.q4">Como funciona o multiplayer?</summary>
+            <p data-i18n="faq.a4">
+              Abra um mundo para LAN no Minecraft e compartilhe um convite do
+              LuxMC. O túnel conecta os participantes diretamente ou por relay,
+              conforme as condições da rede.
+            </p>
+          </details>
+          <details class="faq-item">
+            <summary data-i18n="faq.q5">
+              O site instala os mods no meu computador?
+            </summary>
+            <p data-i18n="faq.a5">
+              O botão “Instalar no LuxMC” abre o aplicativo pelo protocolo
+              luxmc://. Lá você seleciona a instância e a versão. Se o launcher
+              não abrir, o site mostra como baixá-lo.
+            </p>
+          </details>
         </div>
-
-        <div class="footer-col">
-          <h4 class="footer-heading" data-i18n="footer.col3.title">Comunidade & Legal</h4>
-          <ul class="footer-links">
-            <li><a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer" data-i18n="footer.col3.link1">Repositório no GitHub</a></li>
-            <li><a href="conta?mode=register" data-i18n="footer.col3.link2">Criar Conta Luxmc</a></li>
-            <li><a href="conta?mode=login" data-i18n="footer.col3.link3">Entrar no Portal ID</a></li>
-            <li><a href="privacidade" data-i18n="footer.col3.link4">Política de Privacidade</a></li>
-            <li><a href="termos" data-i18n="footer.col3.link5">Termos de Uso</a></li>
-          </ul>
+      </section>
+    </main>
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-main">
+          <div class="footer-brand">
+            <a href="/" class="nav-brand" aria-label="LuxMC — Início"
+              ><img
+                class="brand-symbol"
+                src="/assets/favicon.png"
+                width="48"
+                height="48"
+                alt=""
+              /><span class="nav-brand-text">LuxMC<small>™</small></span></a
+            >
+            <p data-i18n="footer.desc">
+              Seus mundos, mods e amigos.<br />Um launcher feito para ser seu.
+            </p>
+          </div>
+          <nav class="footer-links" aria-label="Links do rodapé">
+            <div>
+              <strong data-i18n="footer.product">Produto</strong
+              ><a href="/#recursos" data-i18n="nav.features">Recursos</a
+              ><a href="/#mods" data-i18n="nav.mods">Mods</a
+              ><a href="/skins" data-i18n="nav.skins">Skin Studio</a
+              ><a href="/#download" data-i18n="footer.downloads">Downloads</a>
+            </div>
+            <div>
+              <strong data-i18n="footer.community">Projeto</strong
+              ><a href="/conta?mode=register" data-i18n="nav.createAccount"
+                >Criar conta</a
+              ><a
+                href="https://github.com/predabr/luxmc"
+                target="_blank"
+                rel="noopener noreferrer"
+                >GitHub ↗</a
+              ><a
+                href="https://github.com/predabr/luxmc/issues"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-i18n="footer.support"
+                >Suporte ↗</a
+              ><a href="/#doacoes" data-i18n="footer.donate">Apoiar o LuxMC</a>
+            </div>
+            <div>
+              <strong data-i18n="footer.legal">Transparência</strong
+              ><a href="/privacidade" data-i18n="nav.privacy">Privacidade</a
+              ><a href="/termos" data-i18n="footer.terms">Termos de uso</a
+              ><a
+                href="https://github.com/predabr/luxmc/blob/main/LICENSE"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-i18n="footer.license"
+                >Licença ↗</a
+              >
+            </div>
+          </nav>
+        </div>
+        <div class="footer-bottom">
+          <span data-i18n="footer.copyright"
+            >© 2026 LuxMC. Projeto independente. Não afiliado à Mojang Studios
+            ou Microsoft.</span
+          ><a href="#main" data-i18n="footer.top">Voltar ao topo ↑</a>
         </div>
       </div>
-
-      <div class="footer-bottom">
-        <p class="footer-copy" data-i18n="footer.copy">
-          &copy; 2026 LUXMC™ LAUNCHER. DESENVOLVIDO PELA COMUNIDADE. NÃO AFILIADO À MOJANG STUDIOS OU MICROSOFT.
+    </footer>
+    <dialog
+      id="showcaseModal"
+      class="screenshot-dialog"
+      aria-labelledby="showcaseModalTitle"
+    >
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Fechar captura">×</button>
+      </form>
+      <span id="showcaseModalTitle" class="index">LUXMC / CAPTURA REAL</span
+      ><img id="showcaseModalImg" alt="Captura ampliada do launcher" />
+    </dialog>
+    <dialog id="donateModal" aria-labelledby="donateTitle">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Fechar apoio">×</button>
+      </form>
+      <div class="donate-content">
+        <h2 id="donateTitle" data-i18n="support.cta">Apoiar o LuxMC</h2>
+        <p data-i18n="support.modal">
+          Escaneie o QR no aplicativo do seu banco. Confira o destinatário antes
+          de concluir. Qualquer apoio é opcional.
         </p>
-        <div class="footer-legal-links">
-          <a href="privacidade" data-i18n="footer.legal.privacy">Privacidade</a>
-          <span>·</span>
-          <a href="termos" data-i18n="footer.legal.terms">Termos</a>
-          <span>·</span>
-          <a href="https://github.com/predabr/luxmc" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <span>·</span>
-          <a href="#inicio" class="back-to-top-text" data-i18n="footer.backToTop">TOPO ↑</a>
-        </div>
+        <img
+          src="assets/pix-qr.png"
+          alt="QR Code PIX do projeto LuxMC"
+          class="pix-qr-img"
+          width="180"
+          height="180"
+        /><input
+          class="pix-input"
+          id="inlinePixKey"
+          value="06a84b9e-71b9-4c36-9ebd-07105ce54808"
+          readonly=""
+          aria-label="Chave PIX do projeto"
+        /><button
+          class="btn-primary"
+          type="button"
+          id="btnCopyInlinePix"
+          data-i18n="support.copy"
+        >
+          Copiar chave PIX
+        </button>
       </div>
-    </div>
-  </footer>
-
-  <!-- Floating Back to Top Button -->
-  <button type="button" id="btnBackToTop" class="btn-back-to-top" aria-label="Voltar ao topo da página" title="Voltar ao topo">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
-  </button>
-  <!-- Showcase Modal Lightbox -->
-  <div id="showcaseModal" class="showcase-modal" aria-hidden="true" role="dialog" aria-label="Visualizador de Captura de Tela">
-    <div class="showcase-modal-backdrop" id="showcaseModalBackdrop"></div>
-    <div class="showcase-modal-dialog">
-      <button type="button" class="showcase-modal-close" id="showcaseModalClose" aria-label="Fechar">&times;</button>
-      <div class="showcase-modal-header">
-        <h3 id="showcaseModalTitle" class="showcase-modal-title">Menu Principal — Luxmc Launcher</h3>
-        <span class="showcase-modal-pill">100% Rust & Svelte 5</span>
-      </div>
-      <div class="showcase-modal-img-wrap">
-        <img id="showcaseModalImg" src="assets/launcher-home-v2.png" alt="Visualização em tela cheia do Luxmc">
-      </div>
-    </div>
-  </div>
-
-  <!-- Toast Notification Container -->
-  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
-
-  <!-- Modal de Doação / PIX / Apoio (Fixed Overlay, Hidden by Default) -->
-  <div id="donateModal" class="donate-modal-overlay" aria-hidden="true" role="dialog" aria-label="Apoiar o Projeto Luxmc" style="display: none;">
-    <div class="donate-modal-box">
-      <button type="button" class="modal-close-btn" onclick="closeDonationModal()" aria-label="Fechar modal">&times;</button>
-      
-      <div style="text-align: center;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.25); color: #fbbf24; margin-bottom: 14px;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-        </div>
-        <h3 id="donateModalTierTitle" style="font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px; letter-spacing: -0.02em;">Apoiar o Luxmc</h3>
-        <p style="font-size: 13px; color: #8e8e93; line-height: 1.5;">Faça uma contribuição voluntária via <strong>PIX</strong> para apoiar os custos e o desenvolvimento do Luxmc!</p>
-      </div>
-
-      <!-- PIX QR Code & Chave Copia e Cola -->
-      <div class="pix-qr-container">
-        <div class="pix-qr-wrap" data-darkreader-ignore>
-          <img id="pixQrImg" src="assets/pix-qr.png" alt="QR Code PIX Luxmc" class="pix-qr-img" width="160" height="160" data-darkreader-ignore>
-        </div>
-      </div>
-
-      <div style="text-align: center; font-size: 11.5px; color: #71717a; margin-bottom: 8px; font-family: monospace;">
-        Chave PIX Aleatória (Copia e Cola):
-      </div>
-
-      <div class="pix-key-box">
-        <input type="text" id="pixKeyInput" class="pix-key-input" value="06a84b9e-71b9-4c36-9ebd-07105ce54808" readonly>
-        <button type="button" class="btn-copy-pix" id="btnCopyPix" onclick="copyPixKey()">Copiar Chave</button>
-      </div>
-
-      <div style="margin-top: 18px; padding: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; font-size: 12px; color: #a1a1aa; line-height: 1.5; text-align: center;">
-        <strong style="color: #fbbf24;">💛 Agradecemos pelo seu apoio!</strong><br>
-        Sua contribuição voluntária ajuda a manter o Luxmc no ar, 100% gratuito e com desenvolvimento ativo para toda a comunidade.
-      </div>
-    </div>
-  </div>
-
-  <script src="i18n.js?v=2.0.2"></script>
-  <script src="app.js?v=2.0.2"></script>
-  <script>
-    function openDonationModal(tierName, amount) {
-      const modal = document.getElementById('donateModal');
-      const title = document.getElementById('donateModalTierTitle');
-      if (title) {
-        title.textContent = tierName ? `Apoiar ${tierName} ${amount ? `(R$ ${amount})` : ''}` : 'Apoiar o Projeto Luxmc';
-      }
-      if (modal) {
-        modal.style.display = 'flex';
-        modal.classList.add('active');
-        modal.setAttribute('aria-hidden', 'false');
-      }
-    }
-
-    function closeDonationModal() {
-      const modal = document.getElementById('donateModal');
-      if (modal) {
-        modal.classList.remove('active');
-        modal.setAttribute('aria-hidden', 'true');
-        modal.style.display = 'none';
-      }
-    }
-
-    function fallbackCopy(text) {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand("copy"); } catch (e) {}
-      document.body.removeChild(ta);
-    }
-
-    function copyPixKey() {
-      const input = document.getElementById('pixKeyInput');
-      const btn = document.getElementById('btnCopyPix');
-      if (input) {
-        const text = input.value;
-        const onCopied = () => {
-          if (btn) {
-            const oldText = btn.textContent;
-            btn.textContent = 'Copiado! ✓';
-            btn.style.background = '#10b981';
-            setTimeout(() => {
-              btn.textContent = oldText;
-              btn.style.background = '';
-            }, 2500);
-          }
-          if (typeof showToast === 'function') {
-            showToast('Chave PIX copiada com sucesso!');
-          }
-        };
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(onCopied).catch(() => {
-            fallbackCopy(text);
-            onCopied();
-          });
-        } else {
-          fallbackCopy(text);
-          onCopied();
-        }
-      }
-    }
-
-    function copyInlinePix() {
-      const input = document.getElementById('inlinePixKey');
-      const btn = document.getElementById('btnCopyInlinePix');
-      if (input) {
-        const text = input.value;
-        const onCopied = () => {
-          if (btn) {
-            const oldText = btn.textContent;
-            btn.textContent = 'Copiado! ✓';
-            btn.style.background = '#10b981';
-            btn.style.color = '#fff';
-            setTimeout(() => {
-              btn.textContent = oldText;
-              btn.style.background = '';
-              btn.style.color = '';
-            }, 2500);
-          }
-          if (typeof showToast === 'function') {
-            showToast('Chave PIX copiada com sucesso!');
-          }
-        };
-
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(onCopied).catch(() => {
-            fallbackCopy(text);
-            onCopied();
-          });
-        } else {
-          fallbackCopy(text);
-          onCopied();
-        }
-      }
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const modal = document.getElementById('donateModal');
-      if (modal) {
-        modal.addEventListener('click', (e) => {
-          if (e.target === modal) {
-            closeDonationModal();
-          }
-        });
-      }
-
-      document.querySelectorAll('.install-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-          const cmd = this.getAttribute('data-cmd');
-          if (cmd) setInstallCmd(this, cmd);
-        });
-      });
-    });
-
-    let currentInstallCmd = "curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash";
-    function setInstallCmd(btn, cmd) {
-      document.querySelectorAll(".install-tab").forEach(t => t.classList.remove("active"));
-      if (btn) btn.classList.add("active");
-      currentInstallCmd = cmd;
-      const cmdEl = document.getElementById("terminal-cmd-text");
-      if (cmdEl) cmdEl.textContent = cmd;
-    }
-
-    function copyTerminalCmd(btn) {
-      const cmd = currentInstallCmd || document.getElementById("terminal-cmd-text")?.textContent || "curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash";
-      const onCopied = () => {
-        const btnEl = btn || document.getElementById("btnCopyTerminalCmd") || document.querySelector(".btn-copy-cmd");
-        const span = btnEl ? btnEl.querySelector("span") : null;
-        if (span) {
-          const old = span.textContent;
-          span.textContent = "Copiado! ✓";
-          btnEl.classList.add("copied");
-          if (typeof showToast === "function") {
-            showToast("Comando copiado para a área de transferência!");
-          }
-          setTimeout(() => {
-            span.textContent = old;
-            btnEl.classList.remove("copied");
-          }, 2200);
-        }
-      };
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(cmd).then(onCopied).catch(() => {
-          fallbackCopy(cmd);
-          onCopied();
-        });
-      } else {
-        fallbackCopy(cmd);
-        onCopied();
-      }
-    }
-  </script>
-</body>
+    </dialog>
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+    <script defer="" src="i18n.js?v=20261004"></script>
+    <script defer="" src="app.js?v=20261004"></script>
+    <script type="module" src="cinematic.js?v=20261004"></script>
+  </body>
 </html>

@@ -33,7 +33,7 @@
 
 <div class={`w-full bg-bg-subtle rounded-full overflow-hidden ${sizeClasses[size]}`}>
 	<div
-		class={`h-full ${variantClasses[variant]} rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 ${
+		class={`h-full ${variantClasses[variant]} rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300 ${
 			animated ? 'animate-pulse' : ''
 		}`}
 		style={`width: ${percentage}%`}

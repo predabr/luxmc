@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { api } from "./client";
 
 export async function authBegin(): Promise<{ state: string; verifier: string; url: string }> {
@@ -118,7 +119,7 @@ export function authResolveTexture(url: string): Promise<string> {
     if (existing) return existing;
     if (textureRequests.size >= 8) textureRequests.delete(textureRequests.keys().next().value!);
     const request = api.invoke<string>("auth_resolve_texture", { url }).then(data => {
-        if (!data?.startsWith("data:image/png;base64,")) throw new Error("Textura inválida");
+        if (!data?.startsWith("data:image/png;base64,")) throw new Error(uiText("ui.148b815ec3c7b49a"));
         return data;
     }).catch(error => { textureRequests.delete(url); throw error; });
     textureRequests.set(url, request);

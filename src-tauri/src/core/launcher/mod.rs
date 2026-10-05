@@ -1,4 +1,7 @@
 mod loader_selection;
+mod classpath_paths;
+#[cfg(any(target_os = "windows", test))]
+mod native_cache;
 pub mod launch_state;
 use std::path::PathBuf;
 use std::process::Stdio;
@@ -15,7 +18,7 @@ use crate::error::{AppError, AppResult};
 const DEV_CLIENT_ID: &str = "00000000-0000-0000-0000-000000000002";
 const DEV_XUID: &str = "0";
 const LAUNCHER_NAME: &str = "Luxmc";
-const LAUNCHER_VERSION: &str = "2.0.1";
+const LAUNCHER_VERSION: &str = env!("CARGO_PKG_VERSION");
 static CLIENT_AGENT_JAR: &[u8] = include_bytes!("../../../assets/luxmc-client-agent.jar");
 static ACTIVE_CAPE_BYTES: tokio::sync::RwLock<Vec<u8>> = tokio::sync::RwLock::const_new(Vec::new());
 
@@ -238,21 +241,22 @@ pub fn find_csharp_launcher() -> Option<PathBuf> {
     }
 
     let mut candidates = Vec::new();
+    let binary_name = if cfg!(windows) { "Luxmc.Launcher.exe" } else { "Luxmc.Launcher" };
 
     if let Ok(exe) = std::env::current_exe() {
         if let Some(parent) = exe.parent() {
-            candidates.push(parent.join("Luxmc.Launcher"));
-            candidates.push(parent.join("bin").join("Luxmc.Launcher"));
+            candidates.push(parent.join(binary_name));
+            candidates.push(parent.join("bin").join(binary_name));
             if let Some(grandparent) = parent.parent() {
-                candidates.push(grandparent.join("bin").join("Luxmc.Launcher"));
-                candidates.push(grandparent.join("dist-electron").join("bin").join("Luxmc.Launcher"));
-                candidates.push(grandparent.join("app.asar.unpacked").join("dist-electron").join("bin").join("Luxmc.Launcher"));
+                candidates.push(grandparent.join("bin").join(binary_name));
+                candidates.push(grandparent.join("dist-electron").join("bin").join(binary_name));
+                candidates.push(grandparent.join("app.asar.unpacked").join("dist-electron").join("bin").join(binary_name));
             }
         }
     }
 
     if let Some(dirs) = directories::ProjectDirs::from("io", "github", "Luxmc") {
-        candidates.push(dirs.data_dir().join("bin").join("Luxmc.Launcher"));
+        candidates.push(dirs.data_dir().join("bin").join(binary_name));
     }
 
     for c in candidates {
@@ -568,15 +572,9 @@ impl GameLauncher {
                 }
             }
 
-            let mut seen_cp = std::collections::HashSet::new();
-            let mut deduped_cp = Vec::new();
-            for entry in classpath {
-                if seen_cp.insert(entry.clone()) {
-                    deduped_cp.push(entry);
-                }
-            }
-            classpath = deduped_cp;
         }
+
+        classpath = classpath_paths::normalize(classpath);
 
         self.emit_log(&format!("Classpath entries: {}", classpath.len()));
 
@@ -978,7 +976,8 @@ impl GameLauncher {
             }
         }
 
-        let gpu = crate::core::optimizer::detect_gpu();
+        let gpu = tokio::task::spawn_blocking(crate::core::optimizer::detect_gpu).await
+            .map_err(|error| crate::error::AppError::Internal(error.to_string()))?;
         self.emit_log(&format!("GPU detectada para lançamento: {} (Fabricante: {}, Driver: {})", gpu.renderer, gpu.vendor, gpu.driver));
 
         #[cfg(target_os = "windows")]
@@ -1012,12 +1011,15 @@ impl GameLauncher {
                 if let Ok((hkcu, _)) = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
                     .create_subkey("Software\\Microsoft\\DirectX\\UserGpuPreferences")
                 {
-                    let java_str = java_path.to_string_lossy().to_string();
-                    if let Err(error) = hkcu.set_value(&java_str, &"GpuPreference=2;") {
-                        self.emit_log(&format!("Não foi possível definir preferência de GPU: {error}"));
-                    } else {
-                        self.emit_log("Windows: preferência de GPU de alto desempenho ativada.");
+                    for binary in [java_path.clone(), java_path.with_file_name("javaw.exe")] {
+                        if binary.exists() {
+                            let java_str = binary.to_string_lossy().to_string();
+                            if let Err(error) = hkcu.set_value(&java_str, &"GpuPreference=2;") {
+                                self.emit_log(&format!("Não foi possível definir preferência de GPU: {error}"));
+                            }
+                        }
                     }
+                    self.emit_log("Windows: preferência de GPU de alto desempenho configurada para Java e Javaw.");
                 }
             }
         }
@@ -1151,7 +1153,7 @@ impl GameLauncher {
                         if mem > current_max {
                             peak_ram_tracker.store(mem, std::sync::atomic::Ordering::Relaxed);
                         }
-                        crate::commands::optimizer::optimizer_trim_memory();
+                        if !cfg!(windows) { crate::commands::optimizer::optimizer_trim_memory(); }
                     } else {
                         break;
                     }
@@ -1296,6 +1298,11 @@ impl GameLauncher {
         let last_stderr_reader = last_stderr.clone();
         let is_game_active_waiter = is_game_active.clone();
         let game_dir_for_crash = game_dir.clone();
+        let post_exit_hook = profile.post_exit_hook.clone();
+        let hook_profile_id = profile.id.clone();
+        let hook_profile_name = profile.name.clone();
+        let hook_game_dir = game_dir.clone();
+        let hook_version_id = detail.id.clone();
         tokio::spawn(async move {
             match child.wait().await {
                 Ok(status) => {
@@ -1339,6 +1346,22 @@ impl GameLauncher {
                                 "timestamp": chrono::Utc::now().to_rfc3339(),
                             }),
                         );
+                    }
+                    if let Some(hook) = post_exit_hook.as_deref() {
+                        let hook_env = crate::core::hooks::HookEnv {
+                            profile_id: &hook_profile_id,
+                            profile_name: &hook_profile_name,
+                            version_id: &hook_version_id,
+                            game_dir: &hook_game_dir,
+                            exit_code: Some(code),
+                        };
+                        if let Err(e) = crate::core::hooks::run("pós-encerramento", hook, &hook_env).await
+                        {
+                            tracing::warn!(target: "hooks", "{}", e);
+                            if let Some(ref app) = app_exit {
+                                let _ = app.emit("launcher-log", format!("⚠️ {e}"));
+                            }
+                        }
                     }
                 }
                 Err(e) => {
@@ -1414,85 +1437,122 @@ pub async fn extract_natives(
     tokio::fs::create_dir_all(&natives_dir).await?;
 
     let os_name = platform_mojang_name(current_platform());
+    let mut extract_error: Option<std::io::Error> = None;
 
-    tokio::task::block_in_place(|| {
-        for lib in &detail.libraries {
-            if !is_library_allowed(lib) {
-                continue;
-            }
+    let mut archive_paths = Vec::new();
+    let mut seen_archives = std::collections::HashSet::new();
+    for lib in &detail.libraries {
+        if !is_library_allowed(lib) {
+            continue;
+        }
 
-            let mut candidate_paths = Vec::new();
+        let mut candidate_paths = Vec::new();
 
-            if lib.name.contains(&format!("natives-{}", os_name)) {
-                candidate_paths.push(lib_path_from_name(&base, &lib.name));
-            }
+        if lib.name.contains(&format!("natives-{}", os_name)) {
+            candidate_paths.push(lib_path_from_name(&base, &lib.name));
+        }
 
-            if let Some(ref downloads) = lib.downloads {
-                if let Some(ref classifiers) = downloads.classifiers {
-                    for (classifier_key, _) in classifiers {
-                        let matches_os = match os_name {
-                            "windows" => classifier_key.starts_with("natives-windows"),
-                            "linux" => classifier_key.starts_with("natives-linux"),
-                            "osx" => {
-                                classifier_key.starts_with("natives-osx")
-                                    || classifier_key.starts_with("natives-macos")
-                            }
-                            _ => false,
-                        };
-                        if matches_os {
-                            let native_lib_name = format!("{}:{}", lib.name, classifier_key);
-                            candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
+        if let Some(ref downloads) = lib.downloads {
+            if let Some(ref classifiers) = downloads.classifiers {
+                let mut classifier_keys = classifiers.keys().collect::<Vec<_>>();
+                classifier_keys.sort();
+                for classifier_key in classifier_keys {
+                    let matches_os = match os_name {
+                        "windows" => classifier_key.starts_with("natives-windows"),
+                        "linux" => classifier_key.starts_with("natives-linux"),
+                        "osx" => {
+                            classifier_key.starts_with("natives-osx")
+                                || classifier_key.starts_with("natives-macos")
                         }
+                        _ => false,
+                    };
+                    if matches_os && is_native_classifier_allowed(classifier_key) {
+                        let native_lib_name = format!("{}:{}", lib.name, classifier_key);
+                        candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
                     }
                 }
             }
+        }
 
-            if let Some(ref natives_map) = lib.natives {
-                if let Some(native_key) = natives_map.get(os_name) {
-                    let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
-                    let native_key = native_key.replace("${arch}", arch);
-                    let native_lib_name = format!("{}:{}", lib.name, native_key);
-                    candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
-                }
+        if let Some(ref natives_map) = lib.natives {
+            if let Some(native_key) = natives_map.get(os_name) {
+                let arch = if cfg!(target_arch = "x86") { "32" } else { "64" };
+                let native_key = native_key.replace("${arch}", arch);
+                let native_lib_name = format!("{}:{}", lib.name, native_key);
+                candidate_paths.push(lib_path_from_name(&base, &native_lib_name));
             }
+        }
 
-            for path in candidate_paths {
-                if path.exists() {
-                    if let Ok(file) = std::fs::File::open(&path) {
-                        if let Ok(mut archive) = zip::ZipArchive::new(file) {
-                            for i in 0..archive.len() {
-                                if let Ok(mut file) = archive.by_index(i) {
-                                    if file.is_dir() {
-                                        continue;
+        for path in candidate_paths {
+            if seen_archives.insert(path.clone()) {
+                archive_paths.push(path);
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    if native_cache::is_valid(&natives_dir, &archive_paths) {
+        log("Native libraries unchanged; reusing verified extraction without rewriting DLLs");
+        return Ok(natives_dir);
+    }
+
+    #[cfg(target_os = "windows")]
+    let original_inputs = native_cache::capture(&archive_paths);
+    let extraction_started = std::time::Instant::now();
+    let mut output_names = std::collections::BTreeSet::new();
+    let mut all_archives_opened = true;
+    tokio::task::block_in_place(|| {
+        for path in &archive_paths {
+            if path.exists() {
+                if let Ok(file) = std::fs::File::open(path) {
+                    if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                        for i in 0..archive.len() {
+                            if let Ok(mut file) = archive.by_index(i) {
+                                if file.is_dir() {
+                                    continue;
+                                }
+                                let enclosed = match file.enclosed_name() {
+                                    Some(name) => name.to_path_buf(),
+                                    None => continue,
+                                };
+                                if enclosed.starts_with("META-INF") {
+                                    continue;
+                                }
+                                if let Some(file_name) = enclosed.file_name() {
+                                    let outpath = natives_dir.join(file_name);
+                                    let copy_result = (|| -> std::io::Result<()> {
+                                        let mut outfile = std::fs::File::create(&outpath)?;
+                                        std::io::copy(&mut file, &mut outfile)?;
+                                        std::io::Write::flush(&mut outfile)
+                                    })();
+                                    if copy_result.is_ok() {
+                                        output_names.insert(PathBuf::from(file_name));
                                     }
-                                    let enclosed = match file.enclosed_name() {
-                                        Some(name) => name.to_path_buf(),
-                                        None => continue,
-                                    };
-                                    if enclosed.starts_with("META-INF") {
-                                        continue;
-                                    }
-                                    if let Some(file_name) = enclosed.file_name() {
-                                        let outpath = natives_dir.join(file_name);
-                                        if let Ok(mut outfile) = std::fs::File::create(&outpath) {
-                                            let _ = std::io::copy(&mut file, &mut outfile);
+                                    if let Err(e) = copy_result {
+                                        let _ = std::fs::remove_file(&outpath);
+                                        if extract_error.is_none() {
+                                            extract_error = Some(e);
                                         }
                                     }
                                 }
                             }
-                        } else {
-                            log(&format!(
-                                "Failed to open native zip archive: {}",
-                                path.display()
-                            ));
                         }
                     } else {
+                        all_archives_opened = false;
                         log(&format!(
-                            "Failed to open native jar file: {}",
+                            "Failed to open native zip archive: {}",
                             path.display()
                         ));
                     }
+                } else {
+                    all_archives_opened = false;
+                    log(&format!(
+                        "Failed to open native jar file: {}",
+                        path.display()
+                    ));
                 }
+            } else {
+                all_archives_opened = false;
             }
         }
     });
@@ -1576,6 +1636,20 @@ pub async fn extract_natives(
             natives_dir.display()
         ));
     });
+
+    if let Some(e) = extract_error {
+        return Err(crate::error::AppError::Io(e));
+    }
+
+    #[cfg(target_os = "windows")]
+    if let Some(inputs) = original_inputs.filter(|_| all_archives_opened) {
+        if let Err(error) = native_cache::store(&natives_dir, &archive_paths, &output_names, &inputs) {
+            log(&format!("Native extraction cache could not be saved: {error}"));
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    let _ = all_archives_opened;
+    log(&format!("Native preparation completed in {:.0}ms", extraction_started.elapsed().as_secs_f64() * 1000.0));
 
     Ok(natives_dir)
 }
@@ -1716,7 +1790,7 @@ impl GameLauncher {
             crate::core::optimizer::generate_standard_flags(ram_mb.max(0) as u64)
         };
 
-        if (is_heavy_modded || profile.loader == "forge" || profile.loader == "neoforge" || profile.loader == "fabric" || profile.loader == "quilt") && !custom_collector {
+        if !cfg!(windows) && (is_heavy_modded || profile.loader == "forge" || profile.loader == "neoforge" || profile.loader == "fabric" || profile.loader == "quilt") && !custom_collector {
             if let Some(pos) = generated_flags.iter().position(|f| f.starts_with("-Xms")) {
                 let initial_ms = (ram_mb / 4).max(2048).min(ram_mb);
                 generated_flags[pos] = format!("-Xms{}M", initial_ms);
@@ -2014,6 +2088,30 @@ async fn ensure_flite_library(natives_dir: &PathBuf) -> AppResult<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn native_classifiers_do_not_mix_windows_cpu_architectures() {
+        assert!(native_classifier_matches_arch("natives-windows", "x86_64"));
+        assert!(native_classifier_matches_arch("natives-windows", "x86"));
+        assert!(!native_classifier_matches_arch("natives-windows-arm64", "x86_64"));
+        assert!(!native_classifier_matches_arch("natives-windows-x86", "x86_64"));
+        assert!(native_classifier_matches_arch("natives-windows-x86", "x86"));
+        assert!(native_classifier_matches_arch("natives-windows-arm64", "aarch64"));
+        assert!(native_classifier_matches_arch("natives-windows-64", "x86_64"));
+        assert!(!native_classifier_matches_arch("natives-windows-32", "x86_64"));
+        assert!(native_classifier_matches_arch("sources", "x86_64"));
+    }
+
+    #[test]
+    fn library_os_and_architecture_rules_preserve_last_matching_action() {
+        let platform = platform_mojang_name(current_platform());
+        let library = |rules: serde_json::Value| serde_json::from_value::<minecraft::Library>(serde_json::json!({"name":"fixture:library:1", "rules":rules})).unwrap();
+        let mismatch = if cfg!(target_arch = "aarch64") { "x86_64" } else { "aarch64" };
+        assert!(!is_library_allowed(&library(serde_json::json!([{"action":"allow","os":{"name":platform,"arch":mismatch}}]))));
+        assert!(is_library_allowed(&library(serde_json::json!([{"action":"allow","os":{"name":platform,"arch":std::env::consts::ARCH}}]))));
+        assert!(!is_library_allowed(&library(serde_json::json!([{"action":"allow"},{"action":"disallow","os":{"name":platform}}]))));
+        assert!(is_library_allowed(&library(serde_json::json!([{"action":"disallow","os":{"name":platform}},{"action":"allow"}]))));
+    }
 
     #[tokio::test]
     async fn appearance_keeps_other_packs_and_removes_stale_cape() {
@@ -2314,28 +2412,56 @@ pub struct GameExitEvent {
     pub error_message: Option<String>,
 }
 
+fn architecture_matches(required: &str, current: &str) -> bool {
+    match required {
+        "x86" | "i386" | "i686" => current == "x86",
+        "x86_64" | "x64" | "amd64" => current == "x86_64",
+        "arm64" | "aarch64" => current == "aarch64",
+        "arm" | "arm32" => current == "arm",
+        _ => false,
+    }
+}
+
+fn native_classifier_matches_arch(classifier: &str, architecture: &str) -> bool {
+    if !classifier.starts_with("natives-") {
+        return true;
+    }
+    let suffix = classifier.rsplit('-').next().unwrap_or_default();
+    match suffix {
+        "arm64" | "aarch64" | "x86_64" | "x64" | "x86" | "arm32" => architecture_matches(suffix, architecture),
+        "32" => architecture == "x86",
+        "64" => architecture == "x86_64",
+        _ => true,
+    }
+}
+
+pub fn is_native_classifier_allowed(classifier: &str) -> bool {
+    native_classifier_matches_arch(classifier, std::env::consts::ARCH)
+}
+
 pub fn is_library_allowed(lib: &minecraft::Library) -> bool {
+    if let Some(classifier) = lib.name.split(':').nth(3) {
+        if !is_native_classifier_allowed(classifier) {
+            return false;
+        }
+    }
     if let Some(ref rules) = lib.rules {
         let platform = platform_mojang_name(current_platform());
         let mut allowed = false;
         for rule in rules {
+            if let Some(ref os) = rule.os {
+                if os.name != platform {
+                    continue;
+                }
+                if let Some(architecture) = &os.arch {
+                    if !architecture_matches(architecture, std::env::consts::ARCH) {
+                        continue;
+                    }
+                }
+            }
             match rule.action.as_str() {
-                "allow" => {
-                    if let Some(ref os) = rule.os {
-                        if os.name == platform {
-                            allowed = true;
-                        }
-                    } else {
-                        allowed = true;
-                    }
-                }
-                "deny" => {
-                    if let Some(ref os) = rule.os {
-                        if os.name == platform {
-                            return false;
-                        }
-                    }
-                }
+                "allow" => allowed = true,
+                "deny" | "disallow" => allowed = false,
                 _ => {}
             }
         }
@@ -2871,9 +2997,13 @@ async fn inject_player_skin(
     let slim_skin_img = normalized_skin_img.clone();
 
     let mut wide_buf = Vec::new();
-    let _ = wide_skin_img.write_to(&mut std::io::Cursor::new(&mut wide_buf), image::ImageFormat::Png);
+    wide_skin_img
+        .write_to(&mut std::io::Cursor::new(&mut wide_buf), image::ImageFormat::Png)
+        .map_err(|e| crate::error::AppError::Internal(format!("failed to encode wide skin: {e}")))?;
     let mut slim_buf = Vec::new();
-    let _ = slim_skin_img.write_to(&mut std::io::Cursor::new(&mut slim_buf), image::ImageFormat::Png);
+    slim_skin_img
+        .write_to(&mut std::io::Cursor::new(&mut slim_buf), image::ImageFormat::Png)
+        .map_err(|e| crate::error::AppError::Internal(format!("failed to encode slim skin: {e}")))?;
 
     set_active_cape_bytes(Vec::new()).await;
     let pack_dir = game_dir.join("resourcepacks").join("LuxmcCustomSkin");

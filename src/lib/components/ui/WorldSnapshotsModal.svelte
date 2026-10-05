@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { onMount } from "svelte";
 	import { fade, scale } from "svelte/transition";
@@ -65,26 +67,26 @@
 			const snap = await instanceWorldSnapshotCreate(profileId, folderName, newLabel.trim() || undefined);
 			snapshots = [snap, ...snapshots];
 			newLabel = "";
-			toast("Snapshot ultra-rápido (zstd) criado com sucesso!", "success");
+			toast(uiText("ui.1f27d349af739371"), "success");
 		} catch (e) {
-			toast("Erro ao criar snapshot: " + String(e), "error");
+			toast(uiText("ui.0f740ddf0c82093f") + String(e), "error");
 		} finally {
 			creating = false;
 		}
 	}
 
 	async function handleRestore(filename: string) {
-		if (!confirm(`Deseja restaurar o mundo para o estado deste snapshot (${filename})? O estado atual do mundo será sobrescrito.`)) {
+		if (!confirm(uiText("ui.02d8975f8a49a480", {arg0: (filename)}))) {
 			return;
 		}
 		restoringId = filename;
 		try {
 			await instanceWorldSnapshotRestore(profileId, folderName, filename);
-			toast("Mundo restaurado com sucesso para este ponto!", "success");
+			toast(uiText("ui.32f8e6cb2c0962d2"), "success");
 			onRestored?.();
 			onClose();
 		} catch (e) {
-			toast("Erro ao restaurar snapshot: " + String(e), "error");
+			toast(uiText("ui.bcf51d72622863de") + String(e), "error");
 		} finally {
 			restoringId = null;
 		}
@@ -94,15 +96,15 @@
 		try {
 			await instanceWorldSnapshotDelete(profileId, folderName, filename);
 			snapshots = snapshots.filter(s => s.filename !== filename);
-			toast("Snapshot excluído!", "info");
+			toast(uiText("ui.3e7512221104485b"), "info");
 		} catch (e) {
-			toast("Erro ao excluir snapshot: " + String(e), "error");
+			toast(uiText("ui.56583931a7978e59") + String(e), "error");
 		}
 	}
 
 	function formatDate(unixSeconds: number): string {
 		const d = new Date(unixSeconds * 1000);
-		return d.toLocaleDateString("pt-BR", {
+		return d.toLocaleDateString(currentUiLocale(), {
 			day: "2-digit",
 			month: "2-digit",
 			year: "numeric",
@@ -131,15 +133,15 @@
 						<Archive class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-base font-bold text-fg">Time Machine de Mundos</h3>
+						<h3 class="text-base font-bold text-fg">{uiText("ui.d15c18fff9858551")}</h3>
 						<p class="text-xs text-fg/50">{worldName} ({folderName})</p>
 					</div>
 				</div>
 				<button 
 					type="button" 
-					class="p-2 rounded-xl text-fg/40 hover:text-fg hover:bg-fg/5 transition-colors cursor-pointer"
+					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={onClose}
-					aria-label="Fechar"
+					aria-label={uiText("statusBanner.dismiss")}
 				>
 					<X class="w-4 h-4" />
 				</button>
@@ -149,7 +151,7 @@
 			<div class="flex items-center gap-2 bg-bg-subtle p-2 rounded-2xl border border-fg/5">
 				<input 
 					type="text" 
-					placeholder="Identificador do Snapshot (ex: Antes do Wither)..." 
+					placeholder={uiText("ui.a0329378a34bfc69")} 
 					bind:value={newLabel}
 					class="flex-1 bg-transparent px-3 py-1.5 text-xs text-fg placeholder-fg/30 outline-none"
 				/>
@@ -161,7 +163,7 @@
 					onclick={handleCreateSnapshot}
 				>
 					<Plus class="w-3.5 h-3.5" />
-					{creating ? "Comprimindo zstd..." : "Criar Snapshot"}
+					{creating ? "Comprimindo zstd..." : uiText("ui.98b1dfca4ee6df6a")}
 				</Button>
 			</div>
 
@@ -169,17 +171,17 @@
 			<div class="flex-1 overflow-y-auto space-y-2.5 custom-scrollbar pr-1 min-h-[160px]">
 				{#if loading}
 					<div class="flex items-center justify-center py-12 text-fg/40 text-xs">
-						Carregando snapshots do mundo...
+						{uiText("ui.9158b55f1f6ce2ea")}
 					</div>
 				{:else if snapshots.length === 0}
 					<div class="flex flex-col items-center justify-center py-12 text-center text-fg/40">
 						<Archive class="w-10 h-10 mb-2 opacity-30" />
-						<div class="text-xs font-bold text-fg/60">Nenhum snapshot gravado</div>
-						<div class="text-[11px] mt-1">Crie seu primeiro ponto de restauração instantâneo com compressão zstd!</div>
+						<div class="text-xs font-bold text-fg/60">{uiText("ui.5ae0229aba431fe0")}</div>
+						<div class="text-[11px] mt-1">{uiText("ui.6266c84f36ddccb2")}</div>
 					</div>
 				{:else}
 					{#each snapshots as snap}
-						<div class="bg-bg-subtle border border-fg/5 hover:border-fg/10 rounded-2xl p-3.5 flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] group">
+						<div class="bg-bg-subtle border border-fg/5 hover:border-fg/10 rounded-2xl p-3.5 flex items-center justify-between transition-[color,background-color,border-color,box-shadow,transform,opacity] group">
 							<div class="flex items-center gap-3 min-w-0">
 								<div class="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 shrink-0">
 									<Clock class="w-4 h-4" />
@@ -189,7 +191,7 @@
 									<div class="flex items-center gap-2 mt-0.5 text-[10px] text-fg/40">
 										<span>{formatDate(snap.createdAt)}</span>
 										<span>·</span>
-										<span>{(snap.sizeBytes / (1024 * 1024)).toFixed(2)} MB (zstd)</span>
+										<span>{(snap.sizeBytes / (1024 * 1024)).toFixed(2)} {uiText("ui.477ae5a1a2358517")}</span>
 									</div>
 								</div>
 							</div>
@@ -197,20 +199,20 @@
 							<div class="flex items-center gap-1.5 shrink-0">
 								<button 
 									type="button"
-									class="px-3 py-1.5 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+									class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5 disabled:opacity-50" })}
 									disabled={restoringId === snap.filename}
 									onclick={() => handleRestore(snap.filename)}
-									title="Restaurar mundo para este ponto"
+									title={uiText("ui.5ad9d5ce30138874")}
 								>
 									<RotateCcw class="w-3 h-3 {restoringId === snap.filename ? 'animate-spin' : ''}" />
-									{restoringId === snap.filename ? "Restaurando..." : "Restaurar"}
+									{restoringId === snap.filename ? "Restaurando..." : uiText("shortcutsModal.reset")}
 								</button>
 								<button 
 									type="button"
-									class="p-2 rounded-xl text-fg/40 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+									class={launcherButton({ variant: "danger", size: "icon", class: "" })}
 									onclick={() => handleDelete(snap.filename)}
-									title="Excluir snapshot"
-									aria-label="Excluir snapshot"
+									title={uiText("ui.75877f2d1f55fbe5")}
+									aria-label={uiText("ui.75877f2d1f55fbe5")}
 								>
 									<Trash2 class="w-3.5 h-3.5" />
 								</button>
@@ -222,9 +224,9 @@
 
 			<!-- Footer info -->
 			<div class="pt-2 border-t border-fg/5 flex items-center justify-between text-[11px] text-fg/40">
-				<span>Algoritmo: Zstandard level 3</span>
+				<span>{uiText("ui.5d6e0cf88c17d1e5")}</span>
 				<Button variant="secondary" size="sm" onclick={onClose}>
-					Fechar
+					{uiText("statusBanner.dismiss")}
 				</Button>
 			</div>
 		</div>

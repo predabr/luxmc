@@ -3,6 +3,10 @@ use std::{path::{Path, PathBuf}, sync::LazyLock};
 use tokio::sync::Mutex;
 static MIGRATION: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
+pub async fn migration_guard() -> tokio::sync::MutexGuard<'static, ()> {
+    MIGRATION.lock().await
+}
+
 pub fn game_dir(base: &Path, id: &str) -> AppResult<PathBuf> {
     if id.is_empty() || id.len() > 128 || !id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_') {
         return Err(AppError::InvalidInput("ID de instância inválido".into()));

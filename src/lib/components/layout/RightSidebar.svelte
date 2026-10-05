@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { 
 		Users, 
@@ -22,6 +24,7 @@
     onMount(() => { void newsState.load(); });
 	import { slide, fade } from "svelte/transition";
 	import { toast } from "$lib/stores/toasts.svelte";
+	import { settings } from "$lib/stores/settings.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -29,8 +32,6 @@
 	import { launchGame } from "$lib/api";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 
-	let newFriendName = $state("");
-	let showAddInput = $state(false);
 	let friendSearchQuery = $state("");
 	let showAccountMenu = $state(false);
 
@@ -48,7 +49,7 @@
 	let collapsed = $state(false);
 	onMount(() => { collapsed = window.innerWidth < 1200; });
 
-	function addFriend() { void goto("/friends"); }
+	function addFriend() { void goto("/friends?tab=add"); }
 	async function removeFriend(id: string, _name: string) {
 		try { await friendsState.action("remove", id); } catch (error) { toast(String(error), "error"); }
 	}
@@ -68,13 +69,14 @@
 
 	const onlineFriends = $derived(filteredFriends.filter(f => f.status === "online" || f.status === "in_game").toSorted((a, b) => Number(friendsState.favourites.includes(b.id)) - Number(friendsState.favourites.includes(a.id))));
 	const offlineFriends = $derived(filteredFriends.filter(f => f.status === "offline"));
-	const pendingFriends = $derived(filteredFriends.filter(f => f.status === "pending" && f.incoming));
+	const pendingFriends = $derived(friends.filter(f => f.status === "pending" && f.incoming));
+    $effect(() => { if (pendingFriends.length) pendingExpanded = true; });
 
 	function handleLogout() {
 		friendsState.disconnect();
 		account.clear();
 		showAccountMenu = false;
-		toast("Você saiu da conta.", "info");
+		toast(uiText("ui.9524cb8472a03761"), "info");
 	}
 
 	const isMicrosoft = $derived(
@@ -86,8 +88,8 @@
 	);
 </script>
 
-<aside class="shrink-0 sticky top-3 self-start flex flex-col gap-4 select-none h-[calc(100dvh-1.5rem)] min-h-0 my-3 mr-3 rounded-3xl overflow-y-auto custom-scrollbar border border-fg/10 bg-bg/85 shadow-elevated backdrop-blur-2xl transition-all duration-200 {collapsed ? 'w-16 p-2' : 'w-[280px] p-4'}">
-	<button type="button" class="flex items-center justify-center gap-2 rounded-xl border border-border bg-fg/[0.06] p-3 text-fg-muted hover:text-fg" onclick={() => collapsed = !collapsed} aria-label={collapsed ? "Expandir amigos" : "Minimizar amigos"} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">Amigos</span>{/if}</button>
+<aside style:width={collapsed ? "64px" : `${settings.value.rightSidebarWidth || 320}px`} class="launcher-right-sidebar shrink-0 sticky top-3 self-start flex flex-col gap-4 select-none h-[calc(100dvh-1.5rem)] min-h-0 my-3 mr-3 rounded-3xl overflow-y-auto custom-scrollbar border border-fg/10 bg-bg/85 shadow-elevated backdrop-blur-2xl transition-[width,padding] duration-200 {collapsed ? 'w-16 p-2' : 'p-4'}">
+	<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center justify-center gap-2" })} onclick={() => collapsed = !collapsed} aria-label={collapsed ? uiText("ui.7a6bd25d922200a5") : uiText("ui.64ea1d5c74a216b5")} aria-expanded={!collapsed}><Users class="h-4 w-4" />{#if !collapsed}<span class="text-xs">{uiText("nav.friends")}</span>{/if}</button>
 	{#if !collapsed}
 
 	{#if account.value}
@@ -97,13 +99,13 @@
 				tabindex="0"
 				onclick={() => showAccountMenu = !showAccountMenu}
 				onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") showAccountMenu = !showAccountMenu; }}
-				class="w-full bg-bg/35 backdrop-blur-xl hover:bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-all cursor-pointer shadow-sm group"
+				class="w-full bg-bg/35 backdrop-blur-xl hover:bg-bg/35 backdrop-blur-xl border border-fg/[0.06] rounded-2xl p-2.5 flex items-center justify-between gap-2.5 transition-[background-color,border-color] duration-150 cursor-pointer shadow-sm group"
 			>
 				<div class="flex items-center gap-2.5 min-w-0">
 					<div class="w-9 h-9 rounded-full overflow-hidden bg-fg/[0.04] border border-fg/10 shrink-0">
 						<img loading="lazy" decoding="async" 
 							src={activeSkinStore.current.avatarUrl || account.value.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`} 
-							alt="Avatar" 
+							alt={uiText("ui.ca8e826d9c2ec401")} 
 							class="w-full h-full object-cover rounded-full" 
 							onerror={(e) => {
 								const img = e.currentTarget as HTMLImageElement;
@@ -120,9 +122,9 @@
 						<div class="text-[10px] text-fg/40 truncate flex items-center gap-1.5 mt-0.5">
 							{#if isMicrosoft}
 								<MicrosoftLogo size={10} />
-								<span class="text-emerald-400 font-semibold">Conta Microsoft</span>
+								<span class="text-emerald-400 font-semibold">{uiText("ui.7142cc12e4218a5a")}</span>
 							{:else}
-								<span>Conta Offline</span>
+								<span>{uiText("ui.2793472a35db2b80")}</span>
 							{/if}
 						</div>
 					</div>
@@ -139,9 +141,9 @@
 					<button
 						type="button"
 						onclick={handleLogout}
-						class="w-full px-3 py-2 text-left text-xs text-red-400 hover:bg-red-500/10 flex items-center gap-2 cursor-pointer font-bold"
+						class={launcherButton({ variant: "danger", size: "sm", class: "w-full text-left flex items-center gap-2" })}
 					>
-						<LogOut class="w-3.5 h-3.5" /> Trocar de Conta / Sair
+						<LogOut class="w-3.5 h-3.5" /> {uiText("ui.1655b0af148c8929")}
 					</button>
 				</div>
 			{/if}
@@ -152,9 +154,9 @@
 		<div class="flex items-center gap-1.5">
 			<button
 				type="button"
-				onclick={() => showAddInput = !showAddInput}
-				class="p-1.5 rounded-xl bg-bg-elevated hover:bg-bg-subtle text-fg/60 hover:text-fg border border-fg/5 transition-colors cursor-pointer"
-				title="Adicionar amigo"
+				onclick={addFriend}
+				class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+				title={uiText("ui.fcaaf1906cc6c7a6")}
 			>
 				<UserPlus class="w-3.5 h-3.5" />
 			</button>
@@ -164,8 +166,8 @@
 				<input
 					type="text"
 					bind:value={friendSearchQuery}
-					placeholder="Buscar amigos…"
-					class="w-full bg-bg-elevated border border-fg/5 rounded-xl pl-7 pr-2.5 py-1.5 text-xs text-fg placeholder:text-fg/25 outline-none focus:border-fg/20 transition-all"
+					placeholder={uiText("ui.d9c5db7620e00677")}
+					class="w-full bg-bg-elevated border border-fg/5 rounded-xl pl-7 pr-2.5 py-1.5 text-xs text-fg placeholder:text-fg/25 outline-none focus:border-fg/20 transition-[border-color] duration-150"
 				/>
 			</div>
 
@@ -174,7 +176,7 @@
 					type="button"
 					onclick={() => showPendingDropdown = !showPendingDropdown}
 					class="p-1.5 rounded-xl {showPendingDropdown ? 'bg-blue-600 text-fg shadow-md' : 'bg-bg-elevated hover:bg-bg-subtle text-fg/60 hover:text-fg'} border border-fg/5 transition-colors cursor-pointer"
-					title="Solicitações de Amizade"
+					title={uiText("ui.431a4a4d99085d78")}
 				>
 					<Mail class="w-3.5 h-3.5" />
 				</button>
@@ -190,11 +192,11 @@
 						transition:slide={{ easing: quintOut, duration: 220 }}
 					>
 						<div class="flex items-center justify-between border-b border-fg/5 pb-2">
-							<span class="text-xs font-black text-fg">Solicitações ({pendingFriends.length})</span>
+							<span class="text-xs font-black text-fg">{uiText("ui.e6b4ea6a9403d1d2")}{pendingFriends.length})</span>
 							<button 
 								type="button" 
 								onclick={() => showPendingDropdown = false}
-								class="text-fg/40 hover:text-fg text-[10px] font-bold cursor-pointer"
+								class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
 							>
 								✕
 							</button>
@@ -202,14 +204,14 @@
 
 						{#if pendingFriends.length === 0}
 							<div class="text-center py-4 text-fg/40 text-xs">
-								Nenhum convite pendente
+								{uiText("ui.5d5e8132384ed1f0")}
 							</div>
 						{:else}
 							<div class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
 								{#each pendingFriends as friend (friend.id)}
 									<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-bg-elevated border border-fg/5">
 										<div class="flex items-center gap-2 min-w-0">
-											<MinecraftAvatar username={friend.username} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+											<MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
 											<span class="text-xs font-bold text-fg truncate max-w-[90px]">{friend.username}</span>
 										</div>
 
@@ -217,16 +219,16 @@
 											<button
 												type="button"
 												onclick={() => acceptFriend(friend)}
-												class="p-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500 text-emerald-400 hover:text-brand-foreground transition-colors cursor-pointer"
-												title="Aceitar convite"
+												class={launcherButton({ variant: "primary", size: "icon", class: "" })}
+												title={uiText("ui.3d72d4eb181a7ae6")}
 											>
 												<Check class="w-3 h-3 stroke-[3]" />
 											</button>
 											<button
 												type="button"
 												onclick={() => declineFriend(friend)}
-												class="p-1 rounded-lg bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-fg transition-colors cursor-pointer"
-												title="Recusar convite"
+												class={launcherButton({ variant: "danger", size: "icon", class: "" })}
+												title={uiText("ui.0a5237265ae1a5f5")}
 											>
 												<X class="w-3 h-3 stroke-[3]" />
 											</button>
@@ -240,53 +242,35 @@
 			</div>
 		</div>
 
-		{#if showAddInput}
-			<div class="flex items-center gap-1.5" in:slide={{ easing: quintOut, duration: 180 }}>
-				<input
-					type="text"
-					bind:value={newFriendName}
-					placeholder="Gamertag..."
-					class="flex-1 bg-bg-overlay/40 border border-fg/10 rounded-xl px-2.5 py-1 text-xs text-fg placeholder:text-fg/25 outline-none focus:border-emerald-400"
-					onkeydown={(e) => { if (e.key === "Enter") addFriend(); }}
-				/>
-				<button
-					type="button"
-					onclick={addFriend}
-					class="px-2.5 py-1 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-brand-foreground font-bold text-xs cursor-pointer"
-				>
-					Add
-				</button>
-			</div>
-		{/if}
 
 		<div class="space-y-1 text-xs">
 			<div>
 				<button
 					type="button"
 					onclick={() => onlineExpanded = !onlineExpanded}
-					class="w-full flex items-center justify-between py-1 text-fg/70 hover:text-fg text-xs font-bold cursor-pointer"
+					class={launcherButton({ variant: "ghost", size: "sm", class: "w-full flex items-center justify-between" })}
 				>
-					<span>Conectados - {onlineFriends.length}</span>
+					<span>{uiText("ui.1ab2263ab504e587")} {onlineFriends.length}</span>
 					<ChevronDown class="w-3.5 h-3.5 text-fg/40 transition-transform {onlineExpanded ? 'rotate-180' : ''}" />
 				</button>
 
 				{#if onlineExpanded}
 					<div class="space-y-1 pt-0.5 pb-1" transition:slide={{ easing: quintOut, duration: 220 }}>
 						{#if onlineFriends.length === 0}
-							<p class="text-[11px] text-fg/30 py-1">Nenhum amigo online</p>
+							<p class="text-[11px] text-fg/30 py-1">{uiText("ui.23b0d29e118aeccb")}</p>
 						{:else}
 							{#each onlineFriends as friend (friend.id)}
 								<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group">
 									<div class="flex items-center gap-2 min-w-0">
-										<MinecraftAvatar username={friend.username} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+										<MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
 										<div class="min-w-0"><span class="text-xs font-medium text-fg truncate block">{friend.username}</span>
-											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class="text-[10px] font-bold text-brand-400 hover:text-brand-300">ENTRAR NO MUNDO</button>{/if}</div>
+											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class={launcherButton({ variant: "ghost", size: "sm", class: "" })}>{uiText("ui.e551687514b0b026")}</button>{/if}</div>
 									</div>
 
 									<button
 										type="button"
-										class="opacity-0 group-hover:opacity-100 p-1 text-fg/30 hover:text-red-400 transition-opacity cursor-pointer"
-										title="Remover"
+										class={launcherButton({ variant: "danger", size: "icon", class: "opacity-0 group-hover:opacity-100" })}
+										title={uiText("mods.remove")}
 										onclick={() => removeFriend(friend.id, friend.username)}
 									>
 										<Trash2 class="w-3 h-3" />
@@ -302,9 +286,9 @@
 				<button
 					type="button"
 					onclick={() => offlineExpanded = !offlineExpanded}
-					class="w-full flex items-center justify-between py-1 text-fg/40 hover:text-fg text-xs font-bold cursor-pointer"
+					class={launcherButton({ variant: "ghost", size: "sm", class: "w-full flex items-center justify-between" })}
 				>
-					<span>Desconectados - {offlineFriends.length}</span>
+					<span>{uiText("ui.fd13abb10d3f7ea7")} {offlineFriends.length}</span>
 					<ChevronDown class="w-3.5 h-3.5 text-fg/40 transition-transform {offlineExpanded ? 'rotate-180' : ''}" />
 				</button>
 
@@ -313,15 +297,15 @@
 						{#each offlineFriends as friend (friend.id)}
 							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group opacity-60 hover:opacity-100">
 								<div class="flex items-center gap-2 min-w-0">
-									<MinecraftAvatar username={friend.username} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+									<MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
 									<div class="min-w-0"><span class="text-xs font-medium text-fg truncate block">{friend.username}</span>
-											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class="text-[10px] font-bold text-brand-400 hover:text-brand-300">ENTRAR NO MUNDO</button>{/if}</div>
+											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class={launcherButton({ variant: "ghost", size: "sm", class: "" })}>{uiText("ui.e551687514b0b026")}</button>{/if}</div>
 								</div>
 
 								<button
 									type="button"
-									class="opacity-0 group-hover:opacity-100 p-1 text-fg/30 hover:text-red-400 transition-opacity cursor-pointer"
-									title="Remover"
+									class={launcherButton({ variant: "danger", size: "icon", class: "opacity-0 group-hover:opacity-100" })}
+									title={uiText("mods.remove")}
 									onclick={() => removeFriend(friend.id, friend.username)}
 								>
 									<Trash2 class="w-3 h-3" />
@@ -336,24 +320,24 @@
 				<button
 					type="button"
 					onclick={() => pendingExpanded = !pendingExpanded}
-					class="w-full flex items-center justify-between py-1 text-fg/40 hover:text-fg text-xs font-bold cursor-pointer"
+					class={launcherButton({ variant: "ghost", size: "sm", class: "w-full flex items-center justify-between" })}
 				>
-					<span>Solicitações - {pendingFriends.length}</span>
+					<span>{uiText("ui.a014831dc18dac9d")} {pendingFriends.length}</span>
 					<ChevronDown class="w-3.5 h-3.5 text-fg/40 transition-transform {pendingExpanded ? 'rotate-180' : ''}" />
 				</button>
 
 				{#if pendingExpanded}
 					<div class="space-y-1.5 pt-1 pb-1" transition:slide={{ easing: quintOut, duration: 220 }}>
 						{#if pendingFriends.length === 0}
-							<p class="text-[11px] text-fg/30 py-1">Nenhuma solicitação pendente</p>
+							<p class="text-[11px] text-fg/30 py-1">{uiText("ui.b734de335f008912")}</p>
 						{:else}
 							{#each pendingFriends as friend (friend.id)}
 								<div class="flex items-center justify-between p-2 rounded-xl bg-fg/[0.04] border border-fg/10 hover:border-fg/20 transition-colors">
 									<div class="flex items-center gap-2 min-w-0">
-										<MinecraftAvatar username={friend.username} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+										<MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
 										<div class="min-w-0">
 											<span class="text-xs font-bold text-fg truncate block">{friend.username}</span>
-											<span class="text-[10px] text-amber-400 font-medium block">Pendente</span>
+											<span class="text-[10px] text-amber-400 font-medium block">{uiText("ui.0b52c68ee6ed1831")}</span>
 										</div>
 									</div>
 
@@ -361,16 +345,16 @@
 										<button
 											type="button"
 											onclick={() => acceptFriend(friend)}
-											class="p-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
-											title="Aceitar convite"
+											class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
+											title={uiText("ui.3d72d4eb181a7ae6")}
 										>
 											<Check class="w-3 h-3" />
 										</button>
 										<button
 											type="button"
 											onclick={() => declineFriend(friend)}
-											class="p-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-400 border border-rose-500/30 transition-all cursor-pointer shadow-sm active:scale-[0.98]"
-											title="Recusar convite"
+											class={launcherButton({ variant: "danger", size: "icon", class: "" })}
+											title={uiText("ui.0a5237265ae1a5f5")}
 										>
 											<X class="w-3 h-3" />
 										</button>
@@ -386,15 +370,15 @@
 
 	<div class="flex flex-col gap-2.5 flex-1 min-h-0 pt-1">
 		<div class="flex items-center justify-between shrink-0">
-			<span class="text-xs font-bold text-fg/60 block">Notícias & Novidades</span>
-			<a href="/news" class="text-[10px] font-semibold text-brand-400 hover:underline">Ver todas</a>
+			<span class="text-xs font-bold text-fg/60 block">{uiText("ui.100608abed5cd87f")}</span>
+			<a href="/news" class="text-[10px] font-semibold text-brand-400 hover:underline">{uiText("ui.6240cde90c92ce1c")}</a>
 		</div>
 
 		<div class="space-y-2 flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-0.5 pb-2">
 			{#each newsState.items as item (item.id)}
 				<a
 					href="/news"
-					class="cv-auto group block bg-bg/35 backdrop-blur-xl border border-fg/[0.06] hover:border-brand-400/40 rounded-xl overflow-hidden shadow-sm transition-all cursor-pointer [contain-intrinsic-size:auto_72px]"
+					class="group block bg-bg-elevated/90 border border-fg/[0.06] hover:border-brand-400/40 rounded-xl overflow-hidden shadow-sm transition-[border-color] duration-150 cursor-pointer"
 				>
 					<div class="p-2.5 flex gap-2.5 items-center">
 						<div class="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-fg/10 bg-black/40 relative">
@@ -403,7 +387,7 @@
 						<div class="min-w-0 flex-1 space-y-0.5">
 							<div class="flex items-center justify-between gap-1">
 								<span class="text-[9px] font-black text-brand-400 uppercase tracking-wide">{item.category}</span>
-								<span class="text-[9px] text-fg/30">{new Date(`${item.date}T12:00:00Z`).toLocaleDateString("pt-BR", { timeZone: "UTC" })}</span>
+								<span class="text-[9px] text-fg/30">{new Date(`${item.date}T12:00:00Z`).toLocaleDateString(currentUiLocale(), { timeZone: "UTC" })}</span>
 							</div>
 							<div class="text-[11px] font-black text-fg group-hover:text-brand-400 transition-colors leading-tight line-clamp-1">{item.title}</div>
 							<p class="text-[10px] text-fg/50 leading-relaxed line-clamp-1">{item.summary}</p>
@@ -413,7 +397,7 @@
 			{/each}
 
 			<div class="pt-2 px-1 text-center border-t border-fg/[0.04]">
-				<span class="text-[10px] text-fg/30 font-medium">Luxmc • Linux-First Launcher</span>
+				<span class="text-[10px] text-fg/30 font-medium">{uiText("ui.0261021de8d97650")}</span>
 			</div>
 		</div>
 	</div>

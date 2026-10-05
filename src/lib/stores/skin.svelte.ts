@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { authSaveAppearance } from "$lib/api/auth";
 import { account, saveCurrentAccount } from "./account.svelte";
 import { toast } from "./toasts.svelte";
@@ -5,7 +6,7 @@ import { toast } from "./toasts.svelte";
 let pendingSave: Promise<void> = Promise.resolve();
 export async function saveAppearance(skinUrl: string, variant: "classic" | "slim", capeUrl: string | null, avatarUrl?: string): Promise<void> {
     const current = account.value;
-    if (!current) return Promise.reject(new Error("Selecione uma conta"));
+    if (!current) return Promise.reject(new Error(uiText("ui.bf88bb781c9789c1")));
     const request = pendingSave.catch(() => {}).then(() => authSaveAppearance(current.id, skinUrl, variant, capeUrl));
     pendingSave = request;
     await request;
@@ -48,7 +49,7 @@ export interface SkinData {
 
 const defaultSkin: SkinData = {
 	id: "steve",
-	name: "Steve Padrão",
+	name: uiText("ui.ef2b3ce09384e183"),
 	url: "https://mc-heads.net/body/Steve/300",
 	skinUrl: "",
 	avatarUrl: "https://mc-heads.net/avatar/Steve/100",

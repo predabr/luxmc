@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
   let { size = "md", color = "brand" }: { size?: "sm" | "md" | "lg"; color?: "brand" | "white" | "muted" } = $props();
 
   const sizes = { sm: "h-4 w-4", md: "h-6 w-6", lg: "h-8 w-8" };
@@ -10,5 +11,5 @@
 </script>
 
 <div class="animate-spin rounded-full border-2 border-t-transparent {sizes[size]} {colors[color]}" role="status">
-  <span class="sr-only">Carregando…</span>
+  <span class="sr-only">{uiText("common.loading")}</span>
 </div>

@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { Search, Check, ChevronDown, Sparkles, X, Filter } from "lucide-svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 
@@ -40,18 +42,19 @@
 	}
 
 	const filterTabs = [
-		{ id: "release", label: "Releases" },
-		{ id: "all", label: "Todas" },
-		{ id: "snapshot", label: "Snapshots" },
-		{ id: "old_beta", label: "Betas" }
+		{ id: "release", label: uiText("ui.1a6f7cae06cc1fc9") },
+		{ id: "all", label: uiText("instances.groupAll") },
+		{ id: "snapshot", label: uiText("ui.f187f78e07efb26e") },
+		{ id: "old_beta", label: uiText("ui.4d1cbbcdc56bb30d") }
 	] as const;
 
-	const popularVersions = [
-		{ id: "1.21.4", label: "1.21.4", tag: "Recente" },
-		{ id: "1.20.1", label: "1.20.1", tag: "Modpacks" },
-		{ id: "1.16.5", label: "1.16.5", tag: "Forge" },
-		{ id: "1.8.9", label: "1.8.9", tag: "PvP" }
-	] as const;
+	const latestRelease = $derived(versions.filter(version => version.versionType === "release").toSorted((a,b) => b.releaseTime.localeCompare(a.releaseTime))[0]?.id);
+    const popularVersions = $derived([
+		{ id: latestRelease || "", label: latestRelease || uiText("common.loading"), tag: "Mais recente" },
+		{ id: "1.20.1", label: uiText("ui.774e064308df6c12"), tag: "Modpacks" },
+		{ id: "1.16.5", label: uiText("ui.7d92573f62b0facb"), tag: "Forge" },
+		{ id: "1.8.9", label: uiText("ui.397b98314838406b"), tag: "PvP" }
+	] as const);
 </script>
 
 <div class="space-y-2 select-none">
@@ -61,15 +64,15 @@
 			<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/40" />
 			<input
 				type="text"
-				placeholder="Pesquisar versão (ex: 1.21.4, 1.20.1, 1.16.5, snapshot)..."
+				placeholder={uiText("ui.904237f8de88ff52")}
 				bind:value={search}
 				onfocus={() => (isDropdownOpen = true)}
-				class="w-full h-11 pl-9 pr-9 rounded-xl bg-bg-elevated border border-fg/10 focus:border-brand-500 text-xs font-bold text-fg placeholder:text-fg/30 outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
+				class="w-full h-11 pl-9 pr-9 rounded-xl bg-bg-elevated border border-fg/10 focus:border-brand-500 text-xs font-bold text-fg placeholder:text-fg/30 outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity]"
 			/>
 			{#if search}
 				<button
 					type="button"
-					class="absolute right-3 top-1/2 -translate-y-1/2 text-fg/40 hover:text-fg p-0.5 rounded cursor-pointer"
+					class={launcherButton({ variant: "ghost", size: "icon", class: "absolute right-3 top-1/2 -translate-y-1/2" })}
 					onclick={() => (search = "")}
 				>
 					<X class="w-3.5 h-3.5" />
@@ -82,7 +85,9 @@
 			{#each filterTabs as tab}
 				<button
 					type="button"
-					class="px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer {typeFilter === tab.id ? 'bg-brand-500 text-brand-foreground shadow' : 'text-fg/50 hover:text-fg hover:bg-fg/5'}"
+					aria-pressed={typeFilter === tab.id}
+					class:selection-control={typeFilter === tab.id}
+					class="px-2.5 py-1.5 rounded-lg text-[10px] font-extrabold uppercase transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {typeFilter === tab.id ? 'bg-brand-500 text-brand-foreground shadow' : 'text-fg/50 hover:text-fg hover:bg-fg/5'}"
 					onclick={() => { typeFilter = tab.id; isDropdownOpen = true; }}
 				>
 					{tab.label}
@@ -94,12 +99,12 @@
 	<!-- Quick Popular Chips -->
 	<div class="flex items-center gap-1.5 flex-wrap">
 		<span class="text-[10px] font-bold uppercase tracking-wider text-fg/40 flex items-center gap-1 pl-1">
-			<Sparkles class="w-3 h-3 text-brand-500" /> Populares:
+			<Sparkles class="w-3 h-3 text-brand-500" /> {uiText("ui.59a8433c136ff3f5")}
 		</span>
 		{#each popularVersions as pop}
 			<button
 				type="button"
-				class="px-2.5 py-1 rounded-lg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer flex items-center gap-1.5 {value === pop.id ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40 shadow-sm' : 'bg-bg-elevated border border-fg/10 text-fg/70 hover:text-fg hover:border-fg/30'}"
+				class="px-2.5 py-1 rounded-lg text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center gap-1.5 {value === pop.id ? 'bg-brand-500/20 text-brand-400 border border-brand-500/40 shadow-sm' : 'bg-bg-elevated border border-fg/10 text-fg/70 hover:text-fg hover:border-fg/30'}"
 				onclick={() => pick(pop.id)}
 			>
 				<span>{pop.label}</span>
@@ -112,13 +117,13 @@
 	<div class="rounded-2xl border border-fg/10 bg-bg-elevated p-2 space-y-2 shadow-inner">
 		<div class="flex items-center justify-between px-2 py-1 text-[11px] text-fg/50">
 			<div class="flex items-center gap-1.5">
-				<span>Versão selecionada:</span>
+				<span>{uiText("ui.825e12c5880a1577")}</span>
 				<span class="text-brand-500 font-black text-xs bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20">
-					{value || (loading ? "Carregando..." : "Nenhuma selecionada")}
+					{value || (loading ? uiText("app.loading") : uiText("ui.a7114af0c26462f5"))}
 				</span>
 			</div>
 			<span class="text-[10px] text-fg/40">
-				{filtered.length} versões encontradas
+				{filtered.length} {uiText("ui.f8e2c7ea1fb757ee")}
 			</span>
 		</div>
 
@@ -127,18 +132,20 @@
 			{#if loading}
 				<div class="col-span-full py-8 text-center text-xs text-fg/40 flex items-center justify-center gap-2">
 					<div class="w-4 h-4 rounded-full border-2 border-brand-500 border-t-transparent animate-spin"></div>
-					Carregando versões do Mojang...
+					{uiText("ui.09d2e14e0489a66b")}
 				</div>
 			{:else if filtered.length === 0}
 				<div class="col-span-full py-8 text-center text-xs text-fg/40">
-					Nenhuma versão corresponde à pesquisa "{search}".
+					{uiText("ui.d3b77524e66dab9d")}{search}".
 				</div>
 			{:else}
 				{#each filtered as v (v.id)}
 					{@const isSelected = value === v.id}
 					<button
 						type="button"
-						class="flex items-center justify-between px-3 py-2 rounded-xl text-left transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border {isSelected ? 'bg-brand-500 text-brand-foreground border-brand-500 font-black shadow-md scale-[1.02]' : 'bg-bg-subtle hover:bg-bg-subtle text-fg/80 hover:text-fg border-fg/5 hover:border-fg/15'}"
+						class="flex items-center justify-between px-3 py-2 rounded-xl text-left transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer border {isSelected ? 'bg-brand-500 text-brand-foreground border-brand-500 font-black shadow-md scale-[1.02]' : 'bg-bg-subtle hover:bg-bg-subtle text-fg/80 hover:text-fg border-fg/5 hover:border-fg/15'}"
+						aria-pressed={isSelected}
+						class:selection-control={isSelected}
 						onclick={() => pick(v.id)}
 					>
 						<div class="min-w-0">

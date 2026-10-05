@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 export type SectionId = "hero" | "quickInstances" | "favoriteServer" | "curatedPacks" | "gamingStats" | "newsFeed";
 export type LayoutPreset = "gamer" | "compact" | "full";
 
@@ -15,16 +16,16 @@ const STORAGE_KEY = "luxmc_dashboard_layout_v1";
 const DEFAULT_SECTIONS: LayoutSectionItem[] = [
 	{
 		id: "hero",
-		title: "Destaque & Inicialização",
-		description: "Banner principal com status da instância ativa e botão de início rápido",
+		title: uiText("ui.6daea5c25358676e"),
+		description: uiText("ui.172f8f77b115aa2c"),
 		enabled: true,
 		icon: "play",
 		width: "full"
 	},
 	{
 		id: "quickInstances",
-		title: "Acesso Rápido a Instâncias",
-		description: "Carrossel com suas instâncias instaladas para troca rápida",
+		title: uiText("ui.ac0d80020bd11b3f"),
+		description: uiText("ui.5f323732663f2fac"),
 		enabled: true,
 		icon: "boxes",
 		width: "full"
@@ -32,31 +33,31 @@ const DEFAULT_SECTIONS: LayoutSectionItem[] = [
 	{
 		id: "curatedPacks",
 		title: "Modpacks Recomendados",
-		description: "Coleções em destaque prontas para baixar e jogar",
+		description: uiText("ui.a8dfab2702892e07"),
 		enabled: true,
 		icon: "package",
 		width: "full"
 	},
 	{
 		id: "favoriteServer",
-		title: "Servidor Favorito & Ping",
-		description: "Monitor em tempo real do seu servidor com ping, jogadores e entrada rápida",
+		title: uiText("ui.1715319ccc22fdd6"),
+		description: uiText("ui.565ea7945435856c"),
 		enabled: true,
 		icon: "signal",
 		width: "half"
 	},
 	{
 		id: "gamingStats",
-		title: "Tempo de Jogo & Monitor",
-		description: "Estatísticas em tempo real do seu tempo de jogo semanal",
+		title: uiText("ui.efa31af6ebd11b61"),
+		description: uiText("ui.921aeff989a833ba"),
 		enabled: true,
 		icon: "clock",
 		width: "half"
 	},
 	{
 		id: "newsFeed",
-		title: "Notícias & Patch Notes",
-		description: "Últimas atualizações e release notes do Luxmc Launcher",
+		title: uiText("ui.cbac43e730f7f927"),
+		description: uiText("ui.2caecc65473ac0ea"),
 		enabled: true,
 		icon: "newspaper",
 		width: "full"

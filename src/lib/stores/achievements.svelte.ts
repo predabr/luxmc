@@ -1,3 +1,4 @@
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { fireAchievementConfetti } from "$lib/utils/confetti";
 import { toast } from "$lib/stores/toasts.svelte";
 import { playSound } from "$lib/utils/sound";
@@ -14,31 +15,31 @@ export const ACHIEVEMENTS_LIST: Achievement[] = [
 	{
 		id: "primeira_noite",
 		title: "Primeira Noite",
-		description: "Iniciou sua primeira sessão de Minecraft com o Luxmc!",
+		description: uiText("ui.9b65f3504b87cddf"),
 		icon: "🌙"
 	},
 	{
 		id: "mestre_mods",
 		title: "Mestre dos Modpacks",
-		description: "Configurou uma instância com mais de 15 mods ativos.",
+		description: uiText("ui.f81e40c517c74537"),
 		icon: "📦"
 	},
 	{
 		id: "lux_boost",
 		title: "Lux Boost Turbo",
-		description: "Instalou o pacote de performance máximo do Luxmc.",
+		description: uiText("ui.43d6ffcb579b6ecb"),
 		icon: "⚡"
 	},
 	{
 		id: "veterano",
 		title: "Veterano do Bloco",
-		description: "Acumulou 10 ou mais sessões de jogo.",
+		description: uiText("ui.a907c19158e26b21"),
 		icon: "👑"
 	},
 	{
 		id: "share_code",
-		title: "Mundo Compartilhado",
-		description: "Gerou ou importou uma instância via código rápido LUX-XXXX.",
+		title: uiText("ui.d06e660f2e9b5369"),
+		description: uiText("ui.2cee57c0e7c40b18"),
 		icon: "🚀"
 	}
 ];

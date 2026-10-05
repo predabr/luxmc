@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { focusTrap } from '$lib/utils/focusTrap';
 	import { fade } from 'svelte/transition';
@@ -53,7 +54,7 @@
 						type="button"
 						aria-label={t("common.close")}
 						onclick={onClose}
-						class="rounded-lg p-2 transition-colors hover:bg-brand-500/10 hover:text-brand-400"
+						class={launcherButton({ variant: "ghostBrand", size: "icon", class: "" })}
 					>
 						<X size={20} />
 					</button>

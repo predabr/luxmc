@@ -196,6 +196,9 @@ pub fn generate_aikar_flags(ram_mb: u64) -> Vec<String> {
 }
 
 pub fn generate_optimized_flags(ram_mb: u64, java_major: u32) -> Vec<String> {
+    if cfg!(target_os = "windows") {
+        return generate_client_flags(ram_mb);
+    }
     if java_major >= 21 {
         let mut flags = Vec::new();
         let initial_ram = if ram_mb >= 8192 {
@@ -219,9 +222,51 @@ pub fn generate_optimized_flags(ram_mb: u64, java_major: u32) -> Vec<String> {
     }
 }
 
-pub fn generate_standard_flags(ram_mb: u64) -> Vec<String> {
+pub fn generate_client_flags(ram_mb: u64) -> Vec<String> {
+    let ram_mb = ram_mb.max(256);
     vec![
-        "-Xms1024M".to_string(),
+        format!("-Xms{}M", (ram_mb / 4).clamp(256, 1024)),
+        format!("-Xmx{}M", ram_mb),
+        "-XX:+UseG1GC".into(),
+        "-XX:+ParallelRefProcEnabled".into(),
+        "-XX:MaxGCPauseMillis=100".into(),
+        "-XX:+UseStringDeduplication".into(),
+    ]
+}
+
+#[cfg(test)]
+mod windows_client_tests {
+    use super::*;
+    #[test]
+    fn windows_client_heap_preserves_limits_without_startup_pretouch() {
+        for ram in [256, 512, 1024, 4096, 8192, 16384] {
+            let flags = generate_client_flags(ram);
+            assert!(flags.contains(&format!("-Xmx{}M", ram)));
+            assert!(flags.contains(&format!("-Xms{}M", (ram / 4).clamp(256, 1024))));
+            assert!(!flags.iter().any(|flag| flag.contains("AlwaysPreTouch") || flag.contains("UseZGC")));
+            assert_eq!(flags.iter().filter(|flag| flag.contains("UseG1GC")).count(), 1);
+        }
+    }
+
+    #[test]
+    fn standard_heap_stays_within_the_configured_maximum() {
+        for ram in [0, 128, 256, 512, 1024, 4096, 16384] {
+            let effective_maximum = ram.max(256);
+            let flags = generate_standard_flags(ram);
+            assert_eq!(flags, vec![
+                format!("-Xms{}M", (effective_maximum / 4).clamp(256, 1024)),
+                format!("-Xmx{}M", effective_maximum),
+            ]);
+            let initial = flags[0].trim_start_matches("-Xms").trim_end_matches('M').parse::<u64>().unwrap();
+            assert!(initial <= effective_maximum);
+        }
+    }
+}
+
+pub fn generate_standard_flags(ram_mb: u64) -> Vec<String> {
+    let ram_mb = ram_mb.max(256);
+    vec![
+        format!("-Xms{}M", (ram_mb / 4).clamp(256, 1024)),
         format!("-Xmx{}M", ram_mb),
     ]
 }

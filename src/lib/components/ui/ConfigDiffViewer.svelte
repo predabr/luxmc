@@ -1,4 +1,5 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { diffLines, type Change } from "diff";
 
 	type Props = {
@@ -15,13 +16,13 @@
 
 <div class="flex flex-col gap-2 rounded-2xl border border-fg/10 bg-bg-subtle p-4 font-mono text-xs overflow-hidden">
 	<div class="flex items-center justify-between pb-2 border-b border-fg/10 text-fg/60 font-sans font-semibold">
-		<span>{oldTitle} vs {newTitle}</span>
+		<span>{oldTitle} {uiText("ui.f130559f0e7ff9f8")} {newTitle}</span>
 		<div class="flex items-center gap-3 text-[11px]">
 			<span class="flex items-center gap-1 text-emerald-400">
-				<span class="w-2 h-2 rounded-full bg-emerald-400"></span> Adicionado
+				<span class="w-2 h-2 rounded-full bg-emerald-400"></span> {uiText("ui.d88febcb6438066f")}
 			</span>
 			<span class="flex items-center gap-1 text-rose-400">
-				<span class="w-2 h-2 rounded-full bg-rose-400"></span> Removido
+				<span class="w-2 h-2 rounded-full bg-rose-400"></span> {uiText("ui.71d1a9a7ef41cdb1")}
 			</span>
 		</div>
 	</div>

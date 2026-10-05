@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import Heading from "$lib/components/ui/Heading.svelte";
 	import Card from "$lib/components/ui/Card.svelte";
@@ -15,7 +17,7 @@
 
 	const { t } = useTranslation();
 
-	let screenshots = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null }>>([]);
+	let screenshots = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null; thumbPath?: string | null }>>([]);
 	let loading = $state(false);
 	let selectedImage = $state<{ name: string; path: string; modified: string; dataUrl?: string | null } | null>(null);
 	let screenshotToDelete = $state<{ name: string; path: string } | null>(null);
@@ -201,10 +203,10 @@
 	function copyToClipboard(path: string) {
 		navigator.clipboard.writeText(path)
 			.then(() => {
-				toast("Caminho copiado para a área de transferência!", "success");
+				toast(uiText("ui.9d7de573333d0b52"), "success");
 			})
 			.catch((e) => {
-				toast("Falha ao copiar caminho: " + String(e), "error");
+				toast(uiText("ui.286d85cb232b3956") + String(e), "error");
 			});
 	}
 	async function openFolder() {
@@ -257,16 +259,16 @@
 		</Card>
 	{:else}
 		<div class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-			{#each screenshots as s}
+			{#each screenshots as s (s.path)}
 				<!-- svelte-ignore a11y_click_events_have_key_events -->
 				<!-- svelte-ignore a11y_no_static_element_interactions -->
-				<div class="group relative overflow-hidden rounded-2xl bg-bg-elevated border border-fg/[0.06] cursor-zoom-in break-inside-avoid shadow-sm transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-300 hover:border-fg/[0.15] hover:shadow-brand-500/5" onclick={() => selectedImage = s}>
-					<img decoding="async" src={s.dataUrl || convertFileSrc(s.path)} alt={s.name} class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+				<div class="group relative overflow-hidden rounded-2xl bg-bg-elevated border border-fg/[0.06] cursor-zoom-in break-inside-avoid shadow-sm transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300 hover:border-fg/[0.15] hover:shadow-brand-500/5 " onclick={() => selectedImage = s}>
+					<img decoding="async" src={s.thumbPath ? convertFileSrc(s.thumbPath) : s.dataUrl || convertFileSrc(s.path)} alt={s.name} class="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
 					<div class="absolute inset-0 bg-gradient-to-t from-bg-overlay/80 via-bg-overlay/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 flex flex-col justify-end p-4">
 						<p class="text-xs font-bold text-fg truncate drop-shadow-md">{s.name}</p>
 						<p class="text-[10px] text-brand-500 font-medium">{new Date(s.modified).toLocaleString()}</p>
 					</div>
-					<button class="absolute top-3 right-3 p-2 bg-red-500/20 text-red-300 rounded-xl opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-fg transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer" onclick={(e) => { e.stopPropagation(); confirmDelete(s); }}>
+					<button class={launcherButton({ variant: "danger", size: "icon", class: "absolute top-3 right-3 opacity-0 group-hover:opacity-100" })} onclick={(e) => { e.stopPropagation(); confirmDelete(s); }}>
 						<Trash2 class="h-4 w-4" />
 					</button>
 				</div>
@@ -283,17 +285,17 @@
 			<span class="text-xs font-bold text-fg/80 truncate max-w-sm drop-shadow">{selectedImage.name}</span>
 			<div class="flex items-center gap-2">
 				<div class="flex items-center gap-1 bg-fg/10 rounded-full px-2 py-1 border border-fg/10">
-					<button type="button" class="p-1.5 text-fg/70 hover:text-fg rounded-full hover:bg-fg/10 cursor-pointer" onclick={zoomOut} title="Diminuir Zoom (-)">
+					<button type="button" class={launcherButton({ variant: "secondary", size: "icon", class: "" })} onclick={zoomOut} title={uiText("ui.f433fd692956a9ac")}>
 						<ZoomOut class="w-3.5 h-3.5" />
 					</button>
-					<button type="button" class="px-2 text-[10px] font-mono text-fg/90 hover:text-fg cursor-pointer" onclick={resetZoom} title="Resetar Zoom">
+					<button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "" })} onclick={resetZoom} title={uiText("ui.b3c135b66a00b0ef")}>
 						{Math.round(zoomScale * 100)}%
 					</button>
-					<button type="button" class="p-1.5 text-fg/70 hover:text-fg rounded-full hover:bg-fg/10 cursor-pointer" onclick={zoomIn} title="Aumentar Zoom (+)">
+					<button type="button" class={launcherButton({ variant: "secondary", size: "icon", class: "" })} onclick={zoomIn} title={uiText("ui.dbdc887294502696")}>
 						<ZoomIn class="w-3.5 h-3.5" />
 					</button>
 				</div>
-				<button type="button" aria-label="Fechar visualização" class="p-2.5 bg-fg/10 hover:bg-fg/20 rounded-full text-fg transition-colors cursor-pointer" onclick={() => selectedImage = null}>
+				<button type="button" aria-label={uiText("ui.7c707f5c2dbe4f0d")} class={launcherButton({ variant: "secondary", size: "icon", class: "" })} onclick={() => selectedImage = null}>
 					<X class="h-4 w-4" />
 				</button>
 			</div>
@@ -313,21 +315,21 @@
 		<div class="absolute bottom-6 flex flex-wrap items-center gap-3 z-10" onclick={(e) => e.stopPropagation()}>
 			<button 
 				type="button"
-				class="px-4 py-2 rounded-full bg-brand-500 hover:bg-brand-400 text-brand-foreground text-xs font-black flex items-center gap-2 shadow-lg shadow-brand-500/20 cursor-pointer transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom]"
+				class={launcherButton({ variant: "primary", size: "sm", class: "flex items-center gap-2" })}
 				onclick={() => copyImage(selectedImage!)}
 			>
-				<Copy class="h-3.5 w-3.5" /> Copiar Imagem (Ctrl+C)
+				<Copy class="h-3.5 w-3.5" /> {uiText("ui.fcfa0a511cf841dd")}
 			</button>
 			<button 
 				type="button"
-				class="px-4 py-2 rounded-full bg-fg/10 hover:bg-fg/20 text-fg text-xs font-bold flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border border-fg/10"
+				class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 				onclick={() => copyToClipboard(selectedImage!.path)}
 			>
-				<Copy class="h-3.5 w-3.5" /> Copiar Caminho
+				<Copy class="h-3.5 w-3.5" /> {uiText("ui.1c031de96f1a554d")}
 			</button>
 			<button 
 				type="button"
-				class="px-4 py-2 rounded-full bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold flex items-center gap-2 transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] cursor-pointer border border-red-500/20"
+				class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-2" })}
 				onclick={() => confirmDelete(selectedImage!)}
 			>
 				<Trash2 class="h-3.5 w-3.5" /> {t("screenshots.deleteBtn")}

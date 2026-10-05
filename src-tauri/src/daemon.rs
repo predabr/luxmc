@@ -100,6 +100,11 @@ async fn dispatch_command(
         },
         "minecraft_news" => crate::commands::news::minecraft_news_core(&state).await.map_err(|error| error.to_string()),
         "ping" => Ok(Value::String("pong".into())),
+        "app_data_directory" => Ok(Value::String(crate::commands::system::app_data_directory().map_err(|error| error.to_string())?)),
+        "app_open_data_directory" => {
+            crate::commands::system::app_open_data_directory().map_err(|error| error.to_string())?;
+            Ok(Value::Null)
+        },
         "app_info" => Ok(serde_json::to_value(crate::commands::system::app_info()).map_err(|e| e.to_string())?),
         "optimizer_trim_memory" => {
             let res = crate::core::native_cpp::trim_memory_native();
@@ -757,15 +762,21 @@ async fn dispatch_command(
             let result = crate::commands::skins::minecraft_uuid(username).await.map_err(|error| error.to_string())?;
             serde_json::to_value(result).map_err(|error| error.to_string())
         },
-        "host_world" => serde_json::to_value(crate::network::p2p_tunnel::host_world(args.get("port").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()).ok_or("Porta inválida")?).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
-        "join_world" => serde_json::to_value(crate::network::p2p_tunnel::join_world(args.get("invitation").and_then(Value::as_str).ok_or("Convite ausente")?.to_owned()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
+        "host_world" => serde_json::to_value(crate::network::p2p_tunnel::host_world(args.get("port").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()).ok_or("Porta inválida")?, args.get("identity").cloned().map(serde_json::from_value).transpose().map_err(|e| e.to_string())?).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
+        "join_world" => serde_json::to_value(crate::network::p2p_tunnel::join_world(args.get("invitation").and_then(Value::as_str).ok_or("Convite ausente")?.to_owned(), args.get("identity").cloned().map(serde_json::from_value).transpose().map_err(|e| e.to_string())?).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
         "stop_session" => { crate::network::p2p_tunnel::stop_session().await.map_err(|e| e.to_string())?; Ok(serde_json::Value::Null) },
+        "tunnel_kick_member" => { crate::network::p2p_tunnel::tunnel_kick_member(args.get("memberId").and_then(Value::as_str).unwrap_or_default().into()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
+        "tunnel_set_locked" => { crate::network::p2p_tunnel::tunnel_set_locked(args.get("locked").and_then(Value::as_bool).unwrap_or(false)).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
+        "tunnel_refresh_invitation" => serde_json::to_value(crate::network::p2p_tunnel::tunnel_refresh_invitation().await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
         "tunnel_status" => serde_json::to_value(crate::network::p2p_tunnel::tunnel_status().await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
         "mesh_status" => serde_json::to_value(crate::commands::mesh::mesh_status().await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
         "mesh_ping" => {
             let ip = args.get("ip").and_then(Value::as_str).unwrap_or_default().to_owned();
             Ok(serde_json::json!(crate::commands::mesh::mesh_ping(ip).await.map_err(|e| e.to_string())?))
         },
+        "wallpaper_import" => Ok(serde_json::json!(crate::commands::wallpaper::wallpaper_import(
+            args.get("path").and_then(Value::as_str).ok_or("Caminho ausente")?.to_owned()
+        ).await.map_err(|error| error.to_string())?)),
         "wallpaper_prepare_video" => Ok(serde_json::json!(crate::commands::wallpaper::wallpaper_prepare_video(
             args.get("path").and_then(Value::as_str).ok_or("Caminho ausente")?.to_owned(),
             args.get("width").and_then(Value::as_u64).and_then(|v| u32::try_from(v).ok()).ok_or("Largura inválida")?,
@@ -833,6 +844,13 @@ async fn dispatch_command(
             crate::commands::settings::settings_set(val).await.map_err(|e| e.to_string())?;
             Ok(Value::Bool(true))
         },
+        "settings_set_concurrent_downloads" => {
+            let value = args.get("value").and_then(|v| v.as_u64()).unwrap_or(24) as u32;
+            crate::commands::settings::settings_set_concurrent_downloads(value)
+                .await
+                .map_err(|e| e.to_string())?;
+            Ok(Value::Bool(true))
+        },
 
         "launch_game" => {
             let req_val = args.get("request").cloned().unwrap_or(args);
@@ -843,6 +861,9 @@ async fn dispatch_command(
         "app_init" => {
             let init_state = crate::commands::system::app_init_core(&state).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(init_state).map_err(|e| e.to_string())?)
+        },
+        "app_system_locale" => {
+            Ok(serde_json::to_value(crate::commands::system::app_system_locale()).map_err(|e| e.to_string())?)
         },
         "gaming_stats_get" => {
             let stats = crate::commands::skins::gaming_stats_get().await.map_err(|e| e.to_string())?;
@@ -920,6 +941,11 @@ async fn dispatch_command(
             Ok(Value::Bool(true))
         },
 
+        "namemc_import_skin" => {
+            let url = args.get("url").and_then(|value| value.as_str()).unwrap_or("").to_string();
+            let skin = crate::commands::namemc::namemc_import_skin_core(url).await.map_err(|error| error.to_string())?;
+            serde_json::to_value(skin).map_err(|error| error.to_string())
+        },
         "skins_list" => {
             let list = crate::commands::skins::skins_list().await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(list).map_err(|e| e.to_string())?)

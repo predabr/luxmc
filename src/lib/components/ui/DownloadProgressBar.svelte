@@ -1,4 +1,6 @@
 <script lang="ts">
+import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
 	import { onMount, onDestroy } from "svelte";
 	import { fade, slide, scale } from "svelte/transition";
@@ -32,22 +34,22 @@
 	});
 
 	const phaseTitle = $derived.by(() => {
-		if (isComplete) return "Download Concluído!";
-		if (!progress) return "Baixando arquivos...";
+		if (isComplete) return uiText("ui.775284dda8418eeb");
+		if (!progress) return uiText("ui.4d13b0441680f3d4");
 		switch (progress.phase) {
 			case "client":
 			case "downloading":
-				return "Baixando Minecraft (client.jar)";
+				return uiText("ui.44abd9d3d37d32fd");
 			case "libraries":
-				return "Baixando bibliotecas nativas";
+				return uiText("ui.d37dd9864798ec50");
 			case "assets":
-				return "Baixando recursos e texturas";
+				return uiText("ui.da9c8dbc9b5e7f84");
 			case "asset_index":
-				return "Indexando recursos do jogo";
+				return uiText("ui.473b37b2b73ee832");
 			case "java":
 				return "Instalando Java Runtime";
 			default:
-				return progress.phase || "Baixando arquivos...";
+				return progress.phase || uiText("ui.4d13b0441680f3d4");
 		}
 	});
 
@@ -81,31 +83,38 @@
 		return false;
 	});
 
+	function scheduleHide(delay: number) {
+		if (hideTimeout) clearTimeout(hideTimeout);
+		hideTimeout = setTimeout(() => {
+			isVisible = false;
+			progress = null;
+			hideTimeout = null;
+		}, delay);
+	}
+
 	onMount(() => {
+		let disposed = false;
 		void listenDownloadProgress((data) => {
-			if (appState.isLaunching) {
-				return;
-			}
 			progress = data;
 			isVisible = true;
-
-			if (hideTimeout) {
-				clearTimeout(hideTimeout);
-				hideTimeout = null;
-			}
 
 			const done = (data.total > 0 && data.completed >= data.total) ||
 				(data.totalBytes > 0 && data.bytesDownloaded >= data.totalBytes);
 
-			if (done) {
-				hideTimeout = setTimeout(() => {
-					isVisible = false;
-					progress = null;
-				}, 2500);
-			}
+			scheduleHide(done ? 2500 : 4000);
 		}).then((fn) => {
-			unlisten = fn;
-		}).catch(() => {});
+			if (disposed) fn();
+			else unlisten = fn;
+		}).catch((e) => console.error("download progress listener failed", e));
+		return () => {
+			disposed = true;
+		};
+	});
+
+	$effect(() => {
+		if (appState.isLaunching || appState.isGameRunning) return;
+		if (!isVisible) return;
+		scheduleHide(3000);
 	});
 
 	onDestroy(() => {
@@ -179,9 +188,9 @@
 
 					<button 
 						type="button"
-						class="w-6 h-6 rounded-lg text-fg/30 hover:text-fg hover:bg-fg/10 flex items-center justify-center transition-colors cursor-pointer"
+						class={launcherButton({ variant: "secondary", size: "icon", class: "flex items-center justify-center" })}
 						onclick={() => isVisible = false}
-						title="Ocultar barra"
+						title={uiText("ui.f5d746dc17252472")}
 					>
 						<X class="w-3.5 h-3.5" />
 					</button>
@@ -191,7 +200,7 @@
 			<!-- Liquid Gold Progress Track -->
 			<div class="w-full h-2 bg-bg-overlay/40 rounded-full overflow-hidden p-0.5 border border-fg/5">
 				<div 
-					class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] duration-200 ease-out relative shadow-elevated"
+					class="h-full bg-gradient-to-r from-brand-400 via-brand-400 to-brand-400 rounded-full transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200 ease-out relative shadow-elevated"
 					style="width: {percent}%"
 				>
 					<div class="absolute inset-0 bg-fg/25 animate-pulse"></div>

@@ -15,6 +15,7 @@
 	} & Omit<HTMLButtonAttributes & HTMLAnchorAttributes, "class" | "children">;
 
 	let {
+        type = "button",
 		variant = "secondary",
 		size = "md",
 		block = false,
@@ -42,11 +43,13 @@
             (rest as HTMLAnchorAttributes).onclick?.(event);
         }}
     >
-		{#if children}{@render children()}{/if}
+		{#if loading}<Loader2 class="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />{/if}
+        {#if children}{@render children()}{/if}
 	</a>
 {:else}
 	<button
 		class={classes}
+        {type}
 		{...rest as HTMLButtonAttributes}
         disabled={loading || disabled}
         aria-busy={loading}

@@ -8,3 +8,7 @@ export async function settingsGet(): Promise<Partial<AppSettings> | null> {
 export async function settingsSet(value: Partial<AppSettings>): Promise<void> {
     return api.invoke<void>("settings_set", { value });
 }
+
+export async function settingsSetConcurrentDownloads(value: number): Promise<void> {
+    return api.invoke<void>("settings_set_concurrent_downloads", { value });
+}

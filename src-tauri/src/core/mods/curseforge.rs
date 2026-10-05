@@ -316,7 +316,8 @@ pub async fn search_mods(
                 .and_then(|u| u.as_str())
                 .map(|s| s.trim())
                 .filter(|s| !s.is_empty())
-                .map(|s| s.to_string());
+                .map(|s| s.to_string())
+                .or_else(|| logo_url.clone());
 
             let author = m
                 .get("authors")
@@ -494,6 +495,7 @@ pub async fn get_mod_versions(
             };
 
             ModVersion {
+                loaders: f.get("gameVersions").and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str()).map(str::to_lowercase).filter(|value| matches!(value.as_str(), "fabric" | "forge" | "neoforge" | "quilt")).collect()).unwrap_or_default(),
                 id,
                 name: display,
                 version_number: String::new(),

@@ -11,7 +11,7 @@
 	let { label, value, icon: Icon, highlight = false, trend, change }: Props = $props();
 </script>
 
-<div class={`p-4 rounded-lg border ${highlight ? 'border-brand bg-brand/5' : 'border-border bg-bg-elevated'} transition-[color,background-color,border-color,box-shadow,transform,opacity,filter,outline-color,left,right,top,bottom] hover:shadow-lg`}>
+<div class={`p-4 rounded-lg border ${highlight ? 'border-brand bg-brand/5' : 'border-border bg-bg-elevated'} transition-[color,background-color,border-color,box-shadow,transform,opacity] hover:shadow-lg`}>
 	<div class="flex items-start justify-between">
 		<div>
 			<p class="text-sm font-medium fg-muted uppercase tracking-wide">{label}</p>

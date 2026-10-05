@@ -7,6 +7,7 @@ use sha2::{Digest, Sha256};
 use crate::db::models::ProfileRow;
 use crate::error::{AppError, AppResult};
 
+const SHIELD_CLEAN_CACHE_MAX: usize = 8192;
 static SHIELD_CLEAN_CACHE: Mutex<Option<HashMap<PathBuf, (u64, u64)>>> = Mutex::new(None);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,7 +47,7 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
     let known_hashes = get_known_malicious_hashes();
     let mut total_scanned = 0;
     let mut threats = Vec::new();
-    let mut cache_guard = SHIELD_CLEAN_CACHE.lock().unwrap();
+    let mut cache_guard = SHIELD_CLEAN_CACHE.lock().unwrap_or_else(|e| e.into_inner());
     let cache = cache_guard.get_or_insert_with(HashMap::new);
 
     if mods_dir.is_dir() {
@@ -108,7 +109,7 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
 
                                     if name.ends_with(".class") && file.size() < 100_000 {
                                         let mut buf = Vec::new();
-                                        if file.read_to_end(&mut buf).is_ok() {
+                                        if file.by_ref().take(100_000).read_to_end(&mut buf).is_ok() {
                                             if buf.windows(25).any(|w| {
                                                 w == b"discord.com/api/webhooks"
                                                     || w == b"discordapp.com/api/webhooks"
@@ -150,6 +151,13 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
                 }
             }
         }
+    }
+
+    if cache.len() > SHIELD_CLEAN_CACHE_MAX {
+        cache.retain(|entry, _| entry.exists());
+    }
+    if cache.len() > SHIELD_CLEAN_CACHE_MAX {
+        cache.clear();
     }
 
     let is_clean = threats.is_empty();

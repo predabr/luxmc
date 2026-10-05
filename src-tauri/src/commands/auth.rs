@@ -125,6 +125,12 @@ pub async fn auth_login(
         .await
         .map_err(|e| AppError::Internal(e))?;
 
+    if callback.state != pending.state {
+        return Err(AppError::InvalidState(
+            "O estado do retorno de login não corresponde à solicitação iniciada. Tente novamente.".into(),
+        ));
+    }
+
     app.emit(
         "launcher-log",
         "Login callback received, exchanging code...",
@@ -134,7 +140,7 @@ pub async fn auth_login(
         .auth
         .login_with_code_and_client_id(&callback.code, &pending.verifier, Some(&client_id))
         .await?;
-    save_account(&state, &account).await?;
+    let account = save_account(&state, &account).await?;
     app.emit(
         "launcher-log",
         format!("Login successful: {}", account.username),
@@ -149,13 +155,15 @@ pub async fn auth_complete_core(
     state_token: String,
     verifier: String,
 ) -> AppResult<AuthAccount> {
-    let _ = &state_token;
+    if state_token.trim().is_empty() {
+        return Err(AppError::InvalidState("Estado de login ausente.".into()));
+    }
     let client_id = get_configured_client_id().await;
     let account = state
         .auth
         .login_with_code_and_client_id(&code, &verifier, Some(&client_id))
         .await?;
-    save_account(state, &account).await?;
+    let account = save_account(state, &account).await?;
     Ok(account)
 }
 
@@ -174,7 +182,7 @@ pub async fn auth_refresh_core(
     refresh_token: String,
 ) -> AppResult<AuthAccount> {
     let account = state.auth.refresh_account(&refresh_token).await?;
-    save_account(state, &account).await?;
+    let account = save_account(state, &account).await?;
     Ok(account)
 }
 
@@ -209,10 +217,10 @@ pub(crate) async fn set_active_account_id(account_id: &str) -> AppResult<()> {
     obj.insert("activeAccountId".into(), serde_json::Value::String(account_id.to_string()));
     let new_raw = serde_json::to_string(&serde_json::Value::Object(obj)).unwrap_or_default();
 
-    let _ = sqlx::query("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('app', ?)")
+    sqlx::query("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('app', ?)")
         .bind(new_raw)
         .execute(conn.pool())
-        .await;
+        .await?;
 
     Ok(())
 }
@@ -233,7 +241,7 @@ pub async fn auth_switch_account(
         .ok_or_else(|| AppError::NotFound(format!("Account with uuid {} not found", uuid)))?;
     if row.id.starts_with("luxmc:") { super::lux_account::lux_account_sync(row.id.clone(), None, None).await?; }
     let _ = crate::db::schema::accounts::touch_account(&db, &row.id).await;
-    let _ = set_active_account_id(&row.id).await;
+    set_active_account_id(&row.id).await?;
     Ok(AuthAccount {
         id: row.id,
         username: row.username,
@@ -254,10 +262,10 @@ pub async fn auth_remove(uuid: String) -> AppResult<()> {
         crate::db::schema::accounts::delete(&db, &uuid).await?;
         let remaining = crate::db::schema::accounts::list(&db).await?;
         if let Some(next_acc) = remaining.into_iter().next() {
-            let _ = set_active_account_id(&next_acc.id).await;
+            set_active_account_id(&next_acc.id).await?;
         }
     } else {
-        let _ = crate::db::schema::accounts::delete(&db, &uuid).await;
+        crate::db::schema::accounts::delete(&db, &uuid).await?;
     }
     Ok(())
 }
@@ -348,13 +356,25 @@ pub async fn auth_offline_login(username: String) -> AppResult<AuthAccount> {
         cape_url: account.cape_url.clone(),
     };
     crate::db::schema::accounts::upsert(&db, &row).await?;
-    let _ = set_active_account_id(&account.id).await;
+    set_active_account_id(&account.id).await?;
     Ok(account)
 }
 
-async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<()> {
+pub(crate) fn preserve_local_appearance(account: &mut AuthAccount, existing: &AccountRow) {
+    if existing.skin_url.as_deref().is_some_and(|skin| skin.starts_with("data:image/png;base64,")) {
+        account.skin_url = existing.skin_url.clone();
+        account.skin_variant = existing.skin_variant.clone();
+    }
+    if existing.cape_url.as_deref().is_some_and(|cape| cape.starts_with("data:image/png;base64,")) {
+        account.cape_url = existing.cape_url.clone();
+    }
+}
+
+async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<AuthAccount> {
     let db = crate::db::shared_db().await?;
     let existing_row = crate::db::schema::accounts::get_by_uuid(&db, &account.uuid).await.ok().flatten();
+    let mut account = account.clone();
+    if let Some(existing) = existing_row.as_ref() { preserve_local_appearance(&mut account, existing); }
     let is_custom_cape = existing_row.as_ref().and_then(|r| r.cape_url.as_deref()).map(|c| {
         let trimmed = c.trim();
         !trimmed.is_empty()
@@ -384,8 +404,8 @@ async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<()>
         cape_url: preserved_cape,
     };
     crate::db::schema::accounts::upsert(&db, &row).await?;
-    let _ = set_active_account_id(&account.id).await;
-    Ok(())
+    set_active_account_id(&account.id).await?;
+    Ok(account)
 }
 
 #[tauri::command]
@@ -615,5 +635,23 @@ mod local_texture_tests {
         assert!(convert_or_validate_local_texture(include_bytes!("../../../static/steve.png")).is_ok());
         assert!(convert_or_validate_local_texture(b"not a png").is_err());
         assert!(convert_or_validate_local_texture(&vec![0; 10 * 1024 * 1024 + 1]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod appearance_refresh_tests {
+    use super::*;
+    #[test]
+    fn windows_refresh_keeps_local_skin_without_reverting_official_profiles() {
+        let mut account: AuthAccount = serde_json::from_value(serde_json::json!({"id":"fixture","uuid":"fixture","username":"Player","accessToken":"new","refreshToken":"rotated","expiresAt":42,"skinUrl":"https://textures.minecraft.net/new","skinVariant":"classic"})).unwrap();
+        let mut existing: AccountRow = serde_json::from_value(serde_json::json!({"id":"fixture","uuid":"fixture","username":"Player","refreshToken":"old","createdAt":"2026-10-04T00:00:00Z","updatedAt":"2026-10-04T00:00:00Z","skinUrl":"data:image/png;base64,local","skinVariant":"slim","capeUrl":"data:image/png;base64,cape"})).unwrap();
+        preserve_local_appearance(&mut account, &existing);
+        assert_eq!(account.skin_url, existing.skin_url);
+        assert_eq!(account.skin_variant.as_deref(), Some("slim"));
+        assert_eq!(account.refresh_token, "rotated");
+        existing.skin_url = Some("https://textures.minecraft.net/old".into());
+        account.skin_url = Some("https://textures.minecraft.net/new".into());
+        preserve_local_appearance(&mut account, &existing);
+        assert_eq!(account.skin_url.as_deref(), Some("https://textures.minecraft.net/new"));
     }
 }
