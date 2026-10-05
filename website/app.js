@@ -179,15 +179,13 @@ async function initGitHubRelease() {
 
     const exe = assetFor(data.assets, "windows");
     if (exe) {
-      if (exe.browser_download_url)
-        directDownloadUrls.windows = exe.browser_download_url;
       const link = document.getElementById("downloadExeLink");
-      if (link) link.href = exe.browser_download_url;
+      if (link) link.href = directDownloadUrls.windows;
       if (detectedOS === "windows") {
         const btn =
           document.getElementById("primaryDownloadBtn") ||
           document.getElementById("heroPrimaryBtn");
-        if (btn) btn.href = exe.browser_download_url;
+        if (btn) btn.href = directDownloadUrls.windows;
       }
       const meta = document.getElementById("exeSize");
       if (meta) {
@@ -212,7 +210,7 @@ async function initGitHubRelease() {
       document.getElementById("heroPrimaryBtn");
     if (heroButton && !/Android|iPhone|iPad/i.test(navigator.userAgent))
       heroButton.href =
-        heroAsset?.browser_download_url ||
+        (detectedOS === "windows" && exe ? directDownloadUrls.windows : heroAsset?.browser_download_url) ||
         `https://github.com/${GITHUB_REPO}/releases/latest`;
     const heroSize = document.getElementById("heroReleaseSize");
     if (heroSize && heroAsset && Number.isFinite(heroAsset.size))
