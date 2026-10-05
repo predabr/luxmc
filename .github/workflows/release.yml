@@ -10,6 +10,10 @@ on:
         description: "Release tag (e.g. v3.0.0)"
         required: true
         default: "v3.0.0"
+      reuse_assets:
+        description: "Verify and publish an existing draft without rebuilding installers"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -57,15 +61,17 @@ jobs:
           script: |
             const tag = process.env.RELEASE_TAG;
             let releaseId;
-            try {
-              const existing = await github.rest.repos.getReleaseByTag({
+            const releases = await github.paginate(github.rest.repos.listReleases, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                tag: tag,
-              });
-              releaseId = existing.data.id;
+                per_page: 100,
+            });
+            const existing = releases.find(release => release.tag_name === tag);
+            if (existing) {
+              if (!existing.draft) throw new Error(`Release ${tag} is already published.`);
+              releaseId = existing.id;
               console.log(`Reusing existing release for tag ${tag} (ID: ${releaseId})`);
-            } catch (e) {
+            } else {
               const v = tag.replace(/^v/, "");
               const { data } = await github.rest.repos.createRelease({
                 owner: context.repo.owner,
@@ -83,6 +89,7 @@ jobs:
 
   build-linux:
     needs: create-release
+    if: ${{ inputs.reuse_assets != true }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -160,6 +167,7 @@ jobs:
 
   build-windows:
     needs: create-release
+    if: ${{ inputs.reuse_assets != true }}
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -213,11 +221,12 @@ jobs:
           $installer = Get-ChildItem -LiteralPath 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis' -Filter '*-setup.exe' | Select-Object -First 1
           if (!$installer) { throw 'Windows installer was not built.' }
           Copy-Item -LiteralPath $installer.FullName -Destination 'Lux MC Launcher.exe' -Force
-          gh release upload $env:RELEASE_TAG 'Lux MC Launcher.exe' --repo $env:GITHUB_REPOSITORY --clobber
+          gh release upload $env:RELEASE_TAG 'Lux MC Launcher.exe#Lux MC Launcher.exe' --repo $env:GITHUB_REPOSITORY --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Windows installer upload failed.' }
 
   build-macos:
     needs: create-release
+    if: ${{ inputs.reuse_assets != true }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -260,11 +269,12 @@ jobs:
 
   verify-release-assets:
     needs: [create-release, build-linux, build-windows, build-macos]
+    if: ${{ always() && needs.create-release.result == 'success' && (inputs.reuse_assets == true || (needs.build-linux.result == 'success' && needs.build-windows.result == 'success' && needs.build-macos.result == 'success')) }}
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -275,6 +285,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
           REPOSITORY: ${{ github.repository }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
         run: |
           set -euo pipefail
           version="${RELEASE_TAG#v}"
@@ -288,12 +299,12 @@ jobs:
             "Luxmc_${version}_amd64.deb"
             "Luxmc_${version}_universal.dmg"
             "Luxmc_${version}_x64-setup.exe"
-            "Lux MC Launcher.exe"
+            "Lux.MC.Launcher.exe"
           )
           for artifact in "${expected[@]}"; do
             test -s "$artifact"
           done
-          gh api "repos/$REPOSITORY/releases/tags/$RELEASE_TAG" > release.json
+          gh api "repos/$REPOSITORY/releases/$RELEASE_ID" > release.json
           node ../scripts/build-release-manifest.mjs release.json .
           sha256sum --check SHA256SUMS
           gh release upload "$RELEASE_TAG" SHA256SUMS latest.json --repo "$REPOSITORY" --clobber

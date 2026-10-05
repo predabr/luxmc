@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -32,11 +32,24 @@ test("release manifest preserves the Windows filename and checksums the download
   assert.match(readFileSync(resolve(directory, "SHA256SUMS"), "utf8"), /  Lux MC Launcher\.exe\n/);
 }));
 
+test("draft assets use the final public tag and GitHub-normalized Windows filename", () => fixture(({ directory, release }) => {
+  release.draft = true;
+  renameSync(resolve(directory, release.assets[0].name), resolve(directory, "Lux.MC.Launcher.exe"));
+  release.assets[0].name = "Lux.MC.Launcher.exe";
+  for (const asset of release.assets) asset.browser_download_url = `https://github.com/predabr/luxmc/releases/download/untagged-123abc/${encodeURIComponent(asset.name)}`;
+  assert.equal(generate(directory, release).status, 0);
+  const manifest = JSON.parse(readFileSync(resolve(directory, "latest.json"), "utf8"));
+  assert.equal(manifest.platforms["windows-x86_64"].url, "https://github.com/predabr/luxmc/releases/download/v3.0.0/Lux.MC.Launcher.exe");
+}));
+
 for (const [name, change] of [
   ["missing platform", release => release.assets.pop()],
   ["truncated installer", release => release.assets[0].size++],
   ["unofficial download host", release => release.assets[0].browser_download_url = "https://example.com/installer.exe"],
   ["path traversal", release => release.assets[0].name = "../installer.exe"],
+  ["unpublished URL on public release", release => release.assets[0].browser_download_url = "https://github.com/predabr/luxmc/releases/download/untagged-123abc/Lux%20MC%20Launcher.exe"],
+  ["mismatched asset filename", release => release.assets[0].browser_download_url = "https://github.com/predabr/luxmc/releases/download/v3.0.0/another.exe"],
+  ["invalid release tag", release => release.tag_name = "../another"],
 ]) {
   test(`release publication rejects ${name}`, () => fixture(({ directory, release }) => {
     change(release);

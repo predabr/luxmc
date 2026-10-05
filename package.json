@@ -25,7 +25,7 @@
     "build:windows": "node scripts/build-windows.mjs",
     "build:website": "node scripts/build-website-visuals.mjs",
     "preview:website": "node scripts/preview-website.mjs",
-    "test:website": "node --test tests/social.test.mjs tests/accounts.test.mjs tests/protocol.test.mjs tests/catalog.test.mjs tests/website-ui.test.mjs",
+    "test:website": "node --test tests/social.test.mjs tests/accounts.test.mjs tests/protocol.test.mjs tests/catalog.test.mjs tests/website-ui.test.mjs tests/downloads.test.mjs",
     "test:native": "node tests/native-smoke.mjs",
     "build:client-agent": "node scripts/build-client-agent.mjs"
   },

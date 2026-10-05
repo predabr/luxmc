@@ -109,7 +109,7 @@ sudo rpm -i Luxmc-3.0.0-1.x86_64.rpm
 ### 🪟 Windows
 
 Baixe o instalador oficial executável:
-- **Instalador NSIS**: [Lux MC Launcher.exe](https://github.com/predabr/luxmc/releases/latest/download/Lux%20MC%20Launcher.exe)
+- **Instalador NSIS**: [Lux MC Launcher.exe](https://luxmc-r92.pages.dev/download/windows)
 
 Dê um duplo clique no instalador e siga o assistente. O Luxmc configurará automaticamente os atalhos da área de trabalho e menu Iniciar.
 

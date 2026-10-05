@@ -5,9 +5,10 @@ import { basename, resolve } from "node:path";
 const [metadataFile, directory = "."] = process.argv.slice(2);
 if (!metadataFile) throw new Error("Pass the GitHub release metadata JSON file.");
 const release = JSON.parse(readFileSync(metadataFile, "utf8"));
+if (!/^v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(release.tag_name)) throw new Error("Invalid release tag.");
 const version = release.tag_name.replace(/^v/, "");
 const files = {
-  "windows-x86_64": "Lux MC Launcher.exe",
+  "windows-x86_64": release.assets.some(asset => asset.name === "Lux MC Launcher.exe") ? "Lux MC Launcher.exe" : "Lux.MC.Launcher.exe",
   "linux-x86_64": `Luxmc_${version}_amd64.AppImage`,
   "darwin-x86_64": `Luxmc_${version}_universal.dmg`,
   "darwin-aarch64": `Luxmc_${version}_universal.dmg`,
@@ -20,11 +21,15 @@ for (const asset of release.assets) {
   const bytes = readFileSync(resolve(directory, asset.name));
   if (!bytes.length || bytes.length !== asset.size) throw new Error(`Release asset size mismatch: ${asset.name}`);
   const url = new URL(asset.browser_download_url);
-  if (url.origin !== "https://github.com" || !url.pathname.startsWith(`/predabr/luxmc/releases/download/${release.tag_name}/`)) throw new Error("Unofficial release URL.");
+  const prefix = `/predabr/luxmc/releases/download/${release.tag_name}/`;
+  const draftPrefix = release.draft === true && /^\/predabr\/luxmc\/releases\/download\/untagged-[a-f0-9]+\//.exec(url.pathname)?.[0];
+  const allowedPrefix = url.pathname.startsWith(prefix) ? prefix : draftPrefix;
+  if (url.origin !== "https://github.com" || url.username || url.password || !allowedPrefix || decodeURIComponent(url.pathname.slice(allowedPrefix.length)) !== asset.name) throw new Error("Unofficial release URL.");
+  const publicUrl = `https://github.com${prefix}${encodeURIComponent(asset.name)}`;
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   sums.set(asset.name, sha256);
   for (const [platform, filename] of Object.entries(files)) {
-    if (filename === asset.name) platforms[platform] = { url: asset.browser_download_url, sha256, size: bytes.length };
+    if (filename === asset.name) platforms[platform] = { url: publicUrl, sha256, size: bytes.length };
   }
 }
 if (Object.keys(platforms).length !== Object.keys(files).length) throw new Error("Missing supported platform installer.");

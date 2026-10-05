@@ -6,8 +6,8 @@ Verificações locais concluídas antes da publicação:
 - `cargo check --locked`: sucesso, com quatro avisos existentes.
 - Frontend: 121 testes aprovados.
 - Backend: 114 testes aprovados, dois ignorados.
-- Site: 26 testes aprovados.
-- Manifesto de atualização: cinco testes aprovados, incluindo rejeição de arquivos ausentes, truncados e URLs externas.
+- Site: 29 testes aprovados, incluindo nome do download Windows e requisições parciais.
+- Manifesto de atualização: nove testes aprovados, incluindo URLs de rascunho, arquivos ausentes, truncados e URLs externas.
 - Navegador: catálogos, conteúdo de instâncias, Vanilla e NeoForge, laboratório, links, skins, funções Windows, hospedagem e armazenamento.
 - Tema claro/escuro com e sem wallpaper: cartões, seleção de versão, criação e atualização automática das notícias.
 - Workflows: validação com actionlint.

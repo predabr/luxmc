@@ -82,6 +82,7 @@ test("downloads select installers and reject off-repository redirects", () => {
     assert.equal(assetFor([asset("app.exe.sig")], "windows"), null);
     assert.equal(assetFor([asset("Luxmc-x64.exe"), asset("Lux MC Launcher.exe")], "windows").name, "Lux MC Launcher.exe");
     assert.equal(assetFor([asset("Luxmc_3.0.0_x64-setup.exe"), asset("Lux MC Launcher.exe")], "windows").name, "Lux MC Launcher.exe");
+    assert.equal(assetFor([asset("Luxmc_3.0.0_x64-setup.exe"), asset("Lux.MC.Launcher.exe")], "windows").name, "Lux.MC.Launcher.exe");
   assert.equal(assetFor([asset("Luxmc.deb")], "debian").name, "Luxmc.deb");
   assert.equal(assetFor([asset("Luxmc.rpm")], "fedora").name, "Luxmc.rpm");
   assert.equal(assetFor([asset("luxmc.pkg.tar.zst")], "arch").name, "luxmc.pkg.tar.zst");
