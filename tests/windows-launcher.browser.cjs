@@ -2,7 +2,7 @@ const { chromium } = require('playwright-core');
 const assert=require('node:assert/strict');
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE});
- const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ const page=await browser.newPage({ locale: 'en-US',viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  const errors=[];page.on('pageerror',error=>errors.push(String(error)));
  await page.addInitScript(()=>{
   const profile=(id,name,favorite,lastPlayed)=>({id,name,favorite,lastPlayed,icon:'grass_block',mcVersion:'1.21.1',loader:'fabric',gameDir:'C:\\Users\\PRIVATE\\Minecraft\\'+id,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),ramMb:4096});
@@ -13,7 +13,7 @@ const assert=require('node:assert/strict');
    window.testCalls.push({command,args});
    if(command==='app_init')return {account:{id:'offline_test',uuid:'offline_test',username:'Steve',accessToken:''},profiles:list,activeProfileId:'old',devMode:true};
    if(command==='profiles_list')return list;
-   if(command==='plugin:store|get')return [{language:'pt-BR'},true];
+   if(command==='plugin:store|get')return [{language:'pt-BR',languageMode:'manual'},true];
    if(command==='plugin:store|load')return 1;
    if(command==='get_system_specs')return {osDistro:'Windows 11',arch:'x86_64',kernelVersion:'10.0',totalRamMb:8192,launcherVersion:'2.0.2',gpuVendor:'NVIDIA',gpuRenderer:'Test GPU',gpuSupportsZink:false};
    if(command==='java_scan'){if(window.failJava)throw Error('Java check failed');return {runtimes:[{major:21,installed:true,path:'C:\\PRIVATE\\Java\\java.exe',versionString:'21.0.9',isSystem:true}]}}

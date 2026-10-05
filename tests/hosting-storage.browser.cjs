@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE});
- const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ const page=await browser.newPage({ locale: 'en-US',viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.addInitScript(()=>{
   window.calls=[];window.room=null;window.failStorage=false;window.clipboardText='';
@@ -13,7 +13,7 @@ const fs=require('node:fs');
    window.calls.push({command,args});
    if(command==='app_init')return {account:{id:'offline_test',uuid:'steve',username:'Steve',minecraftToken:''},profiles:[],activeProfileId:null,devMode:true};
    if(command==='plugin:store|load'||command==='plugin:event|listen')return 1;
-   if(command==='plugin:store|get')return [{language:'pt-BR',animations:false,liveWallpaper:false,soundscapesEnabled:false},true];
+   if(command==='plugin:store|get')return [{language:'pt-BR',languageMode:'manual',animations:false,liveWallpaper:false,soundscapesEnabled:false},true];
    if(['deep_links_take','profiles_list','instances_list','screenshots_list','changelog_get'].includes(command))return [];
    if(command==='get_system_specs')return {totalRamMb:8192,osDistro:'Windows 11',arch:'x86_64',launcherVersion:'2.0.2'};
    if(command==='java_scan')return {runtimes:[]};

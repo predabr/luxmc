@@ -2,7 +2,7 @@ const {chromium}=require(process.env.LUXMC_PLAYWRIGHT_MODULE || 'playwright-core
 const assert=require('node:assert/strict');
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE || undefined});
- const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+ const page=await browser.newPage({ locale: 'en-US',viewport:{width:1440,height:1000},reducedMotion:'reduce'});
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.addInitScript(()=>{
    const profile={id:'fabric-profile',name:'Fabric de teste',icon:'grass_block',mcVersion:'1.20.1',loader:'fabric',loaderVersion:'0.16.0',gameDir:'/tmp/luxmc-test',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),ramMb:4096,modCount:2};
@@ -19,7 +19,7 @@ const assert=require('node:assert/strict');
      if(command==='mods_download_to_temp')return '/tmp/pack.mrpack';
      if(command==='instance_import_mrpack')return {...profile,id:'new-profile',name:'Fabulously Optimized'};
      if(command==='plugin:store|load')return 1;
-     if(command==='plugin:store|get')return [{animations:false,liveWallpaper:false,soundscapesEnabled:false,soundEnabled:false},true];
+     if(command==='plugin:store|get')return [{language:'pt-BR',languageMode:'manual',animations:false,liveWallpaper:false,soundscapesEnabled:false,soundEnabled:false},true];
      if(command==='plugin:event|listen')return 1;
      if(command==='java_scan')return {runtimes:[]};
      if(command==='mods_search'||command==='screenshots_list'||command==='skins_list')return [];

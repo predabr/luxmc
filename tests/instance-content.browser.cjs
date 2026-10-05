@@ -6,7 +6,7 @@ const fs = require('node:fs');
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE || undefined });
     try {
         for (const width of [1440, 960]) {
-            const page = await browser.newPage({ viewport: { width, height: 900 } });
+            const page = await browser.newPage({ locale: 'en-US', viewport: { width, height: 900 } });
             const errors = [];
             page.on('pageerror', error => errors.push(String(error)));
             await page.addInitScript(() => {

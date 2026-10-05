@@ -1,5 +1,6 @@
-const { chromium } = require('playwright-core');
+const { chromium } = require(process.env.LUXMC_PLAYWRIGHT_MODULE || 'playwright-core');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 
 (async () => {
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
@@ -46,8 +47,10 @@ const assert = require('node:assert/strict');
             await page.getByRole('heading', { name: label, exact: true }).waitFor();
             if (scenario.stored && scenario.stored.languageMode !== 'system') assert.equal(await page.evaluate(() => window.localeCalls.includes('app_system_locale')), false);
             if (scenario.expected === 'en') {
-                console.log('languageButton', await page.getByRole('tab', { name: 'Language', exact: true }).boundingBox());
-                await page.screenshot({ path: 'docs/validation/languages-settings-en.png' });
+                if (process.env.LUXMC_ARTIFACT_DIR) {
+                    fs.mkdirSync(process.env.LUXMC_ARTIFACT_DIR, { recursive: true });
+                    await page.screenshot({ path: `${process.env.LUXMC_ARTIFACT_DIR}/languages-settings-en.png` });
+                }
                 await page.getByRole('tab', { name: 'Language', exact: true }).click();
                 await page.getByRole('button', { name: /Español/ }).click();
                 await page.waitForFunction(() => document.documentElement.lang === 'es');

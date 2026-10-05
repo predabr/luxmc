@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 
 (async () => {
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE || undefined });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+    const page = await browser.newPage({ locale: 'en-US', viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     await page.addInitScript(() => {
@@ -19,7 +19,7 @@ const assert = require('node:assert/strict');
                 return { ...args.input, id: 'created-' + window.createdProfiles.length, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), gameDir: '/tmp/luxmc-browser-instance', fullscreen: false };
             }
             if (command === 'plugin:store|load' || command === 'plugin:event|listen') return 1;
-            if (command === 'plugin:store|get') return [{ animations: false, liveWallpaper: false, soundscapesEnabled: false }, true];
+            if (command === 'plugin:store|get') return [{ language: 'pt-BR', languageMode: 'manual', animations: false, liveWallpaper: false, soundscapesEnabled: false }, true];
             if (command === 'java_scan') return { runtimes: [] };
             if (command === 'deep_links_take' || command === 'profiles_list' || command === 'instances_list' || command === 'screenshots_list') return [];
             if (command === 'get_system_specs') return { totalRamMb: 16384, osDistro: 'Linux', arch: 'x86_64' };

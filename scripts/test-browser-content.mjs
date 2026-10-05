@@ -16,7 +16,8 @@ try {
         }
         if (!await ready()) throw new Error('O servidor de teste não iniciou em 60 segundos.');
     }
-    for (const test of ['tests/mods-catalog.browser.cjs', 'tests/instance-content.browser.cjs', 'tests/create-instance.browser.cjs', 'tests/instance-lab.browser.cjs', 'tests/launcher-links.browser.cjs', 'tests/skin-import.browser.cjs', 'tests/windows-launcher.browser.cjs', 'tests/hosting-storage.browser.cjs']) {
+    for (const test of ['tests/mods-catalog.browser.cjs', 'tests/instance-content.browser.cjs', 'tests/create-instance.browser.cjs', 'tests/instance-lab.browser.cjs', 'tests/launcher-links.browser.cjs', 'tests/skin-import.browser.cjs', 'tests/windows-launcher.browser.cjs', 'tests/hosting-storage.browser.cjs', 'tests/languages.browser.cjs']) {
+        console.log(`Running ${test}`);
         const child = spawn(process.execPath, [test], { stdio: 'inherit', env: process.env });
         const code = await new Promise((resolve, reject) => {
             child.once('error', reject);

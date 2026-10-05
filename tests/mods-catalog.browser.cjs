@@ -5,7 +5,7 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
 
 (async () => {
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE || undefined });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const page = await browser.newPage({ locale: 'en-US', viewport: { width: 1440, height: 900 } });
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     await page.addInitScript(() => {
@@ -43,7 +43,7 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
             if (command === 'java_scan') return { runtimes: [] };
             if (command === 'deep_links_take' || command === 'profiles_list' || command === 'instances_list' || command === 'screenshots_list') return [];
             if (command === 'plugin:store|load' || command === 'plugin:event|listen') return 1;
-            if (command === 'plugin:store|get') return [{ animations: false, liveWallpaper: false, soundscapesEnabled: false }, true];
+            if (command === 'plugin:store|get') return [{ language: 'pt-BR', languageMode: 'manual', animations: false, liveWallpaper: false, soundscapesEnabled: false }, true];
             if (command === 'curseforge_status') return true;
             if (command === 'get_system_specs') return { totalRamMb: 16384, osDistro: 'Linux', arch: 'x86_64' };
             if (command === 'mesh_status') return { available: false, state: '', ip: null, peers: [] };
@@ -61,6 +61,7 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
     const icon = page.locator(".catalog-card").filter({ has: page.getByText("Pack 1", { exact: true }) }).locator("img").first();
     const bounds = await icon.boundingBox();
     assert.ok(bounds && bounds.height >= 180 && bounds.width >= 250, JSON.stringify(bounds));
+    await icon.evaluate(image => image.decode());
     assert.ok(await icon.evaluate(image => image.complete && image.naturalWidth > 0));
     const nestedScroll = await icon.evaluate(element => {
         const main = element.closest('main');

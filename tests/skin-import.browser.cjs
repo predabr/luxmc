@@ -4,7 +4,7 @@ const fs = require('node:fs');
 
 (async () => {
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE || undefined });
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const page = await browser.newPage({ locale: 'en-US', viewport: { width: 1440, height: 900 } });
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     const skin = `data:image/png;base64,${fs.readFileSync('static/alex.png').toString('base64')}`;
@@ -27,7 +27,7 @@ const fs = require('node:fs');
             if (command === 'app_init') return { account, profiles: [], activeProfileId: null, devMode: true };
             if (command === 'deep_links_take' || command === 'profiles_list' || command === 'instances_list' || command === 'mods_search' || command === 'java_scan' || command === 'screenshots_list') return [];
             if (command === 'plugin:store|load' || command === 'plugin:event|listen') return 1;
-            if (command === 'plugin:store|get') return [{ animations: false, liveWallpaper: false }, true];
+            if (command === 'plugin:store|get') return [{ language: 'pt-BR', languageMode: 'manual', animations: false, liveWallpaper: false }, true];
             if (command === 'plugin:dialog|open') return window.importPath;
             if (command === 'auth_read_local_texture') return window.importTexture;
             if (command === 'auth_resolve_texture') return window.importTexture;
