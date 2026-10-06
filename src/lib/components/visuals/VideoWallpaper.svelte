@@ -60,7 +60,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         if (!currentSource) return;
         let disposed = false;
         if (localPath) {
-            void mediaServerPort().then(port => {
+            void (async () => {
+                for (let attempt = 0; attempt < 12 && !disposed; attempt++) {
+                    const port = await mediaServerPort();
+                    if (port) return port;
+                    await new Promise(resolve => setTimeout(resolve, 250));
+                }
+                return null;
+            })().then(port => {
                 if (disposed) return;
                 source = port ? resolveWallpaperStreamUrl(currentSource, port) : fallbackSource;
             }).catch(() => {
@@ -130,6 +137,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const onPlaying = () => {
             if (!disposed && el.style.opacity === "0" && !el.seeking) revealAfterFrame();
         };
+        const onCanPlay = () => {
+            if (!disposed && !paused) void el.play().catch(() => {});
+        };
         const onPause = () => {
             if (disposed || paused || el.ended || preview) return;
             if (recoveryTimer) clearTimeout(recoveryTimer);
@@ -153,6 +163,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         el.addEventListener("seeked", onSeeked);
         el.addEventListener("waiting", onWaiting);
         el.addEventListener("playing", onPlaying);
+        el.addEventListener("canplay", onCanPlay);
         el.addEventListener("pause", onPause);
         el.addEventListener("error", onError);
         return () => {
@@ -166,6 +177,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             el.removeEventListener("seeked", onSeeked);
             el.removeEventListener("waiting", onWaiting);
             el.removeEventListener("playing", onPlaying);
+            el.removeEventListener("canplay", onCanPlay);
             el.removeEventListener("pause", onPause);
             el.removeEventListener("error", onError);
         };
@@ -173,7 +185,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
     $effect(() => {
         const el = video;
-        if (!el) return;
+        const currentSource = source;
+        if (!el || !currentSource) return;
         if (paused) el.pause();
         else void el.play().catch(() => {});
     });

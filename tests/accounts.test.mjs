@@ -4,11 +4,12 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { onRequest } from "../website/functions/api/account/[action].js";
 import { onRequest as social } from "../website/functions/api/social/[action].js";
+import { onRequest as appearance } from "../website/functions/api/appearance/[name].js";
 
 function fixture() {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON");
-  for (const migration of ["0001_social.sql", "0002_accounts.sql", "0005_social_avatars.sql"]) sqlite.exec(readFileSync(new URL(`../website/migrations/${migration}`, import.meta.url), "utf8"));
+  for (const migration of ["0001_social.sql", "0002_accounts.sql", "0005_social_avatars.sql", "0007_player_appearance.sql"]) sqlite.exec(readFileSync(new URL(`../website/migrations/${migration}`, import.meta.url), "utf8"));
   const db = {
     prepare(sql) { const statement = sqlite.prepare(sql); return { bind(...values) { return { async first() { return statement.get(...values) || null; }, async all() { return { results: statement.all(...values) }; }, async run() { return { meta: statement.run(...values) }; }, execute() { return { meta: statement.run(...values) }; } }; } }; },
     async batch(statements) { sqlite.exec("BEGIN"); try { const results = statements.map(statement => statement.execute()); sqlite.exec("COMMIT"); return results; } catch (error) { sqlite.exec("ROLLBACK"); throw error; } }
@@ -21,6 +22,29 @@ function fixture() {
   return { sqlite, env, call };
 }
 const password = "Test-Passphrase-123!";
+
+test("shared appearances belong to authenticated accounts and expose only PNG", async () => {
+  const { sqlite, env, call } = fixture();
+  try {
+    const login = await call("register", { username: "SkinPlayer", password, client: "launcher" });
+    const authorization = { Authorization: `Bearer ${login.value.token}` };
+    const bytes = readFileSync("static/steve.png");
+    const skin = `data:image/png;base64,${bytes.toString("base64")}`;
+    assert.equal((await call("appearance", { skin, cape: null, model: "slim" })).status, 401);
+    assert.equal((await call("appearance", { skin, cape: null, model: "slim", accountId: "another-account" }, authorization)).status, 200);
+    assert.equal(sqlite.prepare("SELECT account_id FROM lux_appearance").get().account_id, login.value.account.id);
+    const request = name => appearance({ request: new Request(`https://luxmc.test/api/appearance/${name}`), env, params: { name } });
+    const image = await request("skinplayer");
+    assert.equal(image.status, 200);
+    assert.equal(image.headers.get("Content-Type"), "image/png");
+    assert.equal(image.headers.get("X-Luxmc-Model"), "slim");
+    assert.deepEqual(Buffer.from(await image.arrayBuffer()), bytes);
+    assert.equal((await request("NotPublished")).status, 404);
+    assert.equal((await call("appearance", { skin: "data:image/png;base64,invalid", model: "classic" }, authorization)).status, 400);
+    const wrong = Buffer.from(bytes); wrong.writeUInt32BE(99999, 16);
+    assert.equal((await call("appearance", { skin: `data:image/png;base64,${wrong.toString("base64")}`, model: "classic" }, authorization)).status, 400);
+  } finally { sqlite.close(); }
+});
 
 test("web registration and native login share identity without exposing sessions to browser JS", async () => {
   const { sqlite, call } = fixture();

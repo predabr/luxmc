@@ -33,7 +33,7 @@ pub async fn read_log_line<R: tokio::io::AsyncBufRead + Unpin>(reader: &mut R) -
     loop {
         let buffer = reader.fill_buf().await?;
         if buffer.is_empty() {
-            return Ok(saw_data.then(|| String::from_utf8_lossy(&line).into_owned()));
+            return Ok(saw_data.then(|| redact_log_line(&String::from_utf8_lossy(&line))));
         }
         saw_data = true;
         let newline = buffer.iter().position(|byte| *byte == b'\n');
@@ -41,12 +41,26 @@ pub async fn read_log_line<R: tokio::io::AsyncBufRead + Unpin>(reader: &mut R) -
         let take = available.min(2048 - line.len());
         line.extend_from_slice(&buffer[..take]);
         reader.consume(available + usize::from(newline.is_some()));
-        if newline.is_some() { return Ok(Some(String::from_utf8_lossy(&line).trim_end_matches('\r').to_owned())); }
+        if newline.is_some() { return Ok(Some(redact_log_line(String::from_utf8_lossy(&line).trim_end_matches('\r')))); }
     }
+}
+
+fn redact_log_line(line: &str) -> String {
+    if let Some(position) = line.find("(Session ID is ") {
+        return format!("{}(Session ID is [redacted])", &line[..position]);
+    }
+    line.to_owned()
 }
 
 #[cfg(test)]
 mod log_tests {
+    #[tokio::test]
+    async fn legacy_session_tokens_are_removed_before_logging() {
+        let mut reader = tokio::io::BufReader::new(&b"[INFO]: (Session ID is token:secret:uuid)\nnext\n"[..]);
+        let line = super::read_log_line(&mut reader).await.unwrap().unwrap();
+        assert_eq!(line, "[INFO]: (Session ID is [redacted])");
+        assert_eq!(super::read_log_line(&mut reader).await.unwrap().unwrap(), "next");
+    }
     #[tokio::test]
     async fn oversized_unicode_lines_are_bounded_and_next_line_survives() {
         let input = format!("{}\nnext\n", "界".repeat(100000));

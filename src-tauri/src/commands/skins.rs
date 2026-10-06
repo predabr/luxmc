@@ -48,7 +48,7 @@ fn asset_path(dir: &PathBuf, id: &str) -> AppResult<PathBuf> {
     Ok(path)
 }
 
-async fn load_asset_bytes(http: &reqwest::Client, source: &str) -> Option<Vec<u8>> {
+pub(super) async fn load_asset_bytes(http: &reqwest::Client, source: &str) -> Option<Vec<u8>> {
     let bytes: Vec<u8> = if source.starts_with("data:image/") {
         let pos = source.find(',')?;
         use base64::Engine;

@@ -503,6 +503,7 @@ pub async fn run() {
             commands::auth::auth_remove,
             commands::auth::auth_dev_login,
             commands::auth::auth_offline_login,
+            commands::auth::auth_rename_offline,
             commands::lux_account::lux_account_login,
             commands::lux_account::lux_account_sync,
             commands::lux_account::lux_account_logout,

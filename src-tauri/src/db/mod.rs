@@ -11,6 +11,7 @@ use crate::error::AppResult;
 
 pub mod models;
 pub mod schema;
+mod snapshots;
 
 #[derive(Clone)]
 pub struct Db {
@@ -27,14 +28,22 @@ impl Db {
         let opts = SqliteConnectOptions::new()
             .filename(&path)
             .create_if_missing(true)
-            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Delete)
+            .synchronous(sqlx::sqlite::SqliteSynchronous::Full)
             .foreign_keys(true);
 
         let pool = SqlitePoolOptions::new()
-            .max_connections(8)
+            .max_connections(1)
             .connect_with(opts)
             .await
             .map_err(|e| AppError::Internal(format!("sqlite connect: {e}")))?;
+
+        snapshots::verify(&pool).await?;
+        if path.exists() && tokio::fs::metadata(&path).await?.len() > 4096 {
+            if let Err(error) = snapshots::save(&pool, &path).await {
+                tracing::warn!("Database snapshot unavailable: {error}");
+            }
+        }
 
         let mut migrator = sqlx::migrate!("./migrations");
         migrator.set_ignore_missing(true);

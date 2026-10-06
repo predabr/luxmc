@@ -2,7 +2,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Minecraft launcher for Windows and Linux",
-    "version": "v3.0.0",
+    "version": "v3.0.1",
     "pressForShortcuts": "Press {{key}} for shortcuts",
     "systemOnline": "System Online",
     "navigation": "Navigation",
@@ -898,8 +898,8 @@
     "adcb51a850322231": "Your world, one invitation",
     "693613f1a1d9124e": "Open the world to LAN. Luxmc creates a private tunnel and a link that works even without social services.",
     "a0996d4eca5aa651": "Hosting steps",
-    "452bb4b1e70adb7a": "Enter your world and click Open to LAN.",
-    "ddc3f5afc4101f2d": "Luxmc detects the LAN port, or you can enter the port shown in the game.",
+    "452bb4b1e70adb7a": "Invite your friends before or after launching the game.",
+    "ddc3f5afc4101f2d": "Use Open to LAN in your world. The port is detected automatically.",
     "4d312dab820e7496": "Your friend pastes the invitation into Luxmc and joins through Multiplayer.",
     "c4ad21c272ed73fd": "Room invite code",
     "98ffdf0881e44b01": "Valid for one hour ·",
@@ -2331,8 +2331,8 @@
     "aff4a93487ceb273": "Participants",
     "093b9cfdd3e22b82": "Direct rooms P2P",
     "4457e711663bca74": "Direct room P2P",
-    "36674be5215f5f24": "1 · Open Minecraft",
-    "2e2d6fc6d51333cf": "2 · Create the room",
+    "36674be5215f5f24": "1. Create your room",
+    "2e2d6fc6d51333cf": "2. Open to LAN",
     "1bb8197e9a465bb3": "3 · Send the link",
     "531c8fca7703588a": "Manage my hosting",
     "97e01819f6f87736": "QR Code of the room invitation",
@@ -3050,5 +3050,29 @@
     "content": "Content installation in compatible instances and cached game preparation",
     "social": "Fixes for rooms, invite codes and friend requests",
     "updates": "Automatic news, system language detection and revised Windows installer"
+  },
+  "multiplayer": {
+    "autoLan": "Create the room now. When you open a Minecraft world to LAN, Luxmc detects its port automatically and follows world changes.",
+    "createAnytime": "Your room can stay open before Minecraft starts. Invite your friends and open a world to LAN when you are ready to play.",
+    "worldReady": "LAN world detected. Ready to connect.",
+    "waitingWorld": "Room connected. Waiting for the host to open a world to LAN.",
+    "sameVersions": "Use the same Minecraft version and compatible matching mods on both computers."
+  },
+  "profileCard": {
+    "title": "Your profile",
+    "identity": "Player identity",
+    "luxmcAccount": "Luxmc account",
+    "offlineAccount": "Local account",
+    "syncing": "Syncing your profile…",
+    "synced": "Profile connected to the Luxmc portal.",
+    "syncPending": "Profile synchronization pending.",
+    "today": "Today",
+    "microsoftSkins": "After applying and syncing, your Microsoft skin is saved to your official profile and is visible to other players. Local capes require Luxmc support.",
+    "luxmcSkins": "Luxmc account: applying publishes your skin and cape for other clients with Luxmc Custom Skin support. Match the game version and mods to play together. A resource pack alone does not provide this support.",
+    "idCopied": "Player identifier copied.",
+    "copyId": "Copy player ID",
+    "nicknameRule": "Use 3 to 16 letters, numbers or underscores.",
+    "offlineSkins": "Local account: customization stays on this computer. Sign in with a Luxmc account to share your skin and cape with compatible clients, or with Microsoft to use your official skin.",
+    "nicknameSaved": "Player name saved."
   }
 }

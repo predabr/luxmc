@@ -70,6 +70,22 @@ async fn request(action: &str, body: serde_json::Value, bearer: Option<&str>) ->
     Ok(value)
 }
 
+pub(super) async fn publish_appearance(id: &str, skin: &str, model: &str, cape: Option<&str>) -> AppResult<()> {
+    let session = token(id).await?;
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(6)).build()?;
+    async fn png(client: &reqwest::Client, source: &str, cape: bool) -> AppResult<String> {
+        use base64::Engine;
+        let bytes = super::skins::load_asset_bytes(client, source).await.ok_or_else(|| AppError::InvalidInput("Não foi possível ler a textura para publicar".into()))?;
+        let image = image::load_from_memory_with_format(&bytes, image::ImageFormat::Png).map_err(|_| AppError::InvalidInput("PNG inválido".into()))?;
+        if bytes.len() > 131072 || if cape { image.width() > 512 || image.width() != image.height() * 2 } else { image.width() != 64 || ![32, 64].contains(&image.height()) } { return Err(AppError::InvalidInput("Dimensões ou tamanho da textura não compatíveis com compartilhamento".into())); }
+        Ok(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(bytes)))
+    }
+    let skin = png(&client, skin, false).await?;
+    let cape = match cape { Some(value) => Some(png(&client, value, true).await?), None => None };
+    request("appearance", serde_json::json!({"skin":skin,"cape":cape,"model":model}), Some(&session)).await?;
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn lux_account_login(username: String, password: String) -> AppResult<AuthAccount> {
     if username.len() < 3 || username.len() > 16 || !username.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') || password.len() < 8 || password.len() > 512 {

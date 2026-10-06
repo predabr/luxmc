@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { themeStore, THEMES, ACCENTS } from "../theme.svelte";
+import { settings } from "../settings.svelte";
 
 describe("themeStore", () => {
   beforeEach(() => {
@@ -10,6 +11,22 @@ describe("themeStore", () => {
 
   it("has default theme 'dark'", () => {
     expect(themeStore.theme).toBe("dark");
+  });
+
+  it("persists a video wallpaper independently of the media server port", () => {
+    const path = "C:\\Luxmc\\wallpapers\\scene.mp4";
+    themeStore.setCustomWallpaper(`http://127.0.0.1:58732/media?path=${encodeURIComponent(path)}`, "video", "Scene");
+    expect(settings.value.customBackground).toBe("custom");
+    expect(settings.value.customWallpaperUrl).toBe(path);
+    expect(settings.value.customWallpaperType).toBe("video");
+    expect(settings.value.wallpaperLibrary?.some(entry => entry.url === path && entry.type === "video")).toBe(true);
+    themeStore.init();
+    expect(themeStore.background).toBe("custom");
+    expect(themeStore.customWallpaperUrl).toBe(path);
+    expect(themeStore.customWallpaperType).toBe("video");
+    themeStore.clearCustomWallpaper();
+    expect(settings.value.customWallpaperUrl).toBe("");
+    expect(settings.value.customBackground).toBe("obsidian");
   });
 
   it("has default accent 'gold'", () => {

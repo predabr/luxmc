@@ -1159,33 +1159,33 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						</button>
 					</div>
 				{:else}
-					<div class="home-instance-grid grid grid-cols-[repeat(auto-fill,minmax(min(260px,100%),1fr))] gap-5">
+					<div class="home-instance-grid grid grid-cols-[repeat(auto-fill,minmax(min(220px,100%),1fr))] gap-5">
 						{#each filteredProfiles as inst (inst.id)}
 							{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
 							{@const isThisLaunching = (isLaunching || appState.isLaunching) && (launchingProfileId === inst.id || appState.launchingProfileId === inst.id)}
 							<div
 								role="button"
 								tabindex="0"
-								class="home-instance-card rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.08] hover:border-brand-500/35 transition-[background-color,border-color,box-shadow,transform] p-6 flex flex-col justify-between group relative shadow-soft hover:shadow-elevated cursor-pointer min-h-[280px]"
+								class="home-instance-card rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.08] hover:border-brand-500/35 transition-[background-color,border-color,box-shadow,transform] p-5 flex flex-col justify-between group relative shadow-soft hover:shadow-elevated cursor-pointer min-h-[232px]"
 								onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
 								onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
 								onclick={() => goto(`/instances/${inst.id}`)}
 								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
 							>
 								<div class="w-full flex-1 flex items-center justify-center relative my-2">
-									<div class="w-36 h-36 rounded-3xl flex items-center justify-center overflow-hidden transition-transform motion-reduce:transition-none group-hover:scale-[1.03] {inst.icon && !inst.icon.includes('grass_block') ? 'bg-fg/5 border border-fg/10' : tileCol.bg}">
+									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform motion-reduce:transition-none group-hover:scale-[1.03] {inst.icon && !inst.icon.includes('grass_block') ? 'bg-fg/5 border border-fg/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 											<img loading="lazy" decoding="async"
 												src={inst.icon}
 												alt={inst.name}
 												class="w-full h-full object-cover"
-												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-28 h-28 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
+												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-24 h-24 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
 											/>
 										{:else}
 											<img loading="lazy" decoding="async"
 												src="/grass_block.png"
 												alt={inst.name}
-												class="w-28 h-28 object-contain [image-rendering:pixelated] drop-shadow-md"
+												class="w-24 h-24 object-contain [image-rendering:pixelated] drop-shadow-md"
 											/>
 										{/if}
 									</div>
@@ -1197,7 +1197,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 											handleLaunch(inst);
 										}}
 										disabled={isLaunching || appState.isLaunching}
-										class={launcherButton({ variant: "play", size: "icon", class: "absolute bottom-0 right-0 h-12 w-12 rounded-2xl" })}
+										class={launcherButton({ variant: "play", size: "icon", class: "absolute bottom-0 right-0 h-11 w-11 rounded-2xl" })}
 										aria-label={`${uiText("instances.play")} ${inst.name}`}
 										title={isThisLaunching ? (appState.launchStatusText || uiText("ui.dc0546b3e22c8f9e")) : uiText("instances.play")}
 									>

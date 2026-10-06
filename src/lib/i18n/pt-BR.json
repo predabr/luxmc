@@ -2,7 +2,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Launcher de Minecraft para Windows e Linux",
-    "version": "v3.0.0",
+    "version": "v3.0.1",
     "pressForShortcuts": "Pressione {{key}} para ver atalhos do teclado",
     "systemOnline": "Sistema Online",
     "navigation": "Navegação",
@@ -898,8 +898,8 @@
     "adcb51a850322231": "Seu mundo, um convite",
     "693613f1a1d9124e": "Abra o mundo para LAN. O Luxmc cria um túnel privado e um link que funciona mesmo sem o serviço social.",
     "a0996d4eca5aa651": "Passos para hospedar",
-    "452bb4b1e70adb7a": "Entre no seu mundo e clique em Abrir para LAN.",
-    "ddc3f5afc4101f2d": "O Luxmc encontra a porta LAN ou você informa a porta exibida no jogo.",
+    "452bb4b1e70adb7a": "Convide seus amigos antes ou depois de abrir o jogo.",
+    "ddc3f5afc4101f2d": "No mundo, use Abrir para LAN. A porta é detectada automaticamente.",
     "4d312dab820e7496": "Seu amigo cola o convite no Luxmc e entra pelo Multijogador.",
     "c4ad21c272ed73fd": "Código rápido da sala",
     "98ffdf0881e44b01": "Válido por uma hora ·",
@@ -2331,8 +2331,8 @@
     "aff4a93487ceb273": "Participantes",
     "093b9cfdd3e22b82": "Salas diretas P2P",
     "4457e711663bca74": "Sala direta P2P",
-    "36674be5215f5f24": "1 · Abra o Minecraft",
-    "2e2d6fc6d51333cf": "2 · Crie a sala",
+    "36674be5215f5f24": "1. Crie a sala",
+    "2e2d6fc6d51333cf": "2. Abra para LAN",
     "1bb8197e9a465bb3": "3 · Envie o link",
     "531c8fca7703588a": "Gerenciar minha hospedagem",
     "97e01819f6f87736": "QR Code do convite da sala",
@@ -3050,5 +3050,29 @@
     "content": "Instalação de conteúdo em instâncias compatíveis e preparação do jogo com cache",
     "social": "Correções nas salas, nos códigos de convite e nos pedidos de amizade",
     "updates": "Notícias automáticas, idiomas do sistema e instalador Windows revisado"
+  },
+  "multiplayer": {
+    "autoLan": "Crie a sala agora. Ao abrir um mundo para LAN no Minecraft, o Luxmc detecta a porta automaticamente e acompanha a troca de mundo.",
+    "createAnytime": "Sua sala pode ficar aberta antes de iniciar o Minecraft. Convide seus amigos e abra um mundo para LAN quando quiser jogar.",
+    "worldReady": "Mundo LAN detectado. Pronto para conectar.",
+    "waitingWorld": "Sala conectada. Aguardando o hospedeiro abrir um mundo para LAN.",
+    "sameVersions": "Use a mesma versão do Minecraft e os mesmos mods compatíveis nos dois computadores."
+  },
+  "profileCard": {
+    "title": "Seu perfil",
+    "identity": "Identidade do jogador",
+    "luxmcAccount": "Conta Luxmc",
+    "offlineAccount": "Conta local",
+    "syncing": "Sincronizando seu perfil…",
+    "synced": "Perfil conectado ao portal Luxmc.",
+    "syncPending": "Sincronização do perfil pendente.",
+    "today": "Hoje",
+    "microsoftSkins": "Após aplicar e sincronizar, a skin Microsoft fica no perfil oficial e pode ser vista pelos outros jogadores. Capas locais precisam do suporte Luxmc.",
+    "luxmcSkins": "Conta Luxmc: ao aplicar, sua skin e capa são publicadas para outros clientes com Luxmc Custom Skin. Use a mesma versão e mods para jogar juntos. Um pacote de recursos sozinho não oferece esse suporte.",
+    "idCopied": "Identificador do jogador copiado.",
+    "copyId": "Copiar identificação",
+    "nicknameRule": "Use de 3 a 16 letras, números ou sublinhados.",
+    "offlineSkins": "Conta local: a personalização fica neste computador. Entre com uma conta Luxmc para compartilhar sua skin e capa com outros clientes compatíveis, ou com a Microsoft para usar a skin oficial.",
+    "nicknameSaved": "Nome do jogador salvo."
   }
 }

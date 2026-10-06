@@ -37,6 +37,9 @@ export interface AppSettings {
     capePhysics?: boolean;
     capeWindStrength?: number;
 	customBackground?: string;
+	customWallpaperUrl?: string;
+	customWallpaperType?: "image" | "video";
+	wallpaperLibrary?: Array<{ url: string; type: "image" | "video"; name: string }>;
 	jvmArgs?: string;
 	gamemode?: boolean;
 	mangohud?: boolean;

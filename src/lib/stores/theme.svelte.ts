@@ -1,5 +1,6 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { wallpaperLocalPath } from "$lib/utils/wallpaperSource";
+import { settings } from "./settings.svelte";
 export interface ThemeOption {
 	id: string;
 	name: string;
@@ -143,6 +144,7 @@ function wallpaperName(url: string): string {
 
 function persistWallpaperLibrary() {
 	if (typeof window !== "undefined") localStorage.setItem("luxmc_wallpaper_library", JSON.stringify(wallpaperLibrary));
+	settings.patch({ wallpaperLibrary: wallpaperLibrary.map(entry => ({ ...entry })) });
 }
 
 function applyThemeVariables(tId: string, aId: string, bgId: string) {
@@ -274,14 +276,12 @@ export const themeStore = {
 			}
 			applyThemeVariables(activeTheme, activeAccent, activeBackground);
 			if (persist) {
-				import("./settings.svelte").then(({ settings }) => {
-					settings.patch({ customBackground: bgId });
-				}).catch(() => {});
+				settings.patch({ customBackground: bgId });
 			}
 		}
 	},
 
-	setCustomWallpaper(url: string, type: "image" | "video" = "image", name?: string) {
+	setCustomWallpaper(url: string, type: "image" | "video" = "image", name?: string, persist = true) {
 		const normalized = wallpaperLocalPath(url) || url;
 		if (!normalized) return;
 		const existing = wallpaperLibrary.find(item => item.url === normalized);
@@ -296,6 +296,7 @@ export const themeStore = {
 			localStorage.setItem("luxmc_background", "custom");
 		}
 		applyThemeVariables(activeTheme, activeAccent, "custom");
+		if (persist) settings.patch({ customBackground: "custom", customWallpaperUrl, customWallpaperType });
 	},
 
     replaceWallpaper(source: string, destination: string) {
@@ -305,6 +306,7 @@ export const themeStore = {
         if (customWallpaperUrl === source) {
             customWallpaperUrl = destination;
             localStorage.setItem("luxmc_custom_wallpaper", destination);
+            settings.patch({ customWallpaperUrl: destination });
         }
     },
 
@@ -332,6 +334,7 @@ export const themeStore = {
 			localStorage.setItem("luxmc_background", "obsidian");
 		}
 		applyThemeVariables(activeTheme, activeAccent, "obsidian");
+		settings.patch({ customBackground: "obsidian", customWallpaperUrl: "", customWallpaperType: "image" });
 	},
 
 	init() {

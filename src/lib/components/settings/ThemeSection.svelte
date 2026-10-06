@@ -8,7 +8,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
-	import { schedulePersist } from "$lib/stores/persistence.svelte";
+	import { schedulePersist, persistNow } from "$lib/stores/persistence.svelte";
 	import { startSoundscape, stopSoundscape, setSoundscapeVolume } from "$lib/utils/sound";
 	import { open } from "@tauri-apps/plugin-dialog";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
@@ -79,6 +79,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			const isVideo = selected.toLowerCase().endsWith(".mp4") || selected.toLowerCase().endsWith(".webm");
 			const managedPath = await importWallpaper(selected);
             themeStore.setCustomWallpaper(managedPath, isVideo ? "video" : "image", selected);
+            await persistNow();
 			toast(t("settings.appearanceOptions.wallpaperImported"), "success");
 			onSave?.();
 		} catch (e) {

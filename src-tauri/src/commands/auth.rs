@@ -360,6 +360,20 @@ pub async fn auth_offline_login(username: String) -> AppResult<AuthAccount> {
     Ok(account)
 }
 
+#[tauri::command]
+pub async fn auth_rename_offline(id: String, username: String) -> AppResult<()> {
+    if !(3..=16).contains(&username.len()) || !username.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_') {
+        return Err(AppError::InvalidInput("Use de 3 a 16 letras, números ou _.".into()));
+    }
+    let db = crate::db::shared_db().await?;
+    let row = crate::db::schema::accounts::get_by_id(&db, &id).await?.ok_or_else(|| AppError::NotFound("Conta não encontrada".into()))?;
+    if id.starts_with("luxmc:") || !row.refresh_token.is_empty() || row.access_token.as_ref().is_some_and(|token| !token.is_empty()) {
+        return Err(AppError::InvalidInput("Altere o nome da conta pelo seu provedor.".into()));
+    }
+    sqlx::query("UPDATE accounts SET username = ?, updated_at = ? WHERE id = ?").bind(username).bind(chrono::Utc::now()).bind(id).execute(db.pool()).await?;
+    Ok(())
+}
+
 pub(crate) fn preserve_local_appearance(account: &mut AuthAccount, existing: &AccountRow) {
     if existing.skin_url.as_deref().is_some_and(|skin| skin.starts_with("data:image/png;base64,")) {
         account.skin_url = existing.skin_url.clone();
@@ -559,6 +573,10 @@ pub async fn auth_save_appearance(uuid: String, skin_url: String, variant: Strin
     if let Some(cape) = &cape_url { validate_texture(cape)?; }
     if variant != "classic" && variant != "slim" { return Err(AppError::InvalidInput("Modelo de skin inválido".into())); }
     let db = crate::db::shared_db().await?;
+    let row = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE id = ? OR uuid = ?").bind(&uuid).bind(&uuid).fetch_optional(db.pool()).await?.ok_or_else(|| AppError::NotFound("Conta não encontrada".into()))?;
+    if row.id.starts_with("luxmc:") {
+        super::lux_account::publish_appearance(&row.id, &skin_url, &variant, cape_url.as_deref()).await?;
+    }
     let result = sqlx::query("UPDATE accounts SET skin_url = ?, skin_variant = ?, cape_url = ?, updated_at = ? WHERE id = ? OR uuid = ?")
         .bind(skin_url).bind(variant).bind(cape_url).bind(chrono::Utc::now()).bind(&uuid).bind(&uuid)
         .execute(db.pool()).await?;

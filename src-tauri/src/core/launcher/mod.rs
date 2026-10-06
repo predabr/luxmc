@@ -346,20 +346,22 @@ impl GameLauncher {
             }
         }
 
-        let log_file = game_dir.join("logs").join("latest.log");
-        if let Ok(content) = std::fs::read_to_string(log_file) {
-            let lines: Vec<&str> = content.lines().collect();
-            let scan_start = lines.len().saturating_sub(60);
-            for line in lines[scan_start..].iter().rev() {
-                let trimmed = line.trim();
-                if trimmed.contains("/FATAL]") || trimmed.contains("/ERROR]") || trimmed.starts_with("Caused by:") {
-                    let cleaned = if let Some(idx) = trimmed.find("]: ") {
-                        &trimmed[idx + 3..]
-                    } else {
-                        trimmed
-                    };
-                    if !cleaned.is_empty() && !cleaned.contains("[ALSOFT]") {
-                        return Some(cleaned.to_string());
+        for name in ["luxmc_game.log", "latest.log"] {
+            let log_file = game_dir.join("logs").join(name);
+            if let Ok(content) = std::fs::read_to_string(log_file) {
+                let lines: Vec<&str> = content.lines().collect();
+                let scan_start = lines.len().saturating_sub(60);
+                for line in lines[scan_start..].iter().rev() {
+                    let trimmed = line.trim();
+                    if trimmed.contains("/FATAL]") || trimmed.contains("/ERROR]") || trimmed.starts_with("Caused by:") || trimmed.starts_with("Exception in thread") || trimmed.starts_with("Error:") || trimmed.contains("Could not reserve enough space") || trimmed.starts_with("Unrecognized VM option") {
+                        let cleaned = if let Some(idx) = trimmed.find("]: ") {
+                            &trimmed[idx + 3..]
+                        } else {
+                            trimmed
+                        };
+                        if !cleaned.is_empty() && !cleaned.contains("[ALSOFT]") {
+                            return Some(cleaned.to_string());
+                        }
                     }
                 }
             }
@@ -575,6 +577,7 @@ impl GameLauncher {
         }
 
         classpath = classpath_paths::normalize(classpath);
+        classpath_paths::normalize_jvm_paths(&mut extra_jvm_args);
 
         self.emit_log(&format!("Classpath entries: {}", classpath.len()));
 
@@ -750,17 +753,19 @@ impl GameLauncher {
         let appearance_skin = appearance_root.join(if appearance_variant == "slim" { "player/slim/alex.png" } else { "player/wide/steve.png" });
         let appearance_cape = appearance_root.join("cape.png");
         let pvp = !is_modpack && !has_mods && profile.loader == "vanilla";
-        if appearance_skin.is_file() || pvp {
+        {
             let agent_path = game_dir.join("luxmc-client-agent.jar");
-            tokio::fs::write(&agent_path, CLIENT_AGENT_JAR).await?;
+            if tokio::fs::read(&agent_path).await.ok().as_deref() != Some(CLIENT_AGENT_JAR) {
+                tokio::fs::write(&agent_path, CLIENT_AGENT_JAR).await?;
+            }
+            safe_jvm_args.push(format!("-Dluxmc.appearance.uuid={uuid}"));
             if appearance_skin.is_file() {
-                safe_jvm_args.push(format!("-Dluxmc.appearance.uuid={uuid}"));
                 safe_jvm_args.push(format!("-Dluxmc.appearance.skin={}", appearance_skin.display()));
                 safe_jvm_args.push(format!("-Dluxmc.appearance.model={}", appearance_variant));
                 if appearance_cape.is_file() { safe_jvm_args.push(format!("-Dluxmc.appearance.cape={}", appearance_cape.display())); }
             }
             safe_jvm_args.push(format!("-javaagent:{}{}", agent_path.display(), if pvp { "" } else { "=appearance-only" }));
-            self.emit_log("Luxmc Client Agent anexado: aparência local por perfil; Shift desativado");
+            self.emit_log("Luxmc Custom Skin: aparência local e skins compartilhadas de contas Luxmc");
         }
 
         #[cfg(target_os = "linux")]
@@ -1176,7 +1181,8 @@ impl GameLauncher {
         let _ = tokio::fs::create_dir_all(&log_dir).await;
         let mut log_file = tokio::fs::OpenOptions::new()
             .create(true)
-            .append(true)
+            .write(true)
+            .truncate(true)
             .open(&log_file_path)
             .await
             .ok();
@@ -1187,7 +1193,7 @@ impl GameLauncher {
         };
 
         let app_world_notify = self.app.clone();
-        tokio::spawn(async move {
+        let stdout_reader = tokio::spawn(async move {
             let mut reader = BufReader::new(stdout);
             while let Ok(Some(line)) = crate::core::process::read_log_line(&mut reader).await {
                 if let Some(ref mut f) = log_file {
@@ -1232,7 +1238,7 @@ impl GameLauncher {
             }
         });
 
-        tokio::spawn(async move {
+        let stderr_reader = tokio::spawn(async move {
             let mut reader = BufReader::new(stderr);
             while let Ok(Some(line)) = crate::core::process::read_log_line(&mut reader).await {
                 let trimmed = line.trim();
@@ -1306,6 +1312,9 @@ impl GameLauncher {
         tokio::spawn(async move {
             match child.wait().await {
                 Ok(status) => {
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+                        let _ = tokio::join!(stdout_reader, stderr_reader);
+                    }).await;
                     clear_active_game_pid();
                     clear_active_game_dir();
                     is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
@@ -2088,6 +2097,15 @@ async fn ensure_flite_library(natives_dir: &PathBuf) -> AppResult<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn early_jvm_failure_is_reported_without_a_minecraft_log() {
+        let root = std::env::temp_dir().join(uuid::Uuid::new_v4().to_string());
+        std::fs::create_dir_all(root.join("logs")).unwrap();
+        std::fs::write(root.join("logs/luxmc_game.log"), "Error occurred during initialization of VM\nCould not reserve enough space for object heap\n").unwrap();
+        assert_eq!(GameLauncher::extract_actual_crash_reason(&root, None).as_deref(), Some("Could not reserve enough space for object heap"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn native_classifiers_do_not_mix_windows_cpu_architectures() {

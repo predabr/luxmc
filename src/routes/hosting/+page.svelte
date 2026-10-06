@@ -67,7 +67,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     {:else if room?.mode === "host"}
         <header class="surface-glass space-y-5 p-6 sm:p-8">
             <div class="flex flex-wrap items-start justify-between gap-4">
-                <div><span class="mb-3 inline-flex items-center gap-2 text-xs font-semibold text-success"><RadioTower class="h-4 w-4" />{uiText("ui.aeb99766f4f2f2dc")}</span><h1 class="text-3xl font-bold tracking-tight text-fg">{uiText("ui.16d4b8ac375c4ea5")}</h1><p class="mt-2 text-sm text-fg-muted">{uiText("ui.354a1eb5fd2680be")}</p></div>
+                <div><span class="mb-3 inline-flex items-center gap-2 text-xs font-semibold text-success"><RadioTower class="h-4 w-4" />{uiText("ui.aeb99766f4f2f2dc")}</span><h1 class="text-3xl font-bold tracking-tight text-fg">{uiText("ui.16d4b8ac375c4ea5")}</h1><p class="mt-2 text-sm text-fg-muted">{room.worldReady === false ? uiText("multiplayer.waitingWorld") : uiText("multiplayer.worldReady")}</p></div>
                 <div class="rounded-2xl border border-success/20 bg-success/10 px-5 py-4"><p class="flex items-center gap-2 text-xl font-bold text-success"><Users class="h-5 w-5" />{members.length} / {capacity}</p><p class="mt-1 text-[11px] text-fg-muted">{uiText("ui.2de83f2d4054df9b")}</p></div>
             </div>
             <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-bg/40 p-4">

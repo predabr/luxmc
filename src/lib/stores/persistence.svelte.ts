@@ -40,7 +40,15 @@ export async function bootstrapSettings() {
 		const tId = merged.theme === "default-light" ? "light" : "dark";
 		themeStore.setTheme(tId, false);
 	}
-	if (merged.customBackground) {
+	if (stored.wallpaperLibrary?.length && !themeStore.wallpaperLibrary.length) {
+		localStorage.setItem("luxmc_wallpaper_library", JSON.stringify(stored.wallpaperLibrary));
+		themeStore.init();
+	}
+	if (stored.customWallpaperUrl && merged.customBackground === "custom") {
+		themeStore.setCustomWallpaper(stored.customWallpaperUrl, stored.customWallpaperType === "video" ? "video" : "image", undefined, false);
+	} else if (themeStore.background === "custom" && themeStore.customWallpaperUrl && stored.customWallpaperUrl === undefined) {
+		settings.patch({ customBackground: "custom", customWallpaperUrl: themeStore.customWallpaperUrl, customWallpaperType: themeStore.customWallpaperType });
+	} else if (merged.customBackground) {
 		themeStore.setBackground(merged.customBackground, false);
 	}
 }

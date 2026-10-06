@@ -46,7 +46,7 @@ const fs=require('node:fs');
  await page.getByRole('heading',{name:'Sua sala, sua turma.',exact:true}).waitFor();
  assert.equal(await page.locator('[data-room-member]').count(),1);
  const hostCall=await page.evaluate(()=>window.calls.find(c=>c.command==='host_world'));
- assert.equal(hostCall.args.port,54321);assert.equal(hostCall.args.identity.username,'Steve');
+ assert.equal(hostCall.args.port,undefined);assert.equal(hostCall.args.identity.username,'Steve');
  await page.locator('aside a[href="/skins"]').click();await page.waitForURL('**/skins');await page.locator('aside a[href="/friends"]').click();await page.waitForURL('**/hosting');await page.getByRole('heading',{name:'Sua sala, sua turma.',exact:true}).waitFor();
  await page.evaluate(()=>window.room.members.push({id:'guest-key',username:'Alex',uuid:'alex',avatarUrl:'https://avatars.test/alex.png',joinedAt:2,isHost:false}));
  await page.getByText('Alex',{exact:true}).waitFor();

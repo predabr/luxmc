@@ -1,4 +1,5 @@
 import { authenticate, cookie, digest, equalHash, json, limited, passwordHash, preferences, publicAccount, randomToken, readJson, sameOrigin, SESSION_SECONDS, validNickname, validPassword } from "../../../lib/accounts.js";
+import { texture } from "../../../lib/appearance.js";
 
 export async function onRequest({ request, env, params, waitUntil }) {
   try {
@@ -9,9 +10,9 @@ export async function onRequest({ request, env, params, waitUntil }) {
     const db = env.SOCIAL_DB;
     const pepper = env.AUTH_PEPPER;
   const action = params.action;
-  if (!["register", "login", "me", "logout", "sync", "password", "recover"].includes(action)) return json({ error: "Ação desconhecida." }, 404);
+  if (!["register", "login", "me", "logout", "sync", "password", "recover", "appearance"].includes(action)) return json({ error: "Ação desconhecida." }, 404);
   try {
-    const body = await readJson(request);
+    const body = await readJson(request, action === "appearance" ? 365000 : 8192);
     const ip = await digest(request.headers.get("CF-Connecting-IP") || "local");
     if (await limited(db, `account:${ip}`, 60, 120)) return json({ error: "Muitas requisições. Aguarde um minuto." }, 429);
     const now = Math.floor(Date.now() / 1000);
@@ -70,6 +71,13 @@ export async function onRequest({ request, env, params, waitUntil }) {
     }
     const user = await authenticate(request, db);
     if (!user) return json({ error: "Sua sessão expirou. Entre novamente." }, 401);
+    if (action === "appearance") {
+      if (!["classic", "slim"].includes(body.model)) return json({ error: "Modelo inválido." }, 400);
+      if (await limited(db, `appearance:${user.id}`, 60, 10)) return json({ error: "Aguarde um minuto antes de publicar novamente." }, 429);
+      const skin = texture(body.skin), cape = texture(body.cape ?? null, true);
+      await db.prepare("INSERT INTO lux_appearance(account_id, skin, cape, model, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(account_id) DO UPDATE SET skin = excluded.skin, cape = excluded.cape, model = excluded.model, updated_at = excluded.updated_at").bind(user.id, skin, cape, body.model, now).run();
+      return json({ ok: true });
+    }
     if (action === "logout") {
       await db.prepare("DELETE FROM lux_sessions WHERE token_hash = ?").bind(user.session_hash).run();
       return json({ ok: true }, 200, { "Set-Cookie": cookie("", 0) });

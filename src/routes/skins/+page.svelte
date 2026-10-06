@@ -611,7 +611,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             <Button variant="primary" size="lg" loading={saving} disabled={!canApplyAppearance} onclick={applyAppearance}>{saving ? uiText("skinsStudio.applying") : isMicrosoft ? uiText("ui.96d74ee46d837a1f") : uiText("ui.24e056555b501d83")}</Button>
         </div>
     </div>
-    <p class="text-sm text-fg-muted rounded-2xl border border-fg/10 bg-bg-elevated p-4"><Info class="inline h-4 w-4 mr-2 text-brand-400" />{isMicrosoft ? uiText("ui.bd7f21aa535401a7") : uiText("ui.94f1dcc188ae22b5")}</p>
+    <p class="text-sm text-fg-muted rounded-2xl border border-fg/10 bg-bg-elevated p-4"><Info class="inline h-4 w-4 mr-2 text-brand-400" />{isMicrosoft ? uiText("ui.bd7f21aa535401a7") : account.value?.id.startsWith("luxmc:") ? uiText("profileCard.luxmcSkins") : uiText("profileCard.offlineSkins")}</p>
 
 
 	<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

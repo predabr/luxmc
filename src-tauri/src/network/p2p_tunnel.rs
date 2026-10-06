@@ -4,7 +4,7 @@ use iroh::{endpoint::presets, Endpoint, EndpointAddr};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashSet},
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, atomic::{AtomicU16, Ordering}},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
@@ -71,7 +71,7 @@ impl TunnelMember {
 }
 
 #[derive(Default)]
-struct RoomRegistry {
+pub(super) struct RoomRegistry {
     members: BTreeMap<String, TunnelMember>,
     connections: BTreeMap<String, iroh::endpoint::Connection>,
     removed: HashSet<String>,
@@ -80,10 +80,11 @@ struct RoomRegistry {
     expires: u64,
     host: Option<TunnelMember>,
     room_code: String,
+    pub(super) world_ready: bool,
 }
 impl RoomRegistry {
     fn snapshot(&self) -> RoomSnapshot {
-        RoomSnapshot { room_code: self.room_code.clone(), members: self.host.iter().cloned().chain(self.members.values().cloned()).collect(), max_players: ROOM_CAPACITY, room_locked: self.locked }
+        RoomSnapshot { room_code: self.room_code.clone(), members: self.host.iter().cloned().chain(self.members.values().cloned()).collect(), max_players: ROOM_CAPACITY, room_locked: self.locked, world_ready: self.world_ready }
     }
     fn admission(&self, id: &str) -> Result<(), u8> {
         if self.removed.contains(id) { Err(4) }
@@ -96,7 +97,9 @@ impl RoomRegistry {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct RoomSnapshot { room_code: String, members: Vec<TunnelMember>, max_players: usize, room_locked: bool }
+struct RoomSnapshot { room_code: String, members: Vec<TunnelMember>, max_players: usize, room_locked: bool, #[serde(default = "world_ready_default")] world_ready: bool }
+
+fn world_ready_default() -> bool { true }
 
 async fn read_room_snapshot(connection: &iroh::endpoint::Connection, secret: [u8; 32]) -> AppResult<RoomSnapshot> {
     let (mut send, mut recv) = connection.open_bi().await.map_err(failure)?;
@@ -133,6 +136,7 @@ pub struct TunnelStatus {
     pub members: Vec<TunnelMember>,
     pub max_players: usize,
     pub room_locked: bool,
+    pub world_ready: bool,
 }
 
 pub struct TunnelSession {
@@ -145,10 +149,14 @@ pub struct TunnelSession {
     public_code: Option<String>,
     client_room: Option<Arc<Mutex<RoomSnapshot>>>,
     room_poll: Option<JoinHandle<()>>,
+    world_watch: Option<JoinHandle<()>>,
+    #[cfg(test)]
+    target_port: Option<Arc<AtomicU16>>,
 }
 impl Drop for TunnelSession {
     fn drop(&mut self) {
         self.task.abort();
+        if let Some(task) = &self.world_watch { task.abort(); }
         if let Some(task) = &self.room_poll { task.abort(); }
         if let Some(task) = &self.lan_broadcast {
             task.abort();
@@ -161,6 +169,7 @@ impl Drop for TunnelSession {
 impl TunnelSession {
     async fn stop(mut self) {
         self.task.abort();
+        if let Some(task) = &self.world_watch { task.abort(); }
         if let Some(task) = &self.room_poll { task.abort(); }
         if let Some(task) = &self.lan_broadcast {
             task.abort();
@@ -189,7 +198,7 @@ async fn bridge(
     Ok(())
 }
 
-fn start_lan_broadcast(local_port: u16) -> JoinHandle<()> {
+fn start_lan_broadcast(local_port: u16, room: Arc<Mutex<RoomSnapshot>>) -> JoinHandle<()> {
     tokio::spawn(async move {
         let Ok(socket) = socket2::Socket::new(
             socket2::Domain::IPV4,
@@ -214,6 +223,7 @@ fn start_lan_broadcast(local_port: u16) -> JoinHandle<()> {
         let mut interval = tokio::time::interval(Duration::from_millis(1500));
         loop {
             interval.tick().await;
+            if !room.lock().await.world_ready { continue; }
             let _ = socket
                 .send_to(payload.as_bytes(), MINECRAFT_LAN_MULTICAST)
                 .await;
@@ -241,17 +251,16 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
     let host_member = TunnelMember::new(endpoint.id().to_string(), identity, true);
     let room = Arc::new(Mutex::new(RoomRegistry::default()));
     let registry = room.clone();
-    if port == 0 {
-        return Err(AppError::InvalidInput(
-            "Informe a porta LAN do Minecraft".into(),
-        ));
-    }
-    tokio::time::timeout(
+    if port != 0 { tokio::time::timeout(
         Duration::from_secs(3),
         TcpStream::connect(("127.0.0.1", port)),
     )
     .await
-    .map_err(failure)??;
+    .map_err(failure)??; }
+    let target_port = Arc::new(AtomicU16::new(port));
+    room.lock().await.world_ready = port != 0;
+    let world_watch = (port == 0).then(|| super::lan_discovery::monitor(target_port.clone(), room.clone()));
+    let forwarding_port = target_port.clone();
     let _ = tokio::time::timeout(Duration::from_secs(8), endpoint.online()).await;
     let mut secret = [0u8; 32];
     secret[..16].copy_from_slice(uuid::Uuid::new_v4().as_bytes());
@@ -280,6 +289,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
                     let Some(incoming) = incoming else { break };
                     if clients.len() >= 24 { incoming.refuse(); continue; }
                     let registry = registry.clone();
+                    let forwarding_port = forwarding_port.clone();
                     clients.spawn(async move {
                         let Ok(Ok(conn)) = tokio::time::timeout(Duration::from_secs(10), incoming).await else { return };
                         let id = conn.remote_id().to_string();
@@ -340,6 +350,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
                                     let Ok((mut send, mut recv)) = stream else { break };
                                     if streams.len() >= 16 { conn.close(1u8.into(), b"stream limit"); break; }
                                     let registry = registry.clone();
+                                    let forwarding_port = forwarding_port.clone();
                                     streams.spawn(async move {
                                         let mut handshake = [0u8; 33];
                                         let Ok(Ok(_)) = tokio::time::timeout(Duration::from_secs(5), recv.read_exact(&mut handshake)).await else { return };
@@ -355,7 +366,9 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
                                             return;
                                         }
                                         if handshake[0] != 1 { return; }
-                                        let Ok(Ok(tcp)) = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(("127.0.0.1", port))).await else { return };
+                                        let port = forwarding_port.load(Ordering::Acquire);
+                                        if port == 0 { let _ = send.write_all(&[0]).await; let _ = send.finish(); return; }
+                                        let Ok(Ok(tcp)) = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(("127.0.0.1", port))).await else { let _ = send.write_all(&[0]).await; let _ = send.finish(); return };
                                         if send.write_all(&[1]).await.is_err() { return; }
                                         let _ = bridge(tcp, send, recv).await;
                                     });
@@ -385,9 +398,13 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
             transport: "QUIC automático".into(),
             room_code: Some(room_code),
             members: vec![host_member], max_players: ROOM_CAPACITY, room_locked: false,
+            world_ready: port != 0,
         },
         room: Some(room),
         public_code: None, client_room: None, room_poll: None,
+        world_watch,
+        #[cfg(test)]
+        target_port: Some(target_port),
     })
 }
 
@@ -459,7 +476,7 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
     let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
     let local_port = listener.local_addr()?.port();
     let address = format!("127.0.0.1:{local_port}");
-    let client_room = Arc::new(Mutex::new(RoomSnapshot { room_code: String::new(), members: vec![self_member], max_players: ROOM_CAPACITY, room_locked: false }));
+    let client_room = Arc::new(Mutex::new(RoomSnapshot { room_code: String::new(), members: vec![self_member], max_players: ROOM_CAPACITY, room_locked: false, world_ready: false }));
     let polling_room = client_room.clone();
     let polling_connection = conn.clone();
     let secret = invite.secret;
@@ -474,7 +491,7 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
             }
         }
     });
-    let lan_broadcast = start_lan_broadcast(local_port);
+    let lan_broadcast = start_lan_broadcast(local_port, client_room.clone());
     let connection = conn.clone();
     let ep = endpoint.clone();
     let task = tokio::spawn(async move {
@@ -518,19 +535,23 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
             transport: "QUIC automático".into(),
             room_code: None,
             members: Vec::new(), max_players: ROOM_CAPACITY, room_locked: false,
+            world_ready: false,
         },
         room: None,
         public_code: None, client_room: Some(client_room), room_poll: Some(room_poll),
+        world_watch: None,
+        #[cfg(test)]
+        target_port: None,
     })
 }
 
 #[tauri::command]
-pub async fn host_world(port: u16, identity: Option<RoomIdentity>) -> AppResult<TunnelStatus> {
+pub async fn host_world(port: Option<u16>, identity: Option<RoomIdentity>) -> AppResult<TunnelStatus> {
     let mut state = SESSION.lock().await;
     if state.is_some() {
         return Err(failure("Encerre a sessão atual primeiro"));
     }
-    let mut session = start_host_as(port, endpoint().await?, identity.unwrap_or_default()).await?;
+    let mut session = start_host_as(port.unwrap_or(0), endpoint().await?, identity.unwrap_or_default()).await?;
     let code = crate::core::share_codes::publish("room", session.status.invitation.as_deref().unwrap_or("")).await?;
     session.public_code = Some(code.clone());
     session.status.room_code = Some(code.clone());
@@ -619,7 +640,7 @@ pub async fn tunnel_status() -> AppResult<Option<TunnelStatus>> {
         }
     }
     let room_state = if let Some(session) = state.as_ref() {
-        if let Some(room) = &session.room { let room = room.lock().await; Some((room.members.values().cloned().collect::<Vec<_>>(), room.locked)) } else { None }
+        if let Some(room) = &session.room { let room = room.lock().await; Some((room.members.values().cloned().collect::<Vec<_>>(), room.locked, room.world_ready)) } else { None }
     } else { None };
     let client_state = if let Some(session) = state.as_ref() {
         if let Some(room) = &session.client_room { Some(room.lock().await.clone()) } else { None }
@@ -627,8 +648,8 @@ pub async fn tunnel_status() -> AppResult<Option<TunnelStatus>> {
     Ok(state.as_ref().map(|session| {
         let mut s = session.status.clone();
         if let Some(code) = &session.public_code { s.invitation = Some(code.clone()); }
-        if let Some(room) = &client_state { s.members = room.members.clone(); s.room_code = (!room.room_code.is_empty()).then(|| room.room_code.clone()); s.max_players = room.max_players; s.room_locked = room.room_locked; }
-        if let Some((members, locked)) = &room_state { s.members.extend(members.iter().cloned()); s.room_locked = *locked; }
+        if let Some(room) = &client_state { s.members = room.members.clone(); s.room_code = (!room.room_code.is_empty()).then(|| room.room_code.clone()); s.max_players = room.max_players; s.room_locked = room.room_locked; s.world_ready = room.world_ready; }
+        if let Some((members, locked, ready)) = &room_state { s.members.extend(members.iter().cloned()); s.room_locked = *locked; s.world_ready = *ready; }
         if let Some(connection) = &session.connection {
             if let Some(path) = connection.paths().iter().find(|p| p.is_selected()) {
                 s.transport = if path.is_relay() {
@@ -696,6 +717,65 @@ pub async fn tunnel_refresh_invitation() -> AppResult<TunnelStatus> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn automatic_room_follows_world_changes_without_rejoining() {
+        async fn world() -> (u16, JoinHandle<()>, JoinHandle<()>) {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+            let port = listener.local_addr().unwrap().port();
+            let server = tokio::spawn(async move {
+                let mut jobs = JoinSet::new();
+                loop {
+                    let (mut socket, _) = listener.accept().await.unwrap();
+                    jobs.spawn(async move { let (mut r, mut w) = socket.split(); let _ = tokio::io::copy(&mut r, &mut w).await; });
+                }
+            });
+            let beacon = tokio::spawn(async move {
+                let socket = UdpSocket::bind(("127.0.0.1", 0)).await.unwrap();
+                let payload = format!("[MOTD]Test world[/MOTD][AD]{port}[/AD]");
+                loop {
+                    let _ = socket.send_to(payload.as_bytes(), "127.0.0.1:4445").await;
+                    tokio::time::sleep(Duration::from_millis(150)).await;
+                }
+            });
+            (port, server, beacon)
+        }
+        async fn wait_world(host: &TunnelSession, port: u16) {
+            tokio::time::timeout(Duration::from_secs(10), async {
+                while host.target_port.as_ref().unwrap().load(Ordering::Acquire) != port {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
+            }).await.unwrap();
+        }
+        async fn transfer(address: &str, message: &[u8]) {
+            let mut socket = TcpStream::connect(address).await.unwrap();
+            socket.write_all(message).await.unwrap();
+            let mut response = vec![0; message.len()];
+            tokio::time::timeout(Duration::from_secs(5), socket.read_exact(&mut response)).await.unwrap().unwrap();
+            assert_eq!(response, message);
+        }
+        let host = start_host_as(0, endpoint().await.unwrap(), RoomIdentity::default()).await.unwrap();
+        assert!(!host.room.as_ref().unwrap().lock().await.world_ready);
+        let invitation = parse_invitation(host.status.invitation.as_ref().unwrap()).unwrap();
+        let secret = invitation.secret;
+        let client = start_client_with(invitation, endpoint().await.unwrap()).await.unwrap();
+        let address = client.status.local_address.as_ref().unwrap();
+        let (first, first_server, first_beacon) = world().await;
+        wait_world(&host, first).await;
+        transfer(address, b"first world").await;
+        first_beacon.abort(); first_server.abort();
+        let (second, second_server, second_beacon) = world().await;
+        wait_world(&host, second).await;
+        transfer(address, b"second world with same guest").await;
+        let snapshot = read_room_snapshot(client.connection.as_ref().unwrap(), secret).await.unwrap();
+        assert!(snapshot.world_ready);
+        assert_eq!(snapshot.members.len(), 2);
+        second_beacon.abort(); second_server.abort();
+        wait_world(&host, 0).await;
+        assert!(!read_room_snapshot(client.connection.as_ref().unwrap(), secret).await.unwrap().world_ready);
+        client.stop().await;
+        host.stop().await;
+    }
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     #[tokio::test]
     async fn encrypted_tunnel_transfers_bytes_and_stops() {

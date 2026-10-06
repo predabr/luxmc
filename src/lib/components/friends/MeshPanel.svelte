@@ -3,16 +3,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
-    import { Copy, Link2, LogOut, Network, Play, QrCode, RadioTower, RefreshCw } from "lucide-svelte";
+    import { Copy, Link2, LogOut, Network, Play, QrCode, RadioTower } from "lucide-svelte";
     import { hostWorld, joinTunnel, stopSession, tunnelStatus, type TunnelStatus } from "$lib/api/tunnel";
-    import { p2pScanLanWorlds, p2pGetLocalInfo } from "$lib/api/p2p";
     import { toast } from "$lib/stores/toasts.svelte";
 
     let { profileId: _profileId }: { profileId?: string } = $props();
     let status = $state<TunnelStatus | null>(null);
-    let port = $state<number | undefined>();
-    let choosePort = $state(false);
-    let localWorlds = $state<Array<{ port: number; motd: string }>>([]);
     let actionError = $state("");
     let invitation = $state("");
     let busy = $state(false);
@@ -66,20 +62,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         }
     }
 
-    async function scanWorlds() {
-        const [discovered, local] = await Promise.all([p2pScanLanWorlds(), p2pGetLocalInfo()]);
-        localWorlds = discovered.filter(world => world.host === local.ip || world.host === "127.0.0.1" || world.host === "::1");
-        choosePort = true;
-        if (localWorlds.length === 1) port = localWorlds[0].port;
-    }
-
     async function host() {
-        if (!port) {
-            await scanWorlds();
-            if (!port) return;
-        }
-        if (!Number.isInteger(port) || !port || port < 1 || port > 65535) throw new Error(uiText("ui.04fe5c82270d3b7c"));
-        status = await hostWorld(port);
+        status = await hostWorld();
         await goto("/hosting");
     }
 
@@ -106,7 +90,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     async function closeSession() {
         await stopSession();
         status = null;
-        port = undefined;
         showQrCode = false;
     }
 </script>
@@ -119,7 +102,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 <div>
                     <div class="mb-3 inline-flex items-center gap-2 rounded-full border border-success/25 bg-success/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-success"><RadioTower class="h-3.5 w-3.5" /> {uiText("ui.4457e711663bca74")}</div>
                     <h2 class="text-xl font-black text-fg">{uiText("ui.adcb51a850322231")}</h2>
-                    <p class="mt-2 max-w-xl text-sm leading-relaxed text-fg/70">{uiText("ui.693613f1a1d9124e")}</p>
+                    <p class="mt-2 max-w-xl text-sm leading-relaxed text-fg/70">{uiText("multiplayer.createAnytime")}</p>
                 </div>
                 <div class="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-success/25 bg-success/10 text-success shadow-glow"><Network class="h-6 w-6" /></div>
             </div>
@@ -149,16 +132,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 {/if}
                 <button type="button" class={launcherButton({ variant: "danger", size: "sm", class: "inline-flex items-center justify-center gap-2" })} disabled={busy} onclick={() => perform(closeSession)}><LogOut class="h-4 w-4" />{uiText("ui.71b96dcef1a240f4")}</button>
             {:else}
-                {#if choosePort}
-                    <div class="space-y-3 rounded-2xl border border-fg/10 bg-bg/50 p-4">
-                        <div class="flex items-center justify-between gap-2"><p class="text-xs font-bold text-fg">{uiText("ui.d3d747ec77476176")}</p><button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "inline-flex items-center gap-1" })} disabled={busy} onclick={() => perform(scanWorlds)}><RefreshCw class="h-3.5 w-3.5" /> {uiText("ui.7ae3384a6fd3b6da")}</button></div>
-                        {#each localWorlds as world}
-                            <button type="button" class="w-full rounded-xl border px-3 py-2 text-left text-xs {port === world.port ? 'border-success/50 bg-success/10 text-success' : 'border-fg/10 bg-bg-subtle text-fg-muted'}" onclick={() => port = world.port}>{world.motd} {uiText("ui.2c16071093a06464")} {world.port}</button>
-                        {/each}
-                        {#if !localWorlds.length}<p class="text-xs text-fg-muted">{uiText("ui.cc982413f0ee060a")}</p>{/if}
-                        <label class="block text-xs font-bold text-fg-muted">{uiText("ui.7d350c927b1d90cb")}<input class="mt-2 w-full rounded-xl border border-border bg-bg/60 px-4 py-3 text-fg outline-none focus:border-success/50" type="number" min="1" max="65535" bind:value={port} placeholder={uiText("ui.ccac667e7a9b5e3a")} /></label>
-                    </div>
-                {/if}
+                <p class="rounded-2xl border border-success/20 bg-success/5 p-4 text-sm leading-relaxed text-fg-muted">{uiText("multiplayer.autoLan")}</p>
                 <button type="button" class={launcherButton({ variant: "primary", size: "lg", class: "mt-2 inline-flex items-center justify-center gap-2 disabled:opacity-50" })} disabled={busy || !!status} onclick={() => perform(host)}><RadioTower class="h-4 w-4" /> {busy ? uiText("ui.8072a1679aaf96f2") : uiText("ui.a57d1b367f1a3034")}</button>
             {/if}
         </div>
