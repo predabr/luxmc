@@ -457,6 +457,7 @@ pub async fn app_perform_update(
             .ends_with(".exe")
         {
             let mut cmd = crate::core::process::std_command(&temp_file_path);
+            cmd.args(["/P", "/UPDATE", "/R"]);
             cmd.spawn()
                 .map_err(|e| AppError::Internal(format!("Falha ao iniciar instalador: {e}")))?;
             std::process::exit(0);

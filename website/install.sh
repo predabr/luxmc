@@ -91,7 +91,7 @@ esac
 REPO="predabr/luxmc"
 RELEASE_JSON="$(curl -fsSL "https://api.github.com/repos/$REPO/releases/latest" || true)"
 LATEST_TAG="$(printf '%s' "$RELEASE_JSON" | sed -nE 's/.*"tag_name": *"([^"]+)".*/\1/p' | head -1)"
-LATEST_TAG="${LATEST_TAG:-v3.0.0}"
+LATEST_TAG="${LATEST_TAG:-v3.0.2}"
 release_asset() {
     printf '%s' "$RELEASE_JSON" | sed -nE 's/.*"browser_download_url": *"([^"]+)".*/\1/p' | grep -Ei "$1" | head -1 || true
 }

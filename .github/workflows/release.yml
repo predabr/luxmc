@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v3.0.1)"
+        description: "Release tag (e.g. v3.0.2)"
         required: true
-        default: "v3.0.1"
+        default: "v3.0.2"
       reuse_assets:
         description: "Verify and publish an existing draft without rebuilding installers"
         type: boolean

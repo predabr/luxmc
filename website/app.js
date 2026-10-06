@@ -126,7 +126,7 @@ async function initGitHubRelease() {
 
     if (!data) throw new Error("Release indisponível");
 
-    const tag = typeof data.tag_name === "string" ? data.tag_name : "v3.0.0";
+    const tag = typeof data.tag_name === "string" ? data.tag_name : "v3.0.2";
     window.LuxLatestVersion = tag;
     document.querySelectorAll(".live-version-tag").forEach((el) => {
       el.textContent = tag;
@@ -217,7 +217,7 @@ async function initGitHubRelease() {
       heroSize.textContent = `${(heroAsset.size / (1024 * 1024)).toFixed(1)} MB`;
   } catch (e) {
     document.querySelectorAll(".live-version-tag").forEach((el) => {
-      el.textContent = window.LuxLatestVersion || "v3.0.0";
+      el.textContent = window.LuxLatestVersion || "v3.0.2";
     });
     console.debug("GitHub API fetch fallback:", e);
   }
