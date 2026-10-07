@@ -1,5 +1,16 @@
 import { assetFor, latestRelease, fallback, repository } from "../../lib/releases.js";
 
+function localIsCurrent(local, remote) {
+  if (!/^\d+\.\d+\.\d+$/.test(local || '')) return false;
+  const parts = String(remote).replace(/^v/, '').split('.').map(Number);
+  if (parts.length !== 3 || parts.some(value => !Number.isSafeInteger(value))) return false;
+  const current = local.split('.').map(Number);
+  for (let index = 0; index < 3; index++) {
+    if (current[index] !== parts[index]) return current[index] > parts[index];
+  }
+  return true;
+}
+
 async function localInstaller(request) {
   const source = await fetch(new URL("/releases/Lux%20MC%20Launcher.exe", request.url), {
     method: request.method === "HEAD" ? "HEAD" : "GET",
@@ -65,7 +76,7 @@ export async function onRequest({ request, params, env }) {
   try {
     const data = await latestRelease();
     const asset = assetFor(data.assets, platform);
-    if ((platform === "windows" || platform === "exe") && env?.WINDOWS_LOCAL_VERSION === data.tag_name.replace(/^v/, "")) {
+    if ((platform === "windows" || platform === "exe") && localIsCurrent(env?.WINDOWS_LOCAL_VERSION, data.tag_name)) {
       return await localInstaller(request);
     }
     if (asset && (platform === "windows" || platform === "exe")) {

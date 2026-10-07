@@ -109,3 +109,14 @@ test('failed upstream downloads do not return an installer payload', async () =>
         assert.equal(response.headers.get('Cache-Control'), 'no-store');
     } finally { globalThis.fetch = original; }
 });
+
+
+test('new Windows site installer is available while the GitHub release is still building', async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = async url => String(url).startsWith('https://api.github.com/') ? Response.json({tag_name:'v3.0.2', assets:[asset]}) : (assert.equal(new URL(url).pathname, '/releases/Lux%20MC%20Launcher.exe'), new Response('MZnew', {headers:{'Content-Length':'5'}}));
+    try {
+        const response = await onRequest({request:new Request('https://luxmc.test/download/windows'),params:{platform:'windows'},env:{WINDOWS_LOCAL_VERSION:'3.1.0'}});
+        assert.equal(response.status,200);
+        assert.equal(await response.text(),'MZnew');
+    } finally { globalThis.fetch = original; }
+});

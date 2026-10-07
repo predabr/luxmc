@@ -126,7 +126,12 @@ async function initGitHubRelease() {
 
     if (!data) throw new Error("Release indisponível");
 
-    const tag = typeof data.tag_name === "string" ? data.tag_name : "v3.1.0";
+    const remoteTag = typeof data.tag_name === "string" ? data.tag_name : "v3.1.0";
+    const siteTag = "v3.1.0";
+    const remoteParts = remoteTag.replace(/^v/, "").split(".").map(Number);
+    const siteParts = siteTag.slice(1).split(".").map(Number);
+    const difference = siteParts.map((part, index) => part - (remoteParts[index] || 0)).find(value => value !== 0) || 0;
+    const tag = difference > 0 ? siteTag : remoteTag;
     window.LuxLatestVersion = tag;
     document.querySelectorAll(".live-version-tag").forEach((el) => {
       el.textContent = tag;
