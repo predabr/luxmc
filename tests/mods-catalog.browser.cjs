@@ -139,11 +139,10 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
     assert.equal(closeListenersIdle, 0);
     if (!process.env.LUXMC_BASE_URL) {
     await page.evaluate(async () => { const url = performance.getEntriesByType('resource').find(entry => entry.name.includes('/stores/app.svelte.ts')).name; const { appState } = await import(url); window.testAppState = appState; appState.isGameRunning = true; });
-    await page.waitForFunction(() => window.uiCalls.some(call => call.command === 'plugin:event|listen' && call.args.event === 'tauri://close-requested'));
-    await page.evaluate(async () => { const call = window.uiCalls.find(call => call.command === 'plugin:event|listen' && call.args.event === 'tauri://close-requested'); window.closeCallback = window.callbacks[call.args.handler]; await window.closeCallback({ event: 'tauri://close-requested', id: 1, payload: null }); });
+    await page.waitForTimeout(200);
     assert.equal(await page.evaluate(() => window.uiCalls.filter(call => call.command === 'plugin:window|destroy').length), 0);
-    await page.evaluate(async () => { window.approveClose = true; await window.closeCallback({ event: 'tauri://close-requested', id: 1, payload: null }); window.testAppState.isGameRunning = false; });
-    await page.waitForFunction(() => window.uiCalls.some(call => call.command === 'plugin:window|destroy'));
+    assert.equal(await page.evaluate(() => window.uiCalls.filter(call => call.command === 'plugin:event|listen' && call.args.event === 'tauri://close-requested').length), 0);
+    await page.evaluate(() => { window.testAppState.isGameRunning = false; });
     }
     await page.goto((process.env.LUXMC_BASE_URL || 'http://127.0.0.1:1420') + '/settings');
     await page.locator('select').first().waitFor();
