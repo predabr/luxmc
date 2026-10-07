@@ -107,6 +107,35 @@ jobs:
         working-directory: src-tauri
         run: cargo test --lib --locked
 
+      - name: Prepare Java versions for loader integration tests
+        if: runner.os == 'Linux'
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: |
+            8
+            17
+            21
+
+      - name: Reuse prepared Java in isolated loader fixtures
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, tempfile
+          from pathlib import Path
+          fixtures = ['luxmc_forge_1_20_1_cache', 'luxmc_forge_legacy_cache', 'luxmc_neoforge_1_20_4_cache', 'luxmc_neoforge_1_21_1_cache']
+          for fixture in fixtures:
+              root = Path(tempfile.gettempdir()) / fixture / 'installer-java'
+              root.mkdir(parents=True, exist_ok=True)
+              for major in [8, 17, 21]:
+                  home = Path(os.environ[f'JAVA_HOME_{major}_X64'])
+                  assert (home / 'bin/java').is_file()
+                  destination = root / str(major)
+                  if not destination.exists():
+                      destination.symlink_to(home, target_is_directory=True)
+          PY
+
       - name: Rust integration tests
         if: runner.os == 'Linux'
         working-directory: src-tauri
