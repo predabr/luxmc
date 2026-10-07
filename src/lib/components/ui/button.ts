@@ -4,7 +4,7 @@ const primary = "launcher-button--primary border border-brand-300/35 bg-brand-50
 const secondary = "launcher-button--secondary border border-fg/[0.12] bg-fg/[0.045] hover:bg-fg/[0.09] text-fg hover:border-fg/25";
 
 export const button = tv({
-    base: "launcher-button relative inline-flex shrink-0 items-center justify-center gap-2.5 overflow-hidden rounded-xl font-semibold leading-none transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out touch-manipulation select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none aria-disabled:pointer-events-none aria-disabled:opacity-40 motion-reduce:transition-none",
+    base: "launcher-button relative inline-flex shrink-0 items-center justify-center gap-2.5 overflow-hidden rounded-lg font-sans font-semibold leading-none transition-[background-color,border-color,box-shadow,transform] duration-150 ease-out touch-manipulation select-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none aria-disabled:pointer-events-none aria-disabled:opacity-50 motion-reduce:transition-none",
     variants: {
         variant: {
             solid: primary,
@@ -25,7 +25,7 @@ export const button = tv({
             xl: "h-14 px-6 text-sm rounded-2xl",
             pill: "h-10 px-5 text-xs rounded-full",
             hero: "h-14 px-8 text-sm tracking-wide rounded-2xl",
-            icon: "h-10 w-10 p-0 rounded-xl"
+            icon: "h-11 w-11 p-0 rounded-xl"
         },
         block: { true: "w-full" }
     },

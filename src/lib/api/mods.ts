@@ -86,6 +86,7 @@ export async function modsInstall(request: {
 	source: string;
 	contentType?: string;
     worldName?: string;
+    iconUrl?: string | null;
 }): Promise<void> {
 	return api.invoke("mods_install", { request });
 }

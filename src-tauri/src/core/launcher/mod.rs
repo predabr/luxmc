@@ -759,6 +759,9 @@ impl GameLauncher {
                 tokio::fs::write(&agent_path, CLIENT_AGENT_JAR).await?;
             }
             safe_jvm_args.push(format!("-Dluxmc.appearance.uuid={uuid}"));
+            if let Some(path) = crate::network::p2p_tunnel::private_lan_session_path() {
+                safe_jvm_args.push(format!("-Dluxmc.p2p.session={}", path.display()));
+            }
             if appearance_skin.is_file() {
                 safe_jvm_args.push(format!("-Dluxmc.appearance.skin={}", appearance_skin.display()));
                 safe_jvm_args.push(format!("-Dluxmc.appearance.model={}", appearance_variant));
@@ -875,6 +878,7 @@ impl GameLauncher {
                 .args(&safe_game_args);
             c
         };
+        for variable in ["JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JAVA_OPTIONS", "JDK_JAVA_OPTIONS", "CLASSPATH"] { cmd.env_remove(variable); }
         cmd.current_dir(game_dir)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -1826,7 +1830,6 @@ impl GameLauncher {
                 "-XX:+TieredCompilation",
                 "-Dfml.ignoreInvalidMinecraftCertificates=true",
                 "-Dfml.ignorePatchDiscrepancies=true",
-                "-Djava.net.preferIPv4Stack=true",
                 "-Dio.netty.allocator.type=pooled",
                 "-Dio.netty.recycler.maxCapacityPerThread=0",
                 "-XX:+OptimizeStringConcat",
@@ -2097,6 +2100,22 @@ async fn ensure_flite_library(natives_dir: &PathBuf) -> AppResult<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn skin_pack_metadata_supports_legacy_and_minor_version_formats() {
+        for format in [1, 15, 34, 64] {
+            let value = skin_pack_metadata(format);
+            assert_eq!(value["pack"]["pack_format"], format);
+            assert!(value["pack"].get("min_format").is_none());
+        }
+        for format in [65, 69, 97] {
+            let value = skin_pack_metadata(format);
+            assert_eq!(value["pack"]["min_format"], format);
+            assert_eq!(value["pack"]["max_format"], format);
+            assert!(value["pack"].get("supported_formats").is_none());
+            assert!(value["pack"].get("pack_format").is_none());
+        }
+    }
 
     #[test]
     fn early_jvm_failure_is_reported_without_a_minecraft_log() {
@@ -2541,8 +2560,30 @@ fn is_legacy_pack(version: &str) -> bool {
         || clean.starts_with("rd-")
 }
 
+fn skin_pack_metadata(format: u32) -> serde_json::Value {
+    if format >= 65 {
+        serde_json::json!({"pack": {"min_format": format, "max_format": format, "description": "Luxmc Player Custom Skin & Cape"}})
+    } else {
+        serde_json::json!({"pack": {"pack_format": format, "description": "Luxmc Player Custom Skin & Cape"}})
+    }
+}
+
 fn get_pack_format_for_version(version: &str) -> u32 {
     let clean = extract_mc_version(version);
+    if let Some(dirs) = directories::ProjectDirs::from("io", "github", "Luxmc") {
+        let jar = dirs.data_dir().join("versions").join(&clean).join(format!("{clean}.jar"));
+        if let Ok(file) = std::fs::File::open(jar) {
+            if let Ok(mut archive) = zip::ZipArchive::new(file) {
+                if let Ok(entry) = archive.by_name("version.json") {
+                    if entry.size() < 65536 {
+                        if let Ok(value) = serde_json::from_reader::<_, serde_json::Value>(entry) {
+                            if let Some(format) = value.pointer("/pack_version/resource_major").or_else(|| value.pointer("/pack_version/resource/major")).or_else(|| value.pointer("/pack_version/resource")).and_then(|value| value.as_u64()).and_then(|value| u32::try_from(value).ok()) { return format; }
+                        }
+                    }
+                }
+            }
+        }
+    }
     if clean.starts_with("1.21.4") {
         46
     } else if clean.starts_with("1.21.2") || clean.starts_with("1.21.3") {
@@ -3037,16 +3078,7 @@ async fn inject_player_skin(
     let _ = tokio::fs::create_dir_all(&entity_dir_legacy).await;
 
     let pack_fmt = get_pack_format_for_version(mc_version);
-    let mcmeta = serde_json::json!({
-        "pack": {
-            "pack_format": pack_fmt,
-            "supported_formats": {
-                "min_inclusive": 1,
-                "max_inclusive": 99
-            },
-            "description": "Luxmc Player Custom Skin & Cape"
-        }
-    });
+    let mcmeta = skin_pack_metadata(pack_fmt);
     tokio::fs::write(pack_dir.join("pack.mcmeta"), serde_json::to_string_pretty(&mcmeta).unwrap_or_default()).await?;
     tokio::fs::write(pack_dir.join("pack.png"), include_bytes!("../../../icons/64x64.png")).await?;
 

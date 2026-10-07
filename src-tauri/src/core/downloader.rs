@@ -269,7 +269,7 @@ impl DownloadManager {
                         let prefix = &hash[..2];
                         let object_dir = objects_dir.join(prefix);
                         let object_path = object_dir.join(hash);
-                        if !fast_cached_file(&object_path, size) && !valid_cached_file(&object_path, size, hash).await? {
+                        if !valid_cached_file(&object_path, size, hash).await? {
                             tokio::fs::create_dir_all(&object_dir).await?;
                             let url =
                                 format!("https://resources.download.minecraft.net/{prefix}/{hash}");
@@ -441,7 +441,7 @@ impl DownloadManager {
 
             if let Some(ref downloads) = lib.downloads {
                 if let Some(ref artifact) = downloads.artifact {
-                    if !fast_cached_file(&path, artifact.size) && !valid_cached_file(&path, artifact.size, &artifact.sha1).await? {
+                    if !valid_cached_file(&path, artifact.size, &artifact.sha1).await? {
                         if let Some(parent) = path.parent() {
                             tokio::fs::create_dir_all(parent).await?;
                         }
@@ -466,7 +466,7 @@ impl DownloadManager {
                         if matches_os && crate::core::launcher::is_native_classifier_allowed(classifier_key) {
                             let native_lib_name = format!("{}:{}", lib.name, classifier_key);
                             let native_path = lib_path_from_name(&lib_dir, &native_lib_name);
-                            if !fast_cached_file(&native_path, entry.size) && !valid_cached_file(&native_path, entry.size, &entry.sha1).await? {
+                            if !valid_cached_file(&native_path, entry.size, &entry.sha1).await? {
                                 if let Some(parent) = native_path.parent() {
                                     tokio::fs::create_dir_all(parent).await?;
                                 }
@@ -1023,14 +1023,6 @@ async fn download_file_once(
     Ok(())
 }
 
-fn fast_cached_file(path: &std::path::Path, size: u64) -> bool {
-    if let Ok(meta) = std::fs::metadata(path) {
-        meta.is_file() && (size == 0 || meta.len() == size)
-    } else {
-        false
-    }
-}
-
 async fn valid_cached_file(path: &std::path::Path, size: u64, sha1: &str) -> AppResult<bool> {
     use tokio::io::AsyncReadExt;
     let mut file = match tokio::fs::File::open(path).await {
@@ -1041,6 +1033,11 @@ async fn valid_cached_file(path: &std::path::Path, size: u64, sha1: &str) -> App
     let length = file.metadata().await?.len();
     if length == 0 || (size > 0 && length != size) { return Ok(false); }
     if sha1.is_empty() { return Ok(true); }
+    let metadata = file.metadata().await?;
+    let modified = metadata.modified().ok().and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map(|time| time.as_nanos()).unwrap_or(0);
+    let stamp = format!("{length}:{modified}:{}", sha1.to_ascii_lowercase());
+    let receipt = path.with_file_name(format!("{}.luxmc-verified", path.file_name().unwrap_or_default().to_string_lossy()));
+    if modified > 0 && tokio::fs::read_to_string(&receipt).await.ok().as_deref() == Some(&stamp) { return Ok(true); }
     let mut digest = Sha1::new();
     let mut buffer = [0u8; 65536];
     loop {
@@ -1048,13 +1045,34 @@ async fn valid_cached_file(path: &std::path::Path, size: u64, sha1: &str) -> App
         if read == 0 { break; }
         digest.update(&buffer[..read]);
     }
-    Ok(format!("{:x}", digest.finalize()).eq_ignore_ascii_case(sha1))
+    let valid = format!("{:x}", digest.finalize()).eq_ignore_ascii_case(sha1);
+    if valid && modified > 0 {
+        let temporary = receipt.with_extension(format!("verified-{}", uuid::Uuid::new_v4()));
+        if tokio::fs::write(&temporary, &stamp).await.is_ok() { let _ = tokio::fs::rename(&temporary, &receipt).await; }
+        let _ = tokio::fs::remove_file(temporary).await;
+    }
+    Ok(valid)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    #[tokio::test]
+    async fn verified_disk_cache_invalidates_modified_same_length_artifact() {
+        let directory = std::env::temp_dir().join(format!("luxmc-verified-cache-{}", uuid::Uuid::new_v4()));
+        tokio::fs::create_dir_all(&directory).await.unwrap();
+        let path = directory.join("library.jar");
+        tokio::fs::write(&path, b"good").await.unwrap();
+        let hash = format!("{:x}", Sha1::digest(b"good"));
+        assert!(valid_cached_file(&path, 4, &hash).await.unwrap());
+        assert!(valid_cached_file(&path, 4, &hash).await.unwrap());
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        tokio::fs::write(&path, b"evil").await.unwrap();
+        assert!(!valid_cached_file(&path, 4, &hash).await.unwrap());
+        tokio::fs::remove_dir_all(directory).await.unwrap();
+    }
 
     #[tokio::test]
     async fn failed_transfers_preserve_existing_file_and_remove_partials() {

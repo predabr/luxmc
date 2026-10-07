@@ -55,7 +55,7 @@ try {
     const support = join(temporary, 'support');
     const client = join(temporary, 'io/github/luxmc/client');
     mkdirSync(join(support, 'io/github/luxmc/client'), {recursive:true});
-    for (const name of readdirSync(client).filter(name=>name.startsWith('AppearanceAgent') && name.endsWith('.class'))) {
+    for (const name of readdirSync(client).filter(name=>(name.startsWith('AppearanceAgent') || name.startsWith('P2PAgent')) && name.endsWith('.class'))) {
         cpSync(join(client,name), join(support, 'io/github/luxmc/client',name));
         rmSync(join(client,name));
     }

@@ -8,6 +8,7 @@ import { setupI18n, notifyLocaleChange, type Locale } from "$lib/i18n";
 import { setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 import { detectBrowserLocale, isSupportedLocale, resolveLocale } from "$lib/i18n/locale";
 import { appSystemLocale } from "$lib/api/system";
+import { settingsGet, settingsSet } from "$lib/api/settings";
 
 import { themeStore } from "./theme.svelte";
 
@@ -24,7 +25,8 @@ function getStore(): LazyStore {
 export async function bootstrapSettings() {
 	if (!browser) return;
 	const s = getStore();
-	const stored = (await s.get<Partial<AppSettings>>(STORE_KEY)) ?? {};
+	const [native, local] = await Promise.allSettled([settingsGet(), s.get<Partial<AppSettings>>(STORE_KEY)]);
+	const stored = { ...(native.status === "fulfilled" ? native.value ?? {} : {}), ...(local.status === "fulfilled" ? local.value ?? {} : {}) };
 	const merged: AppSettings = { ...settings.value, ...stored };
 	merged.languageMode = stored.languageMode || (isSupportedLocale(stored.language) ? "manual" : "system");
 	merged.language = merged.languageMode === "system" ? await detectSystemLocale() : resolveLocale(stored.language);
@@ -71,6 +73,7 @@ export async function persistNow(): Promise<void> {
 			if (currentStr === lastSaved) return;
 			await s.set(STORE_KEY, toSave);
 			await s.save();
+			await settingsSet(toSave);
 			lastSaved = currentStr;
 		} catch (error) {
 			console.error(uiText("ui.5534995aef529ef0"), error);

@@ -388,7 +388,7 @@ pub async fn get_mod_versions(
 ) -> AppResult<Vec<ModVersion>> {
     let key = match api_key() {
         Some(k) => k,
-        None => return Ok(Vec::new()),
+        None => return Err(crate::error::AppError::InvalidState("CurseForge indisponível: não foi possível consultar os arquivos. Tente novamente ou use Modrinth.".into())),
     };
 
     let version_param = if mc_version.is_empty() || mc_version == "Qualquer Versão" {
@@ -439,7 +439,7 @@ pub async fn get_mod_versions(
             if let Some(e) = last_err {
                 tracing::error!(error = %e, project_id = %project_id, "CurseForge get_mod_versions failed after retries");
             }
-            return Ok(Vec::new());
+            return Err(crate::error::AppError::InvalidState("CurseForge não respondeu à consulta de arquivos. Tente novamente em instantes; a instância foi preservada.".into()));
         }
     };
 
@@ -453,6 +453,7 @@ pub async fn get_mod_versions(
 
     let versions: Vec<ModVersion> = data
         .iter()
+        .filter(|file| mc_version.is_empty() || mc_version == "Qualquer Versão" || file.get("gameVersions").and_then(|value| value.as_array()).is_some_and(|versions| versions.iter().any(|version| version.as_str() == Some(mc_version))))
         .map(|f| {
             let id = f
                 .get("id")
@@ -925,6 +926,18 @@ pub struct CurseForgeFileInfo {
     pub size: Option<u64>,
     #[serde(default)]
     pub sha1: Option<String>,
+}
+
+pub async fn file_dependencies(http: &reqwest::Client, project: &str, file: &str) -> AppResult<Vec<super::ModDependency>> {
+    let key = api_key().ok_or_else(|| crate::error::AppError::InvalidState("Não foi possível verificar as dependências do CurseForge.".into()))?;
+    let value: serde_json::Value = http.get(format!("{CURSEFORGE_API}/mods/{project}/files/{file}"))
+        .header("x-api-key", key).timeout(Duration::from_secs(20)).send().await?.error_for_status()?.json().await?;
+    let dependencies = value.pointer("/data/dependencies").and_then(|value| value.as_array())
+        .ok_or_else(|| crate::error::AppError::InvalidState("Metadados de dependências do CurseForge indisponíveis; a instância foi preservada.".into()))?;
+    Ok(dependencies.iter().filter_map(|dependency| {
+        let kind = match dependency.get("relationType")?.as_u64()? { 3 => "required", 5 => "incompatible", _ => return None };
+        Some(super::ModDependency { project_id: dependency.get("modId")?.as_u64()?.to_string(), version_id: dependency.get("fileId").and_then(|value| value.as_u64()).filter(|value| *value > 0).map(|value| value.to_string()), dependency_type: kind.into() })
+    }).collect())
 }
 
 pub async fn get_files_batch(

@@ -17,8 +17,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             frame = 0;
             if (!container) return;
             const top = container.getBoundingClientRect().top - root.getBoundingClientRect().top;
-            first = Math.max(0, Math.floor(-top / rowHeight) - 1);
-            visible = Math.ceil(root.clientHeight / rowHeight) + 3;
+            first = Math.max(0, Math.floor(-top / rowHeight) - 2);
+            visible = Math.ceil(root.clientHeight / rowHeight) + 5;
         };
         const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
         const observer = new ResizeObserver(schedule);
@@ -33,7 +33,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 <div bind:this={container} class="relative w-full" style:height={`${rowCount * rowHeight}px`} data-catalog-results aria-label={uiText("ui.6c6b7279d01d77d4")}>
     {#each rows as row (row)}
         <div class="catalog-result-row absolute left-0 top-0 grid w-full gap-4 pb-4" style:height={`${rowHeight}px`} style:transform={`translateY(${row * rowHeight}px)`} style:grid-template-columns={`repeat(${columns}, minmax(0, 1fr))`}>
-            {#each items.slice(row * columns, (row + 1) * columns) as item}
+            {#each items.slice(row * columns, (row + 1) * columns) as item (item)}
                 {@render children(item)}
             {/each}
         </div>

@@ -1,5 +1,7 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { focusTrap } from "$lib/utils/focusTrap";
+    import { localizedDiagnosis } from "$lib/api/doctor";
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
 	import { fade, scale } from "svelte/transition";
@@ -19,7 +21,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	let showSnippet = $state(false);
 
-	const diagnosis = $derived(crashDoctor.diagnosis);
+	const diagnosis = $derived(crashDoctor.diagnosis ? localizedDiagnosis(crashDoctor.diagnosis) : null);
 
 	async function handleFix() {
 		await crashDoctor.applyFix();
@@ -33,6 +35,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 {#if crashDoctor.isOpen && diagnosis}
 	<div 
+		role="dialog" aria-modal="true" aria-labelledby="crash-doctor-title" tabindex="-1" use:focusTrap onkeydown={(event) => { if (event.key === "Escape") crashDoctor.close(); }}
 		class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/75 backdrop-blur-md"
 		transition:fade={{ easing: quintOut, duration: 220 }}
 	>
@@ -51,13 +54,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						<span class="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
 							{uiText("ui.6e6395afe8f4010d")}
 						</span>
-						<h3 class="text-lg font-black text-fg mt-1">
+						<h3 id="crash-doctor-title" class="text-lg font-black text-fg mt-1">
 							{diagnosis.title}
 						</h3>
 					</div>
 				</div>
 
 				<button 
+					aria-label={uiText("common.close")}
 					type="button"
 					class={launcherButton({ variant: "secondary", size: "icon", class: "" })}
 					onclick={() => crashDoctor.close()}
@@ -67,7 +71,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</div>
 
 			<div class="space-y-4">
-				<div class="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-xs text-red-200 leading-relaxed">
+				<div class="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-xs text-fg leading-relaxed">
 					<div class="flex items-center gap-2 font-bold text-red-400 mb-1">
 						<AlertTriangle class="w-4 h-4 shrink-0" />
 						{uiText("ui.b09ca51e68b1750c")}
@@ -75,7 +79,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					{diagnosis.message}
 				</div>
 
-				<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-xs text-emerald-200 leading-relaxed">
+				<div class="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 text-xs text-fg leading-relaxed">
 					<div class="flex items-center gap-2 font-bold text-emerald-400 mb-1">
 						<CheckCircle2 class="w-4 h-4 shrink-0" />
 						{uiText("ui.1e09f1225b2e98c6")}
@@ -120,7 +124,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 				{#if diagnosis.recommendedAction === 'increase_ram' || diagnosis.recommendedAction === 'install_java'}
                     <button class={launcherButton({ variant: "primary", size: "sm", class: "disabled:opacity-50" })} disabled={crashDoctor.isFixing} onclick={handleFix}>
-                        {crashDoctor.isFixing ? 'Aplicando…' : diagnosis.recommendedAction === 'increase_ram' ? uiText("ui.903dc5af4673a6a8") : uiText("ui.154995d8266e1321")}
+                        {crashDoctor.isFixing ? uiText("crash.applying") : diagnosis.recommendedAction === 'increase_ram' ? uiText("ui.903dc5af4673a6a8") : uiText("ui.154995d8266e1321")}
                     </button>
                 {:else if diagnosis.recommendedAction === 'repair_modpack'}
 					<button 
@@ -130,7 +134,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						onclick={handleFix}
 					>
 						<Wrench class="w-4 h-4 fill-current" />
-						{crashDoctor.isFixing ? 'Reparando...' : uiText("ui.833a431b68e5e822")}
+						{crashDoctor.isFixing ? uiText("crash.repairing") : uiText("ui.833a431b68e5e822")}
 					</button>
 				{:else if diagnosis.recommendedAction === 'disable_optifine' || diagnosis.recommendedAction === 'disable_mod'}
 					<button 
@@ -140,7 +144,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						onclick={handleFix}
 					>
 						<Zap class="w-4 h-4 fill-current" />
-						{crashDoctor.isFixing ? 'Aplicando...' : uiText("ui.23b4182f3e5afbc2")}
+						{crashDoctor.isFixing ? uiText("crash.applying") : uiText("ui.23b4182f3e5afbc2")}
 					</button>
 				{/if}
 

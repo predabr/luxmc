@@ -1,7 +1,7 @@
 # Maintainer: Pedro <suporte@luxmc.com>
 pkgname=luxmc
-pkgver=3.0.0
-_tagver="3.0.0"
+pkgver=3.1.0
+_tagver="3.1.0"
 pkgrel=1
 pkgdesc="Linux-first Minecraft launcher written in Tauri 2, SvelteKit, and Rust"
 arch=('x86_64')

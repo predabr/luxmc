@@ -57,13 +57,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	]);
 </script>
 
-<aside class="w-full xl:w-64 shrink-0 self-start bg-bg-elevated border border-border rounded-2xl p-5 flex flex-col justify-between shadow-soft">
+<aside class="w-full xl:w-72 shrink-0 self-start bg-bg-elevated border border-border rounded-2xl p-5 font-sans flex flex-col justify-between shadow-soft">
 	<div class="space-y-5">
 		<div class="flex items-center gap-2 text-xs font-bold text-fg uppercase tracking-wider">
 			<Filter class="w-3.5 h-3.5 text-success" /> {uiText("ui.57ac13ce3d5bedff")}
 		</div>
 		<div>
-			<div class="text-[11px] font-bold text-fg/40 uppercase tracking-wider mb-2">{uiText("ui.4b69288df9bb8f94")}</div>
+			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.4b69288df9bb8f94")}</div>
 			<div class="grid grid-cols-2 bg-bg/40 p-1 rounded-xl border border-fg/5 gap-1">
 				<button
 					type="button"
@@ -89,22 +89,23 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</div>
 		</div>
 		<div>
-			<div class="text-[11px] font-bold text-fg/40 uppercase tracking-wider mb-2">{uiText("ui.931d062a37647b8d")}</div>
+			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.931d062a37647b8d")}</div>
 			<div class="grid grid-cols-2 gap-2">
 				{#each contentTypeItems as item}
 					<button
 						type="button"
 						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center gap-2 {selectedType === item.id ? 'bg-success text-bg font-black shadow-md' : 'bg-bg-elevated text-fg/60 border border-fg/5 hover:bg-bg-subtle hover:text-fg'}"
+						aria-pressed={selectedType === item.id}
 						onclick={() => selectedType = item.id}
 					>
 						<item.icon class="w-3.5 h-3.5 shrink-0" />
-						<span class="truncate">{item.label}</span>
+						<span class="text-left leading-snug">{item.label}</span>
 					</button>
 				{/each}
 			</div>
 		</div>
 		<div>
-			<div class="text-[11px] font-bold text-fg/40 uppercase tracking-wider mb-2">{uiText("ui.5df9df4db410ba86")}</div>
+			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.5df9df4db410ba86")}</div>
 			<div class="relative">
 				<select
 					bind:value={selectedVersion}
@@ -120,7 +121,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			{#if versionsUnavailable}<p class="mt-2 text-xs text-fg-muted">{uiText("ui.939284277cae2162")}</p>{/if}
 		</div>
 		<div>
-			<div class="text-[11px] font-bold text-fg/40 uppercase tracking-wider mb-2">{uiText("ui.4ce6e1a0766463a1")}</div>
+			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.4ce6e1a0766463a1")}</div>
 			<div class="grid grid-cols-2 gap-2">
 				{#each modLoaders as loader}
 					<button
@@ -136,7 +137,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</div>
 		</div>
 		<div>
-			<div class="text-[11px] font-bold text-fg/40 uppercase tracking-wider mb-2">{uiText("ui.3adb5537c59ac03f")}</div>
+			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.3adb5537c59ac03f")}</div>
 			<div class="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
 				{#each categories as cat}
 					<button

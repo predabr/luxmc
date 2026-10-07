@@ -5,6 +5,11 @@ import { readFileSync } from "node:fs";
 import { onRequest } from "../website/functions/api/account/[action].js";
 import { onRequest as social } from "../website/functions/api/social/[action].js";
 import { onRequest as appearance } from "../website/functions/api/appearance/[name].js";
+import { officialNicknameExists } from "../website/lib/nicknames.js";
+
+test.beforeEach(context => {
+  context.mock.method(globalThis, "fetch", async () => new Response(null, { status: 404 }));
+});
 
 function fixture() {
   const sqlite = new DatabaseSync(":memory:");
@@ -22,6 +27,41 @@ function fixture() {
   return { sqlite, env, call };
 }
 const password = "Test-Passphrase-123!";
+
+test("public profile fallback distinguishes occupied, missing and unavailable names", async () => {
+  const lookup = name => async url => {
+    if (!String(url).startsWith("https://playerdb.co/")) return new Response(null, { status: 403 });
+    if (name === "Notch") return Response.json({ code: "player.found", success: true, data: { player: { raw_id: "069a79f444e94726a5befca90e38aaf5", username: "Notch" } } });
+    if (name === "LxCheck937402") return Response.json({ code: "minecraft.invalid_username", success: false }, { status: 400 });
+    return Response.json({ code: "service.unavailable", success: false }, { status: 503 });
+  };
+  assert.equal(await officialNicknameExists("Notch", lookup("Notch")), true);
+  assert.equal(await officialNicknameExists("LxCheck937402", lookup("LxCheck937402")), false);
+  await assert.rejects(officialNicknameExists("OtherName", lookup("OtherName")), error => error.status === 503);
+});
+
+test("registration rejects official Minecraft names and suggests checked alternatives", async context => {
+  const { sqlite, call } = fixture();
+  context.mock.method(globalThis, "fetch", async url => String(url).endsWith('/Notch') ? Response.json({ id: '069a79f444e94726a5befca90e38aaf5', name: 'Notch' }) : new Response(null, { status: 404 }));
+  try {
+    const rejected = await call("register", { username: "Notch", password });
+    assert.equal(rejected.status, 409);
+    assert.equal(rejected.value.reason, "official");
+    assert.ok(rejected.value.suggestions.length > 0);
+    assert.equal(sqlite.prepare("SELECT count(*) AS total FROM lux_accounts").get().total, 0);
+    const accepted = await call("register", { username: rejected.value.suggestions[0], password });
+    assert.equal(accepted.status, 200);
+  } finally { sqlite.close(); }
+});
+
+test("registration does not treat an unavailable official service as an available nickname", async context => {
+  const { sqlite, call } = fixture();
+  context.mock.method(globalThis, "fetch", async () => new Response(null, { status: 429 }));
+  try {
+    assert.equal((await call("register", { username: "NewPlayer", password })).status, 503);
+    assert.equal(sqlite.prepare("SELECT count(*) AS total FROM lux_accounts").get().total, 0);
+  } finally { sqlite.close(); }
+});
 
 test("shared appearances belong to authenticated accounts and expose only PNG", async () => {
   const { sqlite, env, call } = fixture();

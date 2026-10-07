@@ -92,8 +92,24 @@ public class LuxmcClientAgent {
             }
             inst.appendToBootstrapClassLoaderSearch(new java.util.jar.JarFile(support.toFile()));
             AppearanceAgent.install(inst);
+            P2PAgent.install(inst);
         } catch (Throwable error) { System.err.println("[LUXMC_CLIENT] Appearance agent unavailable: " + error.getClass().getSimpleName()); }
         if ("appearance-only".equals(agentArgs)) return;
+        final Thread gameMain = Thread.currentThread();
+        Thread cleanup = new Thread(new Runnable() {
+            public void run() {
+                try { gameMain.join(); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); return; }
+                running = false;
+                SwingUtilities.invokeLater(new Runnable() {
+                    public void run() {
+                        if (hudWindow != null) hudWindow.dispose();
+                        if (inGameMenu != null) inGameMenu.dispose();
+                    }
+                });
+            }
+        }, "Luxmc-Client-Cleanup");
+        cleanup.setDaemon(true);
+        cleanup.start();
         initCapeRedirection();
 
         Thread hookThread = new Thread(new Runnable() {
@@ -653,6 +669,7 @@ public class LuxmcClientAgent {
     }
 
     public static class InGameHudWindow extends JWindow {
+        private javax.swing.Timer timer;
         public InGameHudWindow() {
             setType(Window.Type.POPUP);
             boolean canTranslucent = false;
@@ -673,7 +690,7 @@ public class LuxmcClientAgent {
             setVisible(false);
 
             final boolean supported = canTranslucent;
-            javax.swing.Timer timer = new javax.swing.Timer(30, new ActionListener() {
+            timer = new javax.swing.Timer(30, new ActionListener() {
                 @Override
                 public void actionPerformed(ActionEvent e) {
                     if (!supported) {
@@ -698,6 +715,12 @@ public class LuxmcClientAgent {
                 }
             });
             timer.start();
+        }
+
+        @Override
+        public void dispose() {
+            if (timer != null) timer.stop();
+            super.dispose();
         }
 
         @Override

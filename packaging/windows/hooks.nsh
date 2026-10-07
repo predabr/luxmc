@@ -7,6 +7,15 @@
 
 !macro NSIS_HOOK_POSTINSTALL
   WriteRegStr HKCU "${UNINSTKEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
+  nsExec::ExecToStack '$\"$INSTDIR\luxmc-repair.exe$\" --initialize'
+  Pop $0
+  Pop $1
+  ${If} $0 != 0
+    SetErrorLevel 1
+    IfSilent +2
+      MessageBox MB_OK|MB_ICONSTOP "Não foi possível preparar a recuperação do Luxmc. Execute novamente o instalador. Seus dados do jogo foram preservados."
+    Abort
+  ${EndIf}
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL

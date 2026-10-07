@@ -7,6 +7,7 @@ const fs=require('node:fs');
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.addInitScript(()=>{
   window.calls=[];window.room=null;window.failStorage=false;window.clipboardText='';
+  window.hangStatus=sessionStorage.getItem('hangStatus')==='true';
   Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>window.clipboardText=value}});
   const host={id:'host-key',username:'Steve',uuid:'steve',avatarUrl:null,joinedAt:1,isHost:true};
   const invoke=async(command,args)=>{
@@ -57,8 +58,15 @@ const fs=require('node:fs');
  await page.locator('aside a[href="/friends"]').click();await page.waitForURL('**/hosting');
  await page.getByRole('heading',{name:'Seu amigo está esperando.',exact:true}).waitFor();
  fs.mkdirSync('docs/visual/2026-10-03-hosting',{recursive:true});await page.screenshot({path:'docs/visual/2026-10-03-hosting/guest-room.png'});
+ await page.evaluate(()=>window.room=null);
+ await page.getByRole('button',{name:'Reconectar à sala',exact:true}).waitFor({timeout:10000});
+ const previousJoins=await page.evaluate(()=>window.calls.filter(call=>call.command==='join_world').length);
+ await page.getByRole('button',{name:'Reconectar à sala',exact:true}).click();
+ await page.getByRole('heading',{name:'Seu amigo está esperando.',exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.calls.filter(call=>call.command==='join_world').length),previousJoins+1);
+ assert.equal(await page.evaluate(()=>window.calls.filter(call=>call.command==='join_world').at(-1).args.invitation),'LUXMC1-1234567890123456');
  await page.getByRole('button',{name:'Sair da sala',exact:true}).click();await page.waitForURL('**/friends');
- await page.addInitScript(()=>{window.hangStatus=true;});
+ await page.evaluate(()=>sessionStorage.setItem('hangStatus','true'));
  await page.goto('http://127.0.0.1:1420/hosting');
  await page.getByRole('heading',{name:'Não foi possível consultar a sala',exact:true}).waitFor({timeout:12000});
  assert.equal(await page.getByText('Carregando sua hospedagem…',{exact:true}).count(),0);

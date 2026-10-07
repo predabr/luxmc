@@ -22,7 +22,8 @@ const fs = require('node:fs');
                     if (command === 'plugin:store|get') return [{ language: 'pt-BR', languageMode: 'manual', animations: true, liveWallpaper: true, soundEnabled: false, soundscapesEnabled: false }, true];
                     if (command === 'instance_file_tree') {
                         if (args.subPath === 'mods') return mods;
-                        if (args.subPath === 'shaderpacks') return [{ name: 'Complementary.zip', path: `${profile.gameDir}\\shaderpacks\\Complementary.zip`, isDir: false, size: 2048, icon: null }];
+                        if (args.subPath === 'resourcepacks' || args.subPath?.endsWith('/datapacks')) return [{ name: 'Pack.zip', path: `${profile.gameDir}\\${args.subPath}\\Pack.zip`, isDir: false, size: 2048, icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=' }];
+                        if (args.subPath === 'shaderpacks') return [{ name: 'Complementary.zip', path: `${profile.gameDir}\\shaderpacks\\Complementary.zip`, isDir: false, size: 2048, icon: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=' }];
                         return [];
                     }
                     if (command === 'instance_mod_toggle') {
@@ -38,6 +39,7 @@ const fs = require('node:fs');
                     if (command === 'instance_config_read') return { content: 'gamma:1.0', relativePath: 'options.txt' };
                     if (command === 'versions_check_installed' || command === 'curseforge_status') return true;
                     if (command === 'instance_shield_scan') return { isClean: true, threats: [] };
+                    if (command === 'instance_worlds_list') return [{ folderName: 'Meu mundo', name: 'Meu mundo', path: '/saves/Meu mundo', size: 2048, lastPlayed: 0 }];
                     if (command === 'deep_links_take' || command === 'screenshots_list' || command === 'instance_worlds_list' || command === 'instances_screenshots') return [];
                     if (command === 'get_system_specs') return { totalRamMb: 16384, osDistro: 'Windows', arch: 'x86_64' };
                     if (command === 'mesh_status') return { available: false, peers: [] };
@@ -93,10 +95,19 @@ const fs = require('node:fs');
             assert.equal(trash, 16);
             await page.getByRole('tab', { name: 'Shaders', exact: true }).click();
             await shaders.getByText('Complementary.zip', { exact: true }).waitFor();
+            await shaders.locator('img').waitFor();
+            assert.equal(await shaders.locator('img').getAttribute('loading'), 'lazy');
+            await shaders.getByRole('button', {name: /^Abrir pasta:/}).click();
+            assert.ok(await page.evaluate(() => window.testCalls.some(call => call.command === 'instance_pack_open_folder' && call.args.packType === 'shaderpacks')));
             assert.equal(await list.count(), 0);
             assert.equal(await page.getByRole('tabpanel').count(), 1);
             for (const name of ['Pacotes de recursos', 'Datapacks', 'Mundos', 'Screenshots', 'Arquivos']) {
                 await page.getByRole('tab', { name, exact: true }).click();
+                if (name === 'Datapacks') {
+                    await page.getByText('Pack.zip',{exact:true}).waitFor();
+                    assert.equal(await page.getByRole('combobox',{name:'Mundos'}).inputValue(),'Meu mundo');
+                    assert.ok(await page.evaluate(() => window.testCalls.some(call => call.command === 'instance_file_tree' && call.args.subPath === 'saves/Meu mundo/datapacks')));
+                }
                 assert.equal(await page.getByRole('tabpanel').count(), 1);
                 assert.equal(await page.getByRole('tab', { name, exact: true }).getAttribute('aria-selected'), 'true');
                 assert.equal(await list.count(), 0);
@@ -108,6 +119,8 @@ const fs = require('node:fs');
             }
             await page.getByRole('tab', { name: 'Configurações', exact: true }).click();
             const settings = page.getByRole('region', { name: 'Configurações da instância', exact: true });
+            assert.equal(await settings.getByText('Pacote de Mods de Performance', {exact:true}).count(), 0);
+            assert.equal(await page.evaluate(()=>window.testCalls.some(call=>call.command === 'optimizer_get_perf_pack')), false);
             await settings.getByRole('textbox', { name: 'Nome da instância', exact: true }).fill('Perfil integrado');
             assert.equal(await page.getByRole('dialog', { name: 'Configurações da instância' }).count(), 0);
             await settings.locator('#instance-ram-min').evaluate(element => { element.value = '2048'; element.dispatchEvent(new Event('input', { bubbles: true })); });

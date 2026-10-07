@@ -6,7 +6,8 @@ pub const ABOVE_NORMAL_PRIORITY_CLASS: u32 = 0x00008000;
 #[inline]
 pub fn std_command<S: AsRef<std::ffi::OsStr>>(program: S) -> std::process::Command {
     #[allow(unused_mut)]
-    let mut cmd = std::process::Command::new(program);
+    let mut cmd = std::process::Command::new(program.as_ref());
+    if is_java(program.as_ref()) { for variable in JAVA_ENVIRONMENT { cmd.env_remove(variable); } }
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -18,12 +19,19 @@ pub fn std_command<S: AsRef<std::ffi::OsStr>>(program: S) -> std::process::Comma
 #[inline]
 pub fn tokio_command<S: AsRef<std::ffi::OsStr>>(program: S) -> tokio::process::Command {
     #[allow(unused_mut)]
-    let mut cmd = tokio::process::Command::new(program);
+    let mut cmd = tokio::process::Command::new(program.as_ref());
+    if is_java(program.as_ref()) { for variable in JAVA_ENVIRONMENT { cmd.env_remove(variable); } }
     #[cfg(windows)]
     {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     cmd
+}
+
+const JAVA_ENVIRONMENT: [&str; 5] = ["JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JAVA_OPTIONS", "JDK_JAVA_OPTIONS", "CLASSPATH"];
+
+fn is_java(program: &std::ffi::OsStr) -> bool {
+    std::path::Path::new(program).file_name().is_some_and(|name| matches!(name.to_string_lossy().to_ascii_lowercase().as_str(), "java" | "java.exe" | "javaw" | "javaw.exe"))
 }
 
 pub async fn read_log_line<R: tokio::io::AsyncBufRead + Unpin>(reader: &mut R) -> std::io::Result<Option<String>> {
@@ -54,6 +62,14 @@ fn redact_log_line(line: &str) -> String {
 
 #[cfg(test)]
 mod log_tests {
+    #[test]
+    fn java_commands_remove_inherited_jvm_injection_but_other_programs_keep_their_environment() {
+        let command = super::std_command("java.exe");
+        for variable in super::JAVA_ENVIRONMENT {
+            assert!(command.get_envs().any(|(key, value)| key == variable && value.is_none()));
+        }
+        assert!(!super::std_command("git").get_envs().any(|(key, _)| key == "JAVA_TOOL_OPTIONS"));
+    }
     #[tokio::test]
     async fn legacy_session_tokens_are_removed_before_logging() {
         let mut reader = tokio::io::BufReader::new(&b"[INFO]: (Session ID is token:secret:uuid)\nnext\n"[..]);

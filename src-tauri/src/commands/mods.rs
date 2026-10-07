@@ -23,10 +23,25 @@ pub struct ModInstallRequest {
     pub content_type: Option<String>,
     #[serde(default)]
     pub world_name: Option<String>,
+    #[serde(default)]
+    pub icon_url: Option<String>,
 }
 
 fn default_source() -> String {
     "modrinth".into()
+}
+
+pub(crate) fn content_icon_key(path: &std::path::Path, metadata: &std::fs::Metadata) -> String {
+    let modified = metadata.modified().ok().and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map(|time| time.as_nanos()).unwrap_or(0);
+    format!("content:{}:{}:{}", path.to_string_lossy(), metadata.len(), modified)
+}
+
+async fn cache_content_icon(pool: &sqlx::SqlitePool, path: &std::path::Path, icon: Option<&str>) {
+    let Some(icon) = icon.filter(|icon| icon.len() <= 4096 && url::Url::parse(icon).ok().is_some_and(|url| url.scheme() == "https")) else { return; };
+    if let Ok(metadata) = tokio::fs::metadata(path).await {
+        let _ = sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
+            .bind(content_icon_key(path, &metadata)).bind(icon).execute(pool).await;
+    }
 }
 
 fn normalize_slug(s: &str) -> String {
@@ -303,7 +318,7 @@ pub async fn mods_list(profileId: String) -> AppResult<Vec<ModRow>> {
     crate::db::schema::mods::list_by_profile(&db, &profileId).await
 }
 
-async fn datapack_directory(game_dir: &str, name: Option<&str>) -> AppResult<std::path::PathBuf> {
+pub(crate) async fn datapack_directory(game_dir: &str, name: Option<&str>) -> AppResult<std::path::PathBuf> {
         let name = name.ok_or_else(|| crate::error::AppError::InvalidInput("Selecione o mundo que receberá o datapack".into()))?;
         if name.is_empty() || name.contains(['/', '\\']) || name == "." || name == ".." { return Err(crate::error::AppError::InvalidInput("Mundo inválido".into())); }
         let saves = tokio::fs::canonicalize(std::path::PathBuf::from(game_dir).join("saves")).await?;
@@ -316,6 +331,15 @@ async fn datapack_directory(game_dir: &str, name: Option<&str>) -> AppResult<std
 }
 
 pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> AppResult<()> {
+    if request.content_type.as_deref().is_none_or(|kind| kind == "mod") {
+        mods_install_with_deps_core(state, request).await.map(|_| ())
+    } else {
+        let _guard = state.launch_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Aguarde a preparação ou instalação em andamento.".into()))?;
+        mods_install_single_core(state, request).await
+    }
+}
+
+async fn mods_install_single_core(state: &AppState, request: ModInstallRequest) -> AppResult<()> {
     tracing::info!(profile_id = %request.profile_id, project_id = %request.project_id, version_id = %request.version_id, source = %request.source, content_type = ?request.content_type, "mods_install called");
     let content_type = request.content_type.as_deref().unwrap_or("mod").to_lowercase();
     let is_world = matches!(
@@ -339,6 +363,10 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
         .fetch_optional(db.pool())
         .await?
         .ok_or_else(|| crate::error::AppError::NotFound(format!("profile {} not found", request.profile_id)))?;
+    ensure_content_idle(&profile.game_dir)?;
+    if target_subfolder == "mods" && matches!(profile.loader.as_str(), "vanilla" | "") {
+        return Err(crate::error::AppError::InvalidInput("Esta instância Vanilla aceita resource packs e data packs, mas mods precisam de um loader compatível.".into()));
+    }
     let target_dir = if is_world {
         std::env::temp_dir().join(format!("luxmc-world-{}", uuid::Uuid::new_v4()))
     } else if target_subfolder == "datapacks" {
@@ -349,47 +377,25 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
         dir
     };
 
-    let (file_url, file_name, _file_size, file_sha1) = match request.source.as_str() {
+    let (file_url, file_name, file_size, file_sha1) = match request.source.as_str() {
         "curseforge" => {
-            if let Ok(file) = curseforge::get_mod_file_details(&state.http, &request.project_id, &request.version_id).await {
-                (file.url, file.filename, file.size, file.sha1)
-            } else {
-                let versions = curseforge::get_mod_versions(&state.http, &request.project_id, "").await?;
-                let version = versions
-                    .iter()
-                    .find(|v| v.id == request.version_id)
-                    .ok_or_else(|| {
-                        crate::error::AppError::NotFound("CurseForge mod version not found".into())
-                    })?;
-                let file = version.files.first().ok_or_else(|| {
-                    crate::error::AppError::NotFound("CurseForge mod file not found".into())
-                })?;
-                (
-                    file.url.clone(),
-                    file.filename.clone(),
-                    file.size,
-                    file.sha1.clone(),
-                )
+            let versions = curseforge::get_mod_versions(&state.http, &request.project_id, &profile.mc_version).await?;
+            let version = versions.iter().find(|version| version.id == request.version_id)
+                .ok_or_else(|| crate::error::AppError::InvalidInput(format!("Nenhum arquivo selecionado compatível com Minecraft {}. A instância foi preservada.", profile.mc_version)))?;
+            if target_subfolder == "mods" && !version.loaders.is_empty() && !loader_matches(&version.loaders, &profile.loader) {
+                return Err(crate::error::AppError::InvalidInput("O mod selecionado pertence a outro loader.".into()));
+            }
+            if let Ok(file) = curseforge::get_mod_file_details(&state.http, &request.project_id, &request.version_id).await { (file.url, file.filename, file.size, file.sha1) }
+            else {
+                let file = version.files.first().ok_or_else(|| crate::error::AppError::NotFound("Arquivo CurseForge indisponível".into()))?;
+                (file.url.clone(), file.filename.clone(), file.size, file.sha1.clone())
             }
         }
         _ => {
-            let client = ModrinthClient::new(state.http.clone());
-            let versions = client.get_mod_versions(&request.project_id, "").await?;
-            let version = versions
-                .iter()
-                .find(|v| v.id == request.version_id)
-                .ok_or_else(|| {
-                    crate::error::AppError::NotFound("Modrinth mod version not found".into())
-                })?;
-            let file = version.files.first().ok_or_else(|| {
-                crate::error::AppError::NotFound("Modrinth mod file not found".into())
-            })?;
-            (
-                file.url.clone(),
-                file.filename.clone(),
-                file.size,
-                file.sha1.clone(),
-            )
+            let version = ModrinthClient::new(state.http.clone()).get_version_detail(&request.project_id, &request.version_id, &profile.mc_version).await?;
+            if target_subfolder == "mods" { validate_mod_version(&version, &profile.mc_version, &profile.loader)?; }
+            let file = version.files.first().ok_or_else(|| crate::error::AppError::NotFound("Arquivo Modrinth indisponível".into()))?;
+            (file.url.clone(), file.filename.clone(), file.size, file.sha1.clone())
         }
     };
     let file_name = safe_file_name(&file_name);
@@ -456,6 +462,8 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
     let tmp_path = target_dir.join(format!("{}.{}.part", safe_name, uuid::Uuid::new_v4()));
     let write_result: AppResult<()> = async {
         let mut stream = resp.bytes_stream();
+        let mut total = 0u64;
+        let mut digest = sha1::Sha1::default();
         let mut file = tokio::fs::File::create(&tmp_path).await.map_err(|e| {
             tracing::error!(path = %tmp_path.display(), error = %e, "failed to create temp file");
             e
@@ -465,10 +473,15 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
                 tracing::error!(url = %file_url, error = %e, "stream error");
                 crate::error::AppError::Http(e)
             })?;
+            total += bytes.len() as u64;
+            sha1::Digest::update(&mut digest, &bytes);
             file.write_all(&bytes).await?;
         }
         file.flush().await?;
         drop(file);
+        if total == 0 || (file_size > 0 && total != file_size) || (!file_sha1.is_empty() && !format!("{:x}", sha1::Digest::finalize(digest)).eq_ignore_ascii_case(&file_sha1)) {
+            return Err(crate::error::AppError::InvalidInput("O download do conteúdo está incompleto ou falhou na verificação. O arquivo anterior foi preservado.".into()));
+        }
         tokio::fs::rename(&tmp_path, &file_path).await?;
         Ok(())
     }
@@ -487,6 +500,7 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
     }
 
     let resolved_profile_id = profile.id.clone();
+    cache_content_icon(db.pool(), &file_path, request.icon_url.as_deref()).await;
 
     if target_subfolder == "mods" {
         let mod_row = ModRow {
@@ -511,16 +525,6 @@ pub async fn mods_install_core(state: &AppState, request: ModInstallRequest) -> 
             .execute(db.pool())
             .await;
 
-        // Automatically promote profile loader to Fabric if installing a .jar mod onto a vanilla instance
-        if file_name.ends_with(".jar") {
-            if profile.loader == "vanilla" || profile.loader.is_empty() {
-                tracing::info!(profile_id = %resolved_profile_id, "Promoting profile loader from vanilla to fabric");
-                let _ = sqlx::query("UPDATE profiles SET loader = 'fabric' WHERE id = ?")
-                    .bind(&resolved_profile_id)
-                    .execute(db.pool())
-                    .await;
-            }
-        }
     }
 
     Ok(())
@@ -535,122 +539,124 @@ pub async fn mods_install_with_deps_core(
     state: &AppState,
     request: ModInstallRequest,
 ) -> AppResult<Vec<String>> {
-    let client = ModrinthClient::new(state.http.clone());
-    let mut installed = HashSet::new();
-    let mut to_install: Vec<(String, String)> =
-        vec![(request.project_id.clone(), request.version_id.clone())];
-
+    let _guard = state.launch_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Aguarde a preparação ou instalação em andamento.".into()))?;
+    if request.content_type.as_deref().is_some_and(|kind| kind != "mod") {
+        let project = request.project_id.clone();
+        mods_install_single_core(state, request).await?;
+        return Ok(vec![project]);
+    }
     let db = crate::db::shared_db().await?;
-    let profile = if let Some(p) = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
-        .bind(&request.profile_id)
-        .fetch_optional(db.pool())
-        .await? {
-        Some(p)
-    } else {
-        sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles ORDER BY last_played DESC LIMIT 1")
-            .fetch_optional(db.pool())
-            .await?
-    };
-    let resolved_profile_id = profile.as_ref().map(|p| p.id.clone()).unwrap_or_else(|| request.profile_id.clone());
-
-    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
-        crate::error::AppError::InvalidState("could not determine data dir".into())
-    })?;
-
-    let mods_dir = base_dir.data_dir().join("mods").join(&resolved_profile_id);
-    tokio::fs::create_dir_all(&mods_dir).await?;
-    let source = request.source.clone();
-
-    let mut depth = 0;
-    while !to_install.is_empty() && depth < 5 {
-        let batch = std::mem::take(&mut to_install);
-        depth += 1;
-
-        for (project_id, version_id) in batch {
-            if installed.contains(&project_id) {
-                continue;
-            }
-
-            let version = client
-                .get_version_detail(&project_id, &version_id, "")
-                .await;
-            let version = match version {
-                Ok(v) => v,
-                Err(_) => continue,
+    let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+        .bind(&request.profile_id).fetch_optional(db.pool()).await?
+        .ok_or_else(|| crate::error::AppError::NotFound("Instância não encontrada; selecione novamente a instância.".into()))?;
+    if matches!(profile.loader.as_str(), "vanilla" | "") {
+        return Err(crate::error::AppError::InvalidInput("Mods precisam de Fabric, Quilt, Forge ou NeoForge. Escolha um loader compatível nas configurações da instância.".into()));
+    }
+    ensure_content_idle(&profile.game_dir)?;
+    let client = ModrinthClient::new(state.http.clone());
+    let mut queue = vec![(request.project_id.clone(), request.version_id.clone())];
+    let mut planned = std::collections::BTreeMap::<String, crate::core::mods::ModVersionDetail>::new();
+    let existing = crate::db::schema::mods::list_by_profile(&db, &profile.id).await?;
+    while let Some((project, version_id)) = queue.pop() {
+        if planned.len() >= 256 { return Err(crate::error::AppError::InvalidInput("A árvore de dependências excedeu 256 projetos.".into())); }
+        let version = if request.source == "curseforge" {
+            let versions = curseforge::get_mod_versions(&state.http, &project, &profile.mc_version).await?;
+            let selected = versions.into_iter().find(|version| version.id == version_id).ok_or_else(|| crate::error::AppError::InvalidInput("Arquivo CurseForge incompatível com a versão da instância.".into()))?;
+            let file = curseforge::get_mod_file_details(&state.http, &project, &version_id).await?;
+            crate::core::mods::ModVersionDetail { id: selected.id, project_id: project.clone(), name: selected.name, version_number: selected.version_number, loaders: selected.loaders, game_versions: vec![profile.mc_version.clone()], files: vec![file], dependencies: curseforge::file_dependencies(&state.http, &project, &version_id).await? }
+        } else { client.get_version_detail(&project, &version_id, &profile.mc_version).await? };
+        validate_mod_version(&version, &profile.mc_version, &profile.loader)?;
+        if let Some(previous) = planned.get(&version.project_id) {
+            if previous.id != version.id { return Err(crate::error::AppError::InvalidInput(format!("Dependências exigem versões diferentes de {}. A instância foi preservada.", version.project_id))); }
+            continue;
+        }
+        for dependency in &version.dependencies {
+            if dependency.dependency_type != "required" { continue; }
+            let selected = if let Some(pin) = &dependency.version_id { pin.clone() } else {
+                if dependency.project_id.is_empty() { return Err(crate::error::AppError::InvalidInput("Uma dependência externa precisa de instalação manual. A instância foi preservada.".into())); }
+                let mut candidates = if request.source == "curseforge" { curseforge::get_mod_versions(&state.http, &dependency.project_id, &profile.mc_version).await?.into_iter().filter(|version| loader_matches(&version.loaders, &profile.loader)).collect() } else { client.get_mod_versions_filtered(&dependency.project_id, &profile.mc_version, Some(&profile.loader)).await? };
+                if request.source != "curseforge" && candidates.is_empty() && profile.loader == "quilt" { candidates = client.get_mod_versions_filtered(&dependency.project_id, &profile.mc_version, Some("fabric")).await?; }
+                candidates.first().map(|version| version.id.clone()).ok_or_else(|| crate::error::AppError::InvalidInput(format!("Dependência {} sem versão compatível com Minecraft {} / {}.", dependency.project_id, profile.mc_version, profile.loader)))?
             };
-
-            if let Some(file) = version.files.first() {
-                let resp = state.http.get(&file.url).send().await?.error_for_status()?;
-                let safe_dep_name = std::path::Path::new(&file.filename)
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("mod.jar");
-                let file_path = mods_dir.join(safe_dep_name);
-
-                let mut file_stream = resp.bytes_stream();
-                let mut dest_file = tokio::fs::File::create(&file_path).await?;
-                while let Some(chunk) = file_stream.next().await {
-                    let chunk = chunk?;
-                    dest_file.write_all(&chunk).await?;
-                }
-                dest_file.flush().await?;
-                drop(dest_file);
-
-                if let Some(ref prof) = profile {
-                    let prof_mods_dir = std::path::PathBuf::from(&prof.game_dir).join("mods");
-                    let _ = tokio::fs::create_dir_all(&prof_mods_dir).await;
-                    let _ = tokio::fs::copy(&file_path, prof_mods_dir.join(safe_dep_name)).await;
-                }
-
-                let mod_row = ModRow {
-                    profile_id: resolved_profile_id.clone(),
-                    project_id: project_id.clone(),
-                    version_id: version.id.clone(),
-                    file_name: safe_dep_name.to_string(),
-                    sha1: file.sha1.clone(),
-                    source: source.clone(),
-                    installed_at: String::new(),
-                };
-                crate::db::schema::mods::upsert(&db, &mod_row).await?;
-            }
-
-            installed.insert(project_id.clone());
-
-            for dep in &version.dependencies {
-                if dep.dependency_type == "required" && !installed.contains(&dep.project_id) {
-                    let dep_versions = client.get_mod_versions(&dep.project_id, "").await;
-                    if let Ok(dep_versions) = dep_versions {
-                        if let Some(dep_version) = dep_versions.first() {
-                            to_install.push((dep.project_id.clone(), dep_version.id.clone()));
-                        }
-                    }
-                }
-            }
+            queue.push((dependency.project_id.clone(), selected));
+        }
+        planned.insert(version.project_id.clone(), version);
+    }
+    for version in planned.values() {
+        for dependency in version.dependencies.iter().filter(|dep| dep.dependency_type == "incompatible") {
+            let conflict = planned.values().any(|item| (dependency.project_id.is_empty() || item.project_id == dependency.project_id) && dependency.version_id.as_ref().is_none_or(|pin| pin == &item.id))
+                || existing.iter().any(|item| item.source == request.source && !planned.contains_key(&item.project_id) && (dependency.project_id.is_empty() || item.project_id == dependency.project_id) && dependency.version_id.as_ref().is_none_or(|pin| pin == &item.version_id));
+            if conflict { return Err(crate::error::AppError::InvalidInput(format!("{} é incompatível com {}. Nenhum arquivo foi alterado.", version.name, dependency.project_id))); }
         }
     }
-
-    let count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM mods WHERE profile_id = ?")
-        .bind(&resolved_profile_id)
-        .fetch_one(db.pool())
-        .await
-        .unwrap_or((0,));
-    let _ = sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?")
-        .bind(count.0)
-        .bind(&resolved_profile_id)
-        .execute(db.pool())
-        .await;
-
-    if let Some(ref prof) = profile {
-        if prof.loader == "vanilla" || prof.loader.is_empty() {
-            tracing::info!(profile_id = %resolved_profile_id, "Promoting profile loader from vanilla to fabric");
-            let _ = sqlx::query("UPDATE profiles SET loader = 'fabric' WHERE id = ?")
-                .bind(&resolved_profile_id)
-                .execute(db.pool())
-                .await;
-        }
+    let mut filenames = HashSet::new();
+    for version in planned.values() {
+        let file = version.files.first().ok_or_else(|| crate::error::AppError::NotFound("Arquivo instalável ausente".into()))?;
+        if !filenames.insert(safe_file_name(&file.filename)) { return Err(crate::error::AppError::InvalidInput("Dois projetos usam o mesmo nome de arquivo. A instalação foi cancelada para preservar a instância.".into())); }
     }
+    let mods_dir = std::path::PathBuf::from(&profile.game_dir).join("mods");
+    let staging = std::path::PathBuf::from(&profile.game_dir).join(".luxmc").join(format!("install-{}", uuid::Uuid::new_v4()));
+    let result: AppResult<Vec<String>> = async {
+        for version in planned.values() {
+            let file = version.files.first().ok_or_else(|| crate::error::AppError::NotFound(format!("{} não possui arquivo instalável", version.name)))?;
+            crate::core::downloader::ensure_artifact(&state.http, &staging.join(safe_file_name(&file.filename)), &file.url, file.size, &file.sha1).await?;
+        }
+        tokio::fs::create_dir_all(&mods_dir).await?;
+        for version in planned.values() {
+            let file = &version.files[0];
+            let filename = safe_file_name(&file.filename);
+            if !file.sha1.is_empty() {
+                if let Some(alias) = existing.iter().find(|old| old.source != request.source && old.sha1.eq_ignore_ascii_case(&file.sha1)) {
+                    crate::core::downloader::ensure_artifact(&state.http, &mods_dir.join(safe_file_name(&alias.file_name)), &file.url, file.size, &file.sha1).await?;
+                    continue;
+                }
+            }
+            tokio::fs::rename(staging.join(&filename), mods_dir.join(&filename)).await?;
+            if version.project_id == request.project_id { cache_content_icon(db.pool(), &mods_dir.join(&filename), request.icon_url.as_deref()).await; }
+            crate::db::schema::mods::upsert(&db, &ModRow { profile_id: profile.id.clone(), project_id: version.project_id.clone(), version_id: version.id.clone(), file_name: filename.clone(), sha1: file.sha1.clone(), source: request.source.clone(), installed_at: String::new() }).await?;
+            if let Some(old) = existing.iter().find(|old| old.source == request.source && old.project_id == version.project_id && old.file_name != filename) {
+                let old_path = mods_dir.join(safe_file_name(&old.file_name));
+                if old_path.is_file() { tokio::fs::remove_file(old_path).await?; }
+            }
+        }
+        sqlx::query("UPDATE profiles SET mod_count = (SELECT COUNT(*) FROM mods WHERE profile_id = ?) WHERE id = ?")
+            .bind(&profile.id).bind(&profile.id).execute(db.pool()).await?;
+        Ok(planned.keys().cloned().collect())
+    }.await;
+    let _ = tokio::fs::remove_dir_all(&staging).await;
+    result
+}
 
-    Ok(installed.into_iter().collect())
+fn validate_mod_version(version: &crate::core::mods::ModVersionDetail, minecraft: &str, loader: &str) -> AppResult<()> {
+    if !version.game_versions.iter().any(|value| value == minecraft) || !loader_matches(&version.loaders, loader) {
+        return Err(crate::error::AppError::InvalidInput(format!("{} não é compatível com Minecraft {} / {}. A instância foi preservada.", version.name, minecraft, loader)));
+    }
+    Ok(())
+}
+
+fn ensure_content_idle(game_dir: &str) -> AppResult<()> {
+    if crate::core::launcher::get_active_game_dir().as_deref() == Some(std::path::Path::new(game_dir)) {
+        return Err(crate::error::AppError::InvalidState("Feche o Minecraft desta instância antes de alterar seus conteúdos.".into()));
+    }
+    Ok(())
+}
+
+fn loader_matches(loaders: &[String], loader: &str) -> bool {
+    loaders.iter().any(|value| value == loader || (loader == "quilt" && value == "fabric"))
+}
+
+#[cfg(test)]
+mod compatibility_tests {
+    use super::*;
+
+    #[test]
+    fn exact_game_version_and_loader_are_required_before_installation() {
+        let version = crate::core::mods::ModVersionDetail { id: "pinned".into(), project_id: "project".into(), name: "Dependency".into(), version_number: "1".into(), game_versions: vec!["1.20.1".into()], loaders: vec!["fabric".into()], files: vec![], dependencies: vec![] };
+        assert!(validate_mod_version(&version, "1.20.1", "fabric").is_ok());
+        assert!(validate_mod_version(&version, "1.20.1", "quilt").is_ok());
+        for loader in ["vanilla", "forge", "neoforge"] { assert!(validate_mod_version(&version, "1.20.1", loader).is_err()); }
+        assert!(validate_mod_version(&version, "1.20.2", "fabric").is_err());
+    }
 }
 
 #[tauri::command]
@@ -1116,12 +1122,18 @@ pub fn extract_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
         bytes: usize,
     }
     static CACHE: std::sync::LazyLock<std::sync::Mutex<IconCache>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(IconCache::default()));
-    let metadata = std::fs::metadata(jar_path).ok()?;
-    let key = (jar_path.to_path_buf(), metadata.len(), metadata.modified().ok());
+    let directory = jar_path.is_dir();
+    let image_path = if directory { jar_path.join("pack.png") } else { jar_path.to_path_buf() };
+    let metadata = std::fs::metadata(&image_path).ok()?;
+    let key = (image_path.clone(), metadata.len(), metadata.modified().ok());
     if let Ok(cache) = CACHE.lock() {
         if let Some(icon) = cache.entries.get(&key) { return icon.clone(); }
     }
-    let icon = read_mod_icon_from_jar(jar_path);
+    let icon = if directory {
+        if metadata.len() > 0 && metadata.len() < 2_000_000 {
+            std::fs::read(image_path).ok().and_then(|bytes| mod_icon_data_url(&bytes))
+        } else { None }
+    } else { read_mod_icon_from_jar(jar_path) };
     if let Ok(mut cache) = CACHE.lock() {
         let bytes = icon.as_ref().map_or(0, String::len);
         if cache.entries.len() >= 4096 || cache.bytes + bytes > 32 * 1024 * 1024 {
@@ -1585,6 +1597,32 @@ mod download_cancellation_tests {
         assert!(extract_mod_icon_from_jar(&path).is_some());
         assert_eq!(std::fs::read(&path).unwrap(), original);
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn pack_images_are_read_from_archives_and_folders_without_changing_files() {
+        let root = std::env::temp_dir().join(format!("luxmc-pack-icons-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgba8(64, 64).write_to(&mut png, image::ImageFormat::Png).unwrap();
+        let bytes = png.into_inner();
+        std::fs::write(root.join("pack.png"), &bytes).unwrap();
+        assert!(extract_mod_icon_from_jar(&root).unwrap().starts_with("data:image/png;base64,"));
+        let archive_path = root.join("resources.zip");
+        let mut archive = zip::ZipWriter::new(std::fs::File::create(&archive_path).unwrap());
+        archive.start_file("pack.png", zip::write::FileOptions::default()).unwrap();
+        std::io::Write::write_all(&mut archive, &bytes).unwrap();
+        archive.finish().unwrap();
+        let original = std::fs::read(&archive_path).unwrap();
+        assert!(extract_mod_icon_from_jar(&archive_path).is_some());
+        assert_eq!(std::fs::read(&archive_path).unwrap(), original);
+        let first = content_icon_key(&archive_path, &std::fs::metadata(&archive_path).unwrap());
+        std::fs::write(&archive_path, b"changed archive").unwrap();
+        assert_ne!(first, content_icon_key(&archive_path, &std::fs::metadata(&archive_path).unwrap()));
+        assert!(extract_mod_icon_from_jar(&archive_path).is_none());
+        std::fs::remove_file(&archive_path).unwrap();
+        std::fs::remove_file(root.join("pack.png")).unwrap();
+        std::fs::remove_dir(root).unwrap();
     }
 
     #[tokio::test]

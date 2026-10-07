@@ -89,6 +89,13 @@ jobs:
       - name: Frontend Build
         run: pnpm build
 
+      - name: Prepare Windows verifier
+        if: runner.os == 'Windows'
+        run: node scripts/build-repair-helper.mjs --prepare
+
+      - name: Recovery verifier tests
+        run: cargo test --manifest-path src-tauri/repair-helper/Cargo.toml --locked
+
       - name: Rust Compilation Check
         working-directory: src-tauri
         run: cargo check --locked

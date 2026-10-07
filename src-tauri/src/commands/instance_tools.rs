@@ -499,6 +499,7 @@ pub async fn instance_import_share_code_core(
             source: mod_source.source,
             content_type: Some("mod".into()),
             world_name: None,
+            icon_url: None,
         }).await?;
     }
 

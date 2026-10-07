@@ -25,8 +25,9 @@ const contrast = (foreground, background) => {
    window.electronAPI.invoke=wrapped;window.__TAURI_INTERNALS__.invoke=wrapped;
   });
   await page.goto('http://127.0.0.1:1420/');await page.locator('.home-instance-card').first().waitFor();
-  assert.ok((await page.locator('.home-instance-card').first().boundingBox()).height>=280);
-  assert.ok((await page.locator('.home-instance-card img[src="/grass_block.png"]').boundingBox()).width>=110);
+  const card=await page.locator('.home-instance-card').first().boundingBox();
+  assert.ok(card.height>=225 && card.height<=280);
+  assert.ok((await page.locator('.home-instance-card img[src="/grass_block.png"]').boundingBox()).width>=90);
   for (const theme of ['light','dark']) for (const wallpaper of [false,true]) {
    await page.locator('a[href="/settings"]').first().click();
    await page.getByRole('tab',{name:/Aparência/}).click();
@@ -60,6 +61,8 @@ const contrast = (foreground, background) => {
   await page.locator('a[href="/settings"]').first().click();
   await page.getByRole('tab',{name:/Aparência/}).click();
   await page.getByRole('button',{name:/Claro.*Neve/}).click();
+  await page.waitForFunction(()=>document.documentElement.classList.contains('light'));
+  await page.waitForTimeout(700);
   for(const route of ['friends','mods','skins','instances']){
    await page.locator(`a[href="/${route}"]`).first().click();
    await page.waitForTimeout(500);

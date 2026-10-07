@@ -39,6 +39,17 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	const launcherNews: LauncherArticle[] = $derived([
         {
+            id: "polish-2026-10-06",
+            title: uiText("latestPolish.title"),
+            tag: "3.1.0",
+            tagColor: "text-brand-400 bg-brand-500/10 border-brand-500/30",
+            date: "2026-10-06",
+            version: "v3.1.0",
+            image: "/news_1.jpg",
+            summary: uiText("latestPolish.summary"),
+            highlights: ["creation", "catalog", "appearance"].map(key => uiText(`latestPolish.${key}`))
+        },
+        {
             id: "v3.0.0",
             title: uiText("release3.title"),
             tag: "3.0",

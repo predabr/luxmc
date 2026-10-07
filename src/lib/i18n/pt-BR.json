@@ -2,7 +2,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Launcher de Minecraft para Windows e Linux",
-    "version": "v3.0.2",
+    "version": "v3.1.0",
     "pressForShortcuts": "Pressione {{key}} para ver atalhos do teclado",
     "systemOnline": "Sistema Online",
     "navigation": "Navegação",
@@ -480,7 +480,9 @@
       "jvmPresetsDesc": "O modo automático usa parâmetros compatíveis com a versão do Java do jogo. G1GC é uma alternativa conservadora; configurações personalizadas continuam disponíveis acima.",
       "ramApplied": "RAM recomendada aplicada: {{amount}} GB.",
       "recommendRam": "Recomendar RAM"
-    }
+    },
+    "closeToTrayTitle": "Manter aberto em segundo plano",
+    "closeToTrayDesc": "Ao fechar a janela, o Luxmc continua no ícone perto do relógio. Use Abrir para voltar ou Sair para encerrar."
   },
   "auth": {
     "signIn": "Entrar com Microsoft",
@@ -1427,7 +1429,7 @@
     "0128db193f53bb30": "Ativar Efeitos Sonoros",
     "1a07c7242e6cce5c": "selecionar",
     "df1deb26dff33cc9": "fechar",
-    "6e6395afe8f4010d": "Crash Doctor · Diagnóstico em Português",
+    "6e6395afe8f4010d": "Crash Doctor · Diagnóstico do jogo",
     "903dc5af4673a6a8": "Ajustar memória",
     "154995d8266e1321": "Instalar Java compatível",
     "833a431b68e5e822": "Reparar Modpack e Baixar Faltantes",
@@ -1624,7 +1626,7 @@
     "6081e8d49e53c20f": "Nome de servidor inválido.",
     "25ab1ecd45e65586": "Visto agora há pouco",
     "79564aca91f78230": "Visto há {{arg0}} min",
-    "d31dc55460d3e0df": "Visto há {{arg0}} {{arg1}}",
+    "d31dc55460d3e0df": "Visto {{arg0}}",
     "ecd7d76c453b1c5e": "Leia a publicação oficial no site do Minecraft.",
     "0b82e10896393c5f": "Não foi possível determinar a memória disponível.",
     "9779190602bb4ea9": "Não foi possível carregar a textura",
@@ -2988,7 +2990,8 @@
     "addCape": "Importar capa PNG",
     "model": "Modelo e jogador",
     "syncing": "Aplicando e sincronizando com Microsoft…",
-    "applying": "Aplicando…"
+    "applying": "Aplicando…",
+    "pendingApply": "Alterações ainda não aplicadas. Clique em Aplicar e sincronizar para usar sua nova skin."
   },
   "design": {
     "expandMenu": "Expandir menu",
@@ -3056,7 +3059,16 @@
     "createAnytime": "Sua sala pode ficar aberta antes de iniciar o Minecraft. Convide seus amigos e abra um mundo para LAN quando quiser jogar.",
     "worldReady": "Mundo LAN detectado. Pronto para conectar.",
     "waitingWorld": "Sala conectada. Aguardando o hospedeiro abrir um mundo para LAN.",
-    "sameVersions": "Use a mesma versão do Minecraft e os mesmos mods compatíveis nos dois computadores."
+    "sameVersions": "Use a mesma versão do Minecraft e os mesmos mods compatíveis nos dois computadores.",
+    "worldsTitle": "Mundos abertos na sala",
+    "worldsHelp": "Qualquer participante pode abrir seu próprio mundo para LAN. Os mundos aparecem no Multijogador; use a mesma versão e mods compatíveis. Contas Luxmc funcionam nesses mundos privados pelo túnel, sem alterar a autenticação de servidores públicos.",
+    "addressCopied": "Endereço do mundo copiado.",
+    "yourWorld": "Aberto neste computador",
+    "waitingAnyWorld": "Aguardando um participante abrir um mundo para LAN.",
+    "disconnected": "A conexão com a sala foi encerrada. Seu mundo foi preservado; reconecte e entre novamente no Minecraft.",
+    "reconnect": "Reconectar à sala",
+    "host": "Hospedeiro",
+    "guest": "Convidado"
   },
   "profileCard": {
     "title": "Seu perfil",
@@ -3074,5 +3086,90 @@
     "nicknameRule": "Use de 3 a 16 letras, números ou sublinhados.",
     "offlineSkins": "Conta local: a personalização fica neste computador. Entre com uma conta Luxmc para compartilhar sua skin e capa com outros clientes compatíveis, ou com a Microsoft para usar a skin oficial.",
     "nicknameSaved": "Nome do jogador salvo."
+  },
+  "updater": {
+    "startingDownload": "Iniciando download...",
+    "connecting": "Conectando ao servidor...",
+    "downloading": "Baixando a atualização com verificação e novas tentativas automáticas...",
+    "installing": "Instalando a atualização..."
+  },
+  "crash": {
+    "categories": {
+      "none": {
+        "title": "Nenhuma falha recente detectada",
+        "message": "Nenhuma falha recente foi encontrada nos relatórios disponíveis.",
+        "solution": "Você pode iniciar o Minecraft novamente."
+      },
+      "authentication": {
+        "title": "Sessão de jogo inválida",
+        "message": "O servidor não aceitou a sessão do jogo.",
+        "solution": "Em salas privadas Luxmc, atualize e reinicie os dois jogos. Em servidores oficiais, entre novamente com uma conta Microsoft que possui Minecraft."
+      },
+      "shutdown": {
+        "title": "O Minecraft não terminou de encerrar",
+        "message": "Um componente manteve threads ativas depois que o jogo terminou.",
+        "solution": "Atualize o launcher e os mods; consulte o relatório de threads para identificar o componente."
+      },
+      "network_dns": {
+        "title": "Endereço do servidor não resolvido",
+        "message": "O computador não conseguiu resolver o nome do servidor.",
+        "solution": "Verifique o endereço, a conexão e os registros DNS/SRV. Não desative IPv6 automaticamente."
+      },
+      "network_refused": {
+        "title": "Conexão recusada",
+        "message": "Nenhum servidor aceitou conexões no endereço e porta selecionados.",
+        "solution": "Abra o mundo em LAN, aguarde a atualização da sala e confirme que o hospedeiro continua conectado."
+      },
+      "mod_conflict": {
+        "title": "Conflito de mods",
+        "message": "Um conflito envolvendo {{mod}} impediu o carregamento do jogo.",
+        "solution": "Confira os detalhes técnicos, desative o mod em conflito ou instale versões compatíveis."
+      },
+      "out_of_memory": {
+        "title": "Memória insuficiente",
+        "message": "O Minecraft esgotou a memória alocada.",
+        "solution": "Confira o limite de memória da instância e a RAM disponível antes de aumentá-lo."
+      },
+      "jvm_option": {
+        "title": "Opção de Java incompatível",
+        "message": "O Java rejeitou um dos argumentos de inicialização.",
+        "solution": "Revise os argumentos JVM personalizados e escolha um Java compatível."
+      },
+      "java_version": {
+        "title": "Versão do Java incompatível",
+        "message": "O jogo ou um mod exige outra versão do Java.",
+        "solution": "Leia a versão exigida nos detalhes técnicos e selecione-a nas configurações da instância."
+      },
+      "missing_dependency": {
+        "title": "Dependência obrigatória ausente",
+        "message": "Uma biblioteca obrigatória para {{mod}} está ausente ou incompatível.",
+        "solution": "Instale a dependência para a versão exata do Minecraft e o loader indicados no log."
+      },
+      "driver_issue": {
+        "title": "Falha na inicialização gráfica",
+        "message": "O Minecraft não conseguiu inicializar o motor gráfico.",
+        "solution": "Revise o driver gráfico e desative a renderização Vulkan opcional durante o diagnóstico."
+      },
+      "version_mismatch": {
+        "title": "Versão do jogo ou mod incompatível",
+        "message": "{{mod}} não corresponde à versão do jogo ou ao loader selecionado.",
+        "solution": "Instale a compilação compatível ou escolha a versão exigida pelo modpack."
+      },
+      "unknown": {
+        "title": "Erro de execução do Minecraft",
+        "message": "O Minecraft encerrou inesperadamente. Os detalhes técnicos contêm a causa original.",
+        "solution": "Abra o log completo e consulte a primeira exceção e as entradas Caused by."
+      }
+    },
+    "applying": "Aplicando...",
+    "repairing": "Reparando...",
+    "unidentifiedMod": "um mod não identificado"
+  },
+  "latestPolish": {
+    "title": "Acabamento da biblioteca e personalização",
+    "summary": "Criação de instâncias mais organizada, catálogo mais leve e skins com confirmação explícita.",
+    "creation": "Criação com mais espaço, opções de loader alinhadas e controles legíveis.",
+    "catalog": "Logos completas nos cartões, filtros sem cortes e mais conteúdo preparado durante a rolagem.",
+    "appearance": "Aviso de skin ainda não aplicada e cabeçalhos de shaders e datapacks sem bordas excedentes."
   }
 }

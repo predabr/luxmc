@@ -25,6 +25,7 @@ const fs = require('node:fs');
         const invoke = async (command, args) => {
             window.testCalls.push({ command, args });
             if (command === 'app_init') return { account, profiles: [], activeProfileId: null, devMode: true };
+            if (command === 'auth_accounts') return [{ ...account, id: 'persisted-account-id' }];
             if (command === 'deep_links_take' || command === 'profiles_list' || command === 'instances_list' || command === 'mods_search' || command === 'java_scan' || command === 'screenshots_list') return [];
             if (command === 'plugin:store|load' || command === 'plugin:event|listen') return 1;
             if (command === 'plugin:store|get') return [{ language: 'pt-BR', languageMode: 'manual', animations: false, liveWallpaper: false }, true];
@@ -159,4 +160,3 @@ const fs = require('node:fs');
     console.log(JSON.stringify({ imported: saved[0].name, preserved: saved[1].name, render, persistedAfterReload: true, appliedOriginalPng: true, builtinCapeCatalogRemoved: true, importedCapePreserved: true, capeErrorRecovery: true, nativeWheelOverPreview: true, animatedDuringScroll, animatedDuringGame, errors }));
     await browser.close();
 })().catch(error => { console.error(error); process.exit(1); });
-

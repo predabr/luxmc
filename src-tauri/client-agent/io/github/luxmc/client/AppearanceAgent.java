@@ -136,6 +136,45 @@ public final class AppearanceAgent {
         } finally { connection.disconnect(); }
     }
 
+    private static String officialResponse(String address, boolean image) throws Exception {
+        HttpURLConnection connection = (HttpURLConnection)new URL(address).openConnection();
+        connection.setConnectTimeout(2000); connection.setReadTimeout(2500); connection.setInstanceFollowRedirects(false);
+        connection.setRequestProperty("User-Agent", "Luxmc-Client-Appearance");
+        connection.setRequestProperty("Accept", image ? "image/png" : "application/json");
+        try {
+            if (connection.getResponseCode() != 200 || connection.getContentLengthLong() > 131072) return null;
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            try (InputStream input = connection.getInputStream()) {
+                byte[] buffer = new byte[4096]; int count;
+                while ((count = input.read(buffer)) != -1) { if (bytes.size() + count > 131072) throw new IOException("Response too large"); bytes.write(buffer, 0, count); }
+            }
+            return image ? textureBase + addBytes(bytes.toByteArray()) : new String(bytes.toByteArray(), StandardCharsets.UTF_8);
+        } finally { connection.disconnect(); }
+    }
+
+    private static String officialTexture(String payload, String asset) throws Exception {
+        Matcher texture = Pattern.compile("\\\"" + asset + "\\\"\\s*:\\s*\\{\\s*\\\"url\\\"\\s*:\\s*\\\"(https?://textures\\.minecraft\\.net/texture/[a-fA-F0-9]+)\\\"").matcher(payload);
+        return texture.find() ? officialResponse(texture.group(1).replace("http://", "https://"), true) : null;
+    }
+
+    private static RemoteAppearance officialAppearance(String name) throws Exception {
+        String profile = officialResponse("https://api.minecraftservices.com/minecraft/profile/lookup/name/" + name, false);
+        if (profile == null) return null;
+        Matcher uuid = Pattern.compile("\\\"id\\\"\\s*:\\s*\\\"([a-fA-F0-9]{32})\\\"").matcher(profile);
+        if (!uuid.find()) return null;
+        String session = officialResponse("https://sessionserver.mojang.com/session/minecraft/profile/" + uuid.group(1), false);
+        if (session == null) return null;
+        Matcher value = Pattern.compile("\\\"value\\\"\\s*:\\s*\\\"([A-Za-z0-9+/=]{1,65536})\\\"").matcher(session);
+        if (!value.find()) return null;
+        String textures = new String(Base64.getDecoder().decode(value.group(1)), StandardCharsets.UTF_8);
+        Matcher profileName = PROFILE_NAME.matcher(textures);
+        if (!profileName.find() || !name.equalsIgnoreCase(profileName.group(1))) return null;
+        String skin = officialTexture(textures, "SKIN");
+        if (skin == null) return null;
+        String model = Pattern.compile("\\\"model\\\"\\s*:\\s*\\\"slim\\\"").matcher(textures).find() ? "slim" : "default";
+        return new RemoteAppearance(skin, officialTexture(textures, "CAPE"), model, System.currentTimeMillis() + 300000);
+    }
+
     private static RemoteAppearance sharedAppearance(Object input) throws Exception {
         String id = null, name = null;
         if (input.getClass().getName().equals("com.mojang.authlib.GameProfile")) {
@@ -162,6 +201,12 @@ public final class AppearanceAgent {
             skin = fetchTexture(name, "skin", variant);
             if (skin != null) { String[] capeVariant = new String[1]; cape = fetchTexture(name, "cape", capeVariant); }
         } catch (IOException ignored) {}
+        if (skin == null) {
+            try {
+                RemoteAppearance official = officialAppearance(name);
+                if (official != null) { remote.put(name, official); return official; }
+            } catch (IOException ignored) {}
+        }
         RemoteAppearance appearance = new RemoteAppearance(skin, cape, variant[0], System.currentTimeMillis() + (skin == null ? 60000 : 300000));
         remote.put(name, appearance);
         return appearance;

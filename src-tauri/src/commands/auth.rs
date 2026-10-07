@@ -232,6 +232,32 @@ pub async fn auth_accounts() -> AppResult<Vec<AccountRow>> {
 }
 
 #[tauri::command]
+pub async fn auth_restore_microsoft(uuid: String, access_token: String) -> AppResult<AuthAccount> {
+    let db = crate::db::shared_db().await?;
+    if let Some(row) = appearance_account(db.pool(), &uuid).await? {
+        return auth_switch_account(row.uuid).await;
+    }
+    let http = reqwest::Client::builder().timeout(std::time::Duration::from_secs(12)).build()?;
+    let response = http.get("https://api.minecraftservices.com/minecraft/profile").bearer_auth(&access_token).send().await?;
+    if !response.status().is_success() {
+        return Err(AppError::InvalidState("Sua sessão Microsoft não pôde ser restaurada. Entre novamente na conta para aplicar a skin.".into()));
+    }
+    let profile: serde_json::Value = response.json().await?;
+    let verified = profile.get("id").and_then(|value| value.as_str()).unwrap_or_default();
+    let expected = Uuid::parse_str(&uuid).map_err(|_| AppError::InvalidInput("Identidade Microsoft inválida".into()))?;
+    if Uuid::parse_str(verified).ok() != Some(expected) {
+        return Err(AppError::InvalidState("A sessão pertence a outra conta. Entre novamente na conta selecionada.".into()));
+    }
+    let username = profile.get("name").and_then(|value| value.as_str()).filter(|name| !name.is_empty()).ok_or_else(|| AppError::InvalidState("Perfil Microsoft sem nome".into()))?;
+    let restored = AuthAccount {
+        id: verified.into(), uuid: verified.into(), username: username.into(), access_token,
+        refresh_token: String::new(), expires_at: chrono::Utc::now().timestamp(),
+        skin_url: None, skin_variant: None, cape_url: None,
+    };
+    save_account(&AppState::default(), &restored).await
+}
+
+#[tauri::command]
 pub async fn auth_switch_account(
     uuid: String,
 ) -> AppResult<AuthAccount> {
@@ -429,12 +455,8 @@ pub async fn auth_change_skin(
     skin_url: String,
 ) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
-    let account = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE uuid = ? OR id = ?")
-        .bind(&uuid)
-        .bind(&uuid)
-        .fetch_optional(db.pool())
-        .await?
-        .ok_or_else(|| AppError::NotFound(format!("Account not found: {}", uuid)))?;
+    let account = appearance_account(db.pool(), &uuid).await?
+        .ok_or_else(|| AppError::InvalidState("Sua conta não está conectada. Entre novamente para sincronizar a skin; a imagem selecionada foi preservada.".into()))?;
 
     let norm_variant = if variant == "slim" || variant == "alex" { "slim" } else { "classic" };
 
@@ -573,15 +595,21 @@ pub async fn auth_save_appearance(uuid: String, skin_url: String, variant: Strin
     if let Some(cape) = &cape_url { validate_texture(cape)?; }
     if variant != "classic" && variant != "slim" { return Err(AppError::InvalidInput("Modelo de skin inválido".into())); }
     let db = crate::db::shared_db().await?;
-    let row = sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE id = ? OR uuid = ?").bind(&uuid).bind(&uuid).fetch_optional(db.pool()).await?.ok_or_else(|| AppError::NotFound("Conta não encontrada".into()))?;
+    let row = appearance_account(db.pool(), &uuid).await?
+        .ok_or_else(|| AppError::InvalidState("A conta selecionada não está mais salva. Entre novamente para aplicar sua skin; a imagem selecionada foi preservada.".into()))?;
     if row.id.starts_with("luxmc:") {
         super::lux_account::publish_appearance(&row.id, &skin_url, &variant, cape_url.as_deref()).await?;
     }
-    let result = sqlx::query("UPDATE accounts SET skin_url = ?, skin_variant = ?, cape_url = ?, updated_at = ? WHERE id = ? OR uuid = ?")
-        .bind(skin_url).bind(variant).bind(cape_url).bind(chrono::Utc::now()).bind(&uuid).bind(&uuid)
+    let result = sqlx::query("UPDATE accounts SET skin_url = ?, skin_variant = ?, cape_url = ?, updated_at = ? WHERE id = ?")
+        .bind(skin_url).bind(variant).bind(cape_url).bind(chrono::Utc::now()).bind(&row.id)
         .execute(db.pool()).await?;
     if result.rows_affected() == 0 { return Err(AppError::NotFound("Conta não encontrada".into())); }
     Ok(())
+}
+
+async fn appearance_account(pool: &sqlx::SqlitePool, identity: &str) -> AppResult<Option<AccountRow>> {
+    Ok(sqlx::query_as::<_, AccountRow>("SELECT * FROM accounts WHERE id = ? OR uuid = ? OR lower(replace(uuid, '-', '')) = lower(replace(?, '-', ''))")
+        .bind(identity).bind(identity).bind(identity).fetch_optional(pool).await?)
 }
 
 #[tauri::command]
@@ -659,6 +687,20 @@ mod local_texture_tests {
 #[cfg(test)]
 mod appearance_refresh_tests {
     use super::*;
+    #[tokio::test]
+    async fn appearance_resolves_saved_id_and_both_uuid_formats_without_selecting_other_accounts() {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!("./migrations").run(&pool).await.unwrap();
+        for column in ["skin_url", "skin_variant", "cape_url"] {
+            sqlx::query(&format!("ALTER TABLE accounts ADD COLUMN {column} TEXT")).execute(&pool).await.unwrap();
+        }
+        sqlx::query("INSERT INTO accounts(id, uuid, username, refresh_token, created_at, updated_at) VALUES (?, ?, ?, '', ?, ?)")
+            .bind("saved-account").bind("8a5bec034d584f96908ae56015586a6d").bind("Player").bind(chrono::Utc::now()).bind(chrono::Utc::now()).execute(&pool).await.unwrap();
+        for identity in ["saved-account", "8a5bec034d584f96908ae56015586a6d", "8A5BEC03-4D58-4F96-908A-E56015586A6D"] {
+            assert_eq!(appearance_account(&pool, identity).await.unwrap().unwrap().id, "saved-account");
+        }
+        assert!(appearance_account(&pool, "removed-account").await.unwrap().is_none());
+    }
     #[test]
     fn windows_refresh_keeps_local_skin_without_reverting_official_profiles() {
         let mut account: AuthAccount = serde_json::from_value(serde_json::json!({"id":"fixture","uuid":"fixture","username":"Player","accessToken":"new","refreshToken":"rotated","expiresAt":42,"skinUrl":"https://textures.minecraft.net/new","skinVariant":"classic"})).unwrap();

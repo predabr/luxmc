@@ -40,7 +40,7 @@ async function api(action, body = {}, area = "account") {
         ? "O serviço de conta está temporariamente indisponível. Tente novamente em instantes."
         : result.error ||
           `Erro no servidor (${response.status}). Tente novamente em instantes.`;
-    throw Object.assign(new Error(msg), { status: response.status });
+    throw Object.assign(new Error(msg), { status: response.status, suggestions: result.suggestions || [] });
   }
   return result;
 }
@@ -112,6 +112,22 @@ function showAccount(account, recoveryCode) {
 for (const button of document.querySelectorAll("[data-mode]"))
   button.addEventListener("click", () => setMode(button.dataset.mode));
 let avatarTimer;
+let nicknameCheck = 0;
+function showNicknameSuggestions(names) {
+  for (const name of names || []) {
+    const suggestion = document.createElement("button");
+    suggestion.type = "button";
+    suggestion.className = "btn btn-secondary";
+    suggestion.textContent = name;
+    suggestion.addEventListener("click", () => {
+      $("#nickname").value = name;
+      $("#nickname").dispatchEvent(new Event("input"));
+      $("#authError").hidden = true;
+      $("#nickname").focus();
+    });
+    $("#authError").append(document.createTextNode(" "), suggestion);
+  }
+}
 $("#nickAvatar").addEventListener(
   "error",
   (event) => {
@@ -121,12 +137,28 @@ $("#nickAvatar").addEventListener(
 );
 $("#nickname").addEventListener("input", () => {
   clearTimeout(avatarTimer);
-  avatarTimer = setTimeout(() => {
+  const check = ++nicknameCheck;
+  avatarTimer = setTimeout(async () => {
     const name = $("#nickname").value.trim();
     $("#nickAvatar").src = /^[A-Za-z0-9_]{3,16}$/.test(name)
       ? `https://mc-heads.net/avatar/${name}/64`
       : "assets/avatar-steve.png";
-  }, 350);
+    if (mode !== "register" || !/^[A-Za-z0-9_]{3,16}$/.test(name)) return;
+    try {
+      const result = await api("nickname", { username: name });
+      if (check !== nicknameCheck || mode !== "register" || $("#nickname").value.trim() !== name) return;
+      $("#authError").hidden = result.available;
+      if (!result.available) {
+        $("#authError").textContent = result.reason === "official" ? "Esse nome já pertence a um jogador oficial do Minecraft. Escolha uma sugestão:" : "Esse nome já está cadastrado. Escolha uma sugestão:";
+        showNicknameSuggestions(result.suggestions);
+      }
+    } catch (error) {
+      if (check === nicknameCheck && mode === "register") {
+        $("#authError").textContent = error.message;
+        $("#authError").hidden = false;
+      }
+    }
+  }, 850);
 });
 $("#revealPassword").addEventListener("click", () => {
   const visible = $("#password").type === "password";
@@ -185,6 +217,7 @@ $("#authForm").addEventListener("submit", async (event) => {
   } catch (error) {
     $("#authError").textContent = error.message;
     $("#authError").hidden = false;
+    showNicknameSuggestions(error.suggestions);
   } finally {
     form.setAttribute("aria-busy", "false");
     button.disabled = false;

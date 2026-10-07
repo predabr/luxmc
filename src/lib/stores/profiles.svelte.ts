@@ -73,6 +73,24 @@ function savedBanner(id: string): string | undefined {
 function createProfileStore() {
 	let list = $state<Profile[]>([]);
 	let activeId = $state<string | null>(null);
+	const artworkAttempts = new Map<string, number>();
+	const defaultIcons = new Set(["", "default", "grass", "grass_block", "/grass_block.png"]);
+	async function restoreArtwork() {
+		const { modsSearch } = await import("$lib/api/mods");
+		const { profilesUpdate } = await import("$lib/api/instances");
+		for (const profile of list) {
+			if (profile.loader === "vanilla" || !defaultIcons.has(profile.icon) || (artworkAttempts.get(profile.id) ?? 0) > Date.now()) continue;
+			artworkAttempts.set(profile.id, Date.now() + 300_000);
+			try {
+				const matches = await modsSearch(profile.name, "", 10, 0, "modpack");
+				const match = matches.find(item => item.title.trim().toLowerCase() === profile.name.trim().toLowerCase() && item.iconUrl?.startsWith("https://"));
+				const current = list.find(item => item.id === profile.id);
+				if (!match?.iconUrl || !current || current.name !== profile.name || !defaultIcons.has(current.icon)) continue;
+				await profilesUpdate({ id: profile.id, icon: match.iconUrl });
+				list = list.map(item => item.id === profile.id && defaultIcons.has(item.icon) ? { ...item, icon: match.iconUrl! } : item);
+			} catch {}
+		}
+	}
 
 	return {
 		get list() {
@@ -86,6 +104,7 @@ function createProfileStore() {
 				const banner = savedBanner(profile.id) || profile.banner;
 				return { ...profile, banner: banner && isRenderableBanner(banner) ? banner : undefined };
 			});
+			if (typeof window !== "undefined") void restoreArtwork().catch(() => {});
 		},
 		set activeId(id: string | null) {
 			activeId = id;
@@ -156,6 +175,7 @@ function createProfileStore() {
 					notes: p.notes ?? undefined, group: p.instanceGroup ?? undefined,
 					lastPlayed: p.lastPlayed ? new Date(p.lastPlayed).getTime() : undefined, launchCount: p.launchCount,
 				}));
+				void restoreArtwork().catch(() => {});
 			} catch {
 			}
 		}

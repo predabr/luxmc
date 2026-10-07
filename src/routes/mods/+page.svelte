@@ -453,7 +453,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
             const vid = chosenVersion.id;
 
 			const ct = selectedType.toLowerCase().replace(/\s+/g, "");
-			await modsInstall({ profileId: pid, projectId: item.sourceId, versionId: vid, source: item.source, contentType: ct, worldName: ct === "datapack" ? chosenWorldName : undefined });
+			await modsInstall({ profileId: pid, projectId: item.sourceId, versionId: vid, source: item.source, contentType: ct, worldName: ct === "datapack" ? chosenWorldName : undefined, iconUrl: item.iconUrl });
 			if (pid && pid !== "default") {
 				const p = profiles.list.find(p => p.id === pid);
 				if (p && ct === "mod") profiles.update(pid, { modCount: (p.modCount ?? 0) + 1 });
@@ -642,7 +642,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 							<ChevronDown class="w-3.5 h-3.5 text-fg/35 transition-transform duration-300 {sortMenuOpen ? 'rotate-180' : ''}" />
 						</button>
 						{#if sortMenuOpen}
-							<button type="button" aria-label={uiText("ui.7ff31408d36adf67")} class={launcherButton({ variant: "secondary", size: "icon", class: "fixed inset-0 z-20 outline-none" })} onclick={() => sortMenuOpen = false}></button>
+							<button type="button" aria-label={uiText("ui.7ff31408d36adf67")} class="fixed inset-0 z-20 border-0 bg-transparent outline-none" onclick={() => sortMenuOpen = false}></button>
 							<div class="absolute right-0 mt-1.5 w-52 bg-bg-elevated border border-fg/[0.06] rounded-xl shadow-2xl py-1 z-30 divide-y divide-white/5">
 								{#each sortOptions as opt}
 									<button type="button" class="w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between cursor-pointer {selectedSort === opt.id ? 'bg-brand-500/20 text-brand-500 font-bold' : 'text-fg/70 hover:bg-fg/5 hover:text-fg'}" onclick={() => { selectedSort = opt.id; sortMenuOpen = false; }}>
@@ -689,7 +689,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 				</div>
 			{:else}
                 <div bind:clientWidth={resultsWidth} inert={loading} aria-busy={loading}>
-                    <CatalogResults items={results} columns={viewMode === 'grid' ? resultColumns : 1} rowHeight={viewMode === 'grid' ? 440 : resultsWidth < 650 ? 144 : 112}>
+                    <CatalogResults items={results} columns={viewMode === 'grid' ? resultColumns : 1} rowHeight={viewMode === 'grid' ? 480 : resultsWidth < 650 ? 144 : 112}>
                         {#snippet children(item)}
                             {@const id = `${item.source}:${item.sourceId}`}
                             {#if viewMode === 'grid'}

@@ -13,14 +13,19 @@ pub fn monitor(target: Arc<AtomicU16>, ready: Arc<Mutex<super::p2p_tunnel::RoomR
             match crate::commands::p2p::p2p_scan_lan_worlds().await {
                 Ok(worlds) => {
                     let current = target.load(Ordering::Acquire);
-                    let selected = worlds.iter().filter(|world| is_local_world(&world.host, &world.motd))
-                        .find(|world| world.port == current)
-                        .or_else(|| worlds.iter().rev().find(|world| is_local_world(&world.host, &world.motd)));
-                    if let Some(world) = selected {
+                    let mut candidates: Vec<_> = worlds.iter().rev().filter(|world| is_local_world(&world.host, &world.motd)).collect();
+                    candidates.sort_by_key(|world| world.port != current);
+                    for world in candidates {
                         if matches!(tokio::time::timeout(Duration::from_millis(300), tokio::net::TcpStream::connect(("127.0.0.1", world.port))).await, Ok(Ok(_))) {
                             target.store(world.port, Ordering::Release);
-                            ready.lock().await.world_ready = true;
+                            super::p2p_tunnel::write_private_lan_session(world.port).await;
+                            let mut registry = ready.lock().await;
+                            registry.world_ready = true;
+                            if let Some(owner) = registry.host.clone() {
+                                registry.worlds.insert(owner.id.clone(), super::p2p_tunnel::RoomWorld { owner_id: owner.id, owner_username: owner.username, motd: world.motd.chars().filter(|character| !character.is_control()).take(160).collect(), local_address: None });
+                            }
                             last_seen = tokio::time::Instant::now();
+                            break;
                         }
                     }
                 }
@@ -31,7 +36,9 @@ pub fn monitor(target: Arc<AtomicU16>, ready: Arc<Mutex<super::p2p_tunnel::RoomR
             }
             if last_seen.elapsed() > Duration::from_secs(7) {
                 target.store(0, Ordering::Release);
-                ready.lock().await.world_ready = false;
+                let mut registry = ready.lock().await;
+                registry.world_ready = false;
+                if let Some(owner) = registry.host.clone() { registry.worlds.remove(&owner.id); }
             }
         }
     })

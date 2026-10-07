@@ -1,13 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Luxmc",
-  "version": "3.0.2",
+  "version": "3.1.0",
   "identifier": "io.github.luxmc.Luxmc",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
-    "frontendDist": "../build"
+    "frontendDist": "../build",
+    "beforeBundleCommand": "node scripts/build-repair-helper.mjs"
   },
   "app": {
     "windows": [
@@ -107,14 +108,17 @@
       "nsis": {
         "installMode": "currentUser",
         "displayLanguageSelector": false,
-        "languages": ["PortugueseBR"],
+        "languages": [
+          "PortugueseBR"
+        ],
         "headerImage": "../packaging/windows/header.bmp",
         "sidebarImage": "../packaging/windows/sidebar.bmp",
         "installerIcon": "icons/icon.ico",
         "uninstallerIcon": "icons/icon.ico",
         "installerHooks": "../packaging/windows/hooks.nsh",
         "compression": "lzma",
-        "startMenuFolder": "Luxmc"
+        "startMenuFolder": "Luxmc",
+        "template": "../packaging/windows/recovery-installer.nsi"
       },
       "webviewInstallMode": {
         "type": "embedBootstrapper",

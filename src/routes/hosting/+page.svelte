@@ -6,9 +6,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button } from "$lib/components/ui/button";
     import Modal from "$lib/components/ui/Modal.svelte";
     import RoomAvatar from "$lib/components/friends/RoomAvatar.svelte";
+    import RoomWorldList from "$lib/components/friends/RoomWorldList.svelte";
     import GuestRoom from "$lib/components/friends/GuestRoom.svelte";
     import MeshPanel from "$lib/components/friends/MeshPanel.svelte";
-    import { tunnelStatus, stopSession, kickTunnelMember, setTunnelLocked, refreshTunnelInvitation, type TunnelStatus, type TunnelMember } from "$lib/api/tunnel";
+    import { tunnelStatus, stopSession, kickTunnelMember, setTunnelLocked, refreshTunnelInvitation, reconnectTunnel, canReconnectTunnel, type TunnelStatus, type TunnelMember } from "$lib/api/tunnel";
     import { toast } from "$lib/stores/toasts.svelte";
 
     let room = $state<TunnelStatus | null>(null);
@@ -19,6 +20,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     let confirmStop = $state(false);
     let disposed = false;
     let request = 0;
+    let disconnected = $state(false);
     const members = $derived(room?.members || []);
     const capacity = $derived(room?.maxPlayers || 10);
     const invite = $derived(room?.invitation || "");
@@ -27,13 +29,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const current = ++request;
         try {
             const next = await tunnelStatus();
-            if (!disposed && current === request) { room = next; error = ""; }
+            if (!disposed && current === request) {
+                if (room?.mode === "client" && !next) disconnected = true;
+                room = next;
+                if (next) disconnected = false;
+                error = "";
+            }
         } catch (cause) { if (!disposed && current === request) error = String(cause); }
         finally { if (!disposed && current === request) loading = false; }
     }
     onMount(() => {
         let timer: ReturnType<typeof setTimeout>;
-        const poll = async () => { await refresh(); if (!disposed) timer = setTimeout(poll, 1500); };
+        const poll = async () => { await refresh(); if (!disposed) timer = setTimeout(poll, document.hidden ? 10000 : error ? 5000 : 2000); };
         void poll();
         return () => { disposed = true; request++; clearTimeout(timer); };
     });
@@ -62,6 +69,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 <div class="mx-auto w-full max-w-6xl space-y-6 p-1 pb-8" aria-label={uiText("ui.89bacbf67d969125")}>
     <button type="button" class={button({ variant: "ghost", size: "sm" })} onclick={() => goto("/friends")}><ArrowLeft class="h-4 w-4" />{uiText("ui.075d1408f079c452")}</button>
     {#if error}<p role="alert" class="rounded-xl border border-danger/30 bg-danger/10 p-4 text-sm text-danger">{error}</p>{/if}
+    {#if disconnected && canReconnectTunnel()}
+        <section class="surface-glass flex flex-wrap items-center justify-between gap-4 p-5" role="status">
+            <p class="text-sm text-fg-muted">{uiText("multiplayer.disconnected")}</p>
+            <button type="button" class={button({variant: "primary"})} disabled={busy} onclick={() => perform(async () => { room = await reconnectTunnel(); disconnected = false; })}><RefreshCw class="h-4 w-4" />{uiText("multiplayer.reconnect")}</button>
+        </section>
+    {/if}
     {#if loading}
         <p role="status" class="py-10 text-fg-muted">{uiText("ui.a65824823aff1671")}</p>
     {:else if room?.mode === "host"}
@@ -100,6 +113,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <div class="space-y-2"><h1 class="text-3xl font-bold text-fg">{uiText("ui.2c8630407fb05ef5")}</h1><p class="text-sm text-fg-muted">{uiText("ui.9d1a31f109aff575")}</p></div>
         <MeshPanel />
     {/if}
+    {#if room}<RoomWorldList {room} />{/if}
 </div>
 
 <Modal isOpen={pendingKick !== null} title={uiText("ui.837e0c964a33cb9c")} onClose={() => { if (!busy) pendingKick = null; }}>

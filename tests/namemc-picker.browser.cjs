@@ -52,6 +52,7 @@ const fs = require('node:fs');
     assert.equal(saved.length, 2);
     assert.equal(saved[0].url, skin);
     assert.equal(saved[1].name, 'Steve salvo');
+    await page.locator('main p[role="status"]').filter({hasText:'Alterações ainda não aplicadas. Clique em Aplicar e sincronizar'}).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Capa Luxmc Oficial', exact: true }).count(), 0);
     assert.equal(await page.evaluate(() => window.calls.some(call => call.command === 'auth_change_skin' || call.command === 'auth_save_appearance')), false);
     assert.equal(await page.evaluate(() => window.nameMcListeners.size), 0);

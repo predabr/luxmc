@@ -27,6 +27,7 @@ pub mod storage;
 pub mod system;
 pub mod teamwork_preview;
 pub mod updater;
+mod updater_download;
 pub mod versions;
 pub mod keybinds;
 pub mod modpack_export;

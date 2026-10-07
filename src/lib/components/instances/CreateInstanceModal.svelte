@@ -82,7 +82,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let selectedRamGb = $state(4);
 	let newAutoOptimize = $state(true);
 	let newUseVulkan = $state(false);
-	let newInstallPerfPack = $state(false);
 	let showAdvanced = $state(false);
 	let customResW = $state(settings.value.defaultResWidth ?? 1920);
 	let customResH = $state(settings.value.defaultResHeight ?? 1080);
@@ -195,7 +194,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		selectedLoaderVersion = "";
 		newAutoOptimize = true;
 		newUseVulkan = false;
-		newInstallPerfPack = false;
 		lastError = null;
 		createSuccess = false;
 		showIconPicker = false;
@@ -231,7 +229,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				ramGb: selectedRamGb,
 				autoOptimize: newAutoOptimize,
 				useVulkan: newUseVulkan,
-				installPerfPack: newInstallPerfPack,
+				installPerfPack: false,
 				resolutionW: customResW,
 				resolutionH: customResH,
 				fullscreen: customFullscreen,
@@ -264,12 +262,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		aria-label={uiText("mods.createInstance")}
 	>
 		<div
-			class="rounded-3xl bg-bg-elevated border border-fg/10 p-6 shadow-2xl space-y-5 select-none max-w-lg w-full max-h-[92vh] overflow-y-auto custom-scrollbar my-auto"
+			class="rounded-3xl bg-bg-elevated border border-fg/10 p-6 shadow-2xl space-y-6 font-sans select-none max-w-2xl w-full max-h-[92vh] overflow-y-auto custom-scrollbar my-auto"
 			in:fade={{ easing: quintOut, duration: 240 }}
 		>
 			<!-- Header -->
 			<div class="flex items-center justify-between">
-				<h3 class="text-base font-bold text-fg tracking-tight">{uiText("mods.createInstance")}</h3>
+				<h3 class="text-xl font-semibold text-fg tracking-tight">{uiText("mods.createInstance")}</h3>
 				<button
 					type="button"
 					class={launcherButton({ variant: "secondary", size: "icon", class: "flex items-center justify-center" })}
@@ -287,8 +285,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 			{:else}
 				<!-- Top: Icon & 3 Stacked Buttons -->
-				<div class="flex items-center gap-4">
-					<div class="w-20 h-20 rounded-2xl bg-bg-subtle border border-fg/10 flex items-center justify-center p-2 shrink-0 shadow-inner overflow-hidden">
+				<div class="flex items-center gap-5 rounded-2xl border border-border bg-bg-subtle/50 p-4">
+					<div class="w-24 h-24 rounded-2xl bg-bg-subtle border border-fg/10 flex items-center justify-center p-2 shrink-0 shadow-inner overflow-hidden">
 						<img loading="lazy" decoding="async"
 							src={getIconSrc(newIcon)}
 							alt={uiText("ui.f15f8f19139853cf")}
@@ -297,7 +295,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						/>
 					</div>
 
-					<div class="flex flex-col gap-1.5 flex-1">
+					<div class="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
 						<button
 							type="button"
 							onclick={handleCustomIconUpload}
@@ -348,7 +346,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						id="instance-name"
 						type="text"
 						bind:value={newName}
-						class="w-full h-10 rounded-xl px-3.5 text-xs font-medium text-fg bg-bg-subtle border border-fg/10 focus:border-success outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity]"
+						class="w-full h-12 rounded-xl px-4 text-sm font-medium text-fg bg-bg-subtle border border-fg/10 focus:border-success outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity]"
 						placeholder={uiText("ui.9169b7ddb239cac2")}
 					/>
 				</div>
@@ -356,13 +354,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				<!-- Loader -->
 				<div class="space-y-1.5">
 					<span class="block text-xs font-bold text-fg/80">{uiText("instances.loader")}</span>
-					<div class="flex flex-wrap gap-2">
+					<div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
 						{#each loaderOptions as ldr}
 							{@const isSelected = newLoader === ldr.id}
 							<button
 								type="button"
 								onclick={() => selectLoader(ldr.id)}
-								class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-success/20 text-success border-success/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
+								aria-pressed={isSelected}
+								class="min-h-11 justify-center px-3.5 py-2 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-success/20 text-success border-success/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
 							>
 								{#if isSelected}
 									<Check class="w-3.5 h-3.5 stroke-[2.5]" />
@@ -398,7 +397,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								<button
 									type="button"
 									onclick={() => loaderReleaseType = lv.id}
-									class="px-3.5 py-1.5 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-success/20 text-success border-success/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
+									aria-pressed={isSelected}
+								class="min-h-11 justify-center px-3.5 py-2 rounded-xl text-xs font-medium border transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-1.5 cursor-pointer {isSelected ? 'bg-success/20 text-success border-success/50 shadow-sm' : 'bg-bg-subtle border-fg/10 text-fg/70 hover:text-fg hover:border-fg/20'}"
 								>
 									{#if isSelected}
 										<Check class="w-3.5 h-3.5 stroke-[2.5]" />
@@ -458,18 +458,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 									<input type="checkbox" bind:checked={newAutoOptimize} class="accent-emerald-500 rounded" />
 									<span>{uiText("ui.4a00b64876baefdd")}</span>
 								</label>
-								{#if newLoader !== "vanilla"}
-									<label class="flex items-center gap-2 text-xs text-fg/80 cursor-pointer">
-										<input type="checkbox" bind:checked={newInstallPerfPack} class="accent-emerald-500 rounded" />
-										<span>{uiText("ui.76ce558dd6842f19")}</span>
-									</label>
-								{/if}
 							</div>
 						</div>
 					{/if}
 				</div>
 
-				<div class="flex items-center justify-end gap-3 pt-3">
+				<div class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-border bg-bg-elevated pt-4">
 					<button
 						type="button"
 						onclick={handleClose}

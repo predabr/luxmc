@@ -262,7 +262,7 @@ export async function instanceModDelete(profileId: string, fileName: string): Pr
 	return api.invoke("instance_mod_delete", { profileId, fileName });
 }
 
-export async function instanceModAdd(profileId: string, sourcePath: string): Promise<string> {
+export async function instanceModAdd(profileId: string, sourcePath: string, worldName?: string): Promise<string> {
 	return api.invoke<string>("instance_mod_add", { profileId, sourcePath });
 }
 
@@ -274,16 +274,16 @@ export async function instanceModsOpenFolder(profileId: string): Promise<void> {
 	return api.invoke("instance_mods_open_folder", { profileId });
 }
 
-export async function instancePackAdd(profileId: string, packType: string, sourcePath: string): Promise<string> {
-	return api.invoke<string>("instance_pack_add", { profileId, packType, sourcePath });
+export async function instancePackAdd(profileId: string, packType: string, sourcePath: string, worldName?: string): Promise<string> {
+	return api.invoke<string>("instance_pack_add", { profileId, packType, sourcePath, worldName });
 }
 
-export async function instancePackDelete(profileId: string, packType: string, fileName: string): Promise<void> {
-	return api.invoke("instance_pack_delete", { profileId, packType, fileName });
+export async function instancePackDelete(profileId: string, packType: string, fileName: string, worldName?: string): Promise<void> {
+	return api.invoke("instance_pack_delete", { profileId, packType, fileName, worldName });
 }
 
-export async function instancePackOpenFolder(profileId: string, packType: string): Promise<void> {
-	return api.invoke("instance_pack_open_folder", { profileId, packType });
+export async function instancePackOpenFolder(profileId: string, packType: string, worldName?: string): Promise<void> {
+	return api.invoke("instance_pack_open_folder", { profileId, packType, worldName });
 }
 
 export async function instanceExportZip(profileId: string, outputPath: string): Promise<string> {

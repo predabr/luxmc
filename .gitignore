@@ -12,6 +12,7 @@ vite.config.ts.timestamp-*
 dist-electron
 release-electron
 /release-windows/
+/website/releases/*.exe
 /Luxmc.exe
 *.log
 /logs
@@ -31,3 +32,6 @@ __pycache__/
 /docs/media/*/captures/
 /docs/media/*/production/
 /docs/media/*/audio/
+
+/src-tauri/binaries/
+/src-tauri/repair-helper/target/

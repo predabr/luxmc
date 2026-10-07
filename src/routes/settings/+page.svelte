@@ -635,7 +635,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					</select>
 				</div>
 
-				<div class="flex items-center justify-between py-5 gap-6">
+				<div class="flex items-center justify-between gap-6 py-5">
+                    <div class="max-w-xl space-y-1"><h3 class="text-sm font-bold text-fg">{uiText("settings.closeToTrayTitle")}</h3><p class="text-xs leading-relaxed text-fg/60">{uiText("settings.closeToTrayDesc")}</p></div>
+                    <button type="button" role="switch" aria-checked={settings.value.closeToTray !== false} aria-label={uiText("settings.closeToTrayTitle")} onclick={() => settings.patch({ closeToTray: settings.value.closeToTray === false })} class="relative h-6 w-12 shrink-0 rounded-full border transition-colors {settings.value.closeToTray !== false ? 'border-brand-400 bg-brand-500' : 'border-fg/15 bg-fg/15'}"><span class="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-fg transition-transform {settings.value.closeToTray !== false ? 'translate-x-6' : ''}"></span></button>
+                </div>
+
+                <div class="flex items-center justify-between py-5 gap-6">
 					<div class="space-y-1 max-w-xl">
 						<h3 class="text-sm font-bold text-fg">{t("settings.closeWarningTitle")}</h3>
 						<p class="text-xs text-fg/50 leading-relaxed">{t("settings.closeWarningDesc")}</p>

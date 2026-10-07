@@ -27,6 +27,7 @@ const fs = require('node:fs');
                 };
                 const invoke = async (command, args) => {
                     window.calls.push({ command, args });
+                    if (command === 'auth_accounts') return [window.fixtureAccount];
                     if (command === 'app_init') return { account: window.fixtureAccount, profiles: [], activeProfileId: null, devMode: true };
                     if (command === 'auth_save_appearance') {
                         if (window.holdAppearance) await new Promise(resolve => { window.releaseAppearance = resolve; });

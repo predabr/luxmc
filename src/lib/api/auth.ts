@@ -76,6 +76,10 @@ export interface AuthAccount {
 	capeUrl?: string;
 }
 
+export async function authRestoreMicrosoft(uuid: string, accessToken: string): Promise<AuthAccount> {
+    return api.invoke("auth_restore_microsoft", { uuid, accessToken });
+}
+
 export async function authDevLogin(): Promise<AuthAccount> {
 	return api.invoke("auth_dev_login");
 }

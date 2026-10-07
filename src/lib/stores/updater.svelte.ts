@@ -163,7 +163,7 @@ export const updaterStore = {
 		progressPercent = 0;
 		transferredBytes = 0;
 		totalBytes = 0;
-		statusText = "Iniciando download...";
+		statusText = uiText("updater.startingDownload");
 
 		try {
 			if (unlistenFn) {
@@ -173,7 +173,7 @@ export const updaterStore = {
 
 			unlistenFn = await listen<UpdateProgressPayload>("update-progress", (event) => {
 				progressPercent = Math.max(0, Math.min(100, event.payload.percent));
-				statusText = event.payload.status;
+				statusText = uiText(event.payload.percent >= 100 ? "updater.installing" : event.payload.status.toLowerCase().includes("conectando") ? "updater.connecting" : "updater.downloading");
 				transferredBytes = event.payload.transferred;
 				totalBytes = event.payload.total;
 			});

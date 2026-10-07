@@ -663,6 +663,16 @@ html.has-custom-wallpaper .skin-preview-stage { background-color: rgb(var(--bg-e
 .launcher-button--microsoft { background-image: linear-gradient(180deg, rgb(var(--fg) / .06), transparent); }
 .launcher-button--ghost { box-shadow: none; }
 .launcher-button[aria-busy="true"] { cursor: progress; }
+.launcher-button:not(.fixed) { border-radius: var(--radius-lg); letter-spacing: -.012em; }
+.launcher-button--primary, .launcher-button--play { box-shadow: inset 0 -2px 0 rgb(var(--brand-900) / .32), inset 0 1px 0 rgb(var(--surface-shine) / .18), 0 2px 5px rgb(var(--shadow-color) / .12); }
+.launcher-button--secondary, .launcher-button--outline { background-image: none; box-shadow: inset 0 -1px 0 rgb(var(--shadow-color) / .1), inset 0 1px 0 rgb(var(--surface-shine) / .06); }
+.launcher-button--microsoft { border-color: rgb(var(--fg) / .22); background-image: none; box-shadow: inset 0 -2px 0 rgb(var(--shadow-color) / .12); }
+.launcher-button:not(.fixed):not(.launcher-button--ghost):hover:not(:disabled):not([aria-disabled="true"]) { border-color: rgb(var(--brand-400) / .6); }
+.launcher-button:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
+html.light .launcher-button--secondary, html.light .launcher-button--outline { color: rgb(var(--fg)); border-color: rgb(var(--fg) / .2); background-color: rgb(var(--bg-elevated) / .8); }
+html.light.has-custom-wallpaper :is(.launcher-button--secondary, .launcher-button--outline) { background-color: rgb(var(--bg-elevated) / max(.42, var(--interface-opacity, .18))) !important; }
+html.light [role="dialog"] :is(input, select, textarea) { color: rgb(var(--fg)); border-color: rgb(var(--fg) / .2); }
+@media (prefers-reduced-motion: reduce) { .launcher-button, [role="dialog"] > div { animation: none !important; transition: none !important; transform: none !important; } }
 html.light :is(.text-fg\/40, .text-fg\/50, .text-fg\/60) { color: rgb(var(--fg-muted)); }
 html.light :is(.text-brand-300, .text-brand-400) { color: rgb(var(--brand-action)); }
 html.light :is(.text-green-300, .text-green-400, .text-emerald-300, .text-emerald-400, [class~="text-emerald-400/80"]) { color: rgb(var(--success)); }

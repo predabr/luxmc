@@ -47,6 +47,7 @@ pub struct ModFile {
 #[serde(rename_all = "camelCase")]
 pub struct ModDependency {
     pub project_id: String,
+    pub version_id: Option<String>,
     pub dependency_type: String,
 }
 
@@ -110,6 +111,9 @@ pub struct ModProjectDetails {
 #[serde(rename_all = "camelCase")]
 pub struct ModVersionDetail {
     pub id: String,
+    pub project_id: String,
+    pub game_versions: Vec<String>,
+    pub loaders: Vec<String>,
     pub name: String,
     pub version_number: String,
     pub files: Vec<ModFile>,
@@ -479,24 +483,21 @@ impl ModrinthClient {
         version_id: &str,
         mc_version: &str,
     ) -> AppResult<ModVersionDetail> {
-        let url = format!(
-			"{}/project/{}/version?game_versions=[\"{}\"]&loaders=[\"fabric\",\"forge\",\"neoforge\",\"quilt\"]",
-			MODRINTH_API, project_id, mc_version
-		);
-        let resp: Vec<serde_json::Value> = self
-            .http
-            .get(&url)
-            .send()
-            .await?
-            .error_for_status()?
-            .json()
-            .await?;
-
-        for v in resp {
-            let id = v.get("id").and_then(|i| i.as_str()).unwrap_or("");
-            if id != version_id {
-                continue;
-            }
+        let mut v: serde_json::Value = self.http.get(format!("{MODRINTH_API}/version/{version_id}"))
+            .timeout(std::time::Duration::from_secs(20)).send().await?.error_for_status()?.json().await?;
+        if let Some(files) = v.get_mut("files").and_then(|value| value.as_array_mut()) { files.sort_by_key(|file| file.get("primary").and_then(|value| value.as_bool()) != Some(true)); }
+        let id = v.get("id").and_then(|value| value.as_str()).unwrap_or("");
+        let actual_project = v.get("project_id").and_then(|value| value.as_str()).unwrap_or("");
+        let matches_project = if project_id.is_empty() || actual_project == project_id { true } else {
+            let project: serde_json::Value = self.http.get(format!("{MODRINTH_API}/project/{project_id}"))
+                .timeout(std::time::Duration::from_secs(20)).send().await?.error_for_status()?.json().await?;
+            project.get("id").and_then(|value| value.as_str()) == Some(actual_project)
+        };
+        let strings = |key: &str| -> Vec<String> { v.get(key).and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str()).map(str::to_owned).collect()).unwrap_or_default() };
+        let game_versions = strings("game_versions");
+        if id != version_id || !matches_project || (!mc_version.is_empty() && !game_versions.iter().any(|value| value == mc_version)) {
+            return Err(crate::error::AppError::InvalidInput("A versão selecionada não pertence ao projeto ou não é compatível com o Minecraft da instância.".into()));
+        }
             let files: Vec<ModFile> = v
                 .get("files")
                 .and_then(|f| f.as_array())
@@ -528,8 +529,9 @@ impl ModrinthClient {
                             Some(ModDependency {
                                 project_id: d
                                     .get("project_id")
-                                    .and_then(|p| p.as_str())?
+                                    .and_then(|p| p.as_str()).unwrap_or("")
                                     .to_string(),
+                                version_id: d.get("version_id").and_then(|value| value.as_str()).map(str::to_owned),
                                 dependency_type: d
                                     .get("dependency_type")
                                     .and_then(|t| t.as_str())?
@@ -540,8 +542,11 @@ impl ModrinthClient {
                 })
                 .unwrap_or_default();
 
-            return Ok(ModVersionDetail {
+            Ok(ModVersionDetail {
                 id: id.to_string(),
+                project_id: actual_project.to_owned(),
+                game_versions,
+                loaders: strings("loaders"),
                 name: v
                     .get("name")
                     .and_then(|n| n.as_str())
@@ -554,11 +559,7 @@ impl ModrinthClient {
                     .to_string(),
                 files,
                 dependencies,
-            });
-        }
-        Err(crate::error::AppError::NotFound(
-            "mod version not found".into(),
-        ))
+            })
     }
 
     pub async fn get_project_details(&self, id_or_slug: &str) -> AppResult<ModProjectDetails> {

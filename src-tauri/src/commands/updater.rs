@@ -1,12 +1,10 @@
-use futures_util::StreamExt;
 use std::path::{Path, PathBuf};
 use tauri::Emitter;
-use tokio::io::AsyncWriteExt;
 use url::Url;
 
 use crate::error::{AppError, AppResult};
 
-const MAX_UPDATE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+pub(super) const MAX_UPDATE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 
 #[cfg(target_os = "linux")]
 fn replace_appimage(staged: &Path, target: &Path) -> AppResult<Option<PathBuf>> {
@@ -258,95 +256,14 @@ pub async fn app_perform_update(
         }))
         .build()
         .map_err(|e| AppError::Internal(format!("Falha ao preparar atualização: {e}")))?;
-    let resp = client
-        .get(source_url)
-        .header("User-Agent", "Luxmc-Launcher-Updater")
-        .send()
-        .await
-        .map_err(|e| AppError::Internal(format!("Erro ao baixar atualização: {e}")))?;
-
-    if !resp.status().is_success() {
-        return Err(AppError::Internal(format!(
-            "Falha no download da atualização: HTTP {}",
-            resp.status()
-        )));
-    }
-
-    if !is_allowed_redirect_url(resp.url()) {
-        return Err(AppError::InvalidInput(
-            "O download foi redirecionado para uma origem não confiável".into(),
-        ));
-    }
-    let total_bytes = resp.content_length().unwrap_or(0);
-    if total_bytes > MAX_UPDATE_BYTES {
-        return Err(AppError::InvalidInput(
-            "A atualização excede o tamanho máximo permitido".into(),
-        ));
-    }
-    let temp_dir = std::env::temp_dir();
-    let temp_file_path =
-        temp_dir.join(format!("luxmc-update-{}-{file_name}", uuid::Uuid::new_v4()));
-
-    let mut out_file = tokio::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temp_file_path)
-        .await
-        .map_err(AppError::Io)?;
-
-    let mut stream = resp.bytes_stream();
-    let mut downloaded: u64 = 0;
-
-    let download_result: AppResult<()> = async {
-    while let Some(chunk) = tokio::time::timeout(std::time::Duration::from_secs(30), stream.next())
-        .await.map_err(|_| AppError::Internal("O download ficou sem resposta. Tente novamente.".into()))? {
-        let chunk = match chunk {
-            Ok(chunk) => chunk,
-            Err(error) => {
-                return Err(AppError::Internal(format!("Erro de transmissão: {error}")));
-            }
-        };
-        downloaded += chunk.len() as u64;
-        if downloaded > MAX_UPDATE_BYTES {
-            return Err(AppError::InvalidInput(
-                "A atualização excede o tamanho máximo permitido".into(),
-            ));
-        }
-        if let Err(error) = out_file.write_all(&chunk).await {
-            return Err(AppError::Io(error));
-        }
-
-        let percent = if total_bytes > 0 {
-            ((downloaded as f64 / total_bytes as f64) * 100.0) as u32
-        } else {
-            50
-        };
-
-        let mb_down = (downloaded as f64 / 1_048_576.0).round();
-        let mb_tot = (total_bytes as f64 / 1_048_576.0).round();
-
-        let _ = app.emit(
-            "update-progress",
-            UpdateProgress {
-                percent: percent.min(99),
-                transferred: downloaded,
-                total: total_bytes,
-                status: format!("Baixando atualização: {} MB / {} MB", mb_down, mb_tot),
-            },
-        );
-    }
-
-    if downloaded == 0 || (total_bytes > 0 && downloaded != total_bytes) {
-        return Err(AppError::Internal("O arquivo de atualização está incompleto. Tente novamente.".into()));
-    }
-    out_file.sync_all().await.map_err(AppError::Io)?;
-    Ok(())
-    }.await;
-    drop(out_file);
-    if let Err(error) = download_result {
-        let _ = tokio::fs::remove_file(&temp_file_path).await;
-        return Err(error);
-    }
+    let temp_file_path = std::env::temp_dir().join(format!("luxmc-update-{}-{file_name}", uuid::Uuid::new_v4()));
+    let (downloaded, total_bytes) = super::updater_download::download(&client, &source_url, &temp_file_path, is_allowed_redirect_url, |downloaded, total| {
+        let _ = app.emit("update-progress", UpdateProgress {
+            percent: if total > 0 { ((downloaded as f64 / total as f64) * 100.0).min(99.0) as u32 } else { 0 },
+            transferred: downloaded, total,
+            status: "Baixando e verificando atualização...".into(),
+        });
+    }).await?;
     ensure_update_idle(crate::core::launcher::get_active_game_pid())?;
 
     let _ = app.emit(

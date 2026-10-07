@@ -14,6 +14,7 @@ const assert=require('node:assert/strict');
   window.fixtureAccount=JSON.parse(sessionStorage.getItem('appearance-account')||'null')||{id:'fixture-ms',uuid:'11111111111111111111111111111111',username:'TestPlayer',accessToken:'x'.repeat(150),skinUrl:texture,skinVariant:'slim',capeUrl:null};
   const invoke=async(command,args)=>{
    window.calls.push({command,args});
+   if(command==='auth_accounts')return [window.fixtureAccount];
    if(command==='app_init'){await new Promise(resolve=>setTimeout(resolve,100));return {account:window.fixtureAccount,profiles:[],activeProfileId:null,devMode:true};}
    if(command==='auth_save_appearance'){window.fixtureAccount.skinUrl=args.skinUrl;window.fixtureAccount.skinVariant=args.variant;window.fixtureAccount.capeUrl=args.capeUrl;sessionStorage.setItem('appearance-account',JSON.stringify(window.fixtureAccount));return null;}
    if(command==='plugin:dialog|open')return 'C:/fixture/cape.png';

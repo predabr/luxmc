@@ -56,6 +56,7 @@ export interface AppSettings {
 	releaseChannel?: "stable" | "beta";
 	concurrentDownloads?: number;
 	closeWarningOnGameRunning?: boolean;
+    closeToTray?: boolean;
 	showLogsOnLaunch?: "never" | "on_crash" | "always";
 	defaultResWidth?: number;
 	defaultResHeight?: number;
@@ -76,6 +77,7 @@ const defaults: AppSettings = {
 	activeProfileId: null,
 	pauseWallpaperOnBlur: true,
 	autoCheckUpdates: true,
+    closeToTray: true,
 	liveWallpaper: false,
 	soundscapesEnabled: false,
 	soundscapeVolume: 0.2,

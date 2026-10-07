@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v3.0.2)"
+        description: "Release tag (e.g. v3.1.0)"
         required: true
-        default: "v3.0.2"
+        default: "v3.1.0"
       reuse_assets:
         description: "Verify and publish an existing draft without rebuilding installers"
         type: boolean
@@ -142,7 +142,7 @@ jobs:
           cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
           cargo check --manifest-path src-tauri/Cargo.toml --locked
 
-      - name: Build Tauri (Linux — DEB + RPM + AppImage)
+      - name: Build Tauri (Linux â€” DEB + RPM + AppImage)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -196,13 +196,16 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare Windows verifier for validation
+        run: node scripts/build-repair-helper.mjs --prepare
+
       - name: Validate Windows release
         run: |
           pnpm check
           cargo test --manifest-path src-tauri/Cargo.toml --lib --locked
           cargo check --manifest-path src-tauri/Cargo.toml --locked
 
-      - name: Build Tauri (Windows — NSIS)
+      - name: Build Tauri (Windows â€” NSIS)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -223,6 +226,14 @@ jobs:
           Copy-Item -LiteralPath $installer.FullName -Destination 'Lux MC Launcher.exe' -Force
           gh release upload $env:RELEASE_TAG 'Lux MC Launcher.exe#Lux MC Launcher.exe' --repo $env:GITHUB_REPOSITORY --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Windows installer upload failed.' }
+
+      - name: Validate install, reinstall and uninstall on the clean runner
+        shell: pwsh
+        env:
+          LUXMC_INSTALLER_PATH: Lux MC Launcher.exe
+        run: |
+          New-Item -ItemType Directory -Path docs/validation -Force | Out-Null
+          ./tests/installer-lifecycle.ps1
 
   build-macos:
     needs: create-release
@@ -257,7 +268,7 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build Tauri (macOS — DMG universal)
+      - name: Build Tauri (macOS â€” DMG universal)
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

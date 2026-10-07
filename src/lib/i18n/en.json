@@ -2,7 +2,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Minecraft launcher for Windows and Linux",
-    "version": "v3.0.2",
+    "version": "v3.1.0",
     "pressForShortcuts": "Press {{key}} for shortcuts",
     "systemOnline": "System Online",
     "navigation": "Navigation",
@@ -480,7 +480,9 @@
       "jvmPresetsDesc": "Automatic mode selects settings compatible with the game's Java version. G1GC is a conservative alternative; custom settings remain available above.",
       "ramApplied": "Recommended RAM applied: {{amount}} GB.",
       "recommendRam": "Recommend RAM"
-    }
+    },
+    "closeToTrayTitle": "Keep running in the background",
+    "closeToTrayDesc": "Closing the window keeps Luxmc in the system tray. Choose Open to return or Exit to quit."
   },
   "auth": {
     "signIn": "Sign in with Microsoft",
@@ -1427,7 +1429,7 @@
     "0128db193f53bb30": "Enable Sleepy Effects",
     "1a07c7242e6cce5c": "select",
     "df1deb26dff33cc9": "close",
-    "6e6395afe8f4010d": "Crash Doctor · Diagnosis in Portuguese",
+    "6e6395afe8f4010d": "Crash Doctor · Game diagnostics",
     "903dc5af4673a6a8": "Adjust Memory",
     "154995d8266e1321": "Install Java Supported",
     "833a431b68e5e822": "Repair Modpack and Download Missing",
@@ -1624,7 +1626,7 @@
     "6081e8d49e53c20f": "Invalid server name.",
     "25ab1ecd45e65586": "♪ Seen just now ♪",
     "79564aca91f78230": "Seen there {{arg0}} min",
-    "d31dc55460d3e0df": "Seen there {{arg0}} {{arg1}}",
+    "d31dc55460d3e0df": "Seen {{arg0}}",
     "ecd7d76c453b1c5e": "Read the official publication on the Minecraft website.",
     "0b82e10896393c5f": "Unable to determine available memory.",
     "9779190602bb4ea9": "Could not load texture",
@@ -2988,7 +2990,8 @@
     "addCape": "Import cape PNG",
     "model": "Model and player",
     "syncing": "Applying and syncing with Microsoft…",
-    "applying": "Applying…"
+    "applying": "Applying…",
+    "pendingApply": "Changes are not applied yet. Click Apply and sync to use your new skin."
   },
   "design": {
     "expandMenu": "Expand menu",
@@ -3056,7 +3059,16 @@
     "createAnytime": "Your room can stay open before Minecraft starts. Invite your friends and open a world to LAN when you are ready to play.",
     "worldReady": "LAN world detected. Ready to connect.",
     "waitingWorld": "Room connected. Waiting for the host to open a world to LAN.",
-    "sameVersions": "Use the same Minecraft version and compatible matching mods on both computers."
+    "sameVersions": "Use the same Minecraft version and compatible matching mods on both computers.",
+    "worldsTitle": "Worlds open in this room",
+    "worldsHelp": "Any participant can open their own world to LAN. Worlds appear in Multiplayer; use the same version and compatible mods. Luxmc accounts work in these private worlds through the tunnel without changing public server authentication.",
+    "addressCopied": "World address copied.",
+    "yourWorld": "Open on this computer",
+    "waitingAnyWorld": "Waiting for a participant to open a world to LAN.",
+    "disconnected": "The room connection ended. Your world is preserved; reconnect and join again in Minecraft.",
+    "reconnect": "Reconnect to room",
+    "host": "Host",
+    "guest": "Guest"
   },
   "profileCard": {
     "title": "Your profile",
@@ -3074,5 +3086,90 @@
     "nicknameRule": "Use 3 to 16 letters, numbers or underscores.",
     "offlineSkins": "Local account: customization stays on this computer. Sign in with a Luxmc account to share your skin and cape with compatible clients, or with Microsoft to use your official skin.",
     "nicknameSaved": "Player name saved."
+  },
+  "updater": {
+    "startingDownload": "Starting download...",
+    "connecting": "Connecting to server...",
+    "downloading": "Downloading the update with verification and automatic retries...",
+    "installing": "Installing the update..."
+  },
+  "crash": {
+    "categories": {
+      "none": {
+        "title": "No recent failure detected",
+        "message": "No recent failure was found in the available reports.",
+        "solution": "You can launch Minecraft again."
+      },
+      "authentication": {
+        "title": "Invalid game session",
+        "message": "The server did not accept the game session.",
+        "solution": "For private Luxmc rooms, update and restart both games. For official servers, sign in again with a Microsoft account that owns Minecraft."
+      },
+      "shutdown": {
+        "title": "Minecraft could not finish shutting down",
+        "message": "A component kept threads alive after the game ended.",
+        "solution": "Update the launcher and mods; inspect the thread report to identify the component."
+      },
+      "network_dns": {
+        "title": "Server address could not be resolved",
+        "message": "The computer could not resolve the server name.",
+        "solution": "Check the address, connection and DNS/SRV records. Do not disable IPv6 automatically."
+      },
+      "network_refused": {
+        "title": "Connection refused",
+        "message": "No server accepted connections at the selected address and port.",
+        "solution": "Open the world to LAN again, wait for the room to refresh and verify the host is connected."
+      },
+      "mod_conflict": {
+        "title": "Mod conflict",
+        "message": "A conflict involving {{mod}} prevented the game from loading.",
+        "solution": "Check the technical details, disable the conflicting mod or install compatible versions."
+      },
+      "out_of_memory": {
+        "title": "Not enough memory",
+        "message": "Minecraft ran out of allocated memory.",
+        "solution": "Review the instance memory limit and available system RAM before increasing it."
+      },
+      "jvm_option": {
+        "title": "Unsupported Java option",
+        "message": "Java rejected one of the configured startup arguments.",
+        "solution": "Review custom JVM arguments and choose a compatible Java runtime."
+      },
+      "java_version": {
+        "title": "Incompatible Java version",
+        "message": "The game or a mod requires a different Java version.",
+        "solution": "Read the required version in the technical details and select it in the instance settings."
+      },
+      "missing_dependency": {
+        "title": "Missing required dependency",
+        "message": "A required library for {{mod}} is missing or incompatible.",
+        "solution": "Install the required dependency for the exact Minecraft version and loader shown in the log."
+      },
+      "driver_issue": {
+        "title": "Graphics initialization failed",
+        "message": "Minecraft could not initialize its graphics backend.",
+        "solution": "Review the graphics driver and disable optional Vulkan rendering while diagnosing the problem."
+      },
+      "version_mismatch": {
+        "title": "Incompatible game or mod version",
+        "message": "{{mod}} does not match the selected game version or loader.",
+        "solution": "Install the matching build or select the game version required by the modpack."
+      },
+      "unknown": {
+        "title": "Minecraft execution error",
+        "message": "Minecraft stopped unexpectedly. The technical details contain the original reported cause.",
+        "solution": "Open the full log and inspect the first exception and its Caused by entries."
+      }
+    },
+    "applying": "Applying...",
+    "repairing": "Repairing...",
+    "unidentifiedMod": "an unidentified mod"
+  },
+  "latestPolish": {
+    "title": "Library and appearance refinements",
+    "summary": "Clearer instance creation, a lighter catalog and explicit confirmation for skin changes.",
+    "creation": "More space for instance creation, aligned loader options and readable controls.",
+    "catalog": "Complete card logos, unclipped filters and more content prepared ahead while scrolling.",
+    "appearance": "Pending skin notice and shader and datapack headers without overflowing borders."
   }
 }

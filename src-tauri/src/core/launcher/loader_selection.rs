@@ -79,6 +79,15 @@ mod tests {
     }
 
     #[test]
+    fn every_supported_loader_retains_its_exact_pinned_version() {
+        for (loader, key, version) in [("fabric", "fabric-loader", "0.16.10"), ("quilt", "quilt-loader", "0.27.1"), ("forge", "forge", "47.4.10"), ("neoforge", "neoforge", "21.1.256")] {
+            let value = serde_json::json!({"dependencies": {key: version, "minecraft": "1.20.1"}});
+            assert_eq!(declared(&value), Some((loader.into(), version.into())));
+        }
+        assert_eq!(declared(&serde_json::json!({"dependencies": {"minecraft": "1.8.9"}})), None);
+    }
+
+    #[test]
     fn primary_loader_wins_and_modrinth_uses_dependencies() {
         let value = serde_json::json!({"minecraft":{"modLoaders":[{"id":"forge-47.0.0"},{"id":"fabric-0.14.23","primary":true}]}});
         assert_eq!(declared(&value).unwrap().0, "fabric");

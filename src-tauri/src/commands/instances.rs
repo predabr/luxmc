@@ -1513,9 +1513,10 @@ pub async fn instance_file_tree(
         .await
         .map_err(|error| AppError::Internal(error.to_string()))??;
 
-        for (fname, path, _, _, is_jar_or_zip) in &scanned {
+        for (fname, path, _, metadata, is_jar_or_zip) in &scanned {
             if *is_jar_or_zip {
                 keys_needed.insert(fname.clone());
+                keys_needed.insert(crate::commands::mods::content_icon_key(path, metadata));
                 if let Some(stem) = path.file_stem().map(|s| s.to_string_lossy().to_string()) {
                     keys_needed.insert(stem);
                 }
@@ -1545,21 +1546,30 @@ pub async fn instance_file_tree(
         std::collections::HashMap::new()
     };
 
+    let allow_legacy_icons = subPath.as_deref() == Some("mods");
     let cached_icons = cached_icons;
     let computed = tokio::task::spawn_blocking(move || {
         let mut out = Vec::with_capacity(raw_entries.len());
         for (fname, path, is_dir, metadata, is_jar_or_zip) in raw_entries {
             let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+            let cache_key = crate::commands::mods::content_icon_key(&path, &metadata);
             let mut icon = None;
             let mut from_cache = false;
+            if is_dir {
+                icon = crate::commands::mods::extract_mod_icon_from_jar(&path);
+                from_cache = true;
+            }
             if is_jar_or_zip {
-                if let Some(cached) = cached_icons.get(&fname).or_else(|| cached_icons.get(&stem)) {
+                if let Some(cached) = cached_icons.get(&cache_key) {
                     icon = Some(crate::commands::mods::compact_mod_icon(cached));
                     from_cache = icon.as_ref() == Some(cached);
-                } else { icon = crate::commands::mods::extract_mod_icon_from_jar(&path); }
+                } else {
+                    icon = crate::commands::mods::extract_mod_icon_from_jar(&path);
+                    if icon.is_none() && allow_legacy_icons { icon = cached_icons.get(&fname).or_else(|| cached_icons.get(&stem)).cloned(); }
+                }
             }
             let size = if is_dir { compute_dir_size(&path) } else { metadata.len() };
-            out.push((fname, path, is_dir, size, icon, from_cache));
+            out.push((fname, path, is_dir, size, icon, from_cache, cache_key));
         }
         out
     })
@@ -1569,11 +1579,11 @@ pub async fn instance_file_tree(
     if computed.iter().any(|entry| !entry.5 && entry.4.is_some()) {
         if let Ok(mut transaction) = db.pool().begin().await {
             let mut success = true;
-            for (fname, _, _, _, icon, from_cache) in &computed {
+            for (_, _, _, _, icon, from_cache, cache_key) in &computed {
                 if !from_cache {
                     if let Some(icon) = icon {
                         if sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
-                            .bind(fname).bind(icon).execute(&mut *transaction).await.is_err() {
+                            .bind(cache_key).bind(icon).execute(&mut *transaction).await.is_err() {
                             success = false;
                             break;
                         }
@@ -1586,7 +1596,7 @@ pub async fn instance_file_tree(
     }
 
     let mut entries = Vec::new();
-    for (fname, path, is_dir, size, icon, _) in computed {
+    for (fname, path, is_dir, size, icon, _, _) in computed {
         entries.push(FileTreeEntry {
             name: fname,
             path: path.to_string_lossy().to_string(),
@@ -3534,6 +3544,7 @@ pub async fn instance_pack_add(
     profileId: String,
     packType: String,
     sourcePath: String,
+    worldName: Option<String>,
 ) -> AppResult<String> {
     let src = std::path::PathBuf::from(&sourcePath);
     if !src.is_file() {
@@ -3573,9 +3584,10 @@ pub async fn instance_pack_add(
         _ => "resourcepacks",
     };
 
+    let target_dir = if packType == "datapacks" { super::mods::datapack_directory(&row.game_dir, worldName.as_deref()).await? } else { std::path::PathBuf::from(&row.game_dir).join(folder_name) };
     let result_file_name = file_name.clone();
     tokio::task::spawn_blocking(move || -> AppResult<()> {
-        let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
+
         if !target_dir.exists() {
             std::fs::create_dir_all(&target_dir)?;
         }
@@ -3596,6 +3608,7 @@ pub async fn instance_pack_delete(
     profileId: String,
     packType: String,
     fileName: String,
+    worldName: Option<String>,
 ) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -3614,8 +3627,8 @@ pub async fn instance_pack_delete(
         return Err(crate::error::AppError::InvalidInput("Invalid file name".into()));
     }
 
+    let pack_dir = if packType == "datapacks" { super::mods::datapack_directory(&row.game_dir, worldName.as_deref()).await? } else { std::path::PathBuf::from(&row.game_dir).join(folder_name) };
     tokio::task::spawn_blocking(move || -> AppResult<()> {
-        let pack_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
         let target_path = pack_dir.join(&fileName);
         let canonical = match target_path.canonicalize() {
             Ok(canonical) => canonical,
@@ -3641,6 +3654,7 @@ pub async fn instance_pack_delete(
 pub async fn instance_pack_open_folder(
     profileId: String,
     packType: String,
+    worldName: Option<String>,
 ) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -3655,7 +3669,7 @@ pub async fn instance_pack_open_folder(
         _ => "resourcepacks",
     };
 
-    let target_dir = std::path::PathBuf::from(&row.game_dir).join(folder_name);
+    let target_dir = if packType == "datapacks" { super::mods::datapack_directory(&row.game_dir, worldName.as_deref()).await? } else { std::path::PathBuf::from(&row.game_dir).join(folder_name) };
     open_folder_safe(&target_dir)?;
     Ok(())
 }

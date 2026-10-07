@@ -36,6 +36,17 @@ pub fn analyze_crash_text(log: &str) -> CrashDiagnosis {
         return CrashDiagnosis::default();
     }
 
+    for (needle, title, message, solution, category) in [
+        ("Invalid session", "Sessão de jogo inválida", "O servidor solicitou uma sessão oficial e a sessão enviada não foi aceita.", "Em uma sala privada Luxmc, atualize e reinicie o Minecraft dos dois participantes. Em servidores oficiais, entre novamente com a conta Microsoft que possui o jogo.", "authentication"),
+        ("Client shutdown from post-main", "O jogo terminou, mas o processo não fechou", "O watchdog detectou threads ainda abertas depois do encerramento do Minecraft.", "Atualize o launcher e os mods. Abra o relatório de threads para identificar o componente que mantém o processo ativo.", "shutdown"),
+        ("UnknownHostException", "Endereço do servidor não resolvido", "O computador não conseguiu resolver o nome do servidor no DNS.", "Confira o endereço e a conexão. Não desative IPv6 automaticamente; teste o domínio e verifique os registros DNS/SRV do servidor.", "network_dns"),
+        ("Connection refused", "O destino recusou a conexão", "Não havia um servidor aceitando conexões no endereço e porta usados.", "Abra o mundo em LAN novamente e aguarde a atualização da sala. Verifique se o hospedeiro continua conectado e se a versão e o modpack são compatíveis.", "network_refused"),
+    ] {
+        if trimmed.to_ascii_lowercase().contains(&needle.to_ascii_lowercase()) {
+            return CrashDiagnosis { has_error: true, title: title.into(), message: message.into(), solution: solution.into(), category: category.into(), offending_mod: None, recommended_action: Some("open_folder".into()), log_snippet: extract_snippet(trimmed, needle) };
+        }
+    }
+
     let re_optifine_create = Regex::new(r"(?i)(create.*optifine|optifine.*create|Flywheel.*OptiFine|net\.coderbot\.iris.*optifine|com\.simibubi\.create.*optifine)").unwrap();
     if re_optifine_create.is_match(trimmed) {
         return CrashDiagnosis {
@@ -529,6 +540,16 @@ pub fn check_mod_conflicts_with_paths(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn session_shutdown_and_network_failures_have_specific_diagnoses() {
+        for (log, category) in [("Failed to log in: Invalid session", "authentication"), ("java.lang.Error: Watchdog (Client shutdown from post-main)", "shutdown"), ("java.net.UnknownHostException: server.example", "network_dns"), ("java.net.ConnectException: Connection refused", "network_refused")] {
+            let diagnosis = analyze_crash_text(log);
+            assert!(diagnosis.has_error);
+            assert_eq!(diagnosis.category, category);
+            assert!(!diagnosis.solution.is_empty());
+        }
+    }
 
     #[test]
     fn test_diagnose_optifine_create_conflict() {

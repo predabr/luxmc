@@ -8,6 +8,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	type Props = {
 		variant?: ButtonVariant;
 		tooltip?: string;
+		label?: string;
 		tooltipPosition?: "top" | "bottom" | "left" | "right";
 		loading?: boolean;
 		disabled?: boolean;
@@ -19,6 +20,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let {
 		variant = "ghost",
 		tooltip,
+		label,
 		tooltipPosition = "top",
 		loading = false,
 		disabled = false,
@@ -30,12 +32,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 {#if tooltip}
 	<Tooltip content={tooltip} position={tooltipPosition}>
-		<Button aria-label={tooltip || uiText("ui.1dfbdde6410ab51a")} {variant} size="icon" {loading} {disabled} {onclick} class={klass}>
+		<Button aria-label={label || tooltip || uiText("ui.1dfbdde6410ab51a")} {variant} size="icon" {loading} {disabled} {onclick} class={klass}>
 			{#if children}{@render children()}{/if}
 		</Button>
 	</Tooltip>
 {:else}
-	<Button aria-label={tooltip || uiText("ui.1dfbdde6410ab51a")} {variant} size="icon" {loading} {disabled} {onclick} class={klass}>
+	<Button aria-label={label || tooltip || uiText("ui.1dfbdde6410ab51a")} {variant} size="icon" {loading} {disabled} {onclick} class={klass}>
 		{#if children}{@render children()}{/if}
 	</Button>
 {/if}

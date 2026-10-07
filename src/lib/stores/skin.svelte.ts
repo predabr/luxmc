@@ -1,5 +1,5 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
-import { authSaveAppearance } from "$lib/api/auth";
+import { authAccounts, authRestoreMicrosoft, authSaveAppearance } from "$lib/api/auth";
 import { account, saveCurrentAccount } from "./account.svelte";
 import { toast } from "./toasts.svelte";
 
@@ -7,11 +7,21 @@ let pendingSave: Promise<void> = Promise.resolve();
 export async function saveAppearance(skinUrl: string, variant: "classic" | "slim", capeUrl: string | null, avatarUrl?: string): Promise<void> {
     const current = account.value;
     if (!current) return Promise.reject(new Error(uiText("ui.bf88bb781c9789c1")));
-    const request = pendingSave.catch(() => {}).then(() => authSaveAppearance(current.id, skinUrl, variant, capeUrl));
+    const identity = current.uuid.replaceAll("-", "").toLowerCase();
+    let persistedId = current.id;
+    const request = pendingSave.catch(() => {}).then(async () => {
+        const rows = await authAccounts();
+        const row = rows.find(row => row.uuid.replaceAll("-", "").toLowerCase() === identity);
+        if (row) persistedId = row.id;
+        else if (!current.id.startsWith("luxmc:") && current.minecraftToken.length > 100) {
+            persistedId = (await authRestoreMicrosoft(current.uuid, current.minecraftToken)).id;
+        }
+        await authSaveAppearance(persistedId, skinUrl, variant, capeUrl);
+    });
     pendingSave = request;
     await request;
-    if (account.value?.id !== current.id) return;
-    const updated = { ...account.value, skinUrl, skinVariant: variant, capeUrl, ...(avatarUrl ? { avatarUrl } : {}) };
+    if (account.value?.uuid.replaceAll("-", "").toLowerCase() !== identity) return;
+    const updated = { ...account.value, id: persistedId, skinUrl, skinVariant: variant, capeUrl, ...(avatarUrl ? { avatarUrl } : {}) };
     account.value = updated;
     await saveCurrentAccount(updated);
     return request;

@@ -6,11 +6,40 @@ pub mod db;
 pub mod error;
 mod state;
 use state::AppState;
-use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 use tauri::Manager;
 use tauri_plugin_deep_link::DeepLinkExt;
 
 static MEDIA_SERVER_PORT: AtomicU16 = AtomicU16::new(0);
+static CLOSE_TO_TRAY: AtomicBool = AtomicBool::new(true);
+static TRAY_AVAILABLE: AtomicBool = AtomicBool::new(false);
+
+pub fn set_close_to_tray(enabled: bool) { CLOSE_TO_TRAY.store(enabled, Ordering::Relaxed); }
+
+fn show_launcher(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+    }
+}
+
+fn setup_tray(app: &tauri::App, language: &str) -> tauri::Result<()> {
+    use tauri::{menu::{Menu, MenuItem}, tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}};
+    let (open_label, exit_label) = match language { "en" => ("Open Luxmc", "Exit Luxmc"), "es" => ("Abrir Luxmc", "Salir de Luxmc"), _ => ("Abrir Luxmc", "Sair do Luxmc") };
+    let open = MenuItem::with_id(app, "open", open_label, true, None::<&str>)?;
+    let exit = MenuItem::with_id(app, "exit", exit_label, true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&open, &exit])?;
+    let mut builder = TrayIconBuilder::with_id("luxmc").tooltip("Luxmc").menu(&menu).show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id.as_ref() { "open" => show_launcher(app), "exit" => app.exit(0), _ => {} })
+        .on_tray_icon_event(|tray, event| {
+            if matches!(event, TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. }) { show_launcher(tray.app_handle()); }
+        });
+    if let Some(icon) = app.default_window_icon() { builder = builder.icon(icon.clone()); }
+    builder.build(app)?;
+    TRAY_AVAILABLE.store(true, Ordering::Relaxed);
+    Ok(())
+}
 
 #[tauri::command]
 fn media_server_port() -> Option<u16> {
@@ -360,6 +389,9 @@ pub async fn run() {
         tracing::error!(error = %e, "failed to initialise database");
     }
 
+    let initial_settings = commands::settings::settings_get().await.unwrap_or_default();
+    set_close_to_tray(initial_settings.get("closeToTray").and_then(serde_json::Value::as_bool).unwrap_or(true));
+    let tray_language = initial_settings.get("language").and_then(serde_json::Value::as_str).unwrap_or("pt-BR").to_string();
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
             if let Some(window) = app.get_webview_window("main") {
@@ -370,7 +402,8 @@ pub async fn run() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .manage(commands::deep_links::PendingLinks::default())
-        .setup(|app| {
+        .setup(move |app| {
+            if let Err(error) = setup_tray(app, &tray_language) { tracing::warn!(%error, "System tray unavailable"); }
             #[cfg(target_os = "linux")]
             {
                 extern "C" {
@@ -465,6 +498,13 @@ pub async fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .manage(AppState::default())
+        .on_window_event(|window, event| {
+            if window.label() == "main" && CLOSE_TO_TRAY.load(Ordering::Relaxed) && TRAY_AVAILABLE.load(Ordering::Relaxed) {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if window.hide().is_ok() { api.prevent_close(); }
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             network::p2p_tunnel::host_world,
             network::p2p_tunnel::join_world,
@@ -512,6 +552,7 @@ pub async fn run() {
             commands::auth::auth_set_client_id,
             commands::auth::auth_change_skin,
             commands::auth::auth_save_appearance,
+            commands::auth::auth_restore_microsoft,
             commands::auth::auth_resolve_texture,
             commands::auth::auth_read_local_texture,
             commands::wallpaper::wallpaper_prepare_video,

@@ -133,13 +133,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		jvmArgsValidate,
 		getSystemSpecs,
 		optimizerGetFlags,
-		optimizerGetPerfPack,
-		optimizerInstallPerfPack,
 		optimizerDetectGpu,
 		modsResolveNames,
 		modsResolveIcons,
 		type GpuInfo,
-		type PerformancePackInfo,
 		type JvmValidationResult,
 		type FileTreeEntry,
 		type WorldDetail,
@@ -307,9 +304,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let instanceGamescopeFsr = $state(false);
 	let instanceForceFullVerification = $state(false);
 	let gpuInfo = $state<GpuInfo | null>(null);
-	let perfPackInfo = $state<PerformancePackInfo | null>(null);
 	let generatedAikarFlags = $state<string[]>([]);
-	let installingPerfPack = $state(false);
 	let instancePreLaunchHook = $state("");
 	let instancePostExitHook = $state("");
 	let systemRamMb = $state(8192);
@@ -453,19 +448,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		settingsModalSyncedFor = null;
 	}
 
-	async function handleInstallPerfPack() {
-		if (!activeProfile) return;
-		installingPerfPack = true;
-		try {
-			const installed = await optimizerInstallPerfPack(activeProfile.id);
-			toast(`Pacote de performance instalado: ${installed.join(", ")}`, "success");
-			await refreshAllData();
-		} catch (e) {
-			toast(uiText("ui.be9e90b474c96944", {arg0: (String(e))}), "error");
-		} finally {
-			installingPerfPack = false;
-		}
-	}
 
 	let jvmValidation = $state<JvmValidationResult | null>(null);
 	let isRepairing = $state(false);
@@ -756,6 +738,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	// Real Data from File System & Backend
 	let worldsList = $state<WorldDetail[]>([]);
+    let datapackWorld = $state("");
 	let screenshotsList = $state<Array<{ name: string; path: string; modified: string; dataUrl?: string | null; thumbPath?: string | null }>>([]);
 	let previewScreenshot = $state<{ name: string; path: string; dataUrl?: string | null } | null>(null);
 	let screenshotZoom = $state(1);
@@ -1050,7 +1033,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 if (specs?.totalRamMb > 0) systemRamMb = specs.totalRamMb;
                 gpuInfo = await optimizerDetectGpu();
                 if (!current()) return;
-                if (activeProfile) perfPackInfo = await optimizerGetPerfPack(activeProfile.loader, activeProfile.mcVersion);
                 if (!current()) return;
                 await detectJava();
             } else if (section === "mundos") {
@@ -1060,7 +1042,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 const data = await instancesScreenshots(id);
                 if (current()) screenshotsList = data;
             } else {
-                const folder = section === "ficheiros" ? path || undefined : section === "shaders" ? "shaderpacks" : section;
+                if (section === "datapacks") {
+                    worldsList = await instanceWorldsList(id);
+                    if (!worldsList.some(world => world.folderName === datapackWorld)) datapackWorld = worldsList[0]?.folderName || "";
+                    if (!datapackWorld) { dataPacks = []; loadedSections.add(key); return; }
+                }
+                const folder = section === "datapacks" ? `saves/${datapackWorld}/datapacks` : section === "ficheiros" ? path || undefined : section === "shaders" ? "shaderpacks" : section;
                 const data = await instanceFileTree(id, folder);
                 if (!current()) return;
                 if (section === "mods") {
@@ -1108,7 +1095,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 frozenModNames = Array.isArray(saved) ? saved.filter((name): name is string => typeof name === 'string').slice(0, 10000) : [];
             } catch { frozenModNames = []; }
             instanceMods = []; resourcePacks = []; shaderPacks = []; dataPacks = [];
-            worldsList = []; screenshotsList = []; fileTree = [];
+            worldsList = []; datapackWorld = ""; screenshotsList = []; fileTree = [];
             fileSubPath = ""; fileBreadcrumbs = [];
             shieldResult = null; hasAutoScannedShield = false;
             const generation = dataGeneration;
@@ -1669,7 +1656,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (!selected) return;
 			const paths = Array.isArray(selected) ? selected : [selected];
 			for (const p of paths) {
-				await instancePackAdd(instanceId, packType, p);
+				await instancePackAdd(instanceId, packType, p, packType === "datapacks" ? datapackWorld : undefined);
 			}
 			toast(uiText("ui.fd5be19f7f80fe28", {arg0: (paths.length), arg1: (label.toLowerCase())}), "success");
 			await refreshAllData();
@@ -1680,7 +1667,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	async function handleDeletePack(fileName: string, packType: "shaderpacks" | "datapacks" | "resourcepacks") {
 		try {
-			await instancePackDelete(instanceId, packType, fileName);
+			await instancePackDelete(instanceId, packType, fileName, packType === "datapacks" ? datapackWorld : undefined);
 			playSound("delete");
 			toast(uiText("ui.f3e43f3065bf2a2b"), "success");
 			await refreshAllData();
@@ -1691,7 +1678,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	async function handleOpenPackFolder(packType: "shaderpacks" | "datapacks" | "resourcepacks") {
 		try {
-			await instancePackOpenFolder(instanceId, packType);
+			await instancePackOpenFolder(instanceId, packType, packType === "datapacks" ? datapackWorld : undefined);
 		} catch (e) {
 			toast(uiText("ui.b9f5a23e16422403") + String(e), "error");
 		}
@@ -2191,9 +2178,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 {/if}
                 {#each packGroups.filter(group => group.id === subTab) as group (group.id)}
                     {@const packs = normalizedSearch ? group.items.filter(pack => pack.name.toLowerCase().includes(normalizedSearch)) : group.items}
-                    <section class="rounded-2xl border border-border bg-bg-elevated" aria-label={group.label}>
-                        <header class="flex flex-wrap items-center gap-3 p-4 border-b border-border">
+                    <section class="overflow-hidden rounded-2xl border border-border bg-bg-elevated" aria-label={group.label}>
+                        <header class="flex flex-wrap items-center gap-3 p-4 border-border" class:border-b={packs.length > 0}>
                             <group.icon class="h-5 w-5 text-brand-400" /><h3 class="text-sm font-semibold text-fg">{group.label}</h3><span class="content-count text-xs text-fg-muted">{group.items.length}</span>
+                            {#if group.id === "datapacks"}<select aria-label={uiText("files.saves")} bind:value={datapackWorld} onchange={() => void loadSection("datapacks", true)} class="max-w-56 rounded-xl border border-border bg-bg-elevated px-3 py-2 text-sm text-fg">{#if !worldsList.length}<option value="">{uiText("files.saves")}: 0</option>{/if}{#each worldsList as world}<option value={world.folderName}>{world.folderName}</option>{/each}</select>{/if}
                             <div class="ml-auto flex flex-wrap gap-2">
                                 <a class={button({ variant: 'ghost', size: 'sm' })} href={`/mods?instance=${encodeURIComponent(instanceId)}&type=${group.id === 'resourcepacks' ? 'resourcepack' : group.id === 'shaders' ? 'shader' : 'datapack'}`}><Download class="h-4 w-4" />{uiText("ui.aa56664d77c69c69")}</a>
                                 <button type="button" class={button({ variant: 'secondary', size: 'sm' })} onclick={() => handleOpenPackFolder(group.type)}><FolderOpen class="h-4 w-4" />{uiText("screenshots.openFolderBtn")}</button>
@@ -2204,8 +2192,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                             <div class="grid gap-2 p-3 sm:grid-cols-2">
                                 {#each packs as pack (pack.name)}
                                     <div class="flex min-w-0 items-center gap-3 rounded-xl border border-border p-3">
-                                        <group.icon class="h-5 w-5 shrink-0 text-fg-muted" />
+                                        <div class="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-bg-subtle">
+                                            <group.icon class="absolute h-5 w-5 text-fg-muted" />
+                                            {#if pack.icon}<img src={pack.icon} alt={pack.name} loading="lazy" decoding="async" class="relative h-full w-full object-contain" onerror={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />{/if}
+                                        </div>
                                         <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}</p><p class="mt-1 text-[10px] text-fg-muted">{(pack.size / 1048576).toFixed(2)} MB</p></div>
+                                        <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`${uiText("screenshots.openFolderBtn")}: ${pack.name}`} title={uiText("screenshots.openFolderBtn")} onclick={() => handleOpenPackFolder(group.type)}><FolderOpen class="h-4 w-4" /></button>
                                         <button type="button" class={button({ variant: 'ghostDanger', size: 'icon' })} aria-label={uiText("ui.a03c3b676aa5e5d1", {arg0: (pack.name)})} onclick={() => handleDeletePack(pack.name, group.type)}><Trash2 class="h-4 w-4" /></button>
                                     </div>
                                 {/each}
@@ -2746,49 +2738,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 										{generatedAikarFlags.join(" ")}
 									</div>
 								</div>
-							</div>
-
-							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 space-y-3">
-								<div class="flex items-center justify-between">
-									<div>
-										<div class="flex items-center gap-2">
-											<span class="text-xs font-bold text-fg">{uiText("ui.62718b0470023b1d")}</span>
-											{#if perfPackInfo?.available}
-												<span class="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded font-bold">{uiText("ui.9b99805faf33cdc0")}</span>
-											{:else}
-												<span class="text-[9px] bg-fg/10 text-fg/40 px-1.5 py-0.5 rounded font-bold">{uiText("ui.60cf6b61c55f4a3f")}</span>
-											{/if}
-										</div>
-										<span class="text-[10px] text-fg/40 block mt-0.5">
-											{perfPackInfo?.available ? uiText("ui.a46c9eb6f8195594") : (perfPackInfo?.reason || 'Requer modloader')}
-										</span>
-									</div>
-									{#if perfPackInfo?.available}
-										<button
-											type="button"
-											disabled={installingPerfPack}
-											class={launcherButton({ variant: "primary", size: "sm", class: "disabled:opacity-50 flex items-center gap-1.5" })}
-											onclick={handleInstallPerfPack}
-										>
-											{#if installingPerfPack}
-												<RefreshCw class="w-3.5 h-3.5 animate-spin" /> {uiText("ui.b1e8e68efcbda240")}
-											{:else}
-												<Download class="w-3.5 h-3.5" /> {uiText("ui.d47e2e9b2eef0b10")}
-											{/if}
-										</button>
-									{/if}
-								</div>
-
-								{#if perfPackInfo?.available && perfPackInfo.mods.length > 0}
-									<div class="grid grid-cols-3 gap-2 pt-1">
-										{#each perfPackInfo.mods as mod}
-											<div class="bg-bg-overlay/30 p-2 rounded-xl border border-fg/5">
-												<span class="font-bold text-[11px] text-fg block">{mod.title}</span>
-												<span class="text-[9px] text-fg/40 block line-clamp-2 mt-0.5">{mod.description}</span>
-											</div>
-										{/each}
-									</div>
-								{/if}
 							</div>
 
 							<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 flex items-center justify-between">

@@ -279,20 +279,20 @@ async fn dispatch_command(
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let pack_type = args.get("packType").or_else(|| args.get("pack_type")).and_then(|v| v.as_str()).unwrap_or("resourcepacks").to_string();
             let source_path = args.get("sourcePath").or_else(|| args.get("source_path")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let res = crate::commands::instances::instance_pack_add(profile_id, pack_type, source_path).await.map_err(|e| e.to_string())?;
+            let res = crate::commands::instances::instance_pack_add(profile_id, pack_type, source_path, args.get("worldName").or_else(|| args.get("world_name")).and_then(|v| v.as_str()).map(str::to_owned)).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "instance_pack_delete" => {
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let pack_type = args.get("packType").or_else(|| args.get("pack_type")).and_then(|v| v.as_str()).unwrap_or("resourcepacks").to_string();
             let file_name = args.get("fileName").or_else(|| args.get("file_name")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            crate::commands::instances::instance_pack_delete(profile_id, pack_type, file_name).await.map_err(|e| e.to_string())?;
+            crate::commands::instances::instance_pack_delete(profile_id, pack_type, file_name, args.get("worldName").or_else(|| args.get("world_name")).and_then(|v| v.as_str()).map(str::to_owned)).await.map_err(|e| e.to_string())?;
             Ok(Value::Bool(true))
         },
         "instance_pack_open_folder" => {
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let pack_type = args.get("packType").or_else(|| args.get("pack_type")).and_then(|v| v.as_str()).unwrap_or("resourcepacks").to_string();
-            crate::commands::instances::instance_pack_open_folder(profile_id, pack_type).await.map_err(|e| e.to_string())?;
+            crate::commands::instances::instance_pack_open_folder(profile_id, pack_type, args.get("worldName").or_else(|| args.get("world_name")).and_then(|v| v.as_str()).map(str::to_owned)).await.map_err(|e| e.to_string())?;
             Ok(Value::Bool(true))
         },
         "instance_import_modpack" => {
@@ -825,6 +825,12 @@ async fn dispatch_command(
         ).await.map_err(|e| e.to_string())?)),
         "auth_read_local_texture" => Ok(serde_json::json!(crate::commands::auth::auth_read_local_texture(args.get("path").and_then(Value::as_str).ok_or("Caminho ausente")?.to_owned()).await.map_err(|e| e.to_string())?)),
         "auth_resolve_texture" => Ok(serde_json::json!(crate::commands::auth::auth_resolve_texture(args.get("url").and_then(Value::as_str).ok_or("URL ausente")?.to_owned()).await.map_err(|e| e.to_string())?)),
+        "auth_restore_microsoft" => {
+            let uuid = args.get("uuid").and_then(|v| v.as_str()).ok_or("Missing uuid")?.to_owned();
+            let token = args.get("accessToken").and_then(|v| v.as_str()).ok_or("Missing accessToken")?.to_owned();
+            let result = crate::commands::auth::auth_restore_microsoft(uuid, token).await.map_err(|e| e.to_string())?;
+            serde_json::to_value(result).map_err(|e| e.to_string())
+        },
         "auth_save_appearance" => {
             let uuid = args.get("uuid").and_then(Value::as_str).unwrap_or_default().to_owned();
             let skin = args.get("skinUrl").and_then(Value::as_str).unwrap_or_default().to_owned();

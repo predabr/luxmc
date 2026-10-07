@@ -49,6 +49,7 @@
 			!appState.performanceMode &&
 			!appState.isGameRunning &&
 			settings.value.liveWallpaper !== false &&
+			(settings.value.pauseWallpaperOnBlur === false || focused) &&
 			!document.hidden
 		);
 	}

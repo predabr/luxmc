@@ -374,7 +374,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             savedSkins = next;
         }
         selectValidatedSkin(saved, model);
-        toast(uiText("skinsStudio.nameMcImported"), "success");
+        toast(uiText("skinsStudio.pendingApply"), "info");
     }
 
     let importController: AbortController | null = null;
@@ -491,7 +491,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     async function applyAppearance() {
         if (!canApplyAppearance) return;
         const applied = selection;
-        const owner = account.value?.id;
+        const owner = account.value?.uuid;
         const source = currentSkinUrl;
         const model = skinType;
         const cape = selectedCape;
@@ -519,7 +519,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             const avatarUrl = await createSkinAvatar(skin, controller.signal, model);
             if (controller.signal.aborted) return;
             await saveAppearance(skin, model === "alex" ? "slim" : "classic", capeUrl, avatarUrl);
-            if (account.value?.id !== owner) throw new Error(uiText("ui.10552831b711a961"));
+            if (account.value?.uuid !== owner) throw new Error(uiText("ui.10552831b711a961"));
             if (controller.signal.aborted) return;
             appliedSelection = applied;
             try {
@@ -605,8 +605,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		</div>
 	</header>
 
-    <div class="sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fg/10 bg-bg-elevated p-4 shadow-elevated backdrop-blur-xl">
-        <p class="text-sm text-fg-muted" role="status">{saving ? isMicrosoft ? uiText("skinsStudio.syncing") : uiText("ui.c96a5ffa4c9a8e9c") : saveError ? uiText("ui.f3e4295a34844bee") + saveError : syncError || (hasPendingChange ? uiText("ui.69e9fbeba0d02d87") : uiText("ui.0d8e3ff973d2531e"))}</p>
+    <div class="sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fg/10 bg-bg-elevated p-4 shadow-elevated">
+        <p class="text-sm text-fg-muted" class:text-brand-400={hasPendingChange && !saving} role="status">{saving ? isMicrosoft ? uiText("skinsStudio.syncing") : uiText("ui.c96a5ffa4c9a8e9c") : saveError ? uiText("ui.f3e4295a34844bee") + saveError : syncError || (hasPendingChange ? uiText("skinsStudio.pendingApply") : uiText("ui.0d8e3ff973d2531e"))}</p>
         <div class="flex gap-2">
             <Button variant="primary" size="lg" loading={saving} disabled={!canApplyAppearance} onclick={applyAppearance}>{saving ? uiText("skinsStudio.applying") : isMicrosoft ? uiText("ui.96d74ee46d837a1f") : uiText("ui.24e056555b501d83")}</Button>
         </div>

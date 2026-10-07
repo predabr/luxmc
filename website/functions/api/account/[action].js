@@ -1,5 +1,6 @@
 import { authenticate, cookie, digest, equalHash, json, limited, passwordHash, preferences, publicAccount, randomToken, readJson, sameOrigin, SESSION_SECONDS, validNickname, validPassword } from "../../../lib/accounts.js";
 import { texture } from "../../../lib/appearance.js";
+import { nicknameAvailability } from "../../../lib/nicknames.js";
 
 export async function onRequest({ request, env, params, waitUntil }) {
   try {
@@ -10,12 +11,17 @@ export async function onRequest({ request, env, params, waitUntil }) {
     const db = env.SOCIAL_DB;
     const pepper = env.AUTH_PEPPER;
   const action = params.action;
-  if (!["register", "login", "me", "logout", "sync", "password", "recover", "appearance"].includes(action)) return json({ error: "Ação desconhecida." }, 404);
+  if (!["register", "nickname", "login", "me", "logout", "sync", "password", "recover", "appearance"].includes(action)) return json({ error: "Ação desconhecida." }, 404);
   try {
     const body = await readJson(request, action === "appearance" ? 365000 : 8192);
     const ip = await digest(request.headers.get("CF-Connecting-IP") || "local");
     if (await limited(db, `account:${ip}`, 60, 120)) return json({ error: "Muitas requisições. Aguarde um minuto." }, 429);
     const now = Math.floor(Date.now() / 1000);
+    if (action === "nickname") {
+      if (!validNickname(body.username)) return json({ error: "Use um nickname de 3 a 16 letras, números ou _." }, 400);
+      if (await limited(db, `nickname:${ip}`, 60, 12)) return json({ error: "Aguarde um minuto para consultar outro nome." }, 429);
+      return json(await nicknameAvailability(db, body.username));
+    }
     if (Math.random() < 0.02) waitUntil(Promise.all([
       db.prepare("DELETE FROM lux_sessions WHERE expires_at < ?").bind(now).run(),
       db.prepare("DELETE FROM social_limits WHERE expires_at < ?").bind(now).run()
@@ -29,7 +35,8 @@ export async function onRequest({ request, env, params, waitUntil }) {
       let recoveryCode;
       if (action === "register") {
         if (await limited(db, `signup:${ip}`, 3600, 5)) return json({ error: "Limite de cadastros atingido. Tente mais tarde." }, 429);
-        if (user) return json({ error: "Esse nickname já está cadastrado." }, 409);
+        const availability = await nicknameAvailability(db, username);
+        if (!availability.available) return json({ error: availability.reason === "official" ? "Esse nome pertence a um jogador oficial do Minecraft. Escolha outro nickname." : "Esse nickname já está cadastrado.", ...availability }, 409);
         const id = crypto.randomUUID();
         const socialId = crypto.randomUUID();
         const salt = randomToken();

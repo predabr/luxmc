@@ -13,7 +13,11 @@ const fs = require('node:fs');
             window.mediaCalls = 0;
             const invoke = async (command, args) => {
                 if (command === 'plugin:store|load') return 1;
-                if (command === 'plugin:store|get') return [JSON.parse(localStorage.getItem('fixture-settings') || JSON.stringify(defaults)), true];
+                if (command === 'plugin:store|get') {
+                    if(localStorage.getItem('fixture-store-unavailable'))throw Error('Temporary store failure');
+                    return [JSON.parse(localStorage.getItem('fixture-settings') || JSON.stringify(defaults)), true];
+                }
+                if (command === 'settings_get') return JSON.parse(localStorage.getItem('fixture-settings') || JSON.stringify(defaults));
                 if (command === 'plugin:store|set') { localStorage.setItem('fixture-settings', JSON.stringify(args.value)); return null; }
                 if (command === 'app_init') return { account: { id: 'offline_test', username: 'Steve', uuid: 'offline_test', accessToken: '' }, profiles: [], devMode: true };
                 if (command === 'profiles_list' || command === 'changelog_get' || command === 'deep_links_take') return [];
@@ -61,6 +65,12 @@ const fs = require('node:fs');
             throw error;
         }
         assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('fixture-settings')).customWallpaperUrl), 'C:\\Luxmc\\wallpapers\\scene.mp4');
+        await page.evaluate(() => {
+            localStorage.setItem('fixture-store-unavailable','true');
+            for (const key of Object.keys(localStorage)) if (key.startsWith('luxmc_')) localStorage.removeItem(key);
+        });
+        await page.reload();
+        await page.waitForFunction(() => Array.from(document.querySelectorAll('video')).some(video => video.currentSrc.includes(':59002/media?') && video.currentTime > 0.3 && !video.paused), null, { timeout: 20000 });
         assert.deepEqual(errors, []);
         fs.mkdirSync('docs/validation/current-patch', { recursive: true });
         await page.screenshot({ path: 'docs/validation/current-patch/wallpaper-restarted.png' });

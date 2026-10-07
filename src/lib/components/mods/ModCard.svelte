@@ -63,15 +63,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 >
 	<div class="relative h-48 shrink-0 bg-bg-subtle rounded-t-2xl overflow-hidden">
         {#if item.iconUrl && effectiveBanner !== item.iconUrl}
-            <img src={item.iconUrl} alt="" loading="eager" decoding="async" class="absolute inset-0 h-full w-full object-cover" />
+            <img src={item.iconUrl} alt="" loading="lazy" decoding="async" class="absolute inset-0 h-full w-full object-cover" />
         {/if}
 		{#if effectiveBanner}
 			<img
 				src={effectiveBanner}
 				alt=""
-				loading="eager"
+				loading="lazy"
 				decoding="async"
-				class="relative h-full w-full rounded-t-2xl object-cover"
+				class="relative h-full w-full rounded-t-2xl {effectiveBanner === item.iconUrl ? 'object-contain p-4' : 'object-cover'}"
                 style:opacity={effectiveBanner === item.iconUrl || bannerLoaded ? 1 : 0}
                 onload={() => bannerLoaded = true}
 				onerror={() => { bannerAttempt += 1; }}
@@ -89,29 +89,30 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 			</div>
 		{/if}
-		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent"></div>
+		<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent" class:opacity-0={effectiveBanner === item.iconUrl}></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
+
+	</div>
 		{#if effectiveBanner && item.iconUrl && item.iconUrl !== effectiveBanner}
-			<div class="absolute -bottom-4 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
+			<div data-catalog-logo class="absolute top-40 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
 				<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
 			</div>
 		{/if}
-	</div>
-	<div class="flex flex-1 flex-col gap-3 p-5 pt-7">
-		<h3 class="truncate text-base font-bold text-fg group-hover:text-brand-400">
+	<div class="flex flex-1 flex-col min-h-0 gap-2.5 p-5 pt-10">
+		<h3 title={item.title} class="line-clamp-2 min-h-6 shrink-0 text-base leading-snug font-semibold text-fg group-hover:text-brand-400">
 			<span>{item.title}</span>
 		</h3>
-		<p class="line-clamp-2 min-h-8 text-xs leading-relaxed text-fg-muted">{item.description}</p>
+		<p class="line-clamp-2 min-h-8 shrink-0 text-xs leading-relaxed text-fg-muted">{item.description}</p>
 		<div class="flex items-center gap-1.5 text-xs text-fg-subtle"><Users class="h-3 w-3" /><span class="truncate">{item.author || item.slug}</span></div>
 		{#if loaders.length}<div class="flex flex-wrap gap-1.5">{#each loaders as loader}<LoaderBadge {loader} />{/each}</div>{/if}
-		<div class="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
+		<div class="mt-auto flex shrink-0 items-center justify-between gap-2 border-t border-border pt-3">
 			<div class="space-y-1 text-xs text-fg-muted"><span class="flex items-center gap-1"><Download class="h-3 w-3" />{downloads}</span>{#if latest}<span class="block text-[10px] text-fg-subtle">{uiText("ui.ca34ab5c748c6607")} {latest}</span>{/if}</div>
 			<button
 				type="button"
 				class={button({ variant: isInstalled ? "secondary" : "primary", size: "sm", class: "relative z-10" })}
 				onclick={(e) => { e.stopPropagation(); onInstall(item); }}
 				disabled={isInstalling || isInstalled}
-				aria-label={`${isInstalled ? "Instalado" : uiText("mods.install")}: ${item.title}`}
+				aria-label={`${isInstalled ? uiText("mods.installed") : uiText("mods.install")}: ${item.title}`}
 			>
 				{#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />{uiText("ui.f4200333ccfd750e")}{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />{uiText("mods.installed")}{:else if isModpack}<PackagePlus class="h-3.5 w-3.5" />{uiText("common.create")}{:else}<Download class="h-3.5 w-3.5" />{uiText("mods.install")}{/if}
 			</button>
@@ -120,6 +121,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </div>
 
 <style>
+	.catalog-card { contain: layout paint; font-family: var(--font-sans, Inter, sans-serif); }
 	.card-mesh {
 		background-image:
 			linear-gradient(30deg, rgb(var(--fg) / 0.05) 12%, transparent 12.5%, transparent 87%, rgb(var(--fg) / 0.05) 87.5%),

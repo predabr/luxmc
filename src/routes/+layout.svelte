@@ -173,6 +173,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		const warmRoutes = ["/", "/instances", "/mods", "/skins", "/news", "/settings", "/screenshots"];
 		let warmIndex = 0;
 		const warmTimer = setInterval(() => {
+			if (document.hidden || appState.isGameRunning) return;
 			if (warmIndex >= warmRoutes.length) {
 				clearInterval(warmTimer);
 				return;
@@ -552,7 +553,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		}
 
 		const rpcHeartbeat = setInterval(() => {
-			if (disposed || settings.value.discordRpc === false) return;
+			if (disposed || settings.value.discordRpc === false || (document.hidden && !appState.isGameRunning)) return;
             if (appState.isGameRunning) { if (latestDiscordActivity?.inGame) updateDiscordActivity(latestDiscordActivity).catch(() => {}); return; }
 			if (!appState.isGameRunning) {
 				const currentPath = page.url.pathname;
@@ -734,7 +735,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	});
 
     $effect(() => {
-        if (!appState.isGameRunning || settings.value.closeWarningOnGameRunning === false) return;
+        if (settings.value.closeToTray !== false || !appState.isGameRunning || settings.value.closeWarningOnGameRunning === false) return;
         let disposed = false;
         let pending = false;
         let unlisten: (() => void) | undefined;
