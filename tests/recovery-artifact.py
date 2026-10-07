@@ -7,7 +7,7 @@ installed = Path(os.environ['LOCALAPPDATA'])/'Luxmc/luxmc.exe'
 def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
 before = digest(installed) if installed.is_file() else None
 with tempfile.TemporaryDirectory(prefix='luxmc-recovery-artifact-') as temporary:
-    base=Path(temporary); app=base/'app'; app.mkdir(); state=base/'state'; state.mkdir()
+    base=Path(temporary).resolve(); assert base.parent==Path(tempfile.gettempdir()).resolve() and base.name.startswith('luxmc-recovery-artifact-'); app=base/'app'; app.mkdir(); state=base/'state'; state.mkdir()
     shutil.copyfile(binary,app/'luxmc.exe'); shutil.copyfile(helper,app/'luxmc-repair.exe')
     (app/'uninstall.exe').write_bytes(b'test uninstaller')
     data=base/'user-data'; data.mkdir(); (data/'level.dat').write_bytes(b'protected world'); (data/'auth.json').write_bytes(b'protected account')

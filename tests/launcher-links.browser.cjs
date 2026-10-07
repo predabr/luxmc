@@ -10,6 +10,7 @@ const assert=require('node:assert/strict');
    const events={};const queue=['luxmc://install/modpack?id=fabulously-optimized&source=modrinth'];window.testCalls=[];
    const invoke=async(command,args)=>{
      window.testCalls.push({command,args});
+     if(command==='auth_accounts')return [account];
      if(command==='app_init')return {account,profiles:[profile],activeProfileId:profile.id,devMode:true};
      if(command==='deep_links_take')return queue.splice(0);
      if(command==='mods_project_details')return {id:args.projectId,slug:args.projectId,title:args.projectId==='sodium'?'Sodium':'Fabulously Optimized',description:'Projeto de teste',body:'',bodyType:'markdown',iconUrl:null,downloads:1000000,categories:['fabric'],loaders:['fabric'],gameVersions:['1.20.1'],source:args.source,gallery:[]};
