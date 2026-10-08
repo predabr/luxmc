@@ -117,6 +117,10 @@ jobs:
             17
             21
 
+      - name: Prevent graphics calls before Minecraft initialization
+        if: runner.os == 'Linux'
+        run: node scripts/test-client-glfw.mjs
+
       - name: Reuse prepared Java in isolated loader fixtures
         if: runner.os == 'Linux'
         shell: bash

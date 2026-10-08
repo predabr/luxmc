@@ -26,6 +26,7 @@ const {setupLauncherDemo}=require('../scripts/launcher-video-fixture.cjs');
     if(command==='instance_list_world_backups')return [{fileName:'world_20261007_120000.zip',worldName:'Meu mundo',sizeBytes:1024,createdAt:'07/10/2026 12:00'}];
     if(command==='world_restore')return null;
     if(command==='mods_versions')return [{id:'pack',files:[{url:'https://cdn.modrinth.com/test.mrpack',filename:'test.mrpack',size:10,sha1:''}]}];
+    if(command==='pack_reference_version')return {id:args.reference.versionId,files:[{url:'https://cdn.modrinth.com/test.mrpack',filename:'test.mrpack',size:10,sha1:''}]};
     if(command==='mods_download_to_temp')return new Promise((resolve,reject)=>{rejectDownload=reject;window.finishQueueDownload=()=>resolve('/cached/test.mrpack');});
     if(command==='instance_cancel_import'){rejectDownload?.(new Error('Importação cancelada'));return null;}
     if(command==='verify_pack_download')return null;

@@ -28,6 +28,7 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
         const invoke = async (command, args) => {
             window.uiCalls.push({ command, args });
             if (command === 'mods_versions') return [{ id: 'new', name: 'Atual', versionNumber: '2', files: [{ url: 'https://cdn.modrinth.com/test.mrpack', filename: 'test.mrpack', size: 100 }] }, { id: 'old', name: 'Anterior', versionNumber: '1', files: [{ url: 'https://cdn.modrinth.com/old.mrpack', filename: 'old.mrpack', size: 100 }] }];
+            if (command === 'pack_reference_version') return { id: args.reference.versionId, files: [{ url: args.reference.versionId === 'old' ? 'https://cdn.modrinth.com/old.mrpack' : 'https://cdn.modrinth.com/test.mrpack', filename: 'test.mrpack', size: 100 }] };
             if (command === 'mods_project_details') return { id: args.projectId, slug: 'pack', title: 'Pack', description: 'Descrição', body: '', bodyType: 'markdown', categories: ['forge'], loaders: ['forge'], gameVersions: ['1.21.1'], downloads: 100, gallery: [], links: {} };
             if (command === 'versions_list') return { versions: [{ id: '1.21.1', versionType: 'release', releaseTime: '2024-08-08' }], latestRelease: '1.21.1', latestSnapshot: '' };
             if (command === 'mods_download_to_temp') return new Promise((resolve, reject) => { window.cancelDownload = () => reject(new Error('Importação cancelada')); });
@@ -119,13 +120,14 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
     await installer.getByRole('button', { name: 'Instalar modpack', exact: true }).click();
     await page.waitForFunction(() => typeof window.cancelDownload === 'function');
     await page.evaluate(() => window.eventHandlers['modpack-progress']({ phase: 'mods', current: 12, total: 187, percent: 6, status: 'Baixando mods (12/187)…' }));
-    await installer.getByRole('progressbar').getAttribute('aria-valuenow').then(value => assert.equal(value, '6'));
-    await page.waitForFunction(() => document.querySelector('.installer-progress-fill')?.getBoundingClientRect().width > 20);
+    const queue = page.getByRole('complementary', { name: 'Fila de instalações', exact: true });
+    await queue.getByRole('progressbar').getAttribute('aria-valuenow').then(value => assert.equal(value, '6'));
+    await page.waitForFunction(() => document.querySelector('aside[aria-label="Fila de instalações"] [role="progressbar"] > div')?.getBoundingClientRect().width > 20);
     if (process.env.LUXMC_ARTIFACT_DIR) await page.screenshot({ path: `${process.env.LUXMC_ARTIFACT_DIR}/installer-progress.png` });
-    await installer.getByRole('button', { name: 'Cancelar instalação', exact: true }).click();
+    await queue.getByRole('button', { name: 'Cancelar', exact: true }).click();
     await page.getByText('Importação cancelada.', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.uiCalls.filter(call => call.command === 'instance_cancel_import').length), 1);
-    await installer.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await queue.getByRole('button', { name: 'Fechar', exact: true }).click();
     await page.locator('.catalog-list-card').first().click();
     await page.getByRole('button', { name: /^Versões/ }).click();
     const previousVersion = page.getByText('Anterior', { exact: true }).locator('..').locator('..').locator('..');
@@ -133,8 +135,8 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
     await installer.getByRole('button', { name: 'Instalar modpack', exact: true }).click();
     await page.waitForFunction(() => window.uiCalls.filter(call => call.command === 'mods_download_to_temp').length === 2);
     assert.equal(await page.evaluate(() => window.uiCalls.filter(call => call.command === 'mods_download_to_temp').at(-1).args.url), 'https://cdn.modrinth.com/old.mrpack');
-    await installer.getByRole('button', { name: 'Cancelar instalação', exact: true }).click();
-    await installer.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await queue.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await queue.getByRole('button', { name: 'Fechar', exact: true }).click();
     const closeListenersIdle = await page.evaluate(() => window.uiCalls.filter(call => call.command === 'plugin:event|listen' && call.args.event === 'tauri://close-requested').length);
     assert.equal(closeListenersIdle, 0);
     if (!process.env.LUXMC_BASE_URL) {

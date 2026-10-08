@@ -1,0 +1,4 @@
+import{spawnSync}from'node:child_process';import{mkdtempSync,rmSync}from'node:fs';import{tmpdir}from'node:os';import{join,resolve,delimiter}from'node:path';
+const root=mkdtempSync(join(tmpdir(),'luxmc-glfw-probe-'));const home=process.env.LUXMC_JAVA_HOME||process.env.JAVA_HOME;const exe=name=>home?join(home,'bin',name+(process.platform==='win32'?'.exe':'')):name;const agent=resolve('src-tauri/assets/luxmc-client-agent.jar');
+function run(name,args){const result=spawnSync(exe(name),args,{stdio:'inherit',windowsHide:true});if(result.error)throw result.error;if(result.status!==0)throw new Error(`${name} failed: ${result.status}`)}
+try{run('javac',['--release','8','-encoding','UTF-8','-cp',agent,'-d',root,'tests/java/GlfwInitializationProbe.java']);run('java',['-cp',[agent,root].join(delimiter),'GlfwInitializationProbe'])}finally{rmSync(root,{recursive:true,force:true})}
