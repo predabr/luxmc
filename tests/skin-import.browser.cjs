@@ -47,7 +47,7 @@ const fs = require('node:fs');
     assert.deepEqual(saved.map(item => item.id), ['saved-steve-mmc']);
     await page.getByRole('region', { name: 'Visualizador 3D de Skin' }).locator('canvas').first().waitFor({ state: 'visible' });
     await page.evaluate(async () => {
-        const urls = performance.getEntriesByType('resource').map(entry => entry.name).filter(name => /\.js(?:\?|$)/.test(name));
+        const urls = performance.getEntriesByType('resource').map(entry => entry.name).filter(name => name.includes('skinview3d') && /\.js(?:\?|$)/.test(name));
         let SkinViewer;
         for (const url of urls) {
             const module = await import(url);
