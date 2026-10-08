@@ -39,3 +39,30 @@ As recomendações usam dados locais e observados. O planejamento não executa p
 O GitHub executa separadamente a compilação para três sistemas e, na VM Windows, a recuperação de downloads interrompidos e o ciclo de instalação/reinstalação/desinstalação. A publicação só é concluída depois da conferência dos instaladores.
 
 Os dez cenários de regressão do navegador foram aprovados, incluindo catálogo/scroll, mil mods na instância, criação de instância, laboratório, links, skins, diagnósticos Windows, hospedagem/armazenamento, idiomas e restauração do wallpaper. Os testes foram ajustados para distinguir o participante dos painéis de preparação, a notificação do erro inline e a capa principal de seu fundo decorativo.
+
+Também foram concluídas aberturas reais de Fabric 0.16.9 com FerriteCore no Minecraft 1.21.1, Quilt 0.28.1 no 1.20.1, Forge 47.4.20 no 1.20.1 e NeoForge 21.1.248 no 1.21.1. As janelas responderam, os logs registraram a inicialização do renderizador e não houve falha fatal detectada. O verificador 3.2 passou em oito testes de recuperação e numa prova nativa: uma cópia isolada foi corrompida, a corrupção foi detectada e os bytes originais restaurados. O instalador local foi publicado no site e seu download público conferido por SHA-256; a publicação completa do GitHub foi concluída e aprovada.
+
+## Divulgação e Google
+
+Não é possível garantir indexação imediata. O Google informa que o rastreamento pode levar dias ou semanas, e repetir uma solicitação para a mesma URL não acelera o processo. Com o sitemap respondendo corretamente, acompanhe o Search Console e solicite a indexação da página inicial quando a cota estiver disponível. Referência: [Solicitar novo rastreamento — Google Search Central](https://developers.google.com/search/docs/crawling-indexing/ask-google-to-recrawl).
+
+Meu plano para divulgar o Luxmc é publicar demonstrações reais curtas, uma página útil para cada recurso principal e guias originais sobre instalação de packs, recuperação e salas. Mostre versões testadas e limites, publique o link oficial nas descrições e procure criadores pequenos de Minecraft que queiram testar o produto. Uma comunidade de suporte e relatos verificáveis ajudam a transformar downloads em recomendações. Evite páginas repetidas criadas apenas para palavras-chave. Essas sugestões seguem a prioridade do Google para conteúdo original e útil, com evidência de experiência real: [Conteúdo útil — Google Search Central](https://developers.google.com/search/docs/fundamentals/creating-helpful-content), [Guia de SEO](https://developers.google.com/search/docs/fundamentals/seo-starter-guide).
+
+## Linguagens
+
+Não recomendo outra reescrita completa. Rust e Svelte/TypeScript foram mantidos; o site agora tem fontes TypeScript e o auxiliar C++ foi convertido para Rust. Java continua necessário para os agentes e a integração com Minecraft; Python continua nos utilitários. O desempenho deve ser guiado pelas medições de download, verificação, disco e inicialização do Java, porque trocar a linguagem do site não acelera o bootstrap de um modpack.
+
+Foi concluída também a abertura real de Vanilla 26.3: janela respondendo, renderizador inicializado e nenhuma falha fatal no log. A preparação com arquivos disponíveis levou 4,79 segundos.
+
+
+## Publicação final
+
+- [Release Luxmc 3.2.0](https://github.com/predabr/luxmc/releases/tag/v3.2.0): Windows, AppImage, DEB, RPM, Arch e DMG universal, além de SHA256SUMS e latest.json.
+- [Site oficial](https://luxmc-r92.pages.dev/): arquivos, interface e backend publicados; páginas e sitemap respondendo.
+- [Instalador Windows](https://luxmc-r92.pages.dev/download/windows): 20.811.859 bytes; SHA-256 `8a79edb3ba08f4b34e7f5d65622876eeb6a8559606d99ed7cc56670c0e9cbf07`. É o mesmo arquivo do GitHub.
+- [CI Windows e Linux](https://github.com/predabr/luxmc/actions/runs/37711434238): concluído com sucesso.
+- [Pipeline de release](https://github.com/predabr/luxmc/actions/runs/37711440899): todos os jobs aprovados, incluindo conferência dos sete instaladores e publicação do manifesto.
+- VM Windows: instalação, reinstalação e desinstalação retornaram código zero; aplicativo e registro foram removidos no teste; os quatro arquivos protegidos permaneceram íntegros. A recuperação de downloads interrompidos também foi aprovada.
+- Conferência pública: nove assets disponíveis, URLs de todas as plataformas corretas, manifesto 3.2.0 verificado e instalador do site com hash idêntico ao GitHub.
+- Sua instalação existente continua em **3.0.2**; o executável instalado mantém data de alteração de 6 de outubro e não foi substituído.
+- Atualizador público: a interface simulando a versão instalada 3.0.2 consultou os metadados reais do GitHub, detectou 3.2.0 e apontou para o instalador correto. O teste não instalou a atualização; os processos temporários de verificação foram encerrados.

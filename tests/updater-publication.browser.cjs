@@ -1,6 +1,7 @@
 const {chromium}=require('playwright-core');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const expected=JSON.parse(fs.readFileSync('package.json','utf8')).version;
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE});
  try{
@@ -33,7 +34,7 @@ const fs=require('node:fs');
    if(updaterStore.verificationStatus!=='available') throw Error('Public update was not detected');
    return {current:updaterStore.currentVersion,latest:updaterStore.latestVersion,available:updaterStore.updateAvailable,url:updaterStore.downloadUrl,installed:window.updateCalls.some(c=>c.command==='app_perform_update')};
   });
-  assert.equal(result.current,'3.0.2');assert.equal(result.latest,'3.1.0');assert.equal(result.available,true);assert.equal(result.installed,false);assert.match(result.url,/^https:\/\/github\.com\/predabr\/luxmc\/releases\/download\/v3\.1\.0\//);
-  fs.writeFileSync('docs/validation/v3.1-public-updater.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+  assert.equal(result.current,'3.0.2');assert.equal(result.latest,expected);assert.equal(result.available,true);assert.equal(result.installed,false);assert.equal(new URL(result.url).origin,'https://github.com');assert.ok(new URL(result.url).pathname.startsWith(`/predabr/luxmc/releases/download/v${expected}/`));
+  fs.writeFileSync(`docs/validation/v${expected}-public-updater.json`,JSON.stringify(result,null,2));console.log(JSON.stringify(result));
  }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
