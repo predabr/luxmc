@@ -37,3 +37,5 @@ P2P foi testado com endpoints locais, interrupção/reentrada, mundos de convida
 As recomendações usam dados locais e observados. O planejamento não executa previamente todos os mods da versão nova: mostra o que é conhecido, e a validação do loader continua necessária. A preparação da sala não transfere mundos, credenciais ou configurações locais particulares do anfitrião.
 
 O GitHub executa separadamente a compilação para três sistemas e, na VM Windows, a recuperação de downloads interrompidos e o ciclo de instalação/reinstalação/desinstalação. A publicação só é concluída depois da conferência dos instaladores.
+
+Os dez cenários de regressão do navegador foram aprovados, incluindo catálogo/scroll, mil mods na instância, criação de instância, laboratório, links, skins, diagnósticos Windows, hospedagem/armazenamento, idiomas e restauração do wallpaper. Os testes foram ajustados para distinguir o participante dos painéis de preparação, a notificação do erro inline e a capa principal de seu fundo decorativo.
