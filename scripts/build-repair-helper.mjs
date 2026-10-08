@@ -28,4 +28,4 @@ const externalDirectory = join(root,"src-tauri","binaries");
 mkdirSync(externalDirectory,{recursive:true});
 copyFileSync(helper,join(externalDirectory,`luxmc-repair-${target}${extension}`));
 if (!prepare) copyFileSync(helper,join(dirname(binaryCandidates[0]),`luxmc-repair${extension}`));
-console.log(`Verificador preparado para Luxmc 3.1.0 (${expected.slice(0,12)}).`);
+console.log(`Verificador preparado para Luxmc ${JSON.parse(readFileSync(join(root,"package.json"),"utf8")).version} (${expected.slice(0,12)}).`);
