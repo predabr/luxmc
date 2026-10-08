@@ -175,16 +175,6 @@ public class LuxmcClientAgent {
             return currentWindowHandle;
         }
 
-        try {
-            if (glfwGetCurrentContextMethod != null) {
-                Long h = (Long) glfwGetCurrentContextMethod.invoke(null);
-                if (h != null && h.longValue() != 0L) {
-                    currentWindowHandle = h;
-                    return h;
-                }
-            }
-        } catch (Throwable ignored) {}
-
         for (Map.Entry<Thread, StackTraceElement[]> entry : Thread.getAllStackTraces().entrySet()) {
             Thread t = entry.getKey();
             String name = t.getName();
@@ -223,24 +213,6 @@ public class LuxmcClientAgent {
                                 }
                             }
 
-                            for (Method m : mcClass.getMethods()) {
-                                if (m.getParameterTypes().length == 1 && m.getParameterTypes()[0] == Runnable.class) {
-                                    m.invoke(mc, new Runnable() {
-                                        @Override
-                                        public void run() {
-                                            try {
-                                                if (glfwGetCurrentContextMethod != null) {
-                                                    Long h = (Long) glfwGetCurrentContextMethod.invoke(null);
-                                                    if (h != null && h.longValue() != 0L) {
-                                                        currentWindowHandle = h;
-                                                    }
-                                                }
-                                            } catch (Throwable ignored) {}
-                                        }
-                                    });
-                                    break;
-                                }
-                            }
                         }
                     } catch (Throwable ignored) {}
                 }
