@@ -28,6 +28,10 @@ pub enum SocialRequest {
     RoomClose,
     #[serde(rename = "stream_ticket")]
     StreamTicket,
+    #[serde(rename = "profile_get", rename_all = "camelCase")]
+    ProfileGet { target_id: Option<String> },
+    #[serde(rename = "profile_save")]
+    ProfileSave { description: String, banner: String, portrait: String, packs: Vec<String>, #[serde(default, rename = "displayName", skip_serializing_if="Option::is_none")] display_name: Option<String>, #[serde(default, skip_serializing_if="Option::is_none")] status: Option<String>, #[serde(default, skip_serializing_if="Option::is_none")] collections:Option<Vec<serde_json::Value>> },
 }
 
 static IDENTITY_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

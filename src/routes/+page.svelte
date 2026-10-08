@@ -2,6 +2,7 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
+    import { Cpu } from "lucide-svelte";
     import LuxAccountForm from "$lib/components/profile/LuxAccountForm.svelte";
     let localProfile = $state(false);
     import { appState } from "$lib/stores/app.svelte";
@@ -64,6 +65,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		versionsDownload,
 		discordSetActivity,
 		instancesOpenFolder,
+        profilesUpdate,
 		versionsList,
 		api,
 		optimizerInstallPerfPack
@@ -100,6 +102,24 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let customGroups = $state<string[]>(["Vanilla", "Modded"]);
 	let showNewGroupPrompt = $state(false);
 	let newGroupName = $state("");
+    let groupHover = $state<string | null>(null);
+    let movingProfile = $state<string | null>(null);
+    const libraryGroups = $derived([...new Set([...customGroups, ...profiles.list.map(profile => profile.group).filter((group): group is string => !!group)])]);
+    function groupMembers(group: string) {
+        return profiles.list.filter(profile => profile.group ? profile.group === group : group === (profile.loader === 'vanilla' ? 'Vanilla' : 'Modded'));
+    }
+    async function moveToGroup(profileId: string, group: string) {
+        if (movingProfile || !profiles.list.some(profile => profile.id === profileId) || !libraryGroups.includes(group)) return;
+        movingProfile = profileId;
+        try { await profilesUpdate({id: profileId, instanceGroup: group}); profiles.update(profileId, {group}); }
+        catch (cause) { toast(String(cause), 'error'); }
+        finally { movingProfile = null; groupHover = null; }
+    }
+    function dropIntoGroup(event: DragEvent, group: string) {
+        event.preventDefault();
+        const id = event.dataTransfer?.getData('application/x-luxmc-instance');
+        if (id) void moveToGroup(id, group);
+    }
 
 	const tilePalette = $derived([
 		{ bg: "bg-bg-subtle border border-fg/[0.08]", text: uiText("ui.6beab8bced7f50bb") },
@@ -133,6 +153,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     });
 
 	onMount(() => {
+        try {
+            const saved = JSON.parse(localStorage.getItem('luxmc_library_groups') || '[]');
+            if (Array.isArray(saved)) customGroups = [...new Set([...customGroups, ...saved.filter((value): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= 64)])];
+        } catch {}
 		const savedAccsRaw = localStorage.getItem("luxmc_saved_nicknames");
 		if (savedAccsRaw) {
 			try {
@@ -513,10 +537,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	}
 
 	function handleAddGroup() {
-		const name = newGroupName.trim();
+		const name = newGroupName.trim().slice(0,64);
 		if (!name) return;
 		if (!customGroups.includes(name)) {
 			customGroups = [...customGroups, name];
+            localStorage.setItem("luxmc_library_groups", JSON.stringify(customGroups));
 			toast(uiText("ui.4e66ec1ac77df784", {arg0: (name)}), "success");
 		}
 		newGroupName = "";
@@ -536,7 +561,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		profiles.list
 			.filter(p => {
 				const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.mcVersion.includes(searchQuery);
-				const matchesGroup = selectedGroup === "all" || p.group?.toLowerCase() === selectedGroup.toLowerCase() || (selectedGroup === "Vanilla" && p.loader === "vanilla") || (selectedGroup === "Modded" && p.loader !== "vanilla");
+				const matchesGroup = selectedGroup === "all" || p.group?.toLowerCase() === selectedGroup.toLowerCase() || (!p.group && selectedGroup === "Vanilla" && p.loader === "vanilla") || (!p.group && selectedGroup === "Modded" && p.loader !== "vanilla");
 				return matchesSearch && matchesGroup;
 			})
 			.sort((a, b) => {
@@ -560,13 +585,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 {#if !account.value}
 
 	<div
-		class="relative min-h-screen w-full flex items-center justify-center p-6 select-none overflow-hidden"
+		class="relative min-h-[calc(100dvh-2rem)] w-full flex items-center justify-center gap-14 p-6 select-none overflow-hidden"
 	>
 		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
 		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(var(--brand-500)/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
 
+        <aside class="relative z-10 hidden w-full max-w-sm flex-col gap-7 lg:flex">
+            <img src="/logo.png" alt="Luxmc" class="h-28 w-28 object-contain" />
+            <div><p class="mb-4 font-sans text-xs font-semibold uppercase tracking-[.18em] text-brand-400">Luxmc / Launcher</p><h2 class="font-sans text-5xl font-semibold leading-[1.08] tracking-tight text-fg">{uiText('loginDesign.headline')}</h2><p class="mt-6 font-sans text-sm leading-relaxed text-fg-muted">{uiText('loginDesign.story')}</p></div>
+            <div class="flex items-center gap-3 border-t border-border pt-6 text-xs text-fg-muted"><Layers class="h-4 w-4 text-brand-400" />Vanilla · Fabric · Quilt · Forge · NeoForge</div>
+        </aside>
 		<div
-			class="auth-surface w-full max-w-[460px] bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-3xl p-8 relative z-10 space-y-6"
+			class="auth-surface w-full max-w-[520px] bg-bg-elevated border border-border rounded-3xl p-6 sm:p-8 relative z-10 space-y-6 shadow-elevated"
 			in:fly={{ easing: backOut, y: 20, duration: 260 }}
 		>
 			<div class="flex flex-col items-center text-center space-y-3">
@@ -580,29 +610,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 			</div>
 
-			<div class="flex rounded-2xl bg-bg-overlay/50 border border-fg/10 p-1">
-				<button
-					type="button"
-					onclick={() => loginTab = "microsoft"}
-					disabled={isLoggingIn || isLoggingInMicrosoft}
-					aria-pressed={loginTab === "microsoft"}
-					class="launcher-tab flex-1 flex items-center justify-center gap-2 {loginTab === 'microsoft' ? 'bg-brand-500/15 text-fg' : 'text-fg/60 hover:text-fg'}"
-				>
-					<MicrosoftLogo size={16} />
-					<span>Microsoft</span>
-				</button>
-
-				<button
-					type="button"
-					onclick={() => loginTab = "offline"}
-					disabled={isLoggingIn || isLoggingInMicrosoft}
-					aria-pressed={loginTab === "offline"}
-					class="launcher-tab flex-1 flex items-center justify-center gap-2 {loginTab === 'offline' ? 'bg-brand-500/15 text-fg' : 'text-fg/60 hover:text-fg'}"
-				>
-					<User class="w-3.5 h-3.5" />
-					<span>{uiText("ui.2b1b28fd69149858")}</span>
-				</button>
-			</div>
+            <div class="grid grid-cols-3 gap-2" aria-label={uiText('loginDesign.method')}>
+                {#each ['microsoft','luxmc','offline'] as method}
+                    {@const selected = method === 'microsoft' ? loginTab === 'microsoft' : loginTab === 'offline' && localProfile === (method === 'offline')}
+                    <button type="button" disabled={isLoggingIn || isLoggingInMicrosoft} aria-label={method === 'microsoft' ? 'Microsoft' : method === 'luxmc' ? 'Luxmc' : uiText('loginDesign.offline')} aria-pressed={selected} onclick={() => { loginTab = method === 'microsoft' ? 'microsoft' : 'offline'; localProfile = method === 'offline'; }} class="flex min-w-0 flex-col items-start gap-3 rounded-2xl border p-3 text-left {selected ? 'border-brand-400/50 bg-brand-500/10' : 'border-border bg-bg-subtle hover:border-fg/25'}">
+                        {#if method === 'microsoft'}<MicrosoftLogo size={19} />{:else if method === 'luxmc'}<img src="/logo.png" alt="" class="h-6 w-6 object-contain" />{:else}<User class="h-5 w-5 text-fg-muted" />{/if}<span class="font-sans text-xs font-semibold text-fg">{method === 'microsoft' ? 'Microsoft' : method === 'luxmc' ? 'Luxmc' : uiText('loginDesign.offline')}</span>
+                    </button>
+                {/each}
+            </div>
 
 			{#if loginTab === "microsoft"}
 				<div class="flex flex-col items-center text-center space-y-5 pt-1" in:fade={{ easing: quintOut, duration: 220 }}>
@@ -643,16 +658,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						</div>
 					{/if}
 
-					<div class="pt-1">
-						<button
-							type="button"
-							class={launcherButton({ variant: "ghost", size: "sm", class: "" })}
-							onclick={() => showMsClientIdModal = true}
-							disabled={isLoggingInMicrosoft}
-						>
-							{uiText("ui.d3553826a596a75a")}
-						</button>
-					</div>
+
 				</div>
 
 			{:else}
@@ -677,7 +683,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								<img loading="lazy" decoding="async"
 									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`}
 									alt={uiText("ui.ca8e826d9c2ec401")}
-									class="w-full h-full object-cover"
+									class="w-full h-full object-contain p-1.5"
 								/>
 							</div>
 							<input
@@ -926,7 +932,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 												<img loading="lazy" decoding="async"
 													src={inst.icon}
 													alt={inst.name}
-													class="w-full h-full object-cover"
+													class="w-full h-full object-contain p-1.5"
 													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-10 h-10 object-contain [image-rendering:pixelated] drop-shadow'; }}
 												/>
 											{:else}
@@ -1025,22 +1031,22 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 											{#if activeContextMenuId === inst.id}
 												<div
-													class="absolute right-0 top-10 w-44 rounded-xl bg-bg-subtle border border-fg/10 shadow-2xl py-1 z-30 space-y-0.5"
+													class="home-instance-menu absolute right-0 top-full z-50 mt-2 flex w-56 flex-col gap-1 rounded-2xl border border-border bg-bg-elevated p-2 shadow-elevated"
 													transition:fly={{ easing: backOut, y: -6, duration: 180 }}
 												>
 													<button
 														type="button"
 														onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
 														onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
-														onclick={() => goto(`/instances/${inst.id}`)}
-														class={launcherButton({ variant: "secondary", size: "sm", class: "w-full text-left flex items-center gap-2" })}
+														onclick={() => { activeContextMenuId = null; void goto(`/instances/${inst.id}`); }}
+														class={launcherButton({ variant: "ghost", size: "sm", class: "w-full justify-start text-left gap-2 whitespace-nowrap" })}
 													>
 														<Settings class="w-3.5 h-3.5 text-fg/60" /> {uiText("ui.286eb0604961b4d1")}
 													</button>
 													<button
 														type="button"
 														onclick={() => void instancesOpenFolder(inst.id).catch((e) => toast(String(e), "error"))}
-														class={launcherButton({ variant: "secondary", size: "sm", class: "w-full text-left flex items-center gap-2" })}
+														class={launcherButton({ variant: "ghost", size: "sm", class: "w-full justify-start text-left gap-2 whitespace-nowrap" })}
 													>
 														<FolderOpen class="w-3.5 h-3.5 text-fg/60" /> {uiText("screenshots.openFolder")}
 													</button>
@@ -1052,7 +1058,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 																.then(() => profiles.remove(inst.id))
 																.catch((e) => toast(String(e), "error"));
 														}}
-														class={launcherButton({ variant: "danger", size: "sm", class: "w-full text-left flex items-center gap-2" })}
+														class={launcherButton({ variant: "ghostDanger", size: "sm", class: "w-full justify-start text-left gap-2 whitespace-nowrap" })}
 													>
 														<Trash2 class="w-3.5 h-3.5" /> {uiText("instances.deleteConfirmTitle")}
 													</button>
@@ -1085,6 +1091,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							/>
 						</div>
 
+                        <a href="/workshop" class={launcherButton({variant:'secondary',size:'sm'})}><Cpu class="h-4 w-4" />{uiText('studio.pc')}</a>
 						<button
 							type="button"
 							onclick={() => showNewGroupPrompt = true}
@@ -1106,7 +1113,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 					<div class="flex items-center gap-2 flex-wrap">
                         <GlassSelect icon={ArrowUpDown} bind:value={sortBy} label={uiText("ui.bffb787c611dc6a7")} options={[{value:"lastPlayed",label:uiText("ui.3068eba03d591c16")},{value:"name",label:uiText("instances.sortName")},{value:"version",label:uiText("instances.sortVersion")}]} />
-                        <GlassSelect icon={Layers} bind:value={selectedGroup} label={uiText("ui.0e068d966d594ff3")} options={[{value:"all",label:uiText("ui.bf0a7c270bd43693")},...customGroups.map(group => ({value:group,label:group}))]} />
+                        <GlassSelect icon={Layers} bind:value={selectedGroup} label={uiText("ui.0e068d966d594ff3")} options={[{value:"all",label:uiText("ui.bf0a7c270bd43693")},...libraryGroups.map(group => ({value:group,label:group}))]} />
 
 						<button
 							type="button"
@@ -1119,6 +1126,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						</button>
 					</div>
 				</div>
+
+
+                <div class="grid grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] gap-3" aria-label={uiText('library.groups')}>
+                    {#each libraryGroups as group}
+                        <button type="button" class={launcherButton({variant:selectedGroup === group || groupHover === group ? 'ghostBrand':'secondary',class:'min-h-20 justify-start gap-3 rounded-2xl px-4 text-left'})} disabled={!!movingProfile}
+                            ondragover={event => { if (event.dataTransfer?.types.includes('application/x-luxmc-instance')) { event.preventDefault(); groupHover = group; event.dataTransfer.dropEffect = 'move'; } }}
+                            ondragleave={() => groupHover = null} ondrop={event => dropIntoGroup(event,group)} onclick={() => selectedGroup = selectedGroup === group ? 'all' : group}>
+                            <FolderOpen class="h-6 w-6 shrink-0 text-brand-400" />
+                            <span class="min-w-0"><span class="block truncate font-semibold">{group}</span><span class="mt-1 block text-[10px] font-normal text-fg-muted">{groupMembers(group).length} · {uiText('library.dropHere')}</span></span>
+                        </button>
+                    {/each}
+                </div>
 
 				{#if showNewGroupPrompt}
 					<div class="p-3.5 rounded-2xl bg-bg/35 backdrop-blur-xl border border-brand-500/30 flex items-center gap-2.5" in:slide={{ easing: quintOut, duration: 220 }}>
@@ -1166,19 +1185,25 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							<div
 								role="button"
 								tabindex="0"
-								class="home-instance-card rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.08] hover:border-brand-500/35 transition-[background-color,border-color,box-shadow,transform] p-5 flex flex-col justify-between group relative shadow-soft hover:shadow-elevated cursor-pointer min-h-[232px]"
+								draggable={!movingProfile}
+                                ondragstart={event => { if (event.dataTransfer) { event.dataTransfer.setData('application/x-luxmc-instance',inst.id); event.dataTransfer.effectAllowed='move'; } }}
+                                ondragend={() => groupHover=null}
+                                class="home-instance-card focus-within:z-30 rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.08] hover:border-brand-500/35 transition-[background-color,border-color,box-shadow,transform] p-5 flex flex-col justify-between group relative shadow-soft hover:shadow-elevated cursor-pointer min-h-[232px]"
 								onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
 								onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
-								onclick={() => goto(`/instances/${inst.id}`)}
-								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") goto(`/instances/${inst.id}`); }}
+								onclick={event => { if (event.target instanceof Element && event.target.closest("button,select,label,input,a")) return; void goto(`/instances/${inst.id}`); }}
+								onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); void goto(`/instances/${inst.id}`); } }}
 							>
+                                <div class="mb-2">
+                                    <GlassSelect icon={Layers} label={uiText('library.moveToGroup') + ': ' + inst.name} value={inst.group || (inst.loader === 'vanilla' ? 'Vanilla':'Modded')} disabled={!!movingProfile} options={libraryGroups.map(group => ({value:group,label:group}))} onchange={group => void moveToGroup(inst.id,group)} />
+                                </div>
 								<div class="w-full flex-1 flex items-center justify-center relative my-2">
 									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform motion-reduce:transition-none group-hover:scale-[1.03] {inst.icon && !inst.icon.includes('grass_block') ? 'bg-fg/5 border border-fg/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 											<img loading="lazy" decoding="async"
 												src={inst.icon}
 												alt={inst.name}
-												class="w-full h-full object-cover"
+												class="w-full h-full object-contain p-1.5"
 												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-24 h-24 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
 											/>
 										{:else}

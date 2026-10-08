@@ -80,7 +80,7 @@ export const updaterStore = {
 
 			if (channel === "stable") {
 				try {
-					const latestRes = await fetch("https://github.com/predabr/luxmc/releases/latest/download/latest.json", { signal: AbortSignal.timeout(10000) });
+					const latestRes = await fetch("https://github.com/predabr/luxmc/releases/latest/download/latest.json", { cache: "no-store", signal: AbortSignal.timeout(10000) });
 					if (latestRes.ok) {
 						const manifest = await latestRes.json();
 						if (manifest && manifest.version) {
@@ -110,7 +110,7 @@ export const updaterStore = {
 				const endpoint = channel === "stable"
 					? "https://api.github.com/repos/predabr/luxmc/releases/latest"
 					: "https://api.github.com/repos/predabr/luxmc/releases?per_page=20";
-				const res = await fetch(endpoint, { signal: AbortSignal.timeout(10000) });
+				const res = await fetch(endpoint, { cache: "no-store", signal: AbortSignal.timeout(10000) });
 				if (res.ok) {
 					const data = await res.json();
 					const release = Array.isArray(data)

@@ -62,7 +62,7 @@ const assert = require('node:assert/strict');
    if (scenario.wallpaper) {
     await page.waitForFunction(() => document.documentElement.classList.contains('has-custom-wallpaper'));
     const alpha = await page.locator('.friends-directory').evaluate(element => Number(getComputedStyle(element).backgroundColor.match(/,\s*([\d.]+)\)$/)?.[1]));
-    assert.ok(Math.abs(alpha - .18) < .001, `Wallpaper alpha ${alpha}`);
+    assert.ok(Math.abs(alpha - .94) < .001, `Wallpaper alpha ${alpha}`);
    }
    if (scenario.empty) {
     await page.getByRole('heading', { name: 'Sua turma começa com um convite' }).waitFor();

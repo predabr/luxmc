@@ -8,6 +8,8 @@ pub struct RoomWorld {
     pub motd: String,
     #[serde(default)]
     pub local_address: Option<String>,
+    #[serde(default)]
+    pub compatibility: Option<crate::commands::experience::Compatibility>,
 }
 
 struct Routes(BTreeMap<String, JoinHandle<()>>);
@@ -16,10 +18,16 @@ impl Drop for Routes {
 }
 
 pub(super) async fn publish(connection: &iroh::endpoint::Connection, secret: [u8; 32], world: Option<RoomWorld>) -> AppResult<()> {
+    let enriched = serde_json::to_vec(&world)?;
+    if matches!(tokio::time::timeout(Duration::from_millis(900),publish_bytes(connection,secret,&enriched)).await,Ok(Ok(()))) { return Ok(()); }
+    let legacy = serde_json::to_vec(&world.map(|world| world.motd))?;
+    publish_bytes(connection,secret,&legacy).await
+}
+
+async fn publish_bytes(connection: &iroh::endpoint::Connection, secret: [u8; 32], bytes: &[u8]) -> AppResult<()> {
     let (mut send, mut recv) = connection.open_bi().await.map_err(failure)?;
     let mut header = [4u8; 33]; header[1..].copy_from_slice(&secret);
     send.write_all(&header).await.map_err(failure)?;
-    let bytes = serde_json::to_vec(&world.map(|world| world.motd))?;
     send.write_all(&(bytes.len() as u16).to_be_bytes()).await.map_err(failure)?;
     send.write_all(&bytes).await.map_err(failure)?;
     let _ = send.finish();
@@ -50,12 +58,18 @@ pub(super) async fn control(op: u8, id: &str, mut send: iroh::endpoint::SendStre
         if length > 1024 { return; }
         let mut bytes = vec![0; length];
         if recv.read_exact(&mut bytes).await.is_err() { return; }
-        let Ok(motd) = serde_json::from_slice::<Option<String>>(&bytes) else { return; };
+        let parsed = serde_json::from_slice::<Option<RoomWorld>>(&bytes);
+        let (motd,compatibility) = match parsed {
+            Ok(Some(world)) => (Some(world.motd),world.compatibility),
+            Ok(None) => (None,None),
+            Err(_) => match serde_json::from_slice::<Option<String>>(&bytes) { Ok(motd) => (motd,None), Err(_) => return },
+        };
+        if compatibility.as_ref().is_some_and(|c| c.mc_version.len()>64 || c.loader.len()>32 || c.mod_fingerprint.len()!=64 || !c.mod_fingerprint.chars().all(|v| v.is_ascii_hexdigit()) || c.mod_count>10000) {return;}
         let mut room = registry.lock().await;
         let Some(member) = room.members.get(id).cloned() else { return; };
         if let Some(motd) = motd {
             if motd.chars().count() > 160 || motd.chars().any(char::is_control) { return; }
-            room.worlds.insert(id.into(), RoomWorld { owner_id: id.into(), owner_username: member.username, motd, local_address: None });
+            room.worlds.insert(id.into(), RoomWorld { owner_id: id.into(), owner_username: member.username, motd, local_address: None, compatibility });
         } else { room.worlds.remove(id); }
         drop(room);
         let _ = send.write_all(&[1]).await; let _ = send.finish();
@@ -94,7 +108,12 @@ pub(super) fn reverse(connection: iroh::endpoint::Connection, target: Arc<Atomic
                     streams.spawn(async move {
                         let mut header = [0; 33];
                         if !matches!(tokio::time::timeout(Duration::from_secs(5), recv.read_exact(&mut header)).await, Ok(Ok(_))) { return; }
-                        if header[0] != 6 || header[1..].iter().zip(secret).fold(0u8, |difference, (a, b)| difference | (*a ^ b)) != 0 { return; }
+                        if header[1..].iter().zip(secret).fold(0u8, |difference, (a, b)| difference | (*a ^ b)) != 0 { return; }
+                        if header[0] == 7 {
+                            let mut length=[0]; if recv.read_exact(&mut length).await.is_err() || length[0]!=0 {return;}
+                            coordination::local_recipe(send).await;return;
+                        }
+                        if header[0] != 6 {return;}
                         let port = target.load(Ordering::Acquire);
                         if port == 0 { let _ = send.write_all(&[0]).await; return; }
                         if let Ok(Ok(tcp)) = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(("127.0.0.1", port))).await {

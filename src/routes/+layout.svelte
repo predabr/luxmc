@@ -15,7 +15,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { page } from "$app/state";
 	import { afterNavigate } from "$app/navigation";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
-	import Toasts from "$lib/components/ui/Toasts.svelte";
+	import PublicProfileModal from "$lib/components/friends/PublicProfileModal.svelte";
+    import ModpackDownloadStatus from "$lib/components/mods/ModpackDownloadStatus.svelte";
+    import RoomPreparationStatus from "$lib/components/friends/RoomPreparationStatus.svelte";
+    import Toasts from "$lib/components/ui/Toasts.svelte";
 	import StatusBanner from "$lib/components/ui/StatusBanner.svelte";
 	import UpdateModal from "$lib/components/ui/UpdateModal.svelte";
 	import DownloadProgressBar from "$lib/components/ui/DownloadProgressBar.svelte";
@@ -151,6 +154,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 
 	onMount(() => {
+        const syncHidden=()=>document.documentElement.classList.toggle("launcher-hidden",document.hidden);
+        syncHidden();document.addEventListener("visibilitychange",syncHidden);
+
 		const rejectNativeFileNavigation = (e: Event) => {
 			const types = (e as DragEvent).dataTransfer?.types;
 			if (!types || !Array.from(types).includes("Files")) return;
@@ -159,6 +165,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		document.addEventListener("dragover", rejectNativeFileNavigation, { passive: false });
 		document.addEventListener("drop", rejectNativeFileNavigation, { passive: false });
 		return () => {
+			document.removeEventListener("visibilitychange",syncHidden);
+			document.documentElement.classList.remove("launcher-hidden");
 			document.removeEventListener("dragover", rejectNativeFileNavigation);
 			document.removeEventListener("drop", rejectNativeFileNavigation);
 		};
@@ -854,3 +862,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 {/if}
 
 </ErrorBoundary>
+
+<ModpackDownloadStatus />
+<RoomPreparationStatus />
+
+<PublicProfileModal />

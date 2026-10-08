@@ -70,6 +70,10 @@ pub struct FileTreeEntry {
     pub is_dir: bool,
     pub size: u64,
     pub icon: Option<String>,
+    #[serde(default)]
+    pub icon_key: Option<String>,
+    #[serde(default)]
+    pub icon_resolved: bool,
 }
 
 const INSTANCE_EDITOR_MAX_BYTES: u64 = 300_000;
@@ -802,6 +806,7 @@ pub(crate) async fn download_cf_mod_file(
     _mc_version: Option<&str>,
     _loader: Option<&str>,
     cancel: Option<&std::sync::atomic::AtomicBool>,
+    persist_record: bool,
 ) -> bool {
     use crate::core::mods::{curseforge, pack_download as pack};
     use sha1::Digest;
@@ -868,6 +873,11 @@ pub(crate) async fn download_cf_mod_file(
             let u3 = format!("https://{host}/files/{p1}/{p2}/{}", info.file_name);
             if !urls.contains(&u3) { urls.push(u3); }
         }
+        let client = pack::client()?;
+        for attempt in 0..3 {
+            pack::cancelled(cancel)?;
+            pack::backoff(attempt, cancel).await?;
+            if attempt == 1 {
         if let Some(hash) = &info.sha1 {
             if let Ok(response) = http.get(format!("https://api.modrinth.com/v2/version_file/{hash}?algorithm=sha1"))
                 .timeout(std::time::Duration::from_secs(4)).send().await {
@@ -884,10 +894,7 @@ pub(crate) async fn download_cf_mod_file(
                 }
             }
         }
-        let client = pack::client()?;
-        for attempt in 0..3 {
-            pack::cancelled(cancel)?;
-            pack::backoff(attempt, cancel).await?;
+            }
             for url in &urls {
                 pack::cancelled(cancel)?;
                 let Ok(bytes) = pack::bytes(&client, url, cancel).await else { continue };
@@ -900,13 +907,15 @@ pub(crate) async fn download_cf_mod_file(
                 persisted.sha1 = Some(format!("{:x}", sha1::Sha1::digest(&bytes)));
                 persisted.size = Some(bytes.len() as u64);
                 pack::atomic_write(&metadata_path, &serde_json::to_vec(&persisted)?).await?;
-                if let Ok(db) = crate::db::shared_db().await {
+                if persist_record {
+                  if let Ok(db) = crate::db::shared_db().await {
                     let row = crate::db::schema::mods::ModRow {
                         profile_id: profile_id.to_string(), project_id: cf_file.project_id.to_string(),
                         version_id: cf_file.file_id.to_string(), file_name: info.file_name.clone(),
                         sha1: persisted.sha1.unwrap_or_default(), source: "curseforge".into(), installed_at: String::new(),
                     };
                     let _ = crate::db::schema::mods::upsert(&db, &row).await;
+                  }
                 }
                 return Ok(());
             }
@@ -927,6 +936,7 @@ pub async fn instance_import_modpack_core(
     icon: Option<String>,
     ram_mb: Option<i64>,
 ) -> AppResult<ProfileRow> {
+    let import_started=std::time::Instant::now();
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     tracing::info!(file_path = %file_path, profile_name = %profile_name, mc_version = %mc_version, loader = %loader, "instance_import_modpack called");
@@ -1027,7 +1037,9 @@ pub async fn instance_import_modpack_core(
         "fabric".to_string()
     };
 
-    let profile_id = Uuid::new_v4().to_string();
+    let profile_id = resumable_import_id(&file_path, &profile_name).await?;
+    let resume_db = crate::db::shared_db().await?;
+    if let Some(existing) = sqlx::query_as::<_,ProfileRow>("SELECT * FROM profiles WHERE id = ?").bind(&profile_id).fetch_optional(resume_db.pool()).await? { index_pack_mods(&existing).await?; return Ok(existing); }
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
@@ -1139,8 +1151,10 @@ pub async fn instance_import_modpack_core(
 
     let project_ids: Vec<u64> = manifest.files.iter().map(|f| f.project_id).collect();
     let file_ids: Vec<u64> = manifest.files.iter().map(|f| f.file_id).collect();
-    let mod_names = crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids).await;
-    let file_infos = crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids).await;
+    let (mod_names, file_infos) = tokio::join!(
+        crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids),
+        crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids)
+    );
     tracing::info!(resolved_names = mod_names.len(), resolved_files = file_infos.len(), total = project_ids.len(), "resolved CurseForge batch metadata");
 
     let total_files = manifest.files.len() as u32;
@@ -1192,6 +1206,7 @@ pub async fn instance_import_modpack_core(
                 Some(&mc_ver),
                 Some(&ld),
                 Some(&cancel),
+                false,
             ).await;
 
             if ok {
@@ -1234,10 +1249,10 @@ pub async fn instance_import_modpack_core(
 
     if let Some(ref a) = app {
         let _ = a.emit("modpack-progress", serde_json::json!({
-            "phase": "complete",
+            "phase": "indexing",
             "current": total_files,
             "total": total_files,
-            "percent": 100,
+            "percent": 96,
             "status": format!("{} mods instalados, {} falharam", final_ok, final_fail)
         }));
     }
@@ -1284,6 +1299,10 @@ pub async fn instance_import_modpack_core(
     let db = crate::db::shared_db().await?;
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;
     index_pack_mods(&profile_row).await?;
+    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo a instância antes do primeiro início..."}));}
+    prepare_imported_launch(state, &profile_row).await?;
+    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
+    let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0})).await;
     Ok(profile_row)
 }
 
@@ -1513,13 +1532,10 @@ pub async fn instance_file_tree(
         .await
         .map_err(|error| AppError::Internal(error.to_string()))??;
 
-        for (fname, path, _, metadata, is_jar_or_zip) in &scanned {
-            if *is_jar_or_zip {
-                keys_needed.insert(fname.clone());
+        for (_, path, _, metadata, is_jar_or_zip) in &scanned {
+            if *is_jar_or_zip || metadata.is_dir() {
                 keys_needed.insert(crate::commands::mods::content_icon_key(path, metadata));
-                if let Some(stem) = path.file_stem().map(|s| s.to_string_lossy().to_string()) {
-                    keys_needed.insert(stem);
-                }
+
             }
         }
         raw_entries = scanned;
@@ -1530,7 +1546,7 @@ pub async fn instance_file_tree(
         let mut map = std::collections::HashMap::new();
         for chunk in keys_vec.chunks(200) {
             let placeholders = chunk.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            let query_str = format!("SELECT key, icon_url FROM mod_icons WHERE key IN ({})", placeholders);
+            let query_str = format!("SELECT key, CASE WHEN icon_url LIKE 'data:%' THEN 'inline:' ELSE icon_url END FROM mod_icons WHERE key IN ({})", placeholders);
             let mut query = sqlx::query_as::<_, (String, String)>(&query_str);
             for k in chunk {
                 query = query.bind(k);
@@ -1546,65 +1562,15 @@ pub async fn instance_file_tree(
         std::collections::HashMap::new()
     };
 
-    let allow_legacy_icons = subPath.as_deref() == Some("mods");
-    let cached_icons = cached_icons;
-    let computed = tokio::task::spawn_blocking(move || {
-        let mut out = Vec::with_capacity(raw_entries.len());
-        for (fname, path, is_dir, metadata, is_jar_or_zip) in raw_entries {
-            let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-            let cache_key = crate::commands::mods::content_icon_key(&path, &metadata);
-            let mut icon = None;
-            let mut from_cache = false;
-            if is_dir {
-                icon = crate::commands::mods::extract_mod_icon_from_jar(&path);
-                from_cache = true;
-            }
-            if is_jar_or_zip {
-                if let Some(cached) = cached_icons.get(&cache_key) {
-                    icon = Some(crate::commands::mods::compact_mod_icon(cached));
-                    from_cache = icon.as_ref() == Some(cached);
-                } else {
-                    icon = crate::commands::mods::extract_mod_icon_from_jar(&path);
-                    if icon.is_none() && allow_legacy_icons { icon = cached_icons.get(&fname).or_else(|| cached_icons.get(&stem)).cloned(); }
-                }
-            }
-            let size = if is_dir { compute_dir_size(&path) } else { metadata.len() };
-            out.push((fname, path, is_dir, size, icon, from_cache, cache_key));
-        }
-        out
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("file tree worker failed: {e}")))?;
-
-    if computed.iter().any(|entry| !entry.5 && entry.4.is_some()) {
-        if let Ok(mut transaction) = db.pool().begin().await {
-            let mut success = true;
-            for (_, _, _, _, icon, from_cache, cache_key) in &computed {
-                if !from_cache {
-                    if let Some(icon) = icon {
-                        if sqlx::query("INSERT INTO mod_icons (key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
-                            .bind(cache_key).bind(icon).execute(&mut *transaction).await.is_err() {
-                            success = false;
-                            break;
-                        }
-                    }
-                }
-            }
-            if success { let _ = transaction.commit().await; }
-            else { let _ = transaction.rollback().await; }
-        }
-    }
-
-    let mut entries = Vec::new();
-    for (fname, path, is_dir, size, icon, _, _) in computed {
-        entries.push(FileTreeEntry {
-            name: fname,
-            path: path.to_string_lossy().to_string(),
-            is_dir,
-            size,
-            icon,
-        });
-    }
+    let is_content = subPath.as_deref().is_some_and(|path| matches!(path, "mods" | "resourcepacks" | "shaderpacks") || path.ends_with("/datapacks"));
+    let mut entries = tokio::task::spawn_blocking(move || {
+        raw_entries.into_iter().map(|(name, path, is_dir, metadata, _)| {
+            let key = crate::commands::mods::content_icon_key(&path, &metadata);
+            let cached = cached_icons.get(&key);
+            let icon = cached.filter(|value| !value.starts_with("missing:") && !value.starts_with("inline:") && !value.is_empty()).cloned();
+            FileTreeEntry { name, path: path.to_string_lossy().to_string(), is_dir, size: if is_dir && !is_content { compute_dir_size(&path) } else { metadata.len() }, icon, icon_key: Some(key), icon_resolved: cached.is_some_and(|value| !value.starts_with("inline:") && crate::commands::content_icons::cache_is_resolved(value)) }
+        }).collect::<Vec<_>>()
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?;
 
     entries.sort_by(|a, b| {
         if a.is_dir == b.is_dir {
@@ -1621,18 +1587,24 @@ pub async fn instance_file_tree(
 
 async fn record_override_jars(root: &std::path::Path, paths: &std::collections::HashSet<String>) -> AppResult<()> {
     use crate::core::mods::pack_download as pack;
-    use sha2::Digest;
-    let mut files = Vec::new();
+    use futures_util::StreamExt;
+    let mut tasks = Vec::new();
     for path in paths.iter().filter(|path| path.to_lowercase().ends_with(".jar")) {
-        let source = pack::destination(root, path)?;
-        let bytes = tokio::fs::read(source).await?;
-        let target = pack::destination(&root.join(".luxmc/overrides"), path)?;
-        pack::atomic_write(&target, &bytes).await?;
-        files.push(MrpackFile {
-            path: path.clone(), hashes: [("sha512".to_string(), format!("{:x}", sha2::Sha512::digest(&bytes)))].into_iter().collect(),
-            env: None, downloads: Vec::new(), file_size: Some(bytes.len() as u64),
-        });
+        tasks.push((path.clone(), pack::destination(root,path)?, pack::destination(&root.join(".luxmc/overrides"),path)?));
     }
+    let files = futures_util::stream::iter(tasks).map(|(path, source, target)| async move {
+        let bytes = tokio::fs::read(source).await?;
+        let size = bytes.len() as u64;
+        let (bytes, hash) = tokio::task::spawn_blocking(move || {
+            use sha2::Digest;
+            let hash = format!("{:x}", sha2::Sha512::digest(&bytes));
+            (bytes, hash)
+        }).await.map_err(|error| AppError::Internal(error.to_string()))?;
+        pack::atomic_write(&target, &bytes).await?;
+        Ok::<_,AppError>(MrpackFile { path: path.clone(), hashes: [("sha512".to_string(),hash)].into_iter().collect(), env: None, downloads: Vec::new(), file_size: Some(size) })
+    }).buffer_unordered(2).collect::<Vec<_>>().await;
+    let mut files = files.into_iter().collect::<AppResult<Vec<_>>>()?;
+    files.sort_by(|a,b| a.path.cmp(&b.path));
     pack::atomic_write(&root.join(".luxmc/overrides.json"), &serde_json::to_vec(&files)?).await
 }
 
@@ -1685,6 +1657,18 @@ async fn ensure_mrpack_file(
     }
     pack::cancelled(cancel)?;
     Err(crate::error::AppError::InvalidState(format!("Arquivo ausente ou inválido: {}", file.path)))
+}
+
+async fn prepare_imported_launch(_state: &AppState, profile: &ProfileRow) -> AppResult<()> {
+    let profile = profile.clone();
+    tokio::task::spawn_blocking(move || -> AppResult<()> {
+        let root = std::path::Path::new(&profile.game_dir);
+        let audit = crate::core::mods::validation::audit(root, false)?;
+        if audit.errors.is_empty() {
+            crate::core::launcher::launch_state::store(&profile)?;
+        }
+        Ok(())
+    }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
@@ -1828,7 +1812,12 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
     if override_index.exists() {
         let files: Vec<MrpackFile> = serde_json::from_slice(&tokio::fs::read(override_index).await?)?;
         let client = pack::client()?;
-        for file in files { ensure_mrpack_file(&client, root, &file, None).await?; }
+        let results = futures_util::stream::iter(files).map(|file| {
+            let client = client.clone();
+            let root = root.to_path_buf();
+            async move { ensure_mrpack_file(&client, &root, &file, None).await }
+        }).buffer_unordered(8).collect::<Vec<_>>().await;
+        for result in results { result?; }
     }
     if mr_path.exists() {
         let manifest: MrpackManifest = serde_json::from_slice(&tokio::fs::read(mr_path).await?)?;
@@ -1859,7 +1848,7 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
                 let _ = tokio::fs::remove_file(root.join("mods").join(format!("{}.disabled", old.file_name))).await;
             }
             if !download_cf_mod_file(&state.http, &file, None, None, &root.join("mods"), &storage,
-                &profile.id, Some(&profile.mc_version), Some(&profile.loader), None).await {
+                &profile.id, Some(&profile.mc_version), Some(&profile.loader), None, true).await {
                 return Err(crate::error::AppError::InvalidState(format!(
                     "Não foi possível instalar o complemento FTB {}/{} exigido pelo Prominence.",
                     file.project_id, file.file_id)));
@@ -1889,6 +1878,7 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
                         Some(&mc_version),
                         Some(&loader),
                         None,
+                        true,
                     )
                     .await
                     {
@@ -2050,6 +2040,7 @@ pub async fn instance_import_mrpack_core(
     icon: Option<String>,
     ram_mb: Option<i64>,
 ) -> AppResult<ProfileRow> {
+    let import_started=std::time::Instant::now();
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     tracing::info!(file_path = %file_path, profile_name = %profile_name, "instance_import_mrpack called");
@@ -2114,7 +2105,9 @@ pub async fn instance_import_mrpack_core(
         })
         .unwrap_or_else(|| "1.21.1".to_string());
 
-    let profile_id = Uuid::new_v4().to_string();
+    let profile_id = resumable_import_id(&file_path, &profile_name).await?;
+    let resume_db = crate::db::shared_db().await?;
+    if let Some(existing) = sqlx::query_as::<_,ProfileRow>("SELECT * FROM profiles WHERE id = ?").bind(&profile_id).fetch_optional(resume_db.pool()).await? { index_pack_mods(&existing).await?; return Ok(existing); }
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| {
         crate::error::AppError::InvalidState("could not determine data dir".into())
     })?;
@@ -2258,10 +2251,10 @@ pub async fn instance_import_mrpack_core(
 
     if let Some(ref a) = app {
         let _ = a.emit("modpack-progress", serde_json::json!({
-            "phase": "complete",
+            "phase": "indexing",
             "current": total_mrpack_files,
             "total": total_mrpack_files,
-            "percent": 100,
+            "percent": 96,
             "status": format!("Modpack instalado com sucesso ({} mods configurados)", installed_mods_count)
         }));
     }
@@ -2306,6 +2299,10 @@ pub async fn instance_import_mrpack_core(
 
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;
     index_pack_mods(&profile_row).await?;
+    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo a instância antes do primeiro início..."}));}
+    prepare_imported_launch(state, &profile_row).await?;
+    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
+    let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0})).await;
     Ok(profile_row)
 }
 
@@ -3854,4 +3851,24 @@ mod modpack_integrity_tests {
         assert_eq!(legacy.files[0].file_id, 1234);
         assert_eq!(legacy.minecraft.mod_loaders[0].id, "fabric-0.16.0");
     }
+}
+
+async fn resumable_import_id(path: &str, name: &str) -> AppResult<String> {
+    use sha2::Digest;
+    let source = tokio::fs::canonicalize(path).await?;
+    let meta = tokio::fs::metadata(&source).await?;
+    let resume_job = source.file_stem().and_then(|value|value.to_str()).is_some_and(|value|Uuid::parse_str(value).is_ok());
+    let fingerprint = if resume_job {format!("{}:{name}",source.display())} else {format!("{}:{name}:{}:{:?}",source.display(),meta.len(),meta.modified())};
+    let key = format!("{:x}",sha2::Sha256::digest(fingerprint.as_bytes()));
+    let base = directories::ProjectDirs::from("io","github","Luxmc").ok_or_else(|| crate::error::AppError::InvalidState("Cache indisponível".into()))?;
+    let folder = base.cache_dir().join("installation-jobs");
+    tokio::fs::create_dir_all(&folder).await?;
+    let marker = folder.join(key);
+    let db = crate::db::shared_db().await?;
+    if let Ok(id) = tokio::fs::read_to_string(&marker).await {
+        if Uuid::parse_str(&id).is_ok() && (resume_job || sqlx::query_scalar::<_,i64>("SELECT COUNT(*) FROM profiles WHERE id = ?").bind(&id).fetch_one(db.pool()).await? == 0) { return Ok(id); }
+    }
+    let id = Uuid::new_v4().to_string();
+    crate::core::mods::pack_download::atomic_write(&marker,id.as_bytes()).await?;
+    Ok(id)
 }

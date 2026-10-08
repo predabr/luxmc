@@ -11,8 +11,8 @@ const threeModule = resolve(
 
 const result = await build({
   entryPoints: {
-    cinematic: "website/visuals/motion.js",
-    studio: "website/visuals/studio.js",
+    cinematic: "site-client/visuals/motion.ts",
+    studio: "site-client/visuals/studio.ts",
   },
   outdir: "website",
   splitting: true,

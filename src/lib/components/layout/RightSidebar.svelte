@@ -41,7 +41,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	import MinecraftAvatar from "$lib/components/ui/MinecraftAvatar.svelte";
 	import { friendsState } from "$lib/stores/friends.svelte";
-	import type { Friend } from "$lib/api/social";
+	import { publicProfile } from "$lib/stores/publicProfile.svelte";
+    import type { Friend } from "$lib/api/social";
 	import { goto } from "$app/navigation";
 	import { joinWorld } from "$lib/utils/directJoin";
 	const friends = $derived(friendsState.list);
@@ -138,6 +139,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 					class="absolute top-full left-0 right-0 mt-1 bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
 					transition:slide={{ easing: quintOut, duration: 180 }}
 				>
+                    <button type="button" disabled={!friendsState.me} onclick={() => { showAccountMenu = false; publicProfile.edit(); }} class={launcherButton({variant:'ghost',size:'sm',class:'w-full justify-start'})}><Sliders class="h-3.5 w-3.5" />{uiText('publicProfile.edit')}</button>
 					<button
 						type="button"
 						onclick={handleLogout}
@@ -211,7 +213,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 								{#each pendingFriends as friend (friend.id)}
 									<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-bg-elevated border border-fg/5">
 										<div class="flex items-center gap-2 min-w-0">
-											<MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+											<button type="button" class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`} onclick={() => publicProfile.show(friend)}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" /></button>
 											<span class="text-xs font-bold text-fg truncate max-w-[90px]">{friend.username}</span>
 										</div>
 
@@ -243,7 +245,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		</div>
 
 
-		<div class="space-y-1 text-xs">
+		<div class="grid grid-cols-2 gap-2 border-t border-border pt-3"><button type="button" class={launcherButton({variant:'ghost',size:'sm',class:'text-[11px]'})} onclick={() => publicProfile.edit()} disabled={!friendsState.me}><Sliders class="h-3.5 w-3.5" />{uiText('publicProfile.title')}</button><button type="button" class={launcherButton({variant:'ghost',size:'sm',class:'text-[11px]'})} onclick={() => goto('/hosting')}><Play class="h-3.5 w-3.5" />{uiText('friendsDesign.openRoom')}</button></div>
+<div class="space-y-1 text-xs">
 			<div>
 				<button
 					type="button"
@@ -262,8 +265,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 							{#each onlineFriends as friend (friend.id)}
 								<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group">
 									<div class="flex items-center gap-2 min-w-0">
-										<MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
-										<div class="min-w-0"><span class="text-xs font-medium text-fg truncate block">{friend.username}</span>
+										<button type="button" class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`} onclick={() => publicProfile.show(friend)}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" /></button>
+										<div class="min-w-0"><button type="button" onclick={() => publicProfile.show(friend)} class="block max-w-full truncate text-left text-xs font-medium text-fg hover:text-brand-400" title={uiText("publicProfile.view")}>{friend.username}</button>
 											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class={launcherButton({ variant: "ghost", size: "sm", class: "" })}>{uiText("ui.e551687514b0b026")}</button>{/if}</div>
 									</div>
 
@@ -297,8 +300,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 						{#each offlineFriends as friend (friend.id)}
 							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group opacity-60 hover:opacity-100">
 								<div class="flex items-center gap-2 min-w-0">
-									<MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
-									<div class="min-w-0"><span class="text-xs font-medium text-fg truncate block">{friend.username}</span>
+									<button type="button" class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`} onclick={() => publicProfile.show(friend)}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" /></button>
+									<div class="min-w-0"><button type="button" onclick={() => publicProfile.show(friend)} class="block max-w-full truncate text-left text-xs font-medium text-fg hover:text-brand-400" title={uiText("publicProfile.view")}>{friend.username}</button>
 											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class={launcherButton({ variant: "ghost", size: "sm", class: "" })}>{uiText("ui.e551687514b0b026")}</button>{/if}</div>
 								</div>
 
@@ -334,7 +337,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 							{#each pendingFriends as friend (friend.id)}
 								<div class="flex items-center justify-between p-2 rounded-xl bg-fg/[0.04] border border-fg/10 hover:border-fg/20 transition-colors">
 									<div class="flex items-center gap-2 min-w-0">
-										<MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" />
+										<button type="button" class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`} onclick={() => publicProfile.show(friend)}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" /></button>
 										<div class="min-w-0">
 											<span class="text-xs font-bold text-fg truncate block">{friend.username}</span>
 											<span class="text-[10px] text-amber-400 font-medium block">{uiText("ui.0b52c68ee6ed1831")}</span>

@@ -91,7 +91,7 @@ function refresh(run = generation): Promise<void> {
 
 async function poll(run: number) {
 	await refresh(run);
-	if (run === generation) { clearTimeout(timer); timer = setTimeout(() => void poll(run), socket?.readyState === WebSocket.OPEN ? 25000 : 5000); }
+	if (run === generation) { clearTimeout(timer); timer = setTimeout(() => void poll(run), document.hidden ? 45000 : socket?.readyState === WebSocket.OPEN ? 25000 : 5000); }
 }
 
 export const friendsState = {
@@ -101,6 +101,7 @@ export const friendsState = {
 	refresh,
 	get list() { return list; },
 	get me() { return me; },
+    get accountId() { return identity; },
 	get error() { return error; },
 	get busy() { return busy; },
 	get favourites() { return favourites; },

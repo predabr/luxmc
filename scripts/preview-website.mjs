@@ -60,7 +60,7 @@ const server = createServer(async (incoming, outgoing) => {
     const url = new URL(incoming.url, `http://127.0.0.1:${port}`);
     let handler,
       params = {};
-    const api = url.pathname.match(/^\/api\/(account|social)\/([a-z-]+)$/);
+    const api = url.pathname.match(/^\/api\/(account|social)\/([a-z_-]+)$/);
     if (api) {
       handler = api[1] === "account" ? account : social;
       params = { action: api[2] };

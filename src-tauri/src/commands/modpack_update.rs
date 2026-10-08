@@ -23,6 +23,12 @@ pub struct ModpackVersionDiff {
     pub added: Vec<String>,
     pub removed: Vec<String>,
     pub updated: Vec<String>,
+    pub risks: Vec<String>,
+    pub configuration: Vec<String>,
+    pub dependencies: Vec<String>,
+    pub target_minecraft: Option<String>,
+    pub target_loader: Option<String>,
+    pub worlds: usize,
 }
 
 fn modpack_entries(value: &serde_json::Value) -> std::collections::HashMap<String, String> {
@@ -70,45 +76,60 @@ pub async fn modpack_version_diff_core(
     version_id: String,
     source: String,
 ) -> AppResult<ModpackVersionDiff> {
-    if source != "modrinth" || version_id.is_empty() || !version_id.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '-') {
-        return Ok(ModpackVersionDiff { available: false, added: Vec::new(), removed: Vec::new(), updated: Vec::new() });
-    }
-    let db = crate::db::shared_db().await?;
-    let row = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
-        .bind(&profile_id)
-        .fetch_optional(db.pool())
-        .await?
-        .ok_or_else(|| AppError::NotFound(format!("profile {profile_id} not found")))?;
-    let current: serde_json::Value = serde_json::from_slice(&tokio::fs::read(std::path::Path::new(&row.game_dir).join("modrinth.index.json")).await?)?;
-    let version: serde_json::Value = state.http.get(format!("https://api.modrinth.com/v2/version/{version_id}"))
-        .header("User-Agent", concat!("Luxmc/", env!("CARGO_PKG_VERSION")))
-        .send().await?.error_for_status()?.json().await?;
-    let url = version.get("files").and_then(serde_json::Value::as_array)
-        .and_then(|files| files.iter().find(|file| file.get("primary").and_then(serde_json::Value::as_bool) == Some(true)).or_else(|| files.first()))
-        .and_then(|file| file.get("url")).and_then(serde_json::Value::as_str)
-        .ok_or_else(|| AppError::NotFound("Arquivo do modpack não encontrado".into()))?;
-    let client = crate::core::mods::pack_download::client()?;
-    let archive = crate::core::mods::pack_download::bytes(&client, url, None).await?;
-    let mut zip = zip::ZipArchive::new(std::io::Cursor::new(archive))?;
-    let mut remote = None;
-    for index in 0..zip.len() {
-        let entry = zip.by_index(index)?;
-        if entry.name().replace('\\', "/").trim_start_matches('/').ends_with("modrinth.index.json") {
-            if entry.size() > 8 * 1024 * 1024 { return Err(AppError::InvalidInput("Manifesto remoto muito grande".into())); }
-            remote = Some(serde_json::from_reader(entry)?);
-            break;
+    use std::io::Read;
+    use sha2::Digest;
+    let row=super::studio::profile(&profile_id).await?;
+    let reference=super::studio::PackReference {source:source.clone(),project_id:linked_project(&row.game_dir,&source).await?,version_id,name:row.name.clone()};
+    let path=super::studio::pack_archive(state,&reference).await?;
+    let root=std::path::PathBuf::from(&row.game_dir);
+    let manifest_name=if source=="modrinth" {"modrinth.index.json"} else {"manifest.json"};
+    let current:serde_json::Value=serde_json::from_slice(&tokio::fs::read(root.join(manifest_name)).await?)?;
+    let mut archive=zip::ZipArchive::new(std::fs::File::open(path)?)?;
+    let mut remote=None;let mut configuration=Vec::new();
+    for index in 0..archive.len() {
+        let mut entry=archive.by_index(index)?;
+        let name=entry.name().replace('\\',"/");
+        if name.rsplit('/').next()==Some(manifest_name) {
+            if entry.size()>8*1024*1024{return Err(AppError::InvalidInput("Manifesto remoto muito grande".into()));}
+            let mut bytes=Vec::new();entry.by_ref().take(8*1024*1024).read_to_end(&mut bytes)?;remote=Some(serde_json::from_slice::<serde_json::Value>(&bytes)?);
+        }
+        if let Some(relative)=name.strip_prefix("overrides/").or_else(|| name.strip_prefix("client-overrides/")) {
+            if entry.is_dir() || !relative.starts_with("config/") {continue;}
+            crate::core::mods::pack_download::relative_path(relative)?;
+            if configuration.len()>=5000{return Err(AppError::InvalidInput("O pack tem configurações demais para planejar".into()));}
+            let local=root.join(relative);
+            let changed=if entry.size()<=2*1024*1024 && local.is_file() && std::fs::metadata(&local)?.len()<=2*1024*1024 && std::fs::canonicalize(&local)?.starts_with(std::fs::canonicalize(&root)?) {
+                let mut bytes=Vec::new();entry.by_ref().take(2*1024*1024).read_to_end(&mut bytes)?;
+                sha2::Sha256::digest(&bytes)!=sha2::Sha256::digest(std::fs::read(&local)?)
+            }else{true};
+            if changed{configuration.push(relative.into());}
         }
     }
-    let remote: serde_json::Value = remote.ok_or_else(|| AppError::NotFound("Manifesto remoto não encontrado".into()))?;
-    let current_entries = modpack_entries(&current);
-    let remote_entries = modpack_entries(&remote);
-    let mut added: Vec<_> = remote_entries.keys().filter(|path| !current_entries.contains_key(*path)).map(|path| display_mod_path(path)).collect();
-    let mut removed: Vec<_> = current_entries.keys().filter(|path| !remote_entries.contains_key(*path)).map(|path| display_mod_path(path)).collect();
-    let mut updated: Vec<_> = remote_entries.iter().filter(|(path, hash)| current_entries.get(*path).is_some_and(|current_hash| current_hash != *hash)).map(|(path, _)| display_mod_path(path)).collect();
-    added.sort();
-    removed.sort();
-    updated.sort();
-    Ok(ModpackVersionDiff { available: true, added, removed, updated })
+    let remote=remote.ok_or_else(|| AppError::NotFound("Manifesto remoto não encontrado".into()))?;
+    let entries=|value:&serde_json::Value| if source=="modrinth" {modpack_entries(value)} else {value["files"].as_array().into_iter().flatten().filter_map(|file|Some((format!("CurseForge #{}",file["projectID"].as_u64()?),file["fileID"].as_u64()?.to_string()))).collect()};
+    let old=entries(&current);let new=entries(&remote);
+    let mut added:Vec<_>=new.keys().filter(|path| !old.contains_key(*path)).map(|path|display_mod_path(path)).collect();
+    let mut removed:Vec<_>=old.keys().filter(|path| !new.contains_key(*path)).map(|path|display_mod_path(path)).collect();
+    let mut updated:Vec<_>=new.iter().filter(|(path,hash)|old.get(*path).is_some_and(|previous|previous!=*hash)).map(|(path,_)|display_mod_path(path)).collect();
+    added.sort();removed.sort();updated.sort();configuration.sort();configuration.dedup();
+    let target_minecraft=remote.pointer("/dependencies/minecraft").or_else(||remote.pointer("/minecraft/version")).and_then(|value|value.as_str()).map(str::to_owned);
+    let target_loader=if source=="modrinth" {[("fabric-loader","fabric"),("quilt-loader","quilt"),("forge","forge"),("neoforge","neoforge")].into_iter().find(|(key,_)|remote["dependencies"].get(*key).is_some()).map(|(_,name)|name.to_owned()).or_else(||Some("vanilla".into()))} else {remote.pointer("/minecraft/modLoaders").and_then(|value|value.as_array()).and_then(|items|items.first()).and_then(|item|item["id"].as_str()).map(|id|id.split('-').next().unwrap_or("vanilla").to_owned())};
+    let worlds=std::fs::read_dir(root.join("saves")).map(|entries|entries.flatten().filter(|entry|entry.path().join("level.dat").is_file()).count()).unwrap_or(0);
+    let mut risks=Vec::new();
+    if target_minecraft.as_deref().is_some_and(|target|target!=row.mc_version){risks.push("A versão do Minecraft muda. Faça uma cópia antes de abrir mundos existentes; voltar de versão pode perder blocos e dados.".into());}
+    if target_loader.as_deref().is_some_and(|target|target!=row.loader){risks.push("O loader muda. Mods extras da instância precisam ser revistos.".into());}
+    if !removed.is_empty(){risks.push("Arquivos são removidos. Conteúdo salvo por esses mods pode deixar de existir nos mundos.".into());}
+    if !configuration.is_empty(){risks.push("O pack altera configurações. Revise ajustes pessoais depois de atualizar.".into());}
+    let graph=super::studio::dependency_graph(profile_id).await?;
+    let mut dependencies:Vec<String>=graph.iter().filter(|node|removed.contains(&node.file)).flat_map(|node|node.required_by.iter().map(move |dependent|format!("{dependent} depende de {}",node.name))).collect();
+    dependencies.extend(graph.iter().filter(|node|!node.missing.is_empty()).map(|node|format!("{}: revisar {}",node.name,node.missing.join(", "))));
+    Ok(ModpackVersionDiff {available:true,added,removed,updated,risks,configuration,dependencies,target_minecraft,target_loader,worlds})
+}
+
+async fn linked_project(directory:&str,source:&str) -> AppResult<String> {
+    let file=if source=="modrinth" {"modrinth.index.json"} else if source=="curseforge" {"manifest.json"} else {return Err(AppError::InvalidInput("Provedor inválido".into()));};
+    let value:serde_json::Value=serde_json::from_slice(&tokio::fs::read(std::path::Path::new(directory).join(file)).await?)?;
+    value[if source=="modrinth" {"projectId"} else {"projectID"}].as_str().map(str::to_owned).or_else(||value["projectID"].as_u64().map(|id|id.to_string())).ok_or_else(||AppError::InvalidInput("Vincule a instância ao projeto antes de planejar".into()))
 }
 
 #[tauri::command]
@@ -312,6 +333,8 @@ pub async fn modpack_update_atomic(
     use crate::core::mods::pack_download as pack;
     use crate::commands::instances::{instance_import_modpack_core, instance_import_mrpack_core};
     use tauri::Emitter;
+    let _launch_guard = state.launch_lock.try_lock().map_err(|_|AppError::InvalidState("Aguarde o lançamento do Minecraft terminar".into()))?;
+    if crate::core::launcher::get_active_game_pid()!=0 {return Err(AppError::InvalidState("Feche o Minecraft antes de atualizar o modpack".into()));}
     let _guard = UPDATE_LOCK.try_lock().map_err(|_| AppError::InvalidState("Uma atualização já está em andamento".into()))?;
     if !["modrinth", "curseforge"].contains(&source.as_str()) ||
         [&versionId, &projectId].iter().any(|id| id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')) {
@@ -329,7 +352,7 @@ pub async fn modpack_update_atomic(
             let entry = entry?;
             if entry.file_type()?.is_dir() {
                 let world = entry.file_name().to_string_lossy().to_string();
-                crate::commands::world_backup::instance_backup_world(profileId.clone(), world).await?;
+                crate::commands::world_backup::instance_backup_world_core(profileId.clone(), world).await?;
             }
         }
     }

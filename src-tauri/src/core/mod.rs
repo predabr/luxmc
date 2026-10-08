@@ -12,7 +12,7 @@ pub mod mods;
 pub mod network;
 pub mod optimizer;
 pub mod server;
-pub mod native_cpp;
+pub mod native_rust;
 pub mod panic_log;
 pub mod process;
 

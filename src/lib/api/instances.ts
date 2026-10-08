@@ -83,6 +83,7 @@ export async function profilesCreate(input: {
 
 export async function profilesUpdate(input: {
 	id: string;
+	instanceGroup?: string | null;
 	name?: string;
 	icon?: string;
 	mcVersion?: string;
@@ -452,4 +453,10 @@ export async function instanceInstallQuickPack(
 	projectId: string
 ): Promise<string> {
 	return api.invoke<string>("instance_install_quick_pack", { profileId, packType, projectId });
+}
+
+
+export interface ContentIcon { name: string; icon: string | null; iconKey: string; resolved: boolean; }
+export async function instanceContentIcons(profileId: string, subPath: string, fileNames: string[], lookup = false): Promise<ContentIcon[]> {
+    return api.invoke("instance_content_icons", { profileId, subPath, fileNames, lookup });
 }

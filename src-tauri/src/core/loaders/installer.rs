@@ -1,21 +1,26 @@
 use std::io::{Cursor, Read};
 use std::path::Path;
 use crate::error::{AppError, AppResult};
+use futures_util::StreamExt;
 
 pub async fn run(http: &reqwest::Client, installer: &Path, data_dir: &Path, mc_version: &str) -> AppResult<()> {
     let installer_bytes = tokio::fs::read(installer).await?;
-    if let Some(profile) = read_install_profile(&installer_bytes)? {
+    let install_profile=read_install_profile(&installer_bytes)?;
+    if let Some(profile) = &install_profile {
         if profile.get("versionInfo").is_some() {
             return install_legacy_client(installer, data_dir, &profile).await;
         }
     }
 
     let major = crate::core::minecraft::detect_java_major_from_version_id(mc_version);
-    #[cfg(target_os = "linux")]
-    let java = tokio::time::timeout(std::time::Duration::from_secs(300), super::installer_java::ensure(http, data_dir, major)).await
-        .map_err(|_| AppError::InvalidState("Download do Java de instalação excedeu 5 minutos".into()))??;
-    #[cfg(not(target_os = "linux"))]
-    let java = crate::core::java::JavaRuntimeManager::new(http.clone(), data_dir.to_owned()).ensure_java(major).await?;
+    let java_future=async {
+        #[cfg(target_os = "linux")]
+        {tokio::time::timeout(std::time::Duration::from_secs(300), super::installer_java::ensure(http, data_dir, major)).await.map_err(|_| AppError::InvalidState("Download do Java de instalação excedeu 5 minutos".into()))?}
+        #[cfg(not(target_os = "linux"))]
+        {crate::core::java::JavaRuntimeManager::new(http.clone(), data_dir.to_owned()).ensure_java(major).await}
+    };
+    let (java,())=tokio::join!(java_future,prefetch(http,data_dir,install_profile.as_ref()));
+    let java=java?;
     let log_path = installer.with_extension("install.log");
     let log = std::fs::File::create(&log_path)?;
     let mut command = crate::core::process::tokio_command(java);
@@ -35,17 +40,34 @@ pub async fn run(http: &reqwest::Client, installer: &Path, data_dir: &Path, mc_v
 fn read_install_profile(bytes: &[u8]) -> AppResult<Option<serde_json::Value>> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
         .map_err(|e| AppError::Internal(format!("Failed to open installer zip: {e}")))?;
-    let mut entry = match archive.by_name("install_profile.json") {
+    let entry = match archive.by_name("install_profile.json") {
         Ok(entry) => entry,
         Err(_) => return Ok(None),
     };
     let mut raw = String::new();
-    entry
+    if entry.size()>8*1024*1024{return Err(AppError::InvalidInput("Metadados do instalador acima de 8 MiB".into()));}
+    entry.take(8*1024*1024)
         .read_to_string(&mut raw)
         .map_err(|e| AppError::Internal(format!("Failed to read install_profile.json: {e}")))?;
     let value: serde_json::Value = serde_json::from_str(&raw)
         .map_err(|e| AppError::Internal(format!("Failed to parse install_profile.json: {e}")))?;
     Ok(Some(value))
+}
+
+async fn prefetch(http:&reqwest::Client,data_dir:&Path,profile:Option<&serde_json::Value>) {
+    let Some(libraries)=profile.and_then(|profile|profile["libraries"].as_array()) else{return;};
+    let mut targets=std::collections::HashSet::new();let mut jobs=Vec::new();
+    for library in libraries {
+        let artifact=&library["downloads"]["artifact"];
+        let (Some(path),Some(address))=(artifact["path"].as_str(),artifact["url"].as_str()) else{continue;};
+        if address.is_empty() || crate::core::mods::pack_download::relative_path(path).is_err() || !targets.insert(path.to_owned()){continue;}
+        let Ok(url)=url::Url::parse(address) else{continue;};
+        if url.scheme()!="https" || !url.username().is_empty() || url.password().is_some() || !["maven.minecraftforge.net","maven.neoforged.net","libraries.minecraft.net","repo.maven.apache.org","repo1.maven.org"].contains(&url.host_str().unwrap_or("")){continue;}
+        jobs.push((data_dir.join("libraries").join(path),address.to_owned(),artifact["size"].as_u64().unwrap_or(0),artifact["sha1"].as_str().unwrap_or("").to_owned()));
+    }
+    futures_util::stream::iter(jobs.into_iter().map(|(path,url,size,sha1)|async move {
+        if let Err(error)=crate::core::downloader::ensure_artifact(http,&path,&url,size,&sha1).await{tracing::warn!(%error,"Biblioteca de instalação será tentada pelo instalador oficial");}
+    })).buffer_unordered(6).for_each(|_|async{}).await;
 }
 
 async fn install_legacy_client(

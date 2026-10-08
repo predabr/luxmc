@@ -62,6 +62,7 @@ pub async fn launch_game_core(
     };
 
     let preparation_started = std::time::Instant::now();
+    let mut phases=Vec::<serde_json::Value>::new();
     emit_log(&format!("Starting launch for version {}", request.version_id));
 
     let db = crate::db::shared_db().await?;
@@ -117,6 +118,10 @@ pub async fn launch_game_core(
         .ok_or_else(|| AppError::InvalidState("could not determine data dir".into()))?;
     let data_dir = base_dir.data_dir().to_path_buf();
     crate::core::instance_paths::isolate(&mut profile, &data_dir).await?;
+    let backup_started=std::time::Instant::now();
+    crate::commands::world_backup::automatic(&profile.id).await?;
+    phases.push(serde_json::json!({"name":"backup","seconds":backup_started.elapsed().as_secs_f64()}));
+    let verification_started=std::time::Instant::now();
     let fast_launch = !crate::commands::instance_lab::isolation_testing(&profile.id)?
         && crate::core::launcher::launch_state::is_valid(&profile);
 
@@ -128,6 +133,10 @@ pub async fn launch_game_core(
         emit_log("Verificando integridade dos arquivos do modpack...");
         let integrity_started = std::time::Instant::now();
         crate::commands::instances::heal_modpack(state, &profile).await?;
+        let audit_root = std::path::PathBuf::from(&profile.game_dir);
+        let audit = tokio::task::spawn_blocking(move || crate::core::mods::validation::audit(&audit_root,false)).await.map_err(|e| AppError::Internal(e.to_string()))??;
+        if !audit.errors.is_empty() { return Err(AppError::InvalidInput(audit.errors.join("\n"))); }
+        for warning in audit.warnings { emit_log(&warning); }
         crate::core::launcher::launch_state::store(&profile)?;
         if profile.force_full_verification {
             profile.force_full_verification = false;
@@ -136,6 +145,8 @@ pub async fn launch_game_core(
         emit_log(&format!("Integridade concluída em {:.1}s. Preparando Java e loader...", integrity_started.elapsed().as_secs_f32()));
     }
 
+    phases.push(serde_json::json!({"name":"integrity","seconds":verification_started.elapsed().as_secs_f64()}));
+    let metadata_started=std::time::Instant::now();
     let raw_req = request.version_id.trim().trim_matches('\'').trim_matches('"');
     let clean_req_ver = raw_req.split('-').next().unwrap_or(raw_req);
     let profile_mc_ver = profile.mc_version.trim().trim_matches('\'').trim_matches('"');
@@ -228,6 +239,8 @@ pub async fn launch_game_core(
     ));
 
     emit_log("Verifying download...");
+    phases.push(serde_json::json!({"name":"metadata","seconds":metadata_started.elapsed().as_secs_f64()}));
+    let downloads_started=std::time::Instant::now();
     let mut downloader = DownloadManager::new(state.http.clone(), data_dir.clone());
     if let Some(ref a) = app {
         downloader = downloader.with_app(a.clone());
@@ -249,6 +262,8 @@ pub async fn launch_game_core(
     emit_log("Version validated.");
 
     let mut launcher = GameLauncher::new(downloader, java);
+    phases.push(serde_json::json!({"name":"minecraftFiles","seconds":downloads_started.elapsed().as_secs_f64()}));
+    let runtime_started=std::time::Instant::now();
     if let Some(ref a) = app {
         launcher = launcher.with_app(a.clone());
     }
@@ -380,6 +395,8 @@ pub async fn launch_game_core(
         .await?;
 
     emit_log(&format!("Game launched with PID {}. Launcher preparation: {:.2}s", pid, preparation_started.elapsed().as_secs_f64()));
+    phases.push(serde_json::json!({"name":"javaLoaderAndProcess","seconds":runtime_started.elapsed().as_secs_f64()}));
+    let _ = crate::commands::experience::record_performance(&request.profile_id,serde_json::json!({"kind":"preparation","seconds":preparation_started.elapsed().as_secs_f64(),"pid":pid,"phases":phases})).await;
     Ok(LaunchResponse { pid })
 }
 

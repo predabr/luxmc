@@ -1,7 +1,8 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
-	import { backOut, quintOut } from "svelte/easing";
+	import { focusTrap } from "$lib/utils/focusTrap";
+    import { backOut, quintOut } from "svelte/easing";
     import LuxAccountForm from "./LuxAccountForm.svelte";
 	import { fade, scale } from "svelte/transition";
 	import { 
@@ -147,24 +148,23 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		in:fade={{ easing: quintOut, duration: 220 }}
 		out:fade={{ easing: quintOut, duration: 180 }}
 		onclick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
-		role="dialog"
-		aria-modal="true"
-		tabindex="-1"
+        role="presentation"
+        onkeydown={(event) => { if (event.key === 'Escape') handleClose(); }}
 	>
 		<div 
-			class="auth-surface w-full max-w-[480px] max-h-[90dvh] overflow-y-auto rounded-3xl bg-bg-elevated border border-fg/10 flex flex-col"
+			use:focusTrap role="dialog" aria-modal="true" aria-labelledby="account-login-title" tabindex="-1" class="auth-surface w-full max-w-[600px] max-h-[90dvh] overflow-y-auto rounded-3xl bg-bg-elevated border border-fg/10 flex flex-col"
 			in:scale={{ easing: backOut, start: 0.95, duration: 240 }}
 			out:scale={{ easing: backOut, start: 0.95, duration: 180 }}
 		>
 			<!-- Header -->
-			<div class="p-5 border-b border-fg/5 bg-bg-elevated flex items-center justify-between">
+			<div class="p-6 border-b border-border bg-bg-elevated flex items-center justify-between">
 				<div class="flex items-center gap-2.5">
 					<div class="w-8 h-8 rounded-xl bg-brand-500/10 border border-brand-500/30 flex items-center justify-center text-brand-500">
 						<Gamepad2 class="w-4 h-4" />
 					</div>
 					<div>
-						<h3 class="text-sm font-black text-fg">{uiText("ui.d1f39e30f9b200a4")}</h3>
-						<p class="text-[10px] text-fg/40">{uiText("ui.a62914dff8852842")}</p>
+						<h3 id="account-login-title" class="text-xl font-semibold tracking-tight text-fg">{uiText("ui.d1f39e30f9b200a4")}</h3>
+						<p class="mt-1 text-xs leading-relaxed text-fg-muted">{uiText("ui.a62914dff8852842")}</p>
 					</div>
 				</div>
 				<button 
@@ -174,35 +174,20 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					disabled={isLoggingIn}
 					aria-label={uiText("common.close")}
 				>
-					✕
+					<X class="h-4 w-4" />
 				</button>
 			</div>
 
 			<!-- Tab Switcher (Offline vs Microsoft) -->
-			<div class="p-4">
-				<div class="grid grid-cols-3 gap-2 p-1 bg-bg-elevated rounded-2xl border border-fg/5">
-                    <button type="button" class="launcher-tab {tab === 'luxmc' ? 'bg-brand-500/15 text-fg' : 'text-fg-muted'}" aria-pressed={tab === "luxmc"} disabled={isLoggingIn} onclick={() => tab = "luxmc"}>Luxmc</button>
-					<button 
-						type="button"
-						class="launcher-tab flex items-center justify-center gap-2 {tab === 'offline' ? 'bg-brand-500/15 text-fg' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
-						aria-pressed={tab === "offline"}
-						disabled={isLoggingIn}
-						onclick={() => { tab = 'offline'; errorMsg = null; }}
-					>
-						<User class="w-3.5 h-3.5" />
-						{uiText("ui.2793472a35db2b80")}
-					</button>
-					<button 
-						type="button"
-						class="launcher-tab flex items-center justify-center gap-2 {tab === 'microsoft' ? 'bg-brand-500/15 text-fg' : 'text-fg/60 hover:text-fg hover:bg-fg/5'}"
-						aria-pressed={tab === "microsoft"}
-						disabled={isLoggingIn}
-						onclick={() => { tab = 'microsoft'; errorMsg = null; }}
-					>
-						<MicrosoftLogo size={14} />
-						Microsoft
-					</button>
-				</div>
+			<div class="p-6">
+                <div class="grid grid-cols-3 gap-2" aria-label={uiText('loginDesign.method')}>
+                    {#each ['luxmc', 'microsoft', 'offline'] as method}
+                        <button type="button" aria-label={method === 'microsoft' ? 'Microsoft' : method === 'luxmc' ? 'Luxmc' : uiText('ui.2793472a35db2b80')} aria-pressed={tab === method} disabled={isLoggingIn} onclick={() => { tab = method as typeof tab; errorMsg = null; }} class="flex min-w-0 flex-col items-start gap-3 rounded-2xl border p-3 text-left transition-colors {tab === method ? 'border-brand-400/50 bg-brand-500/10' : 'border-border bg-bg-subtle hover:border-fg/25'}">
+                            {#if method === 'microsoft'}<MicrosoftLogo size={19} />{:else if method === 'luxmc'}<img src="/logo.png" alt="" class="h-6 w-6 object-contain" />{:else}<User class="h-5 w-5 text-fg-muted" />{/if}
+                            <span class="text-xs font-semibold text-fg">{method === 'microsoft' ? 'Microsoft' : method === 'luxmc' ? 'Luxmc' : uiText('ui.2793472a35db2b80')}</span><span class="text-[10px] leading-relaxed text-fg-muted">{uiText(`loginDesign.${method}`)}</span>
+                        </button>
+                    {/each}
+                </div>
 
 				<!-- Offline Tab Body -->
 				{#if tab === 'luxmc'}
@@ -221,7 +206,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 									class="w-full h-11 px-4 rounded-xl bg-bg-subtle border border-fg/10 text-xs font-bold text-fg outline-none focus:border-brand-500 transition-[color,background-color,border-color,box-shadow,transform,opacity] placeholder:text-fg/30"
 								/>
 							</div>
-							<p class="text-[10px] text-fg/40">{uiText("ui.60b07bd459a3c12a")}</p>
+							<p class="mt-1 text-xs leading-relaxed text-fg-muted">{uiText("ui.60b07bd459a3c12a")}</p>
 						</div>
 
 						{#if errorMsg}

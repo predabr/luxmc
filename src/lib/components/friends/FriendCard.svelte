@@ -5,6 +5,7 @@
     import MinecraftAvatar from "$lib/components/ui/MinecraftAvatar.svelte";
     import { button } from "$lib/components/ui/button";
     import { toast } from "$lib/stores/toasts.svelte";
+    import { publicProfile } from "$lib/stores/publicProfile.svelte";
     import type { Friend } from "$lib/api/social";
 
     let { friend, favourite = false, busy = false, onJoin, onFavourite, onRemove, onInvite, onBlock }: {
@@ -34,10 +35,10 @@
     }
 </script>
 
-<article class="friend-row group flex flex-wrap items-center gap-3 rounded-xl border border-transparent px-3 py-3 transition-colors hover:border-fg/10 hover:bg-fg/[0.025]">
-    <MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} {activity} lastSeen={friend.lastSeen} class="h-11 w-11" />
+<article class="friend-row group flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-bg-elevated p-4 transition-colors hover:border-brand-400/30">
+    <button type="button" onclick={() => publicProfile.show(friend)} class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} {activity} lastSeen={friend.lastSeen} class="h-11 w-11" /></button>
     <div class="min-w-0 flex-1">
-        <div class="flex flex-wrap items-center gap-2"><h3 class="truncate text-sm font-semibold text-fg">{friend.username}</h3>{#if playing}<span class="rounded-md bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-300">{uiText("ui.982d4bbcc310b45d")}</span>{/if}</div>
+        <div class="flex flex-wrap items-center gap-2"><h3 class="truncate text-sm font-semibold text-fg"><button type="button" class="hover:text-brand-400" onclick={() => publicProfile.show(friend)}>{friend.username}</button></h3>{#if playing}<span class="rounded-md bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-300">{uiText("ui.982d4bbcc310b45d")}</span>{/if}</div>
         <p class="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs {playing ? 'text-brand-300' : 'text-fg-muted'}">{#if playing}<Gamepad2 class="h-3.5 w-3.5 shrink-0" />{:else if friend.status === 'offline'}<Clock3 class="h-3.5 w-3.5 shrink-0 text-fg-subtle" />{/if}<span class="truncate">{activity}</span></p>
     </div>
     <div class="friend-actions ml-auto flex items-center gap-1.5">
@@ -45,7 +46,7 @@
         <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={uiText('friendsDesign.favourite', { name: friend.username })} aria-pressed={favourite} title={uiText('friendsDesign.favourite', { name: friend.username })} onclick={onFavourite} disabled={busy}><Star class="h-4 w-4 {favourite ? 'fill-warning text-warning' : 'text-fg-subtle'}" /></button>
         <details bind:this={menu} class="relative" ontoggle={(event) => menuOpen = event.currentTarget.open}>
             <summary aria-expanded={menuOpen} onkeydown={(event) => { if (event.key === 'Escape' && menu) menu.open = false; }} aria-label={uiText('friendsDesign.more', { name: friend.username })} class="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-xl border border-transparent text-fg-subtle hover:border-fg/10 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"><MoreHorizontal class="h-4 w-4" /></summary>
-            <div class="friend-menu absolute right-0 top-full z-20 mt-1 flex w-52 flex-col gap-1 rounded-xl border border-fg/15 bg-bg-elevated p-1.5 shadow-soft">
+            <div class="friend-menu absolute right-0 top-full z-20 mt-1 flex w-52 flex-col gap-1 rounded-xl border border-fg/15 bg-bg-elevated p-1.5 shadow-soft"><button type="button" class={button({variant:'ghost',size:'sm',block:true,class:'justify-start'})} onclick={() => action(() => publicProfile.show(friend))}>{uiText('publicProfile.view')}</button>
                 {#if friend.serverIp}<button type="button" class={button({ variant: 'ghost', size: 'sm', block: true, class: 'justify-start' })} onclick={() => { if (menu) menu.open = false; void copyIp(); }}>{#if copiedIp}<Check class="h-3.5 w-3.5 text-success" />{:else}<Copy class="h-3.5 w-3.5" />{/if}{uiText("ui.0fdea38f1bf25778")}</button>{/if}
                 <button type="button" class={button({ variant: 'ghostDanger', size: 'sm', block: true, class: 'justify-start' })} aria-label={uiText("ui.dbcc6acb9e61a47c", { arg0: friend.username })} onclick={() => action(onRemove)} disabled={busy}><Trash2 class="h-3.5 w-3.5" />{uiText('friendsDesign.remove')}</button>
                 {#if onBlock}<button type="button" class={button({ variant: 'ghostDanger', size: 'sm', block: true, class: 'justify-start' })} onclick={() => onBlock && action(onBlock)} disabled={busy}><ShieldOff class="h-3.5 w-3.5" />{uiText("ui.096dc9d4b0204272")}</button>{/if}

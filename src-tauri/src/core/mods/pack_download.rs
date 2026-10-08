@@ -112,7 +112,9 @@ pub fn mirrors(value: &str) -> AppResult<Vec<String>> {
 }
 
 pub fn client() -> AppResult<reqwest::Client> {
-    Ok(reqwest::Client::builder()
+    static CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    if let Some(client) = CLIENT.get() { return Ok(client.clone()); }
+    let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .connect_timeout(Duration::from_secs(15))
         .read_timeout(Duration::from_secs(45))
@@ -121,7 +123,8 @@ pub fn client() -> AppResult<reqwest::Client> {
         .pool_max_idle_per_host(32)
         .tcp_nodelay(true)
         .user_agent(concat!("Luxmc/", env!("CARGO_PKG_VERSION")))
-        .build()?)
+        .build()?;
+    Ok(CLIENT.get_or_init(|| client).clone())
 }
 
 pub fn cancelled(cancel: Option<&AtomicBool>) -> AppResult<()> {

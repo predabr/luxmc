@@ -1,12 +1,4 @@
 fn main() {
-    cc::Build::new()
-        .cpp(true)
-        .std("c++17")
-        .file("native/luxmc_core.cpp")
-        .compile("luxmc_native");
-
-    println!("cargo:rerun-if-changed=native/luxmc_core.cpp");
-    println!("cargo:rerun-if-changed=native/luxmc_core.hpp");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         println!("cargo:rustc-link-lib=psapi");
         println!("cargo:rustc-link-arg=/MANIFEST:EMBED");

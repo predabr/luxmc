@@ -1,6 +1,14 @@
 (() => {
   const translations = {
     pt: {
+      "studio.title": "Sua turma.<br />O mesmo ponto de partida.",
+      "studio.desc": "Planeje mudanças, confira os arquivos e prepare uma instância separada para jogar com seus amigos.",
+      "studio.room": "Prepare e acompanhe.",
+      "studio.roomDesc": "A receita da sala reúne versões e mods dos provedores. Cada participante vê o progresso e conserva suas outras instâncias.",
+      "studio.plan": "Veja antes de mudar.",
+      "studio.planDesc": "Compare arquivos, dependências e configurações antes de atualizar. Consulte o impacto de remover um mod no mapa da instância.",
+      "studio.collections": "Compartilhe a próxima aventura.",
+      "studio.collectionsDesc": "Guarde coleções no seu perfil com as versões exatas. Use as medições deste PC para escolher entre suas instâncias.",
       "mods.searchPlaceholder": "O que você vai adicionar ao seu mundo?",
       "mods.loading": "Buscando mods no Modrinth...",
       "mods.loader": "Loader",
@@ -16,8 +24,7 @@
       "mods.previous": "Anterior",
       "mods.next": "Próxima",
       "mods.results": "resultados",
-      "mods.unavailable":
-        "Não foi possível consultar o Modrinth. Verifique sua conexão e tente novamente.",
+      "mods.unavailable": "Não foi possível consultar o Modrinth. Verifique sua conexão e tente novamente.",
       "mods.retry": "Tentar novamente",
       "mods.empty": "Nenhum mod encontrado para essa pesquisa.",
       "mods.by": "por",
@@ -26,8 +33,7 @@
       "servers.checking": "Consultando status de",
       "servers.noResponse": "Servidor não respondeu ao ping",
       "servers.offline": "Offline / Inacessível",
-      "servers.offlineDesc":
-        "O servidor está desligado, em manutenção ou com proteção contra pings diretos. Verifique se o endereço foi digitado corretamente.",
+      "servers.offlineDesc": "O servidor está desligado, em manutenção ou com proteção contra pings diretos. Verifique se o endereço foi digitado corretamente.",
       "servers.online": "Servidor Online",
       "servers.connectedPlayers": "Jogadores Conectados",
       "servers.latency": "Tempo de consulta",
@@ -48,52 +54,39 @@
       "nav.download": "Baixar LuxMC",
       "hero.pill": "UM LAUNCHER PARA QUEM JOGA DO PRÓPRIO JEITO.",
       "hero.title": "<span>Seu mundo.</span><span>Suas escolhas.</span>",
-      "hero.subtitle":
-        "Um modpack novo. Aquele mundo antigo. Sua turma online. Tudo começa no seu launcher.",
+      "hero.subtitle": "Um modpack novo. Aquele mundo antigo. Sua turma online. Tudo começa no seu launcher.",
       "hero.meta": "Linux · Windows · macOS",
       "hero.scroll": "Conheça o LuxMC",
       "product.label": "POR DENTRO DO LAUNCHER",
       "product.title": "Um lugar para<br>cada versão.",
-      "product.desc":
-        "Vanilla hoje. Um modpack amanhã. Cada instância guarda seus próprios mods, mundos e configurações.",
+      "product.desc": "Vanilla hoje. Um modpack amanhã. Cada instância guarda seus próprios mods, mundos e configurações.",
       "product.library": "Sua biblioteca.",
-      "product.libraryDesc":
-        "Cada mundo com seus mods, versão e configurações. Organize instâncias sem misturar arquivos.",
+      "product.libraryDesc": "Cada mundo com seus mods, versão e configurações. Organize instâncias sem misturar arquivos.",
       "product.mods": "Seus mods.",
-      "product.modsDesc":
-        "Encontre conteúdo no Modrinth e CurseForge. Instale na instância certa, dentro do launcher.",
+      "product.modsDesc": "Encontre conteúdo no Modrinth e CurseForge. Instale na instância certa, dentro do launcher.",
       "product.skin": "Seu personagem.",
-      "product.skinDesc":
-        "Importe uma skin, combine uma capa e confira a aparência em 3D antes de aplicar.",
+      "product.skinDesc": "Importe uma skin, combine uma capa e confira a aparência em 3D antes de aplicar.",
       "product.expand": "EXPANDIR ↗",
       "product.real": "Interface do LuxMC · capturas reais",
       "feature.control": "Performance sob controle.",
-      "feature.controlDesc":
-        "Escolha Java, memória e argumentos JVM por instância. Pause efeitos do launcher durante o jogo.",
+      "feature.controlDesc": "Escolha Java, memória e argumentos JVM por instância. Pause efeitos do launcher durante o jogo.",
       "feature.import": "Sua biblioteca vem junto.",
-      "feature.importDesc":
-        "Importe mundos, arquivos .mrpack e pacotes CurseForge. Faça backup e exporte quando quiser.",
+      "feature.importDesc": "Importe mundos, arquivos .mrpack e pacotes CurseForge. Faça backup e exporte quando quiser.",
       "feature.freedom": "Feito para o seu desktop.",
-      "feature.freedomDesc":
-        "Backend em Rust e interface Svelte. Desenvolvimento público, com raízes no Linux.",
+      "feature.freedomDesc": "Backend em Rust e interface Svelte. Desenvolvimento público, com raízes no Linux.",
       "catalog.label": "CATÁLOGO MODRINTH",
       "catalog.title": "O próximo mod<br>da sua lista.",
-      "catalog.desc":
-        "Explore o catálogo ao vivo do Modrinth. No LuxMC, o CurseForge também está integrado.",
+      "catalog.desc": "Explore o catálogo ao vivo do Modrinth. No LuxMC, o CurseForge também está integrado.",
       "mods.type.mods": "Mods",
       "mods.type.modpacks": "Modpacks",
       "mods.type.shaders": "Shaders",
       "mods.type.textures": "Texturas",
-      "catalog.note":
-        "Os filtros mostram versões e loaders declarados pelos autores. A instalação e a seleção de arquivos continuam no launcher.",
+      "catalog.note": "Os filtros mostram versões e loaders declarados pelos autores. A instalação e a seleção de arquivos continuam no launcher.",
       "doctor.label": "CRASHDOCTOR + MOD SHIELD",
       "doctor.title": "Deu crash?<br>Tem diagnóstico.",
-      "doctor.desc":
-        "Um log enorme não precisa encerrar a partida. O CrashDoctor traduz problemas conhecidos e aponta o próximo passo.",
-      "doctor.feature1":
-        "Diagnóstico de logs e ações para Java, memória, mods incompatíveis e arquivos ausentes.",
-      "doctor.feature2":
-        "Verifica hashes de ameaças conhecidas e estruturas suspeitas nos arquivos .jar. Não substitui um antivírus.",
+      "doctor.desc": "Um log enorme não precisa encerrar a partida. O CrashDoctor traduz problemas conhecidos e aponta o próximo passo.",
+      "doctor.feature1": "Diagnóstico de logs e ações para Java, memória, mods incompatíveis e arquivos ausentes.",
+      "doctor.feature2": "Verifica hashes de ameaças conhecidas e estruturas suspeitas nos arquivos .jar. Não substitui um antivírus.",
       "doctor.example": "EXEMPLO DE DIAGNÓSTICO",
       "doctor.log": "Diagnóstico disponível no launcher.",
       "doctor.result": "Menos adivinhação. Mais informação.",
@@ -101,13 +94,11 @@
       "doctor.replay": "Rever ↻",
       "skin.label": "SEU PERSONAGEM",
       "skin.title": "Não é só uma skin.<br>É você no jogo.",
-      "skin.desc":
-        "Importe seu PNG, escolha o modelo dos braços e experimente capas. O Skin Studio mostra cada detalhe antes de aplicar.",
+      "skin.desc": "Importe seu PNG, escolha o modelo dos braços e experimente capas. O Skin Studio mostra cada detalhe antes de aplicar.",
       "skin.open": "Abrir Skin Studio",
       "social.label": "MULTIPLAYER LUXMC",
       "social.title": "Chama a turma.<br>Abre o mundo.",
-      "social.desc":
-        "Amigos pelo nickname, convites para mundos LAN e preferências ligadas à sua conta. O túnel usa conexão direta ou relay, conforme a rede.",
+      "social.desc": "Amigos pelo nickname, convites para mundos LAN e preferências ligadas à sua conta. O túnel usa conexão direta ou relay, conforme a rede.",
       "nav.createAccount": "Criar conta",
       "social.login": "Já tenho conta",
       "social.map": "SEU MUNDO LAN, COM A SUA TURMA.",
@@ -115,8 +106,7 @@
       "social.check": "Consultar ↗",
       "privacy.label": "SEUS ARQUIVOS, NO SEU DISCO",
       "privacy.title": "Você joga.<br>Você tem o controle.",
-      "privacy.desc":
-        "Instâncias e arquivos no seu disco. Código público para consultar. Serviços externos identificados na política de privacidade.",
+      "privacy.desc": "Instâncias e arquivos no seu disco. Código público para consultar. Serviços externos identificados na política de privacidade.",
       "privacy.link": "Entenda como seus dados são usados",
       "privacy.local": "Arquivos locais",
       "privacy.public": "Código público",
@@ -124,42 +114,33 @@
       "privacy.export": "Importar &amp; exportar",
       "download.label": "COMECE A JOGAR",
       "download.title": "Escolha seu sistema.<br>O resto é LuxMC.",
-      "download.desc":
-        "Gratuito para uso pessoal. Baixe o pacote oficial para o seu desktop, direto do release.",
+      "download.desc": "Gratuito para uso pessoal. Baixe o pacote oficial para o seu desktop, direto do release.",
       "download.exe": "Baixar instalador .exe",
       "download.official": "Release oficial",
       "download.appimage": "Baixar .AppImage",
       "download.macDesc": "Confira a arquitetura no release.",
       "download.mac": "Conferir pacote .dmg",
       "download.releases": "Todos os releases ↗",
-      "download.note":
-        "Disponibilidade consultada no GitHub. Sem cadastro obrigatório.",
+      "download.note": "Disponibilidade consultada no GitHub. Sem cadastro obrigatório.",
       "download.terminal": "Prefere o terminal? Instale no Linux.",
       "download.copy": "Copiar",
       "support.title": "Independente. E feito para continuar.",
-      "support.desc":
-        "Quer ajudar nos custos do projeto? O apoio é voluntário, via PIX.",
+      "support.desc": "Quer ajudar nos custos do projeto? O apoio é voluntário, via PIX.",
       "support.cta": "Apoiar o LuxMC",
       "faq.label": "ANTES DE ENTRAR",
       "faq.title": "Alguma dúvida?",
       "faq.support": "Converse com o projeto no GitHub",
       "faq.q1": "O LuxMC é gratuito?",
-      "faq.a1":
-        "Sim, para uso pessoal. O projeto tem uma licença própria; consulte as condições no repositório antes de distribuir ou usar comercialmente.",
+      "faq.a1": "Sim, para uso pessoal. O projeto tem uma licença própria; consulte as condições no repositório antes de distribuir ou usar comercialmente.",
       "faq.q2": "Preciso de uma conta Microsoft?",
-      "faq.a2":
-        "O launcher aceita login Microsoft e perfis locais. Servidores com autenticação oficial exigem uma conta Microsoft com Minecraft. A conta LuxMC é opcional e não substitui a licença do jogo.",
+      "faq.a2": "O launcher aceita login Microsoft e perfis locais. Servidores com autenticação oficial exigem uma conta Microsoft com Minecraft. A conta LuxMC é opcional e não substitui a licença do jogo.",
       "faq.q3": "Posso trazer meus mundos e modpacks?",
-      "faq.a3":
-        "Sim. Importe mundos em pasta ou .zip, modpacks .mrpack e pacotes CurseForge. Cada instância mantém seu próprio conteúdo e configurações.",
+      "faq.a3": "Sim. Importe mundos em pasta ou .zip, modpacks .mrpack e pacotes CurseForge. Cada instância mantém seu próprio conteúdo e configurações.",
       "faq.q4": "Como funciona o multiplayer?",
-      "faq.a4":
-        "Abra um mundo para LAN no Minecraft e compartilhe um convite do LuxMC. O túnel conecta os participantes diretamente ou por relay, conforme as condições da rede.",
+      "faq.a4": "Abra um mundo para LAN no Minecraft e compartilhe um convite do LuxMC. O túnel conecta os participantes diretamente ou por relay, conforme as condições da rede.",
       "faq.q5": "O site instala os mods no meu computador?",
-      "faq.a5":
-        "O botão “Instalar no LuxMC” abre o aplicativo pelo protocolo luxmc://. Lá você seleciona a instância e a versão. Se o launcher não abrir, o site mostra como baixá-lo.",
-      "footer.desc":
-        "Seus mundos, mods e amigos.<br>Um launcher feito para ser seu.",
+      "faq.a5": "O botão “Instalar no LuxMC” abre o aplicativo pelo protocolo luxmc://. Lá você seleciona a instância e a versão. Se o launcher não abrir, o site mostra como baixá-lo.",
+      "footer.desc": "Seus mundos, mods e amigos.<br>Um launcher feito para ser seu.",
       "footer.product": "Produto",
       "footer.downloads": "Downloads",
       "footer.community": "Projeto",
@@ -168,11 +149,9 @@
       "footer.legal": "Transparência",
       "footer.terms": "Termos de uso",
       "footer.license": "Licença ↗",
-      "footer.copyright":
-        "© 2026 LuxMC. Projeto independente. Não afiliado à Mojang Studios ou Microsoft.",
+      "footer.copyright": "© 2026 LuxMC. Projeto independente. Não afiliado à Mojang Studios ou Microsoft.",
       "footer.top": "Voltar ao topo ↑",
-      "support.modal":
-        "Escaneie o QR no aplicativo do seu banco. Confira o destinatário antes de concluir. Qualquer apoio é opcional.",
+      "support.modal": "Escaneie o QR no aplicativo do seu banco. Confira o destinatário antes de concluir. Qualquer apoio é opcional.",
       "support.copy": "Copiar chave PIX",
       "download.recommended": "SEU SISTEMA",
       "download.choose": "Escolher plataforma",
@@ -180,8 +159,7 @@
       "world.resume": "Retomar movimento",
       "world.reduced": "Movimento reduzido",
       "copy.done": "Copiado ✓",
-      "copy.failed":
-        "Não foi possível copiar. Selecione o texto e copie manualmente.",
+      "copy.failed": "Não foi possível copiar. Selecione o texto e copie manualmente.",
       "mods.downloadCount": "Downloads no Modrinth",
       "hero.platforms": "Outras plataformas",
       "hero.capture": "Sua biblioteca. Seu ponto de partida.",
@@ -191,9 +169,17 @@
       "social.step1": "Adicione seus amigos à conta LuxMC.",
       "social.step2": "Abra seu mundo para LAN no Minecraft.",
       "social.step3": "Crie o convite pelo launcher e compartilhe.",
-      "social.inviteNote": "Conexão direta ou relay. Túnel criptografado.",
+      "social.inviteNote": "Conexão direta ou relay. Túnel criptografado."
     },
     en: {
+      "studio.title": "Your friends.<br />The same starting point.",
+      "studio.desc": "Plan changes, verify files and prepare a separate instance to play with friends.",
+      "studio.room": "Prepare and follow along.",
+      "studio.roomDesc": "Room recipes include provider versions and mods. Each participant sees preparation progress and keeps their other instances.",
+      "studio.plan": "Review before changing.",
+      "studio.planDesc": "Compare files, dependencies and settings before updating. Explore the effect of removing a mod in the instance dependency map.",
+      "studio.collections": "Share your next adventure.",
+      "studio.collectionsDesc": "Save collections on your profile with exact versions. Use measurements from this PC to choose between your instances.",
       "mods.searchPlaceholder": "Search mods, modpacks, shaders, textures...",
       "mods.loading": "Searching mods on Modrinth...",
       "mods.loader": "Loader",
@@ -209,8 +195,7 @@
       "mods.previous": "Previous",
       "mods.next": "Next",
       "mods.results": "results",
-      "mods.unavailable":
-        "Could not reach Modrinth. Check your connection and try again.",
+      "mods.unavailable": "Could not reach Modrinth. Check your connection and try again.",
       "mods.retry": "Try again",
       "mods.empty": "No mods found for this search.",
       "mods.by": "by",
@@ -219,8 +204,7 @@
       "servers.checking": "Checking status of",
       "servers.noResponse": "Server did not respond to ping",
       "servers.offline": "Offline / Unreachable",
-      "servers.offlineDesc":
-        "The server is offline, undergoing maintenance, or blocking direct ping requests. Please check the address.",
+      "servers.offlineDesc": "The server is offline, undergoing maintenance, or blocking direct ping requests. Please check the address.",
       "servers.online": "Server Online",
       "servers.connectedPlayers": "Connected Players",
       "servers.latency": "Query time",
@@ -242,48 +226,35 @@
       "nav.createAccount": "Create account",
       "hero.pill": "A LAUNCHER FOR PLAYING YOUR OWN WAY.",
       "hero.title": "<span>Your world.</span><span>Your choices.</span>",
-      "hero.subtitle":
-        "A new modpack. That old world. Your friends online. It all starts with your launcher.",
+      "hero.subtitle": "A new modpack. That old world. Your friends online. It all starts with your launcher.",
       "hero.meta": "Linux · Windows · macOS",
       "hero.scroll": "Meet LuxMC",
       "product.label": "INSIDE THE LAUNCHER",
       "product.title": "A place for<br>every version.",
-      "product.desc":
-        "Vanilla today. A modpack tomorrow. Each instance keeps its own mods, worlds and settings.",
+      "product.desc": "Vanilla today. A modpack tomorrow. Each instance keeps its own mods, worlds and settings.",
       "product.library": "Your library.",
-      "product.libraryDesc":
-        "Each world with its own mods, version and settings. Separate instances keep files organized.",
+      "product.libraryDesc": "Each world with its own mods, version and settings. Separate instances keep files organized.",
       "product.mods": "Your mods.",
-      "product.modsDesc":
-        "Find content on Modrinth and CurseForge. Install it in the right instance, inside the launcher.",
+      "product.modsDesc": "Find content on Modrinth and CurseForge. Install it in the right instance, inside the launcher.",
       "product.skin": "Your character.",
-      "product.skinDesc":
-        "Import a skin, pair it with a cape and check the 3D preview before applying.",
+      "product.skinDesc": "Import a skin, pair it with a cape and check the 3D preview before applying.",
       "product.expand": "EXPAND ↗",
       "product.real": "LuxMC interface · real screenshots",
       "feature.control": "Performance in your hands.",
-      "feature.controlDesc":
-        "Choose Java, memory and JVM arguments per instance. Pause launcher effects while playing.",
+      "feature.controlDesc": "Choose Java, memory and JVM arguments per instance. Pause launcher effects while playing.",
       "feature.import": "Bring your library.",
-      "feature.importDesc":
-        "Import worlds, .mrpack files and CurseForge packs. Back up and export whenever you want.",
+      "feature.importDesc": "Import worlds, .mrpack files and CurseForge packs. Back up and export whenever you want.",
       "feature.freedom": "Built for your desktop.",
-      "feature.freedomDesc":
-        "Rust backend and Svelte interface. Public development, rooted in Linux.",
+      "feature.freedomDesc": "Rust backend and Svelte interface. Public development, rooted in Linux.",
       "catalog.label": "MODRINTH CATALOG",
       "catalog.title": "The next mod<br>on your list.",
-      "catalog.desc":
-        "Explore the live Modrinth catalog. CurseForge is also integrated in the launcher.",
-      "catalog.note":
-        "Filters show versions and loaders declared by authors. Installation and file selection continue in the launcher.",
+      "catalog.desc": "Explore the live Modrinth catalog. CurseForge is also integrated in the launcher.",
+      "catalog.note": "Filters show versions and loaders declared by authors. Installation and file selection continue in the launcher.",
       "doctor.label": "CRASHDOCTOR + MOD SHIELD",
       "doctor.title": "Game crashed?<br>Get a diagnosis.",
-      "doctor.desc":
-        "A long log need not end your session. CrashDoctor explains known problems and suggests your next step.",
-      "doctor.feature1":
-        "Log diagnosis and actions for Java, memory, incompatible mods and missing files.",
-      "doctor.feature2":
-        "Checks known threat hashes and suspicious structures in .jar files. Does not replace antivirus software.",
+      "doctor.desc": "A long log need not end your session. CrashDoctor explains known problems and suggests your next step.",
+      "doctor.feature1": "Log diagnosis and actions for Java, memory, incompatible mods and missing files.",
+      "doctor.feature2": "Checks known threat hashes and suspicious structures in .jar files. Does not replace antivirus software.",
       "doctor.example": "DIAGNOSIS EXAMPLE",
       "doctor.log": "Diagnosis available in the launcher.",
       "doctor.result": "Less guesswork. More information.",
@@ -291,21 +262,18 @@
       "doctor.replay": "Replay ↻",
       "skin.label": "YOUR CHARACTER",
       "skin.title": "More than a skin.<br>It’s you in the game.",
-      "skin.desc":
-        "Import your PNG, choose the arm model and try capes. Skin Studio shows every detail before applying.",
+      "skin.desc": "Import your PNG, choose the arm model and try capes. Skin Studio shows every detail before applying.",
       "skin.open": "Open Skin Studio",
       "social.label": "LUXMC MULTIPLAYER",
       "social.title": "Call your friends.<br>Open your world.",
-      "social.desc":
-        "Friends by nickname, LAN world invites and account preferences. The tunnel uses a direct connection or relay, depending on the network.",
+      "social.desc": "Friends by nickname, LAN world invites and account preferences. The tunnel uses a direct connection or relay, depending on the network.",
       "social.login": "I have an account",
       "social.map": "YOUR LAN WORLD, WITH YOUR FRIENDS.",
       "social.server": "Check a Minecraft server",
       "social.check": "Check ↗",
       "privacy.label": "YOUR FILES, ON YOUR DRIVE",
       "privacy.title": "You play.<br>You stay in control.",
-      "privacy.desc":
-        "Instances and files on your drive. Public code to inspect. External services identified in the privacy policy.",
+      "privacy.desc": "Instances and files on your drive. Public code to inspect. External services identified in the privacy policy.",
       "privacy.link": "Learn how your data is used",
       "privacy.local": "Local files",
       "privacy.public": "Public code",
@@ -313,8 +281,7 @@
       "privacy.export": "Import & export",
       "download.label": "START PLAYING",
       "download.title": "Choose your system.<br>LuxMC does the rest.",
-      "download.desc":
-        "Free for personal use. Download the official package for your desktop, directly from the release.",
+      "download.desc": "Free for personal use. Download the official package for your desktop, directly from the release.",
       "download.exe": "Download .exe installer",
       "download.official": "Official release",
       "download.appimage": "Download .AppImage",
@@ -327,32 +294,24 @@
       "download.recommended": "YOUR SYSTEM",
       "download.choose": "Choose a platform",
       "support.title": "Independent. Built to keep going.",
-      "support.desc":
-        "Want to help cover project costs? Support is voluntary, via PIX.",
+      "support.desc": "Want to help cover project costs? Support is voluntary, via PIX.",
       "support.cta": "Support LuxMC",
-      "support.modal":
-        "Scan the QR code in your bank app. Check the recipient before completing. All support is optional.",
+      "support.modal": "Scan the QR code in your bank app. Check the recipient before completing. All support is optional.",
       "support.copy": "Copy PIX key",
       "faq.label": "BEFORE YOU GO",
       "faq.title": "Any questions?",
       "faq.support": "Contact the project on GitHub",
       "faq.q1": "Is LuxMC free?",
-      "faq.a1":
-        "Yes, for personal use. The project has its own license; check the terms in the repository before distribution or commercial use.",
+      "faq.a1": "Yes, for personal use. The project has its own license; check the terms in the repository before distribution or commercial use.",
       "faq.q2": "Do I need a Microsoft account?",
-      "faq.a2":
-        "The launcher supports Microsoft sign-in and local profiles. Authenticated servers require a Microsoft account that owns Minecraft. A LuxMC account is optional and does not replace the game license.",
+      "faq.a2": "The launcher supports Microsoft sign-in and local profiles. Authenticated servers require a Microsoft account that owns Minecraft. A LuxMC account is optional and does not replace the game license.",
       "faq.q3": "Can I bring my worlds and modpacks?",
-      "faq.a3":
-        "Yes. Import worlds from folders or .zip, .mrpack modpacks and CurseForge packs. Each instance keeps its own content and settings.",
+      "faq.a3": "Yes. Import worlds from folders or .zip, .mrpack modpacks and CurseForge packs. Each instance keeps its own content and settings.",
       "faq.q4": "How does multiplayer work?",
-      "faq.a4":
-        "Open a world to LAN in Minecraft and share a LuxMC invite. The tunnel connects players directly or through a relay, depending on the network.",
+      "faq.a4": "Open a world to LAN in Minecraft and share a LuxMC invite. The tunnel connects players directly or through a relay, depending on the network.",
       "faq.q5": "Does the website install mods on my computer?",
-      "faq.a5":
-        "Install in LuxMC opens the app through luxmc://. Select your instance and version there. If the launcher does not open, the site shows how to download it.",
-      "footer.desc":
-        "Your worlds, mods and friends.<br>A launcher made to be yours.",
+      "faq.a5": "Install in LuxMC opens the app through luxmc://. Select your instance and version there. If the launcher does not open, the site shows how to download it.",
+      "footer.desc": "Your worlds, mods and friends.<br>A launcher made to be yours.",
       "footer.product": "Product",
       "footer.downloads": "Downloads",
       "footer.community": "Project",
@@ -361,8 +320,7 @@
       "footer.legal": "Transparency",
       "footer.terms": "Terms of use",
       "footer.license": "License ↗",
-      "footer.copyright":
-        "© 2026 LuxMC. Independent project. Not affiliated with Mojang Studios or Microsoft.",
+      "footer.copyright": "© 2026 LuxMC. Independent project. Not affiliated with Mojang Studios or Microsoft.",
       "footer.top": "Back to top ↑",
       "world.pause": "Pause motion",
       "world.resume": "Resume motion",
@@ -378,9 +336,17 @@
       "social.step1": "Add your friends to your LuxMC account.",
       "social.step2": "Open your Minecraft world to LAN.",
       "social.step3": "Create the invitation in the launcher and share it.",
-      "social.inviteNote": "Direct connection or relay. Encrypted tunnel.",
+      "social.inviteNote": "Direct connection or relay. Encrypted tunnel."
     },
     es: {
+      "studio.title": "Tu grupo.<br />El mismo punto de partida.",
+      "studio.desc": "Planifica cambios, verifica los archivos y prepara una instancia separada para jugar con tus amigos.",
+      "studio.room": "Prepara y sigue el progreso.",
+      "studio.roomDesc": "La receta de la sala incluye versiones y mods de los proveedores. Cada participante ve el progreso y conserva sus otras instancias.",
+      "studio.plan": "Revisa antes de cambiar.",
+      "studio.planDesc": "Compara archivos, dependencias y configuraciones antes de actualizar. Consulta el efecto de eliminar un mod en el mapa de dependencias.",
+      "studio.collections": "Comparte la próxima aventura.",
+      "studio.collectionsDesc": "Guarda colecciones en tu perfil con versiones exactas. Usa las mediciones de este PC para elegir entre tus instancias.",
       "mods.searchPlaceholder": "Buscar mods, modpacks, shaders, texturas...",
       "mods.loading": "Buscando mods en Modrinth...",
       "mods.loader": "Loader",
@@ -396,8 +362,7 @@
       "mods.previous": "Anterior",
       "mods.next": "Siguiente",
       "mods.results": "resultados",
-      "mods.unavailable":
-        "No se pudo consultar Modrinth. Comprueba tu conexión e inténtalo de nuevo.",
+      "mods.unavailable": "No se pudo consultar Modrinth. Comprueba tu conexión e inténtalo de nuevo.",
       "mods.retry": "Intentar de nuevo",
       "mods.empty": "No se encontraron mods para esta búsqueda.",
       "mods.by": "por",
@@ -406,8 +371,7 @@
       "servers.checking": "Consultando estado de",
       "servers.noResponse": "El servidor no respondió al ping",
       "servers.offline": "Offline / Inaccesible",
-      "servers.offlineDesc":
-        "El servidor está apagado, en mantenimiento o bloquea peticiones de ping directo. Revisa que la dirección esté bien escrita.",
+      "servers.offlineDesc": "El servidor está apagado, en mantenimiento o bloquea peticiones de ping directo. Revisa que la dirección esté bien escrita.",
       "servers.online": "Servidor Online",
       "servers.connectedPlayers": "Jugadores Conectados",
       "servers.latency": "Tiempo de consulta",
@@ -429,48 +393,35 @@
       "nav.createAccount": "Crear cuenta",
       "hero.pill": "UN LAUNCHER PARA JUGAR A TU MANERA.",
       "hero.title": "<span>Tu mundo.</span><span>Tus decisiones.</span>",
-      "hero.subtitle":
-        "Un modpack nuevo. Ese mundo antiguo. Tus amigos online. Todo empieza en tu launcher.",
+      "hero.subtitle": "Un modpack nuevo. Ese mundo antiguo. Tus amigos online. Todo empieza en tu launcher.",
       "hero.meta": "Linux · Windows · macOS",
       "hero.scroll": "Conoce LuxMC",
       "product.label": "DENTRO DEL LAUNCHER",
       "product.title": "Un lugar para<br>cada versión.",
-      "product.desc":
-        "Vanilla hoy. Un modpack mañana. Cada instancia guarda sus propios mods, mundos y ajustes.",
+      "product.desc": "Vanilla hoy. Un modpack mañana. Cada instancia guarda sus propios mods, mundos y ajustes.",
       "product.library": "Tu biblioteca.",
-      "product.libraryDesc":
-        "Cada mundo con sus mods, versión y ajustes. Organiza instancias sin mezclar archivos.",
+      "product.libraryDesc": "Cada mundo con sus mods, versión y ajustes. Organiza instancias sin mezclar archivos.",
       "product.mods": "Tus mods.",
-      "product.modsDesc":
-        "Encuentra contenido en Modrinth y CurseForge. Instálalo en la instancia correcta desde el launcher.",
+      "product.modsDesc": "Encuentra contenido en Modrinth y CurseForge. Instálalo en la instancia correcta desde el launcher.",
       "product.skin": "Tu personaje.",
-      "product.skinDesc":
-        "Importa una skin, combina una capa y revisa la vista 3D antes de aplicar.",
+      "product.skinDesc": "Importa una skin, combina una capa y revisa la vista 3D antes de aplicar.",
       "product.expand": "AMPLIAR ↗",
       "product.real": "Interfaz de LuxMC · capturas reales",
       "feature.control": "Rendimiento bajo tu control.",
-      "feature.controlDesc":
-        "Elige Java, memoria y argumentos JVM por instancia. Pausa los efectos del launcher mientras juegas.",
+      "feature.controlDesc": "Elige Java, memoria y argumentos JVM por instancia. Pausa los efectos del launcher mientras juegas.",
       "feature.import": "Tu biblioteca viene contigo.",
-      "feature.importDesc":
-        "Importa mundos, archivos .mrpack y paquetes CurseForge. Haz copias y exporta cuando quieras.",
+      "feature.importDesc": "Importa mundos, archivos .mrpack y paquetes CurseForge. Haz copias y exporta cuando quieras.",
       "feature.freedom": "Hecho para tu escritorio.",
-      "feature.freedomDesc":
-        "Backend en Rust e interfaz Svelte. Desarrollo público, con raíces en Linux.",
+      "feature.freedomDesc": "Backend en Rust e interfaz Svelte. Desarrollo público, con raíces en Linux.",
       "catalog.label": "CATÁLOGO MODRINTH",
       "catalog.title": "El próximo mod<br>de tu lista.",
-      "catalog.desc":
-        "Explora el catálogo en vivo de Modrinth. CurseForge también está integrado en el launcher.",
-      "catalog.note":
-        "Los filtros muestran versiones y loaders declarados por los autores. La instalación continúa en el launcher.",
+      "catalog.desc": "Explora el catálogo en vivo de Modrinth. CurseForge también está integrado en el launcher.",
+      "catalog.note": "Los filtros muestran versiones y loaders declarados por los autores. La instalación continúa en el launcher.",
       "doctor.label": "CRASHDOCTOR + MOD SHIELD",
       "doctor.title": "¿El juego falló?<br>Hay diagnóstico.",
-      "doctor.desc":
-        "Un log enorme no tiene que acabar la partida. CrashDoctor explica problemas conocidos e indica el siguiente paso.",
-      "doctor.feature1":
-        "Diagnóstico de logs y acciones para Java, memoria, mods incompatibles y archivos ausentes.",
-      "doctor.feature2":
-        "Verifica hashes de amenazas conocidas y estructuras sospechosas en archivos .jar. No sustituye a un antivirus.",
+      "doctor.desc": "Un log enorme no tiene que acabar la partida. CrashDoctor explica problemas conocidos e indica el siguiente paso.",
+      "doctor.feature1": "Diagnóstico de logs y acciones para Java, memoria, mods incompatibles y archivos ausentes.",
+      "doctor.feature2": "Verifica hashes de amenazas conocidas y estructuras sospechosas en archivos .jar. No sustituye a un antivirus.",
       "doctor.example": "EJEMPLO DE DIAGNÓSTICO",
       "doctor.log": "Diagnóstico disponible en el launcher.",
       "doctor.result": "Menos dudas. Más información.",
@@ -478,21 +429,18 @@
       "doctor.replay": "Repetir ↻",
       "skin.label": "TU PERSONAJE",
       "skin.title": "Más que una skin.<br>Eres tú en el juego.",
-      "skin.desc":
-        "Importa tu PNG, elige el modelo de brazos y prueba capas. Skin Studio muestra cada detalle antes de aplicar.",
+      "skin.desc": "Importa tu PNG, elige el modelo de brazos y prueba capas. Skin Studio muestra cada detalle antes de aplicar.",
       "skin.open": "Abrir Skin Studio",
       "social.label": "MULTIJUGADOR LUXMC",
       "social.title": "Llama a tus amigos.<br>Abre tu mundo.",
-      "social.desc":
-        "Amigos por nickname, invitaciones a mundos LAN y preferencias vinculadas a tu cuenta. El túnel usa conexión directa o relay según la red.",
+      "social.desc": "Amigos por nickname, invitaciones a mundos LAN y preferencias vinculadas a tu cuenta. El túnel usa conexión directa o relay según la red.",
       "social.login": "Ya tengo cuenta",
       "social.map": "TU MUNDO LAN, CON TUS AMIGOS.",
       "social.server": "Consultar un servidor Minecraft",
       "social.check": "Consultar ↗",
       "privacy.label": "TUS ARCHIVOS, EN TU DISCO",
       "privacy.title": "Tú juegas.<br>Tú tienes el control.",
-      "privacy.desc":
-        "Instancias y archivos en tu disco. Código público para consultar. Servicios externos identificados en la política de privacidad.",
+      "privacy.desc": "Instancias y archivos en tu disco. Código público para consultar. Servicios externos identificados en la política de privacidad.",
       "privacy.link": "Entiende cómo se usan tus datos",
       "privacy.local": "Archivos locales",
       "privacy.public": "Código público",
@@ -500,47 +448,37 @@
       "privacy.export": "Importar y exportar",
       "download.label": "EMPIEZA A JUGAR",
       "download.title": "Elige tu sistema.<br>El resto es LuxMC.",
-      "download.desc":
-        "Gratis para uso personal. Descarga el paquete oficial para tu escritorio desde el release.",
+      "download.desc": "Gratis para uso personal. Descarga el paquete oficial para tu escritorio desde el release.",
       "download.exe": "Descargar instalador .exe",
       "download.official": "Release oficial",
       "download.appimage": "Descargar .AppImage",
       "download.macDesc": "Revisa la arquitectura del paquete en el release.",
       "download.mac": "Consultar paquete .dmg",
       "download.releases": "Todos los releases ↗",
-      "download.note":
-        "Disponibilidad consultada en GitHub. Sin registro obligatorio.",
+      "download.note": "Disponibilidad consultada en GitHub. Sin registro obligatorio.",
       "download.terminal": "¿Prefieres la terminal? Instala en Linux.",
       "download.copy": "Copiar",
       "download.recommended": "TU SISTEMA",
       "download.choose": "Elegir plataforma",
       "support.title": "Independiente. Hecho para seguir.",
-      "support.desc":
-        "¿Quieres ayudar con los gastos del proyecto? El apoyo es voluntario mediante PIX.",
+      "support.desc": "¿Quieres ayudar con los gastos del proyecto? El apoyo es voluntario mediante PIX.",
       "support.cta": "Apoyar LuxMC",
-      "support.modal":
-        "Escanea el QR en la aplicación de tu banco. Verifica el destinatario antes de completar. Todo apoyo es opcional.",
+      "support.modal": "Escanea el QR en la aplicación de tu banco. Verifica el destinatario antes de completar. Todo apoyo es opcional.",
       "support.copy": "Copiar clave PIX",
       "faq.label": "ANTES DE ENTRAR",
       "faq.title": "¿Alguna duda?",
       "faq.support": "Contacta con el proyecto en GitHub",
       "faq.q1": "¿LuxMC es gratuito?",
-      "faq.a1":
-        "Sí, para uso personal. El proyecto tiene su propia licencia; consulta las condiciones en el repositorio antes de distribuir o usar comercialmente.",
+      "faq.a1": "Sí, para uso personal. El proyecto tiene su propia licencia; consulta las condiciones en el repositorio antes de distribuir o usar comercialmente.",
       "faq.q2": "¿Necesito una cuenta Microsoft?",
-      "faq.a2":
-        "El launcher acepta Microsoft y perfiles locales. Los servidores con autenticación oficial exigen una cuenta Microsoft con Minecraft. La cuenta LuxMC es opcional y no reemplaza la licencia del juego.",
+      "faq.a2": "El launcher acepta Microsoft y perfiles locales. Los servidores con autenticación oficial exigen una cuenta Microsoft con Minecraft. La cuenta LuxMC es opcional y no reemplaza la licencia del juego.",
       "faq.q3": "¿Puedo traer mis mundos y modpacks?",
-      "faq.a3":
-        "Sí. Importa mundos en carpetas o .zip, modpacks .mrpack y paquetes CurseForge. Cada instancia mantiene su propio contenido y ajustes.",
+      "faq.a3": "Sí. Importa mundos en carpetas o .zip, modpacks .mrpack y paquetes CurseForge. Cada instancia mantiene su propio contenido y ajustes.",
       "faq.q4": "¿Cómo funciona el multijugador?",
-      "faq.a4":
-        "Abre un mundo a LAN en Minecraft y comparte una invitación de LuxMC. El túnel conecta a los jugadores directamente o mediante relay según la red.",
+      "faq.a4": "Abre un mundo a LAN en Minecraft y comparte una invitación de LuxMC. El túnel conecta a los jugadores directamente o mediante relay según la red.",
       "faq.q5": "¿El sitio instala mods en mi equipo?",
-      "faq.a5":
-        "Instalar en LuxMC abre la aplicación mediante luxmc://. Allí eliges la instancia y la versión. Si no se abre, el sitio muestra cómo descargarla.",
-      "footer.desc":
-        "Tus mundos, mods y amigos.<br>Un launcher hecho para ser tuyo.",
+      "faq.a5": "Instalar en LuxMC abre la aplicación mediante luxmc://. Allí eliges la instancia y la versión. Si no se abre, el sitio muestra cómo descargarla.",
+      "footer.desc": "Tus mundos, mods y amigos.<br>Un launcher hecho para ser tuyo.",
       "footer.product": "Producto",
       "footer.downloads": "Descargas",
       "footer.community": "Proyecto",
@@ -549,15 +487,13 @@
       "footer.legal": "Transparencia",
       "footer.terms": "Términos de uso",
       "footer.license": "Licencia ↗",
-      "footer.copyright":
-        "© 2026 LuxMC. Proyecto independiente. No afiliado a Mojang Studios o Microsoft.",
+      "footer.copyright": "© 2026 LuxMC. Proyecto independiente. No afiliado a Mojang Studios o Microsoft.",
       "footer.top": "Volver arriba ↑",
       "world.pause": "Pausar movimiento",
       "world.resume": "Reanudar movimiento",
       "world.reduced": "Movimiento reducido",
       "copy.done": "Copiado ✓",
-      "copy.failed":
-        "No se pudo copiar. Selecciona el texto y cópialo manualmente.",
+      "copy.failed": "No se pudo copiar. Selecciona el texto y cópialo manualmente.",
       "mods.downloadCount": "Descargas en Modrinth",
       "hero.platforms": "Otras plataformas",
       "hero.capture": "Tu biblioteca. Tu punto de partida.",
@@ -567,53 +503,52 @@
       "social.step1": "Añade a tus amigos a tu cuenta LuxMC.",
       "social.step2": "Abre tu mundo de Minecraft a LAN.",
       "social.step3": "Crea la invitación en el launcher y compártela.",
-      "social.inviteNote": "Conexión directa o relay. Túnel cifrado.",
-    },
+      "social.inviteNote": "Conexión directa o relay. Túnel cifrado."
+    }
   };
   let language = "pt";
   try {
     const saved = localStorage.getItem("luxmc_lang");
-    if (["pt", "en", "es"].includes(saved)) language = saved;
-  } catch {}
+    if (saved && ["pt", "en", "es"].includes(saved))
+      language = saved;
+  } catch {
+  }
   function applyLanguage(next) {
-    if (!["pt", "en", "es"].includes(next)) return;
+    if (!["pt", "en", "es"].includes(next))
+      return;
     language = next;
     try {
       localStorage.setItem("luxmc_lang", next);
-    } catch {}
+    } catch {
+    }
     document.documentElement.lang = next === "pt" ? "pt-BR" : next;
     for (const node of document.querySelectorAll("[data-i18n]")) {
-      const value = translations[next][node.dataset.i18n];
-      if (value) node.innerHTML = value;
+      const value = translations[next][node.dataset.i18n || ""];
+      if (value)
+        node.innerHTML = value;
     }
     for (const node of document.querySelectorAll("[data-i18n-placeholder]")) {
-      const value = translations[next][node.dataset.i18nPlaceholder];
-      if (value) node.placeholder = value;
+      const value = translations[next][node.dataset.i18nPlaceholder || ""];
+      if (value)
+        node.placeholder = value;
     }
     for (const button of document.querySelectorAll("[data-lang]")) {
       button.classList.toggle("active", button.dataset.lang === next);
       button.setAttribute("aria-pressed", String(button.dataset.lang === next));
     }
-    window.dispatchEvent(
-      new CustomEvent("luxmc-language-changed", { detail: { lang: next } }),
-    );
+    window.dispatchEvent(new CustomEvent("luxmc-language-changed", { detail: { lang: next } }));
   }
   window.LuxI18n = {
     t: (key) => translations[language][key] || translations.pt[key] || key,
     setLanguage: applyLanguage,
-    getLanguage: () => language,
+    getLanguage: () => language
   };
   function init() {
     applyLanguage(language);
-    document
-      .querySelectorAll("[data-lang]")
-      .forEach((button) =>
-        button.addEventListener("click", () =>
-          applyLanguage(button.dataset.lang),
-        ),
-      );
+    document.querySelectorAll("[data-lang]").forEach((button) => button.addEventListener("click", () => applyLanguage(button.dataset.lang)));
   }
   if (document.readyState === "loading")
     document.addEventListener("DOMContentLoaded", init);
-  else init();
+  else
+    init();
 })();

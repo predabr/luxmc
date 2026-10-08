@@ -28,7 +28,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let { notificationCount = 0 }: { notificationCount?: number } = $props();
 	const { t } = useTranslation();
     let expanded = $state(false);
-    onMount(() => { try { expanded = localStorage.getItem("luxmc_sidebar_expanded") === "true"; } catch {} });
+    onMount(() => { try { expanded = localStorage.getItem("luxmc_sidebar_expanded") === "true"; } catch {} const media=matchMedia("(max-width: 700px)");const adapt=()=>{if(media.matches)expanded=false;};adapt();media.addEventListener("change",adapt);return()=>media.removeEventListener("change",adapt); });
     function toggleSidebar() { expanded = !expanded; try { localStorage.setItem("luxmc_sidebar_expanded", String(expanded)); } catch {} }
 
 	type Item = { href: string; labelKey: string; icon: typeof import("lucide-svelte").Circle; title: string };

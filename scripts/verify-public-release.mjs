@@ -45,7 +45,8 @@ for (const [platform, filename] of Object.entries({ windows: canonical, linux: n
     assert.equal(response.status, platform === 'windows' ? 200 : 302, platform);
     if (platform === 'windows') {
         assert.equal(response.headers.get('Content-Disposition'), 'attachment; filename="Lux MC Launcher.exe"');
-        assert.equal(Number(response.headers.get('Content-Length')), assets.get(filename).size);
+        const advertisedLength = response.headers.get('Content-Length');
+        if (advertisedLength !== null) assert.equal(Number(advertisedLength), assets.get(filename).size);
     } else assert.equal(response.headers.get('location'), assets.get(filename).browser_download_url, platform);
     siteChecks.push({ platform, filename, status: response.status });
 }

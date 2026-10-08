@@ -47,3 +47,8 @@ pub mod news;
 
 pub mod wallpaper;
 pub mod instance_lab;
+
+pub mod content_icons;
+
+pub mod experience;
+pub mod studio;

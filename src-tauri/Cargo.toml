@@ -1,6 +1,6 @@
 [package]
 name = "luxmc"
-version = "3.1.0"
+version = "3.2.0"
 description = "Linux-first Minecraft launcher"
 authors = ["Luxmc contributors"]
 edition = "2021"
@@ -12,7 +12,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-cc = "1.2"
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }

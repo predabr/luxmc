@@ -3,7 +3,7 @@ compatibility_date = "2024-09-01"
 pages_build_output_dir = "."
 
 [vars]
-WINDOWS_LOCAL_VERSION = "3.1.0"
+WINDOWS_LOCAL_VERSION = "3.2.0"
 SOCIAL_STREAM_URL = "wss://luxmc-social-stream.waydroid917.workers.dev/connect"
 
 [[d1_databases]]

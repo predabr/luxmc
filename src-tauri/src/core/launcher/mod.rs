@@ -1336,6 +1336,7 @@ impl GameLauncher {
                     } else {
                         None
                     };
+                    let _ = crate::commands::experience::record_performance(&profile_id,serde_json::json!({"kind":"session","pid":pid,"durationSeconds":duration_secs,"peakRamMb":peak_mb,"exitCode":code,"cleanExit":status.success()})).await;
                     if let Some(ref app) = app_exit {
                         let _ = app.emit(
                             "game-exit",

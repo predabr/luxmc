@@ -46,6 +46,7 @@ export interface AppSettings {
 	waylandNative?: boolean;
 	hugeTlb?: boolean;
 	autoBackup?: boolean;
+    backupLimitGb?: number;
 	streamerMode?: boolean;
 	sfxVolume?: number;
 	soundEnabled?: boolean;

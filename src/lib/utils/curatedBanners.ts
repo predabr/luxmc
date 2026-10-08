@@ -41,6 +41,11 @@ export function matchesCuratedBanner(name: string, key: string): boolean {
 	return lower.split(/[^a-z0-9]+/).includes(key);
 }
 
+export function matchesCatalogBanner(name: string, slug: string, key: string): boolean {
+	const normalize = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, " ").trim();
+	return normalize(slug || name) === normalize(key);
+}
+
 export function resolveProfileBanner(profile?: {
 	name?: string;
 	banner?: string;

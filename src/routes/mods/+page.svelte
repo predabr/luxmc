@@ -16,7 +16,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { catalogCompatibility } from "$lib/utils/catalogCompatibility";
 	import { profiles } from "$lib/stores/profiles.svelte";
-	import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
+	import { modpackInstallation } from "$lib/stores/modpackInstallation.svelte";
 	import {
 		modsSearch, modsVersions, modsInstall, modsProjectDetails,
 		modsDownloadToTemp, instanceImportMrpack, instanceImportModpack, instanceCancelImport,
@@ -49,8 +49,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	let modpackVersionId = $state<string | undefined>();
 	let modpackInstanceName = $state("");
 	let modpackRamMb = $state(4096);
-	let isInstallingModpack = $state(false);
-    let cancelRequested = $state(false);
+	const isInstallingModpack = $derived(modpackInstallation.state.busy);
+    const cancelRequested = $derived(modpackInstallation.state.cancelling);
 	let modpackProgressText = $state("");
 	let modpackProgressPercent = $state(0);
 
@@ -273,7 +273,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
     $effect(() => {
         const request = deepLinks.install;
-        if (!request || isInstallingModpack || showInstancePickerModal || showModpackInstallModal) return;
+        if (!request || showInstancePickerModal || showModpackInstallModal) return;
         untrack(() => { deepLinks.install = null; void openLinkedProject(request); });
     });
 
@@ -347,85 +347,15 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	function openModpackInstall(item: ModSearchResultItem, versionId?: string) {
 		modpackVersionId = versionId;
 		modpackToInstall = item; modpackInstanceName = item.title; modpackRamMb = 4096;
-		modpackProgressText = ""; isInstallingModpack = false; showModpackInstallModal = true;
+        modpackProgressText = ""; showModpackInstallModal = true;
 	}
 
-	async function confirmModpackInstall() {
-		if (!modpackToInstall || isInstallingModpack) return;
-		const item = modpackToInstall; const name = modpackInstanceName.trim() || item.title;
-		cancelRequested = false;
-        isInstallingModpack = true; modpackProgressText = uiText("ui.5a4fa7bb57930284");
-		modpackProgressPercent = 0;
-		let unlisten: (() => void) | null = null;
-		try {
-			unlisten = await listen<{ phase: string; current: number; total: number; percent?: number; status: string }>("modpack-progress", (ev) => {
-				modpackProgressText = ev.payload.status;
-				modpackProgressPercent = ev.payload.percent ?? 0;
-			});
-			const ver = selectedVersion === "Qualquer Versão" || modpackVersionId ? "" : selectedVersion;
-			let versions = await modsVersions(item.sourceId, ver, item.source);
-			if (modpackVersionId) versions = versions.filter(version => version.id === modpackVersionId);
-			if (versions.length === 0) {
-				toast(uiText("ui.c38446c7df13fc52", {arg0: (item.title), arg1: (item.source === "curseforge" ? "CurseForge" : "Modrinth")}), "error");
-				isInstallingModpack = false;
-				return;
-			}
-			const extension = item.source === "curseforge" ? ".zip" : ".mrpack";
-            const f = versions.flatMap(version => version.files).find(file => file.url && file.filename.toLowerCase().endsWith(extension))
-				|| versions.flatMap(version => version.files).find(file => file.url && (file.filename.toLowerCase().endsWith(".zip") || file.filename.toLowerCase().endsWith(".mrpack")));
-			if (!f?.url) { toast(uiText("ui.ebe5f9d75823b7c4"), "error"); isInstallingModpack = false; return; }
-			modpackProgressText = uiText("ui.18333ba6ce43048e", {arg0: (f.filename)});
-			modpackProgressPercent = -1;
-			if (cancelRequested) throw new Error(uiText("ui.bb9811b14ec4fb48"));
-            const tempPath = await modsDownloadToTemp(f.url, f.filename);
-            if (cancelRequested) throw new Error(uiText("ui.bb9811b14ec4fb48"));
-			modpackProgressText = uiText("ui.cbc82784c96e08ef");
-			modpackProgressPercent = 0;
-			const iconUrl = item.iconUrl || item.bannerUrl || "";
-			const detectedLoader = item.categories?.find(c => ["forge", "fabric", "neoforge", "quilt"].includes(c.toLowerCase()))?.toLowerCase()
-				|| (item.title.toLowerCase().includes("forge") && !item.title.toLowerCase().includes("neoforge") ? "forge" : "")
-				|| (item.title.toLowerCase().includes("neoforge") ? "neoforge" : "")
-				|| (item.title.toLowerCase().includes("fabric") ? "fabric" : "");
-			const cp = item.source === "curseforge"
-				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", detectedLoader, iconUrl, modpackRamMb)
-				: await instanceImportMrpack(tempPath, name, iconUrl, modpackRamMb);
-			profiles.add({
-				id: cp.id,
-				name: cp.name,
-				icon: iconUrl || "default",
-				banner: item.bannerUrl || undefined,
-				mcVersion: cp.mcVersion,
-				loader: (cp.loader || detectedLoader || "fabric") as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
-				loaderVersion: cp.loaderVersion ?? undefined,
-				gameDir: cp.gameDir,
-				ramMb: modpackRamMb,
-				createdAt: Date.now(),
-				updatedAt: Date.now(),
-			});
-			if (item.bannerUrl) {
-				profiles.setBanner(cp.id, item.bannerUrl);
-			}
-			profiles.activeId = cp.id;
-			targetInstanceId = cp.id;
-			await profiles.refresh();
-			fireModpackSuccessConfetti();
-			toast(uiText("ui.1b6566167e91c704", {arg0: (name)}), "success");
-			showModpackInstallModal = false;
-			modpackToInstall = null;
-		} catch (e) {
-			const cancelled = cancelRequested || String(e).toLowerCase().includes("cancelad");
-			toast(cancelled ? uiText("ui.e6c50b7bfe042bcf") : uiText("ui.66f69086d7d99519", {arg0: (e instanceof Error ? e.message : String(e))}), cancelled ? "info" : "error");
-		} finally {
-			if (unlisten) unlisten();
-			isInstallingModpack = false; cancelRequested = false; modpackProgressText = ""; modpackProgressPercent = 0;
-		}
-	}
-
-    async function cancelModpackInstall(): Promise<void> {
-        if (cancelRequested) return;
-        cancelRequested = true;
-        try { await instanceCancelImport(); } catch (error) { cancelRequested = false; toast(String(error), "error"); }
+    function confirmModpackInstall() {
+        if (!modpackToInstall) return;
+        void modpackInstallation.start(modpackToInstall, modpackInstanceName.trim() || modpackToInstall.title, modpackRamMb, selectedVersion, modpackVersionId);
+        showModpackInstallModal = false;
     }
+    function cancelModpackInstall() { return modpackInstallation.cancel(); }
 
 	async function confirmInstanceInstall() {
 		if (!itemToInstall) return;
@@ -747,7 +677,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 {/if}
 
 {#if showModpackInstallModal && modpackToInstall}
-	<ModpackInstaller modpack={modpackToInstall} bind:instanceName={modpackInstanceName} bind:ramMb={modpackRamMb} isInstalling={isInstallingModpack} progressText={modpackProgressText} progressPercent={modpackProgressPercent} onConfirm={confirmModpackInstall} onCancel={cancelModpackInstall} cancelling={cancelRequested} onClose={() => { if (!isInstallingModpack) showModpackInstallModal = false; }} />
+	<ModpackInstaller modpack={modpackToInstall} bind:instanceName={modpackInstanceName} bind:ramMb={modpackRamMb} isInstalling={false} queueMode={isInstallingModpack} progressText={modpackProgressText} progressPercent={modpackProgressPercent} onConfirm={confirmModpackInstall} onCancel={cancelModpackInstall} cancelling={cancelRequested} onClose={() => { showModpackInstallModal = false; }} />
 {/if}
 
 {#if showInstancePickerModal && itemToInstall}

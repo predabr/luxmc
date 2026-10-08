@@ -1,4 +1,4 @@
-export async function onRequest() {
+async function onRequest() {
   return new Response("google-site-verification: google13eed2225453caeb.html", {
     status: 200,
     headers: {
@@ -7,3 +7,6 @@ export async function onRequest() {
     }
   });
 }
+export {
+  onRequest
+};

@@ -1,12 +1,13 @@
 export function generateCapeDataUrl(type) {
-  if (!type || type === "none") return null;
+  if (!type || type === "none")
+    return null;
   const canvas = document.createElement("canvas");
   canvas.width = 64;
   canvas.height = 32;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
+  if (!ctx)
+    return null;
   ctx.imageSmoothingEnabled = false;
-
   if (type === "luxmc") {
     ctx.fillStyle = "rgb(10 14 23)";
     ctx.fillRect(0, 0, 22, 17);

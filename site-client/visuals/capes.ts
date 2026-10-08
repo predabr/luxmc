@@ -1,0 +1,231 @@
+export function generateCapeDataUrl(type: any) {
+    if (!type || type === "none")
+        return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 32;
+    const ctx = canvas.getContext("2d");
+    if (!ctx)
+        return null;
+    ctx.imageSmoothingEnabled = false;
+    if (type === "luxmc") {
+        ctx.fillStyle = "rgb(10 14 23)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(6 9 16)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(14 20 34)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(161 124 36)";
+        ctx.fillRect(12, 1, 10, 1);
+        ctx.fillRect(12, 16, 10, 1);
+        ctx.fillRect(12, 1, 1, 16);
+        ctx.fillRect(21, 1, 1, 16);
+        ctx.fillStyle = "rgb(229 181 70)";
+        ctx.fillRect(13, 2, 8, 1);
+        ctx.fillRect(13, 15, 8, 1);
+        ctx.fillRect(13, 2, 1, 14);
+        ctx.fillRect(20, 2, 1, 14);
+        ctx.fillStyle = "rgb(250 219 112)";
+        ctx.fillRect(15, 5, 4, 1);
+        ctx.fillRect(14, 6, 6, 2);
+        ctx.fillStyle = "rgb(229 181 70)";
+        ctx.fillRect(15, 8, 4, 3);
+        ctx.fillRect(16, 11, 2, 2);
+        ctx.fillStyle = "rgb(56 189 248)";
+        ctx.fillRect(16, 7, 2, 2);
+        ctx.fillStyle = "rgb(255 255 255)";
+        ctx.fillRect(16, 7, 1, 1);
+    }
+    else if (type === "migrator") {
+        ctx.fillStyle = "rgb(74 6 18)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(51 3 11)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(92 8 23)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(148 111 29)";
+        ctx.fillRect(12, 15, 10, 2);
+        ctx.fillStyle = "rgb(222 176 56)";
+        ctx.fillRect(13, 15, 8, 1);
+        ctx.fillStyle = "rgb(250 229 140)";
+        ctx.fillRect(14, 15, 6, 1);
+        ctx.fillStyle = "rgb(148 111 29)";
+        ctx.fillRect(15, 4, 4, 1);
+        ctx.fillStyle = "rgb(222 176 56)";
+        ctx.fillRect(14, 5, 6, 2);
+        ctx.fillStyle = "rgb(250 229 140)";
+        ctx.fillRect(15, 5, 4, 1);
+        ctx.fillStyle = "rgb(222 176 56)";
+        ctx.fillRect(16, 7, 2, 5);
+        ctx.fillStyle = "rgb(250 229 140)";
+        ctx.fillRect(16, 8, 1, 3);
+        ctx.fillStyle = "rgb(222 176 56)";
+        ctx.fillRect(15, 12, 4, 1);
+    }
+    else if (type === "optifine") {
+        ctx.fillStyle = "rgb(153 20 20)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(115 12 12)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(184 24 24)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(255 255 255)";
+        ctx.fillRect(14, 5, 3, 6);
+        ctx.fillStyle = "rgb(184 24 24)";
+        ctx.fillRect(15, 6, 1, 4);
+        ctx.fillStyle = "rgb(255 255 255)";
+        ctx.fillRect(18, 5, 3, 1);
+        ctx.fillRect(18, 5, 1, 6);
+        ctx.fillRect(18, 7, 2, 1);
+    }
+    else if (type === "minecon2011") {
+        ctx.fillStyle = "rgb(110 16 16)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(74 10 10)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(138 21 21)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(30 61 27)";
+        ctx.fillRect(14, 5, 2, 2);
+        ctx.fillRect(18, 5, 2, 2);
+        ctx.fillRect(16, 7, 2, 3);
+        ctx.fillRect(15, 9, 4, 3);
+        ctx.fillRect(14, 10, 1, 3);
+        ctx.fillRect(19, 10, 1, 3);
+        ctx.fillStyle = "rgb(138 21 21)";
+        ctx.fillRect(16, 11, 2, 1);
+    }
+    else if (type === "minecon2012") {
+        ctx.fillStyle = "rgb(14 21 41)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(7 11 23)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(21 32 61)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(158 117 25)";
+        ctx.fillRect(13, 6, 1, 2);
+        ctx.fillRect(20, 6, 1, 2);
+        ctx.fillStyle = "rgb(229 181 51)";
+        ctx.fillRect(14, 4, 6, 2);
+        ctx.fillStyle = "rgb(252 237 138)";
+        ctx.fillRect(15, 4, 4, 1);
+        ctx.fillStyle = "rgb(84 55 27)";
+        ctx.fillRect(16, 6, 2, 8);
+        ctx.fillStyle = "rgb(112 75 38)";
+        ctx.fillRect(16, 6, 1, 7);
+    }
+    else if (type === "minecon2013") {
+        ctx.fillStyle = "rgb(22 56 30)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(12 33 18)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(31 77 42)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(120 75 35)";
+        ctx.fillRect(14, 4, 6, 2);
+        ctx.fillStyle = "rgb(153 98 49)";
+        ctx.fillRect(14, 4, 6, 1);
+        ctx.fillStyle = "rgb(92 94 99)";
+        ctx.fillRect(15, 6, 4, 8);
+        ctx.fillStyle = "rgb(61 62 66)";
+        ctx.fillRect(16, 7, 2, 5);
+        ctx.fillStyle = "rgb(184 29 29)";
+        ctx.fillRect(16, 12, 2, 1);
+    }
+    else if (type === "minecon2015") {
+        ctx.fillStyle = "rgb(23 47 51)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(12 26 28)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(31 62 66)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(209 213 219)";
+        ctx.fillRect(14, 4, 6, 3);
+        ctx.fillStyle = "rgb(156 163 175)";
+        ctx.fillRect(15, 7, 4, 4);
+        ctx.fillStyle = "rgb(220 38 38)";
+        ctx.fillRect(18, 10, 2, 2);
+        ctx.fillStyle = "rgb(21 128 61)";
+        ctx.fillRect(18, 12, 1, 2);
+    }
+    else if (type === "minecon2016") {
+        ctx.fillStyle = "rgb(17 7 28)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(7 2 13)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(26 11 43)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(192 132 252)";
+        ctx.fillRect(13, 7, 3, 1);
+        ctx.fillRect(18, 7, 3, 1);
+        ctx.fillStyle = "rgb(255 255 255)";
+        ctx.fillRect(14, 7, 1, 1);
+        ctx.fillRect(19, 7, 1, 1);
+        ctx.fillStyle = "rgb(126 34 206)";
+        ctx.fillRect(13, 8, 3, 1);
+        ctx.fillRect(18, 8, 3, 1);
+    }
+    else if (type === "cherry") {
+        ctx.fillStyle = "rgb(236 72 153)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(190 24 93)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(244 114 182)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(253 242 248)";
+        ctx.fillRect(14, 5, 2, 2);
+        ctx.fillRect(18, 6, 2, 2);
+        ctx.fillRect(15, 11, 2, 2);
+        ctx.fillStyle = "rgb(219 39 119)";
+        ctx.fillRect(15, 6, 1, 1);
+        ctx.fillRect(19, 7, 1, 1);
+        ctx.fillRect(16, 12, 1, 1);
+        ctx.fillStyle = "rgb(21 128 61)";
+        ctx.fillRect(14, 13, 1, 2);
+    }
+    else if (type === "vanilla") {
+        ctx.fillStyle = "rgb(30 27 75)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(15 14 38)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(46 42 114)";
+        ctx.fillRect(12, 1, 5, 16);
+        ctx.fillStyle = "rgb(217 119 6)";
+        ctx.fillRect(17, 1, 5, 16);
+        ctx.fillStyle = "rgb(251 191 36)";
+        ctx.fillRect(15, 6, 4, 5);
+        ctx.fillStyle = "rgb(255 255 255)";
+        ctx.fillRect(16, 7, 2, 3);
+    }
+    else if (type === "tiktok") {
+        ctx.fillStyle = "rgb(9 9 11)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(0 0 0)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(24 24 27)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(6 182 212)";
+        ctx.fillRect(14, 5, 4, 7);
+        ctx.fillStyle = "rgb(244 63 94)";
+        ctx.fillRect(16, 6, 4, 7);
+        ctx.fillStyle = "rgb(255 255 255)";
+        ctx.fillRect(15, 5, 4, 7);
+        ctx.fillStyle = "rgb(24 24 27)";
+        ctx.fillRect(16, 7, 2, 3);
+    }
+    else if (type === "twitch") {
+        ctx.fillStyle = "rgb(88 28 135)";
+        ctx.fillRect(0, 0, 22, 17);
+        ctx.fillStyle = "rgb(59 7 100)";
+        ctx.fillRect(1, 1, 10, 16);
+        ctx.fillStyle = "rgb(126 34 206)";
+        ctx.fillRect(12, 1, 10, 16);
+        ctx.fillStyle = "rgb(255 255 255)";
+        ctx.fillRect(14, 4, 6, 7);
+        ctx.fillRect(14, 11, 2, 2);
+        ctx.fillStyle = "rgb(126 34 206)";
+        ctx.fillRect(15, 6, 1, 2);
+        ctx.fillRect(18, 6, 1, 2);
+    }
+    return canvas.toDataURL("image/png");
+}

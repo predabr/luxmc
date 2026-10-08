@@ -99,9 +99,13 @@ pub async fn prepare_quilt(
         }
     };
 
-    let mut classpath_entries = Vec::new();
-
-    for lib in &profile.libraries {
+    use futures_util::{StreamExt, TryStreamExt};
+    let mut seen = std::collections::HashSet::new();
+    let libraries = profile.libraries.into_iter().filter(|lib| seen.insert(lib.name.clone())).collect::<Vec<_>>();
+    let classpath_entries = futures_util::stream::iter(libraries).map(|lib| {
+        let http = http.clone();
+        let libraries_dir = libraries_dir.to_path_buf();
+        async move {
         let rel_path = crate::core::launcher::lib_path_from_name(&std::path::PathBuf::new(), &lib.name);
         if rel_path.components().any(|part| !matches!(part, std::path::Component::Normal(_))) {
             return Err(crate::error::AppError::InvalidInput("Caminho Maven inválido".into()));
@@ -110,12 +114,12 @@ pub async fn prepare_quilt(
         let base_url = lib.url.as_deref().unwrap_or("https://maven.quiltmc.org/repository/release/");
         let relative = rel_path.to_string_lossy().replace('\\', "/");
         let url = format!("{}/{}", base_url.trim_end_matches('/'), relative);
-        if super::ensure_maven_jar(http, &dest, &url).await.is_err() {
+        if super::ensure_maven_jar(&http, &dest, &url).await.is_err() {
             let central = format!("https://repo1.maven.org/maven2/{relative}");
-            super::ensure_maven_jar(http, &dest, &central).await?;
+            super::ensure_maven_jar(&http, &dest, &central).await?;
         }
-        classpath_entries.push(dest);
-    }
+        Ok::<_, crate::error::AppError>(dest)
+    }}).buffered(6).try_collect::<Vec<_>>().await?;
 
     let mut jvm_args = Vec::new();
     if let Some(args) = profile.arguments {

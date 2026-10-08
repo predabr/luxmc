@@ -25,7 +25,7 @@ export function resolveUpdateAssetUrl(
 		const installers = assets.filter((candidate) => {
 			const name = candidate.name.toLowerCase();
 			return name.endsWith(".msi") || (name.endsWith(".exe") &&
-				(/setup|install(?:er|ador)?/.test(name) || /^lux\s*mc\s+launcher\.exe$/.test(name)));
+				(/setup|install(?:er|ador)?/.test(name) || /^lux[.\s]*mc[.\s]+launcher\.exe$/.test(name)));
 		});
 		installers.sort((a, b) => Number(/\.exe$/i.test(b.name)) - Number(/\.exe$/i.test(a.name)) ||
 			Number(/x64|x86_64|amd64/i.test(b.name)) - Number(/x64|x86_64|amd64/i.test(a.name)));

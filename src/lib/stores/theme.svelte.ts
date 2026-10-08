@@ -325,7 +325,7 @@ export const themeStore = {
 		else this.clearCustomWallpaper();
 	},
 
-	clearCustomWallpaper() {
+	clearCustomWallpaper(persist = true) {
 		customWallpaperUrl = "";
 		activeBackground = "obsidian";
 		if (typeof window !== "undefined") {
@@ -334,7 +334,7 @@ export const themeStore = {
 			localStorage.setItem("luxmc_background", "obsidian");
 		}
 		applyThemeVariables(activeTheme, activeAccent, "obsidian");
-		settings.patch({ customBackground: "obsidian", customWallpaperUrl: "", customWallpaperType: "image" });
+		if (persist) settings.patch({ customBackground: "obsidian", customWallpaperUrl: "", customWallpaperType: "image" });
 	},
 
 	init() {

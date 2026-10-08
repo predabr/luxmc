@@ -32,8 +32,10 @@ fn default_source() -> String {
 }
 
 pub(crate) fn content_icon_key(path: &std::path::Path, metadata: &std::fs::Metadata) -> String {
+    let artwork_metadata = if metadata.is_dir() { std::fs::metadata(path.join("pack.png")).ok() } else { None };
+    let metadata = artwork_metadata.as_ref().unwrap_or(metadata);
     let modified = metadata.modified().ok().and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map(|time| time.as_nanos()).unwrap_or(0);
-    format!("content:{}:{}:{}", path.to_string_lossy(), metadata.len(), modified)
+    format!("content:v2:{}:{}:{}", path.to_string_lossy(), metadata.len(), modified)
 }
 
 async fn cache_content_icon(pool: &sqlx::SqlitePool, path: &std::path::Path, icon: Option<&str>) {
@@ -929,20 +931,23 @@ pub async fn mods_download_to_temp_core(
     }
     let base = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| crate::error::AppError::InvalidState("could not determine cache dir".into()))?;
-    let directory = base.cache_dir().join("modpacks").join(uuid::Uuid::new_v4().to_string());
+    use sha2::Digest;
+    let cache_id=std::path::Path::new(&file_name).file_stem().and_then(|value|value.to_str()).filter(|value|uuid::Uuid::parse_str(value).is_ok()).map(str::to_owned).unwrap_or_else(||format!("{:x}", sha2::Sha256::digest(url.as_bytes())));
+    let directory = base.cache_dir().join("modpacks").join(cache_id);
     let target = pack::destination(&directory, &file_name)?;
     let client = pack::client()?;
+    if pack::verify_existing(&target, None, None, None, true).await { return Ok(target.to_string_lossy().into_owned()); }
     let mut last_error = crate::error::AppError::InvalidState("Download failed".into());
     for attempt in 0..3 {
         pack::backoff(attempt, Some(&state.import_cancel)).await?;
         for url in &urls {
-            match pack::bytes(&client, url, Some(&state.import_cancel)).await {
-                Ok(bytes) => {
-                    if zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_err() {
-                        last_error = crate::error::AppError::InvalidInput("Invalid pack archive".into());
+            match crate::core::mods::resumable::download(&client, url, &target, Some(&state.import_cancel)).await {
+                Ok(()) => {
+                    if !pack::verify_existing(&target, None, None, None, true).await {
+                        let _ = tokio::fs::remove_file(&target).await;
+                        last_error = crate::error::AppError::InvalidInput("Arquivo corrompido: o pacote baixado não é um ZIP válido. Tente baixar novamente.".into());
                         continue;
                     }
-                    pack::atomic_write(&target, &bytes).await?;
                     return Ok(target.to_string_lossy().into_owned());
                 }
                 Err(error) => last_error = error,
@@ -1264,10 +1269,8 @@ fn read_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
         candidate_paths.push(format!("assets/{}/textures/gui/icon.png", mid));
     }
     candidate_paths.push("icon.png".into());
-    candidate_paths.push("assets/icon.png".into());
     candidate_paths.push("logo.png".into());
-    candidate_paths.push("assets/logo.png".into());
-    candidate_paths.push("pack.png".into());
+    if !jar_path.file_name().is_some_and(|name| name.to_string_lossy().contains(".jar")) { candidate_paths.push("pack.png".into()); }
 
     for candidate in &candidate_paths {
         if let Ok(mut entry) = archive.by_name(candidate) {
@@ -1280,29 +1283,6 @@ fn read_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
         }
     }
 
-    for i in 0..archive.len() {
-        if let Ok(mut entry) = archive.by_index(i) {
-            let name = entry.name().to_lowercase();
-            let matches_icon_name = icon_path.as_ref().map_or(false, |ip| {
-                let lower_ip = ip.to_lowercase();
-                name == lower_ip || name.ends_with(&format!("/{}", lower_ip))
-            });
-
-            let is_generic_icon = name.ends_with("/icon.png")
-                || name.ends_with("icon.png")
-                || name.ends_with("/logo.png")
-                || name.ends_with("logo.png")
-                || name.ends_with("/pack.png")
-                || (name.starts_with("assets/") && name.ends_with(".png") && (name.contains("icon") || name.contains("logo")));
-
-            if (matches_icon_name || is_generic_icon) && entry.size() > 0 && entry.size() < 2_000_000 {
-                let mut buf = Vec::new();
-                if entry.by_ref().take(2_000_000).read_to_end(&mut buf).is_ok() && !buf.is_empty() {
-                    if let Some(icon) = mod_icon_data_url(&buf) { return Some(icon); }
-                }
-            }
-        }
-    }
 
     None
 }
@@ -1597,6 +1577,27 @@ mod download_cancellation_tests {
         assert!(extract_mod_icon_from_jar(&path).is_some());
         assert_eq!(std::fs::read(&path).unwrap(), original);
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn content_images_do_not_use_random_dependency_artwork() {
+        let root = std::env::temp_dir().join(format!("luxmc-artwork-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join("sample.jar");
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgba8(16,16).write_to(&mut bytes,image::ImageFormat::Png).unwrap();
+        let png = bytes.into_inner();
+        let mut archive = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
+        archive.start_file("assets/dependency/logo.png",zip::write::FileOptions::default()).unwrap();
+        std::io::Write::write_all(&mut archive,&png).unwrap();
+        archive.start_file("pack.png",zip::write::FileOptions::default()).unwrap();
+        std::io::Write::write_all(&mut archive,&png).unwrap();
+        archive.finish().unwrap();
+        assert!(extract_mod_icon_from_jar(&path).is_none());
+        let first = content_icon_key(&path,&std::fs::metadata(&path).unwrap());
+        let other = root.join("other.jar"); std::fs::copy(&path,&other).unwrap();
+        assert_ne!(first,content_icon_key(&other,&std::fs::metadata(&other).unwrap()));
+        std::fs::remove_file(path).unwrap(); std::fs::remove_file(other).unwrap(); std::fs::remove_dir(root).unwrap();
     }
 
     #[test]

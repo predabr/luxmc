@@ -256,7 +256,11 @@ pub async fn app_perform_update(
         }))
         .build()
         .map_err(|e| AppError::Internal(format!("Falha ao preparar atualização: {e}")))?;
-    let temp_file_path = std::env::temp_dir().join(format!("luxmc-update-{}-{file_name}", uuid::Uuid::new_v4()));
+    use sha2::Digest;
+    let base = directories::ProjectDirs::from("io","github","Luxmc").ok_or_else(|| AppError::InvalidState("Cache de atualização indisponível".into()))?;
+    let update_dir = base.cache_dir().join("updates");
+    tokio::fs::create_dir_all(&update_dir).await?;
+    let temp_file_path = update_dir.join(format!("{:x}-{file_name}",sha2::Sha256::digest(source_url.as_str().as_bytes())));
     let (downloaded, total_bytes) = super::updater_download::download(&client, &source_url, &temp_file_path, is_allowed_redirect_url, |downloaded, total| {
         let _ = app.emit("update-progress", UpdateProgress {
             percent: if total > 0 { ((downloaded as f64 / total as f64) * 100.0).min(99.0) as u32 } else { 0 },
@@ -264,6 +268,17 @@ pub async fn app_perform_update(
             status: "Baixando e verificando atualização...".into(),
         });
     }).await?;
+    let sums_url = source_url.join("SHA256SUMS").map_err(|e| AppError::InvalidInput(e.to_string()))?;
+    let response = client.get(sums_url).send().await?.error_for_status()?;
+    if !is_allowed_redirect_url(response.url()) || response.content_length().is_some_and(|n| n > 256 * 1024) { return Err(AppError::InvalidInput("Manifesto de integridade inválido".into())); }
+    use futures_util::StreamExt;
+    let mut chunks = response.bytes_stream(); let mut manifest = Vec::new();
+    while let Some(chunk) = chunks.next().await { let chunk=chunk?; if manifest.len()+chunk.len()>256*1024 {return Err(AppError::InvalidInput("Manifesto acima do limite".into()));} manifest.extend_from_slice(&chunk); }
+    let manifest = String::from_utf8(manifest).map_err(|e| AppError::InvalidInput(e.to_string()))?;
+    let expected = checksum_entry(&manifest,&file_name)?;
+    let verification_path = temp_file_path.clone();
+    let actual = tokio::task::spawn_blocking(move || -> AppResult<String> { use std::io::Read; let mut file=std::fs::File::open(verification_path)?; let mut digest=sha2::Sha256::new(); let mut buffer=[0u8;65536]; loop {let n=file.read(&mut buffer)?;if n==0{break;} digest.update(&buffer[..n]);} Ok(format!("{:x}",digest.finalize())) }).await.map_err(|e| AppError::Internal(e.to_string()))??;
+    if !actual.eq_ignore_ascii_case(&expected) { tokio::fs::remove_file(&temp_file_path).await?; return Err(AppError::InvalidInput("A conferência SHA-256 da atualização falhou. O instalador foi descartado; tente novamente.".into())); }
     ensure_update_idle(crate::core::launcher::get_active_game_pid())?;
 
     let _ = app.emit(
@@ -478,5 +493,25 @@ mod tests {
         assert!(matches!(program, "dnf" | "zypper" | "rpm"));
         assert!(arguments.iter().any(|argument| argument.ends_with(".rpm")));
         assert!(terminal.contains("'/tmp/Luxmc update.rpm'"));
+    }
+}
+
+fn checksum_entry(manifest: &str, name: &str) -> AppResult<String> {
+    for line in manifest.lines() {
+        if let Some((hash,file)) = line.split_once(char::is_whitespace) {
+            if file.trim().trim_start_matches('*') == name && hash.len()==64 && hash.chars().all(|c| c.is_ascii_hexdigit()) { return Ok(hash.into()); }
+        }
+    }
+    Err(AppError::InvalidInput("A atualização não possui uma entrada SHA-256 válida no manifesto oficial".into()))
+}
+
+#[cfg(test)]
+mod checksum_tests {
+    #[test]
+    fn matches_exact_filename_and_requires_sha256() {
+        let hash="a".repeat(64);
+        assert_eq!(super::checksum_entry(&format!("{hash}  Lux.MC.Launcher.exe"),"Lux.MC.Launcher.exe").unwrap(),hash);
+        assert!(super::checksum_entry("bad  Lux.MC.Launcher.exe","Lux.MC.Launcher.exe").is_err());
+        assert!(super::checksum_entry(&format!("{hash}  other.exe"),"Lux.MC.Launcher.exe").is_err());
     }
 }

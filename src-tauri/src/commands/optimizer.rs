@@ -98,10 +98,10 @@ pub async fn optimizer_detect_gpu() -> GpuInfo {
 
 #[tauri::command]
 pub fn optimizer_trim_memory() -> bool {
-    crate::core::native_cpp::trim_memory_native()
+    crate::core::native_rust::trim_memory_native()
 }
 
 #[tauri::command]
-pub fn optimizer_native_cpu_profile() -> crate::core::native_cpp::NativeCpuProfile {
-    crate::core::native_cpp::get_cpu_profile()
+pub fn optimizer_native_cpu_profile() -> crate::core::native_rust::NativeCpuProfile {
+    crate::core::native_rust::get_cpu_profile()
 }

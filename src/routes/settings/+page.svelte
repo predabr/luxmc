@@ -453,6 +453,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     <header class="flex items-center gap-4">
         <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-brand-400/20 bg-brand-500/10 text-brand-400"><SlidersHorizontal class="h-6 w-6" /></span>
         <div><p class="page-eyebrow">Luxmc</p><h1 class="mt-1 text-2xl font-semibold tracking-tight text-fg">{uiText("settings.refinement.settingsTitle")}</h1></div>
+        <a href="/workshop" class={launcherButton({variant:"secondary",class:"ml-auto"})}>{uiText("workshop.title")}</a>
     </header>
     <div class="surface-glass grid grid-cols-2 gap-2 p-2 sm:grid-cols-4 xl:grid-cols-8" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
         {#each settingsTabs as tab}

@@ -12,6 +12,9 @@ function fixture() {
   sqlite.exec(readFileSync(new URL("../website/migrations/0003_mesh_social.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0004_social_stream.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0005_social_avatars.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0008_public_profiles.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0009_profile_identity.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0010_pack_collections.sql", import.meta.url), "utf8"));
   const db = { prepare(sql) {
     const statement = sqlite.prepare(sql);
     return { bind(...values) {
@@ -200,4 +203,31 @@ test("duplicate nicknames remain distinct and friend codes select the recipient"
     assert.equal((await request("sync", bobToken, {})).body.friends[0].incoming, true);
     assert.notEqual(first.id, second.id);
   } finally { sqlite.close(); }
+});
+
+test("public profiles persist offline and require an accepted friendship", async () => {
+  const {sqlite,request} = fixture();
+  try {
+    const a = 'a'.repeat(64), b = 'b'.repeat(64), stranger = 'c'.repeat(64);
+    const alice = (await request('register',a,{username:'Alice'})).body.me;
+    const bob = (await request('register',b,{username:'Bob'})).body.me;
+    await request('register',stranger,{username:'Stranger'});
+    const saved = await request('profile_save',a,{displayName:'Explorer',status:'Building today',description:'Building worlds',banner:'',portrait:'',packs:['Homestead'],collections:[{id:'group-one',title:'Co-op',description:'Play together',entries:[{source:'modrinth',projectId:'project123',versionId:'exact123',name:'Homestead'}]}]});
+    assert.equal(saved.status,200);
+    assert.equal((await request('profile_get',b,{targetId:alice.id})).status,403);
+    await request('invite',a,{targetId:bob.id}); await request('accept',b,{targetId:alice.id});
+    assert.deepEqual((await request('profile_get',b,{targetId:alice.id})).body.profile.packs,['Homestead']);
+    const identity = (await request('profile_get',b,{targetId:alice.id})).body.profile;
+    assert.equal(identity.displayName,'Explorer');
+    assert.equal(identity.status,'Building today');
+    assert.equal((await request('profile_save',a,{description:'Legacy update',banner:'',portrait:'',packs:['Homestead']})).status,200);
+    const preserved = (await request('profile_get',b,{targetId:alice.id})).body.profile;
+    assert.equal(preserved.collections[0].entries[0].versionId,'exact123');
+    assert.equal(preserved.displayName,'Explorer');
+    assert.equal(preserved.status,'Building today');
+    assert.equal((await request('profile_get',stranger,{targetId:alice.id})).status,403);
+    await request('block',b,{targetId:alice.id});
+    assert.equal((await request('profile_get',b,{targetId:alice.id})).status,403);
+    assert.equal((await request('profile_save',a,{description:'ok',banner:'javascript:alert(1)',portrait:'',packs:[]})).status,400);
+  } finally {sqlite.close();}
 });

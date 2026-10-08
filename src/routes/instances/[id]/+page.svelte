@@ -99,6 +99,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		versionsCheckInstalled,
 		versionsDownload,
 		instanceFileTree,
+        instanceContentIcons,
 		instancesScreenshots,
 		instancesOpenFolder,
 		screenshotsOpenFolder,
@@ -135,7 +136,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		optimizerGetFlags,
 		optimizerDetectGpu,
 		modsResolveNames,
-		modsResolveIcons,
+
 		type GpuInfo,
 		type JvmValidationResult,
 		type FileTreeEntry,
@@ -1014,11 +1015,59 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     let pendingLoads = 0;
     let metadataTimer: ReturnType<typeof setTimeout> | undefined;
 
+    const iconQueue = new Map<string, { name: string; folder: string; id: string; key: string }>();
+    const iconRequested = new Set<string>();
+    let iconTimer: ReturnType<typeof setTimeout> | undefined;
+    let iconBusy = false;
+    async function flushContentIcons() {
+        if (iconBusy) return;
+        iconBusy = true;
+        try {
+            while (iconQueue.size) {
+                const first = iconQueue.values().next().value!;
+                const batch = [...iconQueue.values()].filter(entry => entry.id === first.id && entry.folder === first.folder).slice(0, 32);
+                for (const entry of batch) iconQueue.delete(entry.key);
+                const apply = (icons: Awaited<ReturnType<typeof instanceContentIcons>>) => {
+                    if (instanceId !== first.id) return;
+                    const update = (entries: FileTreeEntry[]) => entries.map(entry => {
+                        const icon = icons.find(icon => icon.iconKey === entry.iconKey);
+                        return icon ? { ...entry, icon: icon.icon, iconResolved: icon.resolved } : entry;
+                    });
+                    if (first.folder === 'mods') instanceMods = update(instanceMods);
+                    else if (first.folder === 'resourcepacks') resourcePacks = update(resourcePacks);
+                    else if (first.folder === 'shaderpacks') shaderPacks = update(shaderPacks);
+                    else if (first.folder === `saves/${datapackWorld}/datapacks`) dataPacks = update(dataPacks);
+                };
+                try {
+                    const local = await instanceContentIcons(first.id, first.folder, batch.map(entry => entry.name));
+                    apply(local);
+                    const missing = local.filter(entry => !entry.resolved).map(entry => entry.name);
+                    if (missing.length) void instanceContentIcons(first.id, first.folder, missing, true).then(apply).catch(() => {});
+                } catch { for (const entry of batch) iconRequested.delete(entry.key); }
+            }
+        } finally { iconBusy = false; }
+    }
+    function loadContentIcon(node: HTMLElement, initial: { entry: FileTreeEntry; folder: string }) {
+        let value = initial;
+        const request = () => {
+            const { entry, folder } = value;
+            if (!entry.iconKey || entry.iconResolved || entry.icon || iconRequested.has(entry.iconKey)) return;
+            iconRequested.add(entry.iconKey);
+            iconQueue.set(entry.iconKey, { name: entry.name, folder, id: instanceId, key: entry.iconKey });
+            clearTimeout(iconTimer);
+            iconTimer = setTimeout(() => void flushContentIcons(), 30);
+        };
+        const observer = new IntersectionObserver(entries => { if (entries.some(entry => entry.isIntersecting)) request(); }, { rootMargin: '100px' });
+        observer.observe(node);
+        return { update(next: typeof initial) { value = next; if (node.getBoundingClientRect().top < window.innerHeight + 100) request(); }, destroy() { observer.disconnect(); } };
+    }
+
     async function loadSection(section: DataSection, force = false) {
         const id = instanceId;
         if (!id) return;
         const path = fileSubPath;
-        const key = `${id}:${section}:${section === "ficheiros" ? path : ""}`;
+        const world = datapackWorld;
+        const key = `${id}:${section}:${section === "ficheiros" ? path : section === "datapacks" ? world : ""}`;
         const generation = dataGeneration;
         const pending = sectionRequests.get(key);
         if (pending) { await pending; if (!force && loadedSections.has(key)) return; }
@@ -1043,13 +1092,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 if (current()) screenshotsList = data;
             } else {
                 if (section === "datapacks") {
-                    worldsList = await instanceWorldsList(id);
+                    const worlds = await instanceWorldsList(id);
+                    if (!current() || (world && world !== datapackWorld)) return;
+                    worldsList = worlds;
                     if (!worldsList.some(world => world.folderName === datapackWorld)) datapackWorld = worldsList[0]?.folderName || "";
                     if (!datapackWorld) { dataPacks = []; loadedSections.add(key); return; }
                 }
                 const folder = section === "datapacks" ? `saves/${datapackWorld}/datapacks` : section === "ficheiros" ? path || undefined : section === "shaders" ? "shaderpacks" : section;
                 const data = await instanceFileTree(id, folder);
-                if (!current()) return;
+                if (!current() || (section === "datapacks" && folder !== `saves/${datapackWorld}/datapacks`)) return;
                 if (section === "mods") {
                     instanceMods = data;
                     if (!resolvedMetadata.has(id)) {
@@ -1058,7 +1109,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                             void (async () => {
                                 const results = await Promise.allSettled([
                                     data.some(mod => /^\d+(_\d+)?\.jar$/.test(mod.name.replace('.disabled', ''))) ? modsResolveNames(id) : Promise.resolve(0),
-                                    data.some(mod => !mod.icon) ? modsResolveIcons(id) : Promise.resolve(0)
+                                    Promise.resolve(0)
                                 ]);
                                 const changed = results.reduce((total,result) => total + (result.status === "fulfilled" ? result.value : 0), 0);
                                 if (current() && changed > 0) await loadSection("mods", true);
@@ -1086,6 +1137,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const id = instanceId;
         untrack(() => {
             dataGeneration++;
+            iconQueue.clear(); iconRequested.clear(); clearTimeout(iconTimer);
             loadedSections.clear();
             resolvedMetadata.clear();
             mainTab = "conteudo"; subTab = "mods";
@@ -2031,8 +2083,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 											onchange={() => toggleModSelection(mod.name)}
 											class="w-4 h-4 rounded border border-fg/20 bg-bg-subtle accent-emerald-500 cursor-pointer shrink-0"
 										/>
-										<div class="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-bg-subtle border border-fg/10 relative shadow-sm {isDisabled ? 'grayscale opacity-60' : ''}">
-											<div class="absolute inset-0 bg-gradient-to-br {badge.theme} flex items-center justify-center select-none">
+										<div use:loadContentIcon={{entry: mod, folder: "mods"}} class="w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center shrink-0 bg-bg-subtle border border-fg/10 relative shadow-sm {isDisabled ? 'grayscale opacity-60' : ''}">
+											<div class="absolute inset-0 bg-bg-subtle text-fg-muted flex items-center justify-center select-none">
 												<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
 											</div>
 											{#if mod.icon}
@@ -2041,7 +2093,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 													alt={displayName}
 													loading="lazy"
 													class="relative z-10 w-full h-full object-contain"
-													onerror={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
+													onload={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "visible"; }} onerror={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
 												/>
 											{/if}
 										</div>
@@ -2192,9 +2244,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                             <div class="grid gap-2 p-3 sm:grid-cols-2">
                                 {#each packs as pack (pack.name)}
                                     <div class="flex min-w-0 items-center gap-3 rounded-xl border border-border p-3">
-                                        <div class="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-bg-subtle">
+                                        <div use:loadContentIcon={{entry: pack, folder: group.id === "shaders" ? "shaderpacks" : group.id === "datapacks" ? `saves/${datapackWorld}/datapacks` : "resourcepacks"}} class="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-bg-subtle">
                                             <group.icon class="absolute h-5 w-5 text-fg-muted" />
-                                            {#if pack.icon}<img src={pack.icon} alt={pack.name} loading="lazy" decoding="async" class="relative h-full w-full object-contain" onerror={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />{/if}
+                                            {#if pack.icon}<img src={pack.icon} alt={pack.name} loading="lazy" decoding="async" class="relative h-full w-full object-contain" onload={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'visible'} onerror={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />{/if}
                                         </div>
                                         <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}</p><p class="mt-1 text-[10px] text-fg-muted">{(pack.size / 1048576).toFixed(2)} MB</p></div>
                                         <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`${uiText("screenshots.openFolderBtn")}: ${pack.name}`} title={uiText("screenshots.openFolderBtn")} onclick={() => handleOpenPackFolder(group.type)}><FolderOpen class="h-4 w-4" /></button>

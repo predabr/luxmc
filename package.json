@@ -1,6 +1,6 @@
 {
   "name": "luxmc",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "Linux-first Minecraft launcher.",
   "type": "module",
   "private": true,
@@ -23,11 +23,12 @@
     "test:coverage": "vitest run --coverage",
     "deploy:website": "pnpm build:website && pnpm dlx wrangler@4.135.0 --cwd website pages deploy . --project-name=luxmc --branch=main",
     "build:windows": "node scripts/build-windows.mjs",
-    "build:website": "node scripts/build-website-visuals.mjs",
+    "build:website": "pnpm check:website && node scripts/build-site-server.mjs && node scripts/build-site-client.mjs && node scripts/build-website-visuals.mjs",
     "preview:website": "node scripts/preview-website.mjs",
-    "test:website": "node --test tests/social.test.mjs tests/accounts.test.mjs tests/protocol.test.mjs tests/catalog.test.mjs tests/website-ui.test.mjs tests/downloads.test.mjs",
+    "test:website": "pnpm check:website && node scripts/build-site-server.mjs && node scripts/build-site-client.mjs && node --test tests/social.test.mjs tests/accounts.test.mjs tests/protocol.test.mjs tests/catalog.test.mjs tests/website-ui.test.mjs tests/downloads.test.mjs tests/profile-media.test.mjs",
     "test:native": "node tests/native-smoke.mjs",
-    "build:client-agent": "node scripts/build-client-agent.mjs"
+    "build:client-agent": "node scripts/build-client-agent.mjs",
+    "check:website": "tsc -p site-server/tsconfig.json && tsc -p site-client/tsconfig.json"
   },
   "build": {
     "appId": "io.github.luxmc.Luxmc",

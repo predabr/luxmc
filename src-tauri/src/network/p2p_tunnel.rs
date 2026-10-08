@@ -14,6 +14,7 @@ use tokio::{
 };
 
 mod worlds;
+pub mod coordination;
 pub use worlds::RoomWorld;
 
 const ALPN: &[u8] = b"luxmc/minecraft-tunnel/2";
@@ -90,9 +91,9 @@ impl RoomIdentity {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TunnelMember { pub id: String, pub username: String, pub uuid: String, pub avatar_url: Option<String>, pub joined_at: u64, pub is_host: bool }
+pub struct TunnelMember { pub id: String, pub username: String, pub uuid: String, pub avatar_url: Option<String>, pub joined_at: u64, pub is_host: bool, #[serde(default)] pub preparation: Option<coordination::Preparation> }
 impl TunnelMember {
-    fn new(id: String, identity: RoomIdentity, is_host: bool) -> Self { Self { id, username: identity.username, uuid: identity.uuid, avatar_url: identity.avatar_url, joined_at: now(), is_host } }
+    fn new(id: String, identity: RoomIdentity, is_host: bool) -> Self { Self { id, username: identity.username, uuid: identity.uuid, avatar_url: identity.avatar_url, joined_at: now(), is_host, preparation: None } }
 }
 
 #[derive(Default)]
@@ -143,11 +144,11 @@ async fn read_room_snapshot(connection: &iroh::endpoint::Connection, secret: [u8
     let mut snapshot: RoomSnapshot = serde_json::from_slice(&bytes)?;
     if snapshot.members.len() > ROOM_CAPACITY || snapshot.max_players != ROOM_CAPACITY || snapshot.room_code.len() > 32 { return Err(failure("Participantes da sala inválidos")); }
     for member in &mut snapshot.members {
-        if member.id.len() > 128 { return Err(failure("Participante inválido")); }
+        if member.id.len() > 128 || member.preparation.as_ref().is_some_and(|value| !value.valid()) { return Err(failure("Participante inválido")); }
         let identity = RoomIdentity { username: member.username.clone(), uuid: member.uuid.clone(), avatar_url: member.avatar_url.clone() }.validate()?;
         member.username = identity.username; member.avatar_url = identity.avatar_url;
     }
-    if snapshot.worlds.len() > ROOM_CAPACITY || snapshot.worlds.iter().any(|world| !snapshot.members.iter().any(|member| member.id == world.owner_id) || world.motd.chars().count() > 160 || world.motd.chars().any(char::is_control)) { return Err(failure("Mundos da sala inválidos")); }
+    if snapshot.worlds.len() > ROOM_CAPACITY || snapshot.worlds.iter().any(|world| !snapshot.members.iter().any(|member| member.id == world.owner_id) || world.motd.chars().count() > 160 || world.motd.chars().any(char::is_control) || world.compatibility.as_ref().is_some_and(|c| c.mc_version.len()>64 || c.loader.len()>32 || c.mod_fingerprint.len()!=64 || !c.mod_fingerprint.chars().all(|v|v.is_ascii_hexdigit()) || c.mod_count>10000)) { return Err(failure("Mundos da sala inválidos")); }
     for world in &mut snapshot.worlds { world.local_address = None; }
     Ok(snapshot)
 }
@@ -170,6 +171,7 @@ pub struct TunnelStatus {
 }
 
 pub struct TunnelSession {
+    secret: [u8;32],
     endpoint: Endpoint,
     task: JoinHandle<()>,
     lan_broadcast: Option<JoinHandle<()>>,
@@ -400,6 +402,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
                                         let Ok(Ok(_)) = tokio::time::timeout(Duration::from_secs(5), recv.read_exact(&mut handshake)).await else { return };
                                         let difference = handshake[1..].iter().zip(accepted_secret).fold(0u8, |acc, (a,b)| acc | (*a ^ b));
                                         if difference != 0 { return; }
+                                        if matches!(handshake[0], 7 | 8) { coordination::control(handshake[0], &sender_id, send, recv, registry).await; return; }
                                         if matches!(handshake[0], 4 | 5) { worlds::control(handshake[0], &sender_id, send, recv, registry).await; return; }
                                         if handshake[0] == 3 {
                                             let snapshot = registry.lock().await.snapshot();
@@ -432,6 +435,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
     let world_addresses = Arc::new(Mutex::new(BTreeMap::new()));
     let world_routes = worlds::manage(host_member.id.clone(), Some(room.clone()), None, None, secret, world_addresses.clone());
     Ok(TunnelSession {
+        secret,
         endpoint,
         task,
         lan_broadcast: None,
@@ -547,6 +551,7 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
             tokio::select! {
                 _ = polling_connection.closed() => break,
                 _ = interval.tick() => {
+                    let _ = tokio::time::timeout(Duration::from_secs(2), coordination::publish(&polling_connection, secret)).await;
                     let world = publishing_room.lock().await.worlds.values().next().cloned();
                     let _ = tokio::time::timeout(Duration::from_secs(2), worlds::publish(&polling_connection, secret, world)).await;
                     if let Ok(Ok(snapshot)) = tokio::time::timeout(Duration::from_secs(2), read_room_snapshot(&polling_connection, secret)).await { *polling_room.lock().await = snapshot; }
@@ -588,6 +593,7 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
         ep.close().await;
     });
     Ok(TunnelSession {
+        secret,
         endpoint,
         task,
         lan_broadcast: Some(lan_broadcast),
@@ -622,6 +628,7 @@ pub async fn host_world(port: Option<u16>, identity: Option<RoomIdentity>) -> Ap
     if state.is_some() {
         return Err(failure("Encerre a sessão atual primeiro"));
     }
+    coordination::reset().await;
     let mut session = start_host_as(port.unwrap_or(0), endpoint().await?, identity.unwrap_or_default()).await?;
     let code = crate::core::share_codes::publish("room", session.status.invitation.as_deref().unwrap_or("")).await?;
     session.public_code = Some(code.clone());
@@ -638,6 +645,7 @@ pub async fn join_world(invitation: String, identity: Option<RoomIdentity>) -> A
     if state.is_some() {
         return Err(failure("Encerre a sessão atual primeiro"));
     }
+    coordination::reset().await;
     let input = invitation.trim();
     let linked = url::Url::parse(input).ok().filter(|url| url.scheme() == "luxmc" && url.host_str() == Some("join") && url.path() == "/world").and_then(|url| url.query_pairs().find(|(key,_)| key == "invitation").map(|(_,value)| value.into_owned()));
     let code = linked.as_deref().unwrap_or(input).to_uppercase();
@@ -694,6 +702,7 @@ pub async fn tunnel_save_server(profile_id: String) -> AppResult<String> {
 
 #[tauri::command]
 pub async fn stop_session() -> AppResult<()> {
+    coordination::reset().await;
     if let Some(session) = SESSION.lock().await.take() {
         session.stop().await;
     }
@@ -712,7 +721,7 @@ pub async fn tunnel_status() -> AppResult<Option<TunnelStatus>> {
         }
     }
     let room_state = if let Some(session) = state.as_ref() {
-        if let Some(room) = &session.room { let room = room.lock().await; Some((room.members.values().cloned().collect::<Vec<_>>(), room.locked, room.world_ready, room.worlds.values().cloned().collect::<Vec<_>>())) } else { None }
+        if let Some(room) = &session.room { let room = room.lock().await; Some((room.snapshot().members, room.locked, room.world_ready, room.worlds.values().cloned().collect::<Vec<_>>())) } else { None }
     } else { None };
     let client_state = if let Some(session) = state.as_ref() {
         if let Some(room) = &session.client_room { Some(room.lock().await.clone()) } else { None }
@@ -722,7 +731,7 @@ pub async fn tunnel_status() -> AppResult<Option<TunnelStatus>> {
         let mut s = session.status.clone();
         if let Some(code) = &session.public_code { s.invitation = Some(code.clone()); }
         if let Some(room) = &client_state { s.members = room.members.clone(); s.room_code = (!room.room_code.is_empty()).then(|| room.room_code.clone()); s.max_players = room.max_players; s.room_locked = room.room_locked; s.world_ready = room.world_ready; }
-        if let Some((members, locked, ready, worlds)) = &room_state { s.members.extend(members.iter().cloned()); s.room_locked = *locked; s.world_ready = *ready; s.worlds = worlds.clone(); }
+        if let Some((members, locked, ready, worlds)) = &room_state { s.members=members.clone(); s.room_locked = *locked; s.world_ready = *ready; s.worlds = worlds.clone(); }
         if let Some(room) = &client_state { s.worlds = room.worlds.clone(); }
         for world in &mut s.worlds { world.local_address = addresses.get(&world.owner_id).cloned().or_else(|| s.members.iter().any(|member| member.id == world.owner_id && member.is_host).then(|| s.local_address.clone()).flatten()); }
         if let Some(connection) = &session.connection {
@@ -741,6 +750,7 @@ pub async fn tunnel_status() -> AppResult<Option<TunnelStatus>> {
                 .find(|p| p.is_selected())
                 .map(|p| p.rtt().as_millis() as u64)
         });
+        for member in &mut s.members {coordination::normalize(&mut member.preparation,&s.worlds);}
         s
     }))
 }
@@ -835,9 +845,11 @@ mod tests {
         let id = owner.endpoint.id().to_string();
         let (first_port, first_echo) = echo().await;
         owner.target_port.as_ref().unwrap().store(first_port, Ordering::Release);
-        owner.local_registry.as_ref().unwrap().lock().await.worlds.insert(id.clone(), RoomWorld { owner_id: id.clone(), owner_username: "Alex".into(), motd: "Guest world".into(), local_address: None });
+        owner.local_registry.as_ref().unwrap().lock().await.worlds.insert(id.clone(), RoomWorld { owner_id: id.clone(), owner_username: "Alex".into(), motd: "Guest world".into(), local_address: None, compatibility: Some(crate::commands::experience::Compatibility {mc_version:"1.21.1".into(),loader:"fabric".into(),mod_fingerprint:"a".repeat(64),mod_count:3}) });
         let host_proxy = proxy(&host, &id).await;
         let visitor_proxy = proxy(&visitor, &id).await;
+        let metadata = host.room.as_ref().unwrap().lock().await.worlds.get(&id).unwrap().compatibility.clone().unwrap();
+        assert_eq!(metadata.mc_version,"1.21.1"); assert_eq!(metadata.mod_count,3);
         assert!(!owner.world_addresses.lock().await.contains_key(&id));
         transfer(&host_proxy, b"creator joins guest").await;
         transfer(&visitor_proxy, b"guest joins another guest").await;

@@ -335,7 +335,9 @@ pub async fn prepare_forge(
     let version_data: ForgeVersionJson = serde_json::from_str(&version_json_str)
         .map_err(|e| AppError::Internal(format!("Failed to parse Forge version.json: {e}")))?;
 
+    use futures_util::{StreamExt, TryStreamExt};
     let mut classpath_entries = Vec::new();
+    let mut downloads = Vec::new();
 
     for lib in &version_data.libraries {
         if lib.clientreq == Some(false) {
@@ -395,9 +397,13 @@ pub async fn prepare_forge(
         let artifact = lib.downloads.as_ref().and_then(|downloads| downloads.artifact.as_ref());
         let size = artifact.and_then(|entry| entry.size).unwrap_or(0);
         let sha1 = artifact.and_then(|entry| entry.sha1.as_deref()).unwrap_or_default();
-        crate::core::downloader::ensure_artifact_any(http, &dest, &urls, size, sha1).await?;
-        if !classpath_entries.contains(&dest) { classpath_entries.push(dest); }
+        if !classpath_entries.contains(&dest) { downloads.push((dest.clone(), urls, size, sha1.to_string())); classpath_entries.push(dest); }
     }
+
+    futures_util::stream::iter(downloads).map(|(dest,urls,size,sha1)| {
+        let http = http.clone();
+        async move { crate::core::downloader::ensure_artifact_any(&http, &dest, &urls, size, &sha1).await }
+    }).buffered(6).try_collect::<Vec<_>>().await?;
 
     if !universal_dest.exists() {
         let universal_url = format!("{}/{}", FORGE_MAVEN, universal_rel);

@@ -35,3 +35,8 @@ describe("resolveUpdateAssetUrl", () => {
 		expect(resolveUpdateAssetUrl(windows.slice(0, 1), "windows")).toBe("");
 	});
 });
+
+it("accepts the exact installer name normalized by GitHub", () => {
+    expect(resolveUpdateAssetUrl([{name:'Lux.MC.Launcher.exe',browser_download_url:'official-installer',size:20}], 'windows')).toBe('official-installer');
+    expect(resolveUpdateAssetUrl([{name:'Luxmc.exe',browser_download_url:'portable',size:20}], 'windows')).toBe('');
+});

@@ -52,7 +52,7 @@ const assert = require('node:assert/strict');
             { name: 'Lux MC Launcher.exe', browser_download_url: 'https://github.com/predabr/luxmc/releases/download/v2.0.3/Lux%20MC%20Launcher.exe', size: 1 }
         ] };
         await page.getByRole('button', { name: 'Verificar Atualizações', exact: true }).click();
-        await page.getByRole('button', { name: 'Atualizar Agora Automaticamente', exact: true }).click();
+        await page.getByRole('button', { name: 'Atualizar agora', exact: true }).click();
         await page.getByText('Não foi possível concluir a atualização', { exact: true }).waitFor();
         await page.getByRole('button', { name: 'Tentar atualizar novamente', exact: true }).click();
         await page.waitForFunction(() => window.selectedUpdateUrl !== undefined);

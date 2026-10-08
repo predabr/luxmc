@@ -31,7 +31,7 @@ pub async fn run_daemon() {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(12));
         loop {
             interval.tick().await;
-            crate::core::native_cpp::trim_memory_native();
+            crate::core::native_rust::trim_memory_native();
         }
     });
 
@@ -93,6 +93,22 @@ async fn dispatch_command(
     state: Arc<AppState>,
 ) -> Result<Value, String> {
     match cmd {
+        "verify_pack_download" => { crate::commands::experience::verify_pack_download(args["path"].as_str().unwrap_or_default().into(),args["size"].as_u64().unwrap_or(0),args["sha1"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
+        "instance_backup_world" => { let _guard=state.launch_lock.try_lock().map_err(|_|"Lançamento em andamento".to_string())?; Ok(serde_json::to_value(crate::commands::world_backup::instance_backup_world_core(args["profileId"].as_str().unwrap_or_default().into(),args["worldFolder"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?) },
+        "instance_list_world_backups" => Ok(serde_json::to_value(crate::commands::world_backup::instance_list_world_backups(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?),
+        "world_restore" => { let _guard=state.launch_lock.try_lock().map_err(|_|"Lançamento em andamento".to_string())?; crate::commands::world_backup::world_restore_core(args["profileId"].as_str().unwrap_or_default().into(),args["fileName"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
+        "instance_compatibility" => Ok(serde_json::to_value(crate::commands::experience::instance_compatibility(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?),
+        "modpack_validate" => Ok(serde_json::to_value(crate::commands::experience::modpack_validate(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?),
+        "dependency_graph" => Ok(serde_json::to_value(crate::commands::studio::dependency_graph(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|error| error.to_string())?).map_err(|error|error.to_string())?),
+        "launcher_resource_sample" => Ok(crate::commands::studio::launcher_resource_sample().await.map_err(|error|error.to_string())?),
+        "pc_recommendations" => Ok(crate::commands::studio::pc_recommendations().await.map_err(|error|error.to_string())?),
+        "instance_pack_reference" => Ok(serde_json::to_value(crate::commands::studio::instance_pack_reference(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?),
+        "pack_reference_version" => Ok(serde_json::to_value(crate::commands::studio::pack_reference_version_core(&state,serde_json::from_value(args["reference"].clone()).map_err(|error|error.to_string())?).await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?),
+        "performance_history" => Ok(crate::commands::experience::performance_history().await.map_err(|e| e.to_string())?),
+        "support_report_export" => { crate::commands::experience::support_report_export(args["path"].as_str().unwrap_or_default().into(),args["report"].clone()).await.map_err(|e|e.to_string())?; Ok(Value::Null) },
+        "support_report" => Ok(crate::commands::experience::support_report(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?),
+        "theme_export" => { crate::commands::experience::theme_export(args["path"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
+        "theme_import" => Ok(crate::commands::experience::theme_import(args["path"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?),
         "social_request" => {
             let account_id = args.get("accountId").and_then(|v| v.as_str()).ok_or("Missing account ID")?.to_owned();
             let request = serde_json::from_value(args.get("request").cloned().ok_or("Missing request")?).map_err(|e| e.to_string())?;
@@ -107,11 +123,11 @@ async fn dispatch_command(
         },
         "app_info" => Ok(serde_json::to_value(crate::commands::system::app_info()).map_err(|e| e.to_string())?),
         "optimizer_trim_memory" => {
-            let res = crate::core::native_cpp::trim_memory_native();
+            let res = crate::core::native_rust::trim_memory_native();
             Ok(Value::Bool(res))
         },
         "optimizer_native_cpu_profile" => {
-            let profile = crate::core::native_cpp::get_cpu_profile();
+            let profile = crate::core::native_rust::get_cpu_profile();
             Ok(serde_json::to_value(profile).map_err(|e| e.to_string())?)
         },
         "optimizer_detect_gpu" => {
@@ -219,6 +235,13 @@ async fn dispatch_command(
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             crate::commands::instance_tools::instance_repair_core(None, &state.http, profile_id).await.map_err(|e| e.to_string())?;
             Ok(Value::Bool(true))
+        },
+        "instance_content_icons" => {
+            let profile = args.get("profileId").and_then(Value::as_str).unwrap_or("").to_string();
+            let path = args.get("subPath").and_then(Value::as_str).unwrap_or("").to_string();
+            let names = serde_json::from_value(args.get("fileNames").cloned().unwrap_or(Value::Array(vec![]))).map_err(|error| error.to_string())?;
+            let result = crate::commands::content_icons::instance_content_icons_core(&state, profile, path, names, args.get("lookup").and_then(Value::as_bool).unwrap_or(false)).await.map_err(|error| error.to_string())?;
+            serde_json::to_value(result).map_err(|error| error.to_string())
         },
         "instance_file_tree" => {
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();

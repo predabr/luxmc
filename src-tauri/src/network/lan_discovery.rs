@@ -8,6 +8,8 @@ pub fn is_local_world(host: &str, motd: &str) -> bool {
 
 pub fn monitor(target: Arc<AtomicU16>, ready: Arc<Mutex<super::p2p_tunnel::RoomRegistry>>) -> JoinHandle<()> {
     tokio::spawn(async move {
+        let mut signature = String::new();
+        let mut compatibility = None;
         let mut last_seen = tokio::time::Instant::now();
         loop {
             match crate::commands::p2p::p2p_scan_lan_worlds().await {
@@ -19,10 +21,12 @@ pub fn monitor(target: Arc<AtomicU16>, ready: Arc<Mutex<super::p2p_tunnel::RoomR
                         if matches!(tokio::time::timeout(Duration::from_millis(300), tokio::net::TcpStream::connect(("127.0.0.1", world.port))).await, Ok(Ok(_))) {
                             target.store(world.port, Ordering::Release);
                             super::p2p_tunnel::write_private_lan_session(world.port).await;
+                            let next_signature = format!("{:?}:{}:{}",crate::core::launcher::get_active_game_dir(),world.port,crate::core::launcher::get_active_game_pid());
+                            if signature != next_signature { compatibility = crate::commands::experience::active_compatibility().await; signature = next_signature; }
                             let mut registry = ready.lock().await;
                             registry.world_ready = true;
                             if let Some(owner) = registry.host.clone() {
-                                registry.worlds.insert(owner.id.clone(), super::p2p_tunnel::RoomWorld { owner_id: owner.id, owner_username: owner.username, motd: world.motd.chars().filter(|character| !character.is_control()).take(160).collect(), local_address: None });
+                                registry.worlds.insert(owner.id.clone(), super::p2p_tunnel::RoomWorld { owner_id: owner.id, owner_username: owner.username, motd: world.motd.chars().filter(|character| !character.is_control()).take(160).collect(), local_address: None, compatibility: compatibility.clone() });
                             }
                             last_seen = tokio::time::Instant::now();
                             break;

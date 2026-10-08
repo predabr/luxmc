@@ -501,7 +501,7 @@ pub async fn run() {
         .on_window_event(|window, event| {
             if window.label() == "main" && CLOSE_TO_TRAY.load(Ordering::Relaxed) && TRAY_AVAILABLE.load(Ordering::Relaxed) {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    if window.hide().is_ok() { api.prevent_close(); }
+                    if window.hide().is_ok() { api.prevent_close(); crate::core::native_rust::trim_memory_native(); }
                 }
             }
         })
@@ -610,6 +610,7 @@ pub async fn run() {
             commands::instances::instance_import_mrpack,
             commands::instances::instance_health_check,
             commands::instances::instance_file_tree,
+            commands::content_icons::instance_content_icons,
             commands::instances::instance_file_read,
             commands::instances::instance_file_write,
             commands::instances::instance_file_delete,
@@ -722,6 +723,23 @@ pub async fn run() {
             commands::modpack_export::instance_export_modpack,
             commands::keybinds::keybinds_list,
             commands::keybinds::keybinds_update,
+            commands::experience::modpack_validate,
+            commands::experience::instance_compatibility,
+            commands::experience::verify_pack_download,
+            commands::world_backup::world_restore,
+            commands::experience::performance_history,
+            commands::studio::dependency_graph,
+            commands::studio::pc_recommendations,
+            commands::studio::launcher_resource_sample,
+            commands::studio::instance_pack_reference,
+            commands::studio::pack_reference_version,
+            commands::studio::room_prepare_instance,
+            network::p2p_tunnel::coordination::tunnel_room_recipe,
+            network::p2p_tunnel::coordination::tunnel_set_preparation,
+            commands::experience::support_report,
+            commands::experience::support_report_export,
+            commands::experience::theme_export,
+            commands::experience::theme_import,
             commands::world_backup::instance_backup_world,
             commands::world_backup::instance_list_world_backups,
             commands::p2p::p2p_scan_lan_worlds,

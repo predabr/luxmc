@@ -4,6 +4,7 @@ use crate::error::AppResult;
 
 pub mod curseforge;
 pub mod pack_download;
+pub mod resumable;
 
 const MODRINTH_API: &str = "https://api.modrinth.com/v2";
 
@@ -713,3 +714,5 @@ mod catalog_type_tests {
         }
     }
 }
+
+pub mod validation;

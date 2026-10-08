@@ -3,8 +3,8 @@ import { api } from "./client";
 import { settings } from "$lib/stores/settings.svelte";
 import { activeSkinStore } from "$lib/stores/skin.svelte";
 import { account } from "$lib/stores/account.svelte";
-export interface TunnelMember { id: string; username: string; uuid: string; avatarUrl: string | null; joinedAt: number; isHost: boolean }
-export interface RoomWorld { ownerId: string; ownerUsername: string; motd: string; localAddress: string | null }
+export interface TunnelMember { id: string; username: string; uuid: string; avatarUrl: string | null; joinedAt: number; isHost: boolean; preparation?:import('./studio').Preparation|null }
+export interface RoomWorld { ownerId: string; ownerUsername: string; motd: string; localAddress: string | null; compatibility?: {mcVersion:string;loader:string;modFingerprint:string;modCount:number} | null }
 export interface TunnelStatus { mode: "host" | "client"; invitation: string | null; localAddress: string | null; expiresAt: number; pingMs: number | null; transport: string; roomCode: string | null; members: TunnelMember[]; maxPlayers: number; roomLocked: boolean; worldReady?: boolean; worlds?: RoomWorld[] }
 const identity = () => ({ username: account.value?.username || "Jogador", uuid: account.value?.uuid || "", avatarUrl: settings.value.shareCustomAvatar === false ? null : activeSkinStore.current.avatarUrl || account.value?.avatarUrl || null });
 export const hostWorld = (port?: number): Promise<TunnelStatus> => bounded(api.invoke("host_world", { port, identity: identity() }), 45000, uiText("ui.7a713a94a9154c7a"));

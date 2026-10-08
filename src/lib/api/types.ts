@@ -40,6 +40,12 @@ export interface ModpackVersionDiff {
 	added: string[];
 	removed: string[];
 	updated: string[];
+	risks?:string[];
+	configuration?:string[];
+	dependencies?:string[];
+	targetMinecraft?:string|null;
+	targetLoader?:string|null;
+	worlds?:number;
 }
 
 export interface DownloadSpeed {
@@ -165,6 +171,8 @@ export interface HealthCheckResult {
 }
 
 export interface FileTreeEntry {
+    iconKey?: string;
+    iconResolved?: boolean;
 	name: string;
 	path: string;
 	isDir: boolean;

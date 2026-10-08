@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v3.1.0)"
+        description: "Release tag (e.g. v3.2.0)"
         required: true
-        default: "v3.1.0"
+        default: "v3.2.0"
       reuse_assets:
         description: "Verify and publish an existing draft without rebuilding installers"
         type: boolean
@@ -227,6 +227,9 @@ jobs:
           gh release upload $env:RELEASE_TAG 'Lux MC Launcher.exe#Lux MC Launcher.exe' --repo $env:GITHUB_REPOSITORY --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Windows installer upload failed.' }
 
+      - name: Verify interrupted update recovery on the Windows VM
+        run: cargo test --manifest-path src-tauri/Cargo.toml commands::updater_download::tests --locked -- --test-threads=1
+
       - name: Validate install, reinstall and uninstall on the clean runner
         shell: pwsh
         env:
@@ -234,6 +237,14 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path docs/validation -Force | Out-Null
           ./tests/installer-lifecycle.ps1
+
+      - name: Upload Windows validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-validation-${{ needs.create-release.outputs.tag }}
+          path: docs/validation/general-installer-lifecycle-*.json
+          if-no-files-found: ignore
 
   build-macos:
     needs: create-release

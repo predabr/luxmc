@@ -7,8 +7,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
     import { PackagePlus, Download, Loader2, X, Cpu, Check, FolderCheck } from "lucide-svelte";
     import { fade } from "svelte/transition";
     import type { ModSearchResultItem } from "$lib/api";
-    let { modpack, instanceName = $bindable(""), ramMb = $bindable(4096), isInstalling = false, progressText = "", progressPercent = 0, onConfirm, onClose, onCancel, cancelling = false }: {
-        modpack: ModSearchResultItem; instanceName?: string; ramMb?: number; isInstalling?: boolean; progressText?: string; progressPercent?: number; onConfirm: () => void; onClose: () => void; onCancel: () => void; cancelling?: boolean;
+    let { modpack, instanceName = $bindable(""), ramMb = $bindable(4096), isInstalling = false, queueMode = false, progressText = "", progressPercent = 0, onConfirm, onClose, onCancel, cancelling = false }: {
+        modpack: ModSearchResultItem; instanceName?: string; ramMb?: number; isInstalling?: boolean; queueMode?: boolean; progressText?: string; progressPercent?: number; onConfirm: () => void; onClose: () => void; onCancel: () => void; cancelling?: boolean;
     } = $props();
     const percent = $derived(Math.max(0, Math.min(100, progressPercent)));
     const indeterminate = $derived(progressPercent < 0);
@@ -20,7 +20,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 <div class="fixed inset-0 z-[999999] flex items-center justify-center bg-bg-overlay/90 p-4" transition:fade={{ duration: 140 }}>
     <button type="button" class="absolute inset-0 cursor-default" tabindex="-1" aria-label={uiText("ui.2de7443df5f6a877")} disabled={isInstalling} onclick={onClose}></button>
-    <div role="dialog" aria-modal="true" aria-label={uiText("ui.ae9010b55c74629b")} tabindex="-1" use:focusTrap class="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden font-sans rounded-2xl border border-border-strong bg-bg-elevated shadow-elevated" onkeydown={(event) => { if (event.key === "Escape" && !isInstalling) { event.stopPropagation(); onClose(); } }}>
+    <div role="dialog" aria-modal="true" aria-label={queueMode ? uiText("workshop.enqueue") : uiText("ui.ae9010b55c74629b")} tabindex="-1" use:focusTrap class="relative flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden font-sans rounded-2xl border border-border-strong bg-bg-elevated shadow-elevated" onkeydown={(event) => { if (event.key === "Escape" && !isInstalling) { event.stopPropagation(); onClose(); } }}>
         <header class="relative shrink-0 overflow-hidden border-b border-border bg-bg-subtle/50 p-6">
 
             <div class="relative flex items-start gap-4">
@@ -44,6 +44,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
                 <div class="space-y-3 rounded-xl border border-brand-500/20 bg-brand-500/5 p-5"><div class="flex items-center justify-between gap-3"><h3 class="text-sm font-semibold text-fg">{cancelling ? uiText("ui.6ae6319c82afbb57") : stages[stage].label}</h3>{#if !indeterminate}<span class="text-lg font-bold tabular-nums text-brand-400">{Math.round(percent)}%</span>{/if}</div><div role="progressbar" aria-label={uiText("ui.84fb8a36577543fb")} aria-valuemin="0" aria-valuemax="100" aria-valuenow={indeterminate ? undefined : percent} class="h-2 overflow-hidden rounded-full bg-fg/10"><div class="installer-progress-fill h-full rounded-full bg-brand-500 {indeterminate ? 'animate-pulse' : ''}" style:width={indeterminate ? '100%' : `${percent}%`}></div></div><p class="break-words text-xs leading-relaxed text-fg-muted" role="status">{progressText || uiText("ui.27fb477239f6b217")}</p></div>
             {/if}
         </div>
-        <footer class="shrink-0 flex items-center justify-between gap-3 border-t border-border bg-bg-subtle px-6 py-4"><button type="button" class={button({ variant: 'secondary' })} disabled={isInstalling && cancelling} onclick={isInstalling ? onCancel : onClose}>{cancelling ? uiText("ui.6ae6319c82afbb57") : isInstalling ? uiText("ui.bf526874f31d132e") : uiText("common.cancel")}</button>{#if !isInstalling}<button type="button" class={button({ variant: 'primary', size: 'lg' })} disabled={!instanceName.trim()} onclick={onConfirm}><Download class="h-4 w-4" />{uiText("ui.ae9010b55c74629b")}</button>{:else}<span class="flex items-center gap-2 text-xs font-semibold text-fg-muted"><Loader2 class="h-4 w-4 animate-spin" />{cancelling ? uiText("ui.6ae6319c82afbb57") : uiText("ui.e767cd8c5098119b")}</span>{/if}</footer>
+        <footer class="shrink-0 flex items-center justify-between gap-3 border-t border-border bg-bg-subtle px-6 py-4"><button type="button" class={button({ variant: 'secondary' })} disabled={isInstalling && cancelling} onclick={isInstalling ? onCancel : onClose}>{cancelling ? uiText("ui.6ae6319c82afbb57") : isInstalling ? uiText("ui.bf526874f31d132e") : uiText("common.cancel")}</button>{#if !isInstalling}<button type="button" class={button({ variant: 'primary', size: 'lg' })} disabled={!instanceName.trim()} onclick={onConfirm}><Download class="h-4 w-4" />{queueMode ? uiText("workshop.enqueue") : uiText("ui.ae9010b55c74629b")}</button>{:else}<span class="flex items-center gap-2 text-xs font-semibold text-fg-muted"><Loader2 class="h-4 w-4 animate-spin" />{cancelling ? uiText("ui.6ae6319c82afbb57") : uiText("ui.e767cd8c5098119b")}</span>{/if}</footer>
     </div>
 </div>
