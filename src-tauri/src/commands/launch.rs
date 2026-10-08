@@ -122,8 +122,10 @@ pub async fn launch_game_core(
     crate::commands::world_backup::automatic(&profile.id).await?;
     phases.push(serde_json::json!({"name":"backup","seconds":backup_started.elapsed().as_secs_f64()}));
     let verification_started=std::time::Instant::now();
-    let fast_launch = !crate::commands::instance_lab::isolation_testing(&profile.id)?
-        && crate::core::launcher::launch_state::is_valid(&profile);
+    let fingerprint_profile = profile.clone();
+    let verified = tokio::task::spawn_blocking(move || crate::core::launcher::launch_state::is_valid(&fingerprint_profile))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?;
+    let fast_launch = !crate::commands::instance_lab::isolation_testing(&profile.id)? && verified;
 
     if crate::commands::instance_lab::isolation_testing(&profile.id)? {
         emit_log("Diagnóstico de mods ativo: teste iniciado com a seleção temporária de JARs.");
@@ -133,6 +135,7 @@ pub async fn launch_game_core(
         emit_log("Verificando integridade dos arquivos do modpack...");
         let integrity_started = std::time::Instant::now();
         crate::commands::instances::heal_modpack(state, &profile).await?;
+        crate::commands::instances::repair_instance_duplicates(&profile).await?;
         let audit_root = std::path::PathBuf::from(&profile.game_dir);
         let audit = tokio::task::spawn_blocking(move || crate::core::mods::validation::audit(&audit_root,false)).await.map_err(|e| AppError::Internal(e.to_string()))??;
         if !audit.errors.is_empty() { return Err(AppError::InvalidInput(audit.errors.join("\n"))); }

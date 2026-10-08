@@ -313,6 +313,25 @@ pub async fn mods_project_details(
     mods_project_details_core(&state, projectId, source).await
 }
 
+pub async fn mods_changelog_core(state: &AppState, project_id: String, version_id: String, source: String) -> AppResult<String> {
+    if [&project_id, &version_id].iter().any(|value| value.is_empty() || value.len() > 80 || !value.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')) {
+        return Err(crate::error::AppError::InvalidInput("Identificador de versão inválido".into()));
+    }
+    if source == "curseforge" {
+        return curseforge::get_file_changelog(&state.http, &project_id, &version_id).await;
+    }
+    if source != "modrinth" { return Err(crate::error::AppError::InvalidInput("Fonte inválida".into())); }
+    let value: serde_json::Value = state.http.get(format!("https://api.modrinth.com/v2/version/{version_id}"))
+        .timeout(std::time::Duration::from_secs(15)).send().await?.error_for_status()?.json().await?;
+    if value["project_id"].as_str() != Some(project_id.as_str()) { return Err(crate::error::AppError::InvalidInput("Versão de outro projeto".into())); }
+    Ok(value["changelog"].as_str().unwrap_or_default().to_owned())
+}
+
+#[tauri::command]
+pub async fn mods_changelog(state: State<'_, AppState>, project_id: String, version_id: String, source: String) -> AppResult<String> {
+    mods_changelog_core(&state, project_id, version_id, source).await
+}
+
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn mods_list(profileId: String) -> AppResult<Vec<ModRow>> {

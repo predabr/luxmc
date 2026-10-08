@@ -14,6 +14,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Sparkles
 	} from "lucide-svelte";
 	import { api } from "$lib/api/client";
+    import { chooseImportDirectory } from '$lib/api/importer';
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import Modal from "$lib/components/ui/Modal.svelte";
@@ -46,6 +47,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let detected = $state<ExternalInstance[]>([]);
 	let loading = $state(false);
 	let importingPath = $state<string | null>(null);
+    let manual = $state<ExternalInstance | null>(null);
+    let choosing = $state(false);
+    async function chooseFolder() {
+        if (choosing) return;
+        choosing = true;
+        try { manual = await chooseImportDirectory(); }
+        catch (cause) { toast(String(cause), 'error'); }
+        finally { choosing = false; }
+    }
     let exportProfileId = $state("");
     let exportCode = $state("");
     let exporting = $state(false);
@@ -75,6 +85,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	});
 
 	async function handleImport(inst: ExternalInstance) {
+        if (!inst.mcVersion.trim()) { manual = {...inst}; return; }
 		importingPath = inst.path;
 		toast(uiText("ui.c17c0c7d49498ad3", {arg0: (inst.name), arg1: (inst.launcher)}), "info");
 
@@ -101,6 +112,20 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 <Modal isOpen={open} {onClose} title={uiText("ui.3818d977aa31f1ca")} maxWidth="max-w-4xl">
 	<div class="flex flex-col gap-5 text-sm">
+        <section class="space-y-3 rounded-2xl border border-border bg-bg-subtle p-5">
+            <h3 class="font-semibold text-fg">{uiText('importFolder.title')}</h3>
+            <p class="text-xs leading-relaxed text-fg-muted">{uiText('importFolder.description')}</p>
+            <Button variant="secondary" disabled={choosing || importingPath !== null} onclick={chooseFolder}><FolderOpen class="h-4 w-4" />{uiText('importFolder.choose')}</Button>
+            {#if manual}
+                <p class="break-all text-xs text-fg-muted">{manual.path}</p>
+                <div class="grid gap-3 sm:grid-cols-3">
+                    <label class="text-xs">{uiText('importFolder.name')}<input bind:value={manual.name} class="mt-2 w-full rounded-xl border border-border bg-bg-elevated p-3" /></label>
+                    <label class="text-xs">{uiText('importFolder.version')}<input bind:value={manual.mcVersion} placeholder="1.21.1" class="mt-2 w-full rounded-xl border border-border bg-bg-elevated p-3" /></label>
+                    <label class="text-xs">Loader<select bind:value={manual.loader} class="mt-2 w-full rounded-xl border border-border bg-bg-elevated p-3">{#each ['vanilla','fabric','quilt','forge','neoforge'] as loader}<option value={loader}>{loader}</option>{/each}</select></label>
+                </div>
+                <Button variant="primary" disabled={!manual.mcVersion.trim() || importingPath !== null} onclick={() => manual && handleImport(manual)}><Download class="h-4 w-4" />{uiText('importFolder.import')}</Button>
+            {/if}
+        </section>
         <section class="rounded-2xl border border-border p-5 space-y-3" aria-label={uiText("ui.2b3376fa2c123da2")}>
             <h3 class="font-semibold text-fg">{uiText("ui.27be9ad2e803a73e")}</h3><p class="text-xs text-fg-muted">{uiText("ui.e349f5e5f06cf04d")}</p>
             <div class="flex flex-wrap gap-3"><select class="min-w-52 flex-1 rounded-xl border border-border bg-bg-elevated p-3" aria-label={uiText("ui.58b7180bb0814fda")} bind:value={exportProfileId}><option value="">{uiText("ui.2febc7ba48f6c044")}</option>{#each profiles.list as profile}<option value={profile.id}>{profile.name}</option>{/each}</select><Button variant="primary" size="lg" disabled={!exportProfileId || exporting} onclick={generateCode}>{exporting ? uiText("ui.7bf220a3c328954e") : uiText("ui.dde91d7f432a3e27")}</Button></div>

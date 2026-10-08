@@ -1,5 +1,7 @@
 import { assetFor, latestRelease, repository } from "../../lib/releases.js";
 function localIsCurrent(local, remote) {
+  const remoteVersion = String(remote).replace(/^v/, "");
+  if (String(local).includes("-revision.") || remoteVersion.includes("-revision.")) return local === remoteVersion;
   if (!/^\d+\.\d+\.\d+$/.test(local || ""))
     return false;
   const parts = String(remote).replace(/^v/, "").split(".").map(Number);
@@ -17,7 +19,7 @@ async function localInstaller(request) {
     method: request.method === "HEAD" ? "HEAD" : "GET",
     headers: request.headers.has("Range") ? { Range: request.headers.get("Range"), ...request.headers.has("If-Range") ? { "If-Range": request.headers.get("If-Range") } : {} } : void 0
   });
-  if (!source.ok)
+  if (!source.ok || source.headers.get("Content-Type")?.includes("text/html"))
     return new Response("Installer temporarily unavailable", { status: 502, headers: { "Cache-Control": "no-store" } });
   const headers = new Headers(source.headers);
   headers.set("Content-Type", "application/octet-stream");
@@ -95,7 +97,8 @@ async function onRequest({ request, params, env }) {
     const data = await latestRelease();
     const asset = assetFor(data.assets, platform);
     if ((platform === "windows" || platform === "exe") && localIsCurrent(env?.WINDOWS_LOCAL_VERSION, data.tag_name)) {
-      return await localInstaller(request);
+      const local = await localInstaller(request);
+      if (local.status !== 502) return local;
     }
     if (asset && (platform === "windows" || platform === "exe")) {
       const range = request?.headers.get("Range");

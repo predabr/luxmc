@@ -19,6 +19,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
   });
 </script>
 
+<svelte:boundary>
 {#if error}
   {#if fallback}
     {@render fallback()}
@@ -42,3 +43,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 {:else}
   {@render children()}
 {/if}
+{#snippet failed(cause, reset)}
+  <div role="alert" class="flex min-h-64 flex-col items-center justify-center gap-4 rounded-2xl border border-danger/20 bg-bg-elevated p-8 text-center">
+    <h3 class="text-lg font-semibold text-fg">{uiText("ui.8851485f672f4ea0")}</h3>
+    <p class="max-w-xl break-words text-sm text-fg-muted">{cause instanceof Error ? cause.message : String(cause)}</p>
+    <div class="flex flex-wrap justify-center gap-3">
+      <button type="button" class={launcherButton({variant:'primary'})} onclick={() => { error = null; reset(); }}>{uiText("ui.b9e10688be012d8b")}</button>
+      <button type="button" class={launcherButton({variant:'secondary'})} onclick={() => window.location.reload()}>{uiText('recovery.reloadInterface')}</button>
+    </div>
+  </div>
+{/snippet}
+</svelte:boundary>

@@ -36,10 +36,11 @@ fn fingerprint_tree(root: &Path, current: &Path, hasher: &mut Sha256) {
     entries.sort_by_key(|entry| entry.file_name());
     for entry in entries {
         let path = entry.path();
-        if path.is_dir() {
+        let Ok(kind) = entry.file_type() else { continue; };
+        if kind.is_dir() {
             append_path(hasher, root, &path);
             fingerprint_tree(root, &path, hasher);
-        } else if path.is_file() {
+        } else if kind.is_file() {
             append_path(hasher, root, &path);
         }
     }

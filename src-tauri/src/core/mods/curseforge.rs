@@ -10,6 +10,13 @@ const KEYRING_USER: &str = "curseforge_api_key";
 const MIN_KEY_LENGTH: usize = 20;
 const MAX_KEY_LENGTH: usize = 128;
 
+pub async fn get_file_changelog(http: &reqwest::Client, project: &str, file: &str) -> AppResult<String> {
+    let key = api_key().ok_or_else(|| crate::error::AppError::InvalidState("Chave CurseForge indisponível".into()))?;
+    let value: serde_json::Value = http.get(format!("{CURSEFORGE_API}/mods/{project}/files/{file}/changelog"))
+        .header("x-api-key", key).timeout(Duration::from_secs(15)).send().await?.error_for_status()?.json().await?;
+    Ok(value["data"].as_str().unwrap_or_default().to_owned())
+}
+
 static API_KEY_CACHE: OnceLock<std::sync::Mutex<Option<(String, Instant)>>> = OnceLock::new();
 
 fn keyring_entry() -> Result<keyring::Entry, String> {

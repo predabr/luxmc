@@ -6,7 +6,12 @@ const [metadataFile, directory = "."] = process.argv.slice(2);
 if (!metadataFile) throw new Error("Pass the GitHub release metadata JSON file.");
 const release = JSON.parse(readFileSync(metadataFile, "utf8"));
 if (!/^v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(release.tag_name)) throw new Error("Invalid release tag.");
-const version = release.tag_name.replace(/^v/, "");
+const revisionMatch = /-revision\.(\d+)$/.exec(release.tag_name);
+const revision = revisionMatch ? Number(revisionMatch[1]) : 0;
+if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("Invalid release revision.");
+const transportVersion = release.tag_name.replace(/^v/, "").replace(/-revision\.\d+$/, "");
+if (revision && Number(transportVersion.split('.').at(-1)) < 1) throw new Error("Invalid compatibility patch.");
+const version = revision ? transportVersion.replace(/\d+$/, value => String(Number(value) - 1)) : transportVersion;
 const files = {
   "windows-x86_64": release.assets.some(asset => asset.name === "Lux MC Launcher.exe") ? "Lux MC Launcher.exe" : "Lux.MC.Launcher.exe",
   "linux-x86_64": `Luxmc_${version}_amd64.AppImage`,
@@ -34,5 +39,6 @@ for (const asset of release.assets) {
 }
 if (Object.keys(platforms).length !== Object.keys(files).length) throw new Error("Missing supported platform installer.");
 writeFileSync(resolve(directory, "SHA256SUMS"), [...sums].sort(([a], [b]) => a.localeCompare(b)).map(([name, hash]) => `${hash}  ${name}`).join("\n") + "\n");
-writeFileSync(resolve(directory, "latest.json"), JSON.stringify({ version, notes: release.body, pub_date: release.published_at || new Date().toISOString(), platforms }, null, 2) + "\n");
+const legacyVersion = transportVersion;
+writeFileSync(resolve(directory, "latest.json"), JSON.stringify({ version: legacyVersion, ...(revision ? { displayVersion: version, revision } : {}), notes: release.body, pub_date: release.published_at || new Date().toISOString(), platforms }, null, 2) + "\n");
 console.log(`Verified ${sums.size} installers; update manifest created for ${version}.`);

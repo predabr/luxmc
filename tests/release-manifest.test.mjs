@@ -32,6 +32,17 @@ test("release manifest preserves the Windows filename and checksums the download
   assert.match(readFileSync(resolve(directory, "SHA256SUMS"), "utf8"), /  Lux MC Launcher\.exe\n/);
 }));
 
+test("a same-version revision has a legacy signal and preserves actual package versions", () => fixture(({directory, release}) => {
+  release.tag_name = 'v3.0.1-revision.2';
+  for (const asset of release.assets) asset.browser_download_url = `https://github.com/predabr/luxmc/releases/download/${release.tag_name}/${encodeURIComponent(asset.name)}`;
+  assert.equal(generate(directory,release).status,0);
+  const manifest=JSON.parse(readFileSync(resolve(directory,'latest.json'),'utf8'));
+  assert.equal(manifest.version,'3.0.1');
+  assert.equal(manifest.displayVersion,'3.0.0');
+  assert.equal(manifest.revision,2);
+  assert.equal(manifest.platforms['windows-x86_64'].url,release.assets[0].browser_download_url);
+}));
+
 test("draft assets use the final public tag and GitHub-normalized Windows filename", () => fixture(({ directory, release }) => {
   release.draft = true;
   renameSync(resolve(directory, release.assets[0].name), resolve(directory, "Lux.MC.Launcher.exe"));

@@ -23,7 +23,7 @@ const {setupLauncherDemo}=require('../scripts/launcher-video-fixture.cjs');
                     for (const profile of state.profiles) profile.instanceGroup = profile.loader === 'vanilla' ? 'Vanilla' : 'Modded';
                 }
                 window.originalGameDirs=Object.fromEntries(state.profiles.map(profile=>[profile.id,profile.gameDir]));
-                window.publicFixture={id:'00000000-0000-4000-8000-000000000001',username:'LuxPlayer',avatarUrl:'/grass_head.png',displayName:'',status:'',description:'',banner:'',portrait:'',packs:[]};
+                window.publicFixture={id:'00000000-0000-4000-8000-000000000001',username:'LuxPlayer',role:'owner',avatarUrl:'/grass_head.png',displayName:'',status:'',description:'',banner:'',portrait:'',packs:[]};
                 const original=window.electronAPI.invoke;
                 const invoke=async(command,args)=>{
                     if(command==='social_request'&&args.request.action==='profile_get') return {profile:window.publicFixture};
@@ -39,6 +39,13 @@ const {setupLauncherDemo}=require('../scripts/launcher-video-fixture.cjs');
             await page.getByPlaceholder('Nome da nova pasta...').fill('Adventure');
             await page.getByPlaceholder('Nome da nova pasta...').press('Enter');
             await page.locator('[data-library-folder="Adventure"]').waitFor();
+            await page.evaluate(async()=>{
+                const url=performance.getEntriesByType('resource').find(entry=>entry.name.includes('/stores/profiles.svelte.ts')).name;
+                const {profiles}=await import(url);
+                const original=profiles.list[0];
+                profiles.add({...original});
+                if(profiles.list.filter(profile=>profile.id===original.id).length!==1) throw new Error('Resumed installation duplicated an instance');
+            });
             assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('luxmc_library_folders_v2'))),['Adventure']);
             const originalDirs=await page.evaluate(()=>window.originalGameDirs);
             assert.equal(await page.getByLabel('Mover para grupo: Vanilla Perfected',{exact:true}).count(),0);
@@ -80,6 +87,11 @@ const {setupLauncherDemo}=require('../scripts/launcher-video-fixture.cjs');
             await page.waitForFunction(()=>window.publicFixture.displayName==='Explorer'&&window.publicFixture.portrait.startsWith('data:image/gif;'));
             assert.equal(await page.evaluate(()=>window.publicFixture.portrait),'data:image/gif;base64,'+gif.toString('base64'));
             await dialog.getByText('Construindo mundos',{exact:true}).waitFor();
+            const sideAvatar=page.locator('aside img[src^="data:image/gif;"]').first();
+            await sideAvatar.waitFor();
+            assert.equal(await sideAvatar.getAttribute('src'),'data:image/gif;base64,'+gif.toString('base64'));
+            await page.locator('aside').first().getByText('Explorer',{exact:true}).first().waitFor({state:'attached'});
+            await dialog.getByText('Dono',{exact:true}).waitFor();
             await page.screenshot({path:`docs/validation/catalog-profile-groups/profile-${theme}.png`});
             assert.deepEqual(errors,[]);
             console.log(JSON.stringify({theme,groupsPersist:true,gameDirsPreserved:true,gifPreserved:true,profileIdentity:true}));

@@ -6,7 +6,8 @@ const [metadataFile, outputFile] = process.argv.slice(2);
 assert.ok(metadataFile && outputFile, 'Pass release metadata and a report path.');
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const release = JSON.parse(readFileSync(metadataFile, 'utf8'));
-assert.equal(release.tag_name, `v${version}`);
+const compatibilityVersion = version.replace(/\d+$/, value => String(Number(value) + 1));
+assert.ok(release.tag_name === `v${version}` || new RegExp(`^v${compatibilityVersion.replaceAll('.', '\\.')}-revision\\.\\d+$`).test(release.tag_name));
 assert.equal(release.draft, false);
 assert.equal(release.prerelease, false);
 const names = ['Lux.MC.Launcher.exe', `Luxmc_${version}_x64-setup.exe`, `Luxmc_${version}_amd64.AppImage`, `Luxmc_${version}_amd64.deb`, `Luxmc-${version}-1.x86_64.rpm`, `luxmc-${version}-1-x86_64.pkg.tar.zst`, `Luxmc_${version}_universal.dmg`, 'latest.json', 'SHA256SUMS'];
@@ -24,7 +25,8 @@ for (const name of names) {
 const manifestResponse = await fetch(assets.get('latest.json').browser_download_url, { signal: AbortSignal.timeout(30000) });
 assert.equal(manifestResponse.status, 200);
 const manifest = await manifestResponse.json();
-assert.equal(manifest.version, version);
+assert.equal(manifest.displayVersion || manifest.version, version);
+if (release.tag_name.includes('-revision.')) assert.equal(manifest.revision, Number(release.tag_name.split('-revision.')[1]));
 for (const [platform, filename] of Object.entries({ 'windows-x86_64': canonical, 'linux-x86_64': names[2], 'darwin-x86_64': names[6], 'darwin-aarch64': names[6] })) {
     const asset = assets.get(filename);
     assert.equal(manifest.platforms[platform].url, asset.browser_download_url);
@@ -38,7 +40,7 @@ assert.equal(site.status, 200);
 assert.ok((await site.text()).includes(version), 'Website version');
 const releaseResponse = await fetch(`${origin}/api/latest-release?validation=${Date.now()}`, { signal: AbortSignal.timeout(30000) });
 assert.equal(releaseResponse.status, 200);
-assert.equal((await releaseResponse.json()).tag_name, `v${version}`);
+assert.equal((await releaseResponse.json()).tag_name, release.tag_name);
 const siteChecks = [];
 for (const [platform, filename] of Object.entries({ windows: canonical, linux: names[2], deb: names[3], rpm: names[4], arch: names[5], macos: names[6] })) {
     const response = await fetch(`${origin}/download/${platform}?validation=${Date.now()}`, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(30000) });

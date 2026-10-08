@@ -3,6 +3,26 @@ use serde_json::{json, Value};
 use sha2::Digest;
 use base64::Engine;
 
+pub async fn owner_tools_core(account_id: String, profile_id: String, operation: String) -> AppResult<Value> {
+    let response = crate::commands::social::social_request_core(account_id, crate::commands::social::SocialRequest::ProfileGet { target_id: None }).await?;
+    if response.pointer("/profile/role").and_then(Value::as_str) != Some("owner") {
+        return Err(AppError::InvalidState("Ferramenta exclusiva da conta de dono".into()));
+    }
+    if operation == "diagnose" { return support_report(profile_id).await; }
+    if operation != "repair" { return Err(AppError::InvalidInput("Operação desconhecida".into())); }
+    if crate::core::launcher::get_active_game_pid() != 0 { return Err(AppError::InvalidState("Feche o Minecraft antes da manutenção".into())); }
+    let db = crate::db::shared_db().await?;
+    let profile = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?").bind(&profile_id).fetch_optional(db.pool()).await?.ok_or_else(|| AppError::NotFound("Instância não encontrada".into()))?;
+    let repaired = crate::commands::instances::repair_instance_duplicates(&profile).await?;
+    sqlx::query("UPDATE profiles SET force_full_verification = 1 WHERE id = ?").bind(&profile_id).execute(db.pool()).await?;
+    Ok(json!({"repaired":repaired,"verificationScheduled":true,"backup":".luxmc/removed-duplicates"}))
+}
+
+#[tauri::command]
+pub async fn owner_tools(account_id: String, profile_id: String, operation: String) -> AppResult<Value> {
+    owner_tools_core(account_id, profile_id, operation).await
+}
+
 pub async fn record_performance(profile: &str, fields: Value) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     sqlx::query("CREATE TABLE IF NOT EXISTS performance_history (id INTEGER PRIMARY KEY AUTOINCREMENT, profile_id TEXT NOT NULL, recorded_at TEXT NOT NULL, metrics TEXT NOT NULL)").execute(db.pool()).await?;

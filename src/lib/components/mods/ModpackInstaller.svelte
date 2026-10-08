@@ -13,7 +13,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
     const percent = $derived(Math.max(0, Math.min(100, progressPercent)));
     const indeterminate = $derived(progressPercent < 0);
     const status = $derived(progressText.toLowerCase());
-    const stage = $derived(/finaliz|conclu|verific/.test(status) ? 3 : /mods|extraindo|instalando|configurando/.test(status) && !/buscando/.test(status) ? 2 : /baixando pacote|download|baixando arquivo/.test(status) ? 1 : 0);
+    const stage = $derived(/finaliz|conclu|verific|conferindo|registrando/.test(status) ? 3 : /mods|extraindo|instalando|configurando/.test(status) && !/buscando/.test(status) ? 2 : /baixando pacote|download|baixando arquivo/.test(status) ? 1 : 0);
     const stages = $derived([{ label: uiText("ui.edbadf0d55e84195"), icon: PackagePlus }, { label: uiText("ui.d7e616e73950c566"), icon: Download }, { label: uiText("ui.a52fd8beef3c087f"), icon: FolderCheck }, { label: uiText("ui.80a5037a33b80200"), icon: Check }]);
     const downloads = $derived(new Intl.NumberFormat(currentUiLocale(), { notation: "compact" }).format(modpack.downloads));
 </script>

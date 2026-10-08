@@ -10,6 +10,7 @@ export interface SiteEnvironment {
     AUTH_PEPPER?: string;
     SOCIAL_STREAM_URL?: string;
     WINDOWS_LOCAL_VERSION?: string;
+    OWNER_SOCIAL_ID?: string;
 }
 export interface SiteContext {
     request: Request;

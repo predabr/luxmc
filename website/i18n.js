@@ -1,6 +1,15 @@
 (() => {
   const translations = {
     pt: {
+      "performance.label": "MEDIÇÃO LOCAL",
+      "performance.title": "Consumo observado.",
+      "performance.context": "Referência da versão instalada 3.2.0 no Windows, com interface aberta e wallpaper personalizado. Esta medição não representa a versão 3.5.0.",
+      "performance.memory": "Memória residente somada",
+      "performance.processes": "Launcher e WebView · 7 processos",
+      "performance.cpu": "CPU média observada",
+      "performance.processor": "Normalizada por 12 processadores lógicos",
+      "performance.method": "20 amostras, aproximadamente uma por segundo, sem Minecraft aberto. A memória soma os working sets e pode contar páginas compartilhadas mais de uma vez. Consumo varia com o PC, páginas abertas e personalização.",
+      "performance.report": "Ver dados e condições da medição",
       "studio.title": "Sua turma.<br />O mesmo ponto de partida.",
       "studio.desc": "Planeje mudanças, confira os arquivos e prepare uma instância separada para jogar com seus amigos.",
       "studio.room": "Prepare e acompanhe.",
@@ -172,6 +181,15 @@
       "social.inviteNote": "Conexão direta ou relay. Túnel criptografado."
     },
     en: {
+      "performance.label": "LOCAL MEASUREMENT",
+      "performance.title": "Observed resource usage.",
+      "performance.context": "Reference from installed version 3.2.0 on Windows, with the interface open and a custom wallpaper. This measurement does not represent version 3.5.0.",
+      "performance.memory": "Summed resident memory",
+      "performance.processes": "Launcher and WebView · 7 processes",
+      "performance.cpu": "Observed average CPU",
+      "performance.processor": "Normalized over 12 logical processors",
+      "performance.method": "20 samples, approximately one per second, without Minecraft running. Memory sums process working sets and may count shared pages more than once. Usage varies with the PC, open pages and customization.",
+      "performance.report": "View measurement data and conditions",
       "studio.title": "Your friends.<br />The same starting point.",
       "studio.desc": "Plan changes, verify files and prepare a separate instance to play with friends.",
       "studio.room": "Prepare and follow along.",
@@ -339,6 +357,15 @@
       "social.inviteNote": "Direct connection or relay. Encrypted tunnel."
     },
     es: {
+      "performance.label": "MEDICIÓN LOCAL",
+      "performance.title": "Consumo observado.",
+      "performance.context": "Referencia de la versión instalada 3.2.0 en Windows, con la interfaz abierta y un fondo personalizado. Esta medición no representa la versión 3.5.0.",
+      "performance.memory": "Memoria residente sumada",
+      "performance.processes": "Launcher y WebView · 7 procesos",
+      "performance.cpu": "CPU media observada",
+      "performance.processor": "Normalizada por 12 procesadores lógicos",
+      "performance.method": "20 muestras, aproximadamente una por segundo, sin Minecraft abierto. La memoria suma los working sets y puede contar páginas compartidas más de una vez. El consumo varía según el PC, las páginas abiertas y la personalización.",
+      "performance.report": "Ver datos y condiciones de la medición",
       "studio.title": "Tu grupo.<br />El mismo punto de partida.",
       "studio.desc": "Planifica cambios, verifica los archivos y prepara una instancia separada para jugar con tus amigos.",
       "studio.room": "Prepara y sigue el progreso.",

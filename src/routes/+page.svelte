@@ -1126,7 +1126,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							/>
 						</div>
 
-                        <a href="/workshop" class={launcherButton({variant:'secondary',size:'sm'})}><Cpu class="h-4 w-4" />{uiText('studio.pc')}</a>
 						<button
 							type="button"
 							onclick={() => showNewGroupPrompt = true}

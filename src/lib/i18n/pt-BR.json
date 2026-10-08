@@ -1198,7 +1198,7 @@
     "c885592faeb86f3b": "Instalado na Instância",
     "5c9690515c95c811": "Criar Instância do Modpack",
     "9951cba901a50134": "Instalar na Instância",
-    "f7e888eb3ae0d191": "Visão Geral",
+    "f7e888eb3ae0d191": "Descrição",
     "0d989c8815c710b0": "Como Instalar",
     "283dd78f89984eba": "Código Fonte",
     "07156da5279b23ce": "Informações",
@@ -3344,5 +3344,31 @@
     "measureLauncher": "Medir consumo do launcher",
     "processes": "processos",
     "backgroundPolicy": "Em segundo plano, animações pausam e a presença usa consultas menos frequentes. A sala P2P continua ativa."
+  },
+  "catalog": {
+    "versionChanges": "Alterações desta versão",
+    "noVersions": "Nenhuma versão disponível",
+    "noChangelog": "O autor não publicou alterações para esta versão."
+  },
+  "ownerTools": {
+    "badge": "Dono",
+    "title": "Diagnósticos e manutenção",
+    "restricted": "Acesso exclusivo da conta de dono.",
+    "description": "Diagnóstico detalhado e manutenção da instância. Arquivos removidos ficam guardados para recuperação; os mundos são preservados.",
+    "instance": "Instância",
+    "diagnose": "Diagnosticar",
+    "repair": "Corrigir e verificar",
+    "history": "Histórico de erros"
+  },
+  "importFolder": {
+    "title": "Importar de qualquer launcher",
+    "description": "Escolha a pasta da instância ou a pasta do Minecraft. Confirme a versão e o loader; mods, mundos, configurações e scripts serão copiados para uma instância separada.",
+    "choose": "Escolher pasta",
+    "name": "Nome",
+    "version": "Versão do Minecraft",
+    "import": "Importar esta pasta"
+  },
+  "recovery": {
+    "reloadInterface": "Reabrir interface"
   }
 }

@@ -100,7 +100,7 @@ function createProfileStore() {
 			return activeId;
 		},
 		set list(next: Profile[]) {
-			list = next.map(profile => {
+			list = [...new Map(next.map(profile => [profile.id, profile])).values()].map(profile => {
 				const banner = savedBanner(profile.id) || profile.banner;
 				return { ...profile, banner: banner && isRenderableBanner(banner) ? banner : undefined };
 			});
@@ -113,7 +113,7 @@ function createProfileStore() {
 			return list.find((p) => p.id === activeId) ?? null;
 		},
 		add(p: Profile) {
-			list = [...list, p];
+			list = list.some(profile => profile.id === p.id) ? list.map(profile => profile.id === p.id ? {...profile,...p} : profile) : [...list, p];
 		},
 		update(id: string, patch: Partial<Profile>) {
 			list = list.map((p) =>

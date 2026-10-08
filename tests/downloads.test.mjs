@@ -110,6 +110,25 @@ test('failed upstream downloads do not return an installer payload', async () =>
     } finally { globalThis.fetch = original; }
 });
 
+test('a revision falls back to GitHub when an automatic site deploy lacks the local executable', async () => {
+    const original=globalThis.fetch;
+    const revised={...asset,browser_download_url:'https://github.com/predabr/luxmc/releases/download/v3.0.3-revision.2/Lux.MC.Launcher.exe'};
+    const calls=[];
+    globalThis.fetch=async url=>{
+        calls.push(String(url));
+        if(String(url).startsWith('https://api.github.com/')) return Response.json({tag_name:'v3.0.3-revision.2',assets:[revised]});
+        if(String(url).includes('/releases/Lux%20MC')) return new Response('<html>fallback</html>',{headers:{'Content-Type':'text/html'}});
+        assert.equal(String(url),revised.browser_download_url);
+        return new Response('MZrevision2');
+    };
+    try {
+        const response=await onRequest({request:new Request('https://luxmc.test/download/windows'),params:{platform:'windows'},env:{WINDOWS_LOCAL_VERSION:'3.0.3-revision.2'}});
+        assert.equal(response.status,200);
+        assert.equal(await response.text(),'MZrevision2');
+        assert.equal(calls.length,3);
+    } finally {globalThis.fetch=original;}
+});
+
 
 test('new Windows site installer is available while the GitHub release is still building', async () => {
     const original = globalThis.fetch;

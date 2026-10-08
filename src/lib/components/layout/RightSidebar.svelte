@@ -105,7 +105,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 				<div class="flex items-center gap-2.5 min-w-0">
 					<div class="w-9 h-9 rounded-full overflow-hidden bg-fg/[0.04] border border-fg/10 shrink-0">
 						<img loading="lazy" decoding="async" 
-							src={activeSkinStore.current.avatarUrl || account.value.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`} 
+							src={friendsState.ownProfile?.portrait || activeSkinStore.current.avatarUrl || account.value.avatarUrl || `https://mc-heads.net/avatar/${account.value.username}/64`}
 							alt={uiText("ui.ca8e826d9c2ec401")} 
 							class="w-full h-full object-cover rounded-full" 
 							onerror={(e) => {
@@ -118,11 +118,11 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 					</div>
 					<div class="min-w-0 text-left">
 						<div class="text-xs font-extrabold text-fg truncate leading-tight group-hover:text-brand-400 transition-colors">
-							{account.value.username}
+							{friendsState.ownProfile?.displayName || account.value.username}
 						</div>
 						<div class="text-[10px] text-fg/40 truncate flex items-center gap-1.5 mt-0.5">
 							{#if isMicrosoft}
-								<MicrosoftLogo size={10} />
+								{#if friendsState.ownProfile?.role === "owner"}<span class="rounded-md bg-brand-400/15 px-1.5 py-0.5 text-brand-400">{uiText("ownerTools.badge")}</span>{/if}<MicrosoftLogo size={10} />
 								<span class="text-emerald-400 font-semibold">{uiText("ui.7142cc12e4218a5a")}</span>
 							{:else}
 								<span>{uiText("ui.2793472a35db2b80")}</span>
@@ -139,6 +139,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 					class="absolute top-full left-0 right-0 mt-1 bg-bg/35 backdrop-blur-xl border border-fg/10 rounded-xl shadow-2xl py-1 z-30 space-y-0.5"
 					transition:slide={{ easing: quintOut, duration: 180 }}
 				>
+                    {#if friendsState.ownProfile?.role === 'owner'}<a href="/owner-tools" class={launcherButton({variant:'ghost',size:'sm',class:'w-full justify-start'})} onclick={() => showAccountMenu = false}><Sliders class="h-3.5 w-3.5" />{uiText('ownerTools.title')}</a>{/if}
                     <button type="button" disabled={!friendsState.me} onclick={() => { showAccountMenu = false; publicProfile.edit(); }} class={launcherButton({variant:'ghost',size:'sm',class:'w-full justify-start'})}><Sliders class="h-3.5 w-3.5" />{uiText('publicProfile.edit')}</button>
 					<button
 						type="button"

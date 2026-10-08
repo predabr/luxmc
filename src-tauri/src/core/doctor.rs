@@ -432,17 +432,9 @@ pub fn check_mod_conflicts_with_paths(
         }
 
         let base = if let Some(path) = jar_paths.get(idx) {
-            crate::commands::mods::extract_mod_name_from_jar(path)
-                .map(|id| id.to_lowercase().trim().replace(' ', "-"))
-                .unwrap_or_else(|| {
-                    let stem = fname.strip_suffix(".jar").unwrap_or(fname).to_lowercase();
-                    let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();
-                    let non_version_parts: Vec<&str> = parts
-                        .into_iter()
-                        .take_while(|part| !part.chars().any(|c| c.is_ascii_digit()))
-                        .collect();
-                    non_version_parts.join("-")
-                })
+            crate::core::mods::validation::primary_ids(path)
+                .map(|ids| ids.into_iter().collect::<Vec<_>>().join("+"))
+                .unwrap_or_else(|| fname.to_lowercase())
         } else {
             let stem = fname.strip_suffix(".jar").unwrap_or(fname).to_lowercase();
             let parts: Vec<&str> = stem.split(&['-', '_'][..]).collect();

@@ -29,7 +29,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		details: ModProjectDetails | null;
 		versions: ModVersion[];
 		loadingDetails?: boolean;
-		activeTab?: "overview" | "gallery" | "versions";
+		activeTab?: "overview" | "gallery" | "changelog" | "versions";
 		isInstalling?: boolean;
 		isInstalled?: boolean;
 		contentType?: string;
@@ -143,6 +143,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 			{#each [
 				{ key: "overview", label: uiText("ui.f7e888eb3ae0d191"), icon: FileText, count: undefined },
 				{ key: "gallery", label: uiText("ui.6660507dd6461e01"), icon: ImageIcon, count: details?.gallery.length },
+				{ key: "changelog", label: "Changelog", icon: FileText, count: undefined },
 				{ key: "versions", label: uiText("settings.catVersions"), icon: Layers, count: versions.length }
 			] as const as tab}
 				<button

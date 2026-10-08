@@ -27,6 +27,7 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
         results[0].bannerUrl = '/missing-banner.png';
         const invoke = async (command, args) => {
             window.uiCalls.push({ command, args });
+            if (command === 'mods_changelog') return args.versionId === 'old' ? '# Alterações anteriores' : '# Correção atual';
             if (command === 'mods_versions') return [{ id: 'new', name: 'Atual', versionNumber: '2', files: [{ url: 'https://cdn.modrinth.com/test.mrpack', filename: 'test.mrpack', size: 100 }] }, { id: 'old', name: 'Anterior', versionNumber: '1', files: [{ url: 'https://cdn.modrinth.com/old.mrpack', filename: 'old.mrpack', size: 100 }] }];
             if (command === 'pack_reference_version') return { id: args.reference.versionId, files: [{ url: args.reference.versionId === 'old' ? 'https://cdn.modrinth.com/old.mrpack' : 'https://cdn.modrinth.com/test.mrpack', filename: 'test.mrpack', size: 100 }] };
             if (command === 'mods_project_details') return { id: args.projectId, slug: 'pack', title: 'Pack', description: 'Descrição', body: '', bodyType: 'markdown', categories: ['forge'], loaders: ['forge'], gameVersions: ['1.21.1'], downloads: 100, gallery: [], links: {} };
@@ -129,6 +130,13 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
     assert.equal(await page.evaluate(() => window.uiCalls.filter(call => call.command === 'instance_cancel_import').length), 1);
     await queue.getByRole('button', { name: 'Fechar', exact: true }).click();
     await page.locator('.catalog-list-card').first().click();
+    const tabs = await page.getByRole('button', {name:/^(Descrição|Galeria|Changelog|Versões)(\s|$)/}).allTextContents();
+    assert.deepEqual(tabs.map(name=>name.trim().split(/\s|\(/)[0]),['Descrição','Galeria','Changelog','Versões']);
+    await page.getByRole('button',{name:'Changelog',exact:true}).click();
+    await page.getByRole('heading',{name:'Correção atual',exact:true}).waitFor();
+    await page.getByLabel('Alterações desta versão').selectOption('old');
+    await page.getByRole('heading',{name:'Alterações anteriores',exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>window.uiCalls.filter(call=>call.command==='mods_changelog').at(-1).args.versionId),'old');
     await page.getByRole('button', { name: /^Versões/ }).click();
     const previousVersion = page.getByText('Anterior', { exact: true }).locator('..').locator('..').locator('..');
     await previousVersion.getByRole('button', { name: 'Criar', exact: true }).click();

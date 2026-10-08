@@ -527,6 +527,19 @@ async fn dispatch_command(
             let res = crate::commands::mods::mods_project_details_core(&state, project_id, source).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
+        "mods_changelog" => {
+            let project = args.get("projectId").and_then(|v| v.as_str()).unwrap_or_default().to_owned();
+            let version = args.get("versionId").and_then(|v| v.as_str()).unwrap_or_default().to_owned();
+            let source = args.get("source").and_then(|v| v.as_str()).unwrap_or_default().to_owned();
+            let result = crate::commands::mods::mods_changelog_core(&state, project, version, source).await.map_err(|e| e.to_string())?;
+            Ok(serde_json::Value::String(result))
+        },
+        "owner_tools" => {
+            let account = args.get("accountId").and_then(|v| v.as_str()).unwrap_or_default().to_owned();
+            let profile = args.get("profileId").and_then(|v| v.as_str()).unwrap_or_default().to_owned();
+            let operation = args.get("operation").and_then(|v| v.as_str()).unwrap_or_default().to_owned();
+            crate::commands::experience::owner_tools_core(account, profile, operation).await.map_err(|e| e.to_string())
+        },
         "mods_list" => {
             let profile_id = args.get("profileId").or_else(|| args.get("profile_id")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let db = crate::db::shared_db().await.map_err(|e| e.to_string())?;

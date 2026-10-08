@@ -15,6 +15,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Pencil
 	} from "lucide-svelte";
 	import { account, saveCurrentAccount } from "$lib/stores/account.svelte";
+	import { friendsState } from "$lib/stores/friends.svelte";
+    import { publicProfile } from "$lib/stores/publicProfile.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
 	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
@@ -78,11 +80,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     <div class="space-y-6">
         <div class="flex items-center gap-4 rounded-2xl border border-brand-500/20 bg-gradient-to-br from-brand-500/10 via-bg/30 to-transparent p-5">
             <div class="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-border bg-bg-subtle shadow-soft">
-                <img src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || "/grass_block.png"} alt={uiText("ui.ca8e826d9c2ec401")} class="h-full w-full object-cover [image-rendering:pixelated]" onerror={e => { const image = e.currentTarget as HTMLImageElement; if (!image.src.endsWith('/grass_block.png')) image.src = '/grass_block.png'; }} />
+                <img src={friendsState.ownProfile?.portrait || activeSkinStore.current.avatarUrl || account.value?.avatarUrl || "/grass_block.png"} alt={uiText("ui.ca8e826d9c2ec401")} class="h-full w-full object-cover {friendsState.ownProfile?.portrait ? '' : '[image-rendering:pixelated]'}" onerror={e => { const image = e.currentTarget as HTMLImageElement; if (!image.src.endsWith('/grass_block.png')) image.src = '/grass_block.png'; }} />
             </div>
             <div class="min-w-0 flex-1">
                 <p class="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-fg-subtle">{uiText("profileCard.identity")}</p>
-                <h2 class="truncate text-2xl font-bold tracking-tight text-fg">{currentUsername}</h2>
+                <h2 class="truncate text-2xl font-bold tracking-tight text-fg">{friendsState.ownProfile?.displayName || currentUsername}</h2>
+                {#if friendsState.ownProfile?.role === "owner"}<span class="mt-2 inline-flex rounded-lg border border-brand-400/30 bg-brand-400/10 px-2 py-1 text-xs font-semibold text-brand-400">{uiText("ownerTools.badge")}</span>{/if}
                 <p class="mt-2 inline-flex items-center gap-2 text-xs font-medium text-brand-400">
                     {#if isMicrosoft}<MicrosoftLogo size={14} />{uiText("ui.f7d65270bfce73a6")}
                     {:else if isLuxmc}<ShieldCheck class="h-4 w-4" />{uiText("profileCard.luxmcAccount")}
@@ -107,6 +110,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 <div class="flex flex-wrap gap-2"><input aria-label={uiText("ui.b035e0876e9c5cc3")} class="min-w-0 flex-1 rounded-xl border border-border bg-bg/40 px-3 py-2 text-fg" bind:value={editedNick} maxlength="16" onkeydown={e => { if (e.key === 'Enter') handleSaveNick(); }} /><button type="button" class={launcherButton({variant: "primary", size: "sm"})} onclick={handleSaveNick}>{uiText("common.save")}</button><button type="button" class={launcherButton({variant: "secondary", size: "icon"})} aria-label={uiText("common.cancel")} onclick={() => isEditingNick = false}><X class="h-4 w-4" /></button></div>
             {:else}<button type="button" class={launcherButton({variant: "ghost", size: "sm"})} onclick={() => {editedNick = currentUsername; isEditingNick = true;}}><Pencil class="h-4 w-4" />{uiText("ui.40407a7585eaae09")}</button>{/if}
         {/if}
+        <div class="space-y-3"><button type="button" disabled={!friendsState.me} class={launcherButton({variant:'secondary',block:true})} onclick={() => { onClose(); publicProfile.edit(); }}><Pencil class="h-4 w-4" />{uiText('publicProfile.edit')}</button>{#if friendsState.ownProfile?.role === 'owner'}<a href="/owner-tools" class={launcherButton({variant:'secondary',block:true})} onclick={onClose}><ShieldCheck class="h-4 w-4" />{uiText('ownerTools.title')}</a>{/if}</div>
         <div class="grid grid-cols-2 gap-3"><button type="button" class={launcherButton({variant: "primary", size: "lg"})} onclick={handleNavigateSkins}><Shirt class="h-4 w-4" />{uiText("ui.3eea64827771de1e")}</button><button type="button" class={launcherButton({variant: "secondary", size: "lg"})} onclick={async () => { if (account.value?.uuid) { await navigator.clipboard.writeText(account.value.uuid); toast(uiText("profileCard.idCopied"), "success"); } }}><Copy class="h-4 w-4" />{uiText("profileCard.copyId")}</button></div>
         <div class="border-t border-border pt-4"><button type="button" class={launcherButton({variant: "danger", size: "sm", class: "w-full"})} onclick={handleLogout}><LogOut class="h-4 w-4" />{uiText("ui.07b09d8a74c4c8f4")}</button></div>
     </div>

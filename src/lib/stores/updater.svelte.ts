@@ -5,7 +5,7 @@ import { appPerformUpdate, appUpdateEnvironment, type UpdateEnvironment } from "
 import { settings } from "$lib/stores/settings.svelte";
 import { toast } from "$lib/stores/toasts.svelte";
 import { resolveUpdateAssetUrl, type UpdateAsset } from "$lib/utils/updaterAssets";
-import { isNewerVersion } from "$lib/utils/updateVersion";
+import { isReleaseUpdate, RELEASE_REVISION, releaseIdentity } from "$lib/utils/updateVersion";
 
 interface UpdateProgressPayload {
 	percent: number;
@@ -17,6 +17,7 @@ interface UpdateProgressPayload {
 let showModal = $state(false);
 let currentVersion = $state("");
 let latestVersion = $state("");
+let latestRevision = $state(0);
 let releaseUrl = $state("");
 let releaseNotes = $state("");
 let downloadUrl = $state("");
@@ -58,7 +59,7 @@ export const updaterStore = {
 	get lastChecked() { return lastChecked; },
 	get newVersion() { return latestVersion; },
 	get updateAvailable() {
-		return Boolean(latestVersion && currentVersion && isNewerVersion(currentVersion, latestVersion));
+		return Boolean(latestVersion && currentVersion && isReleaseUpdate(currentVersion, RELEASE_REVISION, latestVersion, latestRevision));
 	},
 
 	async downloadAndInstall() {
@@ -73,6 +74,7 @@ export const updaterStore = {
 			currentVersion = await getVersion();
 			try { environment = (await appUpdateEnvironment()).mode; } catch { environment = "manual"; }
 			downloadUrl = "";
+			latestRevision = 0;
 			lastChecked = new Date().toISOString();
 
 			const channel = settings.value.releaseChannel === "beta" ? "beta" : "stable";
@@ -84,7 +86,8 @@ export const updaterStore = {
 					if (latestRes.ok) {
 						const manifest = await latestRes.json();
 						if (manifest && manifest.version) {
-							latestVersion = manifest.version.replace(/^v/i, "");
+							latestVersion = (manifest.displayVersion || manifest.version).replace(/^v/i, "");
+							latestRevision = Number.isSafeInteger(manifest.revision) && manifest.revision >= 0 ? manifest.revision : 0;
 							releaseNotes = manifest.notes || uiText("ui.985b1a01257311f1");
 							releaseUrl = "https://github.com/predabr/luxmc/releases/latest";
 
@@ -118,7 +121,9 @@ export const updaterStore = {
 						: data;
 					if (release && release.tag_name !== undefined) {
 						const tag: string = release.tag_name || "";
-						latestVersion = tag.replace(/^v/i, "");
+						const identity = releaseIdentity(tag);
+						latestVersion = identity.version;
+						latestRevision = identity.revision;
 						releaseUrl = release.html_url || "https://github.com/predabr/luxmc/releases";
 						releaseNotes = release.body || uiText("ui.4343565e98d68e00");
 						downloadUrl = resolveUpdateAssetUrl((release.assets || []) as UpdateAsset[], environment);
@@ -128,10 +133,10 @@ export const updaterStore = {
 			}
 
 			if (!foundUpdate) throw new Error(uiText("ui.d3184c6678fe9d2d"));
-			const newer = isNewerVersion(currentVersion, latestVersion);
+			const newer = isReleaseUpdate(currentVersion, RELEASE_REVISION, latestVersion, latestRevision);
 			verificationStatus = newer ? "available" : "current";
-			if (newer && (interactive || notifiedVersion !== latestVersion)) {
-				notifiedVersion = latestVersion;
+			if (newer && (interactive || notifiedVersion !== `${latestVersion}:${latestRevision}`)) {
+				notifiedVersion = `${latestVersion}:${latestRevision}`;
 				showModal = true;
 				toast(uiText("ui.2bf47a3eca3c1022", {arg0: (latestVersion)}), "info");
 			} else if (interactive) {

@@ -123,7 +123,7 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
             if (!user)
                 return respond({ error: "Perfil não encontrado." }, 404);
             const saved = await db.prepare("SELECT description, banner, portrait, packs, display_name, status, collections FROM social_public_profiles WHERE user_id = ?").bind(target).first();
-            return respond({ profile: { ...user, displayName: saved?.display_name || '', status: saved?.status || '', description: saved?.description || '', banner: saved?.banner || '', portrait: saved?.portrait || '', packs: JSON.parse(saved?.packs || '[]'), collections: JSON.parse(saved?.collections || '[]') } });
+            return respond({ profile: { ...user, role: env.OWNER_SOCIAL_ID && target === env.OWNER_SOCIAL_ID ? "owner" : "member", displayName: saved?.display_name || '', status: saved?.status || '', description: saved?.description || '', banner: saved?.banner || '', portrait: saved?.portrait || '', packs: JSON.parse(saved?.packs || '[]'), collections: JSON.parse(saved?.collections || '[]') } });
         }
         if (action === "stream_ticket") {
             if (!env.SOCIAL_STREAM_URL)

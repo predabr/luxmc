@@ -21,8 +21,8 @@ function fixture() {
       return { async first() { return statement.get(...values) || null; }, async all() { return { results: statement.all(...values) }; }, async run() { return { meta: statement.run(...values) }; } };
     } };
   } };
-  async function request(action, token, body, streamUrl) {
-    const response = await onRequest({ request: new Request(`https://luxmc.test/api/social/${action}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) }), env: { SOCIAL_DB: db, SOCIAL_STREAM_URL: streamUrl }, params: { action }, waitUntil() {} });
+  async function request(action, token, body, streamUrl, ownerId) {
+    const response = await onRequest({ request: new Request(`https://luxmc.test/api/social/${action}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify(body) }), env: { SOCIAL_DB: db, SOCIAL_STREAM_URL: streamUrl, OWNER_SOCIAL_ID: ownerId }, params: { action }, waitUntil() {} });
     return { status: response.status, body: await response.json() };
   }
   return { sqlite, request, db };
@@ -31,6 +31,20 @@ function fixture() {
 const aliceToken = "a".repeat(64);
 const bobToken = "b".repeat(64);
 const eveToken = "c".repeat(64);
+
+test("owner role follows the authenticated configured identity and cannot be claimed by nickname or saved fields", async () => {
+  const { sqlite, request } = fixture();
+  try {
+    const owner = (await request('register', aliceToken, {username:'Spect3rBW'})).body.me;
+    await request('register', bobToken, {username:'Spect3rBW'});
+    const save = await request('profile_save', bobToken, {role:'owner',displayName:'OWNER',description:'',banner:'',portrait:'',packs:[]},undefined,owner.id);
+    assert.equal(save.status,200);
+    assert.equal((await request('profile_get',bobToken,{},undefined,owner.id)).body.profile.role,'member');
+    assert.equal((await request('profile_get',aliceToken,{},undefined,owner.id)).body.profile.role,'owner');
+    assert.equal((await request('profile_get',aliceToken,{})).body.profile.role,'member');
+    assert.equal((await request('profile_get',bobToken,{targetId:owner.id},undefined,owner.id)).status,403);
+  } finally { sqlite.close(); }
+});
 
 test("invites require recipient consent and hide presence until accepted", async () => {
   const { sqlite, request } = fixture();

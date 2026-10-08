@@ -1276,7 +1276,7 @@ pub async fn instance_import_modpack_core(
             "current": total_files,
             "total": total_files,
             "percent": 96,
-            "status": format!("{} mods instalados, {} falharam", final_ok, final_fail)
+            "status": format!("{} arquivos baixados. Registrando a instância...", final_ok)
         }));
     }
     tracing::info!(mods_ok = final_ok, mods_fail = final_fail, total = total_files, "curseforge modpack mod download summary");
@@ -1321,11 +1321,12 @@ pub async fn instance_import_modpack_core(
 
     let db = crate::db::shared_db().await?;
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;
+    let registration_started = std::time::Instant::now();
     index_pack_mods(&profile_row).await?;
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo a instância antes do primeiro início..."}));}
     prepare_imported_launch(state, &profile_row).await?;
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
-    let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0})).await;
+    let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
     Ok(profile_row)
 }
 
@@ -1692,7 +1693,28 @@ async fn ensure_mrpack_file(
     Err(crate::error::AppError::InvalidState(format!("Arquivo ausente ou inválido: {}", file.path)))
 }
 
+pub(crate) async fn repair_instance_duplicates(profile: &ProfileRow) -> AppResult<usize> {
+    if crate::core::launcher::get_active_game_pid() != 0 && crate::core::launcher::get_active_game_dir().as_deref() == Some(std::path::Path::new(&profile.game_dir)) { return Ok(0); }
+    let db = crate::db::shared_db().await?;
+    let preferred = crate::db::schema::mods::list_by_profile(&db, &profile.id).await?.into_iter().map(|row| row.file_name).collect();
+    let root = std::path::PathBuf::from(&profile.game_dir);
+    let repaired = tokio::task::spawn_blocking(move || crate::core::mods::validation::repair_duplicates(&root, &preferred))
+        .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
+    if repaired > 0 {
+        let root = std::path::PathBuf::from(&profile.game_dir).join("mods");
+        let active = tokio::task::spawn_blocking(move || -> AppResult<Vec<String>> {
+            Ok(std::fs::read_dir(root)?.filter_map(Result::ok).filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()) && entry.path().extension().is_some_and(|extension| extension == "jar")).map(|entry| entry.file_name().to_string_lossy().into_owned()).collect())
+        }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
+        sqlx::query("UPDATE profiles SET mod_count = ? WHERE id = ?").bind(active.len() as i64).bind(&profile.id).execute(db.pool()).await?;
+        for row in crate::db::schema::mods::list_by_profile(&db, &profile.id).await? {
+            if row.file_name.ends_with(".jar") && !active.contains(&row.file_name) { sqlx::query("DELETE FROM mods WHERE profile_id = ? AND project_id = ?").bind(&profile.id).bind(row.project_id).execute(db.pool()).await?; }
+        }
+    }
+    Ok(repaired)
+}
+
 async fn prepare_imported_launch(_state: &AppState, profile: &ProfileRow) -> AppResult<()> {
+    repair_instance_duplicates(profile).await?;
     let profile = profile.clone();
     tokio::task::spawn_blocking(move || -> AppResult<()> {
         let root = std::path::Path::new(&profile.game_dir);
@@ -1713,22 +1735,16 @@ async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
     if cf.exists() {
         if let Ok(bytes) = tokio::fs::read(&cf).await {
             if let Ok(manifest) = serde_json::from_slice::<CfManifest>(&bytes) {
-                for file in manifest.files {
+                let rows = futures_util::stream::iter(manifest.files).map(|file| {
                     let meta_path = root.join(format!(".luxmc/curseforge/{}.json", file.file_id));
-                    if let Ok(info_bytes) = tokio::fs::read(&meta_path).await {
-                        if let Ok(info) = serde_json::from_slice::<crate::core::mods::curseforge::CurseForgeFileInfo>(&info_bytes) {
-                            rows_to_insert.push(crate::db::schema::mods::ModRow {
-                                profile_id: profile.id.clone(),
-                                project_id: file.project_id.to_string(),
-                                version_id: file.file_id.to_string(),
-                                file_name: info.file_name,
-                                sha1: info.sha1.unwrap_or_default(),
-                                source: "curseforge".into(),
-                                installed_at: String::new(),
-                            });
-                        }
+                    let profile_id = profile.id.clone();
+                    async move {
+                        let bytes = tokio::fs::read(meta_path).await.ok()?;
+                        let info = serde_json::from_slice::<crate::core::mods::curseforge::CurseForgeFileInfo>(&bytes).ok()?;
+                        Some(crate::db::schema::mods::ModRow { profile_id, project_id:file.project_id.to_string(), version_id:file.file_id.to_string(), file_name:info.file_name, sha1:info.sha1.unwrap_or_default(), source:"curseforge".into(), installed_at:String::new() })
                     }
-                }
+                }).buffer_unordered(8).collect::<Vec<_>>().await;
+                rows_to_insert.extend(rows.into_iter().flatten());
             }
         }
     }
@@ -2293,7 +2309,7 @@ pub async fn instance_import_mrpack_core(
             "current": total_mrpack_files,
             "total": total_mrpack_files,
             "percent": 96,
-            "status": format!("Modpack instalado com sucesso ({} mods configurados)", installed_mods_count)
+            "status": format!("Arquivos baixados. Registrando {} mods...", installed_mods_count)
         }));
     }
 
@@ -2336,11 +2352,12 @@ pub async fn instance_import_mrpack_core(
     };
 
     crate::db::schema::profiles::upsert(&db, &profile_row).await?;
+    let registration_started = std::time::Instant::now();
     index_pack_mods(&profile_row).await?;
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo a instância antes do primeiro início..."}));}
     prepare_imported_launch(state, &profile_row).await?;
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
-    let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0})).await;
+    let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
     Ok(profile_row)
 }
 

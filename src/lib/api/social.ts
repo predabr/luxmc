@@ -66,7 +66,7 @@ const packEntrySchema = z.object({source:z.enum(['modrinth','curseforge']),proje
 const collectionSchema = z.object({id:z.string().regex(/^[a-zA-Z0-9-]{1,64}$/),title:z.string().min(1).max(80),description:z.string().max(240),entries:z.array(packEntrySchema).max(8)});
 export type PackEntry = z.infer<typeof packEntrySchema>;
 export type PackCollection = z.infer<typeof collectionSchema>;
-const publicProfileSchema = identitySchema.extend({ collections:z.array(collectionSchema).max(6).default([]), displayName: z.string().max(32).default(''), status: z.string().max(80).default(''), description: z.string().max(400), banner: z.string().max(934000), portrait: z.string().max(934000), packs: z.array(z.string().max(80)).max(8) });
+const publicProfileSchema = identitySchema.extend({ role: z.enum(["owner", "member"]).default("member"), collections:z.array(collectionSchema).max(6).default([]), displayName: z.string().max(32).default(''), status: z.string().max(80).default(''), description: z.string().max(400), banner: z.string().max(934000), portrait: z.string().max(934000), packs: z.array(z.string().max(80)).max(8) });
 export type PublicProfile = z.infer<typeof publicProfileSchema>;
 export async function socialPublicProfile(accountId: string, targetId?: string): Promise<PublicProfile> {
     return z.object({profile: publicProfileSchema}).parse(await api.invoke('social_request', {accountId, request: {action:'profile_get', targetId}})).profile;

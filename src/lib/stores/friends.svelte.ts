@@ -2,7 +2,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { goto } from "$app/navigation";
 import { toast } from "./toasts.svelte";
 import { joinWorld } from "$lib/utils/directJoin";
-import { socialStreamTicket, friendsSnapshotSchema, socialCreateRoom, socialJoinRoom, socialCloseRoom, socialRegister, socialSync, socialSearch, socialFriendAction, type Friend, type SocialIdentity } from "$lib/api/social";
+import { socialPublicProfile, type PublicProfile, socialStreamTicket, friendsSnapshotSchema, socialCreateRoom, socialJoinRoom, socialCloseRoom, socialRegister, socialSync, socialSearch, socialFriendAction, type Friend, type SocialIdentity } from "$lib/api/social";
 import { settings } from "./settings.svelte";
 import { activeSkinStore } from "./skin.svelte";
 import { account } from "./account.svelte";
@@ -10,6 +10,7 @@ import { appState } from "./app.svelte";
 
 let list = $state<Friend[]>([]);
 let me = $state<SocialIdentity | null>(null);
+let ownProfile = $state<PublicProfile | null>(null);
 let error = $state("");
 let busy = $state(false);
 let sharedWorld = $state<{ host: string; port: number } | null>(null);
@@ -94,7 +95,17 @@ async function poll(run: number) {
 	if (run === generation) { clearTimeout(timer); timer = setTimeout(() => void poll(run), document.hidden ? 45000 : socket?.readyState === WebSocket.OPEN ? 25000 : 5000); }
 }
 
+async function refreshProfile() {
+    const run = generation;
+    const accountId = identity;
+    if (!accountId) return;
+    const profile = await socialPublicProfile(accountId);
+    if (run === generation && accountId === identity) ownProfile = profile;
+}
+
 export const friendsState = {
+    refreshProfile,
+    get ownProfile() { return ownProfile; },
     createRoom(host: string, port: number) { return socialCreateRoom(identity, host, port); },
     joinRoom(code: string) { return socialJoinRoom(identity, code); },
     closeRoom() { return socialCloseRoom(identity); },
@@ -116,6 +127,7 @@ export const friendsState = {
 			const result = await socialRegister(identity, current.username);
 			if (run !== generation) return;
 			me = result;
+            void refreshProfile().catch(() => {});
 			try { const saved: unknown = JSON.parse(localStorage.getItem(`luxmc_social_favourites_${identity}`) || "[]"); favourites = Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : []; } catch { favourites = []; }
 			void connectStream(run);
             wake = () => { if (!document.hidden && run === generation) { clearTimeout(timer); void poll(run); } };
@@ -135,6 +147,7 @@ export const friendsState = {
 		identity = "";
 		list = [];
 		me = null;
+        ownProfile = null;
 		sharedWorld = null;
 		busy = false;
 		error = "";

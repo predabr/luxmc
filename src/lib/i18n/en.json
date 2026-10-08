@@ -1198,7 +1198,7 @@
     "c885592faeb86f3b": "Installed in the Board",
     "5c9690515c95c811": "Create Modpack Instance",
     "9951cba901a50134": "Install in the Instance",
-    "f7e888eb3ae0d191": "Overview",
+    "f7e888eb3ae0d191": "Description",
     "0d989c8815c710b0": "How to Install",
     "283dd78f89984eba": "Source Code",
     "07156da5279b23ce": "Information",
@@ -3344,5 +3344,31 @@
     "measureLauncher": "Measure launcher usage",
     "processes": "processes",
     "backgroundPolicy": "In the background, animations pause and presence checks run less often. The P2P room stays active."
+  },
+  "catalog": {
+    "versionChanges": "Changes in this version",
+    "noVersions": "No versions available",
+    "noChangelog": "The author did not publish changes for this version."
+  },
+  "ownerTools": {
+    "badge": "Owner",
+    "title": "Diagnostics and maintenance",
+    "restricted": "Access is restricted to the owner account.",
+    "description": "Detailed diagnostics and instance maintenance. Removed files are retained for recovery; worlds are preserved.",
+    "instance": "Instance",
+    "diagnose": "Diagnose",
+    "repair": "Repair and verify",
+    "history": "Error history"
+  },
+  "importFolder": {
+    "title": "Import from any launcher",
+    "description": "Choose the instance or Minecraft folder. Confirm the version and loader; mods, worlds, settings and scripts will be copied into a separate instance.",
+    "choose": "Choose folder",
+    "name": "Name",
+    "version": "Minecraft version",
+    "import": "Import this folder"
+  },
+  "recovery": {
+    "reloadInterface": "Reload interface"
   }
 }

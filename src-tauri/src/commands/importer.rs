@@ -29,6 +29,38 @@ pub struct ImportResult {
 }
 
 #[tauri::command]
+pub async fn importer_inspect_directory(path: String) -> AppResult<ExternalInstance> {
+    tokio::task::spawn_blocking(move || {
+        let directory = PathBuf::from(path);
+        if !directory.is_dir() { return Err(crate::error::AppError::NotFound("Pasta de origem não encontrada".into())); }
+        let game = game_directory(&directory);
+        let (version, loader) = if directory.join("mmc-pack.json").is_file() || directory.join("instance.cfg").is_file() {
+            parse_prism_instance_cfg(&directory)
+        } else if directory.join("minecraftinstance.json").is_file() { parse_curseforge_manifest(&directory) }
+        else { (String::new(), "vanilla".to_owned()) };
+        Ok(ExternalInstance { launcher: "Pasta selecionada".into(), name: directory.file_name().unwrap_or_default().to_string_lossy().into_owned(), path: directory.to_string_lossy().into_owned(), mc_version: version, loader, mod_count: count_mods_in_dir(&game.join("mods")), has_saves: game.join("saves").is_dir() })
+    }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
+}
+
+fn game_directory(source: &Path) -> PathBuf {
+    for name in [".minecraft", "minecraft"] { if source.join(name).is_dir() { return source.join(name); } }
+    source.to_path_buf()
+}
+
+fn copy_game_data(source: &Path, destination: &Path) -> AppResult<()> {
+    let mut pending = vec![(source.to_path_buf(), destination.to_path_buf())];
+    while let Some((from, to)) = pending.pop() {
+        let kind = std::fs::symlink_metadata(&from)?.file_type();
+        if kind.is_symlink() { continue; }
+        if kind.is_dir() {
+            std::fs::create_dir_all(&to)?;
+            for entry in std::fs::read_dir(from)? { let entry = entry?; pending.push((entry.path(), to.join(entry.file_name()))); }
+        } else if kind.is_file() { std::fs::copy(from, to)?; }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn importer_detect_launchers() -> AppResult<Vec<ExternalInstance>> {
     tokio::task::spawn_blocking(move || -> AppResult<Vec<ExternalInstance>> {
         let mut instances = Vec::new();
@@ -161,6 +193,10 @@ pub async fn importer_execute_import(
         return Err(crate::error::AppError::NotFound("Diretório de origem não encontrado".into()));
     }
 
+    let final_mc_version = mcVersion.filter(|value| !value.trim().is_empty()).ok_or_else(|| crate::error::AppError::InvalidInput("Selecione a versão do Minecraft da instância".into()))?;
+    if final_mc_version.len() > 128 || final_mc_version.contains("..") || !final_mc_version.bytes().all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-' | b'_')) { return Err(crate::error::AppError::InvalidInput("Versão do Minecraft inválida".into())); }
+    let final_loader = loader.unwrap_or_else(|| "vanilla".into());
+
     let profile_id = uuid::Uuid::new_v4().to_string();
     let safe_name = if targetName.trim().is_empty() {
         src.file_name().unwrap_or_default().to_string_lossy().to_string()
@@ -179,29 +215,22 @@ pub async fn importer_execute_import(
     let dest_dir = data_dir.join("instances").join(&profile_id).join(".minecraft");
     tokio::fs::create_dir_all(&dest_dir).await?;
 
-    let copy_candidates = vec!["mods", "config", "saves", "resourcepacks", "shaderpacks", "options.txt"];
-    let inner_mc = if src.join(".minecraft").is_dir() {
-        src.join(".minecraft")
-    } else {
-        src.clone()
-    };
-
-    let mut imported_mods = 0;
+    let copy_candidates = vec!["mods", "config", "defaultconfigs", "kubejs", "scripts", "saves", "resourcepacks", "shaderpacks", "screenshots", "journeymap", "options.txt", "servers.dat"];
+    let inner_mc = game_directory(&src);
+    let copy_destination = dest_dir.clone();
+    let imported_mods = tokio::task::spawn_blocking(move || -> AppResult<usize> {
     for item in copy_candidates {
         let from = inner_mc.join(item);
-        let to = dest_dir.join(item);
+        let to = copy_destination.join(item);
         if from.is_dir() {
-            fs_extra::dir::copy(&from, &dest_dir, &fs_extra::dir::CopyOptions::new().overwrite(true)).map_err(|e| crate::error::AppError::Internal(e.to_string()))?;
-            if item == "mods" {
-                imported_mods = count_mods_in_dir(&to);
-            }
+            copy_game_data(&from, &to)?;
         } else if from.is_file() {
-            tokio::fs::copy(&from, &to).await?;
+            std::fs::copy(&from, &to)?;
         }
     }
+    Ok(count_mods_in_dir(&copy_destination.join("mods")))
+    }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
 
-    let final_mc_version = mcVersion.unwrap_or_else(|| "1.20.1".into());
-    let final_loader = loader.unwrap_or_else(|| "fabric".into());
 
     let db = crate::db::shared_db().await?;
     let now = chrono::Utc::now().to_rfc3339();
@@ -296,21 +325,38 @@ fn parse_prism_instance_cfg(dir: &Path) -> (String, String) {
         }
     }
 
-    if version.is_empty() {
-        version = "1.20.1".to_string();
-    }
     (version, loader)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn generic_minecraft_folder_preserves_nested_worlds_and_scripts() {
+        let root=std::env::temp_dir().join(format!("luxmc-import-{}",uuid::Uuid::new_v4()));
+        let source=root.join("source/minecraft");
+        std::fs::create_dir_all(source.join("saves/World/datapacks")).unwrap();
+        std::fs::write(source.join("saves/World/datapacks/example.zip"),b"world data").unwrap();
+        std::fs::create_dir_all(source.join("kubejs")).unwrap();
+        std::fs::write(source.join("kubejs/server.js"),b"script").unwrap();
+        assert_eq!(game_directory(&root.join("source")),source);
+        copy_game_data(&source,&root.join("destination")).unwrap();
+        assert_eq!(std::fs::read(root.join("destination/saves/World/datapacks/example.zip")).unwrap(),b"world data");
+        assert_eq!(std::fs::read(root.join("destination/kubejs/server.js")).unwrap(),b"script");
+        assert!(source.join("kubejs/server.js").is_file());
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
 
 fn parse_curseforge_manifest(dir: &Path) -> (String, String) {
     let manifest_path = dir.join("minecraftinstance.json");
     if let Ok(content) = std::fs::read_to_string(manifest_path) {
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
-            let version = val["gameVersion"].as_str().unwrap_or("1.20.1").to_string();
+            let version = val["gameVersion"].as_str().or_else(|| val["minecraftVersion"].as_str()).or_else(|| val.pointer("/baseModLoader/minecraftVersion").and_then(|v| v.as_str())).unwrap_or_default().to_string();
             let loader = if let Some(loaders) = val["modLoaders"].as_array() {
-                loaders.first().and_then(|l| l["id"].as_str()).unwrap_or("fabric").to_lowercase()
+                loaders.first().and_then(|l| l["id"].as_str()).or_else(|| val.pointer("/baseModLoader/name").and_then(|v| v.as_str())).unwrap_or("vanilla").to_lowercase()
             } else {
-                "fabric".to_string()
+                val.pointer("/baseModLoader/name").and_then(|v| v.as_str()).unwrap_or("vanilla").to_string()
             };
             let clean_loader = if loader.contains("neoforge") {
                 "neoforge"
@@ -326,5 +372,5 @@ fn parse_curseforge_manifest(dir: &Path) -> (String, String) {
             return (version, clean_loader.to_string());
         }
     }
-    ("1.20.1".to_string(), "vanilla".to_string())
+    (String::new(), "vanilla".to_string())
 }

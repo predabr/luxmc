@@ -10,7 +10,9 @@ for (const file of ["src-tauri/repair-helper/Cargo.toml", "src-tauri/repair-help
   const helperVersion = file.endsWith("Cargo.toml") ? content.match(/^version = "([^"]+)"/m)?.[1] : content.match(/name = "luxmc-repair"\r?\nversion = "([^"]+)"/)?.[1];
   if (helperVersion !== version) throw new Error("Recovery verifier version does not match the launcher.");
 }
-if (process.argv[2] && process.argv[2] !== `v${version}`) throw new Error("Release tag does not match the launcher version.");
+const revision = Number(readFileSync("src/lib/utils/updateVersion.ts", "utf8").match(/RELEASE_REVISION = (\d+)/)?.[1] || 0);
+const compatibilityVersion = version.replace(/\d+$/, value => String(Number(value) + 1));
+if (process.argv[2] && ![`v${version}`, `v${compatibilityVersion}-revision.${revision}`].includes(process.argv[2])) throw new Error("Release tag does not match the launcher version.");
 if (tauri.productName !== "Luxmc" || tauri.identifier !== "io.github.luxmc.Luxmc") throw new Error("The launcher identity must remain unchanged.");
 for (const locale of ["pt-BR", "en", "es"]) {
   const data = JSON.parse(readFileSync(`src/lib/i18n/${locale}.json`, "utf8"));

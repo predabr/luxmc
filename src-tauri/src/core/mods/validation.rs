@@ -4,6 +4,73 @@ use crate::error::AppResult;
 #[derive(Default)]
 pub struct Audit { pub errors: Vec<String>, pub warnings: Vec<String> }
 
+pub(crate) fn primary_ids(path: &Path) -> Option<std::collections::BTreeSet<String>> {
+    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(std::fs::File::open(path).ok()?)).ok()?;
+    let mut ids = std::collections::BTreeSet::new();
+    for (name, pointer) in [("fabric.mod.json", "/id"), ("quilt.mod.json", "/quilt_loader/id")] {
+        if let Ok(file) = archive.by_name(name) {
+            if let Ok(value) = serde_json::from_reader::<_, serde_json::Value>(file.take(2 * 1024 * 1024)) {
+                if let Some(id) = value.pointer(pointer).and_then(|v| v.as_str()) { ids.insert(id.to_owned()); }
+            }
+        }
+    }
+    for name in ["META-INF/neoforge.mods.toml", "META-INF/mods.toml"] {
+        if let Ok(file) = archive.by_name(name) {
+            let mut text = String::new();
+            if file.take(2 * 1024 * 1024).read_to_string(&mut text).is_ok() {
+                if let Ok(value) = text.parse::<toml::Value>() {
+                    if let Some(mods) = value.get("mods").and_then(|v| v.as_array()) {
+                        for module in mods { if let Some(id) = module.get("modId").and_then(|v| v.as_str()) { ids.insert(id.to_owned()); } }
+                    }
+                }
+            }
+        }
+    }
+    (!ids.is_empty()).then_some(ids)
+}
+
+pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<usize> {
+    let directory = root.join("mods");
+    if !directory.is_dir() { return Ok(0); }
+    let mut paths = std::fs::read_dir(&directory)?.filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()) && entry.path().extension().is_some_and(|extension| extension == "jar"))
+        .map(|entry| entry.path()).collect::<Vec<_>>();
+    paths.sort_by_key(|path| (!preferred.contains(&path.file_name().unwrap_or_default().to_string_lossy().into_owned()), path.file_name().map(|name| name.to_os_string())));
+    let mut retained = std::collections::BTreeMap::<std::collections::BTreeSet<String>, std::path::PathBuf>::new();
+    let mut removed = Vec::new();
+    for path in paths {
+        let Some(ids) = primary_ids(&path) else { continue; };
+        if let Some(kept) = retained.get(&ids) {
+            let kept_pinned = preferred.contains(&kept.file_name().unwrap_or_default().to_string_lossy().into_owned());
+            let other_pinned = preferred.contains(&path.file_name().unwrap_or_default().to_string_lossy().into_owned());
+            let identical = || -> std::io::Result<bool> {
+                use sha2::Digest;
+                fn digest(path: &Path) -> std::io::Result<Vec<u8>> {
+                    let mut file = std::fs::File::open(path)?;
+                    let mut hash = sha2::Sha256::new();
+                    let mut bytes = [0u8; 65536];
+                    loop { let count = file.read(&mut bytes)?; if count == 0 { break; } hash.update(&bytes[..count]); }
+                    Ok(hash.finalize().to_vec())
+                }
+                Ok(std::fs::metadata(kept)?.len() == std::fs::metadata(&path)?.len() && digest(kept)? == digest(&path)?)
+            };
+            if kept_pinned && !other_pinned || identical()? { removed.push((path, kept.clone())); }
+        }
+        else { retained.insert(ids, path); }
+    }
+    if removed.is_empty() { return Ok(0); }
+    let backup = root.join(".luxmc/removed-duplicates").join(uuid::Uuid::new_v4().to_string());
+    std::fs::create_dir_all(&backup)?;
+    let mut records = Vec::new();
+    for (path, kept) in &removed {
+        let name = path.file_name().unwrap_or_default();
+        std::fs::rename(path, backup.join(name))?;
+        records.push(serde_json::json!({"removed": name.to_string_lossy(), "retained": kept.file_name().unwrap_or_default().to_string_lossy()}));
+    }
+    std::fs::write(backup.join("repair.json"), serde_json::to_vec_pretty(&records)?)?;
+    Ok(removed.len())
+}
+
 pub fn audit(root: &Path, deep: bool) -> AppResult<Audit> {
     let mut report = Audit::default();
     let mut providers = HashMap::<String,String>::new();
@@ -73,6 +140,69 @@ pub fn audit(root: &Path, deep: bool) -> AppResult<Audit> {
 
 #[cfg(test)]
 mod tests {
+    fn mod_jar(path: &std::path::Path, id: &str) {
+        use std::io::Write;
+        let mut archive = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+        archive.start_file("fabric.mod.json", zip::write::FileOptions::default()).unwrap();
+        archive.write_all(serde_json::json!({"id":id,"version":"1"}).to_string().as_bytes()).unwrap();
+        archive.finish().unwrap();
+    }
+    #[test]
+    fn duplicate_repair_keeps_pinned_file_and_a_recoverable_copy() {
+        let root=std::env::temp_dir().join(format!("luxmc-dedupe-{}",uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("mods")).unwrap();
+        mod_jar(&root.join("mods/a-old.jar"), "example");
+        mod_jar(&root.join("mods/pinned.jar"), "example");
+        mod_jar(&root.join("mods/independent.jar"), "independent");
+        let preferred = ["pinned.jar".to_owned()].into_iter().collect();
+        assert_eq!(super::repair_duplicates(&root,&preferred).unwrap(),1);
+        assert!(root.join("mods/pinned.jar").is_file());
+        assert!(root.join("mods/independent.jar").is_file());
+        assert!(!root.join("mods/a-old.jar").exists());
+        let backup=std::fs::read_dir(root.join(".luxmc/removed-duplicates")).unwrap().next().unwrap().unwrap().path();
+        assert!(backup.join("a-old.jar").is_file());
+        assert!(super::audit(&root,false).unwrap().errors.is_empty());
+        assert_eq!(super::repair_duplicates(&root,&preferred).unwrap(),0);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn neoforge_duplicate_repair_keeps_manifest_version() {
+        use std::io::Write;
+        let root=std::env::temp_dir().join(format!("luxmc-neoforge-dedupe-{}",uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("mods")).unwrap();
+        for (name,version) in [("old.jar","1"),("manifest.jar","2")] {
+            let mut archive=zip::ZipWriter::new(std::fs::File::create(root.join("mods").join(name)).unwrap());
+            archive.start_file("META-INF/neoforge.mods.toml",zip::write::FileOptions::default()).unwrap();
+            archive.write_all(format!("[[mods]]\nmodId='example'\nversion='{version}'\n").as_bytes()).unwrap();
+            archive.finish().unwrap();
+        }
+        assert_eq!(super::repair_duplicates(&root,&["manifest.jar".to_owned()].into_iter().collect()).unwrap(),1);
+        assert!(root.join("mods/manifest.jar").is_file());
+        assert!(!root.join("mods/old.jar").exists());
+        assert!(super::audit(&root,false).unwrap().errors.is_empty());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn duplicate_repair_preserves_ambiguous_versions_and_extra_modules() {
+        use std::io::Write;
+        let root=std::env::temp_dir().join(format!("luxmc-dedupe-safe-{}",uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("mods")).unwrap();
+        mod_jar(&root.join("mods/a.jar"), "example");
+        let mut archive=zip::ZipWriter::new(std::fs::File::create(root.join("mods/b.jar")).unwrap());
+        archive.start_file("fabric.mod.json",zip::write::FileOptions::default()).unwrap();
+        archive.write_all(br#"{"id":"example","version":"2"}"#).unwrap();
+        archive.finish().unwrap();
+        let mut archive=zip::ZipWriter::new(std::fs::File::create(root.join("mods/multiple.jar")).unwrap());
+        archive.start_file("META-INF/neoforge.mods.toml",zip::write::FileOptions::default()).unwrap();
+        archive.write_all(b"[[mods]]\nmodId='example'\n[[mods]]\nmodId='extra'\n").unwrap();
+        archive.finish().unwrap();
+        assert_eq!(super::repair_duplicates(&root,&Default::default()).unwrap(),0);
+        assert_eq!(super::repair_duplicates(&root,&["a.jar".to_owned(),"b.jar".to_owned()].into_iter().collect()).unwrap(),0);
+        assert!(root.join("mods/a.jar").is_file());
+        assert!(root.join("mods/b.jar").is_file());
+        assert!(root.join("mods/multiple.jar").is_file());
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn damaged_archive_is_reported_without_deleting_it() {
         let root=std::env::temp_dir().join(format!("luxmc-audit-{}",uuid::Uuid::new_v4()));

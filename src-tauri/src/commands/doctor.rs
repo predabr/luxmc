@@ -90,6 +90,7 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
     if gpu.vendor == "Desconhecido" {
         warnings.push("Não foi possível identificar a GPU; o Luxmc usará a configuração segura padrão.".into());
     }
+    crate::commands::instances::repair_instance_duplicates(&row).await?;
     let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
     for warning in crate::core::doctor::mod_compatibility_warnings(&mods_dir, &row.mc_version, &row.loader) {
         warnings.push(warning);

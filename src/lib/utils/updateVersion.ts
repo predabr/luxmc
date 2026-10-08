@@ -1,3 +1,19 @@
+export const RELEASE_REVISION = 2;
+
+export function releaseIdentity(tag: string): { version: string; revision: number } {
+	const value = tag.trim().replace(/^v/, '');
+	const bridge = /^(\d+)\.(\d+)\.(\d+)-revision\.(\d+)$/.exec(value);
+	if (bridge && Number(bridge[3]) > 0) return {version: `${bridge[1]}.${bridge[2]}.${Number(bridge[3]) - 1}`, revision: Number(bridge[4])};
+	return {version: value, revision: 0};
+}
+
+export function isReleaseUpdate(current: string, currentRevision: number, latest: string, latestRevision: number): boolean {
+	if (isNewerVersion(current, latest)) return true;
+	const normalize = (value: string) => value.trim().replace(/^v/, '').split('+')[0];
+	const version = normalize(latest);
+	return /^\d+\.\d+\.\d+(?:-[\da-zA-Z.-]+)?$/.test(version) && normalize(current) === version && Number.isSafeInteger(latestRevision) && latestRevision > currentRevision;
+}
+
 export function isNewerVersion(current: string, latest: string): boolean {
 	const parse = (value: string) => /^v?(\d+)\.(\d+)\.(\d+)(?:-([\da-zA-Z.-]+))?(?:\+[\da-zA-Z.-]+)?$/.exec(value.trim());
 	const a = parse(current);

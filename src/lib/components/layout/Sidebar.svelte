@@ -18,6 +18,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Globe
 	} from "lucide-svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
+	import { friendsState } from "$lib/stores/friends.svelte";
 	import { account } from "$lib/stores/account.svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -224,7 +225,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		>
 			<div class="h-10 w-10 rounded-full overflow-hidden bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 transition-[border-color] duration-150 shadow-sm flex items-center justify-center p-0.5">
 				<img loading="lazy" decoding="async" 
-					src={activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + (account.value.username || account.value.uuid) + "/100" : "/logo.png")} 
+					src={friendsState.ownProfile?.portrait || activeSkinStore.current.avatarUrl || account.value?.avatarUrl || (account.value ? "https://mc-heads.net/avatar/" + (account.value.username || account.value.uuid) + "/100" : "/logo.png")}
 					alt={uiText("ui.ca8e826d9c2ec401")} 
 					class="w-full h-full object-cover rounded-full" 
 					onerror={(e) => {
@@ -235,7 +236,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					}}
 				/>
 			</div>
-			{#if expanded}<span class="min-w-0 text-left"><span class="block truncate text-xs font-semibold text-fg">{account.value?.username || uiText("ui.bab0dd5d766ccc9a")}</span><span class="mt-1 block text-[10px] text-fg-muted">{accountStatus.label}</span></span>{/if}
+			{#if expanded}<span class="min-w-0 text-left"><span class="block truncate text-xs font-semibold text-fg">{friendsState.ownProfile?.displayName || account.value?.username || uiText("ui.bab0dd5d766ccc9a")}</span><span class="mt-1 block text-[10px] text-fg-muted">{friendsState.ownProfile?.role === "owner" ? uiText("ownerTools.badge") : accountStatus.label}</span></span>{/if}
 
 			<span 
 				class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-bg {accountStatus.dotColor} shadow-sm"
@@ -243,7 +244,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			></span>
 
 			<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-[opacity,transform] duration-100 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl flex items-center gap-2">
-				<span>{account.value?.username || uiText("ui.bab0dd5d766ccc9a")}</span>
+				<span>{friendsState.ownProfile?.displayName || account.value?.username || uiText("ui.bab0dd5d766ccc9a")}</span>
 				<span class="text-[10px] font-normal text-fg/50">({accountStatus.label})</span>
 			</div>
 		</button>

@@ -70,6 +70,7 @@ pub async fn social_request_core(account_id: String, request: SocialRequest) -> 
     if account_id.starts_with("luxmc:") { body["registeredAccount"] = serde_json::Value::Bool(true); }
     let action = body.get("action").and_then(|value| value.as_str()).unwrap_or_default();
     let client = reqwest::Client::builder()
+        .user_agent(concat!("Luxmc/", env!("CARGO_PKG_VERSION")))
         .redirect(reqwest::redirect::Policy::none())
         .timeout(std::time::Duration::from_secs(15)).build()?;
     let response = client.post(format!("{}/api/social/{action}", super::lux_account::portal_base()))

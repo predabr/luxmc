@@ -67,6 +67,10 @@ export async function modsProjectDetails(projectId: string, source?: string): Pr
 	return api.invoke("mods_project_details", { projectId, source });
 }
 
+export async function modsChangelog(projectId: string, versionId: string, source: string): Promise<string> {
+    return api.invoke("mods_changelog", { projectId, versionId, source });
+}
+
 export async function modsList(profileId: string): Promise<Array<{
 	profileId: string;
 	projectId: string;
