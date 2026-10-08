@@ -2,7 +2,8 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
-    import { Cpu } from "lucide-svelte";
+    import { Cpu, ImagePlus, X, LoaderCircle } from "lucide-svelte";
+    import { loadFolderImages, saveFolderImage, prepareFolderImage } from "$lib/utils/folderImages";
     import LuxAccountForm from "$lib/components/profile/LuxAccountForm.svelte";
     let localProfile = $state(false);
     import { appState } from "$lib/stores/app.svelte";
@@ -86,7 +87,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let isSavingClientId = $state(false);
 
 	let searchQuery = $state("");
-	let selectedGroup = $state("all");
+	let selectedGroup = $state<string | null>(null);
 	let sortBy = $state<"lastPlayed" | "name" | "version">("lastPlayed");
 	let jumpInExpanded = $state(true);
 	let isLaunching = $derived(appState.isLaunching);
@@ -99,17 +100,47 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let versionsLoading = $state(false);
 	let systemRamMb = $state(8192);
 
-	let customGroups = $state<string[]>(["Vanilla", "Modded"]);
+	let customGroups = $state<string[]>([]);
+    let folderImages = $state<Record<string, string>>({});
+    let folderImageInput = $state<HTMLInputElement | null>(null);
+    let folderImageTarget = $state<string | null>(null);
+    let folderImageBusy = $state(false);
+    function folderImage(name: string): string { return Object.hasOwn(folderImages, name) ? folderImages[name] : ''; }
+    function chooseFolderImage(name: string) {
+        if (folderImageBusy) return;
+        folderImageTarget = name;
+        folderImageInput?.click();
+    }
+    async function uploadFolderImage(event: Event) {
+        const input = event.currentTarget as HTMLInputElement;
+        const file = input.files?.[0];
+        const folder = folderImageTarget;
+        input.value = '';
+        if (!file || folder === null || folderImageBusy) return;
+        folderImageBusy = true;
+        try {
+            const image = await prepareFolderImage(file);
+            try { folderImages = saveFolderImage(folderImages, folder, image); }
+            catch { toast(uiText('library.imageStorageError'), 'error'); return; }
+            toast(uiText('library.imageSaved'), 'success');
+        } catch (error) { toast(uiText(error instanceof Error && error.message === 'limit' ? 'library.imageLimit' : 'library.imageInvalid'), 'error'); }
+        finally { folderImageBusy = false; }
+    }
+    function removeFolderImage(name: string) {
+        try { folderImages = saveFolderImage(folderImages, name, null); toast(uiText('library.imageRemoved'), 'success'); }
+        catch { toast(uiText('library.imageStorageError'), 'error'); }
+    }
 	let showNewGroupPrompt = $state(false);
 	let newGroupName = $state("");
     let groupHover = $state<string | null>(null);
     let movingProfile = $state<string | null>(null);
-    const libraryGroups = $derived([...new Set([...customGroups, ...profiles.list.map(profile => profile.group).filter((group): group is string => !!group)])]);
+    const libraryGroups = $derived(customGroups);
+    const visibleFolders = $derived(selectedGroup === null ? libraryGroups.filter(name => !searchQuery || name.toLowerCase().includes(searchQuery.toLowerCase())) : []);
     function groupMembers(group: string) {
-        return profiles.list.filter(profile => profile.group ? profile.group === group : group === (profile.loader === 'vanilla' ? 'Vanilla' : 'Modded'));
+        return profiles.list.filter(profile => profile.group === group);
     }
     async function moveToGroup(profileId: string, group: string) {
-        if (movingProfile || !profiles.list.some(profile => profile.id === profileId) || !libraryGroups.includes(group)) return;
+        if (movingProfile || !profiles.list.some(profile => profile.id === profileId) || (group !== '' && !libraryGroups.includes(group))) return;
         movingProfile = profileId;
         try { await profilesUpdate({id: profileId, instanceGroup: group}); profiles.update(profileId, {group}); }
         catch (cause) { toast(String(cause), 'error'); }
@@ -154,8 +185,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	onMount(() => {
         try {
-            const saved = JSON.parse(localStorage.getItem('luxmc_library_groups') || '[]');
-            if (Array.isArray(saved)) customGroups = [...new Set([...customGroups, ...saved.filter((value): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= 64)])];
+            const folders = localStorage.getItem('luxmc_library_folders_v2');
+            const saved = JSON.parse(folders ?? localStorage.getItem('luxmc_library_groups') ?? '[]');
+            if (Array.isArray(saved)) customGroups = [...new Set(saved.filter((value): value is string => typeof value === 'string' && value.trim().length > 0 && value.length <= 64 && (folders !== null || !['Vanilla', 'Modded'].includes(value))))];
+            localStorage.setItem('luxmc_library_folders_v2', JSON.stringify(customGroups));
+            folderImages = loadFolderImages(customGroups);
         } catch {}
 		const savedAccsRaw = localStorage.getItem("luxmc_saved_nicknames");
 		if (savedAccsRaw) {
@@ -517,7 +551,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				gameDir: p.gameDir,
 				createdAt: new Date(p.createdAt).getTime(),
 				updatedAt: new Date(p.updatedAt).getTime(),
-				group: input.loader === "vanilla" ? "Vanilla" : "Modded",
+				group: undefined,
 				ramMb: input.ramGb * 1024,
 				autoOptimize: input.autoOptimize,
 				useVulkan: input.useVulkan,
@@ -541,10 +575,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		if (!name) return;
 		if (!customGroups.includes(name)) {
 			customGroups = [...customGroups, name];
-            localStorage.setItem("luxmc_library_groups", JSON.stringify(customGroups));
+            localStorage.setItem("luxmc_library_folders_v2", JSON.stringify(customGroups));
 			toast(uiText("ui.4e66ec1ac77df784", {arg0: (name)}), "success");
 		}
 		newGroupName = "";
+        selectedGroup = null;
 		showNewGroupPrompt = false;
 	}
 
@@ -561,7 +596,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		profiles.list
 			.filter(p => {
 				const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.mcVersion.includes(searchQuery);
-				const matchesGroup = selectedGroup === "all" || p.group?.toLowerCase() === selectedGroup.toLowerCase() || (!p.group && selectedGroup === "Vanilla" && p.loader === "vanilla") || (!p.group && selectedGroup === "Modded" && p.loader !== "vanilla");
+				const matchesGroup = selectedGroup === null ? (!!searchQuery || !p.group || !libraryGroups.includes(p.group)) : p.group === selectedGroup;
 				return matchesSearch && matchesGroup;
 			})
 			.sort((a, b) => {
@@ -683,7 +718,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								<img loading="lazy" decoding="async"
 									src={`https://mc-heads.net/avatar/${offlineName.trim() || 'Steve'}/32`}
 									alt={uiText("ui.ca8e826d9c2ec401")}
-									class="w-full h-full object-contain p-1.5"
+									class="w-full h-full object-contain"
 								/>
 							</div>
 							<input
@@ -932,7 +967,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 												<img loading="lazy" decoding="async"
 													src={inst.icon}
 													alt={inst.name}
-													class="w-full h-full object-contain p-1.5"
+													class="w-full h-full object-contain"
 													onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-10 h-10 object-contain [image-rendering:pixelated] drop-shadow'; }}
 												/>
 											{:else}
@@ -1113,7 +1148,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 					<div class="flex items-center gap-2 flex-wrap">
                         <GlassSelect icon={ArrowUpDown} bind:value={sortBy} label={uiText("ui.bffb787c611dc6a7")} options={[{value:"lastPlayed",label:uiText("ui.3068eba03d591c16")},{value:"name",label:uiText("instances.sortName")},{value:"version",label:uiText("instances.sortVersion")}]} />
-                        <GlassSelect icon={Layers} bind:value={selectedGroup} label={uiText("ui.0e068d966d594ff3")} options={[{value:"all",label:uiText("ui.bf0a7c270bd43693")},...libraryGroups.map(group => ({value:group,label:group}))]} />
+
 
 						<button
 							type="button"
@@ -1128,16 +1163,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 
 
-                <div class="grid grid-cols-[repeat(auto-fill,minmax(min(180px,100%),1fr))] gap-3" aria-label={uiText('library.groups')}>
-                    {#each libraryGroups as group}
-                        <button type="button" class={launcherButton({variant:selectedGroup === group || groupHover === group ? 'ghostBrand':'secondary',class:'min-h-20 justify-start gap-3 rounded-2xl px-4 text-left'})} disabled={!!movingProfile}
-                            ondragover={event => { if (event.dataTransfer?.types.includes('application/x-luxmc-instance')) { event.preventDefault(); groupHover = group; event.dataTransfer.dropEffect = 'move'; } }}
-                            ondragleave={() => groupHover = null} ondrop={event => dropIntoGroup(event,group)} onclick={() => selectedGroup = selectedGroup === group ? 'all' : group}>
-                            <FolderOpen class="h-6 w-6 shrink-0 text-brand-400" />
-                            <span class="min-w-0"><span class="block truncate font-semibold">{group}</span><span class="mt-1 block text-[10px] font-normal text-fg-muted">{groupMembers(group).length} · {uiText('library.dropHere')}</span></span>
-                        </button>
-                    {/each}
-                </div>
+                <input bind:this={folderImageInput} data-folder-image-input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" tabindex="-1" onchange={uploadFolderImage} />
+                {#if selectedGroup !== null}
+                    <div class="flex items-center gap-3" aria-label={uiText('library.folderPath')}>
+                        <button type="button" data-library-back class={launcherButton({variant:'secondary',size:'sm'})}
+                            ondragover={event => { if (event.dataTransfer?.types.includes('application/x-luxmc-instance')) { event.preventDefault(); event.dataTransfer.dropEffect='move'; } }}
+                            ondrop={event => dropIntoGroup(event,'')} onclick={() => selectedGroup=null}><ArrowLeft class="h-4 w-4" />{uiText('library.title')}</button>
+                        <ChevronRight class="h-4 w-4 text-fg-muted" /><span class="truncate text-sm font-semibold text-fg">{selectedGroup}</span>
+                    </div>
+                {/if}
 
 				{#if showNewGroupPrompt}
 					<div class="p-3.5 rounded-2xl bg-bg/35 backdrop-blur-xl border border-brand-500/30 flex items-center gap-2.5" in:slide={{ easing: quintOut, duration: 220 }}>
@@ -1165,13 +1199,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					</div>
 				{/if}
 
-				{#if filteredProfiles.length === 0}
+				{#if filteredProfiles.length === 0 && !visibleFolders.length}
 					<div class="p-12 rounded-3xl bg-bg/35 backdrop-blur-xl border border-fg/[0.06] text-center space-y-3">
 						<Layers class="w-8 h-8 text-fg/20 mx-auto" />
 						<p class="text-sm text-fg/40">{uiText("ui.7c552b2c03b6eb16")}</p>
 						<button
 							type="button"
-							onclick={() => { searchQuery = ""; selectedGroup = "all"; }}
+							onclick={() => { searchQuery = ""; selectedGroup = null; }}
 							class={launcherButton({ variant: "ghost", size: "sm", class: "hover:underline" })}
 						>
 							{uiText("ui.fade927f9c6169bd")}
@@ -1179,6 +1213,29 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					</div>
 				{:else}
 					<div class="home-instance-grid grid grid-cols-[repeat(auto-fill,minmax(min(220px,100%),1fr))] gap-5">
+                        {#if selectedGroup === null}
+                            {#each visibleFolders as folder (folder)}
+                                <div class="relative">
+                                <button type="button" data-library-folder={folder} aria-label={uiText('library.openFolder', {name:folder})}
+                                    class="library-folder-card h-full w-full min-h-[232px] rounded-3xl border p-5 text-center shadow-soft transition-[background-color,border-color,box-shadow] {groupHover === folder ? 'border-brand-500 bg-brand-500/10' : 'border-fg/10 bg-bg/35 hover:border-brand-500/35 hover:bg-fg/10'}"
+                                    disabled={!!movingProfile} ondragover={event => { if (event.dataTransfer?.types.includes('application/x-luxmc-instance')) { event.preventDefault(); groupHover=folder; event.dataTransfer.dropEffect='move'; } }}
+                                    ondragleave={() => groupHover=null} ondrop={event => dropIntoGroup(event,folder)} onclick={() => selectedGroup=folder}>
+                                    <div class="relative mx-auto flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl bg-brand-500/10">
+                                        <FolderOpen class="h-16 w-16 text-brand-400" />
+                                        {#if folderImage(folder)}<img data-folder-image src={folderImage(folder)} alt="" loading="lazy" decoding="async" class="absolute inset-0 h-full w-full rounded-2xl bg-bg-elevated object-contain" onload={event => { (event.currentTarget as HTMLImageElement).style.visibility='visible'; }} onerror={event => { (event.currentTarget as HTMLImageElement).style.visibility='hidden'; }} />{/if}
+                                    </div>
+                                    <span class="mt-5 block line-clamp-2 text-base font-bold text-fg">{folder}</span>
+                                    <span class="mt-2 block text-xs text-fg-muted">{groupMembers(folder).length} · {uiText('library.folderItems')}</span>
+                                    <span class="mt-2 block text-[10px] text-fg-subtle">{uiText('library.dropHere')}</span>
+                                </button>
+                                <div class="absolute right-2 top-2 flex gap-1">
+                                    <button type="button" class={launcherButton({variant:'secondary',size:'icon',class:'h-9 w-9'})} disabled={folderImageBusy} aria-label={uiText('library.chooseFolderImage', {name:folder})} title={uiText('library.chooseFolderImage', {name:folder})} onclick={() => chooseFolderImage(folder)}>{#if folderImageBusy && folderImageTarget === folder}<LoaderCircle class="h-4 w-4 animate-spin" />{:else}<ImagePlus class="h-4 w-4" />{/if}</button>
+                                    {#if folderImage(folder)}<button type="button" class={launcherButton({variant:'ghostDanger',size:'icon',class:'h-9 w-9'})} disabled={folderImageBusy} aria-label={uiText('library.removeFolderImage', {name:folder})} title={uiText('library.removeFolderImage', {name:folder})} onclick={() => removeFolderImage(folder)}><X class="h-4 w-4" /></button>{/if}
+                                </div>
+                                {#if folderImageBusy && folderImageTarget === folder}<p role="status" class="absolute inset-x-3 bottom-2 rounded-lg bg-bg-elevated px-2 py-1 text-center text-[10px] text-fg-muted">{uiText('publicProfile.processingImage')}</p>{/if}
+                                </div>
+                            {/each}
+                        {/if}
 						{#each filteredProfiles as inst (inst.id)}
 							{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
 							{@const isThisLaunching = (isLaunching || appState.isLaunching) && (launchingProfileId === inst.id || appState.launchingProfileId === inst.id)}
@@ -1194,16 +1251,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								onclick={event => { if (event.target instanceof Element && event.target.closest("button,select,label,input,a")) return; void goto(`/instances/${inst.id}`); }}
 								onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); void goto(`/instances/${inst.id}`); } }}
 							>
-                                <div class="mb-2">
-                                    <GlassSelect icon={Layers} label={uiText('library.moveToGroup') + ': ' + inst.name} value={inst.group || (inst.loader === 'vanilla' ? 'Vanilla':'Modded')} disabled={!!movingProfile} options={libraryGroups.map(group => ({value:group,label:group}))} onchange={group => void moveToGroup(inst.id,group)} />
-                                </div>
+
 								<div class="w-full flex-1 flex items-center justify-center relative my-2">
 									<div class="w-28 h-28 rounded-2xl flex items-center justify-center overflow-hidden transition-transform motion-reduce:transition-none group-hover:scale-[1.03] {inst.icon && !inst.icon.includes('grass_block') ? 'bg-fg/5 border border-fg/10' : tileCol.bg}">
 										{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 											<img loading="lazy" decoding="async"
 												src={inst.icon}
 												alt={inst.name}
-												class="w-full h-full object-contain p-1.5"
+												class="w-full h-full object-contain"
 												onerror={(e) => { (e.currentTarget as HTMLImageElement).src = '/grass_block.png'; (e.currentTarget as HTMLImageElement).className = 'w-24 h-24 object-contain [image-rendering:pixelated] drop-shadow-md'; }}
 											/>
 										{:else}
@@ -1235,7 +1290,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 								</div>
 
 								<div class="w-full space-y-1 text-center mt-2 px-1">
-									<h3 class="text-base font-bold text-fg transition-colors truncate">
+									<h3 title={inst.name} class="text-base font-bold text-fg transition-colors line-clamp-2 leading-snug">
 										{inst.name}
 									</h3>
 									<p class="text-xs text-fg-muted truncate font-medium">

@@ -252,6 +252,32 @@ pub fn verify(bytes: &[u8], size: Option<u64>, sha1: Option<&str>, sha512: Optio
         && sha512.is_none_or(|hash| format!("{:x}", sha2::Sha512::digest(bytes)).eq_ignore_ascii_case(hash))
 }
 
+pub fn content_cache_root() -> Option<PathBuf> {
+    directories::ProjectDirs::from("io", "github", "Luxmc")
+        .map(|dirs| dirs.data_dir().join("cache").join("pack-files"))
+}
+
+fn content_cache_path(root: &Path, sha1: Option<&str>, sha512: Option<&str>) -> Option<PathBuf> {
+    let (algorithm, hash, length) = sha1.map(|hash| ("sha1", hash, 40))
+        .or_else(|| sha512.map(|hash| ("sha512", hash, 128)))?;
+    if hash.len() != length || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) { return None; }
+    Some(root.join(format!("{algorithm}-{}.bin", hash.to_ascii_lowercase())))
+}
+
+pub async fn cached_content(root: &Path, size: Option<u64>, sha1: Option<&str>, sha512: Option<&str>) -> Option<Vec<u8>> {
+    let path = content_cache_path(root, sha1, sha512)?;
+    if tokio::fs::metadata(&path).await.ok()?.len() > 64 * 1024 * 1024 { return None; }
+    let bytes = tokio::fs::read(&path).await.ok()?;
+    if verify(&bytes, size, sha1, sha512) { Some(bytes) } else { None }
+}
+
+pub async fn cache_verified_content(root: &Path, bytes: &[u8], sha1: Option<&str>, sha512: Option<&str>) {
+    if bytes.len() > 64 * 1024 * 1024 { return; }
+    if let Some(path) = content_cache_path(root, sha1, sha512) {
+        if let Err(error) = atomic_write(&path, bytes).await { tracing::debug!(%error, "Pack cache write skipped"); }
+    }
+}
+
 pub async fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
     let parent = path.parent().ok_or_else(|| AppError::InvalidInput("Invalid destination".into()))?;
     tokio::fs::create_dir_all(parent).await?;
@@ -272,6 +298,24 @@ pub async fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn verified_cache_reuses_download_and_rejects_corruption() {
+        let root = std::env::temp_dir().join(format!("luxmc-pack-cache-{}", uuid::Uuid::new_v4()));
+        let bytes = b"verified modpack file";
+        let hash = format!("{:x}", sha1::Sha1::digest(bytes));
+        assert!(cached_content(&root, None, Some(&hash), None).await.is_none());
+        cache_verified_content(&root, bytes, Some(&hash), None).await;
+        let reused = cached_content(&root, Some(bytes.len() as u64), Some(&hash), None).await.unwrap();
+        assert_eq!(reused, bytes);
+        assert!(cached_content(&root, Some(1), Some(&hash), None).await.is_none());
+        let path = content_cache_path(&root, Some(&hash), None).unwrap();
+        tokio::fs::write(path, b"corrupt download").await.unwrap();
+        assert!(cached_content(&root, None, Some(&hash), None).await.is_none());
+        assert!(content_cache_path(&root, Some("../escape"), None).is_none());
+        assert!(root.canonicalize().unwrap().starts_with(std::env::temp_dir().canonicalize().unwrap()));
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[tokio::test]
     async fn backoff_stops_when_import_is_cancelled() {

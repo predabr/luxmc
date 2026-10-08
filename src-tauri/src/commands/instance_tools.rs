@@ -673,21 +673,17 @@ pub async fn instance_disk_usage(profileId: String) -> AppResult<i64> {
         .await?
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
 
-    let game_dir = std::path::PathBuf::from(&row.game_dir);
-    tokio::task::spawn_blocking(move || -> AppResult<i64> {
-        let mut total: i64 = 0;
-        for entry in walkdir(&game_dir) {
-            let path = entry.path();
-            if path.is_file() {
-                if let Ok(meta) = path.metadata() {
-                    total += meta.len() as i64;
-                }
-            }
-        }
-        Ok(total)
-    })
-    .await
-    .map_err(|error| AppError::Internal(error.to_string()))?
+    let game_dir = if row.game_dir.is_empty() {
+        directories::ProjectDirs::from("io", "github", "Luxmc")
+            .ok_or_else(|| AppError::InvalidState("Diretório de dados indisponível".into()))?
+            .data_dir().join("instances").join(&profileId).join(".minecraft")
+    } else { std::path::PathBuf::from(&row.game_dir) };
+    let bytes = tokio::task::spawn_blocking(move || crate::commands::storage::instance_directory_bytes(&game_dir))
+        .await.map_err(|error| AppError::Internal(error.to_string()))??;
+    let bytes = bytes.min(i64::MAX as u64) as i64;
+    sqlx::query("UPDATE profiles SET disk_usage = ? WHERE id = ?")
+        .bind(bytes).bind(&profileId).execute(conn.pool()).await?;
+    Ok(bytes)
 }
 
 pub async fn version_repair_core(

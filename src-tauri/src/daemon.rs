@@ -866,7 +866,7 @@ async fn dispatch_command(
             let uuid = args.get("uuid").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let variant = args.get("variant").and_then(|v| v.as_str()).unwrap_or("classic").to_string();
             let skin_url = args.get("skinUrl").or_else(|| args.get("skin_url")).and_then(|v| v.as_str()).unwrap_or("").to_string();
-            crate::commands::auth::auth_change_skin(uuid, variant, skin_url).await.map_err(|e| e.to_string())?;
+            crate::commands::auth::auth_change_skin_core(&state, uuid, variant, skin_url).await.map_err(|e| e.to_string())?;
             Ok(Value::Bool(true))
         },
 

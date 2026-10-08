@@ -191,7 +191,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 		const initTimer = setTimeout(() => {
 			initialized = true;
-			showSplash = false;
 		}, 2500);
 		const ready = appInit().then((init) => {
 			clearTimeout(initTimer);
@@ -826,7 +825,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 <ErrorBoundary>
 {#if showSplash || appState.showCutscene}
-	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; initialized = true; }} />
+	<Cutscene onComplete={() => { showSplash = false; appState.showCutscene = false; }} />
 {:else if !initialized}
 	<div class="flex h-full w-full items-center justify-center bg-bg-overlay/70" in:fade={{ easing: quintOut, duration: 220 }}>
 		<div class="flex flex-col items-center gap-4">

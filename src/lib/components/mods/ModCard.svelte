@@ -29,7 +29,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	let bannerAttempt = $state(0);
     let bannerLoaded = $state(false);
-    let squareArtwork = $state(false);
+
 
 	$effect(() => {
 		item.slug;
@@ -52,8 +52,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		return candidates;
 	});
 	const effectiveBanner = $derived(bannerCandidates[bannerAttempt] ?? null);
-    const logoArtwork = $derived(effectiveBanner === item.iconUrl || squareArtwork);
-    $effect(() => { effectiveBanner; bannerLoaded = false; squareArtwork = false; });
+    const logoArtwork = $derived(effectiveBanner === item.iconUrl);
+    $effect(() => { effectiveBanner; bannerLoaded = false; });
 </script>
 
 <div
@@ -73,9 +73,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				alt=""
 				loading="lazy"
 				decoding="async"
-				class="relative h-full w-full rounded-t-2xl {logoArtwork ? 'object-contain p-6 drop-shadow-lg' : 'object-cover'}"
-                style:opacity={logoArtwork || bannerLoaded ? 1 : 0}
-                onload={event => { bannerLoaded = true; squareArtwork = (event.currentTarget as HTMLImageElement).naturalWidth / Math.max(1,(event.currentTarget as HTMLImageElement).naturalHeight) < 1.3; }}
+				class="relative h-full w-full rounded-t-2xl object-cover"
+                style:opacity={bannerLoaded && !logoArtwork ? 1 : 0}
+                onload={() => { bannerLoaded = true; }}
 				onerror={() => { bannerAttempt += 1; }}
 			/>
 		{:else}
@@ -91,16 +91,16 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 			</div>
 		{/if}
-		<div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent" class:opacity-0={logoArtwork}></div>
+		<div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent" ></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
 
 	</div>
-		{#if effectiveBanner && item.iconUrl && !logoArtwork}
-			<div data-catalog-logo class="absolute top-40 left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
+		{#if item.iconUrl}
+			<div data-catalog-logo class="absolute top-32 left-5 z-10 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
 				<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
 			</div>
 		{/if}
-	<div class="flex flex-1 flex-col min-h-0 gap-2.5 p-5 {logoArtwork ? 'pt-5' : 'pt-10'}">
+	<div class="flex flex-1 flex-col min-h-0 gap-2.5 p-5 pt-9">
 		<h3 title={item.title} class="line-clamp-2 min-h-6 shrink-0 text-base leading-snug font-semibold text-fg group-hover:text-brand-400">
 			<span>{item.title}</span>
 		</h3>

@@ -51,6 +51,15 @@ impl DiskScan {
 
 fn dir_size_recursive(path: &Path) -> u64 { DiskScan::default().size(path) }
 
+pub(crate) fn instance_directory_bytes(path: &Path) -> AppResult<u64> {
+    let mut scan = DiskScan::default();
+    let bytes = scan.size(path);
+    if !scan.warnings.is_empty() {
+        return Err(AppError::InvalidState(scan.warnings.join("; ")));
+    }
+    Ok(bytes)
+}
+
 fn storage_dirs() -> AppResult<directories::ProjectDirs> {
     directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| AppError::InvalidState("Diretório de dados indisponível".into()))
 }
@@ -71,7 +80,12 @@ fn collect_report(base: &Path, config: &Path, cache: &Path, executable: Option<&
     }
     add("configuration", config);
     add("launcher_cache", cache);
-    if let Some(path) = executable { add("application", path); }
+    if let Some(path) = executable {
+        add("application", path);
+        if let Some(parent) = path.parent() {
+            for file in ["luxmc-repair.exe", "uninstall.exe"] { add("application", &parent.join(file)); }
+        }
+    }
     let mut instance_items = Vec::new();
     let mut logs = DiskScan::default();
     let mut logs_bytes = logs.size(&base.join("logs"));
@@ -186,16 +200,27 @@ mod tests {
         serde_json::from_value(serde_json::json!({ "id": id, "name": id, "icon": "grass", "mcVersion": "1.21.1", "loader": "vanilla", "fullscreen": false, "gameDir": path.to_string_lossy(), "createdAt": "2026-10-03T00:00:00Z", "updatedAt": "2026-10-03T00:00:00Z" })).unwrap()
     }
     #[test]
+    fn instance_size_includes_deep_world_files() {
+        let root = std::env::temp_dir().join(format!("luxmc-world-size-{}", uuid::Uuid::new_v4()));
+        file(&root, "saves/world/dimensions/mod/dimension/region/world.mca", 521);
+        file(&root, "mods/file.jar", 43);
+        assert_eq!(instance_directory_bytes(&root).unwrap(), 564);
+        assert_eq!(instance_directory_bytes(&root.join("missing")).unwrap(), 0);
+        assert!(root.canonicalize().unwrap().starts_with(std::env::temp_dir().canonicalize().unwrap()));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn reports_java_database_executable_caches_and_external_profiles_without_double_counting() {
         let root = std::env::temp_dir().join(format!("luxmc-storage-{}", uuid::Uuid::new_v4()));
         let base = root.join("data"); let cache = root.join("cache"); let external = root.join("external");
         for (path, bytes) in [("assets/file", 8), ("java/runtime", 17), ("luxmc.db", 31), ("instances/inside/.minecraft/worlds/world", 42), ("instances/inside/.minecraft/logs/log", 4), ("cache/file", 5), ("downloads/file", 7), ("migration-staging/file", 9), ("logs/log", 3)] { file(&base, path, bytes); }
-        file(&external, "worlds/world", 49); file(&external, "logs/log", 6); file(&cache, "file", 23); file(&root, "Luxmc.exe", 47);
+        file(&external, "worlds/world", 49); file(&external, "logs/log", 6); file(&cache, "file", 23); file(&root, "Luxmc.exe", 47); file(&root, "luxmc-repair.exe", 19); file(&root, "uninstall.exe", 11);
         let inside = base.join("instances/inside/.minecraft");
         let report = collect_report(&base, &base, &cache, Some(&root.join("Luxmc.exe")), vec![profile("inside", &inside), profile("external", &external), profile("legacy-duplicate", &external)]);
-        assert_eq!(report.total_bytes, 251);
+        assert_eq!(report.total_bytes, 281);
         assert_eq!(report.categories.iter().find(|category| category.category == "java").unwrap().bytes, 17);
-        assert_eq!(report.categories.iter().find(|category| category.category == "application").unwrap().bytes, 47);
+        assert_eq!(report.categories.iter().find(|category| category.category == "application").unwrap().bytes, 77);
         assert_eq!(report.instances.iter().find(|item| item.id == "inside").unwrap().bytes, 46);
         assert_eq!(report.instances.iter().find(|item| item.id == "external").unwrap().bytes, 55);
         assert_eq!(report.cache_bytes, 21); assert_eq!(report.logs_bytes, 13); assert!(report.warnings.is_empty());

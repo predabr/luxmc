@@ -724,7 +724,7 @@ struct MrpackEnv {
     server: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[allow(dead_code)]
 struct MrpackMod {
@@ -851,9 +851,35 @@ pub(crate) async fn download_cf_mod_file(
             if let Ok(bytes) = tokio::fs::read(existing).await {
                 if valid(&bytes) {
                     let mut persisted = info.clone();
-                    persisted.sha1 = Some(format!("{:x}", sha1::Sha1::digest(&bytes)));
+                    persisted.sha1 = info.sha1.clone().or_else(|| Some(format!("{:x}", sha1::Sha1::digest(&bytes))));
                     persisted.size = Some(bytes.len() as u64);
                     pack::atomic_write(&metadata_path, &serde_json::to_vec(&persisted)?).await?;
+                    return Ok(());
+                }
+            }
+        }
+        let shared_cache = pack::content_cache_root();
+        if let Some(cache) = shared_cache.as_ref() {
+            if let Some(bytes) = pack::cached_content(cache, info.size, info.sha1.as_deref(), None).await {
+                if valid(&bytes) {
+                    pack::cancelled(cancel)?;
+                    let target = if disabled.exists() { &disabled } else { &path };
+                    pack::atomic_write(target, &bytes).await?;
+                    let storage = pack::destination(storage_mods_dir, &info.file_name)?;
+                    pack::atomic_write(&storage, &bytes).await?;
+                    let mut persisted = info.clone();
+                    persisted.size = Some(bytes.len() as u64);
+                    pack::atomic_write(&metadata_path, &serde_json::to_vec(&persisted)?).await?;
+                    if persist_record {
+                        let db = crate::db::shared_db().await?;
+                        let row = crate::db::schema::mods::ModRow {
+                            profile_id: profile_id.to_string(), project_id: cf_file.project_id.to_string(),
+                            version_id: cf_file.file_id.to_string(), file_name: info.file_name.clone(),
+                            sha1: info.sha1.clone().unwrap_or_default(), source: "curseforge".into(), installed_at: String::new(),
+                        };
+                        crate::db::schema::mods::upsert(&db, &row).await?;
+                    }
+                    tracing::debug!(file = %info.file_name, bytes = bytes.len(), "CurseForge file reused from verified cache");
                     return Ok(());
                 }
             }
@@ -903,8 +929,9 @@ pub(crate) async fn download_cf_mod_file(
                 pack::atomic_write(target, &bytes).await?;
                 let storage = pack::destination(storage_mods_dir, &info.file_name)?;
                 pack::atomic_write(&storage, &bytes).await?;
+                if let Some(cache) = shared_cache.as_ref() { pack::cache_verified_content(cache, &bytes, info.sha1.as_deref(), None).await; }
                 let mut persisted = info.clone();
-                persisted.sha1 = Some(format!("{:x}", sha1::Sha1::digest(&bytes)));
+                persisted.sha1 = info.sha1.clone().or_else(|| Some(format!("{:x}", sha1::Sha1::digest(&bytes))));
                 persisted.size = Some(bytes.len() as u64);
                 pack::atomic_write(&metadata_path, &serde_json::to_vec(&persisted)?).await?;
                 if persist_record {
@@ -1149,13 +1176,9 @@ pub async fn instance_import_modpack_core(
     record_override_jars(&instance_dir, &override_paths).await?;
     tracing::info!(extracted = extracted_count, "overrides extraction completed");
 
-    let project_ids: Vec<u64> = manifest.files.iter().map(|f| f.project_id).collect();
     let file_ids: Vec<u64> = manifest.files.iter().map(|f| f.file_id).collect();
-    let (mod_names, file_infos) = tokio::join!(
-        crate::core::mods::curseforge::get_mod_names_batch(&state.http, &project_ids),
-        crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids)
-    );
-    tracing::info!(resolved_names = mod_names.len(), resolved_files = file_infos.len(), total = project_ids.len(), "resolved CurseForge batch metadata");
+    let file_infos = crate::core::mods::curseforge::get_files_batch(&state.http, &file_ids).await;
+    tracing::info!(resolved_files = file_infos.len(), total = file_ids.len(), "resolved CurseForge batch metadata");
 
     let total_files = manifest.files.len() as u32;
 
@@ -1178,7 +1201,7 @@ pub async fn instance_import_modpack_core(
         let http = state.http.clone();
         let cancel = state.import_cancel.clone();
         let file_info = file_infos.get(&cf_file.file_id).cloned();
-        let display_name = mod_names.get(&cf_file.project_id).cloned();
+        let display_name: Option<String> = None;
         let mods_dir = mods_dir.clone();
         let storage_mods_dir = storage_mods_dir.clone();
         let profile_id = profile_id.clone();
@@ -1643,6 +1666,15 @@ async fn ensure_mrpack_file(
     if let Ok(bytes) = tokio::fs::read(cache).await {
         if valid(&bytes) { pack::atomic_write(target, &bytes).await?; return Ok(()); }
     }
+    let shared_cache = pack::content_cache_root();
+    if let Some(cache) = shared_cache.as_ref() {
+        if let Some(bytes) = pack::cached_content(cache, file.file_size, sha1, sha512).await {
+            pack::cancelled(cancel)?;
+            pack::atomic_write(target, &bytes).await?;
+            tracing::debug!(file = %file.path, bytes = bytes.len(), "Pack file reused from verified cache");
+            return Ok(());
+        }
+    }
     for attempt in 0..3 {
         pack::cancelled(cancel)?;
         pack::backoff(attempt, cancel).await?;
@@ -1651,6 +1683,7 @@ async fn ensure_mrpack_file(
             if valid(&bytes) {
                 pack::cancelled(cancel)?;
                 pack::atomic_write(target, &bytes).await?;
+                if let Some(cache) = shared_cache.as_ref() { pack::cache_verified_content(cache, &bytes, sha1, sha512).await; }
                 return Ok(());
             }
         }
@@ -2120,21 +2153,26 @@ pub async fn instance_import_mrpack_core(
 
     use crate::core::mods::pack_download as pack;
     let db = crate::db::shared_db().await?;
-    let client = crate::core::mods::ModrinthClient::new(state.http.clone());
     if manifest.files.is_empty() && !manifest.mods.is_empty() {
-        for entry in &manifest.mods {
-            pack::cancelled(Some(&state.import_cancel))?;
-            if entry.env.get("client").and_then(|value| value.as_str()) == Some("unsupported") { continue; }
+        let resolved = futures_util::stream::iter(manifest.mods.clone()).map(|entry| {
+            let client = crate::core::mods::ModrinthClient::new(state.http.clone());
+            let mc_version = mc_version.clone();
+            let cancel = state.import_cancel.clone();
+            async move {
+            pack::cancelled(Some(&cancel))?;
+            if entry.env.get("client").and_then(|value| value.as_str()) == Some("unsupported") { return Ok::<_, crate::error::AppError>(None); }
             let project = entry.project_id.as_deref().ok_or_else(|| crate::error::AppError::InvalidInput("Missing project ID".into()))?;
             let version = entry.version_id.as_deref().ok_or_else(|| crate::error::AppError::InvalidInput("Missing version ID".into()))?;
             let detail = client.get_version_detail(project, version, &mc_version).await?;
             let file = detail.files.first().ok_or_else(|| crate::error::AppError::InvalidInput("Missing mod file".into()))?;
-            manifest.files.push(MrpackFile {
+            Ok(Some(MrpackFile {
                 path: entry.path.clone().unwrap_or_else(|| format!("mods/{}", entry.file_name.as_deref().unwrap_or(&file.filename))),
                 hashes: [("sha1".to_string(), file.sha1.clone())].into_iter().collect(),
                 env: None, downloads: vec![file.url.clone()], file_size: Some(file.size),
-            });
-        }
+            }))
+            }
+        }).buffer_unordered(8).collect::<Vec<_>>().await;
+        for file in resolved { if let Some(file) = file? { manifest.files.push(file); } }
     }
     pack::atomic_write(&instance_dir.join(".luxmc/source-modrinth.index.json"), &serde_json::to_vec(&manifest)?).await?;
     let mut paths = std::collections::HashSet::new();

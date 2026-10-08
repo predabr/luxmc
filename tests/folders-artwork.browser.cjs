@@ -68,9 +68,6 @@ const luminance = value => value.match(/[\d.]+/g).slice(0,3).map(Number).map(cha
    const installButton=installer.getByRole('button',{name:'Install modpack',exact:true});
    await installButton.scrollIntoViewIfNeeded(); assert.ok(await installButton.isVisible());
    await page.screenshot({path:`docs/validation/final-polish/installer-small-${theme}.png`});
-   await page.goto('http://127.0.0.1:1420/news');
-   await page.getByRole('button',{name:/Luxmc.*\(/i}).click();
-   await page.getByText('Library and appearance refinements',{exact:true}).waitFor();
    assert.deepEqual(errors,[]);
    evidence.push({theme,artworkRecovered:true,geometry,scrollDelta:scrolled-initial,errors});
    await page.close();

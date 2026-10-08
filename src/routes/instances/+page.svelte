@@ -375,7 +375,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			gameDir: p.gameDir,
 			createdAt: new Date(p.createdAt).getTime(),
 			updatedAt: new Date(p.updatedAt).getTime(),
-			group: input.loader === "vanilla" ? "Vanilla" : "Modded",
+			group: undefined,
 			ramMb: input.ramGb * 1024,
 			autoOptimize: input.autoOptimize,
 			useVulkan: input.useVulkan,

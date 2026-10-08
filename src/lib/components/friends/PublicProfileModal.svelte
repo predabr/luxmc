@@ -10,10 +10,12 @@
     import { goto } from '$app/navigation';
     import MinecraftAvatar from '$lib/components/ui/MinecraftAvatar.svelte';
     import PackCollections from './PackCollections.svelte';
+    import {prepareAnimatedImage} from '$lib/utils/animatedImage';
     let collections = $state<PackCollection[]>([]);
     let profile = $state<PublicProfile | null>(null);
     let editing = $state(false);
     let busy = $state(false);
+    let processingImage = $state(false);
     let error = $state('');
     let description = $state('');
     let displayName = $state('');
@@ -29,7 +31,7 @@
         const own = publicProfile.own;
         const account = friendsState.accountId;
         const run = ++generation;
-        if (!open || !account) { profile = null; busy = false; return; }
+        if (!open || !account) { profile = null; busy = false; processingImage = false; return; }
         profile = null; displayName = ''; status = ''; description = ''; banner = ''; portrait = ''; packs = []; collections=[]; error = ''; busy = true; editing = own;
         void socialPublicProfile(account, id).then(value => {
             if (run !== generation) return;
@@ -37,14 +39,17 @@
         }).catch(cause => { if (run === generation) error = String(cause); }).finally(() => { if (run === generation) busy = false; });
     });
     async function image(event: Event, kind: 'banner' | 'portrait') {
-        const file = (event.target as HTMLInputElement).files?.[0];
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        input.value = '';
         if (!file) return;
         error = '';
-        if (!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type) || file.size > 12 * 1024 * 1024 || (file.type === 'image/gif' && file.size > 700000)) { error = t('publicProfile.imageLimit'); return; }
+        if (!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type) || file.size > 12 * 1024 * 1024) { error = t('publicProfile.imageLimit'); return; }
         const run = generation;
         busy = true;
+        processingImage = true;
         try {
-        let value = await new Promise<string>((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
+        let value = file.type === 'image/gif' ? await prepareAnimatedImage(file) : await new Promise<string>((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
         if (file.type !== 'image/gif') {
             try {
                 const bitmap = await createImageBitmap(file);
@@ -59,7 +64,7 @@
         }
         if (run !== generation) return;
         if (kind === 'banner') banner = value; else portrait = value;
-        } catch { if (run === generation) error = t('publicProfile.imageLimit'); } finally { if (run === generation) busy = false; }
+        } catch { if (run === generation) error = t('publicProfile.imageLimit'); } finally { if (run === generation) { busy = false; processingImage = false; } }
     }
     async function save() {
         if (busy || !profile) return;
@@ -89,6 +94,7 @@
                         <label class="block text-xs font-semibold">{t('publicProfile.about')}<textarea disabled={busy} bind:value={description} maxlength="400" rows="3" class="mt-2 w-full resize-y rounded-xl border border-border bg-bg-subtle p-3 text-sm font-normal focus-visible:ring-2 focus-visible:ring-brand-400"></textarea></label>
                         <div class="grid grid-cols-2 gap-3">{#each ['banner','portrait'] as kind}<label class="cursor-pointer rounded-2xl border border-border bg-bg-subtle p-4 text-xs font-semibold transition-colors hover:border-brand-400/50 focus-within:ring-2 focus-within:ring-brand-400"><span class="flex items-center gap-2"><Image class="h-4 w-4" />{t(`publicProfile.${kind}`)}</span><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onchange={event => void image(event,kind as 'banner'|'portrait')} class="sr-only" /><span class="mt-3 flex items-center gap-2 text-xs font-normal text-brand-400"><Upload class="h-3.5 w-3.5" />{t('publicProfile.chooseImage')}{#if (kind === 'banner' ? banner : portrait).startsWith('data:image/gif;')}<span class="rounded-md border border-brand-400/30 px-1.5 py-0.5 text-[9px] font-bold">GIF</span>{/if}</span><button type="button" class={button({variant:'ghostDanger',size:'sm',class:'mt-2'})} onclick={() => { if (kind === 'banner') banner=''; else portrait=''; }}>{t('common.remove')}</button></label>{/each}</div>
                         <p class="text-[11px] leading-relaxed text-fg-muted">{t('publicProfile.imageLimit')}</p>
+                        {#if processingImage}<p role="status" class="flex items-center gap-2 text-xs text-fg-muted"><LoaderCircle class="h-4 w-4 animate-spin" />{t('publicProfile.processingImage')}</p>{/if}
                         <div class="flex items-end gap-2"><label class="min-w-0 flex-1 text-xs font-semibold">{t('publicProfile.addFavourite')}<input disabled={busy} bind:value={favouriteName} maxlength="80" class="mt-2 w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm font-normal" /></label><button type="button" class={button({variant:'secondary',size:'sm'})} disabled={busy || !favouriteName.trim() || packs.length >= 8} onclick={() => { packs = [...new Set([...packs,favouriteName.trim()])]; favouriteName=''; }}>{t('common.add')}</button></div>
                         <fieldset class="space-y-2"><legend class="mb-2 text-xs font-semibold">{t('publicProfile.packs')}</legend>{#each [...new Set([...profiles.list.map(profile => profile.name), ...packs])] as name}<label class="flex items-center gap-2 text-sm"><input type="checkbox" checked={packs.includes(name)} disabled={busy || (!packs.includes(name) && packs.length >= 8)} onchange={() => packs = packs.includes(name) ? packs.filter(pack => pack !== name) : [...packs,name]} />{name}</label>{/each}</fieldset>
                         <PackCollections bind:value={collections} editing disabled={busy} />

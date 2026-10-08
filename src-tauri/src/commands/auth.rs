@@ -448,12 +448,69 @@ async fn save_account(_state: &AppState, account: &AuthAccount) -> AppResult<Aut
     Ok(account)
 }
 
+enum SkinUpload {
+    Url(serde_json::Value),
+    Png(Vec<u8>, String),
+}
+
+async fn send_skin_upload(client: &reqwest::Client, endpoint: &str, token: &str, upload: &SkinUpload) -> AppResult<reqwest::Response> {
+    let request = client.post(endpoint).bearer_auth(token);
+    let request = match upload {
+        SkinUpload::Url(body) => request.json(body),
+        SkinUpload::Png(bytes, variant) => {
+            let part = reqwest::multipart::Part::bytes(bytes.clone()).file_name("skin.png").mime_str("image/png")?;
+            request.multipart(reqwest::multipart::Form::new().text("variant", variant.clone()).part("file", part))
+        }
+    };
+    Ok(request.send().await?)
+}
+
+async fn synchronize_skin<F, Fut>(client: &reqwest::Client, endpoint: &str, token: &str, upload: &SkinUpload, refresh: F) -> AppResult<()>
+where F: FnOnce() -> Fut, Fut: std::future::Future<Output = AppResult<String>> {
+    let mut response = send_skin_upload(client, endpoint, token, upload).await?;
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        let token = refresh().await?;
+        response = send_skin_upload(client, endpoint, &token, upload).await?;
+    }
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err(AppError::InvalidState("A sessão Microsoft não foi aceita. Entre novamente na conta Microsoft e aplique a skin; sua seleção foi preservada.".into()));
+    }
+    response.error_for_status()?;
+    Ok(())
+}
+
+async fn refresh_skin_session(state: &AppState, id: &str) -> AppResult<String> {
+    let db = crate::db::shared_db().await?;
+    let account = crate::db::schema::accounts::get_by_id(&db, id).await?
+        .ok_or_else(|| AppError::InvalidState("Entre novamente na conta Microsoft para sincronizar a skin; sua seleção foi preservada.".into()))?;
+    if account.refresh_token.is_empty() {
+        return Err(AppError::InvalidState("Entre novamente na conta Microsoft para renovar a sessão e aplicar a skin; sua seleção foi preservada.".into()));
+    }
+    let client_id = get_configured_client_id().await;
+    let refreshed = state.auth.refresh_account_with_client_id(&account.refresh_token, Some(&client_id)).await
+        .map_err(|_| AppError::InvalidState("Não foi possível renovar a sessão Microsoft. Confira a conexão e entre novamente na conta para sincronizar a skin; sua seleção foi preservada.".into()))?;
+    if refreshed.uuid.replace('-', "").to_lowercase() != account.uuid.replace('-', "").to_lowercase() {
+        return Err(AppError::InvalidState("A sessão renovada pertence a outra conta. Entre novamente na conta selecionada.".into()));
+    }
+    let result = sqlx::query("UPDATE accounts SET access_token = ?, refresh_token = ?, expires_at = ?, updated_at = ? WHERE id = ?")
+        .bind(&refreshed.access_token).bind(&refreshed.refresh_token)
+        .bind(chrono::DateTime::from_timestamp(refreshed.expires_at, 0).unwrap_or_default())
+        .bind(chrono::Utc::now()).bind(&account.id).execute(db.pool()).await?;
+    if result.rows_affected() == 0 { return Err(AppError::InvalidState("A conta foi removida durante a sincronização.".into())); }
+    Ok(refreshed.access_token)
+}
+
 #[tauri::command]
 pub async fn auth_change_skin(
+    state: State<'_, AppState>,
     uuid: String,
     variant: String,
     skin_url: String,
 ) -> AppResult<()> {
+    auth_change_skin_core(&state, uuid, variant, skin_url).await
+}
+
+pub async fn auth_change_skin_core(state: &AppState, uuid: String, variant: String, skin_url: String) -> AppResult<()> {
     let db = crate::db::shared_db().await?;
     let account = appearance_account(db.pool(), &uuid).await?
         .ok_or_else(|| AppError::InvalidState("Sua conta não está conectada. Entre novamente para sincronizar a skin; a imagem selecionada foi preservada.".into()))?;
@@ -461,25 +518,19 @@ pub async fn auth_change_skin(
     let norm_variant = if variant == "slim" || variant == "alex" { "slim" } else { "classic" };
 
     let token_str = account.access_token.as_deref().unwrap_or("");
-    let is_real_msa = !token_str.is_empty()
+    let is_real_msa = !account.id.starts_with("luxmc:") && ((!account.refresh_token.is_empty() && !account.refresh_token.starts_with("dev-")) || (!token_str.is_empty()
         && !token_str.starts_with("offline")
         && !token_str.starts_with("token_")
         && !token_str.starts_with("dev-")
-        && token_str.len() > 100;
+        && token_str.len() > 100));
 
     if is_real_msa {
         let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(35)).build()?;
-        if skin_url.starts_with("http://") || skin_url.starts_with("https://") {
-            let body = serde_json::json!({
+        let upload = if skin_url.starts_with("http://") || skin_url.starts_with("https://") {
+            SkinUpload::Url(serde_json::json!({
                 "variant": norm_variant,
                 "url": skin_url
-            });
-
-            client
-                .post("https://api.minecraftservices.com/minecraft/profile/skins")
-                .bearer_auth(token_str)
-                .json(&body)
-                .send().await?.error_for_status()?;
+            }))
         } else {
             let skin_bytes: Vec<u8> = if skin_url.starts_with("data:image/") {
                 if let Some(comma_pos) = skin_url.find(',') {
@@ -495,31 +546,19 @@ pub async fn auth_change_skin(
             };
 
             if !skin_bytes.is_empty() && skin_bytes.len() >= 8 && &skin_bytes[0..8] == b"\x89PNG\r\n\x1a\n" {
-                let part = reqwest::multipart::Part::bytes(skin_bytes)
-                    .file_name("skin.png")
-                    .mime_str("image/png")
-                    .unwrap_or_else(|_| reqwest::multipart::Part::bytes(Vec::new()));
-
-                let form = reqwest::multipart::Form::new()
-                    .text("variant", norm_variant.to_string())
-                    .part("file", part);
-
-                client
-                    .post("https://api.minecraftservices.com/minecraft/profile/skins")
-                    .bearer_auth(token_str)
-                    .multipart(form)
-                    .send().await?.error_for_status()?;
+                SkinUpload::Png(skin_bytes, norm_variant.to_string())
             } else {
                 return Err(AppError::InvalidInput("Arquivo de skin PNG inválido".into()));
             }
-        }
+        };
+        let token = if token_str.is_empty() || account.expires_at.map_or(true, |expiry| expiry <= chrono::Utc::now() + chrono::Duration::seconds(60)) {
+            refresh_skin_session(&state, &account.id).await?
+        } else { token_str.to_string() };
+        synchronize_skin(&client, "https://api.minecraftservices.com/minecraft/profile/skins", &token, &upload, || refresh_skin_session(&state, &account.id)).await?;
     }
 
-    let mut updated = account.clone();
-    updated.skin_url = Some(skin_url.clone());
-    updated.skin_variant = Some(norm_variant.to_string());
-    updated.updated_at = chrono::Utc::now();
-    crate::db::schema::accounts::upsert(&db, &updated).await?;
+    sqlx::query("UPDATE accounts SET skin_url = ?, skin_variant = ?, updated_at = ? WHERE id = ?")
+        .bind(&skin_url).bind(norm_variant).bind(chrono::Utc::now()).bind(&account.id).execute(db.pool()).await?;
 
     Ok(())
 }
@@ -681,6 +720,86 @@ mod local_texture_tests {
         assert!(convert_or_validate_local_texture(include_bytes!("../../../static/steve.png")).is_ok());
         assert!(convert_or_validate_local_texture(b"not a png").is_err());
         assert!(convert_or_validate_local_texture(&vec![0; 10 * 1024 * 1024 + 1]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod skin_sync_tests {
+    use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    async fn server(statuses: Vec<u16>) -> (String, tokio::task::JoinHandle<Vec<Vec<u8>>>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}/skins", listener.local_addr().unwrap());
+        let task = tokio::spawn(async move {
+            let mut requests = Vec::new();
+            for status in statuses {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut request = Vec::new();
+                loop {
+                    let mut buffer = [0; 4096];
+                    let length = socket.read(&mut buffer).await.unwrap();
+                    assert!(length > 0);
+                    request.extend_from_slice(&buffer[..length]);
+                    if let Some(end) = request.windows(4).position(|value| value == b"\r\n\r\n") {
+                        let headers = String::from_utf8_lossy(&request[..end]).to_lowercase();
+                        let body_length = headers.lines().find_map(|line| line.strip_prefix("content-length:").map(|value| value.trim().parse::<usize>().unwrap())).unwrap_or(0);
+                        if request.len() >= end + 4 + body_length { break; }
+                    }
+                }
+                requests.push(request);
+                socket.write_all(format!("HTTP/1.1 {status} Test\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").as_bytes()).await.unwrap();
+            }
+            requests
+        });
+        (endpoint, task)
+    }
+
+    fn client() -> reqwest::Client {
+        reqwest::Client::builder().no_proxy().timeout(std::time::Duration::from_secs(3)).build().unwrap()
+    }
+
+    #[tokio::test]
+    async fn unauthorized_renews_once_and_resends_both_upload_formats() {
+        for upload in [SkinUpload::Url(serde_json::json!({"variant":"slim","url":"https://textures.minecraft.net/skin"})), SkinUpload::Png(include_bytes!("../../../static/steve.png").to_vec(), "classic".into())] {
+            let (endpoint, task) = server(vec![401, 200]).await;
+            synchronize_skin(&client(), &endpoint, "expired", &upload, || async { Ok("renewed".into()) }).await.unwrap();
+            let requests = task.await.unwrap();
+            assert_eq!(requests.len(), 2);
+            assert!(String::from_utf8_lossy(&requests[0]).contains("Bearer expired"));
+            assert!(String::from_utf8_lossy(&requests[1]).contains("Bearer renewed"));
+            for request in requests {
+                match &upload {
+                    SkinUpload::Url(body) => assert!(String::from_utf8_lossy(&request).contains(&body.to_string())),
+                    SkinUpload::Png(bytes, _) => assert!(request.windows(bytes.len()).any(|value| value == bytes)),
+                }
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn valid_session_does_not_refresh() {
+        let (endpoint, task) = server(vec![200]).await;
+        synchronize_skin(&client(), &endpoint, "valid", &SkinUpload::Url(serde_json::json!({})), || async { panic!("unexpected refresh") }).await.unwrap();
+        assert_eq!(task.await.unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn rejected_renewed_session_requests_login_without_retry_loop() {
+        let (endpoint, task) = server(vec![401, 401]).await;
+        let error = synchronize_skin(&client(), &endpoint, "expired", &SkinUpload::Url(serde_json::json!({})), || async { Ok("renewed".into()) }).await.unwrap_err();
+        assert!(error.to_string().contains("Entre novamente"));
+        assert_eq!(task.await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn refresh_failure_stops_before_resending_and_other_errors_do_not_refresh() {
+        let (endpoint, task) = server(vec![401]).await;
+        assert!(synchronize_skin(&client(), &endpoint, "expired", &SkinUpload::Url(serde_json::json!({})), || async { Err(AppError::InvalidState("Entre novamente".into())) }).await.is_err());
+        assert_eq!(task.await.unwrap().len(), 1);
+        let (endpoint, task) = server(vec![403]).await;
+        assert!(synchronize_skin(&client(), &endpoint, "valid", &SkinUpload::Url(serde_json::json!({})), || async { panic!("unexpected refresh") }).await.is_err());
+        assert_eq!(task.await.unwrap().len(), 1);
     }
 }
 

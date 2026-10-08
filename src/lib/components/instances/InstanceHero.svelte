@@ -2,9 +2,8 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
     import type { Snippet } from "svelte";
-    import { Play, Square, Loader2, Settings2, Share2, Clock3, MemoryStick, Coffee, Box, ImagePlus } from "lucide-svelte";
+    import { Play, Square, Loader2, Settings2, Share2, ImagePlus } from "lucide-svelte";
     import type { Profile } from "$lib/stores/profiles.svelte";
-    import { gamingStats } from "$lib/stores/gamingStats.svelte";
     import { button } from "$lib/components/ui/button";
     import LoaderBadge from "./LoaderBadge.svelte";
     import { getIconSrc } from "$lib/utils/icons";
@@ -16,16 +15,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         javaLabel?: string; onPlay: () => void; onStop?: () => void; onSettings: () => void; onHost: () => void; actions?: Snippet;
     } = $props();
     const icon = $derived(getIconSrc(profile?.icon));
-    const minutes = $derived(profile ? gamingStats.profileMinutes(profile.id) : 0);
-    const playtime = $derived(
-        running
-            ? uiText("ui.d4405a435b2e7242", {arg0: (Math.max(1, minutes))})
-            : minutes >= 60
-                ? `${Math.floor(minutes / 60)}h ${minutes % 60}m`
-                : minutes > 0
-                    ? `${minutes} min`
-                    : 'Menos de 1 min'
-    );
 </script>
 
 <section class="surface-glass relative overflow-hidden" use:scenery={settings.value.animations !== false && !appState.performanceMode && !running}>
@@ -70,11 +59,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                     </button>
                 {/if}
             </div>
-        </div>
-        <div class="mt-7 grid grid-cols-2 gap-4 rounded-2xl border border-fg/5 bg-bg/30 p-4 xl:grid-cols-4">
-            {#each [{ icon: MemoryStick, label: uiText("ui.57b5830b2e8cdc57"), value: `${((profile?.ramMb || 4096) / 1024).toFixed(1)} GB` }, { icon: Coffee, label: 'Java', value: javaLabel }, { icon: Clock3, label: uiText("ui.9361efce2af54bab"), value: playtime }, { icon: Box, label: uiText("ui.e958e18486409547"), value: String(profile?.modCount || 0) }] as stat}
-                <div class="flex items-center gap-3"><stat.icon class="h-4 w-4 shrink-0 text-brand-400/80" /><div class="min-w-0"><p class="text-[10px] text-fg-subtle">{stat.label}</p><p class="mt-1 truncate text-sm font-semibold text-fg" title={stat.value}>{stat.value}</p></div></div>
-            {/each}
         </div>
         {#if launching}
             <div class="mt-4 space-y-2" role="status"><div class="flex justify-between text-xs text-fg-muted"><span>{status || uiText("ui.3f391c454b11cacc")}</span><span>{Math.round(progress)}%</span></div><div class="h-1.5 overflow-hidden rounded-full bg-fg/5"><div class="h-full rounded-full bg-brand-500 transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200" style:width={`${Math.max(0, Math.min(progress, 100))}%`}></div></div></div>
