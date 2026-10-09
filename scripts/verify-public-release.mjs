@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createHash } from 'node:crypto';
+import { createHash, createPublicKey, verify } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const [metadataFile, outputFile] = process.argv.slice(2);
@@ -10,7 +10,7 @@ const compatibilityVersion = version.replace(/\d+$/, value => String(Number(valu
 assert.ok(release.tag_name === `v${version}` || new RegExp(`^v${compatibilityVersion.replaceAll('.', '\\.')}-revision\\.\\d+$`).test(release.tag_name));
 assert.equal(release.draft, false);
 assert.equal(release.prerelease, false);
-const names = ['Lux.MC.Launcher.exe', `Luxmc_${version}_x64-setup.exe`, `Luxmc_${version}_amd64.AppImage`, `Luxmc_${version}_amd64.deb`, `Luxmc-${version}-1.x86_64.rpm`, `luxmc-${version}-1-x86_64.pkg.tar.zst`, `Luxmc_${version}_universal.dmg`, 'latest.json', 'SHA256SUMS'];
+const names = ['Lux.MC.Launcher.exe', `Luxmc_${version}_x64-setup.exe`, `Luxmc_${version}_amd64.AppImage`, `Luxmc_${version}_amd64.deb`, `Luxmc-${version}-1.x86_64.rpm`, `luxmc-${version}-1-x86_64.pkg.tar.zst`, `Luxmc_${version}_universal.dmg`, 'latest.json', 'SHA256SUMS', 'latest.json.sig', 'SHA256SUMS.sig'];
 const assets = new Map(release.assets.map(asset => [asset.name, asset]));
 const canonical = assets.has('Lux MC Launcher.exe') ? 'Lux MC Launcher.exe' : names[0];
 names[0] = canonical;
@@ -22,9 +22,19 @@ for (const name of names) {
     assert.equal(response.status, 200, name);
     downloadChecks.push({ name, size: asset.size, status: response.status, digest: asset.digest });
 }
-const manifestResponse = await fetch(assets.get('latest.json').browser_download_url, { signal: AbortSignal.timeout(30000) });
-assert.equal(manifestResponse.status, 200);
-const manifest = await manifestResponse.json();
+const key = createPublicKey(readFileSync(new URL('../packaging/security/release-public-key.pem', import.meta.url)));
+const signedFiles = new Map();
+for (const name of ['latest.json', 'SHA256SUMS']) {
+    const response = await fetch(assets.get(name).browser_download_url, { signal: AbortSignal.timeout(30000) });
+    const signatureResponse = await fetch(assets.get(`${name}.sig`).browser_download_url, { signal: AbortSignal.timeout(30000) });
+    assert.equal(response.status, 200);
+    assert.equal(signatureResponse.status, 200);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    const signature = Buffer.from((await signatureResponse.text()).trim(), 'base64');
+    assert.equal(verify(null, bytes, key, signature), true, `${name} official signature`);
+    signedFiles.set(name, bytes);
+}
+const manifest = JSON.parse(signedFiles.get('latest.json').toString('utf8'));
 assert.equal(manifest.displayVersion || manifest.version, version);
 if (release.tag_name.includes('-revision.')) assert.equal(manifest.revision, Number(release.tag_name.split('-revision.')[1]));
 for (const [platform, filename] of Object.entries({ 'windows-x86_64': canonical, 'linux-x86_64': names[2], 'darwin-x86_64': names[6], 'darwin-aarch64': names[6] })) {
@@ -58,6 +68,7 @@ const bytes = Buffer.from(await installer.arrayBuffer());
 assert.equal(bytes.length, assets.get(canonical).size);
 const hash = createHash('sha256').update(bytes).digest('hex');
 assert.equal(hash, manifest.platforms['windows-x86_64'].sha256);
-const report = { version, releaseUrl: release.html_url, publishedAt: release.published_at, downloadChecks, siteChecks, manifestVerified: true, websiteInstallerSha256: hash };
+assert.ok(signedFiles.get('SHA256SUMS').toString('utf8').split('\n').includes(`${hash}  ${canonical}`));
+const report = { version, releaseUrl: release.html_url, publishedAt: release.published_at, downloadChecks, siteChecks, manifestVerified: true, officialSignaturesVerified: true, websiteInstallerSha256: hash };
 writeFileSync(outputFile, JSON.stringify(report, null, 2));
 console.log(JSON.stringify(report));

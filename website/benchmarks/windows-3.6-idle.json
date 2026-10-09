@@ -1,0 +1,165 @@
+{
+  "version": "3.6.0",
+  "measuredAt": "2026-10-09T20:02:15.2929632Z",
+  "mode": "Home page open in background with personalized wallpaper and GIFs; Warframe and other applications active; no Minecraft running",
+  "logicalProcessors": 12,
+  "sampleCount": 30,
+  "processCount": 7,
+  "averageWorkingSetMiB": 711.23,
+  "maxWorkingSetMiB": 728.07,
+  "averagePrivateBytesMiB": 739.88,
+  "averageCpuPercent": 4.4,
+  "samples": [
+    {
+      "workingSetMiB": 698.59,
+      "privateBytesMiB": 766.12,
+      "cpuPercent": 2.0
+    },
+    {
+      "workingSetMiB": 702.21,
+      "privateBytesMiB": 765.71,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 710.3,
+      "privateBytesMiB": 766.49,
+      "cpuPercent": 6.0
+    },
+    {
+      "workingSetMiB": 703.71,
+      "privateBytesMiB": 759.62,
+      "cpuPercent": 3.0
+    },
+    {
+      "workingSetMiB": 707.25,
+      "privateBytesMiB": 765.93,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 708.64,
+      "privateBytesMiB": 738.3,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 710.26,
+      "privateBytesMiB": 739.91,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 712.64,
+      "privateBytesMiB": 742.26,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 716.38,
+      "privateBytesMiB": 746.05,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 707.92,
+      "privateBytesMiB": 727.83,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 706.14,
+      "privateBytesMiB": 725.38,
+      "cpuPercent": 6.0
+    },
+    {
+      "workingSetMiB": 702.71,
+      "privateBytesMiB": 721.54,
+      "cpuPercent": 3.0
+    },
+    {
+      "workingSetMiB": 701.3,
+      "privateBytesMiB": 720.12,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 699.23,
+      "privateBytesMiB": 717.78,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 699.03,
+      "privateBytesMiB": 717.72,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 698.62,
+      "privateBytesMiB": 717.16,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 698.76,
+      "privateBytesMiB": 717.29,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 700.21,
+      "privateBytesMiB": 718.8,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 700.39,
+      "privateBytesMiB": 718.8,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 728.07,
+      "privateBytesMiB": 746.26,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 721.44,
+      "privateBytesMiB": 744.38,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 720.77,
+      "privateBytesMiB": 744.0,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 725.26,
+      "privateBytesMiB": 748.85,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 726.05,
+      "privateBytesMiB": 749.52,
+      "cpuPercent": 3.0
+    },
+    {
+      "workingSetMiB": 716.59,
+      "privateBytesMiB": 739.98,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 719.14,
+      "privateBytesMiB": 742.71,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 721.96,
+      "privateBytesMiB": 745.66,
+      "cpuPercent": 4.0
+    },
+    {
+      "workingSetMiB": 723.15,
+      "privateBytesMiB": 746.78,
+      "cpuPercent": 6.0
+    },
+    {
+      "workingSetMiB": 724.42,
+      "privateBytesMiB": 747.03,
+      "cpuPercent": 5.0
+    },
+    {
+      "workingSetMiB": 725.78,
+      "privateBytesMiB": 748.32,
+      "cpuPercent": 5.0
+    }
+  ],
+  "measurementScope": "Launcher and descendant WebView processes only; process working sets may double-count shared pages; one PC observation, not a controlled comparison"
+}

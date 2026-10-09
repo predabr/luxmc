@@ -49,6 +49,8 @@ Capturas fornecidas pelo autor em 9 de outubro de 2026:
 ![Amigos](website/assets/captures-3.6/friends.png)
 ![Personalização](website/assets/captures-3.6/personalizer.png)
 
+Os [resultados de verificação da 3.6](docs/releases/validation-v3.6.0.md) registram testes de interface, instalação, um modpack real, abertura Bedrock e distribuição assinada. A partida LAN entre duas redes distintas ainda precisa do retorno dos participantes. O site publica uma medição local da 3.6 com as condições e dados completos, sem prometer consumo fixo.
+
 ## Desenvolvimento
 
 Requisitos: Node.js 22 ou superior, pnpm, Rust e dependências nativas do Tauri. No Windows, use a toolchain MSVC e Visual Studio Build Tools. No Linux, instale GTK, WebKitGTK e demais dependências da distribuição.
