@@ -103,6 +103,12 @@ jobs:
       - name: Tauri native compilation
         run: pnpm tauri build --no-bundle
 
+      - name: Windows instance deletion regression
+        if: runner.os == 'Windows'
+        env:
+          LUXMC_NATIVE_BINARY: src-tauri/target/release/luxmc.exe
+        run: node scripts/verify-instance-deletion.mjs --fixtures-only
+
       - name: Rust Tests
         working-directory: src-tauri
         run: cargo test --lib --locked

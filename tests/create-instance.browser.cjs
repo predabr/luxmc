@@ -67,7 +67,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('heading', { name: 'Meu Bedrock', exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.createdProfiles.length), 3);
     assert.deepEqual(await page.evaluate(() => window.bedrock.instances[0]), { id: 'bedrock-link', name: 'Meu Bedrock', profileId: 'profile-one', installationId: 'bedrock-one' });
-    await page.getByRole('button', { name: 'Jogar versão importada', exact: true }).click();
+    await page.locator('[data-bedrock-instance="bedrock-link"]').getByRole('button', { name: 'Jogar', exact: true }).click();
     await page.getByText('Selecione sua instalação no BedrockLauncher.', { exact: true }).waitFor();
     assert.deepEqual(await page.evaluate(() => window.bedrockOpened), ['bedrock-link']);
     await page.evaluate(() => {
@@ -81,7 +81,7 @@ const assert = require('node:assert/strict');
     await page.getByRole('textbox',{name:'Nome na biblioteca',exact:true}).fill('Bedrock direto');
     await page.evaluate(() => window.bedrock.instances = []);
     await page.getByRole('button',{name:'Adicionar à biblioteca',exact:true}).click();
-    await page.getByRole('button',{name:'Jogar Bedrock',exact:true}).waitFor();
+    await page.locator('[data-bedrock-instance="bedrock-link"]').getByRole('button',{name:'Jogar',exact:true}).waitFor();
     assert.equal(await page.evaluate(() => window.bedrock.instances[0].profileId),'windows');
     assert.deepEqual(errors, []);
     console.log(JSON.stringify({ loader: created.loader, stable: created.loaderVersion, latest: latest.loaderVersion, errors }));

@@ -24,6 +24,12 @@ const fs = require('node:fs');
                     if (command === 'settings_set') { Object.assign(state.settings, args.value); return; }
                     if (command === 'plugin:store|get' && args.key === 'app') return [{ ...state.settings, theme: 'default-dark', customBackground: 'obsidian', customWallpaperUrl: '', settingsSavedAt: 100 }, true];
                     if (command === 'bedrock_state') return window.testBedrock;
+                    if (command === 'bedrock_versions') return [
+                        { id: 'new', version: '1.26.52.3', channel: 'release', packageType: 'GDK' },
+                        { id: 'old', version: '1.20.81.01', channel: 'release', packageType: 'UWP' },
+                        { id: 'preview', version: '1.26.60.1', channel: 'preview', packageType: 'GDK' }
+                    ];
+                    if (command === 'bedrock_install') return;
                     if (command === 'bedrock_rename') { window.testBedrock.instances[0].name = args.name; return; }
                     if (command === 'bedrock_remove') {
                         await new Promise(resolve => setTimeout(resolve, 800));
@@ -95,12 +101,22 @@ const fs = require('node:fs');
             await dialog.getByRole('button', { name: 'Excluir definitivamente', exact: true }).click();
             await dialog.waitFor({ state: 'detached' });
             assert.equal(await page.locator('[data-bedrock-instance]').count(), 0);
+            await page.getByRole('button', { name: 'Nova Instância', exact: true }).click();
+            await page.getByRole('button', { name: /Bedrock Edition/ }).click();
+            await page.getByRole('textbox', { name: 'Buscar versão Bedrock', exact: true }).fill('1.20');
+            const versionList = page.getByRole('listbox', { name: 'Versões disponíveis do Bedrock', exact: true });
+            assert.equal(await versionList.getByRole('option').count(), 1);
+            await versionList.getByRole('option', { name: /1.20.81.01/ }).click();
+            await page.getByRole('textbox', { name: 'Nome da instância Bedrock', exact: true }).fill('Instalação interna');
+            await page.getByRole('button', { name: 'Instalar versão', exact: true }).click();
+            await page.waitForFunction(() => window.testCalls.some(call => call.command === 'bedrock_install' && call.args.versionId === 'old' && call.args.name === 'Instalação interna'));
+            assert.equal(await page.getByRole('button', { name: 'Instalar Bedrock oficial', exact: true }).count(), 0);
             assert.deepEqual(errors, []);
             assert.equal(await page.evaluate(mode => window.motionCalls.includes(mode ? 140 : 220), performanceMode), true);
             await page.reload();
             await page.waitForFunction(() => document.documentElement.classList.contains('light') && document.documentElement.classList.contains('has-custom-wallpaper'));
             assert.equal(await page.evaluate(() => localStorage.getItem('luxmc_custom_wallpaper')), '/vanilla_banner.png');
-            results.push({ performanceMode, reducedMotion: true, explicitAnimations: true, themeRestored: true, modalClickable: true, failedDeletePreservesInstance: true, retryDeletesInstance: true, bedrockRenameAndDelete: true, spinnerRotates: true, errors });
+            results.push({ performanceMode, reducedMotion: true, explicitAnimations: true, themeRestored: true, modalClickable: true, failedDeletePreservesInstance: true, retryDeletesInstance: true, bedrockRenameAndDelete: true, bedrockInternalVersionSelection: true, spinnerRotates: true, errors });
             await page.close();
         }
         fs.mkdirSync('docs/validation/v3.6/hotfix', { recursive: true });
