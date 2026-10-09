@@ -37,7 +37,7 @@ const fs = require('node:fs');
                         window.testBedrock.instances = []; return;
                     }
                     if (command === 'profiles_delete') {
-                        await new Promise(resolve => setTimeout(resolve, 800));
+                        await new Promise(resolve => window.finishDelete = resolve);
                         if (window.testFailure) throw new Error('Arquivo em uso');
                     }
                     return invoke(command, args);
@@ -51,6 +51,7 @@ const fs = require('node:fs');
             const errors = [];
             page.on('pageerror', error => errors.push(String(error)));
             await page.goto('http://127.0.0.1:1420/instances');
+            await page.bringToFront();
             console.log('instances loaded', performanceMode);
             await page.locator('[data-page-route="/instances"]').waitFor();
             await page.waitForFunction(() => document.documentElement.classList.contains('light') && document.documentElement.classList.contains('has-custom-wallpaper'));
@@ -72,17 +73,23 @@ const fs = require('node:fs');
             await dialog.getByRole('button', { name: 'Excluir Definitivamente', exact: true }).click();
             const spinner = dialog.locator('.animate-spin');
             await spinner.waitFor();
-            const before = await spinner.evaluate(node => ({ transform: getComputedStyle(node).transform, duration: getComputedStyle(node).animationDuration, iterations: getComputedStyle(node).animationIterationCount }));
-            await page.waitForTimeout(130);
+            const before = await spinner.evaluate(node => ({ transform: getComputedStyle(node).transform, duration: getComputedStyle(node).animationDuration, iterations: getComputedStyle(node).animationIterationCount, playState: getComputedStyle(node).animationPlayState, hidden: document.hidden }));
+            console.log('spinner', before);
+            await page.waitForFunction(transform => {
+                const node = document.querySelector('[role="dialog"] .animate-spin');
+                return node && getComputedStyle(node).transform !== transform;
+            }, before.transform, { timeout: 5000 });
             const after = await spinner.evaluate(node => getComputedStyle(node).transform);
             assert.equal(before.duration, '0.9s'); assert.equal(before.iterations, 'infinite'); assert.notEqual(before.transform, after);
-            await dialog.getByRole('button', { name: 'Excluir Definitivamente', exact: true }).waitFor();
             await page.waitForFunction(() => window.testCalls.some(call => call.command === 'profiles_delete'));
-            await page.waitForTimeout(900);
+            await page.evaluate(() => window.finishDelete());
+            await page.waitForFunction(() => [...document.querySelectorAll('[role="dialog"] button')].some(button => button.textContent.includes('Excluir Definitivamente') && !button.disabled));
             assert.equal(await dialog.isVisible(), true);
             assert.equal(await page.getByRole('heading', { name: 'Vanilla Perfected', exact: true }).count(), 1);
             await page.evaluate(() => window.testFailure = false);
             await dialog.getByRole('button', { name: 'Excluir Definitivamente', exact: true }).click();
+            await page.waitForFunction(() => window.testCalls.filter(call => call.command === 'profiles_delete').length === 2);
+            await page.evaluate(() => window.finishDelete());
             await dialog.waitFor({ state: 'detached' });
             assert.equal(await page.getByRole('heading', { name: 'Vanilla Perfected', exact: true }).count(), 0);
             assert.notEqual(await page.evaluate(() => getComputedStyle(document.body).pointerEvents), 'none');
