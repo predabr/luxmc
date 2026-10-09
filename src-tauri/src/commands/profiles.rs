@@ -294,46 +294,16 @@ pub async fn profiles_delete(id: String) -> AppResult<()> {
         return Err(AppError::InvalidInput("ID de instância inválido".into()));
     }
     let db = crate::db::shared_db().await?;
-    if let Ok(Some(row)) = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
+    let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&id)
         .fetch_optional(db.pool())
-        .await
-    {
-        if let Some(base_dir) = directories::ProjectDirs::from("io", "github", "Luxmc") {
-            let path = std::path::PathBuf::from(&row.game_dir);
-            let managed = path
-                .canonicalize()
-                .map(|canonical| canonical.starts_with(base_dir.data_dir()))
-                .unwrap_or(false);
-            if managed && path.is_dir() {
-                let _ = tokio::fs::remove_dir_all(&path).await;
-            } else if !managed && path.is_dir() {
-                tracing::warn!(
-                    target: "profiles",
-                    "Diretório de jogo fora do diretório do launcher; remoção ignorada: {}",
-                    path.display()
-                );
-            }
-
-            let storage_mods_dir = base_dir.data_dir().join("mods").join(&id);
-            if storage_mods_dir.is_dir() {
-                let _ = tokio::fs::remove_dir_all(&storage_mods_dir).await;
-            }
-
-            let instance_dir_by_id = base_dir.data_dir().join("instances").join(&id);
-            if instance_dir_by_id.is_dir() {
-                let _ = tokio::fs::remove_dir_all(&instance_dir_by_id).await;
-            }
-
-            if let Ok(safe_name_dir) = crate::core::instance_paths::resolve_within(
-                &base_dir.data_dir().join("instances"),
-                &row.name,
-            ) {
-                if safe_name_dir.is_dir() {
-                    let _ = tokio::fs::remove_dir_all(&safe_name_dir).await;
-                }
-            }
-        }
-    }
+        .await?.ok_or_else(|| AppError::NotFound("Instância não encontrada".into()))?;
+    let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
+        .ok_or_else(|| AppError::InvalidState("Diretório de dados do launcher indisponível".into()))?;
+    let others = sqlx::query_scalar::<_, String>("SELECT game_dir FROM profiles WHERE id != ?")
+        .bind(&id).fetch_all(db.pool()).await?.into_iter().map(std::path::PathBuf::from).collect::<Vec<_>>();
+    let active = (crate::core::launcher::get_active_game_pid() != 0)
+        .then(crate::core::launcher::get_active_game_dir).flatten();
+    crate::core::instance_paths::remove_instance_data(base_dir.data_dir(), &id, std::path::Path::new(&row.game_dir), &others, active.as_deref()).await?;
     crate::db::schema::profiles::delete(&db, &id).await
 }

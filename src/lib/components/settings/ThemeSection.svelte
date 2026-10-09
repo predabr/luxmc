@@ -158,7 +158,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	function toggleAnimations() {
 		smoothAnimations = !smoothAnimations;
-		settings.patch({ animations: smoothAnimations });
+		settings.patch({ animations: smoothAnimations, ...(smoothAnimations ? { respectReducedMotion: false } : {}) });
 		schedulePersist();
 	}
 
@@ -167,7 +167,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		settings.patch({
 			performanceMode,
 			blur: !performanceMode && blurEffects,
-			animations: !performanceMode && smoothAnimations
+			animations: smoothAnimations
 		});
 		appState.performanceMode = performanceMode;
 		schedulePersist();

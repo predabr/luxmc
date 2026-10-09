@@ -35,5 +35,6 @@ export const bedrockConnect = (executable: string, dataDirectory: string) =>
 export const bedrockAdd = (name: string, profileId: string, installationId: string) =>
 	api.invoke<void>("bedrock_add", { name, profileId, installationId });
 export const bedrockRemove = (id: string) => api.invoke<void>("bedrock_remove", { id });
+export const bedrockRename = (id: string, name: string) => api.invoke<void>("bedrock_rename", { id, name });
 export const bedrockOpen = (instanceId: string | null = null) =>
 	api.invoke<{ providerOpened: boolean; notice: string | null }>("bedrock_open", { instanceId });

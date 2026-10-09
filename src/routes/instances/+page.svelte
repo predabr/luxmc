@@ -20,6 +20,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import {
 		Plus,
 		Trash2,
+        LoaderCircle,
 		Check,
 		Boxes,
 		Copy,
@@ -46,6 +47,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
 	import {
 		api,
+        profilesDelete,
 		versionsList,
 		instancesDuplicate,
 		instancesOpenFolder,
@@ -519,11 +521,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	async function deleteInstance(id: string) {
 		try {
-			await api.invoke("profiles_delete", { id });
+			await profilesDelete(id);
 			profiles.remove(id);
 			playSound("delete");
+            return true;
 		} catch (e) {
 			toast(t("instances.failedDelete", { error: String(e) }), "error");
+            return false;
 		}
 	}
 
@@ -1298,9 +1302,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{/if}
 	</Modal>
 
-	{#if confirmDeleteInstance}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/80 p-4" transition:fade={{ easing: quintOut, duration: 220 }}>
-			<div class="w-full max-w-md bg-bg-elevated border border-red-500/30 rounded-3xl p-6 shadow-2xl space-y-4 select-none">
+	<Modal isOpen={!!confirmDeleteInstance} onClose={() => { if (!deleting) confirmDeleteInstance = null; }} title={uiText("instances.deleteConfirmTitle")} showClose={!deleting}>
+        {#if confirmDeleteInstance}
+			<div class="space-y-4">
 				<div class="flex items-center gap-3">
 					<div class="w-10 h-10 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
 						<Trash2 class="w-5 h-5" />
@@ -1317,7 +1321,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 				<div class="flex justify-end gap-2.5 pt-2">
 					<button type="button" class={launcherButton({ variant: "secondary", size: "sm", class: "" })}
-						onclick={() => (confirmDeleteInstance = null)}
+						disabled={deleting} onclick={() => (confirmDeleteInstance = null)}
 					>{uiText("common.cancel")}</button>
 					<button type="button" class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-2" })}
 						disabled={deleting}
@@ -1326,16 +1330,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							deleting = true;
 							const id = confirmDeleteInstance.id;
 							const name = confirmDeleteInstance.name;
-							confirmDeleteInstance = null;
-							await deleteInstance(id);
-							deleting = false;
-							toast(uiText("ui.bc3196ede9748fff", {arg0: (name)}), "success");
+                            try {
+                                if (await deleteInstance(id)) {
+                                    confirmDeleteInstance = null;
+                                    toast(uiText("ui.bc3196ede9748fff", {arg0: name}), "success");
+                                }
+                            } finally { deleting = false; }
 						}}
 					>
-						<Trash2 class="w-3.5 h-3.5" /> {uiText("ui.37045d507711e562")}
+						{#if deleting}<LoaderCircle class="w-3.5 h-3.5 animate-spin" />{:else}<Trash2 class="w-3.5 h-3.5" />{/if} {deleting ? "Excluindo arquivos…" : uiText("ui.37045d507711e562")}
 					</button>
 				</div>
 			</div>
-		</div>
-	{/if}
+        {/if}
+	</Modal>
 </div>

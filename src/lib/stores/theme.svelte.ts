@@ -142,9 +142,9 @@ function wallpaperName(url: string): string {
 	return filename.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim() || "Wallpaper";
 }
 
-function persistWallpaperLibrary() {
+function persistWallpaperLibrary(persist = true) {
 	if (typeof window !== "undefined") localStorage.setItem("luxmc_wallpaper_library", JSON.stringify(wallpaperLibrary));
-	settings.patch({ wallpaperLibrary: wallpaperLibrary.map(entry => ({ ...entry })) });
+	if (persist) settings.patch({ wallpaperLibrary: wallpaperLibrary.map(entry => ({ ...entry })) });
 }
 
 function applyThemeVariables(tId: string, aId: string, bgId: string) {
@@ -286,7 +286,7 @@ export const themeStore = {
 		if (!normalized) return;
 		const existing = wallpaperLibrary.find(item => item.url === normalized);
 		wallpaperLibrary = [existing ? { ...existing, type } : { url: normalized, type, name: wallpaperName(name || normalized) }, ...wallpaperLibrary.filter(item => item.url !== normalized)];
-		persistWallpaperLibrary();
+		persistWallpaperLibrary(persist);
 		customWallpaperUrl = normalized;
 		customWallpaperType = type;
 		activeBackground = "custom";
@@ -296,7 +296,7 @@ export const themeStore = {
 			localStorage.setItem("luxmc_background", "custom");
 		}
 		applyThemeVariables(activeTheme, activeAccent, "custom");
-		if (persist) settings.patch({ customBackground: "custom", customWallpaperUrl, customWallpaperType });
+		if (persist) settings.patch({ customBackground: "custom", customWallpaperUrl, customWallpaperType, wallpaperLibrary: wallpaperLibrary.map(entry => ({ ...entry })) });
 	},
 
     replaceWallpaper(source: string, destination: string) {
@@ -337,6 +337,22 @@ export const themeStore = {
 		if (persist) settings.patch({ customBackground: "obsidian", customWallpaperUrl: "", customWallpaperType: "image" });
 	},
 
+	restoreWallpaperLibrary(entries: WallpaperEntry[]) {
+		wallpaperLibrary = entries.filter(item => item && typeof item.url === "string" && item.url.length > 0 && item.url.length < 4096 && item.url !== "luxmc-wallpaper:cherry" && (item.type === "image" || item.type === "video") && typeof item.name === "string").slice(0, 100);
+		persistWallpaperLibrary(false);
+	},
+
+	importSavedWallpapers() {
+		const originals = wallpaperLibrary.map(entry => entry.url);
+		void import("$lib/api/wallpaper").then(async ({ importWallpaper }) => {
+			for (const original of originals) {
+				const path = wallpaperLocalPath(original);
+				if (!path) continue;
+				try { this.replaceWallpaper(original, await importWallpaper(path)); } catch {}
+			}
+		}).catch(() => {});
+	},
+
 	init() {
 		if (typeof window === "undefined") return;
 		const savedTheme = localStorage.getItem("luxmc_theme");
@@ -351,7 +367,7 @@ export const themeStore = {
 				wallpaperLibrary = parsed.filter((item): item is WallpaperEntry => item && typeof item.url === "string" && item.url.length > 0 && item.url !== "luxmc-wallpaper:cherry" && item.url.length < 4096 && (item.type === "image" || item.type === "video") && typeof item.name === "string").slice(0, 100);
 			}
 		} catch {}
-        persistWallpaperLibrary();
+        persistWallpaperLibrary(false);
 		if (savedTheme) {
 			if (savedTheme === "light" || savedTheme === "default-light") activeTheme = "light";
 			else if (savedTheme === "dark" || savedTheme === "default-dark") activeTheme = "dark";
@@ -363,7 +379,7 @@ export const themeStore = {
 			customWallpaperType = savedCustomType === "video" ? "video" : "image";
             if (!wallpaperLibrary.some(item => item.url === customWallpaperUrl)) {
                 wallpaperLibrary = [{ url: customWallpaperUrl, type: customWallpaperType, name: wallpaperName(customWallpaperUrl) }, ...wallpaperLibrary];
-                persistWallpaperLibrary();
+                persistWallpaperLibrary(false);
             }
             if (!savedBg || savedBg === "custom") activeBackground = "custom";
 		}
@@ -371,13 +387,5 @@ export const themeStore = {
 			activeBackground = savedBg;
 		}
         applyThemeVariables(activeTheme, activeAccent, activeBackground);
-        const originals = wallpaperLibrary.map(entry => entry.url);
-        void import("$lib/api/wallpaper").then(async ({ importWallpaper }) => {
-            for (const original of originals) {
-                const path = wallpaperLocalPath(original);
-                if (!path) continue;
-                try { this.replaceWallpaper(original, await importWallpaper(path)); } catch {}
-            }
-        }).catch(() => {});
     }
 };

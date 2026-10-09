@@ -4,9 +4,11 @@ export type ThemeName = "default-dark" | "default-light";
 export type AccentTheme = "gold" | "cyan" | "emerald" | "rose" | "violet" | "orange" | "blue";
 
 export interface AppSettings {
+	settingsSavedAt?: number;
 	theme: ThemeName;
 	density: "compact" | "comfortable" | "spacious";
 	animations: boolean;
+    respectReducedMotion?: boolean;
 	blur: boolean;
 	sidebarPosition: "left" | "right";
 	language: "en" | "pt-BR" | "es";

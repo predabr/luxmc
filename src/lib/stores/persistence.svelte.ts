@@ -9,6 +9,7 @@ import { setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 import { detectBrowserLocale, isSupportedLocale, resolveLocale } from "$lib/i18n/locale";
 import { appSystemLocale } from "$lib/api/system";
 import { settingsGet, settingsSet } from "$lib/api/settings";
+import { mergeSavedSettings } from "$lib/utils/settingsPersistence";
 
 import { themeStore } from "./theme.svelte";
 
@@ -16,6 +17,7 @@ const STORE_FILE = "settings.json";
 const STORE_KEY = "app";
 
 let store: LazyStore | null = null;
+let hydrated = false;
 
 function getStore(): LazyStore {
 	if (!store) store = new LazyStore(STORE_FILE);
@@ -26,7 +28,7 @@ export async function bootstrapSettings() {
 	if (!browser) return;
 	const s = getStore();
 	const [native, local] = await Promise.allSettled([settingsGet(), s.get<Partial<AppSettings>>(STORE_KEY)]);
-	const stored = { ...(native.status === "fulfilled" ? native.value ?? {} : {}), ...(local.status === "fulfilled" ? local.value ?? {} : {}) };
+	const stored = mergeSavedSettings<AppSettings>(native.status === "fulfilled" ? native.value : null, local.status === "fulfilled" ? local.value ?? null : null);
 	const merged: AppSettings = { ...settings.value, ...stored };
 	merged.languageMode = stored.languageMode || (isSupportedLocale(stored.language) ? "manual" : "system");
 	merged.language = merged.languageMode === "system" ? await detectSystemLocale() : resolveLocale(stored.language);
@@ -42,10 +44,7 @@ export async function bootstrapSettings() {
 		const tId = merged.theme === "default-light" ? "light" : "dark";
 		themeStore.setTheme(tId, false);
 	}
-	if (stored.wallpaperLibrary?.length && !themeStore.wallpaperLibrary.length) {
-		localStorage.setItem("luxmc_wallpaper_library", JSON.stringify(stored.wallpaperLibrary));
-		themeStore.init();
-	}
+	if (stored.wallpaperLibrary) themeStore.restoreWallpaperLibrary(stored.wallpaperLibrary);
 	if (stored.customWallpaperUrl && merged.customBackground === "custom") {
 		themeStore.setCustomWallpaper(stored.customWallpaperUrl, stored.customWallpaperType === "video" ? "video" : "image", undefined, false);
 	} else if (themeStore.background === "custom" && themeStore.customWallpaperUrl && stored.customWallpaperUrl === undefined) {
@@ -53,6 +52,9 @@ export async function bootstrapSettings() {
 	} else if (merged.customBackground) {
 		themeStore.setBackground(merged.customBackground, false);
 	}
+	hydrated = true;
+	themeStore.importSavedWallpapers();
+	schedulePersist();
 }
 
 registerSettingsListener(() => schedulePersist());
@@ -61,7 +63,7 @@ let lastSaved = "";
 let saveChain: Promise<void> = Promise.resolve();
 
 export async function persistNow(): Promise<void> {
-	if (!browser) return;
+	if (!browser || !hydrated) return;
 	const run = async () => {
 		try {
 			const s = getStore();
@@ -71,9 +73,10 @@ export async function persistNow(): Promise<void> {
 			};
 			const currentStr = JSON.stringify(toSave);
 			if (currentStr === lastSaved) return;
-			await s.set(STORE_KEY, toSave);
+			const dated = { ...toSave, settingsSavedAt: Date.now() };
+			await settingsSet(dated);
+			await s.set(STORE_KEY, dated);
 			await s.save();
-			await settingsSet(toSave);
 			lastSaved = currentStr;
 		} catch (error) {
 			console.error(uiText("ui.5534995aef529ef0"), error);
@@ -86,7 +89,7 @@ export async function persistNow(): Promise<void> {
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 export function schedulePersist() {
-	if (!browser) return;
+	if (!browser || !hydrated) return;
 	if (persistTimer) clearTimeout(persistTimer);
 	persistTimer = setTimeout(() => {
 		persistTimer = null;

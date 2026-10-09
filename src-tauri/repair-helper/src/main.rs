@@ -1,7 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use luxmc_repair::{cache_for, Recovery, MAIN};
+mod cleanup;
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::args().nth(1).as_deref() == Some("--uninstall-data") {
+        let count=cleanup::uninstall_data()?;
+        println!("{{\"dataDirectoriesRemoved\":{count}}}");
+        return Ok(());
+    }
     let executable = std::env::current_exe()?;
     let directory = executable.parent().ok_or("Pasta do verificador indisponível")?.to_path_buf();
     let expected = option_env!("LUXMC_MAIN_SHA256").unwrap_or("");

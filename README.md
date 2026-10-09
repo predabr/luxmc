@@ -39,7 +39,9 @@ Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quand
 
 ## Interface
 
-Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido, efeitos desativados e modo de desempenho são respeitados.
+Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido e efeitos desativados são respeitados. Ativar animações explicitamente permite usá-las com movimento reduzido no Windows; o modo de desempenho usa uma transição breve de opacidade. O fundo e o tema recuperam a gravação mais recente das preferências.
+
+A [revisão 1 da 3.6](docs/releases/v3.6.1-revision.1.md) corrige a confirmação de exclusão e os indicadores de download. A exclusão Java só remove o registro após apagar os arquivos. Versões Bedrock gerenciadas podem ser desinstaladas do Windows e ter seu pacote removido. A opção de apagar dados no desinstalador remove dados do Luxmc e preserva Documentos e o projeto; uma atualização mantém suas instâncias.
 
 Capturas fornecidas pelo autor em 9 de outubro de 2026:
 

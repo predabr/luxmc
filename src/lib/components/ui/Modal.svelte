@@ -1,8 +1,7 @@
 <script lang="ts">
     import { button as launcherButton } from "$lib/components/ui/button";
-	import { quintOut } from "svelte/easing";
 	import { focusTrap } from '$lib/utils/focusTrap';
-	import { fade } from 'svelte/transition';
+    import { Portal } from 'bits-ui';
 	import { X } from 'lucide-svelte';
 	import type { Snippet } from 'svelte';
 	import { useTranslation } from '$lib/i18n/useTranslation.svelte';
@@ -32,8 +31,9 @@
 </script>
 
 {#if isOpen}
+	<Portal to="body">
 	<div
-		class="fixed inset-0 z-50 flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md"
+		class="fixed inset-0 z-[1000] pointer-events-auto flex items-center justify-center bg-bg-overlay/75 backdrop-blur-md"
 		role="dialog"
         use:focusTrap
 		aria-modal="true"
@@ -41,11 +41,10 @@
 		tabindex="-1"
 		onclick={handleBackdropClick}
 		onkeydown={handleBackdropKeydown}
-		transition:fade={{ easing: quintOut, duration: 260 }}
 	>
 		<div
 			class={`bg-bg-elevated/95 border border-fg/10 rounded-2xl shadow-elevated backdrop-blur-2xl ${maxWidth} w-full mx-4 max-h-[90vh] overflow-y-auto`}
-			style="animation: modalIn 200ms ease-out forwards;"
+			style="animation: modalIn 200ms ease-out;"
 		>
 			<div class="flex items-center justify-between border-b border-border p-6">
 				<h2 id={titleId} class="text-xl font-bold">{title}</h2>
@@ -65,6 +64,7 @@
 			</div>
 		</div>
 	</div>
+	</Portal>
 {/if}
 
 <style>

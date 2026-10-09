@@ -134,6 +134,17 @@ async fn dispatch_command(
             let id=args.get("instanceId").and_then(|value|value.as_str()).map(str::to_owned);
             Ok(serde_json::to_value(crate::commands::bedrock::bedrock_open(id).await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?)
         },
+        "bedrock_remove" => {
+            let id = args.get("id").and_then(Value::as_str).ok_or("Missing instance")?.to_owned();
+            crate::commands::bedrock::bedrock_remove(id).await.map_err(|error| error.to_string())?;
+            Ok(Value::Null)
+        },
+        "bedrock_rename" => {
+            let id = args.get("id").and_then(Value::as_str).ok_or("Missing instance")?.to_owned();
+            let name = args.get("name").and_then(Value::as_str).ok_or("Missing name")?.to_owned();
+            crate::commands::bedrock::bedrock_rename(id, name).await.map_err(|error| error.to_string())?;
+            Ok(Value::Null)
+        },
         "optimizer_trim_memory" => {
             let res = crate::core::native_rust::trim_memory_native();
             Ok(Value::Bool(res))

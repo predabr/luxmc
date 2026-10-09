@@ -37,6 +37,46 @@ pub fn resolve_within(base: &Path, relative: &str) -> AppResult<PathBuf> {
     Ok(target)
 }
 
+pub async fn remove_instance_data(base: &Path, id: &str, game: &Path, other_games: &[PathBuf], active_game: Option<&Path>) -> AppResult<()> {
+    let owned = game_dir(base, id)?.parent().unwrap().to_path_buf();
+    let canonical_base = tokio::fs::canonicalize(base).await?;
+    let mut candidates = vec![owned, base.join("mods").join(id), game.to_path_buf()];
+    let mut checked = Vec::new();
+    for path in candidates.drain(..) {
+        let canonical = match tokio::fs::canonicalize(&path).await {
+            Ok(path) => path,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => return Err(error.into()),
+        };
+        if canonical == canonical_base || !canonical.starts_with(&canonical_base) {
+            return Err(AppError::InvalidInput("A pasta está fora dos dados do Luxmc. A instância não foi removida; seus documentos e o projeto foram preservados.".into()));
+        }
+        for other in other_games {
+            if let Ok(other) = tokio::fs::canonicalize(other).await {
+                if other.starts_with(&canonical) || canonical.starts_with(&other) {
+                    return Err(AppError::InvalidState("Outra instância usa essa pasta. Separe os arquivos antes de excluir.".into()));
+                }
+            }
+        }
+        if let Some(active) = active_game {
+            if let Ok(active) = tokio::fs::canonicalize(active).await {
+                if active.starts_with(&canonical) || canonical.starts_with(&active) {
+                    return Err(AppError::InvalidState("Feche o Minecraft desta instância antes de excluir seus arquivos.".into()));
+                }
+            }
+        }
+        if !checked.iter().any(|parent: &PathBuf| canonical.starts_with(parent)) {
+            checked.retain(|child: &PathBuf| !child.starts_with(&canonical));
+            checked.push(canonical);
+        }
+    }
+    for path in checked {
+        tokio::fs::remove_dir_all(&path).await.map_err(|error| AppError::InvalidState(format!("Não foi possível apagar os arquivos da instância: {error}. Feche o jogo e tente novamente.")))?;
+        if tokio::fs::try_exists(&path).await? { return Err(AppError::InvalidState("A pasta da instância ainda existe. A remoção não foi concluída.".into())); }
+    }
+    Ok(())
+}
+
 fn copy_tree(source: &Path, target: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(target)?;
     for entry in std::fs::read_dir(source)? {
@@ -108,5 +148,31 @@ mod tests {
         assert!(resolve_within(&base, "/etc/passwd").is_err());
         assert!(resolve_within(&base, "foo/../../bar").is_err());
         assert!(resolve_within(&base, "safe/file.txt").is_ok());
+    }
+    #[tokio::test]
+    async fn deletion_removes_owned_files_and_preserves_other_instances() {
+        let root = tempfile::tempdir().unwrap();
+        let game = game_dir(root.path(), "one").unwrap();
+        let other = game_dir(root.path(), "two").unwrap();
+        std::fs::create_dir_all(game.join("saves/test")).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        std::fs::write(game.join("saves/test/level.dat"), "world").unwrap();
+        std::fs::write(other.join("options.txt"), "keep").unwrap();
+        remove_instance_data(root.path(), "one", &game, &[other.clone()], None).await.unwrap();
+        assert!(!game.parent().unwrap().exists());
+        assert_eq!(std::fs::read_to_string(other.join("options.txt")).unwrap(), "keep");
+    }
+    #[tokio::test]
+    async fn deletion_rejects_external_shared_and_running_game_directories() {
+        let root = tempfile::tempdir().unwrap();
+        let external = tempfile::tempdir().unwrap();
+        let game = game_dir(root.path(), "one").unwrap();
+        std::fs::create_dir_all(&game).unwrap();
+        assert!(remove_instance_data(root.path(), "one", external.path(), &[], None).await.is_err());
+        assert!(game.exists());
+        assert!(remove_instance_data(root.path(), "one", &game, &[game.clone()], None).await.is_err());
+        assert!(remove_instance_data(root.path(), "one", &game, &[], Some(&game)).await.is_err());
+        assert!(remove_instance_data(root.path(), "one", root.path(), &[], None).await.is_err());
+        assert!(game.exists());
     }
 }

@@ -4,9 +4,10 @@
 !define MUI_FINISHPAGE_TEXT "O launcher está pronto.$\r$\n$\r$\n1. Abra o Luxmc e conecte sua conta.$\r$\n2. Escolha uma versão ou um modpack.$\r$\n3. Clique em Jogar.$\r$\n$\r$\nNo primeiro início, aguarde a preparação do Java e dos arquivos do jogo. Os próximos inícios reutilizam os arquivos já instalados."
 !define MUI_FINISHPAGE_RUN_TEXT "Abrir Lux MC Launcher"
 !define MUI_ABORTWARNING
+!define MUI_UNCONFIRMPAGE_TEXT_TOP "O Luxmc será desinstalado. Para remover também contas, Java, mods, instâncias, mundos e recuperação, marque a opção de apagar dados. Documentos e o projeto não são removidos. Atualizações preservam seus dados."
 
 !macro NSIS_HOOK_POSTINSTALL
-  WriteRegDWORD HKCU "${UNINSTKEY}" "LuxmcRevision" 0
+  WriteRegDWORD HKCU "${UNINSTKEY}" "LuxmcRevision" 1
   WriteRegStr HKCU "${UNINSTKEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
   nsExec::ExecToStack '$\"$INSTDIR\luxmc-repair.exe$\" --initialize'
   Pop $0
@@ -22,6 +23,30 @@
 !macro NSIS_HOOK_PREUNINSTALL
   SetOutPath "$TEMP"
   !insertmacro CheckIfAppIsRunning "${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
+  ${If} $UpdateMode != 1
+    ClearErrors
+    ${GetOptions} $CMDLINE "/PURGE" $R0
+    ${IfNot} ${Errors}
+      StrCpy $DeleteAppDataCheckboxState 1
+    ${EndIf}
+    ${If} $DeleteAppDataCheckboxState = 1
+      GetTempFileName $R4
+      Delete $R4
+      CreateDirectory $R4
+      CopyFiles /SILENT "$INSTDIR\luxmc-repair.exe" "$R4\luxmc-uninstall.exe"
+      nsExec::ExecToStack '$\"$R4\luxmc-uninstall.exe$\" --uninstall-data'
+      Pop $0
+      Pop $1
+      Delete "$R4\luxmc-uninstall.exe"
+      RMDir $R4
+      ${If} $0 != 0
+        SetErrorLevel 1
+        IfSilent +2
+          MessageBox MB_OK|MB_ICONSTOP "Não foi possível apagar todos os dados do Luxmc. A desinstalação não foi concluída; feche o launcher e tente novamente. Documentos e projeto foram preservados."
+        Abort
+      ${EndIf}
+    ${EndIf}
+  ${EndIf}
   ClearErrors
   Delete "$INSTDIR\${MAINBINARYNAME}.exe"
   ${If} ${Errors}

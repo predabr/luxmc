@@ -10,15 +10,19 @@ export function pageMotion(node: HTMLElement, route: string) {
 	function enter() {
 		cancel();
 		frame = requestAnimationFrame(() => {
-			if (reduced.matches || document.hidden || document.documentElement.classList.contains('no-anim')) return;
-			animations.push(node.animate([{ opacity: .65 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' }));
+			const root = document.documentElement;
+            if (!root.classList.contains('settings-ready')) return;
+            if ((reduced.matches && !root.classList.contains('force-ui-motion')) || document.hidden || root.classList.contains('no-ui-motion')) return;
+            const economical = root.classList.contains('no-anim');
+			animations.push(node.animate([{ opacity: .65 }, { opacity: 1 }], { duration: economical ? 140 : 220, easing: 'ease-out' }));
 			const heading = node.querySelector('h1');
-			if (heading) animations.push(heading.animate([{ transform: 'translateY(8px)' }, { transform: 'translateY(0)' }], { duration: 280, easing: 'cubic-bezier(.2,.8,.2,1)' }));
+			if (heading && !economical) animations.push(heading.animate([{ transform: 'translateY(8px)' }, { transform: 'translateY(0)' }], { duration: 280, easing: 'cubic-bezier(.2,.8,.2,1)' }));
 		});
 	}
 	enter();
+	document.addEventListener('luxmc-settings-ready', enter);
 	return {
 		update(next: string) { if (route !== next) { route = next; enter(); } },
-		destroy: cancel
+		destroy() { cancel(); document.removeEventListener('luxmc-settings-ready', enter); }
 	};
 }

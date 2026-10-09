@@ -177,7 +177,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	onMount(() => {
 		themeStore.init();
 		void runtimePlatform.refresh();
-		void bootstrapSettings();
+		void bootstrapSettings().finally(() => {
+			document.documentElement.classList.add("settings-ready");
+			document.dispatchEvent(new Event("luxmc-settings-ready"));
+		});
 		void profiles.refresh();
 
 		const warmRoutes = ["/", "/instances", "/mods", "/skins", "/news", "/settings", "/screenshots"];
@@ -780,10 +783,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const disableAnim = settings.value.animations === false || appState.performanceMode;
         document.documentElement.classList.toggle("no-blur", disableBlur);
         document.documentElement.classList.toggle("no-anim", disableAnim);
+        root.classList.toggle("no-ui-motion", settings.value.animations === false);
+        root.classList.toggle("force-ui-motion", settings.value.respectReducedMotion === false);
         document.documentElement.classList.toggle("efficient-wallpaper", themeStore.background === "custom" && themeStore.customWallpaperType === "video" && settings.value.animatedWallpaperBlur !== true);
         return () => {
             document.documentElement.classList.remove("no-blur");
             document.documentElement.classList.remove("no-anim");
+            root.classList.remove("no-ui-motion", "force-ui-motion");
             document.documentElement.classList.remove("efficient-wallpaper");
         };
     });

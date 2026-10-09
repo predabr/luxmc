@@ -1,0 +1,110 @@
+const { chromium } = require('playwright-core');
+const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+(async () => {
+    const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
+    const results = [];
+    try {
+        for (const performanceMode of [false, true]) {
+            const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+            await setupLauncherDemo(page);
+            await page.addInitScript(performanceMode => {
+                const state = window.launcherDemo.state;
+                Object.assign(state.settings, { theme: 'default-light', accentTheme: 'gold', customBackground: 'custom', customWallpaperUrl: '/vanilla_banner.png', wallpaperLibrary: [{ url: '/vanilla_banner.png', type: 'image', name: 'Meu fundo' }], performanceMode, animations: true, respectReducedMotion: false, settingsSavedAt: 200 });
+                localStorage.setItem('luxmc_theme', 'dark');
+                window.testFailure = true;
+                window.testCalls = [];
+                window.testBedrock = { supported: true, provider: null, warning: null, installations: [{ id: 'package', profileId: 'managed', profileName: 'Luxmc', name: 'Bedrock 1.20', version: '1.20.81', directory: 'C:/Luxmc/bedrock/packages/test' }], instances: [{ id: 'bedrock-test', profileId: 'managed', installationId: 'package', name: 'Meu Bedrock' }] };
+                const invoke = window.electronAPI.invoke;
+                const wrapped = async (command, args) => {
+                    window.testCalls.push({ command, args });
+                    if (command === 'settings_get') return state.settings;
+                    if (command === 'settings_set') { Object.assign(state.settings, args.value); return; }
+                    if (command === 'plugin:store|get' && args.key === 'app') return [{ ...state.settings, theme: 'default-dark', customBackground: 'obsidian', customWallpaperUrl: '', settingsSavedAt: 100 }, true];
+                    if (command === 'bedrock_state') return window.testBedrock;
+                    if (command === 'bedrock_rename') { window.testBedrock.instances[0].name = args.name; return; }
+                    if (command === 'bedrock_remove') {
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                        if (window.testFailure) throw new Error('Pacote em uso');
+                        window.testBedrock.instances = []; return;
+                    }
+                    if (command === 'profiles_delete') {
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                        if (window.testFailure) throw new Error('Arquivo em uso');
+                    }
+                    return invoke(command, args);
+                };
+                window.electronAPI.invoke = wrapped;
+                window.__TAURI_INTERNALS__.invoke = wrapped;
+                window.motionCalls = [];
+                const animate = Element.prototype.animate;
+                Element.prototype.animate = function(frames, options) { if (this.hasAttribute('data-page-route')) window.motionCalls.push(options.duration); return animate.call(this, frames, options); };
+            }, performanceMode);
+            const errors = [];
+            page.on('pageerror', error => errors.push(String(error)));
+            await page.goto('http://127.0.0.1:1420/instances');
+            console.log('instances loaded', performanceMode);
+            await page.locator('[data-page-route="/instances"]').waitFor();
+            await page.waitForFunction(() => document.documentElement.classList.contains('light') && document.documentElement.classList.contains('has-custom-wallpaper'));
+            console.log('appearance restored', performanceMode);
+            const card = page.locator('div').filter({ has: page.getByRole('heading', { name: 'Vanilla Perfected', exact: true }) }).filter({ has: page.getByTitle('Mais Opções', { exact: true }) }).last();
+            const openDelete = async () => {
+                await card.getByTitle('Mais Opções', { exact: true }).click();
+                console.log('menu open');
+                await page.getByRole('menuitem', { name: /Excluir/ }).click();
+                console.log('delete requested');
+                await page.getByRole('dialog', { name: 'Excluir Instância', exact: true }).waitFor();
+            };
+            await openDelete();
+            let dialog = page.getByRole('dialog', { name: 'Excluir Instância', exact: true });
+            assert.equal(await dialog.evaluate(node => node.parentElement === document.body), true);
+            await dialog.getByRole('button', { name: 'Cancelar', exact: true }).click();
+            await dialog.waitFor({ state: 'detached' });
+            await openDelete();
+            await dialog.getByRole('button', { name: 'Excluir Definitivamente', exact: true }).click();
+            const spinner = dialog.locator('.animate-spin');
+            await spinner.waitFor();
+            const before = await spinner.evaluate(node => ({ transform: getComputedStyle(node).transform, duration: getComputedStyle(node).animationDuration, iterations: getComputedStyle(node).animationIterationCount }));
+            await page.waitForTimeout(130);
+            const after = await spinner.evaluate(node => getComputedStyle(node).transform);
+            assert.equal(before.duration, '0.9s'); assert.equal(before.iterations, 'infinite'); assert.notEqual(before.transform, after);
+            await dialog.getByRole('button', { name: 'Excluir Definitivamente', exact: true }).waitFor();
+            await page.waitForFunction(() => window.testCalls.some(call => call.command === 'profiles_delete'));
+            await page.waitForTimeout(900);
+            assert.equal(await dialog.isVisible(), true);
+            assert.equal(await page.getByRole('heading', { name: 'Vanilla Perfected', exact: true }).count(), 1);
+            await page.evaluate(() => window.testFailure = false);
+            await dialog.getByRole('button', { name: 'Excluir Definitivamente', exact: true }).click();
+            await dialog.waitFor({ state: 'detached' });
+            assert.equal(await page.getByRole('heading', { name: 'Vanilla Perfected', exact: true }).count(), 0);
+            assert.notEqual(await page.evaluate(() => getComputedStyle(document.body).pointerEvents), 'none');
+            await page.getByRole('button', { name: 'Editar Meu Bedrock', exact: true }).click();
+            dialog = page.getByRole('dialog', { name: 'Editar instância Bedrock', exact: true });
+            await dialog.getByRole('textbox').fill('Bedrock renomeado');
+            await dialog.getByRole('button', { name: 'Salvar', exact: true }).click();
+            await dialog.waitFor({ state: 'detached' });
+            await page.getByRole('button', { name: 'Excluir Bedrock renomeado', exact: true }).click();
+            dialog = page.getByRole('dialog', { name: 'Excluir instância Bedrock', exact: true });
+            await page.evaluate(() => window.testFailure = true);
+            await dialog.getByRole('button', { name: 'Excluir definitivamente', exact: true }).click();
+            await dialog.getByRole('alert').filter({ hasText: 'Pacote em uso' }).waitFor();
+            assert.equal(await page.getByRole('heading', { name: 'Bedrock renomeado', exact: true }).count(), 1);
+            await page.evaluate(() => window.testFailure = false);
+            await dialog.getByRole('button', { name: 'Excluir definitivamente', exact: true }).click();
+            await dialog.waitFor({ state: 'detached' });
+            assert.equal(await page.locator('[data-bedrock-instance]').count(), 0);
+            assert.deepEqual(errors, []);
+            assert.equal(await page.evaluate(mode => window.motionCalls.includes(mode ? 140 : 220), performanceMode), true);
+            await page.reload();
+            await page.waitForFunction(() => document.documentElement.classList.contains('light') && document.documentElement.classList.contains('has-custom-wallpaper'));
+            assert.equal(await page.evaluate(() => localStorage.getItem('luxmc_custom_wallpaper')), '/vanilla_banner.png');
+            results.push({ performanceMode, reducedMotion: true, explicitAnimations: true, themeRestored: true, modalClickable: true, failedDeletePreservesInstance: true, retryDeletesInstance: true, bedrockRenameAndDelete: true, spinnerRotates: true, errors });
+            await page.close();
+        }
+        fs.mkdirSync('docs/validation/v3.6/hotfix', { recursive: true });
+        fs.writeFileSync('docs/validation/v3.6/hotfix/ui-results.json', JSON.stringify(results, null, 2));
+        console.log(JSON.stringify(results));
+    } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

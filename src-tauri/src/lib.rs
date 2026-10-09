@@ -580,6 +580,7 @@ pub async fn run() {
             commands::bedrock::bedrock_connect,
             commands::bedrock::bedrock_add,
             commands::bedrock::bedrock_remove,
+            commands::bedrock::bedrock_rename,
             commands::bedrock::bedrock_open,
             commands::bedrock_catalog::bedrock_versions,
             commands::bedrock_catalog::bedrock_install,

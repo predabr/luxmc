@@ -51,7 +51,7 @@ struct SavedState {
     managed: Vec<ManagedInstallation>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 struct ManagedInstallation {
     installation: BedrockInstallation,
     package: String,
@@ -248,12 +248,68 @@ pub async fn bedrock_add(name: String, profile_id: String, installation_id: Stri
 
 #[tauri::command]
 pub async fn bedrock_remove(id: String) -> AppResult<()> {
+    let _installation = super::bedrock_catalog::INSTALL_LOCK.try_lock().map_err(|_| AppError::InvalidState("Aguarde a instalação Bedrock terminar antes de excluir.".into()))?;
     let _guard = STATE_LOCK.lock().await;
-    tokio::task::spawn_blocking(move || {
-        let mut state = load()?;
-        state.instances.retain(|instance| instance.id != id);
-        save(&state)
-    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+    let mut state = load()?;
+    let instance = state.instances.iter().find(|instance| instance.id == id).cloned()
+        .ok_or_else(|| AppError::NotFound("Instância Bedrock não encontrada".into()))?;
+    if instance.profile_id == "managed" {
+        let managed = state.managed.iter().find(|item| item.installation.id == instance.installation_id).cloned()
+            .ok_or_else(|| AppError::NotFound("Arquivos da versão Bedrock não encontrados".into()))?;
+        let root = state_file()?.parent().unwrap().join("bedrock").join("packages");
+        let directory = PathBuf::from(&managed.installation.directory);
+        if directory.exists() {
+            let canonical_root = tokio::fs::canonicalize(&root).await?;
+            let canonical = tokio::fs::canonicalize(&directory).await?;
+            if canonical == canonical_root || !canonical.starts_with(&canonical_root) {
+                return Err(AppError::InvalidInput("A pasta da versão está fora dos pacotes do Luxmc. Seus documentos foram preservados.".into()));
+            }
+        }
+        remove_windows_package(&managed.app_id, Some(&managed.package_version)).await?;
+        if directory.exists() {
+            let canonical_root = tokio::fs::canonicalize(&root).await?;
+            let canonical = tokio::fs::canonicalize(&directory).await?;
+            if canonical == canonical_root || !canonical.starts_with(&canonical_root) { return Err(AppError::InvalidInput("Pasta Bedrock inválida".into())); }
+            tokio::fs::remove_dir_all(canonical).await?;
+        }
+        state.managed.retain(|item| item.installation.id != instance.installation_id);
+        state.instances.retain(|item| item.profile_id != "managed" || item.installation_id != instance.installation_id);
+    } else if instance.profile_id == "windows" {
+        remove_windows_package(&instance.installation_id, None).await?;
+        state.instances.retain(|item| item.id != id);
+    } else {
+        return Err(AppError::InvalidState("Esta versão pertence a um provedor externo. Exclua a instalação nesse provedor; o Luxmc não apagou arquivos externos nem seus documentos.".into()));
+    }
+    save(&state)
+}
+
+async fn remove_windows_package(app_id: &str, version: Option<&str>) -> AppResult<()> {
+    let family = app_id.split('_').next().unwrap_or_default();
+    if !matches!(family, "Microsoft.MinecraftUWP" | "Microsoft.MinecraftWindowsBeta") || version.is_some_and(|value| value.is_empty() || value.len() > 32 || !value.bytes().all(|byte| byte.is_ascii_digit() || byte == b'.')) {
+        return Err(AppError::InvalidInput("Identidade do pacote Bedrock inválida".into()));
+    }
+    let shell = PathBuf::from(std::env::var_os("SystemRoot").ok_or_else(|| AppError::InvalidState("Windows indisponível".into()))?).join("System32/WindowsPowerShell/v1.0/powershell.exe");
+    let mut command = tokio::process::Command::new(shell);
+    command.env("LUXMC_REMOVE_FAMILY", family).env("LUXMC_REMOVE_VERSION", version.unwrap_or_default())
+        .args(["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; if(Get-Process -Name Minecraft.Windows,Minecraft.WindowsBeta,gamingservicesui -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -like 'Minecraft*'}){throw 'Feche o Minecraft Bedrock antes de desinstalar.'}; $packages=@(Get-AppxPackage -Name $env:LUXMC_REMOVE_FAMILY | Where-Object {!$env:LUXMC_REMOVE_VERSION -or $_.Version.ToString() -eq $env:LUXMC_REMOVE_VERSION}); foreach($package in $packages){Remove-AppxPackage -Package $package.PackageFullName -ErrorAction Stop}; if(Get-AppxPackage -Name $env:LUXMC_REMOVE_FAMILY | Where-Object {!$env:LUXMC_REMOVE_VERSION -or $_.Version.ToString() -eq $env:LUXMC_REMOVE_VERSION}){throw 'O pacote ainda está instalado no Windows.'}"])
+        .kill_on_drop(true);
+    #[cfg(windows)] command.creation_flags(0x08000000);
+    let output = tokio::time::timeout(std::time::Duration::from_secs(180), command.output()).await
+        .map_err(|_| AppError::InvalidState("O Windows demorou para desinstalar. Atualize a lista antes de tentar novamente.".into()))??;
+    if !output.status.success() { return Err(AppError::InvalidState(format!("O Windows não concluiu a desinstalação: {}", String::from_utf8_lossy(&output.stderr).chars().take(1000).collect::<String>()))); }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn bedrock_rename(id: String, name: String) -> AppResult<()> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().count() > 80 || name.chars().any(char::is_control) { return Err(AppError::InvalidInput("Use um nome de até 80 caracteres".into())); }
+    let _guard = STATE_LOCK.lock().await;
+    let mut state = load()?;
+    let instance = state.instances.iter_mut().find(|instance| instance.id == id)
+        .ok_or_else(|| AppError::NotFound("Instância Bedrock não encontrada".into()))?;
+    instance.name = name.into();
+    save(&state)
 }
 
 #[tauri::command]
