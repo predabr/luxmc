@@ -200,27 +200,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         />
     {/if}
     <div class={viewMode === 'grid' ? 'flex flex-1 flex-col p-5 pt-1' : 'min-w-32 flex-1'}>
-        <div class="flex items-center gap-2"><h3 class="min-w-0 flex-1 truncate text-base font-semibold text-fg"><button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "text-left focus-visible:outline-none focus-visible:underline" })} onclick={() => selectionMode ? onToggleSelect?.(profile.id) : onSelect?.(profile.id)}>{profile.name}</button></h3>{#if isActive}<span class="shrink-0 rounded-full bg-brand-500/10 px-2 py-1 text-[9px] font-bold text-brand-300">{uiText("ui.839d7fbe46b3b4d9")}</span>{/if}</div>
+        <div class="flex items-center gap-2"><h3 class="min-w-0 flex-1 truncate text-base font-semibold text-fg"><button type="button" class={launcherButton({ variant: "ghost", size: "sm", class: "h-auto min-w-0 max-w-full justify-start px-0 py-1 text-left text-base focus-visible:outline-none focus-visible:underline" })} onclick={() => selectionMode ? onToggleSelect?.(profile.id) : onSelect?.(profile.id)}>{profile.name}</button></h3>{#if isActive}<span class="shrink-0 rounded-full bg-brand-500/10 px-2 py-1 text-[9px] font-bold text-brand-300">{uiText("ui.839d7fbe46b3b4d9")}</span>{/if}</div>
         <p class="mt-1 text-xs text-fg-subtle">Minecraft {profile.mcVersion}{#if profile.loaderVersion} · {profile.loaderVersion}{/if}</p>
         {#if profile.notes}<p class="mt-2 line-clamp-1 text-xs text-fg-muted">{profile.notes}</p>{/if}
         {#if viewMode === 'grid'}
-            <div class="mt-4 grid grid-cols-3 gap-1 rounded-2xl border border-fg/10 bg-fg/[0.025] p-2">
-                <div class="min-w-0 px-2 py-2">
-                    <Clock class="mb-2 h-4 w-4 text-brand-400" />
-                    <span class="block truncate text-[10px] font-medium text-fg-muted">{uiText("ui.173500a0335fc472")}</span>
-                    <span class="mt-1 block truncate text-sm font-semibold tabular-nums text-fg">{playtime}</span>
-                </div>
-                <div class="min-w-0 border-l border-fg/10 px-2 py-2">
-                    <Box class="mb-2 h-4 w-4 text-brand-400" />
-                    <span class="block text-[10px] font-medium text-fg-muted">Mods</span>
-                    <span class="mt-1 block text-sm font-semibold tabular-nums text-fg">{profile.modCount || 0}</span>
-                </div>
-                <div class="min-w-0 border-l border-fg/10 px-2 py-2">
-                    <Cpu class="mb-2 h-4 w-4 text-brand-400" />
-                    <span class="block text-[10px] font-medium text-fg-muted">RAM</span>
-                    <span class="mt-1 block whitespace-nowrap text-sm font-semibold tabular-nums text-fg">{((profile.ramMb || 4096) / 1024).toFixed(1)} <span class="text-[10px] text-fg-muted">GB</span></span>
-                </div>
-            </div>
+            <dl class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border pt-4 text-xs">
+                <div class="flex items-center gap-1.5"><Clock class="h-3.5 w-3.5 text-fg-muted" /><dt class="sr-only">{uiText("ui.173500a0335fc472")}</dt><dd class="font-medium tabular-nums text-fg">{playtime}</dd></div>
+                <div class="flex items-center gap-1.5"><Box class="h-3.5 w-3.5 text-fg-muted" /><dt class="sr-only">Mods</dt><dd class="text-fg">{profile.modCount ?? '—'} <span class="text-fg-muted">mods</span></dd></div>
+                <div class="flex items-center gap-1.5"><Cpu class="h-3.5 w-3.5 text-fg-muted" /><dt class="sr-only">RAM alocada</dt><dd class="text-fg">{((profile.ramMb || 4096) / 1024).toFixed(1)} <span class="text-fg-muted">GB RAM</span></dd></div>
+            </dl>
             <div class="mt-3 flex items-center justify-between gap-2 text-[10px] text-fg-subtle px-0.5">
                 <span class="flex items-center gap-1.5 font-medium"><span class="h-1.5 w-1.5 rounded-full {isRunningThis ? 'bg-emerald-400 animate-pulse' : 'bg-brand-400'}"></span>{uiText("ui.3e38d7ca2ab89f80")} {lastPlayed}</span>
                 {#if profile.diskUsage}<span class="font-mono">{formatBytes(profile.diskUsage)}</span>{/if}

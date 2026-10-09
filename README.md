@@ -1,178 +1,70 @@
 <div align="center">
-  <img src="static/logo.png" alt="Luxmc Logo" width="140" />
-  <h1>Luxmc <code>v3.1.0</code></h1>
-  <p><strong>Launcher de Minecraft moderno, Linux-first e de altíssima performance.</strong></p>
-  <p><a href="https://luxmc-r92.pages.dev"><strong>🌐 Site Oficial: luxmc-r92.pages.dev</strong></a></p>
-
-  [![Release](https://img.shields.io/badge/Release-v3.1.0-emerald?style=flat&logo=github)](https://github.com/predabr/luxmc/releases/tag/v3.1.0)
-  [![Website](https://img.shields.io/badge/Website-luxmc--r92.pages.dev-10b981?style=flat&logo=cloudflare)](https://luxmc-r92.pages.dev)
-  ![Svelte](https://img.shields.io/badge/Svelte_5-FF3E00?logo=svelte&logoColor=white)
-  ![Tauri](https://img.shields.io/badge/Tauri_2-FFC131?logo=tauri&logoColor=black)
-  ![Rust](https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white)
-  ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
-  ![Linux](https://img.shields.io/badge/Linux--first-FCC624?logo=linux&logoColor=black)
-  ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white)
-  ![License](https://img.shields.io/badge/license-Proprietary-red)
+  <img src="static/logo.png" alt="Luxmc" width="120" />
+  <h1>Luxmc 3.6</h1>
+  <p>Seu Minecraft, suas instâncias e sua turma.</p>
+  <p><a href="https://luxmc-r92.pages.dev">Site oficial</a> · <a href="https://github.com/predabr/luxmc/releases/latest">Downloads</a> · <a href="SECURITY.md">Segurança</a></p>
 </div>
 
----
+Luxmc reúne versões Java, modpacks, organização de instâncias, personalização e recursos sociais. O backend usa Rust e Tauri 2; a interface usa Svelte 5 e TypeScript. O projeto tem raízes no Linux e instalador nativo para Windows.
 
-## ✨ O que é o Luxmc?
+## Instalação
 
-O **Luxmc** é um launcher de Minecraft moderno construído do zero com **Tauri 2 (Rust)** no backend e **SvelteKit + Svelte 5 Runes + TypeScript** no frontend. Projetado com prioridade máxima para ambientes Linux sem comprometer a compatibilidade nativa no Windows e macOS, o Luxmc oferece inicialização instantânea, consumo residual de memória e total controle sobre as suas instâncias de Minecraft.
+- **Windows:** [instalador oficial](https://luxmc-r92.pages.dev/download/windows).
+- **Linux:** escolha AppImage, DEB, RPM ou pacote Arch nas [releases](https://github.com/predabr/luxmc/releases/latest). Use o formato correspondente à sua distribuição.
+- **macOS:** consulte os artefatos da release. A disponibilidade de um pacote não equivale a uma validação de todas as funções naquele sistema.
 
-Todas as chamadas pesadas, verificações de arquivos, downloads paralelos e injeção de processos são executados nativamente em Rust assíncrono com Tokio, garantindo fluidez ininterrupta na interface gráfica mesmo durante o download de modpacks com centenas de mods.
+Baixe apenas dos canais oficiais. O atualizador da versão 3.6 verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. A assinatura de distribuição Ed25519 não substitui a assinatura Authenticode do Windows. Veja [SECURITY.md](SECURITY.md).
 
----
+## Biblioteca e conteúdo
 
-## 🚀 Funcionalidades da Versão 3.1.0
+Cada instância Java conserva seus mods, mundos e configurações em sua própria pasta. Crie pastas com nome e imagem para organizar a biblioteca e arraste as instâncias para dentro delas.
 
-| Recurso | Descrição |
-|---|---|
-| 🎮 **Multi-Loader Nativo** | Suporte completo a **Fabric**, **Forge**, **NeoForge**, **Quilt** e **Vanilla** com instalação em 1 clique |
-| 🛡️ **CrashDoctor™ Auto-Heal** | Diagnóstico automático de crashes, sugestões de reparo inteligente e detecção de Java incompatível |
-| 🛡️ **Mod Shield™** | Verificação prévia de integridade, compatibilidade JPMS e resolução automática de dependências ausentes |
-| 📦 **Catálogo Unificado (50k+ Mods)** | Busca e instalação direta de mods e modpacks do **Modrinth** e **CurseForge** sem abrir o navegador |
-| 🌐 **Multiplayer P2P Mesh** | Jogue mundos singleplayer com seus amigos via túnel criptografado ponto-a-ponto sem Hamachi ou abrir portas no roteador |
-| 🎨 **Estúdio 3D de Skins & Capas** | Visualizador tridimensional interativo, suporte a capas em alta definição (PNG/WebP) sem distorção e capas clássicas |
-| ☕ **Java Auto-Manager** | Download e configuração automática dos runtimes Eclipse Temurin (Java 8, 17, 21) |
-| ⚡ **Otimizador Nativo de Memória** | Gestão ativa de memória via `malloc_trim` no Linux e `EmptyWorkingSet` no Windows |
-| 🐧 **Integração Linux Completa** | Suporte refinado a **Wayland** e **X11**, **Feral GameMode**, **MangoHud** e registro automático de ícones no dock |
-| 🔒 **Zero Telemetria** | Dados de instâncias ficam no computador; contas Luxmc, skins compartilhadas e recursos sociais usam o portal quando ativados |
+O catálogo integra Modrinth e CurseForge. Importe `.mrpack` e pacotes CurseForge, confira versões e changelogs e instale o conteúdo na instância escolhida. Downloads conferem hashes quando o provedor os disponibiliza. Reparos preservam arquivos desativados pelo usuário. A disponibilidade dos arquivos depende dos provedores e das permissões de distribuição de cada autor.
 
----
+Vanilla, Fabric, Forge, NeoForge e Quilt têm fluxos próprios de preparação. Java, memória, resolução e argumentos podem ser definidos por instância. Logs, diagnósticos, backups e histórico ajudam a investigar problemas; não existe garantia de que qualquer combinação de mods funcione.
 
-## 📸 Demonstração Visual (v3.1.0)
+## Amigos e aparência
 
-<div align="center">
+Perfis públicos podem incluir nome de exibição, status, descrição, imagens e GIFs. As informações compartilhadas com amigos dependem das permissões e da conexão com o portal. Skins de contas Microsoft são sincronizadas pelo serviço oficial; capas locais não se tornam capas oficiais da conta.
 
-### Início & Central do Jogador
-![Tela Inicial](static/home.png)
+A sala LAN usa uma rede virtual criptografada. O anfitrião abre um mundo para LAN no Minecraft; o convidado usa o acesso ao mundo oferecido pelo Luxmc. Os participantes precisam usar edições, versões e mods compatíveis. Firewall, antivírus, disponibilidade do relay e condições de rede podem interferir. A estabilidade em duas redes distintas precisa ser validada com os dois computadores.
 
-### Gerenciador de Instâncias & Modpacks
-![Instâncias](static/instances.png)
+## Bedrock no Windows
 
-### Catálogo Unificado de Mods & Shaders
-![Mods](static/mods.png)
+O catálogo distingue versões estáveis, Preview e betas, além dos formatos UWP e GDK. Pacotes são obtidos dos servidores Microsoft e a instalação mantém a verificação do Windows. Uma conta offline do Luxmc não substitui uma licença de Minecraft para Windows.
 
-### Estúdio 3D de Skins & Capas Personalizadas
-![Skins](static/skins.png)
+O Windows gerencia a identidade do pacote e o local dos mundos Bedrock. Antes de trocar versões, o Luxmc preserva uma cópia dos dados existentes. Betas ou pacotes antigos podem deixar de estar disponíveis ou exigir acesso ao programa correspondente. A importação de instalações antigas do BedrockLauncher continua disponível como opção.
 
-</div>
+Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quando necessário; a primeira abertura pode incluir descompactação pelo Windows. A entrada na conta Microsoft ocorre nos serviços oficiais do Windows.
 
----
+## Interface
 
-## 📥 Como Instalar
+Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido, efeitos desativados e modo de desempenho são respeitados.
 
-### 🐧 Linux
+Capturas fornecidas pelo autor em 9 de outubro de 2026:
 
-#### 1. Arch Linux / Manjaro / EndeavourOS
-Instale diretamente pelo AUR com seu AUR helper favorito:
-```bash
-yay -S luxmc-launcher
-# ou
-paru -S luxmc-launcher
-```
+![Biblioteca](website/assets/captures-3.6/home.png)
+![Catálogo](website/assets/captures-3.6/mods.png)
+![Instâncias](website/assets/captures-3.6/instances.png)
+![Amigos](website/assets/captures-3.6/friends.png)
+![Personalização](website/assets/captures-3.6/personalizer.png)
 
-Ou instale o pacote `.pkg.tar.zst` diretamente via pacman:
-```bash
-sudo pacman -U https://github.com/predabr/luxmc/releases/latest/download/luxmc-3.1.0-1-x86_64.pkg.tar.zst
-```
+## Desenvolvimento
 
-#### 2. Instalador Automático Universal (Qualquer Distribuição Linux)
-Execute o comando de instalação oficial no terminal:
-```bash
-curl -fsSL https://luxmc-r92.pages.dev/install.sh | bash
-```
+Requisitos: Node.js 22 ou superior, pnpm, Rust e dependências nativas do Tauri. No Windows, use a toolchain MSVC e Visual Studio Build Tools. No Linux, instale GTK, WebKitGTK e demais dependências da distribuição.
 
-#### 3. AppImage Portátil
-Baixe o [Luxmc_3.1.0_amd64.AppImage](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_3.1.0_amd64.AppImage), conceda permissão de execução e inicie:
-```bash
-chmod +x Luxmc_3.1.0_amd64.AppImage
-./Luxmc_3.1.0_amd64.AppImage
-```
-
-#### 4. Ubuntu / Debian / Pop!_OS / Linux Mint
-Baixe e instale o pacote `.deb`:
-```bash
-sudo dpkg -i Luxmc_3.1.0_amd64.deb
-```
-
-#### 5. Fedora / RHEL / openSUSE
-Baixe e instale o pacote `.rpm`:
-```bash
-sudo rpm -i Luxmc-3.1.0-1.x86_64.rpm
-```
-
----
-
-### 🪟 Windows
-
-Baixe o instalador oficial executável:
-- **Instalador NSIS**: [Lux MC Launcher.exe](https://luxmc-r92.pages.dev/download/windows)
-
-Dê um duplo clique no instalador e siga o assistente. O Luxmc configurará automaticamente os atalhos da área de trabalho e menu Iniciar.
-
----
-
-### 🍎 macOS
-
-- **Universal DMG (Apple Silicon & Intel)**: [Luxmc_3.1.0_universal.dmg](https://github.com/predabr/luxmc/releases/latest/download/Luxmc_3.1.0_universal.dmg)
-
-Abra o arquivo `.dmg` e arraste o **Luxmc** para a sua pasta **Aplicativos**.
-
----
-
-## 🏗️ Estrutura do Projeto
-
-```
-Luxmc/
-├── src/                        # Interface SvelteKit (Svelte 5 Runes + TypeScript + Tailwind)
-│   ├── routes/                 # Rotas: / (home), /instances, /mods, /skins, /friends, /news...
-│   └── lib/                    # Componentes modulares, stores reativas, API wrappers Tauri
-├── src-tauri/                  # Backend Nativo Rust (Tauri 2)
-│   └── src/
-│       ├── commands/           # Handlers expostos com validação estrita de tipos
-│       ├── core/               # Motores de inicialização, downloaders paralelos, Java manager
-│       ├── db/                 # Banco local SQLite (perfis, mods, skins, histórico, logs)
-│       └── network/            # Túnel P2P Mesh, status de servidores e ping nativo
-├── packaging/                  # Especificações de empacotamento (Arch PKGBUILD, DEB, RPM, NSIS)
-├── static/                     # Recursos gráficos e capturas de tela do launcher
-└── website/                    # Portal oficial estático e documentação
-```
-
----
-
-## 🛠️ Compilação e Desenvolvimento Local
-
-### Pré-requisitos
-- **Node.js**: `>= 22`
-- **pnpm**: `>= 10`
-- **Rust**: Versão estável via `rustup`
-
-```bash
-# 1. Instalar dependências de build
+```sh
 pnpm install
-
-# 2. Executar em modo de desenvolvimento com hot-reload
-pnpm tauri dev
-
-# 3. Verificação de tipos no frontend
 pnpm check
-
-# 4. Verificação de integridade no Rust
+pnpm build
 cargo check --manifest-path src-tauri/Cargo.toml
-
-# 5. Gerar pacote de lançamento da sua plataforma atual
-pnpm tauri build
+pnpm tauri dev
 ```
 
----
+O site usa fontes TypeScript em `site-client/` e `site-server/`; `pnpm build:website` gera os arquivos em `website/`. `pnpm test:website` valida contas, catálogo, downloads, mídia e interface. O comando de build do Windows é `pnpm build:windows`.
 
-## 📄 Licença
+## Licença e identidade
 
-Proprietário — © 2026-2026 Luxmc Contributors. Todos os direitos reservados.
+O repositório público permite auditoria e estudo. A licença própria em [LICENSE](LICENSE) restringe revenda e uso indevido da identidade visual. Código público pode ser copiado; nenhuma proteção técnica elimina essa possibilidade. Versões modificadas devem respeitar os termos e não se apresentar como distribuição oficial. Consulte [BRANDING.md](BRANDING.md).
 
-<div align="center">
-  <sub>Construído com excelência para a comunidade global de Minecraft.</sub>
-</div>
+Bibliotecas, componentes de rede, conteúdo dos packs, imagens dos usuários e marcas de terceiros mantêm suas licenças e titulares. Luxmc não é um produto oficial de Minecraft nem é aprovado ou associado à Mojang ou à Microsoft.

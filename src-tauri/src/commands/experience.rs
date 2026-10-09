@@ -42,15 +42,26 @@ pub async fn performance_history() -> AppResult<Value> {
 #[tauri::command]
 pub async fn verify_pack_download(path: String, size: u64, sha1: String) -> AppResult<()> {
     let base = directories::ProjectDirs::from("io","github","Luxmc").ok_or_else(|| AppError::InvalidState("Cache indisponível".into()))?;
-    let root = tokio::fs::canonicalize(base.cache_dir().join("modpacks")).await?;
-    let target = tokio::fs::canonicalize(path).await?;
-    if !target.starts_with(&root) { return Err(AppError::InvalidInput("Arquivo fora do cache de downloads".into())); }
+    let cache = base.cache_dir().join("modpacks");
+    let target = tokio::task::spawn_blocking(move || checked_pack_path(&cache, std::path::Path::new(&path))).await.map_err(|error| AppError::Internal(error.to_string()))??;
     if !sha1.is_empty() && (sha1.len() != 40 || !sha1.chars().all(|c| c.is_ascii_hexdigit())) { return Err(AppError::InvalidInput("Hash do provedor inválido".into())); }
     if !crate::core::mods::pack_download::verify_existing(&target, (size > 0).then_some(size), (!sha1.is_empty()).then_some(sha1.as_str()), None, true).await {
         tokio::fs::remove_file(&target).await?;
         return Err(AppError::InvalidInput("Falha na integridade do download: tamanho, hash ou estrutura divergente. O arquivo foi descartado; use Retomar para baixar uma cópia correta.".into()));
     }
     Ok(())
+}
+
+fn checked_pack_path(root: &std::path::Path, path: &std::path::Path) -> AppResult<std::path::PathBuf> {
+    let root = root.canonicalize()?;
+    let target = path.canonicalize()?;
+    if !target.is_file() { return Err(AppError::InvalidInput("O download não é um arquivo".into())); }
+    #[cfg(windows)]
+    let contained = target.ancestors().skip(1).any(|parent| same_file::is_same_file(parent, &root).unwrap_or(false));
+    #[cfg(not(windows))]
+    let contained = target.starts_with(&root);
+    if !contained { return Err(AppError::InvalidInput("O arquivo não pertence ao cache de modpacks. Retome a instalação para baixar uma cópia no local correto.".into())); }
+    Ok(target)
 }
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
@@ -197,6 +208,30 @@ pub async fn theme_import(path: String) -> AppResult<Value> {
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    #[ignore = "Downloads a real provider archive for an explicit integration check"]
+    async fn fabulously_optimized_download_passes_native_integrity_check() {
+        let state = crate::state::AppState::default();
+        let versions: serde_json::Value = state.http.get("https://api.modrinth.com/v2/project/fabulously-optimized/version").send().await.unwrap().error_for_status().unwrap().json().await.unwrap();
+        let file = versions.as_array().unwrap().iter().flat_map(|version| version["files"].as_array().unwrap()).find(|file| file["filename"].as_str().is_some_and(|name| name.ends_with(".mrpack"))).unwrap();
+        let path = crate::commands::mods::mods_download_to_temp_core(&state, file["url"].as_str().unwrap().into(), "luxmc-regression-FO.mrpack".into()).await.unwrap();
+        super::verify_pack_download(path, file["size"].as_u64().unwrap(), file["hashes"]["sha1"].as_str().unwrap().into()).await.unwrap();
+    }
+    #[test]
+    fn pack_cache_accepts_real_descendants_and_rejects_siblings() {
+        let temporary = tempfile::tempdir().unwrap();
+        let cache = temporary.path().join("Modpacks");
+        std::fs::create_dir_all(cache.join("job")).unwrap();
+        let file = cache.join("job/pack.mrpack");
+        std::fs::write(&file, b"fixture").unwrap();
+        assert!(super::checked_pack_path(&cache, &file).is_ok());
+        #[cfg(windows)]
+        assert!(super::checked_pack_path(&cache, &std::path::PathBuf::from(file.to_string_lossy().to_uppercase())).is_ok());
+        let outside = temporary.path().join("other.mrpack");
+        std::fs::write(&outside, b"fixture").unwrap();
+        assert!(super::checked_pack_path(&cache, &outside).is_err());
+        assert!(super::checked_pack_path(&cache, &cache).is_err());
+    }
     #[test]
     fn themes_do_not_import_account_or_execution_settings() {
         let result = super::appearance(&serde_json::json!({"theme":"default-dark","javaPath":"evil","activeAccountId":"secret","jvmArgs":"evil"})).unwrap();

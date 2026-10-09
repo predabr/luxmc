@@ -159,7 +159,9 @@ async function setupLauncherDemo(page, { login = false, room = false } = {}) {
             if (command === 'namemc_open_picker' || command === 'namemc_close_picker') return null;
             if (command === 'namemc_import_skin') return { skinId: '63455d7069b397c2', skinUrl: textures.alex };
             if (command === 'skins_list') return JSON.parse(localStorage.getItem('luxmc_saved_skins') || '[]').map(item => ({ ...item, skinUrl: item.url, modelType: item.model === 'alex' ? 'slim' : 'classic', avatarUrl: textures.grass, isCustom: true, createdAt: timestamp }));
-            if (command === 'capes_list') return [];
+            if (command === 'capes_list' || command === 'performance_history' || command === 'dependency_graph') return [];
+            if (command === 'bedrock_state') return {provider:null,installations:[],instances:[],warning:null,supported:true};
+            if (command === 'bedrock_versions') return [{id:'gdk-release-1.26.52.3',version:'1.26.52.3',channel:'release',packageType:'GDK',packageVersion:'1.26.5203.0',urls:[]},{id:'uwp-validation',version:'1.20.81.01',channel:'release',packageType:'UWP',packageVersion:'1.20.8101.0',urls:[]}];
             if (command === 'minecraft_uuid') return account.uuid;
             if (command === 'p2p_scan_lan_worlds') return [{ host: '127.0.0.1', port: 54321, motd: 'Mundo de demonstração' }];
             if (command === 'p2p_get_local_info') return { ip: '127.0.0.1', port: 54321 };

@@ -46,6 +46,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import MicrosoftLogo from "$lib/components/ui/MicrosoftLogo.svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
+	import BedrockLibrary from "$lib/components/instances/BedrockLibrary.svelte";
 	import { account, saveCurrentAccount, loadCurrentAccount } from "$lib/stores/account.svelte";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -1108,6 +1109,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				{/if}
 			</section>
 
+			<BedrockLibrary />
 			<section class="space-y-4 pb-8">
 
 				<div class="space-y-3">

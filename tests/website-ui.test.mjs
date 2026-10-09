@@ -26,7 +26,7 @@ test("the home page exposes the actual launcher and download without WebGL", () 
     assert.ok(document.querySelector("#heroPrimaryBtn").href);
     assert.equal(
       document.querySelector(".hero-capture img").getAttribute("src"),
-      "assets/launcher-home.webp",
+      "assets/captures-3.6/home.png",
     );
     assert.equal(
       document.querySelectorAll("#worldStage,[data-skin-scene],.voxel-fallback")
@@ -232,4 +232,28 @@ test("motion preferences and pause reveal terminal content and cancel pending an
       window.close();
     }
   }
+});
+
+test("a pending tour image cannot replace the screen selected afterward", async () => {
+  const dom = createDom('<body><button data-product-screen="/one.png" aria-pressed="true"></button><button data-product-screen="/two.png" aria-pressed="false"></button><img id="productTourImage" src="/one.png"><span id="productScreenLabel"></span></body>');
+  const window = dom.window;
+  const requests = [];
+  window.matchMedia = () => ({ matches: true, addEventListener() {} });
+  window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+  window.Image = class { decode() { return new Promise((resolve) => requests.push(resolve)); } };
+  try {
+    window.eval(read("visuals/motion.js"));
+    const buttons = window.document.querySelectorAll("[data-product-screen]");
+    buttons[1].click();
+    buttons[0].click();
+    requests[0]();
+    await settle();
+    assert.match(window.document.querySelector("#productTourImage").src, /one\.png$/);
+    assert.equal(buttons[0].getAttribute("aria-pressed"), "true");
+    buttons[1].click();
+    requests[1]();
+    await settle();
+    assert.match(window.document.querySelector("#productTourImage").src, /two\.png$/);
+    assert.equal(buttons[1].getAttribute("aria-pressed"), "true");
+  } finally { window.close(); }
 });

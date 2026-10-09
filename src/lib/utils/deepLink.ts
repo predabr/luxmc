@@ -6,7 +6,8 @@ export type DeepLinkAction =
     | { kind: "skin"; url: string; model: "slim" | "classic" }
     | { kind: "server"; address: string }
     | { kind: "friend"; code: string }
-    | { kind: "world"; invitation: string };
+    | { kind: "world"; invitation: string }
+    | { kind: "lan"; invitation: string };
 
 export function parseDeepLink(value: string): DeepLinkAction {
     if (value.length > 8192) throw new Error("Link muito longo.");
@@ -31,6 +32,11 @@ export function parseDeepLink(value: string): DeepLinkAction {
         return { kind: "skin", url: image.href, model };
     }
     if (url.hostname === "join") {
+        if (url.pathname === "/lan") {
+            const invitation = required("invitation");
+            if (!/^luxmc-lan:[A-Za-z0-9_-]{1,1000}$/.test(invitation)) throw new Error("Convite de rede inválido.");
+            return { kind: "lan", invitation };
+        }
         if (url.pathname === "/world") {
             const invitation = required("invitation");
             if (!/^(?:LUX-[0-9A-F]{4}\|)?luxmc-world:[A-Za-z0-9_-]{1,4096}$/.test(invitation)) {

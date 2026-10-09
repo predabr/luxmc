@@ -2734,6 +2734,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "rustls",
+ "rustls-native-certs",
  "tokio",
  "tokio-rustls",
  "tower-service",
@@ -3648,7 +3649,7 @@ checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
 name = "luxmc"
-version = "3.5.0"
+version = "3.6.0"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -3677,10 +3678,13 @@ dependencies = [
  "memmap2",
  "open",
  "parking_lot",
+ "quick-xml 0.41.0",
  "rand 0.8.8",
  "regex",
  "reqwest 0.12.28",
  "rfd 0.15.4",
+ "ring",
+ "same-file",
  "semver",
  "serde",
  "serde_json",
@@ -3700,6 +3704,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tauri-plugin-single-instance",
  "tauri-plugin-store",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "toml 0.8.2",
@@ -3709,6 +3714,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+ "walkdir",
  "which",
  "winreg 0.52.0",
  "xxhash-rust",
@@ -5778,6 +5784,7 @@ dependencies = [
  "pin-project-lite",
  "quinn",
  "rustls",
+ "rustls-native-certs",
  "rustls-pki-types",
  "serde",
  "serde_json",

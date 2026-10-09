@@ -14,6 +14,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import InstanceGrid from "$lib/components/instances/InstanceGrid.svelte";
 	import InstanceFilters from "$lib/components/instances/InstanceFilters.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
+	import BedrockLibrary from "$lib/components/instances/BedrockLibrary.svelte";
 	import UniversalImporterModal from "$lib/components/instances/UniversalImporterModal.svelte";
 	import FilterableVersionSelect from "$lib/components/ui/FilterableVersionSelect.svelte";
 	import {
@@ -947,6 +948,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		bind:searchInput
 	/>
 
+	<BedrockLibrary />
 	<InstanceGrid
 		instances={filteredInstances}
 		{viewMode}

@@ -230,9 +230,19 @@ pub async fn verify_existing(path: &Path, size: Option<u64>, sha1: Option<&str>,
         let signature = fingerprint(&before);
         let key = format!("{:?}:{signature}:{sha1:?}:{sha512:?}:{archive}", path);
         if cfg!(unix) && (sha1.is_some() || sha512.is_some()) && VERIFIED.lock().is_ok_and(|cache| cache.contains(&key)) { return true; }
-        let mut bytes = Vec::new();
-        if file.read_to_end(&mut bytes).is_err() || !verify(&bytes, size, sha1.as_deref(), sha512.as_deref())
-            || (archive && zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_err()) { return false; }
+        if sha1.is_some() || sha512.is_some() {
+            let mut first = sha1::Sha1::new();
+            let mut second = sha2::Sha512::new();
+            let mut buffer = [0u8; 65536];
+            loop {
+                let count = match file.read(&mut buffer) { Ok(0) => break, Ok(count) => count, Err(_) => return false };
+                if sha1.is_some() { first.update(&buffer[..count]); }
+                if sha512.is_some() { second.update(&buffer[..count]); }
+            }
+            if sha1.as_ref().is_some_and(|hash| !format!("{:x}", first.finalize()).eq_ignore_ascii_case(hash))
+                || sha512.as_ref().is_some_and(|hash| !format!("{:x}", second.finalize()).eq_ignore_ascii_case(hash)) { return false; }
+        }
+        if archive && zip::ZipArchive::new(std::io::BufReader::new(&file)).is_err() { return false; }
         let Ok(after) = file.metadata() else { return false; };
         if signature != fingerprint(&after) { return false; }
         if cfg!(unix) && (sha1.is_some() || sha512.is_some()) {

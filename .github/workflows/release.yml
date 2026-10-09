@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v3.5.0)"
+        description: "Release tag (e.g. v3.6.0)"
         required: true
-        default: "v3.5.0"
+        default: "v3.6.0"
       reuse_assets:
         description: "Verify and publish an existing draft without rebuilding installers"
         type: boolean
@@ -296,7 +296,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.create-release.outputs.tag }}
 
       - uses: actions/setup-node@v4
         with:
@@ -329,5 +329,25 @@ jobs:
           gh api "repos/$REPOSITORY/releases/$RELEASE_ID" > release.json
           node ../scripts/build-release-manifest.mjs release.json .
           sha256sum --check SHA256SUMS
-          gh release upload "$RELEASE_TAG" SHA256SUMS latest.json --repo "$REPOSITORY" --clobber
+      - name: Sign verified release manifests
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.LUXMC_RELEASE_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$RELEASE_SIGNING_KEY"
+          key="$RUNNER_TEMP/luxmc-release-signing.pem"
+          umask 077
+          printf '%s' "$RELEASE_SIGNING_KEY" > "$key"
+          LUXMC_RELEASE_SIGNING_KEY="$key" node scripts/sign-release.mjs artifacts
+          rm -f "$key"
+
+      - name: Publish signed release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.create-release.outputs.tag }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          cd artifacts
+          gh release upload "$RELEASE_TAG" SHA256SUMS SHA256SUMS.sig latest.json latest.json.sig --repo "$REPOSITORY" --clobber
           gh release edit "$RELEASE_TAG" --repo "$REPOSITORY" --draft=false --latest

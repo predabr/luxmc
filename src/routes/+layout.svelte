@@ -3,6 +3,7 @@ import { APP_VERSION } from "$lib/version";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
 	import { scrollActivity } from "$lib/utils/scrollActivity";
+	import { pageMotion } from "$lib/actions/pageMotion";
 	import { resolveWallpaperImageUrl } from "$lib/utils/wallpaperSource";
 	import VideoWallpaper from "$lib/components/visuals/VideoWallpaper.svelte";
     import ShaderScenery from "$lib/components/visuals/ShaderScenery.svelte";
@@ -16,6 +17,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { afterNavigate } from "$app/navigation";
 	import Sidebar from "$lib/components/layout/Sidebar.svelte";
 	import PublicProfileModal from "$lib/components/friends/PublicProfileModal.svelte";
+	import BedrockDownloadStatus from "$lib/components/instances/BedrockDownloadStatus.svelte";
     import ModpackDownloadStatus from "$lib/components/mods/ModpackDownloadStatus.svelte";
     import RoomPreparationStatus from "$lib/components/friends/RoomPreparationStatus.svelte";
     import Toasts from "$lib/components/ui/Toasts.svelte";
@@ -834,7 +836,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		</div>
 	</div>
 {:else if !account.value}
-	<div class="relative isolate flex h-full w-full items-center justify-center bg-bg/90" in:fade={{ easing: quintOut, duration: 220 }}>
+	<div use:pageMotion={page.url.pathname} class="relative isolate flex h-full w-full items-center justify-center bg-bg/90" in:fade={{ easing: quintOut, duration: 220 }}>
         <ShaderScenery background scene="forest" enabled={settings.value.animations !== false && !appState.performanceMode} />
 		{@render children?.()}
 	</div>
@@ -842,8 +844,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	<div class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ easing: quintOut, duration: 150 }}>
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-h-0 min-w-0 flex-1 flex-col relative z-10">
-			<main use:scrollActivity data-scroll-root class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto {page.url.pathname === "/" ? "p-0" : "px-6 py-6"} custom-scrollbar custom-scrollbar-root relative">
-				<div class="mx-auto {page.url.pathname === "/" ? "" : "max-w-[1600px]"} min-h-full flex flex-col w-full">
+			<main use:scrollActivity data-scroll-root data-refined-ui={page.url.pathname !== '/skins'} class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto {page.url.pathname === "/" ? "p-0" : "px-6 py-6"} custom-scrollbar custom-scrollbar-root relative">
+				<div use:pageMotion={page.url.pathname} data-page-route={page.url.pathname} class="mx-auto {page.url.pathname === "/" ? "" : "max-w-[1600px]"} min-h-full flex flex-col w-full">
 					{@render children?.()}
 				</div>
 			</main>
@@ -863,6 +865,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </ErrorBoundary>
 
 <ModpackDownloadStatus />
+<BedrockDownloadStatus />
 <RoomPreparationStatus />
 
 <PublicProfileModal />

@@ -2,6 +2,8 @@ const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const toggle = document.getElementById("motionToggle") as HTMLButtonElement;
 const events = new AbortController();
 let paused = false, scrollRequest = 0;
+let tourAnimation: Animation | null = null;
+let screenRequest = 0;
 const text = (key: any, fallback: any) => window.LuxI18n?.t(key) || fallback;
 function updateMotion() {
     const stopped = paused || reducedMotion.matches || document.hidden;
@@ -17,6 +19,8 @@ function updateMotion() {
         toggle.disabled = reducedMotion.matches;
     }
     if (stopped) {
+        tourAnimation?.cancel();
+        tourAnimation = null;
         diagnosticTimers.forEach(clearTimeout);
         diagnosticTimers = [];
         diagnostic?.querySelectorAll<HTMLElement>(".diagnostic-line").forEach((line: any) => {
@@ -46,19 +50,36 @@ const revealObserver = new IntersectionObserver((entries: any) => {
         }
 }, { threshold: 0.15 });
 document
-    .querySelectorAll<HTMLElement>(".section-heading,.diagnostic-copy,.skin-preview-copy,.social-copy")
-    .forEach((element: any) => revealObserver.observe(element));
+    .querySelectorAll<HTMLElement>(".section-heading,.diagnostic-copy,.skin-preview-copy,.social-copy,.download-card,.product-step")
+    .forEach((element, index) => {
+        element.classList.add("motion-item");
+        element.style.setProperty("--motion-delay", `${(index % 3) * 55}ms`);
+        revealObserver.observe(element);
+    });
 const buttons = [...document.querySelectorAll<HTMLElement>("[data-product-screen]")], image = document.getElementById("productTourImage") as HTMLImageElement;
-function selectScreen(index: any) {
+async function selectScreen(index: number) {
     const selected = buttons[index];
-    if (!selected || !image || selected.getAttribute("aria-pressed") === "true")
-        return;
-    image.src = selected.dataset.productScreen || image.src;
+    if (!selected || !image) return;
+    const request = ++screenRequest;
+    if (selected.getAttribute("aria-pressed") === "true") return;
+    const source = selected.dataset.productScreen || image.src;
+    const preload = new Image();
+    preload.src = source;
+    try { await preload.decode(); } catch { return; }
+    if (request !== screenRequest) return;
+    tourAnimation?.cancel();
+    image.src = source;
     image.alt = selected.dataset.productAlt || '';
     buttons.forEach((button: any) => button.setAttribute("aria-pressed", String(button === selected)));
     const label = document.getElementById("productScreenLabel") as HTMLElement;
     if (label)
-        label.textContent = ["01 / INSTANCES", "02 / CONTENT", "03 / SKIN STUDIO"][index];
+        label.textContent = selected.dataset.productLabel || ["01 / INSTANCES", "02 / CONTENT", "03 / SKIN STUDIO"][index] || '';
+    if (!paused && !reducedMotion.matches && !document.hidden) {
+        tourAnimation = image.animate([
+            { opacity: 0.35, transform: "translateY(6px) scale(.995)" },
+            { opacity: 1, transform: "translateY(0) scale(1)" }
+        ], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
+    }
 }
 buttons.forEach((button: any, index: any) => button.addEventListener("click", () => {
     selectScreen(index);
@@ -114,6 +135,8 @@ window.addEventListener("pagehide", (event: any) => {
     if (event.persisted)
         return;
     events.abort();
+    ++screenRequest;
+    tourAnimation?.cancel();
     cancelAnimationFrame(scrollRequest);
     diagnosticTimers.forEach(clearTimeout);
     revealObserver.disconnect();

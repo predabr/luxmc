@@ -122,6 +122,18 @@ async fn dispatch_command(
             Ok(Value::Null)
         },
         "app_info" => Ok(serde_json::to_value(crate::commands::system::app_info()).map_err(|e| e.to_string())?),
+        "bedrock_versions" => Ok(serde_json::to_value(crate::commands::bedrock_catalog::bedrock_versions().await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?),
+        "bedrock_state" => Ok(serde_json::to_value(crate::commands::bedrock::bedrock_state().await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?),
+        "bedrock_install" => {
+            let id=args.get("versionId").and_then(|value|value.as_str()).ok_or("Missing version")?.to_string();
+            let name=args.get("name").and_then(|value|value.as_str()).unwrap_or("Bedrock").to_string();
+            crate::commands::bedrock_catalog::bedrock_install_core(None,id,name).await.map_err(|error|error.to_string())?;
+            Ok(Value::Null)
+        },
+        "bedrock_open" => {
+            let id=args.get("instanceId").and_then(|value|value.as_str()).map(str::to_owned);
+            Ok(serde_json::to_value(crate::commands::bedrock::bedrock_open(id).await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?)
+        },
         "optimizer_trim_memory" => {
             let res = crate::core::native_rust::trim_memory_native();
             Ok(Value::Bool(res))

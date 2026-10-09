@@ -120,8 +120,8 @@ async function initGitHubRelease() {
         }
         if (!data)
             throw new Error("Release indisponível");
-        const remoteTag = typeof data.tag_name === "string" ? data.tag_name : "v3.5.0";
-        const siteTag = "v3.5.0";
+        const remoteTag = typeof data.tag_name === "string" ? data.tag_name : "v3.6.0";
+        const siteTag = "v3.6.0";
         const remoteParts = remoteTag.replace(/^v/, "").split(".").map(Number);
         const siteParts = siteTag.slice(1).split(".").map(Number);
         const difference = siteParts.map((part: any, index: any) => part - (remoteParts[index] || 0)).find((value: any) => value !== 0) || 0;
@@ -213,7 +213,7 @@ async function initGitHubRelease() {
     }
     catch (e: any) {
         document.querySelectorAll<HTMLElement>(".live-version-tag").forEach((el: any) => {
-            el.textContent = window.LuxLatestVersion || "v3.5.0";
+            el.textContent = window.LuxLatestVersion || "v3.6.0";
         });
         console.debug("GitHub API fetch fallback:", e);
     }

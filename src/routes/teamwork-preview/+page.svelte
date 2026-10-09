@@ -26,7 +26,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { playSound } from "$lib/utils/sound";
 	import Button from "$lib/components/ui/Button.svelte";
 	import MeshPanel from "$lib/components/friends/MeshPanel.svelte";
-	import { joinTunnel } from "$lib/api/tunnel";
+	import { goto } from "$app/navigation";
+	import { deepLinks } from "$lib/stores/deepLinks.svelte";
+	import { parseDeepLink } from "$lib/utils/deepLink";
 
 	let hostInfo = $state<HostLinkInfo | null>(null);
 	let loadingHost = $state(false);
@@ -121,13 +123,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		}
 
 		try {
-			const invitation = raw.startsWith("luxmc://") ? new URL(raw).searchParams.get("invitation") : raw;
-			if (!invitation?.startsWith("luxmc-world:") && !invitation?.startsWith("LUX-")) {
-				toast(uiText("ui.23493da434a2283d"), "info");
-				return;
-			}
-			await joinTunnel(invitation);
-			toast(uiText("ui.55329aa25f36055f"), "success");
+			const action = raw.startsWith("luxmc://") ? parseDeepLink(raw) : null;
+			const invitation = action?.kind === "lan" ? action.invitation : raw;
+			if (!invitation.startsWith("luxmc-lan:")) throw new Error("Peça um novo convite da rede LAN virtual.");
+			deepLinks.lan = invitation;
+			await goto("/hosting");
 		} catch (error) {
 			toast(uiText("ui.1b48018eeccbf815", {arg0: (String(error))}), "error");
 		}

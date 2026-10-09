@@ -35,3 +35,8 @@ __pycache__/
 
 /src-tauri/binaries/
 /src-tauri/repair-helper/target/
+*.pem
+*.key
+*.pfx
+*.p12
+!packaging/security/release-public-key.pem

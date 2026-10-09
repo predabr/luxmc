@@ -1,10 +1,24 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
+#[cfg(target_os = "linux")]
+use std::path::PathBuf;
 use tauri::Emitter;
 use url::Url;
 
 use crate::error::{AppError, AppResult};
 
 pub(super) const MAX_UPDATE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+fn verify_release_signature(manifest: &[u8], encoded: &[u8], public_key: &[u8]) -> AppResult<()> {
+    use base64::Engine;
+    let signature = std::str::from_utf8(encoded).ok()
+        .filter(|value| value.len() <= 128)
+        .and_then(|value| base64::engine::general_purpose::STANDARD.decode(value.trim()).ok())
+        .filter(|value| value.len() == 64)
+        .ok_or_else(|| AppError::InvalidInput("Assinatura da atualização inválida.".into()))?;
+    ring::signature::UnparsedPublicKey::new(&ring::signature::ED25519, public_key)
+        .verify(manifest, &signature)
+        .map_err(|_| AppError::InvalidInput("A assinatura oficial da atualização não confere. Nenhum instalador será executado.".into()))
+}
 
 #[cfg(target_os = "linux")]
 fn replace_appimage(staged: &Path, target: &Path) -> AppResult<Option<PathBuf>> {
@@ -40,11 +54,18 @@ fn replace_appimage(staged: &Path, target: &Path) -> AppResult<Option<PathBuf>> 
 fn is_official_release_url(url: &Url) -> bool {
     url.scheme() == "https"
         && url.host_str() == Some("github.com")
-        && url.path().starts_with("/predabr/luxmc/releases/")
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.port().is_none()
+        && (url.path().starts_with("/predabr/luxmc/releases/download/")
+            || url.path().starts_with("/predabr/luxmc/releases/latest/download/"))
 }
 
 fn is_allowed_redirect_url(url: &Url) -> bool {
     url.scheme() == "https"
+        && url.username().is_empty()
+        && url.password().is_none()
+        && url.port().is_none()
         && matches!(
             url.host_str(),
             Some(
@@ -274,6 +295,19 @@ pub async fn app_perform_update(
     use futures_util::StreamExt;
     let mut chunks = response.bytes_stream(); let mut manifest = Vec::new();
     while let Some(chunk) = chunks.next().await { let chunk=chunk?; if manifest.len()+chunk.len()>256*1024 {return Err(AppError::InvalidInput("Manifesto acima do limite".into()));} manifest.extend_from_slice(&chunk); }
+    let signature_url = source_url.join("SHA256SUMS.sig").map_err(|e| AppError::InvalidInput(e.to_string()))?;
+    let signature_response = client.get(signature_url).send().await?.error_for_status()?;
+    if !is_allowed_redirect_url(signature_response.url()) || signature_response.content_length().is_some_and(|length| length > 128) {
+        return Err(AppError::InvalidInput("Origem ou tamanho da assinatura inválido.".into()));
+    }
+    let mut signature_stream = signature_response.bytes_stream();
+    let mut signature = Vec::new();
+    while let Some(chunk) = signature_stream.next().await {
+        let chunk = chunk?;
+        if signature.len() + chunk.len() > 128 { return Err(AppError::InvalidInput("Assinatura acima do limite.".into())); }
+        signature.extend_from_slice(&chunk);
+    }
+    verify_release_signature(&manifest, &signature, include_bytes!("../../../packaging/security/release-public-key.bin"))?;
     let manifest = String::from_utf8(manifest).map_err(|e| AppError::InvalidInput(e.to_string()))?;
     let expected = checksum_entry(&manifest,&file_name)?;
     let verification_path = temp_file_path.clone();
@@ -477,6 +511,31 @@ mod tests {
                 .unwrap();
         assert!(!is_official_release_url(&url));
         assert!(!is_allowed_redirect_url(&url));
+    }
+
+    #[test]
+    fn rejects_credentials_ports_and_release_pages() {
+        for value in [
+            "https://attacker@github.com/predabr/luxmc/releases/download/v3.6.0/a.exe",
+            "https://github.com:8443/predabr/luxmc/releases/download/v3.6.0/a.exe",
+            "https://github.com/predabr/luxmc/releases/tag/v3.6.0",
+            "https://github.com/predabr/luxmc/releases/download/../../other/a.exe",
+        ] { assert!(!is_official_release_url(&Url::parse(value).unwrap())); }
+    }
+
+    #[test]
+    fn signature_rejects_tampering_and_unknown_signers() {
+        use base64::Engine;
+        use ring::signature::KeyPair;
+        let random = ring::rand::SystemRandom::new();
+        let document = ring::signature::Ed25519KeyPair::generate_pkcs8(&random).unwrap();
+        let key = ring::signature::Ed25519KeyPair::from_pkcs8(document.as_ref()).unwrap();
+        let content = b"official hash manifest";
+        let encoded = base64::engine::general_purpose::STANDARD.encode(key.sign(content).as_ref());
+        assert!(verify_release_signature(content, encoded.as_bytes(), key.public_key().as_ref()).is_ok());
+        assert!(verify_release_signature(b"changed manifest", encoded.as_bytes(), key.public_key().as_ref()).is_err());
+        assert!(verify_release_signature(content, encoded.as_bytes(), include_bytes!("../../../packaging/security/release-public-key.bin")).is_err());
+        assert!(verify_release_signature(content, b"invalid", key.public_key().as_ref()).is_err());
     }
 
     #[cfg(target_os = "linux")]

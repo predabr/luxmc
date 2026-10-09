@@ -10,6 +10,11 @@ describe("portal protocol", () => {
         const url = "https://example.org/skin.png?version=2&name=Alex";
         expect(parseDeepLink(`luxmc://skin/apply?${new URLSearchParams({ url, model: "slim" })}`)).toEqual({ kind: "skin", url, model: "slim" });
     });
+    it("opens a LAN invitation for review without treating it as a server address", () => {
+        expect(parseDeepLink("luxmc://join/lan?invitation=luxmc-lan:private_payload")).toEqual({ kind: "lan", invitation: "luxmc-lan:private_payload" });
+        expect(() => parseDeepLink("luxmc://join/lan?invitation=luxmc-world:old")).toThrow();
+        expect(() => parseDeepLink("luxmc://join/lan?invitation=a&invitation=b")).toThrow();
+    });
     it("accepts modern and legacy server links and IPv6", () => {
         expect(parseDeepLink("luxmc://join/server?ip=play.example.org&port=25566")).toEqual({ kind: "server", address: "play.example.org:25566" });
         expect(parseDeepLink("luxmc://join/play.example.org:25565")).toEqual({ kind: "server", address: "play.example.org:25565" });

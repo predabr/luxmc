@@ -1,0 +1,10 @@
+import { githubRequest, githubToken } from './github-authenticated.mjs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
+const repository='predabr/luxmc';
+const enabled=await githubRequest(`repos/${repository}`,{method:'PATCH',body:{security_and_analysis:{secret_scanning:{status:'enabled'},secret_scanning_push_protection:{status:'enabled'}}}});
+await githubRequest(`repos/${repository}/private-vulnerability-reporting`,{method:'PUT'});
+execFileSync(join(process.env.TEMP,'luxmc-github-cli/bin/gh.exe'),['secret','set','LUXMC_RELEASE_SIGNING_KEY','--repo',repository],{input:readFileSync(join(homedir(),'.codex/luxmc-release/signing-key.pem')),windowsHide:true,env:{...process.env,GH_TOKEN:githubToken()},stdio:['pipe','pipe','pipe']});
+console.log(JSON.stringify({publicRepository:!enabled.private,secretScanning:enabled.security_and_analysis?.secret_scanning?.status,pushProtection:enabled.security_and_analysis?.secret_scanning_push_protection?.status,privateReporting:true,releaseSigningSecretConfigured:true}));

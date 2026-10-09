@@ -4,7 +4,6 @@ import { deepLinks } from "$lib/stores/deepLinks.svelte";
 import { friendsState } from "$lib/stores/friends.svelte";
 import { joinWorld } from "./directJoin";
 import { parseDeepLink } from "./deepLink";
-import { joinTunnel } from "$lib/api/tunnel";
 
 export async function handleDeepLink(value: string): Promise<void> {
     const action = parseDeepLink(value);
@@ -16,9 +15,12 @@ export async function handleDeepLink(value: string): Promise<void> {
         await goto("/skins");
     } else if (action.kind === "server") {
         await joinWorld(action.address);
+    } else if (action.kind === "lan") {
+        deepLinks.lan = action.invitation;
+        await goto("/hosting");
     } else if (action.kind === "world") {
-        await joinTunnel(action.invitation);
-        await goto("/friends");
+        await goto("/hosting");
+        throw new Error("Esse convite usa a conexão antiga. Peça um novo convite da rede LAN virtual.");
     } else {
         if (!friendsState.me && !friendsState.busy) await friendsState.connect();
         const deadline = Date.now() + 10000;

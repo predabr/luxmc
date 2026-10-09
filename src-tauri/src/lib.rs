@@ -506,6 +506,13 @@ pub async fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            network::virtual_lan::virtual_lan_install,
+            network::virtual_lan::virtual_lan_connect,
+            network::virtual_lan::virtual_lan_status,
+            network::virtual_lan::virtual_lan_stop,
+            network::virtual_world::virtual_lan_worlds,
+            network::virtual_world::virtual_lan_prepare_world,
+            network::virtual_world::virtual_lan_world_port,
             network::p2p_tunnel::host_world,
             network::p2p_tunnel::join_world,
             network::p2p_tunnel::stop_session,
@@ -569,6 +576,14 @@ pub async fn run() {
             commands::instance_lab::instance_benchmark_import,
             commands::auth::auth_set_account_cape,
             commands::profiles::profiles_list,
+            commands::bedrock::bedrock_state,
+            commands::bedrock::bedrock_connect,
+            commands::bedrock::bedrock_add,
+            commands::bedrock::bedrock_remove,
+            commands::bedrock::bedrock_open,
+            commands::bedrock_catalog::bedrock_versions,
+            commands::bedrock_catalog::bedrock_install,
+            commands::bedrock_catalog::bedrock_cancel_install,
             commands::profiles::profiles_get,
             commands::profiles::profiles_create,
             commands::profiles::profiles_update,

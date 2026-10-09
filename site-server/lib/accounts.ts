@@ -11,7 +11,12 @@ export const validPassword = (value: any) => typeof value === "string" && value.
 const ALLOWED_ORIGIN_PATTERNS = [
     "tauri://localhost",
     "http://localhost:1420",
-    "http://127.0.0.1:1420"
+    "http://127.0.0.1:1420",
+    "http://tauri.localhost",
+    "https://tauri.localhost",
+    "https://luxmc-r92.pages.dev",
+    "https://luxmc.top",
+    "https://www.luxmc.top"
 ];
 export const sameOrigin = (request: any) => {
     if (request.headers.get("Sec-Fetch-Site") === "cross-site")
@@ -25,10 +30,6 @@ export const sameOrigin = (request: any) => {
         const reqOrigin = new URL(request.url).origin;
         if (origin === reqOrigin)
             return true;
-        const originHost = new URL(origin).hostname;
-        if (originHost === "luxmc.top" || originHost.endsWith(".luxmc.top") || originHost.endsWith(".pages.dev") || originHost === "localhost" || originHost === "127.0.0.1") {
-            return true;
-        }
     }
     catch { }
     return false;

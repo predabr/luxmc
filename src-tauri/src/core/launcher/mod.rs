@@ -1,4 +1,5 @@
 mod loader_selection;
+mod quick_join;
 mod classpath_paths;
 #[cfg(any(target_os = "windows", test))]
 mod native_cache;
@@ -665,12 +666,7 @@ impl GameLauncher {
         ));
 
         if let Some(ip) = server_ip.filter(|s| !s.trim().is_empty()) {
-            game_args.push("--server".to_string());
-            game_args.push(ip.trim().to_string());
-            if let Some(port) = server_port.filter(|p| *p > 0) {
-                game_args.push("--port".to_string());
-                game_args.push(port.to_string());
-            }
+            game_args = quick_join::arguments(game_args, clean_mc_ver, &serde_json::to_string(&detail.arguments).unwrap_or_default(), ip.trim(), server_port.filter(|port| *port > 0).unwrap_or(25565));
             self.emit_log(&format!("Quick Join: connecting directly to {}:{}", ip.trim(), server_port.unwrap_or(25565)));
         }
 

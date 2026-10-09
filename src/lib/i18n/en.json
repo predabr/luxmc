@@ -2,7 +2,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Minecraft launcher for Windows and Linux",
-    "version": "v3.5.0",
+    "version": "v3.6.0",
     "pressForShortcuts": "Press {{key}} for shortcuts",
     "systemOnline": "System Online",
     "navigation": "Navigation",

@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod bedrock;
 pub mod changelog;
 pub mod dep_checker;
 pub mod discord;
@@ -52,3 +53,4 @@ pub mod content_icons;
 
 pub mod experience;
 pub mod studio;
+pub mod bedrock_catalog;

@@ -1,6 +1,6 @@
 [package]
 name = "luxmc"
-version = "3.5.0"
+version = "3.6.0"
 description = "Linux-first Minecraft launcher"
 authors = ["Luxmc contributors"]
 edition = "2021"
@@ -23,7 +23,7 @@ tauri-plugin-deep-link = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "multipart"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "rustls-tls-native-roots", "stream", "multipart"] }
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "chrono", "uuid", "migrate"] }
 directories = "5"
 uuid = { version = "1", features = ["v4", "v5", "serde"] }
@@ -33,6 +33,9 @@ aes-gcm = "0.10"
 argon2 = "0.5"
 rand = "0.8"
 base64 = "0.22"
+ring = "0.17.14"
+quick-xml = "0.41.0"
+walkdir = "2.5.0"
 sha2 = "0.10"
 sha1 = "0.10"
 md5 = "0.7"
@@ -80,6 +83,7 @@ cgroups-rs = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52"
+same-file = "1.0.6"
 
 [profile.release]
 codegen-units = 1
@@ -87,6 +91,9 @@ lto = "thin"
 opt-level = 3
 panic = "abort"
 strip = true
+
+[dev-dependencies]
+tempfile = "3"
 
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }

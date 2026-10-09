@@ -7,7 +7,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import { tunnelStatus } from "$lib/api/tunnel";
+    import { virtualLanStatus } from "$lib/api/virtualLan";
     import { Users, UserPlus, UserCheck, Radio, Check, X, Search, Copy, CloudOff, ShieldCheck, Wifi, ArrowRight, RefreshCw, LoaderCircle } from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { account } from "$lib/stores/account.svelte";
@@ -28,7 +28,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		} catch { localContacts = []; }
 		let disposed = false;
         if (page.url.searchParams.get("tab") === "add") activeTab = "add";
-        void tunnelStatus().then(room => { if (!disposed && room && !page.url.searchParams.has("tab")) void goto("/hosting", { replaceState: true }); }).catch(() => {});
+        void virtualLanStatus().then(room => { if (!disposed && room.invitation && !page.url.searchParams.has("tab")) void goto("/hosting", { replaceState: true }); }).catch(() => {});
 		let scanTimer: ReturnType<typeof setTimeout>;
 		const scanLan = async () => {
 			try {

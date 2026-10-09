@@ -5,6 +5,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { fade, slide } from "svelte/transition";
 	import { focusTrap } from "$lib/utils/focusTrap";
 	import FilterableVersionSelect from "$lib/components/ui/FilterableVersionSelect.svelte";
+	import BedrockSetup from "./BedrockSetup.svelte";
 	import {
 		Plus,
 		Check,
@@ -69,6 +70,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	}: Props = $props();
 
 	let newName = $state("Vanilla");
+	let edition = $state<"java" | "bedrock" | null>(null);
+	$effect(() => { if (!isOpen) edition = null; });
 	let newVersion = $state("");
 	let newLoader = $state("vanilla");
 	let loaderReleaseType = $state<"stable" | "latest" | "other">("stable");
@@ -278,7 +281,16 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</button>
 			</div>
 
-			{#if createSuccess}
+			{#if edition === null}
+				<p class="text-sm text-fg-muted">Escolha a edição do Minecraft para esta instância.</p>
+				<div class="grid gap-3 sm:grid-cols-2">
+					<button type="button" class="rounded-2xl border border-border bg-bg-subtle p-6 text-left transition hover:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500" onclick={() => edition = "java"}><strong class="block text-lg text-fg">Java Edition</strong><span class="mt-2 block text-sm text-fg-muted">Vanilla, mods, shaders e modpacks.</span></button>
+					<button type="button" class="rounded-2xl border border-border bg-bg-subtle p-6 text-left transition hover:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500" onclick={() => edition = "bedrock"}><strong class="block text-lg text-fg">Bedrock Edition</strong><span class="mt-2 block text-sm text-fg-muted">Jogue a edição instalada no Windows diretamente pelo Luxmc.</span></button>
+				</div>
+			{:else if edition === "bedrock"}
+				<BedrockSetup onCreated={handleClose} />
+				<button type="button" class={launcherButton({ variant: "secondary", size: "sm" })} onclick={() => edition = null}><ArrowLeft class="mr-2 h-4 w-4" />Escolher edição</button>
+			{:else if createSuccess}
 				<div class="flex items-center gap-3 rounded-2xl p-4 text-sm bg-success/10 border border-success/30 text-success font-bold">
 					<Check class="h-5 w-5" />
 					{uiText("ui.c14dce9ce6cc09c2")}{newName}{uiText("ui.f9fbbf8636c544e7")}
@@ -466,7 +478,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				<div class="sticky bottom-0 flex items-center justify-end gap-3 border-t border-border bg-bg-elevated pt-4">
 					<button
 						type="button"
-						onclick={handleClose}
+						onclick={() => edition = null}
 						class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-1.5" })}
 					>
 						<ArrowLeft class="w-3.5 h-3.5" /> {uiText("common.back")}

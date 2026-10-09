@@ -6,6 +6,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { recommendMemory } from "$lib/utils/platform";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
 	import { onMount } from "svelte";
+	import { pageMotion } from "$lib/actions/pageMotion";
 	import {
 		Home,
 		Users,
@@ -29,6 +30,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         SlidersHorizontal
 	} from "lucide-svelte";
 	import { storageFullReport, storageClearLogs, storageClearCache, storageDeleteInstance } from "$lib/api/system";
+	import { bedrock } from "$lib/stores/bedrock.svelte";
 	import { settingsSetConcurrentDownloads } from "$lib/api/settings";
 	import type { StorageFullReport, InstanceStorageInfo } from "$lib/api/types";
 	import { profiles } from "$lib/stores/profiles.svelte";
@@ -437,7 +439,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		try {
 			await storageDeleteInstance(inst.id);
 			profiles.remove(inst.id);
-			toast(uiText("ui.bea8996b09fea4ce", {arg0: (inst.name)}), "success");
+			if (inst.loader === "bedrock") await bedrock.refresh();
+			toast(inst.loader === "bedrock" ? "Vínculo removido. Os arquivos permanecem no BedrockLauncher." : uiText("ui.bea8996b09fea4ce", {arg0: (inst.name)}), "success");
 			confirmingDeleteInstance = null;
 			void loadStorageReport();
 		} catch (e) {
@@ -460,7 +463,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             <button type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls="settings-panel" aria-selected={activeTab === tab.id} tabindex={activeTab === tab.id ? 0 : -1} onclick={() => activeTab = tab.id as SettingsTab} class={launcherButton({ variant: activeTab === tab.id ? "primary" : "ghost", class: "h-auto min-h-16 w-full flex-col gap-2 px-3 py-3" })}><tab.icon class="h-5 w-5" /><span>{tab.label}</span></button>
         {/each}
     </div>
-    <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} class="space-y-6">
+    <div use:pageMotion={activeTab} id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} class="space-y-6">
 
 	{#if activeTab === "general"}
 		<div class="space-y-6">
@@ -1238,8 +1241,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						<AlertCircle class="w-5 h-5" />
 					</div>
 					<div>
-						<h3 class="text-base font-bold text-fg">{uiText("ui.91d84bee8890761b")}</h3>
-						<p class="text-xs text-fg/50">{uiText("ui.c7842b815f11bb3e")}</p>
+						<h3 class="text-base font-bold text-fg">{confirmingDeleteInstance.loader === "bedrock" ? "Remover vínculo Bedrock" : uiText("ui.91d84bee8890761b")}</h3>
+						<p class="text-xs text-fg/50">{confirmingDeleteInstance.loader === "bedrock" ? "Os mundos e arquivos permanecem no provedor. Esta ação não libera espaço no disco." : uiText("ui.c7842b815f11bb3e")}</p>
 					</div>
 				</div>
 
@@ -1277,7 +1280,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							<span>{uiText("ui.abba6d98c1f6fc8f")}</span>
 						{:else}
 							<Trash2 class="w-3.5 h-3.5" />
-							<span>{uiText("ui.6930e70bb14980df")}</span>
+							<span>{confirmingDeleteInstance.loader === "bedrock" ? "Remover vínculo" : uiText("ui.6930e70bb14980df")}</span>
 						{/if}
 					</button>
 				</div>

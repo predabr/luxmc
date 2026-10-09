@@ -6,6 +6,13 @@ import { onRequest } from "../website/functions/api/account/[action].js";
 import { onRequest as social } from "../website/functions/api/social/[action].js";
 import { onRequest as appearance } from "../website/functions/api/appearance/[name].js";
 import { officialNicknameExists } from "../website/lib/nicknames.js";
+import { sameOrigin } from "../website/lib/accounts.js";
+
+test('account mutations reject unrelated Pages sites and forged official origins', () => {
+  const check = origin => sameOrigin(new Request('https://luxmc-r92.pages.dev/api/account/preferences', { headers: { Origin: origin } }));
+  for (const origin of ['https://evil.pages.dev', 'https://luxmc-r92.pages.dev.evil.example', 'https://evil.luxmc.top', 'http://luxmc.top', 'http://localhost:9999']) assert.equal(check(origin), false, origin);
+  for (const origin of ['https://luxmc-r92.pages.dev', 'https://luxmc.top', 'http://tauri.localhost', 'tauri://localhost', 'http://localhost:1420']) assert.equal(check(origin), true, origin);
+});
 
 test.beforeEach(context => {
   context.mock.method(globalThis, "fetch", async () => new Response(null, { status: 404 }));
