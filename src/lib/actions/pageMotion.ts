@@ -1,7 +1,7 @@
 import { tick } from 'svelte';
 import { settings } from '$lib/stores/settings.svelte';
 
-const surfaces = '[data-motion-surface], .surface-glass, .catalog-card, [data-bedrock-instance], .friend-row, .instance-overview-section, header, h1, h2';
+const surfaces = '[data-motion-surface], .surface-glass, .luxmc-card, .catalog-card, [data-bedrock-instance], .friend-row, .instance-overview-section, header, h1, h2';
 
 export function pageMotion(node: HTMLElement, route: string) {
 	let frame = 0;
@@ -47,8 +47,9 @@ export function pageMotion(node: HTMLElement, route: string) {
 				return rect.width > 0 && rect.height > 0 && rect.bottom > bounds.top && rect.top < bounds.bottom && !target.closest('[role="dialog"]');
 			}).filter((target, _index, all) => !all.some(parent => parent !== target && parent.contains(target))).slice(0, 12);
 			targets.forEach((target, index) => play(target, [
-				{ opacity: 0, transform: `translateY(${expressive ? 32 : 12}px)` },
-				{ opacity: 1, transform: 'translateY(0)' }
+				{ opacity: 0, transform: `translateY(${expressive ? 32 : 12}px) scale(${expressive ? .975 : 1})` },
+                { opacity: 1, transform: expressive ? 'translateY(-2px) scale(1.003)' : 'translateY(0)', offset: .8 },
+				{ opacity: 1, transform: 'translateY(0) scale(1)' }
 			], (expressive ? 560 : 320) * speed, Math.min(index * (expressive ? 45 : 20), 180) * speed));
 		});
 	}

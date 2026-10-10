@@ -778,9 +778,74 @@ pub fn instance_cancel_import_core(state: &AppState) -> AppResult<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod import_job_tests {
+    use super::*;
+    #[tokio::test]
+    async fn cancellation_survives_download_to_import_and_cannot_cancel_the_next_job() {
+        let state = AppState::default();
+        let first = instance_begin_import_core(&state).await.unwrap();
+        assert!(instance_cancel_import_job_core(&state,None).await.is_err());
+        assert!(!state.import_cancel.load(std::sync::atomic::Ordering::SeqCst));
+        instance_cancel_import_job_core(&state,Some(&first)).await.unwrap();
+        let download = crate::commands::mods::mods_download_to_temp_core(&state,"invalid".into(),"test.mrpack".into()).await.unwrap_err();
+        assert!(download.to_string().contains("cancelada"));
+        let import = instance_import_mrpack_core(None,&state,"missing".into(),"test".into(),None,None).await.unwrap_err();
+        assert!(import.to_string().contains("cancelada"));
+        instance_end_import_core(&state,first.clone()).await.unwrap();
+        let second = instance_begin_import_core(&state).await.unwrap();
+        assert_ne!(first,second);
+        assert!(instance_cancel_import_job_core(&state,Some(&first)).await.is_err());
+        assert!(!state.import_cancel.load(std::sync::atomic::Ordering::SeqCst));
+        instance_end_import_core(&state,second).await.unwrap();
+    }
+}
+
+pub async fn instance_check_import_job(state: &AppState, operation_id: Option<&str>) -> AppResult<()> {
+    let current = state.import_job_id.lock().await;
+    if state.import_job.load(std::sync::atomic::Ordering::SeqCst) {
+        if operation_id != Some(current.as_str()) { return Err(AppError::InvalidState("Outra instalação está em andamento.".into())); }
+    } else if operation_id.is_some() { return Err(AppError::InvalidState("Esta instalação já terminou.".into())); }
+    Ok(())
+}
+
+pub async fn instance_begin_import_core(state: &AppState) -> AppResult<String> {
+    let _import = state.import_lock.try_lock().map_err(|_| AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
+    let mut current = state.import_job_id.lock().await;
+    if state.import_job.load(std::sync::atomic::Ordering::SeqCst) { return Err(AppError::InvalidState("Já existe uma instalação na fila em andamento.".into())); }
+    *current = uuid::Uuid::new_v4().to_string();
+    state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
+    state.import_job.store(true, std::sync::atomic::Ordering::SeqCst);
+    Ok(current.clone())
+}
+
 #[tauri::command]
-pub async fn instance_cancel_import(state: State<'_, AppState>, app: tauri::AppHandle) -> AppResult<()> {
-    instance_cancel_import_core(&state)?;
+pub async fn instance_begin_import(state: State<'_, AppState>) -> AppResult<String> { instance_begin_import_core(&state).await }
+
+pub async fn instance_end_import_core(state: &AppState, operation_id: String) -> AppResult<()> {
+    let _import = state.import_lock.lock().await;
+    let mut current = state.import_job_id.lock().await;
+    if *current != operation_id { return Err(AppError::InvalidState("Esta instalação já terminou.".into())); }
+    state.import_job.store(false, std::sync::atomic::Ordering::SeqCst);
+    current.clear();
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn instance_end_import(state: State<'_, AppState>, operation_id: String) -> AppResult<()> { instance_end_import_core(&state, operation_id).await }
+
+pub async fn instance_cancel_import_job_core(state: &AppState, operation_id: Option<&str>) -> AppResult<()> {
+    let current = state.import_job_id.lock().await;
+    let active = state.import_job.load(std::sync::atomic::Ordering::SeqCst);
+    if active && operation_id != Some(current.as_str()) || !active && operation_id.is_some() { return Err(AppError::InvalidState("Esta instalação já terminou ou pertence a outra operação.".into())); }
+    instance_cancel_import_core(state)
+}
+
+#[tauri::command]
+pub async fn instance_cancel_import(state: State<'_, AppState>, app: tauri::AppHandle, operation_id: Option<String>) -> AppResult<()> {
+    instance_cancel_import_job_core(&state, operation_id.as_deref()).await?;
+    let _ = app.emit("modpack-progress", serde_json::json!({"phase":"cancelling","current":0,"total":0,"status":"Cancelando a instalação…"}));
+    let _import = state.import_lock.lock().await;
     app.emit(
         "modpack-progress",
         serde_json::json!({
@@ -965,7 +1030,8 @@ pub async fn instance_import_modpack_core(
 ) -> AppResult<ProfileRow> {
     let import_started=std::time::Instant::now();
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
-    state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
+    if !state.import_job.load(std::sync::atomic::Ordering::SeqCst) { state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst); }
+    crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     tracing::info!(file_path = %file_path, profile_name = %profile_name, mc_version = %mc_version, loader = %loader, "instance_import_modpack called");
     type ModpackArchive = zip::ZipArchive<std::io::BufReader<std::fs::File>>;
     let (mut archive, manifest, root_prefix) = tokio::task::block_in_place(
@@ -1149,9 +1215,9 @@ pub async fn instance_import_modpack_core(
                     } else {
                         if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
                         let mut output = std::fs::File::create(&outpath)?;
-                        let written = std::io::copy(
+                        let written = crate::core::mods::pack_download::copy_cancellable(
                             &mut std::io::Read::take(&mut file, 1024 * 1024 * 1024),
-                            &mut output,
+                            &mut output, Some(&state.import_cancel),
                         )?;
                         if written >= 1024 * 1024 * 1024 {
                             drop(output);
@@ -1173,7 +1239,7 @@ pub async fn instance_import_modpack_core(
             Ok((override_paths, extracted_count))
         },
     )?;
-    record_override_jars(&instance_dir, &override_paths).await?;
+    record_override_jars_cancellable(&instance_dir, &override_paths, Some(state.import_cancel.clone())).await?;
     tracing::info!(extracted = extracted_count, "overrides extraction completed");
 
     let file_ids: Vec<u64> = manifest.files.iter().map(|f| f.file_id).collect();
@@ -1319,15 +1385,20 @@ pub async fn instance_import_modpack_core(
         post_exit_hook: None,
     };
 
-    let db = crate::db::shared_db().await?;
-    crate::db::schema::profiles::upsert(&db, &profile_row).await?;
     let registration_started = std::time::Instant::now();
-    index_pack_mods(&profile_row).await?;
-    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo a instância antes do primeiro início..."}));}
-    prepare_imported_launch(state, &profile_row).await?;
+    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo arquivos da instância…"}));}
+    commit_import(state, &profile_row).await?;
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
     let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
     Ok(profile_row)
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedProfileResult {
+    #[serde(flatten)]
+    pub profile: ProfileRow,
+    pub imported_new: bool,
 }
 
 #[tauri::command]
@@ -1341,8 +1412,12 @@ pub async fn instance_import_modpack(
     loader: String,
     icon: Option<String>,
     ram_mb: Option<i64>,
-) -> AppResult<ProfileRow> {
-    instance_import_modpack_core(Some(app), &state, file_path, profile_name, mc_version, loader, icon, ram_mb).await
+    operation_id: Option<String>,
+) -> AppResult<ImportedProfileResult> {
+    instance_check_import_job(&state, operation_id.as_deref()).await?;
+    let started = chrono::Utc::now();
+    let profile = instance_import_modpack_core(Some(app), &state, file_path, profile_name, mc_version, loader, icon, ram_mb).await?;
+    Ok(ImportedProfileResult { imported_new: profile.created_at >= started, profile })
 }
 
 #[allow(non_snake_case)]
@@ -1609,24 +1684,31 @@ pub async fn instance_file_tree(
     Ok(entries)
 }
 
-async fn record_override_jars(root: &std::path::Path, paths: &std::collections::HashSet<String>) -> AppResult<()> {
+async fn record_override_jars(root: &std::path::Path, paths: &std::collections::HashSet<String>) -> AppResult<()> { record_override_jars_cancellable(root, paths, None).await }
+
+async fn record_override_jars_cancellable(root: &std::path::Path, paths: &std::collections::HashSet<String>, cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>) -> AppResult<()> {
     use crate::core::mods::pack_download as pack;
     use futures_util::StreamExt;
     let mut tasks = Vec::new();
     for path in paths.iter().filter(|path| path.to_lowercase().ends_with(".jar")) {
         tasks.push((path.clone(), pack::destination(root,path)?, pack::destination(&root.join(".luxmc/overrides"),path)?));
     }
-    let files = futures_util::stream::iter(tasks).map(|(path, source, target)| async move {
+    let files = futures_util::stream::iter(tasks).map(|(path, source, target)| { let cancel = cancel.clone(); async move {
+        pack::cancelled(cancel.as_deref())?;
         let bytes = tokio::fs::read(source).await?;
         let size = bytes.len() as u64;
-        let (bytes, hash) = tokio::task::spawn_blocking(move || {
+        let hashing_cancel = cancel.clone();
+        let (bytes, hash) = tokio::task::spawn_blocking(move || -> AppResult<_> {
             use sha2::Digest;
-            let hash = format!("{:x}", sha2::Sha512::digest(&bytes));
-            (bytes, hash)
-        }).await.map_err(|error| AppError::Internal(error.to_string()))?;
+            let mut hash = sha2::Sha512::new();
+            for chunk in bytes.chunks(65536) { pack::cancelled(hashing_cancel.as_deref())?; hash.update(chunk); }
+            Ok((bytes, format!("{:x}", hash.finalize())))
+        }).await.map_err(|error| AppError::Internal(error.to_string()))??;
+        pack::cancelled(cancel.as_deref())?;
         pack::atomic_write(&target, &bytes).await?;
         Ok::<_,AppError>(MrpackFile { path: path.clone(), hashes: [("sha512".to_string(),hash)].into_iter().collect(), env: None, downloads: Vec::new(), file_size: Some(size) })
-    }).buffer_unordered(2).collect::<Vec<_>>().await;
+    }}).buffer_unordered(2).collect::<Vec<_>>().await;
+    pack::cancelled(cancel.as_deref())?;
     let mut files = files.into_iter().collect::<AppResult<Vec<_>>>()?;
     files.sort_by(|a,b| a.path.cmp(&b.path));
     pack::atomic_write(&root.join(".luxmc/overrides.json"), &serde_json::to_vec(&files)?).await
@@ -1693,12 +1775,14 @@ async fn ensure_mrpack_file(
     Err(crate::error::AppError::InvalidState(format!("Arquivo ausente ou inválido: {}", file.path)))
 }
 
-pub(crate) async fn repair_instance_duplicates(profile: &ProfileRow) -> AppResult<usize> {
+pub(crate) async fn repair_instance_duplicates(profile: &ProfileRow) -> AppResult<usize> { repair_import_duplicates(profile, None).await }
+
+async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>) -> AppResult<usize> {
     if crate::core::launcher::get_active_game_pid() != 0 && crate::core::launcher::get_active_game_dir().as_deref() == Some(std::path::Path::new(&profile.game_dir)) { return Ok(0); }
     let db = crate::db::shared_db().await?;
     let preferred = crate::db::schema::mods::list_by_profile(&db, &profile.id).await?.into_iter().map(|row| row.file_name).collect();
     let root = std::path::PathBuf::from(&profile.game_dir);
-    let repaired = tokio::task::spawn_blocking(move || crate::core::mods::validation::repair_duplicates(&root, &preferred))
+    let repaired = tokio::task::spawn_blocking(move || crate::core::mods::validation::repair_duplicates_cancellable(&root, &preferred, cancel.as_deref()))
         .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
     if repaired > 0 {
         let root = std::path::PathBuf::from(&profile.game_dir).join("mods");
@@ -1713,17 +1797,32 @@ pub(crate) async fn repair_instance_duplicates(profile: &ProfileRow) -> AppResul
     Ok(repaired)
 }
 
-async fn prepare_imported_launch(_state: &AppState, profile: &ProfileRow) -> AppResult<()> {
-    repair_instance_duplicates(profile).await?;
+async fn prepare_imported_launch(state: &AppState, profile: &ProfileRow) -> AppResult<()> {
+    crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
+    repair_import_duplicates(profile, Some(state.import_cancel.clone())).await?;
+    let cancel = state.import_cancel.clone();
     let profile = profile.clone();
     tokio::task::spawn_blocking(move || -> AppResult<()> {
         let root = std::path::Path::new(&profile.game_dir);
-        let audit = crate::core::mods::validation::audit(root, false)?;
+        let audit = crate::core::mods::validation::audit_cancellable(root, false, Some(&cancel))?;
+        crate::core::mods::pack_download::cancelled(Some(&cancel))?;
         if audit.errors.is_empty() {
             crate::core::launcher::launch_state::store(&profile)?;
         }
-        Ok(())
+        crate::core::mods::pack_download::cancelled(Some(&cancel))
     }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
+}
+
+async fn commit_import(state: &AppState, profile: &ProfileRow) -> AppResult<()> {
+    crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
+    prepare_imported_launch(state, profile).await?;
+    crate::core::luxmc_pack::prepare_java(std::path::Path::new(&profile.game_dir),&profile.mc_version).await?;
+    crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
+    let db = crate::db::shared_db().await?;
+    crate::db::schema::profiles::upsert(&db, profile).await?;
+    let result = index_pack_mods(profile).await.and_then(|_| crate::core::mods::pack_download::cancelled(Some(&state.import_cancel)));
+    if result.is_err() { crate::db::schema::profiles::delete(&db, &profile.id).await?; }
+    result
 }
 
 async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
@@ -2091,7 +2190,8 @@ pub async fn instance_import_mrpack_core(
 ) -> AppResult<ProfileRow> {
     let import_started=std::time::Instant::now();
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
-    state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
+    if !state.import_job.load(std::sync::atomic::Ordering::SeqCst) { state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst); }
+    crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     tracing::info!(file_path = %file_path, profile_name = %profile_name, "instance_import_mrpack called");
     type MrpackArchive = zip::ZipArchive<std::io::BufReader<std::fs::File>>;
     let (mut archive, mut manifest, root_prefix) = tokio::task::block_in_place(
@@ -2168,7 +2268,6 @@ pub async fn instance_import_mrpack_core(
     let _ = tokio::fs::create_dir_all(&storage_mods_dir).await;
 
     use crate::core::mods::pack_download as pack;
-    let db = crate::db::shared_db().await?;
     if manifest.files.is_empty() && !manifest.mods.is_empty() {
         let resolved = futures_util::stream::iter(manifest.mods.clone()).map(|entry| {
             let client = crate::core::mods::ModrinthClient::new(state.http.clone());
@@ -2210,7 +2309,7 @@ pub async fn instance_import_mrpack_core(
         async move {
             let result = ensure_mrpack_file(http, root, &file, Some(&state.import_cancel)).await;
             let current = completed.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
-            if let Some(app) = app {
+            if let Some(app) = app.as_ref().filter(|_| current % 4 == 0 || current == total_mrpack_files) {
                 let _ = app.emit("modpack-progress", serde_json::json!({
                     "phase": "downloading", "current": current, "total": total_mrpack_files,
                     "percent": current * 100 / total_mrpack_files.max(1),
@@ -2255,7 +2354,7 @@ pub async fn instance_import_mrpack_core(
                 } else {
                     if let Some(parent) = outpath.parent() { std::fs::create_dir_all(parent)?; }
                     let mut output = std::fs::File::create(&outpath)?;
-                    std::io::copy(&mut file, &mut output)?;
+                    pack::copy_cancellable(&mut file, &mut output, Some(&state.import_cancel))?;
                     overridden.insert(relative.to_owned());
                 }
             }
@@ -2263,7 +2362,7 @@ pub async fn instance_import_mrpack_core(
             Ok(overridden)
         },
     )?;
-    record_override_jars(&instance_dir, &overridden).await?;
+    record_override_jars_cancellable(&instance_dir, &overridden, Some(state.import_cancel.clone())).await?;
     manifest.files.retain(|file| !overridden.contains(&file.path.replace('\\', "/")));
     pack::atomic_write(&instance_dir.join("modrinth.index.json"), &serde_json::to_vec_pretty(&manifest)?).await?;
     let installed_mods_count = std::fs::read_dir(&mods_dir)?.filter_map(Result::ok)
@@ -2351,11 +2450,9 @@ pub async fn instance_import_mrpack_core(
         post_exit_hook: None,
     };
 
-    crate::db::schema::profiles::upsert(&db, &profile_row).await?;
     let registration_started = std::time::Instant::now();
-    index_pack_mods(&profile_row).await?;
-    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo a instância antes do primeiro início..."}));}
-    prepare_imported_launch(state, &profile_row).await?;
+    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo arquivos da instância…"}));}
+    commit_import(state, &profile_row).await?;
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
     let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
     Ok(profile_row)
@@ -2370,8 +2467,12 @@ pub async fn instance_import_mrpack(
     profile_name: String,
     icon: Option<String>,
     ram_mb: Option<i64>,
-) -> AppResult<ProfileRow> {
-    instance_import_mrpack_core(Some(app), &state, file_path, profile_name, icon, ram_mb).await
+    operation_id: Option<String>,
+) -> AppResult<ImportedProfileResult> {
+    instance_check_import_job(&state, operation_id.as_deref()).await?;
+    let started = chrono::Utc::now();
+    let profile = instance_import_mrpack_core(Some(app), &state, file_path, profile_name, icon, ram_mb).await?;
+    Ok(ImportedProfileResult { imported_new: profile.created_at >= started, profile })
 }
 
 #[tauri::command]

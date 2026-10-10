@@ -141,32 +141,24 @@ pub(super) fn manage(self_id: String, host_room: Option<Arc<Mutex<RoomRegistry>>
                 if routes.0.contains_key(&id) { continue; }
                 let destination = if let Some(room) = &host_room { let room = room.lock().await; room.connections.get(&id).cloned().zip(room.member_secrets.get(&id).copied()) } else { host_connection.clone().map(|connection| (connection, secret)) };
                 let Some((connection, route_secret)) = destination else { continue; };
-                let Ok(listener) = TcpListener::bind(("127.0.0.1", 0)).await else { continue; };
+                let Ok(listener) = TcpListener::bind(("0.0.0.0", 0)).await else { continue; };
                 let Ok(address) = listener.local_addr() else { continue; };
-                addresses.lock().await.insert(id.clone(), address.to_string());
+                addresses.lock().await.insert(id.clone(), format!("127.0.0.1:{}", address.port()));
                 let via_host = host_room.is_none();
                 routes.0.insert(id.clone(), tokio::spawn(async move {
-                    let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).ok().and_then(|socket| {
-                        let loopback = std::net::Ipv4Addr::LOCALHOST;
-                        socket.bind(&std::net::SocketAddrV4::new(loopback, 0).into()).ok()?;
-                        socket.set_multicast_if_v4(&loopback).ok()?;
-                        socket.set_nonblocking(true).ok()?;
-                        UdpSocket::from_std(socket.into()).ok()
-                    });
+                    let advertiser = super::super::lan_advertiser::Advertiser::new();
                     let mut interval = tokio::time::interval(Duration::from_millis(1500));
                     let mut streams = JoinSet::new();
                     loop {
                         tokio::select! {
                             _ = connection.closed() => break,
                             _ = interval.tick() => {
-                                if let Some(socket) = &socket {
-                                    let packet = format!("[MOTD]§b[Luxmc] §f{} · {}[/MOTD][AD]{}[/AD]", world.owner_username, world.motd.replace('[', "(").replace(']', ")"), address.port());
-                                    let _ = socket.send_to(packet.as_bytes(), MINECRAFT_LAN_MULTICAST).await;
-                                }
+                                advertiser.announce(address.port(), &format!("{} · {}", world.owner_username, world.motd)).await;
                             },
                             Some(_) = streams.join_next(), if !streams.is_empty() => {},
                             accepted = listener.accept() => {
-                                let Ok((tcp, _)) = accepted else { break; };
+                                let Ok((tcp, peer)) = accepted else { break; };
+                                if !super::super::lan_advertiser::local_client(peer.ip()) { continue; }
                                 if streams.len() >= 16 { continue; }
                                 let connection = connection.clone(); let id = id.clone();
                                 streams.spawn(async move {

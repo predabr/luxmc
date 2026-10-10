@@ -67,7 +67,7 @@
 </script>
 
 <section class="mx-auto max-w-5xl space-y-6" aria-label="Rede LAN virtual" aria-busy={preparing}>
-	<p class="text-right font-mono text-xs text-fg-muted">Luxmc 3.5.0 · revisão {RELEASE_REVISION}</p>
+	<p class="text-right font-mono text-xs text-fg-muted">Luxmc 3.7.0 · revisão {RELEASE_REVISION}</p>
 	<header class="rounded-3xl border border-border bg-bg-elevated/95 shadow-soft relative overflow-hidden p-6 sm:p-8"><div class="pointer-events-none absolute -right-12 -top-16 h-64 w-64 rounded-full bg-brand-500/10 blur-3xl"></div><div class="relative space-y-4"><span class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-brand-500"><Network class="h-4 w-4" />MULTIPLAYER</span><h1 class="text-3xl font-semibold tracking-tight text-fg sm:text-4xl">Seu mundo fica melhor com amigos.</h1><p class="max-w-2xl text-sm leading-relaxed text-fg-muted">Crie uma rede privada para jogar juntos. O Luxmc prepara os arquivos automaticamente e mantém a conexão ao trocar de aba.</p><span class="inline-flex items-center gap-2 rounded-full border border-border bg-bg/40 px-4 py-2 text-xs text-fg-muted"><ShieldCheck class="h-4 w-4 text-success" />Convite privado · 24 horas</span></div></header>
 	{#if failure}<p role="alert" class="rounded-xl border border-danger/30 bg-danger/5 p-4 text-sm text-danger">{failure}</p>{/if}
 	{#if status && !status.supported}

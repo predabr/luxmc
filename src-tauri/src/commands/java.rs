@@ -4,6 +4,7 @@ use tauri::State;
 use crate::core::java::JavaRuntimeManager;
 use crate::error::AppResult;
 use crate::state::AppState;
+const MANAGED_VERSIONS: &[u32] = &[8, 16, 17, 21, 25];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,10 +35,10 @@ pub async fn java_scan_core(state: &AppState) -> AppResult<JavaScanResult> {
         let mgr = JavaRuntimeManager::new(http, base_dir.data_dir().to_path_buf());
 
         let mut runtimes = Vec::new();
-        for major in [8u32, 17, 21] {
+        for &major in MANAGED_VERSIONS {
             let bin = base_dir.data_dir().join("java").join(major.to_string()).join("bin")
                 .join(if cfg!(windows) { "java.exe" } else { "java" });
-            let is_managed = bin.exists();
+            let is_managed = bin.exists() && mgr.verify_binary(&bin, major);
 
             let (found_path, version_string, is_system) = if is_managed {
                 let vs = get_version_string(&bin);
@@ -74,14 +75,18 @@ pub async fn java_install(
     app: tauri::AppHandle,
     major: u32,
 ) -> AppResult<JavaInstallStatus> {
-    if major != 8 && major != 17 && major != 21 {
+    java_install_core(&state, Some(app), major).await
+}
+
+pub async fn java_install_core(state: &AppState, app: Option<tauri::AppHandle>, major: u32) -> AppResult<JavaInstallStatus> {
+    if !MANAGED_VERSIONS.contains(&major) {
         return Err(crate::error::AppError::InvalidState(format!("unsupported Java major version: {major}")));
     }
 
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
-    let mgr = JavaRuntimeManager::new(state.http.clone(), base_dir.data_dir().to_path_buf())
-        .with_app(app);
+    let mut mgr = JavaRuntimeManager::new(state.http.clone(), base_dir.data_dir().to_path_buf());
+    if let Some(app) = app { mgr = mgr.with_app(app); }
 
     let path = mgr.ensure_java(major).await?;
     let version_string = get_version_string(&path);
@@ -91,17 +96,20 @@ pub async fn java_install(
         installed: true,
         path: Some(path.to_string_lossy().to_string()),
         version_string,
-        is_system: false,
+        is_system: !path.starts_with(base_dir.data_dir().join("java").join(major.to_string())),
     })
 }
 
 #[tauri::command]
 pub async fn java_uninstall(major: u32) -> AppResult<()> {
-    if major != 8 && major != 17 && major != 21 {
+    if !MANAGED_VERSIONS.contains(&major) {
         return Err(crate::error::AppError::InvalidState(format!("unsupported Java major version: {major}")));
     }
     let base_dir = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| crate::error::AppError::InvalidState("could not determine data dir".into()))?;
+    if crate::core::launcher::get_active_game_pid() != 0 {
+        return Err(crate::error::AppError::InvalidState("Feche o Minecraft antes de remover um runtime Java.".into()));
+    }
     let java_dir = base_dir.data_dir().join("java").join(major.to_string());
     if java_dir.exists() {
         tokio::fs::remove_dir_all(&java_dir).await?;

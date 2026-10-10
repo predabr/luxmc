@@ -42,6 +42,8 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
                 return results;
             }
             if (command === 'app_init') return { account, profiles: [], activeProfileId: null, devMode: true };
+            if (command === 'instance_begin_import') return 'catalog-fixture-operation';
+            if (command === 'instance_end_import') return null;
             if (command === 'java_scan') return { runtimes: [] };
             if (command === 'deep_links_take' || command === 'profiles_list' || command === 'instances_list' || command === 'screenshots_list') return [];
             if (command === 'plugin:store|load' || command === 'plugin:event|listen') return 1;
@@ -126,7 +128,7 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
     await page.waitForFunction(() => document.querySelector('aside[aria-label="Fila de instalações"] [role="progressbar"] > div')?.getBoundingClientRect().width > 20);
     if (process.env.LUXMC_ARTIFACT_DIR) await page.screenshot({ path: `${process.env.LUXMC_ARTIFACT_DIR}/installer-progress.png` });
     await queue.getByRole('button', { name: 'Cancelar', exact: true }).click();
-    await page.getByText('Importação cancelada.', { exact: true }).waitFor();
+    await page.getByText('Instalação cancelada', { exact: true }).waitFor();
     assert.equal(await page.evaluate(() => window.uiCalls.filter(call => call.command === 'instance_cancel_import').length), 1);
     await queue.getByRole('button', { name: 'Fechar', exact: true }).click();
     await page.locator('.catalog-list-card').first().click();

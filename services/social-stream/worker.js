@@ -15,7 +15,9 @@ export class PresenceStream extends DurableObject {
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
   async sendSnapshot(user) {
-    const message = JSON.stringify({ friends: await friendSnapshot(this.env.SOCIAL_DB, user) });
+    const profile = await this.env.SOCIAL_DB.prepare("SELECT removed_at FROM social_users WHERE id = ?").bind(user).first();
+    if (!profile || profile.removed_at) { for(const socket of this.ctx.getWebSockets())socket.close(1008,"Profile removed"); await this.ctx.storage.deleteAll(); return; }
+    const message = JSON.stringify({ friends: await friendSnapshot(this.env.SOCIAL_DB, user, Math.floor(Date.now()/1000), this.env.OWNER_SOCIAL_ID) });
     const previous = await this.ctx.storage.get("snapshot");
     for (const socket of this.ctx.getWebSockets()) {
       const sent = socket.deserializeAttachment();
@@ -46,6 +48,8 @@ export default {
     const user = await env.SOCIAL_DB.prepare("DELETE FROM social_stream_tickets WHERE token_hash = ? AND expires_at > ? RETURNING user_id")
       .bind(hash, Math.floor(Date.now() / 1000)).first();
     if (!user) return new Response("Unauthorized", { status: 401 });
+    const active = await env.SOCIAL_DB.prepare("SELECT id FROM social_users WHERE id = ? AND removed_at = 0").bind(user.user_id).first();
+    if (!active) return new Response("Unauthorized", { status: 401 });
     const id = env.PRESENCE.idFromName(user.user_id);
     const internal = new Request(request);
     internal.headers.set("X-Luxmc-User", user.user_id);

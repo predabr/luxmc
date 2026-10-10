@@ -211,6 +211,20 @@ async fn linked_pack(row:&ProfileRow) -> AppResult<Option<PackReference>> {
 #[tauri::command]
 pub async fn instance_pack_reference(profile_id:String) -> AppResult<Option<PackReference>> { linked_pack(&profile(&profile_id).await?).await }
 
+#[tauri::command]
+pub async fn instance_link_pack(profile_id:String,reference:PackReference) -> AppResult<()> {
+    if !valid_reference(&reference) {return Err(AppError::InvalidInput("Referência de modpack inválida".into()));}
+    let row=profile(&profile_id).await?;
+    let path=Path::new(&row.game_dir).join(if reference.source=="modrinth"{"modrinth.index.json"}else{"manifest.json"});
+    let bytes=tokio::fs::read(&path).await?;
+    if bytes.len()>8*1024*1024 {return Err(AppError::InvalidInput("Manifesto muito grande".into()));}
+    let mut value:Value=serde_json::from_slice(&bytes)?;
+    if !value.is_object() {return Err(AppError::InvalidInput("Manifesto inválido".into()));}
+    value[if reference.source=="modrinth"{"projectId"}else{"projectID"}]=if reference.source=="modrinth"{json!(reference.project_id)}else{json!(reference.project_id.parse::<u64>().map_err(|_|AppError::InvalidInput("Projeto CurseForge inválido".into()))?)};
+    value["sourceVersionId"]=json!(reference.version_id);
+    crate::core::mods::pack_download::atomic_write(&path,&serde_json::to_vec_pretty(&value)?).await
+}
+
 pub async fn pack_file(state:&crate::state::AppState,reference:&PackReference) -> AppResult<crate::core::mods::ModFile> {
     if !valid_reference(reference) {return Err(AppError::InvalidInput("Referência de modpack inválida".into()));}
     let (url,name,size,sha1)=if reference.source=="modrinth" {
@@ -248,6 +262,7 @@ static PREPARING:tokio::sync::Mutex<()>=tokio::sync::Mutex::const_new(());
 
 #[tauri::command]
 pub async fn room_prepare_instance(state:tauri::State<'_,crate::state::AppState>,app:tauri::AppHandle,owner_id:String) -> AppResult<ProfileRow> {
+    super::instances::instance_check_import_job(&state,None).await?;
     use tauri::Emitter;
     use crate::network::p2p_tunnel::coordination::{tunnel_room_recipe,tunnel_set_preparation,Preparation};
     let _guard=PREPARING.try_lock().map_err(|_| AppError::InvalidState("Uma sala já está sendo preparada".into()))?;

@@ -36,7 +36,7 @@ async function onRequest({ request, env, params, waitUntil }) {
   if (Number(request.headers.get("Content-Length")) > (params.action === "profile_save" ? 195e4 : 4096))
     return respond({ error: "Request too large" }, 413);
   const action = params.action;
-  if (!["register", "sync", "search", "invite", "accept", "remove", "block", "unblock", "room_create", "room_join", "room_close", "stream_ticket", "profile_get", "profile_save"].includes(action))
+  if (!["register", "sync", "search", "invite", "accept", "remove", "block", "unblock", "room_create", "room_join", "room_close", "stream_ticket", "profile_get", "profile_save", "owner_users", "owner_tags", "owner_delete"].includes(action))
     return respond({ error: "Unknown action" }, 404);
   const bearer = sessionToken(request);
   if (!bearer)
@@ -80,6 +80,8 @@ async function onRequest({ request, env, params, waitUntil }) {
     if (!registered && (body.registeredAccount === true || request.headers.has("Cookie")))
       return respond({ error: "Sua sess\xE3o expirou. Entre novamente." }, 401);
     let me = registered ? { id: registered.social_id, username: registered.username } : await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE token_hash = ?").bind(tokenHash).first();
+    const removal = me ? await db.prepare("SELECT removed_at FROM social_users WHERE id = ?").bind(me.id).first() : null;
+    if (removal?.removed_at) return respond({ error: "Este perfil foi removido da comunidade pelo dono do Luxmc." }, 410);
     if (action === "register") {
       if (registered)
         return respond({ me });
@@ -96,13 +98,53 @@ async function onRequest({ request, env, params, waitUntil }) {
     }
     if (!me)
       return respond({ error: "Perfil social n\xE3o registrado." }, 401);
+    if (action === "owner_users" || action === "owner_tags" || action === "owner_delete") {
+      if (!env.OWNER_SOCIAL_ID || me.id !== env.OWNER_SOCIAL_ID)
+        return respond({ error: "Acesso restrito ao dono do Luxmc." }, 403);
+      if (action === "owner_delete") {
+        if (typeof body.targetId !== "string" || !/^[a-f0-9-]{36}$/.test(body.targetId) || typeof body.confirmation !== "string") return respond({ error: "Perfil inv\xE1lido." }, 400);
+        if (body.targetId === me.id) return respond({ error: "O perfil do dono n\xE3o pode ser exclu\xEDdo por este painel." }, 400);
+        const target2 = await db.prepare("SELECT id, username FROM social_users WHERE id = ? AND removed_at = 0").bind(body.targetId).first();
+        if (!target2) return respond({ error: "Perfil n\xE3o encontrado." }, 404);
+        if (body.confirmation !== target2.username) return respond({ error: "Digite o nome de usu\xE1rio para confirmar a exclus\xE3o." }, 400);
+        await db.batch([
+          db.prepare("UPDATE social_users SET removed_at = ?, last_seen = 0, activity = 'offline', avatar_url = NULL, instance_name = '', mc_version = '', loader = '', server_host = NULL, server_port = NULL WHERE id = ?").bind(now, target2.id),
+          db.prepare("DELETE FROM social_relationships WHERE sender = ? OR recipient = ?").bind(target2.id, target2.id),
+          db.prepare("DELETE FROM social_blocks WHERE owner = ? OR target = ?").bind(target2.id, target2.id),
+          db.prepare("DELETE FROM social_public_profiles WHERE user_id = ?").bind(target2.id),
+          db.prepare("DELETE FROM social_user_tags WHERE user_id = ?").bind(target2.id),
+          db.prepare("DELETE FROM social_rooms WHERE owner = ?").bind(target2.id),
+          db.prepare("DELETE FROM social_stream_tickets WHERE user_id = ?").bind(target2.id)
+        ]);
+        return respond({ ok: true });
+      }
+      if (action === "owner_tags") {
+        if (typeof body.targetId !== "string" || !/^[a-f0-9-]{36}$/.test(body.targetId) || !Array.isArray(body.tags) || body.tags.length > 5 || body.tags.some((tag) => typeof tag !== "string" || !/^[\p{L}\p{N} _-]{1,24}$/u.test(tag)))
+          return respond({ error: "Use at\xE9 5 tags com no m\xE1ximo 24 caracteres." }, 400);
+        const target2 = await db.prepare("SELECT id FROM social_users WHERE id = ? AND removed_at = 0").bind(body.targetId).first();
+        if (!target2) return respond({ error: "Usu\xE1rio n\xE3o encontrado." }, 404);
+        const tags = [...new Set(body.tags.map((tag) => tag.trim()).filter(Boolean))];
+        await db.prepare("INSERT INTO social_user_tags(user_id, tags, updated_by, updated_at) SELECT ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM social_users WHERE id = ? AND removed_at = 0) ON CONFLICT(user_id) DO UPDATE SET tags = excluded.tags, updated_by = excluded.updated_by, updated_at = excluded.updated_at").bind(target2.id, JSON.stringify(tags), me.id, now, target2.id).run();
+        return respond({ ok: true, tags });
+      }
+      const offset = body.offset ?? 0;
+      if (!Number.isInteger(offset) || offset < 0 || offset > 1e5 || body.query !== void 0 && (typeof body.query !== "string" || body.query.length > 80))
+        return respond({ error: "Busca inv\xE1lida." }, 400);
+      const query = (body.query || "").trim().replace(/[!%_]/g, (value) => `!${value}`);
+      const search = `%${query}%`;
+      const stats = await db.prepare("SELECT COUNT(*) AS total, COALESCE(SUM(last_seen > ? AND activity != 'offline'), 0) AS online, COALESCE(SUM(last_seen > ? AND activity = 'in_game'), 0) AS playing FROM social_users WHERE removed_at = 0").bind(now - 75, now - 75).first();
+      const filter = "WHERE u.removed_at = 0 AND (u.username LIKE ? ESCAPE '!' COLLATE NOCASE OR COALESCE(p.display_name, '') LIKE ? ESCAPE '!' COLLATE NOCASE)";
+      const count = await db.prepare(`SELECT COUNT(*) AS total FROM social_users u LEFT JOIN social_public_profiles p ON p.user_id = u.id ${filter}`).bind(search, search).first();
+      const { results } = await db.prepare(`SELECT u.id, u.username, u.avatar_url AS avatarUrl, u.last_seen, u.activity, COALESCE(p.display_name, '') AS displayName, COALESCE(t.tags, '[]') AS tags FROM social_users u LEFT JOIN social_public_profiles p ON p.user_id = u.id LEFT JOIN social_user_tags t ON t.user_id = u.id ${filter} ORDER BY u.last_seen DESC, u.id LIMIT 24 OFFSET ?`).bind(search, search, offset).all();
+      return respond({ stats, users: results.map((user) => ({ id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl || null, status: user.last_seen > now - 75 ? user.activity : "offline", lastSeen: user.last_seen ? new Date(user.last_seen * 1e3).toISOString() : null, tags: JSON.parse(user.tags) })), total: count?.total || 0, nextOffset: offset + results.length < (count?.total || 0) ? offset + results.length : null });
+    }
     if (action === "profile_save") {
       if (await limited(db, `profile:${me.id}`, now, 60, 8))
         return respond({ error: "Aguarde antes de salvar novamente." }, 429);
       const profile = validatePublicProfile(body);
       if (!profile)
         return respond({ error: "Perfil inv\xE1lido. Use imagens PNG, JPEG, WebP ou GIF de at\xE9 700 KB e uma descri\xE7\xE3o de at\xE9 400 caracteres." }, 400);
-      await db.prepare("INSERT INTO social_public_profiles(user_id, description, banner, portrait, packs, updated_at, display_name, status, collections) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET description = excluded.description, banner = excluded.banner, portrait = excluded.portrait, packs = excluded.packs, updated_at = excluded.updated_at, display_name = CASE WHEN ? THEN excluded.display_name ELSE social_public_profiles.display_name END, status = CASE WHEN ? THEN excluded.status ELSE social_public_profiles.status END, collections = CASE WHEN ? THEN excluded.collections ELSE social_public_profiles.collections END").bind(me.id, profile.description, profile.banner, profile.portrait, JSON.stringify(profile.packs), now, profile.displayName, profile.status, JSON.stringify(profile.collections), Number(typeof body.displayName === "string"), Number(typeof body.status === "string"), Number(Array.isArray(body.collections))).run();
+      await db.prepare("INSERT INTO social_public_profiles(user_id, description, banner, portrait, packs, updated_at, display_name, status, collections) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM social_users WHERE id = ? AND removed_at = 0) ON CONFLICT(user_id) DO UPDATE SET description = excluded.description, banner = excluded.banner, portrait = excluded.portrait, packs = excluded.packs, updated_at = excluded.updated_at, display_name = CASE WHEN ? THEN excluded.display_name ELSE social_public_profiles.display_name END, status = CASE WHEN ? THEN excluded.status ELSE social_public_profiles.status END, collections = CASE WHEN ? THEN excluded.collections ELSE social_public_profiles.collections END").bind(me.id, profile.description, profile.banner, profile.portrait, JSON.stringify(profile.packs), now, profile.displayName, profile.status, JSON.stringify(profile.collections), me.id, Number(typeof body.displayName === "string"), Number(typeof body.status === "string"), Number(Array.isArray(body.collections))).run();
       return respond({ ok: true });
     }
     if (action === "profile_get") {
@@ -114,11 +156,12 @@ async function onRequest({ request, env, params, waitUntil }) {
         if (!relation)
           return respond({ error: "Perfil indispon\xEDvel." }, 403);
       }
-      const user = await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE id = ?").bind(target2).first();
+      const user = await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE id = ? AND removed_at = 0").bind(target2).first();
       if (!user)
         return respond({ error: "Perfil n\xE3o encontrado." }, 404);
       const saved = await db.prepare("SELECT description, banner, portrait, packs, display_name, status, collections FROM social_public_profiles WHERE user_id = ?").bind(target2).first();
-      return respond({ profile: { ...user, role: env.OWNER_SOCIAL_ID && target2 === env.OWNER_SOCIAL_ID ? "owner" : "member", displayName: saved?.display_name || "", status: saved?.status || "", description: saved?.description || "", banner: saved?.banner || "", portrait: saved?.portrait || "", packs: JSON.parse(saved?.packs || "[]"), collections: JSON.parse(saved?.collections || "[]") } });
+      const assigned = await db.prepare("SELECT tags FROM social_user_tags WHERE user_id = ?").bind(target2).first();
+      return respond({ profile: { ...user, role: env.OWNER_SOCIAL_ID && target2 === env.OWNER_SOCIAL_ID ? "owner" : "member", tags: JSON.parse(assigned?.tags || "[]"), displayName: saved?.display_name || "", status: saved?.status || "", description: saved?.description || "", banner: saved?.banner || "", portrait: saved?.portrait || "", packs: JSON.parse(saved?.packs || "[]"), collections: JSON.parse(saved?.collections || "[]") } });
     }
     if (action === "stream_ticket") {
       if (!env.SOCIAL_STREAM_URL)
@@ -174,22 +217,25 @@ async function onRequest({ request, env, params, waitUntil }) {
         return respond({ users: [] });
       const [name, code] = query.split("#");
       const escaped = name.replace(/_/g, "!_");
-      const { results } = await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE username LIKE ? ESCAPE '!' COLLATE NOCASE AND id != ? AND NOT EXISTS (SELECT 1 FROM social_blocks b WHERE (b.owner = ? AND b.target = social_users.id) OR (b.target = ? AND b.owner = social_users.id)) AND (? = '' OR id LIKE ?) ORDER BY last_seen DESC, id LIMIT 8").bind(`${escaped}%`, me.id, me.id, me.id, code || "", `${code || ""}%`).all();
-      return respond({ users: results });
+      const { results } = await db.prepare("SELECT u.id, u.username, u.avatar_url AS avatarUrl, COALESCE(t.tags, '[]') AS tags FROM social_users u LEFT JOIN social_user_tags t ON t.user_id = u.id WHERE u.removed_at = 0 AND u.username LIKE ? ESCAPE '!' COLLATE NOCASE AND u.id != ? AND NOT EXISTS (SELECT 1 FROM social_blocks b WHERE (b.owner = ? AND b.target = u.id) OR (b.target = ? AND b.owner = u.id)) AND (? = '' OR u.id LIKE ?) ORDER BY u.last_seen DESC, u.id LIMIT 8").bind(`${escaped}%`, me.id, me.id, me.id, code || "", `${code || ""}%`).all();
+      return respond({ users: results.map((user) => ({ ...user, role: env.OWNER_SOCIAL_ID && user.id === env.OWNER_SOCIAL_ID ? "owner" : "member", tags: JSON.parse(user.tags) })) });
     }
     if (action === "sync") {
       const activity = ["online", "in_game", "offline"].includes(body.status) ? body.status : "online";
       const server = activity === "in_game" && validServer(body.serverHost, body.serverPort);
       if (body.readOnly !== true)
-        await db.prepare("UPDATE social_users SET last_seen = ?, activity = ?, instance_name = ?, mc_version = ?, loader = ?, server_host = ?, server_port = ?, avatar_url = CASE WHEN ? THEN ? ELSE avatar_url END WHERE id = ?").bind(activity === "offline" ? 0 : now, activity, shortText(body.instanceName, 80), shortText(body.mcVersion, 40), shortText(body.loader, 20), server ? body.serverHost : null, server ? body.serverPort : null, Object.hasOwn(body, "avatarUrl") ? 1 : 0, validAvatar(body.avatarUrl) ? body.avatarUrl : null, me.id).run();
-      me = await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE id = ?").bind(me.id).first();
+        await db.prepare("UPDATE social_users SET last_seen = ?, activity = ?, instance_name = ?, mc_version = ?, loader = ?, server_host = ?, server_port = ?, avatar_url = CASE WHEN ? THEN ? ELSE avatar_url END WHERE id = ? AND removed_at = 0").bind(activity === "offline" ? 0 : now, activity, shortText(body.instanceName, 80), shortText(body.mcVersion, 40), shortText(body.loader, 20), server ? body.serverHost : null, server ? body.serverPort : null, Object.hasOwn(body, "avatarUrl") ? 1 : 0, validAvatar(body.avatarUrl) ? body.avatarUrl : null, me.id).run();
+      me = await db.prepare("SELECT id, username, avatar_url AS avatarUrl FROM social_users WHERE id = ? AND removed_at = 0").bind(me.id).first();
       if (!me) return respond({ error: "Perfil indispon\xEDvel." }, 404);
-      const friends = await friendSnapshot(db, me.id, now);
+      const assigned = await db.prepare("SELECT tags FROM social_user_tags WHERE user_id = ?").bind(me.id).first();
+      me = { ...me, role: env.OWNER_SOCIAL_ID && me.id === env.OWNER_SOCIAL_ID ? "owner" : "member", tags: JSON.parse(assigned?.tags || "[]") };
+      const friends = await friendSnapshot(db, me.id, now, env.OWNER_SOCIAL_ID);
       return respond({ me, friends });
     }
     if (typeof body.targetId !== "string" || !/^[a-f0-9-]{36}$/.test(body.targetId) || body.targetId === me.id)
       return respond({ error: "Invalid friend" }, 400);
     const target = body.targetId;
+    if (!await db.prepare("SELECT id FROM social_users WHERE id = ? AND removed_at = 0").bind(target).first()) return respond({ error: "Perfil n\xE3o encontrado." }, 404);
     if (action === "block") {
       await db.prepare("INSERT OR IGNORE INTO social_blocks(owner, target) VALUES (?, ?)").bind(me.id, target).run();
       await db.prepare("DELETE FROM social_relationships WHERE pair_key = ?").bind([me.id, target].sort().join(":")).run();
@@ -207,7 +253,7 @@ async function onRequest({ request, env, params, waitUntil }) {
     if (action === "invite") {
       if (await limited(db, `invite:${me.id}`, now, 3600, 20))
         return respond({ error: "Limite de convites atingido." }, 429);
-      const exists = await db.prepare("SELECT id FROM social_users WHERE id = ?").bind(target).first();
+      const exists = await db.prepare("SELECT id FROM social_users WHERE id = ? AND removed_at = 0").bind(target).first();
       if (!exists)
         return respond({ error: "Jogador n\xE3o encontrado." }, 404);
       const pair = [me.id, target].sort().join(":");

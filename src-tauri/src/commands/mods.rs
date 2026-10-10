@@ -943,7 +943,8 @@ pub async fn mods_download_to_temp_core(
 ) -> AppResult<String> {
     use crate::core::mods::pack_download as pack;
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
-    state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
+    if !state.import_job.load(std::sync::atomic::Ordering::SeqCst) { state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst); }
+    crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     let urls = pack::mirrors(&url)?;
     if file_name.contains(['/', '\\']) {
         return Err(crate::error::AppError::InvalidInput("Invalid filename".into()));
@@ -983,7 +984,9 @@ pub async fn mods_download_to_temp(
     state: State<'_, AppState>,
     url: String,
     fileName: String,
+    operation_id: Option<String>,
 ) -> AppResult<String> {
+    super::instances::instance_check_import_job(&state,operation_id.as_deref()).await?;
     mods_download_to_temp_core(&state, url, fileName).await
 }
 

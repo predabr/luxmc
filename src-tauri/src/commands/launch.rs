@@ -38,6 +38,19 @@ pub fn compute_offline_uuid(username: &str) -> String {
     uuid::Uuid::from_bytes(bytes).simple().to_string()
 }
 
+async fn scan_before_launch(game_dir: &std::path::Path, app: &Option<tauri::AppHandle>) -> AppResult<()> {
+    let mods_dir = game_dir.join("mods");
+    let result = tokio::task::spawn_blocking(move || crate::commands::shield::scan_mods_directory(&mods_dir))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?;
+    if !result.is_clean {
+        if let Some(app) = app {
+            app.emit("launcher-shield-warning", &result).ok();
+            app.emit("launcher-log", format!("Luxmc Shield: {} arquivo(s) precisam de atenção.", result.threats.len())).ok();
+        }
+    }
+    crate::commands::shield::enforce_scan(&result)
+}
+
 pub async fn launch_game_core(
     state: &AppState,
     app: Option<tauri::AppHandle>,
@@ -273,6 +286,7 @@ pub async fn launch_game_core(
 
     let game_dir = std::path::PathBuf::from(&profile.game_dir);
     tokio::fs::create_dir_all(&game_dir).await?;
+    if let Err(error)=crate::core::luxmc_pack::prepare_java(&game_dir,&profile.mc_version).await {tracing::warn!(%error,"Luxmc Essentials preparation skipped");}
 
 
     if !account.refresh_token.is_empty() && account.expires_at.map_or(true, |expiry| expiry <= chrono::Utc::now() + chrono::Duration::minutes(10)) {
@@ -342,26 +356,7 @@ pub async fn launch_game_core(
         .filter(|c| !c.trim().is_empty())
         .or_else(|| account.cape_url.filter(|c| !c.trim().is_empty()));
 
-    let mods_dir = game_dir.join("mods");
-    if mods_dir.is_dir() {
-        let shield_result = tokio::task::spawn_blocking(move || crate::commands::shield::scan_mods_directory(&mods_dir)).await
-            .map_err(|error| AppError::Internal(error.to_string()))?;
-        if !shield_result.is_clean {
-            if let Some(ref a) = app {
-                a.emit("launcher-shield-warning", &shield_result).ok();
-            }
-            emit_log(&format!(
-                "⚠️ Luxmc Shield: detectada(s) {} possível(is) ameaça(s) nos mods da instância!",
-                shield_result.threats.len()
-            ));
-
-            if shield_result.threats.iter().any(|t| t.severity == "critical") {
-                return Err(AppError::InvalidState(
-                    "Luxmc Shield bloqueou o lançamento: detectado mod com malware crítico.".into(),
-                ));
-            }
-        }
-    }
+    scan_before_launch(&game_dir, &app).await?;
 
     if let Some(hook) = profile.pre_launch_hook.as_deref() {
         emit_log(&format!("Executando hook pré-lançamento: {}", hook.trim()));
@@ -374,6 +369,7 @@ pub async fn launch_game_core(
         };
         crate::core::hooks::run("pré-lançamento", hook, &hook_env).await?;
         emit_log("Hook pré-lançamento concluído.");
+        scan_before_launch(&game_dir, &app).await?;
     }
 
     emit_log(&format!(

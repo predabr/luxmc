@@ -39,15 +39,42 @@ fn validate_game_dir(path: &str) -> AppResult<()> {
     }
     if parts < 3 {
         return Err(AppError::InvalidInput(
-            "O diretório do jogo é profundo demais para ser usado com segurança".into(),
+            "O diretório do jogo é raso demais para ser usado com segurança".into(),
         ));
     }
-    if PROTECTED_ROOTS.iter().any(|root| text == *root || text.starts_with(&format!("{root}/"))) {
+    if cfg!(windows) { text = text.to_ascii_lowercase(); }
+    if PROTECTED_ROOTS.iter().any(|root| {
+        let root = if cfg!(windows) { root.to_ascii_lowercase() } else { (*root).to_owned() };
+        text == root || text.starts_with(&format!("{root}/"))
+    }) {
         return Err(AppError::InvalidInput(
             "O diretório do jogo não pode ficar em uma pasta do sistema".into(),
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod path_tests {
+    use super::validate_game_dir;
+
+    #[test]
+    fn instance_paths_require_absolute_deep_non_system_directories() {
+        assert!(validate_game_dir("relative/path").is_err());
+        assert!(validate_game_dir("/").is_err());
+        assert!(validate_game_dir("..").is_err());
+        #[cfg(windows)]
+        {
+            assert!(validate_game_dir("C:\\wInDoWs\\System32\\instance").is_err());
+            assert!(validate_game_dir("C:\\PROGRAM FILES\\Java\\instance").is_err());
+            assert!(validate_game_dir("C:\\Users\\Example\\Games\\instance").is_ok());
+        }
+        #[cfg(not(windows))]
+        {
+            assert!(validate_game_dir("/etc/config/instance").is_err());
+            assert!(validate_game_dir("/home/example/games/instance").is_ok());
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -216,6 +243,7 @@ pub async fn profiles_create(
     crate::db::schema::profiles::upsert(&db, &row).await?;
     let base = directories::ProjectDirs::from("io", "github", "Luxmc").ok_or_else(|| crate::error::AppError::InvalidState("Diretório de dados indisponível".into()))?;
     crate::core::instance_paths::isolate(&mut row, base.data_dir()).await?;
+    crate::core::luxmc_pack::prepare_java(std::path::Path::new(&row.game_dir),&row.mc_version).await?;
     Ok(row)
 }
 

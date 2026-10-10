@@ -22,6 +22,9 @@ const {setupLauncherDemo}=require('../scripts/launcher-video-fixture.cjs');
     if(command==='settings_set'){Object.assign(state.settings,args.value);if(args.value.installationQueue)localStorage.setItem('queue-fixture',JSON.stringify(args.value.installationQueue));return null;}
     if(command==='performance_history')return [{profileId:state.profiles[0].id,timestamp:'2026-10-07T12:00:00Z',metrics:{kind:'preparation',seconds:4.2,pid:42}},{profileId:state.profiles[0].id,timestamp:'2026-10-07T12:20:00Z',metrics:{kind:'session',peakRamMb:2048,durationSeconds:1200,pid:42}}];
     if(command==='modpack_validate')return readiness;
+    if(command==='instance_begin_import')return 'workshop-fixture-operation';
+    if(command==='instance_end_import')return null;
+    if(command==='instance_shield_scan')return {totalScanned:48,isClean:true,threats:[],scanTimeMs:65};
     if(command==='support_report')return {launcherVersion:'3.1.0',platform:'windows',readiness,diagnosis:{title:'Nenhuma falha detectada',solution:'Nenhuma ação necessária',logSnippet:'[TOKEN] [EMAIL] [USUARIO]'}};
     if(command==='instance_list_world_backups')return [{fileName:'world_20261007_120000.zip',worldName:'Meu mundo',sizeBytes:1024,createdAt:'07/10/2026 12:00'}];
     if(command==='world_restore')return null;
@@ -52,6 +55,7 @@ const {setupLauncherDemo}=require('../scripts/launcher-video-fixture.cjs');
   await page.waitForFunction(()=>window.workshopCalls.some(call=>call.command==='instance_import_mrpack'));
   await page.getByRole('complementary',{name:'Fila de instalações'}).getByRole('button',{name:'Fechar',exact:true}).click();
   await page.getByRole('button',{name:'Validar instância',exact:true}).click();await page.getByText('Verificação concluída: nenhuma falha bloqueante identificada',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Verificar mods com Shield',exact:true}).click();await page.getByText('Nenhum indicador detectado',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Preparar diagnóstico',exact:true}).click();await page.getByRole('button',{name:'Exportar diagnóstico',exact:true}).waitFor();await page.getByRole('button',{name:'Exportar diagnóstico',exact:true}).click();await page.waitForFunction(()=>window.workshopCalls.some(call=>call.command==='support_report_export'));
   await page.getByRole('button',{name:'Ver backups',exact:true}).click();await page.getByRole('button',{name:'Restaurar',exact:true}).click();await page.getByRole('alert').filter({hasText:'Restaurar Meu mundo?'}).waitFor();
   await page.getByRole('button',{name:'Cancelar',exact:true}).last().click();

@@ -10,6 +10,12 @@ pub enum SocialRequest {
     Sync { status: String, instance_name: Option<String>, mc_version: Option<String>, loader: Option<String>, server_host: Option<String>, server_port: Option<u16>, avatar_url: Option<String> },
     #[serde(rename = "search")]
     Search { query: String },
+    #[serde(rename = "owner_users")]
+    OwnerUsers { query: Option<String>, offset: Option<u32> },
+    #[serde(rename = "owner_tags", rename_all = "camelCase")]
+    OwnerTags { target_id: String, tags: Vec<String> },
+    #[serde(rename = "owner_delete", rename_all = "camelCase")]
+    OwnerDelete { target_id: String, confirmation: String },
     #[serde(rename = "invite", rename_all = "camelCase")]
     Invite { target_id: String },
     #[serde(rename = "accept", rename_all = "camelCase")]

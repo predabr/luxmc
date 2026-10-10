@@ -8,7 +8,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
-    net::{TcpListener, TcpStream, UdpSocket},
+    net::{TcpListener, TcpStream},
     sync::Mutex,
     task::{JoinHandle, JoinSet},
 };
@@ -21,10 +21,12 @@ const ALPN: &[u8] = b"luxmc/minecraft-tunnel/2";
 const ROOM_CAPACITY: usize = 10;
 static CLIENT_KEY: LazyLock<iroh::SecretKey> = LazyLock::new(iroh::SecretKey::generate);
 const PREFIX: &str = "luxmc-world:";
+#[cfg(test)]
 const MINECRAFT_LAN_MULTICAST: &str = "224.0.2.60:4445";
 static SESSION: LazyLock<Mutex<Option<TunnelSession>>> = LazyLock::new(|| Mutex::new(None));
 
 pub fn private_lan_session_path() -> Option<std::path::PathBuf> {
+    if cfg!(test) { return Some(std::env::temp_dir().join(format!("luxmc-unit-network-{}", std::process::id())).join("private-lan.properties")); }
     directories::ProjectDirs::from("io", "github", "Luxmc").map(|dirs| dirs.data_dir().join("private-lan.properties"))
 }
 
@@ -66,9 +68,9 @@ struct Invitation {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct RoomIdentity { pub username: String, pub uuid: String, pub avatar_url: Option<String> }
+pub struct RoomIdentity { pub username: String, pub uuid: String, pub avatar_url: Option<String>, #[serde(default)] pub display_name: Option<String> }
 impl Default for RoomIdentity {
-    fn default() -> Self { Self { username: "Jogador".into(), uuid: String::new(), avatar_url: None } }
+    fn default() -> Self { Self { username: "Jogador".into(), uuid: String::new(), avatar_url: None, display_name: None } }
 }
 fn valid_avatar(value: &str) -> bool {
     if value.len() > 2048 { return false; }
@@ -84,6 +86,7 @@ fn valid_avatar(value: &str) -> bool {
 impl RoomIdentity {
     fn validate(self) -> AppResult<Self> {
         if self.username.trim().is_empty() || self.username.chars().count() > 32 || self.username.chars().any(char::is_control) || self.uuid.len() > 64 { return Err(failure("Identidade da conta inválida")); }
+        if self.display_name.as_ref().is_some_and(|name| name.chars().count() > 32 || name.chars().any(char::is_control)) { return Err(failure("Nome público inválido")); }
         let avatar_url = self.avatar_url.filter(|url| valid_avatar(url));
         Ok(Self { username: self.username.trim().into(), avatar_url, ..self })
     }
@@ -91,9 +94,9 @@ impl RoomIdentity {
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct TunnelMember { pub id: String, pub username: String, pub uuid: String, pub avatar_url: Option<String>, pub joined_at: u64, pub is_host: bool, #[serde(default)] pub preparation: Option<coordination::Preparation> }
+pub struct TunnelMember { pub id: String, pub username: String, pub uuid: String, pub avatar_url: Option<String>, #[serde(default)] pub display_name: Option<String>, pub joined_at: u64, pub is_host: bool, #[serde(default)] pub preparation: Option<coordination::Preparation> }
 impl TunnelMember {
-    fn new(id: String, identity: RoomIdentity, is_host: bool) -> Self { Self { id, username: identity.username, uuid: identity.uuid, avatar_url: identity.avatar_url, joined_at: now(), is_host, preparation: None } }
+    fn new(id: String, identity: RoomIdentity, is_host: bool) -> Self { Self { id, username: identity.username, uuid: identity.uuid, avatar_url: identity.avatar_url, display_name: identity.display_name, joined_at: now(), is_host, preparation: None } }
 }
 
 #[derive(Default)]
@@ -145,8 +148,8 @@ async fn read_room_snapshot(connection: &iroh::endpoint::Connection, secret: [u8
     if snapshot.members.len() > ROOM_CAPACITY || snapshot.max_players != ROOM_CAPACITY || snapshot.room_code.len() > 32 { return Err(failure("Participantes da sala inválidos")); }
     for member in &mut snapshot.members {
         if member.id.len() > 128 || member.preparation.as_ref().is_some_and(|value| !value.valid()) { return Err(failure("Participante inválido")); }
-        let identity = RoomIdentity { username: member.username.clone(), uuid: member.uuid.clone(), avatar_url: member.avatar_url.clone() }.validate()?;
-        member.username = identity.username; member.avatar_url = identity.avatar_url;
+        let identity = RoomIdentity { username: member.username.clone(), uuid: member.uuid.clone(), avatar_url: member.avatar_url.clone(), display_name: member.display_name.clone() }.validate()?;
+        member.username = identity.username; member.avatar_url = identity.avatar_url; member.display_name = identity.display_name;
     }
     if snapshot.worlds.len() > ROOM_CAPACITY || snapshot.worlds.iter().any(|world| !snapshot.members.iter().any(|member| member.id == world.owner_id) || world.motd.chars().count() > 160 || world.motd.chars().any(char::is_control) || world.compatibility.as_ref().is_some_and(|c| c.mc_version.len()>64 || c.loader.len()>32 || c.mod_fingerprint.len()!=64 || !c.mod_fingerprint.chars().all(|v|v.is_ascii_hexdigit()) || c.mod_count>10000)) { return Err(failure("Mundos da sala inválidos")); }
     for world in &mut snapshot.worlds { world.local_address = None; }
@@ -244,37 +247,18 @@ async fn bridge(
 
 fn start_lan_broadcast(local_port: u16, room: Arc<Mutex<RoomSnapshot>>) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let Ok(socket) = socket2::Socket::new(
-            socket2::Domain::IPV4,
-            socket2::Type::DGRAM,
-            Some(socket2::Protocol::UDP),
-        ) else {
-            return;
-        };
-        let loopback = std::net::Ipv4Addr::LOCALHOST;
-        if socket.bind(&std::net::SocketAddrV4::new(loopback, 0).into()).is_err()
-            || socket.set_multicast_if_v4(&loopback).is_err()
-            || socket.set_nonblocking(true).is_err()
-        {
-            return;
-        }
-        let Ok(socket) = UdpSocket::from_std(socket.into()) else {
-            return;
-        };
-        let _ = socket.set_multicast_loop_v4(true);
-        let _ = socket.set_multicast_ttl_v4(1);
-        let payload = lan_advertisement(local_port);
+        let advertiser = super::lan_advertiser::Advertiser::new();
         let mut interval = tokio::time::interval(Duration::from_millis(1500));
         loop {
             interval.tick().await;
             if !room.lock().await.world_ready { continue; }
-            let _ = socket
-                .send_to(payload.as_bytes(), MINECRAFT_LAN_MULTICAST)
-                .await;
+            let title = room.lock().await.worlds.iter().find(|world| !world.owner_username.is_empty()).map(|world| format!("{} · {}", world.owner_username, world.motd));
+            advertiser.announce(local_port, title.as_deref().unwrap_or("Mundo de amigo")).await;
         }
     })
 }
 
+#[cfg(test)]
 fn lan_advertisement(local_port: u16) -> String {
     format!("[MOTD]§b[Luxmc] §fMundo de Amigo[/MOTD][AD]{local_port}[/AD]")
 }
@@ -309,7 +293,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
     let mut secret = [0u8; 32];
     secret[..16].copy_from_slice(uuid::Uuid::new_v4().as_bytes());
     secret[16..].copy_from_slice(uuid::Uuid::new_v4().as_bytes());
-    let expires = now() + 3600;
+    let expires = now() + 86400;
     { let mut room = room.lock().await; room.secret = secret; room.expires = expires; }
     let invitation_payload = format!(
         "{PREFIX}{}",
@@ -533,7 +517,7 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
             return Err(failure("O hospedeiro não respondeu em 25 segundos. Verifique a conexão dos dois participantes e tente reconectar."));
         }
     };
-    let listener = TcpListener::bind(("127.0.0.1", 0)).await?;
+    let listener = TcpListener::bind(("0.0.0.0", 0)).await?;
     let local_port = listener.local_addr()?.port();
     let address = format!("127.0.0.1:{local_port}");
     let own_room = Arc::new(Mutex::new(RoomRegistry::default()));
@@ -572,7 +556,8 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
                 _ = connection.closed() => break,
                 Some(_) = streams.join_next(), if !streams.is_empty() => {},
                 accepted = listener.accept() => {
-                    let Ok((tcp, _)) = accepted else { break };
+                    let Ok((tcp, peer)) = accepted else { break };
+                    if !super::lan_advertiser::local_client(peer.ip()) { continue; }
                     if streams.len() >= 16 { continue; }
                     let c = connection.clone();
                     streams.spawn(async move {
@@ -784,7 +769,7 @@ pub async fn tunnel_refresh_invitation() -> AppResult<TunnelStatus> {
     let mut secret = [0u8; 32];
     secret[..16].copy_from_slice(uuid::Uuid::new_v4().as_bytes());
     secret[16..].copy_from_slice(uuid::Uuid::new_v4().as_bytes());
-    let expires = now() + 3600;
+    let expires = now() + 86400;
     let payload = URL_SAFE_NO_PAD.encode(serde_json::to_vec(&Invitation { version: 2, addr: session.endpoint.addr(), secret, expires })?);
     let raw = format!("{}{PREFIX}{payload}", session.status.room_code.as_deref().map(|code| format!("{code}|")).unwrap_or_default());
     let public = if session.public_code.is_some() { Some(crate::core::share_codes::publish("room", &raw).await?) } else { None };
@@ -804,6 +789,44 @@ pub async fn tunnel_refresh_invitation() -> AppResult<TunnelStatus> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::net::UdpSocket;
+
+    #[tokio::test]
+    async fn lan_discovery_on_physical_interface_connects_to_encrypted_proxy() {
+        let interfaces = super::super::lan_advertiser::interfaces();
+        let physical = interfaces.iter().any(|ip| !ip.is_loopback());
+        let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP)).unwrap();
+        socket.set_reuse_address(true).unwrap();
+        socket.bind(&std::net::SocketAddrV4::new(std::net::Ipv4Addr::UNSPECIFIED, 4445).into()).unwrap();
+        for interface in interfaces { let _ = socket.join_multicast_v4(&std::net::Ipv4Addr::new(224,0,2,60), &interface); }
+        socket.set_nonblocking(true).unwrap();
+        let receiver = UdpSocket::from_std(socket.into()).unwrap();
+        let listener = TcpListener::bind(("127.0.0.1",0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let echo = tokio::spawn(async move {
+            let mut tasks = JoinSet::new();
+            loop { let (mut stream,_) = listener.accept().await.unwrap(); tasks.spawn(async move { let (mut read,mut write) = stream.split(); let _ = tokio::io::copy(&mut read,&mut write).await; }); }
+        });
+        let host = start_host(port).await.unwrap();
+        let invitation = parse_invitation(host.status.invitation.as_ref().unwrap()).unwrap();
+        let client = start_client_with(invitation,endpoint().await.unwrap()).await.unwrap();
+        let proxy = client.status.local_address.as_ref().unwrap().parse::<std::net::SocketAddr>().unwrap();
+        let source = tokio::time::timeout(Duration::from_secs(10), async {
+            let mut bytes = [0;1024];
+            loop {
+                let (count,source) = receiver.recv_from(&mut bytes).await.unwrap();
+                let packet = String::from_utf8_lossy(&bytes[..count]);
+                if packet.contains(&format!("[AD]{}[/AD]",proxy.port())) && (!physical || !source.ip().is_loopback()) { break source.ip(); }
+            }
+        }).await.unwrap();
+        let mut stream = TcpStream::connect((source,proxy.port())).await.unwrap();
+        stream.write_all(b"minecraft lan list").await.unwrap();
+        let mut response = [0;18];
+        tokio::time::timeout(Duration::from_secs(10),stream.read_exact(&mut response)).await.unwrap().unwrap();
+        assert_eq!(&response,b"minecraft lan list");
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        client.stop().await; host.stop().await; echo.abort();
+    }
 
     #[tokio::test]
     async fn guest_world_reaches_creator_and_other_guests_and_is_withdrawn() {
@@ -951,7 +974,7 @@ mod tests {
         );
         assert!(start_client(&wrong).await.is_err());
         *SESSION.lock().await = Some(host);
-        let guest_identity = RoomIdentity { username: "Alex".into(), uuid: "alex-uuid".into(), avatar_url: Some("https://example.com/alex.png".into()) };
+        let guest_identity = RoomIdentity { username: "Alex".into(), uuid: "alex-uuid".into(), avatar_url: Some("https://example.com/alex.png".into()), display_name: Some("Alex da turma".into()) };
         let mut different_clock_invite = parse_invitation(&invitation).unwrap();
         different_clock_invite.expires = 1;
         let client = start_client_as(different_clock_invite, endpoint().await.unwrap(), guest_identity).await.unwrap();
@@ -1085,6 +1108,28 @@ mod tests {
         client.stop().await;
         host.stop().await;
         echo.abort();
+    }
+
+    #[tokio::test]
+    #[ignore = "uses published invite service"]
+    async fn published_short_invitation_connects_to_the_running_room() {
+        let listener = TcpListener::bind(("127.0.0.1",0)).await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let echo = tokio::spawn(async move {
+            let mut tasks = JoinSet::new();
+            loop { let (mut stream,_) = listener.accept().await.unwrap(); tasks.spawn(async move { let (mut read,mut write) = stream.split(); let _ = tokio::io::copy(&mut read,&mut write).await; }); }
+        });
+        let status = host_world(Some(port),None).await.unwrap();
+        let code = status.invitation.as_ref().unwrap();
+        assert!(crate::core::share_codes::is_short_code(code));
+        let raw = crate::core::share_codes::resolve(code,"room").await.unwrap();
+        let client = start_client_with(parse_invitation(&raw).unwrap(),endpoint().await.unwrap()).await.unwrap();
+        let mut stream = TcpStream::connect(client.status.local_address.as_ref().unwrap()).await.unwrap();
+        stream.write_all(b"private invite").await.unwrap();
+        let mut response = [0;14];
+        tokio::time::timeout(Duration::from_secs(10),stream.read_exact(&mut response)).await.unwrap().unwrap();
+        assert_eq!(&response,b"private invite");
+        client.stop().await; stop_session().await.unwrap(); echo.abort();
     }
     #[test]
     fn invitation_accepts_links_and_different_computer_clocks() {

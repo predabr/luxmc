@@ -8,6 +8,21 @@ use tokio::io::AsyncWriteExt;
 
 use crate::error::{AppError, AppResult};
 
+pub fn copy_cancellable<R: std::io::Read, W: std::io::Write>(source: &mut R, target: &mut W, cancel: Option<&AtomicBool>) -> AppResult<u64> {
+    let mut bytes = [0u8; 65536];
+    let mut total = 0;
+    loop {
+        cancelled(cancel)?;
+        let count = source.read(&mut bytes)?;
+        if count == 0 { break; }
+        cancelled(cancel)?;
+        target.write_all(&bytes[..count])?;
+        total += count as u64;
+    }
+    cancelled(cancel)?;
+    Ok(total)
+}
+
 pub fn relative_path(value: &str) -> AppResult<PathBuf> {
     let normalized = value.replace('\\', "/");
     if normalized.is_empty()
@@ -208,6 +223,10 @@ async fn transfer_bytes(http: &reqwest::Client, initial: reqwest::Url, cancel: O
 }
 
 pub async fn verify_existing(path: &Path, size: Option<u64>, sha1: Option<&str>, sha512: Option<&str>, archive: bool) -> bool {
+    verify_existing_cancellable(path,size,sha1,sha512,archive,None).await
+}
+
+pub async fn verify_existing_cancellable(path: &Path, size: Option<u64>, sha1: Option<&str>, sha512: Option<&str>, archive: bool, cancel: Option<std::sync::Arc<AtomicBool>>) -> bool {
     let path = path.to_path_buf();
     let sha1 = sha1.map(str::to_owned);
     let sha512 = sha512.map(str::to_owned);
@@ -215,6 +234,7 @@ pub async fn verify_existing(path: &Path, size: Option<u64>, sha1: Option<&str>,
         use std::io::Read;
         use std::sync::{LazyLock, Mutex};
         static VERIFIED: LazyLock<Mutex<std::collections::HashSet<String>>> = LazyLock::new(|| Mutex::new(std::collections::HashSet::new()));
+        if cancelled(cancel.as_deref()).is_err() { return false; }
         let Ok(mut file) = std::fs::File::open(&path) else { return false; };
         let Ok(before) = file.metadata() else { return false; };
         if !before.is_file() || before.len() == 0 || size.is_some_and(|s| s != before.len()) { return false; }
@@ -235,6 +255,7 @@ pub async fn verify_existing(path: &Path, size: Option<u64>, sha1: Option<&str>,
             let mut second = sha2::Sha512::new();
             let mut buffer = [0u8; 65536];
             loop {
+                if cancelled(cancel.as_deref()).is_err() { return false; }
                 let count = match file.read(&mut buffer) { Ok(0) => break, Ok(count) => count, Err(_) => return false };
                 if sha1.is_some() { first.update(&buffer[..count]); }
                 if sha512.is_some() { second.update(&buffer[..count]); }
@@ -251,7 +272,7 @@ pub async fn verify_existing(path: &Path, size: Option<u64>, sha1: Option<&str>,
                 cache.insert(key);
             }
         }
-        true
+        cancelled(cancel.as_deref()).is_ok()
     }).await.unwrap_or(false)
 }
 
@@ -278,7 +299,9 @@ pub async fn cached_content(root: &Path, size: Option<u64>, sha1: Option<&str>, 
     let path = content_cache_path(root, sha1, sha512)?;
     if tokio::fs::metadata(&path).await.ok()?.len() > 64 * 1024 * 1024 { return None; }
     let bytes = tokio::fs::read(&path).await.ok()?;
-    if verify(&bytes, size, sha1, sha512) { Some(bytes) } else { None }
+    let first = sha1.map(str::to_owned);
+    let second = sha512.map(str::to_owned);
+    tokio::task::spawn_blocking(move || if verify(&bytes,size,first.as_deref(),second.as_deref()) {Some(bytes)} else {None}).await.ok().flatten()
 }
 
 pub async fn cache_verified_content(root: &Path, bytes: &[u8], sha1: Option<&str>, sha512: Option<&str>) {
@@ -414,5 +437,24 @@ mod tests {
         assert!(!verify(b"bad", Some(5), Some(&hash), None));
         assert!(!verify(b"other", Some(5), Some(&hash), None));
         assert!(!verify(b"", None, None, None));
+    }
+
+    #[test]
+    fn cancellation_during_extraction_stops_before_next_write() {
+        struct Source<'a> { cancel: &'a AtomicBool, reads: usize }
+        impl std::io::Read for Source<'_> {
+            fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
+                self.reads += 1;
+                bytes.fill(42);
+                if self.reads == 3 { self.cancel.store(true, Ordering::SeqCst); }
+                Ok(bytes.len())
+            }
+        }
+        let cancel = AtomicBool::new(false);
+        let mut source = Source { cancel: &cancel, reads: 0 };
+        let mut output = Vec::new();
+        assert!(copy_cancellable(&mut source, &mut output, Some(&cancel)).is_err());
+        assert_eq!(source.reads, 3);
+        assert_eq!(output.len(), 2 * 65536);
     }
 }

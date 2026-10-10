@@ -2535,7 +2535,7 @@ pub fn lib_path_from_name(base: &PathBuf, name: &str) -> PathBuf {
     base.join(format!("{}/{}/{}/{}", group, artifact, ver_clean, filename))
 }
 
-fn extract_mc_version(version: &str) -> &str {
+pub(crate) fn extract_mc_version(version: &str) -> &str {
     let clean = version.trim();
     for part in clean.split(|c: char| c == '-' || c == '/' || c == '_') {
         if part.starts_with("1.") && part.len() >= 3 {
@@ -2575,7 +2575,7 @@ fn is_legacy_pack(version: &str) -> bool {
         || clean.starts_with("rd-")
 }
 
-fn skin_pack_metadata(format: u32) -> serde_json::Value {
+pub(crate) fn skin_pack_metadata(format: u32) -> serde_json::Value {
     if format >= 65 {
         serde_json::json!({"pack": {"min_format": format, "max_format": format, "description": "Luxmc Player Custom Skin & Cape"}})
     } else {
@@ -2583,12 +2583,12 @@ fn skin_pack_metadata(format: u32) -> serde_json::Value {
     }
 }
 
-fn get_pack_format_for_version(version: &str) -> u32 {
+pub(crate) fn get_pack_format_for_version(version: &str) -> u32 {
     let clean = extract_mc_version(version);
     if let Some(dirs) = directories::ProjectDirs::from("io", "github", "Luxmc") {
         let jar = dirs.data_dir().join("versions").join(&clean).join(format!("{clean}.jar"));
         if let Ok(file) = std::fs::File::open(jar) {
-            if let Ok(mut archive) = zip::ZipArchive::new(file) {
+            if let Ok(mut archive) = zip::ZipArchive::new(std::io::BufReader::new(file)) {
                 if let Ok(entry) = archive.by_name("version.json") {
                     if entry.size() < 65536 {
                         if let Ok(value) = serde_json::from_reader::<_, serde_json::Value>(entry) {

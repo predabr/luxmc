@@ -1,5 +1,5 @@
 <script lang="ts">
-    import VirtualLanPanel from "./VirtualLanPanel.svelte";
+    import RoomPanel from "./RoomPanel.svelte";
     let { profileId: _profileId }: { profileId?: string } = $props();
 </script>
-<VirtualLanPanel />
+<RoomPanel />

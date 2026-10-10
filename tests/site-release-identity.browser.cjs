@@ -5,8 +5,10 @@ const assert = require('node:assert/strict');
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
     try {
         for (const [tag, display, title] of [
-            ['v3.6.1-revision.2', 'v3.6.0', 'Luxmc 3.6.0 — revisão 2'],
-            ['v3.7.0', 'v3.7.0', 'Luxmc 3.7.0']
+            ['v3.6.1-revision.2', 'v3.7.0', 'Luxmc 3.7.0'],
+            ['v3.7.0', 'v3.7.0', 'Luxmc 3.7.0'],
+            ['v3.7.1-revision.2', 'v3.7.0', 'Luxmc 3.7.0 — revisão 2'],
+            ['v3.8.0', 'v3.8.0', 'Luxmc 3.8.0']
         ]) {
             const page = await browser.newPage();
             await page.route('**/api/latest-release*', route => route.fulfill({ json: { tag_name: tag, assets: [] } }));
@@ -17,7 +19,7 @@ const assert = require('node:assert/strict');
             assert.ok(versions.every(node => node.text === display && node.title === title));
             await page.close();
         }
-        console.log('Site release identity passed: same-version revision and future release.');
+        console.log('Site release identity passed: cached previous release, current release, same-version revision and future release.');
     } finally {
         await browser.close();
     }

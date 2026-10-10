@@ -27,7 +27,7 @@ let profileLoading = false;
 
 function withProfile(friend: Friend): Friend {
     const profile = profileCache.get(friend.id)?.profile;
-    return profile && friend.status !== 'pending' ? { ...friend, displayName: profile.displayName, avatarUrl: profile.portrait || friend.avatarUrl, role: profile.role, profileStatus: profile.status } : friend;
+    return profile && friend.status !== 'pending' ? { ...friend, displayName: profile.displayName, avatarUrl: profile.portrait || friend.avatarUrl, role: friend.role ?? profile.role, tags: friend.tags ?? profile.tags, profileStatus: profile.status } : friend;
 }
 
 async function loadFriendProfiles() {
@@ -102,6 +102,7 @@ async function refreshNow(run: number) {
 		if (run !== generation) return;
         applyFriends(result.friends);
         me = result.me;
+        if (ownProfile) ownProfile = {...ownProfile,role:result.me.role ?? ownProfile.role,tags:result.me.tags ?? ownProfile.tags};
 		error = "";
 	} catch (cause) {
 		if (run !== generation) return;

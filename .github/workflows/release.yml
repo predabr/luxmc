@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v3.6.0)"
+        description: "Release tag (e.g. v3.7.0)"
         required: true
-        default: "v3.6.0"
+        default: "v3.7.0"
       reuse_assets:
         description: "Verify and publish an existing draft without rebuilding installers"
         type: boolean
@@ -100,7 +100,7 @@ jobs:
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: tag,
-                name: tag.includes('-revision.') ? `Luxmc ${require('./package.json').version} — revisão ${tag.split('-revision.')[1]}` : `Luxmc ${tag}`,
+                name: require("fs").readFileSync(`docs/releases/${tag}.md`, "utf8").split(/\r?\n/)[0].replace(/^#\s+/, "").trim(),
                 body: require("fs").readFileSync(`docs/releases/${tag}.md`, "utf8"),
                 draft: true,
                 prerelease: tag.includes("beta") || tag.includes("alpha") || tag.includes("rc"),

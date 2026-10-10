@@ -1,5 +1,6 @@
 <script lang="ts">
 import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation.svelte";
+    import AccountBadges from "$lib/components/ui/AccountBadges.svelte";
     import { friendDisplayName } from '$lib/api/social';
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { quintOut } from "svelte/easing";
@@ -216,7 +217,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 									<div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-bg-elevated border border-fg/5">
 										<div class="flex items-center gap-2 min-w-0">
 											<button type="button" class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`} onclick={() => publicProfile.show(friend)}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" /></button>
-											<span class="text-xs font-bold text-fg truncate max-w-[90px]">{friendDisplayName(friend)}</span>{#if friend.role === "owner"}<span class="text-[9px] font-semibold text-brand-400">{uiText("ownerTools.badge")}</span>{/if}
+											<span class="text-xs font-bold text-fg truncate max-w-[90px]">{friendDisplayName(friend)}</span><AccountBadges role={friend.role} tags={friend.tags} />
 										</div>
 
 										<div class="flex items-center gap-1 shrink-0">
@@ -268,7 +269,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 								<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group">
 									<div class="flex items-center gap-2 min-w-0">
 										<button type="button" class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`} onclick={() => publicProfile.show(friend)}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" /></button>
-										<div class="min-w-0"><button type="button" onclick={() => publicProfile.show(friend)} class="block max-w-full truncate text-left text-xs font-medium text-fg hover:text-brand-400" title={uiText("publicProfile.view")}>{friendDisplayName(friend)}</button>{#if friend.role === "owner"}<span class="text-[9px] font-semibold text-brand-400">{uiText("ownerTools.badge")}</span>{/if}
+										<div class="min-w-0"><button type="button" onclick={() => publicProfile.show(friend)} class="block max-w-full truncate text-left text-xs font-medium text-fg hover:text-brand-400" title={uiText("publicProfile.view")}>{friendDisplayName(friend)}</button><AccountBadges role={friend.role} tags={friend.tags} />
 											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class={launcherButton({ variant: "ghost", size: "sm", class: "" })}>{uiText("ui.e551687514b0b026")}</button>{/if}</div>
 									</div>
 
@@ -303,7 +304,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 							<div class="flex items-center justify-between p-1.5 rounded-xl hover:bg-fg/5 transition-colors group opacity-60 hover:opacity-100">
 								<div class="flex items-center gap-2 min-w-0">
 									<button type="button" class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`} onclick={() => publicProfile.show(friend)}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" /></button>
-									<div class="min-w-0"><button type="button" onclick={() => publicProfile.show(friend)} class="block max-w-full truncate text-left text-xs font-medium text-fg hover:text-brand-400" title={uiText("publicProfile.view")}>{friendDisplayName(friend)}</button>{#if friend.role === "owner"}<span class="text-[9px] font-semibold text-brand-400">{uiText("ownerTools.badge")}</span>{/if}
+									<div class="min-w-0"><button type="button" onclick={() => publicProfile.show(friend)} class="block max-w-full truncate text-left text-xs font-medium text-fg hover:text-brand-400" title={uiText("publicProfile.view")}>{friendDisplayName(friend)}</button><AccountBadges role={friend.role} tags={friend.tags} />
 											{#if friend.serverIp && friend.status === "in_game"}<button type="button" onclick={() => joinFriend(friend)} class={launcherButton({ variant: "ghost", size: "sm", class: "" })}>{uiText("ui.e551687514b0b026")}</button>{/if}</div>
 								</div>
 
@@ -341,7 +342,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 									<div class="flex items-center gap-2 min-w-0">
 										<button type="button" class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`} onclick={() => publicProfile.show(friend)}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} activity={friend.activity} lastSeen={friend.lastSeen} class="h-7 w-7" /></button>
 										<div class="min-w-0">
-											<span class="text-xs font-bold text-fg truncate block">{friendDisplayName(friend)}</span>{#if friend.role === "owner"}<span class="text-[9px] font-semibold text-brand-400">{uiText("ownerTools.badge")}</span>{/if}
+											<span class="text-xs font-bold text-fg truncate block">{friendDisplayName(friend)}</span><AccountBadges role={friend.role} tags={friend.tags} />
 											<span class="text-[10px] text-amber-400 font-medium block">{uiText("ui.0b52c68ee6ed1831")}</span>
 										</div>
 									</div>

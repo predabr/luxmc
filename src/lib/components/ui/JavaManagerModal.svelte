@@ -18,8 +18,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	const javaInfo: Record<number, { label: string; use: string; color: string }> = $derived({
 		8:  { label: uiText("ui.1fa3a6ee50fe3351"),  use: "Minecraft 1.7 – 1.16.x",  color: "text-orange-400" },
-		17: { label: uiText("ui.ee8852e3c233dc78"), use: "Minecraft 1.17 – 1.20.4",  color: "text-blue-400" },
-		21: { label: uiText("ui.d143f4078cca268c"), use: "Minecraft 1.20.5+",        color: "text-emerald-400" },
+		16: { label: "Java 16", use: "Minecraft 1.17.x", color: "text-blue-400" },
+		17: { label: uiText("ui.ee8852e3c233dc78"), use: "Minecraft 1.18 – 1.20.4",  color: "text-blue-400" },
+		21: { label: uiText("ui.d143f4078cca268c"), use: "Minecraft 1.20.5 – 1.21.x", color: "text-emerald-400" },
+		25: { label: "Java 25", use: "Minecraft 26.1+", color: "text-emerald-400" },
 	});
 
 	onMount(() => {
@@ -77,14 +79,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 {#if open}
 <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-bg-overlay/70 backdrop-blur-md">
-	<div class="w-full max-w-lg bg-bg-elevated border border-fg/10 rounded-3xl shadow-2xl flex flex-col gap-0 overflow-hidden animate-slide-up">
+	<div role="dialog" aria-modal="true" aria-labelledby="java-manager-title" class="w-full max-w-lg max-h-[90vh] bg-bg-elevated border border-fg/10 rounded-3xl shadow-2xl flex flex-col gap-0 overflow-hidden animate-slide-up">
 		<div class="flex items-center justify-between px-6 py-4 border-b border-fg/5">
 			<div class="flex items-center gap-3">
 				<div class="w-9 h-9 rounded-2xl bg-orange-500/15 border border-orange-500/25 flex items-center justify-center text-orange-400">
 					<Coffee class="w-4 h-4" />
 				</div>
 				<div>
-					<h2 class="text-sm font-black text-fg">{uiText("ui.ed7ad2f20f94a37f")}</h2>
+					<h2 id="java-manager-title" class="text-sm font-black text-fg">{uiText("ui.ed7ad2f20f94a37f")}</h2>
 					<p class="text-[11px] text-fg/40">{uiText("ui.e9e0057c53057015")}</p>
 				</div>
 			</div>
@@ -92,15 +94,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				<button type="button" onclick={scan} class={launcherButton({ variant: "secondary", size: "icon", class: "" })} title={uiText("ui.0faf36fe47518b6f")}>
 					<RefreshCw class="w-4 h-4 {loading ? 'animate-spin' : ''}" />
 				</button>
-				<button type="button" onclick={onClose} class={launcherButton({ variant: "secondary", size: "icon", class: "" })}>
+				<button type="button" aria-label="Fechar gerenciador Java" onclick={onClose} class={launcherButton({ variant: "secondary", size: "icon", class: "" })}>
 					<X class="w-4 h-4" />
 				</button>
 			</div>
 		</div>
 
-		<div class="p-6 flex flex-col gap-3">
+		<div class="p-6 flex min-h-0 flex-col gap-3 overflow-y-auto">
 			{#if loading}
-				{#each [8, 17, 21] as _}
+				{#each [8, 16, 17, 21, 25] as _}
 					<div class="h-20 rounded-2xl bg-fg/5 animate-pulse"></div>
 				{/each}
 			{:else}
@@ -117,7 +119,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							</div>
 							<div class="min-w-0">
 								<div class="flex items-center gap-2">
-									<span class="text-sm font-bold {info?.color ?? 'text-fg'}">{info?.label}</span>
+									<span class="text-sm font-bold {info?.color ?? 'text-fg'}">{info?.label ?? `Java ${runtime.major}`}</span>
 									{#if runtime.isSystem}
 										<span class="text-[9px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">{uiText("ui.c3351d694be19355")}</span>
 									{:else if runtime.installed}

@@ -119,8 +119,8 @@ export async function modsUpdate(projectId: string, versionId: string, profileId
 	return api.invoke("mods_update", { projectId, versionId, profileId });
 }
 
-export async function modsDownloadToTemp(url: string, fileName: string): Promise<string> {
-	return api.invoke("mods_download_to_temp", { url, fileName });
+export async function modsDownloadToTemp(url: string, fileName: string, operationId?:string): Promise<string> {
+	return api.invoke("mods_download_to_temp", { url, fileName, operationId });
 }
 
 export async function curseforgeStatus(): Promise<boolean> {

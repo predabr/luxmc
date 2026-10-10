@@ -13,7 +13,8 @@ pub fn monitor(target: Arc<AtomicU16>, ready: Arc<Mutex<super::p2p_tunnel::RoomR
         let mut last_seen = tokio::time::Instant::now();
         loop {
             match crate::commands::p2p::p2p_scan_lan_worlds().await {
-                Ok(worlds) => {
+                Ok(mut worlds) => {
+                    if let Ok(Some(port)) = tokio::task::spawn_blocking(super::virtual_world::active_port).await { worlds.insert(0, crate::commands::p2p::DiscoveredLanWorld { host:"127.0.0.1".into(), port, motd:"Meu mundo".into() }); }
                     let current = target.load(Ordering::Acquire);
                     let mut candidates: Vec<_> = worlds.iter().rev().filter(|world| is_local_world(&world.host, &world.motd)).collect();
                     candidates.sort_by_key(|world| world.port != current);
@@ -38,6 +39,8 @@ pub fn monitor(target: Arc<AtomicU16>, ready: Arc<Mutex<super::p2p_tunnel::RoomR
                     tokio::time::sleep(Duration::from_secs(2)).await;
                 }
             }
+            let current = target.load(Ordering::Acquire);
+            if current != 0 && matches!(tokio::time::timeout(Duration::from_millis(300), tokio::net::TcpStream::connect(("127.0.0.1", current))).await, Ok(Ok(_))) { last_seen = tokio::time::Instant::now(); }
             if last_seen.elapsed() > Duration::from_secs(7) {
                 target.store(0, Ordering::Release);
                 let mut registry = ready.lock().await;

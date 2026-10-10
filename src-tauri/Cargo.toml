@@ -1,6 +1,6 @@
 [package]
 name = "luxmc"
-version = "3.6.0"
+version = "3.7.0"
 description = "Linux-first Minecraft launcher"
 authors = ["Luxmc contributors"]
 edition = "2021"
@@ -38,6 +38,7 @@ quick-xml = "0.41.0"
 walkdir = "2.5.0"
 sha2 = "0.10"
 sha1 = "0.10"
+memchr = "=2.8.3"
 md5 = "0.7"
 async-trait = "0.1"
 anyhow = "1"
@@ -75,6 +76,7 @@ fastanvil = "0.32"
 igd-next = "0.14"
 cacache = { version = "13.1", default-features = false, features = ["tokio-runtime"] }
 iroh = "=1.2.0"
+if-addrs = "=0.14.0"
 socket2 = "0.5"
 
 [target.'cfg(target_os = "linux")'.dependencies]

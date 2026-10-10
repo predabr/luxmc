@@ -11,6 +11,7 @@ export const dependencyGraph = (profileId:string):Promise<DependencyNode[]> => a
 export const pcRecommendations = ():Promise<PcRecommendations> => api.invoke('pc_recommendations');
 export const launcherResourceSample = ():Promise<{ramMb:number;cpuPercent:number;processes:number;sampleMilliseconds:number}> => api.invoke('launcher_resource_sample');
 export const instancePackReference = (profileId:string):Promise<PackEntry|null> => api.invoke('instance_pack_reference',{profileId});
+export const instanceLinkPack = (profileId:string,reference:PackEntry):Promise<void> => api.invoke('instance_link_pack',{profileId,reference});
 export const packReferenceVersion = (reference:PackEntry):Promise<ModVersion> => api.invoke('pack_reference_version',{reference});
 export const roomRecipe = (ownerId:string):Promise<RoomRecipe> => api.invoke('tunnel_room_recipe',{ownerId});
 export const roomPrepare = (ownerId:string):Promise<{id:string;name:string}> => api.invoke('room_prepare_instance',{ownerId});

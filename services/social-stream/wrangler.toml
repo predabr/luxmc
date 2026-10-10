@@ -2,6 +2,9 @@ name = "luxmc-social-stream"
 main = "worker.js"
 compatibility_date = "2026-09-01"
 
+[vars]
+OWNER_SOCIAL_ID = "43d26fda-6fbd-4727-8680-f96aca47dcf3"
+
 [[d1_databases]]
 binding = "SOCIAL_DB"
 database_name = "luxmc-social"

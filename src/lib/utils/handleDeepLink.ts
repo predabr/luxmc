@@ -16,11 +16,11 @@ export async function handleDeepLink(value: string): Promise<void> {
     } else if (action.kind === "server") {
         await joinWorld(action.address);
     } else if (action.kind === "lan") {
+        await goto("/hosting");
+        throw new Error("Esse convite usa a rede anterior. Crie uma sala no Luxmc atualizado e envie o novo convite.");
+    } else if (action.kind === "world") {
         deepLinks.lan = action.invitation;
         await goto("/hosting");
-    } else if (action.kind === "world") {
-        await goto("/hosting");
-        throw new Error("Esse convite usa a conexão antiga. Peça um novo convite da rede LAN virtual.");
     } else {
         if (!friendsState.me && !friendsState.busy) await friendsState.connect();
         const deadline = Date.now() + 10000;

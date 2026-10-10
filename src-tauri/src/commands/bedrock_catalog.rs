@@ -25,7 +25,7 @@ pub(super) fn root() -> AppResult<PathBuf> {
 
 fn http() -> AppResult<reqwest::Client> {
     reqwest::Client::builder().connect_timeout(std::time::Duration::from_secs(20))
-        .tls_built_in_native_certs(true).user_agent("Luxmc/3.6.0")
+        .tls_built_in_native_certs(true).user_agent(concat!("Luxmc/",env!("CARGO_PKG_VERSION")))
         .redirect(reqwest::redirect::Policy::custom(|attempt| {
             if attempt.previous().len() > 5 || !microsoft_package_url(attempt.url()) { attempt.stop() } else { attempt.follow() }
         })).build().map_err(|error| AppError::Internal(error.to_string()))
@@ -104,7 +104,7 @@ async fn bounded_json(client: &reqwest::Client, address: &str) -> AppResult<serd
 #[tauri::command]
 pub async fn bedrock_versions() -> AppResult<Vec<BedrockVersion>> {
     let cache = root()?.join("catalog.json");
-    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(25)).user_agent("Luxmc/3.6.0").build()?;
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(25)).user_agent(concat!("Luxmc/",env!("CARGO_PKG_VERSION"))).build()?;
     let result = tokio::try_join!(bounded_json(&client,"https://www.raythnetwork.co.uk/versions.php?type=json"), bounded_json(&client,"https://www.raythnetwork.co.uk/gdk.urls.min.json"));
     match result {
         Ok((legacy,gdk)) => {

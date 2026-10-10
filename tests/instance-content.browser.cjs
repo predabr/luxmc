@@ -89,6 +89,7 @@ const fs = require('node:fs');
             assert.equal(await page.locator('#instance-mundos').count(), 0);
             await input.fill('');
             const shaders = page.getByRole('region', { name: 'Shaders', exact: true });
+            await page.waitForFunction(() => !document.getAnimations().some(animation => animation.id === 'luxmc-page-entry'));
             const toggleWidth = await list.getByRole('switch').first().evaluate(element => element.getBoundingClientRect().width);
             assert.equal(toggleWidth, 44);
             const trash = await list.getByRole('button', { name: /^Excluir / }).first().locator('svg').evaluate(element => element.getBoundingClientRect().width);

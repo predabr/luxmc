@@ -107,10 +107,10 @@ async function initGitHubRelease() {
     }
     if (!data)
       throw new Error("Release indisponível");
-    const remoteTag = typeof data.tag_name === "string" ? data.tag_name : "v3.6.0";
+    const remoteTag = typeof data.tag_name === "string" ? data.tag_name : "v3.7.0";
     const revisionMatch = /^v?(\d+)\.(\d+)\.(\d+)-revision\.(\d+)$/.exec(remoteTag);
     const remoteDisplayTag = revisionMatch && Number(revisionMatch[3]) > 0 ? `v${revisionMatch[1]}.${revisionMatch[2]}.${Number(revisionMatch[3]) - 1}` : remoteTag;
-    const siteTag = "v3.6.0";
+    const siteTag = "v3.7.0";
     const remoteParts = remoteDisplayTag.replace(/^v/, "").split(".").map(Number);
     const siteParts = siteTag.slice(1).split(".").map(Number);
     const difference = siteParts.map((part, index) => part - (remoteParts[index] || 0)).find((value) => value !== 0) || 0;
@@ -118,7 +118,7 @@ async function initGitHubRelease() {
     window.LuxLatestVersion = tag;
     document.querySelectorAll(".live-version-tag").forEach((el) => {
       el.textContent = tag;
-      el.title = revisionMatch ? `Luxmc ${tag.replace(/^v/, "")} — revisão ${revisionMatch[4]}` : `Luxmc ${tag.replace(/^v/, "")}`;
+      el.title = revisionMatch && tag === remoteDisplayTag ? `Luxmc ${tag.replace(/^v/, "")} — revisão ${revisionMatch[4]}` : `Luxmc ${tag.replace(/^v/, "")}`;
     });
     const { assetFor } = await import("./lib/releases.js");
     const appImage = assetFor(data.assets, "linux");
@@ -199,7 +199,7 @@ async function initGitHubRelease() {
       heroSize.textContent = `${(heroAsset.size / (1024 * 1024)).toFixed(1)} MB`;
   } catch (e) {
     document.querySelectorAll(".live-version-tag").forEach((el) => {
-      el.textContent = window.LuxLatestVersion || "v3.6.0";
+      el.textContent = window.LuxLatestVersion || "v3.7.0";
     });
     console.debug("GitHub API fetch fallback:", e);
   }

@@ -197,22 +197,24 @@ export async function instanceImportModpack(
 	mcVersion: string,
 	loader: string,
 	icon?: string,
-	ramMb?: number
+	ramMb?: number,
+    operationId?: string
 ): Promise<ProfileRow> {
-	return api.invoke("instance_import_modpack", { filePath, profileName, mcVersion, loader, icon, ramMb });
+	return api.invoke("instance_import_modpack", { filePath, profileName, mcVersion, loader, icon, ramMb, operationId });
 }
 
-export async function instanceCancelImport(): Promise<void> {
-	return api.invoke("instance_cancel_import");
+export async function instanceCancelImport(operationId?:string): Promise<void> {
+	return api.invoke("instance_cancel_import",{operationId});
 }
 
 export async function instanceImportMrpack(
 	filePath: string,
 	profileName: string,
 	icon?: string,
-	ramMb?: number
+	ramMb?: number,
+    operationId?: string
 ): Promise<ProfileRow> {
-	return api.invoke("instance_import_mrpack", { filePath, profileName, icon, ramMb });
+	return api.invoke("instance_import_mrpack", { filePath, profileName, icon, ramMb, operationId });
 }
 
 export async function instanceHealthCheck(profileId: string): Promise<HealthCheckResult> {
@@ -460,3 +462,6 @@ export interface ContentIcon { name: string; icon: string | null; iconKey: strin
 export async function instanceContentIcons(profileId: string, subPath: string, fileNames: string[], lookup = false): Promise<ContentIcon[]> {
     return api.invoke("instance_content_icons", { profileId, subPath, fileNames, lookup });
 }
+
+export const instanceBeginImport = (): Promise<string> => api.invoke("instance_begin_import");
+export const instanceEndImport = (operationId:string): Promise<void> => api.invoke("instance_end_import",{operationId});

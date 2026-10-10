@@ -7,7 +7,6 @@ const fs=require('node:fs');
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.addInitScript(()=>{
   window.calls=[];window.room=null;window.failStorage=false;window.clipboardText='';
-  window.lan={installed:false,supported:true,active:false,invitation:null,address:null,peers:[],error:null};
   Object.defineProperty(navigator,'clipboard',{value:{writeText:async value=>window.clipboardText=value}});
   const host={id:'host-key',username:'Steve',uuid:'steve',avatarUrl:null,joinedAt:1,isHost:true};
   const invoke=async(command,args)=>{
@@ -21,13 +20,9 @@ const fs=require('node:fs');
    if(command==='p2p_scan_lan_worlds')return [{host:'127.0.0.1',port:54321,motd:'Mundo do Steve'}];
    if(command==='p2p_get_local_info')return {ip:'127.0.0.1',port:25575};
    if(command==='tunnel_status')return window.room?structuredClone(window.room):null;
-   if(command==='virtual_lan_status')return structuredClone(window.lan);
-   if(command==='virtual_lan_worlds')return {worlds:[{id:'10.100.1.2',owner:'Alex',name:'Mundo do Alex',localAddress:'127.0.0.1:25580',version:'1.21.1',latencyMs:42}],localWorld:{motd:'Mundo do Steve',port:54321},error:null};
-   if(command==='virtual_lan_world_port')return null;
-   if(command==='virtual_lan_install'){window.lan.installed=true;return null}
-   if(command==='virtual_lan_connect'){window.lan={...window.lan,preparation:{stage:'downloading',downloadedBytes:5242880,totalBytes:10485760}};await new Promise(resolve=>setTimeout(resolve,4500));window.lan={...window.lan,installed:true,preparation:null,active:true,invitation:args.invite||'luxmc-lan:private_payload',address:'10.100.1.1',peers:[{name:'Alex',address:'10.100.1.2'}],error:null};return null}
-   if(command==='virtual_lan_stop'){window.lan={...window.lan,active:false,invitation:null,address:null,peers:[]};return null}
-   if(command==='host_world'){window.room={mode:'host',invitation:'LUX-4821|luxmc-world:test',localAddress:null,expiresAt:9999999999,pingMs:null,transport:'QUIC',roomCode:'LUX-4821',members:[host],maxPlayers:10,roomLocked:false};return structuredClone(window.room)}
+   const world={ownerId:'alex',ownerUsername:'Alex',motd:'Mundo do Alex',localAddress:'127.0.0.1:25580',compatibility:{mcVersion:'1.21.1',loader:'vanilla',modFingerprint:'a'.repeat(64),modCount:0}};
+   if(command==='host_world'){await new Promise(resolve=>setTimeout(resolve,200));window.room={mode:'host',invitation:'LUXMC1-1234567890123456',localAddress:null,expiresAt:9999999999,pingMs:null,transport:'QUIC',roomCode:'LUXMC1-1234567890123456',members:[host],maxPlayers:10,roomLocked:false,worldReady:true,worlds:[world]};return structuredClone(window.room)}
+   if(command==='join_world'){window.room={mode:'guest',invitation:null,localAddress:'127.0.0.1:25580',expiresAt:9999999999,pingMs:42,transport:'QUIC',roomCode:null,members:[host,{...host,id:'alex',username:'Alex',isHost:false}],maxPlayers:10,roomLocked:false,worldReady:true,worlds:[world]};return structuredClone(window.room)}
    if(command==='tunnel_kick_member'){window.room.members=window.room.members.filter(m=>m.id!==args.memberId);return null}
    if(command==='tunnel_set_locked'){window.room.roomLocked=args.locked;return null}
    if(command==='tunnel_refresh_invitation'){window.room.invitation='LUX-4821|luxmc-world:new';return structuredClone(window.room)}
@@ -50,48 +45,32 @@ const fs=require('node:fs');
  assert.equal(await page.locator('aside button[aria-label="Minha hospedagem"]').count(),0);
  assert.equal(await page.locator('aside button[aria-label="Diagnóstico do launcher"]').count(),0);
  assert.equal(await page.getByRole('button',{name:'Instalar componentes de rede',exact:true}).count(),0);
- await page.getByRole('button',{name:'Criar sala',exact:true}).click();
- await page.getByRole('heading',{name:'Baixando componentes',exact:true}).waitFor();
- assert.equal(await page.getByRole('progressbar',{name:'Download dos componentes de rede'}).getAttribute('aria-valuenow'),'50');
- assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.command==='virtual_lan_install').length),0);
- await page.getByRole('heading',{name:'Sua sala está pronta',exact:true}).waitFor();
- assert.equal(await page.getByRole('button',{name:'Preparar minha instância',exact:true}).count(),0);
- assert.equal(await page.getByText('10.100.1.1',{exact:true}).count(),0);
- await page.getByRole('heading',{name:'Mundos para jogar',exact:true}).waitFor();
- await page.getByText('Mundo do Alex',{exact:true}).waitFor();
- await page.evaluate(()=>{window.lan.active=false;window.lan.error='Reconectando os computadores';});
- await page.getByRole('heading',{name:'A conexão precisa de atenção',exact:true}).waitFor();
- await page.getByText('Mundo do Alex',{exact:true}).waitFor();
- assert.equal(await page.getByRole('button',{name:'Sair da sala',exact:true}).isEnabled(),true);
- await page.evaluate(()=>{window.lan.active=true;window.lan.error=null;});
- await page.getByRole('heading',{name:'Sua sala está pronta',exact:true}).waitFor();
- await page.getByRole('button',{name:'Ajuda de conexão',exact:true}).click();
- await page.getByText('10.100.1.1',{exact:true}).waitFor();
- await page.getByRole('button',{name:'Meu mundo não foi encontrado',exact:true}).click();
- await page.getByRole('textbox',{name:'Porta do meu mundo'}).fill('54321');
- await page.getByRole('button',{name:'Verificar e compartilhar',exact:true}).click();
- assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.command==='virtual_lan_world_port').at(-1).args.port),54321);
- fs.mkdirSync('docs/validation/revision6',{recursive:true});
- await page.screenshot({path:'docs/validation/revision6/friends-room.png'});
- await page.getByRole('button',{name:'Convidar amigo',exact:true}).click();
- assert.equal(await page.evaluate(()=>window.clipboardText),'luxmc://join/lan?invitation=luxmc-lan%3Aprivate_payload');
- assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.command==='host_world').length),0);
+ await page.getByRole('button',{name:'Criar minha sala',exact:true}).click();
+ await page.getByText('Sua sala está conectada',{exact:true}).waitFor();
+ await page.getByRole('heading',{name:'Mundos da turma',exact:true}).waitFor();
+ await page.getByText(/Mundo do Alex/).waitFor();
+ assert.equal(await page.getByText('Conexão direta',{exact:false}).count(),0);
+ await page.getByRole('button',{name:'Copiar convite',exact:true}).click();
+ assert.equal(await page.evaluate(()=>window.clipboardText),'LUXMC1-1234567890123456');
+ await page.getByRole('button',{name:'Fechar novas entradas',exact:true}).click();
+ await page.getByRole('button',{name:'Permitir entradas',exact:true}).waitFor();
  await page.locator('aside a[href="/skins"]').click();await page.waitForURL('**/skins');
- await page.locator('aside a[href="/friends"]').click();await page.waitForURL('**/hosting');
- await page.getByRole('heading',{name:'Sua sala está pronta',exact:true}).waitFor();
- await page.getByRole('button',{name:'Sair da sala',exact:true}).click();
- await page.getByRole('button',{name:'Criar sala',exact:true}).waitFor();
- assert.equal(await page.evaluate(()=>window.lan.active),false);
- await page.getByRole('textbox',{name:'Convite de um amigo'}).fill('luxmc://join/lan?invitation=luxmc-lan%3Afriend_payload');
+ await page.locator('aside a[href="/friends"]').click();await page.waitForURL('**/friends');
+ await page.waitForTimeout(1000);assert.ok(page.url().endsWith('/friends'));
+ await page.getByRole('button',{name:'Jogar juntos',exact:true}).first().click();
+ await page.getByText('Sua sala está conectada',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'Sair',exact:true}).click();
+ await page.getByRole('textbox',{name:'Convite da sala'}).fill('LUXMC1-1234567890123456');
  await page.getByRole('button',{name:'Entrar na sala',exact:true}).click();
- await page.getByRole('heading',{name:'Sua sala está pronta',exact:true}).waitFor();
- assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.command==='virtual_lan_connect').at(-1).args.invite),'luxmc-lan:friend_payload');
- await page.getByRole('button',{name:'Sair da sala',exact:true}).click();
+ await page.getByText('Sua sala está conectada',{exact:true}).waitFor();
+ assert.equal(await page.evaluate(()=>window.calls.filter(c=>c.command==='join_world').at(-1).args.invitation),'LUXMC1-1234567890123456');
+ assert.equal(await page.evaluate(()=>window.calls.some(c=>c.command.startsWith('virtual_lan_'))),false);
+ await page.getByRole('button',{name:'Sair',exact:true}).click();
  fs.mkdirSync('docs/visual/2026-10-03-hosting',{recursive:true});
  await page.goto('http://127.0.0.1:1420/settings');await page.getByRole('tab',{name:'Armazenamento',exact:true}).click();await page.getByText('Aplicativo Luxmc',{exact:true}).waitFor();await page.getByText('Java do launcher',{exact:true}).waitFor();assert.ok(await page.getByText('4 MB',{exact:true}).count());assert.equal(await page.locator('.shader-scene').count(),0);
  await page.evaluate(()=>window.failStorage=true);await page.getByRole('button',{name:'Atualizar',exact:true}).click();await page.locator('main').getByRole('alert').filter({hasText:'Falha simulada de leitura'}).waitFor();
  await page.goto('http://127.0.0.1:1420/mods');await page.getByText('Zombie Invade 100 Days',{exact:true}).waitFor();assert.equal(await page.locator('.shader-scene').count(),0);
  for(const title of ['Zombie Invade 100 Days','SkyFactory 4']){const card=page.locator('.catalog-card').filter({has:page.getByText(title,{exact:true})});const image=card.locator('img.relative').first();const imageBox=await image.boundingBox();const cardBox=await card.boundingBox();assert.ok(imageBox.width>250&&imageBox.height>=180&&Math.abs(imageBox.width-cardBox.width)<=3);assert.equal(await image.evaluate(i=>getComputedStyle(i).objectFit),'cover')}
  await page.screenshot({path:'docs/visual/2026-10-03-hosting/covers.png'});
- assert.deepEqual(errors,[]);console.log('Virtual LAN and storage: setup, invite, navigation persistence, stop, join, real categories, read errors and covers passed');await browser.close();
+ assert.deepEqual(errors,[]);console.log('Native room and storage: setup, invite, navigation persistence, stop, join, real categories, read errors and covers passed');await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

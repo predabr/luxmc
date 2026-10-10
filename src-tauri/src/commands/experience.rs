@@ -40,12 +40,19 @@ pub async fn performance_history() -> AppResult<Value> {
 }
 
 #[tauri::command]
-pub async fn verify_pack_download(path: String, size: u64, sha1: String) -> AppResult<()> {
+pub async fn verify_pack_download(state: tauri::State<'_, crate::state::AppState>, path: String, size: u64, sha1: String, operation_id: Option<String>) -> AppResult<()> {
+    super::instances::instance_check_import_job(&state,operation_id.as_deref()).await?;
+    let _import = state.import_lock.try_lock().map_err(|_| AppError::InvalidState("Outra instalação está em andamento.".into()))?;
+    verify_pack_download_core(path,size,sha1,Some(state.import_cancel.clone())).await
+}
+
+pub async fn verify_pack_download_core(path: String, size: u64, sha1: String, cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>) -> AppResult<()> {
     let base = directories::ProjectDirs::from("io","github","Luxmc").ok_or_else(|| AppError::InvalidState("Cache indisponível".into()))?;
     let cache = base.cache_dir().join("modpacks");
     let target = tokio::task::spawn_blocking(move || checked_pack_path(&cache, std::path::Path::new(&path))).await.map_err(|error| AppError::Internal(error.to_string()))??;
     if !sha1.is_empty() && (sha1.len() != 40 || !sha1.chars().all(|c| c.is_ascii_hexdigit())) { return Err(AppError::InvalidInput("Hash do provedor inválido".into())); }
-    if !crate::core::mods::pack_download::verify_existing(&target, (size > 0).then_some(size), (!sha1.is_empty()).then_some(sha1.as_str()), None, true).await {
+    if !crate::core::mods::pack_download::verify_existing_cancellable(&target, (size > 0).then_some(size), (!sha1.is_empty()).then_some(sha1.as_str()), None, true, cancel.clone()).await {
+        crate::core::mods::pack_download::cancelled(cancel.as_deref())?;
         tokio::fs::remove_file(&target).await?;
         return Err(AppError::InvalidInput("Falha na integridade do download: tamanho, hash ou estrutura divergente. O arquivo foi descartado; use Retomar para baixar uma cópia correta.".into()));
     }
@@ -215,7 +222,7 @@ mod tests {
         let versions: serde_json::Value = state.http.get("https://api.modrinth.com/v2/project/fabulously-optimized/version").send().await.unwrap().error_for_status().unwrap().json().await.unwrap();
         let file = versions.as_array().unwrap().iter().flat_map(|version| version["files"].as_array().unwrap()).find(|file| file["filename"].as_str().is_some_and(|name| name.ends_with(".mrpack"))).unwrap();
         let path = crate::commands::mods::mods_download_to_temp_core(&state, file["url"].as_str().unwrap().into(), "luxmc-regression-FO.mrpack".into()).await.unwrap();
-        super::verify_pack_download(path, file["size"].as_u64().unwrap(), file["hashes"]["sha1"].as_str().unwrap().into()).await.unwrap();
+        super::verify_pack_download_core(path, file["size"].as_u64().unwrap(), file["hashes"]["sha1"].as_str().unwrap().into(), None).await.unwrap();
     }
     #[test]
     fn pack_cache_accepts_real_descendants_and_rejects_siblings() {

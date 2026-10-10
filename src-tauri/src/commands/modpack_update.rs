@@ -138,6 +138,11 @@ pub async fn modpack_check_update(
     state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<ModpackUpdateInfo> {
+    modpack_check_update_core(&state,profileId).await
+}
+
+#[allow(non_snake_case)]
+pub async fn modpack_check_update_core(state:&AppState,profileId:String) -> AppResult<ModpackUpdateInfo> {
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, crate::db::models::ProfileRow>(
         "SELECT * FROM profiles WHERE id = ?",
@@ -206,7 +211,7 @@ async fn check_modrinth_update(
             pid, row.mc_version, row.loader.to_lowercase()
         );
         if let Ok(resp) = state.http.get(&ver_url)
-            .header("User-Agent", "Luxmc/1.6.5")
+            .header("User-Agent", concat!("Luxmc/",env!("CARGO_PKG_VERSION")))
             .send().await
         {
             if resp.status().is_success() {
@@ -330,6 +335,12 @@ pub async fn modpack_update_atomic(
     source: String,
     projectId: String,
 ) -> AppResult<()> {
+    modpack_update_atomic_core(Some(app),&state,profileId,versionId,source,projectId).await
+}
+
+#[allow(non_snake_case)]
+pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppState,profileId:String,versionId:String,source:String,projectId:String) -> AppResult<()> {
+    super::instances::instance_check_import_job(&state,None).await?;
     use crate::core::mods::pack_download as pack;
     use crate::commands::instances::{instance_import_modpack_core, instance_import_mrpack_core};
     use tauri::Emitter;
@@ -347,7 +358,7 @@ pub async fn modpack_update_atomic(
     let original = std::path::PathBuf::from(&row.game_dir);
     let saves_dir = original.join("saves");
     if saves_dir.is_dir() {
-        let _ = app.emit("modpack-progress", serde_json::json!({"phase":"backup","current":0,"total":0,"percent":2,"status":"Criando backups versionados dos mundos antes da atualização..."}));
+        if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"backup","current":0,"total":0,"percent":2,"status":"Criando backups versionados dos mundos antes da atualização..."}));}
         for entry in std::fs::read_dir(&saves_dir)? {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
@@ -359,7 +370,7 @@ pub async fn modpack_update_atomic(
     let managed = owned_pack_paths(&original).await?;
     state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     let client = pack::client()?;
-    let _ = app.emit("modpack-progress", serde_json::json!({"phase":"downloading","current":0,"total":0,"percent":5,"status":"Preparando nova versão sem alterar a instância atual..."}));
+    if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"downloading","current":0,"total":0,"percent":5,"status":"Preparando nova versão sem alterar a instância atual..."}));}
     let (urls, size, sha1, sha512) = if source == "modrinth" {
         let version: serde_json::Value = client.get(format!("https://api.modrinth.com/v2/version/{versionId}"))
             .send().await?.error_for_status()?.json().await?;
@@ -425,6 +436,7 @@ pub async fn modpack_update_atomic(
         tokio::task::spawn_blocking(move || preserve_user_files(&old, &new, &owned)).await
             .map_err(|error| AppError::Internal(error.to_string()))??;
         pack::cancelled(Some(&state.import_cancel))?;
+        pack::atomic_write(&staged_dir.join(".luxmc/profile-owner.json"),&serde_json::to_vec(&serde_json::json!({"profileId":profileId}))?).await?;
         let mut tx = db.pool().begin().await?;
         sqlx::query("DELETE FROM mods WHERE profile_id = ? AND project_id IN (SELECT project_id FROM mods WHERE profile_id = ?)").bind(&profileId).bind(&staged.id).execute(&mut *tx).await?;
         for path in &managed {
@@ -444,7 +456,7 @@ pub async fn modpack_update_atomic(
         sqlx::query("DELETE FROM profiles WHERE id = ?").bind(&staged.id).execute(db.pool()).await?;
         return Err(error);
     }
-    let _ = app.emit("modpack-progress", serde_json::json!({"phase":"complete","current":1,"total":1,"percent":100,"status":"Modpack atualizado; a pasta anterior foi preservada como backup.","backupPath":original,"projectId":projectId}));
+    if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"complete","current":1,"total":1,"percent":100,"status":"Modpack atualizado; a pasta anterior foi preservada como backup.","backupPath":original,"projectId":projectId}));}
     Ok(())
 }
 

@@ -1,6 +1,6 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc" width="120" />
-  <h1>Luxmc 3.6</h1>
+  <h1>Luxmc 3.7 — Jogar Juntos</h1>
   <p>Seu Minecraft, suas instâncias e sua turma.</p>
   <p><a href="https://luxmc-r92.pages.dev">Site oficial</a> · <a href="https://github.com/predabr/luxmc/releases/latest">Downloads</a> · <a href="SECURITY.md">Segurança</a></p>
 </div>
@@ -13,7 +13,7 @@ Luxmc reúne versões Java, modpacks, organização de instâncias, personaliza�
 - **Linux:** escolha AppImage, DEB, RPM ou pacote Arch nas [releases](https://github.com/predabr/luxmc/releases/latest). Use o formato correspondente à sua distribuição.
 - **macOS:** consulte os artefatos da release. A disponibilidade de um pacote não equivale a uma validação de todas as funções naquele sistema.
 
-Baixe apenas dos canais oficiais. O atualizador da versão 3.6 verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. A assinatura de distribuição Ed25519 não substitui a assinatura Authenticode do Windows. Veja [SECURITY.md](SECURITY.md).
+Baixe apenas dos canais oficiais. O atualizador da versão 3.7 verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. A assinatura de distribuição Ed25519 não substitui a assinatura Authenticode do Windows. Veja [SECURITY.md](SECURITY.md).
 
 ## Biblioteca e conteúdo
 
@@ -27,7 +27,7 @@ Vanilla, Fabric, Forge, NeoForge e Quilt têm fluxos próprios de preparação. 
 
 Perfis públicos podem incluir nome de exibição, status, descrição, imagens e GIFs. As informações compartilhadas com amigos dependem das permissões e da conexão com o portal. Skins de contas Microsoft são sincronizadas pelo serviço oficial; capas locais não se tornam capas oficiais da conta.
 
-A sala LAN usa uma rede virtual criptografada. O anfitrião abre um mundo para LAN no Minecraft; o convidado usa o acesso ao mundo oferecido pelo Luxmc. Os participantes precisam usar edições, versões e mods compatíveis. Firewall, antivírus, disponibilidade do relay e condições de rede podem interferir. A estabilidade em duas redes distintas precisa ser validada com os dois computadores.
+As salas de Minecraft Java usam túneis QUIC criptografados com [iroh](https://docs.rs/iroh/1.2.0/iroh/), com conexão direta ou relay automático, sem instalar EasyTier ou drivers de VPN. O anfitrião abre seu mundo para LAN; o Luxmc anuncia os mundos recebidos nas interfaces locais, e os amigos escolhem o mundo na lista LAN do Minecraft. A sala mostra os perfis dos participantes, permite fechar novas entradas e renovar o convite de 24 horas. A conexão continua ao trocar de aba. Usem a mesma versão do Minecraft e mods compatíveis. O teste de partida entre dois PCs em redes distintas continua pendente.
 
 ## Bedrock no Windows
 
@@ -41,7 +41,9 @@ Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quand
 
 Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido e efeitos desativados são respeitados. Ativar animações explicitamente permite usá-las com movimento reduzido no Windows; o modo de desempenho usa uma transição breve de opacidade. O fundo e o tema recuperam a gravação mais recente das preferências.
 
-A [revisão 2 da 3.6](docs/releases/v3.6.1-revision.2.md) reúne os ajustes de exclusão, download e preparação Java, conteúdos Bedrock por instância, perfis públicos personalizados e novos controles de animação. A escolha de edição, os filtros de versões e a tela de amigos receberam refinamentos. A exclusão Java só remove o registro após apagar os arquivos. Versões Bedrock gerenciadas podem ser desinstaladas do Windows e ter seu pacote removido. A opção de apagar dados no desinstalador remove dados do Luxmc e preserva Documentos e o projeto; uma atualização mantém suas instâncias. O instalador é distribuído como **Lux MC Launcher.exe**.
+A [versão 3.7 — Jogar Juntos](docs/releases/v3.7.0.md) reúne as salas QUIC com descoberta LAN nas interfaces físicas, cancelamento durante a preparação dos modpacks, tags públicas sincronizadas e exclusão de perfis da comunidade com controles exclusivos da identidade autenticada do dono. O dono também pode atribuir tags a si mesmo. As referências oficiais dos modpacks são conservadas para futuras atualizações, com backup da pasta anterior. Luxmc Essentials acrescenta identidade e mensagens de menu nas instâncias compatíveis, respeitando a seleção pessoal de recursos. A oficina oferece análise manual pelo Shield. As bordas, transições, gerenciamento de Java e leitura do cache foram refinados.
+
+O [relatório da 3.7](docs/releases/validation-v3.7.0.md) registra as verificações e os limites. O teste de partida entre dois PCs em redes diferentes ainda aguarda os participantes. A atualização preserva contas, mundos, instâncias e preferências. O instalador mantém o nome **Lux MC Launcher.exe**.
 
 Capturas fornecidas pelo autor em 9 de outubro de 2026:
 

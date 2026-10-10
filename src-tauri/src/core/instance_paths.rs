@@ -94,11 +94,26 @@ fn copy_tree(source: &Path, target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+async fn updated_instance_dir(base:&Path,source:&Path,profile_id:&str) -> bool {
+    let association=source.join(".luxmc/profile-owner.json");
+    if tokio::fs::metadata(&association).await.is_ok_and(|meta|meta.len()<=4096) {
+        if let Ok(bytes)=tokio::fs::read(&association).await {
+            if serde_json::from_slice::<serde_json::Value>(&bytes).is_ok_and(|value|value["profileId"].as_str()==Some(profile_id)) {
+                if let (Ok(owned),Ok(instances))=(tokio::fs::canonicalize(&source).await,tokio::fs::canonicalize(base.join("instances")).await) {
+                    if owned.file_name().is_some_and(|name|name==".minecraft") && owned.parent().and_then(Path::parent)==Some(instances.as_path()) {return true;}
+                }
+            }
+        }
+    }
+    false
+}
+
 pub async fn isolate(profile: &mut ProfileRow, base: &Path) -> AppResult<()> {
     let _guard = MIGRATION.lock().await;
     let target = game_dir(base, &profile.id)?;
     let source = PathBuf::from(&profile.game_dir);
     if source == target { tokio::fs::create_dir_all(&target).await?; return Ok(()); }
+    if updated_instance_dir(base,&source,&profile.id).await {return Ok(());}
     if target.exists() { return Err(AppError::InvalidState("Já existe uma pasta de destino; migração interrompida para preservar ambas as instâncias".into())); }
     let staging = base.join("migration-staging").join(uuid::Uuid::new_v4().to_string());
     if source.exists() {
@@ -177,4 +192,22 @@ mod tests {
         assert!(remove_instance_data(root.path(), "one", root.path(), &[], None).await.is_err());
         assert!(game.exists());
     }
+    #[tokio::test]
+    async fn updated_owned_directory_preserves_backup_and_rejects_foreign_owner_or_external_root() {
+        let base=tempfile::tempdir().unwrap();
+        let original=game_dir(base.path(),"original").unwrap();
+        let updated=game_dir(base.path(),"updated").unwrap();
+        std::fs::create_dir_all(&original).unwrap();
+        std::fs::write(original.join("backup.txt"),"old").unwrap();
+        std::fs::create_dir_all(updated.join(".luxmc")).unwrap();
+        std::fs::write(updated.join(".luxmc/profile-owner.json"),br#"{"profileId":"original"}"#).unwrap();
+        assert!(updated_instance_dir(base.path(),&updated,"original").await);
+        assert!(!updated_instance_dir(base.path(),&updated,"someone-else").await);
+        assert_eq!(std::fs::read_to_string(original.join("backup.txt")).unwrap(),"old");
+        let external=tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(external.path().join(".luxmc")).unwrap();
+        std::fs::write(external.path().join(".luxmc/profile-owner.json"),br#"{"profileId":"original"}"#).unwrap();
+        assert!(!updated_instance_dir(base.path(),external.path(),"original").await);
+    }
+
 }

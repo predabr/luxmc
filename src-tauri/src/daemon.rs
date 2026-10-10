@@ -93,7 +93,7 @@ async fn dispatch_command(
     state: Arc<AppState>,
 ) -> Result<Value, String> {
     match cmd {
-        "verify_pack_download" => { crate::commands::experience::verify_pack_download(args["path"].as_str().unwrap_or_default().into(),args["size"].as_u64().unwrap_or(0),args["sha1"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
+        "verify_pack_download" => { crate::commands::instances::instance_check_import_job(&state,args.get("operationId").and_then(Value::as_str)).await.map_err(|e|e.to_string())?; let _import = state.import_lock.lock().await; crate::commands::experience::verify_pack_download_core(args["path"].as_str().unwrap_or_default().into(),args["size"].as_u64().unwrap_or(0),args["sha1"].as_str().unwrap_or_default().into(),Some(state.import_cancel.clone())).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
         "instance_backup_world" => { let _guard=state.launch_lock.try_lock().map_err(|_|"Lançamento em andamento".to_string())?; Ok(serde_json::to_value(crate::commands::world_backup::instance_backup_world_core(args["profileId"].as_str().unwrap_or_default().into(),args["worldFolder"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?) },
         "instance_list_world_backups" => Ok(serde_json::to_value(crate::commands::world_backup::instance_list_world_backups(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string())?),
         "world_restore" => { let _guard=state.launch_lock.try_lock().map_err(|_|"Lançamento em andamento".to_string())?; crate::commands::world_backup::world_restore_core(args["profileId"].as_str().unwrap_or_default().into(),args["fileName"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
@@ -102,6 +102,9 @@ async fn dispatch_command(
         "dependency_graph" => Ok(serde_json::to_value(crate::commands::studio::dependency_graph(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|error| error.to_string())?).map_err(|error|error.to_string())?),
         "launcher_resource_sample" => Ok(crate::commands::studio::launcher_resource_sample().await.map_err(|error|error.to_string())?),
         "pc_recommendations" => Ok(crate::commands::studio::pc_recommendations().await.map_err(|error|error.to_string())?),
+        "instance_link_pack" => { crate::commands::studio::instance_link_pack(args["profileId"].as_str().unwrap_or_default().into(),serde_json::from_value(args["reference"].clone()).map_err(|error|error.to_string())?).await.map_err(|error|error.to_string())?; Ok(Value::Null) },
+        "modpack_update_atomic" => {crate::commands::modpack_update::modpack_update_atomic_core(None,&state,args["profileId"].as_str().unwrap_or_default().into(),args["versionId"].as_str().unwrap_or_default().into(),args["source"].as_str().unwrap_or_default().into(),args["projectId"].as_str().unwrap_or_default().into()).await.map_err(|error|error.to_string())?;Ok(Value::Null)},
+        "modpack_check_update" => Ok(serde_json::to_value(crate::commands::modpack_update::modpack_check_update_core(&state,args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?),
         "instance_pack_reference" => Ok(serde_json::to_value(crate::commands::studio::instance_pack_reference(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?),
         "pack_reference_version" => Ok(serde_json::to_value(crate::commands::studio::pack_reference_version_core(&state,serde_json::from_value(args["reference"].clone()).map_err(|error|error.to_string())?).await.map_err(|error|error.to_string())?).map_err(|error|error.to_string())?),
         "performance_history" => Ok(crate::commands::experience::performance_history().await.map_err(|e| e.to_string())?),
@@ -371,25 +374,32 @@ async fn dispatch_command(
             Ok(Value::Bool(true))
         },
         "instance_import_modpack" => {
+            crate::commands::instances::instance_check_import_job(&state, args.get("operationId").and_then(Value::as_str)).await.map_err(|e| e.to_string())?;
             let file_path = args.get("filePath").or_else(|| args.get("file_path")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let profile_name = args.get("profileName").or_else(|| args.get("profile_name")).and_then(|v| v.as_str()).unwrap_or("Modpack").to_string();
             let mc_version = args.get("mcVersion").or_else(|| args.get("mc_version")).and_then(|v| v.as_str()).unwrap_or("1.20.1").to_string();
             let loader = args.get("loader").and_then(|v| v.as_str()).unwrap_or("forge").to_string();
             let icon = args.get("icon").and_then(|v| v.as_str()).map(|s| s.to_string());
             let ram_mb = args.get("ramMb").or_else(|| args.get("ram_mb")).and_then(|v| v.as_i64());
+            let started = chrono::Utc::now();
             let res = crate::commands::instances::instance_import_modpack_core(None, &state, file_path, profile_name, mc_version, loader, icon, ram_mb).await.map_err(|e| e.to_string())?;
-            Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
+            Ok(serde_json::to_value(crate::commands::instances::ImportedProfileResult { imported_new:res.created_at >= started, profile:res }).map_err(|e| e.to_string())?)
         },
         "instance_import_mrpack" => {
+            crate::commands::instances::instance_check_import_job(&state, args.get("operationId").and_then(Value::as_str)).await.map_err(|e| e.to_string())?;
             let file_path = args.get("filePath").or_else(|| args.get("file_path")).and_then(|v| v.as_str()).unwrap_or("").to_string();
             let profile_name = args.get("profileName").or_else(|| args.get("profile_name")).and_then(|v| v.as_str()).unwrap_or("Modpack").to_string();
             let icon = args.get("icon").and_then(|v| v.as_str()).map(|s| s.to_string());
             let ram_mb = args.get("ramMb").or_else(|| args.get("ram_mb")).and_then(|v| v.as_i64());
+            let started = chrono::Utc::now();
             let res = crate::commands::instances::instance_import_mrpack_core(None, &state, file_path, profile_name, icon, ram_mb).await.map_err(|e| e.to_string())?;
-            Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
+            Ok(serde_json::to_value(crate::commands::instances::ImportedProfileResult { imported_new:res.created_at >= started, profile:res }).map_err(|e| e.to_string())?)
         },
+        "instance_begin_import" => { Ok(Value::String(crate::commands::instances::instance_begin_import_core(&state).await.map_err(|e| e.to_string())?)) },
+        "instance_end_import" => { crate::commands::instances::instance_end_import_core(&state, args.get("operationId").and_then(Value::as_str).unwrap_or_default().to_owned()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
         "instance_cancel_import" => {
-            crate::commands::instances::instance_cancel_import_core(&state).map_err(|e| e.to_string())?;
+            crate::commands::instances::instance_cancel_import_job_core(&state, args.get("operationId").and_then(Value::as_str)).await.map_err(|e| e.to_string())?;
+            let _import = state.import_lock.lock().await;
             Ok(Value::Bool(true))
         },
         "instance_install_quick_pack" => {
@@ -629,6 +639,7 @@ async fn dispatch_command(
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "mods_download_to_temp" => {
+            crate::commands::instances::instance_check_import_job(&state, args.get("operationId").and_then(Value::as_str)).await.map_err(|e| e.to_string())?;
             let url = args.get("url").and_then(|v| v.as_str()).unwrap_or("").to_string();
             let file_name = args.get("fileName").or_else(|| args.get("file_name")).and_then(|v| v.as_str()).unwrap_or("temp.jar").to_string();
             let res = crate::commands::mods::mods_download_to_temp_core(&state, url, file_name).await.map_err(|e| e.to_string())?;
@@ -981,6 +992,16 @@ async fn dispatch_command(
         "java_scan" => {
             let scan = crate::commands::java::java_scan_core(&state).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(scan).map_err(|e| e.to_string())?)
+        },
+        "java_install" => {
+            let major = args.get("major").and_then(Value::as_u64).and_then(|value| u32::try_from(value).ok()).ok_or("Invalid Java version")?;
+            let result = crate::commands::java::java_install_core(&state, None, major).await.map_err(|error| error.to_string())?;
+            serde_json::to_value(result).map_err(|error| error.to_string())
+        },
+        "java_uninstall" => {
+            let major = args.get("major").and_then(Value::as_u64).and_then(|value| u32::try_from(value).ok()).ok_or("Invalid Java version")?;
+            crate::commands::java::java_uninstall(major).await.map_err(|error| error.to_string())?;
+            Ok(Value::Null)
         },
         "discord_set_activity" => {
             let details = args.get("details").and_then(|v| v.as_str()).map(|s| s.to_string());

@@ -114,6 +114,8 @@ async function setupLauncherDemo(page, { login = false, room = false } = {}) {
         const storage = () => ({ totalBytes: 5964308480, categories: [{ category: 'application', bytes: 41943040, path: 'C:\\Luxmc\\Demonstracao\\Luxmc.exe' }, { category: 'java', bytes: 367001600, path: 'C:\\Luxmc\\Demonstracao\\java' }, { category: 'launcher_data', bytes: 23068672, path: 'C:\\Luxmc\\Demonstracao\\data' }, { category: 'instances', bytes: 4529848320, path: 'C:\\Luxmc\\Demonstracao' }, { category: 'cache', bytes: 1002438656, path: 'C:\\Luxmc\\Demonstracao\\cache' }], instances: state.profiles.map(profile => ({ id: profile.id, name: profile.name, icon: profile.icon, loader: profile.loader, mcVersion: profile.mcVersion, bytes: profile.diskUsage, path: profile.gameDir })), logsBytes: 20971520, cacheBytes: 1002438656, warnings: [] });
         const invoke = async (command, args = {}) => {
             window.launcherDemo.calls.push({ command, args });
+            if (command === 'instance_begin_import') return 'demo-import-operation';
+            if (command === 'instance_end_import') return null;
             if (command === 'app_init') { await avatarReady; return { account: state.account, profiles: state.profiles, activeProfileId: state.selectedProfileId, devMode: false }; }
             if (command === 'app_system_locale') return 'pt-BR';
             if (command === 'plugin:app|version') return '3.0.0';

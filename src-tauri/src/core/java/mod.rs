@@ -120,7 +120,7 @@ impl JavaRuntimeManager {
         tracing::info!(target: "java", "{}", message);
     }
 
-    fn verify_binary(&self, path: &std::path::Path, expected_major: u32) -> bool {
+    pub(crate) fn verify_binary(&self, path: &std::path::Path, expected_major: u32) -> bool {
         verified_java(path, expected_major)
     }
 

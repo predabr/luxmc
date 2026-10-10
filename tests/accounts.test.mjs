@@ -21,7 +21,7 @@ test.beforeEach(context => {
 function fixture() {
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec("PRAGMA foreign_keys=ON");
-  for (const migration of ["0001_social.sql", "0002_accounts.sql", "0005_social_avatars.sql", "0007_player_appearance.sql"]) sqlite.exec(readFileSync(new URL(`../website/migrations/${migration}`, import.meta.url), "utf8"));
+  for (const migration of ["0001_social.sql", "0002_accounts.sql", "0005_social_avatars.sql", "0007_player_appearance.sql", "0011_owner_tags.sql", "0012_removed_profiles.sql"]) sqlite.exec(readFileSync(new URL(`../website/migrations/${migration}`, import.meta.url), "utf8"));
   const db = {
     prepare(sql) { const statement = sqlite.prepare(sql); return { bind(...values) { return { async first() { return statement.get(...values) || null; }, async all() { return { results: statement.all(...values) }; }, async run() { return { meta: statement.run(...values) }; }, execute() { return { meta: statement.run(...values) }; } }; } }; },
     async batch(statements) { sqlite.exec("BEGIN"); try { const results = statements.map(statement => statement.execute()); sqlite.exec("COMMIT"); return results; } catch (error) { sqlite.exec("ROLLBACK"); throw error; } }

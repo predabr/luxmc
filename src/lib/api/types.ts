@@ -1,4 +1,5 @@
 export interface ProfileRow {
+    importedNew?: boolean;
 	favorite?: boolean;
 	notes?: string | null;
 	lastPlayed?: string | null;

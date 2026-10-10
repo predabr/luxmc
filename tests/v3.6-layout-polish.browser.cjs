@@ -120,7 +120,7 @@ const fs = require('node:fs');
         assert.equal(await page.locator('.friend-row').count(), 1);
         await page.getByRole('textbox', { name: 'Buscar amigos' }).fill('');
         await page.getByRole('button', { name: 'Jogar juntos', exact: true }).click();
-        await page.getByRole('button', { name: 'Criar sala', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Criar minha sala', exact: true }).waitFor();
         assert.deepEqual(errors, []);
         fs.writeFileSync(`${output}/launcher-browser.json`, JSON.stringify({ passed: true, contrasts, measurements, friends, editionChoice: true, editionEntrance: entryMotion, reducedMotion: true, friendHover: true, modalClose: true, friendsSearch: true, lanEntry: true }, null, 2));
         console.log('Layout checks passed: 56 active-label contrasts, four Java widths, full-width friends, search and LAN entry.');

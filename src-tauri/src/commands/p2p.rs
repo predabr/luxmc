@@ -53,6 +53,7 @@ pub async fn p2p_scan_lan_worlds() -> AppResult<Vec<DiscoveredLanWorld>> {
     socket.set_reuse_address(true)?;
     socket.bind(&std::net::SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 4445).into())?;
     socket.join_multicast_v4(&multicast_addr, &Ipv4Addr::UNSPECIFIED)?;
+    for interface in crate::network::lan_advertiser::interfaces() { let _ = socket.join_multicast_v4(&multicast_addr, &interface); }
     socket.set_nonblocking(true)?;
     let socket = tokio::net::UdpSocket::from_std(socket.into())?;
 

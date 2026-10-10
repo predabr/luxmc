@@ -65,7 +65,10 @@ fn read_mod_metadata(path: &Path) -> Option<ModMetadata> {
     (!metadata.ids.is_empty()).then_some(metadata)
 }
 
-pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<usize> {
+pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<usize> { repair_duplicates_cancellable(root, preferred, None) }
+
+pub fn repair_duplicates_cancellable(root: &Path, preferred: &HashSet<String>, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<usize> {
+    crate::core::mods::pack_download::cancelled(cancel)?;
     let directory = root.join("mods");
     if !directory.is_dir() { return Ok(0); }
     let mut paths = std::fs::read_dir(&directory)?.filter_map(Result::ok)
@@ -75,20 +78,21 @@ pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<
     let mut retained = std::collections::BTreeMap::<std::collections::BTreeSet<String>, std::path::PathBuf>::new();
     let mut removed = Vec::new();
     for path in paths {
+        crate::core::mods::pack_download::cancelled(cancel)?;
         let Some(ids) = primary_ids(&path) else { continue; };
         if let Some(kept) = retained.get(&ids) {
             let kept_pinned = preferred.contains(&kept.file_name().unwrap_or_default().to_string_lossy().into_owned());
             let other_pinned = preferred.contains(&path.file_name().unwrap_or_default().to_string_lossy().into_owned());
-            let identical = || -> std::io::Result<bool> {
+            let identical = || -> AppResult<bool> {
                 use sha2::Digest;
-                fn digest(path: &Path) -> std::io::Result<Vec<u8>> {
+                fn digest(path: &Path, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<Vec<u8>> {
                     let mut file = std::fs::File::open(path)?;
                     let mut hash = sha2::Sha256::new();
                     let mut bytes = [0u8; 65536];
-                    loop { let count = file.read(&mut bytes)?; if count == 0 { break; } hash.update(&bytes[..count]); }
+                    loop { crate::core::mods::pack_download::cancelled(cancel)?; let count = file.read(&mut bytes)?; if count == 0 { break; } hash.update(&bytes[..count]); }
                     Ok(hash.finalize().to_vec())
                 }
-                Ok(std::fs::metadata(kept)?.len() == std::fs::metadata(&path)?.len() && digest(kept)? == digest(&path)?)
+                Ok(std::fs::metadata(kept)?.len() == std::fs::metadata(&path)?.len() && digest(kept, cancel)? == digest(&path, cancel)?)
             };
             if kept_pinned && !other_pinned || identical()? { removed.push((path, kept.clone())); }
         }
@@ -99,6 +103,7 @@ pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<
     std::fs::create_dir_all(&backup)?;
     let mut records = Vec::new();
     for (path, kept) in &removed {
+        crate::core::mods::pack_download::cancelled(cancel)?;
         let name = path.file_name().unwrap_or_default();
         std::fs::rename(path, backup.join(name))?;
         records.push(serde_json::json!({"removed": name.to_string_lossy(), "retained": kept.file_name().unwrap_or_default().to_string_lossy()}));
@@ -107,40 +112,31 @@ pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<
     Ok(removed.len())
 }
 
-pub fn audit(root: &Path, deep: bool) -> AppResult<Audit> {
+pub fn audit(root: &Path, deep: bool) -> AppResult<Audit> { audit_cancellable(root, deep, None) }
+
+fn inspect_archive(folder: &str, path: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<(Audit, HashMap<String,String>, Vec<(String,String)>)> {
+    crate::core::mods::pack_download::cancelled(cancel)?;
     let mut report = Audit::default();
     let mut providers = HashMap::<String,String>::new();
     let mut dependencies = Vec::<(String,String)>::new();
-    let mut folders=vec!["mods".to_string(),"shaderpacks".to_string(),"resourcepacks".to_string()];
-    if deep && root.join("saves").is_dir() {
-        for world in std::fs::read_dir(root.join("saves"))?.take(128) {
-            let world=world?;
-            if world.file_type()?.is_dir() && !world.file_name().to_string_lossy().starts_with('.') {folders.push(format!("saves/{}/datapacks",world.file_name().to_string_lossy()));}
-        }
-    }
-    for folder in folders {
-        let directory = root.join(&folder);
-        if !directory.is_dir() {continue;}
-        for entry in std::fs::read_dir(directory)? {
-            let entry=entry?; let path=entry.path();
-            if !entry.file_type()?.is_file() || !matches!(path.extension().and_then(|e| e.to_str()),Some("jar"|"zip")) {continue;}
-            let name=entry.file_name().to_string_lossy().into_owned();
+    let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
             let archive = std::fs::File::open(&path).map(std::io::BufReader::new).map(zip::ZipArchive::new);
-            let mut archive = match archive { Ok(Ok(archive))=>archive, _=>{ report.errors.push(format!("Arquivo corrompido ou incompleto: {folder}/{name}"));continue;} };
+            let mut archive = match archive { Ok(Ok(archive))=>archive, _=>{ report.errors.push(format!("Arquivo corrompido ou incompleto: {folder}/{name}"));return Ok((report, providers, dependencies));} };
             if deep {
                 let mut expanded=0u64;
                 for index in 0..archive.len() {
+                    crate::core::mods::pack_download::cancelled(cancel)?;
                     let mut file=archive.by_index(index)?;
                     expanded=expanded.saturating_add(file.size());
                     if expanded>1024*1024*1024 { report.warnings.push(format!("{name}: validação CRC interrompida acima de 1 GiB descompactado"));break; }
-                    if std::io::copy(&mut file,&mut std::io::sink()).is_err() {report.errors.push(format!("{name}: conteúdo interno corrompido (CRC)"));break;}
+                    if crate::core::mods::pack_download::copy_cancellable(&mut file,&mut std::io::sink(),cancel).is_err() {report.errors.push(format!("{name}: conteúdo interno corrompido (CRC)"));break;}
                 }
             }
-            if folder != "mods" {continue;}
+            if folder != "mods" { return Ok((report, providers, dependencies)); }
             if let Ok(mut metadata)=archive.by_name("fabric.mod.json") {
                 let json=serde_json::from_reader::<_,serde_json::Value>(metadata.by_ref().take(2*1024*1024));
                 if let Ok(json)=json {
-                    if json["environment"] == "server" {continue;}
+                    if json["environment"] == "server" { return Ok((report, providers, dependencies)); }
                     if let Some(id)=json["id"].as_str() { if let Some(previous)=providers.insert(id.into(),name.clone()) {if previous != name {report.errors.push(format!("Mod duplicado {id}: {previous} e {name}"));}} }
                     if let Some(provides)=json["provides"].as_array() { for id in provides.iter().filter_map(|value| value.as_str()) {providers.entry(id.into()).or_insert_with(||name.clone());} }
                     if let Some(required)=json["depends"].as_object() { for id in required.keys() {dependencies.push((name.clone(),id.clone()));} }
@@ -165,7 +161,62 @@ pub fn audit(root: &Path, deep: bool) -> AppResult<Audit> {
                     break;
                 }
             }
+    crate::core::mods::pack_download::cancelled(cancel)?;
+    Ok((report, providers, dependencies))
+}
+
+pub fn audit_cancellable(root: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<Audit> {
+    crate::core::mods::pack_download::cancelled(cancel)?;
+    let mut folders = vec!["mods".to_string(), "shaderpacks".to_string(), "resourcepacks".to_string()];
+    if deep && root.join("saves").is_dir() {
+        for world in std::fs::read_dir(root.join("saves"))?.take(128) {
+            let world = world?;
+            if world.file_type()?.is_dir() && !world.file_name().to_string_lossy().starts_with('.') { folders.push(format!("saves/{}/datapacks", world.file_name().to_string_lossy())); }
         }
+    }
+    let mut files = Vec::new();
+    for folder in folders {
+        let directory = root.join(&folder);
+        if !directory.is_dir() { continue; }
+        for entry in std::fs::read_dir(directory)? {
+            crate::core::mods::pack_download::cancelled(cancel)?;
+            let entry = entry?;
+            let path = entry.path();
+            if entry.file_type()?.is_file() && matches!(path.extension().and_then(|extension| extension.to_str()), Some("jar" | "zip")) { files.push((folder.clone(), path)); }
+        }
+    }
+    files.sort_by(|a,b| a.1.cmp(&b.1));
+    let workers = if deep { 1 } else { std::thread::available_parallelism().map(|count| count.get()).unwrap_or(1).min(4) };
+    let queue = std::sync::Mutex::new(files.into_iter().enumerate());
+    let parts = std::thread::scope(|scope| -> AppResult<Vec<_>> {
+        let mut tasks = Vec::new();
+        for _ in 0..workers {
+            let queue = &queue;
+            tasks.push(scope.spawn(move || -> AppResult<Vec<_>> {
+                let mut inspected = Vec::new();
+                loop {
+                    crate::core::mods::pack_download::cancelled(cancel)?;
+                    let next = queue.lock().map_err(|_| crate::error::AppError::Internal("Fila de validação indisponível".into()))?.next();
+                    let Some((index,(folder,path))) = next else { break; };
+                    inspected.push((index,inspect_archive(&folder,&path,deep,cancel)?));
+                }
+                Ok(inspected)
+            }));
+        }
+        let mut parts = Vec::new();
+        for task in tasks { parts.extend(task.join().map_err(|_| crate::error::AppError::Internal("Falha na validação de arquivos".into()))??); }
+        Ok(parts)
+    })?;
+    let mut parts = parts;
+    parts.sort_by_key(|part| part.0);
+    let mut report = Audit::default();
+    let mut providers = HashMap::<String,String>::new();
+    let mut dependencies = Vec::new();
+    for (_, (part, ids, required)) in parts {
+        crate::core::mods::pack_download::cancelled(cancel)?;
+        report.errors.extend(part.errors); report.warnings.extend(part.warnings);
+        for (id,name) in ids { if let Some(previous) = providers.insert(id.clone(),name.clone()) { if previous != name { report.errors.push(format!("Mod duplicado {id}: {previous} e {name}")); } } }
+        dependencies.extend(required);
     }
     let built_in: HashSet<&str> = ["minecraft","java","fabricloader","quilt_loader","forge","neoforge"].into_iter().collect();
     for (name,id) in dependencies {
@@ -246,6 +297,23 @@ mod tests {
         std::fs::write(root.join("mods/broken.jar"),b"broken").unwrap();
         let result=super::audit(&root,true).unwrap();
         assert_eq!(result.errors.len(),1); assert!(root.join("mods/broken.jar").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn parallel_audit_keeps_cross_file_dependencies_and_detects_duplicates() {
+        let root = std::env::temp_dir().join(format!("luxmc-parallel-audit-{}",uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(root.join("mods")).unwrap();
+        for index in 0..128 { mod_jar(&root.join("mods").join(format!("mod-{index}.jar")), &format!("module_{index}")); }
+        mod_jar(&root.join("mods/duplicate.jar"), "module_57");
+        let report = super::audit(&root,false).unwrap();
+        assert_eq!(report.errors.len(),1);
+        assert!(report.errors[0].contains("module_57"));
+        assert!(report.warnings.iter().all(|warning| !warning.contains("não encontrada")));
+        let cancel = std::sync::atomic::AtomicBool::new(true);
+        assert!(super::audit_cancellable(&root,false,Some(&cancel)).is_err());
+        assert!(super::repair_duplicates_cancellable(&root,&Default::default(),Some(&cancel)).is_err());
+        assert_eq!(std::fs::read_dir(root.join("mods")).unwrap().count(),129);
         std::fs::remove_dir_all(root).unwrap();
     }
 }

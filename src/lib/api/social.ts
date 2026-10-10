@@ -2,7 +2,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { z } from "zod";
 import { api } from "./client";
 
-const identitySchema = z.object({ id: z.string(), username: z.string(), avatarUrl: z.string().nullable().optional(), displayName: z.string().max(32).optional(), role: z.enum(['owner', 'member']).optional() });
+const identitySchema = z.object({ id: z.string(), username: z.string(), avatarUrl: z.string().nullable().optional(), displayName: z.string().max(32).optional(), role: z.enum(['owner', 'member']).optional(), tags: z.array(z.string().max(24)).max(5).optional() });
 export function friendDisplayName(friend: SocialIdentity): string { return friend.displayName?.trim() || friend.username; }
 const friendSchema = identitySchema.extend({
     profileStatus: z.string().max(80).optional(),

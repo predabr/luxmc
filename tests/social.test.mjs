@@ -15,7 +15,9 @@ function fixture() {
   sqlite.exec(readFileSync(new URL("../website/migrations/0008_public_profiles.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0009_profile_identity.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0010_pack_collections.sql", import.meta.url), "utf8"));
-  const db = { prepare(sql) {
+  sqlite.exec(readFileSync(new URL("../website/migrations/0011_owner_tags.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0012_removed_profiles.sql", import.meta.url), "utf8"));
+  const db = { async batch(statements) { sqlite.exec("BEGIN"); try { const results=[]; for(const statement of statements)results.push(await statement.run()); sqlite.exec("COMMIT"); return results; } catch(error) { sqlite.exec("ROLLBACK"); throw error; } }, prepare(sql) {
     const statement = sqlite.prepare(sql);
     return { bind(...values) {
       return { async first() { return statement.get(...values) || null; }, async all() { return { results: statement.all(...values) }; }, async run() { return { meta: statement.run(...values) }; } };
@@ -243,5 +245,76 @@ test("public profiles persist offline and require an accepted friendship", async
     await request('block',b,{targetId:alice.id});
     assert.equal((await request('profile_get',b,{targetId:alice.id})).status,403);
     assert.equal((await request('profile_save',a,{description:'ok',banner:'javascript:alert(1)',portrait:'',packs:[]})).status,400);
+  } finally {sqlite.close();}
+});
+
+test("owner dashboard is denied to other authenticated identities and tags do not grant owner access", async () => {
+  const { sqlite, request } = fixture();
+  try {
+    const owner = (await request('register',aliceToken,{username:'Owner'})).body.me;
+    const member = (await request('register',bobToken,{username:'Owner'})).body.me;
+    await request('sync',bobToken,{status:'in_game'},undefined,owner.id);
+    assert.equal((await request('owner_users',bobToken,{query:'',offset:0},undefined,owner.id)).status,403);
+    assert.equal((await request('owner_tags',bobToken,{targetId:owner.id,tags:['Plus']},undefined,owner.id)).status,403);
+    const page = await request('owner_users',aliceToken,{query:'',offset:0},undefined,owner.id);
+    assert.equal(page.status,200); assert.equal(page.body.stats.total,2); assert.equal(page.body.stats.playing,1);
+    assert.equal((await request('owner_tags',aliceToken,{targetId:member.id,tags:['Testador','Plus']},undefined,owner.id)).status,200);
+    const own = (await request('profile_get',bobToken,{},undefined,owner.id)).body.profile;
+    assert.deepEqual(own.tags,['Testador','Plus']); assert.equal(own.role,'member');
+    assert.equal((await request('owner_users',bobToken,{query:'',offset:0},undefined,owner.id)).status,403);
+    assert.equal((await request('owner_tags',aliceToken,{targetId:member.id,tags:['<script>']},undefined,owner.id)).status,400);
+    assert.equal((await request('owner_users',aliceToken,{query:'%',offset:0},undefined,owner.id)).body.users.length,0);
+    assert.equal((await request('owner_users',aliceToken,{query:'',offset:-1},undefined,owner.id)).status,400);
+    assert.equal((await request('owner_users',aliceToken,{query:'',offset:0})).status,403);
+  } finally { sqlite.close(); }
+});
+
+
+test("only owner edits tags, including their own, and tags reach search and pending or accepted friends", async () => {
+  const {sqlite,request}=fixture();
+  try {
+    const owner=(await request('register',aliceToken,{username:'Owner'})).body.me;
+    const member=(await request('register',bobToken,{username:'Member'})).body.me;
+    const viewer=(await request('register',eveToken,{username:'Viewer'})).body.me;
+    assert.equal((await request('owner_tags',aliceToken,{targetId:owner.id,tags:['Criador','Plus']},undefined,owner.id)).status,200);
+    assert.equal((await request('owner_tags',aliceToken,{targetId:member.id,tags:['Testador']},undefined,owner.id)).status,200);
+    assert.equal((await request('owner_tags',bobToken,{targetId:member.id,tags:['Dono']},undefined,owner.id)).status,403);
+    const searched=(await request('search',eveToken,{query:'Owner'},undefined,owner.id)).body.users[0];
+    assert.equal(searched.role,'owner');assert.deepEqual(searched.tags,['Criador','Plus']);
+    await request('invite',aliceToken,{targetId:member.id},undefined,owner.id);
+    const pending=(await request('sync',bobToken,{readOnly:true},undefined,owner.id)).body.friends[0];
+    assert.equal(pending.role,'owner');assert.deepEqual(pending.tags,['Criador','Plus']);
+    await request('accept',bobToken,{targetId:owner.id},undefined,owner.id);
+    const snapshot=(await request('sync',aliceToken,{readOnly:true,tags:['Fake']},undefined,owner.id)).body;
+    assert.deepEqual(snapshot.me.tags,['Criador','Plus']);assert.deepEqual(snapshot.friends[0].tags,['Testador']);
+    await request('owner_tags',aliceToken,{targetId:member.id,tags:[]},undefined,owner.id);
+    assert.deepEqual((await request('sync',aliceToken,{readOnly:true},undefined,owner.id)).body.friends[0].tags,[]);
+    assert.equal((await request('owner_delete',eveToken,{targetId:member.id,confirmation:'Member'},undefined,owner.id)).status,403);
+    assert(viewer.id);
+  } finally {sqlite.close();}
+});
+
+test("owner removes community data atomically while preserving login and preventing resurrection", async () => {
+  const {sqlite,request}=fixture();
+  try {
+    const owner=(await request('register',aliceToken,{username:'Owner'})).body.me;
+    const member=(await request('register',bobToken,{username:'Member'})).body.me;
+    sqlite.prepare("INSERT INTO lux_accounts(id,username,password_hash,password_salt,recovery_hash,social_id,created_at) VALUES (?,?,?,?,?,?,?)").run('account','Member','hash','salt','recovery',member.id,1);
+    await request('profile_save',bobToken,{description:'Personal',banner:'',portrait:'',packs:[]});
+    await request('owner_tags',aliceToken,{targetId:member.id,tags:['Testador']},undefined,owner.id);
+    await request('invite',aliceToken,{targetId:member.id});
+    sqlite.prepare("INSERT INTO social_stream_tickets VALUES (?,?,?)").run('ticket',member.id,9999999999);
+    assert.equal((await request('owner_delete',bobToken,{targetId:member.id,confirmation:'Member'},undefined,owner.id)).status,403);
+    assert.equal((await request('owner_delete',aliceToken,{targetId:owner.id,confirmation:'Owner'},undefined,owner.id)).status,400);
+    assert.equal((await request('owner_delete',aliceToken,{targetId:member.id,confirmation:'Wrong'},undefined,owner.id)).status,400);
+    assert.equal((await request('owner_delete',aliceToken,{targetId:member.id,confirmation:'Member'},undefined,owner.id)).status,200);
+    assert.equal(sqlite.prepare('SELECT count(*) AS n FROM lux_accounts').get().n,1);
+    for(const table of ['social_relationships','social_public_profiles','social_user_tags','social_stream_tickets'])assert.equal(sqlite.prepare(`SELECT count(*) AS n FROM ${table}`).get().n,0);
+    assert.equal((await request('owner_users',aliceToken,{},undefined,owner.id)).body.stats.total,1);
+    assert.deepEqual((await request('search',aliceToken,{query:'Member'},undefined,owner.id)).body.users,[]);
+    assert.equal((await request('register',bobToken,{username:'Member'},undefined,owner.id)).status,410);
+    assert.equal((await request('sync',bobToken,{},undefined,owner.id)).status,410);
+    assert.equal((await request('profile_save',bobToken,{description:'Again',banner:'',portrait:'',packs:[]},undefined,owner.id)).status,410);
+    assert.equal((await request('owner_tags',aliceToken,{targetId:member.id,tags:['Plus']},undefined,owner.id)).status,404);
   } finally {sqlite.close();}
 });

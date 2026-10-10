@@ -1,3 +1,5 @@
+let importId = "";
+import { instanceBeginImport, instanceEndImport, profilesDelete } from "$lib/api/instances";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { modsVersions, modsDownloadToTemp, instanceImportMrpack, instanceImportModpack, instanceCancelImport, type ModSearchResultItem } from "$lib/api";
 import { listen } from "$lib/api/client";
@@ -6,7 +8,7 @@ import { toast } from "$lib/stores/toasts.svelte";
 import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
 import { installationQueueGet, installationQueueSave, verifyPackDownload, type InstallationJob as Job } from '$lib/api/experience';
 import { z } from 'zod';
-import { packReferenceVersion } from '$lib/api/studio';
+import { packReferenceVersion, instanceLinkPack } from '$lib/api/studio';
 let jobs = $state<Job[]>([]);
 let current: Job | null = null;
 let paused = false;
@@ -59,9 +61,13 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
         operation.busy = true; operation.text = uiText("ui.5a4fa7bb57930284");
 		operation.percent = 0;
 		let unlisten: (() => void) | null = null;
+        let begun = false;
 		try {
+            importId = await instanceBeginImport(); begun = true;
+            if (operation.cancelling) throw new Error("Instalação cancelada");
 			unlisten = await listen<{ phase: string; current: number; total: number; percent?: number; status: string }>("modpack-progress", (ev) => {
-				operation.text = ev.payload.status;
+				if (operation.cancelling) return;
+                operation.text = ev.payload.status;
 				operation.percent = ev.payload.percent ?? 0;
 			});
 			const ver = selectedVersion === "Qualquer Versão" || modpackVersionId ? "" : selectedVersion;
@@ -76,8 +82,8 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 			operation.text = uiText("ui.18333ba6ce43048e", {arg0: (f.filename)});
 			operation.percent = -1;
 			if (operation.cancelling) throw new Error(uiText("ui.bb9811b14ec4fb48"));
-            const tempPath = await modsDownloadToTemp(f.url, current ? `${current.id}${f.filename.toLowerCase().endsWith(".mrpack") ? ".mrpack" : ".zip"}` : f.filename);
-            await verifyPackDownload(tempPath,f.size || 0,f.sha1 || '');
+            const tempPath = await modsDownloadToTemp(f.url, current ? `${current.id}${f.filename.toLowerCase().endsWith(".mrpack") ? ".mrpack" : ".zip"}` : f.filename, importId);
+            await verifyPackDownload(tempPath,f.size || 0,f.sha1 || '',importId);
             if (operation.cancelling) throw new Error(uiText("ui.bb9811b14ec4fb48"));
 			operation.text = uiText("ui.cbc82784c96e08ef");
 			operation.percent = 0;
@@ -87,8 +93,11 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 				|| (item.title.toLowerCase().includes("neoforge") ? "neoforge" : "")
 				|| (item.title.toLowerCase().includes("fabric") ? "fabric" : "");
 			const cp = !f.filename.toLowerCase().endsWith(".mrpack")
-				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", detectedLoader, iconUrl, ramMb)
-				: await instanceImportMrpack(tempPath, name, iconUrl, ramMb);
+				? await instanceImportModpack(tempPath, name, item.versions[0] || "1.20.1", detectedLoader, iconUrl, ramMb, importId)
+				: await instanceImportMrpack(tempPath, name, iconUrl, ramMb, importId);
+            if (operation.cancelling) { if (cp.importedNew && !paused) await profilesDelete(cp.id); throw new Error("Instalação cancelada"); }
+            await instanceLinkPack(cp.id,{source:item.source as 'modrinth'|'curseforge',projectId:item.sourceId,versionId:versions.find(version => version.files.includes(f))!.id,name:item.title});
+            if (operation.cancelling) { if (cp.importedNew && !paused) await profilesDelete(cp.id); throw new Error("Instalação cancelada"); }
 			profiles.add({
 				id: cp.id,
 				name: cp.name,
@@ -117,17 +126,20 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
             if (paused) { operation.paused=true; operation.text=uiText('workshop.paused'); return; }
 			operation.error = String(e);
             const cancelled = operation.cancelling || String(e).toLowerCase().includes("cancelad");
+            if (cancelled) { operation.error = ''; operation.text = 'Instalação cancelada'; operation.percent = 0; }
 			toast(cancelled ? uiText("ui.e6c50b7bfe042bcf") : uiText("ui.66f69086d7d99519", {arg0: (e instanceof Error ? e.message : String(e))}), cancelled ? "info" : "error");
 		} finally {
+            if (begun) { try { await instanceEndImport(importId); } catch (error) { operation.error = String(error); } }
 			if (unlisten) unlisten();
-			operation.busy = false; operation.cancelling = false;
+			operation.busy = false; operation.cancelling = false; importId = "";
 		}
 	}
 
 async function cancel() {
     if (!operation.busy || operation.cancelling) return;
-    operation.cancelling = true;
-    try { await instanceCancelImport(); } catch (error) { operation.cancelling = false; toast(String(error), 'error'); }
+    operation.cancelling = true; operation.text = "Cancelando a instalação…";
+    if (!importId) return;
+    try { await instanceCancelImport(importId); } catch (error) { operation.cancelling = false; toast(String(error), 'error'); }
 }
 export const modpackInstallation = {
     get state() { return operation; }, get jobs() { return jobs; }, start, initialize,

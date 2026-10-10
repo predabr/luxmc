@@ -52,7 +52,9 @@ fn content_list(root: &Path) -> AppResult<Vec<ContentEntry>> {
 
 #[tauri::command]
 pub async fn bedrock_instance_content(id: String) -> AppResult<InstanceContent> {
-    tokio::task::spawn_blocking(move || { let root = initialize(&id)?; let (gdk, preview) = super::bedrock::managed_content(&id)?; let accounts = if gdk { world_accounts(preview)? } else { Vec::new() }; let account = chosen_account(&root, &accounts); if let Some(account) = &account { std::fs::write(root.join("world-account"), account)?; } Ok(InstanceContent { directory: root.to_string_lossy().into_owned(), entries: content_list(&root)?, isolated: root.join(".linked").is_file(), world_accounts: accounts, world_account: account }) }).await.map_err(|error| AppError::Internal(error.to_string()))?
+    let content:InstanceContent=tokio::task::spawn_blocking(move || { let root = initialize(&id)?; let (gdk, preview) = super::bedrock::managed_content(&id)?; let accounts = if gdk { world_accounts(preview)? } else { Vec::new() }; let account = chosen_account(&root, &accounts); if let Some(account) = &account { std::fs::write(root.join("world-account"), account)?; } Ok::<_,AppError>(InstanceContent { directory: root.to_string_lossy().into_owned(), entries: content_list(&root)?, isolated: root.join(".linked").is_file(), world_accounts: accounts, world_account: account }) }).await.map_err(|error| AppError::Internal(error.to_string()))??;
+    crate::core::luxmc_pack::prepare_bedrock(&Path::new(&content.directory).join("shared")).await?;
+    tokio::task::spawn_blocking(move || {let mut content=content;content.entries=content_list(Path::new(&content.directory))?;Ok(content)}).await.map_err(|error|AppError::Internal(error.to_string()))?
 }
 
 fn extract_content(source: &Path, root: &Path, kind: &str) -> AppResult<()> {

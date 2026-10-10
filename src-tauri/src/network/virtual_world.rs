@@ -65,7 +65,7 @@ fn logged_port(text: &str) -> Option<u16> {
     })
 }
 
-fn active_port() -> Option<u16> {
+pub(crate) fn active_port() -> Option<u16> {
     use std::io::{Read, Seek, SeekFrom};
     if crate::core::launcher::get_active_game_pid() == 0 { return None; }
     let path = crate::core::launcher::get_active_game_dir()?.join("logs").join("latest.log");
