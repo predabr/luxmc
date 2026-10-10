@@ -32,6 +32,8 @@ O [site oficial](https://luxmc-r92.pages.dev) foi publicado com a versão 3.7.0.
 
 As cinco capturas históricas da 3.6 foram conferidas no site como recortes da janela, incluindo o personalizador. Os arquivos de estilos e animações publicados correspondem aos arquivos locais verificados; as capturas e a medição histórica continuam identificadas como material da 3.6.
 
+A publicação automática do Cloudflare foi corrigida para compilar as APIs do site e baixar o instalador oficial da versão atual antes de enviar os arquivos. Esse download público dispensa credenciais GitHub e exige release publicada, manifestos assinados, versão correspondente e hash do executável. O modo público foi conferido com a 3.7 real; uma release inexistente foi recusada sem alterar o instalador existente. Assim, um commit anterior à disponibilidade da release assinada não substitui o site de produção por arquivos incompletos.
+
 ## Limites
 
 A partida real entre dois computadores em redes diferentes ainda depende do teste dos participantes. Os testes automatizados de rede verificam transporte, convite e descoberta, sem modificar mundos. Simulações de interface não comprovam login Microsoft, execução de qualquer modpack ou funcionamento de toda versão Bedrock.

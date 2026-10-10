@@ -3,9 +3,16 @@ import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { githubRequest } from './github-authenticated.mjs';
 import assert from 'node:assert/strict';
 
-const tag = process.argv[2];
+const requestedTag = process.argv[2];
+const currentVersion = JSON.parse(readFileSync('package.json', 'utf8')).version;
+const tag = requestedTag === 'current' ? `v${currentVersion}` : requestedTag;
 if (!/^v\d+\.\d+\.\d+(?:-revision\.\d+)?$/.test(tag ?? '')) throw new Error('Informe a tag oficial.');
-const release = await githubRequest(`repos/predabr/luxmc/releases/tags/${tag}`);
+const publicDownload = process.argv.includes('--public');
+const release = publicDownload ? await (async () => {
+    const response = await fetch(`https://api.github.com/repos/predabr/luxmc/releases/tags/${tag}`, { headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }, signal: AbortSignal.timeout(60000) });
+    assert.equal(response.status, 200, 'A release pública precisa existir antes de publicar o site.');
+    return response.json();
+})() : await githubRequest(`repos/predabr/luxmc/releases/tags/${tag}`);
 assert.equal(release.draft, false, 'A publicação precisa estar concluída.');
 const assets = new Map(release.assets.map(asset => [asset.name, asset]));
 const get = async name => {
@@ -23,6 +30,7 @@ for (const name of ['latest.json', 'SHA256SUMS']) {
     metadata.set(name, bytes);
 }
 const manifest = JSON.parse(metadata.get('latest.json').toString());
+if (requestedTag === 'current') assert.equal(manifest.displayVersion || manifest.version, currentVersion, 'O instalador assinado precisa corresponder à versão do site.');
 const platform = manifest.platforms['windows-x86_64'];
 const asset = [...assets.values()].find(item => item.browser_download_url === platform.url);
 assert.ok(asset);
