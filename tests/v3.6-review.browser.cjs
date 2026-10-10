@@ -45,13 +45,24 @@ const fs=require('node:fs');
         for(const route of ['/','/mods','/instances','/friends','/settings','/skins','/news','/hosting','/workshop','/screenshots','/logs-history','/logs','/teamwork-preview']){
             await page.goto(`http://127.0.0.1:1420${route}`);
             await page.locator(`[data-page-route="${route}"]`).waitFor();
-            await page.waitForFunction(route=>window.motionCalls.some(call=>call.route===route&&call.duration===220),route);
-            await page.waitForFunction(route=>window.motionCalls.some(call=>call.route===route&&call.duration===220&&call.finished),route);
+            await page.waitForFunction(route=>window.motionCalls.some(call=>call.route===route&&call.duration===360),route);
+            await page.waitForFunction(route=>window.motionCalls.some(call=>call.route===route&&call.duration===360&&call.finished),route);
             results.push({route,entranceAnimation:true,animationFinished:true});
         }
         await page.goto('http://127.0.0.1:1420/settings');
+        await page.evaluate(()=>window.motionCalls=[]);
         await page.getByRole('tab',{name:'Java',exact:true}).click();
-        await page.waitForFunction(()=>window.motionCalls.some(call=>call.panel&&call.duration===220));
+        await page.waitForFunction(()=>window.motionCalls.some(call=>call.panel&&call.duration===360));
+        for(const route of ['/instances','/mods','/friends','/settings','/instances','/friends']){
+            await page.evaluate(()=>window.motionCalls=[]);
+            await page.locator(`aside a[href="${route}"]`).first().click();
+            await page.locator(`[data-page-route="${route}"]`).waitFor();
+            await page.waitForFunction(route=>window.motionCalls.some(call=>call.route===route&&call.duration===360),route);
+            assert.equal(await page.locator('[data-page-route]').evaluate(node=>getComputedStyle(node).transform),'none');
+        }
+        await page.waitForFunction(()=>!document.getAnimations().some(animation=>animation.id==='luxmc-page-entry'));
+        assert.notEqual(await page.evaluate(()=>getComputedStyle(document.body).pointerEvents),'none');
+        results.push({actualSidebarNavigation:true,rapidNavigation:true,noRetainedAnimations:true,noRetainedRootTransform:true});
         await page.close();
         fs.writeFileSync('docs/validation/v3.6/ui-results.json',JSON.stringify(results,null,2));
         console.log(JSON.stringify({screens:results.filter(result=>result.theme).length,animatedRoutes:results.filter(result=>result.entranceAnimation).length,errors:0,responsiveRoot:true,reducedMotion:true}));

@@ -70,10 +70,12 @@ pub async fn remove_instance_data(base: &Path, id: &str, game: &Path, other_game
             checked.push(canonical);
         }
     }
-    for path in checked {
+    use futures_util::{StreamExt, TryStreamExt};
+    futures_util::stream::iter(checked.into_iter().map(|path| async move {
         tokio::fs::remove_dir_all(&path).await.map_err(|error| AppError::InvalidState(format!("Não foi possível apagar os arquivos da instância: {error}. Feche o jogo e tente novamente.")))?;
         if tokio::fs::try_exists(&path).await? { return Err(AppError::InvalidState("A pasta da instância ainda existe. A remoção não foi concluída.".into())); }
-    }
+        Ok::<(), AppError>(())
+    })).buffer_unordered(2).try_collect::<Vec<_>>().await?;
     Ok(())
 }
 

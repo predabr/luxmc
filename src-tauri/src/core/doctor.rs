@@ -283,12 +283,12 @@ pub fn mod_compatibility_warnings(
     let incompatible: &[&str] = match instance_loader.as_str() {
         "forge" => &["fabric", "quilt", "neoforge"],
         "fabric" => &["forge", "quilt"],
-        "quilt" => &["forge", "neoforge", "fabric"],
+        "quilt" => &["forge", "neoforge"],
         "neoforge" => &["fabric", "quilt"],
         _ => &[],
     };
 
-    let re_mc = Regex::new(r"(?i)([^vV0-9]|^)(1\.\d{1,2}\.\d{1,2})([^0-9]|$)").unwrap();
+    let re_mc = Regex::new(r"(?i)(?:^|[-_+ .])(?:mc|minecraft)[-_ ]?(\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)(?:[-_+ .]|$)|^optifine[-_](\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)[-_]|(?:forge|fabric|quilt|neoforge)[-_](\d{1,2}\.\d{1,2}(?:\.\d{1,2})?)[-_]v\d").unwrap();
 
     let Ok(entries) = std::fs::read_dir(mods_dir) else {
         return warnings;
@@ -306,18 +306,13 @@ pub fn mod_compatibility_warnings(
             continue;
         }
 
-        let mut file_version: Option<String> = None;
-        for caps in re_mc.captures_iter(&lower) {
-            let prefix = caps.get(1).map(|m| m.as_str()).unwrap_or("");
-            if prefix.eq_ignore_ascii_case("v") {
-                continue;
-            }
-            file_version = Some(caps.get(2).unwrap().as_str().to_string());
-            break;
-        }
+        let metadata = crate::core::mods::validation::mod_metadata(&entry.path());
+        let file_version = if metadata.as_ref().is_some_and(|metadata| metadata.minecraft_declared) { None } else {
+            re_mc.captures(&lower).and_then(|caps| (1..=3).find_map(|index| caps.get(index))).map(|value| value.as_str().to_string())
+        };
 
         if let Some(found) = file_version {
-            if found != instance_version {
+            if found != instance_version && !instance_version.starts_with(&format!("{found}.")) {
                 warnings.push(format!(
                     "\"{name}\" parece ser para o Minecraft {found}, mas esta instância roda {instance_version}."
                 ));
@@ -325,6 +320,12 @@ pub fn mod_compatibility_warnings(
             }
         }
 
+        if let Some(metadata) = metadata.filter(|metadata| !metadata.loaders.is_empty()) {
+            if !metadata.loaders.contains(&instance_loader) && !(instance_loader == "quilt" && metadata.loaders.contains("fabric")) && metadata.loaders.iter().all(|loader| incompatible.contains(&loader.as_str())) {
+                warnings.push(format!("\"{name}\" declara suporte a {}, mas esta instância usa {instance_loader}.", metadata.loaders.into_iter().collect::<Vec<_>>().join(" / ")));
+            }
+            continue;
+        }
         let stripped = lower.replace("neoforge", "");
         let has_own_loader = match instance_loader.as_str() {
             "forge" => stripped.contains("forge"),
@@ -342,6 +343,37 @@ pub fn mod_compatibility_warnings(
         }
     }
     warnings
+}
+
+#[cfg(test)]
+mod compatibility_filename_tests {
+    use super::*;
+    #[test]
+    fn declared_compatibility_takes_precedence_over_filename_hints() {
+        use std::io::Write;
+        let directory = tempfile::tempdir().unwrap();
+        for name in ["dynamic-fps-3.11.4+minecraft-1.21.0-fabric.jar", "reeses-sodium-options-fabric-1.8.3+mc1.21.4.jar", "forge-config-fabric-mc1.20.1.jar"] {
+            let file = std::fs::File::create(directory.path().join(name)).unwrap();
+            let mut archive = zip::ZipWriter::new(file);
+            archive.start_file("fabric.mod.json", zip::write::FileOptions::default()).unwrap();
+            archive.write_all(br#"{"id":"example","depends":{"minecraft":">=1.21 <=1.21.4"}}"#).unwrap();
+            archive.finish().unwrap();
+        }
+        assert!(mod_compatibility_warnings(directory.path(), "1.21.1", "fabric").is_empty());
+        assert!(mod_compatibility_warnings(directory.path(), "1.21.1", "quilt").is_empty());
+        assert_eq!(mod_compatibility_warnings(directory.path(), "1.21.1", "forge").len(), 3);
+    }
+    #[test]
+    fn mod_versions_are_not_minecraft_versions() {
+        let directory = tempfile::tempdir().unwrap();
+        for name in ["BetterThirdPerson-Fabric-1.21-1.9.0.jar", "citresewn-1.2.2+1.21.jar", "Cobblemon-fabric-1.8.1+1.21.1.jar", "emi-1.1.24+1.21.1+fabric.jar"] { std::fs::write(directory.path().join(name), b"fixture").unwrap(); }
+        assert!(mod_compatibility_warnings(directory.path(), "1.21.1", "fabric").is_empty());
+        assert!(mod_compatibility_warnings(directory.path(), "1.21.1", "quilt").is_empty());
+        std::fs::write(directory.path().join("example-mc1.19.2-fabric.jar"), b"fixture").unwrap();
+        let warnings = mod_compatibility_warnings(directory.path(), "1.21.1", "fabric");
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings[0].contains("1.19.2"));
+    }
 }
 
 pub fn diagnose_instance(game_dir: &Path) -> CrashDiagnosis {

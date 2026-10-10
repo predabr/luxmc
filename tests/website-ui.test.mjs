@@ -26,7 +26,7 @@ test("the home page exposes the actual launcher and download without WebGL", () 
     assert.ok(document.querySelector("#heroPrimaryBtn").href);
     assert.equal(
       document.querySelector(".hero-capture img").getAttribute("src"),
-      "assets/captures-3.6/home.png",
+      "assets/captures-3.6/home-window.svg",
     );
     assert.equal(
       document.querySelectorAll("#worldStage,[data-skin-scene],.voxel-fallback")

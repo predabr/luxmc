@@ -1259,7 +1259,7 @@ pub async fn instance_import_modpack_core(
         }
     });
 
-    files_stream.buffer_unordered(24).for_each(|_| async {}).await;
+    files_stream.buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).for_each(|_| async {}).await;
     crate::commands::optimizer::optimizer_trim_memory();
 
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
@@ -1880,7 +1880,7 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
                 let root = root.to_path_buf();
                 async move { ensure_mrpack_file(&client, &root, &file, None).await }
             })
-            .buffer_unordered(24).collect::<Vec<_>>().await;
+            .buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).collect::<Vec<_>>().await;
         for result in results { result?; }
         let storage = root.join(".luxmc/mods");
         let db = crate::db::shared_db().await?;
@@ -1940,7 +1940,7 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
                     }
                 }
             })
-            .buffer_unordered(24)
+            .buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24))
             .collect::<Vec<_>>()
             .await;
         for result in results {
@@ -2219,7 +2219,7 @@ pub async fn instance_import_mrpack_core(
             }
             result
         }
-    }).buffer_unordered(24).collect::<Vec<_>>().await;
+    }).buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).collect::<Vec<_>>().await;
     pack::cancelled(Some(&state.import_cancel))?;
     for result in results { result?; }
 

@@ -21,7 +21,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		Upload,
 		RefreshCw,
 		Palette,
-		ArrowLeft
+		ArrowLeft,
+		ArrowRight,
+		Blocks
 	} from "lucide-svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
@@ -282,10 +284,25 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</div>
 
 			{#if edition === null}
-				<p class="text-sm text-fg-muted">Escolha a edição do Minecraft para esta instância.</p>
-				<div class="grid gap-3 sm:grid-cols-2">
-					<button type="button" class="rounded-2xl border border-border bg-bg-subtle p-6 text-left transition hover:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500" onclick={() => edition = "java"}><strong class="block text-lg text-fg">Java Edition</strong><span class="mt-2 block text-sm text-fg-muted">Vanilla, mods, shaders e modpacks.</span></button>
-					<button type="button" class="rounded-2xl border border-border bg-bg-subtle p-6 text-left transition hover:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-500" onclick={() => edition = "bedrock"}><strong class="block text-lg text-fg">Bedrock Edition</strong><span class="mt-2 block text-sm text-fg-muted">Jogue a edição instalada no Windows diretamente pelo Luxmc.</span></button>
+				<div class="space-y-2">
+					<p class="text-xs font-semibold uppercase tracking-[.16em] text-brand-400">Seu próximo mundo</p>
+					<p class="text-base leading-relaxed text-fg-muted">Escolha sua edição. A gente cuida da sua biblioteca.</p>
+				</div>
+				<div class="edition-options grid gap-4 sm:grid-cols-2">
+					<button type="button" class="edition-card" onclick={() => edition = "java"}>
+						<span class="edition-art"><img src="/grass_block.png" alt="" width="72" height="72" class="h-[72px] w-[72px] object-contain [image-rendering:pixelated]" /><span class="edition-number" aria-hidden="true">01</span></span>
+						<strong class="block text-xl font-semibold text-fg">Java Edition</strong>
+						<span class="mt-2 block text-sm leading-relaxed text-fg-muted">Seu Minecraft clássico, com liberdade para criar.</span>
+						<span class="edition-tags"><span>Mods</span><span>Modpacks</span><span>Shaders</span></span>
+						<span class="edition-next">Escolher Java <ArrowRight class="h-4 w-4" /></span>
+					</button>
+					<button type="button" class="edition-card" onclick={() => edition = "bedrock"}>
+						<span class="edition-art"><Blocks class="h-14 w-14 text-brand-400" /><span class="edition-number" aria-hidden="true">02</span></span>
+						<strong class="block text-xl font-semibold text-fg">Bedrock Edition</strong>
+						<span class="mt-2 block text-sm leading-relaxed text-fg-muted">Escolha sua versão e organize tudo aqui no Luxmc.</span>
+						<span class="edition-tags"><span>Versões</span><span>Add-ons</span><span>Windows</span></span>
+						<span class="edition-next">Escolher Bedrock <ArrowRight class="h-4 w-4" /></span>
+					</button>
 				</div>
 			{:else if edition === "bedrock"}
 				<BedrockSetup onCreated={handleClose} />
@@ -517,3 +534,23 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		</div>
 	</div>
 {/if}
+
+<style>
+	.edition-card { display: flex; flex-direction: column; min-width: 0; padding: 24px; text-align: left; border: 1px solid rgb(var(--border)); border-radius: 24px; background: linear-gradient(155deg, rgb(var(--brand-500) / .08), rgb(var(--bg-subtle) / .7) 60%); transition: translate 280ms cubic-bezier(.16,1,.3,1), border-color 200ms ease, box-shadow 280ms ease; animation: edition-enter 560ms cubic-bezier(.16,1,.3,1) both; }
+	.edition-card:nth-child(2) { animation-delay: 70ms; }
+	.edition-card:hover { translate: 0 -5px; border-color: rgb(var(--brand-400) / .5); box-shadow: 0 16px 32px rgb(var(--fg) / .07); }
+	.edition-card:focus-visible { outline: 2px solid rgb(var(--brand-400)); outline-offset: 3px; }
+	.edition-art { display: flex; align-items: center; justify-content: space-between; height: 96px; margin-bottom: 24px; }
+	.edition-art > :global(img), .edition-art > :global(svg) { transition: transform 360ms cubic-bezier(.16,1,.3,1); }
+	.edition-card:hover .edition-art > :global(img), .edition-card:hover .edition-art > :global(svg) { transform: translateY(-4px) rotate(-5deg); }
+	.edition-number { align-self: flex-start; font-size: 11px; color: rgb(var(--fg-muted)); letter-spacing: .12em; }
+	.edition-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; margin-bottom: 26px; }
+	.edition-tags > span { border: 1px solid rgb(var(--border)); border-radius: 8px; padding: 5px 8px; font-size: 10px; color: rgb(var(--fg-muted)); background: rgb(var(--bg-elevated) / .65); }
+	.edition-next { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; padding-top: 18px; border-top: 1px solid rgb(var(--border)); font-size: 12px; font-weight: 600; color: rgb(var(--brand-400)); }
+	.edition-next :global(svg) { transition: translate 240ms ease; }
+	.edition-card:hover .edition-next :global(svg) { translate: 4px 0; }
+	@keyframes edition-enter { from { opacity: 0; transform: translateY(22px) scale(.98); } to { opacity: 1; transform: none; } }
+	:global(html.no-ui-motion) .edition-card, :global(html.no-anim) .edition-card { animation: none; transition: none; translate: none; }
+	:global(html.no-ui-motion) .edition-card :global(*), :global(html.no-anim) .edition-card :global(*) { transition: none; transform: none !important; translate: none !important; }
+	@media (prefers-reduced-motion: reduce) { :global(html:not(.force-ui-motion)) .edition-card { animation: none; transition: none; translate: none; } :global(html:not(.force-ui-motion)) .edition-card :global(*) { transition: none; transform: none !important; translate: none !important; } }
+</style>

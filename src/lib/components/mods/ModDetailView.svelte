@@ -7,6 +7,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		HelpCircle, MessageSquare, Globe, Heart, FileText, ImageIcon, Layers
 	} from "lucide-svelte";
 	import LazyImage from "$lib/components/ui/LazyImage.svelte";
+	import { pageMotion } from "$lib/actions/pageMotion";
 	import SourceBadge from "./SourceBadge.svelte";
 	import type { ModSearchResultItem, ModProjectDetails, ModVersion } from "$lib/api";
 
@@ -206,7 +207,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	<!-- Main Split Content Area -->
 	<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start pb-12">
-		<div class="lg:col-span-2 space-y-6">
+		<div use:pageMotion={activeTab} class="lg:col-span-2 space-y-6">
 			{@render children()}
 		</div>
 

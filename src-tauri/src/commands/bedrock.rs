@@ -96,6 +96,13 @@ fn load() -> AppResult<SavedState> {
     Ok(serde_json::from_value(read_json(&path)?)?)
 }
 
+pub(super) fn managed_content(id: &str) -> AppResult<(bool, bool)> {
+    let state = load()?;
+    let instance = state.instances.iter().find(|instance| instance.id == id && instance.profile_id == "managed").ok_or_else(|| AppError::InvalidState("Instale esta versão pelo Luxmc para gerenciar seus conteúdos".into()))?;
+    let installation = state.managed.iter().find(|installation| installation.installation.id == instance.installation_id).ok_or_else(|| AppError::NotFound("Instalação Bedrock indisponível".into()))?;
+    Ok((installation.package.ends_with(".msixvc"), installation.channel != "release"))
+}
+
 fn save(state: &SavedState) -> AppResult<()> {
     let path = state_file()?;
     std::fs::create_dir_all(path.parent().unwrap())?;
@@ -265,6 +272,8 @@ pub async fn bedrock_remove(id: String) -> AppResult<()> {
                 return Err(AppError::InvalidInput("A pasta da versão está fora dos pacotes do Luxmc. Seus documentos foram preservados.".into()));
             }
         }
+        super::bedrock_content::ensure_closed().await?;
+        super::bedrock_content::detach(&id).await?;
         remove_windows_package(&managed.app_id, Some(&managed.package_version)).await?;
         if directory.exists() {
             let canonical_root = tokio::fs::canonicalize(&root).await?;
@@ -274,6 +283,8 @@ pub async fn bedrock_remove(id: String) -> AppResult<()> {
         }
         state.managed.retain(|item| item.installation.id != instance.installation_id);
         state.instances.retain(|item| item.profile_id != "managed" || item.installation_id != instance.installation_id);
+        let workspace = super::bedrock_content::workspace(&id)?;
+        if workspace.exists() { tokio::fs::remove_dir_all(workspace).await?; }
     } else if instance.profile_id == "windows" {
         remove_windows_package(&instance.installation_id, None).await?;
         state.instances.retain(|item| item.id != id);
@@ -321,10 +332,12 @@ pub async fn bedrock_open(instance_id: Option<String>) -> AppResult<BedrockOpenR
             let _guard=super::bedrock_catalog::INSTALL_LOCK.try_lock().map_err(|_|AppError::InvalidState("Aguarde a instalação Bedrock em andamento".into()))?;
             let installation=state.managed.iter().find(|row|row.installation.id==instance.installation_id).ok_or_else(||AppError::NotFound("Pacote Bedrock não encontrado".into()))?;
             if installation.package.ends_with(".msixvc") && native_preparation_active().await? {return Ok(BedrockOpenResult {provider_opened:false,notice:Some("O Windows já está preparando o Bedrock. Aguarde essa janela terminar antes de clicar em Jogar novamente.".into())});}
+            super::bedrock_content::ensure_closed().await?;
             let id=super::bedrock_catalog::deploy(PathBuf::from(&installation.package),installation.package_version.clone(),installation.channel.clone()).await?;
+            let isolation_notice = super::bedrock_content::prepare(&instance.id, installation.package.ends_with(".msixvc"), installation.channel != "release").await?;
             let explorer=PathBuf::from(std::env::var_os("SystemRoot").ok_or_else(||AppError::InvalidState("Windows indisponível".into()))?).join("explorer.exe");
             tokio::process::Command::new(explorer).arg(format!("shell:AppsFolder\\{id}")).spawn()?;
-            return Ok(BedrockOpenResult {provider_opened:false,notice:installation.package.ends_with(".msixvc").then(||"O Gaming Services pode preparar arquivos na primeira abertura. Aguarde a janela do Windows; se for solicitado, entre na conta que possui Minecraft.".into())});
+            return Ok(BedrockOpenResult {provider_opened:false,notice:isolation_notice.or_else(|| installation.package.ends_with(".msixvc").then(||"O Gaming Services pode preparar arquivos na primeira abertura. Aguarde a janela do Windows; se for solicitado, entre na conta que possui Minecraft.".into()))});
         }
     }
     if let Some(id) = &instance_id {

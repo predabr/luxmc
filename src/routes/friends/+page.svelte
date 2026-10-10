@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { pageMotion } from "$lib/actions/pageMotion";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import MeshPanel from "$lib/components/friends/MeshPanel.svelte";
     import { publicProfile } from "$lib/stores/publicProfile.svelte";
@@ -15,6 +16,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import MinecraftAvatar from "$lib/components/ui/MinecraftAvatar.svelte";
 	import { friendsState } from "$lib/stores/friends.svelte";
 	import type { Friend, SocialIdentity } from "$lib/api/social";
+    import { friendDisplayName } from '$lib/api/social';
 	import { p2pScanLanWorlds } from "$lib/api/p2p";
 	import { joinWorld } from "$lib/utils/directJoin";
 
@@ -86,7 +88,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	const filteredFriends = $derived(
 		friends.filter((f) => {
-			const matchesSearch = !searchQuery || f.username.toLowerCase().includes(searchQuery.toLowerCase());
+			const matchesSearch = !searchQuery || `${f.username} ${friendDisplayName(f)}`.toLowerCase().includes(searchQuery.toLowerCase());
 			if (!matchesSearch) return false;
 			if (activeTab === "online") return f.status === "online" || f.status === "in_game";
 			if (activeTab === "pending") return f.status === "pending";
@@ -155,7 +157,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     }));
 </script>
 
-<div class="friends-page mx-auto flex h-full w-full max-w-screen-2xl flex-col gap-5 overflow-y-auto pb-8 select-none custom-scrollbar">
+<div class="friends-page mx-auto flex w-full max-w-screen-2xl flex-col gap-5 pb-8 select-none">
     <header class="friends-header flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3.5">
             <div class="grid h-11 w-11 place-items-center rounded-2xl border border-brand-400/20 bg-brand-500/10 text-brand-300"><Users class="h-5 w-5" /></div>
@@ -165,8 +167,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             </div>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <button type="button" class={button({ variant: 'secondary', size: 'lg' })} onclick={() => activeTab = 'p2p'} aria-pressed={activeTab === 'p2p'}><Radio class="h-4 w-4" />{uiText("ui.88231d3da6438407")}</button>
-            <button type="button" class={button({ variant: 'primary', size: 'lg' })} onclick={() => activeTab = 'add'} aria-pressed={activeTab === 'add'} disabled={cloudOffline}><UserPlus class="h-4 w-4" />{uiText("ui.fcaaf1906cc6c7a6")}</button>
+            <button type="button" class={button({ variant: 'primary', size: 'lg' })} onclick={() => activeTab = 'p2p'} aria-pressed={activeTab === 'p2p'}><Radio class="h-4 w-4" />{uiText("friendsDesign.playTogether")}</button>
+            <button type="button" class={button({ variant: 'secondary', size: 'lg' })} onclick={() => activeTab = 'add'} aria-pressed={activeTab === 'add'} disabled={cloudOffline}><UserPlus class="h-4 w-4" />{uiText("ui.fcaaf1906cc6c7a6")}</button>
         </div>
     </header>
 
@@ -184,7 +186,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <MeshPanel />
     {:else}
         <div class="friends-workspace grid items-start gap-5">
-            <section class="friends-directory min-w-0 overflow-visible rounded-3xl border border-border bg-bg-elevated shadow-soft" aria-label={uiText("friendsDesign.directory")}>
+            <section use:pageMotion={activeTab} class="friends-directory min-w-0 overflow-visible rounded-3xl border border-border bg-bg-elevated shadow-soft" aria-label={uiText("friendsDesign.directory")}>
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-fg/10 p-4">
                     <div class="flex flex-wrap items-center gap-1" aria-label={uiText("friendsDesign.filters")}>
                         <button type="button" onclick={() => activeTab = 'all'} aria-pressed={activeTab === 'all'} class="launcher-tab flex items-center gap-2 text-xs {activeTab === 'all' ? 'bg-brand-500/10 text-brand-300' : 'text-fg-muted hover:text-fg'}">{uiText("friendsDesign.all")}<span class="text-[10px] text-fg-muted">{totalFriends}</span></button>
@@ -241,11 +243,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             <aside class="friends-context flex min-w-0 flex-col gap-4">
                 <section class="rounded-3xl border border-border bg-bg-elevated p-5 shadow-soft">
                     <div class="mb-4 flex items-center justify-between gap-2"><h2 class="text-xs font-semibold text-fg-muted">{uiText("friendsDesign.yourProfile")}</h2><button type="button" disabled={!friendsState.me} onclick={() => publicProfile.edit()} class="text-xs text-brand-400 hover:underline">{uiText('publicProfile.edit')}</button></div>
-                    <div class="flex items-center gap-3"><MinecraftAvatar username={friendsState.me?.username || account.value?.username || 'Steve'} avatarUrl={friendsState.ownProfile?.portrait || friendsState.me?.avatarUrl || account.value?.avatarUrl} status={friendsState.me ? 'online' : 'offline'} class="h-10 w-10" /><div class="min-w-0"><p class="truncate text-sm font-semibold text-fg">{friendsState.ownProfile?.displayName || friendsState.me?.username || account.value?.username || uiText('friendsDesign.profileUnavailable')}</p>{#if friendsState.ownProfile?.role === "owner"}<span class="text-[11px] font-semibold text-brand-400">{uiText("ownerTools.badge")}</span>{/if}<p class="mt-1 text-[11px] text-fg-muted">{friendsState.me ? uiText('friendsDesign.ready') : uiText('friendsDesign.connectHint')}</p></div></div>
+                    <div class="flex items-center gap-3"><MinecraftAvatar username={friendsState.me?.username || account.value?.username || 'Steve'} avatarUrl={friendsState.ownProfile?.portrait || friendsState.me?.avatarUrl || account.value?.avatarUrl} status={friendsState.me ? 'online' : 'offline'} class="h-14 w-14" /><div class="min-w-0"><p class="truncate text-base font-semibold text-fg">{friendsState.ownProfile?.displayName || friendsState.me?.username || account.value?.username || uiText('friendsDesign.profileUnavailable')}</p>{#if friendsState.ownProfile?.role === "owner"}<span class="text-[11px] font-semibold text-brand-400">{uiText("ownerTools.badge")}</span>{/if}<p class="mt-1 text-[11px] text-fg-muted">{friendsState.me ? (friendsState.ownProfile?.status || uiText('friendsDesign.ready')) : uiText('friendsDesign.connectHint')}</p></div></div>
                     {#if friendsState.me}<div class="mt-5 space-y-2"><p class="text-[11px] text-fg-muted">{uiText("friendsDesign.yourCode")}</p><div class="flex min-w-0 items-center gap-2"><code class="min-w-0 flex-1 break-all rounded-lg border border-fg/10 px-2.5 py-2 font-mono text-xs text-fg">{friendsState.me.username}#{friendsState.me.id.slice(0, 8)}</code><button type="button" title={uiText("ui.767b6747b7b7888f")} aria-label={uiText("friendsDesign.copyCode")} class={button({ variant: 'secondary', size: 'icon' })} onclick={copyCode}><Copy class="h-4 w-4" /></button></div></div>{/if}
                     <button type="button" class={button({ variant: friendsState.me ? 'ghost' : 'primary', size: 'sm', block: true, class: 'mt-3' })} onclick={() => friendsState.connect()} disabled={friendsState.busy || !account.value} aria-busy={friendsState.busy}>{#if friendsState.busy}<LoaderCircle class="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />{:else}<RefreshCw class="h-3.5 w-3.5" />{/if}{friendsState.busy ? uiText("ui.d6ac190ed5df66c8") : friendsState.me ? uiText("ui.ce410cef725982fa") : uiText("ui.48997b767b4a201a")}</button>
                 </section>
-                <section class="rounded-3xl border border-brand-400/20 bg-bg-elevated p-5 shadow-soft"><div class="flex items-center gap-2 text-brand-300"><Radio class="h-4 w-4" /><h2 class="text-sm font-semibold">{uiText("friendsDesign.playTogether")}</h2></div><p class="mt-3 text-xs leading-relaxed text-fg-muted">{uiText("friendsDesign.roomHint")}</p><button type="button" class={button({ variant: 'outline', size: 'md', block: true, class: 'mt-4 justify-between' })} onclick={() => activeTab = 'p2p'}>{uiText("friendsDesign.openRoom")}<ArrowRight class="h-4 w-4" /></button><p class="mt-3 text-[11px] leading-relaxed text-fg-subtle">{uiText("friendsDesign.compatibility")}</p></section>
+                <section class="rounded-3xl border border-brand-400/20 bg-bg-elevated p-5 shadow-soft"><div class="flex items-center gap-2 text-brand-300"><Radio class="h-4 w-4" /><h2 class="text-sm font-semibold">{uiText("friendsDesign.playTogether")}</h2></div><p class="mt-3 text-xs leading-relaxed text-fg-muted">{uiText("friendsDesign.roomHint")}</p><button type="button" class={button({ variant: 'secondary', size: 'md', block: true, class: 'mt-4 justify-between' })} onclick={() => activeTab = 'p2p'}>{uiText("friendsDesign.openRoom")}<ArrowRight class="h-4 w-4" /></button><p class="mt-3 text-[11px] leading-relaxed text-fg-subtle">{uiText("friendsDesign.compatibility")}</p></section>
                 {#if localContacts.length}<details class="surface-glass p-4 text-xs text-fg-muted"><summary class="cursor-pointer">{uiText("ui.0258395a2887b1f4")}{localContacts.length})</summary><p class="my-3 leading-relaxed">{uiText("ui.408b9eb2fb314ad0")}</p><div class="flex flex-wrap gap-2">{#each localContacts as name}<button type="button" class={button({ variant: 'ghostBrand', size: 'sm' })} onclick={() => { newFriendUsername = name; activeTab = 'add'; }}>{name}</button>{/each}</div></details>{/if}
             </aside>
         </div>
@@ -253,15 +255,23 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </div>
 
 <style>
-    .friends-workspace { grid-template-columns: minmax(0, 1fr) 300px; align-items: start; }
-    @media (min-width: 1500px) { .friends-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .friends-page { container-type: inline-size; }
+    .friends-workspace { width: 100%; grid-template-columns: minmax(0, 1fr) minmax(280px, 320px); align-items: start; }
+    .friends-list { grid-template-columns: minmax(0, 1fr); }
+    .friends-directory { border-radius: 24px; container-type: inline-size; }
+    .friends-header { width: 100%; padding: 28px; border: 1px solid rgb(var(--border)); border-radius: 24px; background: linear-gradient(120deg, rgb(var(--brand-500) / .09), rgb(var(--bg-elevated) / .9)); }
+    .friends-list :global(.friend-row) { min-height: 120px; }
+    .friends-context { position: sticky; top: 20px; }
     .friends-context { background: transparent !important; }
     .friends-directory { box-shadow: inset 0 1px 0 rgb(var(--fg) / .04); }
     .friends-empty { min-height: 152px; }
     :global(html.has-custom-wallpaper) .friends-directory, :global(html.has-custom-wallpaper) .friends-context > section { background: rgb(var(--bg-elevated) / .94) !important; backdrop-filter: blur(12px); }
-    @media (max-width: 1200px) {
+    @container (min-width: 780px) {
+        .friends-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @container (max-width: 900px) {
         .friends-workspace { grid-template-columns: minmax(0, 1fr); }
-        .friends-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .friends-context { position: static; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
     @media (max-width: 680px) {
         .friends-context { grid-template-columns: minmax(0, 1fr); }

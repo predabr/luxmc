@@ -2,8 +2,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { z } from "zod";
 import { api } from "./client";
 
-const identitySchema = z.object({ id: z.string(), username: z.string(), avatarUrl: z.string().nullable().optional() });
+const identitySchema = z.object({ id: z.string(), username: z.string(), avatarUrl: z.string().nullable().optional(), displayName: z.string().max(32).optional(), role: z.enum(['owner', 'member']).optional() });
+export function friendDisplayName(friend: SocialIdentity): string { return friend.displayName?.trim() || friend.username; }
 const friendSchema = identitySchema.extend({
+    profileStatus: z.string().max(80).optional(),
 	status: z.enum(["online", "in_game", "offline", "pending"]),
 	incoming: z.boolean(),
 	lastSeen: z.string().nullable(),

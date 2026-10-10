@@ -1,0 +1,53 @@
+const { chromium } = require('playwright-core');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+
+(async () => {
+    const output = 'docs/validation/v3.6/layout-polish';
+    fs.mkdirSync(output, { recursive: true });
+    const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
+    try {
+        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+        const errors = [];
+        page.on('pageerror', error => errors.push(String(error)));
+        await page.goto(process.env.LUXMC_SITE_URL || 'http://127.0.0.1:8790/');
+        await page.locator('.hero-title.motion-entered').waitFor();
+        const visibleMotion = await page.evaluate(() => document.getAnimations().some(animation => animation.playState === 'running'));
+        assert.ok(visibleMotion, 'Hero entrance should animate');
+        await page.waitForTimeout(1200);
+        const capture = page.locator('.hero-capture');
+        await capture.hover({ position: { x: 15, y: 15 } });
+        await page.waitForFunction(() => document.querySelector('.hero-capture').style.getPropertyValue('--capture-x') !== '');
+        await page.screenshot({ path: `${output}/website-hero.png` });
+        await page.locator('.feature-strip').first().scrollIntoViewIfNeeded();
+        await page.locator('.feature-strip article.motion-entered').first().waitFor();
+        await page.locator('[data-product-screen]').nth(1).click();
+        await page.waitForFunction(() => document.getElementById('productTourImage').src.includes('/mods-window.svg'));
+        await page.getByRole('button', { name: /Pausar movimento/ }).click();
+        assert.equal(await page.locator('body').evaluate(body => body.classList.contains('motion-paused')), true);
+        assert.equal(await capture.evaluate(element => element.style.getPropertyValue('--capture-x')), '');
+        const hiddenItems = await page.locator('.motion-item').evaluateAll(elements => elements.filter(element => getComputedStyle(element).opacity !== '1').length);
+        assert.equal(hiddenItems, 0);
+        await page.getByRole('button', { name: /Retomar movimento/ }).click();
+        const faq = page.locator('.faq-item').first();
+        await faq.scrollIntoViewIfNeeded();
+        await faq.locator('summary').click();
+        assert.equal(await faq.evaluate(element => element.open), true);
+        await page.waitForTimeout(650);
+        await faq.locator('summary').focus();
+        await page.keyboard.press('Enter');
+        assert.equal(await faq.evaluate(element => element.open), false);
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        assert.equal(await page.locator('body').evaluate(body => body.classList.contains('motion-paused')), true);
+        assert.equal(await page.locator('#motionToggle').isDisabled(), true);
+        await page.setViewportSize({ width: 390, height: 844 });
+        await page.evaluate(() => scrollTo(0, 0));
+        await page.waitForTimeout(500);
+        const mobile = await page.evaluate(() => ({ width: document.documentElement.clientWidth, scrollWidth: document.documentElement.scrollWidth }));
+        assert.ok(mobile.scrollWidth <= mobile.width + 1);
+        await page.screenshot({ path: `${output}/website-mobile.png` });
+        assert.deepEqual(errors, []);
+        fs.writeFileSync(`${output}/website-browser.json`, JSON.stringify({ passed: true, heroEntrance: true, pointerMotion: true, sectionReveals: true, productTour: true, pauseRestoresContent: true, reducedMotion: true, faqKeyboard: true, mobile }, null, 2));
+        console.log('Website motion passed: hero, pointer, sections, tour, pause, reduced motion, FAQ and mobile.');
+    } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

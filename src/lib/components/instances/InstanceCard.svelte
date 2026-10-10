@@ -138,7 +138,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	class="surface-glass group relative cursor-pointer active:scale-[0.98] hover:border-brand-500/30 hover:shadow-elevated {viewMode === 'grid' ? 'flex flex-col' : 'flex flex-wrap items-center gap-4 p-4'} {isOpening ? 'scale-[0.98] ring-2 ring-brand-400 border-brand-400 shadow-2xl brightness-105' : ''}"
 	style:box-shadow={isActive && !isOpening ? "0 0 0 1px rgb(var(--brand-500) / 0.3)" : undefined}
 	onpointerenter={() => preloadRoute("/instances/" + profile.id)}
-	onpointerdown={() => preloadRoute("/instances/" + profile.id, true)}
+	onpointerdown={(event) => {
+		if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea, [role="checkbox"], [role="menu"]')) return;
+		preloadRoute("/instances/" + profile.id, true);
+	}}
 	onclick={(e) => {
 		const target = e.target as HTMLElement | null;
 		if (target?.closest('button, a, input, select, textarea, [role="checkbox"], [role="menu"]')) return;

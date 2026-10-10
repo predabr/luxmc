@@ -1,0 +1,39 @@
+name: Complete uninstaller verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release to verify on a fresh Windows machine
+        required: true
+        default: v3.6.1-revision.2
+
+permissions:
+  contents: read
+
+jobs:
+  complete-cleanup:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Download and verify official installer signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: node scripts/download-official-windows.mjs "$env:RELEASE_TAG"
+      - name: Verify installation and complete removal with disposable data
+        env:
+          LUXMC_INSTALLER_PATH: release-windows/Lux MC Launcher.exe
+        run: |
+          ./tests/installer-lifecycle.ps1
+          $report = Get-Content docs/validation/general-installer-lifecycle-2026-10-06.json -Raw | ConvertFrom-Json
+          if (!$report.CompleteCleanupVerified) { throw 'Complete cleanup was not exercised on the fresh machine.' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: complete-cleanup-${{ inputs.tag }}
+          path: docs/validation/general-installer-lifecycle-2026-10-06.json
+          if-no-files-found: ignore

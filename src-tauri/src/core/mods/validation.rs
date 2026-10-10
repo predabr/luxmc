@@ -4,13 +4,45 @@ use crate::error::AppResult;
 #[derive(Default)]
 pub struct Audit { pub errors: Vec<String>, pub warnings: Vec<String> }
 
+#[derive(Clone, Default)]
+pub(crate) struct ModMetadata {
+    pub ids: std::collections::BTreeSet<String>,
+    pub loaders: std::collections::BTreeSet<String>,
+    pub minecraft_declared: bool,
+}
+
 pub(crate) fn primary_ids(path: &Path) -> Option<std::collections::BTreeSet<String>> {
+    mod_metadata(path).map(|metadata| metadata.ids)
+}
+
+pub(crate) fn mod_metadata(path: &Path) -> Option<ModMetadata> {
+    type Entry = ((u64, std::time::SystemTime), Option<ModMetadata>);
+    static CACHE: std::sync::LazyLock<std::sync::Mutex<HashMap<std::path::PathBuf, Entry>>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
+    let metadata = std::fs::metadata(path).ok()?;
+    let fingerprint = (metadata.len(), metadata.modified().ok()?);
+    if let Ok(cache) = CACHE.lock() {
+        if let Some((saved, ids)) = cache.get(path) { if *saved == fingerprint { return ids.clone(); } }
+    }
+    let ids = read_mod_metadata(path);
+    if let Ok(mut cache) = CACHE.lock() {
+        if cache.len() >= 4096 { cache.clear(); }
+        cache.insert(path.to_owned(), (fingerprint, ids.clone()));
+    }
+    ids
+}
+
+fn read_mod_metadata(path: &Path) -> Option<ModMetadata> {
     let mut archive = zip::ZipArchive::new(std::io::BufReader::new(std::fs::File::open(path).ok()?)).ok()?;
-    let mut ids = std::collections::BTreeSet::new();
+    let mut metadata = ModMetadata::default();
     for (name, pointer) in [("fabric.mod.json", "/id"), ("quilt.mod.json", "/quilt_loader/id")] {
         if let Ok(file) = archive.by_name(name) {
             if let Ok(value) = serde_json::from_reader::<_, serde_json::Value>(file.take(2 * 1024 * 1024)) {
-                if let Some(id) = value.pointer(pointer).and_then(|v| v.as_str()) { ids.insert(id.to_owned()); }
+                if let Some(id) = value.pointer(pointer).and_then(|v| v.as_str()) {
+                    metadata.ids.insert(id.to_owned());
+                    metadata.loaders.insert(if name == "fabric.mod.json" { "fabric" } else { "quilt" }.into());
+                    metadata.minecraft_declared |= value.pointer("/depends/minecraft").is_some_and(|version| version.is_string() || version.is_array())
+                        || value.pointer("/quilt_loader/depends").and_then(|depends| depends.as_array()).is_some_and(|depends| depends.iter().any(|dependency| dependency["id"] == "minecraft" && dependency.get("versions").is_some()));
+                }
             }
         }
     }
@@ -20,13 +52,17 @@ pub(crate) fn primary_ids(path: &Path) -> Option<std::collections::BTreeSet<Stri
             if file.take(2 * 1024 * 1024).read_to_string(&mut text).is_ok() {
                 if let Ok(value) = text.parse::<toml::Value>() {
                     if let Some(mods) = value.get("mods").and_then(|v| v.as_array()) {
-                        for module in mods { if let Some(id) = module.get("modId").and_then(|v| v.as_str()) { ids.insert(id.to_owned()); } }
+                        for module in mods { if let Some(id) = module.get("modId").and_then(|v| v.as_str()) { metadata.ids.insert(id.to_owned()); } }
+                        let dependencies = value.get("dependencies").and_then(|deps| deps.as_table());
+                        let has_dependency = |id: &str| dependencies.is_some_and(|deps| deps.values().filter_map(|deps| deps.as_array()).flatten().any(|dependency| dependency.get("modId").and_then(|value| value.as_str()) == Some(id)));
+                        metadata.loaders.insert(if name.contains("neoforge") || has_dependency("neoforge") { "neoforge" } else { "forge" }.into());
+                        metadata.minecraft_declared |= has_dependency("minecraft");
                     }
                 }
             }
         }
     }
-    (!ids.is_empty()).then_some(ids)
+    (!metadata.ids.is_empty()).then_some(metadata)
 }
 
 pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<usize> {

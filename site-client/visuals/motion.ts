@@ -4,6 +4,19 @@ const events = new AbortController();
 let paused = false, scrollRequest = 0;
 let tourAnimation: Animation | null = null;
 let screenRequest = 0;
+let pointerRequest = 0;
+let pointerX = 0, pointerY = 0;
+const capture = document.querySelector<HTMLElement>(".hero-capture");
+const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
+const detailAnimations = new Set<Animation>();
+const motionAllowed = () => !paused && !reducedMotion.matches && !document.hidden;
+function clearPointer() {
+    cancelAnimationFrame(pointerRequest);
+    pointerRequest = 0;
+    pointerX = 0; pointerY = 0;
+    capture?.style.removeProperty("--capture-x");
+    capture?.style.removeProperty("--capture-y");
+}
 const text = (key: any, fallback: any) => window.LuxI18n?.t(key) || fallback;
 function updateMotion() {
     const stopped = paused || reducedMotion.matches || document.hidden;
@@ -19,6 +32,9 @@ function updateMotion() {
         toggle.disabled = reducedMotion.matches;
     }
     if (stopped) {
+        clearPointer();
+        detailAnimations.forEach(animation => animation.cancel());
+        detailAnimations.clear();
         tourAnimation?.cancel();
         tourAnimation = null;
         diagnosticTimers.forEach(clearTimeout);
@@ -49,13 +65,43 @@ const revealObserver = new IntersectionObserver((entries: any) => {
             revealObserver.unobserve(entry.target);
         }
 }, { threshold: 0.15 });
-document
-    .querySelectorAll<HTMLElement>(".section-heading,.diagnostic-copy,.skin-preview-copy,.social-copy,.download-card,.product-step")
-    .forEach((element, index) => {
+const revealTargets = ".hero-kicker,.hero-title,.hero-copy,.hero-capture,.section-heading,.diagnostic-copy,.skin-preview-copy,.social-copy,.download-card,.product-step,.feature-strip article,.identity-capture,.party-card,.performance-readout article,.faq-item,.project-card";
+function observeReveals(root: ParentNode) {
+    root.querySelectorAll<HTMLElement>(revealTargets).forEach((element, index) => {
+        if (element.classList.contains("motion-item")) return;
         element.classList.add("motion-item");
-        element.style.setProperty("--motion-delay", `${(index % 3) * 55}ms`);
+        element.style.setProperty("--motion-delay", `${(index % 4) * 65}ms`);
         revealObserver.observe(element);
     });
+}
+observeReveals(document);
+const catalog = document.getElementById("modsGrid");
+const catalogObserver = new MutationObserver(() => { if (catalog) observeReveals(catalog); });
+if (catalog) catalogObserver.observe(catalog, { childList: true, subtree: true });
+capture?.addEventListener("pointermove", event => {
+    if (!motionAllowed() || !finePointer.matches) return;
+    const bounds = capture.getBoundingClientRect();
+    pointerX = ((event.clientX - bounds.left) / bounds.width - .5) * 12;
+    pointerY = ((event.clientY - bounds.top) / bounds.height - .5) * 10;
+    if (pointerRequest) return;
+    pointerRequest = requestAnimationFrame(() => {
+        pointerRequest = 0;
+        if (!motionAllowed()) return;
+        capture.style.setProperty("--capture-x", `${pointerX}px`);
+        capture.style.setProperty("--capture-y", `${pointerY}px`);
+    });
+}, { passive: true, signal: events.signal });
+capture?.addEventListener("pointerleave", clearPointer, { signal: events.signal });
+document.querySelectorAll<HTMLDetailsElement>(".faq-item").forEach(details => {
+    details.addEventListener("toggle", () => {
+        if (!details.open || !motionAllowed()) return;
+        const content = details.querySelector("p");
+        if (!content) return;
+        const animation = content.animate([{ opacity: 0, translate: "0 -8px" }, { opacity: 1, translate: "0 0" }], { duration: 300, easing: "cubic-bezier(.16,1,.3,1)" });
+        detailAnimations.add(animation);
+        animation.onfinish = () => { animation.cancel(); detailAnimations.delete(animation); };
+    }, { signal: events.signal });
+});
 const buttons = [...document.querySelectorAll<HTMLElement>("[data-product-screen]")], image = document.getElementById("productTourImage") as HTMLImageElement;
 async function selectScreen(index: number) {
     const selected = buttons[index];
@@ -76,9 +122,9 @@ async function selectScreen(index: number) {
         label.textContent = selected.dataset.productLabel || ["01 / INSTANCES", "02 / CONTENT", "03 / SKIN STUDIO"][index] || '';
     if (!paused && !reducedMotion.matches && !document.hidden) {
         tourAnimation = image.animate([
-            { opacity: 0.35, transform: "translateY(6px) scale(.995)" },
+            { opacity: 0.15, transform: "translateY(18px) scale(.985)" },
             { opacity: 1, transform: "translateY(0) scale(1)" }
-        ], { duration: 320, easing: "cubic-bezier(.2,.8,.2,1)" });
+        ], { duration: 480, easing: "cubic-bezier(.16,1,.3,1)" });
     }
 }
 buttons.forEach((button: any, index: any) => button.addEventListener("click", () => {
@@ -140,6 +186,10 @@ window.addEventListener("pagehide", (event: any) => {
     cancelAnimationFrame(scrollRequest);
     diagnosticTimers.forEach(clearTimeout);
     revealObserver.disconnect();
+    catalogObserver.disconnect();
+    clearPointer();
+    detailAnimations.forEach(animation => animation.cancel());
+    detailAnimations.clear();
     diagnosticObserver.disconnect();
 }, { signal: events.signal });
 updateMotion();

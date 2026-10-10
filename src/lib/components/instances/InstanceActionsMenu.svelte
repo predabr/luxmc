@@ -1,6 +1,7 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { DropdownMenu } from "bits-ui";
+	import { tick } from "svelte";
 	import { MoreVertical, type Icon } from "lucide-svelte";
 
 	interface ActionItem {
@@ -19,6 +20,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		actions: ActionItem[];
 		isOpen?: boolean;
 	} = $props();
+
+	async function selectAction(action: ActionItem) {
+		isOpen = false;
+		await tick();
+		action.onClick();
+	}
 </script>
 
 <DropdownMenu.Root bind:open={isOpen}>
@@ -33,6 +40,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		<DropdownMenu.Content
 			align="end"
 			sideOffset={6}
+			preventScroll={false}
+			strategy="fixed"
 			class="z-50 min-w-48 overflow-hidden rounded-2xl bg-bg-elevated/95 p-1.5 shadow-2xl backdrop-blur-2xl border border-fg/10 space-y-0.5 text-xs font-semibold text-fg/80 focus:outline-none"
 		>
 			{#each actions as action (action.label)}
@@ -40,7 +49,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					<DropdownMenu.Separator class="border-t border-fg/5 my-1" />
 				{/if}
 				<DropdownMenu.Item
-					onSelect={() => action.onClick()}
+					onSelect={() => { void selectAction(action); }}
 					class="w-full flex items-center gap-2 px-3 py-2 rounded-xl transition-colors cursor-pointer text-left outline-none {action.variant === 'danger' ? 'hover:bg-red-500/15 text-red-400 hover:text-red-300 focus:bg-red-500/15 focus:text-red-300' : 'hover:bg-fg/5 hover:text-fg focus:bg-fg/5 focus:text-fg'}"
 				>
 					{#if action.icon}

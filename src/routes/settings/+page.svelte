@@ -47,6 +47,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 	import RenderingSection from "$lib/components/settings/RenderingSection.svelte";
+    import ExperienceSection from "$lib/components/settings/ExperienceSection.svelte";
 	import { getIconSrc } from "$lib/utils/icons";
 	import SettingsExtras from "$lib/components/settings/SettingsExtras.svelte";
     import { profilesUpdate } from "$lib/api/instances";
@@ -679,6 +680,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 
 			</div>
+            <ExperienceSection />
             <RenderingSection />
 		</div>
 

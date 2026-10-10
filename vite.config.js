@@ -47,6 +47,8 @@ export default defineConfig(({ isSsrBuild, mode }) => ({
       "howler",
       "colord",
       "marked",
+      "gifuct-js",
+      "gifenc",
       "dompurify",
       ...(mode === "browser-test" ? [
         "@codemirror/state",

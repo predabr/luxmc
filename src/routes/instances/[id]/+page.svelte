@@ -1,7 +1,9 @@
 <script lang="ts">
-import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { settings } from '$lib/stores/settings.svelte';
     import ModpackVersions from "$lib/components/instances/ModpackVersions.svelte";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
+	import { pageMotion } from "$lib/actions/pageMotion";
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
     import InstanceHero from "$lib/components/instances/InstanceHero.svelte";
@@ -1019,18 +1021,55 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     const iconRequested = new Set<string>();
     let iconTimer: ReturnType<typeof setTimeout> | undefined;
     let iconBusy = false;
+    const iconLookups: Array<{ id: string; folder: string; names: string[]; apply: (icons: Awaited<ReturnType<typeof instanceContentIcons>>) => void }> = [];
+    let lookupBusy = false;
+    async function flushIconLookups() {
+        if (lookupBusy) return;
+        lookupBusy = true;
+        try {
+            await Promise.all(Array.from({ length: 2 }, async () => {
+                while (iconLookups.length) {
+                    const lookup = iconLookups.shift()!;
+                    if (lookup.id !== instanceId) continue;
+                    await instanceContentIcons(lookup.id, lookup.folder, lookup.names, true).then(lookup.apply).catch(() => {});
+                }
+            }));
+        } finally { lookupBusy = false; }
+    }
+    const warmedIcons = new Set<string>();
+    function queueContentIcons(entries: FileTreeEntry[], folder: string) {
+        for (const entry of entries) {
+            if (!entry.iconKey || entry.iconResolved || entry.icon || iconRequested.has(entry.iconKey)) continue;
+            iconRequested.add(entry.iconKey);
+            iconQueue.set(entry.iconKey, { name: entry.name, folder, id: instanceId, key: entry.iconKey });
+        }
+        clearTimeout(iconTimer);
+        iconTimer = setTimeout(() => void flushContentIcons(), 0);
+    }
+    function warmIcons(icons: Array<{icon?: string | null}>) {
+        if (settings.value.preloadContentIcons === false) return;
+        for (const icon of icons) {
+            if (!icon.icon || warmedIcons.has(icon.icon)) continue;
+            if (warmedIcons.size >= 2000) warmedIcons.delete(warmedIcons.values().next().value!);
+            warmedIcons.add(icon.icon);
+            const image = new window.Image(); image.decoding = 'async'; image.src = icon.icon;
+        }
+    }
     async function flushContentIcons() {
         if (iconBusy) return;
         iconBusy = true;
         try {
+            await Promise.all(Array.from({ length: 2 }, async () => {
             while (iconQueue.size) {
                 const first = iconQueue.values().next().value!;
                 const batch = [...iconQueue.values()].filter(entry => entry.id === first.id && entry.folder === first.folder).slice(0, 32);
                 for (const entry of batch) iconQueue.delete(entry.key);
                 const apply = (icons: Awaited<ReturnType<typeof instanceContentIcons>>) => {
                     if (instanceId !== first.id) return;
+                    warmIcons(icons);
+                    const byKey = new Map(icons.map(icon => [icon.iconKey, icon]));
                     const update = (entries: FileTreeEntry[]) => entries.map(entry => {
-                        const icon = icons.find(icon => icon.iconKey === entry.iconKey);
+                        const icon = entry.iconKey ? byKey.get(entry.iconKey) : undefined;
                         return icon ? { ...entry, icon: icon.icon, iconResolved: icon.resolved } : entry;
                     });
                     if (first.folder === 'mods') instanceMods = update(instanceMods);
@@ -1042,10 +1081,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                     const local = await instanceContentIcons(first.id, first.folder, batch.map(entry => entry.name));
                     apply(local);
                     const missing = local.filter(entry => !entry.resolved).map(entry => entry.name);
-                    if (missing.length) void instanceContentIcons(first.id, first.folder, missing, true).then(apply).catch(() => {});
+                    if (missing.length) iconLookups.push({ id: first.id, folder: first.folder, names: missing, apply });
                 } catch { for (const entry of batch) iconRequested.delete(entry.key); }
             }
-        } finally { iconBusy = false; }
+            }));
+        } finally { iconBusy = false; void flushIconLookups(); }
     }
     function loadContentIcon(node: HTMLElement, initial: { entry: FileTreeEntry; folder: string }) {
         let value = initial;
@@ -1120,6 +1160,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 else if (section === "shaders") shaderPacks = data;
                 else if (section === "datapacks") dataPacks = data;
                 else fileTree = data;
+                if (folder && ['mods', 'resourcepacks', 'shaderpacks'].includes(folder) && settings.value.preloadContentIcons !== false) { warmIcons(data); queueContentIcons(data, folder); }
             }
             if (current()) loadedSections.add(key);
         })().catch(error => {
@@ -1137,7 +1178,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const id = instanceId;
         untrack(() => {
             dataGeneration++;
-            iconQueue.clear(); iconRequested.clear(); clearTimeout(iconTimer);
+            iconQueue.clear(); iconLookups.length = 0; iconRequested.clear(); clearTimeout(iconTimer);
             loadedSections.clear();
             resolvedMetadata.clear();
             mainTab = "conteudo"; subTab = "mods";
@@ -1545,7 +1586,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					return;
 				}
 				for (const warning of readiness.warnings) toast(warning, "info");
-				const conflicts = await doctorCheckInstanceConflicts(targetProfileId);
+				const conflicts = readiness.conflicts;
 				if (conflicts.hasConflicts) {
 					pendingLaunchConflicts = conflicts;
 					showModConflictModal = true;
@@ -1948,7 +1989,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         </div>
         {#if mainTab === 'conteudo'}
 
-		<div id="instance-conteudo" role="tabpanel" aria-labelledby={`instance-tab-${subTab}`} class="instance-overview-section">
+		<div use:pageMotion={subTab} id="instance-conteudo" role="tabpanel" aria-labelledby={`instance-tab-${subTab}`} class="instance-overview-section">
 			<div
 				class="relative flex flex-col gap-4"
 				in:fade={{ easing: quintOut, duration: 220 }}
@@ -2091,7 +2132,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 												<img decoding="async"
 													src={mod.icon}
 													alt={displayName}
-													loading="lazy"
+													loading="eager"
 													class="relative z-10 w-full h-full object-contain"
 													onload={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "visible"; }} onerror={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
 												/>
@@ -2246,7 +2287,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                                     <div class="flex min-w-0 items-center gap-3 rounded-xl border border-border p-3">
                                         <div use:loadContentIcon={{entry: pack, folder: group.id === "shaders" ? "shaderpacks" : group.id === "datapacks" ? `saves/${datapackWorld}/datapacks` : "resourcepacks"}} class="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-bg-subtle">
                                             <group.icon class="absolute h-5 w-5 text-fg-muted" />
-                                            {#if pack.icon}<img src={pack.icon} alt={pack.name} loading="lazy" decoding="async" class="relative h-full w-full object-contain" onload={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'visible'} onerror={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />{/if}
+                                            {#if pack.icon}<img src={pack.icon} alt={pack.name} loading="eager" decoding="async" class="relative h-full w-full object-contain" onload={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'visible'} onerror={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />{/if}
                                         </div>
                                         <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}</p><p class="mt-1 text-[10px] text-fg-muted">{(pack.size / 1048576).toFixed(2)} MB</p></div>
                                         <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`${uiText("screenshots.openFolderBtn")}: ${pack.name}`} title={uiText("screenshots.openFolderBtn")} onclick={() => handleOpenPackFolder(group.type)}><FolderOpen class="h-4 w-4" /></button>
@@ -2262,7 +2303,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
         </div>
         {:else if mainTab === "mundos"}
-        <div use:loadWhenVisible={{ id: instanceId, section: "mundos" }} id="instance-mundos" role="tabpanel" aria-labelledby="instance-tab-mundos" class="instance-overview-section" aria-label={uiText("ui.9ac3a6eca765a04a")}>
+        <div use:pageMotion={mainTab} use:loadWhenVisible={{ id: instanceId, section: "mundos" }} id="instance-mundos" role="tabpanel" aria-labelledby="instance-tab-mundos" class="instance-overview-section" aria-label={uiText("ui.9ac3a6eca765a04a")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between flex-wrap gap-2">
 					<h3 class="text-sm font-bold text-fg">{uiText("ui.5df9580dc4ce92a4")}</h3>
@@ -2457,7 +2498,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 		</div>
         {:else if mainTab === "galeria"}
-        <div use:loadWhenVisible={{ id: instanceId, section: "galeria" }} id="instance-galeria" role="tabpanel" aria-labelledby="instance-tab-galeria" class="instance-overview-section" aria-label={uiText("ui.c66873c6ffa75714")}>
+        <div use:pageMotion={mainTab} use:loadWhenVisible={{ id: instanceId, section: "galeria" }} id="instance-galeria" role="tabpanel" aria-labelledby="instance-tab-galeria" class="instance-overview-section" aria-label={uiText("ui.c66873c6ffa75714")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-fg">{uiText("ui.2cbb69c6cee5108c")}</h3>
@@ -2508,7 +2549,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 		</div>
         {:else if mainTab === "ficheiros"}
-        <div use:loadWhenVisible={{ id: instanceId, section: "ficheiros" }} id="instance-ficheiros" role="tabpanel" aria-labelledby="instance-tab-ficheiros" class="instance-overview-section" aria-label={uiText("ui.99c85eb6aa2966e3")}>
+        <div use:pageMotion={mainTab} use:loadWhenVisible={{ id: instanceId, section: "ficheiros" }} id="instance-ficheiros" role="tabpanel" aria-labelledby="instance-tab-ficheiros" class="instance-overview-section" aria-label={uiText("ui.99c85eb6aa2966e3")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
@@ -2605,7 +2646,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         </div>
 
         {:else if mainTab === "configuracoes"}
-        <div use:loadWhenVisible={{ id: instanceId, section: "configuracoes" }} id="instance-configuracoes" role="tabpanel" aria-labelledby="instance-tab-configuracoes" class="instance-overview-section">
+        <div use:pageMotion={mainTab} use:loadWhenVisible={{ id: instanceId, section: "configuracoes" }} id="instance-configuracoes" role="tabpanel" aria-labelledby="instance-tab-configuracoes" class="instance-overview-section">
             <section aria-label={uiText("ui.6c5b8d86c6726795")} class="rounded-2xl border border-border bg-bg-elevated p-5 sm:p-6 space-y-6">
             <header class="relative shrink-0 overflow-hidden rounded-2xl border border-border bg-bg-subtle">
                 <img loading="lazy" decoding="async" src={instanceBanner || heroBanner} alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />

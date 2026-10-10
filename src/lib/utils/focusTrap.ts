@@ -7,7 +7,7 @@ export function focusTrap(element: HTMLElement) {
     const focus = () => (controls()[0] || element).focus({ preventScroll: true });
     queueMicrotask(() => { if (element.isConnected && activeDialogs.at(-1) === element) focus(); });
     const onKey = (event: KeyboardEvent) => {
-        if (activeDialogs.at(-1) !== element || event.key !== "Tab") return;
+        if (!element.isConnected || activeDialogs.at(-1) !== element || event.key !== "Tab") return;
         const items = controls();
         const first = items[0];
         const last = items.at(-1);
@@ -17,14 +17,16 @@ export function focusTrap(element: HTMLElement) {
         }
     };
     const onFocus = (event: FocusEvent) => {
-        if (activeDialogs.at(-1) === element && event.target instanceof Node && !element.contains(event.target)) focus();
+        if (element.isConnected && activeDialogs.at(-1) === element && event.target instanceof Node && !element.contains(event.target)) focus();
     };
     document.addEventListener("keydown", onKey, true);
     document.addEventListener("focusin", onFocus);
     return { destroy() {
-        activeDialogs.splice(activeDialogs.indexOf(element), 1);
+        const index = activeDialogs.indexOf(element);
+        if (index !== -1) activeDialogs.splice(index, 1);
         document.removeEventListener("keydown", onKey, true);
         document.removeEventListener("focusin", onFocus);
         if (previous?.isConnected) previous.focus({ preventScroll: true });
+        else document.querySelector<HTMLElement>('.launcher-nav-link[aria-current="page"]')?.focus({ preventScroll: true });
     } };
 }

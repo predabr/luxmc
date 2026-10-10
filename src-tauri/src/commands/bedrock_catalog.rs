@@ -253,19 +253,32 @@ fn validate_appx(path: &std::path::Path, version: &str, channel: &str) -> AppRes
 }
 
 pub(super) fn backup_worlds() -> AppResult<()> {
+    use sha2::{Digest, Sha256};
     let Some(local) = std::env::var_os("LOCALAPPDATA") else { return Ok(()) };
     let Some(roaming) = std::env::var_os("APPDATA") else { return Ok(()) };
     let sources = [PathBuf::from(&local).join("Packages/Microsoft.MinecraftUWP_8wekyb3d8bbwe/LocalState/games/com.mojang"), PathBuf::from(local).join("Packages/Microsoft.MinecraftWindowsBeta_8wekyb3d8bbwe/LocalState/games/com.mojang"), PathBuf::from(&roaming).join("Minecraft Bedrock/Users"), PathBuf::from(roaming).join("Minecraft Bedrock Preview/Users")];
-    let destination = root()?.join("world-backups").join(uuid::Uuid::new_v4().to_string());
+    let base = root()?;
+    let mut files = Vec::new();
+    let mut fingerprint = Sha256::new();
     for (index, source) in sources.iter().enumerate().filter(|(_,path)| path.exists()) {
-        for entry in walkdir::WalkDir::new(source).follow_links(false) {
+        if base.join("instances").canonicalize().is_ok_and(|owned| source.canonicalize().is_ok_and(|path| path.starts_with(owned))) { continue; }
+        for entry in walkdir::WalkDir::new(source).follow_links(false).sort_by_file_name() {
             let entry = entry.map_err(|error| AppError::Internal(error.to_string()))?;
             if !entry.file_type().is_file() { continue; }
-            let target = destination.join(index.to_string()).join(entry.path().strip_prefix(source).map_err(|error| AppError::Internal(error.to_string()))?);
-            std::fs::create_dir_all(target.parent().unwrap())?;
-            std::fs::copy(entry.path(),target)?;
+            let relative = PathBuf::from(index.to_string()).join(entry.path().strip_prefix(source).map_err(|error| AppError::Internal(error.to_string()))?);
+            let metadata = entry.metadata().map_err(|error| AppError::Internal(error.to_string()))?;
+            fingerprint.update(relative.to_string_lossy().as_bytes());
+            fingerprint.update(metadata.len().to_le_bytes());
+            fingerprint.update(metadata.modified()?.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos().to_le_bytes());
+            files.push((entry.path().to_owned(), relative));
         }
     }
+    let digest = format!("{:x}", fingerprint.finalize());
+    let marker = base.join("world-backups/last-source-fingerprint");
+    if files.is_empty() || std::fs::read_to_string(&marker).is_ok_and(|value| value == digest) { return Ok(()); }
+    let destination = base.join("world-backups").join(uuid::Uuid::new_v4().to_string());
+    for (source, relative) in files { let target = destination.join(relative); std::fs::create_dir_all(target.parent().unwrap())?; std::fs::copy(source, target)?; }
+    std::fs::write(marker, digest)?;
     Ok(())
 }
 

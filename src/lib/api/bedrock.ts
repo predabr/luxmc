@@ -38,3 +38,10 @@ export const bedrockRemove = (id: string) => api.invoke<void>("bedrock_remove", 
 export const bedrockRename = (id: string, name: string) => api.invoke<void>("bedrock_rename", { id, name });
 export const bedrockOpen = (instanceId: string | null = null) =>
 	api.invoke<{ providerOpened: boolean; notice: string | null }>("bedrock_open", { instanceId });
+export interface BedrockContentEntry { name: string; title: string; kind: 'resources' | 'behaviors' | 'worlds'; icon: string | null }
+export interface BedrockInstanceContent { directory: string; entries: BedrockContentEntry[]; isolated: boolean; worldAccounts: string[]; worldAccount: string | null }
+export const bedrockInstanceContent = (id: string) => api.invoke<BedrockInstanceContent>('bedrock_instance_content', { id });
+export const bedrockImportContent = (id: string, kind: string, path: string) => api.invoke<void>('bedrock_import_content', { id, kind, path });
+export const bedrockDeleteContent = (id: string, kind: string, name: string) => api.invoke<void>('bedrock_delete_content', { id, kind, name });
+export const bedrockOpenFolder = (id: string) => api.invoke<void>('bedrock_open_folder', { id });
+export const bedrockSelectWorldAccount = (id: string, account: string) => api.invoke<void>('bedrock_select_world_account', { id, account });

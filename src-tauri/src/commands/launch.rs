@@ -439,6 +439,37 @@ async fn wait_for_process_exit(pid: u32, timeout_ms: u64) -> bool {
     }
 }
 
+fn is_owned_crash_assistant(name: &std::ffi::OsStr, command: &[std::ffi::OsString], cwd: Option<&std::path::Path>, game_dir: &std::path::Path, game_pid: u32) -> bool {
+    if !matches!(name.to_string_lossy().to_ascii_lowercase().as_str(), "java" | "java.exe" | "javaw" | "javaw.exe")
+        || !command.iter().any(|argument| argument == "dev.kostromdan.mods.crash_assistant.app.class_loading.Boot") {
+        return false;
+    }
+    let Some(argument) = command.windows(2).find(|pair| pair[0] == "--args-file").map(|pair| &pair[1]) else { return false; };
+    let path = std::path::Path::new(argument);
+    let Some(timestamp) = path.file_name().and_then(|name| name.to_str()).and_then(|name| name.strip_prefix(&format!("{game_pid}_"))).and_then(|name| name.strip_suffix("_args.info")) else { return false; };
+    if timestamp.is_empty() || !timestamp.bytes().all(|byte| byte.is_ascii_digit()) { return false; }
+    let path = if path.is_absolute() { path.to_path_buf() } else if let Some(cwd) = cwd { cwd.join(path) } else { return false; };
+    let Ok(path) = path.canonicalize() else { return false; };
+    let Ok(owned) = game_dir.join("local/crash_assistant").canonicalize() else { return false; };
+    path.is_file() && path.parent() == Some(owned.as_path())
+}
+
+pub(crate) async fn stop_owned_crash_assistant(game_dir: std::path::PathBuf, game_pid: u32) -> AppResult<()> {
+    let stopped = tokio::task::spawn_blocking(move || {
+        let mut system = sysinfo::System::new();
+        system.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, sysinfo::ProcessRefreshKind::nothing().with_cmd(sysinfo::UpdateKind::Always).with_cwd(sysinfo::UpdateKind::Always));
+        system.processes().iter().filter_map(|(pid, process)| {
+            if !is_owned_crash_assistant(process.name(), process.cmd(), process.cwd(), &game_dir, game_pid) { return None; }
+            let _ = process.kill();
+            Some(pid.as_u32())
+        }).collect::<Vec<_>>()
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?;
+    for pid in stopped {
+        if !wait_for_process_exit(pid, 3_000).await { return Err(AppError::InvalidState("O auxiliar do modpack ainda está encerrando; aguarde antes de excluir a instância.".into())); }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
     let target_pid = match pid {
@@ -452,7 +483,8 @@ pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
 
     tracing::info!(target: "launch", "Terminating Minecraft process with PID {}", target_pid);
 
-    if let Some(game_dir) = crate::core::launcher::get_active_game_dir() {
+    let game_dir = crate::core::launcher::get_active_game_dir().filter(|_| crate::core::launcher::get_active_game_pid() == target_pid);
+    if let Some(game_dir) = game_dir.as_ref() {
         let crash_dir = game_dir.join("local").join("crash_assistant");
         if crash_dir.is_dir() {
             let normal_stop = crash_dir.join(format!("normal_stop_pid{}.tmp", target_pid));
@@ -530,7 +562,39 @@ pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
         tracing::info!(target: "launch", "PID {} stopped gracefully", target_pid);
     }
 
-    crate::core::launcher::clear_active_game_pid();
-    crate::core::launcher::clear_active_game_dir();
+    if !wait_for_process_exit(target_pid, 3_000).await { return Err(AppError::InvalidState("O Minecraft ainda está encerrando; aguarde antes de excluir a instância.".into())); }
+    if let Some(game_dir) = game_dir { stop_owned_crash_assistant(game_dir, target_pid).await?; }
+    for _ in 0..60 {
+        if crate::core::launcher::get_active_game_pid() != target_pid { break; }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+    }
+    if crate::core::launcher::get_active_game_pid() == target_pid {
+        crate::core::launcher::clear_active_game_pid();
+        crate::core::launcher::clear_active_game_dir();
+    }
     Ok(true)
+}
+
+#[cfg(test)]
+mod stop_tests {
+    use super::*;
+
+    #[test]
+    fn crash_assistant_matches_only_the_exact_game_session_and_directory() {
+        let game = tempfile::tempdir().unwrap();
+        let other = tempfile::tempdir().unwrap();
+        let directory = game.path().join("local/crash_assistant");
+        std::fs::create_dir_all(&directory).unwrap();
+        let arguments = directory.join("123_1791592651499_args.info");
+        std::fs::write(&arguments, "fixture").unwrap();
+        let command = vec!["javaw.exe".into(), "dev.kostromdan.mods.crash_assistant.app.class_loading.Boot".into(), "--args-file".into(), arguments.clone().into_os_string()];
+        assert!(is_owned_crash_assistant(std::ffi::OsStr::new("javaw.exe"), &command, Some(game.path()), game.path(), 123));
+        assert!(!is_owned_crash_assistant(std::ffi::OsStr::new("javaw.exe"), &command, Some(game.path()), game.path(), 456));
+        assert!(!is_owned_crash_assistant(std::ffi::OsStr::new("other.exe"), &command, Some(game.path()), game.path(), 123));
+        assert!(!is_owned_crash_assistant(std::ffi::OsStr::new("javaw.exe"), &command, Some(game.path()), other.path(), 123));
+        let relative = vec![command[0].clone(), command[1].clone(), command[2].clone(), "local/crash_assistant/123_1791592651499_args.info".into()];
+        assert!(is_owned_crash_assistant(std::ffi::OsStr::new("javaw.exe"), &relative, Some(game.path()), game.path(), 123));
+        assert!(!is_owned_crash_assistant(std::ffi::OsStr::new("javaw.exe"), &relative, Some(other.path()), game.path(), 123));
+        assert!(!is_owned_crash_assistant(std::ffi::OsStr::new("javaw.exe"), &relative, None, game.path(), 123));
+    }
 }

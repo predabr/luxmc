@@ -33,7 +33,7 @@ A sala LAN usa uma rede virtual criptografada. O anfitrião abre um mundo para L
 
 O catálogo distingue versões estáveis, Preview e betas, além dos formatos UWP e GDK. Pacotes são obtidos dos servidores Microsoft e a instalação mantém a verificação do Windows. Uma conta offline do Luxmc não substitui uma licença de Minecraft para Windows.
 
-O Windows gerencia a identidade do pacote e o local dos mundos Bedrock. Antes de trocar versões, o Luxmc preserva uma cópia dos dados existentes. Betas ou pacotes antigos podem deixar de estar disponíveis ou exigir acesso ao programa correspondente. A importação de instalações antigas do BedrockLauncher continua disponível como opção.
+O Windows gerencia a identidade do pacote Bedrock. Instâncias gerenciadas pelo Luxmc têm uma página própria para mundos, pacotes de recursos e add-ons, com pastas isoladas e importação de conteúdo. Antes de trocar versões, o Luxmc preserva uma cópia dos dados existentes. Betas ou pacotes antigos podem deixar de estar disponíveis ou exigir acesso ao programa correspondente. A importação de instalações antigas do BedrockLauncher continua disponível como opção.
 
 Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quando necessário; a primeira abertura pode incluir descompactação pelo Windows. A entrada na conta Microsoft ocorre nos serviços oficiais do Windows.
 
@@ -41,17 +41,17 @@ Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quand
 
 Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido e efeitos desativados são respeitados. Ativar animações explicitamente permite usá-las com movimento reduzido no Windows; o modo de desempenho usa uma transição breve de opacidade. O fundo e o tema recuperam a gravação mais recente das preferências.
 
-A [revisão 1 da 3.6](docs/releases/v3.6.1-revision.1.md) corrige a confirmação de exclusão e os indicadores de download. A exclusão Java só remove o registro após apagar os arquivos. Versões Bedrock gerenciadas podem ser desinstaladas do Windows e ter seu pacote removido. A opção de apagar dados no desinstalador remove dados do Luxmc e preserva Documentos e o projeto; uma atualização mantém suas instâncias.
+A [revisão 2 da 3.6](docs/releases/v3.6.1-revision.2.md) reúne os ajustes de exclusão, download e preparação Java, conteúdos Bedrock por instância, perfis públicos personalizados e novos controles de animação. A escolha de edição, os filtros de versões e a tela de amigos receberam refinamentos. A exclusão Java só remove o registro após apagar os arquivos. Versões Bedrock gerenciadas podem ser desinstaladas do Windows e ter seu pacote removido. A opção de apagar dados no desinstalador remove dados do Luxmc e preserva Documentos e o projeto; uma atualização mantém suas instâncias. O instalador é distribuído como **Lux MC Launcher.exe**.
 
 Capturas fornecidas pelo autor em 9 de outubro de 2026:
 
-![Biblioteca](website/assets/captures-3.6/home.png)
-![Catálogo](website/assets/captures-3.6/mods.png)
-![Instâncias](website/assets/captures-3.6/instances.png)
-![Amigos](website/assets/captures-3.6/friends.png)
-![Personalização](website/assets/captures-3.6/personalizer.png)
+![Biblioteca](website/assets/captures-3.6/home-window.svg)
+![Catálogo](website/assets/captures-3.6/mods-window.svg)
+![Instâncias](website/assets/captures-3.6/instances-window.svg)
+![Amigos](website/assets/captures-3.6/friends-window.svg)
+![Personalização](website/assets/captures-3.6/personalizer-window.svg)
 
-Os [resultados de verificação da 3.6](docs/releases/validation-v3.6.0.md) registram testes de interface, instalação, um modpack real, abertura Bedrock e distribuição assinada. A partida LAN entre duas redes distintas ainda precisa do retorno dos participantes. O site publica uma medição local da 3.6 com as condições e dados completos, sem prometer consumo fixo.
+Os [resultados de verificação da revisão 2](docs/releases/validation-v3.6-revision.2.md) registram testes de interface, instalação, um modpack real e abertura Bedrock. A partida LAN entre duas redes distintas ainda precisa do retorno dos participantes. O site publica uma medição local da 3.6 com as condições e dados completos, sem prometer consumo fixo.
 
 ## Desenvolvimento
 

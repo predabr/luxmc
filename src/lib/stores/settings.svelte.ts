@@ -8,6 +8,10 @@ export interface AppSettings {
 	theme: ThemeName;
 	density: "compact" | "comfortable" | "spacious";
 	animations: boolean;
+    motionStyle?: "subtle" | "expressive";
+    motionSpeed?: "fast" | "balanced";
+    preloadContentIcons?: boolean;
+    gifQuality?: "balanced" | "high";
     respectReducedMotion?: boolean;
 	blur: boolean;
 	sidebarPosition: "left" | "right";
@@ -70,6 +74,10 @@ const defaults: AppSettings = {
 	theme: "default-dark",
 	density: "comfortable",
 	animations: true,
+    motionStyle: "expressive",
+    motionSpeed: "balanced",
+    preloadContentIcons: true,
+    gifQuality: "high",
 	blur: false,
 	sidebarPosition: "left",
 	language: detectBrowserLocale(),

@@ -139,6 +139,35 @@ async fn dispatch_command(
             crate::commands::bedrock::bedrock_remove(id).await.map_err(|error| error.to_string())?;
             Ok(Value::Null)
         },
+        "bedrock_instance_content" => {
+            let id = args.get("id").and_then(Value::as_str).ok_or("Missing instance")?.to_owned();
+            Ok(serde_json::to_value(crate::commands::bedrock_content::bedrock_instance_content(id).await.map_err(|error| error.to_string())?).map_err(|error| error.to_string())?)
+        },
+        "bedrock_import_content" => {
+            let id = args.get("id").and_then(Value::as_str).ok_or("Missing instance")?.to_owned();
+            let kind = args.get("kind").and_then(Value::as_str).ok_or("Missing kind")?.to_owned();
+            let path = args.get("path").and_then(Value::as_str).ok_or("Missing path")?.to_owned();
+            crate::commands::bedrock_content::bedrock_import_content(id, kind, path).await.map_err(|error| error.to_string())?;
+            Ok(Value::Null)
+        },
+        "bedrock_delete_content" => {
+            let id = args.get("id").and_then(Value::as_str).ok_or("Missing instance")?.to_owned();
+            let kind = args.get("kind").and_then(Value::as_str).ok_or("Missing kind")?.to_owned();
+            let name = args.get("name").and_then(Value::as_str).ok_or("Missing name")?.to_owned();
+            crate::commands::bedrock_content::bedrock_delete_content(id, kind, name).await.map_err(|error| error.to_string())?;
+            Ok(Value::Null)
+        },
+        "bedrock_open_folder" => {
+            let id = args.get("id").and_then(Value::as_str).ok_or("Missing instance")?.to_owned();
+            crate::commands::bedrock_content::bedrock_open_folder(id).await.map_err(|error| error.to_string())?;
+            Ok(Value::Null)
+        },
+        "bedrock_select_world_account" => {
+            let id = args.get("id").and_then(Value::as_str).ok_or("Missing instance")?.to_owned();
+            let account = args.get("account").and_then(Value::as_str).ok_or("Missing account")?.to_owned();
+            crate::commands::bedrock_content::bedrock_select_world_account(id, account).await.map_err(|error| error.to_string())?;
+            Ok(Value::Null)
+        },
         "bedrock_rename" => {
             let id = args.get("id").and_then(Value::as_str).ok_or("Missing instance")?.to_owned();
             let name = args.get("name").and_then(Value::as_str).ok_or("Missing name")?.to_owned();
@@ -928,6 +957,10 @@ async fn dispatch_command(
             let request: crate::commands::launch::LaunchRequest = serde_json::from_value(req_val).map_err(|e| e.to_string())?;
             let resp = crate::commands::launch::launch_game_daemon(&state, request).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(resp).map_err(|e| e.to_string())?)
+        },
+        "stop_game" => {
+            let pid = args.get("pid").and_then(|value| value.as_u64()).and_then(|pid| u32::try_from(pid).ok());
+            Ok(Value::Bool(crate::commands::launch::stop_game(pid).await.map_err(|error| error.to_string())?))
         },
         "app_init" => {
             let init_state = crate::commands::system::app_init_core(&state).await.map_err(|e| e.to_string())?;

@@ -22,6 +22,34 @@ let generation = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let wake: (() => void) | undefined;
 let refreshing: { run: number; promise: Promise<void> } | null = null;
+const profileCache = new Map<string, { at: number; profile: PublicProfile }>();
+let profileLoading = false;
+
+function withProfile(friend: Friend): Friend {
+    const profile = profileCache.get(friend.id)?.profile;
+    return profile && friend.status !== 'pending' ? { ...friend, displayName: profile.displayName, avatarUrl: profile.portrait || friend.avatarUrl, role: profile.role, profileStatus: profile.status } : friend;
+}
+
+async function loadFriendProfiles() {
+    if (profileLoading || !identity) return;
+    profileLoading = true;
+    const run = generation;
+    const accountId = identity;
+    const queue = list.filter(friend => friend.status !== 'pending' && Date.now() - (profileCache.get(friend.id)?.at || 0) > 60000);
+    try {
+        await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => {
+            while (queue.length && run === generation) {
+                const friend = queue.shift()!;
+                try {
+                    const profile = await socialPublicProfile(accountId, friend.id);
+                    if (run !== generation || accountId !== identity) return;
+                    profileCache.set(friend.id, { at: Date.now(), profile });
+                    list = list.map(item => item.id === friend.id ? withProfile(item) : item);
+                } catch { }
+            }
+        }));
+    } finally { profileLoading = false; }
+}
 
 function applyFriends(next: Friend[]) {
         for (const friend of next) {
@@ -37,7 +65,8 @@ function applyFriends(next: Friend[]) {
                 });
             }
         }
-		list = next;
+		list = next.map(withProfile);
+        void loadFriendProfiles();
 }
 
 async function connectStream(run: number, attempt = 0) {
@@ -146,6 +175,7 @@ export const friendsState = {
 		clearTimeout(timer);
 		identity = "";
 		list = [];
+        profileCache.clear();
 		me = null;
         ownProfile = null;
 		sharedWorld = null;

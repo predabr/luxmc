@@ -1,4 +1,4 @@
-export const RELEASE_REVISION = 1;
+export const RELEASE_REVISION = 2;
 
 export function releaseIdentity(tag: string): { version: string; revision: number } {
 	const value = tag.trim().replace(/^v/, '');

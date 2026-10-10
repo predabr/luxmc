@@ -25,6 +25,13 @@ static ACTIVE_CAPE_BYTES: tokio::sync::RwLock<Vec<u8>> = tokio::sync::RwLock::co
 
 static ACTIVE_GAME_PID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
+async fn finish_log_reader(mut reader: tokio::task::JoinHandle<()>) {
+    if tokio::time::timeout(std::time::Duration::from_secs(2), &mut reader).await.is_err() {
+        reader.abort();
+        let _ = reader.await;
+    }
+}
+
 pub fn set_active_game_pid(pid: u32) {
     ACTIVE_GAME_PID.store(pid, std::sync::atomic::Ordering::SeqCst);
 }
@@ -1310,13 +1317,14 @@ impl GameLauncher {
         let hook_game_dir = game_dir.clone();
         let hook_version_id = detail.id.clone();
         tokio::spawn(async move {
-            match child.wait().await {
+            let result = child.wait().await;
+            if result.as_ref().is_ok_and(|status| status.success()) || game_dir_for_crash.join("local/crash_assistant").join(format!("normal_stop_pid{pid}.tmp")).is_file() {
+                if let Err(error) = crate::commands::launch::stop_owned_crash_assistant(game_dir_for_crash.clone(), pid).await { tracing::warn!(target: "launch", "{}", error); }
+            }
+            tokio::join!(finish_log_reader(stdout_reader), finish_log_reader(stderr_reader));
+            match result {
                 Ok(status) => {
-                    let _ = tokio::time::timeout(std::time::Duration::from_secs(2), async {
-                        let _ = tokio::join!(stdout_reader, stderr_reader);
-                    }).await;
-                    clear_active_game_pid();
-                    clear_active_game_dir();
+                    if get_active_game_pid() == pid { clear_active_game_pid(); clear_active_game_dir(); }
                     is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
                     let code = status.code().unwrap_or(-1);
                     if pid > 0 && use_gamemode {
@@ -1375,8 +1383,7 @@ impl GameLauncher {
                     }
                 }
                 Err(e) => {
-                    clear_active_game_pid();
-                    clear_active_game_dir();
+                    if get_active_game_pid() == pid { clear_active_game_pid(); clear_active_game_dir(); }
                     is_game_active_waiter.store(false, std::sync::atomic::Ordering::Relaxed);
                     let msg = format!("Game process error: {}", e);
                     tracing::error!(target: "launch", "{}", msg);
@@ -2096,6 +2103,17 @@ async fn ensure_flite_library(natives_dir: &PathBuf) -> AppResult<bool> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn stale_log_reader_releases_locked_files() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let fixture = tempfile::tempdir().unwrap();
+        let path = fixture.path().join("game.log");
+        let file = std::fs::OpenOptions::new().write(true).create_new(true).share_mode(0).open(&path).unwrap();
+        let task = tokio::spawn(async move { std::future::pending::<()>().await; drop(file); });
+        super::finish_log_reader(task).await;
+        std::fs::remove_file(path).unwrap();
+    }
     use super::*;
 
     #[test]

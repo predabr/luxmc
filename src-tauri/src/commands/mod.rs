@@ -54,3 +54,4 @@ pub mod content_icons;
 pub mod experience;
 pub mod studio;
 pub mod bedrock_catalog;
+pub mod bedrock_content;

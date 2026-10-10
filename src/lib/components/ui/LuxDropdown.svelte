@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { DropdownMenu } from "bits-ui";
-	import type { Snippet } from "svelte";
+	import { tick, type Snippet } from "svelte";
 
 	export interface DropdownMenuItem {
 		id: string;
@@ -23,9 +23,16 @@
 		class?: string;
 		trigger: Snippet;
 	} = $props();
+	let isOpen = $state(false);
+
+	async function selectItem(item: DropdownMenuItem) {
+		isOpen = false;
+		await tick();
+		item.action();
+	}
 </script>
 
-<DropdownMenu.Root>
+<DropdownMenu.Root bind:open={isOpen}>
 	<DropdownMenu.Trigger class="outline-none {klass}">
 		{@render trigger()}
 	</DropdownMenu.Trigger>
@@ -33,6 +40,8 @@
 		<DropdownMenu.Content
 			{align}
 			sideOffset={6}
+			preventScroll={false}
+			strategy="fixed"
 			class="z-50 min-w-[180px] overflow-hidden rounded-2xl bg-bg-elevated/95 p-1.5 shadow-2xl backdrop-blur-2xl border border-fg/10 focus:outline-none"
 		>
 			{#each items as item (item.id)}
@@ -41,7 +50,7 @@
 				{/if}
 				<DropdownMenu.Item
 					disabled={item.disabled}
-					onSelect={() => item.action()}
+					onSelect={() => { void selectItem(item); }}
 					class="relative flex cursor-pointer select-none items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-40 {item.danger ? 'text-red-400 hover:bg-red-500/10 focus:bg-red-500/10' : 'text-fg/80 hover:bg-fg/5 hover:text-fg focus:bg-fg/5 focus:text-fg'}"
 				>
 					{#if item.icon}

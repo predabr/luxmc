@@ -45,6 +45,7 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
         .fetch_optional(db.pool())
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Instância {profileId} não encontrada")))?;
+    crate::commands::instances::repair_instance_duplicates(&row).await?;
     let health = crate::commands::instances::instance_health_check(profileId.clone()).await?;
     let conflicts = doctor_check_instance_conflicts(profileId).await?;
     let required_java = crate::core::minecraft::detect_java_major_from_version_id(&row.mc_version);
@@ -90,7 +91,6 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
     if gpu.vendor == "Desconhecido" {
         warnings.push("Não foi possível identificar a GPU; o Luxmc usará a configuração segura padrão.".into());
     }
-    crate::commands::instances::repair_instance_duplicates(&row).await?;
     let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
     for warning in crate::core::doctor::mod_compatibility_warnings(&mods_dir, &row.mc_version, &row.loader) {
         warnings.push(warning);

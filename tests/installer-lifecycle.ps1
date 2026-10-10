@@ -41,7 +41,9 @@ try {
     foreach ($path in $hashes.Keys) { if (!(Test-Path -LiteralPath $path) -or (Get-FileHash -LiteralPath $path).Hash -ne $hashes[$path]) { throw "Protected file changed: $path" } }
     $purgeVerified = $false
     if ($canTestPurge) {
-        $fixtureDocument = Join-Path ([Environment]::GetFolderPath('MyDocuments')) ('Luxmc-project-fixture-' + [guid]::NewGuid().ToString('N') + '.txt')
+        $fixtureDocuments = [Environment]::GetFolderPath([Environment+SpecialFolder]::MyDocuments,[Environment+SpecialFolderOption]::DoNotVerify)
+        New-Item -ItemType Directory -Path $fixtureDocuments -Force | Out-Null
+        $fixtureDocument = Join-Path $fixtureDocuments ('Luxmc-project-fixture-' + [guid]::NewGuid().ToString('N') + '.txt')
         [IO.File]::WriteAllText($fixtureDocument,'Project must remain')
         $fixtureHash = (Get-FileHash -LiteralPath $fixtureDocument).Hash
         $purgeInstall = Start-Process -FilePath $installer -ArgumentList @('/S',"/D=$testDirectory") -WindowStyle Hidden -Wait -PassThru

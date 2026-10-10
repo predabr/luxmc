@@ -47,6 +47,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import RightSidebar from "$lib/components/layout/RightSidebar.svelte";
 	import CreateInstanceModal from "$lib/components/instances/CreateInstanceModal.svelte";
 	import BedrockLibrary from "$lib/components/instances/BedrockLibrary.svelte";
+    import Modal from '$lib/components/ui/Modal.svelte';
+    let deletingFolder = $state('');
+    let deletingFolderBusy = $state(false);
+    let deletingFolderError = $state('');
+    let deletingInstance = $state<Profile | null>(null);
+    let deletingInstanceBusy = $state(false);
+    let deletingInstanceError = $state('');
 	import { account, saveCurrentAccount, loadCurrentAccount } from "$lib/stores/account.svelte";
 	import { profiles, type Profile } from "$lib/stores/profiles.svelte";
 	import { activeSkinStore } from "$lib/stores/skin.svelte";
@@ -68,6 +75,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		discordSetActivity,
 		instancesOpenFolder,
         profilesUpdate,
+        profilesDelete,
 		versionsList,
 		api,
 		optimizerInstallPerfPack
@@ -584,6 +592,34 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		showNewGroupPrompt = false;
 	}
 
+    async function deleteLibraryFolder() {
+        if (!deletingFolder || deletingFolderBusy) return;
+        const folder = deletingFolder;
+        deletingFolderBusy = true; deletingFolderError = '';
+        try {
+            for (const profile of groupMembers(folder)) {
+                await profilesUpdate({ id: profile.id, instanceGroup: '' });
+                profiles.update(profile.id, { group: undefined });
+            }
+            customGroups = customGroups.filter(name => name !== folder);
+            localStorage.setItem('luxmc_library_folders_v2', JSON.stringify(customGroups));
+            folderImages = saveFolderImage(folderImages, folder, null);
+            if (selectedGroup === folder) selectedGroup = null;
+            deletingFolder = '';
+            toast('Pasta removida. Suas instâncias e mundos foram preservados.', 'success');
+        } catch (error) { deletingFolderError = String(error); }
+        finally { deletingFolderBusy = false; }
+    }
+
+    async function deleteInstance() {
+        const instance = deletingInstance;
+        if (!instance || deletingInstanceBusy) return;
+        deletingInstanceBusy = true; deletingInstanceError = '';
+        try { await profilesDelete(instance.id); profiles.remove(instance.id); deletingInstance = null; toast('Instância e arquivos removidos do disco.', 'success'); }
+        catch (error) { deletingInstanceError = String(error); }
+        finally { deletingInstanceBusy = false; }
+    }
+
 	function getLoaderBadgeColor(loader: string) {
 		const l = (loader || "").toLowerCase();
 		if (l.includes("fabric")) return "bg-sky-500/15 text-sky-400 border-sky-500/30";
@@ -962,7 +998,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							{#each jumpInInstances as inst (inst.id)}
 								{@const tileCol = getInstanceTileColor(inst.id || inst.name)}
 								<div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.06] hover:border-fg/[0.14] transition-[color,background-color,border-color,box-shadow,transform,opacity] group shadow-sm ">
-									<div class="flex flex-1 items-center gap-3.5 min-w-[220px]">
+									<a href={`/instances/${inst.id}`} onpointerenter={() => preloadRoute(`/instances/${inst.id}`)} class="flex flex-1 items-center gap-3.5 min-w-[220px] rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400">
 										<div class="w-12 h-12 rounded-xl overflow-hidden shrink-0 flex items-center justify-center shadow-inner {inst.icon && !inst.icon.includes('grass_block') ? 'bg-black/40 border border-fg/10' : tileCol.bg}">
 											{#if inst.icon && inst.icon !== '/grass_block.png' && !inst.icon.includes('grass_block')}
 												<img loading="lazy" decoding="async"
@@ -1004,7 +1040,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 												{/if}
 											</div>
 										</div>
-									</div>
+									</a>
 
 									<div class="ml-auto flex items-center gap-2 shrink-0">
 										{#if isLaunching && launchingProfileId === inst.id}
@@ -1089,10 +1125,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 													<button
 														type="button"
 														onclick={() => {
-															void api
-																.invoke("profiles_delete", { id: inst.id })
-																.then(() => profiles.remove(inst.id))
-																.catch((e) => toast(String(e), "error"));
+                                                        activeContextMenuId = null;
+                                                        deletingInstanceError = '';
+                                                        deletingInstance = inst;
 														}}
 														class={launcherButton({ variant: "ghostDanger", size: "sm", class: "w-full justify-start text-left gap-2 whitespace-nowrap" })}
 													>
@@ -1171,6 +1206,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                             ondragover={event => { if (event.dataTransfer?.types.includes('application/x-luxmc-instance')) { event.preventDefault(); event.dataTransfer.dropEffect='move'; } }}
                             ondrop={event => dropIntoGroup(event,'')} onclick={() => selectedGroup=null}><ArrowLeft class="h-4 w-4" />{uiText('library.title')}</button>
                         <ChevronRight class="h-4 w-4 text-fg-muted" /><span class="truncate text-sm font-semibold text-fg">{selectedGroup}</span>
+                        <button type="button" class={launcherButton({variant:'ghostDanger',size:'icon',class:'ml-auto'})} aria-label={`Excluir pasta ${selectedGroup}`} onclick={() => { deletingFolder = selectedGroup || ''; deletingFolderError = ''; }}><Trash2 class="h-4 w-4" /></button>
                     </div>
                 {/if}
 
@@ -1230,6 +1266,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                                     <span class="mt-2 block text-[10px] text-fg-subtle">{uiText('library.dropHere')}</span>
                                 </button>
                                 <div class="absolute right-2 top-2 flex gap-1">
+                                    <button type="button" class={launcherButton({variant:'ghostDanger',size:'icon',class:'h-9 w-9'})} aria-label={`Excluir pasta ${folder}`} title={`Excluir pasta ${folder}`} onclick={() => { deletingFolder = folder; deletingFolderError = ''; }}><Trash2 class="h-4 w-4" /></button>
                                     <button type="button" class={launcherButton({variant:'secondary',size:'icon',class:'h-9 w-9'})} disabled={folderImageBusy} aria-label={uiText('library.chooseFolderImage', {name:folder})} title={uiText('library.chooseFolderImage', {name:folder})} onclick={() => chooseFolderImage(folder)}>{#if folderImageBusy && folderImageTarget === folder}<LoaderCircle class="h-4 w-4 animate-spin" />{:else}<ImagePlus class="h-4 w-4" />{/if}</button>
                                     {#if folderImage(folder)}<button type="button" class={launcherButton({variant:'ghostDanger',size:'icon',class:'h-9 w-9'})} disabled={folderImageBusy} aria-label={uiText('library.removeFolderImage', {name:folder})} title={uiText('library.removeFolderImage', {name:folder})} onclick={() => removeFolderImage(folder)}><X class="h-4 w-4" /></button>{/if}
                                 </div>
@@ -1248,7 +1285,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                                 ondragend={() => groupHover=null}
                                 class="home-instance-card focus-within:z-30 rounded-3xl bg-bg/35 hover:bg-fg/10 backdrop-blur-xl border border-fg/[0.08] hover:border-brand-500/35 transition-[background-color,border-color,box-shadow,transform] p-5 flex flex-col justify-between group relative shadow-soft hover:shadow-elevated cursor-pointer min-h-[232px]"
 								onpointerenter={() => preloadRoute(`/instances/${inst.id}`)}
-								onpointerdown={() => preloadRoute(`/instances/${inst.id}`, true)}
+								onpointerdown={event => { if (!(event.target instanceof Element && event.target.closest('button,a,input,select,textarea'))) preloadRoute(`/instances/${inst.id}`, true); }}
 								onclick={event => { if (event.target instanceof Element && event.target.closest("button,select,label,input,a")) return; void goto(`/instances/${inst.id}`); }}
 								onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); void goto(`/instances/${inst.id}`); } }}
 							>
@@ -1319,4 +1356,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		onCreate={handleCreateInstance}
 	/>
 
+    <Modal isOpen={!!deletingFolder} title="Excluir pasta da biblioteca" showClose={!deletingFolderBusy} onClose={() => { if (!deletingFolderBusy) deletingFolder = ''; }}>
+        <div class="space-y-5"><p class="text-sm text-fg">Excluir a pasta <strong>{deletingFolder}</strong>?</p><p class="text-sm leading-relaxed text-fg-muted">As {groupMembers(deletingFolder).length} instâncias desta pasta voltam para a biblioteca. Seus arquivos, mods e mundos são preservados.</p>{#if deletingFolderError}<p role="alert" class="text-sm text-danger">{deletingFolderError}</p>{/if}<div class="flex justify-end gap-3"><button class={launcherButton({variant:'secondary'})} disabled={deletingFolderBusy} onclick={() => deletingFolder = ''}>Cancelar</button><button class={launcherButton({variant:'danger'})} disabled={deletingFolderBusy} aria-busy={deletingFolderBusy} onclick={deleteLibraryFolder}>{#if deletingFolderBusy}<LoaderCircle class="h-4 w-4 animate-spin" />{/if}Excluir pasta</button></div></div>
+    </Modal>
+    <Modal isOpen={!!deletingInstance} title="Excluir instância" showClose={!deletingInstanceBusy} onClose={() => { if (!deletingInstanceBusy) deletingInstance = null; }}>
+        <div class="space-y-5"><p class="text-sm text-fg">Excluir definitivamente <strong>{deletingInstance?.name}</strong>?</p><p class="text-sm leading-relaxed text-danger">Os mundos, mods e arquivos desta instância serão removidos do disco.</p>{#if deletingInstanceError}<p role="alert" class="text-sm text-danger">{deletingInstanceError}</p>{/if}<div class="flex justify-end gap-3"><button class={launcherButton({variant:'secondary'})} disabled={deletingInstanceBusy} onclick={() => deletingInstance = null}>Cancelar</button><button class={launcherButton({variant:'danger'})} disabled={deletingInstanceBusy} aria-busy={deletingInstanceBusy} onclick={deleteInstance}>{#if deletingInstanceBusy}<LoaderCircle class="h-4 w-4 animate-spin" />{/if}Excluir definitivamente</button></div></div>
+    </Modal>
 {/if}

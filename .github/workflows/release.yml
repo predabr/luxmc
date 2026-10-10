@@ -23,7 +23,30 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify-source:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test:run
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - run: pnpm test:browser:content
+      - run: pnpm build:website
+      - run: pnpm test:website
+      - run: node --test tests/release-manifest.test.mjs tests/release-signature.test.mjs
+
   create-release:
+    needs: verify-source
     runs-on: ubuntu-22.04
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}

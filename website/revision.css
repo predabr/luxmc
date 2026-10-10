@@ -136,9 +136,13 @@
 .performance-method { max-width: 850px; margin-bottom: 20px; }
 @media (max-width: 600px) { .performance-readout { grid-template-columns: 1fr; } }
 
-.motion-item { transition: opacity 480ms ease, translate 480ms cubic-bezier(.2,.8,.2,1); transition-delay: var(--motion-delay, 0ms); }
-.motion-item:not(.motion-entered) { opacity: .01; translate: 0 16px; }
+.motion-item { transition: opacity 650ms ease, translate 650ms cubic-bezier(.16,1,.3,1); transition-delay: var(--motion-delay, 0ms); }
+.motion-item:not(.motion-entered) { opacity: 0; translate: 0 30px; }
 .motion-item.motion-entered { opacity: 1; translate: 0 0; }
+.hero-capture.motion-entered { translate: var(--capture-x, 0px) var(--capture-y, 0px); transition-duration: 650ms, 360ms; }
+.feature-strip article, .party-card, .performance-readout article { transition: border-color 240ms ease, box-shadow 240ms ease, opacity 650ms ease, translate 650ms cubic-bezier(.16,1,.3,1); }
+.feature-strip article:hover, .party-card:hover, .performance-readout article:hover { border-color: rgb(var(--brand-400) / .4); box-shadow: 0 12px 28px rgb(var(--fg) / .04); }
+.motion-paused .hero-capture, .motion-paused .hero-capture:hover, .motion-paused .product-step, .motion-paused .download-card { transform: none; }
 .motion-paused .motion-item { opacity: 1; translate: none; transition: none; }
 @media (prefers-reduced-motion: reduce) {
   .motion-item { opacity: 1 !important; translate: none !important; transition: none !important; }

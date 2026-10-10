@@ -3,6 +3,9 @@ import { isNewerVersion, isReleaseUpdate, releaseIdentity } from "./updateVersio
 
 describe("update version ordering", () => {
 	it.each([
+		['3.6.0', 0, '3.6.0', 2, true],
+		['3.6.0', 1, '3.6.0', 2, true],
+		['3.6.0', 2, '3.6.0', 2, false],
 		['3.5.0', 0, '3.5.0', 2, true],
 		['3.5.0', 2, '3.5.0', 2, false],
 		['3.5.0', 2, '3.5.0', 1, false],

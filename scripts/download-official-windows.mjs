@@ -34,5 +34,6 @@ assert.equal(bytes.subarray(0, 2).toString(), 'MZ');
 mkdirSync('release-windows', { recursive: true }); mkdirSync('website/releases', { recursive: true });
 for (const file of ['release-windows/Lux MC Launcher.exe', `release-windows/Luxmc_${manifest.displayVersion || manifest.version}_x64-setup.exe`, `release-windows/Luxmc_${manifest.displayVersion || manifest.version}_revision.${manifest.revision || 0}_x64-setup.exe`, 'website/releases/Lux MC Launcher.exe']) writeFileSync(file, bytes);
 const result = { tag, version: manifest.displayVersion || manifest.version, revision: manifest.revision || 0, officialSignaturesVerified: true, bytes: bytes.length, sha256: hash };
+mkdirSync('docs/validation/v3.6/hotfix', { recursive: true });
 writeFileSync('docs/validation/v3.6/hotfix/official-installer.json', JSON.stringify(result, null, 2));
 console.log(JSON.stringify(result));

@@ -96,7 +96,7 @@ const fs = require('node:fs');
             await page.getByRole('tab', { name: 'Shaders', exact: true }).click();
             await shaders.getByText('Complementary.zip', { exact: true }).waitFor();
             await shaders.locator('img').waitFor();
-            assert.equal(await shaders.locator('img').getAttribute('loading'), 'lazy');
+            assert.equal(await shaders.locator('img').getAttribute('loading'), 'eager');
             await shaders.getByRole('button', {name: /^Abrir pasta:/}).click();
             assert.ok(await page.evaluate(() => window.testCalls.some(call => call.command === 'instance_pack_open_folder' && call.args.packType === 'shaderpacks')));
             assert.equal(await list.count(), 0);
