@@ -121,14 +121,19 @@ async function initGitHubRelease() {
         if (!data)
             throw new Error("Release indisponível");
         const remoteTag = typeof data.tag_name === "string" ? data.tag_name : "v3.6.0";
+        const revisionMatch = /^v?(\d+)\.(\d+)\.(\d+)-revision\.(\d+)$/.exec(remoteTag);
+        const remoteDisplayTag = revisionMatch && Number(revisionMatch[3]) > 0
+            ? `v${revisionMatch[1]}.${revisionMatch[2]}.${Number(revisionMatch[3]) - 1}`
+            : remoteTag;
         const siteTag = "v3.6.0";
-        const remoteParts = remoteTag.replace(/^v/, "").split(".").map(Number);
+        const remoteParts = remoteDisplayTag.replace(/^v/, "").split(".").map(Number);
         const siteParts = siteTag.slice(1).split(".").map(Number);
         const difference = siteParts.map((part: any, index: any) => part - (remoteParts[index] || 0)).find((value: any) => value !== 0) || 0;
-        const tag = difference > 0 ? siteTag : remoteTag;
+        const tag = difference > 0 ? siteTag : remoteDisplayTag;
         window.LuxLatestVersion = tag;
         document.querySelectorAll<HTMLElement>(".live-version-tag").forEach((el: any) => {
             el.textContent = tag;
+            el.title = revisionMatch ? `Luxmc ${tag.replace(/^v/, "")} — revisão ${revisionMatch[4]}` : `Luxmc ${tag.replace(/^v/, "")}`;
         });
         const { assetFor } = await import("./lib/releases.js");
         const appImage = assetFor(data.assets, "linux");
