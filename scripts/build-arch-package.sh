@@ -19,6 +19,7 @@ mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/128x128/apps"
 mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/64x64/apps"
 mkdir -p "${PKG_DIR}/usr/share/icons/hicolor/32x32/apps"
 mkdir -p "${PKG_DIR}/usr/share/pixmaps"
+mkdir -p "${PKG_DIR}/usr/share/licenses/${PKGNAME}"
 
 cd "${ROOT_DIR}"
 pnpm build
@@ -39,6 +40,7 @@ cp "${ROOT_DIR}/src-tauri/icons/128x128.png" "${PKG_DIR}/usr/share/icons/hicolor
 cp "${ROOT_DIR}/src-tauri/icons/64x64.png" "${PKG_DIR}/usr/share/icons/hicolor/64x64/apps/luxmc.png"
 cp "${ROOT_DIR}/src-tauri/icons/32x32.png" "${PKG_DIR}/usr/share/icons/hicolor/32x32/apps/luxmc.png"
 cp "${ROOT_DIR}/src-tauri/icons/icon.png" "${PKG_DIR}/usr/share/pixmaps/luxmc.png"
+cp "${ROOT_DIR}/LICENSE" "${PKG_DIR}/usr/share/licenses/${PKGNAME}/LICENSE"
 
 cat <<EOF > "${PKG_DIR}/.PKGINFO"
 pkgname = ${PKGNAME}
@@ -49,7 +51,7 @@ builddate = $(date +%s)
 packager = Luxmc <suporte@luxmc.com>
 size = $(du -sb "${PKG_DIR}" | cut -f1)
 arch = ${ARCH}
-license = MIT
+license = custom:Luxmc
 depend = webkit2gtk-4.1
 depend = gtk3
 depend = libsoup3
