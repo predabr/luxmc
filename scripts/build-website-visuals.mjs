@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { readdir, stat, unlink } from "node:fs/promises";
+import { mkdir, readdir, stat, unlink } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { writeSiteOutputs } from "./write-site-outputs.mjs";
 
@@ -21,6 +21,7 @@ const result = await build({
 });
 await writeSiteOutputs(result.outputFiles);
 const chunkDirectory = resolve("website/assets/visuals");
+await mkdir(chunkDirectory, { recursive: true });
 const outputs = new Set(
   Object.keys(result.metafile.outputs).map((path) => resolve(path)),
 );
