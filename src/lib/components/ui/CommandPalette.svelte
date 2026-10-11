@@ -5,7 +5,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import EnvironmentDiagnostics from "$lib/components/ui/EnvironmentDiagnostics.svelte";
 	import { instancesOpenFolder } from "$lib/api/instances";
 	import { toast } from "$lib/stores/toasts.svelte";
-	import { Command } from "cmdk-svelte";
+	import { Command, Dialog } from "bits-ui";
 	import { onMount } from "svelte";
 	import { goto } from "$app/navigation";
 	import { 
@@ -90,28 +90,18 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 </script>
 
-{#if open}
-	<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-	<div
-		class="fixed inset-0 z-50 flex items-start justify-center pt-16 p-4 bg-bg-overlay/75 backdrop-blur-md"
-		onclick={() => (open = false)}
-		onkeydown={(e) => { if (e.key === "Escape") open = false; }}
-		role="presentation"
-	>
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-		<div
-			class="w-full max-w-xl bg-bg-elevated border border-fg/10 rounded-2xl shadow-2xl overflow-hidden animate-slide-up"
-			onclick={(e) => e.stopPropagation()}
-			onkeydown={(e) => e.stopPropagation()}
-			role="dialog"
-			tabindex="-1"
-			aria-modal="true"
-			aria-label={uiText("ui.5b63975b7d828550")}
-		>
-			<Command.Dialog {open} on:close={() => open = false}>
+<Dialog.Root bind:open>
+	<Dialog.Portal>
+		<Dialog.Overlay class="fixed inset-0 z-50 bg-bg-overlay/75 backdrop-blur-md" />
+		<div class="pointer-events-none fixed inset-0 z-50 flex items-start justify-center pt-16 p-4">
+		<Dialog.Content class="pointer-events-auto w-full max-w-xl bg-bg-elevated border border-fg/10 rounded-2xl shadow-2xl overflow-hidden animate-slide-up">
+			<Dialog.Title class="sr-only">{uiText("ui.5b63975b7d828550")}</Dialog.Title>
+			<Dialog.Description class="sr-only">{uiText("ui.264777c968f2dba3")}</Dialog.Description>
+			<Command.Root label={uiText("ui.5b63975b7d828550")} loop vimBindings={false}>
 				<div class="flex items-center gap-3 px-4 border-b border-fg/10">
 					<Search class="w-4 h-4 text-fg/40 shrink-0" />
 					<Command.Input 
+						autofocus
 						bind:value={query}
 						placeholder={uiText("ui.264777c968f2dba3")} 
 						class="w-full py-4 bg-transparent text-sm text-fg placeholder:text-fg/40 outline-none border-none font-medium"
@@ -120,6 +110,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						<kbd class="text-[10px] text-fg/25 bg-fg/5 border border-fg/10 px-1.5 py-0.5 rounded-md font-mono">{uiText("ui.c5b7d0ec4f697629")}</kbd>
 						<button 
 							type="button" 
+							aria-label={uiText("common.close")}
 							class={launcherButton({ variant: "ghost", size: "icon", class: "" })}
 							onclick={() => open = false}
 						>
@@ -133,7 +124,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						{uiText("ui.c03e4e4fbca406c2")}<span class="text-fg/60">{query}</span>"
 					</Command.Empty>
 
-					<Command.Group heading="Navegação">
+					<Command.Group>
+						<Command.GroupHeading class="px-3 py-2 text-[10px] font-semibold text-fg/40">Navegação</Command.GroupHeading>
 						<Command.Item value="inicio home jogar play" onSelect={() => navigate("/")} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-fg/80 hover:text-fg hover:bg-fg/10 cursor-pointer transition-colors aria-selected:bg-fg/10">
 							<Play class="w-4 h-4 text-brand-500" />
 							<span>{uiText("nav.home")}</span>
@@ -173,7 +165,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					</Command.Group>
 
 					{#if filteredProfiles.length > 0}
-						<Command.Group heading="Instâncias">
+						<Command.Group>
+							<Command.GroupHeading class="px-3 py-2 text-[10px] font-semibold text-fg/40">Instâncias</Command.GroupHeading>
 							{#each filteredProfiles as p}
 								<Command.Item value={`instancia ${p.name} ${p.name.normalize("NFD").replace(/\p{Diacritic}/gu, "")} ${p.mcVersion} ${p.loader}`} onSelect={() => { profiles.activeId = p.id; navigate(`/instances/${p.id}`); }} class="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs text-fg/80 hover:text-fg hover:bg-fg/10 cursor-pointer transition-colors aria-selected:bg-fg/10">
 									<div class="flex items-center gap-3">
@@ -186,7 +179,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						</Command.Group>
 					{/if}
 
-					<Command.Group heading="Ferramentas">
+					<Command.Group>
+						<Command.GroupHeading class="px-3 py-2 text-[10px] font-semibold text-fg/40">Ferramentas</Command.GroupHeading>
                         <Command.Item value="diagnostico sistema windows ambiente java gpu memoria verificar" onSelect={() => { open = false; diagnosticsOpen = true; }} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-fg/80 hover:bg-fg/10 cursor-pointer aria-selected:bg-fg/10"><Settings class="w-4 h-4 text-brand-400" /><span>{uiText("ui.d5986b954d27350d")}</span></Command.Item>
                         {#if profiles.activeId}
                             <Command.Item value="pasta explorador arquivos instancia ativa" onSelect={() => void openInstanceFolder(profiles.activeId!)} class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-fg/80 hover:bg-fg/10 cursor-pointer aria-selected:bg-fg/10"><Layers class="w-4 h-4 text-brand-400" /><span>{uiText("ui.680b9210ff6e5c28")}</span></Command.Item>
@@ -220,10 +214,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					</div>
 					<span class="text-[10px] text-fg/20 font-mono">{uiText("ui.199f6f88d1fcf30b")}</span>
 				</div>
-			</Command.Dialog>
+			</Command.Root>
+		</Dialog.Content>
 		</div>
-	</div>
-{/if}
+	</Dialog.Portal>
+</Dialog.Root>
 
 <JavaManagerModal open={javaModalOpen} onClose={() => (javaModalOpen = false)} />
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file-set product-name="Luxmc" product-version="${version}">
+      <include path="luxmc.exe" />
+      <include path="luxmc-repair.exe" />
+      <for-each>
+        <authenticode-sign description="Luxmc Launcher" description-url="https://luxmc-r92.pages.dev" />
+      </for-each>
+    </pe-file-set>
+  </zip-file>
+</artifact-configuration>

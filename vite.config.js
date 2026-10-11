@@ -30,7 +30,6 @@ export default defineConfig(({ isSsrBuild, mode }) => ({
       "@tauri-apps/plugin-opener",
       "@tauri-apps/plugin-store",
       "@panzoom/panzoom",
-      "cmdk-svelte",
       "i18next",
       "zod",
       "bits-ui",

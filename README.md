@@ -75,6 +75,12 @@ O site usa fontes TypeScript em `site-client/` e `site-server/`; `pnpm build:web
 
 ## Licença e identidade
 
-O repositório público permite auditoria e estudo. A licença própria em [LICENSE](LICENSE) restringe revenda e uso indevido da identidade visual. Código público pode ser copiado; nenhuma proteção técnica elimina essa possibilidade. Versões modificadas devem respeitar os termos e não se apresentar como distribuição oficial. Consulte [BRANDING.md](BRANDING.md).
+O código original do Luxmc é distribuído sob [GNU GPLv3](LICENSE), com identificador `GPL-3.0-only`. A licença permite cópia, modificação, redistribuição e uso comercial; quem distribui o programa ou versões derivadas deve cumprir suas obrigações de disponibilizar o código correspondente e preservar os avisos. Versões modificadas devem ser identificadas como modificadas. Consulte [BRANDING.md](BRANDING.md) e [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 Bibliotecas, componentes de rede, conteúdo dos packs, imagens dos usuários e marcas de terceiros mantêm suas licenças e titulares. Luxmc não é um produto oficial de Minecraft nem é aprovado ou associado à Mojang ou à Microsoft.
+
+## Code signing policy
+
+A candidatura à SignPath Foundation está em preparação. Os instaladores publicados até agora não têm assinatura Authenticode. A verificação Ed25519 dos downloads continua ativa e não substitui a identificação do editor no Windows. A aprovação do programa, a integração e a validação de todos os componentes ainda são necessárias antes de anunciar uma release assinada.
+
+Veja a [política de assinatura](CODE_SIGNING_POLICY.md), a [política de privacidade](https://luxmc-r92.pages.dev/privacidade) e a [página de assinatura no site](https://luxmc-r92.pages.dev/assinatura).

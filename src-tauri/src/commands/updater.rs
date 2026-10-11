@@ -425,7 +425,7 @@ pub async fn app_perform_update(
             let mut cmd = crate::core::process::std_command(&temp_file_path);
             cmd.args(["/P", "/UPDATE", "/R"]);
             cmd.spawn()
-                .map_err(|e| AppError::Internal(format!("Falha ao iniciar instalador: {e}")))?;
+                .map_err(windows_installer_error)?;
             std::process::exit(0);
         }
         if temp_file_path
@@ -436,7 +436,7 @@ pub async fn app_perform_update(
             crate::core::process::std_command("msiexec.exe")
                 .args(["/i", &temp_file_path.to_string_lossy()])
                 .spawn()
-                .map_err(|e| AppError::Internal(format!("Falha ao iniciar instalador: {e}")))?;
+                .map_err(windows_installer_error)?;
             std::process::exit(0);
         }
     }
@@ -454,6 +454,19 @@ pub async fn app_perform_update(
     })
 }
 
+#[cfg(any(target_os = "windows", test))]
+fn windows_installer_error(error: std::io::Error) -> AppError {
+    match error.raw_os_error() {
+        Some(code @ (577 | 1260 | 4551)) => AppError::InvalidState(format!(
+            "O Windows bloqueou o instalador pela política de segurança do dispositivo (código {code}). A atualização não foi aplicada e o Luxmc continua aberto. Consulte o bloqueio na Segurança do Windows e informe o código ao suporte do Luxmc. A publicação precisa de uma assinatura de editor reconhecida pelo Windows."
+        )),
+        Some(code @ (225 | 226)) => AppError::InvalidState(format!(
+            "O antivírus do Windows bloqueou o instalador (código {code}). A atualização não foi aplicada e o Luxmc continua aberto. Informe a detecção ao suporte do Luxmc para análise do arquivo com o fornecedor do antivírus."
+        )),
+        _ => AppError::Internal(format!("Falha ao iniciar instalador: {error}")),
+    }
+}
+
 fn ensure_update_idle(game_pid: u32) -> AppResult<()> {
     if game_pid != 0 {
         return Err(AppError::InvalidState("Feche o Minecraft antes de atualizar o Luxmc. Seu jogo continuará aberto.".into()));
@@ -464,6 +477,37 @@ fn ensure_update_idle(game_pid: u32) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn windows_update_reports_security_policy_blocks() {
+        for code in [577, 1260, 4551] {
+            let error = windows_installer_error(std::io::Error::from_raw_os_error(code));
+            assert!(matches!(&error, AppError::InvalidState(_)));
+            let message = error.to_string();
+            assert!(message.contains(&format!("código {code}")));
+            assert!(message.contains("não foi aplicada"));
+            assert!(message.contains("Luxmc continua aberto"));
+        }
+    }
+
+    #[test]
+    fn windows_update_reports_antivirus_detections_separately() {
+        for code in [225, 226] {
+            let message = windows_installer_error(std::io::Error::from_raw_os_error(code)).to_string();
+            assert!(message.contains("antivírus do Windows bloqueou"));
+            assert!(!message.contains("assinatura de editor"));
+        }
+    }
+
+    #[test]
+    fn windows_update_keeps_unrelated_launch_errors() {
+        let error = windows_installer_error(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "installation directory is read-only",
+        ));
+        assert!(matches!(&error, AppError::Internal(_)));
+        assert!(error.to_string().contains("installation directory is read-only"));
+    }
 
     #[test]
     fn update_requires_minecraft_to_be_closed() {

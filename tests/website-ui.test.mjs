@@ -45,6 +45,7 @@ test("every redesigned page has working local assets, metadata and a main landma
     "conta.html",
     "privacidade.html",
     "termos.html",
+    "assinatura.html",
     "404.html",
   ]) {
     const dom = createDom(read(name)),

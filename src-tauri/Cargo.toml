@@ -4,7 +4,7 @@ version = "3.8.0"
 description = "Linux-first Minecraft launcher"
 authors = ["Luxmc contributors"]
 edition = "2021"
-license = "Proprietary"
+license = "GPL-3.0-only"
 
 [lib]
 name = "luxmc_lib"
