@@ -1,0 +1,33 @@
+{
+  "version": "3.8.0",
+  "origin": "https://luxmc-r92.pages.dev",
+  "desktop": true,
+  "mobile": true,
+  "noHorizontalOverflow": true,
+  "reducedMotion": true,
+  "accountPage": true,
+  "skinStudioRemoved": true,
+  "captures": [
+    {
+      "source": "assets/captures-3.6/instances-window.svg",
+      "width": 1896,
+      "height": 1007
+    },
+    {
+      "source": "assets/captures-3.6/mods-window.svg",
+      "width": 1919,
+      "height": 1022
+    },
+    {
+      "source": "assets/captures-3.6/friends-window.svg",
+      "width": 1919,
+      "height": 1022
+    },
+    {
+      "source": "assets/captures-3.6/home-window.svg",
+      "width": 1919,
+      "height": 1022
+    }
+  ],
+  "errors": []
+}
