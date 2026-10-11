@@ -13,9 +13,13 @@ impl Drop for CompatibilityLoad {
 
 pub(super) async fn connect_local_game(port: u16) -> std::io::Result<tokio::net::TcpStream> {
     if port == 0 { return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "Invalid local game port")); }
-    match tokio::net::TcpStream::connect(("127.0.0.1", port)).await {
-        Ok(stream) => Ok(stream),
-        Err(_) => tokio::net::TcpStream::connect(("::1", port)).await,
+    let ipv4 = tokio::net::TcpStream::connect(("127.0.0.1", port));
+    let ipv6 = tokio::net::TcpStream::connect(("::1", port));
+    tokio::pin!(ipv4, ipv6);
+    tokio::select! {
+        biased;
+        result = &mut ipv4 => match result { Ok(stream) => Ok(stream), Err(_) => ipv6.await },
+        result = &mut ipv6 => match result { Ok(stream) => Ok(stream), Err(_) => ipv4.await },
     }
 }
 
@@ -106,6 +110,9 @@ mod tests {
                 Err(error) => panic!("Local listener unavailable: {error}"),
             };
             let port = listener.local_addr().unwrap().port();
+            assert_eq!(super::available_game_port(vec![port]).await, Some(port));
+            let probe = tokio::time::timeout(std::time::Duration::from_secs(2), listener.accept()).await.unwrap().unwrap().0;
+            drop(probe);
             let server = tokio::spawn(async move {
                 let (mut stream, _) = listener.accept().await.unwrap();
                 let mut bytes = [0; 4];
