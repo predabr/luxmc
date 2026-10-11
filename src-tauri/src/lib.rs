@@ -527,6 +527,8 @@ pub async fn run() {
             commands::deep_links::open_portal,
             commands::skins::minecraft_uuid,
             commands::social::social_request,
+            commands::social_presence::social_presence_start,
+            commands::social_presence::social_presence_stop,
             commands::news::minecraft_news,
             commands::system::ping,
             commands::system::app_data_directory,

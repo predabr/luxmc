@@ -186,7 +186,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </script>
 
 <div class="mx-auto flex h-full max-w-6xl flex-col gap-4">
-	<div class="flex items-center justify-between">
+	<div class="product-header flex flex-wrap items-center justify-between gap-4">
 		<Heading>{t("logs.title")}</Heading>
 		<div class="flex items-center gap-2">
 			{#if exitInfo}

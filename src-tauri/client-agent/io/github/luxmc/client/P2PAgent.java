@@ -14,7 +14,6 @@ import java.util.Properties;
 import org.objectweb.asm.*;
 
 public final class P2PAgent {
-    private static volatile long checked;
     private static volatile long expires;
     private static volatile int port;
 
@@ -71,17 +70,16 @@ public final class P2PAgent {
 
     private static synchronized boolean active() {
         long now = System.currentTimeMillis();
-        if (now - checked > 500) {
-            checked = now; expires = 0; port = 0;
-            String path = System.getProperty("luxmc.p2p.session", "");
-            if (!path.isEmpty()) {
-                Properties properties = new Properties();
-                try (FileInputStream stream = new FileInputStream(path)) {
-                    properties.load(stream);
-                    expires = Long.parseLong(properties.getProperty("expires", "0"));
-                    port = Integer.parseInt(properties.getProperty("port", "0"));
-                } catch (Exception ignored) {}
-            }
+        expires = 0; port = 0;
+        String path = System.getProperty("luxmc.p2p.session", "");
+        if (!path.isEmpty()) {
+            Properties properties = new Properties();
+            try (FileInputStream stream = new FileInputStream(path)) {
+                if (stream.getChannel().size() > 512) return false;
+                properties.load(stream);
+                expires = Long.parseLong(properties.getProperty("expires", "0"));
+                port = Integer.parseInt(properties.getProperty("port", "0"));
+            } catch (Exception ignored) {}
         }
         return port > 0 && port <= 65535 && expires > now && expires - now <= 10000;
     }

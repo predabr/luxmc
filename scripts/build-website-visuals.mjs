@@ -1,18 +1,12 @@
 import { build } from "esbuild";
 import { readdir, stat, unlink } from "node:fs/promises";
-import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
+import { writeSiteOutputs } from "./write-site-outputs.mjs";
 
-const skinRequire = createRequire(import.meta.resolve("skinview3d"));
-const threeModule = resolve(
-  dirname(skinRequire.resolve("three")),
-  "three.module.js",
-);
 
 const result = await build({
   entryPoints: {
     cinematic: "site-client/visuals/motion.ts",
-    studio: "site-client/visuals/studio.ts",
   },
   outdir: "website",
   splitting: true,
@@ -21,17 +15,11 @@ const result = await build({
   minify: true,
   format: "esm",
   target: ["es2022"],
-  plugins: [
-    {
-      name: "shared-three",
-      setup(builder) {
-        builder.onResolve({ filter: /^three$/ }, () => ({ path: threeModule }));
-      },
-    },
-  ],
   metafile: true,
   legalComments: "eof",
+  write: false,
 });
+await writeSiteOutputs(result.outputFiles);
 const chunkDirectory = resolve("website/assets/visuals");
 const outputs = new Set(
   Object.keys(result.metafile.outputs).map((path) => resolve(path)),

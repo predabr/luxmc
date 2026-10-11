@@ -40,8 +40,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { account, saveCurrentAccount, loadCurrentAccount } from "$lib/stores/account.svelte";
 	import { cloudAccount } from "$lib/stores/cloudAccount.svelte";
     import { friendsState } from "$lib/stores/friends.svelte";
+	const socialAccountId = $derived(account.value?.id);
 	$effect(() => {
-        const id = account.value?.id;
+        const id = socialAccountId;
         untrack(() => {
             friendsState.disconnect(); cloudAccount.disconnect();
             if (id?.startsWith("luxmc:")) cloudAccount.connect(id);
@@ -56,6 +57,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     });
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { appState } from "$lib/stores/app.svelte";
+    $effect(() => {
+        appState.isGameRunning;
+        appState.activeGameDetails?.name;
+        appState.activeGameDetails?.version;
+        appState.activeGameDetails?.loader;
+        settings.value.publishGameActivity;
+        settings.value.shareCustomAvatar;
+        untrack(() => { if (friendsState.me) void friendsState.refresh(); });
+    });
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { activeSkinStore, type CapeType } from "$lib/stores/skin.svelte";
@@ -476,6 +486,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			} else if (event.status === "menu") {
 				details = uiText("ui.1f871d9c221034f4");
 			}
+            if (event.status !== 'menu' && typeof event.playerCount === 'number' && event.playerCount > 0) {
+                state += ` · ${uiText(event.playerCount === 1 ? 'presenceDesign.player' : 'presenceDesign.players', { count: event.playerCount })}`;
+            }
 
 			updateDiscordActivity({
 				inGame: true,
@@ -488,7 +501,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				startTime: gameStartTime || launcherStartTime,
 				buttons: [
 					{ label: uiText("ui.4c8757fab2a21345"), url: "https://luxmc-r92.pages.dev" },
-					{ label: uiText("ui.942f94d869e404ae"), url: "https://luxmc-r92.pages.dev/skins.html" }
+					{ label: uiText("common.download"), url: "https://luxmc-r92.pages.dev/#download" }
 				]
 			}).catch(() => {});
 		});
@@ -604,7 +617,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					inGame: false,
 					buttons: [
 						{ label: uiText("ui.4c8757fab2a21345"), url: "https://luxmc-r92.pages.dev" },
-						{ label: uiText("ui.942f94d869e404ae"), url: "https://luxmc-r92.pages.dev/skins.html" }
+						{ label: uiText("common.download"), url: "https://luxmc-r92.pages.dev/#download" }
 					]
 				}).catch(() => {});
 			}
@@ -733,7 +746,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				inGame: false,
 				buttons: [
 					{ label: uiText("ui.4c8757fab2a21345"), url: "https://luxmc-r92.pages.dev" },
-					{ label: uiText("ui.942f94d869e404ae"), url: "https://luxmc-r92.pages.dev/skins.html" }
+					{ label: uiText("common.download"), url: "https://luxmc-r92.pages.dev/#download" }
 				]
 			}).catch(() => {});
 		}, 300);

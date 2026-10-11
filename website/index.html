@@ -14,7 +14,7 @@
     <title>LuxMC Launcher — Seu mundo. Suas escolhas.</title>
     <meta
       name="description"
-      content="Minecraft, mods, skins e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
+      content="Minecraft, mods e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
     />
     <meta name="theme-color" content="rgb(18 19 20)" />
     <meta name="robots" content="index, follow, max-image-preview:large" />
@@ -27,7 +27,7 @@
     />
     <meta
       property="og:description"
-      content="Minecraft, mods, skins e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
+      content="Minecraft, mods e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
     />
     <meta property="og:url" content="https://luxmc-r92.pages.dev/" />
     <meta
@@ -41,7 +41,7 @@
     />
     <meta
       name="twitter:description"
-      content="Minecraft, mods, skins e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
+      content="Minecraft, mods e amigos em um só launcher. Instâncias independentes, Modrinth e CurseForge, diagnóstico de crashes e downloads oficiais para desktop."
     />
     <meta
       name="twitter:image"
@@ -57,7 +57,7 @@
       crossorigin=""
     />
     <link rel="stylesheet" href="/design.css?v=20261004" />
-    <link rel="stylesheet" href="/revision.css?v=20261009-polish" />
+    <link rel="stylesheet" href="/revision.css?v=20261010-catalog" />
     <meta
       name="google-site-verification"
       content="2QHmYrByldZJTDfep1st8QYKaSEHjklYb_4W"
@@ -69,7 +69,7 @@
         "name": "LuxMC Launcher",
         "operatingSystem": "Linux, Windows, macOS",
         "applicationCategory": "GameApplication",
-        "description": "Launcher de Minecraft com gestão de instâncias, integração Modrinth e CurseForge, skins 3D e multiplayer.",
+        "description": "Launcher de Minecraft com gestão de instâncias, integração Modrinth e CurseForge, personalização e multiplayer.",
         "url": "https://luxmc-r92.pages.dev/",
         "downloadUrl": "https://luxmc-r92.pages.dev/#download",
         "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" }
@@ -95,8 +95,6 @@
             <a class="nav-link" href="#recursos" data-i18n="nav.features"
               >Recursos</a
             ><a class="nav-link" href="#mods" data-i18n="nav.mods">Mods</a
-            ><a class="nav-link" href="/skins" data-i18n="nav.skins"
-              >Skin Studio</a
             ><a class="nav-link" href="/privacidade" data-i18n="nav.privacy"
               >Privacidade</a
             ><a
@@ -165,8 +163,6 @@
             ><span>01</span><b data-i18n="nav.features">Recursos</b></a
           ><a href="#mods" class="mobile-nav-link"
             ><span>02</span><b data-i18n="nav.mods">Mods</b></a
-          ><a href="/skins" class="mobile-nav-link"
-            ><span>03</span><b data-i18n="nav.skins">Skin Studio</b></a
           ><a href="/conta?mode=login" class="mobile-nav-link"
             ><span>04</span><b data-i18n="nav.account">Minha conta</b></a
           ><a href="/privacidade" class="mobile-nav-link"
@@ -219,7 +215,7 @@
                 >
               </div>
               <div class="hero-meta">
-                <b class="live-version-tag">v3.7.0</b
+                <b class="live-version-tag">v3.8.0</b
                 ><span data-i18n="hero.meta">Linux · Windows · macOS</span
                 ><span id="heroReleaseSize"></span>
               </div>
@@ -307,27 +303,11 @@
                 </p>
               </article>
               <article class="product-step">
-                <button
-                  type="button"
-                  data-product-screen="assets/captures-3.6/personalizer-window.svg"
-                  data-product-alt="Estúdio de skins real do LuxMC"
-                  aria-label="03 · Seu personagem"
-                  aria-pressed="false"
-                >
-                  <span>03</span>
-                  <h3 data-i18n="product.skin">Seu personagem.</h3>
-                </button>
-                <p data-i18n="product.skinDesc">
-                  Importe uma skin, combine uma capa e confira a aparência em 3D
-                  antes de aplicar.
-                </p>
-              </article>
-              <article class="product-step">
-                <button type="button" data-product-screen="assets/captures-3.6/friends-window.svg" data-product-label="04 / FRIENDS" data-product-alt="Amigos e perfil público no Luxmc" aria-label="04 · Sua turma" aria-pressed="false"><span>04</span><h3>Sua turma.</h3></button>
+                <button type="button" data-product-screen="assets/captures-3.6/friends-window.svg" data-product-label="03 / FRIENDS" data-product-alt="Amigos e perfil público no Luxmc" aria-label="03 · Sua turma" aria-pressed="false"><span>03</span><h3>Sua turma.</h3></button>
                 <p>Perfis públicos, favoritos e convites. Uma sala reúne as pessoas; cada instância conserva seus próprios arquivos.</p>
               </article>
               <article class="product-step">
-                <button type="button" data-product-screen="assets/captures-3.6/home-window.svg" data-product-label="05 / HOME" data-product-alt="Pastas e biblioteca no início do Luxmc" aria-label="05 · Seu espaço" aria-pressed="false"><span>05</span><h3>Seu espaço.</h3></button>
+                <button type="button" data-product-screen="assets/captures-3.6/home-window.svg" data-product-label="04 / HOME" data-product-alt="Pastas e biblioteca no início do Luxmc" aria-label="04 · Seu espaço" aria-pressed="false"><span>04</span><h3>Seu espaço.</h3></button>
                 <p>Crie pastas com nome e imagem, arraste suas instâncias e mantenha os packs que joga por perto.</p>
               </article>
             </div>
@@ -661,40 +641,6 @@
           </div>
         </div>
       </section>
-      <section class="section identity-section">
-        <div class="container identity-layout">
-          <div class="skin-preview-copy">
-            <span class="section-tag" data-i18n="skin.label"
-              >SEU PERSONAGEM</span
-            >
-            <h2 data-i18n="skin.title">
-              Não é só uma skin.<br />É você no jogo.
-            </h2>
-            <p data-i18n="skin.desc">
-              Importe seu PNG, escolha o modelo dos braços e experimente capas.
-              O Skin Studio mostra cada detalhe antes de aplicar.
-            </p>
-            <a class="btn-secondary" href="/skins"
-              ><span data-i18n="skin.open">Abrir Skin Studio</span
-              ><span class="button-arrow" aria-hidden="true">↗</span></a
-            >
-          </div>
-          <figure class="identity-capture">
-            <a href="/skins" aria-label="Abrir o estúdio de skins"
-              ><img
-                src="assets/captures-3.6/personalizer-window.svg"
-                width="1919"
-                height="1022"
-                alt="Personalizador de skins real do LuxMC"
-                loading="lazy"
-                decoding="async"
-            /></a>
-            <figcaption data-i18n="skin.caption">
-              O personalizador, por dentro do launcher.
-            </figcaption>
-          </figure>
-        </div>
-      </section>
       <section id="conta-luxmc" class="container social-section">
         <div class="social-copy">
           <span class="section-tag" data-i18n="social.label"
@@ -945,7 +891,7 @@
             </article>
           </div>
           <p class="release-note">
-            <span class="live-version-tag">v3.7.0</span> ·
+            <span class="live-version-tag">v3.8.0</span> ·
             <span data-i18n="download.note"
               >Disponibilidade consultada no GitHub. Sem cadastro
               obrigatório.</span
@@ -1124,7 +1070,6 @@
               <strong data-i18n="footer.product">Produto</strong
               ><a href="/#recursos" data-i18n="nav.features">Recursos</a
               ><a href="/#mods" data-i18n="nav.mods">Mods</a
-              ><a href="/skins" data-i18n="nav.skins">Skin Studio</a
               ><a href="/#download" data-i18n="footer.downloads">Downloads</a>
             </div>
             <div>

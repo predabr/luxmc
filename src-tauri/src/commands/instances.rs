@@ -1386,8 +1386,8 @@ pub async fn instance_import_modpack_core(
     };
 
     let registration_started = std::time::Instant::now();
-    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo arquivos da instância…"}));}
-    commit_import(state, &profile_row).await?;
+    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":96,"current":0,"total":0,"status":"Conferindo arquivos da instância…"}));}
+    commit_import(state, &profile_row, app.as_ref()).await?;
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
     let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
     Ok(profile_row)
@@ -1797,14 +1797,27 @@ async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync
     Ok(repaired)
 }
 
-async fn prepare_imported_launch(state: &AppState, profile: &ProfileRow) -> AppResult<()> {
+async fn prepare_imported_launch(state: &AppState, profile: &ProfileRow, app: Option<&tauri::AppHandle>) -> AppResult<()> {
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
-    repair_import_duplicates(profile, Some(state.import_cancel.clone())).await?;
     let cancel = state.import_cancel.clone();
     let profile = profile.clone();
+    let handle = app.cloned();
+    let root = std::path::PathBuf::from(&profile.game_dir);
+    let audit = tokio::task::spawn_blocking(move || -> AppResult<_> {
+        let progress = |current: usize, total: usize| {
+            if let Some(app) = &handle {
+                let _ = app.emit("modpack-progress", serde_json::json!({"phase":"validation","percent":96 + (current * 2 / total.max(1)),"current":current,"total":total,"status":format!("Conferindo arquivos: {current} de {total}…")}));
+            }
+        };
+        crate::core::mods::validation::audit_with_progress(&root, false, Some(&cancel), &progress)
+    }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
+    if audit.errors.iter().any(|error| error.starts_with("Mod duplicado")) {
+        repair_import_duplicates(&profile, Some(state.import_cancel.clone())).await?;
+    }
+    let cancel = state.import_cancel.clone();
     tokio::task::spawn_blocking(move || -> AppResult<()> {
         let root = std::path::Path::new(&profile.game_dir);
-        let audit = crate::core::mods::validation::audit_cancellable(root, false, Some(&cancel))?;
+        let audit = if audit.errors.iter().any(|error| error.starts_with("Mod duplicado")) { crate::core::mods::validation::audit_cancellable(root, false, Some(&cancel))? } else { audit };
         crate::core::mods::pack_download::cancelled(Some(&cancel))?;
         if audit.errors.is_empty() {
             crate::core::launcher::launch_state::store(&profile)?;
@@ -1813,12 +1826,13 @@ async fn prepare_imported_launch(state: &AppState, profile: &ProfileRow) -> AppR
     }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
-async fn commit_import(state: &AppState, profile: &ProfileRow) -> AppResult<()> {
+async fn commit_import(state: &AppState, profile: &ProfileRow, app: Option<&tauri::AppHandle>) -> AppResult<()> {
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
-    prepare_imported_launch(state, profile).await?;
+    prepare_imported_launch(state, profile, app).await?;
     crate::core::luxmc_pack::prepare_java(std::path::Path::new(&profile.game_dir),&profile.mc_version).await?;
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     let db = crate::db::shared_db().await?;
+    if let Some(app) = app { let _ = app.emit("modpack-progress", serde_json::json!({"phase":"indexing","percent":99,"current":0,"total":0,"status":"Salvando sua biblioteca…"})); }
     crate::db::schema::profiles::upsert(&db, profile).await?;
     let result = index_pack_mods(profile).await.and_then(|_| crate::core::mods::pack_download::cancelled(Some(&state.import_cancel)));
     if result.is_err() { crate::db::schema::profiles::delete(&db, &profile.id).await?; }
@@ -2451,8 +2465,8 @@ pub async fn instance_import_mrpack_core(
     };
 
     let registration_started = std::time::Instant::now();
-    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":98,"current":0,"total":0,"status":"Conferindo arquivos da instância…"}));}
-    commit_import(state, &profile_row).await?;
+    if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"validation","percent":96,"current":0,"total":0,"status":"Conferindo arquivos da instância…"}));}
+    commit_import(state, &profile_row, app.as_ref()).await?;
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
     let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
     Ok(profile_row)

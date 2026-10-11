@@ -1,19 +1,15 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
-	import { ChevronDown, Filter, Box, Cpu, Palette, Sparkles, HardDrive, Globe, Flame } from "lucide-svelte";
+	import { ChevronDown, SlidersHorizontal, Check } from "lucide-svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { onMount } from "svelte";
 	import { versionsList } from "$lib/api/launch";
 
 	let {
-		selectedSource = $bindable("all"),
-		selectedType = $bindable("Modpack"),
 		selectedVersion = $bindable("Qualquer Versão"),
 		selectedLoader = $bindable(null),
 		selectedCategory = $bindable(null)
 	}: {
-		selectedSource: "all" | "modrinth" | "curseforge";
-		selectedType: string;
 		selectedVersion: string;
 		selectedLoader: string | null;
 		selectedCategory: string | null;
@@ -47,63 +43,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		return () => { disposed = true; };
 	});
 
-	const contentTypeItems = $derived([
-		{ id: "Modpack", label: uiText("ui.ff74891e9da6c4d7"), icon: Box },
-		{ id: "Mod", label: uiText("ui.2fe83d132e3db243"), icon: Cpu },
-		{ id: "Resource Pack", label: uiText("ui.7ca53deac08c5017"), icon: Palette },
-		{ id: "Shader", label: uiText("ui.c2385aa66c95026c"), icon: Sparkles },
-		{ id: "Data Pack", label: uiText("ui.37db17c75522082f"), icon: HardDrive },
-		{ id: "World", label: uiText("ui.78ae647dc5544d22"), icon: Globe }
-	]);
+    let expanded = $state(true);
+    onMount(() => { expanded = window.innerWidth >= 1200; });
 </script>
 
-<aside class="w-full xl:w-72 shrink-0 self-start bg-bg-elevated border border-border rounded-2xl p-5 font-sans flex flex-col justify-between shadow-soft">
-	<div class="space-y-5">
-		<div class="flex items-center gap-2 text-xs font-bold text-fg uppercase tracking-wider">
-			<Filter class="w-3.5 h-3.5 text-success" /> {uiText("ui.57ac13ce3d5bedff")}
-		</div>
-		<div>
-			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.4b69288df9bb8f94")}</div>
-			<div class="grid grid-cols-2 bg-bg/40 p-1 rounded-xl border border-fg/5 gap-1">
-				<button
-					type="button"
-					class="col-span-2 py-2 px-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center justify-center {selectedSource === 'all' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/50 hover:text-fg'}"
-					onclick={() => selectedSource = 'all'}
-				>
-					{uiText("mods.categoryAll")}
-				</button>
-				<button
-					type="button"
-					class="py-2 px-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'modrinth' ? 'bg-success/15 text-success shadow-sm border border-success/30' : 'text-fg/50 hover:text-fg'}"
-					onclick={() => selectedSource = 'modrinth'}
-				>
-					<span class="text-success font-black text-xs">m</span> Modrinth
-				</button>
-				<button
-					type="button"
-					class="py-2 px-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center justify-center gap-1.5 {selectedSource === 'curseforge' ? 'bg-bg-subtle text-fg shadow-sm border border-fg/10' : 'text-fg/50 hover:text-fg'}"
-					onclick={() => selectedSource = 'curseforge'}
-				>
-					<Flame class="w-3.5 h-3.5 text-orange-400" /> CurseForge
-				</button>
-			</div>
-		</div>
-		<div>
-			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.931d062a37647b8d")}</div>
-			<div class="grid grid-cols-2 gap-2">
-				{#each contentTypeItems as item}
-					<button
-						type="button"
-						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer flex items-center gap-2 {selectedType === item.id ? 'bg-success text-bg font-black shadow-md' : 'bg-bg-elevated text-fg/60 border border-fg/5 hover:bg-bg-subtle hover:text-fg'}"
-						aria-pressed={selectedType === item.id}
-						onclick={() => selectedType = item.id}
-					>
-						<item.icon class="w-3.5 h-3.5 shrink-0" />
-						<span class="text-left leading-snug">{item.label}</span>
-					</button>
-				{/each}
-			</div>
-		</div>
+<aside id="catalog-filter-panel" class="catalog-filters">
+    <details bind:open={expanded}>
+        <summary class="flex cursor-pointer list-none items-center gap-3 p-5 text-sm font-semibold text-fg"><SlidersHorizontal class="h-4 w-4 text-brand-400" />{uiText('ui.57ac13ce3d5bedff')}<ChevronDown class="ml-auto h-4 w-4 text-fg-muted transition-transform {expanded ? 'rotate-180' : ''}" /></summary>
+        <div class="space-y-6 border-t border-border p-5">
+
 		<div>
 			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.5df9df4db410ba86")}</div>
 			<div class="relative">
@@ -127,10 +75,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					<button
 						type="button"
 						aria-pressed={selectedLoader?.toLowerCase() === loader.name.toLowerCase()}
-						class="px-2.5 py-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer border flex items-center gap-1.5 {selectedLoader?.toLowerCase() === loader.name.toLowerCase() ? `${loader.color} font-bold shadow-sm` : 'bg-bg-elevated text-fg/60 border-fg/5 hover:border-fg/20 hover:text-fg'}"
+						class="filter-choice px-2.5 py-2 rounded-xl text-xs font-semibold transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer border flex items-center gap-1.5 {selectedLoader?.toLowerCase() === loader.name.toLowerCase() ? `${loader.color} font-bold shadow-sm` : 'bg-bg-elevated text-fg/60 border-fg/5 hover:border-fg/20 hover:text-fg'}"
 						onclick={() => selectedLoader = selectedLoader?.toLowerCase() === loader.name.toLowerCase() ? null : loader.name.toLowerCase()}
 					>
-						<span class="w-1.5 h-1.5 rounded-full bg-current"></span>
+						{#if selectedLoader?.toLowerCase() === loader.name.toLowerCase()}<Check class="h-3 w-3" />{:else}<span class="w-1.5 h-1.5 rounded-full bg-current"></span>{/if}
 						<span class="truncate">{loader.name}</span>
 					</button>
 				{/each}
@@ -142,7 +90,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				{#each categories as cat}
 					<button
 						type="button"
-						class="px-2.5 py-1 rounded-full text-[11px] font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {selectedCategory === cat ? 'bg-success/20 text-success border border-success/40 font-bold' : 'bg-bg-elevated text-fg/50 border border-fg/5 hover:border-fg/20 hover:text-fg'}"
+                        aria-pressed={selectedCategory === cat}
+						class="filter-choice px-2.5 py-1 rounded-full text-[11px] font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {selectedCategory === cat ? 'bg-success/20 text-success border border-success/40 font-bold' : 'bg-bg-elevated text-fg/50 border border-fg/5 hover:border-fg/20 hover:text-fg'}"
 						onclick={() => selectedCategory = selectedCategory === cat ? null : cat}
 					>
 						{cat}
@@ -150,7 +99,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				{/each}
 			</div>
 		</div>
-	</div>
-
-	<p class="mt-5 border-t border-border pt-4 text-xs leading-relaxed text-fg-muted">{uiText("ui.c7984fbe61202b7f")}</p>
+            <p class="border-t border-border pt-4 text-xs leading-relaxed text-fg-muted">{uiText("ui.c7984fbe61202b7f")}</p>
+        </div>
+    </details>
 </aside>
+
+<style>
+    .catalog-filters { flex-shrink: 0; width: 260px; align-self: flex-start; position: sticky; top: 0; border: 1px solid rgb(var(--border)); border-radius: 24px; background: rgb(var(--bg-elevated) / .96); box-shadow: inset 0 1px 0 rgb(var(--fg) / .04); }
+    summary::-webkit-details-marker { display: none; }
+    .filter-choice { min-height: 34px; }
+    .filter-choice:focus-visible, summary:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
+    @media (max-width: 1199px) { .catalog-filters { position: static; width: 100%; order: -1; } }
+</style>

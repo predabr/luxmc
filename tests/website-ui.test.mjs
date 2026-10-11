@@ -42,7 +42,6 @@ test("the home page exposes the actual launcher and download without WebGL", () 
 test("every redesigned page has working local assets, metadata and a main landmark", () => {
   for (const name of [
     "index.html",
-    "skins.html",
     "conta.html",
     "privacidade.html",
     "termos.html",
@@ -86,6 +85,18 @@ test("every redesigned page has working local assets, metadata and a main landma
   }
 });
 
+test("Skin Studio is removed from the website while old links redirect home", () => {
+  assert.equal(existsSync(resolve(root, "skins.html")), false);
+  assert.equal(existsSync(resolve(root, "studio.js")), false);
+  for (const name of ["index.html", "conta.html", "termos.html", "privacidade.html", "404.html"]) {
+    const dom = createDom(read(name));
+    assert.equal(dom.window.document.querySelectorAll('a[href^="/skins"],.identity-section').length, 0);
+    dom.window.close();
+  }
+  assert.doesNotMatch(read("sitemap.xml"), /\/skins/);
+  assert.match(read("_redirects"), /\/skins\s+\/\s+301/);
+});
+
 test("account validation keeps invalid credentials local and focuses the failing field", async () => {
   const dom = createDom(read("conta.html")),
     window = dom.window;
@@ -95,7 +106,7 @@ test("account validation keeps invalid credentials local and focuses the failing
     return {
       ok: false,
       status: 401,
-      json: async () => ({ error: "Sessão expirada" }),
+      json: async () => ({ error: "SessÃ£o expirada" }),
     };
   };
   window.eval(read("account.js"));

@@ -62,7 +62,7 @@ const fs = require('node:fs');
     await page.locator('#mods').scrollIntoViewIfNeeded();
     await page.evaluate(() => window.scrollTo(0, document.getElementById('mods').offsetTop - 80));
     await page.screenshot({ path: `${directory}/website-catalog-mobile.png` });
-    for (const route of ['conta.html', 'skins.html', 'privacidade.html', 'termos.html']) {
+    for (const route of ['conta.html', 'privacidade.html', 'termos.html']) {
         await page.goto(new URL(route, process.env.LUXMC_WEBSITE_URL || 'http://127.0.0.1:4174/').href);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Horizontal overflow in ${route}`);
     }

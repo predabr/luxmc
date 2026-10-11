@@ -5,6 +5,7 @@
     import { hostWorld, joinTunnel, tunnelStatus, stopSession, kickTunnelMember, setTunnelLocked, refreshTunnelInvitation, reconnectTunnel, canReconnectTunnel, type TunnelStatus, type TunnelMember } from '$lib/api/tunnel';
     import { settings } from '$lib/stores/settings.svelte';
     import { friendsState } from '$lib/stores/friends.svelte';
+    import { friendsNavigation } from '$lib/stores/friendsNavigation.svelte';
     import { deepLinks } from '$lib/stores/deepLinks.svelte';
     import { toast } from '$lib/stores/toasts.svelte';
     import { button } from '$lib/components/ui/button';
@@ -29,6 +30,7 @@
         return { ...member, role:self ? own.role : friend?.role, tags:self ? own.tags : friend?.tags, displayName: self ? own.displayName || member.username : friend?.displayName || member.displayName || member.username, avatarUrl: self ? own.portrait || member.avatarUrl : friend?.avatarUrl || member.avatarUrl };
     }
     onMount(() => {
+        friendsNavigation.tab = 'p2p';
         async function refresh() {
             if (busy) { if (!disposed) timer = setTimeout(refresh,1000); return; }
             try {
@@ -57,7 +59,7 @@
 </script>
 
 <section class="room-panel space-y-5">
-    <header class="relative overflow-hidden rounded-3xl border border-brand-400/20 bg-bg-elevated luxmc-card p-6 sm:p-8">
+    <header class="product-header relative overflow-hidden rounded-3xl border border-brand-400/20 bg-bg-elevated luxmc-card p-6 sm:p-8">
         <div class="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-brand-500/10 blur-3xl"></div>
         <div class="relative flex flex-wrap items-start justify-between gap-4">
             <div><p class="page-eyebrow flex items-center gap-2"><Users class="h-4 w-4" />Jogar juntos</p><h1 class="mt-3 text-3xl font-semibold tracking-tight text-fg">Sua turma. Seu mundo.</h1><p class="mt-3 max-w-xl text-sm leading-6 text-fg-muted">Crie uma sala, convide seus amigos e encontre o mundo na lista LAN do Minecraft.</p></div>

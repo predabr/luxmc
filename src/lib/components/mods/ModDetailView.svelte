@@ -82,7 +82,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	</div>
 
 	<!-- Hero Card -->
-	<div class="bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-xl relative overflow-hidden shrink-0">
+	<div class="product-header bg-bg-elevated border border-fg/10 rounded-3xl p-6 shadow-xl relative overflow-hidden shrink-0">
 		<div class="absolute -right-16 -top-16 w-64 h-64 bg-[radial-gradient(circle_at_center,rgb(var(--brand-400)/0.1),transparent_70%)] rounded-full pointer-events-none"></div>
 		<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative z-10 w-full">
 			<div class="flex items-start sm:items-center gap-5 min-w-0 flex-1">
@@ -100,7 +100,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 				</div>
 				<div class="min-w-0 flex-1">
 					<div class="flex items-center gap-2 flex-wrap">
-						<h1 class="text-xl font-black text-fg tracking-tight truncate">{item.title}</h1>
+						<h1 class="text-2xl font-semibold text-fg tracking-tight break-words">{item.title}</h1>
 						<SourceBadge source={item.source} />
 					</div>
 					<p class="text-xs text-fg/60 mt-1.5 line-clamp-2 max-w-2xl leading-relaxed">

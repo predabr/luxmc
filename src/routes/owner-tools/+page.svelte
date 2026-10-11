@@ -19,7 +19,7 @@
     }
 </script>
 <div class="mx-auto w-full max-w-4xl space-y-6 p-6">
-    <header class="flex items-center gap-4"><div class="rounded-2xl border border-brand-400/25 bg-brand-400/10 p-4"><ShieldCheck class="h-7 w-7 text-brand-400" /></div><div><p class="page-eyebrow">{t('ownerTools.badge')}</p><h1 class="page-title">{t('ownerTools.title')}</h1></div></header>
+    <header class="product-header flex items-center gap-4"><div class="rounded-2xl border border-brand-400/25 bg-brand-400/10 p-4"><ShieldCheck class="h-7 w-7 text-brand-400" /></div><div><p class="page-eyebrow">{t('ownerTools.badge')}</p><h1 class="page-title">{t('ownerTools.title')}</h1></div></header>
     {#if friendsState.ownProfile?.role !== 'owner'}<p class="rounded-2xl border border-border bg-bg-elevated p-6 text-sm text-fg-muted">{t('ownerTools.restricted')}</p>
     {:else}
         <section class="space-y-5 rounded-3xl border border-border bg-bg-elevated p-6">

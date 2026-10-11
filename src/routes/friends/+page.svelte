@@ -15,6 +15,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	import MinecraftAvatar from "$lib/components/ui/MinecraftAvatar.svelte";
 	import { friendsState } from "$lib/stores/friends.svelte";
+    import { friendsNavigation } from "$lib/stores/friendsNavigation.svelte";
 	import type { Friend, SocialIdentity } from "$lib/api/social";
     import { friendDisplayName } from '$lib/api/social';
 	import { p2pScanLanWorlds } from "$lib/api/p2p";
@@ -46,8 +47,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			clearTimeout(scanTimer);
 		};
 	});
-	let activeTab = $state<"all" | "online" | "pending" | "add" | "p2p">("all");
-    $effect(() => { const tab = page.url.searchParams.get("tab"); if (tab === "add" || tab === "pending") activeTab = tab; });
+	let activeTab = $state(friendsNavigation.tab);
+    $effect(() => { friendsNavigation.tab = activeTab; });
+    $effect(() => { const tab = page.url.searchParams.get("tab"); if (tab === "add" || tab === "pending" || tab === "p2p") activeTab = tab; });
 	let searchQuery = $state("");
 	let newFriendUsername = $state("");
 
@@ -62,7 +64,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	const cloudOffline = $derived(Boolean(friendsState.error));
 
 	$effect(() => {
-		if (cloudOffline && !offlineRedirected && activeTab !== "add" && activeTab !== "pending") {
+		if (cloudOffline && !friendsState.me && !offlineRedirected && activeTab !== "add" && activeTab !== "pending") {
 			offlineRedirected = true;
 			activeTab = "p2p";
 		} else if (!cloudOffline) {
@@ -157,7 +159,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </script>
 
 <div class="friends-page mx-auto flex w-full max-w-screen-2xl flex-col gap-5 pb-8 select-none">
-    <header class="friends-header flex flex-wrap items-center justify-between gap-4">
+    <header class="friends-header product-header flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3.5">
             <div class="grid h-11 w-11 place-items-center rounded-2xl border border-brand-400/20 bg-brand-500/10 text-brand-300"><Users class="h-5 w-5" /></div>
             <div>
@@ -171,9 +173,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         </div>
     </header>
 
-    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-fg/10 pb-4 text-xs text-fg-muted" role="status">
-        <span class="inline-flex items-center gap-2 {cloudOffline ? 'text-warning' : friendsState.me ? 'text-success' : ''}">{#if cloudOffline}<CloudOff class="h-3.5 w-3.5" />{uiText("ui.c81bb1c4da9eb81e")}{:else}<ShieldCheck class="h-3.5 w-3.5" />{friendsState.me ? uiText("friendsDesign.connected") : uiText("ui.098304fee8dd79fc")}{/if}</span>
-        <span class="inline-flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full bg-success"></span>{uiText("friendsDesign.onlineCount", { count: onlineCount })}</span>
+    <div class="friends-status flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-fg-muted" role="status">
+        <span class="inline-flex items-center gap-2 {cloudOffline ? 'text-warning' : friendsState.me ? 'text-success' : ''}">{#if cloudOffline}<CloudOff class="h-3.5 w-3.5" />{uiText(friendsState.me ? 'socialPresence.reconnecting' : "ui.c81bb1c4da9eb81e")}{:else}<ShieldCheck class="h-3.5 w-3.5" />{friendsState.me ? uiText("friendsDesign.connected") : uiText("ui.098304fee8dd79fc")}{/if}</span>
+        <span class="inline-flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full {cloudOffline ? 'bg-warning' : 'bg-success'}"></span>{uiText(cloudOffline ? 'socialPresence.lastSnapshot' : "friendsDesign.onlineCount", { count: onlineCount })}</span>
         <span class="inline-flex items-center gap-2"><Wifi class="h-3.5 w-3.5" />{uiText("friendsDesign.lanCount", { count: lanWorldCount })}</span>
     </div>
 
@@ -260,11 +262,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     .friends-list { grid-template-columns: minmax(0, 1fr); }
     .friends-directory { border-radius: 24px; container-type: inline-size; }
     .friends-header { width: 100%; padding: 28px; border: 1px solid rgb(var(--border)); border-radius: 24px; background: linear-gradient(120deg, rgb(var(--brand-500) / .09), rgb(var(--bg-elevated) / .9)); }
-    .friends-list :global(.friend-row) { min-height: 120px; }
+    .friends-list :global(.friend-row) { min-height: 120px; border-radius: 20px; background: rgb(var(--bg-subtle) / .35); }
+    .friends-status { padding: 14px 20px; border-radius: 16px; border: 1px solid rgb(var(--border)); background: rgb(var(--bg-elevated) / .9); }
     .friends-context { position: sticky; top: 20px; }
     .friends-context { background: transparent !important; }
     .friends-directory { box-shadow: inset 0 1px 0 rgb(var(--fg) / .04); }
-    .friends-empty { min-height: 152px; }
+    .friends-empty { min-height: 220px; display: flex; flex-direction: column; justify-content: center; }
     :global(html.has-custom-wallpaper) .friends-directory, :global(html.has-custom-wallpaper) .friends-context > section { background: rgb(var(--bg-elevated) / .94) !important; backdrop-filter: blur(12px); }
     @container (min-width: 780px) {
         .friends-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }

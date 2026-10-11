@@ -1,8 +1,26 @@
-use std::{collections::{HashMap, HashSet}, io::Read, path::Path};
+use std::{collections::{HashMap, HashSet}, io::{Read, Seek}, path::Path};
 use crate::error::AppResult;
 
 #[derive(Default)]
 pub struct Audit { pub errors: Vec<String>, pub warnings: Vec<String> }
+
+trait ArchiveReader: Read + Seek {}
+impl<T: Read + Seek> ArchiveReader for T {}
+
+fn archive_reader(path: &Path, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<Box<dyn ArchiveReader>> {
+    let mut file = std::fs::File::open(path)?;
+    let before = file.metadata()?;
+    if before.len() <= 32 * 1024 * 1024 {
+        let mut bytes = Vec::with_capacity(before.len() as usize);
+        crate::core::mods::pack_download::copy_cancellable(&mut file.by_ref().take(32 * 1024 * 1024 + 1), &mut bytes, cancel)?;
+        let after = file.metadata()?;
+        if bytes.len() as u64 != before.len() || before.len() != after.len() || before.modified().ok() != after.modified().ok() {
+            return Err(crate::error::AppError::InvalidInput("O arquivo mudou durante a conferência".into()));
+        }
+        return Ok(Box::new(std::io::Cursor::new(bytes)));
+    }
+    Ok(Box::new(std::io::BufReader::with_capacity(256 * 1024, file)))
+}
 
 #[derive(Clone, Default)]
 pub(crate) struct ModMetadata {
@@ -32,7 +50,7 @@ pub(crate) fn mod_metadata(path: &Path) -> Option<ModMetadata> {
 }
 
 fn read_mod_metadata(path: &Path) -> Option<ModMetadata> {
-    let mut archive = zip::ZipArchive::new(std::io::BufReader::new(std::fs::File::open(path).ok()?)).ok()?;
+    let mut archive = zip::ZipArchive::new(archive_reader(path, None).ok()?).ok()?;
     let mut metadata = ModMetadata::default();
     for (name, pointer) in [("fabric.mod.json", "/id"), ("quilt.mod.json", "/quilt_loader/id")] {
         if let Ok(file) = archive.by_name(name) {
@@ -120,7 +138,7 @@ fn inspect_archive(folder: &str, path: &Path, deep: bool, cancel: Option<&std::s
     let mut providers = HashMap::<String,String>::new();
     let mut dependencies = Vec::<(String,String)>::new();
     let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-            let archive = std::fs::File::open(&path).map(std::io::BufReader::new).map(zip::ZipArchive::new);
+            let archive = archive_reader(path, cancel).map(zip::ZipArchive::new);
             let mut archive = match archive { Ok(Ok(archive))=>archive, _=>{ report.errors.push(format!("Arquivo corrompido ou incompleto: {folder}/{name}"));return Ok((report, providers, dependencies));} };
             if deep {
                 let mut expanded=0u64;
@@ -166,6 +184,10 @@ fn inspect_archive(folder: &str, path: &Path, deep: bool, cancel: Option<&std::s
 }
 
 pub fn audit_cancellable(root: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<Audit> {
+    audit_with_progress(root, deep, cancel, &|_, _| {})
+}
+
+pub fn audit_with_progress(root: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>, progress: &(dyn Fn(usize, usize) + Sync)) -> AppResult<Audit> {
     crate::core::mods::pack_download::cancelled(cancel)?;
     let mut folders = vec!["mods".to_string(), "shaderpacks".to_string(), "resourcepacks".to_string()];
     if deep && root.join("saves").is_dir() {
@@ -186,12 +208,16 @@ pub fn audit_cancellable(root: &Path, deep: bool, cancel: Option<&std::sync::ato
         }
     }
     files.sort_by(|a,b| a.1.cmp(&b.1));
+    let total = files.len();
+    let completed = std::sync::atomic::AtomicUsize::new(0);
+    progress(0, total);
     let workers = if deep { 1 } else { std::thread::available_parallelism().map(|count| count.get()).unwrap_or(1).min(4) };
     let queue = std::sync::Mutex::new(files.into_iter().enumerate());
     let parts = std::thread::scope(|scope| -> AppResult<Vec<_>> {
         let mut tasks = Vec::new();
         for _ in 0..workers {
             let queue = &queue;
+            let completed = &completed;
             tasks.push(scope.spawn(move || -> AppResult<Vec<_>> {
                 let mut inspected = Vec::new();
                 loop {
@@ -199,6 +225,8 @@ pub fn audit_cancellable(root: &Path, deep: bool, cancel: Option<&std::sync::ato
                     let next = queue.lock().map_err(|_| crate::error::AppError::Internal("Fila de validação indisponível".into()))?.next();
                     let Some((index,(folder,path))) = next else { break; };
                     inspected.push((index,inspect_archive(&folder,&path,deep,cancel)?));
+                    let current = completed.fetch_add(1, std::sync::atomic::Ordering::AcqRel) + 1;
+                    if current % 8 == 0 || current == total { progress(current, total); }
                 }
                 Ok(inspected)
             }));
@@ -227,6 +255,22 @@ pub fn audit_cancellable(root: &Path, deep: bool, cancel: Option<&std::sync::ato
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[ignore]
+    fn benchmark_installed_archives_without_modifying_them() {
+        let path = std::path::PathBuf::from(std::env::var("LUXMC_VALIDATION_BENCH_DIR").expect("Set LUXMC_VALIDATION_BENCH_DIR to an installed instance"));
+        let mut files = std::fs::read_dir(path.join("mods")).unwrap().filter_map(Result::ok).map(|entry| entry.path()).filter(|path| path.extension().is_some_and(|value| value == "jar")).collect::<Vec<_>>();
+        files.sort();
+        let before = files.iter().map(|path| (path.clone(), std::fs::metadata(path).unwrap().len(), std::fs::metadata(path).unwrap().modified().unwrap())).collect::<Vec<_>>();
+        let legacy_started = std::time::Instant::now();
+        for file in &files { let _ = zip::ZipArchive::new(std::io::BufReader::new(std::fs::File::open(file).unwrap())); }
+        let legacy = legacy_started.elapsed();
+        let started = std::time::Instant::now();
+        let report = super::audit(&path, false).unwrap();
+        let after = files.iter().map(|path| (path.clone(), std::fs::metadata(path).unwrap().len(), std::fs::metadata(path).unwrap().modified().unwrap())).collect::<Vec<_>>();
+        assert_eq!(before, after);
+        println!("archives={} previous_central_directory_seconds={:.3} current_complete_audit_seconds={:.3} errors={} warnings={}", files.len(), legacy.as_secs_f64(), started.elapsed().as_secs_f64(), report.errors.len(), report.warnings.len());
+    }
     fn mod_jar(path: &std::path::Path, id: &str) {
         use std::io::Write;
         let mut archive = zip::ZipWriter::new(std::fs::File::create(path).unwrap());

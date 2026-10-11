@@ -37,6 +37,7 @@ pub mod death_tracker;
 pub mod importer;
 
 pub mod social;
+pub mod social_presence;
 
 pub mod lux_account;
 

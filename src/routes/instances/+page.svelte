@@ -764,7 +764,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </script>
 
 <div class="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-6">
-	<div class="flex flex-wrap items-end justify-between gap-5 pb-2">
+	<div class="product-header flex flex-wrap items-end justify-between gap-5">
 		<div class="shrink-0"><p class="page-eyebrow mb-2">{uiText("ui.d6e609c3c2349aac")}</p><h1 class="page-title">{uiText("ui.dd0b0bf4b8398672")}<span class="ml-3 text-lg font-medium text-fg-subtle">{profiles.list.length}</span></h1><p class="page-description">{uiText("ui.dd78c3a38366515f")}</p></div>
 		<div class="flex flex-wrap items-center gap-2">
 			{#if selectionMode && selectedIds.size > 0}

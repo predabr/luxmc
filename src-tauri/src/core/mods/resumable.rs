@@ -72,7 +72,8 @@ async fn transfer(client: &reqwest::Client, mut url: reqwest::Url, target: &Path
         let etag = response.headers().get("etag").and_then(|v| v.to_str().ok()).filter(|v| !v.starts_with("W/"));
         let validator = etag.or_else(|| response.headers().get("last-modified").and_then(|v| v.to_str().ok())).unwrap_or("");
         tokio::fs::write(&validator_path, validator).await?;
-        let mut output = tokio::fs::OpenOptions::new().create(true).write(true).append(append).truncate(!append).open(&partial).await?;
+        let output = tokio::fs::OpenOptions::new().create(true).write(true).append(append).truncate(!append).open(&partial).await?;
+        let mut output = tokio::io::BufWriter::with_capacity(1024 * 1024, output);
         let mut received = 0u64;
         let mut stream = response.bytes_stream();
         loop {
@@ -89,6 +90,8 @@ async fn transfer(client: &reqwest::Client, mut url: reqwest::Url, target: &Path
             }
             output.write_all(&chunk).await?;
         }
+        output.flush().await?;
+        let output = output.into_inner();
         output.sync_all().await?;
         drop(output);
         if received == 0 || expected.is_some_and(|total| total != received) { return Err(AppError::InvalidState("Download incompleto; os bytes recebidos foram preservados para retomada".into())); }

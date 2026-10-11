@@ -62,7 +62,7 @@ const revealObserver = new IntersectionObserver((entries) => {
       revealObserver.unobserve(entry.target);
     }
 }, { threshold: 0.15 });
-const revealTargets = ".hero-kicker,.hero-title,.hero-copy,.hero-capture,.section-heading,.diagnostic-copy,.skin-preview-copy,.social-copy,.download-card,.product-step,.feature-strip article,.identity-capture,.party-card,.performance-readout article,.faq-item,.project-card";
+const revealTargets = ".hero-kicker,.hero-title,.hero-copy,.hero-capture,.section-heading,.diagnostic-copy,.social-copy,.download-card,.product-step,.feature-strip article,.party-card,.performance-readout article,.faq-item,.project-card";
 function observeReveals(root) {
   root.querySelectorAll(revealTargets).forEach((element, index) => {
     if (element.classList.contains("motion-item")) return;
@@ -125,7 +125,7 @@ async function selectScreen(index) {
   buttons.forEach((button) => button.setAttribute("aria-pressed", String(button === selected)));
   const label = document.getElementById("productScreenLabel");
   if (label)
-    label.textContent = selected.dataset.productLabel || ["01 / INSTANCES", "02 / CONTENT", "03 / SKIN STUDIO"][index] || "";
+    label.textContent = selected.dataset.productLabel || ["01 / INSTANCES", "02 / CONTENT", "03 / FRIENDS"][index] || "";
   if (!paused && !reducedMotion.matches && !document.hidden) {
     tourAnimation = image.animate([
       { opacity: 0.15, transform: "translateY(18px) scale(.985)" },

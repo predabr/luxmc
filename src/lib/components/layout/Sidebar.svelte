@@ -47,9 +47,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	function getAccountStatus(acc: typeof account.value) {
 		if (!acc) return { type: "none", label: uiText("ui.879b012449c1fd87"), dotColor: "bg-zinc-500" };
 		if (!acc.minecraftToken || acc.id.startsWith("offline_") || acc.id.startsWith("offline-")) {
-			return { type: "offline", label: uiText("ui.2793472a35db2b80"), dotColor: "bg-sky-400" };
+			return { type: "local", label: uiText(acc.id.startsWith('luxmc:') ? 'socialPresence.luxmcAccount' : 'socialPresence.localAccount'), dotColor: "bg-sky-400" };
 		}
-		return { type: "online", label: uiText("ui.8b89c55dfc443d48"), dotColor: "bg-brand-500" };
+		return { type: "microsoft", label: uiText("ui.7142cc12e4218a5a"), dotColor: "bg-brand-500" };
 	}
 
 	const accountStatus = $derived(getAccountStatus(account.value));
@@ -239,8 +239,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			{#if expanded}<span class="min-w-0 text-left"><span class="block truncate text-xs font-semibold text-fg">{friendsState.ownProfile?.displayName || account.value?.username || uiText("ui.bab0dd5d766ccc9a")}</span><span class="mt-1 block text-[10px] text-fg-muted">{friendsState.ownProfile?.role === "owner" ? uiText("ownerTools.badge") : accountStatus.label}</span></span>{/if}
 
 			<span 
-				class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-bg {accountStatus.dotColor} shadow-sm"
-				title={accountStatus.label}
+				class="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-bg {friendsState.connected ? 'bg-success' : friendsState.error || friendsState.busy ? 'bg-warning' : 'bg-fg-subtle'} shadow-sm"
+				title={uiText(`socialPresence.${friendsState.connectionStatus}`)}
 			></span>
 
 			<div class="{expanded ? 'hidden' : ''} pointer-events-none absolute left-[70px] top-1/2 -translate-y-1/2 opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-[opacity,transform] duration-100 z-[9999] whitespace-nowrap bg-bg-elevated text-fg text-xs font-bold px-3 py-1.5 rounded-xl border border-fg/10 shadow-2xl flex items-center gap-2">

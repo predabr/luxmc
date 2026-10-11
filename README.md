@@ -1,6 +1,6 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc" width="120" />
-  <h1>Luxmc 3.7 — Jogar Juntos</h1>
+  <h1>Luxmc 3.8 — Novos Universos</h1>
   <p>Seu Minecraft, suas instâncias e sua turma.</p>
   <p><a href="https://luxmc-r92.pages.dev">Site oficial</a> · <a href="https://github.com/predabr/luxmc/releases/latest">Downloads</a> · <a href="SECURITY.md">Segurança</a></p>
 </div>
@@ -13,7 +13,7 @@ Luxmc reúne versões Java, modpacks, organização de instâncias, personaliza�
 - **Linux:** escolha AppImage, DEB, RPM ou pacote Arch nas [releases](https://github.com/predabr/luxmc/releases/latest). Use o formato correspondente à sua distribuição.
 - **macOS:** consulte os artefatos da release. A disponibilidade de um pacote não equivale a uma validação de todas as funções naquele sistema.
 
-Baixe apenas dos canais oficiais. O atualizador da versão 3.7 verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. A assinatura de distribuição Ed25519 não substitui a assinatura Authenticode do Windows. Veja [SECURITY.md](SECURITY.md).
+Baixe apenas dos canais oficiais. O atualizador da versão 3.8 verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. A assinatura de distribuição Ed25519 não substitui a assinatura Authenticode do Windows. Veja [SECURITY.md](SECURITY.md).
 
 ## Biblioteca e conteúdo
 
@@ -27,7 +27,7 @@ Vanilla, Fabric, Forge, NeoForge e Quilt têm fluxos próprios de preparação. 
 
 Perfis públicos podem incluir nome de exibição, status, descrição, imagens e GIFs. As informações compartilhadas com amigos dependem das permissões e da conexão com o portal. Skins de contas Microsoft são sincronizadas pelo serviço oficial; capas locais não se tornam capas oficiais da conta.
 
-As salas de Minecraft Java usam túneis QUIC criptografados com [iroh](https://docs.rs/iroh/1.2.0/iroh/), com conexão direta ou relay automático, sem instalar EasyTier ou drivers de VPN. O anfitrião abre seu mundo para LAN; o Luxmc anuncia os mundos recebidos nas interfaces locais, e os amigos escolhem o mundo na lista LAN do Minecraft. A sala mostra os perfis dos participantes, permite fechar novas entradas e renovar o convite de 24 horas. A conexão continua ao trocar de aba. Usem a mesma versão do Minecraft e mods compatíveis. O teste de partida entre dois PCs em redes distintas continua pendente.
+As salas de Minecraft Java usam túneis QUIC criptografados com [iroh](https://docs.rs/iroh/1.2.0/iroh/), com conexão direta ou relay automático, sem instalar EasyTier ou drivers de VPN. O anfitrião abre seu mundo para LAN; o Luxmc anuncia os mundos recebidos nas interfaces locais, e os amigos escolhem o mundo na lista LAN do Minecraft. A sala mostra os perfis dos participantes, permite fechar novas entradas e renovar o convite de 24 horas. A conexão e a aba da sala são mantidas ao navegar. Usem a mesma versão do Minecraft e mods compatíveis. Uma partida vanilla 26.3 foi confirmada pelos participantes. A descoberta de porta em modpacks foi revisada na 3.8; o One Terror Block 1.20.1 ainda precisa de uma nova validação entre os dois PCs.
 
 ## Bedrock no Windows
 
@@ -41,9 +41,13 @@ Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quand
 
 Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido e efeitos desativados são respeitados. Ativar animações explicitamente permite usá-las com movimento reduzido no Windows; o modo de desempenho usa uma transição breve de opacidade. O fundo e o tema recuperam a gravação mais recente das preferências.
 
-A [versão 3.7 — Jogar Juntos](docs/releases/v3.7.0.md) reúne as salas QUIC com descoberta LAN nas interfaces físicas, cancelamento durante a preparação dos modpacks, tags públicas sincronizadas e exclusão de perfis da comunidade com controles exclusivos da identidade autenticada do dono. O dono também pode atribuir tags a si mesmo. As referências oficiais dos modpacks são conservadas para futuras atualizações, com backup da pasta anterior. Luxmc Essentials acrescenta identidade e mensagens de menu nas instâncias compatíveis, respeitando a seleção pessoal de recursos. A oficina oferece análise manual pelo Shield. As bordas, transições, gerenciamento de Java e leitura do cache foram refinados.
+A [versão 3.8 — Novos Universos](docs/releases/v3.8.0.md) traz uma vitrine interativa de modpacks, capas maiores, filtros de categoria e provedor, navegação refinada e transições que respeitam as preferências de movimento. A instalação reutiliza o cache de pacotes, escreve downloads com buffer e limita a memória das verificações, mantendo as análises do Shield. A descoberta LAN acompanha a porta publicada pelo jogo, inclusive nos fluxos de loaders, com alternativas por logs e IPv6. Aparências são compartilhadas dentro da sala autenticada, e o Discord recebe a contagem de jogadores observada na partida. O site foi redesenhado e a página Skin Studio foi retirada; o personalizador continua no launcher.
 
-O [relatório da 3.7](docs/releases/validation-v3.7.0.md) registra as verificações e os limites. O teste de partida entre dois PCs em redes diferentes ainda aguarda os participantes. A atualização preserva contas, mundos, instâncias e preferências. O instalador mantém o nome **Lux MC Launcher.exe**.
+O [relatório da 3.8](docs/releases/validation-v3.8.0.md) registra as verificações e os limites. A atualização preserva contas, mundos, instâncias e preferências. O instalador mantém o nome **Lux MC Launcher.exe**.
+
+Prévia do catálogo 3.8, com dados de demonstração:
+
+![Vitrine de modpacks 3.8](docs/validation/catalog-vitrine/vitrine-dark.png)
 
 Capturas fornecidas pelo autor em 9 de outubro de 2026:
 

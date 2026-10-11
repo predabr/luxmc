@@ -127,8 +127,11 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 								{#if friendsState.ownProfile?.role === "owner"}<span class="rounded-md bg-brand-400/15 px-1.5 py-0.5 text-brand-400">{uiText("ownerTools.badge")}</span>{/if}<MicrosoftLogo size={10} />
 								<span class="text-emerald-400 font-semibold">{uiText("ui.7142cc12e4218a5a")}</span>
 							{:else}
-								<span>{uiText("ui.2793472a35db2b80")}</span>
+								<span>{uiText(account.value.id.startsWith('luxmc:') ? 'socialPresence.luxmcAccount' : 'socialPresence.localAccount')}</span>
 							{/if}
+
+                            <span aria-hidden="true">·</span>
+                            <span class:text-success={friendsState.connected} class:text-warning={Boolean(friendsState.error)} title={friendsState.error || undefined}>{uiText(`socialPresence.${friendsState.connectionStatus}`)}</span>
 						</div>
 					</div>
 				</div>

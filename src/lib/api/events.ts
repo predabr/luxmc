@@ -49,6 +49,7 @@ export async function listenGameTelemetry(
 export interface GameStateChangeEvent {
 	status: "singleplayer" | "multiplayer" | "menu";
 	detail: string;
+    playerCount?: number | null;
 }
 
 export async function listenGameStateChange(

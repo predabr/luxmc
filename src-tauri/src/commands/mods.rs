@@ -952,9 +952,11 @@ pub async fn mods_download_to_temp_core(
     let base = directories::ProjectDirs::from("io", "github", "Luxmc")
         .ok_or_else(|| crate::error::AppError::InvalidState("could not determine cache dir".into()))?;
     use sha2::Digest;
-    let cache_id=std::path::Path::new(&file_name).file_stem().and_then(|value|value.to_str()).filter(|value|uuid::Uuid::parse_str(value).is_ok()).map(str::to_owned).unwrap_or_else(||format!("{:x}", sha2::Sha256::digest(url.as_bytes())));
+    let cache_id = format!("{:x}", sha2::Sha256::digest(url.as_bytes()));
     let directory = base.cache_dir().join("modpacks").join(cache_id);
-    let target = pack::destination(&directory, &file_name)?;
+    let extension = std::path::Path::new(&file_name).extension().and_then(|value| value.to_str()).unwrap_or("zip").to_ascii_lowercase();
+    if !matches!(extension.as_str(), "zip" | "mrpack") { return Err(crate::error::AppError::InvalidInput("Extensão de modpack inválida".into())); }
+    let target = pack::destination(&directory, &format!("package.{extension}"))?;
     let client = pack::client()?;
     if pack::verify_existing(&target, None, None, None, true).await { return Ok(target.to_string_lossy().into_owned()); }
     let mut last_error = crate::error::AppError::InvalidState("Download failed".into());

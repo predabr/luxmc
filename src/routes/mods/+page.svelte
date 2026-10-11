@@ -11,7 +11,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import {
 		Search, LayoutGrid, List, Loader2, AlertTriangle,
 		Check, ChevronLeft, ChevronRight, ChevronDown,
-		Flame, Globe
+		Flame, Globe, Sparkles, Package, ArrowUpRight, SlidersHorizontal, Mountain, WandSparkles, Gauge, Users, Rocket
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { catalogCompatibility } from "$lib/utils/catalogCompatibility";
@@ -35,6 +35,10 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import InstancePickerModal from "$lib/components/mods/InstancePickerModal.svelte";
 	import InstallGuideModal from "$lib/components/mods/InstallGuideModal.svelte";
 	import LightboxModal from "$lib/components/mods/LightboxModal.svelte";
+    import { goto } from '$app/navigation';
+    import CatalogSpotlight from '$lib/components/mods/CatalogSpotlight.svelte';
+    import CatalogNavigation from '$lib/components/mods/CatalogNavigation.svelte';
+    import { pageMotion } from '$lib/actions/pageMotion';
 
 	let targetInstanceId = $state<string>(profiles.activeId ?? profiles.list[0]?.id ?? "default");
 
@@ -86,6 +90,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	});
 	let sortMenuOpen = $state(false);
 	let viewMode = $state<"grid" | "list">("grid");
+    let filtersOpen = $state(false);
+    const moods = $derived([{id:"Adventure",title:uiText("catalogDesign.adventure"),icon:Mountain}, {id:"Magic",title:uiText("catalogDesign.magic"),icon:WandSparkles}, {id:"Optimization",title:uiText("catalogDesign.performance"),icon:Gauge}, {id:"Multiplayer",title:uiText("catalogDesign.together"),icon:Users}, {id:"Technology",title:uiText("catalogDesign.technology"),icon:Rocket}]);
 
     let resultsWidth = $state(0);
     const resultColumns = $derived(resultsWidth >= 1050 ? 3 : resultsWidth >= 650 ? 2 : 1);
@@ -415,7 +421,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	}
 </script>
 
-<div class="min-h-full flex flex-col xl:flex-row gap-6 select-none">
+<div class="catalog-page min-h-full flex flex-col xl:flex-row gap-6 select-none">
 
 	{#if selectedItem}
 		{@const id = `${selectedItem.source}:${selectedItem.sourceId}`}
@@ -528,54 +534,33 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	{:else}
 		<div class="flex-1 flex flex-col min-w-0 pr-1">
-			<header class="relative mb-6 overflow-hidden rounded-2xl border border-fg/[0.08] bg-bg-elevated p-6 shadow-soft">
-                <p class="page-eyebrow mb-3">{uiText("ui.63f0b3839bb0e4a4")}</p>
-                <h1 class="page-title">{uiText("ui.ec71124c5fcbe0e7")}</h1>
-                <p class="page-description">{uiText("ui.50241729d3a6fcdf")}</p>
-                <div class="mt-5 flex flex-wrap items-center gap-2.5">
-                    <button
-                        type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-2 cursor-pointer shadow-sm active:scale-95 {selectedSource === 'all' ? 'bg-fg/15 text-fg border border-fg/20 shadow-md' : 'bg-fg/5 text-fg/50 hover:text-fg hover:bg-fg/10 border border-transparent'}"
-                        onclick={() => selectedSource = "all"}
-                    >
-                        <Globe class="w-3.5 h-3.5" />
-                        <span>{uiText("ui.8a0108a42be96e26")}</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'modrinth' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 shadow-md shadow-emerald-500/20 ring-1 ring-emerald-500/40' : 'bg-emerald-500/10 text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/15 border border-emerald-500/20'}"
-                        onclick={() => selectedSource = selectedSource === "modrinth" ? "all" : "modrinth"}
-                    >
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                            <path d="M12.252 0C5.485 0 0 5.485 0 12.252c0 3.398 1.385 6.474 3.633 8.692l.006-.006c.24.234.492.456.756.666l.004-.004A12.19 12.19 0 0 0 12.252 24c6.767 0 12.252-5.485 12.252-12.252C24.504 5.485 19.019 0 12.252 0zm.012 3.864c3.418 0 6.36 2.072 7.625 5.034l-2.73 1.576a5.534 5.534 0 0 0-4.895-3.418V3.864zm-5.184 2.99a8.384 8.384 0 0 1 4.184-1.898v3.192a5.538 5.538 0 0 0-2.825 2.196l-2.73-1.576a8.386 8.386 0 0 1 1.371-1.914zm-3.216 5.398c0-.68.083-1.34.238-1.973l2.73 1.576c-.053.259-.082.528-.082.803 0 1.25.42 2.404 1.127 3.332l-2.73 1.576a8.388 8.388 0 0 1-1.283-5.314zm14.47 5.762-2.73-1.576a5.538 5.538 0 0 0 .584-3.377l2.73-1.576a8.388 8.388 0 0 1-.584 6.529zm-5.07 2.122v-3.192a5.538 5.538 0 0 0 3.256-1.547l2.73 1.576a8.388 8.388 0 0 1-5.986 3.163zm-4.896-1.128 2.73-1.576a5.538 5.538 0 0 0 3.166 1.71v3.192a8.388 8.388 0 0 1-5.896-3.326z"/>
-                        </svg>
-                        <span>Modrinth</span>
-                        {#if selectedSource === "modrinth"}
-                            <Check class="w-3 h-3 text-emerald-400 stroke-[3]" />
-                        {/if}
-                    </button>
-
-                    <button
-                        type="button"
-                        class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-[color,background-color,border-color,box-shadow,transform,opacity] flex items-center gap-2 cursor-pointer active:scale-95 {selectedSource === 'curseforge' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/50 shadow-md shadow-orange-500/20 ring-1 ring-orange-500/40' : 'bg-orange-500/10 text-orange-400/80 hover:text-orange-300 hover:bg-orange-500/15 border border-orange-500/20'}"
-                        onclick={() => selectedSource = selectedSource === "curseforge" ? "all" : "curseforge"}
-                    >
-                        <Flame class="w-3.5 h-3.5 text-orange-400" />
-                        <span>CurseForge</span>
-                        {#if selectedSource === "curseforge"}
-                            <Check class="w-3 h-3 text-orange-400 stroke-[3]" />
-                        {/if}
-                    </button>
-                </div>
+			<header use:pageMotion={'catalog-header'} class="catalog-hero" data-motion-surface>
+                <div><p class="page-eyebrow">Luxmc / Discover</p><h1 class="page-title mt-2">{uiText('catalogDesign.title')}</h1></div>
+                <button type="button" class="catalog-library" aria-label={uiText('catalogDesign.openLibrary')} onclick={() => { void goto('/instances'); }}><Package class="h-4 w-4" /><span>{uiText('catalogDesign.library')} · {profiles.list.length}</span><ArrowUpRight class="h-4 w-4" /></button>
             </header>
-
-			<div class="relative w-full mb-4">
+            <CatalogNavigation bind:selectedType />
+            <div class="catalog-provider-row" aria-label={uiText('ui.4b69288df9bb8f94')}>
+                {#each [{id:'all', label:uiText('ui.8a0108a42be96e26'), icon:Globe}, {id:'modrinth',label:'Modrinth',icon:Package}, {id:'curseforge',label:'CurseForge',icon:Flame}] as source}
+                    <button type="button" aria-pressed={selectedSource === source.id} onclick={() => selectedSource = source.id as typeof selectedSource}><source.icon class="h-3 w-3" />{source.label}{#if selectedSource === source.id}<Check class="h-3 w-3" />{/if}</button>
+                {/each}
+            </div>
+            {#if selectedType === 'Modpack' && !searchQuery.trim() && results.length > 0 && !searchError}
+                <div inert={loading} aria-busy={loading}><CatalogSpotlight items={results.slice(0,3)} onOpen={openDetails} /></div>
+            {/if}
+            {#if selectedType === 'Modpack'}
+                <nav class="catalog-moods" aria-label={uiText('catalogDesign.playStyle')}>
+                    <span class="catalog-moods-label">{uiText('catalogDesign.playStyle')}</span>
+                    {#each moods as mood}<button type="button" aria-pressed={selectedCategory === mood.id} onclick={() => selectedCategory = selectedCategory === mood.id ? null : mood.id}><mood.icon class="h-3.5 w-3.5" />{mood.title}</button>{/each}
+                </nav>
+            {/if}
+            <div class="catalog-search-row">
+            <div class="catalog-search relative w-full mb-4">
 				<Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30" />
 				<input type="search" aria-label={uiText("ui.659ee868fc163d0e")} bind:value={searchQuery} placeholder={uiText("ui.859c2b032a83e5c7", {arg0: (selectedType.toLowerCase())})}
-					class="w-full bg-bg-elevated border border-fg/[0.08] focus:border-brand-500/60 rounded-2xl py-3 pl-11 pr-4 text-xs text-fg placeholder-fg/30 focus:outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity] shadow-inner" />
+					class="w-full bg-bg-elevated border border-border focus:border-brand-400/60 rounded-2xl py-4 pl-11 pr-4 text-sm text-fg placeholder-fg/30 focus:outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity] shadow-inner" />
 			</div>
+                <button type="button" class="catalog-filter-toggle" aria-expanded={filtersOpen} aria-controls={filtersOpen ? 'catalog-filter-panel' : undefined} onclick={() => filtersOpen = !filtersOpen}><SlidersHorizontal class="h-4 w-4" />{uiText('ui.57ac13ce3d5bedff')}{#if activeFilters.length}<span>{activeFilters.length}</span>{/if}</button>
+            </div>
 			{#if activeFilters.length > 0 || searchQuery}
 				<div class="mb-4 flex flex-wrap items-center gap-2" aria-label={uiText("ui.505d23a2b73a2c49")}>
 					{#each activeFilters as filter}
@@ -585,7 +570,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 				</div>
 			{/if}
 
-			<div class="flex items-center justify-between mb-4">
+			<div class="catalog-toolbar flex flex-wrap items-center justify-between gap-3 mb-5">
 				<div class="flex items-center gap-2">
 					<span class="text-xs font-extrabold text-fg">{selectedType}</span>
 					<span class="text-xs text-fg/35 font-medium">({results.length} {uiText("ui.a30d8d35304a5476")}</span>
@@ -632,13 +617,10 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 			{/if}
 
 			{#if loading && results.length === 0}
-				<div class="flex-1 flex items-center justify-center py-20">
-					<div class="flex flex-col items-center gap-3">
-						<Loader2 class="w-8 h-8 text-brand-500 animate-spin" />
-						<p class="text-xs text-fg/35 font-medium">{uiText("ui.268872b3efb06a70")}</p>
-					</div>
-				</div>
-			{:else if results.length === 0 && hasSearched}
+                <div role="status" aria-label={uiText('ui.268872b3efb06a70')} class="catalog-skeleton-grid">
+                    {#each Array(6) as _}<div class="catalog-skeleton" aria-hidden="true"><div class="catalog-skeleton-art"></div><div class="p-5 space-y-3"><div class="h-5 w-3/4 rounded-lg bg-fg/10"></div><div class="h-3 w-full rounded bg-fg/5"></div><div class="h-3 w-2/3 rounded bg-fg/5"></div></div></div>{/each}
+                </div>
+            {:else if results.length === 0 && hasSearched}
 				<div class="flex-1 flex items-center justify-center py-20">
 					<div class="flex flex-col items-center gap-3">
 						<Search class="w-8 h-8 text-fg/20" />
@@ -694,7 +676,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 			{/if}
 		</div>
 
-		<ModSearchBar bind:selectedSource bind:selectedType bind:selectedVersion bind:selectedLoader bind:selectedCategory />
+		{#if filtersOpen}<ModSearchBar bind:selectedVersion bind:selectedLoader bind:selectedCategory />{/if}
 	{/if}
 </div>
 
@@ -713,3 +695,33 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 {#if showInstancePickerModal && itemToInstall}
 	<InstancePickerModal item={itemToInstall.item} {selectedType} bind:chosenInstanceId bind:chosenWorldName onConfirm={confirmInstanceInstall} onClose={() => showInstancePickerModal = false} />
 {/if}
+
+<style>
+    .catalog-hero { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 22px; padding: 4px 0; }
+    .catalog-hero :global(.page-title) { font-size: clamp(24px, 2.2vw, 32px); letter-spacing: -.045em; }
+    .catalog-library { display: flex; align-items: center; gap: 9px; padding: 12px 14px; border: 1px solid rgb(var(--border)); border-radius: 14px; color: rgb(var(--fg-muted)); font-size: 11px; background: rgb(var(--bg-elevated) / .9); }
+    .catalog-library:hover { color: rgb(var(--brand-action)); border-color: rgb(var(--brand-400) / .4); }
+    .catalog-provider-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -8px 0 20px; }
+    .catalog-provider-row button { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 8px; color: rgb(var(--fg-muted)); font-size: 10px; border: 1px solid transparent; }
+    .catalog-provider-row button[aria-pressed='true'] { border-color: rgb(var(--border)); background: rgb(var(--bg-elevated) / .9); color: rgb(var(--fg)); }
+    .catalog-provider-row button:hover { color: rgb(var(--brand-action)); }
+    .catalog-provider-row button:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
+    .catalog-moods { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 22px; }
+    .catalog-moods-label { font-size: 11px; font-weight: 600; color: rgb(var(--fg-muted)); margin-right: 8px; }
+    .catalog-moods button { display: flex; align-items: center; gap: 7px; padding: 9px 12px; font-size: 11px; color: rgb(var(--fg-muted)); border: 1px solid rgb(var(--border)); border-radius: 100px; background: rgb(var(--bg-elevated) / .9); transition: border-color 180ms ease, background-color 180ms ease; }
+    .catalog-moods button:hover, .catalog-moods button[aria-pressed='true'] { background: rgb(var(--brand-500) / .1); border-color: rgb(var(--brand-400) / .4); color: rgb(var(--brand-action)); }
+    .catalog-search-row { display: flex; align-items: stretch; gap: 10px; margin-bottom: 18px; }
+    .catalog-search { flex: 1; min-width: 0; margin: 0; border-radius: 18px; }
+    .catalog-search:focus-within { box-shadow: 0 0 0 4px rgb(var(--brand-500) / .07); }
+    .catalog-filter-toggle { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 12px 18px; border: 1px solid rgb(var(--border)); border-radius: 16px; font-size: 12px; font-weight: 600; background: rgb(var(--bg-elevated) / .94); color: rgb(var(--fg-muted)); }
+    .catalog-filter-toggle[aria-expanded='true'] { border-color: rgb(var(--brand-400) / .4); color: rgb(var(--brand-action)); background: rgb(var(--brand-500) / .08); }
+    .catalog-filter-toggle span { padding: 1px 5px; border-radius: 6px; background: rgb(var(--brand-500) / .15); }
+    .catalog-moods button:focus-visible, .catalog-filter-toggle:focus-visible, .catalog-library:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
+    .catalog-toolbar { padding: 0 2px; }
+    .catalog-skeleton-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
+    .catalog-skeleton { height: 464px; border: 1px solid rgb(var(--border)); border-radius: 24px; overflow: hidden; background: rgb(var(--bg-elevated)); }
+    .catalog-skeleton-art { height: 224px; background: linear-gradient(120deg, rgb(var(--bg-subtle)), rgb(var(--brand-500) / .06), rgb(var(--bg-subtle))); }
+    @media (prefers-reduced-motion: no-preference) { :global(html:not(.no-anim):not(.no-ui-motion)) .catalog-skeleton-art { animation: catalog-pulse 1.8s ease-in-out infinite alternate; } @keyframes catalog-pulse { from { opacity: .45; } to { opacity: 1; } } }
+    @media (min-width: 1550px) { .catalog-skeleton-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+    @media (max-width: 650px) { .catalog-skeleton-grid { grid-template-columns: minmax(0,1fr); } .catalog-moods-label { width: 100%; } .catalog-filter-toggle { padding-inline: 12px; } }
+</style>

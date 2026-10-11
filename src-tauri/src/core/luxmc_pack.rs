@@ -16,7 +16,9 @@ fn enable_java(existing: &str, legacy: bool) -> AppResult<String> {
     let mut lines=existing.lines().map(str::to_owned).collect::<Vec<_>>();
     if let Some(line)=lines.iter_mut().find(|line|line.starts_with("resourcePacks:")) {
         let mut packs:Vec<String>=serde_json::from_str(line.trim_start_matches("resourcePacks:")).map_err(|_|AppError::InvalidInput("A lista de pacotes em options.txt está inválida; ela foi preservada.".into()))?;
-        if !packs.contains(&tag) {packs.insert(0,tag);}
+        packs.retain(|pack| pack != NAME && pack != &format!("file/{NAME}"));
+        let position = packs.iter().position(|pack| pack == "vanilla").map_or(0, |index| index + 1);
+        packs.insert(position, tag);
         *line=format!("resourcePacks:{}",serde_json::to_string(&packs)?);
     } else {
         let mut packs=if legacy {Vec::new()} else {vec!["vanilla".to_owned()]};
@@ -43,11 +45,14 @@ async fn prepare_java_format(root:&Path,format:u32) -> AppResult<bool> {
         write_changed(&path,&bytes).await?;
     }
     let activated=destination(root,".luxmc/essentials-installed")?;
-    if !tokio::fs::try_exists(&activated).await? {
+    if tokio::fs::read(&activated).await.ok().as_deref() != Some(b"2\n") {
         let options=destination(root,"options.txt")?;
-        let existing=match tokio::fs::read_to_string(&options).await {Ok(value)=>value,Err(error) if error.kind()==std::io::ErrorKind::NotFound=>String::new(),Err(error)=>return Err(error.into())};
+        let mut existing=match tokio::fs::read_to_string(&options).await {Ok(value)=>value,Err(error) if error.kind()==std::io::ErrorKind::NotFound=>String::new(),Err(error)=>return Err(error.into())};
+        if existing.is_empty() || existing.lines().all(|line| line.starts_with("resourcePacks:") || line.trim().is_empty()) {
+            if let Ok(defaults) = tokio::fs::read_to_string(root.join("config/yosbr/options.txt")).await { existing = defaults; }
+        }
         write_changed(&options,enable_java(&existing,format<=3)?.as_bytes()).await?;
-        write_changed(&activated,b"1\n").await?;
+        write_changed(&activated,b"2\n").await?;
     }
     Ok(true)
 }
@@ -81,6 +86,24 @@ mod tests {
         assert_eq!(tokio::fs::read(root.path().join("saves/Keep/level.dat")).await.unwrap(),b"world");
         let metadata:serde_json::Value=serde_json::from_slice(&tokio::fs::read(root.path().join("resourcepacks/LuxmcEssentials/pack.mcmeta")).await.unwrap()).unwrap();
         assert_eq!(metadata["pack"]["min_format"],65);
+    }
+    #[tokio::test]
+    async fn repairs_old_activation_and_keeps_vanilla_below_personal_packs() {
+        let root = tempfile::tempdir().unwrap();
+        tokio::fs::create_dir_all(root.path().join(".luxmc")).await.unwrap();
+        tokio::fs::write(root.path().join(".luxmc/essentials-installed"), b"1\n").await.unwrap();
+        tokio::fs::write(root.path().join("options.txt"), "resourcePacks:[\"file/LuxmcEssentials\",\"vanilla\",\"file/MyPack.zip\"]\n").await.unwrap();
+        prepare_java_format(root.path(), 34).await.unwrap();
+        assert_eq!(tokio::fs::read_to_string(root.path().join("options.txt")).await.unwrap(), "resourcePacks:[\"vanilla\",\"file/LuxmcEssentials\",\"file/MyPack.zip\"]\n");
+        assert_eq!(enable_java("resourcePacks:[\"LuxmcEssentials\",\"MyPack.zip\"]", true).unwrap(), "resourcePacks:[\"LuxmcEssentials\",\"MyPack.zip\"]\n");
+    }
+    #[tokio::test]
+    async fn initial_activation_keeps_the_modpacks_default_options() {
+        let root = tempfile::tempdir().unwrap();
+        tokio::fs::create_dir_all(root.path().join("config/yosbr")).await.unwrap();
+        tokio::fs::write(root.path().join("config/yosbr/options.txt"), "lang:pt_br\nfov:0.4\nresourcePacks:[\"vanilla\",\"file/PackDefaults.zip\"]\n").await.unwrap();
+        prepare_java_format(root.path(), 34).await.unwrap();
+        assert_eq!(tokio::fs::read_to_string(root.path().join("options.txt")).await.unwrap(), "lang:pt_br\nfov:0.4\nresourcePacks:[\"vanilla\",\"file/LuxmcEssentials\",\"file/PackDefaults.zip\"]\n");
     }
     #[tokio::test]
     async fn protects_unowned_packs_invalid_options_and_unsupported_legacy() {

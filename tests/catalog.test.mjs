@@ -42,6 +42,24 @@ const response = (hits, total_hits = hits.length) => ({
   json: async () => ({ hits, total_hits }),
 });
 
+test("catalog artwork uses provider images and falls back without inline handlers", async () => {
+  const window = catalog(async () => response([
+    { ...hit("Landscape"), featured_gallery: "https://cdn.modrinth.com/data/example/gallery.webp" },
+    { ...hit("Invalid gallery"), featured_gallery: "javascript:alert(1)", icon_url: "https://cdn.modrinth.com/data/example/icon.webp" },
+  ]));
+  try {
+    await window.performModSearch("test");
+    const images = window.document.querySelectorAll(".project-cover img");
+    assert.equal(images[0].src, "https://cdn.modrinth.com/data/example/gallery.webp");
+    assert.equal(images[1].src, "https://cdn.modrinth.com/data/example/icon.webp");
+    assert.equal(window.document.querySelectorAll(".project-card [onerror]").length, 0);
+    images[0].dispatchEvent(new window.Event("error"));
+    assert.ok(images[0].src.endsWith("/assets/logo.png"));
+    assert.ok(images[0].parentElement.classList.contains("has-icon"));
+    assert.equal(images[0].parentElement.classList.contains("has-artwork"), false);
+  } finally { window.close(); }
+});
+
 test("catalog sends version, loader, sort and page offset to the provider", async () => {
   const requests = [];
   const window = catalog(async (url) => {

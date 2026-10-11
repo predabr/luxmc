@@ -45,7 +45,7 @@
 <svelte:head><title>{t('workshop.title')} · Luxmc</title></svelte:head>
 <div class="mx-auto w-full max-w-6xl space-y-6 pb-10">
     <a href="/settings" class={button({variant:'ghost',size:'sm'})}><ArrowLeft class="h-4 w-4" />{t('nav.settings')}</a>
-    <header class="workshop-hero rounded-3xl border border-border bg-bg-elevated p-7"><p class="page-eyebrow">Luxmc / {t('workshop.eyebrow')}</p><h1 class="mt-3 text-3xl font-semibold tracking-tight text-fg">{t('workshop.title')}</h1><p class="mt-3 max-w-2xl text-sm leading-relaxed text-fg-muted">{t('workshop.subtitle')}</p></header>
+    <header class="product-header workshop-hero rounded-3xl border border-border bg-bg-elevated p-7"><p class="page-eyebrow">Luxmc / {t('workshop.eyebrow')}</p><h1 class="mt-3 text-3xl font-semibold tracking-tight text-fg">{t('workshop.title')}</h1><p class="mt-3 max-w-2xl text-sm leading-relaxed text-fg-muted">{t('workshop.subtitle')}</p></header>
     <PcRecommendations />
     <section class="workshop-card space-y-4" aria-label="Luxmc Shield">
         <div class="flex flex-wrap items-start justify-between gap-4"><div><h2 class="flex items-center gap-3 text-lg font-semibold"><ShieldCheck class="h-5 w-5 text-brand-400" />Luxmc Shield</h2><p class="mt-2 max-w-2xl text-sm leading-relaxed text-fg-muted">Verifique os mods da sua instância sem executá-los. O Shield também confere os arquivos antes de abrir o Minecraft.</p></div><button type="button" class={button({variant:'primary'})} disabled={busy || !selected} onclick={() => action(scan)}>{#if scanning}<LoaderCircle class="h-4 w-4 animate-spin" />{:else}<ShieldCheck class="h-4 w-4" />{/if}{scanning ? 'Verificando mods…' : 'Verificar mods com Shield'}</button></div>

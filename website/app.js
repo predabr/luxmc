@@ -382,6 +382,12 @@ function renderModCards(mods) {
     const author = mod.author || "Community";
     const desc = mod.description || "";
     const icon = mod.icon_url || "assets/logo.png";
+    let artwork = "";
+    try {
+      const candidate = new URL(mod.featured_gallery || mod.gallery?.[0] || "");
+      if (candidate.protocol === "https:" && candidate.hostname === "cdn.modrinth.com") artwork = candidate.href;
+    } catch {
+    }
     const downloads = formatNumber(mod.downloads || 0);
     const categories = (mod.categories || []).slice(0, 3);
     const versions = mod.versions || [];
@@ -389,9 +395,10 @@ function renderModCards(mods) {
     const downloadUrl = `https://modrinth.com/${["mod", "modpack", "resourcepack", "shader"].includes(currentCategory) ? currentCategory : "mod"}/${encodeURIComponent(slug)}/versions`;
     return `
       <div class="project-card spotlight-card reveal active">
-        <div>
+        <div class="project-cover ${artwork ? "has-artwork" : "has-icon"}"><img src="${escapeHtml(artwork || icon)}" alt="" loading="lazy" decoding="async"><span class="project-provider">Modrinth ↗</span></div>
+        <div class="project-body">
           <div class="project-header">
-            <img src="${escapeHtml(icon)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" class="project-icon" onerror="this.onerror=null;this.src='assets/logo.png'">
+            <img src="${escapeHtml(icon)}" alt="${escapeHtml(title)}" loading="lazy" decoding="async" class="project-icon">
             <div class="project-title-area">
               <h3 class="project-title">${escapeHtml(title)}</h3>
               <p class="project-author">${escapeHtml(byText)} <span>${escapeHtml(author)}</span></p>
@@ -417,6 +424,14 @@ function renderModCards(mods) {
       </div>
     `;
   }).join("");
+  container.querySelectorAll(".project-icon, .project-cover img").forEach((image) => {
+    image.addEventListener("error", () => {
+      image.src = "assets/logo.png";
+      const cover = image.closest(".project-cover");
+      cover?.classList.remove("has-artwork");
+      cover?.classList.add("has-icon");
+    }, { once: true });
+  });
 }
 function shellQuote(value) {
   return "'" + String(value).replaceAll("'", `'"'"'`) + "'";

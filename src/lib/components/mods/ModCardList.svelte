@@ -36,7 +36,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     tabindex="0"
     onclick={() => onOpenDetails(item)}
     onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onOpenDetails(item); } }}
-    class="catalog-card catalog-list-card surface-glass group relative flex flex-wrap items-center gap-4 p-4 transition-colors duration-200 hover:border-brand-500/30 cursor-pointer"
+    aria-label={item.title}
+    class="catalog-card catalog-list-card surface-glass group relative flex flex-wrap items-center rounded-2xl gap-4 p-4 transition-colors duration-200 hover:border-brand-500/30 cursor-pointer"
 >
     <div class="flex min-w-48 flex-1 items-center gap-4">
         <div class="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-fg/10 bg-brand-500/10 shadow-elevated">

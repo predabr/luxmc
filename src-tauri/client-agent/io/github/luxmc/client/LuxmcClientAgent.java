@@ -93,6 +93,7 @@ public class LuxmcClientAgent {
             inst.appendToBootstrapClassLoaderSearch(new java.util.jar.JarFile(support.toFile()));
             AppearanceAgent.install(inst);
             P2PAgent.install(inst);
+            LanAgent.install(inst);
         } catch (Throwable error) { System.err.println("[LUXMC_CLIENT] Appearance agent unavailable: " + error.getClass().getSimpleName()); }
         if ("appearance-only".equals(agentArgs)) return;
         final Thread gameMain = Thread.currentThread();

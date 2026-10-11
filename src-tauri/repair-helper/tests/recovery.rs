@@ -1,10 +1,12 @@
 use luxmc_repair::{file_hash, Recovery, MAIN, HELPER};
-use std::{fs, path::PathBuf, time::{SystemTime, UNIX_EPOCH}};
+use std::{fs, path::PathBuf, sync::atomic::{AtomicU64, Ordering}, time::{SystemTime, UNIX_EPOCH}};
+
+static FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
 struct Fixture { root: PathBuf, app: PathBuf, cache: PathBuf }
 impl Fixture {
  fn new() -> Self {
-  let root = std::env::temp_dir().join(format!("luxmc-recovery-test-{}-{}",std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos()));
+  let root = std::env::temp_dir().join(format!("luxmc-recovery-test-{}-{}-{}",std::process::id(),SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),FIXTURE_ID.fetch_add(1,Ordering::Relaxed)));
   let app=root.join("application"); let cache=root.join("recovery");
   fs::create_dir_all(&app).unwrap(); fs::create_dir_all(&cache).unwrap();
   fs::write(app.join(MAIN), b"healthy program").unwrap();

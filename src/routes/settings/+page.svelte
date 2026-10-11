@@ -454,12 +454,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 <div class="settings-page flex flex-col gap-6 pb-16 max-w-6xl mx-auto w-full">
 	
-    <header class="flex items-center gap-4">
+    <header class="product-header flex flex-wrap items-center gap-4">
         <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-brand-400/20 bg-brand-500/10 text-brand-400"><SlidersHorizontal class="h-6 w-6" /></span>
         <div><p class="page-eyebrow">Luxmc</p><h1 class="mt-1 text-2xl font-semibold tracking-tight text-fg">{uiText("settings.refinement.settingsTitle")}</h1></div>
         <a href="/workshop" class={launcherButton({variant:"secondary",class:"ml-auto"})}>{uiText("workshop.title")}</a>
     </header>
-    <div class="surface-glass grid grid-cols-2 gap-2 p-2 sm:grid-cols-4 xl:grid-cols-8" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
+    <div class="settings-navigation surface-glass grid grid-cols-2 gap-2 p-2 sm:grid-cols-4 xl:grid-cols-8" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
         {#each settingsTabs as tab}
             <button type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls="settings-panel" aria-selected={activeTab === tab.id} tabindex={activeTab === tab.id ? 0 : -1} onclick={() => activeTab = tab.id as SettingsTab} class={launcherButton({ variant: activeTab === tab.id ? "primary" : "ghost", class: "h-auto min-h-16 w-full flex-col gap-2 px-3 py-3" })}><tab.icon class="h-5 w-5" /><span>{tab.label}</span></button>
         {/each}

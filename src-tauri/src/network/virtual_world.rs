@@ -56,24 +56,13 @@ fn authorized(received: &str, expected: &str) -> bool {
     received.len() == expected.len() && received.bytes().zip(expected.bytes()).fold(0u8, |difference, (a, b)| difference | (a ^ b)) == 0
 }
 
+#[cfg(test)]
 fn logged_port(text: &str) -> Option<u16> {
-    text.lines().rev().find_map(|line| {
-        ["Started serving on ", "Started a LAN server on port ", "Local game hosted on port "].iter().find_map(|marker| {
-            let value = line.split_once(marker)?.1.split(|value: char| !value.is_ascii_digit()).next()?;
-            value.parse::<u16>().ok().filter(|port| *port != 0)
-        })
-    })
+    super::lan_log::logged_port(text)
 }
 
 pub(crate) fn active_port() -> Option<u16> {
-    use std::io::{Read, Seek, SeekFrom};
-    if crate::core::launcher::get_active_game_pid() == 0 { return None; }
-    let path = crate::core::launcher::get_active_game_dir()?.join("logs").join("latest.log");
-    let mut file = std::fs::File::open(path).ok()?;
-    let start = file.metadata().ok()?.len().saturating_sub(65536);
-    file.seek(SeekFrom::Start(start)).ok()?;
-    let mut bytes = Vec::new(); file.take(65536).read_to_end(&mut bytes).ok()?;
-    logged_port(&String::from_utf8_lossy(&bytes))
+    super::lan_log::active_port()
 }
 
 async fn request(address: &str, key: &str) -> AppResult<Option<PublishedWorld>> {

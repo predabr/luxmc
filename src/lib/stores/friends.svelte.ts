@@ -2,7 +2,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { goto } from "$app/navigation";
 import { toast } from "./toasts.svelte";
 import { joinWorld } from "$lib/utils/directJoin";
-import { socialPublicProfile, type PublicProfile, socialStreamTicket, friendsSnapshotSchema, socialCreateRoom, socialJoinRoom, socialCloseRoom, socialRegister, socialSync, socialSearch, socialFriendAction, type Friend, type SocialIdentity } from "$lib/api/social";
+import { socialPublicProfile, type PublicProfile, socialStreamTicket, friendsSnapshotSchema, socialCreateRoom, socialJoinRoom, socialCloseRoom, socialRegister, socialSync, socialSearch, socialFriendAction, socialPresenceStart, socialPresenceStop, listenSocialPresence, type Friend, type SocialIdentity } from "$lib/api/social";
 import { settings } from "./settings.svelte";
 import { activeSkinStore } from "./skin.svelte";
 import { account } from "./account.svelte";
@@ -22,6 +22,8 @@ let generation = 0;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let wake: (() => void) | undefined;
 let refreshing: { run: number; promise: Promise<void> } | null = null;
+let presenceSession: string | undefined;
+let stopPresenceListener: (() => void) | undefined;
 const profileCache = new Map<string, { at: number; profile: PublicProfile }>();
 let profileLoading = false;
 
@@ -78,7 +80,7 @@ async function connectStream(run: number, attempt = 0) {
         socket = connection;
         connection.onmessage = event => {
             if (run !== generation || typeof event.data !== "string" || event.data.length > 262144) return;
-            try { applyFriends(friendsSnapshotSchema.parse(JSON.parse(event.data)).friends); error = ""; } catch { connection.close(1008, "Invalid snapshot"); }
+            try { applyFriends(friendsSnapshotSchema.parse(JSON.parse(event.data)).friends); } catch { connection.close(1008, "Invalid snapshot"); }
         };
         connection.onopen = () => { attempt = 0; void refresh(run); };
         connection.onclose = () => {
@@ -98,7 +100,7 @@ async function refreshNow(run: number) {
 			instanceName: settings.value.publishGameActivity === false ? undefined : game?.name, mcVersion: settings.value.publishGameActivity === false ? undefined : game?.version, loader: settings.value.publishGameActivity === false ? undefined : game?.loader,
 			serverHost: appState.isGameRunning && settings.value.publishGameActivity !== false ? sharedWorld?.host : undefined,
 			serverPort: appState.isGameRunning && settings.value.publishGameActivity !== false ? sharedWorld?.port : undefined
-		});
+		}, presenceSession);
 		if (run !== generation) return;
         applyFriends(result.friends);
         me = result.me;
@@ -107,7 +109,6 @@ async function refreshNow(run: number) {
 	} catch (cause) {
 		if (run !== generation) return;
 		error = String(cause);
-		list = list.map(friend => friend.status === "pending" ? friend : { ...friend, status: "offline", serverIp: null, serverPort: null });
 	}
 }
 
@@ -122,7 +123,7 @@ function refresh(run = generation): Promise<void> {
 
 async function poll(run: number) {
 	await refresh(run);
-	if (run === generation) { clearTimeout(timer); timer = setTimeout(() => void poll(run), document.hidden ? 45000 : socket?.readyState === WebSocket.OPEN ? 25000 : 5000); }
+	if (run === generation) { clearTimeout(timer); timer = setTimeout(() => void poll(run), error ? 5000 : presenceSession ? 20000 : document.hidden ? 25000 : socket?.readyState === WebSocket.OPEN ? 25000 : 5000); }
 }
 
 async function refreshProfile() {
@@ -145,6 +146,8 @@ export const friendsState = {
     get accountId() { return identity; },
 	get error() { return error; },
 	get busy() { return busy; },
+	get connected() { return Boolean(me && !error); },
+	get connectionStatus() { return me && !error ? 'online' : busy ? 'connecting' : error ? 'reconnecting' : 'disconnected'; },
 	get favourites() { return favourites; },
 	async connect() {
 		const current = account.value;
@@ -157,6 +160,29 @@ export const friendsState = {
 			const result = await socialRegister(identity, current.username);
 			if (run !== generation) return;
 			me = result;
+            const accountId = identity;
+            const sessionId = crypto.randomUUID();
+            let stop: (() => void) | undefined;
+            try {
+                stop = await listenSocialPresence(event => {
+                    if (run !== generation || event.sessionId !== presenceSession) return;
+                    if (event.snapshot) {
+                        applyFriends(event.snapshot.friends);
+                        me = event.snapshot.me;
+                        if (ownProfile) ownProfile = { ...ownProfile, role: me.role ?? ownProfile.role, tags: me.tags ?? ownProfile.tags };
+                        error = "";
+                    } else if (event.error) error = event.error;
+                });
+                const started = await socialPresenceStart(accountId, sessionId);
+                if (run !== generation) {
+                    stop();
+                    if (started) void socialPresenceStop(accountId, sessionId).catch(() => {});
+                    return;
+                }
+                if (started) { presenceSession = sessionId; stopPresenceListener = stop; }
+                else stop();
+            } catch { stop?.(); }
+            if (run !== generation) return;
             void refreshProfile().catch(() => {});
 			try { const saved: unknown = JSON.parse(localStorage.getItem(`luxmc_social_favourites_${identity}`) || "[]"); favourites = Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : []; } catch { favourites = []; }
 			void connectStream(run);
@@ -169,6 +195,9 @@ export const friendsState = {
 	},
 	disconnect() {
 		generation += 1;
+        if (presenceSession && identity) void socialPresenceStop(identity, presenceSession).catch(() => {});
+        presenceSession = undefined;
+        stopPresenceListener?.(); stopPresenceListener = undefined;
         if (wake) { window.removeEventListener("focus", wake); document.removeEventListener("visibilitychange", wake); wake = undefined; }
         refreshing = null;
         clearTimeout(reconnect);

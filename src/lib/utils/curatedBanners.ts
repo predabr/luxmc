@@ -46,6 +46,16 @@ export function matchesCatalogBanner(name: string, slug: string, key: string): b
 	return normalize(slug || name) === normalize(key);
 }
 
+export function catalogBannerCandidates(item: { title: string; slug: string; bannerUrl?: string | null; iconUrl?: string | null }): string[] {
+	const candidates: string[] = [];
+	if (item.bannerUrl && item.bannerUrl !== item.iconUrl && isRenderableBanner(item.bannerUrl)) candidates.push(item.bannerUrl);
+	for (const [key, banner] of Object.entries(curatedBanners)) {
+		if (matchesCatalogBanner(item.title, item.slug, key) && !candidates.includes(banner)) candidates.push(banner);
+	}
+	if (item.iconUrl && isRenderableBanner(item.iconUrl) && !candidates.includes(item.iconUrl)) candidates.push(item.iconUrl);
+	return candidates;
+}
+
 export function resolveProfileBanner(profile?: {
 	name?: string;
 	banner?: string;

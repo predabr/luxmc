@@ -9,7 +9,7 @@
 </script>
 
 <div class="mx-auto flex h-full max-w-6xl flex-col gap-4">
-	<header class="flex items-center gap-2">
+	<header class="product-header flex items-center gap-3">
 		<History class="h-5 w-5" style="color: rgb(var(--brand-400));" />
 		<Heading>{t("logs.historyTitle")}</Heading>
 	</header>

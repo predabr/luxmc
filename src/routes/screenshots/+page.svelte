@@ -221,7 +221,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </script>
 
 <div class="flex h-full flex-col gap-6">
-	<div class="flex items-center justify-between">
+	<div class="product-header flex flex-wrap items-center justify-between gap-4">
 		<div class="flex flex-col"><Heading>{t("screenshots.title")}</Heading><p class="text-sm text-fg-subtle">{t("screenshots.subtitle")}</p></div>
 		<div class="flex items-center gap-3">
 			<Button variant="secondary" onclick={loadScreenshots} disabled={loading}>

@@ -1,11 +1,12 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
-	import { Download, Users, Loader2, Check, PackagePlus, Box } from "lucide-svelte";
+	import { Download, Users, Loader2, Check, Box, ArrowUpRight } from "lucide-svelte";
 	import LazyImage from "$lib/components/ui/LazyImage.svelte";
 	import SourceBadge from "./SourceBadge.svelte";
     import LoaderBadge from "$lib/components/instances/LoaderBadge.svelte";
 	import { button } from "$lib/components/ui/button";
 	import type { ModSearchResultItem } from "$lib/api";
+    import { catalogReveal } from '$lib/actions/catalogReveal';
 
 	let { item, isInstalling = false, isInstalled = false, contentType = "Mod", onOpenDetails, onInstall }: {
 		item: ModSearchResultItem;
@@ -25,10 +26,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		return ["from-brand-500/30 via-info/10", "from-purple-500/30 via-brand-500/10", "from-success/30 via-info/10", "from-warning/30 via-brand-500/10"][Math.abs(hash) % 4];
 	});
 
-	import { curatedBanners, matchesCatalogBanner } from "$lib/utils/curatedBanners";
+	import { catalogBannerCandidates } from "$lib/utils/curatedBanners";
 
 	let bannerAttempt = $state(0);
     let bannerLoaded = $state(false);
+    let bannerAspect = $state(16 / 9);
 
 
 	$effect(() => {
@@ -38,32 +40,22 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		bannerAttempt = 0;
 	});
 
-	const bannerCandidates = $derived.by(() => {
-		const candidates: string[] = [];
-		if (item.bannerUrl && item.bannerUrl !== item.iconUrl) candidates.push(item.bannerUrl);
-		const lowerTitle = item.title.toLowerCase();
-		const lowerSlug = item.slug.toLowerCase();
-		for (const [key, banner] of Object.entries(curatedBanners)) {
-			if (matchesCatalogBanner(lowerTitle, lowerSlug, key) && !candidates.includes(banner)) candidates.push(banner);
-		}
-
-        if (item.iconUrl && !candidates.includes(item.iconUrl)) candidates.push(item.iconUrl);
-
-		return candidates;
-	});
+	const bannerCandidates = $derived(catalogBannerCandidates(item));
 	const effectiveBanner = $derived(bannerCandidates[bannerAttempt] ?? null);
-    const logoArtwork = $derived(effectiveBanner === item.iconUrl);
-    $effect(() => { effectiveBanner; bannerLoaded = false; });
+    const logoArtwork = $derived(effectiveBanner === item.iconUrl || bannerAspect <= 1.2);
+    $effect(() => { effectiveBanner; bannerLoaded = false; bannerAspect = 16 / 9; });
 </script>
 
 <div
+    use:catalogReveal
 	role="button"
 	tabindex="0"
 	onclick={() => onOpenDetails(item)}
 	onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); onOpenDetails(item); } }}
-	class="catalog-card group relative h-full flex flex-col overflow-hidden rounded-2xl border border-border bg-bg-elevated cursor-pointer"
+	aria-label={item.title}
+	class="catalog-card group relative h-full flex flex-col overflow-hidden rounded-3xl border border-border bg-bg-elevated cursor-pointer transition-[border-color,box-shadow,translate] duration-300 hover:border-brand-400/40 hover:shadow-elevated"
 >
-	<div class="relative h-48 shrink-0 bg-bg-subtle rounded-t-2xl overflow-hidden">
+	<div class="catalog-cover relative h-56 shrink-0 bg-bg-subtle rounded-t-2xl overflow-hidden">
         {#if effectiveBanner}
             <img src={effectiveBanner} alt="" loading="lazy" decoding="async" class="pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-20 blur-xl" />
         {/if}
@@ -71,11 +63,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			<img
 				src={effectiveBanner}
 				alt=""
-				loading="lazy"
+				loading="eager"
 				decoding="async"
-				class="relative h-full w-full rounded-t-2xl object-cover"
-                style:opacity={bannerLoaded && !logoArtwork ? 1 : 0}
-                onload={() => { bannerLoaded = true; }}
+                referrerpolicy="no-referrer"
+				class="relative h-full w-full rounded-t-2xl transition-[opacity,transform] duration-500 {logoArtwork ? 'object-contain p-8' : 'object-cover group-hover:scale-105'}"
+                style:opacity={bannerLoaded ? 1 : 0}
+                onload={(event) => { const image = event.currentTarget as HTMLImageElement; bannerAspect = image.naturalWidth / Math.max(1, image.naturalHeight); bannerLoaded = true; }}
 				onerror={() => { bannerAttempt += 1; }}
 			/>
 		{:else}
@@ -91,39 +84,52 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 			</div>
 		{/if}
-		<div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-elevated via-bg-elevated/20 to-transparent" ></div>
+		{#if !bannerLoaded && effectiveBanner}<div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-50"></div>{/if}
+		<div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-bg-overlay/50 via-transparent to-transparent" ></div>
 		<div class="absolute right-3 top-3 z-10"><SourceBadge source={item.source} /></div>
+        {#if loaders.length}<div class="catalog-loaders absolute left-3 top-3 z-10 flex gap-1">{#each loaders.slice(0,2) as loader}<LoaderBadge {loader} />{/each}</div>{/if}
+        {#if latest}<span class="catalog-version absolute bottom-3 right-3">MC {latest}</span>{/if}
 
 	</div>
 		{#if item.iconUrl}
-			<div data-catalog-logo class="absolute top-32 left-5 z-10 flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
-				<LazyImage src={item.iconUrl} alt={item.title} class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
+			<div data-catalog-logo class="catalog-logo absolute left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
+				<LazyImage src={item.iconUrl} alt={item.title} loading="eager" class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
 			</div>
 		{/if}
-	<div class="flex flex-1 flex-col min-h-0 gap-2.5 p-5 pt-9">
-		<h3 title={item.title} class="line-clamp-2 min-h-6 shrink-0 text-base leading-snug font-semibold text-fg group-hover:text-brand-400">
+	<div class="flex flex-1 flex-col min-h-0 catalog-card-body gap-2 p-5 pt-9">
+		<h3 title={item.title} class="line-clamp-2 min-h-11 shrink-0 text-lg leading-tight font-semibold text-fg group-hover:text-brand-400">
 			<span>{item.title}</span>
 		</h3>
 		<p class="line-clamp-2 min-h-8 shrink-0 text-xs leading-relaxed text-fg-muted">{item.description}</p>
-		<div class="flex items-center gap-1.5 text-xs text-fg-subtle"><Users class="h-3 w-3" /><span class="truncate">{item.author || item.slug}</span></div>
-		{#if loaders.length}<div class="flex flex-wrap gap-1.5">{#each loaders as loader}<LoaderBadge {loader} />{/each}</div>{/if}
+		<div class="flex items-center gap-1.5 text-[11px] text-fg-muted"><Users class="h-3 w-3" /><span class="truncate">{item.author || item.slug}</span></div>
+
 		<div class="mt-auto flex shrink-0 items-center justify-between gap-2 border-t border-border pt-3">
-			<div class="space-y-1 text-xs text-fg-muted"><span class="flex items-center gap-1"><Download class="h-3 w-3" />{downloads}</span>{#if latest}<span class="block text-[10px] text-fg-subtle">{uiText("ui.ca34ab5c748c6607")} {latest}</span>{/if}</div>
+			<div class="space-y-1 text-xs text-fg-muted"><span class="flex items-center gap-1"><Download class="h-3 w-3" />{downloads}</span><span class="block text-[10px] text-fg-subtle">{uiText("catalogDesign.downloads")}</span></div>
 			<button
 				type="button"
-				class={button({ variant: isInstalled ? "secondary" : "primary", size: "sm", class: "relative z-10" })}
+				class={button({ variant: isInstalled ? "secondary" : "ghostBrand", size: "sm", class: "catalog-install relative z-10" })}
 				onclick={(e) => { e.stopPropagation(); onInstall(item); }}
 				disabled={isInstalling || isInstalled}
 				aria-label={`${isInstalled ? uiText("mods.installed") : uiText("mods.install")}: ${item.title}`}
 			>
-				{#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />{uiText("ui.f4200333ccfd750e")}{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />{uiText("mods.installed")}{:else if isModpack}<PackagePlus class="h-3.5 w-3.5" />{uiText("common.create")}{:else}<Download class="h-3.5 w-3.5" />{uiText("mods.install")}{/if}
+				{#if isInstalling}<Loader2 class="h-3.5 w-3.5 animate-spin" />{uiText("ui.f4200333ccfd750e")}{:else if isInstalled}<Check class="h-3.5 w-3.5 text-success" />{uiText("mods.installed")}{:else if isModpack}{uiText("catalogDesign.installPack")}<ArrowUpRight class="h-4 w-4" />{:else}<Download class="h-3.5 w-3.5" />{uiText("mods.install")}{/if}
 			</button>
 		</div>
 	</div>
 </div>
 
 <style>
-	.catalog-card { contain: layout paint; font-family: var(--font-sans, Inter, sans-serif); }
+	.catalog-card { contain: layout paint; font-family: var(--font-sans, Inter, sans-serif); border-radius: 22px; }
+    .catalog-cover { border-bottom: 1px solid rgb(var(--border)); }
+    .catalog-loaders { padding: 3px; border-radius: 10px; background: rgb(var(--bg-elevated) / .94); }
+    .catalog-logo { top: 188px; }
+    .catalog-version { padding: 5px 8px; border: 1px solid rgb(var(--surface-shine) / .15); border-radius: 8px; background: rgb(var(--shadow-color) / .75); color: rgb(var(--surface-shine)); font-size: 9px; font-weight: 600; backdrop-filter: blur(8px); }
+    .catalog-card-body { background: linear-gradient(150deg, rgb(var(--brand-500) / .035), transparent 70%); }
+    .catalog-card :global(.catalog-install) { border: 1px solid rgb(var(--brand-400) / .2); border-radius: 12px; padding-inline: 12px; color: rgb(var(--brand-action)); background: rgb(var(--brand-500) / .07); }
+    .catalog-card:hover { translate: 0 -4px; }
+    .catalog-card:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
+    :global(.no-ui-motion) .catalog-card, :global(.no-anim) .catalog-card { translate: none; transition: none; }
+    @media (prefers-reduced-motion: reduce) { .catalog-card { translate: none; transition: none; } }
 	.card-mesh {
 		background-image:
 			linear-gradient(30deg, rgb(var(--fg) / 0.05) 12%, transparent 12.5%, transparent 87%, rgb(var(--fg) / 0.05) 87.5%),

@@ -2,7 +2,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Launcher de Minecraft para Windows e Linux",
-    "version": "v3.7.0",
+    "version": "v3.8.0",
     "pressForShortcuts": "Pressione {{key}} para ver atalhos do teclado",
     "systemOnline": "Sistema Online",
     "navigation": "Navegação",
@@ -548,7 +548,8 @@
     "success": "Sucesso",
     "warning": "Aviso",
     "remove": "Remover",
-    "add": "Adicionar"
+    "add": "Adicionar",
+    "download": "Baixar Luxmc"
   },
   "mods": {
     "title": "Mods",
@@ -3370,5 +3371,40 @@
   },
   "recovery": {
     "reloadInterface": "Reabrir interface"
+  },
+  "catalogDesign": {
+    "eyebrow": "DESCUBRA SUA PRÓXIMA AVENTURA",
+    "title": "Um novo mundo começa aqui.",
+    "description": "Explore modpacks, descubra novos estilos de jogo e instale direto na sua biblioteca.",
+    "library": "Sua biblioteca",
+    "installed": "{{count}} instâncias",
+    "openLibrary": "Abrir minhas instâncias",
+    "verified": "Arquivos conferidos na instalação",
+    "background": "Continue explorando enquanto o Luxmc instala.",
+    "spotlight": "Em destaque",
+    "onShelf": "Na vitrine",
+    "showFeature": "Ver destaque: {{name}}",
+    "explorePack": "Explorar modpack",
+    "playStyle": "Qual é a sua próxima aventura?",
+    "adventure": "Explorar",
+    "magic": "Magia & RPG",
+    "performance": "Mais FPS",
+    "together": "Com a turma",
+    "technology": "Construir & automatizar",
+    "downloads": "downloads",
+    "installPack": "Instalar"
+  },
+  "presenceDesign": {
+    "players": "{{count}} jogadores",
+    "player": "{{count}} jogador"
+  },
+  "socialPresence": {
+    "localAccount": "Conta local",
+    "luxmcAccount": "Conta Luxmc",
+    "online": "Online no Luxmc",
+    "connecting": "Conectando",
+    "reconnecting": "Reconectando",
+    "disconnected": "Desconectado",
+    "lastSnapshot": "Último estado: {{count}} online"
   }
 }

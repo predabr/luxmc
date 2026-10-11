@@ -1,6 +1,7 @@
 mod loader_selection;
 mod quick_join;
 mod classpath_paths;
+mod presence;
 #[cfg(any(target_os = "windows", test))]
 mod native_cache;
 pub mod launch_state;
@@ -762,6 +763,8 @@ impl GameLauncher {
                 tokio::fs::write(&agent_path, CLIENT_AGENT_JAR).await?;
             }
             safe_jvm_args.push(format!("-Dluxmc.appearance.uuid={uuid}"));
+            safe_jvm_args.push(format!("-Dluxmc.lan.published={}", game_dir.join(".luxmc/lan-published.properties").display()));
+            if let Some(path) = crate::network::p2p_tunnel::room_appearance_path() { safe_jvm_args.push(format!("-Dluxmc.appearance.room={}", path.display())); }
             if let Some(path) = crate::network::p2p_tunnel::private_lan_session_path() {
                 safe_jvm_args.push(format!("-Dluxmc.p2p.session={}", path.display()));
             }
@@ -1199,6 +1202,8 @@ impl GameLauncher {
             None
         };
 
+        let presence = Arc::new(TokioMutex::new(presence::Presence::default()));
+        let presence_stdout = presence.clone();
         let app_world_notify = self.app.clone();
         let stdout_reader = tokio::spawn(async move {
             let mut reader = BufReader::new(stdout);
@@ -1210,37 +1215,9 @@ impl GameLauncher {
                 if buffer.len() < 200 { buffer.push(line.clone()); }
                 drop(buffer);
 
-                if let Some(ref app) = app_world_notify {
-                    if line.contains("Preparing level \"") {
-                        if let Some(start) = line.find("Preparing level \"") {
-                            let rest = &line[start + 17..];
-                            if let Some(end) = rest.find('"') {
-                                let world_name = &rest[..end];
-                                let _ = app.emit("game-state-change", serde_json::json!({
-                                    "status": "singleplayer",
-                                    "detail": world_name
-                                }));
-                            }
-                        }
-                    } else if line.contains("Starting integrated minecraft server") {
-                        let _ = app.emit("game-state-change", serde_json::json!({
-                            "status": "singleplayer",
-                            "detail": ""
-                        }));
-                    } else if line.contains("Connecting to ") {
-                        let parts: Vec<&str> = line.split("Connecting to ").collect();
-                        let target = parts.get(1).map(|s| s.trim()).unwrap_or("");
-                        let host = target.split(',').next().unwrap_or(target).trim();
-                        let _ = app.emit("game-state-change", serde_json::json!({
-                            "status": "multiplayer",
-                            "detail": host
-                        }));
-                    } else if line.contains("Stopping server") || line.contains("Saving and disconnecting") {
-                        let _ = app.emit("game-state-change", serde_json::json!({
-                            "status": "menu",
-                            "detail": ""
-                        }));
-                    }
+                let mut presence = presence_stdout.lock().await;
+                if presence.line(&line) {
+                    if let Some(ref app) = app_world_notify { let _ = app.emit("game-state-change", presence.event()); }
                 }
             }
         });
@@ -1303,6 +1280,24 @@ impl GameLauncher {
             }
         });
 
+        let presence_app = self.app.clone();
+        let presence_http = self.downloader.http().clone();
+        let presence_watch = tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(8));
+            loop {
+                interval.tick().await;
+                let target = presence.lock().await.target.clone();
+                let Some(target) = target else { continue; };
+                if let Ok(Ok(status)) = tokio::time::timeout(std::time::Duration::from_secs(3), crate::core::server::ping_async(&presence_http, &target.0, target.1)).await {
+                    if !status.online { continue; }
+                    let mut presence = presence.lock().await;
+                    if presence.observe_count(&target, status.players_online) {
+                        if let Some(ref app) = presence_app { let _ = app.emit("game-state-change", presence.event()); }
+                    }
+                }
+            }
+        });
+
         let app_exit = self.app.clone();
         let detail_id = detail.id.clone();
         let profile_id = profile.id.clone();
@@ -1318,6 +1313,7 @@ impl GameLauncher {
         let hook_version_id = detail.id.clone();
         tokio::spawn(async move {
             let result = child.wait().await;
+            presence_watch.abort();
             if result.as_ref().is_ok_and(|status| status.success()) || game_dir_for_crash.join("local/crash_assistant").join(format!("normal_stop_pid{pid}.tmp")).is_file() {
                 if let Err(error) = crate::commands::launch::stop_owned_crash_assistant(game_dir_for_crash.clone(), pid).await { tracing::warn!(target: "launch", "{}", error); }
             }
@@ -3055,6 +3051,25 @@ async fn inject_player_skin(
         return Err(AppError::InvalidInput("A skin selecionada não pôde ser carregada. Selecione um PNG local antes de jogar.".into()));
     }
 
+    let cape_bytes: Vec<u8> = if let Some(source) = cape_source.filter(|source| !source.trim().is_empty()) { resolve_image_bytes(source, http).await } else { Vec::new() };
+    if cape_source.is_some_and(|source| !source.trim().is_empty()) && (cape_bytes.is_empty() || image::load_from_memory(&cape_bytes).is_err()) {
+        return Err(AppError::InvalidInput("A capa selecionada não pôde ser carregada. Selecione um PNG local antes de jogar.".into()));
+    }
+    use sha2::Digest;
+    let mut identity = sha2::Sha256::new();
+    for value in [skin_bytes.as_slice(), cape_bytes.as_slice(), variant.as_bytes(), mc_version.as_bytes(), username.as_bytes()] { identity.update((value.len() as u64).to_le_bytes()); identity.update(value); }
+    let identity = format!("{:x}", identity.finalize());
+    let cache = game_dir.join(".luxmc/appearance-fingerprint");
+    let pack = game_dir.join("resourcepacks/LuxmcCustomSkin");
+    if tokio::fs::read_to_string(&cache).await.is_ok_and(|saved| saved == identity)
+        && pack.join("pack.mcmeta").is_file()
+        && pack.join("assets/minecraft/textures/entity/player/wide/steve.png").is_file()
+        && pack.join("assets/minecraft/textures/entity/player/slim/alex.png").is_file()
+        && (cape_bytes.is_empty() || pack.join("assets/minecraft/textures/entity/cape.png").is_file()) {
+        set_active_cape_bytes(tokio::fs::read(pack.join("assets/minecraft/textures/entity/cape.png")).await.unwrap_or_default()).await;
+        return Ok(());
+    }
+
     let raw_dyn_img = Some(image::load_from_memory(&skin_bytes).map_err(|e| AppError::InvalidInput(format!("PNG da skin inválido: {e}")))?);
     let is_slim = match variant { "slim" => true, "classic" => false, _ => raw_dyn_img.as_ref().map(|d| is_slim_skin(&d.to_rgba8())).unwrap_or(false) };
     let normalized_skin_img = if let Some(ref dyn_img) = raw_dyn_img {
@@ -3110,15 +3125,6 @@ async fn inject_player_skin(
     tokio::fs::write(entity_dir_legacy.join("steve.png"), &wide_buf).await?;
     tokio::fs::write(entity_dir_legacy.join("alex.png"), &slim_buf).await?;
 
-    let cape_bytes: Vec<u8> = if let Some(cs) = cape_source.filter(|s| !s.trim().is_empty()) {
-        resolve_image_bytes(cs, http).await
-    } else {
-        Vec::new()
-    };
-
-    if cape_source.is_some_and(|source| !source.trim().is_empty()) && (cape_bytes.is_empty() || image::load_from_memory(&cape_bytes).is_err()) {
-        return Err(AppError::InvalidInput("A capa selecionada não pôde ser carregada. Selecione um PNG local antes de jogar.".into()));
-    }
     if !cape_bytes.is_empty() {
         let cape_source_bytes = cape_bytes;
         let (normalized_cape_bytes, optifine_cape_bytes) = tokio::task::spawn_blocking(
@@ -3339,10 +3345,11 @@ async fn inject_player_skin(
         tokio::fs::write(&options_file, default_options).await?;
     }
 
+    crate::core::mods::pack_download::atomic_write(&cache, identity.as_bytes()).await?;
     Ok(())
 }
 
-fn format_custom_cape_texture(cape_rgba: &image::RgbaImage, cw: u32, ch: u32) -> (image::RgbaImage, image::RgbaImage) {
+pub(crate) fn format_custom_cape_texture(cape_rgba: &image::RgbaImage, cw: u32, ch: u32) -> (image::RgbaImage, image::RgbaImage) {
     let mut min_x = cw;
     let mut min_y = ch;
     let mut max_x = 0;

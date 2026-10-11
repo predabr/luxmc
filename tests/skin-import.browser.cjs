@@ -92,7 +92,7 @@ const fs = require('node:fs');
     });
     assert.ok(render && render.colored > 100 && render.materials > 0 && render.emissive, JSON.stringify(render));
     assert.ok(render.faithfulPixels / render.opaquePixels > 0.8, `Cores alteradas: ${JSON.stringify(render)}`);
-    assert.ok(await page.getByRole('button', { name: 'Web Studio', exact: true }).evaluate(element => element.clientWidth > 90));
+    assert.equal(await page.getByRole('button', { name: 'Web Studio', exact: true }).count(), 0);
     assert.equal(await page.getByRole('button', { name: 'Capa Luxmc Oficial', exact: true }).count(), 0);
     await page.evaluate(async () => {
         const { getFullCapeDataUrl } = await import('/src/lib/utils/capeTextures.ts');

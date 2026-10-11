@@ -116,7 +116,7 @@ pub(super) fn reverse(connection: iroh::endpoint::Connection, target: Arc<Atomic
                         if header[0] != 6 {return;}
                         let port = target.load(Ordering::Acquire);
                         if port == 0 { let _ = send.write_all(&[0]).await; return; }
-                        if let Ok(Ok(tcp)) = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(("127.0.0.1", port))).await {
+                        if let Ok(Ok(tcp)) = tokio::time::timeout(Duration::from_secs(5), super::super::lan_discovery::connect_local_game(port)).await {
                             if send.write_all(&[1]).await.is_ok() { let _ = bridge(tcp, send, recv).await; }
                         } else { let _ = send.write_all(&[0]).await; }
                     });

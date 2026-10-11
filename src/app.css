@@ -750,3 +750,24 @@ html:not(.no-ui-motion):not(.no-anim) main details[open] > :not(summary) { anima
 html:not(.no-ui-motion):not(.no-anim) .launcher-button--primary::after, html:not(.no-ui-motion):not(.no-anim) .launcher-button--play::after { content: ''; position: absolute; inset: -20%; pointer-events: none; opacity: 0; background: linear-gradient(110deg, transparent 35%, rgb(var(--surface-shine) / .16), transparent 65%); }
 html:not(.no-ui-motion):not(.no-anim) :is(.launcher-button--primary, .launcher-button--play):hover:not(:disabled)::after { opacity: 1; animation: luxmc-button-sheen 650ms ease-out; }
 @media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) .launcher-button::after { animation: none !important; opacity: 0 !important; } }
+
+main[data-refined-ui="true"] .product-header { position: relative; padding: 26px; border: 1px solid rgb(var(--border)); border-radius: 26px; background: linear-gradient(120deg, rgb(var(--brand-500) / .07), transparent 65%), rgb(var(--bg-elevated) / .94); box-shadow: inset 0 1px 0 rgb(var(--fg) / .045); }
+main[data-refined-ui="true"] .page-description { margin-top: 10px; color: rgb(var(--fg-muted)); line-height: 1.75; }
+main[data-refined-ui="true"] :is(.instance-library-card, .instance-overview-section, .instance-settings-group, .workshop-card) { border-color: rgb(var(--border)); border-radius: 24px; box-shadow: inset 0 1px 0 rgb(var(--fg) / .035), 0 6px 20px rgb(var(--shadow-color) / .035); }
+main[data-refined-ui="true"] .instance-library-card { background-color: rgb(var(--bg-elevated) / .95); }
+main[data-refined-ui="true"] .instance-library-card > div:first-of-type { border-top-left-radius: inherit; border-top-right-radius: inherit; }
+main[data-refined-ui="true"] .instance-library-card:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 4px; }
+main[data-refined-ui="true"] :is(.instance-overview-nav, .settings-navigation) { padding: 8px; border-radius: 22px; background: rgb(var(--bg-elevated) / .94); border: 1px solid rgb(var(--border)); }
+main[data-refined-ui="true"] .settings-navigation [role="tab"] { box-shadow: none; border-radius: 16px; }
+main[data-refined-ui="true"] .settings-navigation [role="tab"][aria-selected="true"] { background: rgb(var(--brand-500) / .12); color: rgb(var(--brand-action)); border-color: rgb(var(--brand-400) / .25); background-image: none; }
+main[data-refined-ui="true"] .home-toolbar { padding-bottom: 20px; border-bottom: 1px solid rgb(var(--border)); }
+main[data-refined-ui="true"] :is(.surface-glass, .luxmc-card, .content-card) { border-color: rgb(var(--border)); }
+main[data-refined-ui="true"] .catalog-result-row .catalog-card { border-color: rgb(var(--border)); background: rgb(var(--bg-elevated) / .97); box-shadow: inset 0 1px 0 rgb(var(--fg) / .04); }
+main[data-refined-ui="true"] .catalog-result-row .catalog-card:hover { border-color: rgb(var(--brand-400) / .5); box-shadow: 0 8px 24px rgb(var(--shadow-color) / .09); }
+@media (prefers-reduced-motion: no-preference) {
+    html:not(.no-anim):not(.no-ui-motion) main[data-refined-ui="true"] .instance-library-card { transition: border-color 220ms ease, box-shadow 220ms ease, translate 220ms cubic-bezier(.16,1,.3,1); }
+    html:not(.no-anim):not(.no-ui-motion) main[data-refined-ui="true"] .instance-library-card:hover { translate: 0 -3px; }
+}
+@media (max-width: 700px) { main[data-refined-ui="true"] .product-header { padding: 20px; } }
+
+html:not(.has-custom-wallpaper) main[data-refined-ui="true"] .catalog-toolbar .launcher-button--primary { color: rgb(var(--brand-foreground)); }

@@ -48,6 +48,33 @@ public class SharedAppearanceProbe {
         if (requests[0] != 2) throw new AssertionError("Textures are not cached");
         Object official = profile.getConstructor(UUID.class, String.class).newInstance(UUID.randomUUID(), "LuxmcPeer");
         if (textures.invoke(null, official, "java/util/Map") != null) throw new AssertionError("Official identity replaced");
+        Path room = Files.createTempFile("luxmc-room-appearance-probe-", ".properties");
+        try {
+            UUID peerId = UUID.randomUUID();
+            String encoded = Base64.getEncoder().encodeToString(image);
+            String properties = "expires=" + (System.currentTimeMillis() + 10000) + "\nLuxmcRoom.uuid=" + peerId + "\nLuxmcRoom.skin=" + encoded + "\nLuxmcRoom.cape=" + encoded + "\nLuxmcRoom.model=slim\n";
+            Files.write(room, properties.getBytes(StandardCharsets.US_ASCII));
+            System.setProperty("luxmc.appearance.room", room.toString());
+            Thread.sleep(1100);
+            for (UUID id : new UUID[] {peerId, UUID.nameUUIDFromBytes("OfflinePlayer:LuxmcRoom".getBytes(StandardCharsets.UTF_8))}) {
+                Object roomPeer = profile.getConstructor(UUID.class, String.class).newInstance(id, "LuxmcRoom");
+                Map<?, ?> shared = (Map<?, ?>)textures.invoke(null, roomPeer, "java/util/Map");
+                if (shared == null || shared.size() != 2) throw new AssertionError("Room skin/cape missing for " + id);
+                String propertyType = "com/mojang/authlib/properties/Property";
+                Object packed = textures.invoke(null, roomPeer, propertyType);
+                try {
+                    Class.forName("com.mojang.authlib.minecraft.MinecraftProfileTextures");
+                    Object unpacked = textures.invoke(null, packed, "com/mojang/authlib/minecraft/MinecraftProfileTextures");
+                    if (unpacked == null) throw new AssertionError("Packed room appearance lost profile identity");
+                } catch (ClassNotFoundException legacy) {}
+            }
+            Object unrelated = profile.getConstructor(UUID.class, String.class).newInstance(UUID.randomUUID(), "LuxmcRoom");
+            if (textures.invoke(null, unrelated, "java/util/Map") != null) throw new AssertionError("Unrelated identity replaced");
+            Files.write(room, "expires=0\n".getBytes(StandardCharsets.US_ASCII));
+            Thread.sleep(1100);
+            Object expired = profile.getConstructor(UUID.class, String.class).newInstance(peerId, "LuxmcRoom");
+            if (textures.invoke(null, expired, "java/util/Map") != null) throw new AssertionError("Expired room appearance accepted");
+        } finally { Files.deleteIfExists(room); }
         System.out.println("Shared Luxmc appearance verified; official identity preserved");
     }
 }

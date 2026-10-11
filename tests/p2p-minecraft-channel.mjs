@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import {mkdtempSync, readFileSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join, resolve, delimiter} from 'node:path';
+import {join, resolve, delimiter, sep} from 'node:path';
 import {spawnSync} from 'node:child_process';
 
 const data = process.env.LUXMC_GAME_DATA;
@@ -18,9 +18,9 @@ public class RealChannel {
  public static void main(String[] args) throws Exception {
   Class.forName("net.minecraft.SharedConstants").getMethod("tryDetectVersion").invoke(null);
   Class.forName("net.minecraft.server.Bootstrap").getMethod("bootStrap").invoke(null);
-  try(ServerSocketChannel listener=ServerSocketChannel.open()) {
-   listener.bind(new InetSocketAddress("127.0.0.1",0)); int port=((InetSocketAddress)listener.getLocalAddress()).getPort();
-   try(SocketChannel client=SocketChannel.open(new InetSocketAddress("127.0.0.1",port)); SocketChannel accepted=listener.accept()) {
+  for(String address:new String[]{"127.0.0.1","::1"}) try(ServerSocketChannel listener=ServerSocketChannel.open()) {
+   listener.bind(new InetSocketAddress(address,0)); int port=((InetSocketAddress)listener.getLocalAddress()).getPort();
+   try(SocketChannel client=SocketChannel.open(new InetSocketAddress(address,port)); SocketChannel accepted=listener.accept()) {
     Object channel=Class.forName("io.netty.channel.socket.nio.NioSocketChannel").getConstructor(SocketChannel.class).newInstance(accepted);
     Object connection=allocate(Class.forName("net.minecraft.network.Connection")); set(connection,"channel",channel);
     Object login=allocate(Class.forName("net.minecraft.server.network.ServerLoginPacketListenerImpl"));
@@ -33,11 +33,12 @@ public class RealChannel {
     if (!(Boolean)authenticate.invoke(null,true,login)) throw new AssertionError("Unrelated port lost authentication");
     Files.write(file,"expires=0\\nport=0\\n".getBytes("UTF-8")); Thread.sleep(600);
     if (!(Boolean)authenticate.invoke(null,true,login)) throw new AssertionError("Expired room lost authentication");
-    System.out.println("PASS: actual Minecraft 26.3 integrated server/login/Connection and actual Netty TCP channel; private port only, expired session rejected");
+    System.out.println("PASS: actual Minecraft 26.3 integrated server/login/Connection and actual Netty TCP channel " + address + "; private port only, expired session rejected");
    }
   }
  }
 }`;
+try {
 writeFileSync(join(directory,'RealChannel.java'),source);
 let result=spawnSync(join(java,'javac.exe'),['-d',directory,join(directory,'RealChannel.java')],{encoding:'utf8',windowsHide:true});
 assert.equal(result.status,0,result.stderr);
@@ -49,3 +50,9 @@ const classpath=[directory,join(data,'versions',version,`${version}.jar`),...lib
 result=spawnSync(join(java,'java.exe'),[`-javaagent:${resolve('src-tauri/assets/luxmc-client-agent.jar')}=appearance-only`,'-cp',classpath,'RealChannel',join(directory,'room.properties')],{encoding:'utf8',windowsHide:true,timeout:60000});
 assert.equal(result.status,0,result.stdout+result.stderr);
 console.log(result.stdout.trim());
+assert.match(result.stdout, /TCP channel 127\.0\.0\.1; private port only/);
+assert.match(result.stdout, /TCP channel ::1; private port only/);
+} finally {
+    assert.ok(resolve(directory).startsWith(resolve(tmpdir()) + sep) && directory.includes('luxmc-real-channel-'));
+    rmSync(directory, {recursive:true, force:true});
+}

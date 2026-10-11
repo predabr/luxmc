@@ -1,6 +1,7 @@
 import { build } from 'esbuild';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import { writeSiteOutputs } from './write-site-outputs.mjs';
 
 const entryPoints=[];
 async function collect(directory) {
@@ -12,4 +13,5 @@ async function collect(directory) {
 }
 await collect('site-server/functions');
 await collect('site-server/lib');
-await build({entryPoints,outbase:'site-server',outdir:'website',bundle:false,format:'esm',target:'es2022',legalComments:'none'});
+const result = await build({entryPoints,outbase:'site-server',outdir:'website',bundle:false,format:'esm',target:'es2022',legalComments:'none',write:false});
+await writeSiteOutputs(result.outputFiles);

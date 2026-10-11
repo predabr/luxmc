@@ -32,7 +32,7 @@
 <div class="mx-auto max-w-6xl space-y-6 p-6 sm:p-8">
     <a href="/instances" class={button({variant:'ghost',size:'sm'})}><ArrowLeft class="h-4 w-4" />Instâncias</a>
     {#if instance}
-        <header data-motion-surface class="surface-glass relative overflow-hidden rounded-3xl border border-border p-6 sm:p-8">
+        <header data-motion-surface class="product-header surface-glass relative overflow-hidden rounded-3xl border border-border p-6 sm:p-8">
             <div class="pointer-events-none absolute right-0 top-0 h-48 w-48 rounded-full bg-brand-500/10 blur-3xl"></div>
             <div class="relative flex flex-wrap items-center justify-between gap-5"><div class="flex items-center gap-4"><div class="grid h-16 w-16 place-items-center rounded-2xl border border-brand-400/20 bg-brand-500/10"><Blocks class="h-8 w-8 text-brand-400" /></div><div><p class="text-[10px] font-semibold uppercase tracking-widest text-brand-400">Minecraft Bedrock</p><h1 class="mt-1 text-2xl font-bold text-fg">{instance.name}</h1><p class="mt-2 text-sm text-fg-muted">Versão {installation?.version || 'indisponível'}</p></div></div><button class={button({variant:'play',size:'lg'})} disabled={busy || !installation} aria-busy={busy} onclick={() => run(async () => { const result = await bedrockOpen(id); notice = result.notice ?? ''; if (instance.profileId === 'managed') await load(); })}>{#if busy}<LoaderCircle class="h-5 w-5 animate-spin" />{:else}<Play class="h-5 w-5" />{/if}Jogar</button></div>
         </header>

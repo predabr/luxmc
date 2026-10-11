@@ -551,16 +551,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         }).finally(() => { if (!controller.signal.aborted) saving = false; });
     }
 
-	async function handleSyncWithWeb(): Promise<void> {
-		const nick = selectedSkinNick || username;
-		const webUrl = `https://luxmc-r92.pages.dev/skins.html?nick=${encodeURIComponent(nick)}&model=${skinType}&cape=${selectedCape}`;
-		try {
-			await openUrl(webUrl);
-			toast(uiText("ui.9824b68a0ca569df"), "info");
-		} catch (error) {
-			toast(String(error), "error");
-		}
-	}
+
 </script>
 
 <div class="h-full flex flex-col gap-6 select-none overflow-y-auto custom-scrollbar pb-24">
@@ -592,17 +583,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</div>
 		</div>
 
-		<div class="flex items-center gap-2.5">
-			<button
-				type="button"
-				onclick={handleSyncWithWeb}
-				class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
-				title={uiText("ui.596fb3bb01539cb0")}
-			>
-				<Share2 class="w-3.5 h-3.5 text-brand-400" />
-				<span>{uiText("ui.d812f36fd857abac")}</span>
-			</button>
-		</div>
 	</header>
 
     <div class="sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fg/10 bg-bg-elevated p-4 shadow-elevated">

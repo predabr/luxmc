@@ -1,6 +1,6 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { z } from "zod";
-import { api } from "./client";
+import { api, listen, type UnlistenFn } from "./client";
 
 const identitySchema = z.object({ id: z.string(), username: z.string(), avatarUrl: z.string().nullable().optional(), displayName: z.string().max(32).optional(), role: z.enum(['owner', 'member']).optional(), tags: z.array(z.string().max(24)).max(5).optional() });
 export function friendDisplayName(friend: SocialIdentity): string { return friend.displayName?.trim() || friend.username; }
@@ -32,9 +32,28 @@ export async function socialRegister(accountId: string, username: string): Promi
 	return z.object({ me: identitySchema }).parse(result).me;
 }
 
-export async function socialSync(accountId: string, presence: Presence): Promise<{ me: SocialIdentity; friends: Friend[] }> {
-	const result = await api.invoke<unknown>("social_request", { accountId, request: { action: "sync", ...presence } });
-	return z.object({ me: identitySchema, friends: z.array(friendSchema) }).parse(result);
+const syncSchema = z.object({ me: identitySchema, friends: z.array(friendSchema).max(200) });
+
+export async function socialSync(accountId: string, presence: Presence, presenceSession?: string): Promise<{ me: SocialIdentity; friends: Friend[] }> {
+	const avatarUrl = presence.avatarUrl && presence.avatarUrl.length > 2048 ? undefined : presence.avatarUrl;
+	const result = await api.invoke<unknown>("social_request", { accountId, presenceSession, request: { action: "sync", ...presence, avatarUrl } });
+	return syncSchema.parse(result);
+}
+
+export async function socialPresenceStart(accountId: string, sessionId: string): Promise<boolean> {
+    return z.boolean().parse(await api.invoke("social_presence_start", { accountId, sessionId }));
+}
+
+export async function socialPresenceStop(accountId: string, sessionId: string): Promise<void> {
+    await api.invoke("social_presence_stop", { accountId, sessionId });
+}
+
+const presenceEventSchema = z.object({ sessionId: z.string().uuid(), snapshot: syncSchema.optional(), error: z.string().max(4096).optional() });
+export async function listenSocialPresence(callback: (event: z.infer<typeof presenceEventSchema>) => void): Promise<UnlistenFn> {
+    return listen("social-presence", ({ payload }) => {
+        const result = presenceEventSchema.safeParse(payload);
+        if (result.success) callback(result.data);
+    });
 }
 
 export async function socialSearch(accountId: string, query: string): Promise<SocialIdentity[]> {

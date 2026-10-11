@@ -20,6 +20,10 @@ public final class AppearanceAgent {
     private static final Map<String, byte[]> images = new ConcurrentHashMap<String, byte[]>();
     private static String textureBase;
     private static final Map<String, RemoteAppearance> remote = new ConcurrentHashMap<String, RemoteAppearance>();
+    private static final Map<String, RemoteAppearance> room = new ConcurrentHashMap<String, RemoteAppearance>();
+    private static volatile Properties roomProperties = new Properties();
+    private static volatile long roomChecked;
+    private static final Map<String, String> roomSignatures = new ConcurrentHashMap<String, String>();
     private static final Pattern PROFILE_NAME = Pattern.compile("\"profileName\"\\s*:\\s*\"([A-Za-z0-9_]{3,16})\"");
     private static final class RemoteAppearance {
         final String skin, cape, model;
@@ -105,13 +109,13 @@ public final class AppearanceAgent {
     }
 
     private static String addBytes(byte[] bytes) throws Exception {
-        if (images.size() >= 128) throw new IOException("Texture cache full");
         java.awt.image.BufferedImage decoded = javax.imageio.ImageIO.read(new ByteArrayInputStream(bytes));
         if (decoded == null || decoded.getWidth() > 512 || decoded.getHeight() > 512) throw new IOException("Invalid texture dimensions");
         byte[] hash = MessageDigest.getInstance("SHA-256").digest(bytes);
         StringBuilder name = new StringBuilder("/");
         for (byte b : hash) name.append(String.format("%02x", b & 255));
         name.append(".png");
+        if (images.size() >= 128 && !images.containsKey(name.toString())) throw new IOException("Texture cache full");
         images.put(name.toString(), bytes);
         return name.toString();
     }
@@ -191,6 +195,8 @@ public final class AppearanceAgent {
         }
         if (id == null || name == null || !name.matches("[A-Za-z0-9_]{3,16}")) return null;
         String offlineId = UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8)).toString().replace("-", "");
+        RemoteAppearance privateAppearance = roomAppearance(name, id, offlineId);
+        if (privateAppearance != null) return privateAppearance;
         if (!offlineId.equalsIgnoreCase(id)) return null;
         RemoteAppearance cached = remote.get(name);
         if (cached != null && cached.expires > System.currentTimeMillis()) return cached;
@@ -209,6 +215,40 @@ public final class AppearanceAgent {
         }
         RemoteAppearance appearance = new RemoteAppearance(skin, cape, variant[0], System.currentTimeMillis() + (skin == null ? 60000 : 300000));
         remote.put(name, appearance);
+        return appearance;
+    }
+
+    private static synchronized RemoteAppearance roomAppearance(String name, String id, String offlineId) throws Exception {
+        long now = System.currentTimeMillis();
+        if (now - roomChecked > 1000) {
+            roomChecked = now;
+            Properties next = new Properties();
+            String source = System.getProperty("luxmc.appearance.room", "");
+            if (!source.isEmpty()) {
+                Path path = Paths.get(source);
+                try {
+                    if (Files.size(path) <= 512000) {
+                        try (InputStream input = Files.newInputStream(path)) { next.load(input); }
+                    }
+                } catch (IOException ignored) {}
+            }
+            roomProperties = next;
+        }
+        Properties properties = roomProperties;
+        if (Long.parseLong(properties.getProperty("expires", "0")) < now) return null;
+        String peerId = properties.getProperty(name + ".uuid", "").replace("-", "");
+        if (!peerId.matches("[a-fA-F0-9]{32}") || (!peerId.equalsIgnoreCase(id) && !offlineId.equalsIgnoreCase(id))) return null;
+        String skin = properties.getProperty(name + ".skin", "");
+        String cape = properties.getProperty(name + ".cape", "");
+        String variant = "slim".equals(properties.getProperty(name + ".model")) ? "slim" : "default";
+        if (skin.isEmpty() || skin.length() > 180000 || cape.length() > 180000) return null;
+        String signature = peerId + ":" + skin + ":" + cape + ":" + variant;
+        if (signature.equals(roomSignatures.get(name))) return room.get(name);
+        String selectedSkin = textureBase + addBytes(Base64.getDecoder().decode(skin));
+        String selectedCape = cape.isEmpty() ? null : textureBase + addBytes(Base64.getDecoder().decode(cape));
+        RemoteAppearance appearance = new RemoteAppearance(selectedSkin, selectedCape, variant, now + 8000);
+        room.put(name, appearance);
+        roomSignatures.put(name, signature);
         return appearance;
     }
 
@@ -263,8 +303,10 @@ public final class AppearanceAgent {
             ClassLoader loader = input.getClass().getClassLoader();
             if (resultType.equals("com/mojang/authlib/properties/Property")) {
                 Object profileId = call(input, "getId", "id");
+                Object profileName = call(input, "getName", "name");
                 String selectedId = profileId == null ? owner : profileId.toString().replace("-", "");
-                String payload = "{\"profileId\":\"" + selectedId + "\",\"textures\":{\"SKIN\":{\"url\":\"" + selectedSkin + "\",\"metadata\":{\"model\":\"" + selectedModel + "\"}}" + (selectedCape == null ? "" : ",\"CAPE\":{\"url\":\"" + selectedCape + "\"}") + "}}";
+                String nameField = profileName instanceof String && ((String)profileName).matches("[A-Za-z0-9_]{3,16}") ? ",\"profileName\":\"" + profileName + "\"" : "";
+                String payload = "{\"profileId\":\"" + selectedId + "\"" + nameField + ",\"textures\":{\"SKIN\":{\"url\":\"" + selectedSkin + "\",\"metadata\":{\"model\":\"" + selectedModel + "\"}}" + (selectedCape == null ? "" : ",\"CAPE\":{\"url\":\"" + selectedCape + "\"}") + "}}";
                 return Class.forName(resultType.replace('/', '.'), true, loader).getConstructor(String.class, String.class).newInstance("textures", Base64.getEncoder().encodeToString(payload.getBytes(StandardCharsets.UTF_8)));
             }
             Class<?> texture = Class.forName("com.mojang.authlib.minecraft.MinecraftProfileTexture", true, loader);

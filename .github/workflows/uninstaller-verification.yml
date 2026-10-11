@@ -6,7 +6,7 @@ on:
       tag:
         description: Published release to verify on a fresh Windows machine
         required: true
-        default: v3.7.0
+        default: v3.8.0
 
 permissions:
   contents: read

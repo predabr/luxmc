@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 use crate::error::{AppError, AppResult};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase", tag = "action")]
 pub enum SocialRequest {
     #[serde(rename = "register")]
     Register { username: String },
     #[serde(rename = "sync", rename_all = "camelCase")]
-    Sync { status: String, instance_name: Option<String>, mc_version: Option<String>, loader: Option<String>, server_host: Option<String>, server_port: Option<u16>, avatar_url: Option<String> },
+    Sync { status: String, instance_name: Option<String>, mc_version: Option<String>, loader: Option<String>, server_host: Option<String>, server_port: Option<u16>, #[serde(skip_serializing_if = "Option::is_none")] avatar_url: Option<String> },
     #[serde(rename = "search")]
     Search { query: String },
     #[serde(rename = "owner_users")]
@@ -91,6 +91,9 @@ pub async fn social_request_core(account_id: String, request: SocialRequest) -> 
 }
 
 #[tauri::command]
-pub async fn social_request(account_id: String, request: SocialRequest) -> AppResult<serde_json::Value> {
+pub async fn social_request(account_id: String, request: SocialRequest, presence_session: Option<String>) -> AppResult<serde_json::Value> {
+    if let Some(session_id) = presence_session {
+        return super::social_presence::sync(account_id, session_id, request).await;
+    }
     social_request_core(account_id, request).await
 }

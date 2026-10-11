@@ -905,7 +905,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 		<div class="flex-1 flex flex-col min-w-0 space-y-6 p-6">
 
-			<header class="flex items-center justify-between gap-4 py-1">
+			<header class="home-toolbar flex flex-wrap items-center justify-between gap-4 py-1">
 				<div class="flex items-center gap-3">
 					<div class="flex items-center gap-1 bg-bg/35 backdrop-blur-xl border border-fg/[0.08] rounded-xl p-1 shadow-sm">
 						<button

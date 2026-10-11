@@ -296,7 +296,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 <div class="mx-auto flex h-full max-w-5xl flex-col gap-6 select-none overflow-y-auto custom-scrollbar pb-12">
 	<!-- Header -->
-	<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-fg/10 pb-5">
+	<header class="product-header flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-fg/10 pb-5">
 		<div class="flex items-center gap-3">
 			<div class="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
 				<Newspaper class="h-6 w-6" />

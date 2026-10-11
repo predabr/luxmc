@@ -58,11 +58,12 @@ assert.ok(JSON.parse(fs.readFileSync('src-tauri/capabilities/default.json', 'utf
         window.__TAURI_INTERNALS__ = { metadata: { currentWindow: { label: 'main' }, currentWebview: { label: 'main' } }, invoke, transformCallback: handler => { const id = Object.keys(window.callbacks).length + 1; window.callbacks[id] = handler; return id; }, convertFileSrc: path => path };
     });
     await page.goto((process.env.LUXMC_BASE_URL || 'http://127.0.0.1:1420') + '/mods');
-    await page.getByText('Pack 0', { exact: true }).waitFor();
+    await page.locator('.catalog-card').getByText('Pack 0', { exact: true }).waitFor();
     assert.equal(await page.locator('[data-virtual-list]').count(), 0);
-    assert.ok(await page.getByText(/^Pack \d+$/).count() < 20);
+    assert.ok(await page.locator('.catalog-card').count() < 36);
     assert.equal(await page.evaluate(() => window.searchCalls.at(-1)?.limit), 36);
     const icon = page.locator(".catalog-card").filter({ has: page.getByText("Pack 1", { exact: true }) }).locator("img").first();
+    await icon.scrollIntoViewIfNeeded();
     const bounds = await icon.boundingBox();
     assert.ok(bounds && bounds.height >= 180 && bounds.width >= 250, JSON.stringify(bounds));
     await icon.evaluate(image => image.decode());

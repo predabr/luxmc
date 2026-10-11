@@ -14,8 +14,11 @@ use tokio::{
 };
 
 mod worlds;
+mod appearance;
 pub mod coordination;
 pub use worlds::RoomWorld;
+
+pub fn room_appearance_path() -> Option<std::path::PathBuf> { appearance::path() }
 
 const ALPN: &[u8] = b"luxmc/minecraft-tunnel/2";
 const ROOM_CAPACITY: usize = 10;
@@ -112,6 +115,7 @@ pub(super) struct RoomRegistry {
     room_code: String,
     pub(super) world_ready: bool,
     pub(super) worlds: BTreeMap<String, RoomWorld>,
+    appearances: BTreeMap<String, appearance::Appearance>,
 }
 impl RoomRegistry {
     fn snapshot(&self) -> RoomSnapshot {
@@ -123,7 +127,7 @@ impl RoomRegistry {
         else if self.members.len() >= ROOM_CAPACITY - 1 || self.members.contains_key(id) { Err(2) }
         else { Ok(()) }
     }
-    fn remove(&mut self, id: &str) { self.members.remove(id); self.connections.remove(id); self.member_secrets.remove(id); self.worlds.remove(id); }
+    fn remove(&mut self, id: &str) { self.members.remove(id); self.connections.remove(id); self.member_secrets.remove(id); self.worlds.remove(id); self.appearances.remove(id); }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -189,6 +193,7 @@ pub struct TunnelSession {
     reverse_routes: Option<JoinHandle<()>>,
     world_addresses: Arc<Mutex<BTreeMap<String, String>>>,
     private_lan_heartbeat: JoinHandle<()>,
+    appearance_watch: JoinHandle<()>,
     #[cfg(test)]
     target_port: Option<Arc<AtomicU16>>,
     #[cfg(test)]
@@ -199,6 +204,7 @@ impl Drop for TunnelSession {
         self.task.abort();
         self.world_routes.abort();
         self.private_lan_heartbeat.abort();
+        self.appearance_watch.abort();
         if let Some(task) = &self.reverse_routes { task.abort(); }
         if let Some(task) = &self.world_watch { task.abort(); }
         if let Some(task) = &self.room_poll { task.abort(); }
@@ -215,6 +221,7 @@ impl TunnelSession {
         self.task.abort();
         self.world_routes.abort();
         self.private_lan_heartbeat.abort();
+        self.appearance_watch.abort();
         if let Some(task) = &self.reverse_routes { task.abort(); }
         if let Some(task) = &self.world_watch { task.abort(); }
         if let Some(task) = &self.room_poll { task.abort(); }
@@ -276,12 +283,14 @@ async fn start_host_with(port: u16, endpoint: Endpoint) -> AppResult<TunnelSessi
 
 async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) -> AppResult<TunnelSession> {
     let identity = identity.validate()?;
+    let own_appearance = appearance::local(&identity).await;
     let host_member = TunnelMember::new(endpoint.id().to_string(), identity, true);
     let room = Arc::new(Mutex::new(RoomRegistry::default()));
     let registry = room.clone();
+    if let Some(value) = own_appearance.clone() { room.lock().await.appearances.insert(host_member.id.clone(), value); }
     if port != 0 { tokio::time::timeout(
         Duration::from_secs(3),
-        TcpStream::connect(("127.0.0.1", port)),
+        super::lan_discovery::connect_local_game(port),
     )
     .await
     .map_err(failure)??; }
@@ -386,6 +395,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
                                         let Ok(Ok(_)) = tokio::time::timeout(Duration::from_secs(5), recv.read_exact(&mut handshake)).await else { return };
                                         let difference = handshake[1..].iter().zip(accepted_secret).fold(0u8, |acc, (a,b)| acc | (*a ^ b));
                                         if difference != 0 { return; }
+                                        if handshake[0] == 9 { appearance::control(&sender_id, send, recv, registry).await; return; }
                                         if matches!(handshake[0], 7 | 8) { coordination::control(handshake[0], &sender_id, send, recv, registry).await; return; }
                                         if matches!(handshake[0], 4 | 5) { worlds::control(handshake[0], &sender_id, send, recv, registry).await; return; }
                                         if handshake[0] == 3 {
@@ -400,7 +410,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
                                         if handshake[0] != 1 { return; }
                                         let port = forwarding_port.load(Ordering::Acquire);
                                         if port == 0 { let _ = send.write_all(&[0]).await; let _ = send.finish(); return; }
-                                        let Ok(Ok(tcp)) = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect(("127.0.0.1", port))).await else { let _ = send.write_all(&[0]).await; let _ = send.finish(); return };
+                                        let Ok(Ok(tcp)) = tokio::time::timeout(Duration::from_secs(5), super::lan_discovery::connect_local_game(port)).await else { let _ = send.write_all(&[0]).await; let _ = send.finish(); return };
                                         if send.write_all(&[1]).await.is_err() { return; }
                                         let _ = bridge(tcp, send, recv).await;
                                     });
@@ -418,7 +428,9 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
     });
     let world_addresses = Arc::new(Mutex::new(BTreeMap::new()));
     let world_routes = worlds::manage(host_member.id.clone(), Some(room.clone()), None, None, secret, world_addresses.clone());
+    let appearance_watch = appearance::watch(Some(room.clone()), None, secret, own_appearance);
     Ok(TunnelSession {
+        appearance_watch,
         secret,
         endpoint,
         task,
@@ -488,6 +500,7 @@ async fn start_client_with(invite: Invitation, endpoint: Endpoint) -> AppResult<
 
 async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomIdentity) -> AppResult<TunnelSession> {
     let identity = identity.validate()?;
+    let own_appearance = appearance::local(&identity).await;
     let self_member = TunnelMember::new(endpoint.id().to_string(), identity.clone(), false);
     let setup = async {
         let conn = endpoint.connect(invite.addr, ALPN).await.map_err(failure)?;
@@ -547,6 +560,7 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
     let world_addresses = Arc::new(Mutex::new(BTreeMap::new()));
     let world_routes = worlds::manage(self_member.id, None, Some(client_room.clone()), Some(conn.clone()), secret, world_addresses.clone());
     let reverse_routes = worlds::reverse(conn.clone(), target_port.clone(), secret);
+    let appearance_watch = appearance::watch(None, Some(conn.clone()), secret, own_appearance);
     let connection = conn.clone();
     let ep = endpoint.clone();
     let task = tokio::spawn(async move {
@@ -578,6 +592,7 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
         ep.close().await;
     });
     Ok(TunnelSession {
+        appearance_watch,
         secret,
         endpoint,
         task,
@@ -692,6 +707,7 @@ pub async fn stop_session() -> AppResult<()> {
         session.stop().await;
     }
     if let Some(path) = private_lan_session_path() { let _ = tokio::fs::remove_file(path).await; }
+    if let Some(path) = room_appearance_path() { let _ = tokio::fs::remove_file(path).await; }
     Ok(())
 }
 #[tauri::command]
@@ -749,6 +765,7 @@ pub async fn tunnel_kick_member(member_id: String) -> AppResult<()> {
     room.members.remove(&member_id);
     room.member_secrets.remove(&member_id);
     room.worlds.remove(&member_id);
+    room.appearances.remove(&member_id);
     room.removed.insert(member_id);
     conn.close(2u8.into(), b"removed by host");
     Ok(())
