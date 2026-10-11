@@ -1,6 +1,6 @@
 # Assinatura e distribuição do Lux MC Launcher
 
-Verificado em 11 de outubro de 2026. O instalador publicado é `Lux MC Launcher.exe` (NSIS). O código original atual migrou para `GPL-3.0-only`; tags e binários anteriores preservam seus registros históricos de licença. A candidatura à SignPath está em preparação, sem aprovação ou certificado ativo.
+Verificado em 11 de outubro de 2026. O instalador publicado é `Lux MC Launcher.exe` (NSIS). O código original atual migrou para `GPL-3.0-only`; tags e binários anteriores preservam seus registros históricos de licença. A candidatura à SignPath foi enviada e o formulário confirmou o recebimento; a avaliação está pendente, sem aprovação ou certificado ativo.
 
 ## Situação da versão 3.8.0
 
@@ -28,7 +28,7 @@ Enviar o nosso instalador EXE para a Store não recebe essa assinatura automáti
 
 A SignPath Foundation oferece assinatura gratuita a projetos de código aberto qualificados. Exige licença aprovada pela OSI, ausência de componentes proprietários, manutenção ativa e construção verificável a partir do repositório. A migração do código original para GPLv3 foi autorizada para seguir esse caminho. Dependências preservam suas licenças; imagens de terceiros e o runtime de sistema precisam de avaliação do programa. Não devemos presumir elegibilidade ou aprovação. [Requisitos da SignPath](https://signpath.org/terms).
 
-O formulário de [solicitação](https://signpath.org/apply) está sendo preparado com os dados fornecidos pelo mantenedor. A política pública está em [CODE_SIGNING_POLICY.md](../CODE_SIGNING_POLICY.md) e as configurações de artefatos para avaliação estão em [.signpath/](../.signpath/README.md). A integração final exige aprovação do programa e credenciais próprias; ainda não foi ativada. Cada release precisa de aprovação manual. A aceitação não é automática.
+O formulário de [solicitação](https://signpath.org/apply) foi enviado com os dados fornecidos pelo mantenedor, após sua autorização para aceitar os termos e o tratamento dos dados de contato. A política pública está em [CODE_SIGNING_POLICY.md](../CODE_SIGNING_POLICY.md) e as configurações de artefatos para avaliação estão em [.signpath/](../.signpath/README.md). A integração final exige aprovação do programa e credenciais próprias; ainda não foi ativada. Cada release precisa de aprovação manual. A aceitação não é automática.
 
 ## O que conferir em uma release assinada
 
@@ -46,4 +46,4 @@ Uma assinatura válida confirma a origem e a integridade. Certificado autoassina
 
 Se o Defender detectar incorretamente uma release, envie o arquivo pelo formulário oficial como desenvolvedor de software, com a versão e o hash. Não é necessário orientar usuários a desligarem a proteção. [Enviar para análise da Microsoft](https://www.microsoft.com/en-us/wdsi/filesubmission).
 
-Nenhum pedido foi submetido até esta preparação. O envio depende da revisão final dos termos pelo mantenedor. Nenhum certificado autoassinado foi criado para apresentá-lo como assinatura confiável.
+O formulário exibiu “Form submitted” e “Thank you, we'll be in touch soon.” O envio da candidatura não significa aprovação do programa nem emissão de certificado. Nenhum certificado autoassinado foi criado para apresentá-lo como assinatura confiável.

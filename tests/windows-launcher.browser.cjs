@@ -37,6 +37,7 @@ const assert=require('node:assert/strict');
  assert.equal(await commandDialog.getByRole('option').count(),0);
  await page.keyboard.press('Escape');
  await commandDialog.waitFor({state:'hidden'});
+ await page.waitForFunction(()=>document.body.style.pointerEvents!=='none',{},{timeout:5000});
  assert.notEqual(await page.evaluate(()=>document.body.style.pointerEvents),'none');
  await page.keyboard.press('Control+k');
  await page.getByRole('combobox').fill('instancias');

@@ -81,6 +81,6 @@ Bibliotecas, componentes de rede, conteúdo dos packs, imagens dos usuários e m
 
 ## Code signing policy
 
-A candidatura à SignPath Foundation está em preparação. Os instaladores publicados até agora não têm assinatura Authenticode. A verificação Ed25519 dos downloads continua ativa e não substitui a identificação do editor no Windows. A aprovação do programa, a integração e a validação de todos os componentes ainda são necessárias antes de anunciar uma release assinada.
+A candidatura à SignPath Foundation foi enviada em 11 de outubro de 2026, com recebimento confirmado pelo formulário; a avaliação está pendente. Os instaladores publicados até agora não têm assinatura Authenticode. A verificação Ed25519 dos downloads continua ativa e não substitui a identificação do editor no Windows. A aprovação do programa, a integração e a validação de todos os componentes ainda são necessárias antes de anunciar uma release assinada.
 
 Veja a [política de assinatura](CODE_SIGNING_POLICY.md), a [política de privacidade](https://luxmc-r92.pages.dev/privacidade) e a [página de assinatura no site](https://luxmc-r92.pages.dev/assinatura).

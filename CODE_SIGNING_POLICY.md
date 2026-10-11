@@ -1,6 +1,6 @@
 # Code signing policy — Luxmc
 
-Status: preparation for a SignPath Foundation application. No Foundation certificate has been approved or issued for Luxmc, and the current published Windows installers are not Authenticode-signed. This page does not declare eligibility or approval.
+Status: the SignPath Foundation application was submitted on October 11, 2026, and the form confirmed receipt. Provider review is pending. No Foundation certificate has been approved or issued for Luxmc, and the current published Windows installers are not Authenticode-signed. This page does not declare eligibility or approval.
 
 ## Intended signing provider
 
