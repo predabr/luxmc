@@ -24,6 +24,7 @@ const assert = require('node:assert/strict');
                 return { ...args.input, id: 'created-' + window.createdProfiles.length, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), gameDir: '/tmp/luxmc-browser-instance', fullscreen: false };
             }
             if (command === 'plugin:store|load' || command === 'plugin:event|listen') return 1;
+            if (command === 'plugin:store|get' && args.key === 'current_account') return [{ id: 'offline_test', uuid: 'offline_test', username: 'Steve', minecraftToken: '', expiresAt: 0 }, true];
             if (command === 'plugin:store|get') return [{ language: 'pt-BR', languageMode: 'manual', animations: false, liveWallpaper: false, soundscapesEnabled: false }, true];
             if (command === 'java_scan') return { runtimes: [] };
             if (command === 'deep_links_take' || command === 'profiles_list' || command === 'instances_list' || command === 'screenshots_list') return [];
