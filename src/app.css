@@ -780,4 +780,4 @@ html:not(.no-ui-motion):not(.no-anim) :is(.workshop-card, .friend-row, [data-bed
 html:not(.no-ui-motion):not(.no-anim) :is(.workshop-card, .friend-row, [data-bedrock-instance]):hover { border-color: rgb(var(--brand-400) / .35); translate: 0 -2px; }
 html.no-ui-motion .launcher-nav-indicator, html.no-anim .launcher-nav-indicator { transition: none; }
 @media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) .launcher-nav-indicator { transition: none; } html:not(.force-ui-motion) .launcher-nav-link > svg { animation: none !important; } }
-@media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) :is(.workshop-card, .friend-row, [data-bedrock-instance]) { transition: none; translate: none; } }
+@media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) :is(.workshop-card, .friend-row, [data-bedrock-instance]) { transition: none !important; translate: none !important; } }

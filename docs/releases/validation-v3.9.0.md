@@ -14,11 +14,15 @@ As detecções Avast, AVG e Trapmine informadas pelo usuário não foram classif
 
 O relatório local de benefícios registra `pnpm check`, build de produção, 75 testes de API e nove cenários de navegador Free/Plus/Pro, além da regressão de imagens e GIFs. Os testes de navegador usam contas simuladas e não modificam contas pessoais.
 
+Na preparação 3.9, os 160 testes unitários do frontend, 75 testes das APIs e 15 testes de dependência/manifestos passaram. As 20 suítes de navegação foram conferidas, com repetição das oito últimas depois da correção de movimento reduzido nos cartões. O teste de hover agora verifica um deslocamento pequeno em vez de exigir exatamente três pixels. A compilação nativa local continua bloqueada pela política de execução do Windows; as máquinas do GitHub Actions fazem a validação e geração dos pacotes antes da publicação.
+
 O cache do Shield continua identificado pelo hash do arquivo. A auditoria de metadados para instalação usa leitura limitada; a análise de segurança antes da abertura continua obrigatória. Testes Rust verificam alterações de arquivos, CRC, cancelamento e a invalidação dos caches.
 
 A auditoria npm identificou [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm), sem versão upstream corrigida na preparação. O lockfile aplica `patches/braces@3.0.3.patch`, limitando a profundidade a 128 na análise e nos percursos recursivos. `tests/braces-depth.test.mjs` verifica padrões normais, texto profundamente aninhado e chamadas AST diretas. O aviso continua visível na auditoria npm porque a versão do pacote não muda; não foi ocultado por uma exceção de auditoria. O pacote é uma dependência das ferramentas de glob usadas na compilação Node, não um programa executado pelo instalador Windows.
 
 A publicação das novas funções do site requer a migração aditiva `0016_profile_style.sql`. Planos, aprovações de Pix e preferências existentes devem ser preservados; a nova release não ativa compras pausadas nem provisiona servidores.
+
+A migração `0016_profile_style.sql` foi aplicada ao D1 de produção durante a preparação desta release, sem apagar perfis. Uma consulta agregada posterior conferiu que o campo está disponível nos perfis existentes. A publicação das funções do portal acompanha a entrega dos novos artefatos.
 
 ## Limites
 
