@@ -18,6 +18,70 @@ const settle = async () => {
   for (let index = 0; index < 10; index++) await Promise.resolve();
 };
 
+function plansFixture({ plan = 'pro', enabled = false, pending = false, pauseOnCreate = false } = {}) {
+  const dom = createDom(read('planos.html'));
+  const window = dom.window;
+  const calls = [];
+  const state = { identity:{id:'test-account',username:'Player',owner:true}, membership:{plan,expiresAt:1900000000,collections:24,presets:20}, checkout:{enabled}, orders:pending ? [{id:'test-order',socialId:'test-account',username:'Player',plan:'plus',amount:990,bank:'Test bank',pixKey:'test-only',days:30,status:'pending',version:0,createdAt:1800000000,updatedAt:1800000000,note:'',receiptHash:null}] : [] };
+  window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  window.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new window.Event('close')); };
+  window.AbortSignal.timeout = () => new window.AbortController().signal;
+  window.fetch = async (url) => {
+    const action = url.split('/').pop(); calls.push(action);
+    if (action === 'create' && pauseOnCreate) { state.checkout.enabled = false; return {ok:false,status:503,json:async()=>({error:'Os pedidos de planos ainda não estão abertos.'})}; }
+    assert.equal(action, 'status');
+    return {ok:true,status:200,json:async()=>structuredClone(state)};
+  };
+  window.eval(read('commerce.js'));
+  return { dom, window, calls };
+}
+
+test('plans keep the active subscription and block duplicate or paused purchases without page clutter', async () => {
+  const {window,calls} = plansFixture();
+  try {
+    await settle();
+    const document = window.document;
+    assert.match(document.querySelector('#identity').textContent, /Player · Luxmc Pro/);
+    assert.match(document.querySelector('#identity').textContent, /Ativo até/);
+    assert.equal(document.querySelectorAll('#orders,#preferences,#profile-customization').length, 0);
+    assert.equal(document.querySelector('#identity a[href="/painel-luxmc"]'), null);
+    assert.equal(document.querySelector('[data-plan=pro]').textContent, 'Seu plano ativo');
+    assert.equal(document.querySelector('[data-plan=plus]').textContent, 'Novos pedidos pausados');
+    document.querySelector('[data-plan=pro]').click(); document.querySelector('[data-plan=plus]').click();
+    await settle();
+    assert.deepEqual(calls, ['status']);
+    assert.equal(document.querySelector('#message').textContent, '');
+    assert.equal(document.querySelector('#checkout').open, false);
+  } finally { window.close(); }
+});
+
+test('an existing order remains accessible in a dismissible dialog when new purchases are paused', async () => {
+  const {window,calls} = plansFixture({pending:true});
+  try {
+    await settle();
+    const control = window.document.querySelector('[data-plan=plus]');
+    assert.equal(control.disabled, false); assert.equal(control.textContent, 'Ver pedido');
+    control.click(); await settle();
+    assert.equal(window.document.querySelector('#checkout').open, true);
+    assert.match(window.document.querySelector('#order-list').textContent, /Esperando verificação/);
+    window.document.querySelector('#close-checkout').click();
+    assert.equal(window.document.querySelector('#checkout').open, false);
+    assert.deepEqual(calls, ['status']);
+  } finally { window.close(); }
+});
+
+test('a checkout pause after page load refreshes the controls and reports the server reason', async () => {
+  const {window,calls} = plansFixture({plan:'free',enabled:true,pauseOnCreate:true});
+  try {
+    await settle(); window.document.querySelector('[data-plan=pro]').click(); await settle(); await settle();
+    assert.deepEqual(calls, ['status','create','status']);
+    assert.equal(window.document.querySelector('[data-plan=pro]').disabled, true);
+    assert.equal(window.document.querySelector('[data-plan=pro]').textContent, 'Novos pedidos pausados');
+    assert.match(window.document.querySelector('#message').textContent, /pedidos de planos ainda não estão abertos/);
+    assert.equal(window.document.querySelector('#checkout').open, false);
+  } finally { window.close(); }
+});
+
 test("the home page exposes the actual launcher and download without WebGL", () => {
   const dom = createDom(read("index.html"));
   try {

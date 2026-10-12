@@ -1,5 +1,5 @@
 import QRCode from 'qrcode';
-import { defaultProfileStyle, profileAccents, profileBenefits, profileEffects, profileFrames, profileLayouts, type ProfileStyle } from '../site-server/lib/profile-style';
+import type { ProfileStyle } from '../site-server/lib/profile-style';
 
 type Plan = 'free' | 'plus' | 'pro';
 interface Preset { id: string; name: string; preferences: Record<string, string | number | boolean> }
@@ -13,6 +13,7 @@ const date = (seconds: number) => new Date(seconds * 1000).toLocaleString('pt-BR
 const planName = (plan: Plan) => `Luxmc ${plan === 'free' ? 'Free' : plan === 'plus' ? 'Plus' : 'Pro'}`;
 const statuses: Record<string, string> = { awaiting_receipt: 'Aguardando comprovante', pending: 'Esperando verificação', approved: 'Aprovado', rejected: 'Rejeitado', cancelled: 'Cancelado' };
 let snapshot: Snapshot | null = null;
+let accountResolved = false;
 let busy = false;
 let offset = 0;
 let queueTotal = 0;
@@ -29,7 +30,7 @@ async function request<T = any>(action: string, body: unknown = {}): Promise<T> 
         const value = await response.json();
         if (response.status === 428 && ownerPage && attempt === 0) { await unlockOwner(); continue; }
         if (!response.ok) {
-            if (response.status === 401 || (response.status === 403 && action.startsWith('owner_'))) lock();
+            if (response.status === 401 || (response.status === 403 && action.startsWith('owner_'))) { accountResolved = true; lock(); }
             throw new Error(value.error || 'Não foi possível concluir.');
         }
         if (typeof value.csrfToken === 'string') csrfToken = value.csrfToken;
@@ -65,12 +66,15 @@ function unlockOwner(): Promise<void> {
     dialog.showModal(); password.focus(); return unlocking;
 }
 function node<K extends keyof HTMLElementTagNameMap>(tag: K, text = '', className = ''): HTMLElementTagNameMap[K] { const result = document.createElement(tag); result.textContent = text; if (className) result.className = className; return result; }
-function message(text = '', error = false) { const target = ownerPage && !snapshot ? element('login-message') : element('message'); target.replaceChildren(); if (text) target.append(node('p', text, `notice${error ? ' error' : ''}`)); }
+function message(text = '', error = false) { const target = ownerPage && !snapshot ? element('login-message') : !ownerPage && element<HTMLDialogElement>('checkout').open ? element('checkout-message') : element('message'); target.replaceChildren(); if (text) target.append(node('p', text, `notice${error ? ' error' : ''}`)); }
 function button(text: string, action: () => void | Promise<void>, style = 'secondary', onError?: (error: string) => void) { const result = node('button', text, `commerce-button ${style}`); result.type = 'button'; result.onclick = () => void perform(action, onError); return result; }
 function updatePlanAvailability() {
     for (const control of document.querySelectorAll<HTMLButtonElement>('[data-plan]')) {
-        control.disabled = busy || !snapshot?.checkout.enabled;
-        control.title = snapshot?.checkout.enabled ? 'Escolher plano' : 'Novos pedidos estão pausados';
+        const pending = snapshot?.orders.find(order => order.plan === control.dataset.plan && ['awaiting_receipt', 'pending'].includes(order.status));
+        const current = snapshot?.membership.plan === control.dataset.plan;
+        control.disabled = busy || !accountResolved || (!pending && (current || Boolean(snapshot && !snapshot.checkout.enabled)));
+        control.textContent = !accountResolved ? 'Carregando…' : pending ? 'Ver pedido' : current ? 'Seu plano ativo' : !snapshot ? 'Entrar para escolher' : !snapshot.checkout.enabled ? 'Novos pedidos pausados' : `Escolher ${control.dataset.plan === 'plus' ? 'Plus' : 'Pro'} ↗`;
+        control.title = current && !pending ? 'Você já tem este plano ativo' : pending ? 'Abrir seu pedido em andamento' : control.textContent;
     }
 }
 async function perform(action: () => void | Promise<void>, onError?: (error: string) => void) {
@@ -95,6 +99,11 @@ function lock() {
     }
     if (!ownerPage) { const link = node('a', 'Entrar na conta Luxmc', 'commerce-button'); link.href = '/conta'; identity.append(link); }
     element('order-list').replaceChildren();
+    if (!ownerPage) element<HTMLDialogElement>('checkout').close();
+    if (!ownerPage) {
+        element('checkout-availability').hidden = true;
+        for (const card of document.querySelectorAll<HTMLElement>('[data-tier]')) { card.dataset.current = 'false'; card.querySelector<HTMLElement>('.plan-current')!.hidden = true; }
+    }
     if (ownerPage) { for (const id of ['audit','owner-settings','owner-security','owner-account','stats']) element(id).replaceChildren(); }
     if (ownerPage) element('manual-grant').replaceChildren();
 }
@@ -136,45 +145,27 @@ function renderOrder(order: Order, owner: boolean) {
     }
     return card;
 }
-function renderPreferences() {
-    if (!snapshot || snapshot.membership.plan === 'free') { element('preferences').hidden = true; return; }
-    const section = element('preferences'); section.hidden = false; section.replaceChildren(node('h2', 'Aparência que acompanha você'), node('p', `Até ${snapshot.membership.presets} perfis salvos. As configurações chegam ao launcher conectado à mesma conta. Wallpapers e arquivos locais ficam no computador.`));
-    const form = node('form'); const prefs = snapshot.settings.preferences; const fields = node('div', '', 'sync-grid'); const controls: Record<string, HTMLSelectElement> = {};
-    const definitions: [string, string, [string, string][], string][] = [['density','Espaçamento',[['compact','Compacto'],['comfortable','Confortável'],['spacious','Amplo']],'comfortable'],['motionStyle','Animações',[['subtle','Suaves'],['expressive','Expressivas']],'expressive'],['motionSpeed','Velocidade',[['fast','Rápida'],['balanced','Equilibrada']],'balanced'],['wallpaperFps','Fluidez do wallpaper',[['15','15 FPS'],['24','24 FPS'],['30','30 FPS'],['60','60 FPS']],'30']];
-    for (const [key, title, options, fallback] of definitions) { const label = node('label', title); const select = node('select'); select.setAttribute('aria-label', title); for (const [value, name] of options) { const option = node('option', name); option.value = value; select.append(option); } select.value = String(prefs[key] ?? fallback); label.append(select); fields.append(label); controls[key] = select; } form.append(fields);
-    const selected = () => ({ ...prefs, ...Object.fromEntries(Object.entries(controls).map(([key, input]) => [key, key === 'wallpaperFps' ? Number(input.value) : input.value])) });
-    const persist = async (preferences: Preset['preferences'], presets: Preset[]) => { await request('preferences', { revision: snapshot!.settings.revision, preferences, presets }); message('Aparência salva na conta. O launcher sincroniza automaticamente enquanto conectado.'); await refresh(); };
-    form.append(button('Sincronizar aparência', () => persist(selected(), snapshot!.settings.presets), ''));
-    const name = labelledInput(form, 'Nome para salvar este perfil'); name.maxLength = 40;
-    form.append(button('Salvar perfil de aparência', async () => { if (!name.value.trim()) throw new Error('Dê um nome ao perfil.'); if (snapshot!.settings.presets.length >= snapshot!.membership.presets) throw new Error('Você atingiu o limite de perfis do plano.'); await persist(selected(), [...snapshot!.settings.presets, { id: crypto.randomUUID(), name: name.value.trim(), preferences: selected() }]); }));
-    form.onsubmit = event => event.preventDefault(); section.append(form);
-    for (const preset of snapshot.settings.presets) { const row = node('div', '', 'order-card'); row.append(node('strong', preset.name)); const actions = node('div', '', 'toolbar'); actions.append(button('Aplicar nos dispositivos', () => persist(preset.preferences, snapshot!.settings.presets)), button('Excluir perfil', async () => { if (confirm(`Excluir o perfil de aparência “${preset.name}”?`)) await persist(snapshot!.settings.preferences, snapshot!.settings.presets.filter(item => item.id !== preset.id)); }, 'danger')); row.append(actions); section.append(row); }
-}
-function renderProfileStyle() {
+function renderPlanSummary() {
     if (!snapshot) return;
-    const section = element('profile-customization');
-    section.hidden = false;
-    const plan = snapshot.membership.plan;
-    const benefits = profileBenefits[plan];
-    let style: ProfileStyle = { ...(snapshot.profile?.profileStyle || defaultProfileStyle) };
-    const preview = node('article', '', 'profile-signature membership-profile-preview');
-    const banner = node('div', '', 'membership-profile-cover'); banner.dataset.profileBanner = '';
-    const content = node('div', '', 'membership-profile-heading'); content.dataset.profileHeading = '';
-    const avatar = node('div', (snapshot.profile?.displayName || snapshot.identity.username).slice(0, 1).toUpperCase(), 'membership-profile-avatar'); avatar.dataset.profileAvatar = '';
-    const identity = node('div'); const name = node('h3', snapshot.profile?.displayName || snapshot.identity.username); name.dataset.profileName = '';
-    identity.append(name, node('p', snapshot.profile?.status || 'Seu próximo mundo começa aqui.')); content.append(avatar, identity); preview.append(banner, content);
-    const form = node('form'); const groups = node('div', '', 'sync-grid');
-    const labels: Record<string, string> = { accent:'Paleta', frame:'Moldura do avatar', effect:'Efeito', layout:'Composição', brand:'Luxmc', ocean:'Oceano', mint:'Menta', sunset:'Pôr do sol', rose:'Rosa', lilac:'Lilás', none:'Original', halo:'Halo', double:'Contorno duplo', orbit:'Órbita', shimmer:'Brilho da capa', pulse:'Pulso do avatar', classic:'Clássica', centered:'Centralizada' };
-    const paint = () => { preview.dataset.profileAccent = style.accent; preview.dataset.profileFrame = style.frame; preview.dataset.profileEffect = style.effect; preview.dataset.profileLayout = style.layout; };
-    paint();
-    for (const [key, values, allowed] of [['accent', profileAccents, benefits.accents], ['frame', profileFrames, benefits.frames], ['effect', profileEffects, benefits.effects], ['layout', profileLayouts, benefits.layouts]] as const) {
-        const label = node('label', labels[key]); const control = node('select'); control.setAttribute('aria-label', labels[key]);
-        for (const value of values) { const enabled = (allowed as readonly string[]).includes(value); const option = node('option', `${labels[value]}${enabled ? '' : ` · ${value === 'orbit' || key === 'effect' || key === 'layout' ? 'Pro' : 'Plus'}`}`); option.value = value; option.disabled = !enabled; control.append(option); }
-        control.value = style[key]; control.onchange = () => { style = { ...style, [key]:control.value }; paint(); }; label.append(control); groups.append(label);
+    const identity = element('identity'); identity.hidden = false;
+    const details = node('div'); details.append(node('p', 'SEU PLANO', 'eyebrow'), node('h2', `${snapshot.identity.username} · ${planName(snapshot.membership.plan)}`));
+    details.append(node('p', snapshot.membership.plan === 'free' ? 'Seu launcher completo, sempre com você.' : `Ativo até ${date(snapshot.membership.expiresAt!)}`));
+    const badge = node('span', snapshot.membership.plan === 'free' ? 'Free' : 'Assinatura ativa', 'membership-active');
+    identity.replaceChildren(details, badge);
+    const availability = element('checkout-availability'); availability.hidden = snapshot.checkout.enabled;
+    availability.textContent = 'Novos pedidos estão pausados. Seu plano ativo continua válido.';
+    for (const card of document.querySelectorAll<HTMLElement>('[data-tier]')) {
+        const current = card.dataset.tier === snapshot.membership.plan;
+        card.dataset.current = String(current);
+        card.querySelector<HTMLElement>('.plan-current')!.hidden = !current;
     }
-    form.append(groups, button('Salvar assinatura visual', async () => { await request('profile_style', {profileStyle:style}); message('Perfil salvo na mesma conta. Seus amigos verão o novo estilo no launcher atualizado.'); await refresh(); requestAnimationFrame(() => section.querySelector<HTMLButtonElement>('button')?.focus()); }, ''));
-    form.onsubmit = event => { event.preventDefault(); form.querySelector<HTMLButtonElement>('button')?.click(); };
-    section.replaceChildren(node('p', planName(plan), 'eyebrow'), node('h2', 'Um perfil com a sua assinatura'), node('p', `${benefits.favourites} favoritos no perfil. Plus libera seis paletas e novas molduras; Pro também libera Órbita, efeitos e composição centralizada.`), preview, form, node('p', 'Quando o plano vence, as escolhas premium ficam guardadas e voltam quando seu plano permite. As imagens do perfil são editadas no launcher.', 'notice'));
+    element('order-list').replaceChildren(...snapshot.orders.map(order => renderOrder(order, false)));
+    updatePlanAvailability();
+}
+function openCheckout() {
+    const dialog = element<HTMLDialogElement>('checkout');
+    element('checkout-message').replaceChildren();
+    if (!dialog.open) dialog.showModal();
 }
 function pagination() { if (!ownerPage) return; element<HTMLButtonElement>('previous').disabled = busy || offset === 0; element<HTMLButtonElement>('next').disabled = busy || offset + 50 >= queueTotal; element('pagination').textContent = `${queueTotal ? offset + 1 : 0}–${Math.min(offset + 50, queueTotal)} de ${queueTotal}`; }
 function showOwnerTab(tab: string) {
@@ -299,24 +290,32 @@ async function refresh() {
         element('audit').replaceChildren(...queue.audit.map((entry: any) => { const row = node('article','','owner-audit'); row.append(node('span', ['security','password'].includes(entry.action) ? 'ACESSO' : 'GESTÃO','audit-kind'),node('strong',entry.username ? `${entry.username}${entry.social_id ? `#${entry.social_id.slice(0,8)}` : ''}` : 'Conta'),node('p',entry.detail),node('time',date(entry.created_at))); return row; })); if (!queue.audit.length) element('audit').append(node('p', 'As decisões aparecerão aqui.'));
         renderGrant(); renderSecurity(queue.config.passwordConfigured); showOwnerTab(ownerTab);
     } else {
-        snapshot = await request<Snapshot>('status'); const identity = element('identity'); identity.replaceChildren(node('h2', `${snapshot.identity.username} · ${planName(snapshot.membership.plan)}`), node('p', snapshot.membership.plan === 'free' ? 'Seu launcher continua completo. Escolha um plano para ampliar seu perfil.' : `Ativo até ${date(snapshot.membership.expiresAt!)} · ${snapshot.membership.collections} coleções · ${snapshot.membership.presets} perfis de aparência.`));
-        if (!snapshot.checkout.enabled) identity.append(node('p', 'Os novos pedidos estão pausados. Seus planos ativos continuam válidos.'));
-        if (snapshot.identity.owner) { const link = node('a', 'Abrir central do dono', 'commerce-button secondary'); link.href = '/painel-luxmc'; identity.append(link); }
-        element('orders').hidden = false; element('order-list').replaceChildren(...snapshot.orders.map(order => renderOrder(order, false))); if (!snapshot.orders.length) element('order-list').append(node('p', 'Você ainda não tem pedidos.')); renderPreferences(); renderProfileStyle(); updatePlanAvailability();
+        snapshot = await request<Snapshot>('status'); accountResolved = true; renderPlanSummary();
     }
 }
 async function start() {
     const ticket = new URLSearchParams(location.hash.slice(1)).get('ticket');
     if (location.hash) history.replaceState(null, '', location.pathname);
     try { if (ticket) await request('exchange', { ticket }); await refresh(); } catch (error) { message((error as Error).message, true); }
-    element('refresh').onclick = () => void perform(refresh);
+    if (ownerPage) element('refresh').onclick = () => void perform(refresh);
     if (ownerPage) {
         for (const control of document.querySelectorAll<HTMLButtonElement>('[data-owner-tab]')) control.onclick = () => { lastInteraction = Date.now(); showOwnerTab(control.dataset.ownerTab!); };
         element<HTMLSelectElement>('filter').onchange = () => { offset = 0; selectedReceipt = ''; void perform(refresh); };
         element('previous').onclick = () => { offset = Math.max(0, offset - 50); selectedReceipt = ''; void perform(refresh); };
         element('next').onclick = () => { offset += 50; selectedReceipt = ''; void perform(refresh); };
         element('logout').onclick = () => void perform(async () => { await request('logout'); lock(); message('Acesso encerrado.'); });
-    } else for (const control of document.querySelectorAll<HTMLButtonElement>('[data-plan]')) control.onclick = () => void perform(async () => { await request('create', { plan: control.dataset.plan }); message('Pedido criado. Confira a chave Pix e envie o comprovante abaixo.'); await refresh(); element('orders').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' }); });
+    } else {
+        element('close-checkout').onclick = () => element<HTMLDialogElement>('checkout').close();
+        element<HTMLDialogElement>('checkout').onclose = () => { selectedReceipt = ''; for (const form of element('checkout').querySelectorAll('[data-editing]')) form.removeAttribute('data-editing'); };
+        for (const control of document.querySelectorAll<HTMLButtonElement>('[data-plan]')) control.onclick = () => void perform(async () => {
+            if (!snapshot) { location.assign('/conta'); return; }
+            const pending = snapshot.orders.find(order => order.plan === control.dataset.plan && ['awaiting_receipt', 'pending'].includes(order.status));
+            if (pending) { openCheckout(); return; }
+            if (snapshot.membership.plan === control.dataset.plan || !snapshot.checkout.enabled) { updatePlanAvailability(); return; }
+            try { await request('create', { plan: control.dataset.plan }); } catch (error) { await refresh(); throw error; }
+            await refresh(); openCheckout(); message('Confira o destinatário e o valor antes de pagar.');
+        });
+    }
     document.addEventListener('input', event => { if (event.target instanceof Element) event.target.closest('form,.order-card')?.setAttribute('data-editing','true'); });
     for (const event of ['pointerdown','keydown','input','scroll']) document.addEventListener(event, () => { lastInteraction = Date.now(); }, {passive:true,capture:true});
     setInterval(() => {
