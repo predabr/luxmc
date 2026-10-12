@@ -1,0 +1,18 @@
+[data-site-account]{position:relative;flex-shrink:0}
+[data-site-account]>a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;border:1px solid rgb(var(--border));border-radius:14px;font-size:12px;background:rgb(var(--bg-elevated)/.5)}
+.site-account-menu summary{list-style:none;display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 9px 4px 4px;border:1px solid rgb(var(--border));background:rgb(var(--bg-elevated)/.65);border-radius:16px;min-height:44px}
+.site-account-menu summary::-webkit-details-marker{display:none}
+.site-account-menu summary img{width:36px;height:36px;border-radius:12px;object-fit:cover;border:1px solid rgb(var(--brand-400)/.25)}
+.site-account-menu img[data-skin-head=true]{image-rendering:pixelated}
+.site-account-name{max-width:116px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600}
+.site-account-chevron{color:rgb(var(--fg-muted));font-size:14px;transition:transform .2s var(--ease)}
+.site-account-menu[open] .site-account-chevron{transform:rotate(180deg)}
+.site-account-dropdown{position:absolute;right:0;top:calc(100% + 12px);z-index:210;display:flex!important;flex-direction:column;align-items:stretch!important;gap:4px!important;min-width:220px;padding:14px;border:1px solid rgb(var(--border));border-radius:18px;background:rgb(var(--bg-elevated));box-shadow:0 16px 50px rgb(var(--shadow-color)/.35);animation:account-menu-enter .2s var(--ease)}
+.site-account-dropdown strong{font-size:13px;overflow-wrap:anywhere;padding:3px 8px}
+.site-account-dropdown p{font-size:11px;color:rgb(var(--brand-400));padding:0 8px 8px;border-bottom:1px solid rgb(var(--border));margin:0 0 4px}
+.site-account-dropdown a,.site-account-dropdown button{display:block;font-size:12px;text-align:left;padding:10px;border:0;border-radius:9px;background:transparent;color:rgb(var(--fg));cursor:pointer}
+.site-account-dropdown a:hover,.site-account-dropdown button:hover{background:rgb(var(--bg-subtle))}
+[data-site-account] :focus-visible{outline:2px solid rgb(var(--brand-400));outline-offset:3px}
+@keyframes account-menu-enter{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:767px){.site-account-name,.site-account-chevron{display:none}.site-account-menu summary{padding:3px;border-radius:14px}.site-account-dropdown{min-width:200px}[data-site-account]>a{padding:8px 10px}.nav-actions{gap:10px}.commerce-nav{padding-inline:18px;gap:10px}.commerce-nav nav{gap:10px}.commerce-brand span{display:none}}
+@media(prefers-reduced-motion:reduce){.site-account-dropdown{animation:none}.site-account-chevron{transition:none}}

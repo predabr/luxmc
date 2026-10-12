@@ -296,7 +296,7 @@ async function refresh() {
 async function start() {
     const ticket = new URLSearchParams(location.hash.slice(1)).get('ticket');
     if (location.hash) history.replaceState(null, '', location.pathname);
-    try { if (ticket) await request('exchange', { ticket }); await refresh(); } catch (error) { message((error as Error).message, true); }
+    try { if (ticket) {await request('exchange', { ticket });window.dispatchEvent(new Event('luxmc-session-changed'));} await refresh(); } catch (error) { message((error as Error).message, true); }
     if (ownerPage) element('refresh').onclick = () => void perform(refresh);
     if (ownerPage) {
         for (const control of document.querySelectorAll<HTMLButtonElement>('[data-owner-tab]')) control.onclick = () => { lastInteraction = Date.now(); showOwnerTab(control.dataset.ownerTab!); };

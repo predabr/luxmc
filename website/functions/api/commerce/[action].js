@@ -34,7 +34,9 @@ async function onRequest({ request, env, params, waitUntil }) {
         db.prepare("DELETE FROM lux_commerce_tickets WHERE token_hash = ?").bind(hash)
       ]);
       if (!results[0].meta.changes) return fail("Link j\xE1 usado.", 401);
-      return json({ ok: true, csrfToken: await csrfFor(token) }, 200, { "Set-Cookie": `${COMMERCE_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}` });
+      const response = json({ ok: true, csrfToken: await csrfFor(token) }, 200, { "Set-Cookie": `${COMMERCE_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${age}` });
+      response.headers.append("Set-Cookie", "__Host-luxmc=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0");
+      return response;
     }
     const me = await commerceIdentity(request, db);
     if (!me) return fail("Entre com sua conta ou abra esta p\xE1gina pelo launcher.", 401);

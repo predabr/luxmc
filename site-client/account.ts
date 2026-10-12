@@ -91,8 +91,8 @@ function showAccount(account: any, recoveryCode?: string) {
     $("#authPanel").hidden = true;
     $("#dashboard").hidden = false;
     $("#accountNickname").textContent = account.username;
-    $("#accountAvatar").src =
-        `https://mc-heads.net/avatar/${encodeURIComponent(account.username)}/128`;
+    $("#accountAvatar").src = '/assets/avatar-steve.png';
+    window.dispatchEvent(new Event('luxmc-session-changed'));
     fillPreferences();
     if (recoveryCode) {
         $("#generatedRecovery").value = recoveryCode;
@@ -295,9 +295,20 @@ $("#logoutButton").addEventListener("click", async () => {
         $("#generatedRecovery").value = "";
         $("#recoveryNotice").hidden = true;
         setMode("login");
+        window.dispatchEvent(new Event('luxmc-session-changed'));
     }
     catch (error: any) {
         message(error.message, true);
+    }
+});
+window.addEventListener('luxmc-session-ready', (event:Event) => {
+    const detail=(event as CustomEvent).detail;
+    if (current && detail?.user?.id === current.socialId) $("#accountAvatar").src = detail.avatar;
+    else if (current && (!detail?.user || detail.user.id !== current.socialId)) {
+        generation++; clearTimeout(poll); current=null;
+        $("#dashboard").hidden=true; $("#authPanel").hidden=false;
+        $("#generatedRecovery").value=''; $("#recoveryNotice").hidden=true;
+        setMode('login');
     }
 });
 function friendRow(friend: any, search: any = false) {

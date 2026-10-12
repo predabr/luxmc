@@ -9,6 +9,7 @@ import { onRequest as receipts } from "../website/functions/api/receipts/[id].js
 import { onRequest as social } from "../website/functions/api/social/[action].js";
 import { onRequest as release } from "../website/functions/api/latest-release.js";
 import { onRequest as download } from "../website/functions/download/[platform].js";
+import { onRequest as session } from "../website/functions/api/session.js";
 
 const root = resolve("website"),
   port = Number(process.env.LUXMC_SITE_PORT || 8790);
@@ -68,6 +69,7 @@ const server = createServer(async (incoming, outgoing) => {
     const url = new URL(incoming.url, `http://127.0.0.1:${port}`);
     let handler,
       params = {};
+    if (url.pathname === '/api/session') {handler=session;params={};}
     const api = url.pathname.match(/^\/api\/(account|social|commerce)\/([a-z_-]+)$/);
     if (api) {
       handler = api[1] === "account" ? account : api[1] === "commerce" ? commerce : social;

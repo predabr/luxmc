@@ -94,5 +94,7 @@ export async function newOwnerSession(request: Request, env: SiteEnvironment, ac
     statements.push(env.SOCIAL_DB.prepare('INSERT INTO lux_commerce_sessions(token_hash, social_id, expires_at, verified_at, created_at, last_activity_at) VALUES (?, ?, ?, ?, ?, ?)').bind(await digest(token), env.OWNER_SOCIAL_ID, now + 900, now, now, now));
     statements.push(env.SOCIAL_DB.prepare('INSERT INTO lux_purchase_audit(id, social_id, actor, action, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)').bind(crypto.randomUUID(), env.OWNER_SOCIAL_ID, env.OWNER_SOCIAL_ID, 'security', action, now));
     await env.SOCIAL_DB.batch(statements);
-    return json({ ok: true, csrfToken: await csrfFor(token) }, 200, { 'Set-Cookie': `${COMMERCE_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=900` });
+    const response = json({ ok: true, csrfToken: await csrfFor(token) }, 200, { 'Set-Cookie': `${COMMERCE_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=900` });
+    response.headers.append('Set-Cookie', '__Host-luxmc=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0');
+    return response;
 }

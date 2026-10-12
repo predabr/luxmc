@@ -82,6 +82,26 @@ test('a checkout pause after page load refreshes the controls and reports the se
   } finally { window.close(); }
 });
 
+test('site navigation shows the authenticated photo and binds the plan link to the connected account', async () => {
+  const dom=createDom(read('index.html')),window=dom.window;
+  let signedIn=true;const calls=[];
+  window.AbortSignal.timeout=()=>new window.AbortController().signal;
+  window.fetch=async(url,options={})=>{calls.push({url,options});if(options.method==='POST'){assert.equal(options.headers['X-Luxmc-CSRF'],'test-csrf');signedIn=false;return{ok:true};}return{ok:true,json:async()=>({user:signedIn?{id:'profile-a',username:'Player',displayName:'<script>Creator</script>',avatarUrl:'/assets/avatar-steve.png',skinUrl:null,canManageAccount:true,membership:{plan:'pro',expiresAt:1900000000}}:null,csrfToken:'test-csrf'})};};
+  window.eval(read('session.js'));await settle();
+  try {
+    const document=window.document;
+    assert.equal(document.querySelector('[data-site-account]').dataset.accountId,'profile-a');
+    assert.equal(document.querySelector('.site-account-name').textContent,'<script>Creator</script>');
+    assert.equal(document.querySelectorAll('[data-site-account] script').length,0);
+    assert.equal(document.querySelector('.site-account-menu img').getAttribute('src'),'/assets/avatar-steve.png');
+    assert.equal(document.querySelector('.site-account-dropdown a').getAttribute('href'),'/planos');
+    document.querySelector('.site-account-dropdown button').click();await settle();await settle();
+    assert.equal(document.querySelector('.site-account-menu'),null);
+    assert.equal(document.querySelector('[data-site-account] a').textContent,'Entrar');
+    assert.equal(calls.filter(call=>call.options.method==='POST').length,1);
+  } finally {window.close();}
+});
+
 test("the home page exposes the actual launcher and download without WebGL", () => {
   const dom = createDom(read("index.html"));
   try {

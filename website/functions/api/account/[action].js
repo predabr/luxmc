@@ -90,7 +90,9 @@ async function onRequest({ request, env, params, waitUntil }) {
         if (!session.meta.changes)
           return json({ error: "A senha mudou. Entre novamente." }, 401);
         await db.prepare("DELETE FROM lux_sessions WHERE account_id = ? AND token_hash NOT IN (SELECT token_hash FROM lux_sessions WHERE account_id = ? ORDER BY created_at DESC, rowid DESC LIMIT 20)").bind(user2.id, user2.id).run();
-        return json({ account: publicAccount(user2), ...client === "launcher" ? { token } : {}, ...recoveryCode ? { recoveryCode } : {} }, 200, client === "web" ? { "Set-Cookie": cookie(token) } : {});
+        const response = json({ account: publicAccount(user2), ...client === "launcher" ? { token } : {}, ...recoveryCode ? { recoveryCode } : {} }, 200, client === "web" ? { "Set-Cookie": cookie(token) } : {});
+        if (client === "web") response.headers.append("Set-Cookie", "__Host-luxmc-commerce=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0");
+        return response;
       }
       const user = await authenticate(request, db);
       if (!user)
