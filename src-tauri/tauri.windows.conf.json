@@ -1,7 +1,5 @@
 {
   "bundle": {
-    "externalBin": [
-      "binaries/luxmc-repair"
-    ]
+    "externalBin": []
   }
 }

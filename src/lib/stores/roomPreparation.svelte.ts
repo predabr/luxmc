@@ -2,10 +2,11 @@ import { roomPrepare, roomRecipe, type RoomRecipe } from '$lib/api/studio';
 import { listen } from '$lib/api/client';
 import { profiles } from './profiles.svelte';
 import { modpackInstallation } from './modpackInstallation.svelte';
+import { contentActivity } from './contentActivity.svelte';
 import { translateUi as t } from '$lib/i18n/useTranslation.svelte';
 const state=$state({busy:false,percent:0,name:'',error:'',profileId:'',ownerId:'',text:''});
 async function prepare(ownerId:string) {
-    if(state.busy || modpackInstallation.state.busy)throw new Error(t('studio.installBusy'));
+    if(state.busy || modpackInstallation.state.busy || contentActivity.updateProfileId)throw new Error(t('studio.installBusy'));
     Object.assign(state,{busy:true,percent:0,name:'',error:'',profileId:'',ownerId,text:t('studio.phase.planning')});
     const cleanup:(()=>void)[]=[];
     try {

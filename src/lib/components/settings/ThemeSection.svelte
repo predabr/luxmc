@@ -218,7 +218,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				<div class="w-full aspect-video rounded-xl border border-fg/10 bg-fg/[0.04] shadow-inner flex items-center justify-center relative overflow-hidden text-brand-500">
 					<Upload class="w-5 h-5 stroke-[2]" />
 				</div>
-				<span class="text-[11px] font-bold text-fg/90 truncate">{t("settings.appearanceOptions.importWallpaper")}</span>
+				<span class="block min-w-0 w-full text-[11px] font-bold text-fg/90 truncate">{t("settings.appearanceOptions.importWallpaper")}</span>
 			</button>
 
             {#each themeStore.wallpaperLibrary as wallpaper (wallpaper.url)}
@@ -260,7 +260,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							</div>
 						{/if}
 					</div>
-					<span class="text-[11px] font-bold text-fg/90 truncate">{getBgName(bg.id)}</span>
+					<span class="block min-w-0 w-full text-[11px] font-bold text-fg/90 truncate">{getBgName(bg.id)}</span>
 				</button>
 			{/each}
 		</div>

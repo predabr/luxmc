@@ -6,6 +6,7 @@ import { setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 const mock = vi.hoisted(() => ({ plan:vi.fn(), versions: vi.fn(), apply: vi.fn(), refresh: vi.fn(), toast: vi.fn(), game: { isGameRunning: false, isLaunching: false } }));
 vi.mock("$lib/api/mods", () => ({ modsVersions: mock.versions }));
 vi.mock("$lib/api/java", () => ({ modpackUpdateAtomic: mock.apply, modpackVersionDiff:mock.plan }));
+vi.mock('$lib/stores/modpackUpdates.svelte', () => ({ modpackUpdates: { task: null, apply: mock.apply } }));
 vi.mock("$lib/stores/app.svelte", () => ({ appState: mock.game }));
 vi.mock("$lib/stores/profiles.svelte", () => ({ profiles: { refresh: mock.refresh } }));
 vi.mock("$lib/stores/toasts.svelte", () => ({ toast: mock.toast }));
@@ -38,8 +39,7 @@ describe("modpack version replacement", () => {
         expect(mock.apply).not.toHaveBeenCalled();
         await fireEvent.click(screen.getByRole("button", { name: "Fazer backup e aplicar" }));
         await vi.waitFor(() => expect(changed).toHaveBeenCalledOnce());
-        expect(mock.apply).toHaveBeenCalledWith("profile", "selected-version", "modrinth", "pack");
-        expect(mock.refresh).toHaveBeenCalledOnce();
+        expect(mock.apply).toHaveBeenCalledWith("profile", "selected-version", "modrinth", "pack", "2.0");
     });
     it("blocks replacement while Minecraft is running", async () => {
         mock.game.isGameRunning = true; await open();

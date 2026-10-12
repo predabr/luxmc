@@ -23,3 +23,4 @@ pub mod instance_paths;
 
 pub mod share_codes;
 pub mod luxmc_pack;
+pub mod uninstall;

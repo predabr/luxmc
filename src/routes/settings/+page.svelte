@@ -272,12 +272,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         { id: "runtime", label: t("settings.tabs.runtime"), icon: FolderOpen }
     ]);
     function handleSettingsTabKeys(event: KeyboardEvent) {
-        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
         const tabs = Array.from((event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>("[role='tab']"));
         const index = tabs.indexOf(event.target as HTMLButtonElement);
         if (index < 0) return;
         event.preventDefault();
-        const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (index + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1) + tabs.length) % tabs.length;
         tabs[next].focus();
         tabs[next].click();
     }
@@ -459,12 +459,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <div><p class="page-eyebrow">Luxmc</p><h1 class="mt-1 text-2xl font-semibold tracking-tight text-fg">{uiText("settings.refinement.settingsTitle")}</h1></div>
         <a href="/workshop" class={launcherButton({variant:"secondary",class:"ml-auto"})}>{uiText("workshop.title")}</a>
     </header>
-    <div class="settings-navigation surface-glass grid grid-cols-2 gap-2 p-2 sm:grid-cols-4 xl:grid-cols-8" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
+    <div class="settings-workspace grid items-start gap-5 lg:grid-cols-[190px_minmax(0,1fr)]">
+    <div class="settings-navigation surface-glass grid grid-cols-2 gap-2 p-2 sm:grid-cols-4 lg:grid-cols-1 lg:sticky lg:top-3" role="tablist" aria-label={uiText("settings.refinement.settingsTitle")} tabindex="-1" onkeydown={handleSettingsTabKeys}>
         {#each settingsTabs as tab}
-            <button type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls="settings-panel" aria-selected={activeTab === tab.id} tabindex={activeTab === tab.id ? 0 : -1} onclick={() => activeTab = tab.id as SettingsTab} class={launcherButton({ variant: activeTab === tab.id ? "primary" : "ghost", class: "h-auto min-h-16 w-full flex-col gap-2 px-3 py-3" })}><tab.icon class="h-5 w-5" /><span>{tab.label}</span></button>
+            <button type="button" role="tab" id={`settings-tab-${tab.id}`} aria-controls="settings-panel" aria-selected={activeTab === tab.id} tabindex={activeTab === tab.id ? 0 : -1} onclick={() => activeTab = tab.id as SettingsTab} class={launcherButton({ variant: activeTab === tab.id ? "primary" : "ghost", class: "h-auto min-h-14 w-full gap-3 px-3 py-3 justify-start" })}><tab.icon class="h-5 w-5" /><span>{tab.label}</span></button>
         {/each}
     </div>
-    <div use:pageMotion={activeTab} id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} class="space-y-6">
+    <div use:pageMotion={activeTab} id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${activeTab}`} class="min-w-0 space-y-6">
 
 	{#if activeTab === "general"}
 		<div class="space-y-6">
@@ -1291,5 +1292,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	{/if}
 
     <SettingsExtras section={activeTab} />
+    </div>
     </div>
 </div>

@@ -10,6 +10,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { loadTextureImage, normalizeCape, classifyTexture, textureCanvas, inferSkinModelType } from "$lib/utils/textureImage";
 
+	import { skinPreviewPixelRatio } from "$lib/utils/skinPreviewQuality";
 	import { createAnimationClock } from "$lib/utils/animationClock";
 	import { createCapeCloth } from "$lib/utils/capeCloth";
 	import Skin2DPreview from "./Skin2DPreview.svelte";
@@ -186,7 +187,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				height: containerEl.clientHeight || 400,
 				renderPaused: true,
 				preserveDrawingBuffer: false,
-				pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
+				pixelRatio: skinPreviewPixelRatio(settings.value.skinPreviewQuality, window.devicePixelRatio),
 				enableControls: false
 			});
 			target.controls.dispose();
@@ -248,6 +249,17 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		viewer.zoom = Math.max(0.5, Math.min(2.2, viewer.zoom - e.deltaY * 0.0015));
 		renderViewer(viewer);
 	}
+
+    $effect(() => {
+        const target = viewer;
+        const quality = settings.value.skinPreviewQuality;
+        if (!target || target.disposed || unavailable) return;
+        const ratio = skinPreviewPixelRatio(quality, window.devicePixelRatio);
+        if (target.pixelRatio !== ratio) {
+            target.pixelRatio = ratio;
+            renderViewer(target);
+        }
+    });
 
 	let isLoadingSkin = $state(false);
 
@@ -381,7 +393,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		}
 
 		let frame = 0;
-		const clock = createAnimationClock(performance.now());
+		const clock = createAnimationClock(performance.now(), 1000 / (settings.value.skinPreviewFps === 30 ? 30 : 60));
 
 		let capePitch = 0.18;
 		let capeRoll = 0.0;

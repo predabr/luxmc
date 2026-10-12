@@ -63,6 +63,10 @@ pub async fn launch_game_core(
         .launch_lock
         .try_lock()
         .map_err(|_| AppError::InvalidState("Já existe um lançamento em andamento.".into()))?;
+    let active_pid = crate::core::launcher::get_active_game_pid();
+    if active_pid > 0 && is_process_alive(active_pid).await {
+        return Err(AppError::InvalidState("O Minecraft já está aberto. Feche o jogo antes de iniciar outra instância.".into()));
+    }
 
     if request.enable_vulkan == Some(false) {
         std::env::set_var("LUXMC_DISABLE_VULKAN", "1");
@@ -422,6 +426,20 @@ async fn is_process_alive(pid: u32) -> bool {
     let mut sys = sysinfo::System::new();
     sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[spid]), true);
     sys.process(spid).is_some()
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GameLaunchStatus {
+    running: bool,
+    window_ready: bool,
+}
+
+#[tauri::command]
+pub async fn game_launch_status(pid: u32) -> AppResult<GameLaunchStatus> {
+    let running = pid > 0 && crate::core::launcher::get_active_game_pid() == pid && is_process_alive(pid).await;
+    let window_ready = running && crate::core::process::has_visible_window(pid);
+    Ok(GameLaunchStatus { running, window_ready })
 }
 
 async fn wait_for_process_exit(pid: u32, timeout_ms: u64) -> bool {

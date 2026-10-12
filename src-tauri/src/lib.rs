@@ -499,7 +499,7 @@ pub async fn run() {
         .plugin(tauri_plugin_fs::init())
         .manage(AppState::default())
         .on_window_event(|window, event| {
-            if window.label() == "main" && CLOSE_TO_TRAY.load(Ordering::Relaxed) && TRAY_AVAILABLE.load(Ordering::Relaxed) {
+            if window.label() == "main" && ((CLOSE_TO_TRAY.load(Ordering::Relaxed) && TRAY_AVAILABLE.load(Ordering::Relaxed)) || crate::core::launcher::get_active_game_pid() > 0) {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     if window.hide().is_ok() { api.prevent_close(); crate::core::native_rust::trim_memory_native(); }
                 }
@@ -608,11 +608,13 @@ pub async fn run() {
             commands::versions::versions_download,
             commands::versions::versions_check_installed,
             commands::launch::launch_game,
+            commands::launch::game_launch_status,
             commands::launch::stop_game,
             commands::loaders::loaders_versions,
             commands::mods::mods_search,
             commands::mods::mods_search_typed,
             commands::mods::mods_versions,
+            commands::mods::mods_version_history,
             commands::mods::mods_project_details,
             commands::mods::mods_changelog,
             commands::experience::owner_tools,

@@ -71,6 +71,10 @@ export async function modsChangelog(projectId: string, versionId: string, source
     return api.invoke("mods_changelog", { projectId, versionId, source });
 }
 
+export async function modsVersionHistory(projectId: string, source: string, offset: number): Promise<{ versions: ModVersion[]; nextOffset: number | null }> {
+    return api.invoke('mods_version_history', { projectId, source, offset });
+}
+
 export async function modsList(profileId: string): Promise<Array<{
 	profileId: string;
 	projectId: string;

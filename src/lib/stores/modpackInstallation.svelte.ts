@@ -9,6 +9,7 @@ import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
 import { installationQueueGet, installationQueueSave, verifyPackDownload, type InstallationJob as Job } from '$lib/api/experience';
 import { z } from 'zod';
 import { packReferenceVersion, instanceLinkPack } from '$lib/api/studio';
+import { contentActivity } from './contentActivity.svelte';
 let jobs = $state<Job[]>([]);
 let current: Job | null = null;
 let paused = false;
@@ -34,7 +35,7 @@ async function loadJobs() {
     } catch (error) { toast(String(error), 'error'); throw error; }
 }
 async function pump() {
-    if (operation.busy || current) return;
+    if (operation.busy || current || contentActivity.updateProfileId) return;
     const next = jobs.find(job => job.status === 'queued');
     if (!next) return;
     current = next; paused = false; next.status = 'running'; persist();
@@ -105,7 +106,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 				id: cp.id,
 				name: cp.name,
 				icon: iconUrl || "default",
-				banner: item.bannerUrl || undefined,
+				banner: undefined,
 				mcVersion: cp.mcVersion,
 				loader: (cp.loader || detectedLoader || "fabric") as "vanilla" | "fabric" | "forge" | "neoforge" | "quilt",
 				loaderVersion: cp.loaderVersion ?? undefined,
@@ -115,7 +116,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 				updatedAt: Date.now(),
 			});
 			if (item.bannerUrl) {
-				profiles.setBanner(cp.id, item.bannerUrl);
+				profiles.setCatalogBanner(cp.id, item.bannerUrl);
 			}
 			profiles.activeId = cp.id;
 
@@ -146,6 +147,7 @@ async function cancel() {
     try { await instanceCancelImport(importId); } catch (error) { operation.cancelling = false; toast(String(error), 'error'); }
 }
 export const modpackInstallation = {
+    continueQueue() { void pump(); },
     get state() { return operation; }, get jobs() { return jobs; }, start, initialize,
     async cancel() { if (current) { jobs = jobs.filter(job => job.id !== current!.id); persist(); } await cancel(); },
     async pause() { if (!current) return; paused = true; await cancel(); },

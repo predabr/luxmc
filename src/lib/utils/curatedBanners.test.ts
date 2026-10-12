@@ -42,6 +42,7 @@ describe("resolveProfileBanner", () => {
 		expect(resolveProfileBanner({ name: "My FO Pack", icon: "modpack_fo" })).toBe("/modpack_fo.webp");
 		expect(resolveProfileBanner({ name: "My Cobblemon", icon: "modpack_cobblemon" })).toBe("/modpack_cobblemon.webp");
 		expect(resolveProfileBanner({ name: "My Better MC", icon: "modpack_better_mc" })).toBe("/modpack_better_mc.webp");
+		expect(resolveProfileBanner({ name: "Renamed Vanilla Perfected", icon: "/modpack_vanilla_perfected_icon.webp" })).toBe("/modpack_vanilla_perfected.png");
 	});
 
 	it("falls back to remote icon URL if no banner matches", () => {

@@ -7,6 +7,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { button } from "$lib/components/ui/button";
 	import type { ModSearchResultItem } from "$lib/api";
     import { catalogReveal } from '$lib/actions/catalogReveal';
+	import { untrack } from 'svelte';
+	import { catalogGallery, firstLandscape, latestMinecraftVersion } from '$lib/utils/catalogGallery';
 
 	let { item, isInstalling = false, isInstalled = false, contentType = "Mod", onOpenDetails, onInstall }: {
 		item: ModSearchResultItem;
@@ -19,31 +21,49 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	const loaders = $derived(item.categories.filter(category => ["fabric", "forge", "neoforge", "quilt"].includes(category.toLowerCase())));
 	const downloads = $derived(new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(item.downloads));
 	const isModpack = $derived(contentType === "Modpack");
-    const latest = $derived([...item.versions].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0]);
+    const latest = $derived(latestMinecraftVersion(item.versions));
 	const mesh = $derived.by(() => {
 		let hash = 0;
 		for (const character of item.title) hash = (Math.imul(hash, 31) + character.charCodeAt(0)) | 0;
 		return ["from-brand-500/30 via-info/10", "from-purple-500/30 via-brand-500/10", "from-success/30 via-info/10", "from-warning/30 via-brand-500/10"][Math.abs(hash) % 4];
 	});
 
-	import { catalogBannerCandidates } from "$lib/utils/curatedBanners";
+	import { catalogBannerCandidates, projectLandscape } from "$lib/utils/curatedBanners";
 
 	let bannerAttempt = $state(0);
     let bannerLoaded = $state(false);
     let bannerAspect = $state(16 / 9);
+	let galleryUrls = $state<string[]>([]);
+	let galleryRequested = '';
+	const artworkKey = $derived(`${item.source}:${item.sourceId}:${item.bannerUrl}:${item.iconUrl}`);
 
 
 	$effect(() => {
-		item.slug;
-		item.bannerUrl;
-		item.iconUrl;
+		artworkKey;
 		bannerAttempt = 0;
+		galleryUrls = [];
+		galleryRequested = '';
+		untrack(() => { if (!item.bannerUrl || item.bannerUrl === item.iconUrl) requestGallery(); });
 	});
 
-	const bannerCandidates = $derived(catalogBannerCandidates(item));
+	const bannerCandidates = $derived(catalogBannerCandidates({ ...item, galleryUrls }));
 	const effectiveBanner = $derived(bannerCandidates[bannerAttempt] ?? null);
     const logoArtwork = $derived(effectiveBanner === item.iconUrl || bannerAspect <= 1.2);
     $effect(() => { effectiveBanner; bannerLoaded = false; bannerAspect = 16 / 9; });
+	function requestGallery() {
+		if (!isModpack || projectLandscape(item) || galleryRequested === artworkKey) return;
+		const key = artworkKey;
+		galleryRequested = key;
+		void catalogGallery(item.source, item.sourceId).then(async urls => {
+			const landscape = await firstLandscape(urls.filter(url => url !== item.iconUrl));
+			if (artworkKey !== key || !urls.length) return;
+			galleryUrls = [...new Set([...(landscape ? [landscape] : []), ...urls.filter(url => url !== item.iconUrl)])];
+			bannerAttempt = 0;
+		});
+	}
+	function installItem() {
+		onInstall({ ...item, bannerUrl: bannerLoaded && !logoArtwork && effectiveBanner ? effectiveBanner : item.bannerUrl });
+	}
 </script>
 
 <div
@@ -58,17 +78,30 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	<div class="catalog-cover relative h-56 shrink-0 bg-bg-subtle rounded-t-2xl overflow-hidden">
         <div class="pointer-events-none absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-40"></div>
 		{#if effectiveBanner}
+			{#key effectiveBanner}
+			{@const artworkUrl = effectiveBanner}
 			<img
-				src={effectiveBanner}
+				src={artworkUrl}
 				alt=""
 				loading="eager"
 				decoding="async"
                 referrerpolicy="no-referrer"
-				class="relative h-full w-full rounded-t-2xl transition-[opacity,transform] duration-500 {logoArtwork ? 'object-contain p-8' : 'object-cover group-hover:scale-105'}"
+				class="catalog-cover-image relative h-full w-full rounded-t-2xl object-cover transition-[opacity,transform] duration-500 group-hover:scale-105"
+                style:object-position={logoArtwork ? '50% 35%' : '50% 50%'}
                 style:opacity={bannerLoaded ? 1 : 0}
-                onload={(event) => { const image = event.currentTarget as HTMLImageElement; bannerAspect = image.naturalWidth / Math.max(1, image.naturalHeight); bannerLoaded = true; }}
-				onerror={() => { bannerAttempt += 1; }}
+                onload={(event) => {
+					if (artworkUrl !== effectiveBanner) return;
+					const image = event.currentTarget as HTMLImageElement;
+					bannerAspect = image.naturalWidth / Math.max(1, image.naturalHeight);
+					bannerLoaded = true;
+					if (bannerAspect <= 1.2) {
+						requestGallery();
+					}
+                    if (image.naturalWidth < image.clientWidth) requestGallery();
+				}}
+				onerror={() => { if (artworkUrl === effectiveBanner) { bannerAttempt += 1; requestGallery(); } }}
 			/>
+			{/key}
 		{:else}
 			<div class="absolute inset-0 overflow-hidden rounded-t-2xl bg-bg-elevated">
 				<div class="absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-70"></div>
@@ -106,7 +139,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			<button
 				type="button"
 				class={button({ variant: isInstalled ? "secondary" : "ghostBrand", size: "sm", class: "catalog-install relative z-10" })}
-				onclick={(e) => { e.stopPropagation(); onInstall(item); }}
+				onclick={(e) => { e.stopPropagation(); installItem(); }}
 				disabled={isInstalling || isInstalled}
 				aria-label={`${isInstalled ? uiText("mods.installed") : uiText("mods.install")}: ${item.title}`}
 			>

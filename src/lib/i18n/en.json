@@ -1,8 +1,16 @@
 {
+  "packFollowup": {
+    "updating": "Updating modpack",
+    "updated": "Modpack updated",
+    "history": "Change history",
+    "historyHelp": "Read the changes published by the author for each version, from the newest to older releases.",
+    "allVersions": "Complete history",
+    "moreHistory": "Load more versions"
+  },
   "app": {
     "name": "Luxmc",
     "tagline": "Minecraft launcher for Windows and Linux",
-    "version": "v3.9.1",
+    "version": "v3.9.2",
     "pressForShortcuts": "Press {{key}} for shortcuts",
     "systemOnline": "System Online",
     "navigation": "Navigation",
@@ -234,7 +242,7 @@
     "launcherActionDesc": "Action to perform after Minecraft starts.",
     "launcherActionNone": "Keep open",
     "launcherActionHide": "Hide and reopen on exit",
-    "launcherActionClose": "Close launcher",
+    "launcherActionClose": "Minimize to background",
     "closeWarningTitle": "Warning when closing with game running",
     "closeWarningDesc": "Show warning prompt before closing the launcher while instances are running.",
     "perfModeTitle": "Ultra Performance Mode",
@@ -488,6 +496,15 @@
       "pageSize": "Results per page",
       "compact": "Compact covers",
       "help": "Use 24 results and compact covers to browse with less memory."
+    },
+    "preview3d": {
+      "title": "Character preview",
+      "quality": "3D preview sharpness",
+      "high": "High · sharper details",
+      "balanced": "Balanced",
+      "economy": "Economy · lower GPU usage",
+      "fluency": "Animation smoothness",
+      "help": "High quality smooths edges while preserving the pixel texture. Choose 30 FPS or economy quality to reduce GPU usage. These options do not change your Minecraft skin."
     }
   },
   "auth": {
@@ -3015,8 +3032,15 @@
     "syncing": "Applying and syncing with Microsoft…",
     "applying": "Applying…",
     "pendingApply": "Changes are not applied yet. Click Apply and sync to use your new skin.",
+    "studioLabel": "Luxmc / Personalization",
+    "preview": "Your character",
+    "visibility": "Who can see your skin and cape",
     "visualTitle": "Your Minecraft look",
-    "visualHelp": "Try skins, explore the details in 3D and organize your collection."
+    "visualHelp": "Try skins, explore the details in 3D and organize your collection.",
+    "searchCollection": "Search your skin collection",
+    "noSearchResults": "No skins found. Try another name.",
+    "zoomIn": "Zoom in on character",
+    "zoomOut": "Zoom out from character"
   },
   "design": {
     "expandMenu": "Expand menu",
@@ -3113,6 +3137,7 @@
     "nicknameSaved": "Player name saved."
   },
   "updater": {
+    "openingInstaller": "Download verified. Opening installer…",
     "startingDownload": "Starting download...",
     "connecting": "Connecting to server...",
     "downloading": "Downloading the update with verification and automatic retries...",

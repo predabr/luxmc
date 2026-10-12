@@ -2,6 +2,7 @@ mod loader_selection;
 mod quick_join;
 mod classpath_paths;
 mod presence;
+mod startup;
 #[cfg(any(target_os = "windows", test))]
 mod native_cache;
 pub mod launch_state;
@@ -1127,7 +1128,6 @@ impl GameLauncher {
             set_active_game_dir(game_dir.clone());
         }
         self.emit_log(&format!("Java process started, PID: {}", pid));
-        self.emit_stage(LaunchStage::Running);
 
         if !cfg!(windows) { crate::commands::optimizer::optimizer_trim_memory(); }
 
@@ -1297,8 +1297,15 @@ impl GameLauncher {
         let hook_profile_name = profile.name.clone();
         let hook_game_dir = game_dir.clone();
         let hook_version_id = detail.id.clone();
+        let (startup_exit, startup_watch) = tokio::sync::oneshot::channel();
         tokio::spawn(async move {
             let result = child.wait().await;
+            let startup_reason = match &result {
+                Ok(status) => last_stderr_reader.lock().ok().and_then(|value| value.clone())
+                    .unwrap_or_else(|| format!("O Minecraft encerrou durante o início (código {}). Consulte os logs da instância.", status.code().unwrap_or(-1))),
+                Err(error) => format!("Não foi possível acompanhar o Minecraft: {error}"),
+            };
+            let _ = startup_exit.send(startup_reason);
             presence_watch.abort();
             if result.as_ref().is_ok_and(|status| status.success()) || game_dir_for_crash.join("local/crash_assistant").join(format!("normal_stop_pid{pid}.tmp")).is_file() {
                 if let Err(error) = crate::commands::launch::stop_owned_crash_assistant(game_dir_for_crash.clone(), pid).await { tracing::warn!(target: "launch", "{}", error); }
@@ -1322,6 +1329,9 @@ impl GameLauncher {
                     } else {
                         None
                     };
+                    if !status.success() {
+                        if let Some(ref app) = app_exit { crate::show_launcher(app); }
+                    }
                     let _ = crate::commands::experience::record_performance(&profile_id,serde_json::json!({"kind":"session","pid":pid,"durationSeconds":duration_secs,"peakRamMb":peak_mb,"exitCode":code,"cleanExit":status.success()})).await;
                     if let Some(ref app) = app_exit {
                         let _ = app.emit(
@@ -1370,6 +1380,7 @@ impl GameLauncher {
                     let msg = format!("Game process error: {}", e);
                     tracing::error!(target: "launch", "{}", msg);
                     if let Some(ref app) = app_exit {
+                        crate::show_launcher(app);
                         let _ = app.emit(
                             "game-exit",
                             GameExitEvent {
@@ -1384,6 +1395,11 @@ impl GameLauncher {
             }
         });
 
+        if let Err(reason) = startup::confirm_startup(startup_watch, std::time::Duration::from_secs(2)).await {
+            self.emit_stage(LaunchStage::Failed);
+            return Err(AppError::InvalidState(reason));
+        }
+        self.emit_stage(LaunchStage::Running);
         Ok(pid)
     }
 

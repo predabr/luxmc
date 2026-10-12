@@ -393,6 +393,17 @@ pub async fn get_mod_versions(
     project_id: &str,
     mc_version: &str,
 ) -> AppResult<Vec<ModVersion>> {
+    let (versions, _) = get_mod_versions_page(http, project_id, mc_version, 0).await?;
+    Ok(versions.into_iter().filter(|version| !version.files.is_empty() && !version.files[0].url.is_empty()).collect())
+}
+
+pub async fn get_mod_versions_page(
+    http: &reqwest::Client,
+    project_id: &str,
+    mc_version: &str,
+    offset: u32,
+) -> AppResult<(Vec<ModVersion>, Option<u32>)> {
+    if offset > 9950 { return Err(crate::error::AppError::InvalidInput("Página de versões inválida".into())); }
     let key = match api_key() {
         Some(k) => k,
         None => return Err(crate::error::AppError::InvalidState("CurseForge indisponível: não foi possível consultar os arquivos. Tente novamente ou use Modrinth.".into())),
@@ -405,8 +416,8 @@ pub async fn get_mod_versions(
     };
 
     let url = format!(
-        "{}/mods/{}/files?pageSize=50{}",
-        CURSEFORGE_API, project_id, version_param
+        "{}/mods/{}/files?pageSize=50&index={}{}",
+        CURSEFORGE_API, project_id, offset, version_param
     );
 
     let mut last_err = None;
@@ -515,10 +526,13 @@ pub async fn get_mod_versions(
                 }],
             }
         })
-        .filter(|v| !v.files.is_empty() && !v.files[0].url.is_empty())
         .collect();
 
-    Ok(versions)
+    let count = body.pointer("/pagination/resultCount").and_then(|value| value.as_u64()).unwrap_or(data.len() as u64) as u32;
+    let total = body.pointer("/pagination/totalCount").and_then(|value| value.as_u64());
+    let next = offset.saturating_add(count);
+    let more = count > 0 && next <= 9950 && total.map_or(count == 50, |total| (next as u64) < total);
+    Ok((versions, more.then_some(next)))
 }
 
 pub async fn get_mod_details(

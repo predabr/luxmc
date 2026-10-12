@@ -10,8 +10,11 @@ let launchStatusText = $state("");
 let launchingProfileId = $state<string | null>(null);
 let wasManuallyTerminated = $state(false);
 let activeGameDetails = $state<{ name: string; version: string; loader: string; profileId?: string } | null>(null);
+let gameSessionRevision = $state(0);
 
 export const appState = {
+    get gameSessionRevision() { return gameSessionRevision; },
+    recordGameExit() { gameSessionRevision++; },
     get isScrolling() { return isScrolling; },
     set isScrolling(v: boolean) { isScrolling = v; },
 	get performanceMode() { return performanceMode; },

@@ -99,7 +99,6 @@
 		launchGame,
 		stopGame,
 		versionsCheckInstalled,
-		versionsDownload,
 		instanceFileTree,
         instanceContentIcons,
 		instancesScreenshots,
@@ -146,9 +145,6 @@
 		type HostLinkInfo,
 		instanceShieldScan,
 		type ShieldScanResult,
-		modpackCheckUpdate,
-		modpackVersionDiff,
-		modpackUpdateAtomic,
 		type ModpackUpdateInfo,
 		type ModpackVersionDiff,
 		doctorCheckInstanceConflicts,
@@ -213,12 +209,19 @@
         return () => clearTimeout(timer);
     });
 
-	let modpackUpdate = $state<ModpackUpdateInfo | null>(null);
-	let modpackDiff = $state<ModpackVersionDiff | null>(null);
-	let isCheckingUpdate = $state(false);
-	let isUpdatingModpack = $state(false);
-	let updateStatusText = $state("");
-	let updateProgressPercent = $state(0);
+    import { modpackUpdates } from '$lib/stores/modpackUpdates.svelte';
+    const modpackEntry = $derived(modpackUpdates.forProfile(instanceId));
+    const modpackUpdate = $derived(modpackEntry?.info ?? null);
+    const modpackDiff = $derived(modpackEntry?.diff ?? null);
+    const updateTask = $derived(modpackUpdates.task?.profileId === instanceId ? modpackUpdates.task : null);
+    const isCheckingUpdate = $derived(modpackEntry?.checking ?? false);
+    const isUpdatingModpack = $derived(updateTask?.busy ?? false);
+    const updateStatusText = $derived(updateTask?.text ?? '');
+    const updateProgressPercent = $derived(updateTask?.percent ?? 0);
+    $effect(() => {
+        const complete = updateTask?.complete;
+        if (complete) untrack(() => { void refreshAllData(); });
+    });
 
     let deletingInstance = $state(false);
     async function deleteCurrentInstance() {
@@ -1212,8 +1215,9 @@
     });
 
 
-    onMount(() => {
-        const timer = setTimeout(() => { void checkModpackUpdate(); }, 2000);
+    $effect(() => {
+        const id = instanceId;
+        const timer = setTimeout(() => { void modpackUpdates.check(id).catch(() => {}); }, 2000);
         return () => clearTimeout(timer);
     });
 
@@ -1622,13 +1626,7 @@
 			downloadProgressPercent = 35;
 			appState.launchStatusText = uiText("ui.8fbc6893bdbc6efd");
 
-			// If not installed, download version
-			if (!isInstalled) {
-				downloadProgressPercent = 55;
-				appState.launchStatusText = uiText("ui.4d7cbc3453407632") + verId + "...";
-				await versionsDownload(verId);
-				isInstalled = true;
-			}
+
 
 			downloadProgressPercent = 85;
 			appState.launchStatusText = uiText("ui.dc11fbd10f868b09");
@@ -1702,7 +1700,7 @@
 			downloadProgressPercent = 100;
 			appState.launchStatusText = uiText("ui.56374a8d934236e2", {arg0: (result.pid)});
 			toast(uiText("ui.f9462c8ca5b0a2ac", {arg0: (verId), arg1: (result.pid)}), "success");
-			void handlePostLaunchActions();
+            void handlePostLaunchActions(result.pid);
 		} catch (e) {
 			console.error("Launch error:", e);
 			toast(uiText("ui.ea9a9c9188e1f662") + String(e), "error");
@@ -1789,62 +1787,19 @@
 	}
 
 	async function checkModpackUpdate() {
-		if (!instanceId || isCheckingUpdate) return;
-		isCheckingUpdate = true;
-		try {
-			const info = await modpackCheckUpdate(instanceId);
-			if (info && info.hasUpdate) {
-				modpackUpdate = info;
-				modpackDiff = await modpackVersionDiff(instanceId, info.versionId || "", info.source || "").catch(() => null);
-			} else {
-				modpackUpdate = null;
-				modpackDiff = null;
-			}
-		} catch (e) {
-			console.debug("Modpack update check not applicable or failed:", e);
-		} finally {
-			isCheckingUpdate = false;
-		}
+        await modpackUpdates.check(instanceId, true).catch(() => {});
 	}
 
 	async function handleApplyModpackUpdate() {
 		if (!modpackUpdate || !instanceId || isUpdatingModpack) return;
         if (appState.isGameRunning) { toast(uiText("ui.5c121f6239aa0903"), "warning"); return; }
-		isUpdatingModpack = true;
-		updateStatusText = uiText("ui.b35e32e9887ce30f");
-		updateProgressPercent = 5;
-
-		let unlistenProgress: (() => void) | null = null;
+		const id = instanceId;
+        const info = modpackUpdate;
 		try {
-			unlistenProgress = await listen<{ phase?: string; percent?: number; status?: string }>(
-				"modpack-progress",
-				(event) => {
-					if (event.payload.status) updateStatusText = event.payload.status;
-					if (typeof event.payload.percent === "number") updateProgressPercent = event.payload.percent;
-				}
-			);
-
-			await modpackUpdateAtomic(
-				instanceId,
-				modpackUpdate.versionId || "",
-				modpackUpdate.source || "modrinth",
-				modpackUpdate.projectId || ""
-			);
-
-			toast(uiText("ui.5f480d299789b92c", {arg0: (modpackUpdate.latestVersion || "mais recente")}), "success");
+			await modpackUpdates.apply(id, info.versionId || '', info.source, info.projectId || '', info.latestVersion || '');
 			playSound("chime");
-			modpackUpdate = null;
-			modpackDiff = null;
-			await profiles.refresh();
-            await refreshAllData();
 		} catch (e) {
 			console.error(uiText("ui.5a393de14381bc7c"), e);
-			toast(uiText("ui.f3b332eeaeaf27ca") + String(e), "error");
-		} finally {
-			if (unlistenProgress) unlistenProgress();
-			isUpdatingModpack = false;
-			updateStatusText = "";
-			updateProgressPercent = 0;
 		}
 	}
 

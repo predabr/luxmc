@@ -595,6 +595,14 @@ async fn dispatch_command(
             let res = crate::commands::mods::mods_project_details_core(&state, project_id, source).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
+        "mods_version_history" => {
+            let project = args.get("projectId").and_then(Value::as_str).unwrap_or("").to_owned();
+            let source = args.get("source").and_then(Value::as_str).unwrap_or("").to_owned();
+            let offset = args.get("offset").and_then(Value::as_u64).unwrap_or(0);
+            let offset = u32::try_from(offset).map_err(|_| "Página inválida".to_owned())?;
+            let result = crate::commands::mods::mods_version_history_core(&state, project, source, offset).await.map_err(|error| error.to_string())?;
+            serde_json::to_value(result).map_err(|error| error.to_string())
+        },
         "mods_changelog" => {
             let project = args.get("projectId").and_then(|v| v.as_str()).unwrap_or_default().to_owned();
             let version = args.get("versionId").and_then(|v| v.as_str()).unwrap_or_default().to_owned();
@@ -978,6 +986,11 @@ async fn dispatch_command(
         "stop_game" => {
             let pid = args.get("pid").and_then(|value| value.as_u64()).and_then(|pid| u32::try_from(pid).ok());
             Ok(Value::Bool(crate::commands::launch::stop_game(pid).await.map_err(|error| error.to_string())?))
+        },
+        "game_launch_status" => {
+            let pid = args.get("pid").and_then(|value| value.as_u64()).unwrap_or(0) as u32;
+            let status = crate::commands::launch::game_launch_status(pid).await.map_err(|error| error.to_string())?;
+            serde_json::to_value(status).map_err(|error| error.to_string())
         },
         "app_init" => {
             let init_state = crate::commands::system::app_init_core(&state).await.map_err(|e| e.to_string())?;

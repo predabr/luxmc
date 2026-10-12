@@ -321,7 +321,7 @@ pub async fn app_perform_update(
             percent: 100,
             transferred: downloaded,
             total: total_bytes,
-            status: "Instalando nova versão e reiniciando o Luxmc...".to_string(),
+            status: "Download verificado. Abrindo instalador...".to_string(),
         },
     );
 
@@ -422,22 +422,29 @@ pub async fn app_perform_update(
             .to_ascii_lowercase()
             .ends_with(".exe")
         {
-            let mut cmd = crate::core::process::std_command(&temp_file_path);
+            let mut cmd = crate::core::process::tokio_command(&temp_file_path);
             cmd.args(["/P", "/UPDATE", "/R"]);
-            cmd.spawn()
-                .map_err(windows_installer_error)?;
-            std::process::exit(0);
+            let mut child = cmd.spawn().map_err(windows_installer_error)?;
+            confirm_windows_installer(&mut child).await?;
+            return Ok(UpdateOutcome {
+                action: "downloaded".into(),
+                terminal_command: None,
+            });
         }
         if temp_file_path
             .to_string_lossy()
             .to_ascii_lowercase()
             .ends_with(".msi")
         {
-            crate::core::process::std_command("msiexec.exe")
+            let mut child = crate::core::process::tokio_command("msiexec.exe")
                 .args(["/i", &temp_file_path.to_string_lossy()])
                 .spawn()
                 .map_err(windows_installer_error)?;
-            std::process::exit(0);
+            confirm_windows_installer(&mut child).await?;
+            return Ok(UpdateOutcome {
+                action: "downloaded".into(),
+                terminal_command: None,
+            });
         }
     }
 
@@ -467,6 +474,20 @@ fn windows_installer_error(error: std::io::Error) -> AppError {
     }
 }
 
+#[cfg(any(target_os = "windows", test))]
+async fn confirm_windows_installer(child: &mut tokio::process::Child) -> AppResult<()> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    loop {
+        if let Some(status) = child.try_wait().map_err(windows_installer_error)? {
+            return Err(AppError::InvalidState(format!(
+                "O instalador encerrou antes de confirmar a atualização (código {}). O Luxmc continua aberto. Seus dados foram preservados. Consulte o bloqueio na Segurança do Windows ou tente novamente se cancelou a instalação.", status.code().unwrap_or(-1)
+            )));
+        }
+        if std::time::Instant::now() >= deadline { return Ok(()); }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+}
+
 fn ensure_update_idle(game_pid: u32) -> AppResult<()> {
     if game_pid != 0 {
         return Err(AppError::InvalidState("Feche o Minecraft antes de atualizar o Luxmc. Seu jogo continuará aberto.".into()));
@@ -476,6 +497,21 @@ fn ensure_update_idle(game_pid: u32) -> AppResult<()> {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn an_installer_that_exits_immediately_keeps_the_launcher_open() {
+        let mut child = crate::core::process::tokio_command("cmd.exe").args(["/d", "/c", "exit", "5"]).spawn().unwrap();
+        let message = super::confirm_windows_installer(&mut child).await.unwrap_err().to_string();
+        assert!(message.contains("código 5"));
+        assert!(message.contains("Luxmc continua aberto"));
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn a_cancelled_installer_is_not_reported_as_an_applied_update() {
+        let mut child = crate::core::process::tokio_command("cmd.exe").args(["/d", "/c", "exit", "0"]).spawn().unwrap();
+        assert!(super::confirm_windows_installer(&mut child).await.is_err());
+    }
     use super::*;
 
     #[test]

@@ -1,0 +1,59 @@
+body.plans-page .plans-navigation { display: flex; gap: 24px; justify-content: space-between; }
+body.plans-page .plans-shell { max-width: 1240px; padding-top: 76px; }
+body.plans-page .plans-hero { width: 100vw; margin-left: calc(50% - 50vw); padding: 64px 0 40px; background: rgb(var(--paper)); color: rgb(var(--ink)); border-bottom: 1px solid rgb(var(--ink) / .12); }
+.plans-poster { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 32px 48px; }
+.plans-kicker { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid rgb(var(--ink) / .16); font-family: Lux Mono, monospace; font-size: 10px; letter-spacing: .08em; color: rgb(var(--paper-muted)); }
+.plans-intro h1 { margin: 0 0 26px; font-size: clamp(64px, 7.2vw, 100px); line-height: .96; font-family: Lux Display, Lux Sans, sans-serif; letter-spacing: -.035em; }
+.plans-intro h1 span { color: rgb(var(--brand-600)); }
+.plans-intro > p { max-width: 450px; font-size: 15px; line-height: 1.85; color: rgb(var(--paper-muted)); }
+.plans-explore { display: inline-flex; align-items: center; gap: 26px; border-radius: 12px; background: rgb(var(--ink)); color: rgb(var(--paper)); padding: 15px 20px; margin-top: 15px; font-size: 13px; font-weight: 600; transition: background .2s; }
+.plans-explore:hover { background: rgb(var(--brand-600)); }
+.plans-capture { align-self: center; margin: 0; padding: 10px; border: 1px solid rgb(var(--ink) / .16); border-radius: 22px; background: rgb(var(--bg)); box-shadow: 0 22px 60px rgb(var(--ink) / .13); }
+.plans-capture img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; border-radius: 13px; }
+.plans-capture figcaption { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 15px 7px 5px; color: rgb(var(--fg-muted)); font-family: Lux Mono, monospace; font-size: 9px; }
+.plans-poster .hero-facts { grid-column: 1 / -1; margin: 0; padding-top: 14px; border-top: 1px solid rgb(var(--ink) / .13); color: rgb(var(--paper-muted)); }
+.plans-poster .hero-facts span { border-color: rgb(var(--ink) / .16); }
+body.plans-page .membership-summary { margin-top: 36px; background: rgb(var(--bg-elevated)); border-color: rgb(var(--border)); border-radius: 18px; }
+body.plans-page .plan-card { border-radius: 18px; padding: 28px; background: rgb(var(--bg-elevated)); }
+body.plans-page .plan-card.plus { border-color: rgb(var(--brand-400) / .35); }
+body.plans-page .plan-card.pro { background: linear-gradient(145deg, rgb(var(--brand-500) / .13), rgb(var(--bg-elevated)) 65%); border-color: rgb(var(--brand-400) / .5); }
+body.plans-page .plan-card h2 { font-family: Lux Display, Lux Sans, sans-serif; font-size: 34px; letter-spacing: -.02em; }
+body.plans-page .plan-card .price { font-size: 35px; color: rgb(var(--fg)); }
+body.plans-page .plan-card li { font-size: 13px; }
+body.plans-page .plan-symbol { border-radius: 12px; }
+body.plans-page .plan-symbol svg { width: 25px; height: 25px; }
+body.plans-page .plan-card > .commerce-button { border-radius: 11px; min-height: 48px; }
+body.plans-page .plan-card .eyebrow { font-family: Lux Mono, monospace; font-size: 10px; }
+body.plans-page .faq { border-radius: 18px; padding: 32px; }
+body.plans-page .faq h2 { font-family: Lux Display, Lux Sans, sans-serif; font-size: 38px; }
+body.plans-page .faq summary { font-size: 14px; }
+body.plans-page .plans-footer { border-top: 1px solid rgb(var(--border)); }
+@media (max-width: 1000px) {
+    body.plans-page .plans-navigation { gap: 12px; }
+    body.plans-page .plans-navigation .nav-link { padding: 8px; font-size: 12px; }
+    .plans-poster { gap: 26px; }
+    .plans-intro h1 { font-size: 72px; }
+}
+@media (max-width: 767px) {
+    body.plans-page .plans-navigation { height: auto; padding-block: 14px; flex-wrap: wrap; }
+    body.plans-page .plans-navigation .nav-links { order: 3; width: 100%; display: flex; justify-content: center; }
+    body.plans-page .plans-navigation .nav-actions { margin-left: auto; gap: 10px; }
+    body.plans-page .plans-navigation .btn-primary-nav { font-size: 11px; min-height: 38px; padding: 8px 12px; }
+    body.plans-page .plans-shell { padding-top: 115px; }
+    body.plans-page .plans-hero { padding: 34px 0; }
+    .plans-poster { grid-template-columns: 1fr; gap: 25px; }
+    .plans-kicker { font-size: 8px; }
+    .plans-intro h1 { font-size: clamp(64px, 15vw, 86px); }
+    .plans-intro > p { font-size: 14px; }
+    .plans-capture { max-width: 600px; }
+    body.plans-page .plan-grid { grid-template-columns: 1fr; }
+    body.plans-page .faq { padding: 24px; }
+}
+
+body.plans-page .membership-summary:has(> h2) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 30px; }
+body.plans-page .membership-summary:has(> h2) > :is(.eyebrow, h2, p:not(.eyebrow)) { grid-column: 1; }
+body.plans-page .membership-summary:has(> h2) > a { grid-column: 2; grid-row: 1 / 4; }
+@media (max-width: 540px) {
+    body.plans-page .membership-summary:has(> h2) { grid-template-columns: 1fr; }
+    body.plans-page .membership-summary:has(> h2) > a { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 12px; }
+}

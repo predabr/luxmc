@@ -1,12 +1,13 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { modsVersions } from "$lib/api/mods";
-    import { modpackUpdateAtomic, modpackVersionDiff } from "$lib/api/java";
+    import { modpackVersionDiff } from "$lib/api/java";
+    import { modpackUpdates } from '$lib/stores/modpackUpdates.svelte';
     import type { ModpackVersionDiff } from '$lib/api/types';
     import GlassSelect from '$lib/components/ui/GlassSelect.svelte';
     let plan=$state<ModpackVersionDiff|null>(null);let plannedVersion=$state('');let plannedProfile=$state('');let planLimit=$state(80);
     const groupLabels:Record<string,string>={added:'studio.added',removed:'studio.removed',updated:'studio.updated',configuration:'studio.configuration'};
-    async function review(){if(busy || !selected)return;busy=true;error='';confirm=false;plan=null;const version=selected;const id=profileId;const source=info.source;try{const value=await modpackVersionDiff(id,version,source);if(version===selected && id===profileId && source===info.source){plan=value;plannedVersion=version;plannedProfile=id;confirm=value.available;planLimit=80;}}catch(cause){error=String(cause);}finally{busy=false;}}
+    async function review(){if(busy || modpackUpdates.task?.busy || !selected)return;busy=true;error='';confirm=false;plan=null;const version=selected;const id=profileId;const source=info.source;try{const value=await modpackVersionDiff(id,version,source);if(version===selected && id===profileId && source===info.source){plan=value;plannedVersion=version;plannedProfile=id;confirm=value.available;planLimit=80;}}catch(cause){error=String(cause);}finally{busy=false;}}
     import type { ModpackUpdateInfo, ModVersion } from "$lib/api/types";
     import { appState } from "$lib/stores/app.svelte";
     import { profiles } from "$lib/stores/profiles.svelte";
@@ -19,6 +20,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     let error = $state("");
     let confirm = $state(false);
     let loadedProject = "";
+    const updating = $derived(modpackUpdates.task?.busy ?? false);
     $effect(()=>{if(plannedProfile && plannedProfile!==profileId){plan=null;confirm=false;}});
     async function load() {
         if (!info.projectId || busy || loadedProject === info.projectId) return;
@@ -31,12 +33,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         finally { busy = false; }
     }
     async function apply() {
-        if (busy || !selected || plannedVersion!==selected || plannedProfile!==profileId || !plan?.available || !info.projectId || appState.isGameRunning || appState.isLaunching) return;
+        if (busy || updating || !selected || plannedVersion!==selected || plannedProfile!==profileId || !plan?.available || !info.projectId || appState.isGameRunning || appState.isLaunching) return;
         busy = true; error = "";
         try {
-            await modpackUpdateAtomic(profileId, selected, info.source, info.projectId);
-            await profiles.refresh(); await onChanged();
-            confirm = false; toast(uiText("ui.d438a4bceadd94fb"), "success");
+            const id = profileId;
+            await modpackUpdates.apply(id, selected, info.source, info.projectId, versions.find(version => version.id === selected)?.versionNumber || versions.find(version => version.id === selected)?.name);
+            if (profileId === id) { await onChanged(); confirm = false; }
         } catch (cause) { error = String(cause); }
         finally { busy = false; }
     }
@@ -48,8 +50,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <p class="text-xs text-fg-muted">{uiText("ui.e1afd638f469c06c")}</p>
         {#if error}<p role="alert" class="text-sm text-danger">{error}</p><button class={button({ variant: "secondary" })} disabled={busy} onclick={load}>{uiText("ui.b9e10688be012d8b")}</button>{/if}
         <div class="flex flex-wrap gap-3">
-            <GlassSelect bind:value={selected} options={versions.map(version=>({value:version.id,label:version.versionNumber+' · '+version.name}))} label={uiText("ui.021cac6a15e13564")} disabled={busy} onchange={()=>{confirm=false;plan=null;}} />
-            <button class={button({ variant: "primary" })} disabled={busy || !selected || appState.isGameRunning || appState.isLaunching} onclick={()=>void review()}>{busy ? uiText("ui.aebd32f10b997477") : uiText("studio.planUpdate")}</button>
+            <GlassSelect bind:value={selected} options={versions.map(version=>({value:version.id,label:version.versionNumber+' · '+version.name}))} label={uiText("ui.021cac6a15e13564")} disabled={busy || updating} onchange={()=>{confirm=false;plan=null;}} />
+            <button class={button({ variant: "primary" })} disabled={busy || updating || !selected || appState.isGameRunning || appState.isLaunching} onclick={()=>void review()}>{busy || updating ? uiText("ui.aebd32f10b997477") : uiText("studio.planUpdate")}</button>
         </div>
         {#if plan}
             <section class="space-y-4 rounded-2xl border border-brand-400/25 bg-brand-400/5 p-4" aria-label={uiText('studio.planUpdate')}>

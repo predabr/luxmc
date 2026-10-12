@@ -1,4 +1,4 @@
-!define MUI_WELCOMEPAGE_TITLE "Luxmc 3.9.1"
+!define MUI_WELCOMEPAGE_TITLE "Luxmc 3.9.2"
 !define MUI_WELCOMEPAGE_TEXT "Seu próximo mundo começa aqui.$\r$\n$\r$\nInstale o launcher, escolha sua conta e organize Minecraft, mods e amigos em um só lugar.$\r$\n$\r$\nAtualizar o Luxmc preserva suas contas, skins, instâncias e mundos.$\r$\n$\r$\nO Java e os arquivos do Minecraft são preparados quando você escolher sua primeira instância.$\r$\n$\r$\nClique em Avançar para continuar."
 !define MUI_FINISHPAGE_TITLE "Lux MC Launcher instalado!"
 !define MUI_FINISHPAGE_TEXT "O launcher está pronto.$\r$\n$\r$\n1. Abra o Luxmc e conecte sua conta.$\r$\n2. Escolha uma versão ou um modpack.$\r$\n3. Clique em Jogar.$\r$\n$\r$\nNo primeiro início, aguarde a preparação do Java e dos arquivos do jogo. Os próximos inícios reutilizam os arquivos já instalados."
@@ -9,15 +9,7 @@
 !macro NSIS_HOOK_POSTINSTALL
   WriteRegDWORD HKCU "${UNINSTKEY}" "LuxmcRevision" 0
   WriteRegStr HKCU "${UNINSTKEY}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
-  nsExec::ExecToStack '$\"$INSTDIR\luxmc-repair.exe$\" --initialize'
-  Pop $0
-  Pop $1
-  ${If} $0 != 0
-    SetErrorLevel 1
-    IfSilent +2
-      MessageBox MB_OK|MB_ICONSTOP "Não foi possível preparar a recuperação do Luxmc. Execute novamente o instalador. Seus dados do jogo foram preservados."
-    Abort
-  ${EndIf}
+  Delete "$INSTDIR\luxmc-repair.exe"
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL
@@ -33,7 +25,7 @@
       GetTempFileName $R4
       Delete $R4
       CreateDirectory $R4
-      CopyFiles /SILENT "$INSTDIR\luxmc-repair.exe" "$R4\luxmc-uninstall.exe"
+      CopyFiles /SILENT "$INSTDIR\${MAINBINARYNAME}.exe" "$R4\luxmc-uninstall.exe"
       nsExec::ExecToStack '$\"$R4\luxmc-uninstall.exe$\" --uninstall-data'
       Pop $0
       Pop $1

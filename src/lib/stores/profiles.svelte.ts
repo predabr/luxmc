@@ -60,7 +60,7 @@ export function isSafeBannerUrl(value: string): boolean {
 function savedBanner(id: string): string | undefined {
     if (typeof localStorage === "undefined") return undefined;
     try {
-        const stored = localStorage.getItem(`luxmc_banner_${id}`);
+        const stored = localStorage.getItem(`luxmc_banner_${id}`) || localStorage.getItem(`luxmc_catalog_banner_${id}`);
         if (!stored) return undefined;
         if (!isRenderableBanner(stored)) {
             localStorage.removeItem(`luxmc_banner_${id}`);
@@ -78,18 +78,41 @@ function createProfileStore() {
 	async function restoreArtwork() {
 		const { modsSearch } = await import("$lib/api/mods");
 		const { profilesUpdate } = await import("$lib/api/instances");
+		const { instancePackReference } = await import("$lib/api/studio");
+		const { catalogGallery, firstLandscape } = await import("$lib/utils/catalogGallery");
+		const { projectLandscape } = await import("$lib/utils/curatedBanners");
 		for (const profile of list) {
-			if (profile.loader === "vanilla" || !defaultIcons.has(profile.icon) || (artworkAttempts.get(profile.id) ?? 0) > Date.now()) continue;
+			const needsIcon = defaultIcons.has(profile.icon);
+			const needsCover = !profile.banner || profile.banner === profile.icon;
+			if (profile.loader === "vanilla" || (!needsIcon && !needsCover) || (artworkAttempts.get(profile.id) ?? 0) > Date.now()) continue;
 			artworkAttempts.set(profile.id, Date.now() + 300_000);
 			try {
-				const matches = await modsSearch(profile.name, "", 10, 0, "modpack");
-				const match = matches.find(item => item.title.trim().toLowerCase() === profile.name.trim().toLowerCase() && item.iconUrl?.startsWith("https://"));
-				const current = list.find(item => item.id === profile.id);
-				if (!match?.iconUrl || !current || current.name !== profile.name || !defaultIcons.has(current.icon)) continue;
-				await profilesUpdate({ id: profile.id, icon: match.iconUrl });
-				list = list.map(item => item.id === profile.id && defaultIcons.has(item.icon) ? { ...item, icon: match.iconUrl! } : item);
+				if (needsIcon) {
+					const matches = await modsSearch(profile.name, "", 10, 0, "modpack");
+					const match = matches.find(item => item.title.trim().toLowerCase() === profile.name.trim().toLowerCase() && item.iconUrl?.startsWith("https://"));
+					const current = list.find(item => item.id === profile.id);
+					if (!match?.iconUrl || !current || current.name !== profile.name || !defaultIcons.has(current.icon)) continue;
+					await profilesUpdate({ id: profile.id, icon: match.iconUrl });
+					list = list.map(item => item.id === profile.id && defaultIcons.has(item.icon) ? { ...item, icon: match.iconUrl! } : item);
+				}
+				if (needsCover) {
+					const reference = await instancePackReference(profile.id);
+					const current = list.find(item => item.id === profile.id);
+					if (!current || current.banner && current.banner !== current.icon) continue;
+					const landscape = projectLandscape({ source: reference?.source, sourceId: reference?.projectId, iconUrl: current.icon })
+						|| (reference ? await firstLandscape(await catalogGallery(reference.source, reference.projectId)) : undefined);
+					if (landscape) setCatalogBanner(profile.id, landscape);
+				}
 			} catch {}
 		}
+	}
+	function setCatalogBanner(id: string, value: string): boolean {
+		if (!isRenderableBanner(value)) return false;
+		const current = list.find(profile => profile.id === id);
+		if (!current || current.banner && current.banner !== current.icon) return false;
+		try { localStorage.setItem(`luxmc_catalog_banner_${id}`, value); } catch {}
+		list = list.map(profile => profile.id === id ? { ...profile, banner: value } : profile);
+		return true;
 	}
 
 	return {
@@ -144,6 +167,7 @@ function createProfileStore() {
             list = list.map(profile => profile.id === id ? { ...profile, banner: trimmed || undefined } : profile);
             return true;
         },
+		setCatalogBanner,
         async refresh() {
 			try {
 				const { profilesList } = await import("$lib/api/instances");

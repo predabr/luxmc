@@ -1,6 +1,7 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { z } from "zod";
 import { api } from "./client";
+import { appState } from "$lib/stores/app.svelte";
 
 export async function launchGame(request: {
 	versionId: string;
@@ -13,7 +14,16 @@ export async function launchGame(request: {
 	serverIp?: string | null;
 	serverPort?: number | null;
 }): Promise<{ pid: number }> {
-	return api.invoke("launch_game", { request });
+    const revision = appState.gameSessionRevision;
+    const result = await api.invoke<{ pid: number }>("launch_game", { request });
+    if (revision !== appState.gameSessionRevision || result.pid <= 0) {
+        throw new Error("O Minecraft encerrou durante o início. Consulte os logs da instância.");
+    }
+    return result;
+}
+
+export async function gameLaunchStatus(pid: number): Promise<{ running: boolean; windowReady: boolean }> {
+    return api.invoke("game_launch_status", { pid });
 }
 
 export async function stopGame(pid?: number): Promise<boolean> {

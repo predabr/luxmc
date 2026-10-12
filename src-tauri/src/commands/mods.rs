@@ -9,7 +9,7 @@ use crate::core::mods::{
     curseforge, ModProjectDetails, ModSearchResult, ModUpdate, ModVersion, ModrinthClient,
 };
 use crate::db::schema::mods::ModRow;
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -287,6 +287,37 @@ pub async fn mods_versions(
     source: Option<String>,
 ) -> AppResult<Vec<ModVersion>> {
     mods_versions_core(&state, projectId, mcVersion, source).await
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ModVersionHistoryPage {
+    versions: Vec<ModVersion>,
+    next_offset: Option<u32>,
+}
+
+pub async fn mods_version_history_core(state: &AppState, project_id: String, source: String, offset: u32) -> AppResult<ModVersionHistoryPage> {
+    if project_id.is_empty() || !project_id.chars().all(|character| character.is_ascii_alphanumeric() || character == '-' || character == '_') {
+        return Err(AppError::InvalidInput("Projeto inválido".into()));
+    }
+    let (versions, next_offset) = match source.as_str() {
+        "curseforge" => curseforge::get_mod_versions_page(&state.http, &project_id, "", offset).await?,
+        "modrinth" => {
+            if offset > 10000 { return Err(AppError::InvalidInput("Página inválida".into())); }
+            let versions = ModrinthClient::new(state.http.clone()).get_mod_versions(&project_id, "").await?;
+            let next = offset as usize + 50;
+            let more = next < versions.len();
+            (versions.into_iter().skip(offset as usize).take(50).collect(), more.then_some(next as u32))
+        },
+        _ => return Err(AppError::InvalidInput("Provedor inválido".into())),
+    };
+    Ok(ModVersionHistoryPage { versions, next_offset })
+}
+
+#[tauri::command]
+#[allow(non_snake_case)]
+pub async fn mods_version_history(state: State<'_, AppState>, projectId: String, source: String, offset: u32) -> AppResult<ModVersionHistoryPage> {
+    mods_version_history_core(&state, projectId, source, offset).await
 }
 
 pub async fn mods_project_details_core(

@@ -178,7 +178,7 @@ export const updaterStore = {
 
 			unlistenFn = await listen<UpdateProgressPayload>("update-progress", (event) => {
 				progressPercent = Math.max(0, Math.min(100, event.payload.percent));
-				statusText = uiText(event.payload.percent >= 100 ? "updater.installing" : event.payload.status.toLowerCase().includes("conectando") ? "updater.connecting" : "updater.downloading");
+				statusText = uiText(event.payload.percent >= 100 ? "updater.openingInstaller" : event.payload.status.toLowerCase().includes("conectando") ? "updater.connecting" : "updater.downloading");
 				transferredBytes = event.payload.transferred;
 				totalBytes = event.payload.total;
 			});

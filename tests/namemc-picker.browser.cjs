@@ -47,7 +47,7 @@ const fs = require('node:fs');
         for (const callback of window.nameMcListeners) callback('https://namemc.com/skin/63455d7069b397c2');
     });
     await dialog.waitFor({ state: 'hidden' });
-    await page.getByText('NameMC 63455d7069b397c2', { exact: true }).waitFor();
+    await page.locator('.studio-skin-card').getByText('NameMC 63455d7069b397c2', { exact: true }).waitFor();
     const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('luxmc_saved_skins')));
     assert.equal(saved.length, 2);
     assert.equal(saved[0].url, skin);

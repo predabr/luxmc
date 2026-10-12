@@ -44,7 +44,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 <section class="surface-glass space-y-4 p-6" aria-label={uiText("ui.06c23075d12f7697")}>
     <h3 class="text-base font-semibold text-fg">{uiText(section === "general" ? "settings.refinement.feedbackTitle" : "ui.5d951376c42f3cf3")}</h3>
     {#if section === "general"}
-        <fieldset class="space-y-4 rounded-2xl border border-brand-400/20 bg-brand-500/5 p-5">
+        <fieldset class="min-w-0 space-y-4 rounded-2xl border border-brand-400/20 bg-brand-500/5 p-5">
             <legend class="px-2 text-sm font-semibold text-fg">{uiText('settings.catalog.title')}</legend>
             <div class="grid gap-4 sm:grid-cols-2">
                 <label class="space-y-2 text-xs text-fg"><span class="block font-semibold">{uiText('settings.catalog.pageSize')}</span><select class="w-full rounded-xl border border-border bg-bg-elevated p-3" value={settings.value.catalogPageSize || 36} onchange={event => patch({catalogPageSize:Number(event.currentTarget.value) as 24|36|48})}>{#each [24,36,48] as count}<option value={count}>{count}</option>{/each}</select></label>
@@ -69,6 +69,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <label class="flex flex-wrap items-center justify-between gap-3 text-sm text-fg">{uiText("ui.a8c62850bacc1368")}
             <select class="rounded-xl border border-border bg-bg-elevated p-2" value={settings.value.rightSidebarWidth || 320} onchange={event => patch({ rightSidebarWidth: Number(event.currentTarget.value) as 280 | 320 | 360 })}><option value="280">{uiText("ui.a5558c8bd5102eba")}</option><option value="320">{uiText("ui.b94129d5d492a748")}</option><option value="360">{uiText("ui.9b4a498255344398")}</option></select>
         </label>
+        <fieldset class="min-w-0 space-y-4 rounded-2xl border border-brand-400/20 bg-brand-500/5 p-5">
+            <legend class="px-2 text-sm font-semibold text-fg">{uiText("settings.preview3d.title")}</legend>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <label class="min-w-0 space-y-2 text-sm text-fg"><span class="block">{uiText("settings.preview3d.quality")}</span><select class="min-w-0 w-full rounded-xl border border-border bg-bg-elevated p-3" aria-label={uiText("settings.preview3d.quality")} value={settings.value.skinPreviewQuality || "high"} onchange={event => patch({ skinPreviewQuality: event.currentTarget.value as AppSettings["skinPreviewQuality"] })}><option value="high">{uiText("settings.preview3d.high")}</option><option value="balanced">{uiText("settings.preview3d.balanced")}</option><option value="economy">{uiText("settings.preview3d.economy")}</option></select></label>
+                <label class="min-w-0 space-y-2 text-sm text-fg"><span class="block">{uiText("settings.preview3d.fluency")}</span><select class="min-w-0 w-full rounded-xl border border-border bg-bg-elevated p-3" aria-label={uiText("settings.preview3d.fluency")} value={settings.value.skinPreviewFps || 60} onchange={event => patch({ skinPreviewFps: Number(event.currentTarget.value) as 30 | 60 })}><option value="60">60 FPS</option><option value="30">30 FPS</option></select></label>
+            </div>
+            <p class="text-xs leading-5 text-fg-muted">{uiText("settings.preview3d.help")}</p>
+        </fieldset>
         <label class="flex items-center gap-3 text-sm text-fg"><input type="checkbox" checked={settings.value.pauseSkinWhileGaming === true} onchange={event => patch({ pauseSkinWhileGaming: event.currentTarget.checked })} /> {uiText("ui.ef0a39bb77c3620e")}</label>
         <div class="grid gap-5 sm:grid-cols-2">
             <label class="space-y-2 text-sm text-fg">{uiText("ui.5d5f6f158a48dbf9")} {settings.value.interfaceOpacity ?? 18}%<input class="w-full accent-brand-500" type="range" min="5" max="90" step="1" value={settings.value.interfaceOpacity ?? 18} oninput={event => patch({interfaceOpacity:Number(event.currentTarget.value)})} /><span class="block text-xs text-fg-muted">{uiText("ui.113be20272b6810c")}</span></label>

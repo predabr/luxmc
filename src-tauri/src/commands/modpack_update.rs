@@ -412,9 +412,9 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
     let archive_path = std::env::temp_dir().join(format!("luxmc-update-{}.zip", uuid::Uuid::new_v4()));
     pack::atomic_write(&archive_path, &bytes).await?;
     let imported = if source == "modrinth" {
-        instance_import_mrpack_core(None, &state, archive_path.to_string_lossy().into_owned(), row.name.clone(), Some(row.icon.clone()), row.ram_mb).await
+        instance_import_mrpack_core(app.clone(), &state, archive_path.to_string_lossy().into_owned(), row.name.clone(), Some(row.icon.clone()), row.ram_mb).await
     } else {
-        instance_import_modpack_core(None, &state, archive_path.to_string_lossy().into_owned(), row.name.clone(), row.mc_version.clone(), row.loader.clone(), Some(row.icon.clone()), row.ram_mb).await
+        instance_import_modpack_core(app.clone(), &state, archive_path.to_string_lossy().into_owned(), row.name.clone(), row.mc_version.clone(), row.loader.clone(), Some(row.icon.clone()), row.ram_mb).await
     };
     let _ = tokio::fs::remove_file(&archive_path).await;
     let staged = imported?;

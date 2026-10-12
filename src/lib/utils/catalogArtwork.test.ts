@@ -12,4 +12,15 @@ describe('catalog artwork identity',()=>{
         expect(matchesCatalogBanner('Localized title','fabulously-optimized','fabulously optimized')).toBe(true);
         expect(matchesCatalogBanner('RLCraft','rlcraft','rlcraft')).toBe(true);
     });
+    it('recovers the FO landscape by project identity instead of guessing a similar name',()=>{
+        const icon='https://cdn.modrinth.com/data/1KVo5zza/icon.webp';
+        expect(catalogBannerCandidates({title:'Renamed',slug:'renamed',source:'modrinth',sourceId:'1KVo5zza',iconUrl:icon,bannerUrl:icon})[0]).toBe('/modpack_fo.webp');
+        expect(catalogBannerCandidates({title:'Fabulously Optimized',slug:'fabulously-optimized',source:'curseforge',sourceId:'396246',iconUrl:'https://media.forgecdn.net/avatars/fo.png'})[0]).toBe('/modpack_fo.webp');
+        expect(catalogBannerCandidates({title:'Fabulously Optimized',slug:'fabulously-optimized',source:'modrinth',sourceId:'unrelated',iconUrl:'https://example.com/fo.png'})).toEqual(['https://example.com/fo.png']);
+        expect(resolveProfileBanner({name:'Renamed FO',icon,banner:icon,loader:'fabric'})).toBe('/modpack_fo.webp');
+        expect(resolveProfileBanner({name:'Renamed FO',icon,banner:'https://example.com/chosen.png'})).toBe('https://example.com/chosen.png');
+    });
+    it('deduplicates gallery candidates and rejects executable image URLs',()=>{
+        expect(catalogBannerCandidates({title:'Pack',slug:'pack',iconUrl:'https://example.com/icon.png',bannerUrl:'https://example.com/cover.png',galleryUrls:['https://example.com/cover.png','javascript:alert(1)','https://example.com/scene.png']})).toEqual(['https://example.com/cover.png','https://example.com/scene.png','https://example.com/icon.png']);
+    });
 });

@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. v3.9.0)"
+        description: "Release tag (e.g. v3.9.2)"
         required: true
-        default: "v3.9.0"
+        default: "v3.9.2"
       reuse_assets:
         description: "Verify and publish an existing draft without rebuilding installers"
         type: boolean
@@ -219,9 +219,6 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Prepare Windows verifier for validation
-        run: node scripts/build-repair-helper.mjs --prepare
-
       - name: Validate Windows release
         run: |
           pnpm check
@@ -247,7 +244,7 @@ jobs:
           $installer = Get-ChildItem -LiteralPath 'src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis' -Filter '*-setup.exe' | Select-Object -First 1
           if (!$installer) { throw 'Windows installer was not built.' }
           Copy-Item -LiteralPath $installer.FullName -Destination 'Lux MC Launcher.exe' -Force
-          ./scripts/audit-windows-release.ps1 -Installer 'Lux MC Launcher.exe' -Program 'src-tauri/target/x86_64-pc-windows-msvc/release/luxmc.exe' -Helper 'src-tauri/target/x86_64-pc-windows-msvc/release/luxmc-repair.exe' -Output 'docs/validation/windows-release-audit.json'
+          ./scripts/audit-windows-release.ps1 -Installer 'Lux MC Launcher.exe' -Program 'src-tauri/target/x86_64-pc-windows-msvc/release/luxmc.exe' -Output 'docs/validation/windows-release-audit.json'
           gh release upload $env:RELEASE_TAG 'Lux MC Launcher.exe#Lux MC Launcher.exe' --repo $env:GITHUB_REPOSITORY --clobber
           if ($LASTEXITCODE -ne 0) { throw 'Windows installer upload failed.' }
 
@@ -258,6 +255,7 @@ jobs:
         shell: pwsh
         env:
           LUXMC_INSTALLER_PATH: Lux MC Launcher.exe
+          LUXMC_EXPECT_DIRECT_LAUNCHER: 'true'
         run: |
           New-Item -ItemType Directory -Path docs/validation -Force | Out-Null
           ./tests/installer-lifecycle.ps1

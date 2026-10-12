@@ -5,6 +5,16 @@
 compile_error!("Release requires embedded assets: use pnpm tauri build");
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--uninstall-data") {
+        match luxmc_lib::core::uninstall::uninstall_data() {
+            Ok(count) => println!("{{\"dataDirectoriesRemoved\":{count}}}"),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     if std::env::args().nth(1).as_deref() == Some("--virtual-lan-broker") {
         if let Some(id) = std::env::args().nth(2) { let _ = luxmc_lib::network::virtual_lan::run_broker(&id); }
         return;

@@ -1,8 +1,16 @@
 {
+  "packFollowup": {
+    "updating": "Actualizando modpack",
+    "updated": "Modpack actualizado",
+    "history": "Historial de cambios",
+    "historyHelp": "Consulta los cambios publicados por el autor para cada versión, desde la más reciente hasta las anteriores.",
+    "allVersions": "Historial completo",
+    "moreHistory": "Cargar más versiones"
+  },
   "app": {
     "name": "Luxmc",
     "tagline": "Launcher de Minecraft para Windows y Linux",
-    "version": "v3.9.1",
+    "version": "v3.9.2",
     "pressForShortcuts": "Presiona {{key}} para atajos de teclado",
     "systemOnline": "Sistema en línea",
     "navigation": "Navegación",
@@ -234,7 +242,7 @@
     "launcherActionDesc": "Ação a ser tomada quando uma instância do jogo for iniciada.",
     "launcherActionNone": "Nenhuma (Manter aberto)",
     "launcherActionHide": "Ocultar e reabrir ao sair",
-    "launcherActionClose": "Fechar launcher",
+    "launcherActionClose": "Minimizar en segundo plano",
     "closeWarningTitle": "Aviso ao fechar com jogo rodando",
     "closeWarningDesc": "Exibir aviso antes de fechar o launcher enquanto instâncias estiverem em execução.",
     "perfModeTitle": "Modo Ultra Desempenho",
@@ -488,6 +496,15 @@
       "pageSize": "Resultados por página",
       "compact": "Portadas compactas",
       "help": "Usa 24 resultados y portadas compactas para navegar con menos memoria."
+    },
+    "preview3d": {
+      "title": "Vista previa del personaje",
+      "quality": "Nitidez de la vista previa 3D",
+      "high": "Alta · detalles más nítidos",
+      "balanced": "Equilibrada",
+      "economy": "Económica · menor uso de GPU",
+      "fluency": "Fluidez de la animación",
+      "help": "La calidad alta suaviza los bordes y conserva la textura de píxeles. Elige 30 FPS o calidad económica para reducir el uso de GPU. Estas opciones no cambian tu skin en Minecraft."
     }
   },
   "auth": {
@@ -3015,8 +3032,15 @@
     "syncing": "Aplicando y sincronizando con Microsoft…",
     "applying": "Aplicando…",
     "pendingApply": "Los cambios aún no están aplicados. Pulsa Aplicar y sincronizar para usar tu nueva skin.",
+    "studioLabel": "Luxmc / Personalización",
+    "preview": "Tu personaje",
+    "visibility": "Quién puede ver tu skin y capa",
     "visualTitle": "Tu estilo en Minecraft",
-    "visualHelp": "Prueba skins, explora los detalles en 3D y organiza tu colección."
+    "visualHelp": "Prueba skins, explora los detalles en 3D y organiza tu colección.",
+    "searchCollection": "Buscar en tu colección de skins",
+    "noSearchResults": "No se encontraron skins. Prueba otro nombre.",
+    "zoomIn": "Acercar personaje",
+    "zoomOut": "Alejar personaje"
   },
   "design": {
     "expandMenu": "Expandir menú",
@@ -3113,6 +3137,7 @@
     "nicknameSaved": "Nombre del jugador guardado."
   },
   "updater": {
+    "openingInstaller": "Descarga verificada. Abriendo instalador…",
     "startingDownload": "Iniciando descarga...",
     "connecting": "Conectando al servidor...",
     "downloading": "Descargando la actualización con verificación y reintentos automáticos...",

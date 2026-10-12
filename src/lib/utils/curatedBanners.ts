@@ -1,4 +1,4 @@
-function isRenderableBanner(value: string): boolean {
+export function isRenderableBanner(value: string): boolean {
 	if (!value) return false;
 	if (value.startsWith("/")) return true;
 	try {
@@ -46,9 +46,31 @@ export function matchesCatalogBanner(name: string, slug: string, key: string): b
 	return normalize(slug || name) === normalize(key);
 }
 
-export function catalogBannerCandidates(item: { title: string; slug: string; bannerUrl?: string | null; iconUrl?: string | null }): string[] {
+export function projectLandscape(item: { source?: string; sourceId?: string; iconUrl?: string | null }): string | null {
+	const presets: Record<string, string> = {
+		modpack_fo: "/modpack_fo.webp",
+		"/modpack_fo_icon.png": "/modpack_fo.webp",
+		modpack_better_mc: "/modpack_better_mc.webp",
+		"/modpack_bmc_icon.webp": "/modpack_better_mc.webp",
+		modpack_cobblemon: "/modpack_cobblemon.webp",
+		"/modpack_cobblemon_icon.png": "/modpack_cobblemon.webp",
+		"/modpack_vanilla_perfected_icon.webp": "/modpack_vanilla_perfected.png"
+	};
+	if (!item.source && !item.sourceId && item.iconUrl && presets[item.iconUrl]) return presets[item.iconUrl];
+	if ((item.source === "modrinth" && item.sourceId === "1KVo5zza") || (item.source === "curseforge" && item.sourceId === "396246")) return "/modpack_fo.webp";
+	try {
+		const url = new URL(item.iconUrl || "");
+		if (url.hostname === "cdn.modrinth.com" && /^\/data\/1KVo5zza\//.test(url.pathname)) return "/modpack_fo.webp";
+	} catch {}
+	return null;
+}
+
+export function catalogBannerCandidates(item: { title: string; slug: string; source?: string; sourceId?: string; bannerUrl?: string | null; iconUrl?: string | null; galleryUrls?: string[] }): string[] {
 	const candidates: string[] = [];
-	if (item.bannerUrl && item.bannerUrl !== item.iconUrl && isRenderableBanner(item.bannerUrl)) candidates.push(item.bannerUrl);
+	const landscape = projectLandscape(item);
+	if (landscape) candidates.push(landscape);
+	for (const url of item.galleryUrls || []) if (url !== item.iconUrl && isRenderableBanner(url) && !candidates.includes(url)) candidates.push(url);
+	if (item.bannerUrl && item.bannerUrl !== item.iconUrl && isRenderableBanner(item.bannerUrl) && !candidates.includes(item.bannerUrl)) candidates.push(item.bannerUrl);
 	if (item.iconUrl && isRenderableBanner(item.iconUrl) && !candidates.includes(item.iconUrl)) candidates.push(item.iconUrl);
 	return candidates;
 }
@@ -73,9 +95,8 @@ export function resolveProfileBanner(profile?: {
 	}
 
 	if (profile.icon) {
-		if (profile.icon === "modpack_better_mc") return "/modpack_better_mc.webp";
-		if (profile.icon === "modpack_cobblemon") return "/modpack_cobblemon.webp";
-		if (profile.icon === "modpack_fo") return "/modpack_fo.webp";
+		const landscape = projectLandscape({ iconUrl: profile.icon });
+		if (landscape) return landscape;
 		if (
 			profile.icon.startsWith("http://") ||
 			profile.icon.startsWith("https://") ||

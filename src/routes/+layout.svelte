@@ -20,6 +20,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import PublicProfileModal from "$lib/components/friends/PublicProfileModal.svelte";
 	import BedrockDownloadStatus from "$lib/components/instances/BedrockDownloadStatus.svelte";
     import ModpackDownloadStatus from "$lib/components/mods/ModpackDownloadStatus.svelte";
+    import ModpackUpdateStatus from "$lib/components/mods/ModpackUpdateStatus.svelte";
     import RoomPreparationStatus from "$lib/components/friends/RoomPreparationStatus.svelte";
     import Toasts from "$lib/components/ui/Toasts.svelte";
 	import StatusBanner from "$lib/components/ui/StatusBanner.svelte";
@@ -380,6 +381,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 		const exitPromise = listenGameExit((event) => {
 			if (disposed) return;
+            appState.recordGameExit();
 			closeLogSession(
 				event.code,
 				event.errorMessage || uiText("ui.f5b08a1d2113f1f0", {arg0: (event.code)}),
@@ -390,7 +392,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			appState.isGameRunning = false;
 			appState.activeGameDetails = null;
 
-			if (settings.value.launcherActionOnLaunch === "hide_reopen") {
+            if (settings.value.launcherActionOnLaunch !== "keep_open" || !event.success) {
 				import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
 					const win = getCurrentWindow();
 					win.show().then(() => win.setFocus()).catch(() => {});
@@ -890,6 +892,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </ErrorBoundary>
 
 <ModpackDownloadStatus />
+<ModpackUpdateStatus />
 <BedrockDownloadStatus />
 <RoomPreparationStatus />
 

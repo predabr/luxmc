@@ -1,6 +1,14 @@
 # Assinatura e distribuição do Lux MC Launcher
 
-Verificado em 11 de outubro de 2026. O instalador publicado é `Lux MC Launcher.exe` (NSIS). O código original atual migrou para `GPL-3.0-only`; tags e binários anteriores preservam seus registros históricos de licença. A candidatura à SignPath foi enviada e o formulário confirmou o recebimento; a avaliação está pendente, sem aprovação ou certificado ativo.
+Verificado em 12 de outubro de 2026. O instalador publicado é `Lux MC Launcher.exe` (NSIS). O código original atual migrou para `GPL-3.0-only`; tags e binários anteriores preservam seus registros históricos de licença. A SignPath Foundation recusou a candidatura por falta dos sinais de adoção e reconhecimento público exigidos pelo programa. Nenhum certificado está ativo.
+
+## Bloqueio do Lux Repair na compilação local 3.9.1
+
+Em 12 de outubro, os eventos 3033 e 3077 do Code Integrity registraram o bloqueio de `luxmc-repair.exe` às 11:57, quando o Raycast tentou abrir o Luxmc. Naquela compilação, os atalhos iniciavam esse auxiliar antes do programa principal. O mantenedor solicitou sua remoção: o código atual não compila nem inclui Lux Repair, e atalhos e protocolos executam o launcher diretamente. A limpeza explicitamente solicitada na desinstalação foi integrada ao programa principal, sem abrir sua interface. A assinatura de editor continua necessária para os componentes restantes.
+
+O SHA-256 do auxiliar instalado, `e4ff1ffc8f06755c8fe74fbb887c1692cd210c2ae537f4a56668ba5dc4574f87`, corresponde ao artefato da [compilação verificável](https://github.com/predabr/luxmc/actions/runs/38264425892). O programa principal e o auxiliar apresentam Authenticode `NotSigned`. Os mesmos bytes foram examinados pelo Defender sem detecções no relatório `validation/modpack-followup/windows-local-audit.json`; isso não estabelece confiança de editor nem comprova ausência de malware.
+
+O pacote local de revisão em `validation/windows-repair-trust/` contém somente o auxiliar e metadados de origem daquela compilação. Sua preparação não significa envio ou aprovação pela Microsoft. O diagnóstico inicial não alterou atalhos ou executáveis. A remoção posterior foi solicitada pelo mantenedor; políticas do Windows e recursos de proteção foram preservados. A compatibilidade permanece não confirmada até que os componentes restantes sejam aceitos pela política do Windows e o ciclo de instalação e execução seja testado.
 
 ## Situação da versão 3.8.0
 
@@ -12,9 +20,9 @@ Não existe certificado de assinatura de código configurado no projeto. Publica
 
 ## Preparação da publicação com Authenticode
 
-A integração deve assinar o programa principal, o auxiliar `luxmc-repair.exe`, os plugins DLL utilizados pelo NSIS, o desinstalador e o instalador final. O template já preserva `signed_plugins_path` e `uninstaller_sign_cmd` do Tauri. O hook adicional utiliza `nsExec.dll`, que também precisa entrar na verificação de assinatura; conferir somente o EXE externo é insuficiente.
+A integração deve assinar o programa principal, os plugins DLL utilizados pelo NSIS, o desinstalador e o instalador final. O template já preserva `signed_plugins_path` e `uninstaller_sign_cmd` do Tauri. O hook adicional utiliza `nsExec.dll`, que também precisa entrar na verificação de assinatura; conferir somente o EXE externo é insuficiente.
 
-O auxiliar contém o hash de referência do programa principal. A ordem de assinatura e geração desse hash precisa preservar a verificação após o empacotamento. A release só estará validada quando instalação, atualização, recuperação e desinstalação funcionarem com os executáveis efetivamente assinados e o Controle Inteligente habilitado. Os testes atuais em runners não comprovam essa compatibilidade.
+A release só estará validada quando instalação, atualização e desinstalação funcionarem com os executáveis efetivamente assinados e o Controle Inteligente habilitado. As assinaturas Ed25519 e os hashes das atualizações continuam independentes da remoção do Repair. Os testes atuais em runners não comprovam essa compatibilidade.
 
 Depois da assinatura final, gerar novamente `SHA256SUMS`, `latest.json` e suas assinaturas Ed25519, pois os bytes e os hashes mudam. Não substituir silenciosamente o instalador da release publicada.
 

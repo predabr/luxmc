@@ -18,7 +18,7 @@ If accepted, the intended acknowledgement is: "Free code signing provided by Sig
 
 The source repository is [predabr/luxmc](https://github.com/predabr/luxmc). Builds use GitHub Actions with locked package and Cargo dependencies. The installer must be traceable to the exact commit and successful build run that produced it.
 
-The intended Windows scope includes the main executable, Luxmc recovery helper, uninstaller and final NSIS installer. Bundled third-party binaries and installer plugins must be reviewed with the provider and tested under Smart App Control; they cannot simply be signed as original Luxmc code. The helper's integrity binding must be validated after Authenticode signing, since signing changes executable bytes.
+The intended Windows scope includes the main executable, uninstaller and final NSIS installer. Lux Repair is no longer built or distributed; shortcuts and protocol links start the main executable directly, and explicit uninstall cleanup uses the main executable without opening the launcher UI. Bundled third-party binaries and installer plugins must be reviewed with the provider and tested under Smart App Control; they cannot simply be signed as original Luxmc code.
 
 Releases advertised as Authenticode-signed must require successful publisher signature verification, timestamp verification, installer lifecycle checks and signed SHA-256 release manifests. Current unsigned releases must disclose that status and possible Windows policy blocks. A missing or failed production signature must not be silently represented as a signed release. Provider credentials, artifact configurations and production policy approval remain pending.
 

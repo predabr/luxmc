@@ -29,7 +29,7 @@ const base = process.env.LUXMC_BROWSER_BASE_URL || 'http://127.0.0.1:1420';
                     window.fixtureRoom = { mode: 'host', invitation: 'LUXMC1-1234567890123456', members: [{ id: 'host', username: 'LuxPlayer', uuid: 'host', isHost: true, joinedAt: 1, avatarUrl: null }], maxPlayers: 10, roomLocked: false, worlds: [], worldReady: false, pingMs: null };
                     return window.fixtureRoom;
                 }
-                if (command === 'mods_search') return [{ sourceId: 'artwork-fixture', source: 'modrinth', slug: 'artwork-fixture', title: 'Pack sem galeria', description: 'Um projeto que publica somente seu ícone.', downloads: 1000, iconUrl: '/modpack_fo_icon.png', bannerUrl: '/missing-banner-fixture.png', author: 'Fixture', categories: ['fabric'], versions: ['1.21.1'] }];
+                if (command === 'mods_search') return [{ sourceId: 'artwork-fixture', source: 'modrinth', slug: 'artwork-fixture', title: 'Pack sem galeria', description: 'Um projeto que publica somente seu ícone.', downloads: 1000, iconUrl: '/modpack_vanilla_perfected_icon.webp', bannerUrl: '/missing-banner-fixture.png', author: 'Fixture', categories: ['fabric'], versions: ['1.21.1'] }];
                 return invoke(command, args);
             };
         });
@@ -39,7 +39,7 @@ const base = process.env.LUXMC_BROWSER_BASE_URL || 'http://127.0.0.1:1420';
         await card.waitFor();
         await page.waitForFunction(() => {
             const image = document.querySelector('.catalog-card img.relative');
-            return image?.complete && image.naturalWidth > 0 && image.style.opacity === '1' && image.classList.contains('object-contain');
+            return image?.complete && image.naturalWidth > 0 && image.style.opacity === '1' && getComputedStyle(image).objectFit === 'cover';
         });
         assert.equal(await page.evaluate(() => window.polishAnimations.some(animation => animation.id === 'luxmc-catalog-reveal')), true);
         fs.mkdirSync('docs/validation/local-polish', { recursive: true });

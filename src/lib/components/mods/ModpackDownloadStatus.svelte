@@ -1,5 +1,6 @@
 <script lang="ts">
     import { modpackInstallation } from "$lib/stores/modpackInstallation.svelte";
+    import { contentActivity } from '$lib/stores/contentActivity.svelte';
     import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { goto } from '$app/navigation';
     import { Download, LoaderCircle, X, CheckCircle2, AlertCircle, Check, Clock3 } from "lucide-svelte";
@@ -19,7 +20,7 @@
         return () => clearInterval(timer);
     });
 </script>
-{#if task.item || modpackInstallation.jobs.length}
+{#if !contentActivity.updateProfileId && (task.item || modpackInstallation.jobs.length)}
     <aside aria-label={uiText('workshop.queue')} data-installation-status class="fixed bottom-5 right-5 z-[150] w-[min(420px,calc(100vw-40px))] overflow-hidden rounded-3xl border border-border bg-bg-elevated text-fg shadow-elevated">
         <button type="button" class="flex w-full items-center gap-3 p-4 text-left" onclick={() => expanded = !expanded} aria-expanded={expanded}>
             {#if task.item?.iconUrl}<img src={task.item.iconUrl} alt="" class="h-10 w-10 rounded-xl object-contain" />{:else}<Download class="h-6 w-6 text-brand-400" />{/if}

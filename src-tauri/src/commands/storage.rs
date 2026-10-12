@@ -112,7 +112,7 @@ fn collect_report(base: &Path, config: &Path, cache: &Path, executable: Option<&
     if let Some(path) = executable {
         add("application", path);
         if let Some(parent) = path.parent() {
-            for file in ["luxmc-repair.exe", "uninstall.exe"] { add("application", &parent.join(file)); }
+            add("application", &parent.join("uninstall.exe"));
         }
     }
     let mut instance_items = Vec::new();
@@ -270,12 +270,12 @@ mod tests {
         let root = std::env::temp_dir().join(format!("luxmc-storage-{}", uuid::Uuid::new_v4()));
         let base = root.join("data"); let cache = root.join("cache"); let external = root.join("external");
         for (path, bytes) in [("assets/file", 8), ("java/runtime", 17), ("luxmc.db", 31), ("instances/inside/.minecraft/worlds/world", 42), ("instances/inside/.minecraft/logs/log", 4), ("cache/file", 5), ("downloads/file", 7), ("migration-staging/file", 9), ("logs/log", 3)] { file(&base, path, bytes); }
-        file(&external, "worlds/world", 49); file(&external, "logs/log", 6); file(&cache, "file", 23); file(&root, "Luxmc.exe", 47); file(&root, "luxmc-repair.exe", 19); file(&root, "uninstall.exe", 11);
+        file(&external, "worlds/world", 49); file(&external, "logs/log", 6); file(&cache, "file", 23); file(&root, "Luxmc.exe", 47); file(&root, "uninstall.exe", 11);
         let inside = base.join("instances/inside/.minecraft");
         let report = collect_report(&base, &base, &cache, Some(&root.join("Luxmc.exe")), vec![profile("inside", &inside), profile("external", &external), profile("legacy-duplicate", &external)], vec![]);
-        assert_eq!(report.total_bytes, 281);
+        assert_eq!(report.total_bytes, 262);
         assert_eq!(report.categories.iter().find(|category| category.category == "java").unwrap().bytes, 17);
-        assert_eq!(report.categories.iter().find(|category| category.category == "application").unwrap().bytes, 77);
+        assert_eq!(report.categories.iter().find(|category| category.category == "application").unwrap().bytes, 58);
         assert_eq!(report.instances.iter().find(|item| item.id == "inside").unwrap().bytes, 46);
         assert_eq!(report.instances.iter().find(|item| item.id == "external").unwrap().bytes, 55);
         assert_eq!(report.cache_bytes, 44); assert_eq!(report.logs_bytes, 13); assert!(report.warnings.is_empty());

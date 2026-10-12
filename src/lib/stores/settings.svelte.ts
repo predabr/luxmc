@@ -24,6 +24,8 @@ export interface AppSettings {
 	javaPath?: string;
     rightSidebarWidth?: 280 | 320 | 360;
     pauseSkinWhileGaming?: boolean;
+    skinPreviewQuality?: "economy" | "balanced" | "high";
+    skinPreviewFps?: 30 | 60;
     shareCustomAvatar?: boolean;
     publishGameActivity?: boolean;
 	maxRamMb?: number;
@@ -82,6 +84,9 @@ const defaults: AppSettings = {
     catalogPageSize: 36,
     catalogCompactCards: false,
     gifQuality: "high",
+    skinPreviewQuality: "high",
+    skinPreviewFps: 60,
+    pauseSkinWhileGaming: true,
 	blur: false,
 	sidebarPosition: "left",
 	language: detectBrowserLocale(),

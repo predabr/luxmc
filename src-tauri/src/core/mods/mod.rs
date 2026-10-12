@@ -579,7 +579,8 @@ impl ModrinthClient {
         let title = resp.get("title").and_then(|v| v.as_str()).unwrap_or("").to_string();
         let description = resp.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
         let body = resp.get("body").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let icon_url = resp.get("icon_url").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let icon_url = resp.get("raw_icon_url").and_then(|value| value.as_str()).filter(|value| !value.is_empty())
+            .or_else(|| resp.get("icon_url").and_then(|value| value.as_str())).map(str::to_owned);
         let downloads = resp.get("downloads").and_then(|v| v.as_u64()).unwrap_or(0);
         let updated_at = resp.get("updated").and_then(|v| v.as_str()).map(|s| s.to_string());
         let created_at = resp.get("published").and_then(|v| v.as_str()).map(|s| s.to_string());
@@ -619,7 +620,8 @@ impl ModrinthClient {
             .map(|arr| {
                 arr.iter()
                     .filter_map(|img| {
-                        let url = img.get("url")?.as_str()?.to_string();
+                        let url = img.get("raw_url").and_then(|value| value.as_str()).filter(|value| !value.is_empty())
+                            .or_else(|| img.get("url").and_then(|value| value.as_str()))?.to_string();
                         let title = img.get("title").and_then(|t| t.as_str()).map(|s| s.to_string());
                         let description = img
                             .get("description")

@@ -31,6 +31,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		ArrowLeft,
 		ChevronRight,
 		Shirt,
+        ZoomIn,
+        ZoomOut,
         Globe2,
         ArrowUpRight
 	} from "lucide-svelte";
@@ -72,6 +74,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	type SavedSkinItem = { id: string; name: string; url: string; model: "steve" | "alex"; capeType?: CapeType; capeUrl?: string };
 	const defaultSavedSkins: SavedSkinItem[] = [];
 	let savedSkins = $state<SavedSkinItem[]>(defaultSavedSkins);
+    let collectionSearch = $state("");
+    const normalizeSkinName = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase();
+    const matchingSkins = $derived(savedSkins.filter(skin => normalizeSkinName(skin.name).includes(normalizeSkinName(collectionSearch.trim()))));
 
 	let selectedSkinId = $state("");
 	let selectedSkinNick = $state(uiText("ui.0419454263a82604"));
@@ -554,7 +559,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 </script>
 
-<div class="h-full flex flex-col gap-6 select-none overflow-y-auto custom-scrollbar pb-24">
+<div class="appearance-studio h-full flex flex-col gap-5 select-none pb-24">
 
 	<header class="flex items-center justify-between gap-4 py-1">
 		<div class="flex items-center gap-3">
@@ -577,25 +582,25 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</button>
 			</div>
 
-			<div class="flex items-center gap-4"><span class="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-400/25 bg-brand-500/10"><Shirt class="h-6 w-6 text-brand-400" /></span><div><h1 class="text-2xl font-bold tracking-tight text-fg">{uiText('skinsStudio.visualTitle')}</h1><p class="mt-1 text-xs leading-5 text-fg-muted">{uiText('skinsStudio.visualHelp')}</p></div></div>
+			<div class="flex items-center gap-4"><span class="studio-mark flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-400/25 bg-brand-500/10"><Shirt class="h-6 w-6 text-brand-400" /></span><div><p class="studio-eyebrow">{uiText('skinsStudio.studioLabel')}</p><h1 class="mt-1 text-2xl font-bold tracking-tight text-fg">{uiText('skinsStudio.visualTitle')}</h1><p class="mt-1 text-xs leading-5 text-fg-muted">{uiText('skinsStudio.visualHelp')}</p></div></div>
 		</div>
 
 	</header>
 
-    <div class="appearance-apply sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fg/10 bg-bg-elevated p-4 shadow-elevated">
-        <p class="text-sm text-fg-muted" class:text-brand-400={hasPendingChange && !saving} role="status">{saving ? isMicrosoft ? uiText("skinsStudio.syncing") : uiText("ui.c96a5ffa4c9a8e9c") : saveError ? uiText("ui.f3e4295a34844bee") + saveError : syncError || (hasPendingChange ? uiText("skinsStudio.pendingApply") : uiText("ui.0d8e3ff973d2531e"))}</p>
+    <div class="appearance-apply sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3" class:has-pending={hasPendingChange}>
+        <div class="flex min-w-0 flex-1 items-center gap-3"><span class="studio-state flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">{#if hasPendingChange}<Pencil class="h-4 w-4" />{:else}<CheckCircle2 class="h-5 w-5" />{/if}</span><p class="text-xs leading-5 text-fg-muted" class:text-brand-400={hasPendingChange && !saving} role="status">{saving ? isMicrosoft ? uiText("skinsStudio.syncing") : uiText("ui.c96a5ffa4c9a8e9c") : saveError ? uiText("ui.f3e4295a34844bee") + saveError : syncError || (hasPendingChange ? uiText("skinsStudio.pendingApply") : uiText("ui.0d8e3ff973d2531e"))}</p></div>
         <div class="flex gap-2">
             <Button variant="primary" size="lg" loading={saving} disabled={!canApplyAppearance} onclick={applyAppearance}>{saving ? uiText("skinsStudio.applying") : isMicrosoft ? uiText("ui.96d74ee46d837a1f") : uiText("ui.24e056555b501d83")}</Button>
         </div>
     </div>
-    <p class="text-sm text-fg-muted rounded-2xl border border-fg/10 bg-bg-elevated p-4"><Info class="inline h-4 w-4 mr-2 text-brand-400" />{isMicrosoft ? uiText("ui.bd7f21aa535401a7") : account.value?.id.startsWith("luxmc:") ? uiText("profileCard.luxmcSkins") : uiText("profileCard.offlineSkins")}</p>
 
 
-	<div class="appearance-workspace grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+	<div class="appearance-workspace grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
 
-		<div class="lg:col-span-4 flex flex-col items-center gap-4 lg:sticky lg:top-2">
+		<div class="studio-preview lg:col-span-5 flex min-w-0 flex-col items-center lg:sticky lg:top-2">
+			<div class="studio-preview-heading flex w-full items-center justify-between gap-3 px-5 pt-5 pb-2"><div class="min-w-0"><p class="studio-eyebrow">{uiText('skinsStudio.preview')}</p><p class="mt-1 truncate text-sm font-semibold text-fg">{selectedSkinNick || username}</p></div><span class="studio-model">{skinType === 'alex' ? 'Alex' : 'Steve'}</span></div>
 
-			<div class="skin-preview-stage w-full h-[520px] rounded-3xl bg-bg-elevated border border-fg/10 relative overflow-hidden shadow-2xl flex flex-col items-center justify-center p-4">
+			<div class="skin-preview-stage w-full h-[420px] relative overflow-hidden flex flex-col items-center justify-center">
 
 				<div class="absolute top-3 left-3 right-3 flex items-center justify-end z-10 pointer-events-none">
 
@@ -625,13 +630,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				/>
 			</div>
 
-			<div class="flex flex-col items-center gap-2.5 w-full">
-				<div class="flex items-center gap-1.5 text-xs text-fg/40 font-medium">
+			<div class="studio-controls flex flex-col items-center gap-3 w-full p-4">
+				<div class="flex items-center gap-1.5 text-[11px] text-fg-muted font-medium">
 					<Move class="w-3.5 h-3.5" />
 					<span>{uiText("ui.7d6a6d773e0cd710")}</span>
 				</div>
 
-				<div class="flex items-center gap-1 bg-bg-elevated border border-fg/10 rounded-xl p-1 shadow-sm">
+				<div class="studio-segment flex items-center justify-center gap-1 rounded-xl p-1">
 					{#each [
 						{ id: "idle" as const, label: uiText("ui.31e8729fef873dd7") },
 						{ id: "walk" as const, label: uiText("ui.e3691dd454b50eb6") },
@@ -648,7 +653,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					{/each}
 				</div>
 
-				<div class="flex items-center gap-1 bg-bg-elevated border border-fg/10 rounded-xl p-1 shadow-sm">
+				<div class="studio-segment flex items-center justify-center gap-1 rounded-xl p-1">
 					<button
 						type="button"
 						onclick={() => viewerRef?.setFrontView()}
@@ -681,12 +686,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					>
 						<RotateCcw class="w-3 h-3" />
 					</button>
+                    <button type="button" onclick={() => viewerRef?.zoomOut()} class={launcherButton({ variant: "ghost", size: "icon" })} aria-label={uiText("skinsStudio.zoomOut")}><ZoomOut class="h-4 w-4" /></button>
+                    <button type="button" onclick={() => viewerRef?.zoomIn()} class={launcherButton({ variant: "ghost", size: "icon" })} aria-label={uiText("skinsStudio.zoomIn")}><ZoomIn class="h-4 w-4" /></button>
 				</div>
 
 				<button
 					type="button"
 					onclick={() => showEditModal = true}
-					class={launcherButton({ variant: "secondary", size: "sm", class: "w-full max-w-[200px] flex items-center justify-center gap-2" })}
+					class={launcherButton({ variant: "secondary", size: "sm", class: "w-full flex items-center justify-center gap-2" })}
 				>
 					<Pencil class="w-3.5 h-3.5 text-fg/70" />
 					<span>{uiText("skinsStudio.model")}</span>
@@ -696,15 +703,15 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 		</div>
 
-		<div class="lg:col-span-8 flex flex-col gap-6">
+		<div class="studio-library lg:col-span-7 min-w-0 flex flex-col gap-5">
 
-            <section class="rounded-2xl p-5 space-y-4 bg-bg-elevated border border-fg/10 shadow-sm" aria-label={uiText("ui.cd41a52072c213e4")}>
+            <section class="studio-capes studio-panel p-5 space-y-4" aria-label={uiText("ui.cd41a52072c213e4")}>
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h2 class="font-semibold text-fg">{uiText("ui.cd41a52072c213e4")}</h2>
+                        <h2 class="flex items-center gap-2 font-semibold text-fg"><Layers class="h-4 w-4 text-brand-400" />{uiText("ui.cd41a52072c213e4")}</h2>
                         <p class="mt-1 text-xs leading-relaxed text-fg-muted">{uiText("skinsStudio.capeDescription")}</p>
                     </div>
-                    <Button variant="secondary" size="xl" onclick={handleCustomCapeUpload}><Upload class="h-5 w-5" />{uiText("skinsStudio.addCape")}</Button>
+                    <Button variant="secondary" size="lg" onclick={handleCustomCapeUpload}><Upload class="h-4 w-4" />{uiText("skinsStudio.addCape")}</Button>
                 </div>
                 <div class="flex flex-wrap items-center gap-3">
                     {#if selectedCape !== "none"}
@@ -723,19 +730,23 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 </div>
             </section>
 
-            <div class="rounded-2xl border border-brand-400/20 bg-brand-500/[0.06] p-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <section class="studio-collection studio-panel">
+            <div class="studio-collection-heading p-5 flex flex-col gap-4">
                 <div class="min-w-0 flex-1">
-                    <h2 class="font-semibold text-fg">{uiText("skinsStudio.collection")}</h2>
-                    <p class="mt-1 text-sm leading-relaxed text-fg-muted">{uiText("skinsStudio.collectionDescription")}</p>
+                    <div class="flex items-center justify-between gap-3"><h2 class="text-lg font-semibold text-fg">{uiText("skinsStudio.collection")}</h2><span class="studio-count">{savedSkins.length}</span></div>
+                    <p class="mt-1 text-xs leading-relaxed text-fg-muted">{uiText("skinsStudio.collectionDescription")}</p>
                 </div>
+                <div class="flex flex-wrap items-center gap-2">
                 <Button variant="ghost" size="lg" onclick={async () => { showNameMc = true; await tick(); nameMcPicker?.showLinkImport(); }}>{uiText("skinsStudio.nameMcLink")}</Button>
-                <Button variant="primary" size="xl" onclick={openNameMcCatalog}><Globe2 class="h-5 w-5" />{uiText("skinsStudio.nameMcBrowse")}<ArrowUpRight class="h-4 w-4" /></Button>
+                <Button variant="primary" size="lg" onclick={openNameMcCatalog}><Globe2 class="h-4 w-4" />{uiText("skinsStudio.nameMcBrowse")}<ArrowUpRight class="h-4 w-4" /></Button>
+                </div>
             </div>
 
-			<section class="space-y-3">
+			<div class="space-y-3 p-5 pt-3">
 				<button
 					type="button"
 					onclick={() => savedSkinsExpanded = !savedSkinsExpanded}
+					aria-expanded={savedSkinsExpanded}
 					class={launcherButton({ variant: "ghost", size: "sm", class: "flex items-center gap-2" })}
 				>
 					{#if savedSkinsExpanded}
@@ -747,12 +758,16 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</button>
 
 				{#if savedSkinsExpanded}
-					<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-3.5" transition:slide={{ easing: quintOut, duration: 220 }}>
+                    <label class="flex items-center gap-3 rounded-xl border border-border bg-bg-elevated px-4 py-3 text-fg-muted">
+                        <Search class="h-4 w-4 shrink-0" /><input type="search" aria-label={uiText("skinsStudio.searchCollection")} placeholder={uiText("skinsStudio.searchCollection")} bind:value={collectionSearch} class="min-w-0 w-full bg-transparent text-sm text-fg outline-none" />
+                    </label>
+                    {#if collectionSearch && matchingSkins.length === 0}<p role="status" class="p-3 text-sm text-fg-muted">{uiText("skinsStudio.noSearchResults")}</p>{/if}
+					<div class="studio-skin-grid" transition:slide={{ easing: quintOut, duration: 220 }}>
 
 						<button
 							type="button"
 							onclick={handleAddSkinFile}
-							class="rounded-2xl border-2 border-dashed border-fg/15 hover:border-brand-500 bg-fg/[0.01] hover:bg-fg/[0.03] p-6 flex flex-col items-center justify-center text-center gap-3 transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer min-h-[200px] group shadow-sm"
+							class="studio-add-skin rounded-2xl border border-dashed border-brand-400/30 p-5 flex flex-col items-center justify-center text-center gap-4 cursor-pointer min-h-[224px] group"
 						>
 							<div class="w-10 h-10 rounded-full bg-fg/[0.04] border border-fg/10 group-hover:border-brand-500 flex items-center justify-center text-fg/60 group-hover:text-brand-400 transition-colors">
 								<Plus class="w-5 h-5 stroke-[2.5]" />
@@ -763,31 +778,32 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 							</div>
 						</button>
 
-						{#each savedSkins as s (s.id)}
+						{#each matchingSkins as s (s.id)}
 							{@const isSelected = selectedSkinId === s.id}
 							<div
 								role="button"
 								tabindex="0"
 								onclick={() => selectSavedSkin(s)}
-								onkeydown={(e) => { if (e.key === "Enter" || e.key === " ") selectSavedSkin(s); }}
-								class="rounded-2xl bg-bg-elevated hover:bg-fg/10 border transition-[color,background-color,border-color,box-shadow,transform,opacity] p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[170px] shadow-sm {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-fg/10 hover:border-fg/20'}"
+								onkeydown={(e) => { if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); selectSavedSkin(s); } }}
+								aria-pressed={isSelected}
+								class="studio-skin-card rounded-2xl border p-3 flex flex-col items-center justify-between relative cursor-pointer group min-h-[224px] {isSelected ? 'border-brand-500 ring-1 ring-brand-500' : 'border-border hover:border-brand-400/40'}"
 							>
 								{#if isSelected}
-									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-black border border-white flex items-center justify-center text-white shadow-md z-10">
+									<div class="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-brand-500 flex items-center justify-center text-brand-foreground shadow-md z-10">
 										<Check class="w-3 h-3 stroke-[3]" />
 									</div>
 								{/if}
 
-								<div class="w-full flex-1 flex items-center justify-center my-1 overflow-hidden">
+								<div class="studio-skin-preview w-full flex-1 flex items-center justify-center my-1 overflow-hidden">
 									<Skin2DPreview
 										src={s.url}
 										alt={s.name}
 										model={s.model}
-										className="h-28"
+										className="h-36"
 									/>
 								</div>
 
-								<div class="w-full flex items-center justify-between pt-2 border-t border-fg/[0.04] gap-1">
+								<div class="w-full flex flex-wrap items-center justify-between pt-2 border-t border-border gap-2">
 									{#if editingSkinId === s.id}
 										<!-- svelte-ignore a11y_autofocus -->
 										<input
@@ -804,8 +820,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 											onblur={() => saveRenameSkin(s.id)}
 										/>
 									{:else}
-										<span class="text-xs font-bold text-fg truncate flex-1">{s.name}</span>
-										<div class="flex items-center gap-0.5 shrink-0">
+										<span title={s.name} class="basis-full line-clamp-2 min-h-8 text-xs leading-4 font-semibold text-fg">{s.name}</span>
+										<span class="text-[10px] text-fg-muted">{s.model === 'alex' ? 'Alex' : 'Steve'}</span>
+										<div class="flex items-center gap-1 shrink-0">
 											<button
 												type="button"
 												onclick={(e) => {
@@ -844,7 +861,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 					</div>
 				{/if}
+			</div>
 			</section>
+			<details class="studio-visibility rounded-2xl border border-border p-4"><summary class="flex cursor-pointer items-center gap-2 text-xs font-medium text-fg-muted"><Info class="h-4 w-4 text-brand-400" />{uiText('skinsStudio.visibility')}</summary><p class="mt-3 text-xs leading-6 text-fg-muted">{isMicrosoft ? uiText("ui.bd7f21aa535401a7") : account.value?.id.startsWith("luxmc:") ? uiText("profileCard.luxmcSkins") : uiText("profileCard.offlineSkins")}</p></details>
 
 		</div>
 
@@ -934,9 +953,33 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </div>
 
 <style>
-    .appearance-apply { background:rgb(var(--bg-elevated)/.97); border-color:rgb(var(--brand-400)/.22); border-radius:22px; padding:20px; }
-    .skin-preview-stage { background:radial-gradient(ellipse at 50% 25%,rgb(var(--brand-500)/.12),transparent 65%),rgb(var(--bg-elevated)/.97); border-color:rgb(var(--border-strong)); box-shadow:0 16px 50px rgb(var(--shadow-color)/.14); isolation:isolate; }
-    .skin-preview-stage::before { content:''; position:absolute; inset:18px; border:1px solid rgb(var(--border)/.35); border-radius:20px; pointer-events:none; }
-    .appearance-workspace :global(section) { border-radius:22px; }
-    @media(max-width:1023px) { .skin-preview-stage { height:400px; } }
+	.appearance-studio { max-width:1440px; margin-inline:auto; }
+	.studio-eyebrow { color:rgb(var(--brand-action)); font-size:9px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; }
+	.studio-mark { background:linear-gradient(140deg,rgb(var(--brand-500)/.16),rgb(var(--bg-elevated)/.85)); }
+	.appearance-apply { background:rgb(var(--bg-elevated)/.96); border:1px solid rgb(var(--border)); border-radius:18px; padding:14px 18px; }
+	.appearance-apply.has-pending { border-color:rgb(var(--brand-400)/.3); }
+	.studio-state { background:rgb(var(--success)/.09); color:rgb(var(--success)); }
+	.has-pending .studio-state { background:rgb(var(--brand-500)/.1); color:rgb(var(--brand-action)); }
+	.studio-preview,.studio-panel { border:1px solid rgb(var(--border)); border-radius:24px; background:rgb(var(--bg-elevated)/.96); box-shadow:0 12px 35px rgb(var(--shadow-color)/.08); overflow:hidden; }
+	.studio-model,.studio-count { padding:5px 10px; border-radius:9px; border:1px solid rgb(var(--brand-400)/.18); background:rgb(var(--brand-500)/.08); color:rgb(var(--brand-action)); font-size:10px; font-weight:600; }
+	.skin-preview-stage { isolation:isolate; background:none; }
+	.skin-preview-stage::before { content:''; position:absolute; inset:12px 24px; border:1px solid rgb(var(--border)/.45); border-radius:18px; pointer-events:none; }
+	.studio-controls { border-top:1px solid rgb(var(--border)); background:rgb(var(--bg-subtle)/.3); }
+	.studio-segment { width:100%; background:rgb(var(--bg-subtle)/.55); border:1px solid rgb(var(--border)/.65); }
+	.studio-segment :global(button) { flex:1; }
+	.studio-collection-heading { border-bottom:1px solid rgb(var(--border)); background:linear-gradient(120deg,rgb(var(--brand-500)/.055),transparent); }
+	.studio-skin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
+	.studio-skin-card { background:linear-gradient(155deg,rgb(var(--brand-500)/.05),transparent 70%),rgb(var(--bg-subtle)/.45); transition:border-color 180ms,box-shadow 180ms,translate 180ms; }
+	.studio-skin-card[aria-pressed="true"] { background:linear-gradient(155deg,rgb(var(--brand-500)/.13),rgb(var(--bg-subtle)/.6)); }
+	.studio-skin-card:hover { translate:0 -2px; box-shadow:0 8px 22px rgb(var(--shadow-color)/.1); }
+	.studio-skin-card:focus-visible,.studio-add-skin:focus-visible { outline:2px solid rgb(var(--brand-action)); outline-offset:3px; }
+	.studio-skin-preview { background:radial-gradient(ellipse at center,rgb(var(--brand-500)/.07),transparent 65%); }
+	.studio-add-skin { background:rgb(var(--brand-500)/.025); transition:background 180ms,border-color 180ms; }
+	.studio-add-skin:hover { background:rgb(var(--brand-500)/.08); border-color:rgb(var(--brand-action)); }
+	.studio-visibility { background:rgb(var(--bg-elevated)/.9); }
+	:global(html.has-custom-wallpaper main) .skin-preview-stage { background-color:transparent!important; }
+	:global(.no-ui-motion) .studio-skin-card,:global(.no-anim) .studio-skin-card { translate:none; transition:none; }
+	@media(prefers-reduced-motion:reduce) { :global(html:not(.force-ui-motion)) .studio-skin-card { translate:none; transition:none; } }
+	@media(max-width:1023px) { .studio-preview { width:100%; } .skin-preview-stage { height:360px; } }
+	@media(max-width:639px) { .studio-skin-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .studio-controls { display:flex; } .studio-mark { display:none; } .studio-preview-heading { padding-inline:16px; } .appearance-apply { padding:12px; } }
 </style>

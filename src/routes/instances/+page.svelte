@@ -61,8 +61,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		getSystemSpecs,
 		optimizerInstallPerfPack,
 		launchGame,
-		versionsCheckInstalled,
-		versionsDownload,
 		authDevLogin,
 		discordSetActivity,
 		type HealthCheckResult,
@@ -409,12 +407,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			}
 			const verId = p.mcVersion || "1.21.4";
 			appState.launchStatusText = uiText("ui.a4446717f1d89dbb", {arg0: (verId)});
-			const installed = await versionsCheckInstalled(verId).catch(() => false);
-			if (!installed) {
-				appState.launchStatusText = uiText("ui.1d9893e36eabb20a", {arg0: (verId)});
-				toast(uiText("ui.1d9893e36eabb20a", {arg0: (verId)}), "info");
-				await versionsDownload(verId);
-			}
+
 			const globalVulkan = typeof window !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true";
 			const isVulkan = globalVulkan || p.useVulkan === true;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
@@ -457,7 +450,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			}).catch(() => {});
 			profiles.setLastPlayed(p.id);
 			toast(`🎮 Minecraft ${verId} (${p.name}) iniciado! (PID: ${res.pid})`, "success");
-			void handlePostLaunchActions();
+            void handlePostLaunchActions(res.pid);
 		} catch (e) {
 			toast(uiText("ui.ca8c81cc4b1149af") + String(e), "error");
 		} finally {

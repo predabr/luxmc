@@ -1,13 +1,15 @@
 param(
     [Parameter(Mandatory = $true)][string]$Installer,
     [Parameter(Mandatory = $true)][string]$Program,
-    [Parameter(Mandatory = $true)][string]$Helper,
+    [string]$Uninstaller,
     [Parameter(Mandatory = $true)][string]$Output
 )
 
 $ErrorActionPreference = 'Stop'
 $components = @()
-foreach ($entry in @(@{ Name = 'installer'; Path = $Installer }, @{ Name = 'program'; Path = $Program }, @{ Name = 'recovery-helper'; Path = $Helper })) {
+$entries = @(@{ Name = 'installer'; Path = $Installer }, @{ Name = 'program'; Path = $Program })
+if ($Uninstaller) { $entries += @{ Name = 'uninstaller'; Path = $Uninstaller } }
+foreach ($entry in $entries) {
     $item = Get-Item -LiteralPath $entry.Path
     $signature = Get-AuthenticodeSignature -LiteralPath $item.FullName
     $components += [ordered]@{
@@ -23,8 +25,8 @@ $defender = Get-MpComputerStatus
 $scanner = Join-Path $env:ProgramFiles 'Windows Defender/MpCmdRun.exe'
 if (!$defender.AMServiceEnabled -or !$defender.AntivirusEnabled -or !(Test-Path -LiteralPath $scanner)) { throw 'Microsoft Defender is unavailable for release validation.' }
 $scanOutput = @()
-foreach ($entry in @($Installer, $Program, $Helper)) {
-    $scanOutput += (& $scanner -Scan -ScanType 3 -File (Resolve-Path -LiteralPath $entry).Path -DisableRemediation 2>&1 | Out-String)
+foreach ($entry in $entries) {
+    $scanOutput += (& $scanner -Scan -ScanType 3 -File (Resolve-Path -LiteralPath $entry.Path).Path -DisableRemediation 2>&1 | Out-String)
     if ($LASTEXITCODE -ne 0) { throw "Microsoft Defender did not approve the scan (exit $LASTEXITCODE)." }
 }
 $report = [ordered]@{

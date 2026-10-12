@@ -3,6 +3,34 @@ pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 #[cfg(windows)]
 pub const ABOVE_NORMAL_PRIORITY_CLASS: u32 = 0x00008000;
 
+pub fn has_visible_window(pid: u32) -> bool {
+    if pid == 0 { return false; }
+    #[cfg(windows)]
+    {
+        struct Search { pid: u32, found: bool }
+        #[link(name = "user32")]
+        extern "system" {
+            fn EnumWindows(callback: unsafe extern "system" fn(*mut std::ffi::c_void, isize) -> i32, data: isize) -> i32;
+            fn IsWindowVisible(window: *mut std::ffi::c_void) -> i32;
+            fn GetWindowThreadProcessId(window: *mut std::ffi::c_void, pid: *mut u32) -> u32;
+        }
+        unsafe extern "system" fn visit(window: *mut std::ffi::c_void, data: isize) -> i32 {
+            let search = &mut *(data as *mut Search);
+            let mut owner = 0;
+            if GetWindowThreadProcessId(window, &mut owner) != 0 && owner == search.pid && IsWindowVisible(window) != 0 {
+                search.found = true;
+                return 0;
+            }
+            1
+        }
+        let mut search = Search { pid, found: false };
+        unsafe { EnumWindows(visit, &mut search as *mut Search as isize); }
+        search.found
+    }
+    #[cfg(not(windows))]
+    { true }
+}
+
 #[inline]
 pub fn std_command<S: AsRef<std::ffi::OsStr>>(program: S) -> std::process::Command {
     #[allow(unused_mut)]

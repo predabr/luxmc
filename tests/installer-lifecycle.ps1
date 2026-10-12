@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+$expectDirectLauncher = $env:LUXMC_EXPECT_DIRECT_LAUNCHER -eq 'true'
 $projectRoot = [IO.Path]::GetFullPath((Get-Location).Path)
 $testBase = [IO.Path]::GetFullPath((Join-Path $env:TEMP 'Luxmc-lifecycle'))
 $testDirectory = [IO.Path]::GetFullPath((Join-Path $testBase ([guid]::NewGuid().ToString('N'))))
@@ -18,7 +19,7 @@ foreach ($file in @('settings.json','auth.json')) { $protectedPaths += Join-Path
 $protectedPaths += @(Get-ChildItem -LiteralPath (Join-Path $dataRoot 'instances') -Filter level.dat -File -Recurse -ErrorAction SilentlyContinue | ForEach-Object FullName)
 $hashes = @{}
 foreach ($path in $protectedPaths) { if (Test-Path -LiteralPath $path) { $hashes[$path] = (Get-FileHash -LiteralPath $path).Hash } }
-$shortcutPaths = @((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Luxmc.lnk'),(Join-Path ([Environment]::GetFolderPath('Programs')) 'Luxmc.lnk'))
+$shortcutPaths = @((Join-Path ([Environment]::GetFolderPath('Desktop')) 'Luxmc.lnk'),(Join-Path ([Environment]::GetFolderPath('Programs')) 'Luxmc.lnk'),(Join-Path ([Environment]::GetFolderPath('Programs')) 'Luxmc/Luxmc.lnk'))
 $shortcutBackup = @{}
 foreach ($path in $shortcutPaths) { if (Test-Path -LiteralPath $path) { $shortcutBackup[$path] = [IO.File]::ReadAllBytes($path) } }
 $installer = if ($env:LUXMC_INSTALLER_PATH) { [IO.Path]::GetFullPath($env:LUXMC_INSTALLER_PATH) } else { Join-Path $projectRoot 'release-windows\Lux MC Launcher.exe' }
@@ -32,8 +33,30 @@ try {
     $installed = Get-ItemProperty $registration
     if ($installed.DisplayVersion -ne $releaseVersion -or $installed.InstallLocation.Trim('"') -ne $testDirectory) { throw 'Unexpected installer registration.' }
     if ($installed.QuietUninstallString -notmatch '/S$') { throw 'Silent uninstall registration is missing.' }
+    if ($expectDirectLauncher) {
+        $legacyHelper = Join-Path $testDirectory 'luxmc-repair.exe'
+        if (Test-Path -LiteralPath $legacyHelper) { throw 'Removed recovery helper was installed.' }
+        $shortcutShell = New-Object -ComObject WScript.Shell
+        $createdShortcuts = @($shortcutPaths | Where-Object { Test-Path -LiteralPath $_ })
+        if (!$createdShortcuts.Count) { throw 'Launcher shortcuts were not created.' }
+        foreach ($path in $createdShortcuts) {
+            $shortcut = $shortcutShell.CreateShortcut($path)
+            if ($shortcut.TargetPath -ne $binary) { throw 'Shortcut does not start the launcher directly.' }
+            $shortcut.TargetPath = $legacyHelper
+            $shortcut.Save()
+        }
+        [IO.File]::WriteAllText($legacyHelper,'Legacy helper migration fixture')
+    }
     $reinstall = Start-Process -FilePath $installer -ArgumentList @('/S',"/D=$testDirectory") -WindowStyle Hidden -Wait -PassThru
     if ($reinstall.ExitCode -ne 0 -or !(Test-Path -LiteralPath $binary)) { throw 'Same-version reinstallation failed.' }
+    if ($expectDirectLauncher) {
+        if (Test-Path -LiteralPath $legacyHelper) { throw 'Legacy helper was not removed during migration.' }
+        foreach ($path in $createdShortcuts) {
+            if ($shortcutShell.CreateShortcut($path).TargetPath -ne $binary) { throw 'Legacy shortcut was not migrated to the launcher.' }
+        }
+        $protocolCommand = (Get-ItemProperty -LiteralPath 'HKCU:/Software/Classes/luxmc/shell/open/command').'(default)'
+        if ($protocolCommand -ne ('"' + $binary + '" "%1"')) { throw 'Launcher links do not start the launcher directly.' }
+    }
     $removal = Start-Process -FilePath $uninstaller -ArgumentList '/S' -WindowStyle Hidden -Wait -PassThru
     if ($removal.ExitCode -ne 0) { throw 'Isolated uninstallation failed.' }
     for ($attempt = 0; $attempt -lt 20 -and ((Test-Path -LiteralPath $binary) -or (Test-Path -LiteralPath $uninstaller)); $attempt++) { Start-Sleep -Milliseconds 500 }
@@ -58,7 +81,7 @@ try {
         Remove-Item -LiteralPath $fixtureDocument
         $purgeVerified = $true
     }
-    $receipt = [ordered]@{ Version=$releaseVersion; InstallExitCode=$install.ExitCode; SameVersionReinstallExitCode=$reinstall.ExitCode; UninstallExitCode=$removal.ExitCode; ApplicationRemoved=$true; RegistryRemoved=$true; ProtectedFiles=$hashes.Count; ProtectedDataPreserved=$true; CompleteCleanupVerified=$purgeVerified; InstallerSha256=(Get-FileHash -LiteralPath $installer).Hash }
+    $receipt = [ordered]@{ Version=$releaseVersion; InstallExitCode=$install.ExitCode; SameVersionReinstallExitCode=$reinstall.ExitCode; UninstallExitCode=$removal.ExitCode; ApplicationRemoved=$true; RegistryRemoved=$true; ProtectedFiles=$hashes.Count; ProtectedDataPreserved=$true; CompleteCleanupVerified=$purgeVerified; DirectLauncherShortcutsVerified=$expectDirectLauncher; LegacyRepairMigrationVerified=$expectDirectLauncher; DirectLauncherProtocolVerified=$expectDirectLauncher; InstallerSha256=(Get-FileHash -LiteralPath $installer).Hash }
     $receipt | ConvertTo-Json | Set-Content -Encoding utf8 'docs/validation/general-installer-lifecycle-2026-10-06.json'
     $receipt | ConvertTo-Json
 } finally {

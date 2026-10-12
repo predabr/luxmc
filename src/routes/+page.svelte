@@ -70,8 +70,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		authSetClientId,
 		launchGame,
 		stopGame,
-		versionsCheckInstalled,
-		versionsDownload,
 		discordSetActivity,
 		instancesOpenFolder,
         profilesUpdate,
@@ -447,11 +445,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			const verId = targetProfile.mcVersion || "1.20.4";
 			appState.launchStatusText = uiText("ui.778d3006d213fe60");
 
-			const installed = await versionsCheckInstalled(verId).catch(() => false);
-			if (!installed) {
-				appState.launchStatusText = uiText("ui.1d9893e36eabb20a", {arg0: (verId)});
-				await versionsDownload(verId);
-			}
+
 
 			appState.launchStatusText = serverIp ? uiText("ui.31b4e9ae9f49ca91", {arg0: (serverIp)}) : "Iniciando Minecraft...";
 			const globalVulkan = typeof window !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true";
@@ -494,7 +488,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			}).catch(() => {});
 
 			toast(`🎮 Minecraft ${verId} iniciado! (PID: ${result.pid})`, "success");
-			void handlePostLaunchActions();
+            void handlePostLaunchActions(result.pid);
 		} catch (e) {
 			toast(uiText("ui.5a696268f07e8812") + String(e), "error");
 		} finally {

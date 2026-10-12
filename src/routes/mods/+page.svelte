@@ -31,6 +31,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import ModCardList from "$lib/components/mods/ModCardList.svelte";
 	import ModSearchBar from "$lib/components/mods/ModSearchBar.svelte";
 	import ModDetailView from "$lib/components/mods/ModDetailView.svelte";
+    import ModChangelog from '$lib/components/mods/ModChangelog.svelte';
 	import ModVersionPicker from "$lib/components/mods/ModVersionPicker.svelte";
 	import ModpackInstaller from "$lib/components/mods/ModpackInstaller.svelte";
 	import InstancePickerModal from "$lib/components/mods/InstancePickerModal.svelte";
@@ -150,21 +151,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	let modVersionsList = $state<ModVersion[]>([]);
 	let loadingDetails = $state(false);
 	let activeDetailTab = $state<"overview" | "gallery" | "changelog" | "versions">("overview");
-    let changelogVersion = $state('');
-    let changelogBody = $state('');
-    let changelogError = $state('');
-    let changelogLoading = $state(false);
-    $effect(() => {
-        const item = selectedItem;
-        const version = changelogVersion || modVersionsList[0]?.id;
-        if (activeDetailTab !== 'changelog' || !item || !version) return;
-        let cancelled = false;
-        changelogLoading = true; changelogBody = ''; changelogError = '';
-        void modsChangelog(item.sourceId, version, item.source).then(body => {
-            if (!cancelled) changelogBody = body;
-        }).catch(cause => { if (!cancelled) changelogError = String(cause); }).finally(() => { if (!cancelled) changelogLoading = false; });
-        return () => { cancelled = true; };
-    });
 	let lightboxImage = $state<{ url: string; title?: string | null; description?: string | null } | null>(null);
 	let showInstallGuide = $state(false);
 
@@ -324,7 +310,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	let detailsToken = 0;
 	const detailCache = new Map<string, { detail: Awaited<ReturnType<typeof modsProjectDetails>>; versions: Awaited<ReturnType<typeof modsVersions>>; time: number }>();
 	async function openDetails(item: ModSearchResultItem) {
-		changelogVersion = ''; changelogBody = ''; changelogError = '';
 		const token = ++detailsToken;
 		const key = `${item.source}:${item.sourceId}`;
 		const cached = detailCache.get(key);
@@ -510,18 +495,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 						</div>
 					{/if}
                 {:else if activeDetailTab === 'changelog'}
-                    <section class="space-y-4 rounded-3xl border border-border bg-bg-elevated p-6">
-                        <label class="block text-xs font-semibold text-fg">{uiText('catalog.versionChanges')}
-                            <select bind:value={changelogVersion} class="mt-2 w-full rounded-xl border border-border bg-bg-subtle p-3 text-sm" disabled={!modVersionsList.length}>
-                                <option value="">{modVersionsList[0]?.name || uiText('catalog.noVersions')}</option>
-                                {#each modVersionsList as version}<option value={version.id}>{version.name}</option>{/each}
-                            </select>
-                        </label>
-                        {#if changelogLoading}<p role="status" class="flex items-center gap-2 text-sm text-fg-muted"><Loader2 class="h-4 w-4 animate-spin" />{uiText('common.loading')}</p>
-                        {:else if changelogError}<p role="alert" class="text-sm text-danger">{changelogError}</p>
-                        {:else if changelogBody}<div class="prose max-w-none break-words text-sm text-fg [&_a]:text-brand-400 [&_img]:max-w-full [&_pre]:overflow-x-auto">{@html processDescription(changelogBody, selectedItem.source === 'curseforge')}</div>
-                        {:else}<p class="text-sm text-fg-muted">{uiText('catalog.noChangelog')}</p>{/if}
-                    </section>
+                    <ModChangelog projectId={selectedItem.sourceId} source={selectedItem.source} versions={modVersionsList} renderBody={body => processDescription(body, selectedItem!.source === 'curseforge')} />
 				{:else if activeDetailTab === 'versions'}
 					<ModVersionPicker
 						versions={modVersionsList}

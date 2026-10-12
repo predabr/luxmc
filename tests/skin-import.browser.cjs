@@ -132,15 +132,23 @@ const fs = require('node:fs');
     assert.equal(animatedDuringScroll, true, 'personagem deve continuar animando durante a rolagem');
     const animatedDuringGame = await page.evaluate(async () => {
         const { appState } = await import('/src/lib/stores/app.svelte.ts');
+        const { settings } = await import('/src/lib/stores/settings.svelte.ts');
+        settings.patch({ pauseSkinWhileGaming: false });
         appState.isGameRunning = true;
         await new Promise(resolve => setTimeout(resolve, 100));
         const start = window.importViewer.playerWrapper.rotation.y;
         await new Promise(resolve => setTimeout(resolve, 600));
         const moved = Math.abs(window.importViewer.playerWrapper.rotation.y - start) > 0.01;
+        settings.patch({ pauseSkinWhileGaming: true });
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const stopped = window.importViewer.playerWrapper.rotation.y;
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const paused = Math.abs(window.importViewer.playerWrapper.rotation.y - stopped) < 0.001;
         appState.isGameRunning = false;
-        return moved;
+        return { moved, paused };
     });
-    assert.equal(animatedDuringGame, true, 'personagem deve continuar animando com Minecraft aberto');
+    assert.equal(animatedDuringGame.moved, true, 'personagem deve continuar animando quando a pausa está desativada');
+    assert.equal(animatedDuringGame.paused, true, 'personagem deve poupar GPU durante o jogo quando a pausa está ativada');
 
     const beforeScroll = await page.locator('main').evaluate(element => element.scrollTop);
     await page.mouse.wheel(0, 380);

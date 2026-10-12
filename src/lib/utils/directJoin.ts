@@ -5,6 +5,7 @@ import { account } from "$lib/stores/account.svelte";
 import { appState } from "$lib/stores/app.svelte";
 import { gamingStats } from "$lib/stores/gamingStats.svelte";
 import type { Friend } from "$lib/api/social";
+import { handlePostLaunchActions } from "./launcherLifecycle";
 
 import { parseJoinAddress } from "./joinAddress";
 export { parseJoinAddress } from "./joinAddress";
@@ -21,9 +22,10 @@ export async function joinWorld(address: string, friend?: Friend, profileId?: st
 	if (!current) throw new Error(uiText("ui.979ce6402e432e80"));
 	joining = true;
 	try {
-		await launchGame({ versionId: profile.mcVersion, profileId: profile.id, accountId: current.uuid || current.id, serverIp: target.host, serverPort: target.port, enableVulkan: profile.useVulkan || (typeof localStorage !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true"), skinUrl: current.skinUrl, skinVariant: current.skinVariant, capeUrl: current.capeUrl });
+        const result = await launchGame({ versionId: profile.mcVersion, profileId: profile.id, accountId: current.uuid || current.id, serverIp: target.host, serverPort: target.port, enableVulkan: profile.useVulkan || (typeof localStorage !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true"), skinUrl: current.skinUrl, skinVariant: current.skinVariant, capeUrl: current.capeUrl });
 		appState.activeGameDetails = { name: profile.name, version: profile.mcVersion, loader: profile.loader, profileId: profile.id };
 		appState.isGameRunning = true;
 		gamingStats.onGameStart();
+        void handlePostLaunchActions(result.pid);
 	} finally { joining = false; }
 }
