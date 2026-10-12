@@ -55,7 +55,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let lastPointerX = 0;
 	let lastPointerY = 0;
 
-	const running = $derived(active && visible && foreground && !(settings.value.pauseSkinWhileGaming && appState.isGameRunning) && !appState.performanceMode);
+	const running = $derived(active && visible && foreground && !(settings.value.pauseSkinWhileGaming && (appState.isGameRunning || appState.isLaunching)) && !appState.performanceMode);
 
 	onMount(() => {
 		let disposed = false;

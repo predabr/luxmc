@@ -2,7 +2,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Launcher de Minecraft para Windows y Linux",
-    "version": "v3.9.0",
+    "version": "v3.9.1",
     "pressForShortcuts": "Presiona {{key}} para atajos de teclado",
     "systemOnline": "Sistema en línea",
     "navigation": "Navegación",
@@ -482,7 +482,14 @@
       "recommendRam": "Recomendar RAM"
     },
     "closeToTrayTitle": "Seguir funcionando en segundo plano",
-    "closeToTrayDesc": "Al cerrar la ventana, Luxmc sigue en la bandeja del sistema. Usa Abrir para volver o Salir para cerrar."
+    "closeToTrayDesc": "Al cerrar la ventana, Luxmc sigue en la bandeja del sistema. Usa Abrir para volver o Salir para cerrar.",
+    "catalog": {
+      "title": "Tu catálogo",
+      "pageSize": "Resultados por página",
+      "compact": "Portadas compactas",
+      "spotlight": "Mostrar modpacks destacados",
+      "help": "Usa 24 resultados y portadas compactas para navegar con menos memoria."
+    }
   },
   "auth": {
     "signIn": "Entrar com Microsoft",
@@ -3008,7 +3015,9 @@
     "model": "Modelo y jugador",
     "syncing": "Aplicando y sincronizando con Microsoft…",
     "applying": "Aplicando…",
-    "pendingApply": "Los cambios aún no están aplicados. Pulsa Aplicar y sincronizar para usar tu nueva skin."
+    "pendingApply": "Los cambios aún no están aplicados. Pulsa Aplicar y sincronizar para usar tu nueva skin.",
+    "visualTitle": "Tu estilo en Minecraft",
+    "visualHelp": "Prueba skins, explora los detalles en 3D y organiza tu colección."
   },
   "design": {
     "expandMenu": "Expandir menú",
@@ -3515,6 +3524,7 @@
     "requiresPro": "Disponible con Pro",
     "expiry": "Los efectos y estilos premium se conservan al vencer el plan. Vuelven cuando tu plan los permite.",
     "reset": "Restaurar estilo",
-    "moreFavourites": "Tu plan permite {count} favoritos en el perfil."
+    "moreFavourites": "Tu plan permite {count} favoritos en el perfil.",
+    "preview": "Tu estilo de perfil, en directo"
   }
 }

@@ -16,6 +16,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { catalogCompatibility } from "$lib/utils/catalogCompatibility";
 	import { profiles } from "$lib/stores/profiles.svelte";
+    import { settings } from '$lib/stores/settings.svelte';
 	import { modpackInstallation } from "$lib/stores/modpackInstallation.svelte";
 	import {
 		modsSearch, modsVersions, modsInstall, modsProjectDetails, modsChangelog,
@@ -123,7 +124,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	let searchError = $state<string | null>(null);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	let currentPage = $state(1);
-	const pageSize = 36;
+	const pageSize = $derived(settings.value.catalogPageSize || 36);
 	let installingIds = $state<Set<string>>(new Set());
 	let installedIds = $state<Set<string>>(new Set());
 	let hasSearched = $state(false);
@@ -278,7 +279,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	$effect(() => {
 		searchQuery; selectedVersion; selectedType; selectedSource;
-		selectedLoader; selectedCategory; selectedSort;
+		selectedLoader; selectedCategory; selectedSort; pageSize;
         const typing = previousQuery !== undefined && previousQuery !== searchQuery;
         previousQuery = searchQuery;
 		searchToken++;
@@ -533,18 +534,22 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		</ModDetailView>
 
 	{:else}
-		<div class="flex-1 flex flex-col min-w-0 pr-1">
+		<aside class="catalog-sidebar">
+            <p class="catalog-sidebar-heading">{uiText('ui.931d062a37647b8d')}</p>
+            <CatalogNavigation bind:selectedType />
+            <div class="catalog-provider-row" aria-label={uiText('ui.4b69288df9bb8f94')}>
+                {#each [{id:'all', label:uiText('ui.8a0108a42be96e26'), icon:Globe}, {id:'modrinth',label:'Modrinth',icon:Package}, {id:'curseforge',label:'CurseForge',icon:Flame}] as source}
+                    <button type="button" aria-pressed={selectedSource === source.id} onclick={() => selectedSource = source.id as typeof selectedSource}><source.icon class="h-3.5 w-3.5" />{source.label}{#if selectedSource === source.id}<Check class="ml-auto h-3 w-3" />{/if}</button>
+                {/each}
+            </div>
+            {#if filtersOpen}<ModSearchBar bind:selectedVersion bind:selectedLoader bind:selectedCategory />{/if}
+        </aside>
+		<div class="catalog-main flex-1 flex flex-col min-w-0 pr-1" class:catalog-compact={settings.value.catalogCompactCards === true}>
 			<header use:pageMotion={'catalog-header'} class="catalog-hero" data-motion-surface>
                 <div><p class="page-eyebrow">Luxmc / Discover</p><h1 class="page-title mt-2">{uiText('catalogDesign.title')}</h1></div>
                 <button type="button" class="catalog-library" aria-label={uiText('catalogDesign.openLibrary')} onclick={() => { void goto('/instances'); }}><Package class="h-4 w-4" /><span>{uiText('catalogDesign.library')} · {profiles.list.length}</span><ArrowUpRight class="h-4 w-4" /></button>
             </header>
-            <CatalogNavigation bind:selectedType />
-            <div class="catalog-provider-row" aria-label={uiText('ui.4b69288df9bb8f94')}>
-                {#each [{id:'all', label:uiText('ui.8a0108a42be96e26'), icon:Globe}, {id:'modrinth',label:'Modrinth',icon:Package}, {id:'curseforge',label:'CurseForge',icon:Flame}] as source}
-                    <button type="button" aria-pressed={selectedSource === source.id} onclick={() => selectedSource = source.id as typeof selectedSource}><source.icon class="h-3 w-3" />{source.label}{#if selectedSource === source.id}<Check class="h-3 w-3" />{/if}</button>
-                {/each}
-            </div>
-            {#if selectedType === 'Modpack' && !searchQuery.trim() && results.length > 0 && !searchError}
+            {#if settings.value.catalogSpotlight !== false && selectedType === 'Modpack' && !searchQuery.trim() && results.length > 0 && !searchError}
                 <div inert={loading} aria-busy={loading}><CatalogSpotlight items={results.slice(0,3)} onOpen={openDetails} /></div>
             {/if}
             {#if selectedType === 'Modpack'}
@@ -676,7 +681,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 			{/if}
 		</div>
 
-		{#if filtersOpen}<ModSearchBar bind:selectedVersion bind:selectedLoader bind:selectedCategory />{/if}
 	{/if}
 </div>
 
@@ -697,12 +701,20 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 {/if}
 
 <style>
+    .catalog-sidebar { position:sticky; top:0; align-self:flex-start; width:198px; max-height:calc(100dvh - 110px); overflow:auto; flex-shrink:0; padding:14px; border-radius:22px; border:1px solid rgb(var(--border)); background:rgb(var(--bg-elevated)/.97); }
+    .catalog-sidebar-heading { margin:4px 10px 18px; color:rgb(var(--fg-subtle)); font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+    .catalog-sidebar :global(.catalog-filters) { width:100%; min-width:0; margin-top:12px; }
+    .catalog-sidebar :global(.catalog-filters summary), .catalog-sidebar :global(.catalog-filters details > div) { padding:14px 10px; }
+    .catalog-compact :global(.catalog-cover) { height:156px; }
+    .catalog-compact :global(.catalog-logo) { top:128px; height:48px; width:48px; }
+    @media(min-width:1101px) { .catalog-page { flex-direction:row; } }
+    @media(max-width:1100px) { .catalog-sidebar { position:static; width:100%; max-height:none; } .catalog-sidebar-heading { display:none; } .catalog-sidebar :global(.catalog-provider-row) { flex-direction:row; margin:12px 0 0; padding:12px 0 0; } .catalog-sidebar :global(.catalog-provider-row button) { width:auto; } }
     .catalog-hero { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 22px; padding: 4px 0; }
     .catalog-hero :global(.page-title) { font-size: clamp(24px, 2.2vw, 32px); letter-spacing: -.045em; }
     .catalog-library { display: flex; align-items: center; gap: 9px; padding: 12px 14px; border: 1px solid rgb(var(--border)); border-radius: 14px; color: rgb(var(--fg-muted)); font-size: 11px; background: rgb(var(--bg-elevated) / .9); }
     .catalog-library:hover { color: rgb(var(--brand-action)); border-color: rgb(var(--brand-400) / .4); }
-    .catalog-provider-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: -8px 0 20px; }
-    .catalog-provider-row button { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 8px; color: rgb(var(--fg-muted)); font-size: 10px; border: 1px solid transparent; }
+    .catalog-provider-row { display: flex; flex-direction:column; gap: 5px; margin: 18px 0 0; padding-top:16px; border-top:1px solid rgb(var(--border)); }
+    .catalog-provider-row button { display: flex; width:100%; align-items: center; gap: 8px; padding: 10px; border-radius: 12px; color: rgb(var(--fg-muted)); font-size: 11px; border: 1px solid transparent; }
     .catalog-provider-row button[aria-pressed='true'] { border-color: rgb(var(--border)); background: rgb(var(--bg-elevated) / .9); color: rgb(var(--fg)); }
     .catalog-provider-row button:hover { color: rgb(var(--brand-action)); }
     .catalog-provider-row button:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }

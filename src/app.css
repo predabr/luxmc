@@ -612,6 +612,12 @@ button:focus-visible, a:focus-visible, select:focus-visible {
 
 .instance-overview-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; padding: 0.5rem; border: 1px solid rgb(var(--border)); border-radius: 1rem; background: rgb(var(--bg-elevated)); }
 .instance-overview-section { scroll-margin-top: 1.5rem; min-width: 0; }
+.instance-tabbar button { min-height:42px; border-radius:13px; padding-inline:14px; }
+.instance-tabbar button[aria-selected='true'] { box-shadow:inset 0 0 0 1px rgb(var(--brand-400)/.24); background:rgb(var(--brand-500)/.12); }
+html.has-custom-wallpaper main .catalog-card { background-color:rgb(var(--bg-elevated)/.96)!important; }
+html.has-custom-wallpaper main .catalog-card .catalog-cover { background-color:rgb(var(--bg-subtle)/.96)!important; }
+html.has-custom-wallpaper main .spotlight-explore { color:rgb(var(--surface-shine)); background-color:rgb(var(--brand-500)/.28)!important; }
+html.has-custom-wallpaper main .instance-hero { background-color:rgb(var(--bg-elevated)/max(.85,var(--interface-opacity,.85)))!important; }
 .instance-settings-group { padding: 1.25rem; border: 1px solid rgb(var(--border)); border-radius: 1rem; background: rgb(var(--bg-subtle)); }
 .launcher-button > svg { flex: none; display: block; filter: none; stroke-width: 1.8; }
 button[role="switch"] { flex-shrink: 0; width: 2.75rem !important; min-width: 2.75rem; height: 1.5rem !important; padding: 0 !important; border: 1px solid rgb(var(--fg) / 0.16) !important; border-radius: 999px !important; background: rgb(var(--fg) / 0.1) !important; box-shadow: none !important; overflow: visible; }

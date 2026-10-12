@@ -56,9 +56,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	class="catalog-card group relative h-full flex flex-col overflow-hidden rounded-3xl border border-border bg-bg-elevated cursor-pointer transition-[border-color,box-shadow,translate] duration-300 hover:border-brand-400/40 hover:shadow-elevated"
 >
 	<div class="catalog-cover relative h-56 shrink-0 bg-bg-subtle rounded-t-2xl overflow-hidden">
-        {#if effectiveBanner}
-            <img src={effectiveBanner} alt="" loading="lazy" decoding="async" class="pointer-events-none absolute inset-0 h-full w-full scale-125 object-cover opacity-20 blur-xl" />
-        {/if}
+        <div class="pointer-events-none absolute inset-0 bg-gradient-to-br {mesh} to-bg-elevated opacity-40"></div>
 		{#if effectiveBanner}
 			<img
 				src={effectiveBanner}
@@ -91,12 +89,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         {#if latest}<span class="catalog-version absolute bottom-3 right-3">MC {latest}</span>{/if}
 
 	</div>
-		{#if item.iconUrl}
+		{#if item.iconUrl && !logoArtwork}
 			<div data-catalog-logo class="catalog-logo absolute left-5 z-10 flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-border-strong bg-bg-elevated p-1 shadow-elevated">
 				<LazyImage src={item.iconUrl} alt={item.title} loading="eager" class="h-full w-full rounded-xl object-contain p-0.5" fallback="/grass_block.png" />
 			</div>
 		{/if}
-	<div class="flex flex-1 flex-col min-h-0 catalog-card-body gap-2 p-5 pt-9">
+	<div class="flex flex-1 flex-col min-h-0 catalog-card-body gap-2 p-5" class:pt-9={!logoArtwork}>
 		<h3 title={item.title} class="line-clamp-2 min-h-11 shrink-0 text-lg leading-tight font-semibold text-fg group-hover:text-brand-400">
 			<span>{item.title}</span>
 		</h3>
@@ -123,6 +121,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     .catalog-cover { border-bottom: 1px solid rgb(var(--border)); }
     .catalog-loaders { padding: 3px; border-radius: 10px; background: rgb(var(--bg-elevated) / .94); }
     .catalog-logo { top: 188px; }
+    .catalog-cover { background:rgb(var(--bg-subtle)/.97); }
     .catalog-version { padding: 5px 8px; border: 1px solid rgb(var(--surface-shine) / .15); border-radius: 8px; background: rgb(var(--shadow-color) / .75); color: rgb(var(--surface-shine)); font-size: 9px; font-weight: 600; backdrop-filter: blur(8px); }
     .catalog-card-body { background: linear-gradient(150deg, rgb(var(--brand-500) / .035), transparent 70%); }
     .catalog-card :global(.catalog-install) { border: 1px solid rgb(var(--brand-400) / .2); border-radius: 12px; padding-inline: 12px; color: rgb(var(--brand-action)); background: rgb(var(--brand-500) / .07); }

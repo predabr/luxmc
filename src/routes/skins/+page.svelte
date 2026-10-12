@@ -577,15 +577,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</button>
 			</div>
 
-			<div class="flex items-center gap-2 text-xs font-bold text-fg/80">
-				<Shirt class="w-3.5 h-3.5 text-fg/60" />
-				<span class="text-fg font-extrabold">{uiText("ui.786aa1f40fcdff95")}</span>
-			</div>
+			<div class="flex items-center gap-4"><span class="flex h-12 w-12 items-center justify-center rounded-2xl border border-brand-400/25 bg-brand-500/10"><Shirt class="h-6 w-6 text-brand-400" /></span><div><h1 class="text-2xl font-bold tracking-tight text-fg">{uiText('skinsStudio.visualTitle')}</h1><p class="mt-1 text-xs leading-5 text-fg-muted">{uiText('skinsStudio.visualHelp')}</p></div></div>
 		</div>
 
 	</header>
 
-    <div class="sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fg/10 bg-bg-elevated p-4 shadow-elevated">
+    <div class="appearance-apply sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-fg/10 bg-bg-elevated p-4 shadow-elevated">
         <p class="text-sm text-fg-muted" class:text-brand-400={hasPendingChange && !saving} role="status">{saving ? isMicrosoft ? uiText("skinsStudio.syncing") : uiText("ui.c96a5ffa4c9a8e9c") : saveError ? uiText("ui.f3e4295a34844bee") + saveError : syncError || (hasPendingChange ? uiText("skinsStudio.pendingApply") : uiText("ui.0d8e3ff973d2531e"))}</p>
         <div class="flex gap-2">
             <Button variant="primary" size="lg" loading={saving} disabled={!canApplyAppearance} onclick={applyAppearance}>{saving ? uiText("skinsStudio.applying") : isMicrosoft ? uiText("ui.96d74ee46d837a1f") : uiText("ui.24e056555b501d83")}</Button>
@@ -594,7 +591,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     <p class="text-sm text-fg-muted rounded-2xl border border-fg/10 bg-bg-elevated p-4"><Info class="inline h-4 w-4 mr-2 text-brand-400" />{isMicrosoft ? uiText("ui.bd7f21aa535401a7") : account.value?.id.startsWith("luxmc:") ? uiText("profileCard.luxmcSkins") : uiText("profileCard.offlineSkins")}</p>
 
 
-	<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+	<div class="appearance-workspace grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
 		<div class="lg:col-span-4 flex flex-col items-center gap-4 lg:sticky lg:top-2">
 
@@ -935,3 +932,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	{/if}
 
 </div>
+
+<style>
+    .appearance-apply { background:rgb(var(--bg-elevated)/.97); border-color:rgb(var(--brand-400)/.22); border-radius:22px; padding:20px; }
+    .skin-preview-stage { background:radial-gradient(ellipse at 50% 25%,rgb(var(--brand-500)/.12),transparent 65%),rgb(var(--bg-elevated)/.97); border-color:rgb(var(--border-strong)); box-shadow:0 16px 50px rgb(var(--shadow-color)/.14); isolation:isolate; }
+    .skin-preview-stage::before { content:''; position:absolute; inset:18px; border:1px solid rgb(var(--border)/.35); border-radius:20px; pointer-events:none; }
+    .appearance-workspace :global(section) { border-radius:22px; }
+    @media(max-width:1023px) { .skin-preview-stage { height:400px; } }
+</style>

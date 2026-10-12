@@ -3,7 +3,7 @@ import type { ProfileStyle } from '../site-server/lib/profile-style';
 
 type Plan = 'free' | 'plus' | 'pro';
 interface Preset { id: string; name: string; preferences: Record<string, string | number | boolean> }
-interface Order { id: string; socialId: string; username: string; displayName: string; plan: 'plus' | 'pro'; amount: number; bank: string; pixKey: string; days: number; status: string; version: number; createdAt: number; updatedAt: number; note: string; receiptHash: string | null; receiptMime: string | null; receiptUploadedAt: number | null }
+interface Order { id: string; socialId: string; username: string; displayName: string; plan: 'plus' | 'pro'; amount: number; bank: string; pixKey: string; pixCode: string | null; pixReference: string; days: number; status: string; version: number; createdAt: number; updatedAt: number; note: string; receiptHash: string | null; receiptMime: string | null; receiptUploadedAt: number | null }
 interface Snapshot { profile?: {profileStyle:ProfileStyle;displayName:string;status:string}; identity: { id: string; username: string; owner: boolean }; csrfToken?: string | null; security?: { twoFactor: boolean; verifiedUntil: number; expiresAt: number } | null; membership: { plan: Plan; expiresAt: number | null; collections: number; presets: number }; checkout: { enabled: boolean; bank: string; pixKey: string }; settings: { preferences: Record<string, string | number | boolean>; presets: Preset[]; revision: number }; orders: Order[] }
 interface GrantUser { id: string; username: string; display_name: string; friendCode: string; plan: Plan; expires_at: number | null; revision: number }
 const ownerPage = document.body.dataset.commerce === 'owner';
@@ -11,6 +11,8 @@ const element = <T extends HTMLElement = HTMLElement>(id: string) => document.ge
 const money = (amount: number) => (amount / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const date = (seconds: number) => new Date(seconds * 1000).toLocaleString('pt-BR');
 const planName = (plan: Plan) => `Luxmc ${plan === 'free' ? 'Free' : plan === 'plus' ? 'Plus' : 'Pro'}`;
+function enteredAmount(value: string) { const parts = /^(\d{1,9})(?:[.,](\d{1,2}))?$/.exec(value.trim()); return parts ? Number(parts[1]) * 100 + Number((parts[2] || '').padEnd(2, '0')) : null; }
+function updateApprovalButtons() { for (const form of document.querySelectorAll<HTMLFormElement>('[data-payment-review]')) { const approve = form.querySelector<HTMLButtonElement>('[data-approve]')!; approve.disabled = busy || !form.querySelector<HTMLInputElement>('[data-credit-confirmed]')!.checked || !/^[a-zA-Z0-9]{32}$/.test(form.querySelector<HTMLInputElement>('[data-transaction]')!.value.trim()) || enteredAmount(form.querySelector<HTMLInputElement>('[data-received]')!.value) !== Number(form.dataset.paymentReview); } }
 const statuses: Record<string, string> = { awaiting_receipt: 'Aguardando comprovante', pending: 'Esperando verificação', approved: 'Aprovado', rejected: 'Rejeitado', cancelled: 'Cancelado' };
 let snapshot: Snapshot | null = null;
 let accountResolved = false;
@@ -80,7 +82,7 @@ function updatePlanAvailability() {
 async function perform(action: () => void | Promise<void>, onError?: (error: string) => void) {
     if (busy) return; busy = true; document.querySelectorAll<HTMLButtonElement>('button').forEach(control => control.disabled = true);
     try { await action(); } catch (error) { const text = String((error as Error).message); if (onError) onError(text); else message(text, true); }
-    finally { busy = false; document.querySelectorAll<HTMLButtonElement>('button').forEach(control => control.disabled = false); updatePlanAvailability(); pagination(); }
+    finally { busy = false; document.querySelectorAll<HTMLButtonElement>('button').forEach(control => control.disabled = false); updatePlanAvailability(); updateApprovalButtons(); pagination(); }
 }
 function lock() {
     snapshot = null;
@@ -115,17 +117,34 @@ function renderOrder(order: Order, owner: boolean) {
     heading.append(node('p', `Pedido ${order.id}`, 'order-code')); top.append(heading, node('span', statuses[order.status] || order.status, `status-chip ${order.status}`)); card.append(top, node('p', `Criado em ${date(order.createdAt)} · ${order.days} dias a partir da aprovação`));
     if (order.note) card.append(node('p', order.note));
     if (!owner && ['awaiting_receipt', 'pending'].includes(order.status) && snapshot) {
-        const pay = node('div', '', 'checkout-block'); pay.append(node('strong', `Pix · ${order.bank} · ${money(order.amount)}`), node('p', 'Confira o destinatário no seu banco antes de pagar. Copiar a chave não faz a transferência.'), node('p', order.pixKey, 'pix-key'));
-        pay.append(button('Copiar chave Pix', async () => { await navigator.clipboard.writeText(order.pixKey); message('Chave copiada. Faça a transferência pelo aplicativo do seu banco.'); }));
-        const input = labelledInput(pay, order.receiptHash ? 'Substituir comprovante (PNG, JPEG, WebP ou PDF · até 1 MB)' : 'Enviar comprovante (PNG, JPEG, WebP ou PDF · até 1 MB)', '', 'file'); input.accept = 'image/png,image/jpeg,image/webp,application/pdf';
-        pay.append(button('Enviar para verificação', async () => {
+        const pay = node('div', '', 'checkout-block');
+        const steps = node('ol', '', 'payment-steps');
+        for (const [index, title] of ['Pagar com Pix', 'Enviar comprovante', 'Receber seu plano'].entries()) steps.append(node('li', title, index === (order.status === 'pending' ? 2 : 0) ? 'current' : ''));
+        pay.append(steps, node('p', `Este plano será liberado para ${order.username}#${order.socialId.slice(0, 8)}.`, 'checkout-account'));
+        if (order.status === 'pending') pay.append(node('p', 'Comprovante recebido. Aguarde a conferência do crédito no banco; não pague novamente.', 'payment-pending'));
+        const details = node('details', '', 'pix-details'); details.open = order.status !== 'pending'; details.append(node('summary', order.status === 'pending' ? 'Consultar QR Code e dados do pagamento' : `Pix · ${order.bank}`));
+        const grid = node('div', '', 'pix-payment-grid'); const qr = node('div', '', 'pix-qr-frame'); const instructions = node('div', '', 'pix-instructions');
+        if (order.pixCode) {
+            const canvas = node('canvas'); canvas.setAttribute('role', 'img'); canvas.setAttribute('aria-label', `QR Code Pix de ${money(order.amount)} para ${planName(order.plan)}`); qr.append(canvas);
+            void QRCode.toCanvas(canvas, order.pixCode, { width: 256, margin: 4, errorCorrectionLevel: 'M' }).catch(() => { qr.replaceChildren(node('p', 'Use o Pix Copia e Cola ao lado.')); });
+            instructions.append(node('p', 'VALOR DO PLANO', 'eyebrow'), node('strong', money(order.amount), 'pix-total'), node('p', 'Abra o app do seu banco e escaneie o QR Code. No celular, use Pix Copia e Cola.'));
+            instructions.append(button('Copiar código Pix', async () => { await navigator.clipboard.writeText(order.pixCode!); message('Código Pix copiado. Confira o destinatário e o valor no app do banco antes de confirmar.'); }, ''));
+            const code = node('textarea'); code.readOnly = true; code.value = order.pixCode; code.rows = 3; code.className = 'pix-copy-code'; code.setAttribute('aria-label', 'Pix Copia e Cola'); instructions.append(code);
+        } else instructions.append(node('p', 'QR Code indisponível para este pedido. Use a chave Pix e confira o valor no banco.'));
+        grid.append(qr, instructions); details.append(grid, node('p', 'Confira o destinatário e o valor no seu banco antes de pagar. Escanear ou copiar o código não faz a transferência.', 'payment-hint'));
+        const fallback = node('details', '', 'pix-key-details'); fallback.append(node('summary', 'Pagar pela chave Pix'), node('p', order.pixKey, 'pix-key'), button('Copiar chave Pix', async () => { await navigator.clipboard.writeText(order.pixKey); message('Chave copiada. Informe o valor exato do plano no banco.'); })); details.append(fallback); pay.append(details);
+        const upload = node('div', '', 'payment-upload'); upload.append(node('strong', order.receiptHash ? 'Atualizar comprovante' : 'Já pagou? Envie o comprovante'), node('p', 'Envie o comprovante emitido pelo banco: PNG, JPEG, WebP ou PDF, até 1 MB. O arquivo enviado ainda não confirma o pagamento.'));
+        const input = labelledInput(upload, order.receiptHash ? 'Substituir comprovante (PNG, JPEG, WebP ou PDF · até 1 MB)' : 'Enviar comprovante (PNG, JPEG, WebP ou PDF · até 1 MB)', '', 'file'); input.accept = 'image/png,image/jpeg,image/webp,application/pdf';
+        upload.append(button('Enviar para verificação', async () => {
             const file = input.files?.[0]; if (!file) throw new Error('Escolha o comprovante.'); if (file.size > 1048576) throw new Error('O comprovante precisa ter até 1 MB.');
             const response = await fetch(`/api/receipts/${order.id}`, { method: 'POST', credentials: 'same-origin', headers: { ...headers(), 'Content-Type': file.type }, body: file, signal: AbortSignal.timeout(30000) });
             const result = await response.json(); if (!response.ok) throw new Error(result.error);
             message('Comprovante enviado. Seu plano será liberado após a conferência do crédito no banco.'); await refresh();
         }, ''));
+        pay.append(upload);
         pay.append(button('Cancelar pedido', async () => { if (!confirm('Cancelar este pedido? Se você já pagou, procure o atendimento antes de cancelar.')) return; await request('cancel', { id: order.id }); await refresh(); }, 'danger')); card.append(pay);
     }
+    if (order.status === 'approved') { const confirmation = node('div', '', 'payment-confirmed'); confirmation.append(node('strong', 'Seu plano foi liberado'), node('p', 'O recibo Luxmc já está disponível para você e para o dono. A assinatura acompanha esta conta no launcher.')); const link = node('a', 'Ver recibo Luxmc', 'commerce-button'); link.href = `/api/purchase-receipts/${order.id}`; link.target = '_blank'; link.rel = 'noopener noreferrer'; confirmation.append(link); card.append(confirmation); }
     if (order.receiptHash) card.append(button(selectedReceipt === order.id ? 'Fechar comprovante' : 'Ver comprovante', async () => { selectedReceipt = selectedReceipt === order.id ? '' : order.id; await refresh(); }));
     if (selectedReceipt === order.id && order.receiptHash) {
         const preview = node('div', '', 'receipt-preview');
@@ -133,13 +152,15 @@ function renderOrder(order: Order, owner: boolean) {
         else { const image = node('img'); image.src = `/api/receipts/${order.id}?v=${order.version}`; image.alt = `Comprovante do pedido ${order.id}`; image.className = 'receipt-image'; preview.append(image); }
         preview.append(node('p', `Enviado em ${date(order.receiptUploadedAt!)}. Visível apenas para o comprador e o dono.`));
         if (owner && order.status === 'pending') {
-            const form = node('form'); form.append(node('strong', 'Confira o crédito no Nubank antes de aprovar.'));
-            const transaction = labelledInput(form, 'Identificador da transação Pix (EndToEndId)'); transaction.maxLength = 64; transaction.autocomplete = 'off';
+            const form = node('form'); form.dataset.paymentReview = String(order.amount); form.append(node('strong', 'Conferência do pagamento'), node('p', `Abra o extrato do ${order.bank}. Uma imagem enviada pelo comprador pode ser falsa e não prova que o dinheiro entrou.`, 'payment-hint'), node('p', `Esperado: ${money(order.amount)} · ${planName(order.plan)} · ${order.username}#${order.socialId.slice(0, 8)}`, 'review-summary'), node('p', `Referência do QR Code: ${order.pixReference}`, 'order-code'));
+            const received = labelledInput(form, 'Valor recebido no banco (R$)'); received.inputMode = 'decimal'; received.placeholder = (order.amount / 100).toFixed(2).replace('.', ','); received.dataset.received = ''; received.maxLength = 12;
+            const transaction = labelledInput(form, 'Identificador da transação Pix (EndToEndId)'); transaction.maxLength = 32; transaction.autocomplete = 'off'; transaction.dataset.transaction = ''; transaction.placeholder = 'Cole os 32 caracteres do Pix no extrato';
             const note = labelledInput(form, 'Observação para o comprador / motivo da rejeição'); note.maxLength = 240;
-            const label = node('label'); const checked = node('input'); checked.type = 'checkbox'; label.append(checked, document.createTextNode('Conferi o valor e o crédito desta transação no extrato do banco.')); form.append(label);
+            const label = node('label'); const checked = node('input'); checked.type = 'checkbox'; checked.dataset.creditConfirmed = ''; label.append(checked, document.createTextNode('Conferi o valor e o crédito desta transação no extrato do banco.')); form.append(label);
             const actions = node('div', '', 'toolbar');
-            const review = async (decision: string) => { if (decision === 'approve' && !checked.checked) throw new Error('Confira o crédito no banco antes de aprovar.'); const accountCode = `${order.username}#${order.socialId.slice(0, 8)}`; if (!confirm(decision === 'approve' ? `Liberar ${planName(order.plan)} para ${accountCode}?` : `Rejeitar este pedido de ${accountCode}?`)) return; await request('owner_review', { id: order.id, version: order.version, receiptHash: order.receiptHash, decision, transactionId: transaction.value.trim(), creditConfirmed: checked.checked, note: note.value }); selectedReceipt = ''; message(decision === 'approve' ? 'Plano liberado e disponível para sincronização no launcher.' : 'Pedido rejeitado. O motivo está disponível para o comprador.'); await refresh(); };
-            actions.append(button('Aprovar e liberar plano', () => review('approve'), ''), button('Rejeitar pedido', () => review('reject'), 'danger')); form.append(actions); form.onsubmit = event => event.preventDefault(); preview.append(form);
+            const review = async (decision: string) => { if (decision === 'approve' && (!checked.checked || enteredAmount(received.value) !== order.amount)) throw new Error('Confira o crédito e informe o valor exato recebido no banco.'); const accountCode = `${order.username}#${order.socialId.slice(0, 8)}`; if (!confirm(decision === 'approve' ? `Confirmar ${money(order.amount)} recebidos e liberar ${planName(order.plan)} por ${order.days} dias para ${accountCode}?` : `Rejeitar este pedido de ${accountCode}?`)) return; await request('owner_review', { id: order.id, version: order.version, receiptHash: order.receiptHash, decision, transactionId: transaction.value.trim(), receivedAmount: enteredAmount(received.value), creditConfirmed: checked.checked, note: note.value }); selectedReceipt = ''; message(decision === 'approve' ? 'Plano liberado e disponível para sincronização no launcher.' : 'Pedido rejeitado. O motivo está disponível para o comprador.'); await refresh(); };
+            const approve = button('Aprovar e liberar plano', () => review('approve'), ''); approve.dataset.approve = ''; approve.disabled = true;
+            actions.append(approve, button('Rejeitar pedido', () => review('reject'), 'danger')); form.append(actions); form.onsubmit = event => event.preventDefault(); form.oninput = updateApprovalButtons; form.onchange = updateApprovalButtons; preview.append(form);
         }
         card.append(preview);
     }
@@ -150,6 +171,8 @@ function renderPlanSummary() {
     const identity = element('identity'); identity.hidden = false;
     const details = node('div'); details.append(node('p', 'SEU PLANO', 'eyebrow'), node('h2', `${snapshot.identity.username} · ${planName(snapshot.membership.plan)}`));
     details.append(node('p', snapshot.membership.plan === 'free' ? 'Seu launcher completo, sempre com você.' : `Ativo até ${date(snapshot.membership.expiresAt!)}`));
+    const approved = snapshot.orders.find(order => order.status === 'approved');
+    if (approved) { const receipt = node('a', 'Meu recibo Luxmc', 'membership-receipt'); receipt.href = `/api/purchase-receipts/${approved.id}`; receipt.target = '_blank'; receipt.rel = 'noopener noreferrer'; details.append(receipt); }
     const badge = node('span', snapshot.membership.plan === 'free' ? 'Free' : 'Assinatura ativa', 'membership-active');
     identity.replaceChildren(details, badge);
     const availability = element('checkout-availability'); availability.hidden = snapshot.checkout.enabled;

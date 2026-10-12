@@ -10,32 +10,32 @@ describe("resolveProfileBanner", () => {
 		expect(banner).toBe("https://example.com/custom.png");
 	});
 
-	it("resolves official curated banner for Kimetsu no Yaiba / Demon Slayer", () => {
+	it("does not infer a project cover from its name: Kimetsu no Yaiba / Demon Slayer", () => {
 		const banner = resolveProfileBanner({
 			name: "Kimetsu no Yaiba (Demon-Slayer)"
 		});
-		expect(banner).toContain("BH_KnYDS_header.webp");
+		expect(banner).toBe("/bg_day.jpg");
 	});
 
-	it("resolves official curated banner for Vulkan Optimized", () => {
+	it("does not infer a project cover from its name: Vulkan Optimized", () => {
 		const banner = resolveProfileBanner({
 			name: "Vulkan Optimized"
 		});
-		expect(banner).toContain("VulkanMod");
+		expect(banner).toBe("/bg_day.jpg");
 	});
 
-	it("resolves official curated banner for Sunlit Valley", () => {
+	it("does not infer a project cover from its name: Sunlit Valley", () => {
 		const banner = resolveProfileBanner({
 			name: "Society: Sunlit Valley"
 		});
-		expect(banner).toContain("forgecdn.net");
+		expect(banner).toBe("/bg_day.jpg");
 	});
 
-	it("resolves official curated banner for RLCraft", () => {
+	it("does not infer a project cover from its name: RLCraft", () => {
 		const banner = resolveProfileBanner({
 			name: "RLCraft"
 		});
-		expect(banner).toContain("BH_RL_Header.webp");
+		expect(banner).toBe("/bg_day.jpg");
 	});
 
 	it("resolves preset modpack banners", () => {
@@ -52,8 +52,8 @@ describe("resolveProfileBanner", () => {
 		expect(resolveProfileBanner({ name: "Survival", loader: "vanilla" })).toBe("/vanilla_banner.png");
 	});
 
-	it("uses the Vanilla Perfected artwork instead of the vanilla fallback", () => {
-		expect(resolveProfileBanner({ name: "Vanilla Perfected", loader: "fabric", icon: "grass_block" })).toBe("/modpack_vanilla_perfected.png");
+	it("does not assign a named modpack cover without provider metadata", () => {
+		expect(resolveProfileBanner({ name: "Vanilla Perfected", loader: "fabric", icon: "grass_block" })).toBe("/bg_day.jpg");
 	});
 
 	it("preserves artwork for modpacks whose names contain vanilla", () => {

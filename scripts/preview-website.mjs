@@ -6,6 +6,7 @@ import { randomBytes } from "node:crypto";
 import { onRequest as account } from "../website/functions/api/account/[action].js";
 import { onRequest as commerce } from "../website/functions/api/commerce/[action].js";
 import { onRequest as receipts } from "../website/functions/api/receipts/[id].js";
+import { onRequest as purchaseReceipts } from "../website/functions/api/purchase-receipts/[id].js";
 import { onRequest as social } from "../website/functions/api/social/[action].js";
 import { onRequest as release } from "../website/functions/api/latest-release.js";
 import { onRequest as download } from "../website/functions/download/[platform].js";
@@ -77,6 +78,8 @@ const server = createServer(async (incoming, outgoing) => {
     }
     const receipt = url.pathname.match(/^\/api\/receipts\/([a-f0-9-]{36})$/);
     if (receipt) { handler = receipts; params = {id:receipt[1]}; }
+    const purchaseReceipt = url.pathname.match(/^\/api\/purchase-receipts\/([a-f0-9-]{36})$/);
+    if (purchaseReceipt) { handler = purchaseReceipts; params = {id:purchaseReceipt[1]}; }
     if (url.pathname === "/api/latest-release") handler = release;
     const platform = url.pathname.match(/^\/download\/([a-z.]+)$/);
     if (platform) {

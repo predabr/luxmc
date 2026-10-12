@@ -40,7 +40,7 @@ test('a new web login replaces a previous launcher identity and purchases belong
     const registered=await f.call(account,{method:'POST',path:'/api/account/register',body:{username:'NewPlayer',password:'Test-password-123'}});assert.equal(registered.status,200);
     const user=(await registered.json()).account;assert.equal(f.jar.has('__Host-luxmc-commerce'),false);
     const state=await(await f.call()).json();assert.equal(state.user.id,user.socialId);assert.equal(state.user.canManageAccount,true);
-    f.sqlite.prepare("UPDATE lux_commerce_config SET enabled=1,pix_key='test-only-key' WHERE id=1").run();
+    f.sqlite.prepare("UPDATE lux_commerce_config SET enabled=1,pix_key='test@example.test' WHERE id=1").run();
     const created=await f.call(commerce,{method:'POST',path:'/api/commerce/create',body:{plan:'plus',targetId:alice},headers:{'X-Luxmc-CSRF':state.csrfToken}});assert.equal(created.status,200);assert.equal((await created.json()).order.socialId,user.socialId);
 });
 test('a launcher ticket replaces a browser login without selecting accounts by nickname',async t=>{

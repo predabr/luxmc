@@ -63,7 +63,7 @@
     h2 { max-width: 650px; margin-top: 32px; font-size: clamp(26px, 3.2vw, 46px); line-height: 1.02; letter-spacing: -.05em; font-weight: 750; text-wrap: balance; }
     .spotlight-description { max-width: 440px; margin-top: 14px; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; line-height: 1.8; color: rgb(var(--surface-shine) / .8); }
     .spotlight-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; color: rgb(var(--surface-shine) / .72); font-size: 10px; }
-    .spotlight-explore { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 16px; margin-top: 22px; border-radius: 12px; background: rgb(var(--surface-shine)); color: rgb(var(--shadow-color)); font-size: 12px; font-weight: 650; transition: translate 200ms ease; }
+    .spotlight-explore { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 16px; margin-top: 22px; border-radius: 12px; border:1px solid rgb(var(--brand-400)/.55); background: rgb(var(--brand-500)/.18); color: rgb(var(--surface-shine)); font-size: 12px; font-weight: 650; transition: translate 200ms ease; }
     .spotlight-explore:hover { translate: 0 -2px; }
     .spotlight-picks { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 18px 10px 10px; border: 1px solid rgb(var(--border)); border-radius: 24px; background: rgb(var(--bg-elevated) / .96); }
     .spotlight-picks-heading { display: flex; align-items: center; gap: 8px; padding: 0 10px 12px; color: rgb(var(--fg-muted)); font-size: 11px; font-weight: 600; }

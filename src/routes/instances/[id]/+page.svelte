@@ -1975,7 +1975,7 @@
 			</div>
 		{/if}
 
-        <div class="instance-overview-nav" role="tablist" tabindex="-1" onkeydown={handleTabKeys} aria-label={uiText("ui.afb02856c2b1242c")}>
+        <div class="instance-overview-nav instance-tabbar" role="tablist" tabindex="-1" onkeydown={handleTabKeys} aria-label={uiText("ui.afb02856c2b1242c")}>
             {#each [{ id: 'mods', label: 'Mods', icon: Puzzle }, { id: 'resourcepacks', label: uiText("ui.906d0853ece30a11"), icon: Box }, { id: 'shaders', label: 'Shaders', icon: Sparkles }, { id: 'datapacks', label: uiText("ui.f3260e4c97557038"), icon: Code }, { id: 'mundos', label: uiText("files.saves"), icon: Globe2 }, { id: 'galeria', label: uiText("ui.067348ce68943b63"), icon: Image }, { id: 'ficheiros', label: uiText("ui.c11445cb4fe129bf"), icon: Folder }, { id: 'configuracoes', label: uiText("ui.76b0fb6ad18939ac"), icon: SettingsIcon }] as section}
                 {@const selected = mainTab === section.id || (mainTab === 'conteudo' && subTab === section.id)}
                 <button type="button" role="tab" tabindex={selected ? 0 : -1} id={`instance-tab-${section.id}`} aria-selected={selected} aria-controls={`instance-${['mods', 'resourcepacks', 'shaders', 'datapacks'].includes(section.id) ? 'conteudo' : section.id}`} class={button({ variant: selected ? "secondary" : "ghost", size: "sm", class: selected ? 'text-brand-400 border-brand-400/30 bg-brand-500/10' : '' })} onclick={() => {

@@ -17,7 +17,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     const icon = $derived(getIconSrc(profile?.icon));
 </script>
 
-<section class="surface-glass relative overflow-hidden" use:scenery={settings.value.animations !== false && !appState.performanceMode && !running}>
+<section class="instance-hero surface-glass relative overflow-hidden" use:scenery={settings.value.animations !== false && !appState.performanceMode && !running && !launching}>
     <div class="instance-photo relative h-44 overflow-hidden sm:h-52">
         <img loading="lazy" decoding="async"
             src={banner}
@@ -68,6 +68,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </section>
 
 <style>
+    .instance-hero { border-radius:28px; border:1px solid rgb(var(--border-strong)); background:rgb(var(--bg-elevated)/.96); box-shadow:0 16px 48px rgb(var(--shadow-color)/.12); }
+    .instance-hero h1 { line-height:1.08; text-wrap:balance; overflow-wrap:anywhere; }
+    .instance-photo { border-bottom:1px solid rgb(var(--border)/.35); }
+    .instance-hero :global(button) { border-radius:14px; }
     .instance-photo > img { transform: scale(1.06) translate3d(calc(var(--scene-x, 0) * -14px),calc(var(--scene-y, 0) * -10px),0); transition: transform 650ms cubic-bezier(.2,.7,.2,1); }
     @media (prefers-reduced-motion: reduce) { .instance-photo > img { transform: none; transition: none; } }
 </style>

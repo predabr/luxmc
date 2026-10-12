@@ -90,7 +90,7 @@
                 {#if busy && !profile}<p role="status" class="flex min-h-56 items-center justify-center gap-2 text-sm text-fg-muted"><LoaderCircle class="h-4 w-4 animate-spin" />{t('common.loading')}</p>{/if}
                 {#if profile}
                     {#if fullEditor}
-                        <ProfileEditor bind:draft {profile} {busy} bind:processingImage bind:pendingImage bind:section onpreview={() => preview=true} onmanageTags={() => requestClose('/owner')} />
+                        <ProfileEditor bind:draft {profile} {busy} canManageTags={publicProfile.own && friendsState.ownProfile?.id === profile.id && friendsState.ownProfile?.role === 'owner'} bind:processingImage bind:pendingImage bind:section onpreview={() => preview=true} onmanageTags={() => { if (friendsState.ownProfile?.role === 'owner') requestClose('/owner'); }} />
                     {:else}
                         <div data-profile-heading class="relative flex items-end gap-4"><div data-profile-avatar class="h-24 w-24 shrink-0 rounded-3xl border-4 border-bg-elevated bg-bg-subtle shadow-elevated">{#if draft.portrait}<img src={draft.portrait} alt="" class="h-full w-full rounded-2xl object-cover" />{:else}<MinecraftAvatar username={profile.username} avatarUrl={profile.avatarUrl} class="h-full w-full" />{/if}</div><div class="min-w-0 pb-2"><h2 id="public-profile-title" data-profile-name class="break-words text-2xl font-bold tracking-tight">{draft.displayName || profile.username}</h2><p class="mt-1 truncate text-xs text-fg-muted">@{profile.username}</p></div></div>
                         <AccountBadges role={profile.role} plan={profile.membership?.plan} tags={profile.tags} size="md" />

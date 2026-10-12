@@ -11,6 +11,9 @@ export interface AppSettings {
     motionStyle?: "subtle" | "expressive";
     motionSpeed?: "fast" | "balanced";
     preloadContentIcons?: boolean;
+    catalogPageSize?: 24 | 36 | 48;
+    catalogSpotlight?: boolean;
+    catalogCompactCards?: boolean;
     gifQuality?: "balanced" | "high";
     respectReducedMotion?: boolean;
 	blur: boolean;
@@ -77,6 +80,9 @@ const defaults: AppSettings = {
     motionStyle: "expressive",
     motionSpeed: "balanced",
     preloadContentIcons: true,
+    catalogPageSize: 36,
+    catalogSpotlight: true,
+    catalogCompactCards: false,
     gifQuality: "high",
 	blur: false,
 	sidebarPosition: "left",

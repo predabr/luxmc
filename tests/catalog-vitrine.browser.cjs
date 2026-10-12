@@ -79,6 +79,8 @@ const fs = require('node:fs');
             assert.ok(await page.locator('.catalog-page').evaluate(node => node.scrollWidth <= node.clientWidth + 1), `Overflow at ${width}`);
         }
         await page.screenshot({ path: `${output}/vitrine-compact.png`, animations: 'disabled' });
+        await page.evaluate(async()=>{const {settings}=await import('/src/lib/stores/settings.svelte.ts');settings.value.catalogPageSize=24;settings.value.catalogSpotlight=false;settings.value.catalogCompactCards=true;});
+        await page.waitForFunction(()=>window.vitrineCalls.some(call=>call.command==='mods_search' && call.args.limit===24));assert.equal(await page.locator('.spotlight').count(),0);assert.equal(await page.locator('.catalog-compact').count(),1);await page.evaluate(async()=>{const {settings}=await import('/src/lib/stores/settings.svelte.ts');settings.value.catalogSpotlight=true;});await page.locator('.spotlight-explore').waitFor();
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.locator('.spotlight-explore').hover();
         assert.equal(await page.locator('.spotlight-explore').evaluate(node => getComputedStyle(node).translate), 'none');

@@ -4,6 +4,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { onRequest as commerce } from '../website/functions/api/commerce/[action].js';
+import { onRequest as purchaseReceipts } from '../website/functions/api/purchase-receipts/[id].js';
+import { crc16, pixPayload, orderTxid } from '../website/lib/pix.js';
 import { onRequest as receipts } from '../website/functions/api/receipts/[id].js';
 import { onRequest as social } from '../website/functions/api/social/[action].js';
 import { base32, decryptSecret, otpAt } from '../website/lib/owner-security.js';
@@ -27,9 +29,10 @@ function fixture() {
     async function call(action, id = alice, body = {}, extra = {}) { const response = await commerce({ request: new Request(`https://luxmc.test/api/commerce/${action}`, { method:'POST', headers: { 'Content-Type':'application/json', ...auth(id), ...(id===owner?cookieHeaders(ownerCookie):{}), ...extra }, body:JSON.stringify(body) }), env, params:{action}, waitUntil(promise) { void promise.catch(()=>{}); } }); if(id===owner&&response.headers.get('set-cookie'))ownerCookie=response.headers.get('set-cookie').split(';')[0];return { status:response.status, headers:response.headers, body:await response.json() }; }
     async function upload(id, order, bytes = png, type = 'image/png') { const response = await receipts({ request:new Request(`https://luxmc.test/api/receipts/${order}`,{method:'POST',headers:{...auth(id),'Content-Type':type},body:bytes}), env, params:{id:order}, waitUntil(){} }); return {status:response.status, body:await response.json()}; }
     async function receipt(id, order, extra={}) { return receipts({ request:new Request(`https://luxmc.test/api/receipts/${order}`,{headers:{...auth(id),...(id===owner?cookieHeaders(ownerCookie):{}),...extra}}), env, params:{id:order}, waitUntil(){} }); }
-    const approve = async (order, transactionId = 'E12345678901234567890123456789012') => { const row = sqlite.prepare('SELECT o.version, r.sha256 FROM lux_purchase_orders o JOIN lux_purchase_receipts r ON r.order_id = o.id WHERE o.id = ?').get(order); return call('owner_review', owner, { id:order, version:row.version, receiptHash:row.sha256, decision:'approve', creditConfirmed:true, transactionId, note:'Crédito conferido' }); };
+    const approve = async (order, transactionId = 'E12345678202009091221abcdef12345') => { const row = sqlite.prepare('SELECT o.version, r.sha256 FROM lux_purchase_orders o JOIN lux_purchase_receipts r ON r.order_id = o.id WHERE o.id = ?').get(order); return call('owner_review', owner, { id:order, version:row.version, receiptHash:row.sha256, decision:'approve', creditConfirmed:true, receivedAmount:sqlite.prepare('SELECT amount FROM lux_purchase_orders WHERE id = ?').get(order).amount, transactionId, note:'Crédito conferido' }); };
     sqlite.prepare('UPDATE lux_commerce_config SET enabled = 1 WHERE id = 1').run();
-    return {sqlite, db, env, call, upload, receipt, approve, cookieHeaders};
+    async function serviceReceipt(id, order, extra={}) { return purchaseReceipts({request:new Request('https://luxmc.test/api/purchase-receipts/'+order,{headers:{...auth(id),...(id===owner?cookieHeaders(ownerCookie):{}),...extra}}),env,params:{id:order},waitUntil(){}}); }
+    return {sqlite, db, env, call, upload, receipt, approve, serviceReceipt, cookieHeaders};
 }
 test('owner panel rejects another account, spoofed role, missing credentials and cross-site requests', async t => {
     const f=fixture(); t.after(()=>f.sqlite.close());
@@ -90,12 +93,12 @@ test('approval is atomic, needs bank confirmation, blocks duplicate Pix transact
     const competing=await Promise.all([f.approve(order),f.approve(order)]);assert.deepEqual(competing.map(item=>item.status).sort(),[200,409]);const result=competing.find(item=>item.status===200);assert.equal(result.body.membership.plan,'plus');const expiry=result.body.membership.expiresAt;
     assert.equal((await f.approve(order)).status,409);assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS total FROM lux_purchase_audit').get().total,1);
     const next=(await f.call('create',alice,{plan:'plus'})).body.order.id;await f.upload(alice,next);assert.equal((await f.approve(next)).status,409);assert.equal((await f.call('status')).body.membership.expiresAt,expiry);
-    const renewed=await f.approve(next,'E98765432109876543210987654321098');assert.equal(renewed.status,200);assert.equal(renewed.body.membership.expiresAt,expiry+30*86400);
+    const renewed=await f.approve(next,'E87654321202009091221ghijk789012');assert.equal(renewed.status,200);assert.equal(renewed.body.membership.expiresAt,expiry+30*86400);
     const other=(await f.call('create',bob,{plan:'plus'})).body.order.id;await f.upload(bob,other);assert.equal((await f.approve(other)).status,409);assert.equal((await f.call('status',bob)).body.membership.plan,'free');
 });
 test('a replaced receipt invalidates the old review and rejection grants no membership', async t => {
     const f=fixture();t.after(()=>f.sqlite.close()); const order=(await f.call('create',alice,{plan:'pro'})).body.order.id;await f.upload(alice,order);const stale=(await f.call('status')).body.orders[0]; await f.upload(alice,order);
-    assert.equal((await f.call('owner_review',owner,{id:order,version:stale.version,receiptHash:stale.receiptHash,decision:'approve',note:'',transactionId:'E12345678901234567890123456789012',creditConfirmed:true})).status,409);
+    assert.equal((await f.call('owner_review',owner,{id:order,version:stale.version,receiptHash:stale.receiptHash,decision:'approve',note:'',transactionId:'E12345678202009091221abcdef12345',creditConfirmed:true})).status,409);
     const fresh=(await f.call('status')).body.orders[0];assert.equal((await f.call('owner_review',owner,{id:order,version:fresh.version,receiptHash:fresh.receiptHash,decision:'reject',note:'Crédito não localizado'})).status,200);
     assert.equal((await f.call('status')).body.membership.plan,'free');assert.equal((await f.call('status')).body.orders[0].note,'Crédito não localizado');
 });
@@ -206,4 +209,29 @@ test('TOTP matches RFC 6238 vectors, stores an encrypted secret and rejects reus
     f.sqlite.prepare('DELETE FROM social_limits').run();const loginCookie=login.headers.get('set-cookie').split(';')[0];
     assert.equal((await f.call('owner_totp_disable','unknown',{password:'wrong-password-123',otp:enabled.body.recoveryCodes[1]},f.cookieHeaders(loginCookie))).status,401);
     const disabled=await f.call('owner_totp_disable','unknown',{password,otp:enabled.body.recoveryCodes[1]},f.cookieHeaders(loginCookie));assert.equal(disabled.status,200);const disabledCookie=disabled.headers.get('set-cookie').split(';')[0];assert.equal((await f.call('status','unknown',{},f.cookieHeaders(disabledCookie))).body.security.twoFactor,false);
+});
+
+test('Pix payload follows the BCB published vector and carries authoritative amount and unique order reference', async t => {
+    assert.equal(crc16('123456789'),'29B1');
+    assert.equal(pixPayload({key:'123e4567-e12b-12d1-a456-426655440000',name:'Fulano de Tal',city:'BRASILIA'}),'00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-4266554400005204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***63041D3D');
+    assert.throws(()=>pixPayload({key:'invalid',amount:1990})); assert.throws(()=>pixPayload({key:'test@example.test',amount:19.9}));
+    const f=fixture();t.after(()=>f.sqlite.close());const created=(await f.call('create',alice,{plan:'pro',amount:1,pixKey:'evil@example.test'})).body.order;
+    assert.match(created.pixCode,/540519.90/);assert.ok(created.pixCode.includes(created.pixKey));assert.equal(created.pixReference,orderTxid(created.id));assert.match(created.pixReference,/^[a-z0-9]{25}$/);
+    assert.equal((await f.call('create',alice,{plan:'pro'})).body.order.pixCode,created.pixCode);
+    const other=(await f.call('create',bob,{plan:'pro'})).body.order;assert.notEqual(other.pixReference,created.pixReference);
+});
+test('service receipt requires approved bank credit, stays private and totals count each payment once', async t => {
+    const f=fixture();t.after(()=>f.sqlite.close());const order=(await f.call('create',alice,{plan:'pro'})).body.order.id;
+    assert.equal((await f.serviceReceipt(alice,order)).status,409);await f.upload(alice,order);
+    assert.equal((await f.serviceReceipt(alice,order)).status,409);assert.equal((await f.call('owner_queue',owner)).body.stats.approvedAmount,0);
+    const row=f.sqlite.prepare('SELECT version FROM lux_purchase_orders WHERE id=?').get(order);
+    const body={id:order,version:row.version,receiptHash:hash(png),decision:'approve',creditConfirmed:true,transactionId:'E12345678202009091221abcdef12345',receivedAmount:100,note:''};
+    assert.equal((await f.call('owner_review',owner,body)).status,400);assert.equal((await f.call('owner_review',owner,{...body,receivedAmount:1990,transactionId:'arbitrary-reference'})).status,400);
+    assert.equal((await f.approve(order)).status,200);assert.equal((await f.approve(order)).status,409);
+    const stats=(await f.call('owner_queue',owner)).body.stats;assert.equal(stats.approvedAmount,1990);assert.equal(stats.approved,1);
+    assert.equal((await f.serviceReceipt(bob,order)).status,404);assert.equal((await f.serviceReceipt('unknown',order)).status,401);assert.equal((await f.serviceReceipt(owner,order,{'Sec-Fetch-Site':'cross-site'})).status,403);
+    const response=await f.serviceReceipt(alice,order);assert.equal(response.status,200);assert.equal(response.headers.get('cache-control'),'no-store');assert.match(response.headers.get('content-security-policy'),/script-src 'none'/);const html=await response.text();assert.match(html,/19,90/);assert.ok(html.includes(order));assert.ok(html.includes('Alice#22222222'));
+    f.sqlite.prepare('UPDATE social_users SET username=? WHERE id=?').run('<script>alert(1)</script>',alice);const safe=await(await f.serviceReceipt(owner,order)).text();assert.ok(!safe.includes('<script>'));assert.ok(safe.includes('&lt;script&gt;'));
+    const rejected=(await f.call('create',bob,{plan:'plus'})).body.order.id;await f.upload(bob,rejected);const version=f.sqlite.prepare('SELECT version FROM lux_purchase_orders WHERE id=?').get(rejected).version;await f.call('owner_review',owner,{id:rejected,version,receiptHash:hash(png),decision:'reject',note:'Sem crédito no banco'});
+    assert.equal((await f.serviceReceipt(bob,rejected)).status,409);assert.equal((await f.call('owner_queue',owner)).body.stats.approvedAmount,1990);
 });

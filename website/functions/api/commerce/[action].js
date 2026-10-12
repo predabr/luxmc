@@ -2,9 +2,10 @@ import { digest, equalHash, json, limited, passwordHash, randomToken, readJson, 
 import { appearancePreferences, catalog, COMMERCE_COOKIE, commerceIdentity, fail, membership, nowSeconds } from "../../../lib/membership.js";
 import { base32, commerceCookie, csrfFor, decryptSecret, encryptSecret, newOwnerSession, otpAt, ownerCredentials, ownerSession, requireOwnerSession, verifyCsrf } from "../../../lib/owner-security.js";
 import { activeProfileStyle, parseProfileStyle, profileStyleAllowed, retainedProfileStyle } from "../../../lib/profile-style.js";
+import { orderTxid, pixPayload, validPixKey } from "../../../lib/pix.js";
 const uuid = (value) => typeof value === "string" && /^[a-f0-9-]{36}$/.test(value);
 const selectOrders = `SELECT o.*, u.username, COALESCE(p.display_name, '') AS display_name, r.sha256 AS receipt_hash, r.mime AS receipt_mime, r.uploaded_at AS receipt_uploaded_at FROM lux_purchase_orders o JOIN social_users u ON u.id = o.social_id LEFT JOIN social_public_profiles p ON p.user_id = o.social_id LEFT JOIN lux_purchase_receipts r ON r.order_id = o.id`;
-const publicOrder = (row) => ({ id: row.id, socialId: row.social_id, username: row.username, displayName: row.display_name, plan: row.plan, amount: row.amount, bank: row.bank, pixKey: row.pix_key, days: row.days, status: row.status, version: row.version, createdAt: row.created_at, updatedAt: row.updated_at, note: row.note, receiptHash: row.receipt_hash || null, receiptMime: row.receipt_mime || null, receiptUploadedAt: row.receipt_uploaded_at || null });
+const publicOrder = (row) => ({ id: row.id, socialId: row.social_id, username: row.username, displayName: row.display_name, plan: row.plan, amount: row.amount, bank: row.bank, pixKey: row.pix_key, pixCode: validPixKey(row.pix_key) ? pixPayload({ key: row.pix_key, amount: row.amount, txid: orderTxid(row.id) }) : null, pixReference: orderTxid(row.id), days: row.days, status: row.status, version: row.version, createdAt: row.created_at, updatedAt: row.updated_at, note: row.note, receiptHash: row.receipt_hash || null, receiptMime: row.receipt_mime || null, receiptUploadedAt: row.receipt_uploaded_at || null });
 async function onRequest({ request, env, params, waitUntil }) {
   if (request.method !== "POST") return json({ error: "Use POST." }, 405);
   if (!sameOrigin(request)) return json({ error: "Origem n\xE3o permitida." }, 403);
@@ -118,6 +119,7 @@ async function onRequest({ request, env, params, waitUntil }) {
       if (await limited(db, `commerce-create:${me.id}`, 86400, 5)) return fail("Limite di\xE1rio de pedidos atingido.", 429);
       const plan = catalog[body.plan];
       const id = crypto.randomUUID();
+      if (!validPixKey(config.pix_key)) return fail("O recebimento Pix precisa ser corrigido pelo dono antes de criar pedidos.");
       await db.prepare("INSERT INTO lux_purchase_orders(id, social_id, plan, amount, bank, pix_key, days, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING").bind(id, me.id, body.plan, plan.amount, config.bank, config.pix_key, plan.days, now, now).run();
       const order = await db.prepare(`${selectOrders} WHERE o.social_id = ? AND o.status IN ('awaiting_receipt','pending')`).bind(me.id).first();
       if (!order || order.plan !== body.plan) return fail("J\xE1 existe um pedido em andamento.", 409);
@@ -211,7 +213,7 @@ async function onRequest({ request, env, params, waitUntil }) {
       return newOwnerSession(request, env, "Autentica\xE7\xE3o em duas etapas desativada; outras sess\xF5es encerradas");
     }
     if (action === "owner_config") {
-      if (typeof body.enabled !== "boolean" || body.bank !== "Nubank" || typeof body.pixKey !== "string" || !/^[a-zA-Z0-9@.+_-]{5,100}$/.test(body.pixKey)) return fail("Confira o banco e a chave Pix.");
+      if (typeof body.enabled !== "boolean" || body.bank !== "Nubank" || !validPixKey(body.pixKey)) return fail("Confira o banco e a chave Pix.");
       await db.batch([
         db.prepare("UPDATE lux_commerce_config SET enabled = ?, bank = ?, pix_key = ?, updated_at = ? WHERE id = 1").bind(Number(body.enabled), body.bank, body.pixKey, now),
         db.prepare("INSERT INTO lux_purchase_audit(id, social_id, actor, action, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)").bind(crypto.randomUUID(), me.id, me.id, "config", body.enabled ? "Pedidos abertos" : "Pedidos pausados", now)
@@ -224,7 +226,8 @@ async function onRequest({ request, env, params, waitUntil }) {
       if (!order) return fail("Pedido n\xE3o encontrado.", 404);
       if (order.status !== "pending" || order.version !== body.version || !order.receipt_hash || body.receiptHash !== order.receipt_hash) return fail("Pedido ou comprovante alterado. Reabra antes de decidir.", 409);
       const approve = body.decision === "approve";
-      if (approve && (body.creditConfirmed !== true || typeof body.transactionId !== "string" || !/^[A-Za-z0-9-]{16,64}$/.test(body.transactionId))) return fail("Confira o cr\xE9dito no banco e informe o identificador da transa\xE7\xE3o Pix.");
+      if (approve && (body.creditConfirmed !== true || typeof body.transactionId !== "string" || !/^[A-Za-z0-9]{32}$/.test(body.transactionId))) return fail("Confira o cr\xE9dito no banco e informe o EndToEndId de 32 caracteres da transa\xE7\xE3o Pix.");
+      if (approve && (!Number.isSafeInteger(body.receivedAmount) || body.receivedAmount !== order.amount)) return fail("O valor recebido no banco precisa corresponder ao valor deste pedido.");
       if (!approve && !body.note.trim()) return fail("Informe o motivo da rejei\xE7\xE3o.");
       const decision = crypto.randomUUID();
       const statements = [db.prepare("UPDATE lux_purchase_orders SET status = ?, version = version + 1, reviewed_by = ?, decision_id = ?, transaction_id = ?, note = ?, updated_at = ? WHERE id = ? AND status = 'pending' AND version = ? AND EXISTS (SELECT 1 FROM lux_purchase_receipts WHERE order_id = ? AND sha256 = ?)").bind(approve ? "approved" : "rejected", me.id, decision, approve ? body.transactionId : null, body.note.trim(), now, order.id, body.version, order.id, order.receipt_hash)];

@@ -35,7 +35,7 @@ const proStyle = {accent:'lilac',frame:'orbit',effect:'shimmer',layout:'centered
             },{theme,plan,defaultStyle});
             await page.goto('http://127.0.0.1:1420/friends');
             await page.getByRole('button',{name:'Editar meu perfil',exact:true}).click();
-            const dialog=page.getByRole('dialog');await dialog.getByRole('tab',{name:'Vitrine',exact:true}).click();await dialog.getByText(`${plan==='pro'?17:plan==='plus'?9:0}/${plan==='pro'?24:plan==='plus'?16:8}`,{exact:true}).waitFor();await dialog.getByRole('tab',{name:'Aparência',exact:true}).click();
+            const dialog=page.getByRole('dialog');assert.equal(await dialog.getByRole('button',{name:'Gerenciar minhas tags',exact:true}).count(),0);await dialog.getByRole('tab',{name:'Vitrine',exact:true}).click();await dialog.getByText(`${plan==='pro'?17:plan==='plus'?9:0}/${plan==='pro'?24:plan==='plus'?16:8}`,{exact:true}).waitFor();await dialog.getByRole('tab',{name:'Aparência',exact:true}).click();
             assert.equal(await page.evaluate(()=>document.documentElement.classList.contains('light')),theme==='light');
             assert.equal(await dialog.getByRole('button',{name:'Paleta: Menta',exact:true}).isDisabled(),plan==='free');
             assert.equal(await dialog.getByRole('button',{name:'Moldura do avatar: Órbita',exact:true}).isDisabled(),plan!=='pro');
@@ -61,7 +61,7 @@ const proStyle = {accent:'lilac',frame:'orbit',effect:'shimmer',layout:'centered
                 await dialog.screenshot({path:`${output}/profile-compact-${theme}.png`});
             }
             assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-            results.push({area:'launcher',plan,theme,overflow:false}); await page.close();
+            if(plan==='free'){await page.goto('http://127.0.0.1:1420/owner-tools');await page.getByText('Acesso exclusivo da conta de dono.',{exact:false}).waitFor();assert.equal(await page.getByRole('heading',{name:'Central de manutenção',exact:true}).count(),0);}results.push({area:'launcher',plan,theme,overflow:false}); await page.close();
         }
         for (const plan of ['free','plus','pro']) {
             const page=await browser.newPage({viewport:{width:plan==='pro'?430:1440,height:1000},reducedMotion:'reduce'});page.on('pageerror',error=>errors.push(error.message));
@@ -72,13 +72,10 @@ const proStyle = {accent:'lilac',frame:'orbit',effect:'shimmer',layout:'centered
                 if(action==='profile_style'){saved=route.request().postDataJSON();style=saved.profileStyle;}
                 await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(result)});
             });
-            await page.goto('http://127.0.0.1:8794/planos');await page.getByRole('heading',{name:'Um perfil com a sua assinatura'}).waitFor();
-            const editor=page.locator('#profile-customization');fs.writeFileSync(`${output}/site-${plan}-controls.json`,JSON.stringify(await editor.locator('select').evaluateAll(items=>items.map(select=>({name:select.getAttribute('aria-label'),options:[...select.options].map(option=>({value:option.value,disabled:option.disabled}))}))),null,2));assert.equal(await editor.getByLabel('Moldura do avatar',{exact:true}).locator('option[value="orbit"]').evaluate(option=>option.disabled),plan!=='pro');
-            if(plan!=='free') {await editor.getByLabel('Paleta',{exact:true}).selectOption('mint');await editor.getByLabel('Moldura do avatar',{exact:true}).selectOption('double');}
-            if(plan==='pro') {await editor.getByLabel('Paleta',{exact:true}).selectOption('lilac');await editor.getByLabel('Moldura do avatar',{exact:true}).selectOption('orbit');await editor.getByLabel('Efeito',{exact:true}).selectOption('shimmer');await editor.getByLabel('Composição',{exact:true}).selectOption('centered');}
-            const refreshed=page.waitForResponse('**/api/commerce/status');await editor.getByRole('button',{name:'Salvar assinatura visual'}).click();await refreshed;assert.deepEqual(saved.profileStyle,style);
-            await editor.screenshot({path:`${output}/site-${plan}.png`,style:'.skip-link {visibility:hidden !important}'});assert.equal(await page.getByRole('button',{name:'Escolher Plus'}).isDisabled(),true);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-            assert.equal(await editor.locator('[data-profile-avatar]').evaluate(element=>getComputedStyle(element,'::after').animationName),'none');
+            await page.goto('http://127.0.0.1:8794/planos');await page.getByRole('heading',{name:'Explorer · Luxmc '+(plan==='free'?'Free':plan==='plus'?'Plus':'Pro')}).waitFor();
+            assert.equal(await page.locator('#profile-customization,#preferences,#orders').count(),0);
+            for(const selector of ['[data-plan=plus]','[data-plan=pro]'])assert.equal(await page.locator(selector).isDisabled(),true);
+            await page.screenshot({path:output+'/site-'+plan+'.png',style:'.skip-link {visibility:hidden !important}'});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
             results.push({area:'site',plan,overflow:false});await page.close();
         }
         assert.deepEqual(errors,[]);fs.writeFileSync(`${output}/browser.json`,JSON.stringify({results,errors},null,2));console.log('Browser: Free, Plus e Pro, temas claro/escuro, prévia, gravação, site móvel e movimento reduzido passaram.');
