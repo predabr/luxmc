@@ -2,6 +2,7 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
     import { onMount } from "svelte";
+    import { navigationMotion } from '$lib/actions/navigationMotion';
     import { PanelLeftClose, PanelLeftOpen, Users } from "lucide-svelte";
     import { toast } from "$lib/stores/toasts.svelte";
     import { openPortal } from "$lib/api/deepLinks";
@@ -55,7 +56,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	const accountStatus = $derived(getAccountStatus(account.value));
 </script>
 
-<aside class="launcher-sidebar flex h-dvh min-h-0 {expanded ? 'w-60' : 'w-[66px]'} shrink-0 flex-col items-center py-3 bg-bg-elevated/80 backdrop-blur-2xl border-r border-fg/[0.08] transition-[width] duration-200 z-40 relative select-none">
+<aside use:navigationMotion={page.url.pathname} class="launcher-sidebar flex h-dvh min-h-0 {expanded ? 'w-60' : 'w-[66px]'} shrink-0 flex-col items-center py-3 bg-bg-elevated/80 backdrop-blur-2xl border-r border-fg/[0.08] transition-[width] duration-200 z-40 relative select-none">
 	
     <button class={launcherButton({ variant: "secondary", size: "sm", class: `mb-3 flex items-center gap-3 ${expanded ? 'w-[calc(100%_-_1.5rem)] justify-between' : ''}` })} aria-label={uiText(expanded ? "design.collapseMenu" : "design.expandMenu")} aria-expanded={expanded} onclick={toggleSidebar}>
         {#if expanded}<PanelLeftClose class="h-4 w-4" /><span class="font-semibold tracking-wide text-fg">LUXMC</span>{:else}<PanelLeftOpen class="h-4 w-4" />{/if}
@@ -80,9 +81,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{#each items as item}
 			{@const active = page.url.pathname.startsWith(item.href) || (item.href === "/friends" && page.url.pathname === "/hosting")}
 			<div class="relative group w-full flex justify-center">
-				{#if active}
-					<span class="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-6 bg-brand-500 rounded-r-full shadow-glow"></span>
-				{/if}
 				<a
 					href={item.href}
 					onclick={(e) => {
@@ -111,9 +109,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					{@const active = page.url.pathname === `/instances/${prof.id}` || (page.url.pathname === "/instances" && profiles.activeId === prof.id)}
 					{@const iconSrc = getIconSrc(prof.icon)}
 					<div class="relative group w-full flex justify-center">
-						{#if active}
-							<span class="absolute left-0.5 top-1/2 -translate-y-1/2 w-1 h-5 bg-brand-500 rounded-r-full shadow-glow"></span>
-						{/if}
 						<a
 							href={`/instances/${prof.id}`}
 							onclick={(e) => {

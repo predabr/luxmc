@@ -771,3 +771,13 @@ main[data-refined-ui="true"] .catalog-result-row .catalog-card:hover { border-co
 @media (max-width: 700px) { main[data-refined-ui="true"] .product-header { padding: 20px; } }
 
 html:not(.has-custom-wallpaper) main[data-refined-ui="true"] .catalog-toolbar .launcher-button--primary { color: rgb(var(--brand-foreground)); }
+.launcher-nav-indicator { position: absolute; top: 0; left: 2px; z-index: 2; width: 3px; border-radius: 999px; pointer-events: none; opacity: 0; background: rgb(var(--brand-400)); box-shadow: 0 0 14px rgb(var(--brand-500) / .25); transition: transform 380ms cubic-bezier(.16,1,.3,1), height 220ms ease, opacity 160ms ease; }
+@keyframes luxmc-nav-icon { 0% { transform: scale(.86) rotate(-8deg); } 65% { transform: scale(1.1) rotate(2deg); } 100% { transform: scale(1) rotate(0); } }
+@keyframes luxmc-progress-sweep { from { transform: translateX(-100%); } to { transform: translateX(350%); } }
+html:not(.no-ui-motion):not(.no-anim) .launcher-nav-link[aria-current="page"] > svg { animation: luxmc-nav-icon 420ms cubic-bezier(.16,1,.3,1); }
+main[data-refined-ui="true"] .instance-settings-group:focus-within { border-color: rgb(var(--brand-400) / .4); }
+html:not(.no-ui-motion):not(.no-anim) :is(.workshop-card, .friend-row, [data-bedrock-instance]) { transition: border-color 180ms ease, translate 180ms cubic-bezier(.16,1,.3,1); }
+html:not(.no-ui-motion):not(.no-anim) :is(.workshop-card, .friend-row, [data-bedrock-instance]):hover { border-color: rgb(var(--brand-400) / .35); translate: 0 -2px; }
+html.no-ui-motion .launcher-nav-indicator, html.no-anim .launcher-nav-indicator { transition: none; }
+@media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) .launcher-nav-indicator { transition: none; } html:not(.force-ui-motion) .launcher-nav-link > svg { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) :is(.workshop-card, .friend-row, [data-bedrock-instance]) { transition: none; translate: none; } }

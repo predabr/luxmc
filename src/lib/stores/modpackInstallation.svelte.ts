@@ -52,12 +52,13 @@ async function start(item: ModSearchResultItem, name: string, ramMb: number, sel
     jobs.push({id,item,name,ramMb,selectedVersion,modpackVersionId,status:'queued'});
     try { await persist(); void pump(); } catch(error) { const job=jobs.find(job => job.id===id); if(job) {job.status='failed';job.error=String(error);} }
 }
-const operation = $state({ paused: false, busy: false, cancelling: false, item: null as ModSearchResultItem | null, name: '', text: '', percent: 0, error: '', profileId: '' });
+const operation = $state({ paused: false, busy: false, cancelling: false, item: null as ModSearchResultItem | null, name: '', text: '', percent: 0, error: '', profileId: '', phase: 'package', startedAt: 0, finishedAt: 0 });
 	async function run(item: ModSearchResultItem, name: string, ramMb: number, selectedVersion: string, modpackVersionId?: string) {
 		if (operation.busy) return;
         operation.paused = false; operation.item = item; operation.name = name; operation.error = ""; operation.profileId = "";
 
 		operation.cancelling = false;
+        operation.phase = 'package'; operation.startedAt = Date.now(); operation.finishedAt = 0;
         operation.busy = true; operation.text = uiText("ui.5a4fa7bb57930284");
 		operation.percent = 0;
 		let unlisten: (() => void) | null = null;
@@ -68,6 +69,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 			unlisten = await listen<{ phase: string; current: number; total: number; percent?: number; status: string }>("modpack-progress", (ev) => {
 				if (operation.cancelling) return;
                 operation.text = ev.payload.status;
+                operation.phase = ev.payload.phase;
 				operation.percent = ev.payload.percent ?? 0;
 			});
 			const ver = selectedVersion === "Qualquer Versão" || modpackVersionId ? "" : selectedVersion;
@@ -86,6 +88,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
             await verifyPackDownload(tempPath,f.size || 0,f.sha1 || '',importId);
             if (operation.cancelling) throw new Error(uiText("ui.bb9811b14ec4fb48"));
 			operation.text = uiText("ui.cbc82784c96e08ef");
+            operation.phase = 'preparing';
 			operation.percent = 0;
 			const iconUrl = item.iconUrl || "";
 			const detectedLoader = item.categories?.find(c => ["forge", "fabric", "neoforge", "quilt"].includes(c.toLowerCase()))?.toLowerCase()
@@ -116,7 +119,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 			}
 			profiles.activeId = cp.id;
 
-			operation.profileId = cp.id; operation.percent = 100; operation.text = uiText("downloadsDesign.complete");
+			operation.profileId = cp.id; operation.phase = 'complete'; operation.percent = 100; operation.text = uiText("downloadsDesign.complete");
             void profiles.refresh().catch(() => {});
 			fireModpackSuccessConfetti();
 			toast(uiText("ui.1b6566167e91c704", {arg0: (name)}), "success");
@@ -132,6 +135,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
             if (begun) { try { await instanceEndImport(importId); } catch (error) { operation.error = String(error); } }
 			if (unlisten) unlisten();
 			operation.busy = false; operation.cancelling = false; importId = "";
+            operation.finishedAt = Date.now();
 		}
 	}
 

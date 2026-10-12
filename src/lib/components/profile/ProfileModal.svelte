@@ -1,4 +1,6 @@
 <script lang="ts">
+    import MembershipCard from "./MembershipCard.svelte";
+    import AccountBadges from "$lib/components/ui/AccountBadges.svelte";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
     import { luxAccountLogout } from "$lib/api/luxAccount";
@@ -85,7 +87,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             <div class="min-w-0 flex-1">
                 <p class="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-fg-subtle">{uiText("profileCard.identity")}</p>
                 <h2 class="truncate text-2xl font-bold tracking-tight text-fg">{friendsState.ownProfile?.displayName || currentUsername}</h2>
-                {#if friendsState.ownProfile?.role === "owner"}<span class="mt-2 inline-flex rounded-lg border border-brand-400/30 bg-brand-400/10 px-2 py-1 text-xs font-semibold text-brand-400">{uiText("ownerTools.badge")}</span>{/if}
+                <div class="mt-2"><AccountBadges role={friendsState.ownProfile?.role} plan={friendsState.ownProfile?.membership?.plan} tags={friendsState.ownProfile?.tags} size="md" /></div>
                 <p class="mt-2 inline-flex items-center gap-2 text-xs font-medium text-brand-400">
                     {#if isMicrosoft}<MicrosoftLogo size={14} />{uiText("ui.f7d65270bfce73a6")}
                     {:else if isLuxmc}<ShieldCheck class="h-4 w-4" />{uiText("profileCard.luxmcAccount")}
@@ -99,6 +101,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 {#if cloudAccount.error}<p class="mt-2 text-danger">{cloudAccount.error}</p><button type="button" class={launcherButton({variant: "secondary", size: "sm", class: "mt-3"})} onclick={() => cloudAccount.reload()}>{uiText("ui.35754d098bca5970")}</button>{/if}
             </div>
         {/if}
+        <MembershipCard />
         <div class="grid grid-cols-3 gap-3">
             <div class="rounded-2xl border border-border bg-bg/35 p-4"><Clock class="mb-3 h-5 w-5 text-brand-400" /><p class="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">{uiText("ui.342c23f0d2a98044")}</p><p class="mt-1 text-lg font-bold text-fg">{gamingStats.formattedTotalTime}</p></div>
             <div class="rounded-2xl border border-border bg-bg/35 p-4"><Gamepad2 class="mb-3 h-5 w-5 text-success" /><p class="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">{uiText("profileCard.today")}</p><p class="mt-1 text-lg font-bold text-fg">{gamingStats.formattedTodayTime}</p></div>

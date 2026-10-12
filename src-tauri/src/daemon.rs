@@ -27,6 +27,7 @@ pub async fn run_daemon() {
         eprintln!("[Daemon] Database init failed: {e}");
     }
 
+    #[cfg(not(windows))]
     tokio::spawn(async {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(12));
         loop {
@@ -112,6 +113,11 @@ async fn dispatch_command(
         "support_report" => Ok(crate::commands::experience::support_report(args["profileId"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?),
         "theme_export" => { crate::commands::experience::theme_export(args["path"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },
         "theme_import" => Ok(crate::commands::experience::theme_import(args["path"].as_str().unwrap_or_default().into()).await.map_err(|e| e.to_string())?),
+        "membership_request" => {
+            let account_id = args.get("accountId").and_then(|v| v.as_str()).ok_or("Missing account ID")?.to_owned();
+            let request = serde_json::from_value(args.get("request").cloned().ok_or("Missing request")?).map_err(|e| e.to_string())?;
+            crate::commands::membership::membership_request(account_id, request).await.map_err(|e| e.to_string())
+        },
         "social_request" => {
             let account_id = args.get("accountId").and_then(|v| v.as_str()).ok_or("Missing account ID")?.to_owned();
             let request = serde_json::from_value(args.get("request").cloned().ok_or("Missing request")?).map_err(|e| e.to_string())?;

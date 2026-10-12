@@ -556,6 +556,7 @@ pub async fn run() {
             commands::lux_account::lux_account_login,
             commands::lux_account::lux_account_sync,
             commands::lux_account::lux_account_logout,
+            commands::membership::membership_request,
             commands::auth::auth_get_client_id,
             commands::auth::auth_get_tenant_id,
             commands::auth::auth_set_client_id,

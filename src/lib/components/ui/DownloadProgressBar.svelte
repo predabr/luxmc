@@ -7,6 +7,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { Download, CheckCircle2, Clock, Zap, X, HardDrive } from "lucide-svelte";
 	import { listenDownloadProgress, type DownloadProgress } from "$lib/api";
 	import { appState } from "$lib/stores/app.svelte";
+    import { transferComplete } from '$lib/utils/installProgress';
 
 	let progress = $state<DownloadProgress | null>(null);
 	let isVisible = $state(false);
@@ -76,12 +77,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		return null;
 	});
 
-	const isComplete = $derived.by(() => {
-		if (!progress) return false;
-		if (progress.total > 0 && progress.completed >= progress.total) return true;
-		if (progress.totalBytes > 0 && progress.bytesDownloaded >= progress.totalBytes) return true;
-		return false;
-	});
+    const isComplete = $derived(progress !== null && transferComplete(progress));
 
 	function scheduleHide(delay: number) {
 		if (hideTimeout) clearTimeout(hideTimeout);
@@ -98,10 +94,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			progress = data;
 			isVisible = true;
 
-			const done = (data.total > 0 && data.completed >= data.total) ||
-				(data.totalBytes > 0 && data.bytesDownloaded >= data.totalBytes);
-
-			scheduleHide(done ? 2500 : 4000);
+            if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+            if (transferComplete(data)) scheduleHide(2500);
 		}).then((fn) => {
 			if (disposed) fn();
 			else unlisten = fn;

@@ -4,22 +4,47 @@ use crate::error::AppResult;
 #[derive(Default)]
 pub struct Audit { pub errors: Vec<String>, pub warnings: Vec<String> }
 
-trait ArchiveReader: Read + Seek {}
-impl<T: Read + Seek> ArchiveReader for T {}
+struct ArchiveReader<'a> {
+    reader: std::io::BufReader<std::fs::File>,
+    before: std::fs::Metadata,
+    cancel: Option<&'a std::sync::atomic::AtomicBool>,
+}
 
-fn archive_reader(path: &Path, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<Box<dyn ArchiveReader>> {
-    let mut file = std::fs::File::open(path)?;
-    let before = file.metadata()?;
-    if before.len() <= 32 * 1024 * 1024 {
-        let mut bytes = Vec::with_capacity(before.len() as usize);
-        crate::core::mods::pack_download::copy_cancellable(&mut file.by_ref().take(32 * 1024 * 1024 + 1), &mut bytes, cancel)?;
-        let after = file.metadata()?;
-        if bytes.len() as u64 != before.len() || before.len() != after.len() || before.modified().ok() != after.modified().ok() {
+impl ArchiveReader<'_> {
+    fn unchanged(&self) -> AppResult<()> {
+        crate::core::mods::pack_download::cancelled(self.cancel)?;
+        let after = self.reader.get_ref().metadata()?;
+        if self.before.len() != after.len() || self.before.modified()? != after.modified()? {
             return Err(crate::error::AppError::InvalidInput("O arquivo mudou durante a conferência".into()));
         }
-        return Ok(Box::new(std::io::Cursor::new(bytes)));
+        Ok(())
     }
-    Ok(Box::new(std::io::BufReader::with_capacity(256 * 1024, file)))
+
+    fn check_cancel(&self) -> std::io::Result<()> {
+        crate::core::mods::pack_download::cancelled(self.cancel)
+            .map_err(|error| std::io::Error::other(error.to_string()))
+    }
+}
+
+impl Read for ArchiveReader<'_> {
+    fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
+        self.check_cancel()?;
+        self.reader.read(bytes)
+    }
+}
+
+impl Seek for ArchiveReader<'_> {
+    fn seek(&mut self, position: std::io::SeekFrom) -> std::io::Result<u64> {
+        self.check_cancel()?;
+        self.reader.seek(position)
+    }
+}
+
+fn archive_reader<'a>(path: &Path, cancel: Option<&'a std::sync::atomic::AtomicBool>) -> AppResult<ArchiveReader<'a>> {
+    crate::core::mods::pack_download::cancelled(cancel)?;
+    let file = std::fs::File::open(path)?;
+    let before = file.metadata()?;
+    Ok(ArchiveReader { reader: std::io::BufReader::with_capacity(64 * 1024, file), before, cancel })
 }
 
 #[derive(Clone, Default)]
@@ -50,7 +75,14 @@ pub(crate) fn mod_metadata(path: &Path) -> Option<ModMetadata> {
 }
 
 fn read_mod_metadata(path: &Path) -> Option<ModMetadata> {
-    let mut archive = zip::ZipArchive::new(archive_reader(path, None).ok()?).ok()?;
+    let mut reader = archive_reader(path, None).ok()?;
+    let metadata = read_mod_metadata_from_reader(&mut reader)?;
+    reader.unchanged().ok()?;
+    Some(metadata)
+}
+
+fn read_mod_metadata_from_reader(reader: &mut ArchiveReader<'_>) -> Option<ModMetadata> {
+    let mut archive = zip::ZipArchive::new(reader).ok()?;
     let mut metadata = ModMetadata::default();
     for (name, pointer) in [("fabric.mod.json", "/id"), ("quilt.mod.json", "/quilt_loader/id")] {
         if let Ok(file) = archive.by_name(name) {
@@ -133,13 +165,19 @@ pub fn repair_duplicates_cancellable(root: &Path, preferred: &HashSet<String>, c
 pub fn audit(root: &Path, deep: bool) -> AppResult<Audit> { audit_cancellable(root, deep, None) }
 
 fn inspect_archive(folder: &str, path: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<(Audit, HashMap<String,String>, Vec<(String,String)>)> {
+    let mut reader = archive_reader(path, cancel)?;
+    let result = inspect_archive_from_reader(folder, path, deep, cancel, &mut reader);
+    reader.unchanged()?;
+    result
+}
+
+fn inspect_archive_from_reader<R: Read + Seek>(folder: &str, path: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>, reader: R) -> AppResult<(Audit, HashMap<String,String>, Vec<(String,String)>)> {
     crate::core::mods::pack_download::cancelled(cancel)?;
     let mut report = Audit::default();
     let mut providers = HashMap::<String,String>::new();
     let mut dependencies = Vec::<(String,String)>::new();
     let name = path.file_name().unwrap_or_default().to_string_lossy().into_owned();
-            let archive = archive_reader(path, cancel).map(zip::ZipArchive::new);
-            let mut archive = match archive { Ok(Ok(archive))=>archive, _=>{ report.errors.push(format!("Arquivo corrompido ou incompleto: {folder}/{name}"));return Ok((report, providers, dependencies));} };
+            let mut archive = match zip::ZipArchive::new(reader) { Ok(archive)=>archive, _=>{ report.errors.push(format!("Arquivo corrompido ou incompleto: {folder}/{name}"));return Ok((report, providers, dependencies));} };
             if deep {
                 let mut expanded=0u64;
                 for index in 0..archive.len() {
@@ -255,6 +293,60 @@ pub fn audit_with_progress(root: &Path, deep: bool, cancel: Option<&std::sync::a
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn metadata_audit_skips_payload_but_deep_audit_checks_its_crc() {
+        use std::io::{Read, Seek, Write};
+        struct Meter {
+            inner: std::io::Cursor<Vec<u8>>,
+            bytes: std::rc::Rc<std::cell::Cell<usize>>,
+        }
+        impl Read for Meter {
+            fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+                let count = self.inner.read(buffer)?;
+                self.bytes.set(self.bytes.get() + count);
+                Ok(count)
+            }
+        }
+        impl Seek for Meter {
+            fn seek(&mut self, position: std::io::SeekFrom) -> std::io::Result<u64> { self.inner.seek(position) }
+        }
+        let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        archive.start_file("fabric.mod.json", options).unwrap();
+        archive.write_all(br#"{"id":"fixture","version":"1"}"#).unwrap();
+        archive.start_file("assets/fixture/large.bin", options).unwrap();
+        archive.write_all(&vec![b'x'; 8 * 1024 * 1024]).unwrap();
+        let mut bytes = archive.finish().unwrap().into_inner();
+        let payload = bytes.windows(64).position(|window| window.iter().all(|byte| *byte == b'x')).unwrap();
+        bytes[payload + 32] = b'y';
+        let read = std::rc::Rc::new(std::cell::Cell::new(0));
+        let reader = Meter { inner: std::io::Cursor::new(bytes.clone()), bytes: read.clone() };
+        let (audit, ids, _) = super::inspect_archive_from_reader("mods", std::path::Path::new("fixture.jar"), false, None, reader).unwrap();
+        assert!(audit.errors.is_empty());
+        assert!(ids.contains_key("fixture"));
+        assert!(read.get() < 128 * 1024, "Metadata read {} bytes", read.get());
+        let reader = Meter { inner: std::io::Cursor::new(bytes), bytes: read.clone() };
+        let (audit, _, _) = super::inspect_archive_from_reader("mods", std::path::Path::new("fixture.jar"), true, None, reader).unwrap();
+        assert!(audit.errors.iter().any(|error| error.contains("CRC")));
+        assert!(read.get() >= 8 * 1024 * 1024);
+    }
+
+    #[test]
+    fn sparse_reader_rejects_modification_and_cancellation() {
+        use std::io::Read;
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("fixture.jar");
+        mod_jar(&path, "fixture");
+        let cancel = std::sync::atomic::AtomicBool::new(false);
+        let mut reader = super::archive_reader(&path, Some(&cancel)).unwrap();
+        assert!(reader.unchanged().is_ok());
+        std::fs::OpenOptions::new().write(true).open(&path).unwrap().set_len(2048).unwrap();
+        assert!(reader.unchanged().is_err());
+        cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+        assert!(reader.read(&mut [0; 10]).is_err());
+        assert!(reader.unchanged().is_err());
+    }
+
     #[test]
     #[ignore]
     fn benchmark_installed_archives_without_modifying_them() {

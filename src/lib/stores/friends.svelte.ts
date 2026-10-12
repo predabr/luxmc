@@ -29,7 +29,7 @@ let profileLoading = false;
 
 function withProfile(friend: Friend): Friend {
     const profile = profileCache.get(friend.id)?.profile;
-    return profile && friend.status !== 'pending' ? { ...friend, displayName: profile.displayName, avatarUrl: profile.portrait || friend.avatarUrl, role: friend.role ?? profile.role, tags: friend.tags ?? profile.tags, profileStatus: profile.status } : friend;
+    return profile && friend.status !== 'pending' ? { ...friend, displayName: profile.displayName, avatarUrl: profile.portrait || friend.avatarUrl, role: friend.role ?? profile.role, tags: friend.tags ?? profile.tags, profileStatus: profile.status, profileStyle: friend.profileStyle ?? profile.profileStyle } : friend;
 }
 
 async function loadFriendProfiles() {
@@ -104,7 +104,7 @@ async function refreshNow(run: number) {
 		if (run !== generation) return;
         applyFriends(result.friends);
         me = result.me;
-        if (ownProfile) ownProfile = {...ownProfile,role:result.me.role ?? ownProfile.role,tags:result.me.tags ?? ownProfile.tags};
+        if (ownProfile) ownProfile = {...ownProfile,profileStyle:result.me.profileStyle ?? ownProfile.profileStyle,membership:result.me.membership ?? ownProfile.membership,role:result.me.role ?? ownProfile.role,tags:result.me.tags ?? ownProfile.tags};
 		error = "";
 	} catch (cause) {
 		if (run !== generation) return;
@@ -169,7 +169,7 @@ export const friendsState = {
                     if (event.snapshot) {
                         applyFriends(event.snapshot.friends);
                         me = event.snapshot.me;
-                        if (ownProfile) ownProfile = { ...ownProfile, role: me.role ?? ownProfile.role, tags: me.tags ?? ownProfile.tags };
+                        if (ownProfile) ownProfile = { ...ownProfile, profileStyle:me.profileStyle ?? ownProfile.profileStyle,membership:me.membership ?? ownProfile.membership,role: me.role ?? ownProfile.role, tags: me.tags ?? ownProfile.tags };
                         error = "";
                     } else if (event.error) error = event.error;
                 });

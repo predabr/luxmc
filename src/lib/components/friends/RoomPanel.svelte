@@ -11,6 +11,7 @@
     import { button } from '$lib/components/ui/button';
     import AccountBadges from '$lib/components/ui/AccountBadges.svelte';
     import RoomAvatar from './RoomAvatar.svelte';
+    import type { ProfileStyle } from '$lib/utils/profileStyle';
     let status = $state<TunnelStatus | null>(null);
     let invitation = $state('');
     let busy = $state(false);
@@ -23,11 +24,11 @@
     const duration = $derived(settings.value.animations === false || settings.value.performanceMode || (settings.value.respectReducedMotion !== false && typeof window !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches) ? 0 : 260);
     const worlds = $derived(status?.worlds ?? []);
     $effect(() => { if (deepLinks.lan) { invitation = deepLinks.lan; deepLinks.lan = null; } });
-    function visible(member: TunnelMember): TunnelMember & {role?:'owner'|'member';tags?:string[]} {
+    function visible(member: TunnelMember): TunnelMember & {profileStyle?:ProfileStyle;role?:'owner'|'member';tags?:string[]} {
         const friend = friendsState.list.find(friend => friend.username === member.username || friend.displayName === member.username);
         const own = friendsState.ownProfile;
         const self = own && (own.username === member.username || own.displayName === member.username);
-        return { ...member, role:self ? own.role : friend?.role, tags:self ? own.tags : friend?.tags, displayName: self ? own.displayName || member.username : friend?.displayName || member.displayName || member.username, avatarUrl: self ? own.portrait || member.avatarUrl : friend?.avatarUrl || member.avatarUrl };
+        return { ...member, profileStyle:self ? own.profileStyle : friend?.profileStyle, role:self ? own.role : friend?.role, tags:self ? own.tags : friend?.tags, displayName: self ? own.displayName || member.username : friend?.displayName || member.displayName || member.username, avatarUrl: self ? own.portrait || member.avatarUrl : friend?.avatarUrl || member.avatarUrl };
     }
     onMount(() => {
         friendsNavigation.tab = 'p2p';

@@ -17,6 +17,8 @@ function fixture() {
   sqlite.exec(readFileSync(new URL("../website/migrations/0010_pack_collections.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0011_owner_tags.sql", import.meta.url), "utf8"));
   sqlite.exec(readFileSync(new URL("../website/migrations/0012_removed_profiles.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0013_memberships.sql", import.meta.url), "utf8"));
+  sqlite.exec(readFileSync(new URL("../website/migrations/0016_profile_style.sql", import.meta.url), "utf8"));
   const db = { async batch(statements) { sqlite.exec("BEGIN"); try { const results=[]; for(const statement of statements)results.push(await statement.run()); sqlite.exec("COMMIT"); return results; } catch(error) { sqlite.exec("ROLLBACK"); throw error; } }, prepare(sql) {
     const statement = sqlite.prepare(sql);
     return { bind(...values) {

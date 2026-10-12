@@ -274,6 +274,12 @@ function friendRow(friend, search = false) {
   avatar.alt = "";
   const label = document.createElement("div");
   label.textContent = friend.username;
+  if (friend.membership?.plan === "plus" || friend.membership?.plan === "pro") {
+    const badge = document.createElement("small");
+    badge.textContent = `Luxmc ${friend.membership.plan === "pro" ? "Pro" : "Plus"}`;
+    badge.style.color = "rgb(var(--brand-400))";
+    label.append(badge);
+  }
   const status = document.createElement("small");
   status.textContent = search ? `#${friend.id.slice(0, 8)}` : friend.status === "pending" ? friend.incoming ? "Convite recebido" : "Convite enviado" : friend.status === "in_game" ? `Jogando ${friend.activity || "Minecraft"}` : friend.status === "online" ? "Online" : "Offline";
   label.append(status);

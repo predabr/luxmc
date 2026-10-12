@@ -1,6 +1,6 @@
 # Code signing policy — Luxmc
 
-Status: the SignPath Foundation application was submitted on October 11, 2026, and the form confirmed receipt. Provider review is pending. No Foundation certificate has been approved or issued for Luxmc, and the current published Windows installers are not Authenticode-signed. This page does not declare eligibility or approval.
+Status: the maintainer supplied SignPath Foundation's rejection email. The project currently lacks the public adoption and independent references required by that program. No Foundation certificate has been approved or issued for Luxmc. Windows releases remain without Authenticode signing until a trusted provider is configured and all components are verified. The release's Ed25519 signatures do not establish Windows publisher trust.
 
 ## Intended signing provider
 
@@ -20,7 +20,7 @@ The source repository is [predabr/luxmc](https://github.com/predabr/luxmc). Buil
 
 The intended Windows scope includes the main executable, Luxmc recovery helper, uninstaller and final NSIS installer. Bundled third-party binaries and installer plugins must be reviewed with the provider and tested under Smart App Control; they cannot simply be signed as original Luxmc code. The helper's integrity binding must be validated after Authenticode signing, since signing changes executable bytes.
 
-Publication must require successful signature verification, timestamp verification, installer lifecycle checks and signed SHA-256 release manifests. A missing or failed production signature must not be silently represented as a signed release. Provider credentials, artifact configurations and production policy approval remain pending.
+Releases advertised as Authenticode-signed must require successful publisher signature verification, timestamp verification, installer lifecycle checks and signed SHA-256 release manifests. Current unsigned releases must disclose that status and possible Windows policy blocks. A missing or failed production signature must not be silently represented as a signed release. Provider credentials, artifact configurations and production policy approval remain pending.
 
 ## Privacy
 

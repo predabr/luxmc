@@ -3,7 +3,7 @@ const COOKIE = "__Host-luxmc";
 const hex = (bytes) => Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
 const randomToken = () => hex(crypto.getRandomValues(new Uint8Array(32)));
 const digest = async (value) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
-const json = (value, status = 200, extra = {}) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", ...extra } });
+const json = (value, status = 200, extra = {}) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", "Pragma": "no-cache", "X-Content-Type-Options": "nosniff", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'", "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex, nofollow", ...extra } });
 const publicAccount = (row) => ({ id: row.id, username: row.username, socialId: row.social_id, preferences: JSON.parse(row.preferences), revision: row.revision });
 const validNickname = (value) => typeof value === "string" && /^[A-Za-z0-9_]{3,16}$/.test(value);
 const validPassword = (value) => typeof value === "string" && value.length >= 8 && value.length <= 128;

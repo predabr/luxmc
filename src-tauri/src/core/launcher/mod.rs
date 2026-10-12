@@ -451,17 +451,25 @@ impl GameLauncher {
         }
         self.emit_log(&format!("Java major version required: {} (loader: {})", major, loader));
 
-        let java_path = if let Some(custom_path) = profile.java_path.as_deref().filter(|p| !p.trim().is_empty()) {
-            let p = PathBuf::from(custom_path);
-            if p.exists() {
-                self.emit_log(&format!("Using custom Java binary from profile: {}", p.display()));
-                p
-            } else {
-                self.java.ensure_java(major).await?
+        let runtime = self.java.resolve_java(major, profile.java_path.as_deref());
+        let loader_preparation = async {
+            if !matches!(loader.as_str(), "fabric" | "quilt" | "neoforge" | "forge") {
+                return Ok(None);
             }
-        } else {
-            self.java.ensure_java(major).await?
+            if loader == "fabric" {
+                let _ = crate::core::loaders::fabric::ensure_fabric_api(
+                    self.downloader.http(), &game_dir.join("mods"), clean_ver,
+                ).await;
+            }
+            self.emit_log(&format!("Resolving {} loader for Minecraft {}...", loader, clean_ver));
+            crate::core::loaders::prepare_loader(
+                self.downloader.http(), &self.downloader.libraries_dir(),
+                &loader, clean_ver, loader_version.as_deref(),
+            ).await.map(Some).map_err(|error| crate::error::AppError::InvalidState(format!(
+                "Falha ao preparar o loader {}: {}. Verifique se a versão do Minecraft e do loader são compatíveis.", loader, error
+            )))
         };
+        let (java_path, prepared_loader) = tokio::try_join!(runtime, loader_preparation)?;
         self.emit_log(&format!("Java binary: {}", java_path.display()));
 
         self.emit_stage(LaunchStage::ResolvingClasspath);
@@ -478,39 +486,14 @@ impl GameLauncher {
 
         let clean_mc_ver = profile.clean_mc_version();
         if loader == "fabric" || loader == "quilt" || loader == "neoforge" || loader == "forge" {
-            if loader == "fabric" {
-                let mods_dir = game_dir.join("mods");
-                let _ = crate::core::loaders::fabric::ensure_fabric_api(
-                    self.downloader.http(),
-                    &mods_dir,
-                    clean_mc_ver,
-                ).await;
-            }
-
-            self.emit_log(&format!("Resolving {} loader for Minecraft {}...", loader, clean_mc_ver));
-            match crate::core::loaders::prepare_loader(
-                self.downloader.http(),
-                &self.downloader.libraries_dir(),
-                &loader,
-                clean_mc_ver,
-                loader_version.as_deref(),
-            ).await {
-                Ok(prep) => {
-                    self.emit_log(&format!("{} loader ready: mainClass = {}", loader, prep.main_class));
-                    main_class = prep.main_class;
-                    let mut new_cp = prep.classpath_entries;
-                    new_cp.extend(classpath);
-                    classpath = new_cp;
-                    extra_jvm_args.extend(prep.jvm_args);
-                    extra_game_args.extend(prep.game_args);
-                }
-                Err(e) => {
-                    self.emit_log(&format!("ERROR: Failed to prepare {} loader: {}. Cannot launch with mods.", loader, e));
-                    return Err(crate::error::AppError::InvalidState(format!(
-                        "Falha ao preparar o loader {}: {}. Verifique se a versao do Minecraft e do loader sao compativeis.",
-                        loader, e
-                    )));
-                }
+            if let Some(prep) = prepared_loader {
+                self.emit_log(&format!("{} loader ready: mainClass = {}", loader, prep.main_class));
+                main_class = prep.main_class;
+                let mut new_cp = prep.classpath_entries;
+                new_cp.extend(classpath);
+                classpath = new_cp;
+                extra_jvm_args.extend(prep.jvm_args);
+                extra_game_args.extend(prep.game_args);
             }
 
             if loader == "neoforge" || loader == "forge" {
@@ -658,6 +641,10 @@ impl GameLauncher {
         }
 
 
+        crate::commands::launch::scan_before_launch(game_dir, &self.app).await?;
+        let verified_profile = profile.clone();
+        tokio::task::spawn_blocking(move || crate::core::launcher::launch_state::store(&verified_profile))
+            .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
         self.emit_stage(LaunchStage::ResolvingArgs);
         let mut jvm_args = self.build_jvm_args(detail, &classpath, &natives_dir, game_dir, profile);
         jvm_args.extend(extra_jvm_args);
@@ -1142,8 +1129,7 @@ impl GameLauncher {
         self.emit_log(&format!("Java process started, PID: {}", pid));
         self.emit_stage(LaunchStage::Running);
 
-        // Ghost mode: immediately release unused launcher memory
-        crate::commands::optimizer::optimizer_trim_memory();
+        if !cfg!(windows) { crate::commands::optimizer::optimizer_trim_memory(); }
 
         if pid > 0 && profile.use_gamemode {
             tokio::spawn(async move {

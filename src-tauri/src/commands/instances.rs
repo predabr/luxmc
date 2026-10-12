@@ -901,20 +901,19 @@ pub(crate) async fn download_cf_mod_file(
         if let Ok(bytes) = tokio::fs::read(root.join(".luxmc/overrides.json")).await {
             if let Ok(overrides) = serde_json::from_slice::<Vec<MrpackFile>>(&bytes) {
                 if let Some(file) = overrides.iter().find(|file| file.path == format!("mods/{}", info.file_name)) {
-                    ensure_mrpack_file(&pack::client()?, root, file, None).await?;
+                    ensure_mrpack_file(&pack::client()?, root, file, cancel).await?;
                     pack::atomic_write(&metadata_path, &serde_json::to_vec(&info)?).await?;
                     return Ok(());
                 }
             }
         }
         for existing in [&path, &disabled] {
-            if info.sha1.is_some() && pack::verify_existing(existing, info.size, info.sha1.as_deref(), None, true).await { return Ok(()); }
+            if info.sha1.is_some() && pack::await_cancellable(pack::verify_existing(existing, info.size, info.sha1.as_deref(), None, true), cancel).await? { return Ok(()); }
         }
-        let valid = |bytes: &[u8]| pack::verify(bytes, info.size, info.sha1.as_deref(), None)
-            && zip::ZipArchive::new(std::io::Cursor::new(bytes)).is_ok();
         for existing in [&path, &disabled] {
             if let Ok(bytes) = tokio::fs::read(existing).await {
-                if valid(&bytes) {
+                if let Some(bytes) = pack::await_cancellable(pack::verified_jar_bytes(bytes, info.size, info.sha1.as_deref()), cancel).await? {
+                    pack::cancelled(cancel)?;
                     let mut persisted = info.clone();
                     persisted.sha1 = info.sha1.clone().or_else(|| Some(format!("{:x}", sha1::Sha1::digest(&bytes))));
                     persisted.size = Some(bytes.len() as u64);
@@ -925,8 +924,8 @@ pub(crate) async fn download_cf_mod_file(
         }
         let shared_cache = pack::content_cache_root();
         if let Some(cache) = shared_cache.as_ref() {
-            if let Some(bytes) = pack::cached_content(cache, info.size, info.sha1.as_deref(), None).await {
-                if valid(&bytes) {
+            if let Some(bytes) = pack::await_cancellable(pack::cached_content(cache, info.size, info.sha1.as_deref(), None), cancel).await? {
+                if zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_ok() {
                     pack::cancelled(cancel)?;
                     let target = if disabled.exists() { &disabled } else { &path };
                     pack::atomic_write(target, &bytes).await?;
@@ -989,7 +988,8 @@ pub(crate) async fn download_cf_mod_file(
             for url in &urls {
                 pack::cancelled(cancel)?;
                 let Ok(bytes) = pack::bytes(&client, url, cancel).await else { continue };
-                if !valid(&bytes) { continue; }
+                let Some(bytes) = pack::await_cancellable(pack::verified_jar_bytes(bytes, info.size, info.sha1.as_deref()), cancel).await? else { continue };
+                pack::cancelled(cancel)?;
                 let target = if disabled.exists() { &disabled } else { &path };
                 pack::atomic_write(target, &bytes).await?;
                 let storage = pack::destination(storage_mods_dir, &info.file_name)?;
@@ -1326,7 +1326,7 @@ pub async fn instance_import_modpack_core(
     });
 
     files_stream.buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(24)).for_each(|_| async {}).await;
-    crate::commands::optimizer::optimizer_trim_memory();
+    if !cfg!(windows) { crate::commands::optimizer::optimizer_trim_memory(); }
 
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     if mods_fail.load(std::sync::atomic::Ordering::SeqCst) > 0 {
@@ -1739,19 +1739,22 @@ async fn ensure_mrpack_file(
     if sha1.is_none() && sha512.is_none() {
         return Err(crate::error::AppError::InvalidInput(format!("Hash ausente: {}", file.path)));
     }
-    let valid = |bytes: &[u8]| pack::verify(bytes, file.file_size, sha1, sha512);
     let disabled = pack::destination(root, &format!("{}.disabled", file.path))?;
     for existing in [&path, &disabled] {
-        if pack::verify_existing(existing, file.file_size, sha1, sha512, false).await { return Ok(()); }
+        if pack::await_cancellable(pack::verify_existing(existing, file.file_size, sha1, sha512, false), cancel).await? { return Ok(()); }
     }
     let target = if disabled.exists() { &disabled } else { &path };
     let cache = pack::destination(&root.join(".luxmc/overrides"), &file.path)?;
     if let Ok(bytes) = tokio::fs::read(cache).await {
-        if valid(&bytes) { pack::atomic_write(target, &bytes).await?; return Ok(()); }
+        if let Some(bytes) = pack::await_cancellable(pack::verified_bytes(bytes, file.file_size, sha1, sha512), cancel).await? {
+            pack::cancelled(cancel)?;
+            pack::atomic_write(target, &bytes).await?;
+            return Ok(());
+        }
     }
     let shared_cache = pack::content_cache_root();
     if let Some(cache) = shared_cache.as_ref() {
-        if let Some(bytes) = pack::cached_content(cache, file.file_size, sha1, sha512).await {
+        if let Some(bytes) = pack::await_cancellable(pack::cached_content(cache, file.file_size, sha1, sha512), cancel).await? {
             pack::cancelled(cancel)?;
             pack::atomic_write(target, &bytes).await?;
             tracing::debug!(file = %file.path, bytes = bytes.len(), "Pack file reused from verified cache");
@@ -1763,7 +1766,7 @@ async fn ensure_mrpack_file(
         pack::backoff(attempt, cancel).await?;
         for url in &file.downloads {
             let Ok(bytes) = pack::bytes(http, url, cancel).await else { continue };
-            if valid(&bytes) {
+            if let Some(bytes) = pack::await_cancellable(pack::verified_bytes(bytes, file.file_size, sha1, sha512), cancel).await? {
                 pack::cancelled(cancel)?;
                 pack::atomic_write(target, &bytes).await?;
                 if let Some(cache) = shared_cache.as_ref() { pack::cache_verified_content(cache, &bytes, sha1, sha512).await; }

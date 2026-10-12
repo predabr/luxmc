@@ -8,6 +8,29 @@ use tokio::io::AsyncWriteExt;
 
 use crate::error::{AppError, AppResult};
 
+async fn verification_permit() -> Option<tokio::sync::OwnedSemaphorePermit> {
+    static WORKERS: std::sync::LazyLock<std::sync::Arc<tokio::sync::Semaphore>> = std::sync::LazyLock::new(|| {
+        let count = std::thread::available_parallelism().map_or(1, |count| count.get()).min(4);
+        std::sync::Arc::new(tokio::sync::Semaphore::new(count))
+    });
+    WORKERS.clone().acquire_owned().await.ok()
+}
+
+pub async fn await_cancellable<T>(future: impl std::future::Future<Output = T>, cancel: Option<&AtomicBool>) -> AppResult<T> {
+    cancelled(cancel)?;
+    if cancel.is_none() { return Ok(future.await); }
+    let monitor = async {
+        loop {
+            if cancelled(cancel).is_err() { break; }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::select! {
+        result = future => { cancelled(cancel)?; Ok(result) },
+        _ = monitor => { cancelled(cancel)?; Err(AppError::InvalidState("Importação cancelada".into())) },
+    }
+}
+
 pub fn copy_cancellable<R: std::io::Read, W: std::io::Write>(source: &mut R, target: &mut W, cancel: Option<&AtomicBool>) -> AppResult<u64> {
     let mut bytes = [0u8; 65536];
     let mut total = 0;
@@ -227,10 +250,12 @@ pub async fn verify_existing(path: &Path, size: Option<u64>, sha1: Option<&str>,
 }
 
 pub async fn verify_existing_cancellable(path: &Path, size: Option<u64>, sha1: Option<&str>, sha512: Option<&str>, archive: bool, cancel: Option<std::sync::Arc<AtomicBool>>) -> bool {
+    let Ok(Some(permit)) = await_cancellable(verification_permit(), cancel.as_deref()).await else { return false; };
     let path = path.to_path_buf();
     let sha1 = sha1.map(str::to_owned);
     let sha512 = sha512.map(str::to_owned);
     tokio::task::spawn_blocking(move || {
+        let _permit = permit;
         use std::io::Read;
         use std::sync::{LazyLock, Mutex};
         static VERIFIED: LazyLock<Mutex<std::collections::HashSet<String>>> = LazyLock::new(|| Mutex::new(std::collections::HashSet::new()));
@@ -283,6 +308,25 @@ pub fn verify(bytes: &[u8], size: Option<u64>, sha1: Option<&str>, sha512: Optio
         && sha512.is_none_or(|hash| format!("{:x}", sha2::Sha512::digest(bytes)).eq_ignore_ascii_case(hash))
 }
 
+pub async fn verified_bytes(bytes: Vec<u8>, size: Option<u64>, sha1: Option<&str>, sha512: Option<&str>) -> Option<Vec<u8>> {
+    verify_owned(bytes, size, sha1, sha512, false).await
+}
+
+pub async fn verified_jar_bytes(bytes: Vec<u8>, size: Option<u64>, sha1: Option<&str>) -> Option<Vec<u8>> {
+    verify_owned(bytes, size, sha1, None, true).await
+}
+
+async fn verify_owned(bytes: Vec<u8>, size: Option<u64>, sha1: Option<&str>, sha512: Option<&str>, archive: bool) -> Option<Vec<u8>> {
+    let permit = verification_permit().await?;
+    let sha1 = sha1.map(str::to_owned);
+    let sha512 = sha512.map(str::to_owned);
+    tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        (verify(&bytes, size, sha1.as_deref(), sha512.as_deref())
+            && (!archive || zip::ZipArchive::new(std::io::Cursor::new(&bytes)).is_ok())).then_some(bytes)
+    }).await.ok().flatten()
+}
+
 pub fn content_cache_root() -> Option<PathBuf> {
     directories::ProjectDirs::from("io", "github", "Luxmc")
         .map(|dirs| dirs.data_dir().join("cache").join("pack-files"))
@@ -299,9 +343,7 @@ pub async fn cached_content(root: &Path, size: Option<u64>, sha1: Option<&str>, 
     let path = content_cache_path(root, sha1, sha512)?;
     if tokio::fs::metadata(&path).await.ok()?.len() > 64 * 1024 * 1024 { return None; }
     let bytes = tokio::fs::read(&path).await.ok()?;
-    let first = sha1.map(str::to_owned);
-    let second = sha512.map(str::to_owned);
-    tokio::task::spawn_blocking(move || if verify(&bytes,size,first.as_deref(),second.as_deref()) {Some(bytes)} else {None}).await.ok().flatten()
+    verified_bytes(bytes, size, sha1, sha512).await
 }
 
 pub async fn cache_verified_content(root: &Path, bytes: &[u8], sha1: Option<&str>, sha512: Option<&str>) {
@@ -331,6 +373,30 @@ pub async fn atomic_write(path: &Path, bytes: &[u8]) -> AppResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn worker_verification_rejects_invalid_size_and_each_hash() {
+        let bytes = vec![7; 1024 * 1024];
+        let first = format!("{:x}", sha1::Sha1::digest(&bytes));
+        let second = format!("{:x}", sha2::Sha512::digest(&bytes));
+        assert_eq!(verified_bytes(bytes.clone(), Some(bytes.len() as u64), Some(&first), Some(&second)).await.unwrap(), bytes);
+        assert!(verified_bytes(bytes.clone(), Some(1), Some(&first), Some(&second)).await.is_none());
+        assert!(verified_bytes(bytes.clone(), None, Some(&"0".repeat(40)), Some(&second)).await.is_none());
+        assert!(verified_bytes(bytes, None, Some(&first), Some(&"0".repeat(128))).await.is_none());
+        assert!(verified_jar_bytes(b"not a jar".to_vec(), None, None).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn cancellation_interrupts_waiting_for_a_verification_worker() {
+        let cancel = AtomicBool::new(false);
+        let waiting = await_cancellable(std::future::pending::<()>(), Some(&cancel));
+        let stop = async {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+            cancel.store(true, Ordering::SeqCst);
+        };
+        let (result, _) = tokio::time::timeout(Duration::from_secs(1), async { tokio::join!(waiting, stop) }).await.unwrap();
+        assert!(result.is_err());
+    }
 
     #[tokio::test]
     async fn verified_cache_reuses_download_and_rejects_corruption() {

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer"><title>Luxmc — Central do dono</title><link rel="icon" href="/assets/favicon.png"><link rel="stylesheet" href="/design.css"><link rel="stylesheet" href="/commerce.css">
+</head>
+<body data-commerce="owner">
+<a class="skip-link" href="#main">Ir para o conteúdo</a>
+<header class="commerce-nav owner-nav"><a href="/" class="commerce-brand"><img src="/assets/favicon.png" width="34" height="34" alt="">LUXMC <span>/ CENTRAL DO DONO</span></a><nav aria-label="Conta"><a href="/planos">Meus planos</a><button id="logout" type="button" class="commerce-button secondary">Sair</button></nav></header>
+<main id="main" class="commerce-shell owner-shell">
+<section id="identity" class="commerce-panel owner-login"><p class="eyebrow">SÓ VOCÊ TEM ACESSO</p><h1>Bem-vindo à sua central.</h1><p>Verificando seu acesso…</p></section>
+<div id="owner-view" class="owner-layout" hidden>
+<aside class="owner-sidebar"><div class="sidebar-title"><span class="owner-mark">L</span><div><strong>Sua central</strong><span>Luxmc / gestão</span></div></div>
+<nav class="owner-tabs" aria-label="Áreas da central">
+<button type="button" data-owner-tab="orders" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16v16H4zM4 12h5l2 3h2l2-3h5"/></svg><span>Pedidos</span><span id="pending-count" class="nav-count">0</span></button>
+<button type="button" data-owner-tab="plans"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></svg><span>Planos</span></button>
+<button type="button" data-owner-tab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-7M3 3v6h6m3-2v5l3 2"/></svg><span>Histórico</span></button>
+<button type="button" data-owner-tab="security"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Zm-4 9 3 3 5-6"/></svg><span>Segurança</span></button>
+</nav><section id="owner-account" class="owner-identity" hidden></section><p class="sidebar-note">Acesso exclusivo do dono.<br>Decisões registradas no histórico.</p></aside>
+<div class="owner-workspace"><header class="owner-heading"><div><p class="eyebrow">CENTRAL DO DONO</p><h1 id="section-title">Pedidos</h1><p id="section-description">Confira os comprovantes e libere os planos em um só lugar.</p></div><span id="session-status" class="owner-session">Sessão protegida</span></header>
+<div id="message" role="status" aria-live="polite"></div>
+<section data-owner-panel="orders"><div id="stats" class="stats-grid"></div><section class="commerce-panel"><div class="section-heading"><div><h2>Seus pedidos</h2><p>O crédito no banco confirma o pagamento.</p></div><div class="toolbar"><label>Mostrar <select id="filter"><option value="pending">Esperando verificação</option><option value="awaiting_receipt">Sem comprovante</option><option value="approved">Aprovados</option><option value="rejected">Rejeitados</option><option value="cancelled">Cancelados</option><option value="all">Todos</option></select></label><button id="refresh" type="button" class="commerce-button secondary">Atualizar</button></div></div><div id="order-list"></div><div id="queue-pagination" class="toolbar pagination"><button id="previous" type="button" class="commerce-button secondary">Anterior</button><span id="pagination"></span><button id="next" type="button" class="commerce-button secondary">Próxima</button></div></section></section>
+<section data-owner-panel="plans" hidden><section id="manual-grant" class="commerce-panel"></section></section>
+<section data-owner-panel="history" hidden><section class="commerce-panel"><div class="section-heading"><div><h2>Histórico de decisões</h2><p>Planos, pedidos e alterações de acesso.</p></div></div><div id="audit"></div></section></section>
+<section data-owner-panel="security" hidden><section id="owner-security" class="commerce-panel"></section><details class="commerce-panel owner-details"><summary>Recebimento por Pix <span>Banco, chave e novos pedidos</span></summary><section id="owner-settings"></section></details></section>
+</div></div>
+<div id="login-message" role="status" aria-live="polite"></div>
+</main>
+<dialog id="owner-unlock" class="owner-dialog"><form id="unlock-form"><p class="eyebrow">CONFIRMAÇÃO DE ACESSO</p><h2>Só mais uma confirmação.</h2><p>Confirme sua senha para acessar dados privados ou alterar planos. Se ativou duas etapas, informe também o código.</p><label>Senha do painel<input id="unlock-password" type="password" autocomplete="current-password" minlength="14" maxlength="128" required></label><label>Código do autenticador ou de recuperação<input id="unlock-otp" type="text" autocomplete="one-time-code" maxlength="40"></label><p id="unlock-error" role="alert"></p><div class="toolbar"><button id="unlock-cancel" type="button" class="commerce-button secondary">Cancelar</button><button id="unlock-submit" type="submit" class="commerce-button">Confirmar acesso</button></div></form></dialog>
+<footer class="commerce-footer owner-footer"><span>Luxmc · Sua comunidade, no seu controle.</span><span>Comprovantes privados · Conexão segura</span></footer><script type="module" src="/commerce.js"></script>
+</body></html>

@@ -159,10 +159,12 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
     paths.sort();
     if !paths.is_empty() {
         let workers = std::thread::available_parallelism().map_or(1, |count| count.get()).min(4).min(paths.len());
-        let chunk_size = paths.len().div_ceil(workers);
+        let next = std::sync::atomic::AtomicUsize::new(0);
         std::thread::scope(|scope| {
-            let handles = paths.chunks(chunk_size).map(|chunk| scope.spawn(move || {
-                chunk.iter().flat_map(|path| match scan_file(path) {
+            let handles = (0..workers).map(|_| scope.spawn(|| {
+                let mut findings = Vec::new();
+                while let Some(path) = paths.get(next.fetch_add(1, std::sync::atomic::Ordering::Relaxed)) {
+                    findings.extend(match scan_file(path) {
                     Ok(findings) => {
                         if !findings.is_empty() { cache_update(path, None); }
                         findings.into_iter().map(|(severity, kind, description)| threat(path, severity, kind, description.into())).collect::<Vec<_>>()
@@ -171,7 +173,9 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
                         cache_update(path, None);
                         vec![threat(path, "critical", "Verificação incompleta", error)]
                     }
-                }).collect::<Vec<_>>()
+                    });
+                }
+                findings
             })).collect::<Vec<_>>();
             for handle in handles {
                 match handle.join() {
@@ -181,6 +185,7 @@ pub fn scan_mods_directory(mods_dir: &Path) -> ShieldScanResult {
             }
         });
     }
+    threats.sort_by(|first, second| first.file_path.cmp(&second.file_path).then_with(|| first.threat_type.cmp(&second.threat_type)));
     ShieldScanResult { total_scanned: paths.len(), is_clean: threats.is_empty(), threats, scan_time_ms: start.elapsed().as_millis() as u64 }
 }
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+import { membershipState, appearanceSnapshot } from "$lib/stores/membership.svelte";
 import { APP_VERSION } from "$lib/version";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
@@ -44,18 +45,23 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	$effect(() => {
         const id = socialAccountId;
         untrack(() => {
-            friendsState.disconnect(); cloudAccount.disconnect();
+            friendsState.disconnect(); cloudAccount.disconnect(); membershipState.disconnect();
             if (id?.startsWith("luxmc:")) cloudAccount.connect(id);
-            if (id) void friendsState.connect();
+            if (id) { void friendsState.connect(); membershipState.connect(id); }
         });
-        return () => { cloudAccount.disconnect(); friendsState.disconnect(); };
+        return () => { cloudAccount.disconnect(); friendsState.disconnect(); membershipState.disconnect(); };
     });
     $effect(() => {
         const ready = cloudAccount.ready;
         const { theme, accentTheme, language, animations } = settings.value;
         if (ready) untrack(() => cloudAccount.schedule({ theme, accentTheme, language, animations }));
     });
-	import { profiles } from "$lib/stores/profiles.svelte";
+	$effect(() => {
+        const ready = membershipState.ready;
+        const preferences = appearanceSnapshot();
+        if (ready) untrack(() => membershipState.schedule(preferences));
+    });
+    import { profiles } from "$lib/stores/profiles.svelte";
 	import { appState } from "$lib/stores/app.svelte";
     $effect(() => {
         appState.isGameRunning;

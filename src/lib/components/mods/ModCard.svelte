@@ -47,7 +47,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </script>
 
 <div
-    use:catalogReveal
+    use:catalogReveal={`${item.source}:${item.sourceId}`}
 	role="button"
 	tabindex="0"
 	onclick={() => onOpenDetails(item)}

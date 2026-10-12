@@ -56,6 +56,7 @@ struct ComponentDownload {
     size: Option<u64>,
 }
 
+#[derive(Clone)]
 pub struct JavaRuntimeManager {
     http: reqwest::Client,
     data_dir: PathBuf,
@@ -124,12 +125,32 @@ impl JavaRuntimeManager {
         verified_java(path, expected_major)
     }
 
+    async fn verify_runtime(&self, path: &std::path::Path, expected_major: u32) -> bool {
+        let path = path.to_owned();
+        tokio::task::spawn_blocking(move || verified_java(&path, expected_major)).await.unwrap_or(false)
+    }
+
+    pub async fn resolve_java(&self, major: u32, custom: Option<&str>) -> AppResult<PathBuf> {
+        if let Some(custom) = custom.filter(|path| !path.trim().is_empty()) {
+            let path = PathBuf::from(custom.trim());
+            let probe = if cfg!(windows) && path.file_name().is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case("javaw.exe")) {
+                path.with_file_name("java.exe")
+            } else { path.clone() };
+            if self.verify_runtime(&probe, major).await {
+                self.emit_log(&format!("Usando Java {major} personalizado: {}", path.display()));
+                return Ok(path);
+            }
+            self.emit_log(&format!("O Java personalizado não executa como Java {major}; preparando o runtime compatível automaticamente."));
+        }
+        self.ensure_java(major).await
+    }
+
     pub async fn ensure_java(&self, major_version: u32) -> AppResult<PathBuf> {
         static LOCKS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<u32, std::sync::Arc<tokio::sync::Mutex<()>>>>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
         let lock = LOCKS.lock().map_err(|_| AppError::Internal("Runtime Java ocupado".into()))?.entry(major_version).or_default().clone();
         let _guard = lock.lock().await;
         let bin = self.java_bin(major_version);
-        if bin.exists() && self.verify_binary(&bin, major_version) {
+        if bin.exists() && self.verify_runtime(&bin, major_version).await {
             self.emit_log(&format!(
                 "Java {} found at {}",
                 major_version,
@@ -138,7 +159,10 @@ impl JavaRuntimeManager {
             return Ok(bin);
         }
 
-        match self.find_system_java(major_version) {
+        let system = self.clone();
+        let found = tokio::task::spawn_blocking(move || system.find_system_java(major_version))
+            .await.map_err(|error| AppError::Internal(error.to_string()))?;
+        match found {
             Ok(path) => {
                 self.emit_log(&format!("Using system Java: {}", path.display()));
                 Ok(path)
@@ -156,7 +180,7 @@ impl JavaRuntimeManager {
                 }
 
                 let bin = self.java_bin(major_version);
-                if bin.exists() && self.verify_binary(&bin, major_version) {
+                if bin.exists() && self.verify_runtime(&bin, major_version).await {
                     Ok(bin)
                 } else {
                     let hint = if cfg!(windows) {
@@ -402,7 +426,7 @@ impl JavaRuntimeManager {
             Ok::<(), AppError>(())
         }})).buffer_unordered(crate::core::downloader::max_concurrent_downloads().min(12)).try_collect::<Vec<_>>().await?;
 
-        if !self.verify_binary(&self.java_bin(major_version), major_version) { return Err(AppError::Internal("Java baixado não executa corretamente neste sistema".into())); }
+        if !self.verify_runtime(&self.java_bin(major_version), major_version).await { return Err(AppError::Internal("Java baixado não executa corretamente neste sistema".into())); }
 
         let _ = tokio::fs::write(java_dir.join(".installed"), b"ok").await;
         self.emit_log(&format!("Java {} runtime download complete", major_version));
@@ -442,7 +466,7 @@ impl JavaRuntimeManager {
             }
             Ok(())
         }).await.map_err(|error| AppError::Internal(error.to_string()))??;
-        if !self.verify_binary(&self.java_bin(major), major) { return Err(AppError::Internal("O runtime foi verificado, mas o Windows não conseguiu executá-lo. Confira componentes removidos do Windows e a quarentena do antivírus.".into())); }
+        if !self.verify_runtime(&self.java_bin(major), major).await { return Err(AppError::Internal("O runtime foi verificado, mas o Windows não conseguiu executá-lo. Confira componentes removidos do Windows e a quarentena do antivírus.".into())); }
         tokio::fs::write(self.java_dir(major).join(".installed"), b"verified").await?;
         self.emit_progress(&DownloadProgress { phase: "java".into(), total: 1, completed: 1, current_file: String::new(), bytes_downloaded: 0, total_bytes: 0, speed: None });
         Ok(())

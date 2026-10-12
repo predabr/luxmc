@@ -35,14 +35,14 @@ pub enum SocialRequest {
     #[serde(rename = "stream_ticket")]
     StreamTicket,
     #[serde(rename = "profile_get", rename_all = "camelCase")]
-    ProfileGet { target_id: Option<String> },
+    ProfileGet { #[serde(default, skip_serializing_if="Option::is_none")] favourites_limit: Option<u8>, target_id: Option<String>, #[serde(default, skip_serializing_if="Option::is_none")] collections_limit: Option<u8> },
     #[serde(rename = "profile_save")]
-    ProfileSave { description: String, banner: String, portrait: String, packs: Vec<String>, #[serde(default, rename = "displayName", skip_serializing_if="Option::is_none")] display_name: Option<String>, #[serde(default, skip_serializing_if="Option::is_none")] status: Option<String>, #[serde(default, skip_serializing_if="Option::is_none")] collections:Option<Vec<serde_json::Value>> },
+    ProfileSave { #[serde(default, rename = "profileStyle", skip_serializing_if="Option::is_none")] profile_style: Option<serde_json::Value>, description: String, banner: String, portrait: String, packs: Vec<String>, #[serde(default, rename = "displayName", skip_serializing_if="Option::is_none")] display_name: Option<String>, #[serde(default, skip_serializing_if="Option::is_none")] status: Option<String>, #[serde(default, skip_serializing_if="Option::is_none")] collections:Option<Vec<serde_json::Value>>, #[serde(default, rename = "collectionsLimit", skip_serializing_if="Option::is_none")] collections_limit: Option<u8> },
 }
 
 static IDENTITY_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-async fn identity(account_id: &str) -> AppResult<String> {
+pub(crate) async fn identity(account_id: &str) -> AppResult<String> {
     use sha2::Digest;
     use tokio::io::AsyncWriteExt;
     let _guard = IDENTITY_LOCK.lock().await;

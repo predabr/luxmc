@@ -1,4 +1,7 @@
 User-agent: *
+Disallow: /painel-luxmc
+Disallow: /api/commerce/
+Disallow: /api/receipts/
 Allow: /
 
 Sitemap: https://luxmc-r92.pages.dev/sitemap.xml

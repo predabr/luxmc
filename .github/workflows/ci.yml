@@ -81,7 +81,7 @@ jobs:
         run: pnpm test:website
 
       - name: Release manifest tests
-        run: node --test tests/release-manifest.test.mjs
+        run: node --test tests/release-manifest.test.mjs tests/release-signature.test.mjs tests/braces-depth.test.mjs
 
       - name: Dependency audit
         run: pnpm audit --audit-level=high || true

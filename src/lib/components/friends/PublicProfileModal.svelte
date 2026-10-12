@@ -1,121 +1,126 @@
 <script lang="ts">
+    import AccountBadges from '$lib/components/ui/AccountBadges.svelte';
+    import MinecraftAvatar from '$lib/components/ui/MinecraftAvatar.svelte';
     import { publicProfile } from '$lib/stores/publicProfile.svelte';
     import { friendsState } from '$lib/stores/friends.svelte';
-    import { socialPublicProfile, socialSaveProfile, type PublicProfile, type PackCollection } from '$lib/api/social';
-    import { profiles } from '$lib/stores/profiles.svelte';
+    import { socialPublicProfile, socialSaveProfile, type PublicProfile, type PublicProfileDraft } from '$lib/api/social';
     import { translateUi as t } from '$lib/i18n/useTranslation.svelte';
     import { button } from '$lib/components/ui/button';
     import { focusTrap } from '$lib/utils/focusTrap';
-    import { X, Pencil, Save, Image, LoaderCircle, Star, Upload } from 'lucide-svelte';
+    import { X, Pencil, Save, LoaderCircle, Star, Eye, Check, Undo2, AlertTriangle } from 'lucide-svelte';
     import { goto } from '$app/navigation';
-    import MinecraftAvatar from '$lib/components/ui/MinecraftAvatar.svelte';
     import PackCollections from './PackCollections.svelte';
-    import {prepareAnimatedImage, isAnimatedImage} from '$lib/utils/animatedImage';
-    let collections = $state<PackCollection[]>([]);
+    import ProfileEditor from './ProfileEditor.svelte';
+    import ProfileSignature from '$lib/components/ui/ProfileSignature.svelte';
+    import { defaultProfileStyle } from '$lib/utils/profileStyle';
+
+    const emptyDraft = (): PublicProfileDraft => ({ displayName:'', status:'', description:'', banner:'', portrait:'', packs:[], collections:[], profileStyle:{...defaultProfileStyle} });
+    function draftOf(value: PublicProfile): PublicProfileDraft {
+        return { profileStyle:{...value.profileStyle}, displayName:value.displayName, status:value.status, description:value.description, banner:value.banner, portrait:value.portrait, packs:[...value.packs], collections:value.collections.map(collection => ({...collection, entries:collection.entries.map(entry => ({...entry}))})) };
+    }
     let profile = $state<PublicProfile | null>(null);
-    let editing = $state(false);
-    let preview = $state(false);
-    let busy = $state(false);
-    let processingImage = $state(false);
-    let error = $state('');
-    let description = $state('');
-    let displayName = $state('');
-    let status = $state('');
-    let banner = $state('');
-    let portrait = $state('');
-    let packs = $state<string[]>([]);
-    let favouriteName = $state('');
+    let draft = $state<PublicProfileDraft>(emptyDraft());
+    let editing = $state(false), preview = $state(false), busy = $state(false), processingImage = $state(false), pendingImage = $state(false);
+    let section = $state<'identity' | 'appearance' | 'showcase'>('identity');
+    let error = $state(''), saved = $state(false), confirmClose = $state(false), destination = $state('');
     let generation = 0;
+    const dirty = $derived(Boolean(profile && (draft.displayName.trim() !== profile.displayName || draft.status.trim() !== profile.status || draft.description.trim() !== profile.description || draft.banner !== profile.banner || draft.portrait !== profile.portrait || JSON.stringify(draft.packs) !== JSON.stringify(profile.packs) || JSON.stringify(draft.collections) !== JSON.stringify(profile.collections) || JSON.stringify(draft.profileStyle) !== JSON.stringify(profile.profileStyle))));
+    const fullEditor = $derived(editing && !preview);
+    const locked = $derived(busy || processingImage);
     $effect(() => {
-        const open = publicProfile.open;
-        const id = publicProfile.target?.id;
-        const own = publicProfile.own;
-        const account = friendsState.accountId;
+        const open = publicProfile.open, id = publicProfile.target?.id, own = publicProfile.own, account = friendsState.accountId;
         const run = ++generation;
-        if (!open || !account) { profile = null; busy = false; processingImage = false; return; }
-        preview = false; profile = null; displayName = ''; status = ''; description = ''; banner = ''; portrait = ''; packs = []; collections=[]; error = ''; busy = true; editing = own;
+        confirmClose = false; destination = ''; processingImage = false; pendingImage = false; saved = false;
+        if (!open || !account) { profile = null; draft = emptyDraft(); busy = false; return; }
+        preview = false; profile = null; draft = emptyDraft(); error = ''; busy = true; editing = own; section = 'identity';
         void socialPublicProfile(account, id).then(value => {
             if (run !== generation) return;
-            profile = value; displayName = value.displayName; status = value.status; description = value.description; banner = value.banner; portrait = value.portrait; packs = value.packs; collections=value.collections;
+            profile = value; draft = draftOf(value);
         }).catch(cause => { if (run === generation) error = String(cause); }).finally(() => { if (run === generation) busy = false; });
     });
-    async function image(event: Event, kind: 'banner' | 'portrait') {
-        const input = event.target as HTMLInputElement;
-        const file = input.files?.[0];
-        input.value = '';
-        if (!file) return;
-        error = '';
-        if (!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type) || file.size > 12 * 1024 * 1024) { error = t('publicProfile.imageLimit'); return; }
-        const run = generation;
-        busy = true;
-        processingImage = true;
-        try {
-        let value = file.type === 'image/gif' ? await prepareAnimatedImage(file) : await new Promise<string>((resolve,reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); });
-        if (file.type !== 'image/gif') {
-            try {
-                const bitmap = await createImageBitmap(file);
-                const limit = kind === 'banner' ? 1280 : 320;
-                const ratio = Math.min(1, limit / Math.max(bitmap.width,bitmap.height));
-                const canvas = document.createElement('canvas');
-                canvas.width = Math.max(1,Math.round(bitmap.width*ratio)); canvas.height = Math.max(1,Math.round(bitmap.height*ratio));
-                canvas.getContext('2d')!.drawImage(bitmap,0,0,canvas.width,canvas.height); bitmap.close();
-                for (const quality of [.85,.7,.55,.4]) { value = canvas.toDataURL('image/webp',quality); if (value.length < 250000) break; }
-                if (value.length >= 250000) { error = t('publicProfile.imageLimit'); return; }
-            } catch { error = t('publicProfile.imageLimit'); return; }
-        }
-        if (run !== generation) return;
-        if (kind === 'banner') banner = value; else portrait = value;
-        } catch { if (run === generation) error = t('publicProfile.imageLimit'); } finally { if (run === generation) { busy = false; processingImage = false; } }
+    function close() {
+        const next = destination;
+        publicProfile.close();
+        if (next) void goto(next);
+    }
+    function requestClose(next = '') {
+        if (busy && profile) return;
+        destination = next;
+        if (editing && (dirty || pendingImage || processingImage)) { confirmClose = true; return; }
+        close();
     }
     function discard() {
-        if (!profile || busy) return;
-        displayName = profile.displayName; status = profile.status; description = profile.description; banner = profile.banner; portrait = profile.portrait; packs = [...profile.packs]; collections = $state.snapshot(profile.collections); preview = false; editing = false; error = '';
+        if (!profile || locked) return;
+        draft = draftOf(profile); preview = false; editing = false; pendingImage = false; error = ''; saved = false;
     }
     async function save() {
-        if (busy || !profile) return;
+        if (locked || pendingImage || !profile || !dirty) return;
         busy = true; error = '';
         const run = generation;
-        const saved = {displayName,status,description,banner,portrait,packs:[...packs],collections:$state.snapshot(collections)};
-        try { await socialSaveProfile(friendsState.accountId, saved); await friendsState.refreshProfile(); if (run !== generation) return; profile = {...profile,...saved}; editing = false; }
-        catch(cause) { if (run === generation) error = String(cause); }
+        const value = $state.snapshot(draft);
+        value.displayName = value.displayName.trim(); value.status = value.status.trim(); value.description = value.description.trim();
+        try {
+            await socialSaveProfile(friendsState.accountId, value);
+            if (run !== generation) return;
+            profile = {...profile,...value}; draft = draftOf(profile); editing = false; preview = false; saved = true;
+            await Promise.allSettled([friendsState.refreshProfile(), friendsState.refresh()]);
+        } catch (cause) { if (run === generation) error = String(cause); }
         finally { if (run === generation) busy = false; }
     }
+    function keyboard(event: KeyboardEvent) {
+        if (!publicProfile.open || !editing || confirmClose) return;
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); void save(); }
+    }
 </script>
+
+<svelte:window onkeydown={keyboard} />
 {#if publicProfile.open}
-    <div class="fixed inset-0 z-[180] grid place-items-center bg-bg-overlay/70 p-4 backdrop-blur-sm" role="presentation" onclick={event => { if (event.target === event.currentTarget) publicProfile.close(); }} onkeydown={event => { if (event.key === 'Escape') publicProfile.close(); }}>
-        <div use:focusTrap role="dialog" aria-modal="true" aria-labelledby="public-profile-title" tabindex="-1" class="public-player-profile flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-bg-elevated text-fg shadow-elevated">
-            <div class="relative h-44 shrink-0 bg-gradient-to-br from-brand-500/25 via-bg-subtle to-bg-elevated">{#if banner}<img src={banner} alt="" class="h-full w-full object-cover" />{/if}<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent"></div><span class="absolute left-6 top-5 rounded-full border border-border bg-bg-elevated/80 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest">{t('publicProfile.title')}</span><button type="button" onclick={() => publicProfile.close()} class={button({variant:'secondary',size:'icon',class:'absolute right-4 top-4'})} aria-label={t('common.close')}><X class="h-4 w-4" /></button></div>
-            <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 pb-6">
-                <div class="relative flex items-end gap-4"><div class="h-24 w-24 shrink-0 overflow-hidden rounded-3xl border-4 border-bg-elevated bg-bg-subtle shadow-elevated">{#if portrait}<img src={portrait} alt="" class="h-full w-full object-cover" />{:else}<MinecraftAvatar username={profile?.username || publicProfile.target?.username || 'Steve'} avatarUrl={profile?.avatarUrl} class="h-full w-full" />{/if}</div><div class="min-w-0 pb-2"><h2 id="public-profile-title" class="truncate text-2xl font-bold tracking-tight">{displayName || profile?.username || publicProfile.target?.username || friendsState.me?.username}</h2>{#if profile?.role === "owner"}<span class="mt-1 inline-flex rounded-lg border border-brand-400/30 bg-brand-400/10 px-2 py-1 text-[10px] font-semibold text-brand-400">{t("ownerTools.badge")}</span>{/if}<p class="mt-1 truncate text-xs text-fg-muted">@{profile?.username || publicProfile.target?.username || friendsState.me?.username}</p></div></div>
-                {#if profile?.tags?.length}<div class="flex flex-wrap gap-2">{#each profile.tags as tag}<span class="rounded-full border border-brand-400/25 bg-brand-500/10 px-3 py-1 text-xs font-medium text-brand-400">{tag}</span>{/each}</div>{/if}
-                {#if error}<p role="alert" class="rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger">{error}</p>{/if}
-                {#if busy && !profile}<p role="status" class="flex gap-2 text-sm text-fg-muted"><LoaderCircle class="h-4 w-4 animate-spin" />{t('common.loading')}</p>{/if}
+    <div class="fixed inset-0 z-[180] grid place-items-center bg-bg-overlay/75 p-2 backdrop-blur-sm sm:p-4" role="presentation" onclick={event => {if (event.target === event.currentTarget) requestClose();}} onkeydown={event => {if (event.key === 'Escape') {event.stopPropagation();if (confirmClose) confirmClose=false;else requestClose();}}}>
+        <ProfileSignature signature={draft.profileStyle} class="contents"><div use:focusTrap role="dialog" aria-modal="true" aria-labelledby="public-profile-title" tabindex="-1" class="profile-dialog public-player-profile relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-3xl border border-border bg-bg-elevated text-fg shadow-elevated {fullEditor ? 'max-w-5xl' : 'max-w-2xl'}">
+            {#if fullEditor}
+                <header class="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-5 sm:px-7">
+                    <div><p class="text-[10px] font-semibold uppercase tracking-[.2em] text-brand-400">Luxmc / {t('profileStudio.community')}</p><h2 id="public-profile-title" class="mt-2 text-2xl font-semibold tracking-tight">{t('profileStudio.title')}</h2><p class="mt-1 text-xs leading-5 text-fg-muted">{t('profileStudio.subtitle')}</p></div>
+                    <button type="button" disabled={busy && !!profile} onclick={() => requestClose()} class={button({variant:'secondary',size:'icon'})} aria-label={t('common.close')}><X class="h-4 w-4" /></button>
+                </header>
+            {:else}
+                <div data-profile-banner class="relative h-44 shrink-0 overflow-hidden bg-gradient-to-br from-brand-500/25 via-bg-subtle to-bg-elevated">{#if draft.banner}<img src={draft.banner} alt="" class="h-full w-full object-cover" />{/if}<div class="absolute inset-0 bg-gradient-to-t from-bg-elevated via-transparent to-transparent"></div><span class="absolute left-6 top-5 rounded-full border border-border bg-bg-elevated/80 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest">{preview ? t('profileStudio.fullPreview') : t('publicProfile.title')}</span><button type="button" disabled={busy && !!profile} onclick={() => requestClose()} class={button({variant:'secondary',size:'icon',class:'absolute right-4 top-4'})} aria-label={t('common.close')}><X class="h-4 w-4" /></button></div>
+            {/if}
+            <div class="min-h-0 flex-1 overflow-y-auto px-6 {fullEditor ? 'py-6 sm:px-7' : 'space-y-5 pb-6'}">
+                {#if error}<p role="alert" class="mb-4 rounded-xl border border-danger/20 bg-danger/10 p-3 text-sm text-danger">{error}</p>{/if}
+                {#if busy && !profile}<p role="status" class="flex min-h-56 items-center justify-center gap-2 text-sm text-fg-muted"><LoaderCircle class="h-4 w-4 animate-spin" />{t('common.loading')}</p>{/if}
                 {#if profile}
-                    {#if editing}<div class="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-subtle p-3"><span class="text-xs text-fg-muted">{preview ? 'Prévia do seu perfil' : 'Deixe o perfil com a sua cara'}</span><button type="button" disabled={busy} class={button({variant:'secondary',size:'sm'})} onclick={() => preview = !preview}>{preview ? 'Continuar editando' : 'Ver prévia'}</button></div>{/if}
-                    {#if editing && !preview}
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            <label class="text-xs font-semibold">{t('publicProfile.displayName')}<input disabled={busy} bind:value={displayName} maxlength="32" placeholder={profile.username} class="mt-2 w-full rounded-xl border border-border bg-bg-subtle p-3 text-sm font-normal" /></label>
-                            <label class="text-xs font-semibold">{t('publicProfile.status')}<input disabled={busy} bind:value={status} maxlength="80" class="mt-2 w-full rounded-xl border border-border bg-bg-subtle p-3 text-sm font-normal" /></label>
-                        </div>
-                        <div class="flex flex-wrap gap-2" aria-label="Sugestões de status">{#each ["Disponível para jogar", "Construindo meu próximo mundo", "Procurando uma aventura"] as suggestion}<button type="button" disabled={busy} class={button({variant:"ghostBrand",size:"sm"})} onclick={() => status = suggestion}>{suggestion}</button>{/each}</div><p class="text-xs leading-relaxed text-fg-muted">{t('publicProfile.visibility')}</p>
-                        <label class="block text-xs font-semibold">{t('publicProfile.about')}<textarea disabled={busy} bind:value={description} maxlength="400" rows="3" class="mt-2 w-full resize-y rounded-xl border border-border bg-bg-subtle p-3 text-sm font-normal focus-visible:ring-2 focus-visible:ring-brand-400"></textarea><span class="mt-1 block text-right text-[10px] font-normal text-fg-muted">{description.length}/400</span></label>
-                        <div class="grid grid-cols-2 gap-3">{#each ['banner','portrait'] as kind}<label class="cursor-pointer rounded-2xl border border-border bg-bg-subtle p-4 text-xs font-semibold transition-colors hover:border-brand-400/50 focus-within:ring-2 focus-within:ring-brand-400"><span class="flex items-center gap-2"><Image class="h-4 w-4" />{t(`publicProfile.${kind}`)}</span><input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onchange={event => void image(event,kind as 'banner'|'portrait')} class="sr-only" /><span class="mt-3 flex items-center gap-2 text-xs font-normal text-brand-400"><Upload class="h-3.5 w-3.5" />{t('publicProfile.chooseImage')}{#if isAnimatedImage(kind === 'banner' ? banner : portrait)}<span class="rounded-md border border-brand-400/30 px-1.5 py-0.5 text-[9px] font-bold">Animado</span>{/if}</span><button type="button" class={button({variant:'ghostDanger',size:'sm',class:'mt-2'})} onclick={() => { if (kind === 'banner') banner=''; else portrait=''; }}>{t('common.remove')}</button></label>{/each}</div>
-                        <p class="text-[11px] leading-relaxed text-fg-muted">{t('publicProfile.imageLimit')}</p>
-                        {#if processingImage}<p role="status" class="flex items-center gap-2 text-xs text-fg-muted"><LoaderCircle class="h-4 w-4 animate-spin" />{t('publicProfile.processingImage')}</p>{/if}
-                        <div class="flex items-end gap-2"><label class="min-w-0 flex-1 text-xs font-semibold">{t('publicProfile.addFavourite')}<input disabled={busy} bind:value={favouriteName} maxlength="80" class="mt-2 w-full rounded-xl border border-border bg-bg-subtle px-3 py-2 text-sm font-normal" /></label><button type="button" class={button({variant:'secondary',size:'sm'})} disabled={busy || !favouriteName.trim() || packs.length >= 8} onclick={() => { packs = [...new Set([...packs,favouriteName.trim()])]; favouriteName=''; }}>{t('common.add')}</button></div>
-                        <fieldset class="space-y-2"><legend class="mb-2 text-xs font-semibold">{t('publicProfile.packs')}</legend>{#each [...new Set([...profiles.list.map(profile => profile.name), ...packs])] as name}<label class="flex items-center gap-2 text-sm"><input type="checkbox" checked={packs.includes(name)} disabled={busy || (!packs.includes(name) && packs.length >= 8)} onchange={() => packs = packs.includes(name) ? packs.filter(pack => pack !== name) : [...packs,name]} />{name}</label>{/each}</fieldset>
-                        <PackCollections bind:value={collections} editing disabled={busy} />
-                        <button type="button" disabled={busy} class={button({variant:'primary',block:true})} onclick={() => void save()}>{#if busy}<LoaderCircle class="h-4 w-4 animate-spin" />{:else}<Save class="h-4 w-4" />{/if}{t('common.save')}</button>
+                    {#if fullEditor}
+                        <ProfileEditor bind:draft {profile} {busy} bind:processingImage bind:pendingImage bind:section onpreview={() => preview=true} onmanageTags={() => requestClose('/owner')} />
                     {:else}
-                        {#if status}<p class="rounded-2xl border border-brand-400/20 bg-brand-400/10 px-4 py-3 text-sm">{status}</p>{/if}
-                        {#if description}<section class="rounded-2xl border border-border bg-bg-subtle/70 p-4"><h3 class="text-xs font-semibold uppercase tracking-wider text-fg-muted">{t('publicProfile.about')}</h3><p class="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{description}</p></section>{/if}
-                        {#if packs.length}<section class="rounded-2xl border border-border bg-bg-subtle/70 p-4"><h3 class="text-xs font-semibold uppercase tracking-wider text-fg-muted">{t('publicProfile.packs')}</h3><div class="mt-3 flex flex-wrap gap-2">{#each packs as pack}<button type="button" title={t("workshop.recommend")} class={button({variant:"secondary",size:"sm"})} onclick={() => { publicProfile.close(); void goto(`/mods?type=modpack&search=${encodeURIComponent(pack)}`); }}><Star class="h-3.5 w-3.5 text-brand-400" />{pack}</button>{/each}</div></section>{/if}
-                        {#if collections.length}<PackCollections value={collections} />{/if}
-                        {#if publicProfile.own && !editing}<button type="button" class={button({variant:'secondary',block:true})} onclick={() => { editing=true; preview=false; }}><Pencil class="h-4 w-4" />{t('publicProfile.edit')}</button>{/if}
+                        <div data-profile-heading class="relative flex items-end gap-4"><div data-profile-avatar class="h-24 w-24 shrink-0 rounded-3xl border-4 border-bg-elevated bg-bg-subtle shadow-elevated">{#if draft.portrait}<img src={draft.portrait} alt="" class="h-full w-full rounded-2xl object-cover" />{:else}<MinecraftAvatar username={profile.username} avatarUrl={profile.avatarUrl} class="h-full w-full" />{/if}</div><div class="min-w-0 pb-2"><h2 id="public-profile-title" data-profile-name class="break-words text-2xl font-bold tracking-tight">{draft.displayName || profile.username}</h2><p class="mt-1 truncate text-xs text-fg-muted">@{profile.username}</p></div></div>
+                        <AccountBadges role={profile.role} plan={profile.membership?.plan} tags={profile.tags} size="md" />
+                        {#if saved}<p role="status" class="flex items-start gap-2 rounded-xl border border-success/25 bg-success/10 p-3 text-xs leading-5"><Check class="mt-0.5 h-4 w-4 shrink-0 text-success" />{t('profileStudio.saved')}</p>{/if}
+                        {#if draft.status}<p data-profile-status class="rounded-2xl border border-brand-400/20 bg-brand-400/10 px-4 py-3 text-sm">{draft.status}</p>{/if}
+                        {#if draft.description}<section class="rounded-2xl border border-border bg-bg-subtle/70 p-4"><h3 class="text-xs font-semibold uppercase tracking-wider text-fg-muted">{t('publicProfile.about')}</h3><p class="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed">{draft.description}</p></section>{/if}
+                        {#if draft.packs.length}<section class="rounded-2xl border border-border bg-bg-subtle/70 p-4"><h3 class="text-xs font-semibold uppercase tracking-wider text-fg-muted">{t('publicProfile.packs')}</h3><div class="mt-3 flex flex-wrap gap-2">{#each draft.packs as pack}<button type="button" title={t('workshop.recommend')} class={button({variant:'secondary',size:'sm'})} onclick={() => {if (!editing) {publicProfile.close();void goto(`/mods?type=modpack&search=${encodeURIComponent(pack)}`);}}} disabled={editing}><Star class="h-3.5 w-3.5 text-brand-400" />{pack}</button>{/each}</div></section>{/if}
+                        {#if draft.collections.length}<PackCollections value={draft.collections} disabled={editing} />{/if}
+                        {#if publicProfile.own && !editing}<button type="button" class={button({variant:'secondary',block:true})} disabled={busy} onclick={() => {editing=true;preview=false;saved=false;section='identity';}}><Pencil class="h-4 w-4" />{t('publicProfile.edit')}</button>{/if}
                     {/if}
-                    {#if editing}<div class="flex gap-3 border-t border-border pt-4"><button type="button" class={button({variant:'ghost',block:true})} disabled={busy} onclick={discard}>Descartar alterações</button>{#if preview}<button type="button" class={button({variant:'primary',block:true})} disabled={busy} onclick={() => void save()}><Save class="h-4 w-4" />Salvar perfil</button>{/if}</div>{/if}
                 {/if}
             </div>
-        </div>
+            {#if editing && profile}
+                <footer class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border bg-bg-elevated px-6 py-4 sm:px-7">
+                    <div class="min-w-0 text-xs text-fg-muted"><p class="flex items-center gap-2"><span class="h-1.5 w-1.5 rounded-full {dirty || pendingImage ? 'bg-warning' : 'bg-success'}"></span>{pendingImage ? t('profileStudio.pendingCrop') : dirty ? t('profileStudio.unsaved') : t('profileStudio.upToDate')}</p><p class="mt-1 hidden text-[10px] text-fg-subtle sm:block">{t('profileStudio.shortcut')}</p></div>
+                    <div class="flex flex-wrap gap-2"><button type="button" class={button({variant:'ghost',size:'sm'})} disabled={locked || (!dirty && !pendingImage)} onclick={discard}><Undo2 class="h-3.5 w-3.5" />{t('profileStudio.discard')}</button><button type="button" disabled={locked || pendingImage} class={button({variant:'secondary',size:'sm'})} onclick={() => preview = !preview}><Eye class="h-3.5 w-3.5" />{preview ? t('profileStudio.continueEditing') : t('profileStudio.preview')}</button><button type="button" disabled={locked || pendingImage || !dirty} class={button({variant:'primary',size:'sm'})} onclick={() => void save()}>{#if busy}<LoaderCircle class="h-3.5 w-3.5 animate-spin" />{:else}<Save class="h-3.5 w-3.5" />{/if}{t('profileStudio.save')}</button></div>
+                </footer>
+            {/if}
+            {#if confirmClose}
+                <div class="absolute inset-0 z-20 grid place-items-center rounded-3xl bg-bg-overlay/80 p-5 backdrop-blur-sm">
+                    <div use:focusTrap role="alertdialog" aria-modal="true" aria-labelledby="profile-discard-title" aria-describedby="profile-discard-description" tabindex="-1" class="w-full max-w-sm rounded-2xl border border-border bg-bg-elevated p-6 shadow-elevated"><AlertTriangle class="h-7 w-7 text-warning" /><h3 id="profile-discard-title" class="mt-4 text-lg font-semibold">{t('profileStudio.closeTitle')}</h3><p id="profile-discard-description" class="mt-2 text-sm leading-6 text-fg-muted">{t('profileStudio.closeHelp')}</p><div class="mt-5 flex flex-wrap gap-2"><button type="button" class={button({variant:'secondary',size:'sm'})} onclick={() => confirmClose=false}>{t('profileStudio.continueEditing')}</button><button type="button" class={button({variant:'ghostDanger',size:'sm'})} onclick={close}>{t('profileStudio.discardClose')}</button></div></div>
+                </div>
+            {/if}
+        </div></ProfileSignature>
     </div>
 {/if}
+
+<style>
+    .profile-dialog { animation: profile-enter 280ms cubic-bezier(.16,1,.3,1); }
+    @keyframes profile-enter { from { opacity: 0; translate: 0 14px; scale: .985; } to { opacity: 1; translate: 0 0; scale: 1; } }
+    :global(html.no-ui-motion) .profile-dialog, :global(html.no-anim) .profile-dialog { animation: none; }
+    @media (prefers-reduced-motion: reduce) { :global(html:not(.force-ui-motion)) .profile-dialog { animation: none; } }
+</style>

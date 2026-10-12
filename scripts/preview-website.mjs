@@ -4,6 +4,8 @@ import { resolve, join, extname, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { randomBytes } from "node:crypto";
 import { onRequest as account } from "../website/functions/api/account/[action].js";
+import { onRequest as commerce } from "../website/functions/api/commerce/[action].js";
+import { onRequest as receipts } from "../website/functions/api/receipts/[id].js";
 import { onRequest as social } from "../website/functions/api/social/[action].js";
 import { onRequest as release } from "../website/functions/api/latest-release.js";
 import { onRequest as download } from "../website/functions/download/[platform].js";
@@ -25,13 +27,13 @@ for (const migration of (await readdir(join(root, "migrations")))
 const db = {
   prepare(sql) {
     const statement = sqlite.prepare(sql);
-    const bound = (values = []) => ({
+    const bound = (input = []) => { const values = input.map(value => value instanceof ArrayBuffer ? new Uint8Array(value) : value); return ({
       bind: (...next) => bound(next),
       first: async () => statement.get(...values) || null,
       all: async () => ({ results: statement.all(...values) }),
       run: async () => ({ meta: statement.run(...values) }),
       execute: () => ({ meta: statement.run(...values) }),
-    });
+    }); };
     return bound();
   },
   async batch(statements) {
@@ -66,11 +68,13 @@ const server = createServer(async (incoming, outgoing) => {
     const url = new URL(incoming.url, `http://127.0.0.1:${port}`);
     let handler,
       params = {};
-    const api = url.pathname.match(/^\/api\/(account|social)\/([a-z_-]+)$/);
+    const api = url.pathname.match(/^\/api\/(account|social|commerce)\/([a-z_-]+)$/);
     if (api) {
-      handler = api[1] === "account" ? account : social;
+      handler = api[1] === "account" ? account : api[1] === "commerce" ? commerce : social;
       params = { action: api[2] };
     }
+    const receipt = url.pathname.match(/^\/api\/receipts\/([a-f0-9-]{36})$/);
+    if (receipt) { handler = receipts; params = {id:receipt[1]}; }
     if (url.pathname === "/api/latest-release") handler = release;
     const platform = url.pathname.match(/^\/download\/([a-z.]+)$/);
     if (platform) {

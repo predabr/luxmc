@@ -1,5 +1,6 @@
 <script lang="ts">
   import { cn } from "$lib/utils/cn";
+  import { untrack } from 'svelte';
   let { 
     src, 
     alt = "", 
@@ -16,10 +17,12 @@
   
   let loaded = $state(false);
   let error = $state(false);
+  let image = $state<HTMLImageElement | null>(null);
   
   $effect(() => {
     src;
-    loaded = false;
+    const current = untrack(() => image);
+    loaded = current?.getAttribute('src') === src && current.complete && current.naturalWidth > 0;
     error = false;
   });
 
@@ -39,6 +42,7 @@
   {/if}
   {#if !error}
     <img
+      bind:this={image}
       {src}
       {alt}
       {loading}

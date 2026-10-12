@@ -1,9 +1,10 @@
 import { tick } from 'svelte';
 import { settings } from '$lib/stores/settings.svelte';
 
-const surfaces = '[data-motion-surface], .surface-glass, .luxmc-card, .catalog-card, [data-bedrock-instance], .friend-row, .instance-overview-section, header, h1, h2';
+const surfaces = '[data-motion-surface], .surface-glass, .luxmc-card, [data-bedrock-instance], .friend-row, .instance-library-card, .instance-settings-group, .instance-overview-section, header, h1, h2';
 
 export function pageMotion(node: HTMLElement, route: string) {
+    node.dataset.motionScope = 'page';
 	let frame = 0;
 	let generation = 0;
 	let animations: Animation[] = [];
@@ -42,22 +43,33 @@ export function pageMotion(node: HTMLElement, route: string) {
 			if (!node.hasAttribute('data-page-route')) {
 				candidates.push(...Array.from(node.children).filter((child): child is HTMLElement => child instanceof HTMLElement && !child.querySelector('[role="dialog"]')));
 			}
-			const targets = [...new Set(candidates)].filter(target => {
-				const rect = target.getBoundingClientRect();
-				return rect.width > 0 && rect.height > 0 && rect.bottom > bounds.top && rect.top < bounds.bottom && !target.closest('[role="dialog"]');
-			}).filter((target, _index, all) => !all.some(parent => parent !== target && parent.contains(target))).slice(0, 12);
+			const candidateSet = new Set(candidates);
+            const targets: HTMLElement[] = [];
+            for (const target of candidateSet) {
+                if (target.closest('[role="dialog"]') || target.closest('[data-motion-scope]') !== node) continue;
+                let parent = target.parentElement;
+                while (parent && parent !== node && !candidateSet.has(parent)) parent = parent.parentElement;
+                if (parent && parent !== node) continue;
+                const rect = target.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0 && rect.bottom > bounds.top && rect.top < bounds.bottom) targets.push(target);
+                if (targets.length === 10) break;
+            }
 			targets.forEach((target, index) => play(target, [
 				{ opacity: 0, transform: `translateY(${expressive ? 32 : 12}px) scale(${expressive ? .975 : 1})` },
                 { opacity: 1, transform: expressive ? 'translateY(-2px) scale(1.003)' : 'translateY(0)', offset: .8 },
 				{ opacity: 1, transform: 'translateY(0) scale(1)' }
-			], (expressive ? 560 : 320) * speed, Math.min(index * (expressive ? 45 : 20), 180) * speed));
+			], (expressive ? 460 : 280) * speed, Math.min(index * (expressive ? 30 : 16), 120) * speed));
 		});
 	}
 	void enter();
 	const ready = () => { void enter(); };
 	document.addEventListener('luxmc-settings-ready', ready);
+    const interrupt = () => { if (reduced.matches && settings.value.respectReducedMotion !== false) cancel(); };
+    const visibility = () => { if (document.hidden) cancel(); };
+    reduced.addEventListener('change', interrupt);
+    document.addEventListener('visibilitychange', visibility);
 	return {
 		update(next: string) { if (route !== next) { route = next; void enter(); } },
-		destroy() { cancel(); document.removeEventListener('luxmc-settings-ready', ready); }
+		destroy() { cancel(); delete node.dataset.motionScope; document.removeEventListener('luxmc-settings-ready', ready); reduced.removeEventListener('change', interrupt); document.removeEventListener('visibilitychange', visibility); }
 	};
 }

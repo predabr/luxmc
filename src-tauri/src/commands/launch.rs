@@ -38,10 +38,13 @@ pub fn compute_offline_uuid(username: &str) -> String {
     uuid::Uuid::from_bytes(bytes).simple().to_string()
 }
 
-async fn scan_before_launch(game_dir: &std::path::Path, app: &Option<tauri::AppHandle>) -> AppResult<()> {
+pub(crate) async fn scan_before_launch(game_dir: &std::path::Path, app: &Option<tauri::AppHandle>) -> AppResult<()> {
     let mods_dir = game_dir.join("mods");
     let result = tokio::task::spawn_blocking(move || crate::commands::shield::scan_mods_directory(&mods_dir))
         .await.map_err(|error| AppError::Internal(error.to_string()))?;
+    if let Some(app) = app {
+        app.emit("launcher-log", format!("Luxmc Shield: {} JARs conferidos em {:.2}s.", result.total_scanned, result.scan_time_ms as f64 / 1000.0)).ok();
+    }
     if !result.is_clean {
         if let Some(app) = app {
             app.emit("launcher-shield-warning", &result).ok();
@@ -150,7 +153,8 @@ pub async fn launch_game_core(
         crate::commands::instances::heal_modpack(state, &profile).await?;
         crate::commands::instances::repair_instance_duplicates(&profile).await?;
         let audit_root = std::path::PathBuf::from(&profile.game_dir);
-        let audit = tokio::task::spawn_blocking(move || crate::core::mods::validation::audit(&audit_root,false)).await.map_err(|e| AppError::Internal(e.to_string()))??;
+        let deep = profile.force_full_verification;
+        let audit = tokio::task::spawn_blocking(move || crate::core::mods::validation::audit(&audit_root,deep)).await.map_err(|e| AppError::Internal(e.to_string()))??;
         if !audit.errors.is_empty() { return Err(AppError::InvalidInput(audit.errors.join("\n"))); }
         for warning in audit.warnings { emit_log(&warning); }
         crate::core::launcher::launch_state::store(&profile)?;
@@ -356,9 +360,8 @@ pub async fn launch_game_core(
         .filter(|c| !c.trim().is_empty())
         .or_else(|| account.cape_url.filter(|c| !c.trim().is_empty()));
 
-    scan_before_launch(&game_dir, &app).await?;
-
     if let Some(hook) = profile.pre_launch_hook.as_deref() {
+        scan_before_launch(&game_dir, &app).await?;
         emit_log(&format!("Executando hook pré-lançamento: {}", hook.trim()));
         let hook_env = crate::core::hooks::HookEnv {
             profile_id: &profile.id,
@@ -369,7 +372,6 @@ pub async fn launch_game_core(
         };
         crate::core::hooks::run("pré-lançamento", hook, &hook_env).await?;
         emit_log("Hook pré-lançamento concluído.");
-        scan_before_launch(&game_dir, &app).await?;
     }
 
     emit_log(&format!(

@@ -1,6 +1,7 @@
-function collections(value) {
+import { parseProfileStyle } from "./profile-style.js";
+function collections(value, maximum = 6) {
   if (value === void 0) return [];
-  if (!Array.isArray(value) || value.length > 6) return null;
+  if (!Array.isArray(value) || value.length > maximum) return null;
   const ids = /* @__PURE__ */ new Set();
   for (const item of value) {
     if (!item || typeof item !== "object" || typeof item.id !== "string" || !/^[a-zA-Z0-9-]{1,64}$/.test(item.id) || ids.has(item.id) || typeof item.title !== "string" || !item.title.trim() || item.title.length > 80 || typeof item.description !== "string" || item.description.length > 240 || !Array.isArray(item.entries) || item.entries.length > 8) return null;
@@ -25,17 +26,19 @@ function profileImage(value) {
     return false;
   }
 }
-function validatePublicProfile(value) {
+function validatePublicProfile(value, maximum = 6, favourites = 8) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const body = value;
-  const shared = collections(body.collections);
+  const profileStyle = parseProfileStyle(body.profileStyle);
+  if (!profileStyle) return null;
+  const shared = collections(body.collections, maximum);
   if (!shared) return null;
   if (body.displayName !== void 0 && (typeof body.displayName !== "string" || body.displayName.length > 32)) return null;
   if (body.status !== void 0 && (typeof body.status !== "string" || body.status.length > 80)) return null;
   if (typeof body.description !== "string" || body.description.length > 400 || !profileImage(body.banner) || !profileImage(body.portrait)) return null;
-  if (!Array.isArray(body.packs) || body.packs.length > 8 || body.packs.some((pack) => typeof pack !== "string" || !pack.trim() || pack.length > 80)) return null;
+  if (!Array.isArray(body.packs) || body.packs.length > favourites || body.packs.some((pack) => typeof pack !== "string" || !pack.trim() || pack.length > 80)) return null;
   const packs = body.packs;
-  return { collections: shared, displayName: typeof body.displayName === "string" ? body.displayName.trim() : "", status: typeof body.status === "string" ? body.status.trim() : "", description: body.description.trim(), banner: body.banner, portrait: body.portrait, packs: [...new Set(packs.map((pack) => pack.trim()))] };
+  return { profileStyle, collections: shared, displayName: typeof body.displayName === "string" ? body.displayName.trim() : "", status: typeof body.status === "string" ? body.status.trim() : "", description: body.description.trim(), banner: body.banner, portrait: body.portrait, packs: [...new Set(packs.map((pack) => pack.trim()))] };
 }
 export {
   collections,

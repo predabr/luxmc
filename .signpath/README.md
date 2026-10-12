@@ -1,6 +1,6 @@
 # SignPath preparation
 
-The configurations in `artifact-configurations/` are drafts for provider review, not evidence of an active certificate or working production signing policy. The Foundation application was submitted on October 11, 2026, and receipt was confirmed by the form. The project has not been approved yet.
+The configurations in `artifact-configurations/` are drafts for provider review, not evidence of an active certificate or working production signing policy. The maintainer supplied the Foundation's rejection email: the project does not yet have the public adoption and independent references required by the program. No Foundation certificate was issued. A future application requires a new provider assessment.
 
 GitHub Actions uploads each artifact as a ZIP. Both configurations therefore use a `zip-file` root and restrict the product name and version. The caller must supply the exact package version as the `version` parameter. Third-party executables and DLLs are not included in the project's own signing scope.
 

@@ -40,6 +40,7 @@ pub mod social;
 pub mod social_presence;
 
 pub mod lux_account;
+pub mod membership;
 
 pub mod deep_links;
 

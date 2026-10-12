@@ -150,11 +150,13 @@ impl DownloadManager {
             );
         }
 
-        if let Some(ref asset_index) = detail.asset_index {
-            self.download_assets(asset_index).await?;
-        }
-
-        self.download_libraries(&detail.libraries).await?;
+        let assets = async {
+            if let Some(ref asset_index) = detail.asset_index {
+                self.download_assets(asset_index).await?;
+            }
+            Ok::<_, AppError>(())
+        };
+        tokio::try_join!(assets, self.download_libraries(&detail.libraries))?;
 
         Self::emit_log(self, "Download complete");
         Self::emit_progress(
@@ -685,33 +687,8 @@ impl DownloadManager {
                     detail.id
                 )));
             }
-            if !downloads.client.sha1.is_empty() {
-                let size_matches = tokio::fs::metadata(&client_path)
-                    .await
-                    .map(|m| downloads.client.size > 0 && m.len() == downloads.client.size)
-                    .unwrap_or(false);
-
-                if !size_matches {
-                    let file = tokio::fs::File::open(&client_path).await?;
-                    let mut reader = tokio::io::BufReader::with_capacity(64 * 1024, file);
-                    let mut hasher = Sha1::new();
-                    let mut buf = vec![0u8; 64 * 1024];
-                    loop {
-                        use tokio::io::AsyncReadExt;
-                        let n = reader.read(&mut buf).await?;
-                        if n == 0 {
-                            break;
-                        }
-                        hasher.update(&buf[..n]);
-                    }
-                    let computed = format!("{:x}", hasher.finalize());
-                    if computed != downloads.client.sha1 {
-                        return Err(AppError::Internal(format!(
-                            "client jar sha1 mismatch for {}",
-                            detail.id
-                        )));
-                    }
-                }
+            if !valid_cached_file(&client_path, downloads.client.size, &downloads.client.sha1).await? {
+                return Err(AppError::Internal(format!("client jar integrity mismatch for {}", detail.id)));
             }
         }
 
@@ -1058,6 +1035,23 @@ async fn valid_cached_file(path: &std::path::Path, size: u64, sha1: &str) -> App
 mod tests {
     use super::*;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    #[tokio::test]
+    async fn fast_launch_rejects_a_client_with_the_right_length_and_wrong_hash() {
+        let root = tempfile::tempdir().unwrap();
+        let manager = DownloadManager::new(reqwest::Client::new(), root.path().to_owned());
+        let detail: VersionDetail = serde_json::from_value(serde_json::json!({
+            "id":"fixture", "type":"release", "libraries":[],
+            "downloads":{"client":{"url":"https://example.com/client.jar","size":4,"sha1":format!("{:x}", Sha1::digest(b"good"))}}
+        })).unwrap();
+        let directory = root.path().join("versions/fixture");
+        tokio::fs::create_dir_all(&directory).await.unwrap();
+        let file = directory.join("fixture.jar");
+        tokio::fs::write(&file, b"evil").await.unwrap();
+        assert!(manager.validate_version(&detail).await.is_err());
+        tokio::fs::write(&file, b"good").await.unwrap();
+        assert!(manager.validate_version(&detail).await.is_ok());
+    }
 
     #[tokio::test]
     async fn verified_disk_cache_invalidates_modified_same_length_artifact() {

@@ -1,4 +1,7 @@
+import { parseProfileStyle, type ProfileStyle } from './profile-style.js';
+
 export interface PlayerProfile {
+    profileStyle: ProfileStyle;
     collections: PackCollection[];
     displayName: string;
     status: string;
@@ -9,9 +12,9 @@ export interface PlayerProfile {
 }
 export interface PackEntry { source:'modrinth'|'curseforge'; projectId:string; versionId:string; name:string }
 export interface PackCollection { id:string; title:string; description:string; entries:PackEntry[] }
-export function collections(value:unknown): PackCollection[] | null {
+export function collections(value:unknown, maximum = 6): PackCollection[] | null {
     if (value === undefined) return [];
-    if (!Array.isArray(value) || value.length>6) return null;
+    if (!Array.isArray(value) || value.length>maximum) return null;
     const ids = new Set<string>();
     for (const item of value) {
         if (!item || typeof item!=='object' || typeof item.id!=='string' || !/^[a-zA-Z0-9-]{1,64}$/.test(item.id) || ids.has(item.id) || typeof item.title!=='string' || !item.title.trim() || item.title.length>80 || typeof item.description!=='string' || item.description.length>240 || !Array.isArray(item.entries) || item.entries.length>8) return null;
@@ -34,15 +37,17 @@ export function profileImage(value: unknown): value is string {
         return match[1] === 'png' ? bytes.startsWith('\x89PNG\r\n\x1a\n') : match[1] === 'jpeg' ? bytes.startsWith('\xff\xd8\xff') : match[1] === 'gif' ? /^GIF8[79]a/.test(bytes) : bytes.startsWith('RIFF') && bytes.slice(8,12) === 'WEBP';
     } catch { return false; }
 }
-export function validatePublicProfile(value: unknown): PlayerProfile | null {
+export function validatePublicProfile(value: unknown, maximum = 6, favourites = 8): PlayerProfile | null {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     const body = value as Record<string,unknown>;
-    const shared = collections(body.collections);
+    const profileStyle = parseProfileStyle(body.profileStyle);
+    if (!profileStyle) return null;
+    const shared = collections(body.collections, maximum);
     if (!shared) return null;
     if (body.displayName !== undefined && (typeof body.displayName !== 'string' || body.displayName.length > 32)) return null;
     if (body.status !== undefined && (typeof body.status !== 'string' || body.status.length > 80)) return null;
     if (typeof body.description !== 'string' || body.description.length > 400 || !profileImage(body.banner) || !profileImage(body.portrait)) return null;
-    if (!Array.isArray(body.packs) || body.packs.length > 8 || body.packs.some(pack => typeof pack !== 'string' || !pack.trim() || pack.length > 80)) return null;
+    if (!Array.isArray(body.packs) || body.packs.length > favourites || body.packs.some(pack => typeof pack !== 'string' || !pack.trim() || pack.length > 80)) return null;
     const packs = body.packs as string[];
-    return {collections:shared,displayName:typeof body.displayName === 'string' ? body.displayName.trim():'',status:typeof body.status === 'string' ? body.status.trim():'',description:body.description.trim(),banner:body.banner,portrait:body.portrait,packs:[...new Set(packs.map(pack => pack.trim()))]};
+    return {profileStyle,collections:shared,displayName:typeof body.displayName === 'string' ? body.displayName.trim():'',status:typeof body.status === 'string' ? body.status.trim():'',description:body.description.trim(),banner:body.banner,portrait:body.portrait,packs:[...new Set(packs.map(pack => pack.trim()))]};
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import AccountBadges from "$lib/components/ui/AccountBadges.svelte";
     import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { lastSeenLabel } from "$lib/utils/lastSeen";
     import { Gamepad2, ArrowUpRight, Star, Trash2, Clock3, Copy, Check, Share2, MoreHorizontal, ShieldOff } from "lucide-svelte";
@@ -37,16 +38,16 @@
     }
 </script>
 
-<article class="friend-row group flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-bg-elevated p-4 transition-colors hover:border-brand-400/30">
-    <button type="button" onclick={() => publicProfile.show(friend)} class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} status={friend.status} {activity} lastSeen={friend.lastSeen} class="h-11 w-11" /></button>
+<article class="friend-row group grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-border bg-bg-elevated p-4 transition-colors hover:border-brand-400/30">
+    <button type="button" onclick={() => publicProfile.show(friend)} class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} profileStyle={friend.profileStyle} status={friend.status} {activity} lastSeen={friend.lastSeen} class="h-11 w-11" /></button>
     <div class="min-w-0 flex-1">
-        <div class="flex flex-wrap items-center gap-2"><h3 class="truncate text-sm font-semibold text-fg"><button type="button" class="hover:text-brand-400" onclick={() => publicProfile.show(friend)}>{displayName}</button></h3>{#if friend.role === 'owner'}<span class="rounded-full border border-brand-400/25 bg-brand-500/10 px-2 py-0.5 text-[10px] font-semibold text-brand-400">{uiText('ownerTools.badge')}</span>{/if}{#if playing}<span class="rounded-md bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-300">{uiText("ui.982d4bbcc310b45d")}</span>{/if}</div>
+        <div class="flex flex-wrap items-center gap-2"><h3 class="truncate text-sm font-semibold text-fg"><button type="button" class="hover:text-brand-400" onclick={() => publicProfile.show(friend)}>{displayName}</button></h3>{#if playing}<span class="rounded-md bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-300">{uiText("ui.982d4bbcc310b45d")}</span>{/if}</div>
         {#if displayName !== friend.username}<p class="mt-1 text-[10px] text-fg-subtle">@{friend.username}</p>{/if}
+        {#if friend.role === 'owner' || friend.membership?.plan !== undefined && friend.membership.plan !== 'free' || friend.tags?.length}<div class="mt-2"><AccountBadges plan={friend.membership?.plan} role={friend.role} tags={friend.tags} /></div>{/if}
         <p class="mt-1.5 flex min-w-0 items-center gap-1.5 text-xs {playing ? 'text-brand-300' : 'text-fg-muted'}">{#if playing}<Gamepad2 class="h-3.5 w-3.5 shrink-0" />{:else if friend.status === 'offline'}<Clock3 class="h-3.5 w-3.5 shrink-0 text-fg-subtle" />{/if}<span class="truncate">{activity}</span></p>
         {#if friend.status === 'offline' && friend.profileStatus}<p class="mt-1 text-[10px] text-fg-subtle">{lastSeenLabel(friend.lastSeen)}</p>{/if}
     </div>
-    {#if friend.tags?.length}<div class="flex flex-wrap gap-1.5">{#each friend.tags as tag}<span class="rounded-full border border-brand-400/20 bg-brand-500/10 px-2 py-1 text-[10px] font-medium text-brand-400">{tag}</span>{/each}</div>{/if}
-    <div class="friend-actions ml-auto flex items-center gap-1.5">
+    <div class="friend-actions col-span-2 flex flex-wrap items-center justify-end gap-1.5 border-t border-border pt-3">
         {#if playing && friend.serverIp}<button type="button" class={button({ variant: 'primary', size: 'sm' })} onclick={onJoin} disabled={busy}>{uiText("ui.e551687514b0b026")}<ArrowUpRight class="h-3.5 w-3.5" /></button>{:else if friend.status === 'online' && onInvite}<button type="button" class={button({ variant: 'outline', size: 'sm' })} onclick={onInvite} disabled={busy}><Share2 class="h-3.5 w-3.5" />{uiText("ui.4152017c72674d9d")}</button>{/if}
         <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={uiText('friendsDesign.favourite', { name: friend.username })} aria-pressed={favourite} title={uiText('friendsDesign.favourite', { name: friend.username })} onclick={onFavourite} disabled={busy}><Star class="h-4 w-4 {favourite ? 'fill-warning text-warning' : 'text-fg-subtle'}" /></button>
         <details bind:this={menu} class="relative" ontoggle={(event) => menuOpen = event.currentTarget.open}>

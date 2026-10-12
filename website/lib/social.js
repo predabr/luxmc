@@ -1,8 +1,12 @@
+import { activeProfileStyle } from "./profile-style.js";
 async function friendSnapshot(db, id, now = Math.floor(Date.now() / 1e3), ownerId) {
-  const { results } = await db.prepare("SELECT u.id, u.username, u.avatar_url, u.last_seen, u.activity, u.instance_name, u.mc_version, u.loader, u.server_host, u.server_port, r.accepted, r.recipient, COALESCE(t.tags, '[]') AS tags FROM social_relationships r JOIN social_users u ON u.id = CASE WHEN r.sender = ? THEN r.recipient ELSE r.sender END LEFT JOIN social_user_tags t ON t.user_id = u.id WHERE (r.sender = ? OR r.recipient = ?) AND u.removed_at = 0 AND NOT EXISTS (SELECT 1 FROM social_blocks b WHERE (b.owner = ? AND b.target = u.id) OR (b.target = ? AND b.owner = u.id)) LIMIT 200").bind(id, id, id, id, id).all();
+  const { results } = await db.prepare("SELECT u.id, u.username, u.avatar_url, u.last_seen, u.activity, u.instance_name, u.mc_version, u.loader, u.server_host, u.server_port, r.accepted, r.recipient, m.plan AS membership_plan, m.expires_at AS membership_expires, COALESCE(t.tags, '[]') AS tags, p.profile_style FROM social_relationships r JOIN social_users u ON u.id = CASE WHEN r.sender = ? THEN r.recipient ELSE r.sender END LEFT JOIN social_public_profiles p ON p.user_id = u.id LEFT JOIN social_user_tags t ON t.user_id = u.id LEFT JOIN lux_memberships m ON m.social_id = u.id WHERE (r.sender = ? OR r.recipient = ?) AND u.removed_at = 0 AND NOT EXISTS (SELECT 1 FROM social_blocks b WHERE (b.owner = ? AND b.target = u.id) OR (b.target = ? AND b.owner = u.id)) LIMIT 200").bind(id, id, id, id, id).all();
   return results.map((row) => {
     const online = row.accepted === 1 && row.last_seen > now - 75;
+    const plan = row.membership_expires > now ? row.membership_plan : "free";
     return {
+      profileStyle: activeProfileStyle(row.accepted ? JSON.parse(row.profile_style || "{}") : void 0, plan),
+      membership: { plan: row.membership_expires > now ? row.membership_plan : "free", expiresAt: row.membership_expires || null },
       id: row.id,
       username: row.username,
       avatarUrl: row.avatar_url || null,

@@ -1,6 +1,6 @@
 <div align="center">
   <img src="static/logo.png" alt="Luxmc" width="120" />
-  <h1>Luxmc 3.8 — Novos Universos</h1>
+  <h1>Luxmc 3.9 — Sua Marca, Seu Mundo</h1>
   <p>Seu Minecraft, suas instâncias e sua turma.</p>
   <p><a href="https://luxmc-r92.pages.dev">Site oficial</a> · <a href="https://github.com/predabr/luxmc/releases/latest">Downloads</a> · <a href="SECURITY.md">Segurança</a></p>
 </div>
@@ -13,7 +13,7 @@ Luxmc reúne versões Java, modpacks, organização de instâncias, personaliza�
 - **Linux:** escolha AppImage, DEB, RPM ou pacote Arch nas [releases](https://github.com/predabr/luxmc/releases/latest). Use o formato correspondente à sua distribuição.
 - **macOS:** consulte os artefatos da release. A disponibilidade de um pacote não equivale a uma validação de todas as funções naquele sistema.
 
-Baixe apenas dos canais oficiais. O atualizador da versão 3.8 verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. A assinatura de distribuição Ed25519 não substitui a assinatura Authenticode do Windows. Veja [SECURITY.md](SECURITY.md).
+Baixe apenas dos canais oficiais. O atualizador verifica o manifesto assinado e o hash do arquivo antes de executar uma atualização. O instalador Windows 3.9 ainda não tem assinatura Authenticode e pode ser bloqueado pelo Controle Inteligente. A assinatura de distribuição Ed25519 não substitui a identificação do editor no Windows. Veja [SECURITY.md](SECURITY.md).
 
 ## Biblioteca e conteúdo
 
@@ -41,9 +41,9 @@ Versões GDK usam Gaming Services. O Luxmc prepara esse componente oficial quand
 
 Temas, wallpaper e ajustes visuais são configuráveis. As telas e abas têm transições curtas; movimento reduzido e efeitos desativados são respeitados. Ativar animações explicitamente permite usá-las com movimento reduzido no Windows; o modo de desempenho usa uma transição breve de opacidade. O fundo e o tema recuperam a gravação mais recente das preferências.
 
-A [versão 3.8 — Novos Universos](docs/releases/v3.8.0.md) traz uma vitrine interativa de modpacks, capas maiores, filtros de categoria e provedor, navegação refinada e transições que respeitam as preferências de movimento. A instalação reutiliza o cache de pacotes, escreve downloads com buffer e limita a memória das verificações, mantendo as análises do Shield. A descoberta LAN acompanha a porta publicada pelo jogo, inclusive nos fluxos de loaders, com alternativas por logs e IPv6. Aparências são compartilhadas dentro da sala autenticada, e o Discord recebe a contagem de jogadores observada na partida. O site foi redesenhado e a página Skin Studio foi retirada; o personalizador continua no launcher.
+A [versão 3.9 — Sua Marca, Seu Mundo](docs/releases/v3.9.0.md) traz um editor de perfil com prévia, imagens e GIFs, estilos conforme o plano e favoritos ampliados. Plus oferece seis paletas, Halo, Contorno duplo e 16 favoritos. Pro acrescenta Órbita, Brilho, Pulso, composição centralizada e 24 favoritos. Free conserva sua personalização básica. A preparação de instâncias lê somente os metadados necessários na auditoria de instalação e prepara Java e loader em paralelo, mantendo a análise do Shield antes de abrir o jogo. Navegação e indicadores de progresso receberam transições adicionais.
 
-O [relatório da 3.8](docs/releases/validation-v3.8.0.md) registra as verificações e os limites. A atualização preserva contas, mundos, instâncias e preferências. O instalador mantém o nome **Lux MC Launcher.exe**.
+O [relatório da 3.9](docs/releases/validation-v3.9.0.md) registra as verificações e os limites. A atualização preserva contas, mundos, instâncias e preferências. O instalador mantém o nome **Lux MC Launcher.exe**. Planos são validados pela API autenticada; hospedagem de servidores permanece adiada.
 
 Prévia do catálogo 3.8, com dados de demonstração:
 
@@ -81,6 +81,6 @@ Bibliotecas, componentes de rede, conteúdo dos packs, imagens dos usuários e m
 
 ## Code signing policy
 
-A candidatura à SignPath Foundation foi enviada em 11 de outubro de 2026, com recebimento confirmado pelo formulário; a avaliação está pendente. Os instaladores publicados até agora não têm assinatura Authenticode. A verificação Ed25519 dos downloads continua ativa e não substitui a identificação do editor no Windows. A aprovação do programa, a integração e a validação de todos os componentes ainda são necessárias antes de anunciar uma release assinada.
+A SignPath Foundation recusou a candidatura porque o projeto ainda não apresenta os sinais de adoção pública exigidos pelo programa. Nenhum certificado foi emitido. Os instaladores Windows publicados até agora não têm assinatura Authenticode. A verificação Ed25519 dos downloads continua ativa e não substitui a identificação do editor no Windows. A compilação Windows registra hashes, estado das assinaturas e uma análise personalizada do Defender; isso não representa aprovação por todos os antivírus.
 
 Veja a [política de assinatura](CODE_SIGNING_POLICY.md), a [política de privacidade](https://luxmc-r92.pages.dev/privacidade) e a [página de assinatura no site](https://luxmc-r92.pages.dev/assinatura).
