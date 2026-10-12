@@ -4,7 +4,7 @@ use sha2::Digest;
 use base64::Engine;
 
 pub async fn owner_tools_core(account_id: String, profile_id: String, operation: String) -> AppResult<Value> {
-    let response = crate::commands::social::social_request_core(account_id, crate::commands::social::SocialRequest::ProfileGet { target_id: None, collections_limit: None }).await?;
+    let response = crate::commands::social::social_request_core(account_id, crate::commands::social::SocialRequest::ProfileGet { target_id: None, favourites_limit: None, collections_limit: None }).await?;
     if response.pointer("/profile/role").and_then(Value::as_str) != Some("owner") {
         return Err(AppError::InvalidState("Ferramenta exclusiva da conta de dono".into()));
     }
