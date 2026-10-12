@@ -1,0 +1,34 @@
+name: Local Luxmc integrity verifier
+on:
+  push:
+    branches: [codex/local-artwork-verifier-b84b052c]
+permissions:
+  contents: read
+jobs:
+  verifier:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      LUXMC_MAIN_SHA256: 'b84b052c80cce950fca79322a945d5e82d75a0cbbcff99304763b81e53c7c0ae'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri/repair-helper -> target
+      - name: Test verifier
+        run: cargo test --locked --manifest-path src-tauri/repair-helper/Cargo.toml
+      - name: Build verifier
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc --manifest-path src-tauri/repair-helper/Cargo.toml
+      - name: Record artifact digest
+        shell: pwsh
+        run: |
+          $binary='src-tauri/repair-helper/target/x86_64-pc-windows-msvc/release/luxmc-repair.exe'
+          @{mainSha256=$env:LUXMC_MAIN_SHA256;helperSha256=(Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash.ToLowerInvariant();commit=$env:GITHUB_SHA} | ConvertTo-Json | Set-Content verifier.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luxmc-local-verifier
+          retention-days: 3
+          path: |
+            src-tauri/repair-helper/target/x86_64-pc-windows-msvc/release/luxmc-repair.exe
+            verifier.json
