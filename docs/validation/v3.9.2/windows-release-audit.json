@@ -1,0 +1,34 @@
+{
+  "version": "3.9.2",
+  "timestamp": "2026-10-12T23:31:57.2903062Z",
+  "commit": "a9a1d6b194b4ce6b7297a1b0fb5d2be5f9d587d8",
+  "run": "https://github.com/predabr/luxmc/actions/runs/38318528690",
+  "components": [
+    {
+      "component": "installer",
+      "filename": "Lux MC Launcher.exe",
+      "bytes": 21289581,
+      "sha256": "e651194377fee9c1c97c3c4814979d16a6e8261ebf8ca71cc4049ef1c8ed69ee",
+      "authenticode": "NotSigned",
+      "publisher": null
+    },
+    {
+      "component": "program",
+      "filename": "luxmc.exe",
+      "bytes": 43317760,
+      "sha256": "6f4fd9bb3ff892981dee9bfd01a58897169fe127b4c7aa6010b43aee51cbf3d0",
+      "authenticode": "NotSigned",
+      "publisher": null
+    }
+  ],
+  "defender": {
+    "signatureVersion": "1.459.690.0",
+    "scanExitCode": 0,
+    "output": [
+      "Scan starting...\r\nScan finished.\r\nScanning D:\\a\\luxmc\\luxmc\\Lux MC Launcher.exe found no threats.\r\n",
+      "Scan starting...\r\nScan finished.\r\nScanning D:\\a\\luxmc\\luxmc\\src-tauri\\target\\x86_64-pc-windows-msvc\\release\\luxmc.exe found no threats.\r\n"
+    ]
+  },
+  "windowsTrustConfirmed": false,
+  "independentVendorApprovalConfirmed": false
+}
