@@ -14,6 +14,8 @@ O instalador 3.9 foi enviado ao VirusTotal com autorização para os termos e o 
 
 Os pedidos de revisão do instalador anterior 3.8 foram recebidos pela Avast, AVG e Microsoft. A resposta dessas análises continua pendente. O relatório do instalador 3.9 não deve ser confundido com a revisão do arquivo 3.8.
 
+Os formulários de revisão do arquivo 3.9 também tiveram o recebimento confirmado pela Avast, AVG e Microsoft, após a verificação humana dos CAPTCHAs. O pedido à Trapmine foi enviado por e-mail ao contato oficial indicado pelo fornecedor. Nenhum desses envios equivale a uma aprovação; as respostas dos analistas continuam pendentes. Somente o instalador público e os dados da compilação foram compartilhados, sem mundos, tokens ou instâncias de jogadores.
+
 As detecções Avast, AVG e Trapmine informadas pelo usuário não foram classificadas como falsos positivos confirmados. A candidatura gratuita à SignPath Foundation foi recusada. Esta release permanece sem certificado público de assinatura de código e pode ser bloqueada pelo Windows. Revisão de fornecedores e assinatura são processos diferentes.
 
 ## Personalização e desempenho
