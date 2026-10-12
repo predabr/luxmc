@@ -40,6 +40,8 @@ A página de planos conserva o nome, plano e vencimento. A lista de pedidos e o 
 
 Os 83 testes das APIs e regras do site passaram, incluindo troca de identidade, autorização da imagem do perfil, logout com CSRF e seleção de plano. Os testes de navegador verificaram foto, recorte da cabeça da skin, plano ativo, pedidos pausados, comprovante e o cabeçalho em desktop e celular. Os arquivos JavaScript e CSS publicados foram comparados pelos hashes com os arquivos locais. Os testes de navegador de contas e pagamentos usaram fixtures, sem aprovar compras reais ou alterar planos pessoais.
 
+A visita à página sem sessão exibe a orientação para conectar a conta, sem apresentar o login esperado como erro. Uma falha real de serviço continua visível. Esses dois estados foram conferidos no navegador; o teste de nomes iguais aguarda a resposta da busca antes de conferir as duas contas e conserva o bloqueio de atribuição com código incorreto.
+
 ## Limites
 
 Os testes automatizados não equivalem a uma avaliação completa de malware nem garantem compatibilidade com todos os modpacks. O teste P2P entre duas redes no One Terror Block 1.20.1 permanece pendente dos participantes. O launcher instalado do usuário não foi iniciado para preparar esta release.
