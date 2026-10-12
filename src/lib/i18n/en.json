@@ -487,7 +487,6 @@
       "title": "Your catalog",
       "pageSize": "Results per page",
       "compact": "Compact covers",
-      "spotlight": "Show featured modpacks",
       "help": "Use 24 results and compact covers to browse with less memory."
     }
   },
@@ -3526,5 +3525,21 @@
     "reset": "Reset style",
     "moreFavourites": "Your plan allows {count} profile favourites.",
     "preview": "Your profile signature, live"
+  },
+  "catalogFilters": {
+    "source": "Providers",
+    "loader": "Mod loaders",
+    "categories": {
+      "Adventure": "Adventure",
+      "Challenging": "Challenging",
+      "Combat": "Combat",
+      "Kitchen-Sink": "All-round",
+      "Lightweight": "Lightweight",
+      "Magic": "Magic",
+      "Multiplayer": "Multiplayer",
+      "Optimization": "Performance",
+      "Quests": "Quests",
+      "Technology": "Technology"
+    }
   }
 }

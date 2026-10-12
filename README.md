@@ -19,7 +19,7 @@ Baixe apenas dos canais oficiais. O atualizador verifica o manifesto assinado e 
 
 Cada instância Java conserva seus mods, mundos e configurações em sua própria pasta. Crie pastas com nome e imagem para organizar a biblioteca e arraste as instâncias para dentro delas.
 
-O catálogo integra Modrinth e CurseForge, com navegação lateral, imagens fornecidas pelo projeto e opções de quantidade de resultados, capas compactas e destaques. Importe `.mrpack` e pacotes CurseForge, confira versões e changelogs e instale o conteúdo na instância escolhida. Downloads conferem hashes quando o provedor os disponibiliza. Reparos preservam arquivos desativados pelo usuário. A disponibilidade dos arquivos depende dos provedores e das permissões de distribuição de cada autor.
+O catálogo integra Modrinth e CurseForge, com filtros à direita, imagens fornecidas pelo projeto e opções de quantidade de resultados e capas compactas. Importe `.mrpack` e pacotes CurseForge, confira versões e changelogs e instale o conteúdo na instância escolhida. Downloads conferem hashes quando o provedor os disponibiliza. Reparos preservam arquivos desativados pelo usuário. A disponibilidade dos arquivos depende dos provedores e das permissões de distribuição de cada autor.
 
 Vanilla, Fabric, Forge, NeoForge e Quilt têm fluxos próprios de preparação. Java, memória, resolução e argumentos podem ser definidos por instância. Logs, diagnósticos, backups e histórico ajudam a investigar problemas; não existe garantia de que qualquer combinação de mods funcione.
 
@@ -49,7 +49,7 @@ O [relatório da 3.9](docs/releases/validation-v3.9.0.md) registra as verificaç
 
 Prévia do catálogo 3.8, com dados de demonstração:
 
-![Vitrine de modpacks 3.8](docs/validation/catalog-vitrine/vitrine-dark.png)
+![Catálogo com filtros à direita](docs/validation/catalog-navigation/catalog-dark.png)
 
 Capturas fornecidas pelo autor em 9 de outubro de 2026:
 

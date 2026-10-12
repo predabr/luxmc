@@ -49,7 +49,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             <div class="grid gap-4 sm:grid-cols-2">
                 <label class="space-y-2 text-xs text-fg"><span class="block font-semibold">{uiText('settings.catalog.pageSize')}</span><select class="w-full rounded-xl border border-border bg-bg-elevated p-3" value={settings.value.catalogPageSize || 36} onchange={event => patch({catalogPageSize:Number(event.currentTarget.value) as 24|36|48})}>{#each [24,36,48] as count}<option value={count}>{count}</option>{/each}</select></label>
                 <label class="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-elevated p-3 text-xs"><span>{uiText('settings.catalog.compact')}</span><input type="checkbox" class="h-5 w-5 accent-brand-500" checked={settings.value.catalogCompactCards === true} onchange={event => patch({catalogCompactCards:event.currentTarget.checked})} /></label>
-                <label class="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-elevated p-3 text-xs"><span>{uiText('settings.catalog.spotlight')}</span><input type="checkbox" class="h-5 w-5 accent-brand-500" checked={settings.value.catalogSpotlight !== false} onchange={event => patch({catalogSpotlight:event.currentTarget.checked})} /></label>
             </div>
             <p class="text-xs leading-5 text-fg-muted">{uiText('settings.catalog.help')}</p>
         </fieldset>

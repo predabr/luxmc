@@ -12,7 +12,6 @@ export interface AppSettings {
     motionSpeed?: "fast" | "balanced";
     preloadContentIcons?: boolean;
     catalogPageSize?: 24 | 36 | 48;
-    catalogSpotlight?: boolean;
     catalogCompactCards?: boolean;
     gifQuality?: "balanced" | "high";
     respectReducedMotion?: boolean;
@@ -81,7 +80,6 @@ const defaults: AppSettings = {
     motionSpeed: "balanced",
     preloadContentIcons: true,
     catalogPageSize: 36,
-    catalogSpotlight: true,
     catalogCompactCards: false,
     gifQuality: "high",
 	blur: false,

@@ -11,7 +11,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import {
 		Search, LayoutGrid, List, Loader2, AlertTriangle,
 		Check, ChevronLeft, ChevronRight, ChevronDown,
-		Flame, Globe, Sparkles, Package, ArrowUpRight, SlidersHorizontal, Mountain, WandSparkles, Gauge, Users, Rocket
+		Sparkles, Package, ArrowUpRight, SlidersHorizontal
 	} from "lucide-svelte";
 	import { toast } from "$lib/stores/toasts.svelte";
 	import { catalogCompatibility } from "$lib/utils/catalogCompatibility";
@@ -37,7 +37,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	import InstallGuideModal from "$lib/components/mods/InstallGuideModal.svelte";
 	import LightboxModal from "$lib/components/mods/LightboxModal.svelte";
     import { goto } from '$app/navigation';
-    import CatalogSpotlight from '$lib/components/mods/CatalogSpotlight.svelte';
     import CatalogNavigation from '$lib/components/mods/CatalogNavigation.svelte';
     import { pageMotion } from '$lib/actions/pageMotion';
 
@@ -92,7 +91,6 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	let sortMenuOpen = $state(false);
 	let viewMode = $state<"grid" | "list">("grid");
     let filtersOpen = $state(false);
-    const moods = $derived([{id:"Adventure",title:uiText("catalogDesign.adventure"),icon:Mountain}, {id:"Magic",title:uiText("catalogDesign.magic"),icon:WandSparkles}, {id:"Optimization",title:uiText("catalogDesign.performance"),icon:Gauge}, {id:"Multiplayer",title:uiText("catalogDesign.together"),icon:Users}, {id:"Technology",title:uiText("catalogDesign.technology"),icon:Rocket}]);
 
     let resultsWidth = $state(0);
     const resultColumns = $derived(resultsWidth >= 1050 ? 3 : resultsWidth >= 650 ? 2 : 1);
@@ -106,6 +104,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 
 	const currentSortLabel = $derived(sortOptions.find(s => s.id === selectedSort)?.label ?? "Downloads");
 	const activeFilters = $derived([
+        ...(selectedSource !== "all" ? [{ label: selectedSource === "modrinth" ? "Modrinth" : "CurseForge", clear: () => selectedSource = "all" as const }] : []),
 		...(selectedVersion !== "Qualquer Versão" ? [{ label: selectedVersion, clear: () => selectedVersion = "Qualquer Versão" }] : []),
 		...(selectedLoader ? [{ label: selectedLoader, clear: () => selectedLoader = null }] : []),
 		...(selectedCategory ? [{ label: selectedCategory, clear: () => selectedCategory = null }] : [])
@@ -422,7 +421,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 	}
 </script>
 
-<div class="catalog-page min-h-full flex flex-col xl:flex-row gap-6 select-none">
+<div class="catalog-page min-h-full flex flex-col select-none">
 
 	{#if selectedItem}
 		{@const id = `${selectedItem.source}:${selectedItem.sourceId}`}
@@ -534,37 +533,20 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 		</ModDetailView>
 
 	{:else}
-		<aside class="catalog-sidebar">
-            <p class="catalog-sidebar-heading">{uiText('ui.931d062a37647b8d')}</p>
+        <header use:pageMotion={'catalog-header'} class="catalog-hero" data-motion-surface>
+            <div><p class="page-eyebrow">Luxmc / Discover</p><h1 class="page-title mt-2">{uiText('catalogDesign.title')}</h1></div>
+            <button type="button" class="catalog-library" aria-label={uiText('catalogDesign.openLibrary')} onclick={() => { void goto('/instances'); }}><Package class="h-4 w-4" /><span>{uiText('catalogDesign.library')} · {profiles.list.length}</span><ArrowUpRight class="h-4 w-4" /></button>
+        </header>
+        <div class="catalog-layout">
+        <div class="catalog-main flex flex-col min-w-0" class:catalog-compact={settings.value.catalogCompactCards === true}>
             <CatalogNavigation bind:selectedType />
-            <div class="catalog-provider-row" aria-label={uiText('ui.4b69288df9bb8f94')}>
-                {#each [{id:'all', label:uiText('ui.8a0108a42be96e26'), icon:Globe}, {id:'modrinth',label:'Modrinth',icon:Package}, {id:'curseforge',label:'CurseForge',icon:Flame}] as source}
-                    <button type="button" aria-pressed={selectedSource === source.id} onclick={() => selectedSource = source.id as typeof selectedSource}><source.icon class="h-3.5 w-3.5" />{source.label}{#if selectedSource === source.id}<Check class="ml-auto h-3 w-3" />{/if}</button>
-                {/each}
-            </div>
-            {#if filtersOpen}<ModSearchBar bind:selectedVersion bind:selectedLoader bind:selectedCategory />{/if}
-        </aside>
-		<div class="catalog-main flex-1 flex flex-col min-w-0 pr-1" class:catalog-compact={settings.value.catalogCompactCards === true}>
-			<header use:pageMotion={'catalog-header'} class="catalog-hero" data-motion-surface>
-                <div><p class="page-eyebrow">Luxmc / Discover</p><h1 class="page-title mt-2">{uiText('catalogDesign.title')}</h1></div>
-                <button type="button" class="catalog-library" aria-label={uiText('catalogDesign.openLibrary')} onclick={() => { void goto('/instances'); }}><Package class="h-4 w-4" /><span>{uiText('catalogDesign.library')} · {profiles.list.length}</span><ArrowUpRight class="h-4 w-4" /></button>
-            </header>
-            {#if settings.value.catalogSpotlight !== false && selectedType === 'Modpack' && !searchQuery.trim() && results.length > 0 && !searchError}
-                <div inert={loading} aria-busy={loading}><CatalogSpotlight items={results.slice(0,3)} onOpen={openDetails} /></div>
-            {/if}
-            {#if selectedType === 'Modpack'}
-                <nav class="catalog-moods" aria-label={uiText('catalogDesign.playStyle')}>
-                    <span class="catalog-moods-label">{uiText('catalogDesign.playStyle')}</span>
-                    {#each moods as mood}<button type="button" aria-pressed={selectedCategory === mood.id} onclick={() => selectedCategory = selectedCategory === mood.id ? null : mood.id}><mood.icon class="h-3.5 w-3.5" />{mood.title}</button>{/each}
-                </nav>
-            {/if}
             <div class="catalog-search-row">
             <div class="catalog-search relative w-full mb-4">
 				<Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-fg/30" />
 				<input type="search" aria-label={uiText("ui.659ee868fc163d0e")} bind:value={searchQuery} placeholder={uiText("ui.859c2b032a83e5c7", {arg0: (selectedType.toLowerCase())})}
 					class="w-full bg-bg-elevated border border-border focus:border-brand-400/60 rounded-2xl py-4 pl-11 pr-4 text-sm text-fg placeholder-fg/30 focus:outline-none transition-[color,background-color,border-color,box-shadow,transform,opacity] shadow-inner" />
 			</div>
-                <button type="button" class="catalog-filter-toggle" aria-expanded={filtersOpen} aria-controls={filtersOpen ? 'catalog-filter-panel' : undefined} onclick={() => filtersOpen = !filtersOpen}><SlidersHorizontal class="h-4 w-4" />{uiText('ui.57ac13ce3d5bedff')}{#if activeFilters.length}<span>{activeFilters.length}</span>{/if}</button>
+                <button type="button" class="catalog-filter-toggle" aria-expanded={filtersOpen} aria-controls="catalog-filter-panel" onclick={() => filtersOpen = !filtersOpen}><SlidersHorizontal class="h-4 w-4" />{uiText('ui.57ac13ce3d5bedff')}{#if activeFilters.length}<span>{activeFilters.length}</span>{/if}</button>
             </div>
 			{#if activeFilters.length > 0 || searchQuery}
 				<div class="mb-4 flex flex-wrap items-center gap-2" aria-label={uiText("ui.505d23a2b73a2c49")}>
@@ -636,7 +618,7 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 				</div>
 			{:else}
                 <div bind:clientWidth={resultsWidth} inert={loading} aria-busy={loading}>
-                    <CatalogResults items={results} columns={viewMode === 'grid' ? resultColumns : 1} rowHeight={viewMode === 'grid' ? 480 : resultsWidth < 650 ? 144 : 112}>
+                    <CatalogResults items={results} columns={viewMode === 'grid' ? resultColumns : 1} rowHeight={viewMode === 'grid' ? settings.value.catalogCompactCards ? 400 : 480 : resultsWidth < 650 ? 144 : 112}>
                         {#snippet children(item)}
                             {@const id = `${item.source}:${item.sourceId}`}
                             {#if viewMode === 'grid'}
@@ -680,7 +662,8 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 				</div>
 			{/if}
 		</div>
-
+        <ModSearchBar bind:selectedSource bind:selectedVersion bind:selectedLoader bind:selectedCategory bind:expanded={filtersOpen} />
+        </div>
 	{/if}
 </div>
 
@@ -701,39 +684,27 @@ import { translateUi as uiText, currentUiLocale } from "$lib/i18n/useTranslation
 {/if}
 
 <style>
-    .catalog-sidebar { position:sticky; top:0; align-self:flex-start; width:198px; max-height:calc(100dvh - 110px); overflow:auto; flex-shrink:0; padding:14px; border-radius:22px; border:1px solid rgb(var(--border)); background:rgb(var(--bg-elevated)/.97); }
-    .catalog-sidebar-heading { margin:4px 10px 18px; color:rgb(var(--fg-subtle)); font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
-    .catalog-sidebar :global(.catalog-filters) { width:100%; min-width:0; margin-top:12px; }
-    .catalog-sidebar :global(.catalog-filters summary), .catalog-sidebar :global(.catalog-filters details > div) { padding:14px 10px; }
+    .catalog-layout { display:grid; grid-template-columns:minmax(0,1fr) 260px; align-items:start; gap:24px; }
     .catalog-compact :global(.catalog-cover) { height:156px; }
     .catalog-compact :global(.catalog-logo) { top:128px; height:48px; width:48px; }
-    @media(min-width:1101px) { .catalog-page { flex-direction:row; } }
-    @media(max-width:1100px) { .catalog-sidebar { position:static; width:100%; max-height:none; } .catalog-sidebar-heading { display:none; } .catalog-sidebar :global(.catalog-provider-row) { flex-direction:row; margin:12px 0 0; padding:12px 0 0; } .catalog-sidebar :global(.catalog-provider-row button) { width:auto; } }
+    @media(max-width:1199px) { .catalog-layout { grid-template-columns:minmax(0,1fr); gap:16px; } }
     .catalog-hero { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 22px; padding: 4px 0; }
     .catalog-hero :global(.page-title) { font-size: clamp(24px, 2.2vw, 32px); letter-spacing: -.045em; }
     .catalog-library { display: flex; align-items: center; gap: 9px; padding: 12px 14px; border: 1px solid rgb(var(--border)); border-radius: 14px; color: rgb(var(--fg-muted)); font-size: 11px; background: rgb(var(--bg-elevated) / .9); }
     .catalog-library:hover { color: rgb(var(--brand-action)); border-color: rgb(var(--brand-400) / .4); }
-    .catalog-provider-row { display: flex; flex-direction:column; gap: 5px; margin: 18px 0 0; padding-top:16px; border-top:1px solid rgb(var(--border)); }
-    .catalog-provider-row button { display: flex; width:100%; align-items: center; gap: 8px; padding: 10px; border-radius: 12px; color: rgb(var(--fg-muted)); font-size: 11px; border: 1px solid transparent; }
-    .catalog-provider-row button[aria-pressed='true'] { border-color: rgb(var(--border)); background: rgb(var(--bg-elevated) / .9); color: rgb(var(--fg)); }
-    .catalog-provider-row button:hover { color: rgb(var(--brand-action)); }
-    .catalog-provider-row button:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
-    .catalog-moods { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 22px; }
-    .catalog-moods-label { font-size: 11px; font-weight: 600; color: rgb(var(--fg-muted)); margin-right: 8px; }
-    .catalog-moods button { display: flex; align-items: center; gap: 7px; padding: 9px 12px; font-size: 11px; color: rgb(var(--fg-muted)); border: 1px solid rgb(var(--border)); border-radius: 100px; background: rgb(var(--bg-elevated) / .9); transition: border-color 180ms ease, background-color 180ms ease; }
-    .catalog-moods button:hover, .catalog-moods button[aria-pressed='true'] { background: rgb(var(--brand-500) / .1); border-color: rgb(var(--brand-400) / .4); color: rgb(var(--brand-action)); }
     .catalog-search-row { display: flex; align-items: stretch; gap: 10px; margin-bottom: 18px; }
     .catalog-search { flex: 1; min-width: 0; margin: 0; border-radius: 18px; }
     .catalog-search:focus-within { box-shadow: 0 0 0 4px rgb(var(--brand-500) / .07); }
-    .catalog-filter-toggle { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 12px 18px; border: 1px solid rgb(var(--border)); border-radius: 16px; font-size: 12px; font-weight: 600; background: rgb(var(--bg-elevated) / .94); color: rgb(var(--fg-muted)); }
+    .catalog-filter-toggle { display: none; align-items: center; justify-content: center; gap: 9px; padding: 12px 18px; border: 1px solid rgb(var(--border)); border-radius: 16px; font-size: 12px; font-weight: 600; background: rgb(var(--bg-elevated) / .94); color: rgb(var(--fg-muted)); }
     .catalog-filter-toggle[aria-expanded='true'] { border-color: rgb(var(--brand-400) / .4); color: rgb(var(--brand-action)); background: rgb(var(--brand-500) / .08); }
     .catalog-filter-toggle span { padding: 1px 5px; border-radius: 6px; background: rgb(var(--brand-500) / .15); }
-    .catalog-moods button:focus-visible, .catalog-filter-toggle:focus-visible, .catalog-library:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
+    .catalog-filter-toggle:focus-visible, .catalog-library:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
+    @media(max-width:1199px) { .catalog-filter-toggle { display:flex; } }
     .catalog-toolbar { padding: 0 2px; }
     .catalog-skeleton-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 16px; }
     .catalog-skeleton { height: 464px; border: 1px solid rgb(var(--border)); border-radius: 24px; overflow: hidden; background: rgb(var(--bg-elevated)); }
     .catalog-skeleton-art { height: 224px; background: linear-gradient(120deg, rgb(var(--bg-subtle)), rgb(var(--brand-500) / .06), rgb(var(--bg-subtle))); }
     @media (prefers-reduced-motion: no-preference) { :global(html:not(.no-anim):not(.no-ui-motion)) .catalog-skeleton-art { animation: catalog-pulse 1.8s ease-in-out infinite alternate; } @keyframes catalog-pulse { from { opacity: .45; } to { opacity: 1; } } }
     @media (min-width: 1550px) { .catalog-skeleton-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
-    @media (max-width: 650px) { .catalog-skeleton-grid { grid-template-columns: minmax(0,1fr); } .catalog-moods-label { width: 100%; } .catalog-filter-toggle { padding-inline: 12px; } }
+    @media (max-width: 650px) { .catalog-skeleton-grid { grid-template-columns: minmax(0,1fr); } .catalog-filter-toggle { padding-inline: 12px; } }
 </style>

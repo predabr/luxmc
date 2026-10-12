@@ -487,7 +487,6 @@
       "title": "Tu catálogo",
       "pageSize": "Resultados por página",
       "compact": "Portadas compactas",
-      "spotlight": "Mostrar modpacks destacados",
       "help": "Usa 24 resultados y portadas compactas para navegar con menos memoria."
     }
   },
@@ -3526,5 +3525,21 @@
     "reset": "Restaurar estilo",
     "moreFavourites": "Tu plan permite {count} favoritos en el perfil.",
     "preview": "Tu estilo de perfil, en directo"
+  },
+  "catalogFilters": {
+    "source": "Proveedores",
+    "loader": "Cargadores",
+    "categories": {
+      "Adventure": "Aventura",
+      "Challenging": "Desafíos",
+      "Combat": "Combate",
+      "Kitchen-Sink": "Completo",
+      "Lightweight": "Ligero",
+      "Magic": "Magia",
+      "Multiplayer": "Multijugador",
+      "Optimization": "Rendimiento",
+      "Quests": "Misiones",
+      "Technology": "Tecnología"
+    }
   }
 }

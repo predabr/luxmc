@@ -128,7 +128,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     .catalog-card:hover { translate: 0 -4px; }
     .catalog-card:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
     :global(.no-ui-motion) .catalog-card, :global(.no-anim) .catalog-card { translate: none; transition: none; }
-    @media (prefers-reduced-motion: reduce) { .catalog-card { translate: none; transition: none; } }
+    @media (prefers-reduced-motion: reduce) { :global(html:not(.force-ui-motion)) .catalog-card, :global(html:not(.force-ui-motion)) .catalog-card:hover { translate: none; transition: none; } }
 	.card-mesh {
 		background-image:
 			linear-gradient(30deg, rgb(var(--fg) / 0.05) 12%, transparent 12.5%, transparent 87%, rgb(var(--fg) / 0.05) 87.5%),

@@ -1,19 +1,30 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
-	import { ChevronDown, SlidersHorizontal, Check } from "lucide-svelte";
+	import { ChevronDown, SlidersHorizontal, Check, Globe, Package, Flame } from "lucide-svelte";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { onMount } from "svelte";
 	import { versionsList } from "$lib/api/launch";
 
 	let {
+		selectedSource = $bindable("all"),
 		selectedVersion = $bindable("Qualquer Versão"),
 		selectedLoader = $bindable(null),
-		selectedCategory = $bindable(null)
+		selectedCategory = $bindable(null),
+        expanded = $bindable(false)
 	}: {
+		selectedSource: "all" | "modrinth" | "curseforge";
 		selectedVersion: string;
 		selectedLoader: string | null;
 		selectedCategory: string | null;
+        expanded?: boolean;
 	} = $props();
+
+    const sources = $derived([
+        { id: 'all', label: uiText('ui.8a0108a42be96e26'), icon: Globe },
+        { id: 'modrinth', label: 'Modrinth', icon: Package },
+        { id: 'curseforge', label: 'CurseForge', icon: Flame }
+    ] as const);
+    const activeCount = $derived(Number(selectedSource !== 'all') + Number(selectedVersion !== 'Qualquer Versão') + Number(!!selectedLoader) + Number(!!selectedCategory));
 
 	const modLoaders = [
 		{ name: "Fabric", color: "text-cyan-400 border-cyan-500/30 bg-cyan-500/10" },
@@ -43,14 +54,27 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		return () => { disposed = true; };
 	});
 
-    let expanded = $state(true);
-    onMount(() => { expanded = window.innerWidth >= 1200; });
+    onMount(() => {
+        const desktop = window.matchMedia('(min-width: 1200px)');
+        const update = () => { expanded = desktop.matches; };
+        update();
+        desktop.addEventListener('change', update);
+        return () => desktop.removeEventListener('change', update);
+    });
 </script>
 
 <aside id="catalog-filter-panel" class="catalog-filters">
     <details bind:open={expanded}>
-        <summary class="flex cursor-pointer list-none items-center gap-3 p-5 text-sm font-semibold text-fg"><SlidersHorizontal class="h-4 w-4 text-brand-400" />{uiText('ui.57ac13ce3d5bedff')}<ChevronDown class="ml-auto h-4 w-4 text-fg-muted transition-transform {expanded ? 'rotate-180' : ''}" /></summary>
+        <summary class="filter-heading"><span class="filter-symbol"><SlidersHorizontal class="h-4 w-4" /></span>{uiText('ui.57ac13ce3d5bedff')}{#if activeCount}<span class="filter-count">{activeCount}</span>{/if}<ChevronDown class="ml-auto h-4 w-4 text-fg-muted transition-transform {expanded ? 'rotate-180' : ''}" /></summary>
         <div class="space-y-6 border-t border-border p-5">
+        <fieldset class="catalog-provider-row">
+            <legend class="filter-label">{uiText('catalogFilters.source')}</legend>
+            {#each sources as source}
+                <button type="button" aria-pressed={selectedSource === source.id} onclick={() => selectedSource = source.id}>
+                    <span class="provider-symbol" class:provider-modrinth={source.id === 'modrinth'} class:provider-curseforge={source.id === 'curseforge'}><source.icon class="h-4 w-4" /></span><span>{source.label}</span>{#if selectedSource === source.id}<Check class="ml-auto h-3.5 w-3.5" />{/if}
+                </button>
+            {/each}
+        </fieldset>
 
 		<div>
 			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.5df9df4db410ba86")}</div>
@@ -69,7 +93,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			{#if versionsUnavailable}<p class="mt-2 text-xs text-fg-muted">{uiText("ui.939284277cae2162")}</p>{/if}
 		</div>
 		<div>
-			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("ui.4ce6e1a0766463a1")}</div>
+			<div class="text-[11px] font-bold text-fg-muted uppercase tracking-wider mb-2">{uiText("catalogFilters.loader")}</div>
 			<div class="grid grid-cols-2 gap-2">
 				{#each modLoaders as loader}
 					<button
@@ -94,7 +118,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 						class="filter-choice px-2.5 py-1 rounded-full text-[11px] font-medium transition-[color,background-color,border-color,box-shadow,transform,opacity] cursor-pointer {selectedCategory === cat ? 'bg-success/20 text-success border border-success/40 font-bold' : 'bg-bg-elevated text-fg/50 border border-fg/5 hover:border-fg/20 hover:text-fg'}"
 						onclick={() => selectedCategory = selectedCategory === cat ? null : cat}
 					>
-						{cat}
+						{uiText(`catalogFilters.categories.${cat}`)}
 					</button>
 				{/each}
 			</div>
@@ -105,9 +129,20 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </aside>
 
 <style>
-    .catalog-filters { flex-shrink: 0; width: 260px; align-self: flex-start; position: sticky; top: 0; border: 1px solid rgb(var(--border)); border-radius: 24px; background: rgb(var(--bg-elevated) / .96); box-shadow: inset 0 1px 0 rgb(var(--fg) / .04); }
+    .catalog-filters { min-width:0; width:100%; align-self: flex-start; position: sticky; top: 0; max-height:calc(100dvh - 120px); overflow-y:auto; scrollbar-width:thin; border: 1px solid rgb(var(--border)); border-radius: 22px; background: rgb(var(--bg-elevated) / .97); box-shadow: inset 0 1px 0 rgb(var(--fg) / .04); }
+    .filter-heading { display:flex; align-items:center; gap:10px; padding:16px; list-style:none; cursor:pointer; color:rgb(var(--fg)); font-size:13px; font-weight:650; }
+    .filter-symbol { display:grid; place-items:center; width:32px; height:32px; border:1px solid rgb(var(--brand-400) / .2); border-radius:10px; color:rgb(var(--brand-action)); background:rgb(var(--brand-500) / .08); }
+    .filter-count { padding:2px 6px; border-radius:6px; background:rgb(var(--brand-500) / .12); color:rgb(var(--brand-action)); font-size:10px; }
+    .filter-label { margin-bottom:10px; color:rgb(var(--fg-muted)); font-size:11px; font-weight:700; letter-spacing:.06em; }
+    .catalog-provider-row { display:flex; flex-direction:column; gap:6px; min-width:0; }
+    .catalog-provider-row button { display:flex; align-items:center; gap:10px; width:100%; min-height:42px; padding:7px 10px; border:1px solid transparent; border-radius:12px; color:rgb(var(--fg-muted)); font-size:12px; font-weight:550; text-align:left; transition:background-color 180ms ease,border-color 180ms ease,color 180ms ease; }
+    .catalog-provider-row button:hover { color:rgb(var(--fg)); background:rgb(var(--fg) / .04); }
+    .catalog-provider-row button[aria-pressed='true'] { color:rgb(var(--brand-action)); border-color:rgb(var(--brand-400) / .3); background:rgb(var(--brand-500) / .08); }
+    .provider-symbol { display:grid; place-items:center; width:28px; height:28px; flex-shrink:0; border-radius:8px; background:rgb(var(--fg) / .04); }
+    .provider-modrinth { color:rgb(var(--success)); background:rgb(var(--success) / .08); }
+    .provider-curseforge { color:rgb(var(--warning)); background:rgb(var(--warning) / .08); }
     summary::-webkit-details-marker { display: none; }
     .filter-choice { min-height: 34px; }
-    .filter-choice:focus-visible, summary:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
-    @media (max-width: 1199px) { .catalog-filters { position: static; width: 100%; order: -1; } }
+    .filter-choice:focus-visible, summary:focus-visible, .catalog-provider-row button:focus-visible { outline: 2px solid rgb(var(--brand-action)); outline-offset: 3px; }
+    @media (max-width: 1199px) { .catalog-filters { position: static; max-height:none; order: -1; } }
 </style>
