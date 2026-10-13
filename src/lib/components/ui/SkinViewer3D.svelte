@@ -25,7 +25,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		autoRotate = true,
 		animation = "walk",
 		className = "",
-		active = true
+		active = true,
+        interactive = false
 	}: {
 		skinUrl?: string;
 		cape?: CapeType;
@@ -35,6 +36,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		animation?: AnimationType;
 		className?: string;
 		active?: boolean;
+        interactive?: boolean;
 	} = $props();
 
 	let containerEl = $state<HTMLDivElement | null>(null);
@@ -56,7 +58,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let lastPointerX = 0;
 	let lastPointerY = 0;
 
-	const running = $derived(active && visible && foreground && !(settings.value.pauseSkinWhileGaming && (appState.isGameRunning || appState.isLaunching)) && !appState.performanceMode);
+	const running = $derived(active && visible && foreground && (interactive || (!(settings.value.pauseSkinWhileGaming && (appState.isGameRunning || appState.isLaunching)) && !appState.performanceMode)));
 
 	onMount(() => {
 		let disposed = false;
@@ -393,7 +395,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		}
 
 		let frame = 0;
-		const clock = createAnimationClock(performance.now(), 1000 / (settings.value.skinPreviewFps === 30 ? 30 : 60));
+		const clock = createAnimationClock(performance.now(), 1000 / (settings.value.skinPreviewFps === 30 || appState.performanceMode || appState.isLaunching || appState.isGameRunning ? 30 : 60));
 
 		let capePitch = 0.18;
 		let capeRoll = 0.0;

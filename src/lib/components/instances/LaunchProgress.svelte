@@ -15,7 +15,7 @@
 <div class="launch-progress mt-5 rounded-2xl border border-border bg-bg-overlay/35 px-4 py-3" class:animated>
     <div class="flex items-center justify-between gap-4">
         <div class="flex min-w-0 items-center gap-3" role="status" aria-live="polite">
-            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-400"><Loader2 class="launch-spinner h-4 w-4" /></span>
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-400"><Loader2 class="launch-spinner animate-spin h-4 w-4" /></span>
             <span class="text-sm font-medium text-fg">{status || "Preparando Minecraft…"}</span>
         </div>
         <span class="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-fg-muted"><Clock3 class="h-3.5 w-3.5" />{elapsed}</span>
@@ -36,8 +36,6 @@
     .active .phase-fill { width: 35%; opacity: .8; }
     .active span { color: rgb(var(--fg)); }
     .animated .active .phase-fill { animation: phase-pulse 1.8s ease-in-out infinite; }
-    .animated :global(.launch-spinner) { animation: launch-spin 1.2s linear infinite; }
     @keyframes phase-pulse { 0% { transform: translateX(-100%); } 100% { transform: translateX(390%); } }
-    @keyframes launch-spin { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { .animated .active .phase-fill, .animated :global(.launch-spinner) { animation: none; } }
+    @media (prefers-reduced-motion: reduce) { .animated .active .phase-fill { animation: none; } }
 </style>

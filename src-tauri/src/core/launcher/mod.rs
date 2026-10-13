@@ -648,22 +648,25 @@ impl GameLauncher {
             None
         };
 
-        if let Some((skin_source, variant)) = skin_info {
-            appearance_variant = variant.clone();
-            self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
-            inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), clean_mc_ver).await?;
-        } else if is_msa && !has_explicit_cape {
-            self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
-            clean_skin_injection(game_dir).await?;
-        } else if !is_msa || has_explicit_cape {
-            use base64::Engine;
-            let default_source = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(include_bytes!("../../../../static/steve.png")));
-            appearance_variant = "classic".to_string();
-            inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), clean_mc_ver).await?;
-        }
+        let appearance_preparation = async {
+            if let Some((skin_source, variant)) = skin_info {
+                appearance_variant = variant.clone();
+                self.emit_log(&format!("Applying customized player skin ({}) for {}...", variant, username));
+                inject_player_skin(self.downloader.http(), game_dir, username, &skin_source, &variant, effective_cape.as_deref(), clean_mc_ver).await?;
+            } else if is_msa && !has_explicit_cape {
+                self.emit_log(&format!("Using official Mojang account skin directly from session server for {}...", username));
+                clean_skin_injection(game_dir).await?;
+            } else if !is_msa || has_explicit_cape {
+                use base64::Engine;
+                let default_source = format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(include_bytes!("../../../../static/steve.png")));
+                appearance_variant = "classic".to_string();
+                inject_player_skin(self.downloader.http(), game_dir, username, &default_source, "classic", effective_cape.as_deref(), clean_mc_ver).await?;
+            }
 
 
-        crate::commands::launch::scan_before_launch(game_dir, &self.app).await?;
+            Ok::<(), AppError>(())
+        };
+        tokio::try_join!(Box::pin(appearance_preparation), crate::commands::launch::scan_before_launch(game_dir, &self.app))?;
         let verified_profile = profile.clone();
         tokio::task::spawn_blocking(move || crate::core::launcher::launch_state::store(&verified_profile))
             .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;

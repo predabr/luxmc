@@ -619,6 +619,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 
 				<SkinViewer3D
+					interactive
 					bind:this={viewerRef}
 					skinUrl={currentSkinUrl || "/steve.png"}
 					slim={skinType === "alex"}

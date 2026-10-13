@@ -34,6 +34,13 @@ const assert = require('node:assert/strict');
         assert.equal(await panel.getByText('85%', { exact: true }).count(), 0);
         assert.equal(await panel.locator('.complete').count(), 2);
         assert.equal(await panel.locator('.active').count(), 1);
+        for (const spinner of [panel.locator('.launch-spinner'), page.locator('.instance-hero button[aria-busy="true"] .animate-spin')]) {
+            const animation = await spinner.evaluate(element => ({ name: getComputedStyle(element).animationName, count: getComputedStyle(element).animationIterationCount, state: getComputedStyle(element).animationPlayState, duration: getComputedStyle(element).animationDuration }));
+            assert.equal(animation.name, 'luxmc-progress-spin');
+            assert.equal(animation.count, 'infinite');
+            assert.equal(animation.state, 'running');
+            assert.equal(animation.duration, '0.9s');
+        }
         assert.equal(await panel.locator('.phase-fill').last().evaluate(element => getComputedStyle(element).animationName), 'none');
         if (process.env.LUXMC_PROGRESS_SCREENSHOT) await page.locator('.instance-hero').screenshot({ path: process.env.LUXMC_PROGRESS_SCREENSHOT });
         await page.locator('aside nav a[href="/mods"]').click();

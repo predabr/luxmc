@@ -8,6 +8,19 @@ function response(plan: 'free'|'plus'|'pro' = 'plus', revision = 1, presets: App
     return { identity: { id: '22222222-2222-4222-8222-222222222222', username: 'Player', owner: false }, membership: { plan, expiresAt: Math.floor(Date.now()/1000)+86400, revision:1, collections: plan === 'pro' ? 24 : plan === 'plus' ? 12 : 6, presets: plan === 'pro' ? 20 : plan === 'plus' ? 6 : 0 }, settings: { preferences: {density:'compact' as const,motionStyle:'subtle' as const}, presets, revision } };
 }
 describe('membership synchronization', () => {
+    it('owner privileges belong only to the verified current account and disappear on account change', async () => {
+        vi.useFakeTimers();
+        const verified = response('pro'); verified.identity.owner = true;
+        vi.mocked(membershipStatus).mockResolvedValueOnce(verified).mockResolvedValue(response('pro'));
+        membershipState.connect('owner-account'); await vi.advanceTimersByTimeAsync(0);
+        expect(membershipState.ownerFor('owner-account')).toBe(true);
+        expect(membershipState.ownerFor('another-account')).toBe(false);
+        expect(membershipState.socialId).toBe(verified.identity.id);
+        membershipState.connect('another-account');
+        expect(membershipState.ownerFor('owner-account')).toBe(false);
+        await vi.advanceTimersByTimeAsync(0);
+        expect(membershipState.ownerFor('another-account')).toBe(false);
+    });
     beforeEach(() => { vi.useFakeTimers(); vi.clearAllMocks(); membershipState.disconnect(); settings.patch({density:'comfortable',motionStyle:'expressive'}); });
     afterEach(() => { membershipState.disconnect(); vi.useRealTimers(); });
     it('applies verified remote preferences and debounces launcher edits without sending local paths', async () => {
