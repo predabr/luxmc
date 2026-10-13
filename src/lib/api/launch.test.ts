@@ -2,7 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({ invoke: vi.fn(), state: { gameSessionRevision: 0, activeLaunchSessionId: null as string | null, lastLaunchError: '', wasManuallyTerminated: false } }));
 vi.mock('./client', () => ({ api: { invoke: mocks.invoke } }));
 vi.mock('$lib/stores/app.svelte', () => ({ appState: mocks.state }));
-import { cancelLaunch, launchGame } from './launch';
+import { cancelLaunch, launchGame, sanitizeLaunchDiagnostic } from './launch';
 const request = { versionId: '1.20.1', accountId: 'account', profileId: 'pack' };
 beforeEach(() => { vi.clearAllMocks(); mocks.state.gameSessionRevision = 0; });
 it('rejects a successful command response if game-exit arrived first', async () => {
@@ -30,4 +30,15 @@ it('cancels only the explicit backend session', async () => {
     mocks.invoke.mockResolvedValue(true);
     await expect(cancelLaunch('current-session')).resolves.toBe(true);
     expect(mocks.invoke).toHaveBeenCalledWith('cancel_launch', { sessionId: 'current-session' });
+});
+
+it('redacts credentials in command errors and copied diagnostics', async () => {
+    const failure = 'Authorization: Bearer private-access refresh_token="private-refresh" password:private-password eyJheader.payload.signature';
+    mocks.invoke.mockRejectedValueOnce(new Error(failure));
+    await expect(launchGame(request)).rejects.toThrow('[redacted]');
+    for (const secret of ['private-access', 'private-refresh', 'private-password', 'eyJheader']) {
+        expect(mocks.state.lastLaunchError).not.toContain(secret);
+        expect(sanitizeLaunchDiagnostic(failure)).not.toContain(secret);
+    }
+    expect(sanitizeLaunchDiagnostic('x'.repeat(5000))).toHaveLength(4096);
 });

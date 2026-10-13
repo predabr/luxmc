@@ -3,6 +3,10 @@ import { z } from "zod";
 import { api } from "./client";
 import { appState } from "$lib/stores/app.svelte";
 
+export function sanitizeLaunchDiagnostic(value: unknown): string {
+    return String(value).replace(/(?:authorization[\s:="']+(?:bearer\s+)?|bearer\s+|(?:access[_-]?token|refresh[_-]?token|session[_-]?id|password)[\s:="']+)[^\s"',;]+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/gi, "[redacted]").slice(0, 4096);
+}
+
 export async function launchGame(request: {
 	versionId: string;
 	accountId: string;
@@ -21,8 +25,8 @@ export async function launchGame(request: {
     const sessionId = crypto.randomUUID();
     appState.activeLaunchSessionId = sessionId;
     const result = await api.invoke<{ pid: number; sessionId?: string }>("launch_game", { request: { ...request, sessionId } }).catch(error => {
-        appState.lastLaunchError = String(error);
-        throw error;
+        appState.lastLaunchError = sanitizeLaunchDiagnostic(error);
+        throw new Error(appState.lastLaunchError);
     });
     if (revision !== appState.gameSessionRevision || result.pid <= 0) {
         appState.lastLaunchError = "O Minecraft encerrou durante o início. Consulte os logs da instância.";

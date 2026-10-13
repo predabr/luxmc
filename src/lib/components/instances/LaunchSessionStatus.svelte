@@ -3,7 +3,7 @@
     import { goto } from "$app/navigation";
     import { AlertCircle, Copy, LoaderCircle, Terminal, X } from "lucide-svelte";
     import { appState } from "$lib/stores/app.svelte";
-    import { cancelLaunch, launchSessionStatus, type LaunchSession } from "$lib/api/launch";
+    import { cancelLaunch, launchSessionStatus, sanitizeLaunchDiagnostic, type LaunchSession } from "$lib/api/launch";
     import { listen } from "$lib/api/client";
     import { button } from "$lib/components/ui/button";
     import { toast } from "$lib/stores/toasts.svelte";
@@ -57,7 +57,8 @@
     }
 
     async function copy() {
-        const diagnostic = session ? { ...session, error: appState.lastLaunchError || session.error } : { error: appState.lastLaunchError };
+        const error = sanitizeLaunchDiagnostic(appState.lastLaunchError || session?.error || "");
+        const diagnostic = session ? { ...session, error } : { error };
         try { await navigator.clipboard.writeText(JSON.stringify(diagnostic, null, 2)); toast("Diagnóstico copiado.", "success"); }
         catch { toast("Não foi possível copiar o diagnóstico.", "error"); }
     }
