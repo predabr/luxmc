@@ -42,15 +42,26 @@ public class AgentHooksProbe {
         lan.getMethod("install", Instrumentation.class).invoke(null, instrumentation);
         p2p.getMethod("install", Instrumentation.class).invoke(null, instrumentation);
         Class<?> hints = Class.forName("io.github.luxmc.client.ClassFileHints", true, null);
-        Method contains = hints.getMethod("contains", byte[].class, byte[].class);
+        Class<?> hintType = Class.forName("io.github.luxmc.client.ClassFileHints$Hint", true, null);
+        Method contains = hints.getMethod("contains", byte[].class, hintType);
         for (String message : new String[] {"Started serving on {}", "Published LAN server on port {}", "Started on {}"}) {
             byte[] source = fixture(message, false);
             byte[] result = transformers.get(0).transform(AgentHooksProbe.class.getClassLoader(), "fixture/IntegratedServer", null, null, source);
             if (result == null || !new String(result, StandardCharsets.ISO_8859_1).contains("opened") || !new String(result, StandardCharsets.ISO_8859_1).contains("prepare")) throw new AssertionError("LAN hook lost: " + message);
-            if (!Boolean.TRUE.equals(contains.invoke(null, source, message.getBytes(StandardCharsets.US_ASCII)))) throw new AssertionError("Constant hint missing");
+            Object hint = hintType.getConstructor(String.class).newInstance(message);
+            if (!Boolean.TRUE.equals(contains.invoke(null, source, hint))) throw new AssertionError("Constant hint missing");
             for (int length : new int[] {0, 9, 12}) {
-                if (Boolean.TRUE.equals(contains.invoke(null, Arrays.copyOf(source, length), message.getBytes(StandardCharsets.US_ASCII)))) throw new AssertionError("Truncated class accepted");
+                if (Boolean.TRUE.equals(contains.invoke(null, Arrays.copyOf(source, length), hint))) throw new AssertionError("Truncated class accepted");
             }
+        }
+        Random random = new Random(392);
+        for (int index = 0; index < 100; index++) {
+            StringBuilder text = new StringBuilder();
+            for (int character = 0; character < 80; character++) text.append("Started on Published LAN server".charAt(random.nextInt(30)));
+            if (index % 2 == 0) text.insert(random.nextInt(text.length()), "Started on ");
+            Object hint = hintType.getConstructor(String.class).newInstance("Started on ");
+            boolean found = Boolean.TRUE.equals(contains.invoke(null, fixture(text.toString(), false), hint));
+            if (found != text.toString().contains("Started on ")) throw new AssertionError("Skipped overlapping marker");
         }
         byte[] unrelated = fixture("unrelated", false);
         if (transformers.get(0).transform(AgentHooksProbe.class.getClassLoader(), "fixture/Unrelated", null, null, unrelated) != null) throw new AssertionError("Unrelated class transformed");

@@ -10,6 +10,8 @@ O pré-carregamento de páginas espera a inicialização e é suspenso durante a
 
 Os agentes LAN e P2P passam a procurar os marcadores necessários no pool de constantes das classes Java, sem transformar cada classe inteira em uma string. O teste ASM verifica três mensagens de publicação LAN, os ganchos de preparação e abertura e a integração do login P2P. Classes sem os marcadores continuam intactas.
 
+Uma tabela de saltos por marcador evita comparar cada posição de cada string. Em 3.000 classes reais da 26.3, repetidas cinco vezes, a alocação medida caiu de 140.611.680 bytes para 160 bytes. A busca levou 0,107 s contra 0,043 s da conversão anterior; é uma redução de alocação com pequeno custo adicional de CPU, não uma medição do tempo completo de abertura do jogo. Cem casos adicionais com prefixos repetidos verificam que os saltos não omitem marcadores.
+
 Quando os contadores ingleses do Windows estão ausentes, o launcher seleciona a API de fallback do OSHI pelo argumento `-Doshi.os.windows.hkeyperfdata=false`, respeitando qualquer opção explícita do usuário. Nenhuma configuração do Windows é alterada. O teste isolado com OSHI da 26.3 confirmou que os dados do processo continuam acessíveis: mediana total de 4,074 s no padrão e 4,000 s com fallback, três amostras por configuração. Essa diferença pequena não demonstra aceleração do início completo do Minecraft.
 
 ## Verificação local
@@ -17,6 +19,7 @@ Quando os contadores ingleses do Windows estão ausentes, o launcher seleciona a
 - `pnpm check`: zero erros e avisos.
 - `pnpm test:run`: 191 testes passaram em 33 arquivos.
 - `cargo check --release --locked --lib`: passou; cinco avisos preexistentes de código não usado.
+- Testes nativos em modo release no Windows: 244 passaram, zero falhas, sete testes de integração externa ignorados. Incluem transferência criptografada P2P, anúncio LAN na interface física, entrada de convidados e troca de texturas na sala.
 - Testes de navegador para sessão, confirmação de abertura e sala: passaram, incluindo navegação durante abertura, cancelamento restrito à sessão, eventos antigos ignorados e erro real visível.
 - `scripts/test-client-hooks.mjs`: passou.
 - `scripts/test-client-glfw.mjs`: passou, sem inicialização gráfica antecipada pelo agente.

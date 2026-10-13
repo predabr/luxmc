@@ -9,7 +9,7 @@ const executable = name => javaHome ? join(javaHome, 'bin', process.platform ===
 const dependency = resolve('src-tauri/client-agent/dependencies/asm-9.10.1.jar');
 if (createHash('sha256').update(readFileSync(dependency)).digest('hex') !== 'ed825d10ab1399c8c0cb669e688cf0c8c82629b4c8399b58352b68e92ca10fcb') throw new Error('ASM checksum mismatch');
 function run(name, args, cwd) {
-    const result = spawnSync(executable(name), args, { stdio: 'inherit', cwd });
+    const result = spawnSync(executable(name), args, { stdio: 'inherit', cwd, windowsHide: true });
     if (result.error) throw result.error;
     if (result.status !== 0) throw new Error(`${name} failed: ${result.status}`);
 }

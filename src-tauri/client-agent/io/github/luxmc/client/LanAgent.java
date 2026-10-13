@@ -15,9 +15,9 @@ import org.objectweb.asm.*;
 
 public final class LanAgent {
     private static final ThreadLocal<Integer> pending = new ThreadLocal<Integer>();
-    private static final byte[] SERVING = "Started serving on".getBytes(StandardCharsets.US_ASCII);
-    private static final byte[] PUBLISHED = "Published LAN server on port".getBytes(StandardCharsets.US_ASCII);
-    private static final byte[] STARTED = "Started on ".getBytes(StandardCharsets.US_ASCII);
+    private static final ClassFileHints.Hint SERVING = new ClassFileHints.Hint("Started serving on");
+    private static final ClassFileHints.Hint PUBLISHED = new ClassFileHints.Hint("Published LAN server on port");
+    private static final ClassFileHints.Hint STARTED = new ClassFileHints.Hint("Started on ");
 
     public static void install(Instrumentation instrumentation) {
         instrumentation.addTransformer(new ClassFileTransformer() {

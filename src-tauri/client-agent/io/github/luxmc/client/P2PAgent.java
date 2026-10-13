@@ -16,8 +16,8 @@ import org.objectweb.asm.*;
 public final class P2PAgent {
     private static volatile long expires;
     private static volatile int port;
-    private static final byte[] KEY_PAIR = "java/security/KeyPair".getBytes(StandardCharsets.US_ASCII);
-    private static final byte[] PROFILE = "com/mojang/authlib/GameProfile".getBytes(StandardCharsets.US_ASCII);
+    private static final ClassFileHints.Hint KEY_PAIR = new ClassFileHints.Hint("java/security/KeyPair");
+    private static final ClassFileHints.Hint PROFILE = new ClassFileHints.Hint("com/mojang/authlib/GameProfile");
 
     public static void install(Instrumentation instrumentation) {
         instrumentation.addTransformer(new ClassFileTransformer() {
