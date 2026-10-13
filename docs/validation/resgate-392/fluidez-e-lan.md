@@ -21,6 +21,7 @@ Quando os contadores ingleses do Windows estão ausentes, o launcher seleciona a
 - `cargo check --release --locked --lib`: passou; cinco avisos preexistentes de código não usado.
 - Testes nativos em modo release no Windows: 244 passaram, zero falhas, sete testes de integração externa ignorados. Incluem transferência criptografada P2P, anúncio LAN na interface física, entrada de convidados e troca de texturas na sala.
 - Testes de navegador para sessão, confirmação de abertura e sala: passaram, incluindo navegação durante abertura, cancelamento restrito à sessão, eventos antigos ignorados e erro real visível.
+- Os 26 arquivos de regressão de navegador passaram localmente. Duas tentativas atingiram timeout durante compilação concorrente do frontend; os testes afetados e o restante da sequência passaram na repetição, sem alterações no código ou nas asserções. A CI em máquinas limpas continua em execução.
 - `scripts/test-client-hooks.mjs`: passou.
 - `scripts/test-client-glfw.mjs`: passou, sem inicialização gráfica antecipada pelo agente.
 - `scripts/test-client-agent.py --available`: passou com Authlib 1.5.21, 4.0.43, 6.0.54, 7.0.63 e 10.0.77, usando Java 17, 21 e 25. Foram verificadas skin, capa, modelos slim/default, aparências compartilhadas e salas, preservação da identidade Microsoft e rejeição de sala expirada.
@@ -28,3 +29,5 @@ Quando os contadores ingleses do Windows estão ausentes, o launcher seleciona a
 Os testes de aparência abrangem o cenário informado de uma conta Microsoft e outra Luxmc. Eles não substituem uma sessão real entre dois computadores nem garantem compatibilidade com cada combinação de mods. O próximo teste de vocês deve usar a mesma versão e modpack, entrar na mesma sala Luxmc, abrir o mundo para LAN e conferir conexão, skin e capa em ambos os lados.
 
 O candidato mantém a versão 3.9.2. Não foi promovido a uma nova versão pública nesta etapa.
+
+O build nativo NSIS terminou e o candidato foi instalado com `/S /UPDATE`, retornando código zero. O executável instalado corresponde ao arquivo incluído no instalador; a diferença de três bytes em relação à entrada do empacotador é apenas o marcador `UNK` → `NSS` do Tauri. O pacote não contém `luxmc-repair.exe`. A verificação após a instalação confirmou a integridade do banco, a manutenção das quantidades de contas/perfis e dos arquivos de configuração da raiz. O launcher atualizado foi aberto e sua janela ficou visível. Os hashes e limites estão em [candidate-fluidez.json](candidate-fluidez.json).

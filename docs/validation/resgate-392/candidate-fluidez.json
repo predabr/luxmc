@@ -1,0 +1,48 @@
+{
+  "sourceCommit": "a869dc2707dccdb9142532f003fe959f17940a70",
+  "version": "3.9.2",
+  "candidate": true,
+  "publicRelease": false,
+  "builtOn": "2026-10-13",
+  "architecture": "x64",
+  "components": [
+    {
+      "component": "installer",
+      "filename": "Lux MC Launcher - Fluidez 3.9.2 candidato.exe",
+      "bytes": 21472529,
+      "sha256": "70a21b06746052a52ce7dde02f9d2d5ed6f8fc657ab1b8b1824ce6c2d1869949",
+      "authenticode": "NotSigned"
+    },
+    {
+      "component": "embeddedProgram",
+      "filename": "luxmc.exe",
+      "bytes": 44050432,
+      "sha256": "c80cb9a0ea6e26049d9c64b8a3ae6803ec4251856f6c3040a0b900608a4795be",
+      "authenticode": "NotSigned"
+    }
+  ],
+  "packagingDifference": {
+    "differentBytes": 3,
+    "inputMarker": "UNK",
+    "embeddedMarker": "NSS",
+    "buildInputSha256": "ae13373888432640302d653b5c6e6157687a36be4d52e6b80476fb0d4e60e8c6"
+  },
+  "repairExecutableIncluded": false,
+  "installerExit": 0,
+  "installedProgramMatchesEmbedded": true,
+  "installedLauncherWindowVisible": true,
+  "databaseIntegrity": "ok",
+  "accountProfileCountsPreserved": true,
+  "rootSettingsFilesPreserved": true,
+  "frontendUnitTestsPassed": 191,
+  "windowsNativeLibraryTestsPassed": 244,
+  "windowsNativeLibraryTestsIgnored": 7,
+  "browserRegressionFilesPassed": 26,
+  "javaAppearanceMatrix": ["1.5.21", "4.0.43", "6.0.54", "7.0.63", "10.0.77"],
+  "lanTransformationTests": "passed",
+  "nativeMinecraftMenuWorldTest": "pending_user_test",
+  "nativeLoaderModpackMatrix": "pending",
+  "twoComputerLanTest": "pending",
+  "windowsTrustConfirmed": false,
+  "independentVendorApprovalConfirmed": false
+}
