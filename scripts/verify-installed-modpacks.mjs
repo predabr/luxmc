@@ -87,11 +87,14 @@ try {
                 persist();
                 const logFile = join(expected, 'logs/latest.log');
                 let ready = false;
+                const requiresModInitialization = profile.loader === 'neoforge' || (profile.loader === 'forge' && profile.mcVersion === '1.12.2');
                 for (let attempt = 0; attempt < 600; attempt++) {
                     assert.ok(alive(ownedPid), 'O Minecraft encerrou durante o carregamento');
                     const log = existsSync(logFile) && statSync(logFile).mtimeMs >= logStartedAt ? readFileSync(logFile, 'utf8') : '';
-                    assert.ok(!/\b(?:FATAL|ModLoadingException|ModResolutionException)\b|Mod loading error has occurred/.test(log), 'O jogo registrou uma falha fatal de carregamento');
-                    if (/Sound engine started|Created:.*minecraft:textures\/atlas\/blocks|OpenAL initialized/i.test(log)) { ready = true; break; }
+                    assert.ok(!/\b(?:ModLoadingException|ModResolutionException|ReportedException)\b|Mod loading error has occurred|Crash report saved to/.test(log), 'O jogo registrou uma falha fatal de carregamento');
+                    const resources = /Sound engine started|Created:.*minecraft:textures\/atlas\/blocks|OpenAL initialized/i.test(log);
+                    const initialized = /Forge Mod Loader has successfully loaded \d+ mods|Game took [\d.]+ seconds to start|ScreenCustomizationLayer registered: title_screen/i.test(log);
+                    if (resources && (!requiresModInitialization || initialized)) { result.modInitializationConfirmed = initialized; ready = true; break; }
                     await sleep(1000);
                 }
                 assert.ok(ready, 'O jogo não confirmou a inicialização dos recursos em dez minutos');

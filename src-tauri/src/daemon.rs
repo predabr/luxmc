@@ -23,6 +23,11 @@ struct RpcResponse {
 }
 
 pub async fn run_daemon() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("warn")))
+        .with_writer(std::io::stderr)
+        .with_ansi(false)
+        .try_init();
     if let Err(e) = crate::db::shared_db().await {
         eprintln!("[Daemon] Database init failed: {e}");
     }
