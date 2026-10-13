@@ -8,6 +8,7 @@ struct ArchiveReader<'a> {
     reader: std::io::BufReader<std::fs::File>,
     before: std::fs::Metadata,
     cancel: Option<&'a std::sync::atomic::AtomicBool>,
+    position: u64,
 }
 
 impl ArchiveReader<'_> {
@@ -29,14 +30,31 @@ impl ArchiveReader<'_> {
 impl Read for ArchiveReader<'_> {
     fn read(&mut self, bytes: &mut [u8]) -> std::io::Result<usize> {
         self.check_cancel()?;
-        self.reader.read(bytes)
+        let count = self.reader.read(bytes)?;
+        self.position += count as u64;
+        Ok(count)
     }
 }
 
 impl Seek for ArchiveReader<'_> {
     fn seek(&mut self, position: std::io::SeekFrom) -> std::io::Result<u64> {
         self.check_cancel()?;
-        self.reader.seek(position)
+        let target = match position {
+            std::io::SeekFrom::Start(target) => target,
+            std::io::SeekFrom::Current(offset) => self.position.checked_add_signed(offset)
+                .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::InvalidInput, "Posição inválida no arquivo"))?,
+            std::io::SeekFrom::End(offset) => {
+                self.position = self.reader.seek(std::io::SeekFrom::End(offset))?;
+                return Ok(self.position);
+            }
+        };
+        if let Ok(offset) = i64::try_from(i128::from(target) - i128::from(self.position)) {
+            self.reader.seek_relative(offset)?;
+        } else {
+            self.reader.seek(std::io::SeekFrom::Start(target))?;
+        }
+        self.position = target;
+        Ok(target)
     }
 }
 
@@ -44,7 +62,7 @@ fn archive_reader<'a>(path: &Path, cancel: Option<&'a std::sync::atomic::AtomicB
     crate::core::mods::pack_download::cancelled(cancel)?;
     let file = std::fs::File::open(path)?;
     let before = file.metadata()?;
-    Ok(ArchiveReader { reader: std::io::BufReader::with_capacity(64 * 1024, file), before, cancel })
+    Ok(ArchiveReader { reader: std::io::BufReader::with_capacity(64 * 1024, file), before, cancel, position: 0 })
 }
 
 #[derive(Clone, Default)]
@@ -318,6 +336,38 @@ pub fn audit_with_progress(root: &Path, deep: bool, cancel: Option<&std::sync::a
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn archive_seeks_preserve_buffer_and_match_file_positions() {
+        use std::io::{Read, Seek, SeekFrom};
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("fixture.jar");
+        let bytes = (0..80_000).map(|index| (index % 251) as u8).collect::<Vec<_>>();
+        std::fs::write(&path, &bytes).unwrap();
+        let mut reader = super::archive_reader(&path, None).unwrap();
+        let mut sample = [0; 8];
+        reader.read_exact(&mut sample).unwrap();
+        assert_eq!(sample, bytes[..8]);
+        let buffered = reader.reader.buffer().len();
+        assert!(buffered > 32_000);
+        assert_eq!(reader.seek(SeekFrom::Current(0)).unwrap(), 8);
+        assert_eq!(reader.reader.buffer().len(), buffered);
+        assert_eq!(reader.seek(SeekFrom::Start(17)).unwrap(), 17);
+        assert_eq!(reader.reader.buffer().len(), buffered - 9);
+        reader.read_exact(&mut sample).unwrap();
+        assert_eq!(sample, bytes[17..25]);
+        assert_eq!(reader.seek(SeekFrom::Current(-20)).unwrap(), 5);
+        reader.read_exact(&mut sample).unwrap();
+        assert_eq!(sample, bytes[5..13]);
+        assert_eq!(reader.seek(SeekFrom::End(-8)).unwrap(), 79_992);
+        reader.read_exact(&mut sample).unwrap();
+        assert_eq!(sample, bytes[79_992..]);
+        assert_eq!(reader.read(&mut sample).unwrap(), 0);
+        reader.seek(SeekFrom::Start(0)).unwrap();
+        assert!(reader.seek(SeekFrom::Current(-1)).is_err());
+        assert_eq!(reader.stream_position().unwrap(), 0);
+        reader.unchanged().unwrap();
+    }
+
     #[test]
     fn metadata_audit_skips_payload_but_deep_audit_checks_its_crc() {
         use std::io::{Read, Seek, Write};
