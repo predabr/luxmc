@@ -1,8 +1,20 @@
 use std::{collections::{HashMap, HashSet}, io::{Read, Seek}, path::Path};
 use crate::error::AppResult;
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Audit { pub errors: Vec<String>, pub warnings: Vec<String> }
+
+type Fingerprint = (u64, std::time::SystemTime, Option<std::time::SystemTime>);
+type Inspection = (Audit, HashMap<String, String>, Vec<(String, String)>);
+type MetadataEntry = (Fingerprint, Option<ModMetadata>);
+type AuditEntry = (Fingerprint, Inspection);
+static METADATA_CACHE: std::sync::LazyLock<std::sync::Mutex<HashMap<std::path::PathBuf, MetadataEntry>>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
+static AUDIT_CACHE: std::sync::LazyLock<std::sync::Mutex<HashMap<std::path::PathBuf, AuditEntry>>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
+
+fn fingerprint(metadata: &std::fs::Metadata) -> Option<Fingerprint> {
+    metadata.is_file().then(|| (metadata.len(), metadata.modified().ok(), metadata.created().ok()))
+        .and_then(|(length, modified, created)| modified.map(|modified| (length, modified, created)))
+}
 
 struct ArchiveReader<'a> {
     reader: std::io::BufReader<std::fs::File>,
@@ -78,15 +90,13 @@ pub(crate) fn primary_ids(path: &Path) -> Option<std::collections::BTreeSet<Stri
 }
 
 pub(crate) fn mod_metadata(path: &Path) -> Option<ModMetadata> {
-    type Entry = ((u64, std::time::SystemTime), Option<ModMetadata>);
-    static CACHE: std::sync::LazyLock<std::sync::Mutex<HashMap<std::path::PathBuf, Entry>>> = std::sync::LazyLock::new(|| std::sync::Mutex::new(HashMap::new()));
     let metadata = std::fs::metadata(path).ok()?;
-    let fingerprint = (metadata.len(), metadata.modified().ok()?);
-    if let Ok(cache) = CACHE.lock() {
+    let fingerprint = fingerprint(&metadata)?;
+    if let Ok(cache) = METADATA_CACHE.lock() {
         if let Some((saved, ids)) = cache.get(path) { if *saved == fingerprint { return ids.clone(); } }
     }
     let ids = read_mod_metadata(path);
-    if let Ok(mut cache) = CACHE.lock() {
+    if let Ok(mut cache) = METADATA_CACHE.lock() {
         if cache.len() >= 4096 { cache.clear(); }
         cache.insert(path.to_owned(), (fingerprint, ids.clone()));
     }
@@ -100,7 +110,7 @@ fn read_mod_metadata(path: &Path) -> Option<ModMetadata> {
     Some(metadata)
 }
 
-fn read_mod_metadata_from_reader(reader: &mut ArchiveReader<'_>) -> Option<ModMetadata> {
+fn read_mod_metadata_from_reader<R: Read + Seek>(reader: R) -> Option<ModMetadata> {
     let mut archive = zip::ZipArchive::new(reader).ok()?;
     let mut metadata = ModMetadata::default();
     for (name, pointer) in [("fabric.mod.json", "/id"), ("quilt.mod.json", "/quilt_loader/id")] {
@@ -203,12 +213,39 @@ pub fn repair_duplicates_cancellable(root: &Path, preferred: &HashSet<String>, c
 pub fn audit(root: &Path, deep: bool) -> AppResult<Audit> { audit_cancellable(root, deep, None) }
 
 fn inspect_archive(folder: &str, path: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<(Audit, HashMap<String,String>, Vec<(String,String)>)> {
+    crate::core::mods::pack_download::cancelled(cancel)?;
+    if !deep && folder == "mods" {
+        if let Some(current) = std::fs::metadata(path).ok().and_then(|metadata| fingerprint(&metadata)) {
+            let cached = AUDIT_CACHE.lock().ok().and_then(|cache| cache.get(path).filter(|(saved, _)| *saved == current).map(|(_, inspection)| inspection.clone()));
+            if let Some(cached) = cached {
+                crate::core::mods::pack_download::cancelled(cancel)?;
+                if std::fs::metadata(path).ok().and_then(|metadata| fingerprint(&metadata)) == Some(current) { return Ok(cached); }
+            }
+        }
+    }
     let started = std::time::Instant::now();
     let mut reader = archive_reader(path, cancel)?;
     let result = inspect_archive_from_reader(folder, path, deep, cancel, &mut reader);
     reader.unchanged()?;
     if started.elapsed().as_millis() > 500 { tracing::info!(file = ?path.file_name(), seconds = started.elapsed().as_secs_f64(), "Slow archive validation"); }
     result
+}
+
+pub(crate) fn remember_verified_mod_archive(path: &Path, bytes: &[u8]) {
+    if path.parent().and_then(|parent| parent.file_name()).and_then(|name| name.to_str()) != Some("mods") || path.extension().and_then(|extension| extension.to_str()) != Some("jar") { return; }
+    let Some(before) = std::fs::metadata(path).ok().and_then(|metadata| fingerprint(&metadata)) else { return; };
+    if before.0 != bytes.len() as u64 { return; }
+    let Ok(inspection) = inspect_archive_from_reader("mods", path, false, None, std::io::Cursor::new(bytes)) else { return; };
+    let metadata = read_mod_metadata_from_reader(std::io::Cursor::new(bytes));
+    if std::fs::metadata(path).ok().and_then(|metadata| fingerprint(&metadata)) != Some(before) { return; }
+    if let Ok(mut cache) = AUDIT_CACHE.lock() {
+        if cache.len() >= 4096 { cache.clear(); }
+        cache.insert(path.to_owned(), (before, inspection));
+    }
+    if let Ok(mut cache) = METADATA_CACHE.lock() {
+        if cache.len() >= 4096 { cache.clear(); }
+        cache.insert(path.to_owned(), (before, metadata));
+    }
 }
 
 fn inspect_archive_from_reader<R: Read + Seek>(folder: &str, path: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>, reader: R) -> AppResult<(Audit, HashMap<String,String>, Vec<(String,String)>)> {
@@ -336,6 +373,43 @@ pub fn audit_with_progress(root: &Path, deep: bool, cancel: Option<&std::sync::a
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn verified_download_metadata_invalidates_when_the_file_changes() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("mods")).unwrap();
+        let path = root.path().join("mods/fixture.jar");
+        mod_jar(&path, "fixture");
+        let bytes = std::fs::read(&path).unwrap();
+        super::remember_verified_mod_archive(&path, &bytes);
+        assert!(super::AUDIT_CACHE.lock().unwrap().contains_key(&path));
+        assert!(super::audit(root.path(), false).unwrap().errors.is_empty());
+        assert!(super::mod_metadata(&path).unwrap().ids.contains("fixture"));
+        std::fs::write(&path, b"corrupted").unwrap();
+        assert!(super::audit(root.path(), false).unwrap().errors.iter().any(|error| error.contains("corrompido")));
+        assert!(super::mod_metadata(&path).is_none());
+    }
+
+    #[test]
+    fn cached_downloads_still_receive_deep_crc_validation() {
+        use std::io::Write;
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("mods")).unwrap();
+        let path = root.path().join("mods/fixture.jar");
+        let mut archive = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let options = zip::write::FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        archive.start_file("fabric.mod.json", options).unwrap();
+        archive.write_all(br#"{"id":"fixture","version":"1"}"#).unwrap();
+        archive.start_file("payload.bin", options).unwrap();
+        archive.write_all(&[b'x'; 1024]).unwrap();
+        let mut bytes = archive.finish().unwrap().into_inner();
+        let payload = bytes.windows(64).position(|window| window.iter().all(|byte| *byte == b'x')).unwrap();
+        bytes[payload] = b'y';
+        std::fs::write(&path, &bytes).unwrap();
+        super::remember_verified_mod_archive(&path, &bytes);
+        assert!(super::audit(root.path(), false).unwrap().errors.is_empty());
+        assert!(super::audit(root.path(), true).unwrap().errors.iter().any(|error| error.contains("CRC")));
+    }
+
     #[test]
     fn archive_seeks_preserve_buffer_and_match_file_positions() {
         use std::io::{Read, Seek, SeekFrom};

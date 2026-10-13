@@ -929,6 +929,7 @@ pub(crate) async fn download_cf_mod_file(
                     pack::cancelled(cancel)?;
                     let target = if disabled.exists() { &disabled } else { &path };
                     pack::atomic_write(target, &bytes).await?;
+                    crate::core::mods::validation::remember_verified_mod_archive(target, &bytes);
                     let storage = pack::destination(storage_mods_dir, &info.file_name)?;
                     pack::atomic_write(&storage, &bytes).await?;
                     let mut persisted = info.clone();
@@ -992,6 +993,7 @@ pub(crate) async fn download_cf_mod_file(
                 pack::cancelled(cancel)?;
                 let target = if disabled.exists() { &disabled } else { &path };
                 pack::atomic_write(target, &bytes).await?;
+                if info.sha1.is_some() { crate::core::mods::validation::remember_verified_mod_archive(target, &bytes); }
                 let storage = pack::destination(storage_mods_dir, &info.file_name)?;
                 pack::atomic_write(&storage, &bytes).await?;
                 if let Some(cache) = shared_cache.as_ref() { pack::cache_verified_content(cache, &bytes, info.sha1.as_deref(), None).await; }
@@ -1766,6 +1768,7 @@ async fn ensure_mrpack_file(
         if let Some(bytes) = pack::await_cancellable(pack::verified_bytes(bytes, file.file_size, sha1, sha512), cancel).await? {
             pack::cancelled(cancel)?;
             pack::atomic_write(target, &bytes).await?;
+            crate::core::mods::validation::remember_verified_mod_archive(target, &bytes);
             return Ok(());
         }
     }
@@ -1774,6 +1777,7 @@ async fn ensure_mrpack_file(
         if let Some(bytes) = pack::await_cancellable(pack::cached_content(cache, file.file_size, sha1, sha512), cancel).await? {
             pack::cancelled(cancel)?;
             pack::atomic_write(target, &bytes).await?;
+            crate::core::mods::validation::remember_verified_mod_archive(target, &bytes);
             tracing::debug!(file = %file.path, bytes = bytes.len(), "Pack file reused from verified cache");
             return Ok(());
         }
@@ -1786,6 +1790,7 @@ async fn ensure_mrpack_file(
             if let Some(bytes) = pack::await_cancellable(pack::verified_bytes(bytes, file.file_size, sha1, sha512), cancel).await? {
                 pack::cancelled(cancel)?;
                 pack::atomic_write(target, &bytes).await?;
+                crate::core::mods::validation::remember_verified_mod_archive(target, &bytes);
                 if let Some(cache) = shared_cache.as_ref() { pack::cache_verified_content(cache, &bytes, sha1, sha512).await; }
                 return Ok(());
             }

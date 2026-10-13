@@ -58,7 +58,28 @@ const assert = require('node:assert/strict');
             persist();
         }
         const started = performance.now();
-        const imported = await call('instance_import_modpack', { filePath: archive, profileName: `Validação nativa temporária ${Date.now()}`, mcVersion: '1.21.1', loader: 'neoforge', ramMb: 6144 });
+        await page.evaluate(() => {
+            const pulse = { previous: performance.now(), maximumGapMs: 0, timerTicks: 0, timer: 0 };
+            pulse.timer = setInterval(() => {
+                const now = performance.now();
+                pulse.maximumGapMs = Math.max(pulse.maximumGapMs, now - pulse.previous);
+                pulse.previous = now;
+                pulse.timerTicks++;
+            }, 50);
+            window.__luxmcNativeValidationPulse = pulse;
+        });
+        const importing = call('instance_import_modpack', { filePath: archive, profileName: `Validação nativa temporária ${Date.now()}`, mcVersion: '1.21.1', loader: 'neoforge', ramMb: 6144 });
+        const observedImport = importing.then(result => ({ result }), error => ({ error }));
+        const completed = await observedImport;
+        report.interfaceTimers = await page.evaluate(() => {
+            const pulse = window.__luxmcNativeValidationPulse;
+            clearInterval(pulse.timer);
+            delete window.__luxmcNativeValidationPulse;
+            return { timerTicks: pulse.timerTicks, maximumGapMs: Math.round(pulse.maximumGapMs) };
+        });
+        persist();
+        if (completed.error) throw completed.error;
+        const imported = completed.result;
         fixture = imported.profile || imported;
         assert.ok(fixture.id && !initial.some(profile => profile.id === fixture.id));
         report.installSeconds = +((performance.now() - started) / 1000).toFixed(2);
