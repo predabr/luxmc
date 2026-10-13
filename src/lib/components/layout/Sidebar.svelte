@@ -1,5 +1,6 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import LaunchCancelButton from "$lib/components/instances/LaunchCancelButton.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
     import { onMount } from "svelte";
     import { navigationMotion } from '$lib/actions/navigationMotion';
@@ -161,6 +162,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	</nav>
 
 	<div class="mt-auto shrink-0 pb-1 w-full flex flex-col items-center gap-2 pt-2 border-t border-fg/10">
+        <LaunchCancelButton {expanded} />
 		<div class="relative group w-full flex justify-center">
 			<button
 				type="button"

@@ -15,13 +15,15 @@ import org.objectweb.asm.*;
 
 public final class LanAgent {
     private static final ThreadLocal<Integer> pending = new ThreadLocal<Integer>();
+    private static final byte[] SERVING = "Started serving on".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] PUBLISHED = "Published LAN server on port".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] STARTED = "Started on ".getBytes(StandardCharsets.US_ASCII);
 
     public static void install(Instrumentation instrumentation) {
         instrumentation.addTransformer(new ClassFileTransformer() {
             public byte[] transform(ClassLoader loader, String name, Class<?> type, ProtectionDomain domain, byte[] bytes) {
                 if (loader == null || name == null || name.startsWith("io/github/luxmc/") || name.startsWith("java/")) return null;
-                String constants = new String(bytes, StandardCharsets.ISO_8859_1);
-                if (!constants.contains("Started serving on") && !constants.contains("Published LAN server on port") && !constants.contains("Started on ")) return null;
+                if (!ClassFileHints.contains(bytes, SERVING) && !ClassFileHints.contains(bytes, PUBLISHED) && !ClassFileHints.contains(bytes, STARTED)) return null;
                 final Set<String> targets = new HashSet<String>();
                 ClassReader reader = new ClassReader(bytes);
                 if (!reader.getSuperName().equals("net/minecraft/server/MinecraftServer")) return null;

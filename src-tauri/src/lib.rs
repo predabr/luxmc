@@ -667,6 +667,7 @@ pub async fn run() {
             commands::launch_logs::launch_logs_clear,
             commands::launch_log_session::launch_log_open,
             commands::launch_log_session::launch_log_append,
+            commands::launch_log_session::launch_log_append_batch,
             commands::launch_log_session::launch_log_close,
             commands::instance_tools::jvm_args_validate,
             commands::instance_tools::java_runtime_status,

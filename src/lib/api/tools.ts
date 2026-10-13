@@ -35,6 +35,12 @@ export async function launchLogAppend(logId: number, stream: string, level: stri
 	return api.invoke("launch_log_append", { logId, stream, level, message });
 }
 
+export interface LaunchLogInput { stream: string; level: string; message: string; ts: string }
+
+export async function launchLogAppendBatch(logId: number, entries: LaunchLogInput[]): Promise<void> {
+    return api.invoke("launch_log_append_batch", { logId, entries });
+}
+
 export async function launchLogClose(logId: number, exitCode: number | null, summary: string | null, errorClassification: string | null): Promise<void> {
 	return api.invoke("launch_log_close", { logId, exitCode, summary, errorClassification });
 }

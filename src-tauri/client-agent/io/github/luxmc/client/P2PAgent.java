@@ -16,13 +16,14 @@ import org.objectweb.asm.*;
 public final class P2PAgent {
     private static volatile long expires;
     private static volatile int port;
+    private static final byte[] KEY_PAIR = "java/security/KeyPair".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] PROFILE = "com/mojang/authlib/GameProfile".getBytes(StandardCharsets.US_ASCII);
 
     public static void install(Instrumentation instrumentation) {
         instrumentation.addTransformer(new ClassFileTransformer() {
             public byte[] transform(ClassLoader loader, String name, Class<?> type, ProtectionDomain domain, byte[] bytes) {
                 if (loader == null || name == null || name.startsWith("io/github/luxmc/") || name.startsWith("java/")) return null;
-                String constants = new String(bytes, StandardCharsets.ISO_8859_1);
-                if (!constants.contains("java/security/KeyPair") || !constants.contains("com/mojang/authlib/GameProfile")) return null;
+                if (!ClassFileHints.contains(bytes, KEY_PAIR) || !ClassFileHints.contains(bytes, PROFILE)) return null;
                 final Map<String, String> targets = new HashMap<String, String>();
                 ClassReader reader = new ClassReader(bytes);
                 reader.accept(new ClassVisitor(Opcodes.ASM9) {

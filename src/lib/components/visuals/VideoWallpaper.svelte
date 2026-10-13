@@ -20,7 +20,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     const paused = $derived(
         preview || !visible ||
         (settings.value.pauseWallpaperOnBlur !== false && !focused) ||
-        appState.isGameRunning || appState.performanceMode || appState.isScrolling
+        appState.isLaunching || appState.isGameRunning || appState.performanceMode || appState.isScrolling
     );
 
     onMount(() => {

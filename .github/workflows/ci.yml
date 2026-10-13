@@ -120,6 +120,10 @@ jobs:
         if: runner.os == 'Linux'
         run: node scripts/test-client-glfw.mjs
 
+      - name: Verify LAN transformations after startup optimization
+        if: runner.os == 'Linux'
+        run: node scripts/test-client-hooks.mjs
+
       - name: Reuse prepared Java in isolated loader fixtures
         if: runner.os == 'Linux'
         shell: bash

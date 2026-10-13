@@ -14,15 +14,18 @@ const assert = require('node:assert/strict');
             const original = window.electronAPI.invoke;
             window.testSession = null;
             window.cancelledSession = null;
+            window.savedLogBatches = [];
             let rejectLaunch;
             const invoke = async (command, args) => {
+                if (command === 'launch_log_open') return 42;
+                if (command === 'launch_log_append_batch') { window.savedLogBatches.push(args); return null; }
                 if (command === 'launch_game') {
                     window.testSession = { sessionId: args.request.sessionId, profileId: args.request.profileId,
                         versionId: args.request.versionId, phase: 'preparing', stage: 'checkingJava', pid: 0,
                         startedAt: new Date().toISOString(), updatedAt: new Date().toISOString(), elapsedSeconds: 0,
                         error: null, exitCode: null };
                     window.launcherDemo.emit('launch-session', window.testSession);
-                    return new Promise((resolve, reject) => { rejectLaunch = reject; window.resolveLaunch = resolve; });
+                    return new Promise((resolve, reject) => { rejectLaunch = reject; window.rejectLaunch = reject; window.resolveLaunch = resolve; });
                 }
                 if (command === 'launch_session_status') return window.testSession;
                 if (command === 'cancel_launch') {
@@ -41,25 +44,42 @@ const assert = require('node:assert/strict');
         await page.goto('http://127.0.0.1:1420/');
         await page.getByRole('button', { name: 'Jogar', exact: true }).first().click();
         const status = page.getByRole('complementary', { name: 'Inicialização do Minecraft' });
-        await status.getByText('Abrindo seu Minecraft').waitFor();
+        await page.getByRole('button', { name: 'Cancelar abertura', exact: true }).waitFor();
+        assert.equal(await status.count(), 0);
+        assert.equal(await page.getByText('Abrindo seu Minecraft', { exact: true }).count(), 0);
         const first = await page.evaluate(() => window.testSession.sessionId);
         assert.match(first, /^[0-9a-f-]{36}$/);
+        await page.evaluate(() => {
+            for (let i = 0; i < 300; i++) window.launcherDemo.emit('launcher-log', 'modpack-fixture-' + i);
+        });
+        await page.waitForFunction(() => window.savedLogBatches.flatMap(batch => batch.entries).filter(entry => entry.message.startsWith('modpack-fixture-')).length === 300);
+        const batches = await page.evaluate(() => window.savedLogBatches.filter(batch => batch.entries.some(entry => entry.message.startsWith('modpack-fixture-'))));
+        assert.equal(batches.length, 3);
+        assert.ok(batches.every(batch => batch.logId === 42 && batch.entries.length <= 128));
         await page.locator('aside nav a[href="/mods"]').click();
         await page.waitForURL(/\/mods/);
-        await status.getByRole('button', { name: 'Cancelar abertura' }).click();
-        await status.getByText(/Abertura cancelada/).waitFor();
+        await page.getByRole('button', { name: 'Cancelar abertura', exact: true }).click();
+        await page.waitForFunction(() => window.cancelledSession !== null);
         assert.equal(await page.evaluate(() => window.cancelledSession), first);
         await page.locator('aside button[title="Início"]').first().click();
         await page.waitForURL(url => url.pathname === '/');
-        await status.getByRole('button', { name: 'Fechar diagnóstico' }).click();
+        assert.equal(await status.count(), 0);
         await page.getByRole('button', { name: 'Jogar', exact: true }).first().click();
         await page.waitForFunction(previous => window.testSession.sessionId !== previous, first);
         await page.evaluate(previous => window.launcherDemo.emit('game-exit', {
             sessionId: previous, pid: 1, versionId: '1.21.1', code: 1, success: false, errorMessage: 'Old session'
         }), first);
-        assert.equal(await status.getByText('Abrindo seu Minecraft').count(), 1);
+        assert.equal(await status.count(), 0);
+        assert.equal(await page.getByRole('button', { name: 'Cancelar abertura', exact: true }).count(), 1);
         await page.evaluate(() => window.resolveLaunch({ pid: 321, sessionId: window.testSession.sessionId }));
         await page.waitForFunction(() => !document.querySelector('aside[aria-label="Inicialização do Minecraft"]'));
+        await page.waitForFunction(() => !Array.from(document.querySelectorAll('button')).some(button => button.getAttribute('aria-label') === 'Cancelar abertura'));
+        await page.evaluate(() => window.launcherDemo.emit('game-exit', { sessionId: window.testSession.sessionId, code: 0, success: true }));
+        await page.getByRole('button', { name: 'Jogar', exact: true }).first().click();
+        await page.getByRole('button', { name: 'Cancelar abertura', exact: true }).waitFor();
+        await page.evaluate(() => window.rejectLaunch(new Error('Java incompatível para esta versão')));
+        await status.getByText(/^(?:Error: )?Java incompatível para esta versão$/).waitFor();
+        assert.equal(await status.getByRole('button', { name: 'Copiar diagnóstico' }).count(), 1);
         assert.deepEqual(errors, []);
         console.log(JSON.stringify({ navigationPreservesLaunch: true, cancellationScoped: true, durableDiagnostic: true, oldExitIgnored: true, errors }));
     } finally { await browser.close(); }

@@ -20,6 +20,20 @@ pub async fn confirm_startup(
 mod tests {
     use super::*;
 
+    #[test]
+    fn counter_fallback_only_applies_to_missing_counters_and_respects_explicit_options() {
+        let mut args = vec!["-Xmx4096M".into()];
+        append_counter_fallback(&mut args, false);
+        assert_eq!(args, ["-Xmx4096M"]);
+        append_counter_fallback(&mut args, true);
+        assert!(args.contains(&"-Doshi.os.windows.hkeyperfdata=false".into()));
+        append_counter_fallback(&mut args, true);
+        assert_eq!(args.len(), 2);
+        let mut explicit = vec!["-Doshi.os.windows.hkeyperfdata=true".into(), "-Doshi.os.windows.perfproc.disabled=false".into()];
+        append_counter_fallback(&mut explicit, true);
+        assert_eq!(explicit.len(), 2);
+    }
+
     #[tokio::test]
     async fn early_exit_is_not_reported_as_a_successful_launch() {
         let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -50,4 +64,23 @@ mod tests {
         assert!(tokio::time::timeout(std::time::Duration::from_millis(20), attempt).await.is_err());
         drop(sender);
     }
+}
+pub(super) fn append_counter_fallback(args: &mut Vec<String>, unavailable: bool) {
+    if !unavailable { return; }
+    for name in ["oshi.os.windows.hkeyperfdata"] {
+        if !args.iter().any(|arg| arg.starts_with(&format!("-D{name}="))) {
+            args.push(format!("-D{name}=false"));
+        }
+    }
+}
+
+#[cfg(windows)]
+pub(super) fn windows_counters_unavailable() -> bool {
+    static UNAVAILABLE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *UNAVAILABLE.get_or_init(|| {
+        winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE)
+            .open_subkey("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Perflib\\009")
+            .and_then(|key| key.get_value::<Vec<String>, _>("Counter"))
+            .map_or(true, |names| names.is_empty())
+    })
 }

@@ -726,6 +726,12 @@ async fn dispatch_command(
             crate::commands::launch_log_session::launch_log_append(log_id, stream, level, message).await.map_err(|e| e.to_string())?;
             Ok(Value::Bool(true))
         },
+        "launch_log_append_batch" => {
+            let log_id = args.get("logId").and_then(|v| v.as_i64()).unwrap_or(0);
+            let entries = serde_json::from_value(args.get("entries").cloned().unwrap_or(Value::Null)).map_err(|e| e.to_string())?;
+            crate::commands::launch_log_session::launch_log_append_batch(log_id, entries).await.map_err(|e| e.to_string())?;
+            Ok(Value::Bool(true))
+        },
         "launch_log_close" => {
             let log_id = args.get("logId").or_else(|| args.get("log_id")).and_then(|v| v.as_i64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))).unwrap_or(0);
             let exit_code = args.get("exitCode").or_else(|| args.get("exit_code")).and_then(|v| v.as_i64());

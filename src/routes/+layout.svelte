@@ -1,5 +1,6 @@
 <script lang="ts">
 import LaunchSessionStatus from "$lib/components/instances/LaunchSessionStatus.svelte";
+import { createLaunchLogBuffer } from "$lib/utils/launchLogBuffer";
 import { membershipState, appearanceSnapshot } from "$lib/stores/membership.svelte";
 import { APP_VERSION } from "$lib/version";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
@@ -84,7 +85,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { clientMods } from "$lib/stores/clientMods.svelte";
 	import { applyAdaptivePalette } from "$lib/utils/adaptivePalette";
 	import { preloadRoute } from "$lib/utils/preloadRoute";
-	import { appInit, discordSetActivity, discordClearActivity, listenGameExit, listenGameStateChange, listenLaunchStage, listenShieldWarning, listenLauncherLog, listenGameLog, launchLogOpen, launchLogAppend, launchLogClose, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
+	import { appInit, discordSetActivity, discordClearActivity, listenGameExit, listenGameStateChange, listenLaunchStage, listenShieldWarning, listenLauncherLog, listenGameLog, launchLogOpen, launchLogAppendBatch, launchLogClose, crashDoctorDiagnose, clientOverlayClose, authSetAccountCape } from "$lib/api";
 	import { optimizerTrimMemory } from "$lib/api/instances";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 	import { themeStore } from "$lib/stores/theme.svelte";
@@ -133,6 +134,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let logSessionOpen: Promise<number | null> | null = null;
 	let logSessionId = $state<number | null>(null);
 	let logAppendQueue: Promise<unknown> = Promise.resolve();
+    const logBuffer = createLaunchLogBuffer(entries => {
+        const target = openLogSession();
+        logAppendQueue = logAppendQueue.then(() => target).then(id => {
+            if (id !== null) return launchLogAppendBatch(id, entries);
+        }).catch(() => {});
+    });
 
 	function openLogSession(): Promise<number | null> {
 		if (!logSessionOpen) {
@@ -149,16 +156,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	}
 
 	function appendLogSession(stream: string, level: string, message: string) {
-		logAppendQueue = logAppendQueue
-			.then(() => openLogSession())
-			.then((id) => {
-				if (id === null) return;
-				return launchLogAppend(id, stream, level, message).catch(() => {});
-			})
-			.catch(() => {});
+        void openLogSession();
+        logBuffer.append(stream, level, message);
 	}
 
 	function closeLogSession(exitCode: number | null, summary: string | null, classification: string | null) {
+        logBuffer.flush();
 		const pending = logSessionOpen;
 		logSessionOpen = null;
 		logAppendQueue = logAppendQueue
@@ -205,13 +208,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		const warmRoutes = ["/", "/instances", "/mods", "/skins", "/news", "/settings", "/screenshots"];
 		let warmIndex = 0;
 		const warmTimer = setInterval(() => {
-			if (document.hidden || appState.isGameRunning) return;
+			if (!initialized || document.hidden || appState.isLaunching || appState.isGameRunning || appState.isScrolling) return;
 			if (warmIndex >= warmRoutes.length) {
 				clearInterval(warmTimer);
 				return;
 			}
 			preloadRoute(warmRoutes[warmIndex++], true);
-		}, 160);
+		}, 1500);
 
 		const initTimer = setTimeout(() => {
 			initialized = true;
@@ -804,7 +807,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         root.style.setProperty("--wallpaper-dim", String(Math.max(0, Math.min(0.85, (settings.value.wallpaperDim ?? 35) / 100))));
         root.classList.toggle("density-compact", settings.value.density === "compact");
         root.classList.toggle("density-spacious", settings.value.density === "spacious");
-        const disableBlur = settings.value.blur === false || appState.performanceMode;
+        const disableBlur = settings.value.blur === false || appState.performanceMode || appState.isLaunching || appState.isGameRunning;
         const disableAnim = settings.value.animations === false || appState.performanceMode;
         document.documentElement.classList.toggle("no-blur", disableBlur);
         document.documentElement.classList.toggle("no-anim", disableAnim);
@@ -847,7 +850,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{/if}
 		<div class="absolute inset-0 pointer-events-none" style={themeStore.theme === "light" ? "background: rgb(var(--bg) / max(.5, var(--wallpaper-dim, .35)));" : "background: rgb(var(--shadow-color) / var(--wallpaper-dim, .35));"}></div>
 	{/if}
-	{#if themeStore.theme !== "light" && !appState.performanceMode && !appState.isGameRunning && (themeStore.background !== "custom" || !themeStore.customWallpaperUrl)}
+	{#if themeStore.theme !== "light" && !appState.performanceMode && !appState.isLaunching && !appState.isGameRunning && (themeStore.background !== "custom" || !themeStore.customWallpaperUrl)}
 		{#if settings.value.liveWallpaper === true}
 			<LiveWallpaper />
 		{/if}
@@ -868,7 +871,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	</div>
 {:else if !account.value}
 	<div use:pageMotion={page.url.pathname} class="relative isolate flex h-full w-full items-center justify-center bg-bg/90" in:fade={{ easing: quintOut, duration: 220 }}>
-        <ShaderScenery background scene="forest" enabled={settings.value.animations !== false && !appState.performanceMode} />
+        <ShaderScenery background scene="forest" enabled={settings.value.animations !== false && !appState.performanceMode && !appState.isLaunching && !appState.isGameRunning} />
 		{@render children?.()}
 	</div>
 {:else}

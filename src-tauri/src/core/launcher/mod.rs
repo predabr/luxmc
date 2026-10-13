@@ -766,6 +766,8 @@ impl GameLauncher {
         let appearance_skin = appearance_root.join(if appearance_variant == "slim" { "player/slim/alex.png" } else { "player/wide/steve.png" });
         let appearance_cape = appearance_root.join("cape.png");
         let pvp = !is_modpack && !has_mods && profile.loader == "vanilla";
+        #[cfg(windows)]
+        startup::append_counter_fallback(&mut safe_jvm_args, startup::windows_counters_unavailable());
         {
             let agent_path = game_dir.join("luxmc-client-agent.jar");
             if tokio::fs::read(&agent_path).await.ok().as_deref() != Some(CLIENT_AGENT_JAR) {
@@ -799,7 +801,7 @@ impl GameLauncher {
             main_class,
             safe_game_args.join(" ")
         );
-        self.emit_log(&format!("Command: {}", cmd_display));
+        self.emit_log(&format!("Command: {}", crate::core::process::sanitize_diagnostic(&cmd_display)));
 
         // === FASE 2: SPAWN ===
         self.emit_stage(LaunchStage::Spawning);

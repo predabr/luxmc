@@ -88,7 +88,7 @@ pub fn has_visible_window(pid: u32) -> bool {
 }
 
 fn is_game_window_class(class: &str) -> bool {
-    matches!(class, "GLFW30" | "LWJGL")
+    matches!(class, "GLFW30" | "LWJGL" | "SDL_app")
 }
 
 #[inline]
@@ -154,6 +154,7 @@ mod log_tests {
     fn only_rendering_classes_confirm_a_game_window() {
         assert!(super::is_game_window_class("GLFW30"));
         assert!(super::is_game_window_class("LWJGL"));
+        assert!(super::is_game_window_class("SDL_app"));
         for class in ["#32770", "SunAwtFrame", "ConsoleWindowClass", ""] {
             assert!(!super::is_game_window_class(class));
         }
