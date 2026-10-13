@@ -384,6 +384,12 @@ mod tests {
         assert!(super::AUDIT_CACHE.lock().unwrap().contains_key(&path));
         assert!(super::audit(root.path(), false).unwrap().errors.is_empty());
         assert!(super::mod_metadata(&path).unwrap().ids.contains("fixture"));
+        let modified = std::fs::metadata(&path).unwrap().modified().unwrap();
+        mod_jar(&path, "changed");
+        assert_eq!(std::fs::metadata(&path).unwrap().len(), bytes.len() as u64);
+        std::fs::File::options().write(true).open(&path).unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(modified + std::time::Duration::from_secs(1))).unwrap();
+        assert!(super::mod_metadata(&path).unwrap().ids.contains("changed"));
         std::fs::write(&path, b"corrupted").unwrap();
         assert!(super::audit(root.path(), false).unwrap().errors.iter().any(|error| error.contains("corrompido")));
         assert!(super::mod_metadata(&path).is_none());
