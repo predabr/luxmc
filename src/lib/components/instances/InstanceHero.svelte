@@ -10,6 +10,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { scenery } from "$lib/visuals/scenery";
     import { settings } from "$lib/stores/settings.svelte";
     import { appState } from "$lib/stores/app.svelte";
+    import LaunchProgress from "./LaunchProgress.svelte";
     let { profile, banner, launching = false, running = false, stopping = false, status = "", progress = 0, javaLabel = uiText("ui.b803f24d52edd7bc"), onPlay, onStop, onSettings, onHost, actions }: {
         profile: Profile | null; banner: string; launching?: boolean; running?: boolean; stopping?: boolean; status?: string; progress?: number;
         javaLabel?: string; onPlay: () => void; onStop?: () => void; onSettings: () => void; onHost: () => void; actions?: Snippet;
@@ -61,7 +62,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             </div>
         </div>
         {#if launching}
-            <div class="mt-4 space-y-2" role="status"><div class="flex justify-between text-xs text-fg-muted"><span>{status || uiText("ui.3f391c454b11cacc")}</span><span>{Math.round(progress)}%</span></div><div class="h-1.5 overflow-hidden rounded-full bg-fg/5"><div class="h-full rounded-full bg-brand-500 transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-200" style:width={`${Math.max(0, Math.min(progress, 100))}%`}></div></div></div>
+            <LaunchProgress {status} />
         {/if}
         {#if actions}<div class="mt-5 flex flex-wrap items-center gap-2 border-t border-fg/5 pt-4">{@render actions()}</div>{/if}
     </div>

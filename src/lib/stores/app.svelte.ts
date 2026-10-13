@@ -14,8 +14,11 @@ let gameSessionRevision = $state(0);
 let activeLaunchSessionId = $state<string | null>(null);
 let lastLaunchError = $state("");
 let launchAttemptStartedAt = $state(0);
+let launchStage = $state("preparing");
 
 export const appState = {
+    get launchStage() { return launchStage; },
+    set launchStage(value: string) { launchStage = value; },
     get launchAttemptStartedAt() { return launchAttemptStartedAt; },
     set launchAttemptStartedAt(value: number) { launchAttemptStartedAt = value; },
     get activeLaunchSessionId() { return activeLaunchSessionId; },
@@ -39,7 +42,7 @@ export const appState = {
 	get isStopping() { return isStopping; },
 	set isStopping(v: boolean) { isStopping = v; },
 	get isLaunching() { return isLaunching; },
-	set isLaunching(v: boolean) { isLaunching = v; },
+	set isLaunching(v: boolean) { if (v && !isLaunching) { launchAttemptStartedAt = Date.now(); launchStage = "preparing"; } isLaunching = v; },
 	get launchStatusText() { return launchStatusText; },
 	set launchStatusText(v: string) { launchStatusText = v; },
 	get launchingProfileId() { return launchingProfileId; },

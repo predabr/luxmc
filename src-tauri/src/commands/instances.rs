@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use futures_util::StreamExt;
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
 
 use crate::db::models::ProfileRow;
@@ -1018,16 +1018,17 @@ pub(crate) async fn download_cf_mod_file(
     result.is_ok()
 }
 
-pub async fn instance_import_modpack_core(
+pub fn instance_import_modpack_core<'a>(
     app: Option<tauri::AppHandle>,
-    state: &AppState,
+    state: &'a AppState,
     file_path: String,
     profile_name: String,
     mc_version: String,
     loader: String,
     icon: Option<String>,
     ram_mb: Option<i64>,
-) -> AppResult<ProfileRow> {
+) -> futures_util::future::BoxFuture<'a, AppResult<ProfileRow>> {
+    Box::pin(async move {
     let import_started=std::time::Instant::now();
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     if !state.import_job.load(std::sync::atomic::Ordering::SeqCst) { state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst); }
@@ -1391,6 +1392,7 @@ pub async fn instance_import_modpack_core(
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
     let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
     Ok(profile_row)
+    })
 }
 
 #[derive(serde::Serialize)]
@@ -1405,7 +1407,6 @@ pub struct ImportedProfileResult {
 #[allow(non_snake_case)]
 pub async fn instance_import_modpack(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
     file_path: String,
     profile_name: String,
     mc_version: String,
@@ -1414,18 +1415,22 @@ pub async fn instance_import_modpack(
     ram_mb: Option<i64>,
     operation_id: Option<String>,
 ) -> AppResult<ImportedProfileResult> {
+    tokio::spawn(async move {
+    let state = app.state::<AppState>();
     instance_check_import_job(&state, operation_id.as_deref()).await?;
     let started = chrono::Utc::now();
-    let profile = instance_import_modpack_core(Some(app), &state, file_path, profile_name, mc_version, loader, icon, ram_mb).await?;
+    let profile = instance_import_modpack_core(Some(app.clone()), &state, file_path, profile_name, mc_version, loader, icon, ram_mb).await?;
     Ok(ImportedProfileResult { imported_new: profile.created_at >= started, profile })
+    }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 #[allow(non_snake_case)]
-pub async fn instance_repair_modpack_core(
+pub fn instance_repair_modpack_core<'a>(
     app: Option<tauri::AppHandle>,
-    state: &AppState,
+    state: &'a AppState,
     profileId: String,
-) -> AppResult<u32> {
+) -> futures_util::future::BoxFuture<'a, AppResult<u32>> {
+    Box::pin(async move {
     crate::commands::instance_lab::ensure_isolation_idle(&profileId)?;
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?")
@@ -1436,6 +1441,7 @@ pub async fn instance_repair_modpack_core(
 
     let root = std::path::Path::new(&row.game_dir);
     let mods_dir = root.join("mods");
+    tokio::fs::create_dir_all(&mods_dir).await?;
     let before = {
         let scan_dir = mods_dir.clone();
         tokio::task::spawn_blocking(move || -> std::io::Result<std::collections::HashMap<_, _>> {
@@ -1450,6 +1456,7 @@ pub async fn instance_repair_modpack_core(
     };
     let _ = tokio::fs::remove_file(root.join(".luxmc/.healed")).await;
     heal_modpack(state, &row).await?;
+    let duplicates = repair_instance_duplicates(&row).await?;
     let repaired = {
         let scan_dir = mods_dir.clone();
         tokio::task::spawn_blocking(move || -> std::io::Result<u32> {
@@ -1463,20 +1470,30 @@ pub async fn instance_repair_modpack_core(
         .await
         .map_err(|error| crate::error::AppError::Internal(error.to_string()))??
     };
+    let check_root = root.to_path_buf();
+    let audit = tokio::task::spawn_blocking(move || crate::core::mods::validation::audit(&check_root, false))
+        .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
+    if !audit.errors.is_empty() {
+        return Err(crate::error::AppError::InvalidInput(audit.errors.join("\n")));
+    }
+    let repaired = repaired + duplicates as u32;
     if let Some(app) = app {
         let _ = app.emit("modpack-progress", serde_json::json!({ "phase": "complete", "percent": 100, "current": repaired, "total": repaired, "status": format!("{repaired} arquivos recuperados") }));
     }
     Ok(repaired)
+    })
 }
 
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_repair_modpack(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<u32> {
-    instance_repair_modpack_core(Some(app), &state, profileId).await
+    tokio::spawn(async move {
+        let state = app.state::<AppState>();
+        instance_repair_modpack_core(Some(app.clone()), state.inner(), profileId).await
+    }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]
@@ -1783,11 +1800,50 @@ pub(crate) async fn repair_instance_duplicates(profile: &ProfileRow) -> AppResul
 async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync::Arc<std::sync::atomic::AtomicBool>>) -> AppResult<usize> {
     if crate::core::launcher::get_active_game_pid() != 0 && crate::core::launcher::get_active_game_dir().as_deref() == Some(std::path::Path::new(&profile.game_dir)) { return Ok(0); }
     let db = crate::db::shared_db().await?;
-    let preferred = crate::db::schema::mods::list_by_profile(&db, &profile.id).await?.into_iter().map(|row| row.file_name).collect();
+    let mut preferred: std::collections::HashSet<String> = crate::db::schema::mods::list_by_profile(&db, &profile.id).await?.into_iter().map(|row| row.file_name).collect();
     let root = std::path::PathBuf::from(&profile.game_dir);
-    let repaired = tokio::task::spawn_blocking(move || crate::core::mods::validation::repair_duplicates_cancellable(&root, &preferred, cancel.as_deref()))
+    let cf_path = root.join("manifest.json");
+    let cf_bytes = tokio::fs::read(&cf_path).await.ok();
+    let mut cf_entries = Vec::new();
+    if let Some(bytes) = &cf_bytes {
+        let manifest: CfManifest = serde_json::from_slice(bytes)?;
+        for file in manifest.files {
+            let metadata = root.join(format!(".luxmc/curseforge/{}.json", file.file_id));
+            if let Ok(bytes) = tokio::fs::read(metadata).await {
+                if let Ok(info) = serde_json::from_slice::<crate::core::mods::curseforge::CurseForgeFileInfo>(&bytes) {
+                    if info.id == file.file_id && info.mod_id == file.project_id && is_valid_path_segment(&info.file_name) {
+                        preferred.insert(info.file_name.clone());
+                        cf_entries.push((file.file_id, info.file_name));
+                    }
+                }
+            }
+        }
+    }
+    if let Ok(bytes) = tokio::fs::read(root.join("modrinth.index.json")).await {
+        let manifest: MrpackManifest = serde_json::from_slice(&bytes)?;
+        preferred.extend(manifest.files.into_iter().filter_map(|file| file.path.strip_prefix("mods/").map(str::to_owned)));
+    }
+    let pack_pinned: std::collections::HashSet<_> = cf_entries.iter().map(|(_, name)| name.clone()).collect();
+    let repair_root = root.clone();
+    let before_active: std::collections::HashSet<_> = cf_entries.iter().filter(|(_, name)| root.join("mods").join(name).is_file()).map(|(id, _)| *id).collect();
+    let repaired = tokio::task::spawn_blocking(move || {
+        crate::core::mods::validation::select_pack_duplicate_versions(&repair_root, &pack_pinned, &mut preferred);
+        crate::core::mods::validation::repair_duplicates_cancellable(&repair_root, &preferred, cancel.as_deref())
+    })
         .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
     if repaired > 0 {
+        let removed: std::collections::HashSet<_> = cf_entries.iter().filter(|(id, name)| before_active.contains(id) && !root.join("mods").join(name).exists()).map(|(id, _)| *id).collect();
+        if !removed.is_empty() {
+            if let Some(bytes) = cf_bytes {
+                let backup = root.join(".luxmc/removed-duplicates").join(format!("manifest-{}.json", uuid::Uuid::new_v4()));
+                crate::core::mods::pack_download::atomic_write(&backup, &bytes).await?;
+                let mut manifest: serde_json::Value = serde_json::from_slice(&bytes)?;
+                if let Some(files) = manifest["files"].as_array_mut() {
+                    files.retain(|file| !file.get("fileID").or_else(|| file.get("fileId")).or_else(|| file.get("file_id")).and_then(|id| id.as_u64()).is_some_and(|id| removed.contains(&id)));
+                }
+                crate::core::mods::pack_download::atomic_write(&cf_path, &serde_json::to_vec_pretty(&manifest)?).await?;
+            }
+        }
         let root = std::path::PathBuf::from(&profile.game_dir).join("mods");
         let active = tokio::task::spawn_blocking(move || -> AppResult<Vec<String>> {
             Ok(std::fs::read_dir(root)?.filter_map(Result::ok).filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()) && entry.path().extension().is_some_and(|extension| extension == "jar")).map(|entry| entry.file_name().to_string_lossy().into_owned()).collect())
@@ -1801,6 +1857,7 @@ async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync
 }
 
 async fn prepare_imported_launch(state: &AppState, profile: &ProfileRow, app: Option<&tauri::AppHandle>) -> AppResult<()> {
+    let started = std::time::Instant::now();
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     let cancel = state.import_cancel.clone();
     let profile = profile.clone();
@@ -1814,6 +1871,7 @@ async fn prepare_imported_launch(state: &AppState, profile: &ProfileRow, app: Op
         };
         crate::core::mods::validation::audit_with_progress(&root, false, Some(&cancel), &progress)
     }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
+    tracing::info!(seconds = started.elapsed().as_secs_f64(), archives_phase = "archive_audit", "Modpack registration phase completed");
     if audit.errors.iter().any(|error| error.starts_with("Mod duplicado")) {
         repair_import_duplicates(&profile, Some(state.import_cancel.clone())).await?;
     }
@@ -1822,22 +1880,25 @@ async fn prepare_imported_launch(state: &AppState, profile: &ProfileRow, app: Op
         let root = std::path::Path::new(&profile.game_dir);
         let audit = if audit.errors.iter().any(|error| error.starts_with("Mod duplicado")) { crate::core::mods::validation::audit_cancellable(root, false, Some(&cancel))? } else { audit };
         crate::core::mods::pack_download::cancelled(Some(&cancel))?;
-        if audit.errors.is_empty() {
-            crate::core::launcher::launch_state::store(&profile)?;
-        }
+        if !audit.errors.is_empty() { return Err(crate::error::AppError::InvalidInput(audit.errors.join("\n"))); }
+        crate::core::launcher::launch_state::store(&profile)?;
         crate::core::mods::pack_download::cancelled(Some(&cancel))
     }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 async fn commit_import(state: &AppState, profile: &ProfileRow, app: Option<&tauri::AppHandle>) -> AppResult<()> {
+    let started = std::time::Instant::now();
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     prepare_imported_launch(state, profile, app).await?;
+    tracing::info!(seconds = started.elapsed().as_secs_f64(), archives_phase = "audit_and_launch_state", "Modpack registration phase completed");
+    let started = std::time::Instant::now();
     crate::core::luxmc_pack::prepare_java(std::path::Path::new(&profile.game_dir),&profile.mc_version).await?;
     crate::core::mods::pack_download::cancelled(Some(&state.import_cancel))?;
     let db = crate::db::shared_db().await?;
     if let Some(app) = app { let _ = app.emit("modpack-progress", serde_json::json!({"phase":"indexing","percent":99,"current":0,"total":0,"status":"Salvando sua biblioteca…"})); }
     crate::db::schema::profiles::upsert(&db, profile).await?;
     let result = index_pack_mods(profile).await.and_then(|_| crate::core::mods::pack_download::cancelled(Some(&state.import_cancel)));
+    tracing::info!(seconds = started.elapsed().as_secs_f64(), archives_phase = "essentials_and_database", "Modpack registration phase completed");
     if result.is_err() { crate::db::schema::profiles::delete(&db, &profile.id).await?; }
     result
 }
@@ -1938,7 +1999,8 @@ fn prominence_ftb_files(name: &str, config: &str) -> Vec<CfFile> {
     files.into_iter().map(|(project_id, file_id)| CfFile {project_id, file_id}).collect()
 }
 
-pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppResult<()> {
+pub(crate) fn heal_modpack<'a>(state: &'a AppState, profile: &'a ProfileRow) -> futures_util::future::BoxFuture<'a, AppResult<()>> {
+    Box::pin(async move {
     let root = std::path::Path::new(&profile.game_dir);
     let healed_stamp = root.join(".luxmc/.healed");
     let mr_path = root.join("modrinth.index.json");
@@ -1946,31 +2008,11 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
     let override_index = root.join(".luxmc/overrides.json");
     let mods_dir = root.join("mods");
 
-    if healed_stamp.exists() && mods_dir.is_dir() {
-        if let Ok(stamp_meta) = tokio::fs::metadata(&healed_stamp).await {
-            if let Ok(stamp_mtime) = stamp_meta.modified() {
-                let mut up_to_date = true;
-                for manifest_file in [&mr_path, &cf_path, &override_index] {
-                    if manifest_file.exists() {
-                        if let Ok(meta) = tokio::fs::metadata(manifest_file).await {
-                            if let Ok(mtime) = meta.modified() {
-                                if mtime > stamp_mtime {
-                                    up_to_date = false;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-                if up_to_date {
-                    if let Ok(mut entries) = tokio::fs::read_dir(&mods_dir).await {
-                        if let Ok(Some(_)) = entries.next_entry().await {
-                            return Ok(());
-                        }
-                    }
-                }
-            }
-        }
+    if healed_stamp.is_file() && mods_dir.is_dir() && !profile.force_full_verification {
+        let profile = profile.clone();
+        let unchanged = tokio::task::spawn_blocking(move || crate::core::launcher::launch_state::is_valid(&profile))
+            .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?;
+        if unchanged { return Ok(()); }
     }
 
     use crate::core::mods::pack_download as pack;
@@ -2066,9 +2108,10 @@ pub(crate) async fn heal_modpack(state: &AppState, profile: &ProfileRow) -> AppR
     if profile.loader.eq_ignore_ascii_case("fabric") || profile.loader.eq_ignore_ascii_case("quilt") {
         let _ = crate::core::loaders::fabric::ensure_fabric_api(&state.http, &root.join("mods"), &profile.mc_version).await;
     }
-    let _ = tokio::fs::create_dir_all(root.join(".luxmc")).await;
-    let _ = tokio::fs::write(&healed_stamp, b"healed").await;
+    tokio::fs::create_dir_all(root.join(".luxmc")).await?;
+    crate::core::mods::pack_download::atomic_write(&healed_stamp, b"healed").await?;
     Ok(())
+    })
 }
 
 pub(crate) async fn ensure_modpack_shaders(http: &reqwest::Client, root: &std::path::Path) -> AppResult<()> {
@@ -2197,14 +2240,15 @@ pub(crate) async fn ensure_modpack_shaders(http: &reqwest::Client, root: &std::p
     Ok(())
 }
 
-pub async fn instance_import_mrpack_core(
+pub fn instance_import_mrpack_core<'a>(
     app: Option<tauri::AppHandle>,
-    state: &AppState,
+    state: &'a AppState,
     file_path: String,
     profile_name: String,
     icon: Option<String>,
     ram_mb: Option<i64>,
-) -> AppResult<ProfileRow> {
+) -> futures_util::future::BoxFuture<'a, AppResult<ProfileRow>> {
+    Box::pin(async move {
     let import_started=std::time::Instant::now();
     let _import = state.import_lock.try_lock().map_err(|_| crate::error::AppError::InvalidState("Já existe uma importação em andamento.".into()))?;
     if !state.import_job.load(std::sync::atomic::Ordering::SeqCst) { state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst); }
@@ -2473,23 +2517,26 @@ pub async fn instance_import_mrpack_core(
     if let Some(handle)=&app {let _=handle.emit("modpack-progress",serde_json::json!({"phase":"complete","percent":100,"current":1,"total":1,"status":"Instância instalada e conferida."}));}
     let _=crate::commands::experience::record_performance(&profile_row.id,serde_json::json!({"kind":"installation","seconds":import_started.elapsed().as_secs_f64(),"pid":0,"phases":[{"name":"files","seconds":registration_started.duration_since(import_started).as_secs_f64()},{"name":"registration_and_validation","seconds":registration_started.elapsed().as_secs_f64()}]})).await;
     Ok(profile_row)
+    })
 }
 
 #[tauri::command]
 #[allow(non_snake_case)]
 pub async fn instance_import_mrpack(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
     file_path: String,
     profile_name: String,
     icon: Option<String>,
     ram_mb: Option<i64>,
     operation_id: Option<String>,
 ) -> AppResult<ImportedProfileResult> {
+    tokio::spawn(async move {
+    let state = app.state::<AppState>();
     instance_check_import_job(&state, operation_id.as_deref()).await?;
     let started = chrono::Utc::now();
-    let profile = instance_import_mrpack_core(Some(app), &state, file_path, profile_name, icon, ram_mb).await?;
+    let profile = instance_import_mrpack_core(Some(app.clone()), &state, file_path, profile_name, icon, ram_mb).await?;
     Ok(ImportedProfileResult { imported_new: profile.created_at >= started, profile })
+    }).await.map_err(|error| crate::error::AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]

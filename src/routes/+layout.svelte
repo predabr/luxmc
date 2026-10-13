@@ -527,6 +527,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 		const stagePromise = listenLaunchStage((stage) => {
 			if (disposed || appState.isGameRunning) return;
+			appState.launchStage = stage;
 			const label = LAUNCH_STAGE_LABELS[stage];
 			if (label) appState.launchStatusText = label;
 		});

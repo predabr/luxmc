@@ -670,6 +670,22 @@ mod stop_tests {
     use super::*;
 
     #[test]
+    fn repair_futures_fit_the_windows_dispatch_stack() {
+        std::thread::Builder::new().stack_size(1024 * 1024).spawn(|| {
+            let state = AppState::default();
+            let game = crate::commands::instance_tools::instance_repair_core(None, &state.http, "missing".into());
+            let pack = crate::commands::instances::instance_repair_modpack_core(None, &state, "missing".into());
+            assert!(std::mem::size_of_val(&game) <= 64 * 1024);
+            assert!(std::mem::size_of_val(&pack) <= 64 * 1024);
+            let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            runtime.block_on(async {
+                assert!(game.await.is_err());
+                assert!(pack.await.is_err());
+            });
+        }).unwrap().join().unwrap();
+    }
+
+    #[test]
     fn launch_future_fits_the_windows_dispatch_stack() {
         let bytes = std::thread::Builder::new().stack_size(1024 * 1024).spawn(|| {
             let state = AppState::default();

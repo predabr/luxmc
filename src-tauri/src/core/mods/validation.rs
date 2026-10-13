@@ -52,6 +52,7 @@ pub(crate) struct ModMetadata {
     pub ids: std::collections::BTreeSet<String>,
     pub loaders: std::collections::BTreeSet<String>,
     pub minecraft_declared: bool,
+    pub versions: std::collections::BTreeMap<String, String>,
 }
 
 pub(crate) fn primary_ids(path: &Path) -> Option<std::collections::BTreeSet<String>> {
@@ -89,6 +90,7 @@ fn read_mod_metadata_from_reader(reader: &mut ArchiveReader<'_>) -> Option<ModMe
             if let Ok(value) = serde_json::from_reader::<_, serde_json::Value>(file.take(2 * 1024 * 1024)) {
                 if let Some(id) = value.pointer(pointer).and_then(|v| v.as_str()) {
                     metadata.ids.insert(id.to_owned());
+                    if let Some(version) = value.pointer(if name == "fabric.mod.json" { "/version" } else { "/quilt_loader/version" }).and_then(|value| value.as_str()) { metadata.versions.insert(id.to_owned(), version.to_owned()); }
                     metadata.loaders.insert(if name == "fabric.mod.json" { "fabric" } else { "quilt" }.into());
                     metadata.minecraft_declared |= value.pointer("/depends/minecraft").is_some_and(|version| version.is_string() || version.is_array())
                         || value.pointer("/quilt_loader/depends").and_then(|depends| depends.as_array()).is_some_and(|depends| depends.iter().any(|dependency| dependency["id"] == "minecraft" && dependency.get("versions").is_some()));
@@ -102,7 +104,7 @@ fn read_mod_metadata_from_reader(reader: &mut ArchiveReader<'_>) -> Option<ModMe
             if file.take(2 * 1024 * 1024).read_to_string(&mut text).is_ok() {
                 if let Ok(value) = text.parse::<toml::Value>() {
                     if let Some(mods) = value.get("mods").and_then(|v| v.as_array()) {
-                        for module in mods { if let Some(id) = module.get("modId").and_then(|v| v.as_str()) { metadata.ids.insert(id.to_owned()); } }
+                        for module in mods { if let Some(id) = module.get("modId").and_then(|v| v.as_str()) { metadata.ids.insert(id.to_owned()); if let Some(version) = module.get("version").and_then(|value| value.as_str()) { metadata.versions.insert(id.to_owned(), version.to_owned()); } } }
                         let dependencies = value.get("dependencies").and_then(|deps| deps.as_table());
                         let has_dependency = |id: &str| dependencies.is_some_and(|deps| deps.values().filter_map(|deps| deps.as_array()).flatten().any(|dependency| dependency.get("modId").and_then(|value| value.as_str()) == Some(id)));
                         metadata.loaders.insert(if name.contains("neoforge") || has_dependency("neoforge") { "neoforge" } else { "forge" }.into());
@@ -116,6 +118,24 @@ fn read_mod_metadata_from_reader(reader: &mut ArchiveReader<'_>) -> Option<ModMe
 }
 
 pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<usize> { repair_duplicates_cancellable(root, preferred, None) }
+
+pub(crate) fn select_pack_duplicate_versions(root: &Path, pinned: &HashSet<String>, preferred: &mut HashSet<String>) {
+    let mut groups = std::collections::BTreeMap::<_, Vec<_>>::new();
+    for name in pinned {
+        let Some(metadata) = mod_metadata(&root.join("mods").join(name)) else { continue; };
+        if metadata.ids.len() != 1 { continue; }
+        let id = metadata.ids.iter().next().unwrap();
+        let Some(version) = metadata.versions.get(id).and_then(|version| semver::Version::parse(version).ok()) else { continue; };
+        if !version.pre.is_empty() { continue; }
+        groups.entry((metadata.ids, metadata.loaders)).or_default().push((version, name));
+    }
+    for files in groups.values_mut() {
+        files.sort_by(|a, b| b.0.cmp(&a.0));
+        if files.len() > 1 && files[0].0 != files[1].0 {
+            for (_, name) in &files[1..] { preferred.remove(*name); }
+        }
+    }
+}
 
 pub fn repair_duplicates_cancellable(root: &Path, preferred: &HashSet<String>, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<usize> {
     crate::core::mods::pack_download::cancelled(cancel)?;
@@ -165,9 +185,11 @@ pub fn repair_duplicates_cancellable(root: &Path, preferred: &HashSet<String>, c
 pub fn audit(root: &Path, deep: bool) -> AppResult<Audit> { audit_cancellable(root, deep, None) }
 
 fn inspect_archive(folder: &str, path: &Path, deep: bool, cancel: Option<&std::sync::atomic::AtomicBool>) -> AppResult<(Audit, HashMap<String,String>, Vec<(String,String)>)> {
+    let started = std::time::Instant::now();
     let mut reader = archive_reader(path, cancel)?;
     let result = inspect_archive_from_reader(folder, path, deep, cancel, &mut reader);
     reader.unchanged()?;
+    if started.elapsed().as_millis() > 500 { tracing::info!(file = ?path.file_name(), seconds = started.elapsed().as_secs_f64(), "Slow archive validation"); }
     result
 }
 
@@ -249,13 +271,15 @@ pub fn audit_with_progress(root: &Path, deep: bool, cancel: Option<&std::sync::a
     let total = files.len();
     let completed = std::sync::atomic::AtomicUsize::new(0);
     progress(0, total);
-    let workers = if deep { 1 } else { std::thread::available_parallelism().map(|count| count.get()).unwrap_or(1).min(4) };
+    let workers = if deep { 1 } else { std::thread::available_parallelism().map(|count| count.get()).unwrap_or(1).saturating_mul(2).min(8) };
+    let progress_lock = std::sync::Mutex::new(());
     let queue = std::sync::Mutex::new(files.into_iter().enumerate());
     let parts = std::thread::scope(|scope| -> AppResult<Vec<_>> {
         let mut tasks = Vec::new();
         for _ in 0..workers {
             let queue = &queue;
             let completed = &completed;
+            let progress_lock = &progress_lock;
             tasks.push(scope.spawn(move || -> AppResult<Vec<_>> {
                 let mut inspected = Vec::new();
                 loop {
@@ -263,6 +287,7 @@ pub fn audit_with_progress(root: &Path, deep: bool, cancel: Option<&std::sync::a
                     let next = queue.lock().map_err(|_| crate::error::AppError::Internal("Fila de validação indisponível".into()))?.next();
                     let Some((index,(folder,path))) = next else { break; };
                     inspected.push((index,inspect_archive(&folder,&path,deep,cancel)?));
+                    let _progress = progress_lock.lock().map_err(|_| crate::error::AppError::Internal("Progresso da validação indisponível".into()))?;
                     let current = completed.fetch_add(1, std::sync::atomic::Ordering::AcqRel) + 1;
                     if current % 8 == 0 || current == total { progress(current, total); }
                 }
@@ -405,6 +430,26 @@ mod tests {
         assert!(super::audit(&root,false).unwrap().errors.is_empty());
         std::fs::remove_dir_all(root).unwrap();
     }
+    #[test]
+    fn pack_duplicates_with_two_provider_projects_keep_the_newer_declared_release() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("mods")).unwrap();
+        for (name, version) in [("old.jar", "1.113.1"), ("new.jar", "1.120.2")] {
+            let mut archive = zip::ZipWriter::new(std::fs::File::create(root.path().join("mods").join(name)).unwrap());
+            archive.start_file("META-INF/neoforge.mods.toml", zip::write::FileOptions::default()).unwrap();
+            use std::io::Write;
+            archive.write_all(format!("[[mods]]\nmodId='computercraft'\nversion='{version}'\n").as_bytes()).unwrap();
+            archive.finish().unwrap();
+        }
+        let pinned: std::collections::HashSet<String> = ["old.jar".to_owned(), "new.jar".to_owned()].into_iter().collect();
+        let mut preferred = pinned.clone();
+        super::select_pack_duplicate_versions(root.path(), &pinned, &mut preferred);
+        assert_eq!(super::repair_duplicates(root.path(), &preferred).unwrap(), 1);
+        assert!(root.path().join("mods/new.jar").is_file());
+        assert!(!root.path().join("mods/old.jar").exists());
+        assert!(super::audit(root.path(), false).unwrap().errors.is_empty());
+    }
+
     #[test]
     fn duplicate_repair_preserves_ambiguous_versions_and_extra_modules() {
         use std::io::Write;

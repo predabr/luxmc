@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{Manager, State};
 use crate::core::doctor::{analyze_crash_text, diagnose_instance, CrashDiagnosis};
 use crate::error::{AppError, AppResult};
 use crate::state::AppState;
@@ -92,7 +92,11 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
         warnings.push("Não foi possível identificar a GPU; o Luxmc usará a configuração segura padrão.".into());
     }
     let mods_dir = std::path::PathBuf::from(&row.game_dir).join("mods");
-    for warning in crate::core::doctor::mod_compatibility_warnings(&mods_dir, &row.mc_version, &row.loader) {
+    let mc_version = row.mc_version.clone();
+    let loader = row.loader.clone();
+    let compatibility = tokio::task::spawn_blocking(move || crate::core::doctor::mod_compatibility_warnings(&mods_dir, &mc_version, &loader))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?;
+    for warning in compatibility {
         warnings.push(warning);
     }
     #[cfg(target_os = "linux")]
@@ -117,30 +121,24 @@ pub async fn doctor_instance_readiness(profileId: String) -> AppResult<InstanceR
 #[allow(non_snake_case)]
 pub async fn doctor_repair_all(
     app: tauri::AppHandle,
-    state: State<'_, AppState>,
     profileId: String,
 ) -> AppResult<RepairAllOutcome> {
+    tokio::spawn(async move {
+    let state = app.state::<AppState>();
     crate::commands::instance_tools::instance_repair_core(
         Some(app.clone()),
         &state.http,
         profileId.clone(),
     )
     .await?;
-    let mut warnings = Vec::new();
-    let repaired_mods = match crate::commands::instances::instance_repair_modpack_core(
-        Some(app),
+    let repaired_mods = crate::commands::instances::instance_repair_modpack_core(
+        Some(app.clone()),
         &state,
         profileId,
     )
-    .await
-    {
-        Ok(repaired) => repaired,
-        Err(error) => {
-            warnings.push(format!("Os arquivos do jogo foram reparados, mas os mods não precisaram ou não puderam ser reparados: {error}"));
-            0
-        }
-    };
-    Ok(RepairAllOutcome { repaired_mods, warnings })
+    .await?;
+    Ok(RepairAllOutcome { repaired_mods, warnings: Vec::new() })
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]

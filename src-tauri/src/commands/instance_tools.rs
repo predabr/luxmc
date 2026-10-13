@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{Manager, State};
 
 use crate::db;
 use crate::error::{AppError, AppResult};
@@ -624,11 +624,12 @@ pub async fn instance_restore_saves(
     Ok(saves_dir.to_string_lossy().to_string())
 }
 
-pub async fn instance_repair_core(
+pub fn instance_repair_core<'a>(
     app: Option<tauri::AppHandle>,
-    http: &reqwest::Client,
+    http: &'a reqwest::Client,
     profile_id: String,
-) -> AppResult<()> {
+) -> futures_util::future::BoxFuture<'a, AppResult<()>> {
+    Box::pin(async move {
     let conn = db::shared_db().await?;
     let row: crate::db::models::ProfileRow = sqlx::query_as("SELECT * FROM profiles WHERE id = ?")
         .bind(&profile_id)
@@ -653,15 +654,18 @@ pub async fn instance_repair_core(
     downloader.validate_version(&detail).await?;
     crate::core::launcher::extract_natives(&downloader, &detail, app.as_ref()).await?;
     Ok(())
+    })
 }
 
 #[tauri::command]
 pub async fn instance_repair(
-    state: State<'_, AppState>,
     app: tauri::AppHandle,
     profileId: String,
 ) -> AppResult<()> {
-    instance_repair_core(Some(app), &state.http, profileId).await
+    tokio::spawn(async move {
+        let state = app.state::<AppState>();
+        instance_repair_core(Some(app.clone()), &state.http, profileId).await
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]

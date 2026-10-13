@@ -737,7 +737,7 @@
 	}
 
 	// Launch & Install state
-	let isLaunching = $derived(appState.isLaunching);
+	let isLaunching = $derived(appState.isLaunching && appState.launchingProfileId === instanceId);
 	let isInstalled = $state(true);
 	let launchStatusText = $derived(appState.launchStatusText);
 	let downloadProgressPercent = $state(0);
@@ -1539,7 +1539,7 @@
 	let launchGuard = false;
 
 	async function handlePlay(skipConflictCheck: boolean = false) {
-		if (launchGuard || isLaunching) return;
+		if (launchGuard || appState.isLaunching) return;
 		launchGuard = true;
 		try {
 			await runPlay(skipConflictCheck);
@@ -1553,7 +1553,7 @@
 			clearTimeout(launchResetTimer);
 			launchResetTimer = null;
 		}
-		if (isLaunching) return;
+		if (appState.isLaunching) return;
 
 		const targetProfileId = activeProfile?.id || instanceId || "";
 		if (!skipConflictCheck) {
@@ -1565,6 +1565,7 @@
 					return;
 				}
 				if (!readiness.ready && readiness.repairable) {
+					appState.launchingProfileId = targetProfileId;
 					appState.isLaunching = true;
 					appState.launchStatusText = uiText("ui.b6d484d52a57df94");
 					toast(uiText("ui.5d2502a90ec845c1"), "info");
@@ -1597,10 +1598,12 @@
 					return;
 				}
 			} catch (e) {
-				console.warn("Pre-launch conflict check error:", e);
+				toast(String(e), "error");
+				return;
 			}
 		}
 
+		appState.launchingProfileId = targetProfileId;
 		appState.isLaunching = true;
 		downloadProgressPercent = 15;
 		appState.launchStatusText = uiText("ui.99900384cb24abb8");
@@ -1628,8 +1631,7 @@
 
 
 
-			downloadProgressPercent = 85;
-			appState.launchStatusText = uiText("ui.dc11fbd10f868b09");
+			appState.launchStatusText = uiText("ui.99900384cb24abb8");
 			const targetProfileId = activeProfile?.id || instanceId || "";
 			const globalVulkan = typeof window !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true";
 			const isVulkan = globalVulkan || activeProfile?.useVulkan === true;
