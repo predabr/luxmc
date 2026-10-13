@@ -2,7 +2,7 @@ import { beforeEach, afterEach, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     settings: { launcherActionOnLaunch: 'hide_reopen', showLogsOnLaunch: 'never' },
-    game: { isGameRunning: true, gameSessionRevision: 0 },
+    game: { isGameRunning: true, gameSessionRevision: 0, activeLaunchSessionId: null as string | null },
     status: vi.fn(), hide: vi.fn(), show: vi.fn(), close: vi.fn(), goto: vi.fn()
 }));
 vi.mock('$lib/stores/settings.svelte', () => ({ settings: { value: mocks.settings } }));
@@ -16,7 +16,7 @@ beforeEach(() => {
     vi.clearAllMocks(); vi.useFakeTimers();
     mocks.settings.launcherActionOnLaunch = 'hide_reopen';
     mocks.settings.showLogsOnLaunch = 'never';
-    mocks.game.isGameRunning = true; mocks.game.gameSessionRevision = 0;
+    mocks.game.isGameRunning = true; mocks.game.gameSessionRevision = 0; mocks.game.activeLaunchSessionId = null;
     mocks.status.mockResolvedValue({ running: true, windowReady: true });
     mocks.hide.mockResolvedValue(undefined); mocks.show.mockResolvedValue(undefined);
 });
@@ -30,7 +30,7 @@ it('keeps the launcher visible until Minecraft has a visible window', async () =
     await vi.advanceTimersByTimeAsync(100);
     await action;
     expect(mocks.hide).toHaveBeenCalledOnce();
-    expect(mocks.status).toHaveBeenLastCalledWith(42);
+    expect(mocks.status).toHaveBeenLastCalledWith(42, undefined);
 });
 
 it('does not hide after an exit that races with window detection', async () => {
@@ -60,6 +60,15 @@ it('keeps the launcher visible if status fails or Minecraft exits without a wind
     await handlePostLaunchActions(42);
     mocks.status.mockRejectedValue(new Error('IPC failed'));
     await handlePostLaunchActions(43);
+    expect(mocks.hide).not.toHaveBeenCalled();
+});
+
+it('requires readiness again immediately before hiding and passes the session identity', async () => {
+    mocks.game.activeLaunchSessionId = 'session-42';
+    mocks.status.mockResolvedValueOnce({ running: true, windowReady: true })
+        .mockResolvedValueOnce({ running: true, windowReady: false });
+    await handlePostLaunchActions(42);
+    expect(mocks.status).toHaveBeenLastCalledWith(42, 'session-42');
     expect(mocks.hide).not.toHaveBeenCalled();
 });
 

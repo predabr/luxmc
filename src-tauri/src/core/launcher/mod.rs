@@ -3,6 +3,7 @@ mod quick_join;
 mod classpath_paths;
 mod presence;
 mod startup;
+pub mod session;
 #[cfg(any(target_os = "windows", test))]
 mod native_cache;
 pub mod launch_state;
@@ -144,6 +145,7 @@ pub enum LaunchStage {
     ResolvingArgs,
     ValidatingArgs,
     Spawning,
+    WaitingForWindow,
     Running,
     Finished,
     Failed,
@@ -281,6 +283,7 @@ pub struct GameLauncher {
     downloader: DownloadManager,
     java: JavaRuntimeManager,
     app: Option<tauri::AppHandle>,
+    session: Option<Arc<session::Session>>,
 }
 
 impl GameLauncher {
@@ -289,11 +292,17 @@ impl GameLauncher {
             downloader,
             java,
             app: None,
+            session: None,
         }
     }
 
     pub fn with_app(mut self, app: tauri::AppHandle) -> Self {
         self.app = Some(app);
+        self
+    }
+
+    pub fn with_session(mut self, session: Arc<session::Session>) -> Self {
+        self.session = Some(session);
         self
     }
 
@@ -305,6 +314,18 @@ impl GameLauncher {
     }
 
     fn emit_stage(&self, stage: LaunchStage) {
+        if let Some(session) = &self.session {
+            let phase = match stage {
+                LaunchStage::Spawning => session::Phase::StartingJava,
+                LaunchStage::WaitingForWindow => session::Phase::WaitingForWindow,
+                LaunchStage::Running => session::Phase::Opened,
+                _ => session::Phase::Preparing,
+            };
+            if !matches!(stage, LaunchStage::Failed | LaunchStage::Finished) {
+                let label = serde_json::to_value(stage).ok().and_then(|value| value.as_str().map(str::to_owned)).unwrap_or_default();
+                session.update(phase, &label, None, None);
+            }
+        }
         if let Some(ref app) = self.app {
             let _ = app.emit("launch-stage", stage);
         }
@@ -1123,6 +1144,7 @@ impl GameLauncher {
         })?;
 
         let pid = child.id().unwrap_or(0);
+        if let Some(session) = &self.session { session.process_started(pid); }
         if pid > 0 {
             set_active_game_pid(pid);
             set_active_game_dir(game_dir.clone());
@@ -1298,6 +1320,7 @@ impl GameLauncher {
         let hook_game_dir = game_dir.clone();
         let hook_version_id = detail.id.clone();
         let (startup_exit, startup_watch) = tokio::sync::oneshot::channel();
+        let session_exit = self.session.clone();
         tokio::spawn(async move {
             let result = child.wait().await;
             let startup_reason = match &result {
@@ -1305,6 +1328,12 @@ impl GameLauncher {
                     .unwrap_or_else(|| format!("O Minecraft encerrou durante o início (código {}). Consulte os logs da instância.", status.code().unwrap_or(-1))),
                 Err(error) => format!("Não foi possível acompanhar o Minecraft: {error}"),
             };
+            if let Some(session) = &session_exit {
+                let success = result.as_ref().is_ok_and(|status| status.success());
+                let code = result.as_ref().ok().and_then(|status| status.code());
+                session.update(if success { session::Phase::Exited } else { session::Phase::Failed },
+                    if success { "exited" } else { "failed" }, (!success).then(|| startup_reason.clone()), code);
+            }
             let _ = startup_exit.send(startup_reason);
             presence_watch.abort();
             if result.as_ref().is_ok_and(|status| status.success()) || game_dir_for_crash.join("local/crash_assistant").join(format!("normal_stop_pid{pid}.tmp")).is_file() {
@@ -1338,6 +1367,8 @@ impl GameLauncher {
                             "game-exit",
                             GameExitEvent {
                                 version_id: detail_id.clone(),
+                                session_id: session_exit.as_ref().map(|session| session.id()),
+                                pid,
                                 code,
                                 success: status.success(),
                                 error_message,
@@ -1385,6 +1416,8 @@ impl GameLauncher {
                             "game-exit",
                             GameExitEvent {
                                 version_id: detail_id,
+                                session_id: session_exit.as_ref().map(|session| session.id()),
+                                pid,
                                 code: -1,
                                 success: false,
                                 error_message: Some(e.to_string()),
@@ -1395,7 +1428,10 @@ impl GameLauncher {
             }
         });
 
-        if let Err(reason) = startup::confirm_startup(startup_watch, std::time::Duration::from_secs(2)).await {
+        self.emit_stage(LaunchStage::WaitingForWindow);
+        if let Err(reason) = startup::confirm_startup(startup_watch,
+            || self.session.as_ref().map_or(true, |session| session.owns_process(pid)) && crate::core::process::has_visible_window(pid),
+            std::time::Duration::from_millis(500)).await {
             self.emit_stage(LaunchStage::Failed);
             return Err(AppError::InvalidState(reason));
         }
@@ -2456,6 +2492,8 @@ pub struct GameLogEntry {
 #[serde(rename_all = "camelCase")]
 pub struct GameExitEvent {
     pub version_id: String,
+    pub session_id: Option<String>,
+    pub pid: u32,
     pub code: i32,
     pub success: bool,
     #[serde(default)]

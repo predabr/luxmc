@@ -13,17 +13,49 @@ export async function launchGame(request: {
 	capeUrl?: string | null;
 	serverIp?: string | null;
 	serverPort?: number | null;
-}): Promise<{ pid: number }> {
+}): Promise<{ pid: number; sessionId?: string }> {
     const revision = appState.gameSessionRevision;
-    const result = await api.invoke<{ pid: number }>("launch_game", { request });
+    appState.launchAttemptStartedAt = Date.now();
+    appState.lastLaunchError = "";
+    appState.wasManuallyTerminated = false;
+    const sessionId = crypto.randomUUID();
+    appState.activeLaunchSessionId = sessionId;
+    const result = await api.invoke<{ pid: number; sessionId?: string }>("launch_game", { request: { ...request, sessionId } }).catch(error => {
+        appState.lastLaunchError = String(error);
+        throw error;
+    });
     if (revision !== appState.gameSessionRevision || result.pid <= 0) {
+        appState.lastLaunchError = "O Minecraft encerrou durante o início. Consulte os logs da instância.";
         throw new Error("O Minecraft encerrou durante o início. Consulte os logs da instância.");
     }
+    appState.activeLaunchSessionId = result.sessionId || sessionId;
     return result;
 }
 
-export async function gameLaunchStatus(pid: number): Promise<{ running: boolean; windowReady: boolean }> {
-    return api.invoke("game_launch_status", { pid });
+export async function gameLaunchStatus(pid: number, sessionId?: string): Promise<{ running: boolean; windowReady: boolean }> {
+    return api.invoke("game_launch_status", { pid, ...(sessionId ? { sessionId } : {}) });
+}
+
+export interface LaunchSession {
+    sessionId: string;
+    profileId: string;
+    versionId: string;
+    phase: "preparing" | "startingJava" | "waitingForWindow" | "opened" | "failed" | "cancelled" | "exited";
+    stage: string;
+    pid: number;
+    startedAt: string;
+    updatedAt: string;
+    elapsedSeconds: number;
+    error: string | null;
+    exitCode: number | null;
+}
+
+export function launchSessionStatus(): Promise<LaunchSession | null> {
+    return api.invoke("launch_session_status");
+}
+
+export function cancelLaunch(sessionId: string): Promise<boolean> {
+    return api.invoke("cancel_launch", { sessionId });
 }
 
 export async function stopGame(pid?: number): Promise<boolean> {

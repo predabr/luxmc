@@ -609,6 +609,8 @@ pub async fn run() {
             commands::versions::versions_check_installed,
             commands::launch::launch_game,
             commands::launch::game_launch_status,
+            commands::launch::launch_session_status,
+            commands::launch::cancel_launch,
             commands::launch::stop_game,
             commands::loaders::loaders_versions,
             commands::mods::mods_search,

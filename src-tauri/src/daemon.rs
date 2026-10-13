@@ -989,8 +989,17 @@ async fn dispatch_command(
         },
         "game_launch_status" => {
             let pid = args.get("pid").and_then(|value| value.as_u64()).unwrap_or(0) as u32;
-            let status = crate::commands::launch::game_launch_status(pid).await.map_err(|error| error.to_string())?;
+            let session_id = args.get("sessionId").and_then(|value| value.as_str()).map(str::to_owned);
+            let status = crate::commands::launch::game_launch_status(pid, session_id).await.map_err(|error| error.to_string())?;
             serde_json::to_value(status).map_err(|error| error.to_string())
+        },
+        "launch_session_status" => {
+            let status = crate::commands::launch::launch_session_status().await.map_err(|error| error.to_string())?;
+            serde_json::to_value(status).map_err(|error| error.to_string())
+        },
+        "cancel_launch" => {
+            let session_id = args.get("sessionId").and_then(|value| value.as_str()).unwrap_or_default().to_owned();
+            Ok(Value::Bool(crate::commands::launch::cancel_launch(session_id).await.map_err(|error| error.to_string())?))
         },
         "app_init" => {
             let init_state = crate::commands::system::app_init_core(&state).await.map_err(|e| e.to_string())?;

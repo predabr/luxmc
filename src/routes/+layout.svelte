@@ -1,4 +1,5 @@
 <script lang="ts">
+import LaunchSessionStatus from "$lib/components/instances/LaunchSessionStatus.svelte";
 import { membershipState, appearanceSnapshot } from "$lib/stores/membership.svelte";
 import { APP_VERSION } from "$lib/version";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
@@ -124,6 +125,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		resolvingArgs: uiText("ui.45eb67dd71456de2"),
 		validatingArgs: "Validando argumentos da JVM...",
 		spawning: "Iniciando o Minecraft...",
+        waitingForWindow: "Aguardando a janela do Minecraft...",
 		running: uiText("ui.10096bc49ab1ac37"),
 		failed: uiText("ui.48a319d9cbd85a5a")
 	});
@@ -381,6 +383,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 		const exitPromise = listenGameExit((event) => {
 			if (disposed) return;
+            if (event.sessionId && appState.activeLaunchSessionId && event.sessionId !== appState.activeLaunchSessionId) return;
+            if (!event.success && !appState.wasManuallyTerminated) appState.lastLaunchError = event.errorMessage || `Minecraft encerrou com código ${event.code}. Consulte os logs.`;
             appState.recordGameExit();
 			closeLogSession(
 				event.code,
@@ -881,6 +885,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 {/if}
 <UpdateModal />
 <DownloadProgressBar />
+<LaunchSessionStatus />
 <CrashDoctorModal />
 <CommandPalette />
 <MiniPlayer />

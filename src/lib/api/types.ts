@@ -158,6 +158,8 @@ export interface GameLogEntry {
 }
 
 export interface GameExitEvent {
+    sessionId?: string | null;
+    pid?: number;
 	versionId: string;
 	code: number;
 	success: boolean;

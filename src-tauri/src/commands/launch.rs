@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
-use tauri::State;
+use tauri::Manager;
 
 use crate::core::downloader::DownloadManager;
 use crate::core::java::JavaRuntimeManager;
@@ -13,6 +13,7 @@ use crate::state::AppState;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchRequest {
+    pub session_id: Option<String>,
     pub version_id: String,
     pub account_id: String,
     pub profile_id: String,
@@ -28,6 +29,7 @@ pub struct LaunchRequest {
 #[serde(rename_all = "camelCase")]
 pub struct LaunchResponse {
     pub pid: u32,
+    pub session_id: String,
 }
 
 pub fn compute_offline_uuid(username: &str) -> String {
@@ -54,19 +56,58 @@ pub(crate) async fn scan_before_launch(game_dir: &std::path::Path, app: &Option<
     crate::commands::shield::enforce_scan(&result)
 }
 
-pub async fn launch_game_core(
+pub fn launch_game_core<'a>(
+    state: &'a AppState,
+    app: Option<tauri::AppHandle>,
+    request: LaunchRequest,
+) -> futures_util::future::BoxFuture<'a, AppResult<LaunchResponse>> {
+    Box::pin(async move {
+        let _guard = state.launch_lock.try_lock()
+            .map_err(|_| AppError::InvalidState("Já existe um lançamento em andamento.".into()))?;
+        let active_pid = crate::core::launcher::get_active_game_pid();
+        if active_pid > 0 && is_process_alive(active_pid).await {
+            return Err(AppError::InvalidState("O Minecraft já está aberto. Feche o jogo antes de iniciar outra instância.".into()));
+        }
+        if crate::core::launcher::session::current().is_none() {
+            if let Some(previous) = crate::core::launcher::session::previous() {
+                if previous.pid > 0 && previous.process_started_at.is_some()
+                    && previous.process_started_at == crate::core::process::process_started_at(previous.pid)
+                    && is_process_alive(previous.pid).await {
+                    return Err(AppError::InvalidState("Um Minecraft da sessão anterior ainda está aberto. Feche esse jogo antes de iniciar outra instância.".into()));
+                }
+            }
+        }
+        let session_id = request.session_id.as_deref().map(uuid::Uuid::parse_str).transpose()
+            .map_err(|_| AppError::InvalidInput("Identificador de sessão inválido.".into()))?;
+        let session = crate::core::launcher::session::Session::begin(request.profile_id.clone(), request.version_id.clone(), app.clone(), session_id);
+        let result = tokio::select! {
+            biased;
+            _ = session.cancelled() => {
+                let pid = session.snapshot().pid;
+                session.update(crate::core::launcher::session::Phase::Cancelled, "cancelled", None, None);
+                if session.owns_process(pid) {
+                    match stop_game(Some(pid)).await {
+                        Err(error) => Err(error),
+                        Ok(_) => Err(AppError::InvalidState("Abertura cancelada. Os arquivos válidos foram preservados.".into())),
+                    }
+                } else { Err(AppError::InvalidState("Abertura cancelada. Os arquivos válidos foram preservados.".into())) }
+            }
+            result = Box::pin(launch_game_inner(state, app.clone(), request, session.clone())) => result,
+        };
+        if let Err(error) = &result {
+            session.update(crate::core::launcher::session::Phase::Failed, "failed", Some(error.to_string()), None);
+            if let Some(app) = &app { crate::show_launcher(app); }
+        }
+        result
+    })
+}
+
+async fn launch_game_inner(
     state: &AppState,
     app: Option<tauri::AppHandle>,
     request: LaunchRequest,
+    session: std::sync::Arc<crate::core::launcher::session::Session>,
 ) -> AppResult<LaunchResponse> {
-    let _launch_guard = state
-        .launch_lock
-        .try_lock()
-        .map_err(|_| AppError::InvalidState("Já existe um lançamento em andamento.".into()))?;
-    let active_pid = crate::core::launcher::get_active_game_pid();
-    if active_pid > 0 && is_process_alive(active_pid).await {
-        return Err(AppError::InvalidState("O Minecraft já está aberto. Feche o jogo antes de iniciar outra instância.".into()));
-    }
 
     if request.enable_vulkan == Some(false) {
         std::env::set_var("LUXMC_DISABLE_VULKAN", "1");
@@ -285,7 +326,7 @@ pub async fn launch_game_core(
     emit_log("Download verified. Validating version...");
     emit_log("Version validated.");
 
-    let mut launcher = GameLauncher::new(downloader, java);
+    let mut launcher = GameLauncher::new(downloader, java).with_session(session.clone());
     phases.push(serde_json::json!({"name":"minecraftFiles","seconds":downloads_started.elapsed().as_secs_f64()}));
     let runtime_started=std::time::Instant::now();
     if let Some(ref a) = app {
@@ -402,16 +443,18 @@ pub async fn launch_game_core(
     emit_log(&format!("Game launched with PID {}. Launcher preparation: {:.2}s", pid, preparation_started.elapsed().as_secs_f64()));
     phases.push(serde_json::json!({"name":"javaLoaderAndProcess","seconds":runtime_started.elapsed().as_secs_f64()}));
     let _ = crate::commands::experience::record_performance(&request.profile_id,serde_json::json!({"kind":"preparation","seconds":preparation_started.elapsed().as_secs_f64(),"pid":pid,"phases":phases})).await;
-    Ok(LaunchResponse { pid })
+    Ok(LaunchResponse { pid, session_id: session.id() })
 }
 
 #[tauri::command]
 pub async fn launch_game(
-    state: State<'_, AppState>,
     app: tauri::AppHandle,
     request: LaunchRequest,
 ) -> AppResult<LaunchResponse> {
-    launch_game_core(state.inner(), Some(app), request).await
+    tokio::spawn(async move {
+        let state = app.state::<AppState>();
+        launch_game_core(state.inner(), Some(app.clone()), request).await
+    }).await.map_err(|error| AppError::Internal(format!("Falha na tarefa de lançamento: {error}")))?
 }
 
 pub async fn launch_game_daemon(
@@ -436,8 +479,30 @@ pub struct GameLaunchStatus {
 }
 
 #[tauri::command]
-pub async fn game_launch_status(pid: u32) -> AppResult<GameLaunchStatus> {
-    let running = pid > 0 && crate::core::launcher::get_active_game_pid() == pid && is_process_alive(pid).await;
+pub async fn launch_session_status() -> AppResult<Option<crate::core::launcher::session::Snapshot>> {
+    if let Some(session) = crate::core::launcher::session::current() { return Ok(Some(session.snapshot())); }
+    let mut previous = crate::core::launcher::session::previous();
+    if let Some(value) = &mut previous {
+        if !value.phase.terminal() {
+            value.failed_stage = Some(value.stage.clone());
+            value.phase = crate::core::launcher::session::Phase::Failed;
+            value.error = Some("A sessão anterior foi interrompida. Consulte os logs antes de tentar novamente.".into());
+        }
+    }
+    Ok(previous)
+}
+
+#[tauri::command]
+pub async fn cancel_launch(session_id: String) -> AppResult<bool> {
+    Ok(crate::core::launcher::session::current().is_some_and(|session| session.request_cancel(&session_id)))
+}
+
+#[tauri::command]
+pub async fn game_launch_status(pid: u32, session_id: Option<String>) -> AppResult<GameLaunchStatus> {
+    let owner = crate::core::launcher::session::current().is_some_and(|session| {
+        session_id.as_ref().map_or(true, |id| id == &session.id()) && session.owns_process(pid)
+    });
+    let running = owner && crate::core::launcher::get_active_game_pid() == pid && is_process_alive(pid).await;
     let window_ready = running && crate::core::process::has_visible_window(pid);
     Ok(GameLaunchStatus { running, window_ready })
 }
@@ -496,6 +561,15 @@ pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
     if target_pid == 0 {
         return Ok(false);
     }
+    if crate::core::launcher::get_active_game_pid() != target_pid
+        || !crate::core::launcher::session::current().is_some_and(|session| session.owns_process(target_pid)) {
+        return Err(AppError::InvalidState("Esse processo não pertence à sessão ativa do Luxmc.".into()));
+    }
+    #[cfg(windows)]
+    let _process_guard = crate::core::launcher::session::current()
+        .and_then(|session| session.snapshot().process_started_at)
+        .ok_or_else(|| AppError::InvalidState("Não foi possível confirmar a identidade do Minecraft.".into()))
+        .and_then(|creation| crate::core::process::hold_owned_process(target_pid, creation).map_err(AppError::Io))?;
 
     tracing::info!(target: "launch", "Terminating Minecraft process with PID {}", target_pid);
 
@@ -594,6 +668,27 @@ pub async fn stop_game(pid: Option<u32>) -> AppResult<bool> {
 #[cfg(test)]
 mod stop_tests {
     use super::*;
+
+    #[test]
+    fn launch_future_fits_the_windows_dispatch_stack() {
+        let bytes = std::thread::Builder::new().stack_size(1024 * 1024).spawn(|| {
+            let state = AppState::default();
+            let request = LaunchRequest {
+                session_id: None,
+                version_id: "26.3".into(), account_id: "fixture".into(), profile_id: "fixture".into(),
+                enable_vulkan: None, skin_url: None, skin_variant: None, cape_url: None,
+                server_ip: None, server_port: None,
+            };
+            let future = launch_game_core(&state, None, request);
+            let bytes = std::mem::size_of_val(&future);
+            let _guard = state.launch_lock.try_lock().unwrap();
+            let result = futures_util::FutureExt::now_or_never(future).unwrap();
+            assert!(matches!(result, Err(AppError::InvalidState(_))));
+            bytes
+        }).unwrap().join().unwrap();
+        eprintln!("launch future: {bytes} bytes");
+        assert!(bytes <= 64 * 1024, "Launch future consumes {bytes} bytes before its first poll");
+    }
 
     #[test]
     fn crash_assistant_matches_only_the_exact_game_session_and_directory() {

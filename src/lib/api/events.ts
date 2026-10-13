@@ -69,6 +69,7 @@ export type LaunchStage =
 	| "resolvingArgs"
 	| "validatingArgs"
 	| "spawning"
+    | "waitingForWindow"
 	| "running"
 	| "finished"
 	| "failed";

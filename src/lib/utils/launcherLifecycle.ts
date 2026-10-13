@@ -11,15 +11,17 @@ export async function handlePostLaunchActions(pid: number): Promise<void> {
     const hidesLauncher = () => settings.value.launcherActionOnLaunch === "hide_reopen" || settings.value.launcherActionOnLaunch === "close";
     if (!hidesLauncher()) return;
     const revision = appState.gameSessionRevision;
+    const sessionId = appState.activeLaunchSessionId || undefined;
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline && revision === appState.gameSessionRevision && appState.isGameRunning) {
         try {
-            const status = await gameLaunchStatus(pid);
+            const status = await gameLaunchStatus(pid, sessionId);
             if (!status.running) return;
             if (status.windowReady) {
                 const { getCurrentWindow } = await import("@tauri-apps/api/window");
                 if (revision !== appState.gameSessionRevision || !appState.isGameRunning) return;
-                if (!(await gameLaunchStatus(pid)).running) return;
+                const confirmed = await gameLaunchStatus(pid, sessionId);
+                if (!confirmed.running || !confirmed.windowReady) return;
                 if (!hidesLauncher()) return;
                 const win = getCurrentWindow();
                 await win.hide();

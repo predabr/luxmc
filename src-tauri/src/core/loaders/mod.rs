@@ -64,19 +64,19 @@ pub struct PreparedLoader {
     pub game_args: Vec<String>,
 }
 
-pub async fn prepare_loader(
-    http: &reqwest::Client,
-    libraries_dir: &std::path::Path,
-    loader: &str,
-    mc_version: &str,
-    loader_version: Option<&str>,
-) -> AppResult<PreparedLoader> {
+pub fn prepare_loader<'a>(
+    http: &'a reqwest::Client,
+    libraries_dir: &'a std::path::Path,
+    loader: &'a str,
+    mc_version: &'a str,
+    loader_version: Option<&'a str>,
+) -> futures_util::future::BoxFuture<'a, AppResult<PreparedLoader>> {
     match LoaderKind::from_str(loader) {
-        LoaderKind::Fabric => fabric::prepare_fabric(http, libraries_dir, mc_version, loader_version).await,
-        LoaderKind::Forge => forge::prepare_forge(http, libraries_dir, mc_version, loader_version).await,
-        LoaderKind::Quilt => quilt::prepare_quilt(http, libraries_dir, mc_version, loader_version).await,
-        LoaderKind::NeoForge => neoforge::prepare_neoforge(http, libraries_dir, mc_version, loader_version).await,
-        _ => Err(crate::error::AppError::NotFound(format!("Loader '{}' not supported for auto-injection", loader))),
+        LoaderKind::Fabric => Box::pin(fabric::prepare_fabric(http, libraries_dir, mc_version, loader_version)),
+        LoaderKind::Forge => Box::pin(forge::prepare_forge(http, libraries_dir, mc_version, loader_version)),
+        LoaderKind::Quilt => Box::pin(quilt::prepare_quilt(http, libraries_dir, mc_version, loader_version)),
+        LoaderKind::NeoForge => Box::pin(neoforge::prepare_neoforge(http, libraries_dir, mc_version, loader_version)),
+        _ => Box::pin(async move { Err(crate::error::AppError::NotFound(format!("Loader '{}' not supported for auto-injection", loader))) }),
     }
 }
 
