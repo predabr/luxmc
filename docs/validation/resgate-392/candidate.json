@@ -1,0 +1,56 @@
+{
+  "sourceCommit": "60d0e1d4986eddb4da7637bca6b13063befc8210",
+  "version": "3.9.2",
+  "candidate": true,
+  "publicRelease": false,
+  "builtAt": "2026-10-13T12:03:01.823974+00:00",
+  "architecture": "x64",
+  "stackReserveBytes": 1048576,
+  "components": [
+    {
+      "component": "installer",
+      "filename": "Lux MC Launcher - Resgate 3.9.2 candidato.exe",
+      "bytes": 21459835,
+      "sha256": "34c4de2ef5446ea716800c905b5832b18f237598150fcdb329b25853ba3ae3c7",
+      "authenticode": "NotSigned",
+      "defenderScanExit": 2
+    },
+    {
+      "component": "embeddedProgram",
+      "filename": "luxmc.exe",
+      "bytes": 44021248,
+      "sha256": "cf14c122a74dc5445b086323bc14c850f42ee51d6d9800aeb0e842c825a343ab",
+      "authenticode": "NotSigned",
+      "defenderScanExit": 2
+    },
+    {
+      "component": "buildInputProgram",
+      "filename": "build-input-luxmc.exe",
+      "bytes": 44021248,
+      "sha256": "ca569b5ed80992554e7c1a1927221cedf685feda906bfcdf44a6d79d08c8a57c",
+      "authenticode": "NotSigned",
+      "defenderScanExit": 2
+    }
+  ],
+  "packagingDifference": {
+    "differentBytes": 3,
+    "inputMarker": "UNK",
+    "embeddedMarker": "NSS"
+  },
+  "repairExecutableIncluded": false,
+  "installedLauncherUnchanged": true,
+  "installedProgramSha256": "b17782ec396c1ab834fc2f3aafc160516052e57fe60a6f9dcc580da4328c54cc",
+  "defender": {
+    "signatureVersion": "1.459.688.0",
+    "scannerVersion": "4.18.26090.9-0",
+    "result": "scan_failed",
+    "errorCode": "0x80508023",
+    "approved": false
+  },
+  "nativeMinecraftMenuWorldTest": "pending",
+  "nativeLoaderModpackMatrix": "pending",
+  "twoComputerLanTest": "pending",
+  "installedCandidateTest": "pending",
+  "windowsTrustConfirmed": false,
+  "independentVendorApprovalConfirmed": false
+}

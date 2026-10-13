@@ -22,6 +22,7 @@ const fs = require('node:fs');
                     window.testCalls.push({ command, args });
                     if (command === 'settings_get') return state.settings;
                     if (command === 'settings_set') { Object.assign(state.settings, args.value); return; }
+                    if (command === 'wallpaper_import') return args.path;
                     if (command === 'plugin:store|get' && args.key === 'app') return [{ ...state.settings, theme: 'default-dark', customBackground: 'obsidian', customWallpaperUrl: '', settingsSavedAt: 100 }, true];
                     if (command === 'bedrock_state') return window.testBedrock;
                     if (command === 'bedrock_versions') return [
