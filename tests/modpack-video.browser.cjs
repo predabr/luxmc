@@ -3,6 +3,7 @@ const assert=require('node:assert/strict');
 const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
 (async()=>{
  const browser=await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE});
+ try {
  const page=await browser.newPage({viewport:{width:1440,height:1000}});
  await setupLauncherDemo(page);
  await page.route('https://luxmc-r92.pages.dev/api/player?*',route=>route.continue());
@@ -36,5 +37,5 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
  const iframe=page.locator('.video-player-container iframe');
  assert.equal(await iframe.getAttribute('src'),'https://luxmc-r92.pages.dev/api/player?video=M7lc1UVf-VE');
  console.log('Overview loads before versions; direct MP4 advances; embedded YouTube is requested through the live HTTPS player with the correct Referer. External YouTube playback restrictions are not bypassed.');
- await browser.close();
-})().catch(error=>{console.error(error);process.exit(1)});
+ } finally { await browser.close(); }
+})().catch(error=>{console.error(error);process.exitCode=1;});
