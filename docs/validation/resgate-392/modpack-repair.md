@@ -14,6 +14,8 @@ A conferência de arquivos usa até oito trabalhadores para leituras curtas, com
 
 A barra integrada usa etapas emitidas pelo processo e tempo decorrido. O percentual fixo de 85% foi removido. O componente respeita redução de movimento e mantém o estado ao sair e voltar à instância.
 
+A abertura captura a instância escolhida antes de aguardar as verificações. Navegar para outra instância não altera a versão solicitada, o perfil registrado no histórico nem os dados enviados ao Discord. A inicialização das estatísticas, que ocorria duas vezes nessa rota, agora acontece uma vez. O teste de interface inclui a troca para outra instância antes de concluir a abertura.
+
 ## Verificação inicial
 
 - `pnpm check`: nenhum erro ou aviso.

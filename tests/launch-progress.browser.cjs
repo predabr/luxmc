@@ -12,9 +12,16 @@ const assert = require('node:assert/strict');
         await page.addInitScript(() => {
             window.launcherDemo.state.settings.launcherActionOnLaunch = 'keep_open';
             const original = window.electronAPI.invoke;
-            const invoke = (command, args) => command === 'launch_game'
-                ? new Promise((resolve, reject) => { window.pendingLaunch = { resolve, reject }; })
-                : original(command, args);
+            window.lastPlayedProfiles = [];
+            const invoke = (command, args) => {
+                if (command === 'profiles_update' && args.input.lastPlayed) window.lastPlayedProfiles.push(args.input.id);
+                if (command === 'game_launch_status') return { running: true, windowReady: true };
+                if (command === 'launch_game') {
+                    window.launchRequest = args.request;
+                    return new Promise((resolve, reject) => { window.pendingLaunch = { resolve, reject }; });
+                }
+                return original(command, args);
+            };
             window.electronAPI.invoke = invoke;
             window.__TAURI_INTERNALS__.invoke = invoke;
         });
@@ -36,6 +43,15 @@ const assert = require('node:assert/strict');
         await panel.getByText('Aguardando a janela do Minecraft...').waitFor();
         await page.evaluate(() => window.pendingLaunch.reject(new Error('Falha de teste recuperável')));
         await panel.waitFor({ state: 'detached' });
+        await page.goto('http://127.0.0.1:1420/instances/demo-vanilla');
+        await page.getByRole('button', { name: 'JOGAR MINECRAFT', exact: true }).click();
+        await page.waitForFunction(() => window.pendingLaunch);
+        await page.locator('aside a[href="/instances/demo-vp"]').first().click();
+        await page.waitForURL(/\/instances\/demo-vp/);
+        await page.evaluate(() => window.pendingLaunch.resolve({ pid: 321 }));
+        await page.waitForFunction(() => window.lastPlayedProfiles.includes('demo-vanilla'));
+        assert.equal(await page.evaluate(() => window.launchRequest.profileId), 'demo-vanilla');
+        assert.equal(await page.evaluate(() => window.lastPlayedProfiles.includes('demo-vp')), false);
         assert.equal(errors.length, 0, errors.join('\n'));
         console.log('PASS integrated launch progress: native stages, reduced motion, navigation persistence and recoverable failure');
     } finally { await browser.close(); }

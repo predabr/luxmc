@@ -1555,7 +1555,8 @@
 		}
 		if (appState.isLaunching) return;
 
-		const targetProfileId = activeProfile?.id || instanceId || "";
+		const launchProfile = activeProfile;
+		const targetProfileId = launchProfile?.id || instanceId || "";
 		if (!skipConflictCheck) {
 			try {
 				let readiness = await doctorInstanceReadiness(targetProfileId);
@@ -1625,16 +1626,15 @@
 				userAccId = devAcc.id;
 			}
 
-			const verId = activeProfile?.mcVersion || "1.20.4";
+			const verId = launchProfile?.mcVersion || "1.20.4";
 			downloadProgressPercent = 35;
 			appState.launchStatusText = uiText("ui.8fbc6893bdbc6efd");
 
 
 
 			appState.launchStatusText = uiText("ui.99900384cb24abb8");
-			const targetProfileId = activeProfile?.id || instanceId || "";
 			const globalVulkan = typeof window !== "undefined" && localStorage.getItem("luxmc_enable_vulkan") === "true";
-			const isVulkan = globalVulkan || activeProfile?.useVulkan === true;
+			const isVulkan = globalVulkan || launchProfile?.useVulkan === true;
 			const skinToPass = activeSkinStore.current.skinUrl || account.value?.skinUrl || null;
 			const effectiveCape = activeSkinStore.current.hasCape
 				? (activeSkinStore.current.customCapeUrl || (activeSkinStore.current.capeType && activeSkinStore.current.capeType !== "none" ? getFullCapeDataUrl(activeSkinStore.current.capeType) : null))
@@ -1649,21 +1649,17 @@
 				capeUrl: effectiveCape
 			});
 
-			gamingStats.onGameStart(targetProfileId);
-			appState.isGameRunning = true;
-			appState.activeGameDetails = { profileId: targetProfileId, name: activeProfile?.name || "Minecraft", version: verId, loader: activeProfile?.loader || "vanilla" };
-
-			if (activeProfile) {
+			if (launchProfile) {
 				profilesUpdate({
-					id: activeProfile.id,
+					id: launchProfile.id,
 					lastPlayed: new Date().toISOString(),
-					launchCount: (activeProfile.launchCount || 0) + 1,
+					launchCount: (launchProfile.launchCount || 0) + 1,
 				}).catch(() => {});
 			}
 
-			const pNameLower = (activeProfile?.name || "").toLowerCase();
-			const modpackCover = (activeProfile?.icon && (activeProfile.icon.startsWith("http") || activeProfile.icon.startsWith("data:")))
-				? activeProfile.icon
+			const pNameLower = (launchProfile?.name || "").toLowerCase();
+			const modpackCover = (launchProfile?.icon && (launchProfile.icon.startsWith("http") || launchProfile.icon.startsWith("data:")))
+				? launchProfile.icon
 				: pNameLower.includes("better mc") || pNameLower.includes("bmc")
 				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_better_mc.webp"
 				: pNameLower.includes("pixelmon") || pNameLower.includes("cobblemon")
@@ -1672,14 +1668,14 @@
 				? "https://raw.githubusercontent.com/predabr/luxmc/main/build/modpack_fo.webp"
 				: "https://raw.githubusercontent.com/predabr/luxmc/main/src-tauri/icons/icon.png";
 
-			const loaderText = activeProfile?.loader ? activeProfile.loader.toUpperCase() : "Vanilla";
-			const modCountText = instanceMods.length > 0 ? ` (${instanceMods.length} mods)` : "";
+			const loaderText = launchProfile?.loader ? launchProfile.loader.toUpperCase() : "Vanilla";
+			const modCountText = (launchProfile?.modCount || 0) > 0 ? ` (${launchProfile?.modCount} mods)` : "";
 
 			discordSetActivity({
 				inGame: true,
-				details: activeProfile?.name || "Minecraft",
+				details: launchProfile?.name || "Minecraft",
 				state: `Minecraft ${verId} · ${loaderText}${modCountText}`,
-				largeText: activeProfile?.name || `Minecraft ${verId}`,
+				largeText: launchProfile?.name || `Minecraft ${verId}`,
 				largeImage: modpackCover,
 				smallImage: "grass",
 				smallText: `Luxmc · ${loaderText}`,
@@ -1690,15 +1686,15 @@
 				]
 			}).catch(() => {});
 
-			gamingStats.onGameStart(activeProfile?.id || "");
+			gamingStats.onGameStart(targetProfileId);
 			appState.isGameRunning = true;
 			appState.activeGameDetails = {
-				profileId: activeProfile?.id,
-				name: activeProfile?.name || "Minecraft",
+				profileId: targetProfileId,
+				name: launchProfile?.name || "Minecraft",
 				version: verId,
-				loader: activeProfile?.loader || "vanilla"
+				loader: launchProfile?.loader || "vanilla"
 			};
-			if (activeProfile?.id) profiles.setLastPlayed(activeProfile.id);
+			if (launchProfile?.id) profiles.setLastPlayed(launchProfile.id);
 			downloadProgressPercent = 100;
 			appState.launchStatusText = uiText("ui.56374a8d934236e2", {arg0: (result.pid)});
 			toast(uiText("ui.f9462c8ca5b0a2ac", {arg0: (verId), arg1: (result.pid)}), "success");
