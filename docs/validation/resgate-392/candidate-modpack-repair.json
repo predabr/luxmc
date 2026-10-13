@@ -1,0 +1,51 @@
+{
+  "sourceCommit": "8e42e482dec940cdf380801675c3c39bd89375c4",
+  "version": "3.9.2",
+  "candidate": true,
+  "publicRelease": false,
+  "components": [
+    {
+      "component": "installer",
+      "filename": "Lux MC Launcher - Reparo 3.9.2 candidato.exe",
+      "bytes": 21507621,
+      "sha256": "2c2bbee935c179ffb8200bcb944d888b3387cbed782097c2f2248d775e2016ed",
+      "authenticode": "NotSigned"
+    },
+    {
+      "component": "embeddedProgram",
+      "filename": "luxmc.exe",
+      "bytes": 44132864,
+      "sha256": "56d7d009f3dcf25df386f4f6c6580da165221999c07128fc261685c93af72926",
+      "authenticode": "NotSigned"
+    },
+    {
+      "component": "buildInputProgram",
+      "filename": "build-input-luxmc.exe",
+      "bytes": 44132864,
+      "sha256": "0dd56daf6d9c7b2305af966d78246a70f1d52bad34abceae965d3c367db22b2c",
+      "authenticode": "NotSigned"
+    }
+  ],
+  "packagingDifference": {
+    "differentBytes": 3,
+    "inputMarker": "UNK",
+    "embeddedMarker": "NSS"
+  },
+  "repairExecutableIncluded": false,
+  "installation": {
+    "installerExit": 0,
+    "protectedFilesPreserved": true,
+    "backupCreated": true,
+    "installedProgramMatchesEmbedded": true
+  },
+  "nativeTauriRepairAndImportTest": "passed",
+  "actualMinecraftResourcesTest": [
+    "RLCraft / Forge",
+    "ATM10 / NeoForge",
+    "Fabulously Optimized / Fabric",
+    "Vanilla 26.3"
+  ],
+  "worldTest": "not_run",
+  "twoComputerLanTest": "not_run",
+  "windowsTrustConfirmed": false
+}

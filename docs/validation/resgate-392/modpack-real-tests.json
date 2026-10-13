@@ -1,0 +1,178 @@
+{
+  "date": "2026-10-13",
+  "games": [
+    {
+      "name": "RLCraft",
+      "minecraft": "1.12.2",
+      "loader": "forge",
+      "runs": [
+        {
+          "run": 1,
+          "windowSeconds": 15.64,
+          "windowConfirmed": true,
+          "modInitializationConfirmed": true,
+          "resourcesSeconds": 317.47,
+          "remainedOpenSeconds": 60
+        }
+      ],
+      "readinessSeconds": 2.14,
+      "blockers": []
+    },
+    {
+      "name": "All the Mods 10 - ATM10",
+      "minecraft": "1.21.1",
+      "loader": "neoforge",
+      "runs": [
+        {
+          "run": 1,
+          "windowSeconds": 113.41,
+          "windowConfirmed": true,
+          "resourcesSeconds": 292.45,
+          "remainedOpenSeconds": 60
+        }
+      ],
+      "repairedMods": 1,
+      "repairSeconds": 19.12,
+      "readinessSeconds": 0.83,
+      "blockers": []
+    },
+    {
+      "name": "Vanilla 26.3",
+      "minecraft": "26.3",
+      "loader": "vanilla",
+      "runs": [
+        {
+          "run": 1,
+          "windowSeconds": 20.22,
+          "windowConfirmed": true,
+          "resourcesSeconds": 22.26,
+          "remainedOpenSeconds": 60
+        }
+      ],
+      "repairedMods": 0,
+      "repairSeconds": 0.36,
+      "readinessSeconds": 0.01,
+      "blockers": []
+    }
+  ],
+  "fabric": {
+    "name": "Fabulously Optimized",
+    "version": "6.5.0",
+    "minecraft": "1.21.1",
+    "filesVerifiedByHash": 50,
+    "installSeconds": 6.36,
+    "runs": [
+      {
+        "run": 1,
+        "preparationSeconds": 78.65,
+        "resourcesSeconds": 82.72,
+        "rendererReady": true,
+        "remainedOpen": true
+      }
+    ],
+    "originalInstancesPreserved": true
+  },
+  "nativeTauriBaseline": {
+    "rlcraft": {
+      "repairedWithoutLauncherCrash": true,
+      "repairSeconds": 3.34
+    },
+    "atm10": {
+      "repairedWithoutLauncherCrash": true,
+      "repairSeconds": 15
+    },
+    "installSeconds": 274.07,
+    "duplicateResolvedDuringImport": true,
+    "launcherRemainedOpen": true,
+    "originalInstancesPreserved": true
+  },
+  "limitations": [
+    "No world was opened",
+    "No two-computer LAN test",
+    "Some measurements overlapped Rust compilation",
+    "No universal modpack compatibility guarantee"
+  ],
+  "nativeTauriOptimized": {
+    "sourceCommit": "8e42e482dec940cdf380801675c3c39bd89375c4",
+    "rlcraft": {
+      "repairedWithoutLauncherCrash": true,
+      "repairSeconds": 1.84
+    },
+    "atm10": {
+      "repairedWithoutLauncherCrash": true,
+      "repairSeconds": 3.74
+    },
+    "installSeconds": 38.97,
+    "archiveAuditSeconds": 1.1320073,
+    "auditAndLaunchStateSeconds": 6.2520888,
+    "essentialsAndDatabaseSeconds": 0.3333896,
+    "duplicateResolvedDuringImport": true,
+    "launcherRemainedOpen": true,
+    "interfaceTimers": {
+      "timerTicks": 776,
+      "maximumGapMs": 140
+    },
+    "originalInstancesPreserved": true
+  },
+  "finalFabric": {
+    "sourceCommit": "8e42e482dec940cdf380801675c3c39bd89375c4",
+    "name": "Fabulously Optimized",
+    "version": "6.5.0",
+    "minecraft": "1.21.1",
+    "installSeconds": 1.02,
+    "filesVerifiedByHash": 50,
+    "blockers": [],
+    "warnings": [],
+    "runs": [
+      {
+        "run": 1,
+        "preparationSeconds": 73.85,
+        "resourcesSeconds": 77.93,
+        "rendererReady": true,
+        "remainedOpen": true
+      }
+    ],
+    "originalInstancesPreserved": true,
+    "temporaryInstanceRemoved": true
+  },
+  "finalInstalledGames": {
+    "sourceCommit": "8e42e482dec940cdf380801675c3c39bd89375c4",
+    "games": [
+      {
+        "name": "RLCraft",
+        "minecraft": "1.12.2",
+        "loader": "forge",
+        "runs": [
+          {
+            "run": 1,
+            "windowSeconds": 19.36,
+            "windowConfirmed": true,
+            "modInitializationConfirmed": true,
+            "resourcesSeconds": 370.67,
+            "remainedOpenSeconds": 60
+          }
+        ],
+        "readinessSeconds": 1.21,
+        "blockers": []
+      },
+      {
+        "name": "Vanilla 26.3",
+        "minecraft": "26.3",
+        "loader": "vanilla",
+        "runs": [
+          {
+            "run": 1,
+            "windowSeconds": 15.55,
+            "windowConfirmed": true,
+            "modInitializationConfirmed": false,
+            "resourcesSeconds": 17.58,
+            "remainedOpenSeconds": 60
+          }
+        ],
+        "readinessSeconds": 0.01,
+        "blockers": []
+      }
+    ],
+    "originalInstancesPreserved": true
+  }
+}
