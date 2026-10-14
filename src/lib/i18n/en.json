@@ -10,7 +10,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Minecraft launcher for Windows and Linux",
-    "version": "v3.9.2",
+    "version": "v3.9.5",
     "pressForShortcuts": "Press {{key}} for shortcuts",
     "systemOnline": "System Online",
     "navigation": "Navigation",
@@ -3259,7 +3259,8 @@
     "displayName": "Display name",
     "status": "Profile status",
     "processingImage": "Preparing image and compressing GIF…",
-    "chooseImage": "Choose image or GIF"
+    "chooseImage": "Choose image or GIF",
+    "gifRequiresPlus": "Profile GIFs require an active Luxmc Plus or Pro plan."
   },
   "workshop": {
     "title": "Maintenance center",
@@ -3523,7 +3524,7 @@
   },
   "planProfile": {
     "title": "Profile signature",
-    "help": "Make your profile your own. Follow the changes in the live preview.",
+    "help": "Choose a palette, frame and finishing touches. The preview follows your changes.",
     "accent": "Palette",
     "frame": "Avatar frame",
     "effect": "Effect",
@@ -3549,7 +3550,13 @@
     "expiry": "Premium effects and styles are kept when your plan expires. They return when your plan allows them.",
     "reset": "Reset style",
     "moreFavourites": "Your plan allows {count} profile favourites.",
-    "preview": "Your profile signature, live"
+    "preview": "Your profile signature, live",
+    "previewTitle": "Appearance studio",
+    "previewCaption": "Your look on your profile and friends list.",
+    "accentHint": "Choose the colour of your identity details.",
+    "frameHint": "Compare the outline, glow and shape around your avatar.",
+    "effectHint": "Subtle highlights for your avatar or cover.",
+    "layoutHint": "Choose how your avatar and name are arranged."
   },
   "catalogFilters": {
     "source": "Providers",
@@ -3566,5 +3573,27 @@
       "Quests": "Quests",
       "Technology": "Technology"
     }
+  },
+  "shield": {
+    "intro": "Check mods and embedded libraries without running them. The scan also runs before Minecraft starts.",
+    "scan": "Scan with Shield",
+    "scanning": "Scanning files…",
+    "instance": "Instance to scan",
+    "clean": "No indicators detected",
+    "attention": "Files that need attention",
+    "scanned": "{{count}} mods scanned · {{seconds}} s",
+    "method": "Known hashes and bytecode indicators, including embedded JARs. Complements your computer’s antivirus.",
+    "blocked": "Launch is blocked until this file is resolved.",
+    "warning": "Check the purpose and source of the mod.",
+    "known_malware": "Known malware",
+    "fractureiser": "Fractureiser indicators",
+    "suspicious_structure": "Suspicious structure",
+    "discord_webhook": "Embedded Discord webhook",
+    "scan_incomplete": "Incomplete scan",
+    "known_malwareHelp": "The file or an embedded library matches a documented malicious hash.",
+    "fractureiserHelp": "Combined indicators of Fractureiser remote loading were detected.",
+    "suspicious_structureHelp": "The JAR contains a suspicious name. A name alone does not prove malware; check its source.",
+    "discord_webhookHelp": "A Discord webhook was detected in the bytecode. It may have a legitimate purpose.",
+    "scan_incompleteHelp": "The inspection could not be completed safely. Check the file and the limits described in the report."
   }
 }

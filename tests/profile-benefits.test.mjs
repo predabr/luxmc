@@ -12,6 +12,29 @@ const bob = '33333333-3333-4333-8333-333333333333';
 const tokens = { [alice]: 'b'.repeat(64), [bob]: 'c'.repeat(64) };
 const proStyle = { accent:'lilac', frame:'orbit', effect:'shimmer', layout:'centered' };
 const empty = { description:'', banner:'', portrait:'', packs:[], collections:[] };
+
+test('GIFs require Plus or Pro, survive expiry and reach own identity and accepted friends', async t => {
+    const f = fixture(t);
+    const gif = 'data:image/gif;base64,' + Buffer.from('GIF89a1234567890').toString('base64');
+    const draft = {...empty, displayName:'Nome personalizado',portrait:gif,banner:gif};
+    assert.equal((await f.call('social','profile_save',alice,{...draft,plan:'pro'})).status,403);
+    f.plan(alice,'plus');
+    assert.equal((await f.call('social','profile_save',alice,draft)).status,200);
+    await f.call('social','invite',alice,{targetId:bob}); await f.call('social','accept',bob,{targetId:alice});
+    let own = (await f.call('social','sync',alice,{readOnly:true})).body.me;
+    assert.equal(own.displayName,draft.displayName); assert.equal((await f.call('social','profile_get',alice,{})).body.profile.portrait,gif);
+    let friend = (await f.call('social','sync',bob,{readOnly:true})).body.friends[0];
+    assert.equal(friend.displayName,draft.displayName); assert.equal((await f.call('social','profile_get',bob,{targetId:alice})).body.profile.portrait,gif); assert.ok(JSON.stringify(friend).length < 4096);
+    f.plan(alice,'plus',1);
+    assert.equal((await f.call('social','profile_get',alice,{})).body.profile.portrait,'');
+    friend = (await f.call('social','sync',bob,{readOnly:true})).body.friends[0];
+    assert.notEqual(friend.avatarUrl,gif); assert.equal(friend.displayName,draft.displayName);
+    assert.equal((await f.call('social','profile_save',alice,{...empty,displayName:draft.displayName,description:'Outra descrição'})).status,200);
+    assert.equal(f.sqlite.prepare('SELECT portrait FROM social_public_profiles WHERE user_id = ?').get(alice).portrait,gif);
+    f.plan(alice,'pro');
+    own = (await f.call('social','profile_get',alice,{})).body.profile;
+    assert.equal(own.portrait,gif); assert.equal(own.banner,gif); assert.equal(own.displayName,draft.displayName);
+});
 function fixture(t) {
     const sqlite = new DatabaseSync(':memory:');
     for (const file of readdirSync(new URL('../website/migrations/', import.meta.url)).filter(name => name.endsWith('.sql')).sort()) sqlite.exec(readFileSync(new URL(`../website/migrations/${file}`, import.meta.url), 'utf8'));

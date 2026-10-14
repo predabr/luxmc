@@ -23,7 +23,7 @@
     let crop = $state<{ image: ImageBitmap; kind: 'portrait' | 'banner' } | null>(null);
     let generation = 0;
     const locked = $derived(busy || processingImage);
-    const plan = $derived(profile.membership && (profile.membership.expiresAt ?? 0) > Date.now() / 1000 ? profile.membership.plan : membershipState.current?.plan || 'free');
+    const plan = $derived(profile.membership ? (profile.membership.expiresAt ?? 0) > Date.now() / 1000 ? profile.membership.plan : 'free' : membershipState.current && (membershipState.current.expiresAt ?? 0) > Date.now() / 1000 ? membershipState.current.plan : 'free');
     const favourites = $derived(profileBenefits[plan].favourites);
     const maximum = $derived(plan === 'pro' ? 24 : plan === 'plus' ? 12 : 6);
     const installed = $derived(profiles.list.filter((profile, index, list) => list.findIndex(item => item.name === profile.name) === index));
@@ -46,6 +46,7 @@
         input.value = ''; if (!file || locked) return;
         error = '';
         if (!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type) || file.size > 12 * 1024 * 1024) { error = t('publicProfile.imageLimit'); return; }
+        if (file.type === 'image/gif' && plan === 'free') { error = t('publicProfile.gifRequiresPlus'); return; }
         closeCrop(); const run = ++generation; processingImage = true;
         try {
             if (file.type === 'image/gif') {
@@ -112,7 +113,7 @@
                 <div class="rounded-2xl border border-border bg-bg-subtle/45 p-4"><div class="flex items-center gap-2 text-xs font-semibold"><ShieldCheck class="h-4 w-4 text-brand-400" />{t('profileStudio.tagsTitle')}</div><div class="mt-3"><AccountBadges role={profile.role} tags={profile.tags} plan={profile.membership?.plan} size="md" /></div><p class="mt-3 text-xs leading-5 text-fg-muted">{t('profileStudio.tagsHelp')}</p>{#if canManageTags}<button type="button" disabled={locked} class={button({variant:'secondary',size:'sm',class:'mt-3'})} onclick={onmanageTags}>{t('profileStudio.manageTags')}</button>{/if}</div>
             {:else if section === 'appearance'}
                 <div><h3 class="text-lg font-semibold">{t('profileStudio.appearanceTitle')}</h3><p class="mt-1 text-xs leading-5 text-fg-muted">{t('profileStudio.appearanceHelp')}</p></div>
-                <ProfileStyleEditor bind:value={draft.profileStyle} {plan} disabled={locked} previewName={draft.displayName || profile.username} previewImage={draft.portrait} />
+                <ProfileStyleEditor bind:value={draft.profileStyle} {plan} disabled={locked} previewName={draft.displayName || profile.username} previewImage={draft.portrait} previewBanner={draft.banner} />
                 {#if crop}<ProfileImageEditor image={crop.image} kind={crop.kind} onapply={value => { if (crop) draft[crop.kind] = value; closeCrop(); }} oncancel={closeCrop} />{/if}
                 <div class="grid gap-4 sm:grid-cols-2">
                     {#each ['banner','portrait'] as kind}
@@ -121,7 +122,8 @@
                             <div class="mt-3 grid h-28 place-items-center overflow-hidden rounded-xl border border-border bg-bg-elevated">
                                 {#if kind === 'banner' && draft.banner}<img src={draft.banner} alt="" class="h-full w-full object-cover" />{:else if kind === 'portrait'}{#if draft.portrait}<img src={draft.portrait} alt="" class="h-20 w-20 rounded-2xl object-cover" />{:else}<MinecraftAvatar username={profile.username} avatarUrl={profile.avatarUrl} class="h-20 w-20" />{/if}{:else}<Image class="h-7 w-7 text-fg-subtle" />{/if}
                             </div>
-                            <label class="mt-3 flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-bg-elevated px-3 py-2 text-xs font-medium hover:border-brand-400/50 focus-within:ring-2 focus-within:ring-brand-400"><Upload class="h-3.5 w-3.5" />{t('publicProfile.chooseImage')}<input type="file" accept="image/png,image/jpeg,image/webp,image/gif" disabled={locked} aria-label={t(kind === 'banner' ? 'profileStudio.selectBanner' : 'profileStudio.selectPortrait')} onchange={event => void upload(event, kind as 'banner' | 'portrait')} class="sr-only" /></label>
+                            <label class="mt-3 flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-border bg-bg-elevated px-3 py-2 text-xs font-medium hover:border-brand-400/50 focus-within:ring-2 focus-within:ring-brand-400"><Upload class="h-3.5 w-3.5" />{t('publicProfile.chooseImage')}<input type="file" accept={plan === 'free' ? "image/png,image/jpeg,image/webp" : "image/png,image/jpeg,image/webp,image/gif"} disabled={locked} aria-label={t(kind === 'banner' ? 'profileStudio.selectBanner' : 'profileStudio.selectPortrait')} onchange={event => void upload(event, kind as 'banner' | 'portrait')} class="sr-only" /></label>
+                            {#if plan === 'free'}<p class="mt-2 text-[10px] text-fg-muted">{t('publicProfile.gifRequiresPlus')}</p>{/if}
                             <button type="button" disabled={locked || !(kind === 'banner' ? draft.banner : draft.portrait)} class={button({variant:'ghost',size:'sm',block:true,class:'mt-2'})} onclick={() => { closeCrop(); if (kind === 'banner') draft.banner=''; else draft.portrait=''; }}>{t(kind === 'banner' ? 'profileStudio.removeCover' : 'profileStudio.minecraftAvatar')}</button>
                         </div>
                     {/each}

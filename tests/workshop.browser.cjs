@@ -55,7 +55,7 @@ const {setupLauncherDemo}=require('../scripts/launcher-video-fixture.cjs');
   await page.waitForFunction(()=>window.workshopCalls.some(call=>call.command==='instance_import_mrpack'));
   await page.getByRole('complementary',{name:'Fila de instalações'}).getByRole('button',{name:'Fechar',exact:true}).click();
   await page.getByRole('button',{name:'Validar instância',exact:true}).click();await page.getByText('Verificação concluída: nenhuma falha bloqueante identificada',{exact:true}).waitFor();
-  await page.getByRole('button',{name:'Verificar mods com Shield',exact:true}).click();await page.getByText('Nenhum indicador detectado',{exact:true}).waitFor();
+  await page.getByRole('button',{name:'Verificar com Shield',exact:true}).click();await page.getByText('Nenhum indicador detectado',{exact:true}).waitFor();
   await page.getByRole('button',{name:'Preparar diagnóstico',exact:true}).click();await page.getByRole('button',{name:'Exportar diagnóstico',exact:true}).waitFor();await page.getByRole('button',{name:'Exportar diagnóstico',exact:true}).click();await page.waitForFunction(()=>window.workshopCalls.some(call=>call.command==='support_report_export'));
   await page.getByRole('button',{name:'Ver backups',exact:true}).click();await page.getByRole('button',{name:'Restaurar',exact:true}).click();await page.getByRole('alert').filter({hasText:'Restaurar Meu mundo?'}).waitFor();
   await page.getByRole('button',{name:'Cancelar',exact:true}).last().click();

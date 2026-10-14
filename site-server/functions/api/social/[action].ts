@@ -1,5 +1,5 @@
 import { membership } from "../../../lib/membership.js";
-import { activeProfileStyle, parseProfileStyle, profileBenefits, profileStyleAllowed, retainedProfileStyle } from '../../../lib/profile-style.js';
+import { activeProfileImage, isProfileGif, retainedProfileImage, activeProfileStyle, parseProfileStyle, profileBenefits, profileStyleAllowed, retainedProfileStyle } from '../../../lib/profile-style.js';
 import type { SiteContext } from "../../../lib/types.js";
 import { validatePublicProfile } from "../../../lib/public-profile.js";
 import { validAvatar } from "../../../lib/avatar.js";
@@ -148,7 +148,8 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
             if (await limited(db, `profile:${me.id}`, now, 60, 8))
                 return respond({ error: "Aguarde antes de salvar novamente." }, 429);
             const entitlement = await membership(db, me.id);
-            const savedCollections = await db.prepare("SELECT collections, packs, profile_style FROM social_public_profiles WHERE user_id = ?").bind(me.id).first();
+            const savedCollections = await db.prepare("SELECT collections, packs, profile_style, portrait, banner FROM social_public_profiles WHERE user_id = ?").bind(me.id).first();
+            if (entitlement.plan === 'free' && (['portrait','banner'] as const).some(kind => isProfileGif(body[kind]) && body[kind] !== savedCollections?.[kind])) return respond({error:'GIFs no perfil requerem Luxmc Plus ou Pro ativo.'},403);
             const existingCollections = JSON.parse(savedCollections?.collections || "[]");
             const existingPacks: string[] = JSON.parse(savedCollections?.packs || '[]');
             if (body.profileStyle === undefined && Array.isArray(body.packs) && body.packs.length <= 8 && existingPacks.length > 8) body.packs = [...body.packs, ...existingPacks.slice(8).filter(pack => !body.packs.includes(pack))];
@@ -164,7 +165,7 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
                 return respond({ error: "Perfil inválido. Use imagens PNG, JPEG, WebP ou GIF de até 700 KB e uma descrição de até 400 caracteres." }, 400);
             const persistedStyle = body.profileStyle === undefined ? savedCollections?.profile_style || JSON.stringify(style) : JSON.stringify(retainedProfileStyle(style, JSON.parse(savedCollections?.profile_style || '{}'), entitlement.plan));
             await db.prepare("INSERT INTO social_public_profiles(user_id, description, banner, portrait, packs, updated_at, display_name, status, collections, profile_style) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM social_users WHERE id = ? AND removed_at = 0) ON CONFLICT(user_id) DO UPDATE SET description = excluded.description, banner = excluded.banner, portrait = excluded.portrait, packs = excluded.packs, updated_at = excluded.updated_at, display_name = CASE WHEN ? THEN excluded.display_name ELSE social_public_profiles.display_name END, status = CASE WHEN ? THEN excluded.status ELSE social_public_profiles.status END, collections = CASE WHEN ? THEN excluded.collections ELSE social_public_profiles.collections END, profile_style = excluded.profile_style")
-                .bind(me.id, profile.description, profile.banner, profile.portrait, JSON.stringify(profile.packs), now, profile.displayName, profile.status, JSON.stringify(profile.collections), persistedStyle, me.id, Number(typeof body.displayName === "string"), Number(typeof body.status === "string"), Number(Array.isArray(body.collections))).run();
+                .bind(me.id, profile.description, retainedProfileImage(profile.banner, savedCollections?.banner || '', entitlement.plan), retainedProfileImage(profile.portrait, savedCollections?.portrait || '', entitlement.plan), JSON.stringify(profile.packs), now, profile.displayName, profile.status, JSON.stringify(profile.collections), persistedStyle, me.id, Number(typeof body.displayName === "string"), Number(typeof body.status === "string"), Number(Array.isArray(body.collections))).run();
             return respond({ ok: true });
         }
         if (action === "profile_get") {
@@ -183,7 +184,7 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
             const assigned = await db.prepare("SELECT tags FROM social_user_tags WHERE user_id = ?").bind(target).first();
             const benefits = await membership(db, target);
             const storedStyle = parseProfileStyle(JSON.parse(saved?.profile_style || '{}'));
-            return respond({ profile: { ...user, membership: benefits, profileStyle: activeProfileStyle(storedStyle, benefits.plan), ...(target === me.id ? { savedProfileStyle: storedStyle } : {}), role: env.OWNER_SOCIAL_ID && target === env.OWNER_SOCIAL_ID ? "owner" : "member", tags: JSON.parse(assigned?.tags || '[]'), displayName: saved?.display_name || '', status: saved?.status || '', description: saved?.description || '', banner: saved?.banner || '', portrait: saved?.portrait || '', packs: JSON.parse(saved?.packs || '[]').slice(0, body.favouritesLimit === 24 ? 24 : 8), collections: JSON.parse(saved?.collections || '[]').slice(0, body.collectionsLimit === 24 ? 24 : 6) } });
+            return respond({ profile: { ...user, membership: benefits, profileStyle: activeProfileStyle(storedStyle, benefits.plan), ...(target === me.id ? { savedProfileStyle: storedStyle } : {}), role: env.OWNER_SOCIAL_ID && target === env.OWNER_SOCIAL_ID ? "owner" : "member", tags: JSON.parse(assigned?.tags || '[]'), displayName: saved?.display_name || '', status: saved?.status || '', description: saved?.description || '', banner: activeProfileImage(saved?.banner || '', benefits.plan), portrait: activeProfileImage(saved?.portrait || '', benefits.plan), packs: JSON.parse(saved?.packs || '[]').slice(0, body.favouritesLimit === 24 ? 24 : 8), collections: JSON.parse(saved?.collections || '[]').slice(0, body.collectionsLimit === 24 ? 24 : 6) } });
         }
         if (action === "stream_ticket") {
             if (!env.SOCIAL_STREAM_URL)
@@ -253,8 +254,8 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
             if (!me) return respond({error:"Perfil indisponível."},404);
             const assigned = await db.prepare("SELECT tags FROM social_user_tags WHERE user_id = ?").bind(me.id).first();
             const entitlement = await membership(db, me.id);
-            const ownStyle = await db.prepare('SELECT profile_style FROM social_public_profiles WHERE user_id = ?').bind(me.id).first();
-            me = {...me, profileStyle:activeProfileStyle(JSON.parse(ownStyle?.profile_style || '{}'), entitlement.plan), membership: entitlement, role: env.OWNER_SOCIAL_ID && me.id === env.OWNER_SOCIAL_ID ? 'owner' : 'member', tags: JSON.parse(assigned?.tags || '[]')};
+            const ownStyle = await db.prepare('SELECT profile_style, display_name FROM social_public_profiles WHERE user_id = ?').bind(me.id).first();
+            me = {...me, displayName:ownStyle?.display_name || '', profileStyle:activeProfileStyle(JSON.parse(ownStyle?.profile_style || '{}'), entitlement.plan), membership: entitlement, role: env.OWNER_SOCIAL_ID && me.id === env.OWNER_SOCIAL_ID ? 'owner' : 'member', tags: JSON.parse(assigned?.tags || '[]')};
             const friends = await friendSnapshot(db, me.id, now, env.OWNER_SOCIAL_ID);
             return respond({ me, friends });
         }

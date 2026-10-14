@@ -315,6 +315,7 @@ export interface WorldSnapshotInfo {
 }
 
 export interface ShieldThreat {
+	code?: string;
 	fileName: string;
 	filePath: string;
 	severity: string;

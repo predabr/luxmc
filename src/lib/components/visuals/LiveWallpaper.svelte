@@ -2,9 +2,11 @@
 	import { onMount, onDestroy } from "svelte";
 	import { settings } from "$lib/stores/settings.svelte";
 	import { appState } from "$lib/stores/app.svelte";
+    import { frameLoop } from '$lib/utils/frameLoop';
 
 	let canvasEl: HTMLCanvasElement | null = $state(null);
-	let animationFrameId: number | null = null;
+    let stopAnimation: (() => void) | null = null;
+    let activeFps = 0;
 	let isActive = $state(true);
 	let focused = $state(true);
 	const wallpaperFps = $derived(Math.max(5, Math.min(60, settings.value.wallpaperFps || 60)));
@@ -47,6 +49,7 @@
 	function shouldRun() {
 		return (
 			!appState.performanceMode &&
+			!appState.isLaunching &&
 			!appState.isGameRunning &&
 			settings.value.liveWallpaper !== false &&
 			(settings.value.pauseWallpaperOnBlur === false || focused) &&
@@ -65,14 +68,13 @@
 	}
 
 	function stopLoop() {
-		if (animationFrameId !== null) {
-			cancelAnimationFrame(animationFrameId);
-			animationFrameId = null;
-		}
+        stopAnimation?.();
+        stopAnimation = null;
 	}
 
 	function startLoop() {
-		if (animationFrameId !== null) return;
+        if (stopAnimation && activeFps === wallpaperFps) return;
+        stopLoop();
 		const canvas = canvasEl;
 		if (!canvas) return;
 		const ctx = canvas.getContext("2d");
@@ -88,11 +90,6 @@
 				return;
 			}
 
-			const frameInterval = 1000 / wallpaperFps - 1;
-			if (now - lastFrame < frameInterval) {
-				animationFrameId = requestAnimationFrame(render);
-				return;
-			}
 			const speed = Math.min((now - lastFrame) / 1000, 0.1) * 60;
 			lastFrame = now;
 			const width = canvas.width;
@@ -127,11 +124,11 @@
 			}
 			ctx.globalAlpha = 1;
 
-			animationFrameId = requestAnimationFrame(render);
 		};
 
 		isActive = true;
-		render();
+        activeFps = wallpaperFps;
+        stopAnimation = frameLoop(render, activeFps);
 	}
 
 	function checkAndToggle() {
@@ -212,6 +209,7 @@
 	$effect(() => {
 		void appState.isScrolling;
 		void appState.performanceMode;
+		void appState.isLaunching;
 		void appState.isGameRunning;
 		void settings.value.liveWallpaper;
 		void settings.value.wallpaperFps;

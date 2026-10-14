@@ -7,6 +7,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
 	import { scrollActivity } from "$lib/utils/scrollActivity";
 	import { pageMotion } from "$lib/actions/pageMotion";
+    import { buttonFeedback } from '$lib/actions/buttonFeedback';
 	import { resolveWallpaperImageUrl } from "$lib/utils/wallpaperSource";
 	import VideoWallpaper from "$lib/components/visuals/VideoWallpaper.svelte";
     import ShaderScenery from "$lib/components/visuals/ShaderScenery.svelte";
@@ -809,6 +810,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         root.classList.toggle("density-compact", settings.value.density === "compact");
         root.classList.toggle("density-spacious", settings.value.density === "spacious");
         const disableBlur = settings.value.blur === false || appState.performanceMode || appState.isLaunching || appState.isGameRunning;
+        root.classList.toggle("resource-busy", appState.isLaunching || appState.isGameRunning);
         const disableAnim = settings.value.animations === false || appState.performanceMode;
         document.documentElement.classList.toggle("no-blur", disableBlur);
         document.documentElement.classList.toggle("no-anim", disableAnim);
@@ -818,7 +820,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         return () => {
             document.documentElement.classList.remove("no-blur");
             document.documentElement.classList.remove("no-anim");
-            root.classList.remove("no-ui-motion", "force-ui-motion");
+            root.classList.remove("no-ui-motion", "force-ui-motion", "resource-busy");
             document.documentElement.classList.remove("efficient-wallpaper");
         };
     });
@@ -876,7 +878,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		{@render children?.()}
 	</div>
 {:else}
-	<div class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ easing: quintOut, duration: 150 }}>
+	<div use:buttonFeedback class="flex h-dvh min-h-0 w-full overflow-hidden" in:fade={{ easing: quintOut, duration: 150 }}>
 		<Sidebar notificationCount={0} />
 		<div class="flex h-full min-h-0 min-w-0 flex-1 flex-col relative z-10">
 			<main use:scrollActivity data-scroll-root data-refined-ui={page.url.pathname !== '/skins'} class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto {page.url.pathname === "/" ? "p-0" : "px-6 py-6"} custom-scrollbar custom-scrollbar-root relative">

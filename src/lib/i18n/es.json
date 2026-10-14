@@ -10,7 +10,7 @@
   "app": {
     "name": "Luxmc",
     "tagline": "Launcher de Minecraft para Windows y Linux",
-    "version": "v3.9.2",
+    "version": "v3.9.5",
     "pressForShortcuts": "Presiona {{key}} para atajos de teclado",
     "systemOnline": "Sistema en línea",
     "navigation": "Navegación",
@@ -3259,7 +3259,8 @@
     "displayName": "Nombre visible",
     "status": "Estado del perfil",
     "processingImage": "Preparando imagen y comprimiendo GIF…",
-    "chooseImage": "Elegir imagen o GIF"
+    "chooseImage": "Elegir imagen o GIF",
+    "gifRequiresPlus": "Los GIF del perfil requieren Luxmc Plus o Pro activo."
   },
   "workshop": {
     "title": "Centro de mantenimiento",
@@ -3523,7 +3524,7 @@
   },
   "planProfile": {
     "title": "Firma visual",
-    "help": "Dale tu identidad al perfil. Mira el resultado en la vista previa.",
+    "help": "Elige una paleta, un marco y los detalles. La vista previa refleja tus cambios.",
     "accent": "Paleta",
     "frame": "Marco del avatar",
     "effect": "Efecto",
@@ -3549,7 +3550,13 @@
     "expiry": "Los efectos y estilos premium se conservan al vencer el plan. Vuelven cuando tu plan los permite.",
     "reset": "Restaurar estilo",
     "moreFavourites": "Tu plan permite {count} favoritos en el perfil.",
-    "preview": "Tu estilo de perfil, en directo"
+    "preview": "Tu estilo de perfil, en directo",
+    "previewTitle": "Estudio de apariencia",
+    "previewCaption": "Tu estilo en el perfil y la lista de amigos.",
+    "accentHint": "Elige el color de los detalles de tu identidad.",
+    "frameHint": "Compara el contorno, brillo y forma alrededor del avatar.",
+    "effectHint": "Detalles sutiles para tu avatar o portada.",
+    "layoutHint": "Elige cómo organizar el avatar y el nombre."
   },
   "catalogFilters": {
     "source": "Proveedores",
@@ -3566,5 +3573,27 @@
       "Quests": "Misiones",
       "Technology": "Tecnología"
     }
+  },
+  "shield": {
+    "intro": "Comprueba mods y bibliotecas internas sin ejecutarlos. La revisión también se realiza antes de iniciar Minecraft.",
+    "scan": "Verificar con Shield",
+    "scanning": "Verificando archivos…",
+    "instance": "Instancia que verificar",
+    "clean": "No se detectaron indicadores",
+    "attention": "Archivos que requieren atención",
+    "scanned": "{{count}} mods verificados · {{seconds}} s",
+    "method": "Hashes conocidos e indicadores en el bytecode, incluidos JAR internos. Complementa el antivirus del equipo.",
+    "blocked": "El inicio estará bloqueado hasta resolver este archivo.",
+    "warning": "Comprueba la finalidad y el origen del mod.",
+    "known_malware": "Malware conocido",
+    "fractureiser": "Indicadores de Fractureiser",
+    "suspicious_structure": "Estructura sospechosa",
+    "discord_webhook": "Webhook de Discord integrado",
+    "scan_incomplete": "Verificación incompleta",
+    "known_malwareHelp": "El archivo o una biblioteca interna coincide con un hash malicioso documentado.",
+    "fractureiserHelp": "Se detectaron indicadores combinados de carga remota de Fractureiser.",
+    "suspicious_structureHelp": "El JAR contiene un nombre sospechoso. El nombre por sí solo no demuestra malware; comprueba su origen.",
+    "discord_webhookHelp": "Se detectó un webhook de Discord en el bytecode. Puede tener una finalidad legítima.",
+    "scan_incompleteHelp": "No se pudo completar la revisión con seguridad. Comprueba el archivo y los límites del informe."
   }
 }

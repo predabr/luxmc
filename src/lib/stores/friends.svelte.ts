@@ -8,6 +8,8 @@ import { activeSkinStore } from "./skin.svelte";
 import { account } from "./account.svelte";
 import { appState } from "./app.svelte";
 
+import { activeProfileImage } from '$lib/utils/profileStyle';
+
 let list = $state<Friend[]>([]);
 let me = $state<SocialIdentity | null>(null);
 let ownProfile = $state<PublicProfile | null>(null);
@@ -26,34 +28,46 @@ let presenceSession: string | undefined;
 let stopPresenceListener: (() => void) | undefined;
 const profileCache = new Map<string, { at: number; profile: PublicProfile }>();
 let profileLoading = false;
+const visibleProfiles = new Map<string,number>();
+const profileAttempts = new Map<string,number>();
+let profileRefreshedAt = 0;
+let refreshingProfile: { run: number; promise: Promise<void> } | null = null;
 
 function withProfile(friend: Friend): Friend {
     const profile = profileCache.get(friend.id)?.profile;
-    return profile && friend.status !== 'pending' ? { ...friend, displayName: profile.displayName, avatarUrl: profile.portrait || friend.avatarUrl, role: friend.role ?? profile.role, tags: friend.tags ?? profile.tags, profileStatus: profile.status, profileStyle: friend.profileStyle ?? profile.profileStyle } : friend;
+    return profile && friend.status !== 'pending' ? { ...friend, displayName: friend.displayName ?? profile.displayName, avatarUrl: activeProfileImage(profile.portrait, friend.membership?.plan || profile.membership?.plan || 'free') || friend.avatarUrl, role: friend.role ?? profile.role, tags: friend.tags ?? profile.tags, profileStatus: friend.profileStatus ?? profile.status, profileStyle: friend.profileStyle ?? profile.profileStyle } : friend;
 }
 
 async function loadFriendProfiles() {
-    if (profileLoading || !identity) return;
+    if (profileLoading || !identity || document.hidden) return;
     profileLoading = true;
     const run = generation;
     const accountId = identity;
-    const queue = list.filter(friend => friend.status !== 'pending' && Date.now() - (profileCache.get(friend.id)?.at || 0) > 60000);
+    const queue = list.filter(friend => friend.status !== 'pending' && (visibleProfiles.get(friend.id) || 0) > 0 && Date.now() - (profileCache.get(friend.id)?.at || 0) > 60000 && Date.now() - (profileAttempts.get(friend.id) || 0) > 30000);
+    if (!queue.length) { profileLoading = false; return; }
     try {
         await Promise.all(Array.from({ length: Math.min(3, queue.length) }, async () => {
             while (queue.length && run === generation) {
                 const friend = queue.shift()!;
+                if (!(visibleProfiles.get(friend.id) || 0)) continue;
+                profileAttempts.set(friend.id,Date.now());
                 try {
                     const profile = await socialPublicProfile(accountId, friend.id);
                     if (run !== generation || accountId !== identity) return;
+                    if (!list.some(item => item.id === friend.id)) continue;
                     profileCache.set(friend.id, { at: Date.now(), profile });
                     list = list.map(item => item.id === friend.id ? withProfile(item) : item);
                 } catch { }
             }
         }));
-    } finally { profileLoading = false; }
+    } finally { if (run === generation) { profileLoading = false; void loadFriendProfiles(); } }
 }
 
 function applyFriends(next: Friend[]) {
+        const ids = new Set(next.map(friend => friend.id));
+        for (const id of profileCache.keys()) if (!ids.has(id)) { profileCache.delete(id); profileAttempts.delete(id); }
+        for (const id of profileAttempts.keys()) if (!ids.has(id)) profileAttempts.delete(id);
+
         for (const friend of next) {
             const previous = list.find(item => item.id === friend.id);
             if (friend.status === "pending" && friend.incoming && (!previous || !previous.incoming)) {
@@ -104,6 +118,7 @@ async function refreshNow(run: number) {
 		if (run !== generation) return;
         applyFriends(result.friends);
         me = result.me;
+        if (!ownProfile || Date.now() - profileRefreshedAt > 60000) void refreshProfile().catch(() => {});
         if (ownProfile) ownProfile = {...ownProfile,profileStyle:result.me.profileStyle ?? ownProfile.profileStyle,membership:result.me.membership ?? ownProfile.membership,role:result.me.role ?? ownProfile.role,tags:result.me.tags ?? ownProfile.tags};
 		error = "";
 	} catch (cause) {
@@ -126,15 +141,25 @@ async function poll(run: number) {
 	if (run === generation) { clearTimeout(timer); timer = setTimeout(() => void poll(run), error ? 5000 : presenceSession ? 20000 : document.hidden ? 25000 : socket?.readyState === WebSocket.OPEN ? 25000 : 5000); }
 }
 
-async function refreshProfile() {
+function refreshProfile(): Promise<void> {
     const run = generation;
     const accountId = identity;
-    if (!accountId) return;
-    const profile = await socialPublicProfile(accountId);
-    if (run === generation && accountId === identity) ownProfile = profile;
+    if (!accountId) return Promise.resolve();
+    if (refreshingProfile?.run === run) return refreshingProfile.promise;
+    const promise = socialPublicProfile(accountId).then(profile => {
+        if (run === generation && accountId === identity) { ownProfile = profile; profileRefreshedAt = Date.now(); }
+    });
+    refreshingProfile = { run, promise };
+    void promise.then(() => { if (refreshingProfile?.promise === promise) refreshingProfile = null; }, () => { if (refreshingProfile?.promise === promise) refreshingProfile = null; });
+    return promise;
 }
 
 export const friendsState = {
+    profileVisibility(id: string, visible: boolean) {
+        const count = Math.max(0,(visibleProfiles.get(id) || 0) + (visible ? 1 : -1));
+        if (count) visibleProfiles.set(id,count); else visibleProfiles.delete(id);
+        if (visible) void loadFriendProfiles();
+    },
     refreshProfile,
     get ownProfile() { return ownProfile; },
     createRoom(host: string, port: number) { return socialCreateRoom(identity, host, port); },
@@ -206,8 +231,13 @@ export const friendsState = {
 		identity = "";
 		list = [];
         profileCache.clear();
+        profileAttempts.clear();
+        visibleProfiles.clear();
+        profileLoading = false;
 		me = null;
         ownProfile = null;
+        profileRefreshedAt = 0;
+        refreshingProfile = null;
 		sharedWorld = null;
 		busy = false;
 		error = "";

@@ -134,3 +134,35 @@ fn installed_modpack_scan_is_read_only_and_reuses_content_cache() {
     assert_eq!(before, after);
     println!("SHIELD_READ_ONLY_OK mods={} warnings={} first_ms={} cached_ms={}", first.total_scanned, first.threats.len(), first.scan_time_ms, second.scan_time_ms);
 }
+
+#[test]
+fn embedded_libraries_are_checked_and_cannot_hide_class_indicators() {
+    let root = tempfile::tempdir().unwrap();
+    let internal = root.path().join("internal.zip");
+    jar(&internal, "Injected.class", b"inert markers java/net/URLClassLoader 85.217.144.130");
+    jar(&root.path().join("outer.jar"), "META-INF/jarjar/library.jar", &std::fs::read(internal).unwrap());
+    let result = scan_mods_directory(root.path());
+    assert_eq!(result.total_scanned, 1);
+    assert!(result.threats.iter().any(|finding| finding.code == "fractureiser"));
+    assert!(enforce_scan(&result).is_err());
+}
+
+#[test]
+fn clean_embedded_libraries_pass_and_excessive_nesting_fails_closed() {
+    let root = tempfile::tempdir().unwrap();
+    let internal = root.path().join("internal.zip");
+    jar(&internal, "Example.class", b"benign fixture");
+    jar(&root.path().join("outer.jar"), "META-INF/jars/library.jar", &std::fs::read(&internal).unwrap());
+    assert!(scan_mods_directory(root.path()).is_clean);
+    let mut bytes = std::fs::read(internal).unwrap();
+    for _ in 0..=MAX_NESTED_DEPTH {
+        let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        writer.start_file("library.jar", zip::write::FileOptions::default()).unwrap();
+        writer.write_all(&bytes).unwrap();
+        bytes = writer.finish().unwrap().into_inner();
+    }
+    std::fs::write(root.path().join("outer.jar"), bytes).unwrap();
+    let result = scan_mods_directory(root.path());
+    assert!(result.threats.iter().any(|finding| finding.code == "scan_incomplete"));
+    assert!(enforce_scan(&result).is_err());
+}

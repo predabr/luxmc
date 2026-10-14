@@ -48,6 +48,64 @@ fn cache_update(path: &Path, hash: Option<String>) {
     if let Some(hash) = hash { cache.insert(path.to_owned(), hash); } else { cache.remove(path); }
 }
 
+const MAX_NESTED_BYTES: u64 = 128 * 1024 * 1024;
+const MAX_NESTED_JAR_BYTES: u64 = 64 * 1024 * 1024;
+const MAX_NESTED_DEPTH: usize = 3;
+
+#[derive(Default)]
+struct Inspection {
+    bytecode_bytes: u64,
+    nested_bytes: u64,
+    entries: usize,
+    webhook: bool,
+    suspicious_name: bool,
+    fractureiser: bool,
+    known_malware: bool,
+}
+
+fn inspect_archive<R: Read + Seek>(archive: &mut zip::ZipArchive<R>, evidence: &mut Inspection, depth: usize) -> Result<(), String> {
+    evidence.entries = evidence.entries.saturating_add(archive.len());
+    if evidence.entries > MAX_ENTRIES { return Err("O arquivo excede o limite de entradas da verificação.".into()); }
+    let mut names = 0usize;
+    let mut executable = Vec::new();
+    for name in archive.file_names() {
+        names += 1;
+        let normalized = name.to_ascii_lowercase();
+        evidence.suspicious_name |= normalized.rsplit('/').next() == Some("l10.class") || normalized.ends_with("/updater.jar") || normalized == "updater.jar";
+        if normalized.ends_with(".class") || normalized.ends_with(".jar") { executable.push(name.to_owned()); }
+    }
+    executable.sort();
+    let duplicates = names != archive.len();
+    let count = if duplicates { archive.len() } else { executable.len() };
+    for index in 0..count {
+        let mut entry = if duplicates { archive.by_index(index) } else { archive.by_name(&executable[index]) }.map_err(|error| error.to_string())?;
+        let name = entry.name().to_ascii_lowercase();
+        evidence.suspicious_name |= name.rsplit('/').next() == Some("l10.class") || name.ends_with("/updater.jar") || name == "updater.jar";
+        let nested = name.ends_with(".jar");
+        if !nested && !name.ends_with(".class") { continue; }
+        if nested && depth >= MAX_NESTED_DEPTH { return Err("Uma biblioteca interna excede a profundidade segura da verificação.".into()); }
+        let maximum = if nested { MAX_NESTED_JAR_BYTES.min(MAX_NESTED_BYTES.saturating_sub(evidence.nested_bytes)) } else { MAX_CLASS_BYTES.min(MAX_SCAN_BYTES.saturating_sub(evidence.bytecode_bytes)) };
+        if entry.size() > maximum { return Err(if nested { "Uma biblioteca interna excede o limite seguro da verificação." } else { "O bytecode excede o limite seguro da verificação." }.into()); }
+        let mut bytes = Vec::new();
+        entry.by_ref().take(maximum + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;
+        if bytes.len() as u64 > maximum { return Err("O conteúdo descompactado excede o limite seguro da verificação.".into()); }
+        if nested {
+            evidence.nested_bytes = evidence.nested_bytes.saturating_add(bytes.len() as u64);
+            let sha256 = format!("{:x}", Sha256::digest(&bytes));
+            let sha1 = format!("{:x}", Sha1::digest(&bytes));
+            evidence.known_malware |= known_hash(&sha256, &sha1);
+            let mut embedded = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|error| format!("Biblioteca interna inválida ({name}): {error}"))?;
+            inspect_archive(&mut embedded, evidence, depth + 1)?;
+        } else {
+            evidence.bytecode_bytes = evidence.bytecode_bytes.saturating_add(bytes.len() as u64);
+            evidence.webhook |= contains(&bytes, b"discord.com/api/webhooks") || contains(&bytes, b"discordapp.com/api/webhooks");
+            evidence.fractureiser |= (contains(&bytes, b"85.217.144.130") || contains(&bytes, b"files-8ie.pages.dev")) && (contains(&bytes, b"java/net/URLClassLoader") || contains(&bytes, b"java.net.URLClassLoader"));
+            evidence.fractureiser |= contains(&bytes, b"dev/neko/nekoclient/Client") && contains(&bytes, b"neko.run");
+        }
+    }
+    Ok(())
+}
+
 fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static str)>, String> {
     let mut file = std::fs::File::open(path).map_err(|error| error.to_string())?;
     let before = file.metadata().map_err(|error| error.to_string())?;
@@ -85,46 +143,17 @@ fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static st
         None => Box::new(BufReader::with_capacity(64 * 1024, file.try_clone().map_err(|error| error.to_string())?)),
     };
     let mut archive = zip::ZipArchive::new(reader).map_err(|error| format!("JAR inválido: {error}"))?;
-    if archive.len() > MAX_ENTRIES { return Err("O arquivo excede o limite de entradas da verificação.".into()); }
-    let mut inspected = 0u64;
-    let mut webhook = false;
-    let mut suspicious_name = false;
-    let mut fractureiser = false;
-    let mut names = 0usize;
-    let mut classes = Vec::new();
-    for name in archive.file_names() {
-        names += 1;
-        let normalized = name.to_ascii_lowercase();
-        suspicious_name |= normalized.rsplit('/').next() == Some("l10.class") || normalized.ends_with("/updater.jar") || normalized == "updater.jar";
-        if normalized.ends_with(".class") { classes.push(name.to_owned()); }
-    }
-    classes.sort();
-    let duplicate_names = names != archive.len();
-    let count = if duplicate_names { archive.len() } else { classes.len() };
-    for index in 0..count {
-        let mut entry = if duplicate_names { archive.by_index(index) } else { archive.by_name(&classes[index]) }.map_err(|error| error.to_string())?;
-        let name = entry.name().to_ascii_lowercase();
-        suspicious_name |= name.rsplit('/').next() == Some("l10.class") || name.ends_with("/updater.jar") || name == "updater.jar";
-        if !name.ends_with(".class") { continue; }
-        if entry.size() > MAX_CLASS_BYTES { return Err("Uma classe excede o limite de 4 MiB da verificação.".into()); }
-        inspected = inspected.saturating_add(entry.size());
-        if inspected > MAX_SCAN_BYTES { return Err("O bytecode excede o limite de 128 MiB da verificação.".into()); }
-        let mut bytes = Vec::new();
-        entry.by_ref().take(MAX_CLASS_BYTES + 1).read_to_end(&mut bytes).map_err(|error| error.to_string())?;
-        if bytes.len() as u64 > MAX_CLASS_BYTES { return Err("Uma classe excede o limite da verificação.".into()); }
-        webhook |= contains(&bytes, b"discord.com/api/webhooks") || contains(&bytes, b"discordapp.com/api/webhooks");
-        fractureiser |= (contains(&bytes, b"85.217.144.130") || contains(&bytes, b"files-8ie.pages.dev"))
-            && (contains(&bytes, b"java/net/URLClassLoader") || contains(&bytes, b"java.net.URLClassLoader"));
-        fractureiser |= contains(&bytes, b"dev/neko/nekoclient/Client") && contains(&bytes, b"neko.run");
-    }
+    let mut evidence = Inspection::default();
+    inspect_archive(&mut archive, &mut evidence, 0)?;
     let after = file.metadata().map_err(|error| error.to_string())?;
     if before.len() != after.len() || before.modified().ok() != after.modified().ok() {
         return Err("O arquivo foi alterado durante a verificação. Tente novamente.".into());
     }
     let mut findings = Vec::new();
-    if fractureiser { findings.push(("critical", "Indicadores de Fractureiser", "O bytecode combina indicadores documentados de carregamento remoto do Fractureiser.")); }
-    if suspicious_name { findings.push(("warning", "Estrutura suspeita", "O JAR contém L10.class ou updater.jar. O nome isolado não comprova malware; confira a origem do mod.")); }
-    if webhook { findings.push(("warning", "Webhook Discord embutido", "O bytecode contém um webhook do Discord. Pode ser legítimo; confira a finalidade e a origem do mod.")); }
+    if evidence.known_malware { findings.push(("critical", "Malware conhecido", "Uma biblioteca interna corresponde a um hash malicioso documentado.")); }
+    if evidence.fractureiser { findings.push(("critical", "Indicadores de Fractureiser", "O bytecode combina indicadores documentados de carregamento remoto do Fractureiser.")); }
+    if evidence.suspicious_name { findings.push(("warning", "Estrutura suspeita", "O JAR contém L10.class ou updater.jar. O nome isolado não comprova malware; confira a origem do mod.")); }
+    if evidence.webhook { findings.push(("warning", "Webhook Discord embutido", "O bytecode contém um webhook do Discord. Pode ser legítimo; confira a finalidade e a origem do mod.")); }
     if findings.is_empty() { cache_update(path, Some(hash)); }
     Ok(findings)
 }
@@ -134,6 +163,7 @@ fn threat(path: &Path, severity: &str, threat_type: &str, description: String) -
         file_name: path.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_else(|| "mods".into()),
         file_path: path.to_string_lossy().into_owned(),
         severity: severity.into(),
+        code: match threat_type { "Malware conhecido" => "known_malware", "Indicadores de Fractureiser" => "fractureiser", "Estrutura suspeita" => "suspicious_structure", "Webhook Discord embutido" => "discord_webhook", _ => "scan_incomplete" }.into(),
         threat_type: threat_type.into(),
         description,
     }

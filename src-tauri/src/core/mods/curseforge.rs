@@ -10,6 +10,24 @@ const KEYRING_USER: &str = "curseforge_api_key";
 const MIN_KEY_LENGTH: usize = 20;
 const MAX_KEY_LENGTH: usize = 128;
 
+fn is_catalog_artwork(image: &serde_json::Value) -> bool {
+    let metadata = format!("{} {}", image.get("title").and_then(|v| v.as_str()).unwrap_or_default(), image.get("description").and_then(|v| v.as_str()).unwrap_or_default()).to_lowercase();
+    let url = image.get("url").or_else(|| image.get("thumbnailUrl")).and_then(|v| v.as_str()).unwrap_or_default().to_lowercase();
+    !["nodecraft", "partner", "sponsor", "advertisement", "discount", "coupon", "donation", "hosting", "patrocin", "desconto", "cupom"].iter().any(|word| metadata.contains(word))
+        && !["nodecraft", "promocard", "/partners/", "shields.io"].iter().any(|word| url.contains(word))
+}
+
+#[cfg(test)]
+mod artwork_tests {
+    use super::is_catalog_artwork;
+    #[test]
+    fn rejects_provider_ads_without_rejecting_project_headers() {
+        assert!(!is_catalog_artwork(&serde_json::json!({"title":"Nodecraft Partner", "url":"https://media.forgecdn.net/attachments/1/banner.png"})));
+        assert!(is_catalog_artwork(&serde_json::json!({"title":"SkyFactory island", "url":"https://media.forgecdn.net/attachments/1/scene.png"})));
+        assert!(is_catalog_artwork(&serde_json::json!({"title":"RLCraft header", "url":"https://www.bisecthosting.com/images/CF/RLCraft/BH_RL_Header.webp"})));
+    }
+}
+
 pub async fn get_file_changelog(http: &reqwest::Client, project: &str, file: &str) -> AppResult<String> {
     let key = api_key().ok_or_else(|| crate::error::AppError::InvalidState("Chave CurseForge indisponível".into()))?;
     let value: serde_json::Value = http.get(format!("{CURSEFORGE_API}/mods/{project}/files/{file}/changelog"))
@@ -318,7 +336,7 @@ pub async fn search_mods(
             let banner_url = m
                 .get("screenshots")
                 .and_then(|s| s.as_array())
-                .and_then(|arr| arr.first())
+                .and_then(|arr| arr.iter().find(|image| is_catalog_artwork(image)))
                 .and_then(|sc| sc.get("url").or_else(|| sc.get("thumbnailUrl")))
                 .and_then(|u| u.as_str())
                 .map(|s| s.trim())

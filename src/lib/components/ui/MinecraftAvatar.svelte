@@ -1,13 +1,15 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
+    import { observeVisibility } from '$lib/actions/observeVisibility';
     import { lastSeenLabel } from "$lib/utils/lastSeen";
     import ProfileSignature from './ProfileSignature.svelte';
     import type { ProfileStyle } from '$lib/utils/profileStyle';
     import { minecraftUuid } from "$lib/api/skins";
-	let { username, avatarUrl, profileStyle, status = "offline", activity, lastSeen, class: className = "h-12 w-12" }: {
+	let { username, avatarUrl, profileStyle, status = "offline", activity, lastSeen, onVisibility, class: className = "h-12 w-12" }: {
 		username: string;
         avatarUrl?: string | null;
         profileStyle?: ProfileStyle;
+        onVisibility?: (visible: boolean) => void;
 		status?: "online" | "in_game" | "offline" | "pending";
 		activity?: string | null;
 		lastSeen?: string | null;
@@ -27,7 +29,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	const label = $derived(status === "in_game" ? `Jogando ${activity || "Minecraft"}` : status === "online" ? "Online no Launcher" : status === "pending" ? uiText("ui.0715e4d114c0855c") : lastSeenLabel(lastSeen));
 </script>
 
-<ProfileSignature signature={profileStyle} class="contents"><div data-profile-avatar={profileStyle ? '' : undefined} class="relative shrink-0 rounded-2xl bg-bg-subtle ring-2 ring-offset-2 ring-offset-bg-elevated {ring} {className}" title={label}>
+<ProfileSignature signature={profileStyle} class="contents"><div use:observeVisibility={onVisibility} data-profile-avatar={profileStyle ? '' : undefined} class="relative shrink-0 rounded-2xl bg-bg-subtle ring-2 ring-offset-2 ring-offset-bg-elevated {ring} {className}" title={label}>
 	<img decoding="async" src={source} alt={`Avatar de ${username || "Steve"}`} class="h-full w-full rounded-2xl object-cover" class:opacity-60={status === "offline"} class:grayscale={status === "offline"} style:image-rendering={fallback === 0 && avatarUrl ? 'auto' : 'pixelated'} loading="eager" referrerpolicy="no-referrer" onerror={() => { if (fallback < 3) fallback = Math.max(fallback + 1, avatarUrl ? 1 : 2); }} />
 	<span class="absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-bg-elevated {status === 'online' ? 'bg-success shadow-[0_0_6px_rgba(34,197,94,0.6)]' : status === 'in_game' ? 'bg-purple-500 shadow-[0_0_6px_rgba(168,85,247,0.6)]' : status === 'pending' ? 'bg-warning' : 'bg-fg-subtle'}"></span>
 </div></ProfileSignature>

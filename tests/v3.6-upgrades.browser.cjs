@@ -23,7 +23,7 @@ const fs = require('node:fs');
                 if (command === 'bedrock_versions') return ['release', 'preview', 'beta'].map(channel => ({ id: channel, version: '1.20.81', channel, packageType: 'UWP', packageVersion: '1.20.8101.0' }));
                 if (command === 'instance_file_tree' && args.subPath === 'mods') return Array.from({ length: 128 }, (_, i) => ({ name: `mod-${i}.jar`, path: `C:/fixture/mod-${i}.jar`, size: 100, isDir: false, icon: null, iconKey: `mod-${i}`, iconResolved: false }));
                 if (command === 'instance_content_icons') return args.fileNames.map(name => ({ name, iconKey: name.replace('.jar', ''), icon: '/grass_block.png', resolved: true }));
-                if (command === 'social_request' && args.request.action === 'profile_get') return { profile: { id: args.request.targetId || 'self', username: 'Original', displayName: args.request.targetId ? 'Dono personalizado' : 'Meu perfil', role: 'owner', description: '', status: '', banner: '', portrait: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', packs: [], collections: [] } };
+                if (command === 'social_request' && args.request.action === 'profile_get') return { profile: { id: args.request.targetId || 'self', username: 'Original', displayName: args.request.targetId ? 'Dono personalizado' : 'Meu perfil', role: 'owner', membership: {plan:'plus',expiresAt:1893456000}, description: '', status: '', banner: '', portrait: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', packs: [], collections: [] } };
                 return invoke(command, args);
             };
             window.electronAPI.invoke = wrapped;

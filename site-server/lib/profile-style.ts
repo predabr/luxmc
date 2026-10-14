@@ -49,3 +49,7 @@ export function retainedProfileStyle(value: ProfileStyle, stored: unknown, plan:
         layout: !(allowed.layouts as readonly string[]).includes(saved.layout) && value.layout === active.layout ? saved.layout : value.layout
     };
 }
+
+export function isProfileGif(value: unknown): value is string { return typeof value === 'string' && value.startsWith('data:image/gif;base64,'); }
+export function activeProfileImage(value: string, plan: ProfilePlan): string { return plan === 'free' && isProfileGif(value) ? '' : value; }
+export function retainedProfileImage(value: string, stored: string, plan: ProfilePlan): string { return plan === 'free' && !value && isProfileGif(stored) ? stored : value; }

@@ -42,9 +42,20 @@ function retainedProfileStyle(value, stored, plan) {
     layout: !allowed.layouts.includes(saved.layout) && value.layout === active.layout ? saved.layout : value.layout
   };
 }
+function isProfileGif(value) {
+  return typeof value === "string" && value.startsWith("data:image/gif;base64,");
+}
+function activeProfileImage(value, plan) {
+  return plan === "free" && isProfileGif(value) ? "" : value;
+}
+function retainedProfileImage(value, stored, plan) {
+  return plan === "free" && !value && isProfileGif(stored) ? stored : value;
+}
 export {
+  activeProfileImage,
   activeProfileStyle,
   defaultProfileStyle,
+  isProfileGif,
   parseProfileStyle,
   profileAccents,
   profileBenefits,
@@ -52,5 +63,6 @@ export {
   profileFrames,
   profileLayouts,
   profileStyleAllowed,
+  retainedProfileImage,
   retainedProfileStyle
 };

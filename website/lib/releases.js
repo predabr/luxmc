@@ -20,7 +20,7 @@ function safeAssetUrl(value) {
 }
 async function latestRelease() {
   const response = await fetch(`https://api.github.com/repos/${repository}/releases/latest`, {
-    headers: { "User-Agent": "Luxmc-Cloudflare-Pages/3.9.2", Accept: "application/vnd.github+json" },
+    headers: { "User-Agent": "Luxmc-Cloudflare-Pages/3.9.5", Accept: "application/vnd.github+json" },
     signal: AbortSignal.timeout(1e4),
     cf: { cacheTtl: 60, cacheEverything: true }
   });

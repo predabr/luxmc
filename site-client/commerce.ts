@@ -6,6 +6,7 @@ interface Preset { id: string; name: string; preferences: Record<string, string 
 interface Order { id: string; socialId: string; username: string; displayName: string; plan: 'plus' | 'pro'; amount: number; bank: string; pixKey: string; pixCode: string | null; pixReference: string; days: number; status: string; version: number; createdAt: number; updatedAt: number; note: string; receiptHash: string | null; receiptMime: string | null; receiptUploadedAt: number | null }
 interface Snapshot { profile?: {profileStyle:ProfileStyle;displayName:string;status:string}; identity: { id: string; username: string; owner: boolean }; csrfToken?: string | null; security?: { twoFactor: boolean; verifiedUntil: number; expiresAt: number } | null; membership: { plan: Plan; expiresAt: number | null; collections: number; presets: number }; checkout: { enabled: boolean; bank: string; pixKey: string }; settings: { preferences: Record<string, string | number | boolean>; presets: Preset[]; revision: number }; orders: Order[] }
 interface GrantUser { id: string; username: string; display_name: string; friendCode: string; plan: Plan; expires_at: number | null; revision: number }
+function localText(key: string, fallback: string): string { const value = window.LuxI18n?.t(key); return typeof value === 'string' && value !== key ? value : fallback; }
 const ownerPage = document.body.dataset.commerce === 'owner';
 const element = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 const money = (amount: number) => (amount / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -75,8 +76,8 @@ function updatePlanAvailability() {
         const pending = snapshot?.orders.find(order => order.plan === control.dataset.plan && ['awaiting_receipt', 'pending'].includes(order.status));
         const current = snapshot?.membership.plan === control.dataset.plan;
         control.disabled = busy || !accountResolved || (!pending && (current || Boolean(snapshot && !snapshot.checkout.enabled)));
-        control.textContent = !accountResolved ? 'Carregando…' : pending ? 'Ver pedido' : current ? 'Seu plano ativo' : !snapshot ? 'Entrar para escolher' : !snapshot.checkout.enabled ? 'Novos pedidos pausados' : `Escolher ${control.dataset.plan === 'plus' ? 'Plus' : 'Pro'} ↗`;
-        control.title = current && !pending ? 'Você já tem este plano ativo' : pending ? 'Abrir seu pedido em andamento' : control.textContent;
+        control.textContent = !accountResolved ? localText('plans.loading','Carregando…') : pending ? localText('plans.order','Ver pedido') : current ? localText('plans.active','Seu plano ativo') : !snapshot ? localText('plans.login','Entrar para escolher') : !snapshot.checkout.enabled ? localText('plans.paused','Novos pedidos pausados') : control.dataset.plan === 'plus' ? localText('plans.choosePlus','Escolher Plus ↗') : localText('plans.choosePro','Escolher Pro ↗');
+        control.title = current && !pending ? 'Você já tem este plano ativo' : pending ? 'Abrir seu pedido em andamento' : control.textContent || '';
     }
 }
 async function perform(action: () => void | Promise<void>, onError?: (error: string) => void) {
@@ -169,8 +170,8 @@ function renderOrder(order: Order, owner: boolean) {
 function renderPlanSummary() {
     if (!snapshot) return;
     const identity = element('identity'); identity.hidden = false;
-    const details = node('div'); details.append(node('p', 'SEU PLANO', 'eyebrow'), node('h2', `${snapshot.identity.username} · ${planName(snapshot.membership.plan)}`));
-    details.append(node('p', snapshot.membership.plan === 'free' ? 'Seu launcher completo, sempre com você.' : `Ativo até ${date(snapshot.membership.expiresAt!)}`));
+    const details = node('div'); details.append(node('p', localText('plans.yourPlan','SEU PLANO'), 'eyebrow'), node('h2', `${snapshot.profile?.displayName || snapshot.identity.username} · ${planName(snapshot.membership.plan)}`));
+    details.append(node('p', snapshot.membership.plan === 'free' ? localText('plans.always','Seu launcher completo, sempre com você.') : `${localText('plans.until','Ativo até')} ${date(snapshot.membership.expiresAt!)}`));
     const approved = snapshot.orders.find(order => order.status === 'approved');
     if (approved) { const receipt = node('a', 'Meu recibo Luxmc', 'membership-receipt'); receipt.href = `/api/purchase-receipts/${approved.id}`; receipt.target = '_blank'; receipt.rel = 'noopener noreferrer'; details.append(receipt); }
     const badge = node('span', snapshot.membership.plan === 'free' ? 'Free' : 'Assinatura ativa', 'membership-active');
@@ -348,3 +349,5 @@ async function start() {
     }, 30000);
 }
 void start();
+
+window.addEventListener('luxmc-language-changed', () => { updatePlanAvailability(); if (!ownerPage && snapshot) renderPlanSummary(); });

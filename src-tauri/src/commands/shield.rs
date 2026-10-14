@@ -13,6 +13,8 @@ pub struct ShieldThreat {
     pub file_name: String,
     pub file_path: String,
     pub severity: String,
+    #[serde(default)]
+    pub code: String,
     pub threat_type: String,
     pub description: String,
 }

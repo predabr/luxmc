@@ -15,14 +15,14 @@ async function skinHead(path:string) {
 function renderSiteSession(user:SiteUser|null,avatar='/assets/avatar-steve.png',isHead=true) {
     for (const slot of sessionSlots()) {
         slot.replaceChildren();slot.dataset.accountId=user?.id || '';
-        if (!user) {slot.append(accountLink('Entrar','/conta'));continue;}
+        if (!user) {const link=accountLink('Entrar','/conta');link.dataset.i18n='nav.login';const text=window.LuxI18n?.t('nav.login');if(typeof text==='string'&&text!=='nav.login')link.textContent=text;slot.append(link);continue;}
         const menu=sessionNode('details','','site-account-menu');
         const trigger=sessionNode('summary');trigger.setAttribute('aria-label',`Conta de ${user.displayName}`);
         const image=sessionNode('img');image.src=avatar;image.alt='';image.width=36;image.height=36;image.dataset.skinHead=String(isHead);image.onerror=()=>{image.onerror=null;image.src='/assets/avatar-steve.png';image.dataset.skinHead='true';};
         trigger.append(image,sessionNode('span',user.displayName,'site-account-name'),sessionNode('span','⌄','site-account-chevron'));
         const content=sessionNode('nav','','site-account-dropdown');content.setAttribute('aria-label','Sua conta');
-        content.append(sessionNode('strong',user.displayName),sessionNode('p',`Luxmc ${user.membership.plan==='pro'?'Pro':user.membership.plan==='plus'?'Plus':'Free'}`),accountLink('Meu plano','/planos'));
-        if(user.canManageAccount)content.append(accountLink('Minha conta','/conta'));
+        content.append(sessionNode('strong',user.displayName),sessionNode('p',`Luxmc ${user.membership.plan==='pro'?'Pro':user.membership.plan==='plus'?'Plus':'Free'}`),translatedAccountLink('nav.plan','Meu plano','/planos'));
+        if(user.canManageAccount)content.append(translatedAccountLink('nav.account','Minha conta','/conta'));
         const logout=sessionNode('button','Sair do site');logout.type='button';
         logout.onclick=async()=>{logout.disabled=true;try { const response=await fetch('/api/session',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Luxmc-CSRF':sessionCsrf},body:'{}',signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error('Não foi possível sair. Tente novamente.');sessionGeneration++;sessionCsrf='';renderSiteSession(null);window.dispatchEvent(new Event('luxmc-session-changed')); } catch {logout.textContent='Tentar sair novamente';logout.disabled=false;} };
         content.append(logout);menu.append(trigger,content);slot.append(menu);
@@ -52,3 +52,5 @@ document.addEventListener('pointerdown',event=>{for(const menu of document.query
 document.addEventListener('keydown',event=>{if(event.key==='Escape')for(const menu of document.querySelectorAll<HTMLDetailsElement>('.site-account-menu[open]')){menu.open=false;menu.querySelector('summary')?.focus();}});
 setInterval(()=>{if(!document.hidden && !document.querySelector('.site-account-menu[open]'))void refreshSiteSession();},60000);
 if(sessionSlots().length)void refreshSiteSession();
+
+function translatedAccountLink(key:string,fallback:string,url:string) { const link=accountLink(fallback,url);link.dataset.i18n=key;const text=window.LuxI18n?.t(key);if(typeof text==='string'&&text!==key)link.textContent=text;return link; }

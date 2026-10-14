@@ -10,6 +10,25 @@ const capture = document.querySelector(".hero-capture");
 const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
 const detailAnimations = /* @__PURE__ */ new Set();
 const motionAllowed = () => !paused && !reducedMotion.matches && !document.hidden;
+const buttonAnimations = /* @__PURE__ */ new WeakMap();
+document.addEventListener("click", (event) => {
+  if (!motionAllowed()) return;
+  const button = event.target?.closest(".btn-primary,.btn-secondary,.btn-primary-nav,.btn-download-main,.commerce-button,.plans-explore,.plans-faq summary");
+  if (!button || button.matches(':disabled,[aria-disabled="true"]')) return;
+  const previous = buttonAnimations.get(button);
+  if (previous) {
+    previous.cancel();
+    detailAnimations.delete(previous);
+  }
+  const animation = button.animate([{ scale: "1" }, { scale: ".97", offset: 0.35 }, { scale: "1" }], { duration: 260, easing: "cubic-bezier(.16,1,.3,1)" });
+  buttonAnimations.set(button, animation);
+  detailAnimations.add(animation);
+  animation.onfinish = () => {
+    animation.cancel();
+    detailAnimations.delete(animation);
+    buttonAnimations.delete(button);
+  };
+}, { signal: events.signal });
 function clearPointer() {
   cancelAnimationFrame(pointerRequest);
   pointerRequest = 0;
@@ -62,7 +81,7 @@ const revealObserver = new IntersectionObserver((entries) => {
       revealObserver.unobserve(entry.target);
     }
 }, { threshold: 0.15 });
-const revealTargets = ".hero-kicker,.hero-title,.hero-copy,.hero-capture,.section-heading,.diagnostic-copy,.social-copy,.download-card,.product-step,.feature-strip article,.party-card,.performance-readout article,.faq-item,.project-card";
+const revealTargets = ".hero-kicker,.hero-title,.hero-copy,.hero-capture,.section-heading,.diagnostic-copy,.social-copy,.download-card,.product-step,.feature-strip article,.party-card,.performance-readout article,.faq-item,.project-card,.plan-card,.plans-intro,.plans-capture";
 function observeReveals(root) {
   root.querySelectorAll(revealTargets).forEach((element, index) => {
     if (element.classList.contains("motion-item")) return;

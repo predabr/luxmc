@@ -1,3 +1,5 @@
+import { isProjectArtwork } from "$lib/utils/curatedBanners";
+
 export interface Profile {
 	id: string;
 	name: string;
@@ -60,10 +62,16 @@ export function isSafeBannerUrl(value: string): boolean {
 function savedBanner(id: string): string | undefined {
     if (typeof localStorage === "undefined") return undefined;
     try {
-        const stored = localStorage.getItem(`luxmc_banner_${id}`) || localStorage.getItem(`luxmc_catalog_banner_${id}`);
+        const custom = localStorage.getItem(`luxmc_banner_${id}`);
+        const catalog = localStorage.getItem(`luxmc_catalog_banner_${id}`);
+        const stored = custom || catalog;
         if (!stored) return undefined;
         if (!isRenderableBanner(stored)) {
             localStorage.removeItem(`luxmc_banner_${id}`);
+            return undefined;
+        }
+        if (!custom && !isProjectArtwork({ url: stored })) {
+            localStorage.removeItem(`luxmc_catalog_banner_${id}`);
             return undefined;
         }
         return stored;
@@ -107,7 +115,7 @@ function createProfileStore() {
 		}
 	}
 	function setCatalogBanner(id: string, value: string): boolean {
-		if (!isRenderableBanner(value)) return false;
+		if (!isProjectArtwork({ url: value })) return false;
 		const current = list.find(profile => profile.id === id);
 		if (!current || current.banner && current.banner !== current.icon) return false;
 		try { localStorage.setItem(`luxmc_catalog_banner_${id}`, value); } catch {}

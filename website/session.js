@@ -50,7 +50,11 @@ function renderSiteSession(user, avatar = "/assets/avatar-steve.png", isHead = t
     slot.replaceChildren();
     slot.dataset.accountId = user?.id || "";
     if (!user) {
-      slot.append(accountLink("Entrar", "/conta"));
+      const link = accountLink("Entrar", "/conta");
+      link.dataset.i18n = "nav.login";
+      const text = window.LuxI18n?.t("nav.login");
+      if (typeof text === "string" && text !== "nav.login") link.textContent = text;
+      slot.append(link);
       continue;
     }
     const menu = sessionNode("details", "", "site-account-menu");
@@ -70,8 +74,8 @@ function renderSiteSession(user, avatar = "/assets/avatar-steve.png", isHead = t
     trigger.append(image, sessionNode("span", user.displayName, "site-account-name"), sessionNode("span", "⌄", "site-account-chevron"));
     const content = sessionNode("nav", "", "site-account-dropdown");
     content.setAttribute("aria-label", "Sua conta");
-    content.append(sessionNode("strong", user.displayName), sessionNode("p", `Luxmc ${user.membership.plan === "pro" ? "Pro" : user.membership.plan === "plus" ? "Plus" : "Free"}`), accountLink("Meu plano", "/planos"));
-    if (user.canManageAccount) content.append(accountLink("Minha conta", "/conta"));
+    content.append(sessionNode("strong", user.displayName), sessionNode("p", `Luxmc ${user.membership.plan === "pro" ? "Pro" : user.membership.plan === "plus" ? "Plus" : "Free"}`), translatedAccountLink("nav.plan", "Meu plano", "/planos"));
+    if (user.canManageAccount) content.append(translatedAccountLink("nav.account", "Minha conta", "/conta"));
     const logout = sessionNode("button", "Sair do site");
     logout.type = "button";
     logout.onclick = async () => {
@@ -136,3 +140,10 @@ setInterval(() => {
   if (!document.hidden && !document.querySelector(".site-account-menu[open]")) void refreshSiteSession();
 }, 6e4);
 if (sessionSlots().length) void refreshSiteSession();
+function translatedAccountLink(key, fallback, url) {
+  const link = accountLink(fallback, url);
+  link.dataset.i18n = key;
+  const text = window.LuxI18n?.t(key);
+  if (typeof text === "string" && text !== key) link.textContent = text;
+  return link;
+}

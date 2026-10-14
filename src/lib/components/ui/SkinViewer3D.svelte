@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { frameLoop } from '$lib/utils/frameLoop';
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { onMount } from "svelte";
@@ -256,7 +257,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const target = viewer;
         const quality = settings.value.skinPreviewQuality;
         if (!target || target.disposed || unavailable) return;
-        const ratio = skinPreviewPixelRatio(quality, window.devicePixelRatio);
+        const limited = appState.performanceMode || appState.isLaunching || appState.isGameRunning;
+        const ratio = Math.min(skinPreviewPixelRatio(quality, window.devicePixelRatio), limited ? interactive ? 1.5 : 1 : 2);
         if (target.pixelRatio !== ratio) {
             target.pixelRatio = ratio;
             renderViewer(target);
@@ -394,8 +396,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			return;
 		}
 
-		let frame = 0;
-		const clock = createAnimationClock(performance.now(), 1000 / (settings.value.skinPreviewFps === 30 || appState.performanceMode || appState.isLaunching || appState.isGameRunning ? 30 : 60));
+		const fps = settings.value.skinPreviewFps === 30 || appState.performanceMode || appState.isLaunching || appState.isGameRunning ? 30 : 60;
+		const clock = createAnimationClock(performance.now(), 1000 / fps);
 
 		let capePitch = 0.18;
 		let capeRoll = 0.0;
@@ -406,7 +408,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (isLoadingSkin) {
 				clock.reset(now);
 				if (target) lastWrapperRotY = target.playerWrapper.rotation.y;
-				frame = requestAnimationFrame(renderLoop);
 				return;
 			}
 			const delta = clock.take(now);
@@ -460,11 +461,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					return;
 				}
 			}
-			frame = requestAnimationFrame(renderLoop);
 		};
 
-		frame = requestAnimationFrame(renderLoop);
-		return () => cancelAnimationFrame(frame);
+		return frameLoop(renderLoop, fps);
 	});
 
 	export function setAngle(deg: number) {

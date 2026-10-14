@@ -15,4 +15,6 @@ function run(name, args) {
 try {
     run('javac', ['--release', '8', '-encoding', 'UTF-8', '-cp', asm, '-d', root, 'tests/java/AgentHooksProbe.java']);
     run('java', ['-Djava.awt.headless=true', '-Dluxmc.appearance.uuid=01234567-89ab-cdef-0123-456789abcdef', `-javaagent:${agent}=appearance-only`, '-cp', [root, asm].join(delimiter), 'AgentHooksProbe']);
+    run('javac', ['--release', '8', '-encoding', 'UTF-8', '-cp', asm, '-d', root, 'tests/java/ResourceArchiveProbe.java']);
+    run('java', ['-Djava.awt.headless=true', '-Dluxmc.resourceIndex=true', `-javaagent:${agent}=appearance-only`, '-cp', [root, asm].join(delimiter), 'ResourceArchiveProbe']);
 } finally { rmSync(root, { recursive: true, force: true }); }

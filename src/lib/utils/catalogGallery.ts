@@ -1,5 +1,5 @@
 import { modsProjectDetails } from "$lib/api/mods";
-import { isRenderableBanner } from "./curatedBanners";
+import { isRenderableBanner, isProjectArtwork } from "./curatedBanners";
 
 const cache = new Map<string, { expires: number; urls: string[] }>();
 const pending = new Map<string, Promise<string[]>>();
@@ -11,9 +11,21 @@ function drain() {
 }
 
 export function descriptionArtwork(body: string): string[] {
-    const html = [...body.matchAll(/<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["']/gi)].map(match => match[1]);
-    const markdown = [...body.matchAll(/!\[[^\]]*\]\(<?([^\s)>]+)>?(?:\s+["'][^"']*["'])?\)/g)].map(match => match[1]);
-    return [...new Set([...html, ...markdown].map(url => url.replace(/&amp;/g, '&')).filter(url => isRenderableBanner(url) && !/(?:shields\.io|\/partners\/|promocard|donation|sponsor|badge|_important|_summary|_features)/i.test(url)))].slice(0, 8);
+    const html = [...body.matchAll(/<img\b[^>]*>/gi)].flatMap(match => {
+        const url = match[0].match(/\bsrc\s*=\s*["']([^"']+)["']/i)?.[1]?.replace(/&amp;/g, '&');
+        if (!url) return [];
+        const before = body.slice(0, match.index);
+        const anchor = before.lastIndexOf('<a ');
+        const link = anchor > before.lastIndexOf('</a>') ? before.slice(anchor).match(/\bhref\s*=\s*["']([^"']+)["']/i)?.[1] : undefined;
+        const title = [...match[0].matchAll(/\b(?:alt|title)\s*=\s*["']([^"']*)["']/gi)].map(value => value[1]).join(' ');
+        return isProjectArtwork({ url, title, link }) ? [url] : [];
+    });
+    const markdown = [...body.matchAll(/!\[([^\]]*)\]\(<?([^\s)>]+)>?(?:\s+["'][^"']*["'])?\)/g)].flatMap(match => {
+        const url = match[2].replace(/&amp;/g, '&');
+        const link = body.slice((match.index || 0) + match[0].length).match(/^\]\(([^)]+)\)/)?.[1];
+        return isProjectArtwork({ url, title: match[1], link }) ? [url] : [];
+    });
+    return [...new Set([...html, ...markdown])].slice(0, 8);
 }
 
 export function catalogGallery(source: string, projectId: string): Promise<string[]> {
@@ -28,7 +40,7 @@ export function catalogGallery(source: string, projectId: string): Promise<strin
 			active += 1;
 			void modsProjectDetails(projectId, source).then(async details => {
                 const matches = details?.id === projectId && (!details.source || details.source === source);
-                const gallery = matches ? (details.gallery || []).map(image => image.url).filter(isRenderableBanner) : [];
+                const gallery = matches ? (details.gallery || []).filter(isProjectArtwork).map(image => image.url) : [];
                 const authorCover = matches && !gallery.length ? await firstLandscape(descriptionArtwork(details.body || '')) : undefined;
 				const urls = matches
 					? [...new Set([...gallery, ...(authorCover ? [authorCover] : []), ...(details.iconUrl && isRenderableBanner(details.iconUrl) ? [details.iconUrl] : [])])].slice(0, 8)
@@ -56,19 +68,38 @@ export function latestMinecraftVersion(versions: string[]): string | undefined {
 		.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0];
 }
 
+const landscapeCache = new Map<string, { expires: number; landscape: boolean }>();
+const landscapePending = new Map<string, Promise<boolean>>();
+function checkLandscape(url: string): Promise<boolean> {
+    const cached = landscapeCache.get(url);
+    if (cached && cached.expires > Date.now()) return Promise.resolve(cached.landscape);
+    const pending = landscapePending.get(url);
+    if (pending) return pending;
+    const request = new Promise<boolean>(resolve => {
+			const image = new Image();
+            const finish = (landscape: boolean) => {
+                clearTimeout(timeout); image.onload = null; image.onerror = null;
+                if (landscapeCache.size >= 256) landscapeCache.delete(landscapeCache.keys().next().value!);
+                landscapeCache.set(url, { landscape, expires: Date.now() + (landscape ? 600_000 : 60_000) });
+                resolve(landscape);
+            };
+			const timeout = setTimeout(() => { finish(false); image.src = ''; }, 3000);
+			image.referrerPolicy = "no-referrer";
+			image.onload = () => { const aspect = image.naturalWidth / Math.max(1, image.naturalHeight); finish(image.naturalWidth >= 480 && image.naturalHeight >= 140 && aspect > 1.2 && aspect < 4); };
+			image.onerror = () => finish(false);
+			image.src = url;
+    }).finally(() => landscapePending.delete(url));
+    landscapePending.set(url, request);
+    return request;
+}
 export async function firstLandscape(urls: string[]): Promise<string | undefined> {
 	if (typeof Image === "undefined") return undefined;
-	for (const url of urls.slice(0, 8)) {
-		if (!isRenderableBanner(url)) continue;
-		const landscape = await new Promise<boolean>(resolve => {
-			const image = new Image();
-			const timeout = setTimeout(() => { image.src = ""; resolve(false); }, 5000);
-			image.referrerPolicy = "no-referrer";
-			image.onload = () => { clearTimeout(timeout); const aspect = image.naturalWidth / Math.max(1, image.naturalHeight); resolve(image.naturalWidth >= 480 && image.naturalHeight >= 140 && aspect > 1.2 && aspect < 4); };
-			image.onerror = () => { clearTimeout(timeout); resolve(false); };
-			image.src = url;
-		});
-		if (landscape) return url;
+    const candidates = [...new Set(urls)].filter(isRenderableBanner).slice(0, 8);
+	for (let offset = 0; offset < candidates.length; offset += 3) {
+        const batch = candidates.slice(offset, offset + 3);
+        const found = await Promise.all(batch.map(checkLandscape));
+        const index = found.indexOf(true);
+        if (index >= 0) return batch[index];
 	}
 	return undefined;
 }

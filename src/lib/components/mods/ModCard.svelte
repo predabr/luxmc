@@ -35,6 +35,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     let bannerAspect = $state(16 / 9);
 	let galleryUrls = $state<string[]>([]);
 	let galleryRequested = '';
+	let nearViewport = $state(false);
 	const artworkKey = $derived(`${item.source}:${item.sourceId}:${item.bannerUrl}:${item.iconUrl}`);
 
 
@@ -43,15 +44,28 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		bannerAttempt = 0;
 		galleryUrls = [];
 		galleryRequested = '';
-		untrack(() => { if (!item.bannerUrl || item.bannerUrl === item.iconUrl) requestGallery(); });
 	});
+	$effect(() => {
+		artworkKey;
+		if (nearViewport) untrack(() => { if (!bannerCandidates.includes(item.bannerUrl || '') || item.bannerUrl === item.iconUrl || bannerAspect <= 1.2) requestGallery(); });
+	});
+	function observeArtwork(node: HTMLElement) {
+		if (typeof IntersectionObserver === 'undefined') { nearViewport = true; return; }
+		const observer = new IntersectionObserver(entries => {
+			if (!entries.some(entry => entry.isIntersecting)) return;
+			nearViewport = true;
+			observer.disconnect();
+		}, { rootMargin: '200px' });
+		observer.observe(node);
+		return { destroy() { observer.disconnect(); } };
+	}
 
 	const bannerCandidates = $derived(catalogBannerCandidates({ ...item, galleryUrls }));
 	const effectiveBanner = $derived(bannerCandidates[bannerAttempt] ?? null);
     const logoArtwork = $derived(effectiveBanner === item.iconUrl || bannerAspect <= 1.2);
     $effect(() => { effectiveBanner; bannerLoaded = false; bannerAspect = 16 / 9; });
 	function requestGallery() {
-		if (!isModpack || projectLandscape(item) || galleryRequested === artworkKey) return;
+		if (!nearViewport || !isModpack || projectLandscape(item) || galleryRequested === artworkKey) return;
 		const key = artworkKey;
 		galleryRequested = key;
 		void catalogGallery(item.source, item.sourceId).then(async urls => {
@@ -67,6 +81,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </script>
 
 <div
+    use:observeArtwork
     use:catalogReveal={`${item.source}:${item.sourceId}`}
 	role="button"
 	tabindex="0"
@@ -83,7 +98,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			<img
 				src={artworkUrl}
 				alt=""
-				loading="eager"
+				loading="lazy"
 				decoding="async"
                 referrerpolicy="no-referrer"
 				class="catalog-cover-image relative h-full w-full rounded-t-2xl object-cover transition-[opacity,transform] duration-500 group-hover:scale-105"

@@ -9,6 +9,13 @@ export function isRenderableBanner(value: string): boolean {
 	}
 }
 
+export function isProjectArtwork(image: { url: string; title?: string | null; description?: string | null; link?: string }): boolean {
+	if (!isRenderableBanner(image.url)) return false;
+	const metadata = `${image.title || ''} ${image.description || ''} ${image.link || ''}`;
+	return !/(?:nodecraft|promocard|donation|sponsor|badge|\/partners\/|shields\.io|_important|_summary|_features)/i.test(image.url)
+		&& !/(?:\b(?:sponsor(?:ed)?|partner(?:ship)?|advertisement|discount|coupon|donate|donation|hosting|patrocin(?:ador|ado)|desconto|cupom)\b|nodecraft|bisecthosting|apexhosting|server\.pro)/i.test(metadata);
+}
+
 export const curatedBanners: Record<string, string> = {
 	"vanilla perfected": "/modpack_vanilla_perfected.png",
 	"kimetsu": "https://www.bisecthosting.com/images/CF/Kimetsu_no_Yaiba/BH_KnYDS_header.webp",
@@ -69,8 +76,8 @@ export function catalogBannerCandidates(item: { title: string; slug: string; sou
 	const candidates: string[] = [];
 	const landscape = projectLandscape(item);
 	if (landscape) candidates.push(landscape);
-	for (const url of item.galleryUrls || []) if (url !== item.iconUrl && isRenderableBanner(url) && !candidates.includes(url)) candidates.push(url);
-	if (item.bannerUrl && item.bannerUrl !== item.iconUrl && isRenderableBanner(item.bannerUrl) && !candidates.includes(item.bannerUrl)) candidates.push(item.bannerUrl);
+	for (const url of item.galleryUrls || []) if (url !== item.iconUrl && isProjectArtwork({ url }) && !candidates.includes(url)) candidates.push(url);
+	if (item.bannerUrl && item.bannerUrl !== item.iconUrl && isProjectArtwork({ url: item.bannerUrl }) && !candidates.includes(item.bannerUrl)) candidates.push(item.bannerUrl);
 	if (item.iconUrl && isRenderableBanner(item.iconUrl) && !candidates.includes(item.iconUrl)) candidates.push(item.iconUrl);
 	return candidates;
 }

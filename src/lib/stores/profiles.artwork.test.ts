@@ -15,6 +15,16 @@ beforeEach(() => { mocks.search.mockReset(); mocks.update.mockReset(); mocks.upd
 afterEach(() => { profiles.list = []; vi.restoreAllMocks(); });
 
 describe("profile artwork recovery", () => {
+ it("discards an old catalog advertisement while preserving an explicitly chosen cover", () => {
+  const ad="https://dynamic-assets.nodecraft.com/signedurl/banner/image.jpg";
+  localStorage.setItem("luxmc_catalog_banner_cached-ad",ad);
+  profiles.list=[profile("cached-ad","https://example.com/original.png")];
+  expect(profiles.list[0].banner).toBeUndefined();
+  expect(localStorage.getItem("luxmc_catalog_banner_cached-ad")).toBeNull();
+  localStorage.setItem("luxmc_banner_custom-ad",ad);
+  profiles.list=[profile("custom-ad","https://example.com/original.png")];
+  expect(profiles.list[0].banner).toBe(ad);
+ });
  it("recovers and persists an installed FO cover using its CurseForge reference", async () => {
   mocks.reference.mockResolvedValue({source:"curseforge",projectId:"396246",versionId:"test",name:"Fabulously Optimized"});
   profiles.list = [profile("fo-cover", "https://media.forgecdn.net/avatars/official-fo.png")];

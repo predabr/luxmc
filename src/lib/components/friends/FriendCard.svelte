@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { friendsState } from "$lib/stores/friends.svelte";
     import AccountBadges from "$lib/components/ui/AccountBadges.svelte";
     import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { lastSeenLabel } from "$lib/utils/lastSeen";
@@ -39,7 +40,7 @@
 </script>
 
 <article class="friend-row group grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-border bg-bg-elevated p-4 transition-colors hover:border-brand-400/30">
-    <button type="button" onclick={() => publicProfile.show(friend)} class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`}><MinecraftAvatar username={friend.username} avatarUrl={friend.avatarUrl} profileStyle={friend.profileStyle} status={friend.status} {activity} lastSeen={friend.lastSeen} class="h-11 w-11" /></button>
+    <button type="button" onclick={() => publicProfile.show(friend)} class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`}><MinecraftAvatar onVisibility={visible => friendsState.profileVisibility(friend.id,visible)} username={friend.username} avatarUrl={friend.avatarUrl} profileStyle={friend.profileStyle} status={friend.status} {activity} lastSeen={friend.lastSeen} class="h-11 w-11" /></button>
     <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2"><h3 class="truncate text-sm font-semibold text-fg"><button type="button" class="hover:text-brand-400" onclick={() => publicProfile.show(friend)}>{displayName}</button></h3>{#if playing}<span class="rounded-md bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-300">{uiText("ui.982d4bbcc310b45d")}</span>{/if}</div>
         {#if displayName !== friend.username}<p class="mt-1 text-[10px] text-fg-subtle">@{friend.username}</p>{/if}

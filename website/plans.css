@@ -57,3 +57,5 @@ body.plans-page .membership-summary:has(> h2) > a { grid-column: 2; grid-row: 1 
     body.plans-page .membership-summary:has(> h2) { grid-template-columns: 1fr; }
     body.plans-page .membership-summary:has(> h2) > a { grid-column: 1; grid-row: auto; justify-self: start; margin-top: 12px; }
 }
+
+.site-language-select { max-width: 3.5rem; min-height: 2rem; border: 1px solid rgb(var(--border)); border-radius: .6rem; padding: .2rem .35rem; background: rgb(var(--bg-elevated)); color: rgb(var(--fg)); font: inherit; font-size: .65rem; }
