@@ -18,7 +18,7 @@ async function microsoftJson(url, options) {
   const service = new URL(url).hostname + new URL(url).pathname;
   let response;
   try {
-    response = await fetch(url, { ...options, redirect: "error", signal: AbortSignal.timeout(1e4) });
+    response = await fetch(url, { ...options, redirect: "manual", signal: AbortSignal.timeout(1e4) });
   } catch {
     throw Object.assign(new Error("Microsoft authentication unavailable"), { reason: "unavailable", service, status: 0 });
   }

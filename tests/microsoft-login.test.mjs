@@ -84,6 +84,20 @@ test('provider failures log a safe stage without credentials or provider descrip
     assert.doesNotMatch(JSON.stringify(logs), /private-provider|server-only-test-secret|test-authorization-code|code_verifier/);
 });
 
+test('upstream redirects fail without forwarding authentication credentials', async t => {
+    const f = fixture(t), url = await f.start(), requests = [];
+    t.mock.method(console, 'error', () => {});
+    t.mock.method(globalThis, 'fetch', async (target, options) => {
+        requests.push({ target, options });
+        return new Response(null, { status: 302, headers: { Location: 'https://unrelated.example/token' } });
+    });
+    assert.equal((await f.callback(url)).headers.get('Location'), '/conta?microsoft_error=unavailable');
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].target, 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token');
+    assert.equal(requests[0].options.redirect, 'manual');
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM lux_sessions').get().count, 0);
+});
+
 test('callback rejects stolen state, expiry and replay before exchanging a token', async t => {
     const f = fixture(t), url = await f.start(), browser = f.jar.get('__Host-luxmc-microsoft');
     f.jar.set('__Host-luxmc-microsoft', 'e'.repeat(64));

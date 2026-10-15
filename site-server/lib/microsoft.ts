@@ -15,7 +15,7 @@ export function microsoftConfiguration(env: SiteEnvironment) {
 export async function microsoftJson(url: string, options: RequestInit): Promise<Record<string, any>> {
     const service = new URL(url).hostname + new URL(url).pathname;
     let response: Response;
-    try { response = await fetch(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(10000) }); }
+    try { response = await fetch(url, { ...options, redirect: 'manual', signal: AbortSignal.timeout(10000) }); }
     catch { throw Object.assign(new Error('Microsoft authentication unavailable'), { reason: 'unavailable', service, status: 0 }); }
     if (!response.ok) {
         let providerCode: string | undefined;
