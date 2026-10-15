@@ -40,7 +40,7 @@ function appearancePreferences(value) {
     }
   }
   if (Object.hasOwn(record, "interfaceOpacity")) {
-    if (typeof record.interfaceOpacity !== "number" || !Number.isFinite(record.interfaceOpacity) || record.interfaceOpacity < 0.35 || record.interfaceOpacity > 1) return fail("Opacidade inv\xE1lida.");
+    if (typeof record.interfaceOpacity !== "number" || !Number.isFinite(record.interfaceOpacity) || record.interfaceOpacity < 0.05 || record.interfaceOpacity > 1) return fail("Opacidade inv\xE1lida.");
     clean.interfaceOpacity = record.interfaceOpacity;
   }
   return clean;

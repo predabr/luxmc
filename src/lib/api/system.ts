@@ -109,8 +109,8 @@ export async function storageBreakdown(): Promise<StorageBreakdown[]> {
 	return api.invoke<StorageBreakdown[]>("storage_breakdown");
 }
 
-export async function storageFullReport(): Promise<StorageFullReport> {
-	return api.invoke<StorageFullReport>("storage_full_report");
+export async function storageFullReport(refresh = false): Promise<StorageFullReport> {
+	return api.invoke<StorageFullReport>("storage_full_report", {refresh});
 }
 
 export async function storageClearLogs(): Promise<number> {

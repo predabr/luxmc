@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { isNewerVersion, isReleaseUpdate, releaseIdentity } from "./updateVersion";
 
 describe("update version ordering", () => {
+    it('compares successive builds without changing the product version or repeating a completed update', () => {
+        const installed = releaseIdentity('v3.9.5-build.38553346641.1');
+        const retry = releaseIdentity('v3.9.5-build.38553346641.2');
+        const next = releaseIdentity('v3.9.5-build.38553346642.1');
+        expect(installed.version).toBe('3.9.5');
+        expect(isReleaseUpdate(installed.version,installed.revision,retry.version,retry.revision)).toBe(true);
+        expect(isReleaseUpdate(retry.version,retry.revision,next.version,next.revision)).toBe(true);
+        expect(isReleaseUpdate(next.version,next.revision,next.version,next.revision)).toBe(false);
+        expect(isReleaseUpdate(next.version,next.revision,installed.version,installed.revision)).toBe(false);
+        expect(releaseIdentity('v3.9.5-build.9007199254740991.1').revision).toBe(0);
+    });
 	it.each([
 		['3.6.0', 4, '3.7.0', 0, true],
 		['3.7.0', 0, '3.6.0', 4, false],

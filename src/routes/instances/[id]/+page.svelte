@@ -1065,7 +1065,7 @@
             await Promise.all(Array.from({ length: 2 }, async () => {
             while (iconQueue.size) {
                 const first = iconQueue.values().next().value!;
-                const batch = [...iconQueue.values()].filter(entry => entry.id === first.id && entry.folder === first.folder).slice(0, 32);
+                const batch = [...iconQueue.values()].filter(entry => entry.id === first.id && entry.folder === first.folder).slice(0, 8);
                 for (const entry of batch) iconQueue.delete(entry.key);
                 const apply = (icons: Awaited<ReturnType<typeof instanceContentIcons>>) => {
                     if (instanceId !== first.id) return;
@@ -1084,7 +1084,7 @@
                     const local = await instanceContentIcons(first.id, first.folder, batch.map(entry => entry.name));
                     apply(local);
                     const missing = local.filter(entry => !entry.resolved).map(entry => entry.name);
-                    if (missing.length) iconLookups.push({ id: first.id, folder: first.folder, names: missing, apply });
+                    if (missing.length) { iconLookups.push({ id: first.id, folder: first.folder, names: missing, apply }); void flushIconLookups(); }
                 } catch { for (const entry of batch) iconRequested.delete(entry.key); }
             }
             }));
@@ -1094,7 +1094,12 @@
         let value = initial;
         const request = () => {
             const { entry, folder } = value;
-            if (!entry.iconKey || entry.iconResolved || entry.icon || iconRequested.has(entry.iconKey)) return;
+            if (!entry.iconKey || entry.iconResolved || entry.icon) return;
+            if (iconRequested.has(entry.iconKey)) {
+                const queued = iconQueue.get(entry.iconKey);
+                if (queued) { iconQueue.delete(entry.iconKey); const rest = [...iconQueue]; iconQueue.clear(); iconQueue.set(entry.iconKey,queued); for (const [key,value] of rest) iconQueue.set(key,value); }
+                return;
+            }
             iconRequested.add(entry.iconKey);
             iconQueue.set(entry.iconKey, { name: entry.name, folder, id: instanceId, key: entry.iconKey });
             clearTimeout(iconTimer);
@@ -1163,7 +1168,7 @@
                 else if (section === "shaders") shaderPacks = data;
                 else if (section === "datapacks") dataPacks = data;
                 else fileTree = data;
-                if (folder && ['mods', 'resourcepacks', 'shaderpacks'].includes(folder) && settings.value.preloadContentIcons !== false) { warmIcons(data); queueContentIcons(data, folder); }
+                if (folder && (['mods', 'resourcepacks', 'shaderpacks'].includes(folder) || section === 'datapacks') && settings.value.preloadContentIcons !== false) { warmIcons(data); queueContentIcons(data, folder); }
             }
             if (current()) loadedSections.add(key);
         })().catch(error => {

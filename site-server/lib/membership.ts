@@ -41,7 +41,7 @@ export function appearancePreferences(value: unknown): Record<string, string | n
         }
     }
     if (Object.hasOwn(record, 'interfaceOpacity')) {
-        if (typeof record.interfaceOpacity !== 'number' || !Number.isFinite(record.interfaceOpacity) || record.interfaceOpacity < 0.35 || record.interfaceOpacity > 1) return fail('Opacidade inválida.');
+        if (typeof record.interfaceOpacity !== 'number' || !Number.isFinite(record.interfaceOpacity) || record.interfaceOpacity < 0.05 || record.interfaceOpacity > 1) return fail('Opacidade inválida.');
         clean.interfaceOpacity = record.interfaceOpacity;
     }
     return clean;

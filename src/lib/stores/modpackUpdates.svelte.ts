@@ -13,6 +13,23 @@ type Task = { profileId: string; name: string; version: string; busy: boolean; p
 let entries = $state<Record<string, Entry>>({});
 let task = $state<Task | null>(null);
 const checks = new Map<string, Promise<void>>();
+let libraryCheck: Promise<void> | null = null;
+let libraryCheckedAt = 0;
+
+async function checkLibrary(): Promise<void> {
+    if (libraryCheck) return libraryCheck;
+    if (Date.now() - libraryCheckedAt < 300_000 || appState.isLaunching || appState.isGameRunning || modpackInstallation.state.busy) return;
+    libraryCheckedAt = Date.now();
+    const pending = profiles.list.map(profile => profile.id);
+    libraryCheck = Promise.all(Array.from({length:2},async () => {
+        while (pending.length) {
+            if (appState.isLaunching || appState.isGameRunning || modpackInstallation.state.busy) { libraryCheckedAt=0; break; }
+            const id = pending.shift();
+            if (id) await check(id).catch(() => {});
+        }
+    })).then(() => {}).finally(() => {libraryCheck=null;});
+    return libraryCheck;
+}
 
 function entryFor(profileId: string): Entry {
     if (!entries[profileId]) entries[profileId] = { info: null, diff: null, checking: false, checkedAt: 0, revision: 0 };
@@ -91,6 +108,7 @@ export const modpackUpdates = {
     get task() { return task; },
     forProfile(profileId: string) { return entries[profileId]; },
     check,
+    checkLibrary,
     apply,
     dismiss() { if (!task?.busy) task = null; }
 };

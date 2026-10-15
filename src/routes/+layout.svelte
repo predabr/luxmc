@@ -1,4 +1,5 @@
 <script lang="ts">
+import { interfaceOpacityRatio } from '$lib/utils/interfaceOpacity';
 import LaunchSessionStatus from "$lib/components/instances/LaunchSessionStatus.svelte";
 import { createLaunchLogBuffer } from "$lib/utils/launchLogBuffer";
 import { membershipState, appearanceSnapshot } from "$lib/stores/membership.svelte";
@@ -805,7 +806,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
     $effect(() => {
         const root = document.documentElement;
-        root.style.setProperty("--interface-opacity", String(Math.max(0.05, Math.min(0.9, (settings.value.interfaceOpacity ?? 18) / 100))));
+        root.style.setProperty("--interface-opacity", String(interfaceOpacityRatio(settings.value.interfaceOpacity)));
         root.style.setProperty("--wallpaper-dim", String(Math.max(0, Math.min(0.85, (settings.value.wallpaperDim ?? 35) / 100))));
         root.classList.toggle("density-compact", settings.value.density === "compact");
         root.classList.toggle("density-spacious", settings.value.density === "spacious");

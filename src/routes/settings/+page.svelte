@@ -5,7 +5,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { getSystemSpecs, appDataDirectory, appOpenDataDirectory } from "$lib/api/system";
 	import { recommendMemory } from "$lib/utils/platform";
 	import { runtimePlatform } from "$lib/stores/platform.svelte";
-	import { onMount } from "svelte";
+	import { onMount, untrack } from "svelte";
 	import { pageMotion } from "$lib/actions/pageMotion";
 	import {
 		Home,
@@ -372,16 +372,17 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		}
 	}
 
-	async function handleClearCache() {
+	async function handleClearCache(notify = true) {
 		try {
 			const keys = ["luxmc_cache_mods", "luxmc_cache_search", "luxmc_temp_skins"];
 			for (const k of keys) localStorage.removeItem(k);
 		} catch {}
-		toast(t("settings.cacheCleared") || uiText("ui.b1f36d2fc6a6621d"), "success");
+		if (notify) toast(t("settings.cacheCleared") || uiText("ui.b1f36d2fc6a6621d"), "success");
 	}
 
 	let storageReport = $state<StorageFullReport | null>(null);
 	let storageLoading = $state(false);
+    let storageCleanup = $state<'logs'|'cache'|null>(null);
     let storageError = $state("");
     const storageLabels: Record<string, string> = $derived({ libraries: uiText("settings.catLibraries"), assets: uiText("ui.beb65d096de336b3"), versions: uiText("settings.catVersions"), instances: uiText("instances.title"), mods: "Mods", logs: "Logs", cache: uiText("ui.ca803301db3bf0aa"), downloads: "Downloads", java: "Java do launcher", launcher_data: uiText("ui.2b5c717f30be9c31"), configuration: uiText("ui.76b0fb6ad18939ac"), launcher_cache: "Cache do launcher", application: uiText("ui.4fe101016fd71f92"), external_instances: uiText("ui.b59623f79c0f2cf9") });
 	let deletingInstanceId = $state<string | null>(null);
@@ -395,11 +396,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 	}
 
-	async function loadStorageReport() {
+	async function loadStorageReport(refresh = false) {
+        if (storageLoading) return;
 		storageLoading = true;
         storageError = "";
 		try {
-			storageReport = await storageFullReport();
+			storageReport = await storageFullReport(refresh);
 		} catch (e) {
             storageError = String(e);
 			toast(uiText("ui.ed80732875192710") + String(e), "error");
@@ -410,29 +412,35 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	$effect(() => {
 		if (activeTab === "runtime") {
-			void loadStorageReport();
+			untrack(() => { void loadStorageReport(); });
 		}
 	});
 
 	async function handleClearLogs() {
+        if (storageCleanup || storageLoading) return;
+        storageCleanup='logs';
 		try {
 			const freed = await storageClearLogs();
 			toast(uiText("ui.936e9d5fd6166fd7", {arg0: (formatBytes(freed))}), "success");
-			void loadStorageReport();
+			await loadStorageReport(true);
+			if (storageReport?.logsBytes) toast(uiText('refinement.cleanupPartial'),'warning');
 		} catch (e) {
 			toast(uiText("ui.74755bfde4f77642") + String(e), "error");
-		}
+		} finally { storageCleanup=null; }
 	}
 
 	async function handleClearCacheAction() {
+        if (storageCleanup || storageLoading) return;
+        storageCleanup='cache';
 		try {
 			const freed = await storageClearCache();
-			await handleClearCache();
+			await handleClearCache(false);
 			toast(uiText("ui.1e23968a10a33a9c", {arg0: (formatBytes(freed))}), "success");
-			void loadStorageReport();
+			await loadStorageReport(true);
+			if (storageReport?.cacheBytes) toast(uiText('refinement.cleanupPartial'),'warning');
 		} catch (e) {
 			toast(uiText("ui.7e5495197cd64b80") + String(e), "error");
-		}
+		} finally { storageCleanup=null; }
 	}
 
 	async function handleDeleteInstance(inst: InstanceStorageInfo) {
@@ -443,7 +451,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (inst.loader === "bedrock") await bedrock.refresh();
 			toast(inst.loader === "bedrock" ? "Vínculo removido. Os arquivos permanecem no BedrockLauncher." : uiText("ui.bea8996b09fea4ce", {arg0: (inst.name)}), "success");
 			confirmingDeleteInstance = null;
-			void loadStorageReport();
+			await loadStorageReport(true);
 		} catch (e) {
 			toast(uiText("ui.66317b8a4bb467bc") + String(e), "error");
 		} finally {
@@ -1066,7 +1074,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					</div>
 					<button
 						type="button"
-						onclick={handleClearCache}
+						onclick={() => handleClearCache()}
 						class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-2" })}
 					>
 						<Trash2 class="w-3.5 h-3.5" />
@@ -1088,8 +1096,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 				<button
 					type="button"
-					onclick={loadStorageReport}
-					disabled={storageLoading}
+						onclick={() => void loadStorageReport(true)}
+						disabled={storageLoading || storageCleanup !== null}
 					class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2 disabled:opacity-50" })}
 				>
 					<RefreshCw class="w-3.5 h-3.5 {storageLoading ? 'animate-spin' : ''}" />
@@ -1112,23 +1120,27 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					<button
 						type="button"
 						onclick={handleClearLogs}
+                        disabled={storageLoading || storageCleanup !== null || !storageReport?.logsBytes}
 						class={launcherButton({ variant: "secondary", size: "sm", class: "flex items-center gap-2" })}
 					>
-						<Trash2 class="w-3.5 h-3.5 text-fg/60" />
+                        {#if storageCleanup==='logs'}<RefreshCw class="w-3.5 h-3.5 animate-spin" />{:else}<Trash2 class="w-3.5 h-3.5 text-fg/60" />{/if}
 						<span>{t("settings.clearLogs", { size: formatBytes(storageReport?.logsBytes || 0) })}</span>
 					</button>
 
 					<button
 						type="button"
 						onclick={handleClearCacheAction}
+                        disabled={storageLoading || storageCleanup !== null || !storageReport?.cacheBytes || appState.isLaunching || appState.isGameRunning}
 						class={launcherButton({ variant: "danger", size: "sm", class: "flex items-center gap-2" })}
 					>
-						<Trash2 class="w-3.5 h-3.5 text-red-400" />
+                        {#if storageCleanup==='cache'}<RefreshCw class="w-3.5 h-3.5 animate-spin" />{:else}<Trash2 class="w-3.5 h-3.5 text-danger" />{/if}
 						<span>{t("settings.clearCacheSize", { size: formatBytes(storageReport?.cacheBytes || 0) })}</span>
 					</button>
 				</div>
 			</div>
 
+            {#if storageCleanup || storageLoading}<p role="status" class="flex items-center gap-2 text-xs text-fg-muted"><RefreshCw class="h-4 w-4 animate-spin" />{uiText(storageCleanup ? 'refinement.storageWorking' : 'refinement.storageScanning')}</p>{/if}
+            <p class="text-xs text-fg-muted">{uiText("refinement.storageSizes")}</p>
 			<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
 				{#each (storageReport?.categories || []) as cat}
 					<div class="bg-bg-elevated border border-fg/5 rounded-2xl p-4 shadow-sm flex flex-col justify-between gap-2">

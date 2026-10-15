@@ -1824,19 +1824,33 @@ async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync
             }
         }
     }
-    if let Ok(bytes) = tokio::fs::read(root.join("modrinth.index.json")).await {
+    let mut pack_pinned: std::collections::HashSet<_> = cf_entries.iter().map(|(_, name)| name.clone()).collect();
+    let mr_bytes = tokio::fs::read(root.join("modrinth.index.json")).await.ok();
+    if let Some(bytes) = &mr_bytes {
         let manifest: MrpackManifest = serde_json::from_slice(&bytes)?;
-        preferred.extend(manifest.files.into_iter().filter_map(|file| file.path.strip_prefix("mods/").map(str::to_owned)));
+        pack_pinned.extend(manifest.files.into_iter().filter_map(|file|file.path.strip_prefix("mods/").filter(|name|is_valid_path_segment(name)).map(str::to_owned)));
+        preferred.extend(pack_pinned.iter().cloned());
     }
-    let pack_pinned: std::collections::HashSet<_> = cf_entries.iter().map(|(_, name)| name.clone()).collect();
+    let mr_active: std::collections::HashSet<_> = pack_pinned.iter().filter(|name|root.join("mods").join(name).is_file()).cloned().collect();
+    let loader = profile.loader.clone();
     let repair_root = root.clone();
     let before_active: std::collections::HashSet<_> = cf_entries.iter().filter(|(_, name)| root.join("mods").join(name).is_file()).map(|(id, _)| *id).collect();
     let repaired = tokio::task::spawn_blocking(move || {
-        crate::core::mods::validation::select_pack_duplicate_versions(&repair_root, &pack_pinned, &mut preferred);
+        crate::core::mods::validation::select_pack_duplicate_versions_for_loader(&repair_root, &pack_pinned, &mut preferred, &loader);
         crate::core::mods::validation::repair_duplicates_cancellable(&repair_root, &preferred, cancel.as_deref())
     })
         .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
     if repaired > 0 {
+        if let Some(bytes) = mr_bytes {
+            let removed: std::collections::HashSet<_> = mr_active.into_iter().filter(|name|!root.join("mods").join(name).exists()).collect();
+            if !removed.is_empty() {
+                let backup = root.join(".luxmc/removed-duplicates").join(format!("modrinth-index-{}.json",uuid::Uuid::new_v4()));
+                crate::core::mods::pack_download::atomic_write(&backup,&bytes).await?;
+                let mut manifest: serde_json::Value = serde_json::from_slice(&bytes)?;
+                if let Some(files) = manifest["files"].as_array_mut() { files.retain(|file| !file["path"].as_str().and_then(|path|path.strip_prefix("mods/")).is_some_and(|name|removed.contains(name))); }
+                crate::core::mods::pack_download::atomic_write(&root.join("modrinth.index.json"),&serde_json::to_vec_pretty(&manifest)?).await?;
+            }
+        }
         let removed: std::collections::HashSet<_> = cf_entries.iter().filter(|(id, name)| before_active.contains(id) && !root.join("mods").join(name).exists()).map(|(id, _)| *id).collect();
         if !removed.is_empty() {
             if let Some(bytes) = cf_bytes {

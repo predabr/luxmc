@@ -7,11 +7,13 @@ if (!metadataFile) throw new Error("Pass the GitHub release metadata JSON file."
 const release = JSON.parse(readFileSync(metadataFile, "utf8"));
 if (!/^v\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/.test(release.tag_name)) throw new Error("Invalid release tag.");
 const revisionMatch = /-revision\.(\d+)$/.exec(release.tag_name);
-const revision = revisionMatch ? Number(revisionMatch[1]) : 0;
+const buildMatch = /-build\.(\d+)\.(\d+)$/.exec(release.tag_name);
+const revision = buildMatch ? Number(buildMatch[1]) * 1000 + Number(buildMatch[2]) : revisionMatch ? Number(revisionMatch[1]) : 0;
+if (buildMatch && Number(buildMatch[2]) >= 1000) throw new Error("Invalid build attempt.");
 if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("Invalid release revision.");
-const transportVersion = release.tag_name.replace(/^v/, "").replace(/-revision\.\d+$/, "");
-if (revision && Number(transportVersion.split('.').at(-1)) < 1) throw new Error("Invalid compatibility patch.");
-const version = revision ? transportVersion.replace(/\d+$/, value => String(Number(value) - 1)) : transportVersion;
+const transportVersion = release.tag_name.replace(/^v/, "").replace(/-revision\.\d+$/, "").replace(/-build\.\d+\.\d+$/, "");
+if (revisionMatch && Number(transportVersion.split('.').at(-1)) < 1) throw new Error("Invalid compatibility patch.");
+const version = revisionMatch ? transportVersion.replace(/\d+$/, value => String(Number(value) - 1)) : transportVersion;
 const files = {
   "windows-x86_64": release.assets.some(asset => asset.name === "Lux MC Launcher.exe") ? "Lux MC Launcher.exe" : "Lux.MC.Launcher.exe",
   "linux-x86_64": `Luxmc_${version}_amd64.AppImage`,

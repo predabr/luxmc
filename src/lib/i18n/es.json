@@ -3595,5 +3595,20 @@
     "suspicious_structureHelp": "El JAR contiene un nombre sospechoso. El nombre por sí solo no demuestra malware; comprueba su origen.",
     "discord_webhookHelp": "Se detectó un webhook de Discord en el bytecode. Puede tener una finalidad legítima.",
     "scan_incompleteHelp": "No se pudo completar la revisión con seguridad. Comprueba el archivo y los límites del informe."
+  },
+  "refinement": {
+    "gifHelp": "Los GIF del perfil y las carpetas requieren Luxmc Plus o Pro. Los fondos siguen siendo gratis.",
+    "motionTitle": "Animaciones del launcher",
+    "motionHelp": "Activa las animaciones en este equipo. El modo económico y la preferencia de Windows pueden reducir los efectos.",
+    "motionEnable": "Activar animaciones",
+    "storageWorking": "Limpiando archivos… Puedes seguir usando el launcher.",
+    "storageSizes": "El total cuenta los archivos compartidos una vez. Las instancias muestran el tamaño de sus propios archivos.",
+    "packUpdate": "Actualización disponible",
+    "removeInstance": "Eliminar {{name}}",
+    "sameVersion": "Nueva compilación de la misma versión",
+    "build": "Compilación {{revision}}",
+    "freePlan": "Personaliza tu avatar, portada estática, nombre y biografía. Los GIF en perfiles y carpetas requieren Plus o Pro. Los fondos siguen siendo gratuitos.",
+    "cleanupPartial": "Algunos archivos siguen en uso. Intenta limpiar de nuevo después de cerrar el juego.",
+    "storageScanning": "Midiendo el espacio ocupado… Puedes seguir usando el launcher."
   }
 }

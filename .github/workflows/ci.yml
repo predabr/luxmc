@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - codex/launcher-refinement-builds
   pull_request:
     branches:
       - main

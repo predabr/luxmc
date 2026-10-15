@@ -44,6 +44,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { getFullCapeDataUrl } from "$lib/utils/capeTextures";
 	import { gamingStats } from "$lib/stores/gamingStats.svelte";
 	import { appState } from "$lib/stores/app.svelte";
+    import { modpackUpdates } from "$lib/stores/modpackUpdates.svelte";
 	import { fireModpackSuccessConfetti } from "$lib/utils/confetti";
 	import {
 		api,
@@ -267,10 +268,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	onMount(() => {
 		loadColors();
 		window.addEventListener("keydown", handleInstanceKeydown);
-        const refreshVersions = () => { if (!document.hidden) ensureVersions(); };
+        const refreshVersions = () => { if (!document.hidden) { ensureVersions(); void modpackUpdates.checkLibrary(); } };
+        const updateTimer = setTimeout(refreshVersions,1500);
         window.addEventListener("focus", refreshVersions);
         const timer = setInterval(refreshVersions, 60000);
-        return () => { window.removeEventListener("keydown", handleInstanceKeydown); window.removeEventListener("focus", refreshVersions); clearInterval(timer); };
+        return () => { window.removeEventListener("keydown", handleInstanceKeydown); window.removeEventListener("focus", refreshVersions); clearInterval(timer); clearTimeout(updateTimer); };
 	});
 
 	function ensureSystemSpecs() {

@@ -1,4 +1,6 @@
 <script lang="ts">
+import { membershipState } from '$lib/stores/membership.svelte';
+import { isAnimatedImage } from '$lib/utils/animatedImage';
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
@@ -112,7 +114,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     let folderImageInput = $state<HTMLInputElement | null>(null);
     let folderImageTarget = $state<string | null>(null);
     let folderImageBusy = $state(false);
-    function folderImage(name: string): string { return Object.hasOwn(folderImages, name) ? folderImages[name] : ''; }
+    function folderImage(name: string): string { const image = Object.hasOwn(folderImages, name) ? folderImages[name] : ''; return !membershipState.paid && isAnimatedImage(image) ? '' : image; }
     function chooseFolderImage(name: string) {
         if (folderImageBusy) return;
         folderImageTarget = name;
@@ -124,6 +126,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const folder = folderImageTarget;
         input.value = '';
         if (!file || folder === null || folderImageBusy) return;
+        if (file.type === 'image/gif' && !membershipState.paid) { toast(uiText('publicProfile.gifRequiresPlus'), 'warning'); return; }
         folderImageBusy = true;
         try {
             const image = await prepareFolderImage(file);
@@ -1193,7 +1196,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 
 
-                <input bind:this={folderImageInput} data-folder-image-input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" tabindex="-1" onchange={uploadFolderImage} />
+                <p class="text-xs text-fg-muted">{uiText("refinement.gifHelp")}</p>
+                <input bind:this={folderImageInput} data-folder-image-input type="file" accept={membershipState.paid ? "image/png,image/jpeg,image/webp,image/gif" : "image/png,image/jpeg,image/webp"} class="hidden" tabindex="-1" onchange={uploadFolderImage} />
                 {#if selectedGroup !== null}
                     <div class="flex items-center gap-3" aria-label={uiText('library.folderPath')}>
                         <button type="button" data-library-back class={launcherButton({variant:'secondary',size:'sm'})}

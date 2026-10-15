@@ -22,13 +22,16 @@ concurrency:
   group: release-${{ github.event.inputs.tag || github.ref }}
   cancel-in-progress: false
 
+env:
+  LUXMC_BUILD_ID: ${{ github.run_id }}.${{ github.run_attempt }}
+
 jobs:
   verify-source:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ github.sha }}
       - uses: pnpm/action-setup@v4
         with:
           version: 10.30.3
@@ -54,7 +57,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ github.sha }}
 
       - name: Get tag
         id: get-tag
@@ -63,7 +66,11 @@ jobs:
           INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "tag=$INPUT_TAG" >> $GITHUB_OUTPUT
+            if [ "${{ inputs.reuse_assets }}" = "true" ]; then
+              echo "Reusing installers cannot create a new build identity. Dispatch a full build." >&2
+              exit 1
+            fi
+            echo "tag=${INPUT_TAG}-build.${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}" >> $GITHUB_OUTPUT
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
@@ -95,13 +102,14 @@ jobs:
               releaseId = existing.id;
               console.log(`Reusing existing release for tag ${tag} (ID: ${releaseId})`);
             } else {
-              const v = tag.replace(/^v/, "");
+              const baseTag = tag.replace(/-build\.\d+\.\d+$/, "");
               const { data } = await github.rest.repos.createRelease({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 tag_name: tag,
-                name: require("fs").readFileSync(`docs/releases/${tag}.md`, "utf8").split(/\r?\n/)[0].replace(/^#\s+/, "").trim(),
-                body: require("fs").readFileSync(`docs/releases/${tag}.md`, "utf8"),
+                target_commitish: context.sha,
+                name: require("fs").readFileSync(`docs/releases/${baseTag}.md`, "utf8").split(/\r?\n/)[0].replace(/^#\s+/, "").trim() + (tag === baseTag ? '' : ` · build ${process.env.LUXMC_BUILD_ID}`),
+                body: require("fs").readFileSync(`docs/releases/${baseTag}.md`, "utf8"),
                 draft: true,
                 prerelease: tag.includes("beta") || tag.includes("alpha") || tag.includes("rc"),
               });
@@ -117,7 +125,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ github.sha }}
 
       - name: Install Linux system dependencies
         run: |
@@ -195,7 +203,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ github.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -277,7 +285,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          ref: ${{ github.sha }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -320,7 +328,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ needs.create-release.outputs.tag }}
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-node@v4
         with:

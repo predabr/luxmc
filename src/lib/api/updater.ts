@@ -1,6 +1,7 @@
 import { api } from "./client";
 
 export interface UpdateEnvironment {
+    revision?: number;
 	mode: "appimage" | "pacman" | "debian" | "rpm" | "system" | "windows" | "macos" | "manual";
 }
 

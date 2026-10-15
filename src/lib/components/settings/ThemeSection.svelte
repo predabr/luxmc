@@ -1,6 +1,7 @@
 <script lang="ts">
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
+    import { onMount } from "svelte";
 	import { Check, Sparkles, Image, Palette, Eye, Upload, Trash2 } from "lucide-svelte";
 	import WallpaperThumbnail from "./WallpaperThumbnail.svelte";
     import { importWallpaper } from "$lib/api/wallpaper";
@@ -63,6 +64,22 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	let liveWallpaper = $state(settings.value.liveWallpaper !== false);
 	let soundscapesEnabled = $state(settings.value.soundscapesEnabled !== false);
 	let soundscapeVolume = $state(settings.value.soundscapeVolume ?? 0.2);
+    let systemReducedMotion = $state(false);
+    const motionLimited = $derived(settings.value.animations === false || appState.performanceMode || systemReducedMotion && settings.value.respectReducedMotion !== false);
+    onMount(() => {
+        const query = matchMedia('(prefers-reduced-motion: reduce)');
+        const update = () => { systemReducedMotion = query.matches; };
+        update();
+        query.addEventListener('change', update);
+        return () => query.removeEventListener('change', update);
+    });
+    function enableMotion() {
+        smoothAnimations = true;
+        performanceMode = false;
+        appState.performanceMode = false;
+        settings.patch({ animations: true, respectReducedMotion: false, performanceMode: false });
+        schedulePersist();
+    }
 
 	async function handleImportWallpaper() {
 		try {
@@ -176,6 +193,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </script>
 
 <div class="space-y-6">
+    {#if motionLimited}
+        <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-bg-subtle p-4">
+            <div><p class="text-sm font-semibold">{uiText('refinement.motionTitle')}</p><p class="mt-1 text-xs text-fg-muted">{uiText('refinement.motionHelp')}</p></div>
+            <button type="button" class={launcherButton({variant:'secondary',size:'sm'})} onclick={enableMotion}><Sparkles class="h-4 w-4" />{uiText('refinement.motionEnable')}</button>
+        </div>
+    {/if}
 	<!-- Tema Base: Claro / Escuro -->
 	<div>
 		<div class="flex items-center gap-2 mb-2.5">

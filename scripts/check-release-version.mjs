@@ -7,7 +7,11 @@ const lock = readFileSync("src-tauri/Cargo.lock", "utf8").match(/name = "luxmc"\
 if (version !== tauri.version || version !== cargo || version !== lock) throw new Error("Launcher version metadata does not match.");
 const revision = Number(readFileSync("src/lib/utils/updateVersion.ts", "utf8").match(/RELEASE_REVISION = (\d+)/)?.[1] || 0);
 const compatibilityVersion = version.replace(/\d+$/, value => String(Number(value) + 1));
-if (process.argv[2] && ![`v${version}`, `v${compatibilityVersion}-revision.${revision}`].includes(process.argv[2])) throw new Error("Release tag does not match the launcher version.");
+const tag = process.argv[2];
+const build = tag && new RegExp(`^v${version.replaceAll('.', '\\.')}\\-build\\.(\\d+)\\.(\\d+)$`).exec(tag);
+const validBuild = build && Number(build[2]) < 1000 && Number.isSafeInteger(Number(build[1])*1000+Number(build[2]));
+if (validBuild && process.env.LUXMC_BUILD_ID && `${build[1]}.${build[2]}` !== process.env.LUXMC_BUILD_ID) throw new Error('Release build identity does not match the compiled installers.');
+if (tag && !validBuild && ![`v${version}`, `v${compatibilityVersion}-revision.${revision}`].includes(tag)) throw new Error("Release tag does not match the launcher version.");
 if (tauri.productName !== "Luxmc" || tauri.identifier !== "io.github.luxmc.Luxmc") throw new Error("The launcher identity must remain unchanged.");
 if (!readFileSync('packaging/windows/hooks.nsh', 'utf8').includes(`!define MUI_WELCOMEPAGE_TITLE "Luxmc ${version}"`)) throw new Error('Windows installer welcome version mismatch.');
 for (const locale of ["pt-BR", "en", "es"]) {

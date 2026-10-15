@@ -113,6 +113,12 @@ fn read_mod_metadata(path: &Path) -> Option<ModMetadata> {
 fn read_mod_metadata_from_reader<R: Read + Seek>(reader: R) -> Option<ModMetadata> {
     let mut archive = zip::ZipArchive::new(reader).ok()?;
     let mut metadata = ModMetadata::default();
+    let jar_version = archive.by_name("META-INF/MANIFEST.MF").ok().and_then(|file| {
+        let mut text = String::new();
+        file.take(128 * 1024).read_to_string(&mut text).ok()?;
+        let unfolded = text.replace("\r\n ", "").replace("\n ", "");
+        unfolded.lines().find_map(|line| line.split_once(':').filter(|(key,_)|key.eq_ignore_ascii_case("Implementation-Version")).map(|(_,value)|value.trim().to_owned()))
+    });
     for (name, pointer) in [("fabric.mod.json", "/id"), ("quilt.mod.json", "/quilt_loader/id")] {
         if let Ok(file) = archive.by_name(name) {
             if let Ok(value) = serde_json::from_reader::<_, serde_json::Value>(file.take(2 * 1024 * 1024)) {
@@ -142,18 +148,36 @@ fn read_mod_metadata_from_reader<R: Read + Seek>(reader: R) -> Option<ModMetadat
             }
         }
     }
+    for version in metadata.versions.values_mut() {
+        if version == "${file.jarVersion}" { if let Some(value) = &jar_version { *version = value.clone(); } }
+    }
     (!metadata.ids.is_empty()).then_some(metadata)
 }
 
 pub fn repair_duplicates(root: &Path, preferred: &HashSet<String>) -> AppResult<usize> { repair_duplicates_cancellable(root, preferred, None) }
 
 pub(crate) fn select_pack_duplicate_versions(root: &Path, pinned: &HashSet<String>, preferred: &mut HashSet<String>) {
+    select_pack_duplicate_versions_for_loader(root,pinned,preferred,"");
+}
+
+pub(crate) fn select_pack_duplicate_versions_for_loader(root: &Path, pinned: &HashSet<String>, preferred: &mut HashSet<String>, loader: &str) {
+    let metadata: Vec<_> = pinned.iter().filter_map(|name|mod_metadata(&root.join("mods").join(name)).map(|metadata|(name,metadata))).collect();
+    let compatible = |loaders: &std::collections::BTreeSet<String>| loaders.contains(loader) || loader == "quilt" && loaders.contains("fabric");
+    for (name,item) in &metadata {
+        if !item.loaders.is_empty() && !compatible(&item.loaders) && metadata.iter().any(|(_,other)|other.ids == item.ids && compatible(&other.loaders)) { preferred.remove(*name); }
+    }
     let mut groups = std::collections::BTreeMap::<_, Vec<_>>::new();
-    for name in pinned {
-        let Some(metadata) = mod_metadata(&root.join("mods").join(name)) else { continue; };
+    for (name,metadata) in metadata {
+        if !preferred.contains(name) { continue; }
         if metadata.ids.len() != 1 { continue; }
         let id = metadata.ids.iter().next().unwrap();
-        let Some(version) = metadata.versions.get(id).and_then(|version| semver::Version::parse(version).ok()) else { continue; };
+        let Some(version) = metadata.versions.get(id).and_then(|version| {
+            let value = version.trim();
+            let value = if value.split('.').all(|part|!part.is_empty() && part.bytes().all(|byte|byte.is_ascii_digit())) {
+                match value.split('.').count() { 1 => format!("{value}.0.0"), 2 => format!("{value}.0"), _ => value.to_owned() }
+            } else { value.to_owned() };
+            semver::Version::parse(&value).ok()
+        }) else { continue; };
         if !version.pre.is_empty() { continue; }
         groups.entry((metadata.ids, metadata.loaders)).or_default().push((version, name));
     }
@@ -600,6 +624,34 @@ mod tests {
         assert!(root.join("mods/b.jar").is_file());
         assert!(root.join("mods/multiple.jar").is_file());
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn pack_repair_resolves_forge_manifest_versions_and_wrong_loader_duplicates() {
+        use std::io::Write;
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("mods")).unwrap();
+        for (name,id,version,loader) in [("fabric-gecko.jar","geckolib3","3.0.42","fabric"),("forge-gecko.jar","geckolib3","3.1.40","forge"),("old-cave.jar","cave_dweller","1.5","forge"),("new-cave.jar","cave_dweller","1.6.4","forge")] {
+            let mut archive = zip::ZipWriter::new(std::fs::File::create(root.path().join("mods").join(name)).unwrap());
+            if loader=="fabric" {
+                archive.start_file("fabric.mod.json",zip::write::FileOptions::default()).unwrap();
+                archive.write_all(serde_json::json!({"id":id,"version":version}).to_string().as_bytes()).unwrap();
+            } else {
+                archive.start_file("META-INF/mods.toml",zip::write::FileOptions::default()).unwrap();
+                archive.write_all(format!("[[mods]]\nmodId='{id}'\nversion='${{file.jarVersion}}'\n").as_bytes()).unwrap();
+                archive.start_file("META-INF/MANIFEST.MF",zip::write::FileOptions::default()).unwrap();
+                archive.write_all(format!("Manifest-Version: 1.0\r\nImplementation-Version: {version}\r\n\r\n").as_bytes()).unwrap();
+            }
+            archive.finish().unwrap();
+        }
+        let pinned: std::collections::HashSet<_> = ["fabric-gecko.jar","forge-gecko.jar","old-cave.jar","new-cave.jar"].into_iter().map(str::to_owned).collect();
+        let mut preferred = pinned.clone();
+        super::select_pack_duplicate_versions_for_loader(root.path(),&pinned,&mut preferred,"forge");
+        assert_eq!(preferred,["forge-gecko.jar","new-cave.jar"].into_iter().map(str::to_owned).collect());
+        assert_eq!(super::repair_duplicates(root.path(),&preferred).unwrap(),2);
+        assert!(super::audit(root.path(),false).unwrap().errors.is_empty());
+        let backup = std::fs::read_dir(root.path().join(".luxmc/removed-duplicates")).unwrap().next().unwrap().unwrap().path();
+        assert!(backup.join("fabric-gecko.jar").is_file());
+        assert!(backup.join("old-cave.jar").is_file());
     }
     #[test]
     fn damaged_archive_is_reported_without_deleting_it() {

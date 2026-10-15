@@ -978,6 +978,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	.studio-add-skin { background:rgb(var(--brand-500)/.025); transition:background 180ms,border-color 180ms; }
 	.studio-add-skin:hover { background:rgb(var(--brand-500)/.08); border-color:rgb(var(--brand-action)); }
 	.studio-visibility { background:rgb(var(--bg-elevated)/.9); }
+    :global(html.has-custom-wallpaper) :is(.appearance-apply,.studio-preview,.studio-panel,.studio-visibility) { background:rgb(var(--bg-elevated) / var(--interface-opacity,.18)); box-shadow:none; }
 	:global(html.has-custom-wallpaper main) .skin-preview-stage { background-color:transparent!important; }
 	:global(.no-ui-motion) .studio-skin-card,:global(.no-anim) .studio-skin-card { translate:none; transition:none; }
 	@media(prefers-reduced-motion:reduce) { :global(html:not(.force-ui-motion)) .studio-skin-card { translate:none; transition:none; } }

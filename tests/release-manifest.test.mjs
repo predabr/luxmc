@@ -43,6 +43,18 @@ test("a same-version revision has a legacy signal and preserves actual package v
   assert.equal(manifest.platforms['windows-x86_64'].url,release.assets[0].browser_download_url);
 }));
 
+test('a new build preserves package versions and carries a monotonic installed-build identity', () => fixture(({directory,release}) => {
+  release.tag_name = 'v3.0.0-build.38553346641.2';
+  for (const asset of release.assets) asset.browser_download_url = `https://github.com/predabr/luxmc/releases/download/${release.tag_name}/${encodeURIComponent(asset.name)}`;
+  assert.equal(generate(directory,release).status,0);
+  const manifest = JSON.parse(readFileSync(resolve(directory,'latest.json'),'utf8'));
+  assert.equal(manifest.version,'3.0.0');
+  assert.equal(manifest.displayVersion,'3.0.0');
+  assert.equal(manifest.revision,38553346641002);
+  assert.equal(manifest.platforms['linux-x86_64'].url,release.assets[1].browser_download_url);
+  assert.ok(manifest.platforms['darwin-x86_64']);
+}));
+
 test("draft assets use the final public tag and GitHub-normalized Windows filename", () => fixture(({ directory, release }) => {
   release.draft = true;
   renameSync(resolve(directory, release.assets[0].name), resolve(directory, "Lux.MC.Launcher.exe"));

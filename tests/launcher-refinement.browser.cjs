@@ -1,0 +1,92 @@
+const {chromium} = require('playwright-core');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
+
+(async () => {
+    const browser = await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE});
+    const output = 'docs/validation/launcher-refinement';
+    fs.mkdirSync(output,{recursive:true});
+    try {
+        const page = await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
+        const errors=[];
+        page.on('pageerror',error=>errors.push(error.message));
+        await setupLauncherDemo(page);
+        await page.addInitScript(() => {
+            window.refinementCalls=[];
+            window.installedRevision=Number(sessionStorage.getItem('installedRevision')||'38553346641001');
+            window.remoteRevision=38553346641002;
+            window.logs=4096;
+            window.cache=8192;
+            const original=window.electronAPI.invoke;
+            const invoke=async(command,args={})=>{
+                window.refinementCalls.push({command,args});
+                if(command==='plugin:app|version')return '3.9.5';
+                if(command==='app_update_environment')return {mode:'windows',revision:window.installedRevision};
+                if(command==='modpack_check_update'&&args.profileId==='demo-vp')return {hasUpdate:true,currentVersion:'1',latestVersion:'2',versionId:'latest-pack',source:'modrinth',projectId:'pack',changelog:''};
+                if(command==='storage_full_report')return {totalBytes:1048576+window.logs+window.cache,categories:[{category:'instances',bytes:1048576,path:'test'}],instances:[],logsBytes:window.logs,cacheBytes:window.cache,warnings:[]};
+                if(command==='storage_clear_logs'||command==='storage_clear_cache')return new Promise(resolve=>{
+                    window.completeCleanup=()=>{const key=command==='storage_clear_logs'?'logs':'cache';const removed=window[key];window[key]=0;resolve(removed);};
+                });
+                return original(command,args);
+            };
+            window.electronAPI.invoke=invoke;
+            window.__TAURI_INTERNALS__.invoke=invoke;
+        });
+        await page.route('https://github.com/predabr/luxmc/releases/latest/download/latest.json',async route=>{
+            const revision=await page.evaluate(()=>window.remoteRevision);
+            await route.fulfill({json:{version:'3.9.5',displayVersion:'3.9.5',revision,notes:'# Luxmc 3.9.5\n\n## Ajustes\n- Armazenamento e interface.',platforms:{'windows-x86_64':{url:'https://github.com/predabr/luxmc/releases/download/v3.9.5-build.38553346641.2/Lux.MC.Launcher.exe',sha256:'a'.repeat(64),size:123}}}});
+        });
+        await page.goto('http://127.0.0.1:1420/settings');
+        await page.getByRole('tab',{name:'Armazenamento',exact:true}).click();
+        const logs=page.getByRole('button',{name:/Limpar logs/i});
+        const cache=page.getByRole('button',{name:/Limpar cache.*8 KB/i});
+        await logs.click();
+        await page.getByRole('status').filter({hasText:'Limpando arquivos'}).waitFor();
+        assert.equal(await logs.isDisabled(),true);
+        assert.equal(await cache.isDisabled(),true);
+        await page.screenshot({path:`${output}/storage-working.png`});
+        await page.evaluate(()=>window.completeCleanup());
+        await page.getByRole('button',{name:/Limpar logs.*0 B/i}).waitFor();
+        assert.equal(await page.evaluate(()=>window.refinementCalls.filter(call=>call.command==='storage_clear_logs').length),1);
+        assert.equal(await page.evaluate(()=>window.refinementCalls.filter(call=>call.command==='storage_full_report').at(-1).args.refresh),true);
+        await cache.click();
+        await page.evaluate(()=>window.completeCleanup());
+        await page.getByRole('button',{name:/Limpar cache.*0 B/i}).waitFor();
+        await page.getByRole('tab',{name:'Aparência',exact:true}).click();
+        await page.getByRole('button',{name:'Ativar animações',exact:true}).click();
+        assert.equal(await page.locator('html').evaluate(el=>el.classList.contains('force-ui-motion')),true);
+        await page.getByRole('tab',{name:'Geral',exact:true}).click();
+        await page.getByRole('button',{name:'Verificar Atualizações',exact:true}).click();
+        await page.getByText('Nova compilação da mesma versão',{exact:true}).waitFor();
+        await page.waitForTimeout(350);
+        await page.getByRole('dialog').screenshot({path:`${output}/same-version-update.png`});
+        await page.getByRole('dialog').getByRole('button',{name:'Fechar',exact:true}).click();
+        await page.evaluate(()=>sessionStorage.setItem('installedRevision',String(window.remoteRevision)));
+        await page.reload();
+        await page.getByRole('button',{name:'Verificar Atualizações',exact:true}).click();
+        await page.getByText('Sistema Atualizado',{exact:true}).waitFor();
+        assert.equal(await page.getByRole('dialog').count(),0);
+        await page.goto('http://127.0.0.1:1420/instances');
+        await page.getByRole('button',{name:'Atualização disponível',exact:true}).waitFor();
+        await page.getByRole('button',{name:'Remover Vanilla Perfected',exact:true}).click();
+        await page.getByRole('dialog').waitFor();
+        assert.equal(await page.evaluate(()=>window.refinementCalls.some(call=>['profiles_delete','storage_delete_instance'].includes(call.command))),false);
+        await page.getByRole('dialog').getByRole('button',{name:'Cancelar',exact:true}).click();
+        await page.goto('http://127.0.0.1:1420/mods');
+        await page.locator('.catalog-navigation').waitFor();
+        await page.evaluate(()=>{document.documentElement.classList.add('has-custom-wallpaper');document.documentElement.style.setProperty('--interface-opacity','.18');});
+        assert.match(await page.locator('.catalog-navigation').evaluate(el=>getComputedStyle(el).backgroundColor),/0\.18/);
+        await page.goto('http://127.0.0.1:1420/skins');
+        await page.locator('.studio-preview').waitFor();
+        await page.evaluate(()=>{document.documentElement.classList.add('has-custom-wallpaper');document.documentElement.style.setProperty('--interface-opacity','.18');});
+        assert.match(await page.locator('.studio-preview').evaluate(el=>getComputedStyle(el).backgroundColor),/0\.18/);
+        assert.deepEqual(errors,[]);
+        await page.close();
+        const logo=await browser.newPage({viewport:{width:1120,height:720}});
+        await logo.goto(`file://${process.cwd().replaceAll('\\','/')}/docs/design/logo-proposals/index.html`);
+        await logo.screenshot({path:'docs/design/logo-proposals/preview.png',fullPage:true});
+        await logo.close();
+        console.log('PASS storage cleanup responsiveness, forced recount, animation activation, same-version build update without repeat and wallpaper panels');
+    } finally {await browser.close();}
+})().catch(error=>{console.error(error);process.exitCode=1;});

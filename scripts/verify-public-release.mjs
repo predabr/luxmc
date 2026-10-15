@@ -7,7 +7,7 @@ assert.ok(metadataFile && outputFile, 'Pass release metadata and a report path.'
 const version = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const release = JSON.parse(readFileSync(metadataFile, 'utf8'));
 const compatibilityVersion = version.replace(/\d+$/, value => String(Number(value) + 1));
-assert.ok(release.tag_name === `v${version}` || new RegExp(`^v${compatibilityVersion.replaceAll('.', '\\.')}-revision\\.\\d+$`).test(release.tag_name));
+assert.ok(release.tag_name.replace(/-build\.\d+\.\d+$/, '') === `v${version}` || new RegExp(`^v${compatibilityVersion.replaceAll('.', '\\.')}-revision\\.\\d+$`).test(release.tag_name));
 assert.equal(release.draft, false);
 assert.equal(release.prerelease, false);
 const names = ['Lux.MC.Launcher.exe', `Luxmc_${version}_x64-setup.exe`, `Luxmc_${version}_amd64.AppImage`, `Luxmc_${version}_amd64.deb`, `Luxmc-${version}-1.x86_64.rpm`, `luxmc-${version}-1-x86_64.pkg.tar.zst`, `Luxmc_${version}_universal.dmg`, 'latest.json', 'SHA256SUMS', 'latest.json.sig', 'SHA256SUMS.sig'];
@@ -36,6 +36,7 @@ for (const name of ['latest.json', 'SHA256SUMS']) {
 }
 const manifest = JSON.parse(signedFiles.get('latest.json').toString('utf8'));
 assert.equal(manifest.displayVersion || manifest.version, version);
+if (release.tag_name.includes('-build.')) { const [run,attempt] = release.tag_name.split('-build.')[1].split('.').map(Number); assert.equal(manifest.revision,run*1000+attempt); }
 if (release.tag_name.includes('-revision.')) assert.equal(manifest.revision, Number(release.tag_name.split('-revision.')[1]));
 for (const [platform, filename] of Object.entries({ 'windows-x86_64': canonical, 'linux-x86_64': names[2], 'darwin-x86_64': names[6], 'darwin-aarch64': names[6] })) {
     const asset = assets.get(filename);

@@ -1,5 +1,6 @@
 import { membershipStatus, membershipSync, type AppearancePreferences, type AppearancePreset, type Membership } from '$lib/api/membership';
 import { settings } from './settings.svelte';
+import { interfaceOpacityRatio } from '$lib/utils/interfaceOpacity';
 
 let current = $state<Membership | null>(null);
 let presets = $state<AppearancePreset[]>([]);
@@ -17,7 +18,7 @@ let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
 export function appearanceSnapshot(): AppearancePreferences {
     const value = settings.value;
-    return { density: value.density, motionStyle: value.motionStyle || 'expressive', motionSpeed: value.motionSpeed || 'balanced', wallpaperFps: value.wallpaperFps || 30, pauseSkinWhileGaming: value.pauseSkinWhileGaming !== false, preloadContentIcons: value.preloadContentIcons !== false, respectReducedMotion: value.respectReducedMotion !== false, gifQuality: value.gifQuality || 'high', interfaceOpacity: Math.min(1, Math.max(.35, value.interfaceOpacity ?? 1)) };
+    return { density: value.density, motionStyle: value.motionStyle || 'expressive', motionSpeed: value.motionSpeed || 'balanced', wallpaperFps: value.wallpaperFps || 30, pauseSkinWhileGaming: value.pauseSkinWhileGaming !== false, preloadContentIcons: value.preloadContentIcons !== false, respectReducedMotion: value.respectReducedMotion !== false, gifQuality: value.gifQuality || 'high', interfaceOpacity: interfaceOpacityRatio(value.interfaceOpacity) };
 }
 const paid = () => Boolean(current && current.plan !== 'free' && current.expiresAt && current.expiresAt > Date.now() / 1000);
 async function pull(run: number) {

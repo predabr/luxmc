@@ -762,7 +762,7 @@ async fn dispatch_command(
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "storage_full_report" => {
-            let res = crate::commands::storage::storage_full_report().await.map_err(|e| e.to_string())?;
+            let res = crate::commands::storage::storage_full_report(args.get("refresh").and_then(|v|v.as_bool())).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "storage_clear_logs" => {
@@ -770,7 +770,7 @@ async fn dispatch_command(
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "storage_clear_cache" => {
-            let res = crate::commands::storage::storage_clear_cache().await.map_err(|e| e.to_string())?;
+            let res = crate::commands::storage::storage_clear_cache_core(&state).await.map_err(|e| e.to_string())?;
             Ok(serde_json::to_value(res).map_err(|e| e.to_string())?)
         },
         "storage_delete_instance" => {

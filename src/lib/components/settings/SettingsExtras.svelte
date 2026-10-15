@@ -1,4 +1,5 @@
 <script lang="ts">
+import { interfaceOpacityRatio } from "$lib/utils/interfaceOpacity";
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { goto } from "$app/navigation";
     import { settings, type AppSettings } from "$lib/stores/settings.svelte";
@@ -79,7 +80,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         </fieldset>
         <label class="flex items-center gap-3 text-sm text-fg"><input type="checkbox" checked={settings.value.pauseSkinWhileGaming === true} onchange={event => patch({ pauseSkinWhileGaming: event.currentTarget.checked })} /> {uiText("ui.ef0a39bb77c3620e")}</label>
         <div class="grid gap-5 sm:grid-cols-2">
-            <label class="space-y-2 text-sm text-fg">{uiText("ui.5d5f6f158a48dbf9")} {settings.value.interfaceOpacity ?? 18}%<input class="w-full accent-brand-500" type="range" min="5" max="90" step="1" value={settings.value.interfaceOpacity ?? 18} oninput={event => patch({interfaceOpacity:Number(event.currentTarget.value)})} /><span class="block text-xs text-fg-muted">{uiText("ui.113be20272b6810c")}</span></label>
+            <label class="space-y-2 text-sm text-fg">{uiText("ui.5d5f6f158a48dbf9")} {Math.round(interfaceOpacityRatio(settings.value.interfaceOpacity)*100)}%<input class="w-full accent-brand-500" type="range" min="5" max="90" step="1" value={Math.round(interfaceOpacityRatio(settings.value.interfaceOpacity)*100)} oninput={event => patch({interfaceOpacity:Number(event.currentTarget.value)})} /><span class="block text-xs text-fg-muted">{uiText("ui.113be20272b6810c")}</span></label>
             <label class="space-y-2 text-sm text-fg">{uiText("ui.72af96978e4d0d5a")} {settings.value.wallpaperDim ?? 35}%<input class="w-full accent-brand-500" type="range" min="0" max="85" step="1" value={settings.value.wallpaperDim ?? 35} oninput={event => patch({wallpaperDim:Number(event.currentTarget.value)})} /></label>
             <label class="space-y-2 text-sm text-fg">{uiText("ui.58cb5d0c620f3ad0")}<select class="block w-full rounded-xl border border-border bg-bg-elevated p-3" value={settings.value.density} onchange={event => patch({density:event.currentTarget.value as AppSettings["density"]})}><option value="compact">{uiText("settings.densityCompact")}</option><option value="comfortable">{uiText("settings.densityComfortable")}</option><option value="spacious">{uiText("ui.160a9d8bb491ae50")}</option></select></label>
             <label class="space-y-2 text-sm text-fg">{uiText("ui.eb449bd38b044ad5")} {settings.value.capeWindStrength ?? 50}%<input class="w-full accent-brand-500" type="range" min="0" max="100" value={settings.value.capeWindStrength ?? 50} oninput={event => patch({capeWindStrength:Number(event.currentTarget.value)})} /></label>

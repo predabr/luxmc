@@ -16,6 +16,7 @@ interface UpdateProgressPayload {
 
 let showModal = $state(false);
 let currentVersion = $state("");
+let currentRevision = $state(RELEASE_REVISION);
 let latestVersion = $state("");
 let latestRevision = $state(0);
 let releaseUrl = $state("");
@@ -40,6 +41,8 @@ export const updaterStore = {
 	get showModal() { return showModal; },
 	set showModal(v: boolean) { showModal = v; },
 	get currentVersion() { return currentVersion; },
+    get currentRevision() { return currentRevision; },
+    get latestRevision() { return latestRevision; },
 	get latestVersion() { return latestVersion; },
 	get releaseUrl() { return releaseUrl; },
 	get releaseNotes() { return releaseNotes; },
@@ -59,7 +62,7 @@ export const updaterStore = {
 	get lastChecked() { return lastChecked; },
 	get newVersion() { return latestVersion; },
 	get updateAvailable() {
-		return Boolean(latestVersion && currentVersion && isReleaseUpdate(currentVersion, RELEASE_REVISION, latestVersion, latestRevision));
+		return Boolean(latestVersion && currentVersion && isReleaseUpdate(currentVersion, currentRevision, latestVersion, latestRevision));
 	},
 
 	async downloadAndInstall() {
@@ -72,7 +75,11 @@ export const updaterStore = {
 		verificationStatus = "checking";
 		try {
 			currentVersion = await getVersion();
-			try { environment = (await appUpdateEnvironment()).mode; } catch { environment = "manual"; }
+            try {
+                const installed = await appUpdateEnvironment();
+                environment = installed.mode;
+                currentRevision = Number.isSafeInteger(installed.revision) && installed.revision! >= 0 ? installed.revision! : RELEASE_REVISION;
+            } catch { environment = "manual"; currentRevision = RELEASE_REVISION; }
 			downloadUrl = "";
 			latestRevision = 0;
 			lastChecked = new Date().toISOString();
@@ -133,7 +140,7 @@ export const updaterStore = {
 			}
 
 			if (!foundUpdate) throw new Error(uiText("ui.d3184c6678fe9d2d"));
-			const newer = isReleaseUpdate(currentVersion, RELEASE_REVISION, latestVersion, latestRevision);
+			const newer = isReleaseUpdate(currentVersion, currentRevision, latestVersion, latestRevision);
 			verificationStatus = newer ? "available" : "current";
 			if (newer && (interactive || notifiedVersion !== `${latestVersion}:${latestRevision}`)) {
 				notifiedVersion = `${latestVersion}:${latestRevision}`;

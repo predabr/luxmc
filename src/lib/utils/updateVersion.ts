@@ -2,6 +2,12 @@ export const RELEASE_REVISION = 0;
 
 export function releaseIdentity(tag: string): { version: string; revision: number } {
 	const value = tag.trim().replace(/^v/, '');
+    const build = /^(\d+\.\d+\.\d+)-build\.(\d+)\.(\d+)$/.exec(value);
+    if (build) {
+        const attempt = Number(build[3]);
+        const revision = Number(build[2]) * 1000 + attempt;
+        if (attempt < 1000 && Number.isSafeInteger(revision)) return {version:build[1],revision};
+    }
 	const bridge = /^(\d+)\.(\d+)\.(\d+)-revision\.(\d+)$/.exec(value);
 	if (bridge && Number(bridge[3]) > 0) return {version: `${bridge[1]}.${bridge[2]}.${Number(bridge[3]) - 1}`, revision: Number(bridge[4])};
 	return {version: value, revision: 0};

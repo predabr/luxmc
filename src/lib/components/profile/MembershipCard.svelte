@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { translateUi as uiText } from '$lib/i18n/useTranslation.svelte';
     import { account } from '$lib/stores/account.svelte';
     import { membershipState } from '$lib/stores/membership.svelte';
     import { friendsState } from '$lib/stores/friends.svelte';
@@ -19,7 +20,7 @@
     <div class="flex items-center gap-2"><Sparkles class="h-4 w-4 text-brand-400" /><h3 class="font-semibold">Luxmc {plan === 'pro' ? 'Pro' : plan === 'plus' ? 'Plus' : 'Free'}</h3></div>
     {#if membershipState.paid && membershipState.current?.expiresAt}<p class="text-xs text-fg-muted">Ativo até {new Date(membershipState.current.expiresAt * 1000).toLocaleDateString()} · {membershipState.current.collections} coleções · {membershipState.current.presets} perfis de aparência</p>{:else}<p class="text-xs text-fg-muted">Seu launcher completo. Amplie seu perfil com Plus ou Pro.</p>{/if}
     <div class="grid grid-cols-2 gap-2 text-xs"><div class="rounded-xl border border-border bg-bg-elevated/50 p-3"><strong class="block text-base text-brand-400">{benefits.favourites}</strong><span class="text-fg-muted">favoritos no perfil</span></div><div class="rounded-xl border border-border bg-bg-elevated/50 p-3"><strong class="block text-base text-brand-400">{benefits.accents.length}</strong><span class="text-fg-muted">paletas do perfil</span></div></div>
-    <p class="text-xs leading-5 text-fg-muted">{plan === 'pro' ? 'Sua assinatura completa: Halo, Contorno duplo, Órbita, Brilho da capa, Pulso do avatar e composição centralizada.' : plan === 'plus' ? 'Seis paletas para o perfil, molduras Halo e Contorno duplo. Seu estilo aparece para seus amigos.' : 'Avatar, capa, GIF, nome e bio personalizados. Plus e Pro ampliam as opções visuais.'}</p>
+    <p class="text-xs leading-5 text-fg-muted">{plan === 'pro' ? 'Sua assinatura completa: Halo, Contorno duplo, Órbita, Brilho da capa, Pulso do avatar e composição centralizada.' : plan === 'plus' ? 'Seis paletas para o perfil, molduras Halo e Contorno duplo. Seu estilo aparece para seus amigos.' : uiText('refinement.freePlan')}</p>
     <button type="button" class={button({variant:'secondary',block:true})} disabled={opening} onclick={() => portal()}><ExternalLink class="h-4 w-4" />{opening ? 'Abrindo…' : 'Meu plano e pedidos'}</button>
     {#if canManage}<button type="button" class={button({variant:'primary',block:true})} disabled={opening} onclick={() => portal(true)}>Central do dono · aprovar planos</button>{/if}
     {#if membershipState.error}<p class="text-xs text-danger" role="status">{membershipState.error}</p><button type="button" class={button({variant:'ghost',size:'sm'})} onclick={() => membershipState.refresh()}>Atualizar meu plano</button>{/if}

@@ -22,6 +22,7 @@
 
 <style>
     .catalog-navigation { display: flex; flex-wrap:wrap; gap: 6px; padding:6px; margin-bottom:18px; border:1px solid rgb(var(--border)); border-radius:18px; background:rgb(var(--bg-elevated) / .96); }
+    :global(html.has-custom-wallpaper) .catalog-navigation { background:rgb(var(--bg-elevated) / var(--interface-opacity,.18)); }
     .catalog-type { position:relative; display: flex; align-items: center; justify-content:center; flex:1 0 auto; gap: 8px; padding: 11px 10px; border-radius: 12px; border: 1px solid transparent; font-size: 11px; font-weight: 600; color: rgb(var(--fg-muted)); transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease; }
     .catalog-type:hover { background: rgb(var(--fg) / .04); color: rgb(var(--fg)); }
     .catalog-type[aria-pressed="true"] { color: rgb(var(--brand-action)); background: rgb(var(--brand-500) / .12); border-color: rgb(var(--brand-400) / .3); box-shadow: inset 0 1px 0 rgb(var(--fg) / .04); }

@@ -123,6 +123,7 @@ pub struct UpdateProgress {
 #[serde(rename_all = "camelCase")]
 pub struct UpdateEnvironment {
     pub mode: String,
+    pub revision: u64,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -138,7 +139,7 @@ pub fn app_update_environment() -> UpdateEnvironment {
     {
         if std::env::var_os("APPIMAGE").is_some() {
             return UpdateEnvironment {
-                mode: "appimage".into(),
+                mode: "appimage".into(), revision: env!("LUXMC_BUILD_REVISION").parse().unwrap_or(0),
             };
         }
         if std::env::current_exe()
@@ -147,38 +148,38 @@ pub fn app_update_environment() -> UpdateEnvironment {
         {
             if Path::new("/usr/bin/pacman").is_file() {
                 return UpdateEnvironment {
-                    mode: "pacman".into(),
+                    mode: "pacman".into(), revision: env!("LUXMC_BUILD_REVISION").parse().unwrap_or(0),
                 };
             }
             if Path::new("/usr/bin/dpkg").is_file() {
                 return UpdateEnvironment {
-                    mode: "debian".into(),
+                    mode: "debian".into(), revision: env!("LUXMC_BUILD_REVISION").parse().unwrap_or(0),
                 };
             }
             if Path::new("/usr/bin/dnf").is_file()
                 || Path::new("/usr/bin/zypper").is_file()
                 || Path::new("/usr/bin/rpm").is_file()
             {
-                return UpdateEnvironment { mode: "rpm".into() };
+                return UpdateEnvironment { mode: "rpm".into(), revision: env!("LUXMC_BUILD_REVISION").parse().unwrap_or(0), };
             }
             return UpdateEnvironment {
-                mode: "system".into(),
+                mode: "system".into(), revision: env!("LUXMC_BUILD_REVISION").parse().unwrap_or(0),
             };
         }
         return UpdateEnvironment {
-            mode: "manual".into(),
+            mode: "manual".into(), revision: env!("LUXMC_BUILD_REVISION").parse().unwrap_or(0),
         };
     }
     #[cfg(target_os = "windows")]
     {
         UpdateEnvironment {
-            mode: "windows".into(),
+            mode: "windows".into(), revision: env!("LUXMC_BUILD_REVISION").parse().unwrap_or(0),
         }
     }
     #[cfg(target_os = "macos")]
     {
         UpdateEnvironment {
-            mode: "macos".into(),
+            mode: "macos".into(), revision: env!("LUXMC_BUILD_REVISION").parse().unwrap_or(0),
         }
     }
 }
