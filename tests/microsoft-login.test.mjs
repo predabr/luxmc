@@ -75,6 +75,15 @@ test('authorization uses PKCE and a separate HttpOnly browser binding', async t 
     assert.equal(url.searchParams.get('code_challenge'), createHash('sha256').update(pending.verifier).digest('base64url'));
 });
 
+test('provider failures log a safe stage without credentials or provider descriptions', async t => {
+    const f = fixture(t), logs = [], url = await f.start();
+    t.mock.method(console, 'error', (...values) => logs.push(values));
+    t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'invalid_client', error_description: 'private-provider-description', access_token: 'private-provider-token' }, { status: 400 }));
+    assert.equal((await f.callback(url)).headers.get('Location'), '/conta?microsoft_error=unavailable');
+    assert.deepEqual(logs[0][1], { action: 'callback', service: 'login.microsoftonline.com/consumers/oauth2/v2.0/token', status: 400, providerCode: 'invalid_client' });
+    assert.doesNotMatch(JSON.stringify(logs), /private-provider|server-only-test-secret|test-authorization-code|code_verifier/);
+});
+
 test('callback rejects stolen state, expiry and replay before exchanging a token', async t => {
     const f = fixture(t), url = await f.start(), browser = f.jar.get('__Host-luxmc-microsoft');
     f.jar.set('__Host-luxmc-microsoft', 'e'.repeat(64));

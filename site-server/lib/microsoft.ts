@@ -13,8 +13,22 @@ export function microsoftConfiguration(env: SiteEnvironment) {
     return { clientId: env.MICROSOFT_CLIENT_ID, secret: env.MICROSOFT_CLIENT_SECRET, redirect };
 }
 export async function microsoftJson(url: string, options: RequestInit): Promise<Record<string, any>> {
-    const response = await fetch(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(10000) });
-    if (!response.ok) throw Object.assign(new Error('Microsoft authentication unavailable'), { reason: url.endsWith('/minecraft/profile') && response.status === 404 ? 'minecraft' : 'unavailable' });
+    const service = new URL(url).hostname + new URL(url).pathname;
+    let response: Response;
+    try { response = await fetch(url, { ...options, redirect: 'error', signal: AbortSignal.timeout(10000) }); }
+    catch { throw Object.assign(new Error('Microsoft authentication unavailable'), { reason: 'unavailable', service, status: 0 }); }
+    if (!response.ok) {
+        let providerCode: string | undefined;
+        try {
+            const bytes = await response.arrayBuffer();
+            if (bytes.byteLength <= 131072) {
+                const value = JSON.parse(new TextDecoder().decode(bytes));
+                if (typeof value?.error === 'string' && /^[a-z_]{1,64}$/.test(value.error)) providerCode = value.error;
+                else if (Number.isSafeInteger(value?.XErr)) providerCode = String(value.XErr);
+            }
+        } catch {}
+        throw Object.assign(new Error('Microsoft authentication unavailable'), { reason: url.endsWith('/minecraft/profile') && response.status === 404 ? 'minecraft' : 'unavailable', service, status: response.status, providerCode });
+    }
     const bytes = await response.arrayBuffer();
     if (bytes.byteLength > 131072) throw new Error('Authentication response too large');
     const value = JSON.parse(new TextDecoder().decode(bytes));
