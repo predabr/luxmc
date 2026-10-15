@@ -4,6 +4,23 @@ import { onRequest } from '../website/functions/download/[platform].js';
 
 const asset = { name: 'Lux.MC.Launcher.exe', browser_download_url: 'https://github.com/predabr/luxmc/releases/download/v3.0.0/Lux.MC.Launcher.exe' };
 
+for (const local of ['4.0.0', '4.0.0-build.120.1', '4.0.0-build.121.1']) {
+    test(`4.0 downloads select the exact published build with hosted identity ${local}`, async () => {
+        const original = globalThis.fetch;
+        const current = {...asset, browser_download_url: 'https://github.com/predabr/luxmc/releases/download/v4.0.0-build.121.1/Lux.MC.Launcher.exe'};
+        globalThis.fetch = async url => {
+            if (String(url).startsWith('https://api.github.com/')) return Response.json({tag_name:'v4.0.0-build.121.1',assets:[current]});
+            assert.equal(String(url),local === '4.0.0-build.121.1' ? 'https://luxmc.test/releases/Lux%20MC%20Launcher.exe' : current.browser_download_url);
+            return new Response(local === '4.0.0-build.121.1' ? 'MZhosted-current' : 'MZpublished-current');
+        };
+        try {
+            const response = await onRequest({request:new Request('https://luxmc.test/download/windows'),params:{platform:'windows'},env:{WINDOWS_LOCAL_VERSION:local}});
+            assert.equal(response.status,200);
+            assert.equal(await response.text(),local === '4.0.0-build.121.1' ? 'MZhosted-current' : 'MZpublished-current');
+        } finally {globalThis.fetch=original;}
+    });
+}
+
 test('changed installer never appends a partial new file to an old If-Range download', async()=>{
     const original=globalThis.fetch;
     globalThis.fetch=async(url,options)=>{

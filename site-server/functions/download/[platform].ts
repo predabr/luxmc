@@ -2,7 +2,7 @@ import type { SiteContext } from "../../lib/types.js";
 import { assetFor, latestRelease, fallback, repository } from "../../lib/releases.js";
 function localIsCurrent(local: any, remote: any) {
     const remoteVersion = String(remote).replace(/^v/, '');
-    if (String(local).includes('-revision.') || remoteVersion.includes('-revision.')) return local === remoteVersion;
+    if (/-revision\.|-build\./.test(String(local)) || /-revision\.|-build\./.test(remoteVersion)) return String(local).replace(/^v/, '') === remoteVersion;
     if (!/^\d+\.\d+\.\d+$/.test(local || ''))
         return false;
     const parts = String(remote).replace(/^v/, '').split('.').map(Number);

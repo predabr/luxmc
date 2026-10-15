@@ -35,3 +35,33 @@ Concluir suíte de navegador e CI Windows/Linux; analisar divergências e corrig
 - GeckoLib e Cave Dweller reais conferidos independentemente por Python/tomllib, tamanhos e SHA-256 em real-archives.json. Ainda aguarda execução dos testes Rust reais na CI.
 - Preparado scripts/verify-storage-native.mjs, restrito a GITHUB_ACTIONS Windows: testa o executável, revisão compilada, contagem com hardlinks, limpeza real em dados efêmeros e preservação de mundo/mod/opções. Não executar no PC do usuário.
 - Workflow de release agora fixa o identificador de compilação como output de create-release para todos os SOs, inclusive em nova tentativa de jobs parcialmente falhos. Não alterar tags publicadas nem reutilizar instaladores com outra identidade.
+
+## NOVA INSTRUÇÃO DO USUÁRIO — GitHub parado / preparar 4.0.0
+O usuário pediu: parar o GitHub, revisar tudo principalmente modpacks, e preparar 4.0 como release estável para continuar entregando novas compilações na mesma versão. NÃO publicar/push/reativar workflows durante essa revisão.
+- Execução 38667188974 cancelada e status confirmado cancelled. As anteriores 38666709652 e 38665330636 também canceladas.
+- Último commit enviado: f53ad35323cdb03e969f459dfa3738171ff06102. Nenhuma release nova nem deploy de site neste refinamento; público permanece 3.9.5 original.
+- Teste de interface de produção passou para armazenamento, navegação, animações, updater na mesma versão, modpacks e transparência. GIF Free/Plus/Pro também passou na versão compilada.
+- Vite preview do build de produção permanece aberto em sessão exec 64868 (porta1420). Parar antes de novo pnpm check/build.
+- Novo escopo: revisão de instalação/extração/validação/reparo/atualização/cancelamento/abertura de modpacks, compatibilidade loaders/Java, preservação de mundos/mods/opções, e metadados de versão 4.0.0. Não substituir a logo sem avaliação do usuário.
+- GitHub é necessário só quando o usuário voltar a permitir os builds remotos; compilação local Rust continua bloqueada por Controle de Aplicativo do Windows (4551). Não contornar proteções.
+
+
+## Revisão local 4.0.0 — sem envio ao GitHub
+
+- Metadados locais alterados para 4.0.0. Workflows manuais preparados, sem executá-los. Não houve push, release, deploy nem instalação após a ordem de parada.
+- Importação Modrinth deixa de usar 1.21.1 quando falta versão e rejeita loaders simultâneos/aliases com versões conflitantes antes de baixar ou gravar arquivos. CurseForge valida loader principal e usa Vanilla quando não há declaração nem escolha explícita.
+- Atualização confirma o projeto vinculado, preserva opções/servidores, mantém mods desativados por identidade e valida a combinação final com os mods pessoais antes da transação. Mundos padrão com nomes iguais são separados para não misturar regiões com mundos do usuário. A pasta original permanece preservada.
+- Atualização recalcula a contagem de JARs finais e invalida o tamanho antigo no perfil. Novos testes Rust cobrem opções gerenciadas, mundos com nomes iguais, troca de nome de mod desativado, conflitos com mod pessoal, seleção de loader e destinos com links.
+- Histórico do launcher acrescenta notas locais das releases recentes sem remover o legado. As notas 4.0 continuam marcadas em preparação.
+- Site reconhece identidade completa -build.run.attempt: um instalador hospedado de outra compilação não substitui o arquivo da compilação publicada.
+- Verificações 4.0: pnpm check passou (0/0); 215 Vitest, 93 do site e 13 de manifestos/assinaturas passaram; pnpm build passou. Rustfmt analisou os quatro módulos alterados.
+- cargo check --lib da 4.0 foi bloqueado ao carregar serde_with_macros no build script: Controle de Aplicativos, erro 4551. Os novos testes Rust NÃO foram executados. As aprovações da CI anterior não cobrem essas alterações.
+- Interface de produção 4.0: launcher-refinement e modpack-followup passaram. Artefatos novos em Local/Luxmc-build/requests/review-4.0-browser e review-4.0-modpacks; não sobrescrever as capturas antigas do usuário.
+- Teste personalizer-motion depende de importações de desenvolvimento (/src e nome do módulo skinview3d); tentativa sobre a saída de produção parou na instrumentação, com "Skinview3d não foi carregado". Reexecutar em Vite dev novo; não tratar como teste de movimento aprovado em produção.
+- Plano detalhado em docs/plans/revisao-release-4.0.md. Website e instalador NÃO devem ser publicados ainda: website/releases/Lux MC Launcher.exe continua 3.9.5 apesar dos metadados locais 4.0.
+
+- Encerramento dos testes de navegador 4.0: owner membership passou na interface de produção; instance-content passou com 1000 mods em 1440/960, ajustes integrados, filtragem, recuperação de erro ao salvar e painéis isolados.
+- personalizer-motion reexecutado em Vite browser-test recém-aberto: PASS para poses de andar/correr/voar, modo de desempenho e jogo em execução. O erro anterior foi da instrumentação sobre bundles de produção. Ambos servidores de teste foram encerrados.
+- A atualização agora reserva import_job durante TODO o fluxo, inclusive download, para impedir concorrência com outra instalação e não resetar cancelamento na passagem para o importador. Finalização libera a reserva também após erro; teste nativo acrescentado, ainda sem executar devido ao bloqueio 4551.
+- tests/installers.test.py: cenários Linux não executaram neste Windows por WinError 1314 em symlinks de fixtures e encoding padrão cp1252. Teste isolado de anúncios do website passou usando Python -X utf8. Não mudar a segurança do sistema nem declarar a suíte Linux aprovada.
+- Próximo passo obrigatório: validar a fonte atual da 4.0 nativamente em ambiente autorizado antes de gerar/distribuir instalador. GitHub continua parado. Não usar as CI antigas como aprovação das mudanças novas; não publicar o instalador 3.9.5 com rótulo 4.0.

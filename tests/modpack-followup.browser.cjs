@@ -3,7 +3,7 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const base = process.env.LUXMC_BROWSER_BASE_URL || 'http://127.0.0.1:1420';
-const output = 'docs/validation/modpack-followup';
+const output = process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/modpack-followup';
 
 (async () => {
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });

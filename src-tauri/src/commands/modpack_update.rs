@@ -347,6 +347,8 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
     let _launch_guard = state.launch_lock.try_lock().map_err(|_|AppError::InvalidState("Aguarde o lançamento do Minecraft terminar".into()))?;
     if crate::core::launcher::get_active_game_pid()!=0 {return Err(AppError::InvalidState("Feche o Minecraft antes de atualizar o modpack".into()));}
     let _guard = UPDATE_LOCK.try_lock().map_err(|_| AppError::InvalidState("Uma atualização já está em andamento".into()))?;
+    let operation_id = super::instances::instance_begin_import_core(state).await?;
+    let result: AppResult<()> = async {
     if !["modrinth", "curseforge"].contains(&source.as_str()) ||
         [&versionId, &projectId].iter().any(|id| id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')) {
         return Err(AppError::InvalidInput("Identificador de atualização inválido".into()));
@@ -356,6 +358,7 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
         .bind(&profileId).fetch_optional(db.pool()).await?
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
     let original = std::path::PathBuf::from(&row.game_dir);
+    if linked_project(&row.game_dir,&source).await? != projectId { return Err(AppError::InvalidInput("A atualização pertence a outro modpack. A instância atual foi mantida.".into())); }
     let saves_dir = original.join("saves");
     if saves_dir.is_dir() {
         if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"backup","current":0,"total":0,"percent":2,"status":"Criando backups versionados dos mundos antes da atualização..."}));}
@@ -368,7 +371,6 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
         }
     }
     let managed = owned_pack_paths(&original).await?;
-    state.import_cancel.store(false, std::sync::atomic::Ordering::SeqCst);
     let client = pack::client()?;
     if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"downloading","current":0,"total":0,"percent":5,"status":"Preparando nova versão sem alterar a instância atual..."}));}
     let (urls, size, sha1, sha512) = if source == "modrinth" {
@@ -433,7 +435,19 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
         let old = original.clone();
         let new = staged_dir.clone();
         let owned = managed.clone();
-        tokio::task::spawn_blocking(move || preserve_user_files(&old, &new, &owned)).await
+        let cancel = state.import_cancel.clone();
+        let mod_count = tokio::task::spawn_blocking(move || -> AppResult<i64> {
+            preserve_user_files(&old, &new, &owned)?;
+            preserve_disabled_mods(&old,&new,&owned)?;
+            let audit = crate::core::mods::validation::audit_cancellable(&new,false,Some(&cancel))?;
+            if !audit.errors.is_empty() { return Err(AppError::InvalidInput(format!("A nova versão conflita com os arquivos preservados. A instância anterior foi mantida.\n{}",audit.errors.join("\n")))); }
+            let mut count = 0;
+            for entry in std::fs::read_dir(new.join("mods"))? {
+                let entry = entry?;
+                if entry.file_type()?.is_file() && entry.path().extension().is_some_and(|extension|extension.eq_ignore_ascii_case("jar")) { count += 1; }
+            }
+            Ok(count)
+        }).await
             .map_err(|error| AppError::Internal(error.to_string()))??;
         pack::cancelled(Some(&state.import_cancel))?;
         pack::atomic_write(&staged_dir.join(".luxmc/profile-owner.json"),&serde_json::to_vec(&serde_json::json!({"profileId":profileId}))?).await?;
@@ -445,9 +459,9 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
             }
         }
         sqlx::query("UPDATE mods SET profile_id = ? WHERE profile_id = ?").bind(&profileId).bind(&staged.id).execute(&mut *tx).await?;
-        sqlx::query("UPDATE profiles SET game_dir = ?, mc_version = ?, loader = ?, loader_version = ?, mod_count = ?, updated_at = ? WHERE id = ?")
+        sqlx::query("UPDATE profiles SET game_dir = ?, mc_version = ?, loader = ?, loader_version = ?, mod_count = ?, disk_usage = 0, updated_at = ? WHERE id = ?")
             .bind(&staged.game_dir).bind(&staged.mc_version).bind(&staged.loader).bind(&staged.loader_version)
-            .bind(staged.mod_count).bind(chrono::Utc::now()).bind(&profileId).execute(&mut *tx).await?;
+            .bind(mod_count).bind(chrono::Utc::now()).bind(&profileId).execute(&mut *tx).await?;
         sqlx::query("DELETE FROM profiles WHERE id = ?").bind(&staged.id).execute(&mut *tx).await?;
         tx.commit().await?;
         Ok(())
@@ -458,6 +472,10 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
     }
     if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"complete","current":1,"total":1,"percent":100,"status":"Modpack atualizado; a pasta anterior foi preservada como backup.","backupPath":original,"projectId":projectId}));}
     Ok(())
+    }.await;
+    let finished = super::instances::instance_end_import_core(state,operation_id).await;
+    result?;
+    finished
 }
 
 async fn owned_pack_paths(root: &std::path::Path) -> AppResult<std::collections::HashSet<String>> {
@@ -497,6 +515,21 @@ async fn owned_pack_paths(root: &std::path::Path) -> AppResult<std::collections:
 
 fn preserve_user_files(old: &std::path::Path, new: &std::path::Path, managed: &std::collections::HashSet<String>) -> AppResult<()> {
     use crate::core::mods::pack_download as pack;
+    pack::destination(old,"saves")?;
+    if old.join("saves").is_dir() {
+        for world in std::fs::read_dir(old.join("saves"))? {
+            let world = world?;
+            if !world.file_type()?.is_dir() { continue; }
+            let name = world.file_name().to_string_lossy().into_owned();
+            pack::destination(old,&format!("saves/{name}"))?;
+            let target = pack::destination(new,&format!("saves/{name}"))?;
+            if target.exists() {
+                let backup = pack::destination(new,&format!(".luxmc/update-default-worlds/{}/{name}",uuid::Uuid::new_v4()))?;
+                std::fs::create_dir_all(backup.parent().unwrap())?;
+                std::fs::rename(target,backup)?;
+            }
+        }
+    }
     let mut pending = vec![old.to_path_buf()];
     while let Some(dir) = pending.pop() {
         for entry in std::fs::read_dir(dir)? {
@@ -504,9 +537,14 @@ fn preserve_user_files(old: &std::path::Path, new: &std::path::Path, managed: &s
             let path = entry.path();
             let relative = path.strip_prefix(old).map_err(|error| AppError::Internal(error.to_string()))?.to_string_lossy().replace('\\', "/");
             if relative == ".luxmc" || ["manifest.json", "modrinth.index.json"].contains(&relative.as_str()) { continue; }
-            if entry.file_type()?.is_symlink() { return Err(AppError::InvalidInput(format!("Não é possível copiar link simbólico: {relative}"))); }
+            if pack::metadata_is_link(&std::fs::symlink_metadata(&path)?) { return Err(AppError::InvalidInput(format!("Não é possível copiar link simbólico: {relative}"))); }
             let target = pack::destination(new, &relative)?;
             if entry.file_type()?.is_dir() { std::fs::create_dir_all(&target)?; pending.push(path); continue; }
+            let first = relative.split('/').next().unwrap_or_default();
+            if ["saves","screenshots","options.txt","optionsof.txt","servers.dat","servers.dat_old"].contains(&first) {
+                std::fs::copy(path,target)?;
+                continue;
+            }
             let enabled = relative.strip_suffix(".disabled").unwrap_or(&relative);
             if managed.contains(enabled) {
                 if relative.ends_with(".disabled") {
@@ -515,9 +553,33 @@ fn preserve_user_files(old: &std::path::Path, new: &std::path::Path, managed: &s
                 }
                 continue;
             }
-            let first = relative.split('/').next().unwrap_or_default();
             let personal = ["saves", "screenshots", "options.txt", "servers.dat", "resourcepacks", "shaderpacks"].contains(&first);
             if personal || !target.exists() { std::fs::copy(path, target)?; }
+        }
+    }
+    Ok(())
+}
+
+fn preserve_disabled_mods(old: &std::path::Path, new: &std::path::Path, managed: &std::collections::HashSet<String>) -> AppResult<()> {
+    use crate::core::mods::{pack_download as pack,validation};
+    let mut disabled = std::collections::BTreeSet::new();
+    for path in managed.iter().filter(|path|path.starts_with("mods/") && path.ends_with(".jar")) {
+        let enabled = pack::destination(old,path)?;
+        let inactive = pack::destination(old,&format!("{path}.disabled"))?;
+        if !enabled.exists() && inactive.is_file() {
+            if let Some(ids) = validation::primary_ids(&inactive) { disabled.insert(ids); }
+        }
+    }
+    if disabled.is_empty() || !new.join("mods").is_dir() { return Ok(()); }
+    for entry in std::fs::read_dir(new.join("mods"))? {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() || !entry.path().extension().is_some_and(|extension|extension.eq_ignore_ascii_case("jar")) { continue; }
+        if validation::primary_ids(&entry.path()).is_some_and(|ids|disabled.contains(&ids)) {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let source = pack::destination(new,&format!("mods/{name}"))?;
+            let target = pack::destination(new,&format!("mods/{name}.disabled"))?;
+            if target.exists() { return Err(AppError::InvalidState(format!("Conflito ao preservar o mod desativado: {name}"))); }
+            std::fs::rename(source,target)?;
         }
     }
     Ok(())
@@ -526,6 +588,20 @@ fn preserve_user_files(old: &std::path::Path, new: &std::path::Path, managed: &s
 #[cfg(test)]
 mod update_tests {
     use super::*;
+    #[tokio::test]
+    async fn failed_update_releases_its_reservation_without_clearing_another_job() {
+        let state = AppState::default();
+        let result = modpack_update_atomic_core(None,&state,"profile".into(),"version".into(),"invalid".into(),"project".into()).await;
+        assert!(result.is_err());
+        assert!(!state.import_job.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(state.import_job_id.lock().await.is_empty());
+        let operation = super::super::instances::instance_begin_import_core(&state).await.unwrap();
+        assert!(modpack_update_atomic_core(None,&state,"profile".into(),"version".into(),"modrinth".into(),"project".into()).await.is_err());
+        assert!(state.import_job.load(std::sync::atomic::Ordering::SeqCst));
+        assert_eq!(*state.import_job_id.lock().await,operation);
+        super::super::instances::instance_end_import_core(&state,operation).await.unwrap();
+    }
+
     #[test]
     fn preserves_user_data_and_exact_mod_ownership_without_touching_original() {
         let root = std::env::temp_dir().join(format!("luxmc-update-test-{}", uuid::Uuid::new_v4()));
@@ -534,11 +610,65 @@ mod update_tests {
         for (path, value) in [(old.join("mods/example-1.jar"), "old"), (old.join("mods/example-extra.jar"), "user"), (old.join("options.txt"), "settings"), (new.join("mods/example-2.jar"), "new"), (new.join("options.txt"), "pack")] {
             std::fs::write(path, value).unwrap();
         }
-        preserve_user_files(&old, &new, &std::collections::HashSet::from(["mods/example-1.jar".into()])).unwrap();
+        preserve_user_files(&old, &new, &std::collections::HashSet::from(["mods/example-1.jar".into(),"options.txt".into()])).unwrap();
         assert!(!new.join("mods/example-1.jar").exists());
         assert_eq!(std::fs::read_to_string(new.join("mods/example-extra.jar")).unwrap(), "user");
         assert_eq!(std::fs::read_to_string(new.join("options.txt")).unwrap(), "settings");
         assert_eq!(std::fs::read_to_string(old.join("mods/example-1.jar")).unwrap(), "old");
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    fn mod_jar(path: &std::path::Path, id: &str, version: &str) {
+        use std::io::Write;
+        let mut archive = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+        archive.start_file("fabric.mod.json",zip::write::FileOptions::default()).unwrap();
+        archive.write_all(serde_json::json!({"id":id,"version":version}).to_string().as_bytes()).unwrap();
+        archive.finish().unwrap();
+    }
+
+    #[test]
+    fn disabled_choice_survives_changed_filename_without_disabling_other_mods() {
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join("old"); let new = root.path().join("new");
+        std::fs::create_dir_all(old.join("mods")).unwrap(); std::fs::create_dir_all(new.join("mods")).unwrap();
+        mod_jar(&old.join("mods/example-1.jar.disabled"),"example","1");
+        mod_jar(&new.join("mods/example-2.jar"),"example","2");
+        mod_jar(&new.join("mods/other.jar"),"other","1");
+        let managed = std::collections::HashSet::from(["mods/example-1.jar".into()]);
+        preserve_user_files(&old,&new,&managed).unwrap();
+        preserve_disabled_mods(&old,&new,&managed).unwrap();
+        assert!(!new.join("mods/example-2.jar").exists());
+        assert!(new.join("mods/example-2.jar.disabled").is_file());
+        assert!(new.join("mods/other.jar").is_file());
+        assert!(old.join("mods/example-1.jar.disabled").is_file());
+    }
+
+    #[test]
+    fn preserves_world_without_merging_publisher_default_regions() {
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join("old"); let new = root.path().join("new");
+        std::fs::create_dir_all(old.join("saves/World/region")).unwrap();
+        std::fs::create_dir_all(new.join("saves/World/region")).unwrap();
+        std::fs::write(old.join("saves/World/region/user.mca"),b"original").unwrap();
+        std::fs::write(new.join("saves/World/region/default.mca"),b"publisher").unwrap();
+        preserve_user_files(&old,&new,&std::collections::HashSet::new()).unwrap();
+        assert_eq!(std::fs::read(new.join("saves/World/region/user.mca")).unwrap(),b"original");
+        assert!(!new.join("saves/World/region/default.mca").exists());
+        let backup = std::fs::read_dir(new.join(".luxmc/update-default-worlds")).unwrap().next().unwrap().unwrap().path();
+        assert_eq!(std::fs::read(backup.join("World/region/default.mca")).unwrap(),b"publisher");
+        assert_eq!(std::fs::read(old.join("saves/World/region/user.mca")).unwrap(),b"original");
+    }
+
+    #[test]
+    fn final_audit_detects_conflicts_from_preserved_personal_mods() {
+        let root = tempfile::tempdir().unwrap();
+        let old = root.path().join("old"); let new = root.path().join("new");
+        std::fs::create_dir_all(old.join("mods")).unwrap(); std::fs::create_dir_all(new.join("mods")).unwrap();
+        mod_jar(&old.join("mods/personal.jar"),"example","1");
+        mod_jar(&new.join("mods/updated.jar"),"example","2");
+        preserve_user_files(&old,&new,&std::collections::HashSet::new()).unwrap();
+        let audit = crate::core::mods::validation::audit(&new,false).unwrap();
+        assert!(!audit.errors.is_empty());
+        assert!(old.join("mods/personal.jar").is_file());
     }
 }

@@ -736,6 +736,64 @@ struct MrpackMod {
     env: std::collections::HashMap<String, serde_json::Value>,
 }
 
+fn pack_version(value: &str) -> AppResult<String> {
+    let value = value.trim().trim_matches('\'').trim_matches('"');
+    if value.is_empty() || value.len() > 128 || value.contains(['/', '\\']) || crate::core::mods::pack_download::relative_path(value).is_err() {
+        return Err(crate::error::AppError::InvalidInput("O pacote não informa uma versão válida do Minecraft ou do loader".into()));
+    }
+    Ok(value.to_owned())
+}
+
+fn mrpack_target(manifest: &MrpackManifest) -> AppResult<(String, &'static str, Option<String>)> {
+    let raw = manifest.dependencies.get("minecraft").map(|value| value.as_str().unwrap_or_default())
+        .or_else(|| manifest.game.as_str().filter(|value| *value != "minecraft"))
+        .or_else(|| manifest.game.get("version").and_then(|value| value.as_str())).unwrap_or_default();
+    let minecraft = pack_version(raw)?;
+    let mut target = None;
+    for (loader, aliases) in [
+        ("fabric", &["fabric-loader", "fabric"][..]),
+        ("forge", &["forge", "minecraft-forge"][..]),
+        ("neoforge", &["neoforge", "neo-forge", "neoforged"][..]),
+        ("quilt", &["quilt-loader", "quilt"][..]),
+    ] {
+        let mut version = None;
+        for alias in aliases {
+            if let Some(value) = manifest.dependencies.get(*alias) {
+                let candidate = pack_version(value.as_str().unwrap_or_default())?;
+                if version.as_ref().is_some_and(|previous| previous != &candidate) {
+                    return Err(crate::error::AppError::InvalidInput("O pacote declara versões conflitantes do mesmo loader".into()));
+                }
+                version = Some(candidate);
+            }
+        }
+        if let Some(version) = version {
+            if target.is_some() { return Err(crate::error::AppError::InvalidInput("O pacote declara loaders incompatíveis entre si".into())); }
+            target = Some((loader, Some(version)));
+        }
+    }
+    let (loader, version) = target.unwrap_or(("vanilla", None));
+    Ok((minecraft, loader, version))
+}
+
+fn curseforge_target(manifest: &CfManifest, minecraft: &str, fallback_loader: &str) -> AppResult<(String, String, String)> {
+    let minecraft = pack_version(if manifest.minecraft.version.trim().is_empty() { minecraft } else { &manifest.minecraft.version })?;
+    let declared = &manifest.minecraft.mod_loaders;
+    let primary: Vec<_> = declared.iter().filter(|loader| loader.primary).collect();
+    if primary.len() > 1 || (primary.is_empty() && declared.len() > 1) {
+        return Err(crate::error::AppError::InvalidInput("O pacote não define um único loader principal".into()));
+    }
+    if let Some(loader) = primary.first().copied().or_else(|| declared.first()) {
+        let (kind, version) = loader.id.split_once('-').ok_or_else(|| crate::error::AppError::InvalidInput("Loader do pacote sem versão".into()))?;
+        let kind = kind.trim().to_ascii_lowercase();
+        if !["fabric", "forge", "neoforge", "quilt"].contains(&kind.as_str()) { return Err(crate::error::AppError::InvalidInput(format!("Loader não suportado: {kind}"))); }
+        return Ok((minecraft, kind, pack_version(version)?));
+    }
+    let kind = fallback_loader.trim().to_ascii_lowercase();
+    let kind = if kind.is_empty() { "vanilla".to_owned() } else { kind };
+    if !["vanilla", "fabric", "forge", "neoforge", "quilt"].contains(&kind.as_str()) { return Err(crate::error::AppError::InvalidInput(format!("Loader não suportado: {kind}"))); }
+    Ok((minecraft, kind, String::new()))
+}
+
 fn smart_modpack_ram(user_ram: Option<i64>, mod_count: usize) -> i64 {
     if let Some(ram) = user_ram {
         if ram > 0 {
@@ -1093,45 +1151,7 @@ pub fn instance_import_modpack_core<'a>(
         },
     )?;
 
-    let manifest_mc_version = manifest
-        .minecraft
-        .version
-        .trim()
-        .trim_matches('\'')
-        .trim_matches('"')
-        .to_string();
-    let primary_loader = manifest.minecraft.mod_loaders.iter().find(|loader| loader.primary).or_else(|| manifest.minecraft.mod_loaders.first());
-    let manifest_loader_type = primary_loader.map(|ml| {
-        let parts: Vec<&str> = ml.id.split('-').collect();
-        parts[0].trim().to_lowercase()
-    });
-    let loader_version = primary_loader
-        .map(|ml| {
-            let parts: Vec<&str> = ml.id.split('-').collect();
-            if parts.len() > 1 {
-                parts[1..].join("-").trim().to_string()
-            } else {
-                ml.id.trim().to_string()
-            }
-        })
-        .unwrap_or_default();
-    tracing::info!(manifest_mc_version = %manifest_mc_version, manifest_loader_type = ?manifest_loader_type, loader_version = %loader_version, "manifest loader info extracted");
-
-    let mc_version = if !manifest_mc_version.is_empty() {
-        tracing::info!(original = %mc_version, manifest = %manifest_mc_version, "overriding mc_version with manifest version");
-        manifest_mc_version
-    } else {
-        mc_version
-    };
-    let mc_version = mc_version.trim().trim_matches('\'').trim_matches('"').to_string();
-    let loader = if let Some(ref lt) = manifest_loader_type {
-        tracing::info!(original_loader = %loader, detected = %lt, "using manifest loader type for modpack");
-        lt.to_lowercase()
-    } else if !loader.is_empty() {
-        loader.to_lowercase()
-    } else {
-        "fabric".to_string()
-    };
+    let (mc_version, loader, loader_version) = curseforge_target(&manifest, &mc_version, &loader)?;
 
     let profile_id = resumable_import_id(&file_path, &profile_name).await?;
     let resume_db = crate::db::shared_db().await?;
@@ -2320,19 +2340,7 @@ pub fn instance_import_mrpack_core<'a>(
         },
     )?;
 
-    let mc_version = manifest
-        .dependencies
-        .get("minecraft")
-        .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| Some(v.to_string().trim_matches('"').to_string())))
-        .or_else(|| {
-            if let Some(s) = manifest.game.as_str() {
-                if s != "minecraft" {
-                    return Some(s.to_string());
-                }
-            }
-            manifest.game.get("version").and_then(|v| v.as_str()).map(|s| s.to_string())
-        })
-        .unwrap_or_else(|| "1.21.1".to_string());
+    let (mc_version, loader, loader_version) = mrpack_target(&manifest)?;
 
     let profile_id = resumable_import_id(&file_path, &profile_name).await?;
     let resume_db = crate::db::shared_db().await?;
@@ -2448,39 +2456,6 @@ pub fn instance_import_mrpack_core<'a>(
     let installed_mods_count = std::fs::read_dir(&mods_dir)?.filter_map(Result::ok)
         .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "jar")).count();
     pack::cancelled(Some(&state.import_cancel))?;
-
-    let (loader, loader_version) = if let Some(v) = manifest
-        .dependencies
-        .get("fabric-loader")
-        .or_else(|| manifest.dependencies.get("fabric"))
-        .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| Some(v.to_string().trim_matches('"').to_string())))
-    {
-        ("fabric", Some(v))
-    } else if let Some(v) = manifest
-        .dependencies
-        .get("neoforge")
-        .or_else(|| manifest.dependencies.get("neo-forge"))
-        .or_else(|| manifest.dependencies.get("neoforged"))
-        .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| Some(v.to_string().trim_matches('"').to_string())))
-    {
-        ("neoforge", Some(v))
-    } else if let Some(v) = manifest
-        .dependencies
-        .get("forge")
-        .or_else(|| manifest.dependencies.get("minecraft-forge"))
-        .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| Some(v.to_string().trim_matches('"').to_string())))
-    {
-        ("forge", Some(v))
-    } else if let Some(v) = manifest
-        .dependencies
-        .get("quilt-loader")
-        .or_else(|| manifest.dependencies.get("quilt"))
-        .and_then(|v| v.as_str().map(|s| s.to_string()).or_else(|| Some(v.to_string().trim_matches('"').to_string())))
-    {
-        ("quilt", Some(v))
-    } else {
-        ("vanilla", None)
-    };
 
     if let Some(ref a) = app {
         let _ = a.emit("modpack-progress", serde_json::json!({
@@ -4089,6 +4064,36 @@ mod modpack_integrity_tests {
         let legacy: CfManifest = serde_json::from_str(r#"{"minecraft":{"mod_loaders":[{"id":"fabric-0.16.0"}]},"files":[{"project_id":42,"file_id":1234}]}"#).unwrap();
         assert_eq!(legacy.files[0].file_id, 1234);
         assert_eq!(legacy.minecraft.mod_loaders[0].id, "fabric-0.16.0");
+    }
+
+    #[test]
+    fn pack_targets_require_explicit_valid_versions_and_one_loader() {
+        for (dependencies, expected) in [
+            (serde_json::json!({"minecraft":"26.3","fabric-loader":"0.19.5"}), "fabric"),
+            (serde_json::json!({"minecraft":"1.12.2","forge":"14.23.5.2860"}), "forge"),
+            (serde_json::json!({"minecraft":"1.21.1","neoforge":"21.1.1"}), "neoforge"),
+            (serde_json::json!({"minecraft":"1.20.1","quilt-loader":"0.28.0"}), "quilt"),
+            (serde_json::json!({"minecraft":"3D Shareware v1.34"}), "vanilla"),
+        ] {
+            let manifest: MrpackManifest = serde_json::from_value(serde_json::json!({"game":"minecraft","dependencies":dependencies})).unwrap();
+            assert_eq!(mrpack_target(&manifest).unwrap().1,expected);
+        }
+        for dependencies in [
+            serde_json::json!({}), serde_json::json!({"minecraft":null}), serde_json::json!({"minecraft":"../../escape"}),
+            serde_json::json!({"minecraft":"1.20.1","forge":"47.2.0","fabric-loader":"0.16.0"}),
+            serde_json::json!({"minecraft":"1.20.1","fabric":"0.15.0","fabric-loader":"0.16.0"}),
+            serde_json::json!({"minecraft":"1.20.1","forge":{}}),
+        ] {
+            let manifest: MrpackManifest = serde_json::from_value(serde_json::json!({"game":"minecraft","dependencies":dependencies})).unwrap();
+            assert!(mrpack_target(&manifest).is_err());
+        }
+        let manifest: CfManifest = serde_json::from_value(serde_json::json!({"minecraft":{"version":"1.12.2","modLoaders":[{"id":"forge-14.23.5.2860"}]}})).unwrap();
+        assert_eq!(curseforge_target(&manifest,"26.3","fabric").unwrap(),("1.12.2".into(),"forge".into(),"14.23.5.2860".into()));
+        let vanilla: CfManifest = serde_json::from_value(serde_json::json!({})).unwrap();
+        assert_eq!(curseforge_target(&vanilla,"26.3","").unwrap().1,"vanilla");
+        assert!(curseforge_target(&vanilla,"","").is_err());
+        let ambiguous: CfManifest = serde_json::from_value(serde_json::json!({"minecraft":{"version":"1.20.1","modLoaders":[{"id":"forge-47.2.0"},{"id":"fabric-0.16.0"}]}})).unwrap();
+        assert!(curseforge_target(&ambiguous,"","").is_err());
     }
 }
 

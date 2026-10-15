@@ -5,7 +5,7 @@ const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
 
 (async () => {
     const browser = await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE});
-    const output = 'docs/validation/launcher-refinement';
+    const output = process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/launcher-refinement';
     fs.mkdirSync(output,{recursive:true});
     try {
         const page = await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'});
@@ -21,7 +21,7 @@ const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
             const original=window.electronAPI.invoke;
             const invoke=async(command,args={})=>{
                 window.refinementCalls.push({command,args});
-                if(command==='plugin:app|version')return '3.9.5';
+                if(command==='plugin:app|version')return '4.0.0';
                 if(command==='app_update_environment')return {mode:'windows',revision:window.installedRevision};
                 if(command==='modpack_check_update'&&args.profileId==='demo-vp')return {hasUpdate:true,currentVersion:'1',latestVersion:'2',versionId:'latest-pack',source:'modrinth',projectId:'pack',changelog:''};
                 if(command==='storage_full_report')return {totalBytes:1048576+window.logs+window.cache,categories:[{category:'instances',bytes:1048576,path:'test'}],instances:[],logsBytes:window.logs,cacheBytes:window.cache,warnings:[]};
@@ -35,7 +35,7 @@ const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
         });
         await page.route('https://github.com/predabr/luxmc/releases/latest/download/latest.json',async route=>{
             const revision=await page.evaluate(()=>window.remoteRevision);
-            await route.fulfill({json:{version:'3.9.5',displayVersion:'3.9.5',revision,notes:'# Luxmc 3.9.5\n\n## Ajustes\n- Armazenamento e interface.',platforms:{'windows-x86_64':{url:'https://github.com/predabr/luxmc/releases/download/v3.9.5-build.38553346641.2/Lux.MC.Launcher.exe',sha256:'a'.repeat(64),size:123}}}});
+            await route.fulfill({json:{version:'4.0.0',displayVersion:'4.0.0',revision,notes:'# Luxmc 4.0.0\n\n## Ajustes\n- Armazenamento e interface.',platforms:{'windows-x86_64':{url:'https://github.com/predabr/luxmc/releases/download/v4.0.0-build.38553346641.2/Lux.MC.Launcher.exe',sha256:'a'.repeat(64),size:123}}}});
         });
         await page.goto('http://127.0.0.1:1420/settings');
         await page.getByRole('tab',{name:'Armazenamento',exact:true}).click();
@@ -90,7 +90,7 @@ const {setupLauncherDemo} = require('../scripts/launcher-video-fixture.cjs');
         await page.close();
         const logo=await browser.newPage({viewport:{width:1120,height:720}});
         await logo.goto(`file://${process.cwd().replaceAll('\\','/')}/docs/design/logo-proposals/index.html`);
-        await logo.screenshot({path:'docs/design/logo-proposals/preview.png',fullPage:true});
+        await logo.screenshot({path:process.env.LUXMC_ARTIFACT_DIR ? `${output}/logo-proposals.png` : 'docs/design/logo-proposals/preview.png',fullPage:true});
         await logo.close();
         console.log('PASS storage cleanup responsiveness, forced recount, animation activation, same-version build update without repeat and wallpaper panels');
     } finally {await browser.close();}

@@ -14,9 +14,9 @@ pub struct ChangelogEntry {
 #[tauri::command]
 pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
     tokio::task::spawn_blocking(move || -> AppResult<Vec<ChangelogEntry>> {
-        Ok(vec![
+        let mut entries = vec![
             ChangelogEntry {
-                version: env!("CARGO_PKG_VERSION").into(),
+                version: "3.0.0".into(),
                 date: "2026-10-05".into(),
                 title: "Luxmc 3.0".into(),
                 highlights: vec![
@@ -160,8 +160,56 @@ pub async fn changelog_get() -> AppResult<Vec<ChangelogEntry>> {
     				"Remoção completa de código legado de servidores para máxima otimização e estabilidade de memória".into(),
     			],
     		},
-    	])
+        ];
+        for (version, notes) in [
+            ("4.0.0", include_str!("../../../docs/releases/v4.0.0.md")),
+            ("3.9.5", include_str!("../../../docs/releases/v3.9.5.md")),
+            ("3.9.2", include_str!("../../../docs/releases/v3.9.2.md")),
+            ("3.9.1", include_str!("../../../docs/releases/v3.9.1.md")),
+            ("3.9.0", include_str!("../../../docs/releases/v3.9.0.md")),
+            ("3.8.0", include_str!("../../../docs/releases/v3.8.0.md")),
+            ("3.7.0", include_str!("../../../docs/releases/v3.7.0.md")),
+            ("3.6.1-revision.4", include_str!("../../../docs/releases/v3.6.1-revision.4.md")),
+            ("3.6.1-revision.3", include_str!("../../../docs/releases/v3.6.1-revision.3.md")),
+            ("3.6.1-revision.2", include_str!("../../../docs/releases/v3.6.1-revision.2.md")),
+            ("3.6.1-revision.1", include_str!("../../../docs/releases/v3.6.1-revision.1.md")),
+            ("3.6.0", include_str!("../../../docs/releases/v3.6.0.md")),
+            ("3.5.1-revision.2", include_str!("../../../docs/releases/v3.5.1-revision.2.md")),
+            ("3.5.0", include_str!("../../../docs/releases/v3.5.0.md")),
+            ("3.2.0", include_str!("../../../docs/releases/v3.2.0.md")),
+            ("3.1.0", include_str!("../../../docs/releases/v3.1.0.md")),
+            ("3.0.2", include_str!("../../../docs/releases/v3.0.2.md")),
+            ("3.0.1", include_str!("../../../docs/releases/v3.0.1.md")),
+        ].into_iter().rev() {
+            entries.insert(0, release_notes(version, notes));
+        }
+        Ok(entries)
     })
     .await
     .map_err(|error| crate::error::AppError::Internal(error.to_string()))?
+}
+
+fn release_notes(version: &str, notes: &str) -> ChangelogEntry {
+    let mut lines = notes.lines().map(str::trim).filter(|line| !line.is_empty());
+    let title = lines.next().unwrap_or(version).trim_start_matches('#').trim().to_owned();
+    ChangelogEntry {
+        version: version.into(),
+        date: String::new(),
+        title,
+        highlights: lines.map(|line| line.strip_prefix("- ").unwrap_or(line).to_owned()).collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[tokio::test]
+    async fn history_keeps_previous_releases_in_addition_to_current_notes() {
+        let entries = super::changelog_get().await.unwrap();
+        assert_eq!(entries.first().unwrap().version, env!("CARGO_PKG_VERSION"));
+        for version in ["3.9.5", "3.9.2", "3.8.0", "3.0.0", "1.5.4-beta", "0.2.0"] {
+            assert!(entries.iter().any(|entry| entry.version == version && !entry.highlights.is_empty()));
+        }
+        let unique: std::collections::HashSet<_> = entries.iter().map(|entry| &entry.version).collect();
+        assert_eq!(unique.len(), entries.len());
+    }
 }

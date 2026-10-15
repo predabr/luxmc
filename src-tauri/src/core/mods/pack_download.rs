@@ -64,13 +64,26 @@ pub fn relative_path(value: &str) -> AppResult<PathBuf> {
     Ok(PathBuf::from(normalized))
 }
 
+pub(crate) fn metadata_is_link(metadata: &std::fs::Metadata) -> bool {
+    #[cfg(windows)]
+    { use std::os::windows::fs::MetadataExt; metadata.file_attributes() & 0x400 != 0 }
+    #[cfg(not(windows))]
+    { metadata.file_type().is_symlink() }
+}
+
 pub fn destination(root: &Path, value: &str) -> AppResult<PathBuf> {
     let relative = relative_path(value)?;
+    match std::fs::symlink_metadata(root) {
+        Ok(metadata) if metadata_is_link(&metadata) => return Err(AppError::InvalidInput("Linked pack root is not supported".into())),
+        Ok(_) => {},
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+        Err(error) => return Err(error.into()),
+    }
     let mut path = root.to_path_buf();
     for component in relative.components() {
         path.push(component);
         match std::fs::symlink_metadata(&path) {
-            Ok(meta) if meta.file_type().is_symlink() => {
+            Ok(meta) if metadata_is_link(&meta) => {
                 return Err(AppError::InvalidInput(format!("Symlink in pack path: {value}")));
             }
             Ok(_) => {}
@@ -486,6 +499,21 @@ mod tests {
         }
         assert_eq!(relative_path("mods\\valid.jar").unwrap(), PathBuf::from("mods/valid.jar"));
         assert!(relative_path("mods/library..jar").is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_linked_root_and_child_without_writing_outside_pack() {
+        let root = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let linked_root = root.path().join("linked");
+        std::os::unix::fs::symlink(outside.path(),&linked_root).unwrap();
+        assert!(destination(&linked_root,"mods/example.jar").is_err());
+        let pack = root.path().join("pack");
+        std::fs::create_dir_all(&pack).unwrap();
+        std::os::unix::fs::symlink(outside.path(),pack.join("mods")).unwrap();
+        assert!(destination(&pack,"mods/example.jar").is_err());
+        assert_eq!(std::fs::read_dir(outside.path()).unwrap().count(),0);
     }
 
     #[test]
