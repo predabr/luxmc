@@ -1,0 +1,34 @@
+{
+  "version": "4.0.0",
+  "buildId": "20261014.1",
+  "revision": 20261014001,
+  "status": "local_candidate_pending_runtime_and_antivirus_validation",
+  "published": false,
+  "installed": false,
+  "cargoCheck": "passed",
+  "selectedNativeTestsPassed": 48,
+  "components": [
+    {
+      "file": "Lux MC Launcher.exe",
+      "productVersion": "4.0.0",
+      "bytes": 21552122,
+      "sha256": "e616c5108709b8428a5b203116eba7f24ac3d94b2d6f839c80bed30a49203e48",
+      "authenticode": "NotSigned"
+    },
+    {
+      "file": "luxmc.exe",
+      "productVersion": "4.0.0",
+      "bytes": 44249088,
+      "sha256": "95e914bc10ec52d01b3730ac912a98c7eed76aafd2eccc832beffbb264d8de3c",
+      "authenticode": "NotSigned"
+    }
+  ],
+  "defender": {
+    "scanPerformed": false,
+    "reason": "AMServiceEnabled=false and AntivirusEnabled=false; audit-windows-release.ps1 stopped before scanning"
+  },
+  "windowsTrustConfirmed": false,
+  "allModpackLaunchesConfirmed": false,
+  "installerFiles": "release-windows/4.0.0-build.20261014.1/Lux MC Launcher.exe",
+  "includesLuxRepair": false
+}

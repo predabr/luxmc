@@ -65,3 +65,29 @@ O usuário pediu: parar o GitHub, revisar tudo principalmente modpacks, e prepar
 - A atualização agora reserva import_job durante TODO o fluxo, inclusive download, para impedir concorrência com outra instalação e não resetar cancelamento na passagem para o importador. Finalização libera a reserva também após erro; teste nativo acrescentado, ainda sem executar devido ao bloqueio 4551.
 - tests/installers.test.py: cenários Linux não executaram neste Windows por WinError 1314 em symlinks de fixtures e encoding padrão cp1252. Teste isolado de anúncios do website passou usando Python -X utf8. Não mudar a segurança do sistema nem declarar a suíte Linux aprovada.
 - Próximo passo obrigatório: validar a fonte atual da 4.0 nativamente em ambiente autorizado antes de gerar/distribuir instalador. GitHub continua parado. Não usar as CI antigas como aprovação das mudanças novas; não publicar o instalador 3.9.5 com rótulo 4.0.
+
+## Nova tentativa após alteração informada pelo usuário — 14/10/2026
+- cargo check --lib --locked continuou bloqueado por Controle de Aplicativos (4551), DLL serde_with_macros no build script.
+- Consulta somente de leitura: Get-MpComputerStatus retornou SmartAppControlState=On, AntivirusEnabled=True e RealTimeProtectionEnabled=False. Eventos locais CodeIntegrity 3077/3033 confirmaram bloqueio da DLL ao ser carregada pelo rustc, política 0283ac0f-fff1-49ae-ada1-8a933130cad6.
+- Nenhuma proteção foi alterada pelo agente. GitHub/publicação continuam suspensos; nenhum instalador 4.0 gerado ou instalado.
+
+
+## Tentativa seguinte liberou a compilação — 14/10/2026
+
+- A pedido do usuário, cargo check --lib --locked foi repetido e PASSOU. Nenhuma configuração de proteção foi alterada pelo agente.
+- O executável dos testes Rust foi compilado e executado. 48 testes selecionados passaram: modpack_update 5, pack targets 1, changelog 1, metadata audit 12, pack_download 11, storage 6, Shield 10 e fixtures reais explícitas 2.
+- Única falha inicial: o teste de histórico assumia versões únicas, mas o histórico anterior já tinha duas 0.2.0 com datas diferentes. Ajustado o teste para unicidade de versão/data, conforme a chave do frontend, preservando as duas entradas; passou na repetição. Nenhum dado histórico foi removido.
+- Os hashes dos JARs reais do Terrorcraft coincidem com real-archives.json. Os dois testes ignorados por padrão foram executados explicitamente contra requests/refinement-real-mods, sem executar os JARs. Resultado Shield: 2 arquivos, zero avisos; primeira leitura 349 ms e com cache 98 ms (apenas esse fixture).
+- Logs das suítes em Local/Luxmc-build/requests/review-4.0-native/results.log; esse arquivo mantém também a falha inicial já corrigida. Windows cargo check foi repetido após a correção e passou.
+- pnpm tauri build --bundles nsis em andamento na sessão 21596. CARGO_TARGET_DIR=Local/Luxmc-build/target; LUXMC_BUILD_ID=20261014.1. Build local de teste, não um release publicado. Frontend de produção recompilado com sucesso.
+- GitHub permanece parado. Não instalar automaticamente, não atualizar website/releases nem publicar esse candidato antes das validações nativas de abertura e instalador.
+
+## Instalador local 4.0.0 concluído — 14/10/2026
+
+- Sessão 21596 concluiu com sucesso: release otimizado (9m55s) e NSIS. ProductVersion/FileVersion do executável e instalador: 4.0.0.
+- Cópia isolada em release-windows/4.0.0-build.20261014.1/Lux MC Launcher.exe. Não sobrescreve o instalador 3.9.5 de release-windows nem website/releases; não foi instalado nem iniciado.
+- Build local 20261014.1; revisão 20261014001. SHA-256 instalador e616c5108709b8428a5b203116eba7f24ac3d94b2d6f839c80bed30a49203e48; binário 95e914bc10ec52d01b3730ac912a98c7eed76aafd2eccc832beffbb264d8de3c.
+- NSIS gerado conferido: somente principal e bootstrapper/runtime WebView nas diretivas File. Sem inclusão do antigo luxmc-repair.exe que ainda existe como artefato histórico no diretório de build; esse arquivo histórico não foi alterado.
+- scripts/audit-windows-release.ps1 tentou validar e parou ANTES de varrer: Defender indisponível. Get-MpComputerStatus confirmou AMServiceEnabled=false, AntivirusEnabled=false, RealTimeProtectionEnabled=false. Nenhuma alteração de proteção foi feita pelo agente.
+- Get-AuthenticodeSignature: NotSigned para instalador e executável. Não há confirmação de confiança do Windows ou aprovação de antivírus. Relatório de metadados/pendências salvo em windows-4.0.0-local-audit.json.
+- GitHub segue parado. Nenhuma publicação, deploy, instalação ou abertura de jogos. Próximas validações: varredura em ambiente com antivírus ativo, instalação/atualização/desinstalação e início real dos jogos; o candidato local não é uma release pronta para distribuição.

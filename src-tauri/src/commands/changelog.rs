@@ -209,7 +209,8 @@ mod tests {
         for version in ["3.9.5", "3.9.2", "3.8.0", "3.0.0", "1.5.4-beta", "0.2.0"] {
             assert!(entries.iter().any(|entry| entry.version == version && !entry.highlights.is_empty()));
         }
-        let unique: std::collections::HashSet<_> = entries.iter().map(|entry| &entry.version).collect();
+        let unique: std::collections::HashSet<_> = entries.iter().map(|entry| (&entry.version, &entry.date)).collect();
         assert_eq!(unique.len(), entries.len());
+        assert_eq!(entries.iter().filter(|entry| entry.version == "0.2.0").count(), 2);
     }
 }
