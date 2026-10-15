@@ -1,4 +1,10 @@
 <script lang="ts">
+import { prefetchInstanceContent } from '$lib/utils/contentPrefetch';
+    $effect(() => {
+        const id = profiles.activeId;
+        const ready = !appState.isLaunching && !appState.isGameRunning && settings.value.preloadContentIcons !== false;
+        if (id && ready) { const timer = setTimeout(() => void prefetchInstanceContent(id), 1200); return () => clearTimeout(timer); }
+    });
 import { interfaceOpacityRatio } from '$lib/utils/interfaceOpacity';
 import LaunchSessionStatus from "$lib/components/instances/LaunchSessionStatus.svelte";
 import { createLaunchLogBuffer } from "$lib/utils/launchLogBuffer";

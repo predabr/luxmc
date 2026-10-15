@@ -659,11 +659,11 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		<div class="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgb(var(--brand-500)/0.18),transparent)] pointer-events-none"></div>
 		<div class="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[radial-gradient(ellipse_at_center,rgb(var(--brand-500)/0.12),transparent_70%)] rounded-full pointer-events-none"></div>
 
-        <aside class="relative z-10 hidden w-full max-w-sm flex-col gap-7 lg:flex">
+        <section class="login-story relative z-10 hidden min-w-0 w-full max-w-sm flex-col gap-7 lg:flex" aria-label="Luxmc">
             <img src="/logo.png" alt="Luxmc" class="h-28 w-28 object-contain" />
             <div><p class="mb-4 font-sans text-xs font-semibold uppercase tracking-[.18em] text-brand-400">Luxmc / Launcher</p><h2 class="font-sans text-5xl font-semibold leading-[1.08] tracking-tight text-fg">{uiText('loginDesign.headline')}</h2><p class="mt-6 font-sans text-sm leading-relaxed text-fg-muted">{uiText('loginDesign.story')}</p></div>
             <div class="flex items-center gap-3 border-t border-border pt-6 text-xs text-fg-muted"><Layers class="h-4 w-4 text-brand-400" />Vanilla · Fabric · Quilt · Forge · NeoForge</div>
-        </aside>
+        </section>
 		<div
 			class="auth-surface w-full max-w-[520px] bg-bg-elevated border border-border rounded-3xl p-6 sm:p-8 relative z-10 space-y-6 shadow-elevated"
 			in:fly={{ easing: backOut, y: 20, duration: 260 }}
@@ -819,13 +819,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			{/if}
 
 			<div class="pt-2 border-t border-fg/5 flex flex-col items-center gap-2">
-				<button
-					type="button"
-					onclick={() => openUrl("https://luxmc-r92.pages.dev/#skin-studio")}
-					class={launcherButton({ variant: "ghost", size: "sm", class: "flex items-center gap-1" })}
-				>
-					{uiText("ui.24f0ab7c60925e32")} <ExternalLink class="w-3 h-3" />
-				</button>
+                <p class="text-center text-xs leading-5 text-fg-muted">{uiText('loginDesign.customizerHint')}</p>
 
 				<div class="flex items-center justify-between w-full pt-1">
 					<button

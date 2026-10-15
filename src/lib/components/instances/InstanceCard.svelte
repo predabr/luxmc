@@ -217,7 +217,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
                 <span class="flex items-center gap-1.5 font-medium"><span class="h-1.5 w-1.5 rounded-full {isRunningThis ? 'bg-emerald-400 animate-pulse' : 'bg-brand-400'}"></span>{uiText("ui.3e38d7ca2ab89f80")} {lastPlayed}</span>
                 {#if profile.diskUsage}<span class="font-mono">{formatBytes(profile.diskUsage)}</span>{/if}
             </div>
-            <div class="relative z-10 mt-4 flex items-center justify-between gap-2">{@render controls()}</div>
+            <div class="instance-card-controls relative z-10 mt-4 flex flex-wrap items-center justify-between gap-2">{@render controls()}</div>
         {/if}
     </div>
     {#if viewMode === 'list'}
@@ -229,7 +229,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
             <span class="mt-1 text-[10px] text-fg-subtle font-medium">{profile.modCount || 0} {uiText("ui.3ee1f063d3fea8fb")} {lastPlayed}</span>
         </div>
         <div class="hidden sm:block"><LoaderBadge loader={profile.loader} /></div>
-        <div class="relative z-10 flex items-center gap-2">{@render controls()}</div>
+        <div class="instance-card-controls relative z-10 flex flex-wrap items-center gap-2">{@render controls()}</div>
     {/if}
 </div>
 
@@ -247,7 +247,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     {:else}<LuxTooltip text={profile.favorite ? uiText("ui.9033705b99bcc5eb") : uiText("ui.5eb5aff51b27df3d")} side="left"><button type="button" class={launcherButton({ variant: "secondary", size: "icon", class: "relative z-10 grid place-items-center" })} aria-label={`Favoritar ${profile.name}`} aria-pressed={!!profile.favorite} onclick={handleFavorite}><Star class="h-4 w-4 {profile.favorite ? 'fill-warning text-warning' : ''}" /></button></LuxTooltip>{/if}
 {/snippet}
 {#snippet controls()}
-    {#if modpackUpdates.forProfile(profile.id)?.info?.hasUpdate}<button type="button" class={button({variant:'secondary',size:'sm'})} onclick={() => onSelect?.(profile.id)}><Download class="h-4 w-4" />{uiText('refinement.packUpdate')}</button>{/if}
+    {#if modpackUpdates.forProfile(profile.id)?.info?.hasUpdate}<button type="button" class={button({variant:'secondary',size:'sm',class:viewMode === 'grid' ? 'w-full justify-start' : ''})} onclick={() => onSelect?.(profile.id)}><Download class="h-4 w-4" /><span class="truncate">{uiText('refinement.packUpdate')}</span></button>{/if}
     {#if onDelete}<LuxTooltip text={uiText('refinement.removeInstance',{name:profile.name})}><button type="button" class={button({variant:'ghostDanger',size:'icon'})} aria-label={uiText('refinement.removeInstance',{name:profile.name})} disabled={isRunningThis || isLaunchingThis} onclick={() => onDelete?.(profile)}><Trash2 class="h-4 w-4" /></button></LuxTooltip>{/if}
     <div class="flex items-center gap-1"><LuxTooltip text={uiText("ui.6c5b8d86c6726795")}><button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`Configurar ${profile.name}`} onclick={() => onEdit?.(profile)}><Pencil class="h-4 w-4" /></button></LuxTooltip><InstanceActionsMenu bind:isOpen={menuOpen} {actions} /></div>
     {#if isRunningThis}

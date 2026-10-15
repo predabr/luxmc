@@ -11,6 +11,7 @@ import { onRequest as social } from "../website/functions/api/social/[action].js
 import { onRequest as release } from "../website/functions/api/latest-release.js";
 import { onRequest as download } from "../website/functions/download/[platform].js";
 import { onRequest as session } from "../website/functions/api/session.js";
+import { onRequest as microsoft } from "../website/functions/api/microsoft/[action].js";
 
 const root = resolve("website"),
   port = Number(process.env.LUXMC_SITE_PORT || 8790);
@@ -71,9 +72,9 @@ const server = createServer(async (incoming, outgoing) => {
     let handler,
       params = {};
     if (url.pathname === '/api/session') {handler=session;params={};}
-    const api = url.pathname.match(/^\/api\/(account|social|commerce)\/([a-z_-]+)$/);
+    const api = url.pathname.match(/^\/api\/(account|social|commerce|microsoft)\/([a-z_-]+)$/);
     if (api) {
-      handler = api[1] === "account" ? account : api[1] === "commerce" ? commerce : social;
+      handler = api[1] === "account" ? account : api[1] === "commerce" ? commerce : api[1] === 'microsoft' ? microsoft : social;
       params = { action: api[2] };
     }
     const receipt = url.pathname.match(/^\/api\/receipts\/([a-f0-9-]{36})$/);
@@ -102,7 +103,7 @@ const server = createServer(async (incoming, outgoing) => {
         params,
         waitUntil: (promise) => void Promise.resolve(promise).catch(() => {}),
       });
-      outgoing.writeHead(response.status, {...securityHeaders,...Object.fromEntries(response.headers)});
+      outgoing.writeHead(response.status, {...securityHeaders,...Object.fromEntries(response.headers), ...(response.headers.getSetCookie().length ? {'Set-Cookie':response.headers.getSetCookie()} : {})});
       outgoing.end(Buffer.from(await response.arrayBuffer()));
       return;
     }

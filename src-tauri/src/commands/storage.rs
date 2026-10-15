@@ -21,7 +21,7 @@ pub struct StorageFullReport {
 }
 
 #[derive(Default)]
-struct DiskScan { seen: HashSet<PathBuf>, files: HashSet<(u64, u64)>, logical: std::collections::HashMap<PathBuf,u64>, warnings: Vec<String> }
+struct DiskScan { seen: HashSet<PathBuf>, files: HashSet<(u64, u64)>, logical: std::collections::HashMap<PathBuf,u64>, entries: std::collections::HashMap<PathBuf,(u64,Option<(u64,u64)>)>, warnings: Vec<String> }
 
 #[cfg(unix)]
 fn file_identity(_path: &Path, metadata: &std::fs::Metadata) -> Option<(u64, u64)> {
@@ -31,6 +31,11 @@ fn file_identity(_path: &Path, metadata: &std::fs::Metadata) -> Option<(u64, u64
 
 #[cfg(windows)]
 fn file_identity(path: &Path, _metadata: &std::fs::Metadata) -> Option<(u64, u64)> {
+    windows_handle_identity(&std::fs::File::open(path).ok()?)
+}
+
+#[cfg(windows)]
+fn windows_handle_identity(file: &std::fs::File) -> Option<(u64, u64)> {
     use std::os::windows::io::AsRawHandle;
     #[repr(C)]
     #[derive(Default)]
@@ -40,11 +45,46 @@ fn file_identity(path: &Path, _metadata: &std::fs::Metadata) -> Option<(u64, u64
     }
     #[link(name = "kernel32")]
     unsafe extern "system" { fn GetFileInformationByHandle(handle: *mut std::ffi::c_void, info: *mut FileInfo) -> i32; }
-    let file = std::fs::File::open(path).ok()?;
     let mut info = FileInfo::default();
     if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &mut info) } == 0 { return None; }
-    Some((u64::from(info.volume), (u64::from(info.index_high) << 32) | u64::from(info.index_low)))
+    let index = (u64::from(info.index_high) << 32) | u64::from(info.index_low);
+    (index != 0).then_some((u64::from(info.volume), index))
 }
+
+#[cfg(windows)]
+fn directory_file_ids(path: &Path) -> Option<std::collections::HashMap<std::ffi::OsString, (u64, u64)>> {
+    use std::os::windows::{fs::OpenOptionsExt, ffi::OsStringExt, io::AsRawHandle};
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetFileInformationByHandleEx(handle: *mut std::ffi::c_void, class: i32, buffer: *mut std::ffi::c_void, size: u32) -> i32;
+    }
+    let directory = std::fs::OpenOptions::new().read(true).share_mode(7).custom_flags(0x02000000).open(path).ok()?;
+    let (volume, _) = windows_handle_identity(&directory)?;
+    let mut buffer = vec![0u64; 8192];
+    let mut ids = std::collections::HashMap::new();
+    loop {
+        if unsafe { GetFileInformationByHandleEx(directory.as_raw_handle(), 10, buffer.as_mut_ptr().cast(), (buffer.len() * 8) as u32) } == 0 {
+            return (std::io::Error::last_os_error().raw_os_error() == Some(18)).then_some(ids);
+        }
+        let bytes = unsafe { std::slice::from_raw_parts(buffer.as_ptr().cast::<u8>(), buffer.len() * 8) };
+        let mut offset = 0;
+        loop {
+            if offset + 104 > bytes.len() { return None; }
+            let next = u32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?) as usize;
+            let length = u32::from_le_bytes(bytes[offset + 60..offset + 64].try_into().ok()?) as usize;
+            let id = u64::from_le_bytes(bytes[offset + 96..offset + 104].try_into().ok()?);
+            if length % 2 != 0 || offset + 104 + length > bytes.len() { return None; }
+            let name: Vec<_> = bytes[offset + 104..offset + 104 + length].chunks_exact(2).map(|value| u16::from_le_bytes([value[0], value[1]])).collect();
+            if id != 0 { ids.insert(std::ffi::OsString::from_wide(&name), (volume, id)); }
+            if next == 0 { break; }
+            if next < 104 || next % 8 != 0 { return None; }
+            offset += next;
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn directory_file_ids(_path: &Path) -> Option<std::collections::HashMap<std::ffi::OsString, (u64, u64)>> { None }
 
 #[cfg(not(any(unix, windows)))]
 fn file_identity(_path: &Path, _metadata: &std::fs::Metadata) -> Option<(u64, u64)> { None }
@@ -65,19 +105,31 @@ impl DiskScan {
     fn logical_size(&self, path: &Path) -> u64 {
         path.canonicalize().ok().and_then(|path| self.logical.get(&path).copied()).unwrap_or(0)
     }
+    fn instance_size(&self, path: &Path) -> u64 {
+        let Ok(root) = path.canonicalize() else { return 0; };
+        let mut seen = HashSet::new();
+        self.entries.iter().filter(|(path,_)| path.starts_with(&root)).filter_map(|(_, (size, identity))| {
+            if identity.is_none_or(|identity| seen.insert(identity)) { Some(*size) } else { None }
+        }).sum()
+    }
     fn warn(&mut self, path: &Path) {
         if self.warnings.len() < 64 { self.warnings.push(format!("Leitura parcial de {}",path.display())); }
     }
     fn visit(&mut self, path: &Path, depth: usize) -> (u64,u64) {
+        self.visit_entry(path, depth, None, None)
+    }
+    fn visit_entry(&mut self, path: &Path, depth: usize, known: Option<std::fs::Metadata>, identity: Option<(u64,u64)>) -> (u64,u64) {
         if depth > 256 { self.warn(path); return (0,0); }
-        let metadata = match std::fs::symlink_metadata(path) {
+        let metadata = match known.map(Ok).unwrap_or_else(|| std::fs::symlink_metadata(path)) {
             Ok(value) => value,
             Err(error) if error.kind()==std::io::ErrorKind::NotFound => return (0,0),
             Err(_) => { self.warn(path); return (0,0); }
         };
         if is_link(&metadata) { return (0,0); }
         if metadata.is_file() {
-            let fresh = file_identity(path,&metadata).map(|identity| self.files.insert(identity))
+            let identity = identity.or_else(|| file_identity(path,&metadata));
+            self.entries.insert(path.to_path_buf(),(metadata.len(),identity));
+            let fresh = identity.map(|identity| self.files.insert(identity))
                 .unwrap_or_else(|| self.seen.insert(path.to_path_buf()));
             return (metadata.len(),if fresh {metadata.len()} else {0});
         }
@@ -85,10 +137,11 @@ impl DiskScan {
         if !self.seen.insert(canonical.clone()) { return (self.logical.get(&canonical).copied().unwrap_or(0),0); }
         let mut logical=0u64;
         let mut physical=0u64;
+        let identities = directory_file_ids(path);
         match std::fs::read_dir(path) {
             Ok(entries) => for entry in entries {
                 match entry {
-                    Ok(entry) => { let (size,unique)=self.visit(&entry.path(),depth+1); logical=logical.saturating_add(size); physical=physical.saturating_add(unique); },
+                    Ok(entry) => { let identity = identities.as_ref().and_then(|ids| ids.get(&entry.file_name()).copied()); let (size,unique)=self.visit_entry(&canonical.join(entry.file_name()),depth+1,entry.metadata().ok(),identity); logical=logical.saturating_add(size); physical=physical.saturating_add(unique); },
                     Err(_) => self.warn(path)
                 }
             },
@@ -114,8 +167,9 @@ fn storage_dirs() -> AppResult<directories::ProjectDirs> {
 
 static REPORT: std::sync::LazyLock<tokio::sync::Mutex<Option<(std::time::Instant,StorageFullReport)>>> = std::sync::LazyLock::new(||tokio::sync::Mutex::new(None));
 static CLEANUP: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+pub(crate) async fn invalidate_report() { *REPORT.lock().await = None; }
 
-fn collect_report(base: &Path, config: &Path, cache: &Path, executable: Option<&Path>, profiles: Vec<crate::db::models::ProfileRow>, bedrock: Vec<InstanceStorageInfo>) -> StorageFullReport {
+fn collect_report(base: &Path, config: &Path, cache: &Path, local: Option<&Path>, executable: Option<&Path>, profiles: Vec<crate::db::models::ProfileRow>, bedrock: Vec<InstanceStorageInfo>) -> StorageFullReport {
     let mut scan = DiskScan::default();
     let mut categories = Vec::new();
     let mut add = |scan: &mut DiskScan, category: &str, path: &Path| {
@@ -131,6 +185,7 @@ fn collect_report(base: &Path, config: &Path, cache: &Path, executable: Option<&
     }
     add(&mut scan,"configuration", config);
     add(&mut scan,"launcher_cache", cache);
+    if let Some(local) = local { add(&mut scan,"launcher_data", local); }
     if let Some(path) = executable {
         add(&mut scan,"application", path);
         if let Some(parent) = path.parent() {
@@ -144,12 +199,12 @@ fn collect_report(base: &Path, config: &Path, cache: &Path, executable: Option<&
         let path = if !profile.game_dir.is_empty() && configured.is_dir() { configured } else { base.join("instances").join(&profile.id).join(".minecraft") };
         add(&mut scan,"external_instances", &path);
         log_roots.extend([path.join("logs"),path.join("crash-reports")]);
-        instance_items.push(InstanceStorageInfo { id: profile.id, name: profile.name, mc_version: profile.mc_version, loader: profile.loader, icon: profile.icon, bytes: scan.logical_size(&path), path: path.to_string_lossy().into_owned() });
+        instance_items.push(InstanceStorageInfo { id: profile.id, name: profile.name, mc_version: profile.mc_version, loader: profile.loader, icon: profile.icon, bytes: scan.instance_size(&path), path: path.to_string_lossy().into_owned() });
     }
     for mut instance in bedrock {
         let path = PathBuf::from(&instance.path);
         add(&mut scan,"external_instances", &path);
-        instance.bytes = scan.logical_size(&path);
+        instance.bytes = scan.instance_size(&path);
         instance_items.push(instance);
     }
     instance_items.sort_by(|a,b| b.bytes.cmp(&a.bytes));
@@ -170,7 +225,7 @@ pub async fn storage_breakdown() -> AppResult<Vec<StorageBreakdown>> { Ok(storag
 #[tauri::command]
 pub async fn storage_full_report(refresh: Option<bool>) -> AppResult<StorageFullReport> {
     let mut saved = REPORT.lock().await;
-    if refresh!=Some(true) { if let Some((at,report))=saved.as_ref() { if at.elapsed().as_secs()<10 { return Ok(report.clone()); } } }
+    if refresh!=Some(true) { if let Some((at,report))=saved.as_ref() { if at.elapsed().as_secs()<120 { return Ok(report.clone()); } } }
     let report = compute_report().await?;
     *saved=Some((std::time::Instant::now(),report.clone()));
     Ok(report)
@@ -181,6 +236,7 @@ async fn compute_report() -> AppResult<StorageFullReport> {
     let base = dirs.data_dir().to_path_buf();
     let config = dirs.config_dir().to_path_buf();
     let cache = dirs.cache_dir().to_path_buf();
+    let local = dirs.data_local_dir().to_path_buf();
     let executable = std::env::current_exe().ok();
     let db = crate::db::shared_db().await?;
     let profiles = crate::db::schema::profiles::list(&db).await?;
@@ -193,7 +249,7 @@ async fn compute_report() -> AppResult<StorageFullReport> {
         })
     })).collect();
     tokio::task::spawn_blocking(move || {
-        let mut report = collect_report(&base, &config, &cache, executable.as_deref(), profiles, bedrock);
+        let mut report = collect_report(&base, &config, &cache, Some(&local), executable.as_deref(), profiles, bedrock);
         if let Some(warning) = bedrock_warning { report.warnings.push(warning); }
         report
     }).await.map_err(|error| AppError::Internal(error.to_string()))
@@ -297,8 +353,9 @@ mod tests {
         for (path, bytes) in [("assets/file", 8), ("java/runtime", 17), ("luxmc.db", 31), ("instances/inside/.minecraft/worlds/world", 42), ("instances/inside/.minecraft/logs/log", 4), ("cache/file", 5), ("downloads/file", 7), ("migration-staging/file", 9), ("logs/log", 3)] { file(&base, path, bytes); }
         file(&external, "worlds/world", 49); file(&external, "logs/log", 6); file(&cache, "file", 23); file(&root, "Luxmc.exe", 47); file(&root, "uninstall.exe", 11);
         let inside = base.join("instances/inside/.minecraft");
-        let report = collect_report(&base, &base, &cache, Some(&root.join("Luxmc.exe")), vec![profile("inside", &inside), profile("external", &external), profile("legacy-duplicate", &external)], vec![]);
-        assert_eq!(report.total_bytes, 262);
+        let local=root.join("local-data"); file(&local,"wallpapers/scene.mp4",37);
+        let report = collect_report(&base, &base, &cache, Some(&local), Some(&root.join("Luxmc.exe")), vec![profile("inside", &inside), profile("external", &external), profile("legacy-duplicate", &external)], vec![]);
+        assert_eq!(report.total_bytes, 299);
         assert_eq!(report.categories.iter().find(|category| category.category == "java").unwrap().bytes, 17);
         assert_eq!(report.categories.iter().find(|category| category.category == "application").unwrap().bytes, 58);
         assert_eq!(report.instances.iter().find(|item| item.id == "inside").unwrap().bytes, 46);
@@ -321,6 +378,11 @@ mod tests {
         assert_eq!(scan.size(&root.join("libraries")), 512);
         assert_eq!(scan.size(&root.join("instances")), 0);
         assert_eq!(instance_directory_bytes(&root.join("instances/one")).unwrap(), 512);
+        std::fs::create_dir_all(root.join("instances/one/.luxmc/mods")).unwrap();
+        std::fs::hard_link(root.join("libraries/shared.jar"),root.join("instances/one/.luxmc/mods/shared.jar")).unwrap();
+        let report = collect_report(&root,&root,&root.join("cache"),Some(&root),None,vec![profile("one",&root.join("instances/one"))],vec![]);
+        assert_eq!(report.total_bytes,512);
+        assert_eq!(report.instances[0].bytes,512);
         assert!(root.canonicalize().unwrap().starts_with(std::env::temp_dir().canonicalize().unwrap()));
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -364,12 +426,27 @@ mod tests {
         let data = root.join("launcher");
         let bedrock = root.join("bedrock");
         file(&bedrock, "packageData/games/com.mojang/minecraftWorlds/world/db/data", 789);
-        let report = collect_report(&data, &data, &root.join("cache"), None, vec![], vec![InstanceStorageInfo { id: "bedrock-link".into(), name: "My Bedrock".into(), mc_version: "1.20".into(), loader: "bedrock".into(), icon: "grass_block".into(), bytes: 0, path: bedrock.to_string_lossy().into_owned() }]);
+        let report = collect_report(&data, &data, &root.join("cache"), None, None, vec![], vec![InstanceStorageInfo { id: "bedrock-link".into(), name: "My Bedrock".into(), mc_version: "1.20".into(), loader: "bedrock".into(), icon: "grass_block".into(), bytes: 0, path: bedrock.to_string_lossy().into_owned() }]);
         assert_eq!(report.total_bytes, 789);
         assert_eq!(report.instances.len(), 1);
         assert_eq!(report.instances[0].loader, "bedrock");
         assert_eq!(report.instances[0].bytes, 789);
         assert!(root.canonicalize().unwrap().starts_with(std::env::temp_dir().canonicalize().unwrap()));
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    #[ignore]
+    fn measure_real_instance_read_only() {
+        let root = PathBuf::from(std::env::var("LUXMC_STORAGE_READONLY_ROOT").expect("Set a real instance directory to measure"));
+        assert!(root.is_absolute() && root.is_dir());
+        let now = std::time::Instant::now();
+        let mut scan = DiskScan::default();
+        let bytes = scan.size(&root);
+        let fast_ms = now.elapsed().as_millis();
+        let expected = std::env::var("LUXMC_STORAGE_EXPECTED_BYTES").expect("Set the size verified independently from the filesystem").parse::<u64>().unwrap();
+        assert_eq!(bytes,expected);
+        assert_eq!(bytes,scan.instance_size(&root));
+        assert!(scan.warnings.is_empty());
+        println!("{}",serde_json::json!({"bytes":bytes,"files":scan.entries.len(),"scanMs":fast_ms,"readOnly":true}));
     }
 }

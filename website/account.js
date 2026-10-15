@@ -27,7 +27,7 @@ async function api(action, body = {}, area = "account") {
       current = result.account;
       fillPreferences();
     }
-    const msg = response.status === 503 ? "O serviço de conta está temporariamente indisponível. Tente novamente em instantes." : result.error || `Erro no servidor (${response.status}). Tente novamente em instantes.`;
+    const msg = response.status === 503 && area !== "microsoft" ? "O serviço de conta está temporariamente indisponível. Tente novamente em instantes." : result.error || `Erro no servidor (${response.status}). Tente novamente em instantes.`;
     throw Object.assign(new Error(msg), { status: response.status, suggestions: result.suggestions || [] });
   }
   return result;
@@ -85,6 +85,8 @@ function showAccount(account, recoveryCode) {
   $("#authPanel").hidden = true;
   $("#dashboard").hidden = false;
   $("#accountNickname").textContent = account.username;
+  $("#passwordForm").hidden = account.provider === "microsoft";
+  $("#microsoftSecurity").hidden = account.provider !== "microsoft";
   $("#accountAvatar").src = "/assets/avatar-steve.png";
   window.dispatchEvent(new Event("luxmc-session-changed"));
   fillPreferences();
@@ -362,6 +364,28 @@ $("#friendSearch").addEventListener("submit", async (event) => {
     message(error.message, true);
   }
 });
+$("#microsoftLogin").addEventListener("click", async () => {
+  const button = $("#microsoftLogin"), error = $("#microsoftError");
+  button.disabled = true;
+  error.hidden = true;
+  try {
+    const result = await api("start", {}, "microsoft");
+    const url = new URL(result.url);
+    if (url.origin !== "https://login.microsoftonline.com" || url.pathname !== "/consumers/oauth2/v2.0/authorize") throw new Error("Não foi possível abrir o acesso da Microsoft.");
+    location.assign(url.href);
+  } catch (cause) {
+    error.textContent = cause.message;
+    error.hidden = false;
+    button.disabled = false;
+  }
+});
+const microsoftError = new URLSearchParams(location.search).get("microsoft_error");
+if (microsoftError) {
+  const messages = { cancelled: "O login Microsoft foi cancelado. Você pode tentar novamente.", expired: "O acesso expirou ou foi iniciado em outra aba. Clique em Entrar com Microsoft novamente.", minecraft: "Esta conta precisa ter um perfil do Minecraft Java para entrar no Luxmc.", conflict: "Esta conta Microsoft já está vinculada a outro perfil, ou o nickname pertence a outra conta. Entre na identidade original para continuar.", unavailable: "A Microsoft ou o serviço do Luxmc não respondeu. Tente novamente em instantes." };
+  $("#microsoftError").textContent = messages[microsoftError] || messages.unavailable;
+  $("#microsoftError").hidden = false;
+  history.replaceState(null, "", "/conta");
+}
 setMode(new URLSearchParams(location.search).get("mode") || "login");
 api("me").then((result) => showAccount(result.account)).catch(() => {
 });

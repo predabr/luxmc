@@ -11,6 +11,9 @@ export interface SiteEnvironment {
     SOCIAL_STREAM_URL?: string;
     WINDOWS_LOCAL_VERSION?: string;
     OWNER_SOCIAL_ID?: string;
+    MICROSOFT_CLIENT_ID?: string;
+    MICROSOFT_CLIENT_SECRET?: string;
+    MICROSOFT_REDIRECT_URI?: string;
 }
 export interface SiteContext {
     request: Request;

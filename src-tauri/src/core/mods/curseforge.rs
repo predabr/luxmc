@@ -297,6 +297,7 @@ pub async fn search_mods(
         .cloned()
         .unwrap_or_default();
 
+
     let results = data
         .iter()
         .map(|m| {
@@ -415,6 +416,15 @@ pub async fn get_mod_versions(
     Ok(versions.into_iter().filter(|version| !version.files.is_empty() && !version.files[0].url.is_empty()).collect())
 }
 
+fn ordered_client_files(mut files: Vec<serde_json::Value>) -> Vec<serde_json::Value> {
+    files.retain(|file| file["isServerPack"] != true && file["isAvailable"] != false);
+    files.sort_by(|a,b| {
+        let published=|file:&serde_json::Value| file["fileDate"].as_str().and_then(|date|chrono::DateTime::parse_from_rfc3339(date).ok()).map(|date|date.timestamp_millis()).unwrap_or(0);
+        published(b).cmp(&published(a)).then_with(||b["id"].as_u64().cmp(&a["id"].as_u64()))
+    });
+    files
+}
+
 pub async fn get_mod_versions_page(
     http: &reqwest::Client,
     project_id: &str,
@@ -487,7 +497,8 @@ pub async fn get_mod_versions_page(
         .cloned()
         .unwrap_or_default();
 
-    let versions: Vec<ModVersion> = data
+    let files = ordered_client_files(data.clone());
+    let versions: Vec<ModVersion> = files
         .iter()
         .filter(|file| mc_version.is_empty() || mc_version == "Qualquer Versão" || file.get("gameVersions").and_then(|value| value.as_array()).is_some_and(|versions| versions.iter().any(|version| version.as_str() == Some(mc_version))))
         .map(|f| {
@@ -1117,6 +1128,17 @@ pub async fn get_file_single(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn newest_installable_release_excludes_server_and_unavailable_archives() {
+        let files=ordered_client_files(vec![
+            serde_json::json!({"id":1,"fileDate":"2026-10-10T12:00:00Z"}),
+            serde_json::json!({"id":4,"fileDate":"2026-10-15T12:00:00Z","isAvailable":false}),
+            serde_json::json!({"id":3,"fileDate":"2026-10-14T12:00:00Z","isServerPack":true}),
+            serde_json::json!({"id":2,"fileDate":"2026-10-11T10:00:00-03:00"}),
+        ]);
+        assert_eq!(files.iter().map(|file|file["id"].as_u64().unwrap()).collect::<Vec<_>>(),vec![2,1]);
+    }
 
     #[tokio::test]
     async fn test_curseforge_api_search_and_file_details() {

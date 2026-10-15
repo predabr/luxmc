@@ -66,7 +66,8 @@ const output = process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/modpack-follow
         assert.equal(await page.evaluate(() => window.followupCalls.filter(call => call.command === 'modpack_update_atomic').length), 1);
         await page.getByRole('link', { name: 'Personalização', exact: true }).click();
         await page.locator('.skin-preview-stage').waitFor();
-        assert.deepEqual(await page.locator('.skin-preview-stage').evaluate(stage => ({ background: getComputedStyle(stage).backgroundImage, floor: getComputedStyle(stage, '::after').content })), { background: 'none', floor: 'none' });
+        assert.equal(await page.locator('.skin-preview-stage').evaluate(stage => getComputedStyle(stage).backgroundImage.includes('radial-gradient')), true);
+        assert.equal(await page.locator('.skin-preview-stage').evaluate(stage => getComputedStyle(stage, '::after').backgroundColor), 'rgba(0, 0, 0, 0.12)');
         await page.screenshot({ path: `${output}/personalizer.png`, animations: 'disabled' });
         assert.deepEqual(errors, []);
         console.log('Full cover layout, 55-version changelog, sanitized history, update progress across navigation, notice removal and neutral personalizer verified.');

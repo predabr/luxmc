@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { hydrateContentIcons } from '$lib/utils/contentPrefetch';
     import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { settings } from '$lib/stores/settings.svelte';
     import ModpackVersions from "$lib/components/instances/ModpackVersions.svelte";
@@ -1065,7 +1066,7 @@
             await Promise.all(Array.from({ length: 2 }, async () => {
             while (iconQueue.size) {
                 const first = iconQueue.values().next().value!;
-                const batch = [...iconQueue.values()].filter(entry => entry.id === first.id && entry.folder === first.folder).slice(0, 8);
+                const batch = [...iconQueue.values()].filter(entry => entry.id === first.id && entry.folder === first.folder).slice(0, 32);
                 for (const entry of batch) iconQueue.delete(entry.key);
                 const apply = (icons: Awaited<ReturnType<typeof instanceContentIcons>>) => {
                     if (instanceId !== first.id) return;
@@ -1147,7 +1148,7 @@
                     if (!datapackWorld) { dataPacks = []; loadedSections.add(key); return; }
                 }
                 const folder = section === "datapacks" ? `saves/${datapackWorld}/datapacks` : section === "ficheiros" ? path || undefined : section === "shaders" ? "shaderpacks" : section;
-                const data = await instanceFileTree(id, folder);
+                const data = hydrateContentIcons(await instanceFileTree(id, folder));
                 if (!current() || (section === "datapacks" && folder !== `saves/${datapackWorld}/datapacks`)) return;
                 if (section === "mods") {
                     instanceMods = data;

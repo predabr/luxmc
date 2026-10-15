@@ -100,6 +100,9 @@
           <span class="eyebrow">LUXMC / CONTA</span>
           <h1 id="authTitle">Entrar na sua conta.</h1>
           <p id="authDescription">Seu nickname e sua senha. Simples assim.</p>
+          <button type="button" class="auth-submit-lux microsoft-signin" id="microsoftLogin"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M2 2h9v9H2zm11 0h9v9h-9zM2 13h9v9H2zm11 0h9v9h-9z"/></svg><span>Entrar com Microsoft</span></button>
+          <p class="microsoft-signin-hint">Use sua conta com Minecraft Java. O acesso acontece na Microsoft; sua senha não é solicitada pelo Luxmc.</p>
+          <p id="microsoftError" class="dashboard-message error" role="alert" hidden></p>
           <div class="portal-tabs" role="group" aria-label="Acesso à conta">
             <button
               type="button"
@@ -371,6 +374,7 @@
                 ATUALIZAR SENHA ↗
               </button>
             </form>
+            <p id="microsoftSecurity" hidden>Você entrou com Microsoft. Gerencie sua senha e a proteção da conta diretamente na Microsoft.</p>
           </section>
 
           <p
@@ -397,6 +401,6 @@
       </div>
     </footer>
     <script defer src="app.js?v=20261004"></script>
-    <script type="module" src="account.js?v=20261004"></script>
+    <script type="module" src="account.js?v=20261015-microsoft"></script>
   <script type="module" src="/session.js?v=3.9.0-identity"></script></body>
 </html>

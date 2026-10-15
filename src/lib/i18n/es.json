@@ -3008,6 +3008,9 @@
     "747cdb9983e94824": "Enlace de invitación copiado con éxito!"
   },
   "skinsStudio": {
+    "confirmTitle": "¿Aplicar tu nueva skin?",
+    "confirmApply": "Aplicar esta apariencia",
+    "keepEditing": "Seguir personalizando",
     "nameMcTitle": "Elige tu próxima skin",
     "nameMcBrowse": "Explorar NameMC",
     "nameMcDescription": "Explora el catálogo de NameMC en una ventana del launcher. Haz clic en una skin para importarla a tu colección.",
@@ -3238,6 +3241,7 @@
     "open": "Abrir instancia"
   },
   "loginDesign": {
+    "customizerHint": "Después de entrar, gestiona tus skins y capas en el personalizador del launcher.",
     "method": "Forma de entrar",
     "luxmc": "Tu cuenta del portal",
     "microsoft": "Minecraft oficial",
@@ -3608,6 +3612,10 @@
     "sameVersion": "Nueva compilación de la misma versión",
     "build": "Compilación {{revision}}",
     "freePlan": "Personaliza tu avatar, portada estática, nombre y biografía. Los GIF en perfiles y carpetas requieren Plus o Pro. Los fondos siguen siendo gratuitos.",
+    "planLoading": "Consultando tu plan…",
+    "planUnavailable": "Plan no disponible",
+    "planLoadingHint": "Comprobando la suscripción de esta cuenta en el servidor.",
+    "planRetryHint": "No se pudo confirmar tu plan. Intenta actualizar la consulta.",
     "cleanupPartial": "Algunos archivos siguen en uso. Intenta limpiar de nuevo después de cerrar el juego.",
     "storageScanning": "Midiendo el espacio ocupado… Puedes seguir usando el launcher."
   }

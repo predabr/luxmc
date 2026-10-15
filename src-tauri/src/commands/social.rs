@@ -42,6 +42,17 @@ pub enum SocialRequest {
 
 static IDENTITY_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
+async fn load_identity(pool: &sqlx::SqlitePool, account_id: &str) -> AppResult<Option<String>> {
+    Ok(sqlx::query_scalar("SELECT token FROM social_identities WHERE account_id = ?")
+        .bind(account_id).fetch_optional(pool).await?)
+}
+
+async fn save_identity(pool: &sqlx::SqlitePool, account_id: &str, token: &str) -> AppResult<()> {
+    sqlx::query("INSERT INTO social_identities(account_id, token) VALUES (?, ?) ON CONFLICT(account_id) DO UPDATE SET token = excluded.token")
+        .bind(account_id).bind(token).execute(pool).await?;
+    Ok(())
+}
+
 pub(crate) async fn identity(account_id: &str) -> AppResult<String> {
     use sha2::Digest;
     use tokio::io::AsyncWriteExt;
@@ -52,13 +63,22 @@ pub(crate) async fn identity(account_id: &str) -> AppResult<String> {
     tokio::fs::create_dir_all(&directory).await?;
     let name = format!("{:x}", sha2::Sha256::digest(account_id.as_bytes()));
     let path = directory.join(name);
+    let db = crate::db::shared_db().await?;
     match tokio::fs::read_to_string(&path).await {
-        Ok(token) if token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit()) => return Ok(token),
+        Ok(token) if token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit()) => {
+            save_identity(db.pool(), account_id, &token).await?;
+            return Ok(token);
+        }
         Ok(_) => return Err(AppError::InvalidState("Invalid social identity".into())),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => return Err(error.into()),
     }
-    let token = format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
+    let token = match load_identity(db.pool(), account_id).await? {
+        Some(token) if token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit()) => token,
+        Some(_) => return Err(AppError::InvalidState("Invalid saved social identity".into())),
+        None => format!("{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple()),
+    };
+    save_identity(db.pool(), account_id, &token).await?;
     let mut options = tokio::fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]
@@ -67,6 +87,28 @@ pub(crate) async fn identity(account_id: &str) -> AppResult<String> {
     file.write_all(token.as_bytes()).await?;
     file.flush().await?;
     Ok(token)
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn database_backup_retains_the_same_identity_for_each_account() {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::query(include_str!("../../migrations/20260109000000_social_identities.sql")).execute(&pool).await.unwrap();
+        assert!(load_identity(&pool, "first").await.unwrap().is_none());
+        let first = "a".repeat(64);
+        let second = "b".repeat(64);
+        save_identity(&pool, "first", &first).await.unwrap();
+        save_identity(&pool, "second", &second).await.unwrap();
+        assert_eq!(load_identity(&pool, "first").await.unwrap(), Some(first));
+        assert_eq!(load_identity(&pool, "second").await.unwrap(), Some(second));
+        assert!(save_identity(&pool, "first", "broken").await.is_err());
+        assert_eq!(load_identity(&pool, "first").await.unwrap(), Some("a".repeat(64)));
+        save_identity(&pool, "first", &"c".repeat(64)).await.unwrap();
+        assert_eq!(load_identity(&pool, "first").await.unwrap(), Some("c".repeat(64)));
+    }
 }
 
 pub async fn social_request_core(account_id: String, request: SocialRequest) -> AppResult<serde_json::Value> {

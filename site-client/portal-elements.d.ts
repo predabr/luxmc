@@ -1,4 +1,7 @@
 interface PortalElements {
+    '#microsoftLogin': HTMLButtonElement;
+    '#microsoftError': HTMLElement;
+    '#microsoftSecurity': HTMLElement;
     '#accentTheme': HTMLSelectElement;
     '#accountAvatar': HTMLImageElement;
     '#accountNickname': HTMLElement;

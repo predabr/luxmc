@@ -110,5 +110,14 @@ export const modpackUpdates = {
     check,
     checkLibrary,
     apply,
+    installed(profileId: string, source: string, projectId: string, versionId: string, version: string) {
+        const entry = entryFor(profileId);
+        entry.revision++;
+        entry.info = { hasUpdate: false, currentVersion: version, latestVersion: version, changelog: null, source, projectId, versionId };
+        entry.diff = null;
+        entry.checking = false;
+        entry.checkedAt = Date.now();
+        libraryCheckedAt = 0;
+    },
     dismiss() { if (!task?.busy) task = null; }
 };

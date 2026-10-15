@@ -379,7 +379,8 @@ impl ModrinthClient {
             }
         }
 
-        let resp = resp_json.unwrap_or_default();
+        let mut resp = resp_json.unwrap_or_default();
+        resp.sort_by(|a, b| b["date_published"].as_str().cmp(&a["date_published"].as_str()));
 
         let mut versions = Vec::new();
         for v in resp {

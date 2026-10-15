@@ -57,7 +57,7 @@ const assert=require('node:assert/strict');
  await page.getByText('Skin recebida do portal web!',{exact:false}).waitFor();
  await page.screenshot({path:path.join(artifacts,'launcher-skin.png')});
  assert.equal(await page.evaluate(()=>window.testCalls.filter(call=>call.command==='auth_save_appearance').length),0);
- await page.getByRole('button',{name:'Aplicar skin e capa',exact:true}).click();
+ await page.getByRole('dialog',{name:'Aplicar sua nova skin?',exact:true}).getByRole('button',{name:'Aplicar este visual',exact:true}).click();
  await page.waitForFunction(()=>window.testCalls.some(call=>call.command==='auth_save_appearance'));
  const skin=await page.evaluate(()=>window.testCalls.find(call=>call.command==='auth_save_appearance'));
  assert.equal(skin.args.variant,'slim');assert.match(skin.args.skinUrl,/^data:image\/png;base64,/);

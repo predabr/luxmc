@@ -23,3 +23,5 @@
 @media(max-width:767px){.site-account-name,.site-account-chevron{display:none}.site-account-menu summary{padding:3px;border-radius:14px}.site-account-dropdown{min-width:200px}[data-site-account]>a{padding:8px 10px}.nav-actions{gap:10px}.commerce-nav{padding-inline:18px;gap:10px}.commerce-nav nav{gap:10px}.commerce-brand span{display:none}}
 @media(max-width:420px){.nav-actions{gap:8px}.nav-actions .btn-primary-nav{gap:8px;padding-left:11px;font-size:11px}.nav-actions .site-download-mark{width:28px;height:28px;border-radius:9px}}
 @media(prefers-reduced-motion:reduce){.site-account-dropdown{animation:none}.site-account-chevron,.site-download-mark svg,.nav-actions .btn-primary-nav,.commerce-nav .site-download{transition:none}.nav-actions .btn-primary-nav:hover,.commerce-nav .site-download:hover{translate:none}.site-download-mark svg{transform:none!important}}
+.microsoft-signin { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 24px; }
+.microsoft-signin-hint { color: rgb(var(--fg-muted)); font-size: .8rem; line-height: 1.6; margin: 12px 0 24px; }

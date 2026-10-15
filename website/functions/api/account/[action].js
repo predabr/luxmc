@@ -43,6 +43,7 @@ async function onRequest({ request, env, params, waitUntil }) {
         if (await limited(db, `auth:${ip}`, 900, 30) || await limited(db, `auth-name:${await digest(username.toLowerCase())}`, 900, 20))
           return json({ error: "Muitas tentativas. Aguarde 15 minutos." }, 429);
         let user2 = await db.prepare("SELECT * FROM lux_accounts WHERE username = ? COLLATE NOCASE").bind(username).first();
+        if (user2?.auth_provider === "microsoft" && action !== "register") return json({ error: "Use Entrar com Microsoft para acessar esta conta." }, 401);
         let recoveryCode;
         if (action === "register") {
           if (await limited(db, `signup:${ip}`, 3600, 5))
@@ -111,6 +112,7 @@ async function onRequest({ request, env, params, waitUntil }) {
         return json({ ok: true }, 200, { "Set-Cookie": cookie("", 0) });
       }
       if (action === "password") {
+        if (user.auth_provider === "microsoft") return json({ error: "A senha desta conta \xE9 gerenciada pela Microsoft." }, 403);
         if (!validPassword(body.password) || typeof body.currentPassword !== "string" || body.currentPassword.length > 128)
           return json({ error: "Confira a senha atual e use ao menos 8 caracteres na nova senha." }, 400);
         if (await limited(db, `password:${user.id}`, 900, 10))

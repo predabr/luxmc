@@ -25,7 +25,8 @@
     "build:windows": "node scripts/build-windows.mjs",
     "build:website": "pnpm check:website && node scripts/build-site-server.mjs && node scripts/build-site-client.mjs && node scripts/build-website-visuals.mjs",
     "preview:website": "node scripts/preview-website.mjs",
-    "test:website": "pnpm check:website && node scripts/build-site-server.mjs && node scripts/build-site-client.mjs && node --test tests/profile-benefits.test.mjs tests/commerce.test.mjs tests/social.test.mjs tests/accounts.test.mjs tests/protocol.test.mjs tests/catalog.test.mjs tests/website-ui.test.mjs tests/site-session.test.mjs tests/downloads.test.mjs tests/profile-media.test.mjs tests/build-site-outputs.test.mjs tests/site-deployment.test.mjs tests/launcher-translations.test.mjs tests/plans-languages.test.mjs",
+    "test:website": "pnpm check:website && node scripts/build-site-server.mjs && node scripts/build-site-client.mjs && node --test tests/profile-benefits.test.mjs tests/commerce.test.mjs tests/social.test.mjs tests/accounts.test.mjs tests/protocol.test.mjs tests/catalog.test.mjs tests/website-ui.test.mjs tests/site-session.test.mjs tests/downloads.test.mjs tests/profile-media.test.mjs tests/build-site-outputs.test.mjs tests/site-deployment.test.mjs tests/launcher-translations.test.mjs tests/plans-languages.test.mjs tests/microsoft-login.test.mjs",
+    "test:microsoft-login": "pnpm check:website && node scripts/build-site-server.mjs && node --test tests/microsoft-login.test.mjs",
     "test:native": "node tests/native-smoke.mjs",
     "build:client-agent": "node scripts/build-client-agent.mjs",
     "check:website": "tsc -p site-server/tsconfig.json && tsc -p site-client/tsconfig.json"

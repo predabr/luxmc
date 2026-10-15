@@ -23,8 +23,11 @@ const fs = require('node:fs');
                 if (command === 'profiles_list' || command === 'changelog_get' || command === 'deep_links_take') return [];
                 if (command === 'media_server_port') return ++window.mediaCalls < 3 ? null : Number(localStorage.getItem('fixture-port') || 59001);
                 if (command === 'wallpaper_prepare_poster') return '';
-                if (command === 'wallpaper_import') return args.path;
-                if (command === 'plugin:dialog|open') return 'C:\\Luxmc\\wallpapers\\scene.mp4';
+                if (command === 'wallpaper_import') {
+                    if (localStorage.getItem('fixture-source-deleted') && args.path.includes('Downloads')) throw Error('Original removido');
+                    return 'C:\\Luxmc\\AppData\\wallpapers\\scene.mp4';
+                }
+                if (command === 'plugin:dialog|open') return 'C:\\Luxmc\\Downloads\\scene.mp4';
                 if (command === 'java_scan') return { runtimes: [] };
                 return null;
             };
@@ -33,6 +36,7 @@ const fs = require('node:fs');
         });
         const video = fs.readFileSync('website/assets/launcher-personalizer.mp4');
         await page.route(/http:\/\/127\.0\.0\.1:59\d+\/media\?/, async route => {
+            if (new URL(route.request().url()).searchParams.get('path').includes('Downloads')) { await route.fulfill({status:404}); return; }
             const range = route.request().headers().range;
             const match = range?.match(/bytes=(\d+)-(\d*)/);
             if (match) {
@@ -55,6 +59,7 @@ const fs = require('node:fs');
         assert.ok(await page.evaluate(() => window.mediaCalls >= 3));
         await page.evaluate(() => {
             localStorage.setItem('fixture-port', '59002');
+            localStorage.setItem('fixture-source-deleted','true');
             for (const key of Object.keys(localStorage)) if (key.startsWith('luxmc_')) localStorage.removeItem(key);
         });
         await page.reload();
@@ -64,7 +69,7 @@ const fs = require('node:fs');
             console.log(await page.evaluate(async () => ({ saved: JSON.parse(localStorage.getItem('fixture-settings')), mediaCalls: window.mediaCalls, videos: Array.from(document.querySelectorAll('video')).map(video => ({ src: video.currentSrc, time: video.currentTime, paused: video.paused, error: video.error?.message })), theme: (await import('/src/lib/stores/theme.svelte.ts')).themeStore.background, errors: [] })));
             throw error;
         }
-        assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('fixture-settings')).customWallpaperUrl), 'C:\\Luxmc\\wallpapers\\scene.mp4');
+        assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('fixture-settings')).customWallpaperUrl), 'C:\\Luxmc\\AppData\\wallpapers\\scene.mp4');
         await page.evaluate(() => {
             localStorage.setItem('fixture-store-unavailable','true');
             for (const key of Object.keys(localStorage)) if (key.startsWith('luxmc_')) localStorage.removeItem(key);

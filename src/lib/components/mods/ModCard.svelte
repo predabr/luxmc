@@ -123,7 +123,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				<div class="card-mesh absolute inset-0 opacity-40"></div>
 				<div class="absolute inset-0 flex items-center justify-center p-6">
 					{#if item.iconUrl}
-						<LazyImage src={item.iconUrl} alt={item.title} class="h-24 w-24 rounded-2xl border border-fg/10 bg-bg-elevated p-2 object-contain shadow-elevated" fallback="/grass_block.png" />
+						<LazyImage src={item.iconUrl} alt={item.title} loading="eager" class="h-24 w-24 rounded-2xl border border-fg/10 bg-bg-elevated p-2 object-contain shadow-elevated" fallback="/grass_block.png" />
 					{:else}
 						<Box class="h-12 w-12 text-brand-400" />
 					{/if}

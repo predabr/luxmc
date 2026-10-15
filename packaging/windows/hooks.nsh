@@ -4,7 +4,7 @@
 !define MUI_FINISHPAGE_TEXT "O launcher está pronto.$\r$\n$\r$\n1. Abra o Luxmc e conecte sua conta.$\r$\n2. Escolha uma versão ou um modpack.$\r$\n3. Clique em Jogar.$\r$\n$\r$\nNo primeiro início, aguarde a preparação do Java e dos arquivos do jogo. Os próximos inícios reutilizam os arquivos já instalados."
 !define MUI_FINISHPAGE_RUN_TEXT "Abrir Lux MC Launcher"
 !define MUI_ABORTWARNING
-!define MUI_UNCONFIRMPAGE_TEXT_TOP "O Luxmc será desinstalado. Para remover também contas, Java, mods, instâncias, mundos e recuperação, marque a opção de apagar dados. Documentos e o projeto não são removidos. Atualizações preservam seus dados."
+!define MUI_UNCONFIRMPAGE_TEXT_TOP "O Luxmc será desinstalado. Deixe a opção de apagar dados DESMARCADA para manter suas contas, amigos, instâncias e mundos na reinstalação. Marcar essa opção apaga os dados permanentemente, sem enviá-los à Lixeira. Atualizações preservam seus dados."
 
 !macro NSIS_HOOK_POSTINSTALL
   WriteRegDWORD HKCU "${UNINSTKEY}" "LuxmcRevision" 0
@@ -22,6 +22,10 @@
       StrCpy $DeleteAppDataCheckboxState 1
     ${EndIf}
     ${If} $DeleteAppDataCheckboxState = 1
+      IfSilent luxmc_purge_confirmed
+        MessageBox MB_YESNO|MB_ICONEXCLAMATION|MB_DEFBUTTON2 "Apagar permanentemente contas salvas, identidade de amigos, instâncias, mods e TODOS os mundos do Luxmc? Os arquivos não irão para a Lixeira. Para apenas reinstalar, escolha Não e desmarque a opção de apagar dados." IDYES luxmc_purge_confirmed
+        Abort
+      luxmc_purge_confirmed:
       GetTempFileName $R4
       Delete $R4
       CreateDirectory $R4
@@ -57,6 +61,10 @@
 !macro NSIS_HOOK_POSTUNINSTALL
   IfRebootFlag 0 luxmc_uninstall_done
     IfSilent luxmc_uninstall_done
-    MessageBox MB_OK|MB_ICONINFORMATION "A remoção do Luxmc será concluída ao reiniciar o Windows. Suas instâncias e seus mundos foram preservados."
+    ${If} $DeleteAppDataCheckboxState = 1
+      MessageBox MB_OK|MB_ICONINFORMATION "A remoção do Luxmc será concluída ao reiniciar o Windows. A remoção dos dados foi solicitada nesta desinstalação."
+    ${Else}
+      MessageBox MB_OK|MB_ICONINFORMATION "A remoção do Luxmc será concluída ao reiniciar o Windows. Suas instâncias e seus mundos foram preservados."
+    ${EndIf}
   luxmc_uninstall_done:
 !macroend

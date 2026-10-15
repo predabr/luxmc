@@ -2,6 +2,8 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
     import Button from "$lib/components/ui/Button.svelte";
+    import Modal from '$lib/components/ui/Modal.svelte';
+    let showApplyPrompt = $state(false);
     import NameMcPicker from "$lib/components/skins/NameMcPicker.svelte";
     import type { NameMcSkin } from "$lib/api/namemc";
 	import { backOut, quintOut } from "svelte/easing";
@@ -310,6 +312,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         previewSkinUrl = skin.url;
         selectedCape = skin.capeType && capeTypes.includes(skin.capeType) ? skin.capeType : "none";
         customCapeDataUrl = selectedCape === "custom" ? skin.capeUrl || "" : "";
+        void tick().then(() => { if (hasPendingChange) showApplyPrompt = true; });
         try {
             localStorage.setItem("luxmc_selected_skin_id", skin.id);
             localStorage.setItem("luxmc_selected_skin_nick", skin.name);
@@ -587,6 +590,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	</header>
 
+    <Modal isOpen={showApplyPrompt && hasPendingChange} onClose={() => { if (!saving) showApplyPrompt = false; }} title={uiText('skinsStudio.confirmTitle')}>
+        <div class="space-y-5">
+            <div class="flex items-center gap-4"><div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-border bg-bg-subtle"><Skin2DPreview src={currentSkinUrl} model={skinType} className="h-16 w-12" /></div><div><p class="font-semibold text-fg">{selectedSkinNick || username}</p><p class="mt-2 text-sm leading-6 text-fg-muted">{uiText('skinsStudio.pendingApply')}</p></div></div>
+            {#if saveError || syncError}<p role="alert" class="text-sm text-danger">{saveError || syncError}</p>{/if}
+            <Button variant="primary" block loading={saving} disabled={!canApplyAppearance} onclick={async () => { await applyAppearance(); if (!hasPendingChange) showApplyPrompt = false; }}>{uiText('skinsStudio.confirmApply')}</Button>
+            <Button variant="ghost" block disabled={saving} onclick={() => showApplyPrompt = false}>{uiText('skinsStudio.keepEditing')}</Button>
+        </div>
+    </Modal>
     <div class="appearance-apply sticky top-0 z-20 shrink-0 flex flex-wrap items-center justify-between gap-3" class:has-pending={hasPendingChange}>
         <div class="flex min-w-0 flex-1 items-center gap-3"><span class="studio-state flex h-10 w-10 shrink-0 items-center justify-center rounded-xl">{#if hasPendingChange}<Pencil class="h-4 w-4" />{:else}<CheckCircle2 class="h-5 w-5" />{/if}</span><p class="text-xs leading-5 text-fg-muted" class:text-brand-400={hasPendingChange && !saving} role="status">{saving ? isMicrosoft ? uiText("skinsStudio.syncing") : uiText("ui.c96a5ffa4c9a8e9c") : saveError ? uiText("ui.f3e4295a34844bee") + saveError : syncError || (hasPendingChange ? uiText("skinsStudio.pendingApply") : uiText("ui.0d8e3ff973d2531e"))}</p></div>
         <div class="flex gap-2">
@@ -601,6 +612,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			<div class="studio-preview-heading flex w-full items-center justify-between gap-3 px-5 pt-5 pb-2"><div class="min-w-0"><p class="studio-eyebrow">{uiText('skinsStudio.preview')}</p><p class="mt-1 truncate text-sm font-semibold text-fg">{selectedSkinNick || username}</p></div><span class="studio-model">{skinType === 'alex' ? 'Alex' : 'Steve'}</span></div>
 
 			<div class="skin-preview-stage w-full h-[420px] relative overflow-hidden flex flex-col items-center justify-center">
+                <span class="studio-direction" aria-hidden="true">3D</span>
 
 				<div class="absolute top-3 left-3 right-3 flex items-center justify-end z-10 pointer-events-none">
 
@@ -963,8 +975,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	.has-pending .studio-state { background:rgb(var(--brand-500)/.1); color:rgb(var(--brand-action)); }
 	.studio-preview,.studio-panel { border:1px solid rgb(var(--border)); border-radius:24px; background:rgb(var(--bg-elevated)/.96); box-shadow:0 12px 35px rgb(var(--shadow-color)/.08); overflow:hidden; }
 	.studio-model,.studio-count { padding:5px 10px; border-radius:9px; border:1px solid rgb(var(--brand-400)/.18); background:rgb(var(--brand-500)/.08); color:rgb(var(--brand-action)); font-size:10px; font-weight:600; }
-	.skin-preview-stage { isolation:isolate; background:none; }
-	.skin-preview-stage::before { content:''; position:absolute; inset:12px 24px; border:1px solid rgb(var(--border)/.45); border-radius:18px; pointer-events:none; }
+	.skin-preview-stage { isolation:isolate; background:radial-gradient(ellipse at 50% 38%,rgb(var(--fg)/.045),transparent 65%); }
+	.skin-preview-stage::before { content:''; position:absolute; inset:16px 18px; border:1px solid rgb(var(--border)/.35); border-radius:20px; pointer-events:none; }
+    .skin-preview-stage::after { content:''; position:absolute; z-index:-1; bottom:28px; left:18%; right:18%; height:20px; border-radius:50%; background:rgb(var(--shadow-color)/.12); }
+    .studio-direction { position:absolute; left:32px; top:28px; color:rgb(var(--fg-muted)/.65); font-size:10px; font-weight:600; letter-spacing:.16em; }
+	.studio-preview { border-color:rgb(var(--fg)/.14); }
+	.studio-preview-heading { padding-bottom:14px; }
+	.studio-controls { gap:14px; padding:18px; }
 	.studio-controls { border-top:1px solid rgb(var(--border)); background:rgb(var(--bg-subtle)/.3); }
 	.studio-segment { width:100%; background:rgb(var(--bg-subtle)/.55); border:1px solid rgb(var(--border)/.65); }
 	.studio-segment :global(button) { flex:1; }

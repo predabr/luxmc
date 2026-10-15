@@ -64,4 +64,13 @@ describe('persistent modpack updates', () => {
         await expect(updates.apply('pack-a', 'v2', 'modrinth', 'project')).rejects.toThrow();
         expect(mocks.apply).not.toHaveBeenCalled();
     });
+    it('discards an old update result when a freshly installed pack is linked', async () => {
+        const { modpackUpdates: updates } = await import('./modpackUpdates.svelte');
+        let finish!: (value: ModpackUpdateInfo) => void;
+        mocks.check.mockImplementation(() => new Promise<ModpackUpdateInfo>(resolve => { finish = resolve; }));
+        const checking = updates.check('pack-a');
+        updates.installed('pack-a', 'modrinth', 'project', 'v2', '2');
+        finish(available); await checking;
+        expect(updates.forProfile('pack-a')?.info).toMatchObject({ hasUpdate: false, currentVersion: '2', versionId: 'v2' });
+    });
 });

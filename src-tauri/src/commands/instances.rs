@@ -1498,6 +1498,7 @@ pub fn instance_repair_modpack_core<'a>(
     if !audit.errors.is_empty() {
         return Err(crate::error::AppError::InvalidInput(audit.errors.join("\n")));
     }
+    index_pack_mods(&row).await?;
     let repaired = repaired + duplicates as u32;
     if let Some(app) = app {
         let _ = app.emit("modpack-progress", serde_json::json!({ "phase": "complete", "percent": 100, "current": repaired, "total": repaired, "status": format!("{repaired} arquivos recuperados") }));
@@ -1684,7 +1685,7 @@ pub async fn instance_file_tree(
         let mut map = std::collections::HashMap::new();
         for chunk in keys_vec.chunks(200) {
             let placeholders = chunk.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            let query_str = format!("SELECT key, CASE WHEN icon_url LIKE 'data:%' THEN 'inline:' ELSE icon_url END FROM mod_icons WHERE key IN ({})", placeholders);
+            let query_str = format!("SELECT key, icon_url FROM mod_icons WHERE key IN ({})", placeholders);
             let mut query = sqlx::query_as::<_, (String, String)>(&query_str);
             for k in chunk {
                 query = query.bind(k);
@@ -1702,11 +1703,18 @@ pub async fn instance_file_tree(
 
     let is_content = subPath.as_deref().is_some_and(|path| matches!(path, "mods" | "resourcepacks" | "shaderpacks") || path.ends_with("/datapacks"));
     let mut entries = tokio::task::spawn_blocking(move || {
+        raw_entries.sort_by_cached_key(|entry| entry.0.to_lowercase());
+        let mut inline_budget = 1024 * 1024usize;
         raw_entries.into_iter().map(|(name, path, is_dir, metadata, _)| {
             let key = crate::commands::mods::content_icon_key(&path, &metadata);
             let cached = cached_icons.get(&key);
-            let icon = cached.filter(|value| !value.starts_with("missing:") && !value.starts_with("inline:") && !value.is_empty()).cloned();
-            FileTreeEntry { name, path: path.to_string_lossy().to_string(), is_dir, size: if is_dir && !is_content { compute_dir_size(&path) } else { metadata.len() }, icon, icon_key: Some(key), icon_resolved: cached.is_some_and(|value| !value.starts_with("inline:") && crate::commands::content_icons::cache_is_resolved(value)) }
+            let icon = cached.filter(|value| !value.starts_with("missing:") && !value.is_empty()).filter(|value| {
+                if !value.starts_with("data:") { return true; }
+                if value.len() > inline_budget { return false; }
+                inline_budget -= value.len(); true
+            }).cloned();
+            let icon_resolved = cached.is_some_and(|value| crate::commands::content_icons::cache_is_resolved(value) && (!value.starts_with("data:") || icon.is_some()));
+            FileTreeEntry { name, path: path.to_string_lossy().to_string(), is_dir, size: if is_dir && !is_content { compute_dir_size(&path) } else { metadata.len() }, icon, icon_key: Some(key), icon_resolved }
         }).collect::<Vec<_>>()
     }).await.map_err(|error| AppError::Internal(error.to_string()))?;
 
@@ -2015,7 +2023,13 @@ async fn index_pack_mods(profile: &ProfileRow) -> AppResult<()> {
         }
         tx.commit().await?;
     }
-
+    let folder = root.join("mods");
+    let count = tokio::task::spawn_blocking(move || -> std::io::Result<i64> {
+        if !folder.is_dir() { return Ok(0); }
+        Ok(std::fs::read_dir(folder)?.filter_map(Result::ok).filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()) && entry.path().extension().is_some_and(|extension| extension == "jar")).count() as i64)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))??;
+    sqlx::query("UPDATE profiles SET mod_count = ?, disk_usage = 0, updated_at = ? WHERE id = ?").bind(count).bind(chrono::Utc::now()).bind(&profile.id).execute(db.pool()).await?;
+    crate::commands::storage::invalidate_report().await;
     Ok(())
 }
 

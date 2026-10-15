@@ -55,6 +55,7 @@ const fs = require('node:fs');
     await page.locator('main p[role="status"]').filter({hasText:'Alterações ainda não aplicadas. Clique em Aplicar e sincronizar'}).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Capa Luxmc Oficial', exact: true }).count(), 0);
     assert.equal(await page.evaluate(() => window.calls.some(call => call.command === 'auth_change_skin' || call.command === 'auth_save_appearance')), false);
+    await page.getByRole('dialog',{name:'Aplicar sua nova skin?',exact:true}).getByRole('button',{name:'Continuar personalizando',exact:true}).click();
     assert.equal(await page.evaluate(() => window.nameMcListeners.size), 0);
     assert.ok(await page.evaluate(() => window.calls.some(call => call.command === 'namemc_close_picker')));
     await page.getByRole('button', { name: 'Link da skin no NameMC', exact: true }).click();

@@ -399,10 +399,14 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	async function loadStorageReport(refresh = false) {
         if (storageLoading || storageCleanup && !refresh) return;
+        const signature = profiles.list.map(profile => `${profile.id}:${profile.updatedAt}:${profile.modCount || 0}`).join('|');
+        if (!refresh && storageReport && signature === storageActivity.signature && Date.now() - storageActivity.measuredAt < 120000) return;
 		storageActivity.loading = true;
         storageActivity.error = "";
 		try {
-			storageActivity.report = await storageFullReport(refresh);
+			storageActivity.report = await storageFullReport(refresh || signature !== storageActivity.signature);
+            storageActivity.signature = signature;
+            storageActivity.measuredAt = Date.now();
 		} catch (e) {
             storageActivity.error = String(e);
 			toast(uiText("ui.ed80732875192710") + String(e), "error");

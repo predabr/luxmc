@@ -53,7 +53,7 @@ export async function bootstrapSettings() {
 		themeStore.setBackground(merged.customBackground, false);
 	}
 	hydrated = true;
-	themeStore.importSavedWallpapers();
+	await themeStore.importSavedWallpapers();
 	schedulePersist();
 }
 

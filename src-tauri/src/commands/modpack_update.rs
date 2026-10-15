@@ -96,7 +96,7 @@ pub async fn modpack_version_diff_core(
         if let Some(relative)=name.strip_prefix("overrides/").or_else(|| name.strip_prefix("client-overrides/")) {
             if entry.is_dir() || !relative.starts_with("config/") {continue;}
             crate::core::mods::pack_download::relative_path(relative)?;
-            if configuration.len()>=5000{return Err(AppError::InvalidInput("O pack tem configurações demais para planejar".into()));}
+            if configuration.len()>=5000{return Err(AppError::InvalidInput("O pack tem configuraÃ§Ãµes demais para planejar".into()));}
             let local=root.join(relative);
             let changed=if entry.size()<=2*1024*1024 && local.is_file() && std::fs::metadata(&local)?.len()<=2*1024*1024 && std::fs::canonicalize(&local)?.starts_with(std::fs::canonicalize(&root)?) {
                 let mut bytes=Vec::new();entry.by_ref().take(2*1024*1024).read_to_end(&mut bytes)?;
@@ -105,7 +105,7 @@ pub async fn modpack_version_diff_core(
             if changed{configuration.push(relative.into());}
         }
     }
-    let remote=remote.ok_or_else(|| AppError::NotFound("Manifesto remoto não encontrado".into()))?;
+    let remote=remote.ok_or_else(|| AppError::NotFound("Manifesto remoto nÃ£o encontrado".into()))?;
     let entries=|value:&serde_json::Value| if source=="modrinth" {modpack_entries(value)} else {value["files"].as_array().into_iter().flatten().filter_map(|file|Some((format!("CurseForge #{}",file["projectID"].as_u64()?),file["fileID"].as_u64()?.to_string()))).collect()};
     let old=entries(&current);let new=entries(&remote);
     let mut added:Vec<_>=new.keys().filter(|path| !old.contains_key(*path)).map(|path|display_mod_path(path)).collect();
@@ -116,10 +116,10 @@ pub async fn modpack_version_diff_core(
     let target_loader=if source=="modrinth" {[("fabric-loader","fabric"),("quilt-loader","quilt"),("forge","forge"),("neoforge","neoforge")].into_iter().find(|(key,_)|remote["dependencies"].get(*key).is_some()).map(|(_,name)|name.to_owned()).or_else(||Some("vanilla".into()))} else {remote.pointer("/minecraft/modLoaders").and_then(|value|value.as_array()).and_then(|items|items.first()).and_then(|item|item["id"].as_str()).map(|id|id.split('-').next().unwrap_or("vanilla").to_owned())};
     let worlds=std::fs::read_dir(root.join("saves")).map(|entries|entries.flatten().filter(|entry|entry.path().join("level.dat").is_file()).count()).unwrap_or(0);
     let mut risks=Vec::new();
-    if target_minecraft.as_deref().is_some_and(|target|target!=row.mc_version){risks.push("A versão do Minecraft muda. Faça uma cópia antes de abrir mundos existentes; voltar de versão pode perder blocos e dados.".into());}
-    if target_loader.as_deref().is_some_and(|target|target!=row.loader){risks.push("O loader muda. Mods extras da instância precisam ser revistos.".into());}
-    if !removed.is_empty(){risks.push("Arquivos são removidos. Conteúdo salvo por esses mods pode deixar de existir nos mundos.".into());}
-    if !configuration.is_empty(){risks.push("O pack altera configurações. Revise ajustes pessoais depois de atualizar.".into());}
+    if target_minecraft.as_deref().is_some_and(|target|target!=row.mc_version){risks.push("A versÃ£o do Minecraft muda. FaÃ§a uma cÃ³pia antes de abrir mundos existentes; voltar de versÃ£o pode perder blocos e dados.".into());}
+    if target_loader.as_deref().is_some_and(|target|target!=row.loader){risks.push("O loader muda. Mods extras da instÃ¢ncia precisam ser revistos.".into());}
+    if !removed.is_empty(){risks.push("Arquivos sÃ£o removidos. ConteÃºdo salvo por esses mods pode deixar de existir nos mundos.".into());}
+    if !configuration.is_empty(){risks.push("O pack altera configuraÃ§Ãµes. Revise ajustes pessoais depois de atualizar.".into());}
     let graph=super::studio::dependency_graph(profile_id).await?;
     let mut dependencies:Vec<String>=graph.iter().filter(|node|removed.contains(&node.file)).flat_map(|node|node.required_by.iter().map(move |dependent|format!("{dependent} depende de {}",node.name))).collect();
     dependencies.extend(graph.iter().filter(|node|!node.missing.is_empty()).map(|node|format!("{}: revisar {}",node.name,node.missing.join(", "))));
@@ -127,9 +127,9 @@ pub async fn modpack_version_diff_core(
 }
 
 async fn linked_project(directory:&str,source:&str) -> AppResult<String> {
-    let file=if source=="modrinth" {"modrinth.index.json"} else if source=="curseforge" {"manifest.json"} else {return Err(AppError::InvalidInput("Provedor inválido".into()));};
+    let file=if source=="modrinth" {"modrinth.index.json"} else if source=="curseforge" {"manifest.json"} else {return Err(AppError::InvalidInput("Provedor invÃ¡lido".into()));};
     let value:serde_json::Value=serde_json::from_slice(&tokio::fs::read(std::path::Path::new(directory).join(file)).await?)?;
-    value[if source=="modrinth" {"projectId"} else {"projectID"}].as_str().map(str::to_owned).or_else(||value["projectID"].as_u64().map(|id|id.to_string())).ok_or_else(||AppError::InvalidInput("Vincule a instância ao projeto antes de planejar".into()))
+    value[if source=="modrinth" {"projectId"} else {"projectID"}].as_str().map(str::to_owned).or_else(||value["projectID"].as_u64().map(|id|id.to_string())).ok_or_else(||AppError::InvalidInput("Vincule a instÃ¢ncia ao projeto antes de planejar".into()))
 }
 
 #[tauri::command]
@@ -174,153 +174,70 @@ pub async fn modpack_check_update_core(state:&AppState,profileId:String) -> AppR
     })
 }
 
-async fn check_modrinth_update(
-    state: &AppState,
-    row: &crate::db::models::ProfileRow,
-    mrpack_path: &std::path::Path,
-) -> AppResult<ModpackUpdateInfo> {
-    let content = tokio::fs::read_to_string(mrpack_path).await.unwrap_or_default();
-    let index: serde_json::Value = serde_json::from_str(&content).unwrap_or(serde_json::Value::Null);
-
-    let project_id = index
-        .get("projectId")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let current_ver = index
-        .get("sourceVersionId").or_else(|| index.get("versionId"))
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    if project_id.is_none() && current_ver.is_none() {
-        return Ok(ModpackUpdateInfo {
-            has_update: false,
-            current_version: None,
-            latest_version: None,
-            changelog: None,
-            source: "modrinth".into(),
-            project_id: None,
-            version_id: None,
-        });
-    }
-
-    if let Some(ref pid) = project_id {
-        if !pid.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') { return Err(AppError::InvalidInput("ID de projeto inválido".into())); }
-        let ver_url = format!(
-            "https://api.modrinth.com/v2/project/{}/version?game_versions=[\"{}\"]&loaders=[\"{}\"]&limit=1",
-            pid, row.mc_version, row.loader.to_lowercase()
-        );
-        if let Ok(resp) = state.http.get(&ver_url)
-            .header("User-Agent", concat!("Luxmc/",env!("CARGO_PKG_VERSION")))
-            .send().await
-        {
-            if resp.status().is_success() {
-                if let Ok(versions) = resp.json::<Vec<serde_json::Value>>().await {
-                    if let Some(latest) = versions.first() {
-                        let latest_id = latest.get("id").and_then(|v| v.as_str()).map(|s| s.to_string());
-                        let latest_number = latest.get("version_number").and_then(|v| v.as_str()).map(|s| s.to_string());
-                        let changelog = latest.get("changelog").and_then(|v| v.as_str()).map(|s| s.to_string());
-
-                        let has_update = latest_id.as_deref() != current_ver.as_deref() && latest_number.as_deref() != current_ver.as_deref();
-                        return Ok(ModpackUpdateInfo {
-                            has_update,
-                            current_version: current_ver,
-                            latest_version: latest_number,
-                            changelog,
-                            source: "modrinth".into(),
-                            project_id: Some(pid.clone()),
-                            version_id: latest_id,
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(ModpackUpdateInfo {
-        has_update: false,
-        current_version: current_ver,
-        latest_version: None,
-        changelog: None,
-        source: "modrinth".into(),
-        project_id,
-        version_id: None,
-    })
+fn release_date(value: &serde_json::Value, field: &str) -> i64 {
+    value.get(field).and_then(|value| value.as_str()).and_then(|value| chrono::DateTime::parse_from_rfc3339(value).ok()).map(|date| date.timestamp_millis()).unwrap_or(0)
 }
 
-async fn check_curseforge_update(
-    state: &AppState,
-    _row: &crate::db::models::ProfileRow,
-    manifest_path: &std::path::Path,
-) -> AppResult<ModpackUpdateInfo> {
-    let content = tokio::fs::read_to_string(manifest_path).await.unwrap_or_default();
-    let manifest: serde_json::Value = serde_json::from_str(&content).unwrap_or(serde_json::Value::Null);
+fn matching_release(value: &serde_json::Value, source: &str, minecraft: &str, loader: &str) -> bool {
+    if source == "curseforge" && (value["isServerPack"] == true || value["isAvailable"] == false) { return false; }
+    let field = if source == "modrinth" { "game_versions" } else { "gameVersions" };
+    let Some(games) = value.get(field).and_then(|value| value.as_array()) else { return false; };
+    if !games.iter().any(|value| value.as_str() == Some(minecraft)) { return false; }
+    let loaders = if source == "modrinth" { value.get("loaders").and_then(|value| value.as_array()).unwrap_or(games) } else { games };
+    let declared: Vec<_> = loaders.iter().filter_map(|value| value.as_str()).map(str::to_lowercase).filter(|value| matches!(value.as_str(), "forge" | "neoforge" | "fabric" | "quilt")).collect();
+    declared.is_empty() || declared.iter().any(|value| value == &loader.to_lowercase())
+}
 
-    let project_id = manifest
-        .get("projectID")
-        .and_then(|v| v.as_u64())
-        .map(|n| n.to_string());
+fn is_newer_release(latest: &serde_json::Value, current: Option<&serde_json::Value>, installed_id: Option<&str>, installed_number: Option<&str>, source: &str) -> bool {
+    let id = if source == "modrinth" { latest["id"].as_str().map(str::to_owned) } else { latest["id"].as_u64().map(|id| id.to_string()) };
+    if installed_id.is_some() && installed_id == id.as_deref() { return false; }
+    if installed_id.is_none() && installed_number.is_some() && installed_number == latest["version_number"].as_str() { return false; }
+    let Some(current) = current else { return false; };
+    let field = if source == "modrinth" { "date_published" } else { "fileDate" };
+    let before = release_date(current, field);
+    before > 0 && release_date(latest, field) > before
+}
 
-    let source_version = manifest.get("sourceVersionId").and_then(|value| value.as_str());
-    let current_ver = manifest
-        .get("version")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-
-    let pid = match project_id {
-        Some(ref p) => p.clone(),
-        None => {
-            return Ok(ModpackUpdateInfo {
-                has_update: false,
-                current_version: current_ver,
-                latest_version: None,
-                changelog: None,
-                source: "curseforge".into(),
-                project_id: None,
-                version_id: None,
-            });
-        }
-    };
-
-    if let Some(api_key) = crate::core::mods::curseforge::api_key() {
-        let url = format!("https://api.curseforge.com/v1/mods/{}/files?pageSize=1&sortField=5&sortOrder=desc", pid);
-        if let Ok(resp) = state.http.get(&url)
-            .header("x-api-key", &api_key)
-            .send().await
-        {
-            if resp.status().is_success() {
-                if let Ok(body) = resp.json::<serde_json::Value>().await {
-                    if let Some(file) = body.pointer("/data/0") {
-                        let file_id = file.get("id").and_then(|v| v.as_u64()).map(|n| n.to_string());
-                        let display_name = file.get("displayName").and_then(|v| v.as_str()).map(|s| s.to_string());
-                        let changelog = file.get("changelog").and_then(|v| v.as_str()).map(|s| s.to_string());
-
-                        let has_update = if let Some(current) = source_version { Some(current) != file_id.as_deref() } else { current_ver.as_deref() != display_name.as_deref() && display_name.is_some() };
-
-                        return Ok(ModpackUpdateInfo {
-                            has_update,
-                            current_version: current_ver,
-                            latest_version: display_name,
-                            changelog,
-                            source: "curseforge".into(),
-                            project_id: Some(pid),
-                            version_id: file_id,
-                        });
-                    }
-                }
-            }
-        }
+async fn check_modrinth_update(state: &AppState, row: &crate::db::models::ProfileRow, path: &std::path::Path) -> AppResult<ModpackUpdateInfo> {
+    let index: serde_json::Value = serde_json::from_slice(&tokio::fs::read(path).await?)?;
+    let project = index["projectId"].as_str().filter(|id| !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
+    let pinned = index["sourceVersionId"].as_str();
+    let number = index["versionId"].as_str();
+    let mut result = ModpackUpdateInfo { has_update: false, current_version: number.or(pinned).map(str::to_owned), latest_version: None, changelog: None, source: "modrinth".into(), project_id: project.map(str::to_owned), version_id: None };
+    let Some(project) = project else { return Ok(result); };
+    let url = format!("https://api.modrinth.com/v2/project/{project}/version?game_versions={}&loaders={}", urlencoding::encode(&serde_json::to_string(&[&row.mc_version])?), urlencoding::encode(&serde_json::to_string(&[row.loader.to_lowercase()])?));
+    let versions: Vec<serde_json::Value> = state.http.get(url).timeout(std::time::Duration::from_secs(15)).send().await?.error_for_status()?.json().await?;
+    let current = versions.iter().find(|value| pinned.is_some() && value["id"].as_str() == pinned || pinned.is_none() && value["version_number"].as_str() == number);
+    let latest = versions.iter().filter(|value| matching_release(value, "modrinth", &row.mc_version, &row.loader)).max_by_key(|value| release_date(value, "date_published"));
+    if let Some(latest) = latest {
+        result.has_update = is_newer_release(latest, current, pinned, number, "modrinth");
+        result.latest_version = latest["version_number"].as_str().map(str::to_owned);
+        result.version_id = latest["id"].as_str().map(str::to_owned);
+        result.changelog = latest["changelog"].as_str().map(str::to_owned);
     }
+    Ok(result)
+}
 
-    Ok(ModpackUpdateInfo {
-        has_update: false,
-        current_version: current_ver,
-        latest_version: None,
-        changelog: None,
-        source: "curseforge".into(),
-        project_id: Some(pid),
-        version_id: None,
-    })
+async fn check_curseforge_update(state: &AppState, row: &crate::db::models::ProfileRow, path: &std::path::Path) -> AppResult<ModpackUpdateInfo> {
+    let index: serde_json::Value = serde_json::from_slice(&tokio::fs::read(path).await?)?;
+    let project = index["projectID"].as_u64();
+    let pinned = index["sourceVersionId"].as_str();
+    let mut result = ModpackUpdateInfo { has_update: false, current_version: index["version"].as_str().map(str::to_owned), latest_version: None, changelog: None, source: "curseforge".into(), project_id: project.map(|id| id.to_string()), version_id: None };
+    let (Some(project), Some(key)) = (project, crate::core::mods::curseforge::api_key()) else { return Ok(result); };
+    let url = format!("https://api.curseforge.com/v1/mods/{project}/files?pageSize=50&gameVersion={}", urlencoding::encode(&row.mc_version));
+    let body: serde_json::Value = state.http.get(url).header("x-api-key", &key).timeout(std::time::Duration::from_secs(15)).send().await?.error_for_status()?.json().await?;
+    let files = body["data"].as_array().map(Vec::as_slice).unwrap_or_default();
+    let current = files.iter().find(|file| file["id"].as_u64().map(|id| id.to_string()).as_deref() == pinned);
+    let latest = files.iter().filter(|value| matching_release(value, "curseforge", &row.mc_version, &row.loader)).max_by_key(|value| release_date(value, "fileDate"));
+    if let Some(latest) = latest {
+        result.has_update = is_newer_release(latest, current, pinned, None, "curseforge");
+        if current.is_none() {
+            if let (Some(before), Some(after)) = (pinned.and_then(|id| id.parse::<u64>().ok()), latest["id"].as_u64()) { result.has_update = after > before; }
+        }
+        result.latest_version = latest["displayName"].as_str().map(str::to_owned);
+        result.version_id = latest["id"].as_u64().map(|id| id.to_string());
+    }
+    Ok(result)
 }
 
 static UPDATE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -344,24 +261,24 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
     use crate::core::mods::pack_download as pack;
     use crate::commands::instances::{instance_import_modpack_core, instance_import_mrpack_core};
     use tauri::Emitter;
-    let _launch_guard = state.launch_lock.try_lock().map_err(|_|AppError::InvalidState("Aguarde o lançamento do Minecraft terminar".into()))?;
+    let _launch_guard = state.launch_lock.try_lock().map_err(|_|AppError::InvalidState("Aguarde o lanÃ§amento do Minecraft terminar".into()))?;
     if crate::core::launcher::get_active_game_pid()!=0 {return Err(AppError::InvalidState("Feche o Minecraft antes de atualizar o modpack".into()));}
-    let _guard = UPDATE_LOCK.try_lock().map_err(|_| AppError::InvalidState("Uma atualização já está em andamento".into()))?;
+    let _guard = UPDATE_LOCK.try_lock().map_err(|_| AppError::InvalidState("Uma atualizaÃ§Ã£o jÃ¡ estÃ¡ em andamento".into()))?;
     let operation_id = super::instances::instance_begin_import_core(state).await?;
     let result: AppResult<()> = async {
     if !["modrinth", "curseforge"].contains(&source.as_str()) ||
         [&versionId, &projectId].iter().any(|id| id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')) {
-        return Err(AppError::InvalidInput("Identificador de atualização inválido".into()));
+        return Err(AppError::InvalidInput("Identificador de atualizaÃ§Ã£o invÃ¡lido".into()));
     }
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, crate::db::models::ProfileRow>("SELECT * FROM profiles WHERE id = ?")
         .bind(&profileId).fetch_optional(db.pool()).await?
         .ok_or_else(|| AppError::NotFound(format!("profile {profileId} not found")))?;
     let original = std::path::PathBuf::from(&row.game_dir);
-    if linked_project(&row.game_dir,&source).await? != projectId { return Err(AppError::InvalidInput("A atualização pertence a outro modpack. A instância atual foi mantida.".into())); }
+    if linked_project(&row.game_dir,&source).await? != projectId { return Err(AppError::InvalidInput("A atualizaÃ§Ã£o pertence a outro modpack. A instÃ¢ncia atual foi mantida.".into())); }
     let saves_dir = original.join("saves");
     if saves_dir.is_dir() {
-        if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"backup","current":0,"total":0,"percent":2,"status":"Criando backups versionados dos mundos antes da atualização..."}));}
+        if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"backup","current":0,"total":0,"percent":2,"status":"Criando backups versionados dos mundos antes da atualizaÃ§Ã£o..."}));}
         for entry in std::fs::read_dir(&saves_dir)? {
             let entry = entry?;
             if entry.file_type()?.is_dir() {
@@ -372,14 +289,14 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
     }
     let managed = owned_pack_paths(&original).await?;
     let client = pack::client()?;
-    if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"downloading","current":0,"total":0,"percent":5,"status":"Preparando nova versão sem alterar a instância atual..."}));}
+    if let Some(app)=&app {let _ = app.emit("modpack-progress", serde_json::json!({"phase":"downloading","current":0,"total":0,"percent":5,"status":"Preparando nova versÃ£o sem alterar a instÃ¢ncia atual..."}));}
     let (urls, size, sha1, sha512) = if source == "modrinth" {
         let version: serde_json::Value = client.get(format!("https://api.modrinth.com/v2/version/{versionId}"))
             .send().await?.error_for_status()?.json().await?;
         if version.get("project_id").and_then(|v| v.as_str()) != Some(projectId.as_str()) {
-            return Err(AppError::InvalidInput("A versão não pertence ao modpack selecionado".into()));
+            return Err(AppError::InvalidInput("A versÃ£o nÃ£o pertence ao modpack selecionado".into()));
         }
-        let files = version.get("files").and_then(|v| v.as_array()).ok_or_else(|| AppError::NotFound("Arquivos da versão ausentes".into()))?;
+        let files = version.get("files").and_then(|v| v.as_array()).ok_or_else(|| AppError::NotFound("Arquivos da versÃ£o ausentes".into()))?;
         let file = files.iter().find(|v| v.get("primary").and_then(|v| v.as_bool()) == Some(true)).or_else(|| files.first())
             .ok_or_else(|| AppError::NotFound("Arquivo mrpack ausente".into()))?;
         let url = file.get("url").and_then(|v| v.as_str()).ok_or_else(|| AppError::NotFound("URL do modpack ausente".into()))?;
@@ -387,9 +304,9 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
          file.pointer("/hashes/sha1").and_then(|v| v.as_str()).map(str::to_owned),
          file.pointer("/hashes/sha512").and_then(|v| v.as_str()).map(str::to_owned))
     } else {
-        let file_id = versionId.parse::<u64>().map_err(|_| AppError::InvalidInput("ID CurseForge inválido".into()))?;
+        let file_id = versionId.parse::<u64>().map_err(|_| AppError::InvalidInput("ID CurseForge invÃ¡lido".into()))?;
         let info = crate::core::mods::curseforge::get_files_batch(&client, &[file_id]).await.remove(&file_id)
-            .ok_or_else(|| AppError::NotFound("Metadados CurseForge indisponíveis; verifique a chave API".into()))?;
+            .ok_or_else(|| AppError::NotFound("Metadados CurseForge indisponÃ­veis; verifique a chave API".into()))?;
         if info.mod_id.to_string() != projectId { return Err(AppError::InvalidInput("Projeto CurseForge incorreto".into())); }
         let mut urls = info.download_url.as_deref().map(pack::mirrors).transpose()?.unwrap_or_default();
         for host in ["edge.forgecdn.net", "mediafilez.forgecdn.net", "media.forgecdn.net"] {
@@ -410,7 +327,7 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
         }
         if archive.is_some() { break; }
     }
-    let bytes = archive.ok_or_else(|| AppError::InvalidState("Não foi possível baixar e validar a atualização".into()))?;
+    let bytes = archive.ok_or_else(|| AppError::InvalidState("NÃ£o foi possÃ­vel baixar e validar a atualizaÃ§Ã£o".into()))?;
     let archive_path = std::env::temp_dir().join(format!("luxmc-update-{}.zip", uuid::Uuid::new_v4()));
     pack::atomic_write(&archive_path, &bytes).await?;
     let imported = if source == "modrinth" {
@@ -428,7 +345,7 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
             manifest["projectId"] = serde_json::json!(projectId);
             manifest["sourceVersionId"] = serde_json::json!(versionId);
         } else {
-            manifest["projectID"] = serde_json::json!(projectId.parse::<u64>().map_err(|_| AppError::InvalidInput("ID CurseForge inválido".into()))?);
+            manifest["projectID"] = serde_json::json!(projectId.parse::<u64>().map_err(|_| AppError::InvalidInput("ID CurseForge invÃ¡lido".into()))?);
             manifest["sourceVersionId"] = serde_json::json!(versionId);
         }
         pack::atomic_write(&manifest_path, &serde_json::to_vec_pretty(&manifest)?).await?;
@@ -440,7 +357,7 @@ pub async fn modpack_update_atomic_core(app:Option<tauri::AppHandle>,state:&AppS
             preserve_user_files(&old, &new, &owned)?;
             preserve_disabled_mods(&old,&new,&owned)?;
             let audit = crate::core::mods::validation::audit_cancellable(&new,false,Some(&cancel))?;
-            if !audit.errors.is_empty() { return Err(AppError::InvalidInput(format!("A nova versão conflita com os arquivos preservados. A instância anterior foi mantida.\n{}",audit.errors.join("\n")))); }
+            if !audit.errors.is_empty() { return Err(AppError::InvalidInput(format!("A nova versÃ£o conflita com os arquivos preservados. A instÃ¢ncia anterior foi mantida.\n{}",audit.errors.join("\n")))); }
             let mut count = 0;
             for entry in std::fs::read_dir(new.join("mods"))? {
                 let entry = entry?;
@@ -537,7 +454,7 @@ fn preserve_user_files(old: &std::path::Path, new: &std::path::Path, managed: &s
             let path = entry.path();
             let relative = path.strip_prefix(old).map_err(|error| AppError::Internal(error.to_string()))?.to_string_lossy().replace('\\', "/");
             if relative == ".luxmc" || ["manifest.json", "modrinth.index.json"].contains(&relative.as_str()) { continue; }
-            if pack::metadata_is_link(&std::fs::symlink_metadata(&path)?) { return Err(AppError::InvalidInput(format!("Não é possível copiar link simbólico: {relative}"))); }
+            if pack::metadata_is_link(&std::fs::symlink_metadata(&path)?) { return Err(AppError::InvalidInput(format!("NÃ£o Ã© possÃ­vel copiar link simbÃ³lico: {relative}"))); }
             let target = pack::destination(new, &relative)?;
             if entry.file_type()?.is_dir() { std::fs::create_dir_all(&target)?; pending.push(path); continue; }
             let first = relative.split('/').next().unwrap_or_default();
@@ -670,5 +587,34 @@ mod update_tests {
         let audit = crate::core::mods::validation::audit(&new,false).unwrap();
         assert!(!audit.errors.is_empty());
         assert!(old.join("mods/personal.jar").is_file());
+    }
+}
+
+#[cfg(test)]
+mod release_selection_tests {
+    use super::*;
+    #[test]
+    fn newest_release_stays_current_and_old_responses_cannot_offer_a_downgrade() {
+        let old = serde_json::json!({"id":"alpha","version_number":"15-alpha","date_published":"2026-10-04T12:00:00Z"});
+        let new = serde_json::json!({"id":"beta","version_number":"15-beta","date_published":"2026-10-11T12:00:00Z"});
+        assert!(!is_newer_release(&new,Some(&new),Some("beta"),Some("15-beta"),"modrinth"));
+        assert!(!is_newer_release(&old,Some(&new),Some("beta"),Some("15-beta"),"modrinth"));
+        assert!(is_newer_release(&new,Some(&old),Some("alpha"),Some("15-alpha"),"modrinth"));
+        assert!(!is_newer_release(&new,None,None,Some("unrecognized"),"modrinth"));
+        let revision=serde_json::json!({"id":"beta-revised","version_number":"15-beta","date_published":"2026-10-12T12:00:00Z"});
+        assert!(is_newer_release(&revision,Some(&new),Some("beta"),Some("15-beta"),"modrinth"));
+    }
+    #[test]
+    fn updates_match_minecraft_and_loader_instead_of_the_projects_other_editions() {
+        let version=serde_json::json!({"game_versions":["26.3"],"loaders":["fabric"]});
+        assert!(matching_release(&version,"modrinth","26.3","fabric"));
+        assert!(!matching_release(&version,"modrinth","26.2","fabric"));
+        assert!(!matching_release(&version,"modrinth","26.3","forge"));
+        let version=serde_json::json!({"gameVersions":["1.21.1","NeoForge"]});
+        assert!(matching_release(&version,"curseforge","1.21.1","neoforge"));
+        assert!(!matching_release(&version,"curseforge","1.21.1","forge"));
+        assert!(!matching_release(&version,"curseforge","1.20.1","neoforge"));
+        let server=serde_json::json!({"gameVersions":["1.21.1","NeoForge"],"isServerPack":true});
+        assert!(!matching_release(&server,"curseforge","1.21.1","neoforge"));
     }
 }

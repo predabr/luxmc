@@ -27,7 +27,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         busy = true; error = "";
         try {
             versions = await modsVersions(info.projectId, "", info.source);
-            selected = versions[0]?.id || "";
+            selected = versions.find(version => version.id === info.currentVersion || version.versionNumber === info.currentVersion)?.id || versions[0]?.id || "";
             loadedProject = info.projectId;
         } catch (cause) { error = String(cause); }
         finally { busy = false; }
@@ -50,7 +50,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         <p class="text-xs text-fg-muted">{uiText("ui.e1afd638f469c06c")}</p>
         {#if error}<p role="alert" class="text-sm text-danger">{error}</p><button class={button({ variant: "secondary" })} disabled={busy} onclick={load}>{uiText("ui.b9e10688be012d8b")}</button>{/if}
         <div class="flex flex-wrap gap-3">
-            <GlassSelect bind:value={selected} options={versions.map(version=>({value:version.id,label:version.versionNumber+' · '+version.name}))} label={uiText("ui.021cac6a15e13564")} disabled={busy || updating} onchange={()=>{confirm=false;plan=null;}} />
+            <GlassSelect bind:value={selected} options={versions.map(version=>({value:version.id,label:version.name.includes(version.versionNumber) ? version.name : version.versionNumber+' · '+version.name}))} label={uiText("ui.021cac6a15e13564")} disabled={busy || updating} onchange={()=>{confirm=false;plan=null;}} />
             <button class={button({ variant: "primary" })} disabled={busy || updating || !selected || appState.isGameRunning || appState.isLaunching} onclick={()=>void review()}>{busy || updating ? uiText("ui.aebd32f10b997477") : uiText("studio.planUpdate")}</button>
         </div>
         {#if plan}

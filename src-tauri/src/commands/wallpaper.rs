@@ -13,7 +13,29 @@ pub async fn wallpaper_import(path: String) -> AppResult<String> {
 
 async fn import_into(source: &std::path::Path, directory: &std::path::Path) -> AppResult<String> {
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let source = tokio::fs::canonicalize(source).await?;
+    let source_key = source.to_string_lossy().replace('\\', "/");
+    #[cfg(windows)]
+    let source_key = source_key.to_lowercase();
+    let mapping = directory.join(".sources").join(format!("{:x}.json", sha2::Sha256::digest(source_key.as_bytes())));
+    let source = match tokio::fs::canonicalize(source).await {
+        Ok(path) => path,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            if let Ok(bytes) = tokio::fs::read(&mapping).await {
+                if bytes.len() < 4096 {
+                    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+                        if let Some(name) = value["file"].as_str().filter(|name| name.len() < 80 && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.')) {
+                            let saved = directory.join(name);
+                            if tokio::fs::metadata(&saved).await.is_ok_and(|metadata| metadata.is_file() && metadata.len() > 0 && Some(metadata.len()) == value["bytes"].as_u64()) {
+                                return Ok(saved.to_string_lossy().into_owned());
+                            }
+                        }
+                    }
+                }
+            }
+            return Err(error.into());
+        }
+        Err(error) => return Err(error.into()),
+    };
     let metadata = tokio::fs::metadata(&source).await?;
     let extension = source.extension().and_then(|value| value.to_str()).unwrap_or_default().to_ascii_lowercase();
     if !metadata.is_file() || metadata.len() == 0 || metadata.len() > 512 * 1024 * 1024 ||
@@ -47,6 +69,11 @@ async fn import_into(source: &std::path::Path, directory: &std::path::Path) -> A
         } else {
             tokio::fs::rename(&temporary, &destination).await?;
         }
+        tokio::fs::create_dir_all(mapping.parent().unwrap()).await?;
+        let record = serde_json::to_vec(&serde_json::json!({"file": destination.file_name().unwrap().to_string_lossy(), "bytes": copied}))?;
+        let pending = mapping.with_extension(format!("{}.tmp",uuid::Uuid::new_v4()));
+        tokio::fs::write(&pending,record).await?;
+        tokio::fs::rename(pending,&mapping).await?;
         Ok(destination.to_string_lossy().into_owned())
     }.await;
     if result.is_err() { let _ = tokio::fs::remove_file(&temporary).await; }
@@ -146,10 +173,29 @@ mod tests {
         assert_eq!(imported, super::import_into(&source, &managed).await.unwrap());
         tokio::fs::remove_file(&source).await.unwrap();
         assert_eq!(tokio::fs::read(&imported).await.unwrap(), original);
+        assert_eq!(imported,super::import_into(&source,&managed).await.unwrap());
         assert_eq!(imported, super::import_into(std::path::Path::new(&imported), &managed).await.unwrap());
         tokio::fs::remove_file(&imported).await.unwrap();
-        tokio::fs::remove_dir(&managed).await.unwrap();
-        tokio::fs::remove_dir(&directory).await.unwrap();
+        assert!(directory.canonicalize().unwrap().starts_with(std::env::temp_dir().canonicalize().unwrap()));
+        tokio::fs::remove_dir_all(&directory).await.unwrap();
+    }
+    #[tokio::test]
+    async fn imported_video_survives_source_removal_and_cache_cleanup() {
+        let root=tempfile::tempdir().unwrap();
+        let source=root.path().join("Downloads/scene.mp4");
+        let managed=root.path().join("data/wallpapers");
+        tokio::fs::create_dir_all(source.parent().unwrap()).await.unwrap();
+        let video=include_bytes!("../../../tests/fixtures/wallpaper.mp4");
+        tokio::fs::write(&source,video).await.unwrap();
+        let saved=super::import_into(&source,&managed).await.unwrap();
+        assert_ne!(std::path::Path::new(&saved),source);
+        tokio::fs::remove_file(&source).await.unwrap();
+        let cache=root.path().join("cache");
+        tokio::fs::create_dir_all(&cache).await.unwrap();
+        tokio::fs::write(cache.join("poster.png"),b"disposable").await.unwrap();
+        tokio::fs::remove_dir_all(cache).await.unwrap();
+        assert_eq!(tokio::fs::read(&saved).await.unwrap(),video);
+        assert_eq!(super::import_into(&source,&managed).await.unwrap(),saved);
     }
     #[tokio::test]
     async fn prepares_a_static_poster_from_video() {

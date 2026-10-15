@@ -342,9 +342,9 @@ export const themeStore = {
 		persistWallpaperLibrary(false);
 	},
 
-	importSavedWallpapers() {
+	async importSavedWallpapers() {
 		const originals = wallpaperLibrary.map(entry => entry.url);
-		void import("$lib/api/wallpaper").then(async ({ importWallpaper }) => {
+		await import("$lib/api/wallpaper").then(async ({ importWallpaper }) => {
 			for (const original of originals) {
 				const path = wallpaperLocalPath(original);
 				if (!path) continue;

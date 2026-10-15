@@ -101,6 +101,9 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 				: await instanceImportMrpack(tempPath, name, iconUrl, ramMb, importId);
             if (operation.cancelling) { if (cp.importedNew && !paused) await profilesDelete(cp.id); throw new Error("Instalação cancelada"); }
             await instanceLinkPack(cp.id,{source:item.source as 'modrinth'|'curseforge',projectId:item.sourceId,versionId:versions.find(version => version.files.includes(f))!.id,name:item.title});
+            const installed = versions.find(version => version.files.includes(f))!;
+            const { modpackUpdates } = await import('./modpackUpdates.svelte');
+            modpackUpdates.installed(cp.id, item.source, item.sourceId, installed.id, installed.versionNumber || installed.name);
             if (operation.cancelling) { if (cp.importedNew && !paused) await profilesDelete(cp.id); throw new Error("Instalação cancelada"); }
 			profiles.add({
 				id: cp.id,
@@ -121,6 +124,7 @@ const operation = $state({ paused: false, busy: false, cancelling: false, item: 
 			profiles.activeId = cp.id;
 
 			operation.profileId = cp.id; operation.phase = 'complete'; operation.percent = 100; operation.text = uiText("downloadsDesign.complete");
+            void import('$lib/utils/contentPrefetch').then(({ prefetchInstanceContent }) => prefetchInstanceContent(cp.id, true));
             void profiles.refresh().catch(() => {});
 			fireModpackSuccessConfetti();
 			toast(uiText("ui.1b6566167e91c704", {arg0: (name)}), "success");

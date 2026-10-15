@@ -3008,6 +3008,9 @@
     "747cdb9983e94824": "Invitation link successfully copied!"
   },
   "skinsStudio": {
+    "confirmTitle": "Apply your new skin?",
+    "confirmApply": "Apply this appearance",
+    "keepEditing": "Keep customizing",
     "nameMcTitle": "Choose your next skin",
     "nameMcBrowse": "Explore NameMC",
     "nameMcDescription": "Browse the NameMC catalog in a launcher window. Click a skin to import it into your collection.",
@@ -3238,6 +3241,7 @@
     "open": "Open instance"
   },
   "loginDesign": {
+    "customizerHint": "After signing in, manage your skins and capes in the launcher customizer.",
     "method": "Sign-in method",
     "luxmc": "Your portal account",
     "microsoft": "Official Minecraft",
@@ -3608,6 +3612,10 @@
     "sameVersion": "New build of the same version",
     "build": "Build {{revision}}",
     "freePlan": "Customize your avatar, static cover, name and bio. GIFs in profiles and folders require Plus or Pro. Wallpapers remain free.",
+    "planLoading": "Checking your plan…",
+    "planUnavailable": "Plan unavailable",
+    "planLoadingHint": "Checking this account’s subscription with the server.",
+    "planRetryHint": "Your plan could not be confirmed. Try refreshing its status.",
     "cleanupPartial": "Some files are still in use. Try cleaning again after closing the game.",
     "storageScanning": "Measuring storage usage… You can keep using the launcher."
   }
