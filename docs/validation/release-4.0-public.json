@@ -1,0 +1,108 @@
+{
+  "version": "4.0.0",
+  "releaseUrl": "https://github.com/predabr/luxmc/releases/tag/v4.0.0",
+  "publishedAt": "2026-10-15T19:01:39Z",
+  "downloadChecks": [
+    {
+      "name": "Lux.MC.Launcher.exe",
+      "size": 21594688,
+      "status": 200,
+      "digest": "sha256:12c11cc8dd77590003d1662f6449a2d277cd94e9d7bf3627c60be05b5921a7ab"
+    },
+    {
+      "name": "Luxmc_4.0.0_x64-setup.exe",
+      "size": 21594688,
+      "status": 200,
+      "digest": "sha256:12c11cc8dd77590003d1662f6449a2d277cd94e9d7bf3627c60be05b5921a7ab"
+    },
+    {
+      "name": "Luxmc_4.0.0_amd64.AppImage",
+      "size": 126051520,
+      "status": 200,
+      "digest": "sha256:9181af72586be2a9d97375f5cff5ccaf49f628106ae551d450873166843dca1e"
+    },
+    {
+      "name": "Luxmc_4.0.0_amd64.deb",
+      "size": 27900988,
+      "status": 200,
+      "digest": "sha256:c0fe9aa17717642371a2c1989fb3f20e142b1a835f4270800e7fb743a82a4608"
+    },
+    {
+      "name": "Luxmc-4.0.0-1.x86_64.rpm",
+      "size": 27901654,
+      "status": 200,
+      "digest": "sha256:b339e4d4a10b15266819f1f3e8912bd6dd79e3600c584a2b9b55e763c818800d"
+    },
+    {
+      "name": "luxmc-4.0.0-1-x86_64.pkg.tar.zst",
+      "size": 22860061,
+      "status": 200,
+      "digest": "sha256:840b445ec0f453376e2be6dd6c7683723ce73d09ad9eacc6379d117bd1c070a3"
+    },
+    {
+      "name": "Luxmc_4.0.0_universal.dmg",
+      "size": 49422787,
+      "status": 200,
+      "digest": "sha256:1014f9eda65c878d221d9a44128ed751c4707b496d24d5b338fd25f5c6d6202f"
+    },
+    {
+      "name": "latest.json",
+      "size": 3868,
+      "status": 200,
+      "digest": "sha256:e3f9e9c89e92b061416ee4f3f7b465e062bd4611ceca013e4c18a9bb7b779bab"
+    },
+    {
+      "name": "SHA256SUMS",
+      "size": 641,
+      "status": 200,
+      "digest": "sha256:2283a9dc3cd7150263b1437e64752b8f4921be905939ddc357b17faab280b472"
+    },
+    {
+      "name": "latest.json.sig",
+      "size": 89,
+      "status": 200,
+      "digest": "sha256:57eb3a7e657667c700b03d0e58c0e69acd98bd0230f4bb90c9873f0de3c90b61"
+    },
+    {
+      "name": "SHA256SUMS.sig",
+      "size": 89,
+      "status": 200,
+      "digest": "sha256:1e654d8f2e60f04737aa60ad849066ceebe6e724e27d10e58c4a8920e08c9bd1"
+    }
+  ],
+  "siteChecks": [
+    {
+      "platform": "windows",
+      "filename": "Lux.MC.Launcher.exe",
+      "status": 200
+    },
+    {
+      "platform": "linux",
+      "filename": "Luxmc_4.0.0_amd64.AppImage",
+      "status": 302
+    },
+    {
+      "platform": "deb",
+      "filename": "Luxmc_4.0.0_amd64.deb",
+      "status": 302
+    },
+    {
+      "platform": "rpm",
+      "filename": "Luxmc-4.0.0-1.x86_64.rpm",
+      "status": 302
+    },
+    {
+      "platform": "arch",
+      "filename": "luxmc-4.0.0-1-x86_64.pkg.tar.zst",
+      "status": 302
+    },
+    {
+      "platform": "macos",
+      "filename": "Luxmc_4.0.0_universal.dmg",
+      "status": 302
+    }
+  ],
+  "manifestVerified": true,
+  "officialSignaturesVerified": true,
+  "websiteInstallerSha256": "12c11cc8dd77590003d1662f6449a2d277cd94e9d7bf3627c60be05b5921a7ab"
+}

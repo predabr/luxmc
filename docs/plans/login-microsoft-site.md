@@ -1,6 +1,6 @@
 # Login Microsoft no site
 
-Implementação local em 15/10/2026. GitHub e release 4.0 continuam sem publicação.
+Implementação publicada no site em 15/10/2026. A publicação dos instaladores 4.0 é acompanhada separadamente em `docs/validation/release-4.0-polish.md`.
 
 O botão em `/conta` usa autorização com código e PKCE, com estado de dez minutos vinculado ao navegador por cookie HttpOnly. O servidor troca o código na Microsoft, autentica Xbox Live/XSTS e consulta o perfil oficial do Minecraft Java. Os tokens Microsoft, Xbox e Minecraft não são persistidos; a sessão do site é independente, HttpOnly e revogável.
 
@@ -33,3 +33,19 @@ Após vincular, novas entradas Microsoft no site encontram a mesma identidade. O
 O teste real com a Microsoft depende do cadastro de retorno, segredo configurado e entrada pelo próprio usuário. Não declarar o login de produção validado apenas com os testes simulados.
 
 Referência: [Microsoft — Authorization code flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow).
+
+
+## Configuração aplicada em 15/10/2026
+
+A plataforma Web e o retorno de produção foram salvos no Entra. As duas variáveis Microsoft foram gravadas como segredos de produção do Cloudflare Pages; a credencial tem duração de seis meses. A migração 0017 foi aplicada e o botão público abriu o seletor oficial da Microsoft.
+
+O usuário identificou a conta Microsoft do Spect3rBW. A tentativa real passou pela Microsoft, Xbox Live e XSTS. A chamada do servidor Cloudflare para `api.minecraftservices.com/authentication/login_with_xbox` recebeu HTTP 403 com uma resposta classificada como bloqueio do provedor. A entrada completa e o vínculo de produção continuam pendentes. Não selecionar outra conta nem criar uma identidade por nickname como alternativa.
+
+
+## Diagnóstico do retorno de produção
+
+O primeiro erro ocorria no modo de redirecionamento da requisição. O cliente agora usa `manual` e rejeita respostas de redirecionamento sem enviar credenciais a outro destino. Com esse ajuste, a troca do código Microsoft e as etapas Xbox funcionaram. O diagnóstico registra apenas serviço, status e códigos classificados; não registra corpos de resposta, tokens, códigos de autorização ou segredos.
+
+A identificação explícita das requisições como Luxmc não removeu o HTTP 403 do endpoint Minecraft. O problema restante não é uma senha solicitada ao usuário, callback ausente nem segredo inválido. Foi solicitada informação sobre um backend já existente fora do Cloudflare. Não contratar hospedagem, trocar IPs para contornar o bloqueio ou enfraquecer a confirmação da identidade Minecraft.
+
+O usuário confirmou que não tem outro servidor disponível. Em produção, a tela agora explica o bloqueio e orienta o uso do launcher. A publicação do instalador 4.0 foi concluída independentemente dessa pendência de autenticação web.
