@@ -422,7 +422,7 @@ $("#microsoftLogin").addEventListener('click', async () => {
 });
 const microsoftError = new URLSearchParams(location.search).get('microsoft_error');
 if (microsoftError) {
-    const messages: Record<string, string> = { cancelled: 'O login Microsoft foi cancelado. Você pode tentar novamente.', expired: 'O acesso expirou ou foi iniciado em outra aba. Clique em Entrar com Microsoft novamente.', minecraft: 'Esta conta precisa ter um perfil do Minecraft Java para entrar no Luxmc.', conflict: 'Esta conta Microsoft já está vinculada a outro perfil, ou o nickname pertence a outra conta. Entre na identidade original para continuar.', unavailable: 'A Microsoft ou o serviço do Luxmc não respondeu. Tente novamente em instantes.' };
+    const messages: Record<string, string> = { cancelled: 'O login Microsoft foi cancelado. Você pode tentar novamente.', expired: 'O acesso expirou ou foi iniciado em outra aba. Clique em Entrar com Microsoft novamente.', minecraft: 'Esta conta precisa ter um perfil do Minecraft Java para entrar no Luxmc.', conflict: 'Esta conta Microsoft já está vinculada a outro perfil, ou o nickname pertence a outra conta. Entre na identidade original para continuar.', service_blocked: 'O serviço do Minecraft bloqueou a conexão do site. O login Microsoft pelo site ainda não pôde ser concluído. Use o launcher por enquanto.', unavailable: 'A Microsoft ou o serviço do Luxmc não respondeu. Tente novamente em instantes.' };
     $("#microsoftError").textContent = messages[microsoftError] || messages.unavailable;
     $("#microsoftError").hidden = false;
     history.replaceState(null, '', '/conta');

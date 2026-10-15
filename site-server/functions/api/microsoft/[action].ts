@@ -45,6 +45,7 @@ export async function onRequest({ request, env, params, waitUntil }: SiteContext
         return response;
     } catch (error: any) {
         console.error('Microsoft login failed', { action, service: error?.service || 'account', status: Number.isInteger(error?.status) ? error.status : null, providerCode: error?.providerCode || null, providerReason: error?.providerReason || null });
-        return action === 'callback' ? redirect(['minecraft', 'conflict'].includes(error?.reason) ? error.reason : 'unavailable') : json({ error: 'Não foi possível iniciar o login Microsoft. Tente novamente.' }, 503);
+        const reason = error?.status === 403 && error?.providerReason === 'provider_policy' ? 'service_blocked' : ['minecraft', 'conflict'].includes(error?.reason) ? error.reason : 'unavailable';
+        return action === 'callback' ? redirect(reason) : json({ error: 'Não foi possível iniciar o login Microsoft. Tente novamente.' }, 503);
     }
 }

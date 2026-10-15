@@ -43,7 +43,8 @@ async function onRequest({ request, env, params, waitUntil }) {
     return response;
   } catch (error) {
     console.error("Microsoft login failed", { action, service: error?.service || "account", status: Number.isInteger(error?.status) ? error.status : null, providerCode: error?.providerCode || null, providerReason: error?.providerReason || null });
-    return action === "callback" ? redirect(["minecraft", "conflict"].includes(error?.reason) ? error.reason : "unavailable") : json({ error: "N\xE3o foi poss\xEDvel iniciar o login Microsoft. Tente novamente." }, 503);
+    const reason = error?.status === 403 && error?.providerReason === "provider_policy" ? "service_blocked" : ["minecraft", "conflict"].includes(error?.reason) ? error.reason : "unavailable";
+    return action === "callback" ? redirect(reason) : json({ error: "N\xE3o foi poss\xEDvel iniciar o login Microsoft. Tente novamente." }, 503);
   }
 }
 export {

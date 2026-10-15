@@ -100,6 +100,16 @@ test('upstream redirects fail without forwarding authentication credentials', as
     assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM lux_sessions').get().count, 0);
 });
 
+test('Minecraft provider blocks are explicit and cannot create an unverified identity', async t => {
+    const f = fixture(t), url = await f.start(), upstream = globalThis.fetch, logs = [];
+    t.mock.method(console, 'error', (...values) => logs.push(values));
+    t.mock.method(globalThis, 'fetch', async (target, options) => target === 'https://api.minecraftservices.com/authentication/login_with_xbox' ? new Response('<p>The request is blocked.</p>', { status: 403 }) : upstream(target, options));
+    assert.equal((await f.callback(url)).headers.get('Location'), '/conta?microsoft_error=service_blocked');
+    assert.equal(logs[0][1].providerReason, 'provider_policy');
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM lux_sessions').get().count, 0);
+    assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM lux_microsoft_accounts').get().count, 0);
+});
+
 test('callback rejects stolen state, expiry and replay before exchanging a token', async t => {
     const f = fixture(t), url = await f.start(), browser = f.jar.get('__Host-luxmc-microsoft');
     f.jar.set('__Host-luxmc-microsoft', 'e'.repeat(64));
