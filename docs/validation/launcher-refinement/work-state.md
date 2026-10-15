@@ -91,3 +91,15 @@ O usuário pediu: parar o GitHub, revisar tudo principalmente modpacks, e prepar
 - scripts/audit-windows-release.ps1 tentou validar e parou ANTES de varrer: Defender indisponível. Get-MpComputerStatus confirmou AMServiceEnabled=false, AntivirusEnabled=false, RealTimeProtectionEnabled=false. Nenhuma alteração de proteção foi feita pelo agente.
 - Get-AuthenticodeSignature: NotSigned para instalador e executável. Não há confirmação de confiança do Windows ou aprovação de antivírus. Relatório de metadados/pendências salvo em windows-4.0.0-local-audit.json.
 - GitHub segue parado. Nenhuma publicação, deploy, instalação ou abertura de jogos. Próximas validações: varredura em ambiente com antivírus ativo, instalação/atualização/desinstalação e início real dos jogos; o candidato local não é uma release pronta para distribuição.
+
+## Instalação autorizada pelo usuário e limpeza — 15/10/2026
+
+- O usuário pediu instalar a versão mais nova e tirar os antigos. A instrução anterior de não instalar automaticamente foi superada por esse pedido explícito.
+- Instalador conferido por SHA-256 e copiado para Downloads/Lux MC Launcher - 4.0.0.exe. Upgrade executado com /S /UPDATE no diretório já registrado, preservando os dados. Nenhum launcher/jogo estava em execução no início.
+- Registro e PE do programa instalado confirmam 4.0.0; atalhos da área de trabalho e menu Iniciar apontam para AppData/Local/Luxmc/luxmc.exe.
+- Binário instalado SHA-256 c7052576fde927d062d941860e4199e1ac0b3bbe19d37891486c2f0692535dd8. A diferença de 3 bytes para o binário bruto é EXATAMENTE o marcador __TAURI_BUNDLE_TYPE_VAR_UNK para __TAURI_BUNDLE_TYPE_VAR_NSS inserido pelo empacotamento Tauri; equivalência integral verificada após normalizar apenas esse marcador. Não modificar o executável instalado para remover o marcador.
+- Banco permaneceu byte a byte igual; 5 perfis e 2 contas preservados. Dois level.dat verificados por SHA-256 também permaneceram iguais.
+- Após confirmar a instalação, foram removidos 13 instaladores antigos do Luxmc em Downloads, validados por nome, ProductName, versão e hash. Mantido o novo 4.0.0 e arquivos pessoais, incluindo GIFs. Removido luxmc.repair-stage antigo depois de conferir sua cópia de recuperação.
+- Recuperação privada em Local/Luxmc-build/backups/upgrade-4.0.0-20261014: programa e desinstalador anteriores, estágio antigo de reparo, backup SQLite consistente e relatórios before/after/cleanup. Não publicar o banco nem esses arquivos privados.
+- Evidência resumida em installed-4.0.0-local.json. A auditoria windows-4.0.0-local-audit.json registra o estado do candidato ANTES da instalação; este registro atualiza o estado instalado.
+- GitHub e site continuam sem publicação. Não foram alteradas proteções, executados jogos nem declarada aprovação do antivírus; Defender continua com varredura pendente.

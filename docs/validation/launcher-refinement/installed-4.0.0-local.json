@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-15",
+  "version": "4.0.0",
+  "buildId": "20261014.1",
+  "installed": true,
+  "authorization": "User requested installing the newest local version and removing old installers.",
+  "registryVersion": "4.0.0",
+  "installerSha256": "e616c5108709b8428a5b203116eba7f24ac3d94b2d6f839c80bed30a49203e48",
+  "installedBinarySha256": "c7052576fde927d062d941860e4199e1ac0b3bbe19d37891486c2f0692535dd8",
+  "binaryVerified": "Exact match to the built executable after the expected Tauri NSIS marker replacement UNK to NSS; only three bytes differ.",
+  "preservation": {
+    "databaseUnchanged": true,
+    "worldsUnchanged": true,
+    "countsUnchanged": true,
+    "counts": {
+      "profiles": 5,
+      "accounts": 2
+    }
+  },
+  "removedOldInstallers": 13,
+  "oldRepairStageRemoved": true,
+  "desktopAndStartMenuShortcutsVerified": true,
+  "installer": "C:/Users/preda/Downloads/Lux MC Launcher - 4.0.0.exe",
+  "recovery": "C:\\Users\\preda\\AppData\\Local\\Luxmc-build\\backups\\upgrade-4.0.0-20261014",
+  "githubPublished": false,
+  "websiteDeployed": false,
+  "antivirusScan": "Still pending; Defender was disabled during candidate validation.",
+  "gameLaunches": "Not run in this installation task."
+}
