@@ -19,6 +19,7 @@ concurrency:
 env:
   NODE_VERSION: "22"
   RUST_TOOLCHAIN: stable
+  LUXMC_BUILD_ID: ${{ github.run_id }}.${{ github.run_attempt }}
 
 jobs:
   validate:
@@ -130,6 +131,12 @@ jobs:
         env:
           LUXMC_NATIVE_BINARY: src-tauri/target/release/luxmc.exe
         run: node scripts/verify-instance-deletion.mjs --fixtures-only
+
+      - name: Windows native storage and build identity regression
+        if: runner.os == 'Windows'
+        env:
+          LUXMC_NATIVE_BINARY: src-tauri/target/release/luxmc.exe
+        run: node scripts/verify-storage-native.mjs
 
       - name: Prepare Java versions for loader integration tests
         if: runner.os == 'Linux'

@@ -54,6 +54,7 @@ jobs:
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
       tag: ${{ steps.get-tag.outputs.tag }}
+      build_id: ${{ steps.get-tag.outputs.build_id }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -65,6 +66,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
+          echo "build_id=${GITHUB_RUN_ID}.${GITHUB_RUN_ATTEMPT}" >> $GITHUB_OUTPUT
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             if [ "${{ inputs.reuse_assets }}" = "true" ]; then
               echo "Reusing installers cannot create a new build identity. Dispatch a full build." >&2
@@ -120,6 +122,8 @@ jobs:
 
   build-linux:
     needs: create-release
+    env:
+      LUXMC_BUILD_ID: ${{ needs.create-release.outputs.build_id }}
     if: ${{ inputs.reuse_assets != true }}
     runs-on: ubuntu-22.04
     steps:
@@ -198,6 +202,8 @@ jobs:
 
   build-windows:
     needs: create-release
+    env:
+      LUXMC_BUILD_ID: ${{ needs.create-release.outputs.build_id }}
     if: ${{ inputs.reuse_assets != true }}
     runs-on: windows-latest
     steps:
@@ -280,6 +286,8 @@ jobs:
 
   build-macos:
     needs: create-release
+    env:
+      LUXMC_BUILD_ID: ${{ needs.create-release.outputs.build_id }}
     if: ${{ inputs.reuse_assets != true }}
     runs-on: macos-latest
     steps:

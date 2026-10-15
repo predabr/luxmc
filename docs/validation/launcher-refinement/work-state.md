@@ -26,3 +26,12 @@ Concluir suíte de navegador e CI Windows/Linux; analisar divergências e corrig
 - Novos testes nativos ignorados por padrão têm execução explícita na CI com os JARs reais GeckoLib 3.1.40 e Schizo Cave Dweller 1.6.4 do provedor, verificados por tamanho e SHA-1 antes de gravar. Nunca executam os JARs.
 - Novos arquivos deste bloco: src/lib/stores/storageActivity.svelte.ts e scripts/prepare-real-mod-fixtures.mjs.
 - Os seis screenshots preexistentes foram copiados em Local/Luxmc-build/backups/refinement-existing-screenshots antes dos casos de catálogo e restaurados depois; capturas novas em requests/refinement-catalog-captures. Não incluir screenshots antigos nem mudanças vendor no commit.
+
+## Novo ponto de verificação
+- Segundo commit: db583945100005112fa8387cf672b897c301cbba.
+- CI https://github.com/predabr/luxmc/actions/runs/38666709652: cargo check passou em Windows e Linux; cargo test em andamento na última consulta.
+- pnpm check passou após o estado global e a escolha da plataforma nativa. pnpm build concluiu com sucesso.
+- Servidor Vite reiniciado: social-presence voltou a passar, seguido de recuperação de perfil/GIF, aparência em três idiomas, perfis visíveis e partículas. O erro anterior era relativo ao servidor com HMR; a CI Linux limpa já havia passado nesse teste.
+- GeckoLib e Cave Dweller reais conferidos independentemente por Python/tomllib, tamanhos e SHA-256 em real-archives.json. Ainda aguarda execução dos testes Rust reais na CI.
+- Preparado scripts/verify-storage-native.mjs, restrito a GITHUB_ACTIONS Windows: testa o executável, revisão compilada, contagem com hardlinks, limpeza real em dados efêmeros e preservação de mundo/mod/opções. Não executar no PC do usuário.
+- Workflow de release agora fixa o identificador de compilação como output de create-release para todos os SOs, inclusive em nova tentativa de jobs parcialmente falhos. Não alterar tags publicadas nem reutilizar instaladores com outra identidade.

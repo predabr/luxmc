@@ -1,0 +1,26 @@
+[
+  {
+    "file": "geckolib-forge-1.19-3.1.40.jar",
+    "bytes": 2938383,
+    "sha256": "b4fd4aba01943d4cc62bba9e2d0fb41d85c871a95fad972fbb2248d3d826ea02",
+    "mods": [
+      {
+        "id": "geckolib3",
+        "declared": "${file.jarVersion}",
+        "resolved": "3.1.40"
+      }
+    ]
+  },
+  {
+    "file": "Schizo Cave Dweller.jar",
+    "bytes": 1012102,
+    "sha256": "8d29944b55b715c84bd3541e06afc1b729b68eac1c5a7d377455d2bba82898d5",
+    "mods": [
+      {
+        "id": "cave_dweller",
+        "declared": "1.6.4",
+        "resolved": "1.6.4"
+      }
+    ]
+  }
+]
