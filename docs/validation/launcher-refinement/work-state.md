@@ -16,3 +16,13 @@ Nenhuma nova versão publicada ou instalada neste refinamento. Versão pública 
 
 ## Próximas verificações
 Concluir suíte de navegador e CI Windows/Linux; analisar divergências e corrigir antes de preparar um instalador. Testar os JARs reais do Terrorcraft em cópia isolada, sem modificar as instâncias do usuário. Não prometer início instantâneo nem compatibilidade universal sem medir cada pacote.
+
+## Continuação da validação
+- Primeiro commit: 8e89c102a26abe94ae3be96cc6c1eb6213728137; branch codex/launcher-refinement-builds.
+- Primeira CI: https://github.com/predabr/luxmc/actions/runs/38665330636. Linux passou nos 35 testes anteriores de navegador; o novo teste encontrou seleção de plataforma pelo navegador em vez do backend. Corrigido no código seguinte.
+- A suíte local passou até catalog-navigation. social-presence falhou com o servidor Vite que havia recebido HMR durante a edição; repetir com servidor novo para evitar módulos duplicados por timestamp. Não marcar a suíte completa como aprovada antes disso.
+- Limpeza de armazenamento agora usa estado global: preserva progresso ao sair da página e voltar, testado no navegador.
+- Shield evita cópia temporária de JARs já conhecidos, mantendo hash do conteúdo e bloqueio de alteração com mesmo tamanho/mtime. Acrescentados tempos internos de Java/loader, nativos e aparência/Shield.
+- Novos testes nativos ignorados por padrão têm execução explícita na CI com os JARs reais GeckoLib 3.1.40 e Schizo Cave Dweller 1.6.4 do provedor, verificados por tamanho e SHA-1 antes de gravar. Nunca executam os JARs.
+- Novos arquivos deste bloco: src/lib/stores/storageActivity.svelte.ts e scripts/prepare-real-mod-fixtures.mjs.
+- Os seis screenshots preexistentes foram copiados em Local/Luxmc-build/backups/refinement-existing-screenshots antes dos casos de catálogo e restaurados depois; capturas novas em requests/refinement-catalog-captures. Não incluir screenshots antigos nem mudanças vendor no commit.

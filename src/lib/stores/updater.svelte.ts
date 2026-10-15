@@ -99,7 +99,8 @@ export const updaterStore = {
 							releaseUrl = "https://github.com/predabr/luxmc/releases/latest";
 
 							const ua = typeof navigator !== "undefined" ? (navigator.userAgent + " " + (navigator.platform || "")).toLowerCase() : "";
-							const platformKey = ua.includes("win") ? "windows-x86_64" : ua.includes("mac") ? (ua.includes("arm") ? "darwin-aarch64" : "darwin-x86_64") : "linux-x86_64";
+                            const nativePlatform = environment === 'windows' ? 'windows' : environment === 'macos' ? 'macos' : environment !== 'manual' ? 'linux' : ua.includes('win') ? 'windows' : ua.includes('mac') ? 'macos' : 'linux';
+							const platformKey = nativePlatform === 'windows' ? "windows-x86_64" : nativePlatform === 'macos' ? (ua.includes("arm") ? "darwin-aarch64" : "darwin-x86_64") : "linux-x86_64";
 
 							if (manifest.platforms && manifest.platforms[platformKey] && manifest.platforms[platformKey].url && (environment === "appimage" || environment === "windows" || environment === "macos")) {
 								const candidateUrl: string = manifest.platforms[platformKey].url;

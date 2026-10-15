@@ -473,6 +473,7 @@ impl GameLauncher {
         }
         self.emit_log(&format!("Java major version required: {} (loader: {})", major, loader));
 
+        let runtime_started = std::time::Instant::now();
         let runtime = self.java.resolve_java(major, profile.java_path.as_deref());
         let loader_preparation = async {
             if !matches!(loader.as_str(), "fabric" | "quilt" | "neoforge" | "forge") {
@@ -492,6 +493,7 @@ impl GameLauncher {
             )))
         };
         let (java_path, prepared_loader) = tokio::try_join!(runtime, loader_preparation)?;
+        self.emit_log(&format!("Java e loader preparados em {:.2}s.",runtime_started.elapsed().as_secs_f64()));
         self.emit_log(&format!("Java binary: {}", java_path.display()));
 
         self.emit_stage(LaunchStage::ResolvingClasspath);
@@ -596,7 +598,9 @@ impl GameLauncher {
         self.emit_log(&format!("Classpath entries: {}", classpath.len()));
 
         self.emit_stage(LaunchStage::ExtractingNatives);
+        let natives_started = std::time::Instant::now();
         let natives_dir = self.prepare_natives(detail).await?;
+        self.emit_log(&format!("Bibliotecas nativas preparadas em {:.2}s.",natives_started.elapsed().as_secs_f64()));
         self.emit_log(&format!("Natives dir: {}", natives_dir.display()));
 
         // Apply customized player skin if configured
@@ -666,7 +670,9 @@ impl GameLauncher {
 
             Ok::<(), AppError>(())
         };
+        let appearance_started = std::time::Instant::now();
         tokio::try_join!(Box::pin(appearance_preparation), crate::commands::launch::scan_before_launch(game_dir, &self.app))?;
+        self.emit_log(&format!("Aparência e Shield preparados em {:.2}s.",appearance_started.elapsed().as_secs_f64()));
         let verified_profile = profile.clone();
         tokio::task::spawn_blocking(move || crate::core::launcher::launch_state::store(&verified_profile))
             .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;

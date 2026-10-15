@@ -654,6 +654,18 @@ mod tests {
         assert!(backup.join("old-cave.jar").is_file());
     }
     #[test]
+    #[ignore = "Uses explicitly downloaded, hash-verified provider archives without running them"]
+    fn real_terrorcraft_archives_report_their_declared_versions() {
+        let root = std::env::var_os("LUXMC_REAL_MODS_DIR").expect("Select the isolated validation fixture");
+        let root = std::path::Path::new(&root);
+        for (name,id,version) in [("geckolib-forge-1.19-3.1.40.jar","geckolib3","3.1.40"),("Schizo Cave Dweller.jar","cave_dweller","1.6.4")] {
+            let metadata = super::mod_metadata(&root.join("mods").join(name)).unwrap();
+            assert!(metadata.loaders.contains("forge"));
+            assert_eq!(metadata.versions.get(id).map(String::as_str),Some(version));
+        }
+        assert!(super::audit(root,false).unwrap().errors.is_empty());
+    }
+    #[test]
     fn damaged_archive_is_reported_without_deleting_it() {
         let root=std::env::temp_dir().join(format!("luxmc-audit-{}",uuid::Uuid::new_v4()));
         std::fs::create_dir_all(root.join("mods")).unwrap();

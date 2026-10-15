@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: "22"
   RUST_TOOLCHAIN: stable
@@ -66,6 +70,25 @@ jobs:
         with:
           workspaces: "./src-tauri -> target"
 
+      - name: Rust Compilation Check
+        working-directory: src-tauri
+        run: cargo check --locked
+
+      - name: Rust Tests
+        working-directory: src-tauri
+        run: cargo test --lib --locked
+
+      - name: Prepare verified real mod archives
+        shell: bash
+        run: node scripts/prepare-real-mod-fixtures.mjs "$RUNNER_TEMP/luxmc-real-mods"
+
+      - name: Validate actual Terrorcraft metadata and read-only Shield scans
+        working-directory: src-tauri
+        shell: bash
+        run: |
+          LUXMC_REAL_MODS_DIR="$RUNNER_TEMP/luxmc-real-mods" cargo test --lib real_terrorcraft_archives_report_their_declared_versions --locked -- --ignored
+          LUXMC_SHIELD_SCAN_DIR="$RUNNER_TEMP/luxmc-real-mods/mods" cargo test --lib installed_modpack_scan_is_read_only_and_reuses_content_cache --locked -- --ignored --nocapture
+
       - name: Frontend Lint (svelte-check)
         run: pnpm check
 
@@ -90,22 +113,23 @@ jobs:
       - name: Frontend Build
         run: pnpm build
 
-      - name: Rust Compilation Check
-        working-directory: src-tauri
-        run: cargo check --locked
-
       - name: Tauri native compilation
         run: pnpm tauri build --no-bundle
+
+      - name: Preserve Windows validation executable
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: luxmc-validation-windows-${{ github.sha }}
+          path: src-tauri/target/release/luxmc.exe
+          retention-days: 3
+          if-no-files-found: error
 
       - name: Windows instance deletion regression
         if: runner.os == 'Windows'
         env:
           LUXMC_NATIVE_BINARY: src-tauri/target/release/luxmc.exe
         run: node scripts/verify-instance-deletion.mjs --fixtures-only
-
-      - name: Rust Tests
-        working-directory: src-tauri
-        run: cargo test --lib --locked
 
       - name: Prepare Java versions for loader integration tests
         if: runner.os == 'Linux'

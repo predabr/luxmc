@@ -57,7 +57,7 @@ fn invalid_and_oversized_classes_cannot_pass_as_clean() {
 fn content_hash_invalidates_cache_even_with_same_size_and_timestamp() {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("rewrite.jar");
-    let marker = b"discord.com/api/webhooks";
+    let marker = b"inert test markers: java/net/URLClassLoader 85.217.144.130";
     jar(&path, "Example.class", &vec![b'x'; marker.len()]);
     let modified = path.metadata().unwrap().modified().unwrap();
     let size = path.metadata().unwrap().len();
@@ -65,7 +65,9 @@ fn content_hash_invalidates_cache_even_with_same_size_and_timestamp() {
     jar(&path, "Example.class", marker);
     std::fs::File::options().write(true).open(&path).unwrap().set_times(std::fs::FileTimes::new().set_modified(modified)).unwrap();
     assert_eq!(path.metadata().unwrap().len(), size);
-    assert!(!scan_mods_directory(root.path()).is_clean);
+    let changed = scan_mods_directory(root.path());
+    assert!(!changed.is_clean);
+    assert!(enforce_scan(&changed).is_err());
 }
 
 #[test]

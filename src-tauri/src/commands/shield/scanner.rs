@@ -114,7 +114,8 @@ fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static st
     let mut sha1 = Sha1::new();
     let mut chunk = [0u8; 64 * 1024];
     let mut hashed = 0u64;
-    let mut buffered = (before.len() <= BUFFER_BYTES).then(|| Vec::with_capacity(before.len() as usize));
+    let previous_hash = CLEAN_CACHE.lock().unwrap_or_else(|error|error.into_inner()).as_ref().and_then(|cache|cache.get(path)).cloned();
+    let mut buffered = (previous_hash.is_none() && before.len() <= BUFFER_BYTES).then(|| Vec::with_capacity(before.len() as usize));
     loop {
         let length = file.read(&mut chunk).map_err(|error| error.to_string())?;
         if length == 0 { break; }
@@ -134,8 +135,7 @@ fn scan_file(path: &Path) -> Result<Vec<(&'static str, &'static str, &'static st
     if known_hash(&hash, &sha1) {
         return Ok(vec![("critical", "Malware conhecido", "O hash corresponde a um arquivo malicioso documentado pela investigação do Fractureiser.")]);
     }
-    let cached = CLEAN_CACHE.lock().unwrap_or_else(|error| error.into_inner())
-        .as_ref().and_then(|cache| cache.get(path)).is_some_and(|value| value == &hash);
+    let cached = previous_hash.as_ref().is_some_and(|value|value == &hash);
     if cached { return Ok(Vec::new()); }
     file.rewind().map_err(|error| error.to_string())?;
     let reader: Box<dyn ArchiveReader> = match buffered {

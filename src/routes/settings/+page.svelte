@@ -30,9 +30,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         SlidersHorizontal
 	} from "lucide-svelte";
 	import { storageFullReport, storageClearLogs, storageClearCache, storageDeleteInstance } from "$lib/api/system";
+    import { storageActivity } from "$lib/stores/storageActivity.svelte";
 	import { bedrock } from "$lib/stores/bedrock.svelte";
 	import { settingsSetConcurrentDownloads } from "$lib/api/settings";
-	import type { StorageFullReport, InstanceStorageInfo } from "$lib/api/types";
+	import type { InstanceStorageInfo } from "$lib/api/types";
 	import { profiles } from "$lib/stores/profiles.svelte";
 	import { settings, type AppSettings } from "$lib/stores/settings.svelte";
 	import { appState } from "$lib/stores/app.svelte";
@@ -380,10 +381,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		if (notify) toast(t("settings.cacheCleared") || uiText("ui.b1f36d2fc6a6621d"), "success");
 	}
 
-	let storageReport = $state<StorageFullReport | null>(null);
-	let storageLoading = $state(false);
-    let storageCleanup = $state<'logs'|'cache'|null>(null);
-    let storageError = $state("");
+	const storageReport = $derived(storageActivity.report);
+	const storageLoading = $derived(storageActivity.loading);
+    const storageCleanup = $derived(storageActivity.cleanup);
+    const storageError = $derived(storageActivity.error);
     const storageLabels: Record<string, string> = $derived({ libraries: uiText("settings.catLibraries"), assets: uiText("ui.beb65d096de336b3"), versions: uiText("settings.catVersions"), instances: uiText("instances.title"), mods: "Mods", logs: "Logs", cache: uiText("ui.ca803301db3bf0aa"), downloads: "Downloads", java: "Java do launcher", launcher_data: uiText("ui.2b5c717f30be9c31"), configuration: uiText("ui.76b0fb6ad18939ac"), launcher_cache: "Cache do launcher", application: uiText("ui.4fe101016fd71f92"), external_instances: uiText("ui.b59623f79c0f2cf9") });
 	let deletingInstanceId = $state<string | null>(null);
 	let confirmingDeleteInstance = $state<InstanceStorageInfo | null>(null);
@@ -397,16 +398,16 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	}
 
 	async function loadStorageReport(refresh = false) {
-        if (storageLoading) return;
-		storageLoading = true;
-        storageError = "";
+        if (storageLoading || storageCleanup && !refresh) return;
+		storageActivity.loading = true;
+        storageActivity.error = "";
 		try {
-			storageReport = await storageFullReport(refresh);
+			storageActivity.report = await storageFullReport(refresh);
 		} catch (e) {
-            storageError = String(e);
+            storageActivity.error = String(e);
 			toast(uiText("ui.ed80732875192710") + String(e), "error");
 		} finally {
-			storageLoading = false;
+			storageActivity.loading = false;
 		}
 	}
 
@@ -418,7 +419,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	async function handleClearLogs() {
         if (storageCleanup || storageLoading) return;
-        storageCleanup='logs';
+        storageActivity.cleanup='logs';
 		try {
 			const freed = await storageClearLogs();
 			toast(uiText("ui.936e9d5fd6166fd7", {arg0: (formatBytes(freed))}), "success");
@@ -426,12 +427,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (storageReport?.logsBytes) toast(uiText('refinement.cleanupPartial'),'warning');
 		} catch (e) {
 			toast(uiText("ui.74755bfde4f77642") + String(e), "error");
-		} finally { storageCleanup=null; }
+		} finally { storageActivity.cleanup=null; }
 	}
 
 	async function handleClearCacheAction() {
         if (storageCleanup || storageLoading) return;
-        storageCleanup='cache';
+        storageActivity.cleanup='cache';
 		try {
 			const freed = await storageClearCache();
 			await handleClearCache(false);
@@ -440,7 +441,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			if (storageReport?.cacheBytes) toast(uiText('refinement.cleanupPartial'),'warning');
 		} catch (e) {
 			toast(uiText("ui.7e5495197cd64b80") + String(e), "error");
-		} finally { storageCleanup=null; }
+		} finally { storageActivity.cleanup=null; }
 	}
 
 	async function handleDeleteInstance(inst: InstanceStorageInfo) {
