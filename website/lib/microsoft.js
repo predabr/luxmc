@@ -17,23 +17,30 @@ function microsoftConfiguration(env) {
 async function microsoftJson(url, options) {
   const service = new URL(url).hostname + new URL(url).pathname;
   let response;
+  const headers = new Headers(options.headers);
+  headers.set("Accept", "application/json");
+  headers.set("User-Agent", "Luxmc-Website/4.0.0 (+https://luxmc-r92.pages.dev)");
   try {
-    response = await fetch(url, { ...options, redirect: "manual", signal: AbortSignal.timeout(1e4) });
+    response = await fetch(url, { ...options, headers, redirect: "manual", signal: AbortSignal.timeout(1e4) });
   } catch {
     throw Object.assign(new Error("Microsoft authentication unavailable"), { reason: "unavailable", service, status: 0 });
   }
   if (!response.ok) {
     let providerCode;
+    let providerReason;
     try {
       const bytes2 = await response.arrayBuffer();
       if (bytes2.byteLength <= 131072) {
-        const value2 = JSON.parse(new TextDecoder().decode(bytes2));
-        if (typeof value2?.error === "string" && /^[a-z_]{1,64}$/.test(value2.error)) providerCode = value2.error;
+        const text = new TextDecoder().decode(bytes2);
+        if (/invalid app registration|application.*(?:not approved|not allowed)|app.*registration/i.test(text)) providerReason = "application_registration";
+        else if (/request is blocked|access denied|cloudflare|forbidden/i.test(text)) providerReason = "provider_policy";
+        const value2 = JSON.parse(text);
+        if (typeof value2?.error === "string" && /^[a-zA-Z_]{1,64}$/.test(value2.error)) providerCode = value2.error;
         else if (Number.isSafeInteger(value2?.XErr)) providerCode = String(value2.XErr);
       }
     } catch {
     }
-    throw Object.assign(new Error("Microsoft authentication unavailable"), { reason: url.endsWith("/minecraft/profile") && response.status === 404 ? "minecraft" : "unavailable", service, status: response.status, providerCode });
+    throw Object.assign(new Error("Microsoft authentication unavailable"), { reason: url.endsWith("/minecraft/profile") && response.status === 404 ? "minecraft" : "unavailable", service, status: response.status, providerCode, providerReason });
   }
   const bytes = await response.arrayBuffer();
   if (bytes.byteLength > 131072) throw new Error("Authentication response too large");

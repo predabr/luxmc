@@ -42,7 +42,7 @@ async function onRequest({ request, env, params, waitUntil }) {
     response.headers.append("Set-Cookie", "__Host-luxmc-commerce=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0");
     return response;
   } catch (error) {
-    console.error("Microsoft login failed", { action, service: error?.service || "account", status: Number.isInteger(error?.status) ? error.status : null, providerCode: error?.providerCode || null });
+    console.error("Microsoft login failed", { action, service: error?.service || "account", status: Number.isInteger(error?.status) ? error.status : null, providerCode: error?.providerCode || null, providerReason: error?.providerReason || null });
     return action === "callback" ? redirect(["minecraft", "conflict"].includes(error?.reason) ? error.reason : "unavailable") : json({ error: "N\xE3o foi poss\xEDvel iniciar o login Microsoft. Tente novamente." }, 503);
   }
 }

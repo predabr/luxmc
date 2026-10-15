@@ -80,7 +80,7 @@ test('provider failures log a safe stage without credentials or provider descrip
     t.mock.method(console, 'error', (...values) => logs.push(values));
     t.mock.method(globalThis, 'fetch', async () => Response.json({ error: 'invalid_client', error_description: 'private-provider-description', access_token: 'private-provider-token' }, { status: 400 }));
     assert.equal((await f.callback(url)).headers.get('Location'), '/conta?microsoft_error=unavailable');
-    assert.deepEqual(logs[0][1], { action: 'callback', service: 'login.microsoftonline.com/consumers/oauth2/v2.0/token', status: 400, providerCode: 'invalid_client' });
+    assert.deepEqual(logs[0][1], { action: 'callback', service: 'login.microsoftonline.com/consumers/oauth2/v2.0/token', status: 400, providerCode: 'invalid_client', providerReason: null });
     assert.doesNotMatch(JSON.stringify(logs), /private-provider|server-only-test-secret|test-authorization-code|code_verifier/);
 });
 
@@ -95,6 +95,8 @@ test('upstream redirects fail without forwarding authentication credentials', as
     assert.equal(requests.length, 1);
     assert.equal(requests[0].target, 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token');
     assert.equal(requests[0].options.redirect, 'manual');
+    assert.match(requests[0].options.headers.get('User-Agent'), /^Luxmc-Website\/4\.0\.0/);
+    assert.equal(requests[0].options.headers.get('Accept'), 'application/json');
     assert.equal(f.sqlite.prepare('SELECT COUNT(*) AS count FROM lux_sessions').get().count, 0);
 });
 
