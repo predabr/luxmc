@@ -2,6 +2,7 @@ mod loader_selection;
 mod quick_join;
 mod classpath_paths;
 mod presence;
+mod diagnostic;
 mod startup;
 pub mod session;
 #[cfg(any(target_os = "windows", test))]
@@ -379,7 +380,7 @@ impl GameLauncher {
 
         for name in ["luxmc_game.log", "latest.log"] {
             let log_file = game_dir.join("logs").join(name);
-            if let Ok(content) = std::fs::read_to_string(log_file) {
+            if let Ok(content) = diagnostic::read_tail(&log_file) {
                 let lines: Vec<&str> = content.lines().collect();
                 let scan_start = lines.len().saturating_sub(60);
                 for line in lines[scan_start..].iter().rev() {
@@ -398,7 +399,7 @@ impl GameLauncher {
             }
         }
 
-        fallback_stderr.filter(|s| !s.is_empty())
+        fallback_stderr.filter(|s| !s.is_empty() && !diagnostic::warning(s))
     }
 
     #[allow(dead_code)]
@@ -1246,11 +1247,7 @@ impl GameLauncher {
             while let Ok(Some(line)) = crate::core::process::read_log_line(&mut reader).await {
                 let trimmed = line.trim();
                 if !trimmed.is_empty() {
-                    let is_noise = trimmed.contains("[ALSOFT]")
-                        || trimmed.contains("Failed to set real-time priority")
-                        || trimmed.contains("AL_SOFT")
-                        || trimmed.contains("MESA-LOADER")
-                        || trimmed.contains("libEGL warning");
+                    let is_noise = diagnostic::warning(trimmed);
                     if !is_noise {
                         if let Ok(mut lock) = last_stderr_writer.lock() {
                             *lock = Some(trimmed.to_string());
@@ -1334,9 +1331,15 @@ impl GameLauncher {
         let session_exit = self.session.clone();
         tokio::spawn(async move {
             let result = child.wait().await;
+            tokio::join!(finish_log_reader(stdout_reader), finish_log_reader(stderr_reader));
+            let error_message = if result.as_ref().is_ok_and(|status| !status.success()) {
+                let raw_stderr = last_stderr_reader.lock().ok().and_then(|value| value.clone());
+                let directory = game_dir_for_crash.clone();
+                tokio::task::spawn_blocking(move || Self::extract_actual_crash_reason(&directory, raw_stderr)).await.ok().flatten()
+            } else { None };
             let startup_reason = match &result {
-                Ok(status) => last_stderr_reader.lock().ok().and_then(|value| value.clone())
-                    .unwrap_or_else(|| format!("O Minecraft encerrou durante o início (código {}). Consulte os logs da instância.", status.code().unwrap_or(-1))),
+                Ok(status) => error_message.clone()
+                    .unwrap_or_else(|| format!("O Minecraft encerrou (código {}). Consulte os logs da instância.", status.code().unwrap_or(-1))),
                 Err(error) => format!("Não foi possível acompanhar o Minecraft: {error}"),
             };
             if let Some(session) = &session_exit {
@@ -1350,7 +1353,6 @@ impl GameLauncher {
             if result.as_ref().is_ok_and(|status| status.success()) || game_dir_for_crash.join("local/crash_assistant").join(format!("normal_stop_pid{pid}.tmp")).is_file() {
                 if let Err(error) = crate::commands::launch::stop_owned_crash_assistant(game_dir_for_crash.clone(), pid).await { tracing::warn!(target: "launch", "{}", error); }
             }
-            tokio::join!(finish_log_reader(stdout_reader), finish_log_reader(stderr_reader));
             match result {
                 Ok(status) => {
                     if get_active_game_pid() == pid { clear_active_game_pid(); clear_active_game_dir(); }
@@ -1363,12 +1365,6 @@ impl GameLauncher {
                     let peak_mb = peak_ram_bytes.load(std::sync::atomic::Ordering::Relaxed) / (1024 * 1024);
                     let msg = format!("Game process exited with code {}", code);
                     tracing::info!(target: "launch", "{}", msg);
-                    let raw_stderr = last_stderr_reader.lock().ok().and_then(|g| g.clone());
-                    let error_message = if !status.success() {
-                        Self::extract_actual_crash_reason(&game_dir_for_crash, raw_stderr)
-                    } else {
-                        None
-                    };
                     if !status.success() {
                         if let Some(ref app) = app_exit { crate::show_launcher(app); }
                     }

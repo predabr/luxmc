@@ -27,6 +27,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { useTranslation } from "$lib/i18n/useTranslation.svelte";
 	import { appState } from "$lib/stores/app.svelte";
 	import { getIconSrc } from "$lib/utils/icons";
+    import { prefetchInstanceContent } from '$lib/utils/contentPrefetch';
 
 	let { notificationCount = 0 }: { notificationCount?: number } = $props();
 	const { t } = useTranslation();
@@ -112,6 +113,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 					<div class="relative group w-full flex justify-center">
 						<a
 							href={`/instances/${prof.id}`}
+                            onpointerenter={() => void prefetchInstanceContent(prof.id)}
+                            onfocus={() => void prefetchInstanceContent(prof.id)}
 							onclick={(e) => {
 								e.preventDefault();
 								goto(`/instances/${prof.id}`);

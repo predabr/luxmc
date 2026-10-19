@@ -459,8 +459,14 @@ export async function instanceInstallQuickPack(
 
 
 export interface ContentIcon { name: string; icon: string | null; iconKey: string; resolved: boolean; }
+const contentIconRequests = new Map<string, Promise<ContentIcon[]>>();
 export async function instanceContentIcons(profileId: string, subPath: string, fileNames: string[], lookup = false): Promise<ContentIcon[]> {
-    return api.invoke("instance_content_icons", { profileId, subPath, fileNames, lookup });
+    const key = JSON.stringify([profileId, subPath, fileNames, lookup]);
+    const pending = contentIconRequests.get(key);
+    if (pending) return pending;
+    const request = api.invoke<ContentIcon[]>("instance_content_icons", { profileId, subPath, fileNames, lookup }).finally(() => contentIconRequests.delete(key));
+    contentIconRequests.set(key, request);
+    return request;
 }
 
 export const instanceBeginImport = (): Promise<string> => api.invoke("instance_begin_import");

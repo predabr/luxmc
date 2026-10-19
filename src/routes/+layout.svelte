@@ -7,6 +7,7 @@ import { prefetchInstanceContent } from '$lib/utils/contentPrefetch';
     });
 import { interfaceOpacityRatio } from '$lib/utils/interfaceOpacity';
 import LaunchSessionStatus from "$lib/components/instances/LaunchSessionStatus.svelte";
+import PlanRequiredModal from '$lib/components/profile/PlanRequiredModal.svelte';
 import { createLaunchLogBuffer } from "$lib/utils/launchLogBuffer";
 import { membershipState, appearanceSnapshot } from "$lib/stores/membership.svelte";
 import { APP_VERSION } from "$lib/version";
@@ -899,6 +900,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 <UpdateModal />
 <DownloadProgressBar />
 <LaunchSessionStatus />
+<PlanRequiredModal />
 <CrashDoctorModal />
 <CommandPalette />
 <MiniPlayer />

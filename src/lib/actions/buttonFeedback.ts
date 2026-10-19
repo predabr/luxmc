@@ -7,7 +7,7 @@ export function buttonFeedback(node: HTMLElement) {
     const clear = () => { for (const { animation, wave } of active.values()) { animation.cancel(); wave.remove(); } active.clear(); };
     const click = (event: MouseEvent) => {
         if (settings.value.animations === false || appState.performanceMode || appState.isLaunching || appState.isGameRunning || document.hidden || reduced.matches && settings.value.respectReducedMotion !== false) return;
-        const button = (event.target as Element)?.closest<HTMLElement>('.launcher-button--primary, .launcher-button--play, .launcher-button--secondary');
+        const button = (event.target as Element)?.closest<HTMLElement>('.launcher-button');
         if (!button || !node.contains(button) || button.matches(':disabled, [aria-disabled="true"]')) return;
         const previous = active.get(button);
         previous?.animation.cancel(); previous?.wave.remove();
@@ -23,7 +23,7 @@ export function buttonFeedback(node: HTMLElement) {
         animation.onfinish = () => { wave.remove(); if (active.get(button)?.animation === animation) active.delete(button); animation.cancel(); };
     };
     const visibility = () => { if (document.hidden) clear(); };
-    node.addEventListener('click', click);
+    node.addEventListener('click', click, true);
     document.addEventListener('visibilitychange', visibility);
-    return { destroy() { clear(); node.removeEventListener('click', click); document.removeEventListener('visibilitychange', visibility); } };
+    return { destroy() { clear(); node.removeEventListener('click', click, true); document.removeEventListener('visibilitychange', visibility); } };
 }

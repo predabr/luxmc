@@ -37,8 +37,15 @@ const proStyle = {accent:'lilac',frame:'orbit',effect:'shimmer',layout:'centered
             await page.getByRole('button',{name:'Editar meu perfil',exact:true}).click();
             const dialog=page.getByRole('dialog');assert.equal(await dialog.getByRole('button',{name:'Gerenciar minhas tags',exact:true}).count(),0);await dialog.getByRole('tab',{name:'Vitrine',exact:true}).click();await dialog.getByText(`${plan==='pro'?17:plan==='plus'?9:0}/${plan==='pro'?24:plan==='plus'?16:8}`,{exact:true}).waitFor();await dialog.getByRole('tab',{name:'Aparência',exact:true}).click();
             assert.equal(await page.evaluate(()=>document.documentElement.classList.contains('light')),theme==='light');
-            assert.equal(await dialog.getByRole('button',{name:'Paleta: Menta',exact:true}).isDisabled(),plan==='free');
-            assert.equal(await dialog.getByRole('button',{name:'Moldura do avatar: Órbita',exact:true}).isDisabled(),plan!=='pro');
+            assert.equal(await dialog.getByRole('button',{name:'Paleta: Menta',exact:true}).isDisabled(),false);
+            assert.equal(await dialog.getByRole('button',{name:'Moldura do avatar: Órbita',exact:true}).isDisabled(),false);
+            if(plan!=='pro') {
+                const locked = dialog.getByRole('button',{name:'Moldura do avatar: Órbita',exact:true});
+                await locked.click();
+                const prompt = page.getByRole('dialog',{name:'Personalize com Plus ou Pro',exact:true});
+                await prompt.getByRole('button',{name:'Agora não',exact:true}).click();
+                assert.equal(await locked.getAttribute('aria-pressed'),'false');
+            }
             if(plan!=='free') {await dialog.getByRole('button',{name:'Paleta: Menta',exact:true}).click();await dialog.getByRole('button',{name:'Moldura do avatar: Contorno duplo',exact:true}).click();}
             if(plan==='pro') {await dialog.getByRole('button',{name:'Paleta: Lilás',exact:true}).click();await dialog.getByRole('button',{name:'Moldura do avatar: Órbita',exact:true}).click();await dialog.getByRole('button',{name:'Efeito: Brilho da capa',exact:true}).click();await dialog.getByRole('button',{name:'Composição: Centralizada',exact:true}).click();}
             await dialog.screenshot({path:`${output}/editor-${plan}-${theme}.png`});

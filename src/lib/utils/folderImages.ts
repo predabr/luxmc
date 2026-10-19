@@ -1,4 +1,4 @@
-import {prepareAnimatedImage} from './animatedImage';
+import {prepareAnimatedImage, isGifFile} from './animatedImage';
 
 const key = "luxmc_library_folder_images_v1";
 
@@ -26,7 +26,7 @@ export async function prepareFolderImage(file: File): Promise<string> {
     let bitmap: ImageBitmap;
     try { bitmap = await createImageBitmap(file); } catch { throw new Error("invalid"); }
     try {
-        if (file.type === "image/gif") {
+        if (await isGifFile(file)) {
             return await prepareAnimatedImage(file);
         }
         const ratio = Math.min(1, 384 / Math.max(bitmap.width, bitmap.height));

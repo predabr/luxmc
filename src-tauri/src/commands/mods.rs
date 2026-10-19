@@ -35,7 +35,7 @@ pub(crate) fn content_icon_key(path: &std::path::Path, metadata: &std::fs::Metad
     let artwork_metadata = if metadata.is_dir() { std::fs::metadata(path.join("pack.png")).ok() } else { None };
     let metadata = artwork_metadata.as_ref().unwrap_or(metadata);
     let modified = metadata.modified().ok().and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok()).map(|time| time.as_nanos()).unwrap_or(0);
-    format!("content:v2:{}:{}:{}", path.to_string_lossy(), metadata.len(), modified)
+    format!("content:v3:{}:{}:{}", path.to_string_lossy(), metadata.len(), modified)
 }
 
 async fn cache_content_icon(pool: &sqlx::SqlitePool, path: &std::path::Path, icon: Option<&str>) {
@@ -1251,24 +1251,10 @@ fn read_mod_icon_from_jar(jar_path: &std::path::Path) -> Option<String> {
                 use std::io::Read;
                 let mut content = String::new();
                 if entry.by_ref().take(1024 * 1024).read_to_string(&mut content).is_ok() {
-                    for line in content.lines() {
-                        let trimmed = line.trim();
-                        if (trimmed.starts_with("modId") || trimmed.starts_with("mod_id")) && mod_id.is_none() {
-                            if let Some(val) = trimmed.split('=').nth(1) {
-                                let clean = val.trim().trim_matches('"').trim_matches('\'').trim();
-                                if !clean.is_empty() {
-                                    mod_id = Some(clean.to_string());
-                                }
-                            }
-                        }
-                        if trimmed.starts_with("logoFile") && icon_path.is_none() {
-                            if let Some(val) = trimmed.split('=').nth(1) {
-                                let clean = val.trim().trim_matches('"').trim_matches('\'').trim();
-                                if !clean.is_empty() {
-                                    icon_path = Some(clean.trim_start_matches('/').to_string());
-                                }
-                            }
-                        }
+                    if let Ok(document) = toml::from_str::<toml::Value>(&content) {
+                        let info = document.get("mods").and_then(toml::Value::as_array).and_then(|mods| mods.first()).unwrap_or(&document);
+                        if mod_id.is_none() { mod_id = info.get("modId").or_else(|| info.get("mod_id")).and_then(toml::Value::as_str).map(str::to_owned); }
+                        if icon_path.is_none() { icon_path = info.get("logoFile").or_else(|| document.get("logoFile")).and_then(toml::Value::as_str).map(|path| path.trim_start_matches('/').replace('\\', "/")); }
                     }
                 }
             }

@@ -25,6 +25,6 @@
 @keyframes lux-profile-pulse { 50% { opacity: .65; transform: scale(1.07); } }
 html.no-ui-motion .profile-signature *, html.no-ui-motion .profile-signature *::before, html.no-ui-motion .profile-signature *::after,
 html.no-anim .profile-signature *, html.no-anim .profile-signature *::before, html.no-anim .profile-signature *::after { animation: none !important; }
-@media (prefers-reduced-motion: reduce) { .profile-signature *, .profile-signature *::before, .profile-signature *::after { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) .profile-signature *, html:not(.force-ui-motion) .profile-signature *::before, html:not(.force-ui-motion) .profile-signature *::after { animation: none !important; } }
 
 html.resource-busy .profile-signature *::before, html.resource-busy .profile-signature *::after, body.motion-paused .profile-signature *::before, body.motion-paused .profile-signature *::after { animation-play-state: paused !important; }

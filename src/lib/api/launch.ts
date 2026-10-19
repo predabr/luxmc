@@ -46,6 +46,7 @@ export interface LaunchSession {
     versionId: string;
     phase: "preparing" | "startingJava" | "waitingForWindow" | "opened" | "failed" | "cancelled" | "exited";
     stage: string;
+    failedStage?: string | null;
     pid: number;
     startedAt: string;
     updatedAt: string;

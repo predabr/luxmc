@@ -54,7 +54,7 @@ try {
     const entries = await call('instance_file_tree', { profileId: profile.id, subPath: 'mods' });
     const coldMs = performance.now() - started;
     assert.equal(entries.length, 1000);
-    assert.ok(entries.every(entry => !entry.icon && !entry.iconResolved && entry.iconKey.startsWith('content:v2:')));
+    assert.ok(entries.every(entry => !entry.icon && !entry.iconResolved && entry.iconKey.startsWith('content:v3:')));
     const visible = await call('instance_content_icons', {profileId:profile.id, subPath:'mods',fileNames:entries.slice(0,24).map(entry=>entry.name)});
     assert.ok(visible.every(entry=>entry.resolved && entry.icon.startsWith('data:image/png;base64,') && entry.icon.length<32768));
     assert.equal(visible.length,24);

@@ -1,6 +1,7 @@
 <script lang="ts">
 import { membershipState } from '$lib/stores/membership.svelte';
-import { isAnimatedImage } from '$lib/utils/animatedImage';
+import { isAnimatedImage, isGifFile } from '$lib/utils/animatedImage';
+import { planPrompt } from '$lib/stores/planPrompt.svelte';
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { button as launcherButton } from "$lib/components/ui/button";
 	import { backOut, quintOut } from "svelte/easing";
@@ -126,9 +127,12 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         const folder = folderImageTarget;
         input.value = '';
         if (!file || folder === null || folderImageBusy) return;
-        if (file.type === 'image/gif' && !membershipState.paid) { toast(uiText('publicProfile.gifRequiresPlus'), 'warning'); return; }
         folderImageBusy = true;
         try {
+            if (await isGifFile(file) && !membershipState.paid) {
+                if (!membershipState.ready || membershipState.error) { toast(uiText('planPrompt.checkPlan'), 'warning'); void membershipState.refresh(); return; }
+                planPrompt.open(uiText('planPrompt.folderGif')); return;
+            }
             const image = await prepareFolderImage(file);
             try { folderImages = saveFolderImage(folderImages, folder, image); }
             catch { toast(uiText('library.imageStorageError'), 'error'); return; }
@@ -1191,7 +1195,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 
                 <p class="text-xs text-fg-muted">{uiText("refinement.gifHelp")}</p>
-                <input bind:this={folderImageInput} data-folder-image-input type="file" accept={membershipState.paid ? "image/png,image/jpeg,image/webp,image/gif" : "image/png,image/jpeg,image/webp"} class="hidden" tabindex="-1" onchange={uploadFolderImage} />
+                <input bind:this={folderImageInput} data-folder-image-input type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" tabindex="-1" onchange={uploadFolderImage} />
                 {#if selectedGroup !== null}
                     <div class="flex items-center gap-3" aria-label={uiText('library.folderPath')}>
                         <button type="button" data-library-back class={launcherButton({variant:'secondary',size:'sm'})}

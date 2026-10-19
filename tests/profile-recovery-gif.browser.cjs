@@ -27,10 +27,10 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
             await dialog.getByLabel('Nome de exibição',{exact:true}).waitFor();
             await dialog.getByRole('tab',{name:'Aparência',exact:true}).click();
             const input=dialog.getByLabel('Selecionar avatar do perfil',{exact:true});
-            assert.equal((await input.getAttribute('accept')).includes('image/gif'),plan!=='free');
+            assert.equal((await input.getAttribute('accept')).includes('image/gif'),true);
             const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7','base64');
             await input.setInputFiles({name:'avatar.gif',mimeType:'image/gif',buffer:gif});
-            if (plan==='free') await dialog.getByText('GIFs no perfil requerem Luxmc Plus ou Pro ativo.',{exact:true}).last().waitFor();
+            if (plan==='free') { const prompt=page.getByRole('dialog',{name:'Personalize com Plus ou Pro',exact:true}); await prompt.getByText('GIFs no perfil requerem Luxmc Plus ou Pro ativo.',{exact:true}).waitFor(); await prompt.getByRole('button',{name:'Conhecer os planos',exact:true}).waitFor(); await prompt.getByRole('button',{name:'Agora não',exact:true}).click(); }
             else await dialog.getByText('GIF',{exact:true}).waitFor();
             await page.close();
         }

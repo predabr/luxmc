@@ -1,5 +1,10 @@
 import { settings } from '$lib/stores/settings.svelte';
 
+export async function isGifFile(file: File): Promise<boolean> {
+    const header = new Uint8Array(await file.slice(0, 6).arrayBuffer());
+    return String.fromCharCode(...header) === 'GIF87a' || String.fromCharCode(...header) === 'GIF89a';
+}
+
 export async function prepareAnimatedImage(file: File): Promise<string> {
     if (!file.size || file.size > 12 * 1024 * 1024) throw new Error('limit');
     let bytes = await file.arrayBuffer();

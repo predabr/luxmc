@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { hydrateContentIcons } from '$lib/utils/contentPrefetch';
+    import { hydrateContentIcons, rememberContentIcons, warmContentImages } from '$lib/utils/contentPrefetch';
     import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { settings } from '$lib/stores/settings.svelte';
     import ModpackVersions from "$lib/components/instances/ModpackVersions.svelte";
@@ -1040,7 +1040,6 @@
             }));
         } finally { lookupBusy = false; }
     }
-    const warmedIcons = new Set<string>();
     function queueContentIcons(entries: FileTreeEntry[], folder: string) {
         for (const entry of entries) {
             if (!entry.iconKey || entry.iconResolved || entry.icon || iconRequested.has(entry.iconKey)) continue;
@@ -1051,13 +1050,7 @@
         iconTimer = setTimeout(() => void flushContentIcons(), 0);
     }
     function warmIcons(icons: Array<{icon?: string | null}>) {
-        if (settings.value.preloadContentIcons === false) return;
-        for (const icon of icons) {
-            if (!icon.icon || warmedIcons.has(icon.icon)) continue;
-            if (warmedIcons.size >= 2000) warmedIcons.delete(warmedIcons.values().next().value!);
-            warmedIcons.add(icon.icon);
-            const image = new window.Image(); image.decoding = 'async'; image.src = icon.icon;
-        }
+        warmContentImages(icons);
     }
     async function flushContentIcons() {
         if (iconBusy) return;
@@ -1070,6 +1063,7 @@
                 for (const entry of batch) iconQueue.delete(entry.key);
                 const apply = (icons: Awaited<ReturnType<typeof instanceContentIcons>>) => {
                     if (instanceId !== first.id) return;
+                    rememberContentIcons(icons);
                     warmIcons(icons);
                     const byKey = new Map(icons.map(icon => [icon.iconKey, icon]));
                     const update = (entries: FileTreeEntry[]) => entries.map(entry => {
@@ -1099,6 +1093,10 @@
             if (iconRequested.has(entry.iconKey)) {
                 const queued = iconQueue.get(entry.iconKey);
                 if (queued) { iconQueue.delete(entry.iconKey); const rest = [...iconQueue]; iconQueue.clear(); iconQueue.set(entry.iconKey,queued); for (const [key,value] of rest) iconQueue.set(key,value); }
+                else {
+                    const index = iconLookups.findIndex(lookup => lookup.id === instanceId && lookup.folder === folder && lookup.names.includes(entry.name));
+                    if (index > 0) iconLookups.unshift(iconLookups.splice(index, 1)[0]);
+                }
                 return;
             }
             iconRequested.add(entry.iconKey);

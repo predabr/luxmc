@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
         await page.addInitScript(() => {
             window.launcherDemo.state.settings.launcherActionOnLaunch = 'keep_open';
             const original = window.electronAPI.invoke;
-            window.testSession = null;
+            window.testSession = { sessionId: 'old-session', profileId: 'old-profile', versionId: '26.3', startedAt:'2026-10-16T14:16:19Z', updatedAt:'2026-10-16T14:51:04Z', phase:'failed', stage:'failed', failedStage:'running', elapsedSeconds:2084, pid:0, error:'WARNING: sun.misc.Unsafe::putFloat will be removed in a future release', exitCode:-8 };
             window.cancelledSession = null;
             window.savedLogBatches = [];
             let rejectLaunch;
@@ -42,6 +42,7 @@ const assert = require('node:assert/strict');
             window.__TAURI_INTERNALS__.invoke = invoke;
         });
         await page.goto('http://127.0.0.1:1420/');
+        assert.equal(await page.locator('aside[aria-label="Inicialização do Minecraft"]').count(),0);
         await page.getByRole('button', { name: 'Jogar', exact: true }).first().click();
         const status = page.getByRole('complementary', { name: 'Inicialização do Minecraft' });
         await page.getByRole('button', { name: 'Cancelar abertura', exact: true }).waitFor();

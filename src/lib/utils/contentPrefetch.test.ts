@@ -1,0 +1,42 @@
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+const mocks = vi.hoisted(() => ({ tree: vi.fn(), icons: vi.fn(), game: {isLaunching:false,isGameRunning:false}, settings:{value:{preloadContentIcons:true}} }));
+vi.mock('$lib/api/instances', () => ({instanceFileTree:mocks.tree,instanceContentIcons:mocks.icons}));
+vi.mock('$lib/stores/app.svelte', () => ({appState:mocks.game}));
+vi.mock('$lib/stores/settings.svelte', () => ({settings:mocks.settings}));
+beforeEach(() => {
+    vi.resetModules(); vi.clearAllMocks(); vi.useFakeTimers();
+    vi.spyOn(document,'hidden','get').mockReturnValue(false);
+    mocks.game.isLaunching = false; mocks.game.isGameRunning = false;
+});
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+it('warms every local content section before waiting for provider icons and retains newer file-tree icons', async () => {
+    const calls: string[] = [];
+    mocks.tree.mockImplementation(async (_id:string,folder:string) => [{name:folder+'.jar',iconKey:folder,icon:null,iconResolved:false}]);
+    mocks.icons.mockImplementation(async (_id:string,folder:string,names:string[],lookup:boolean) => {
+        calls.push(`${folder}:${Boolean(lookup)}`);
+        return names.map(name => ({name,iconKey:folder,icon:lookup?'https://example.test/'+folder+'.png':null,resolved:Boolean(lookup)}));
+    });
+    vi.stubGlobal('Image',class { decoding=''; src=''; onload=null; onerror=null; });
+    const {prefetchInstanceContent,hydrateContentIcons} = await import('./contentPrefetch');
+    await prefetchInstanceContent('instance');
+    expect(calls.slice(0,3)).toEqual(['mods:false','resourcepacks:false','shaderpacks:false']);
+    expect(calls.filter(call=>call.endsWith(':true'))).toHaveLength(3);
+    const entries = [{name:'mods.jar',path:'/mods.jar',isDir:false,size:1,iconKey:'mods',icon:null,iconResolved:false}];
+    expect(hydrateContentIcons(entries)[0].icon).toBe('https://example.test/mods.png');
+    expect(hydrateContentIcons([{...entries[0],icon:'https://example.test/new.png'}])[0].icon).toBe('https://example.test/new.png');
+});
+
+it('bounds image downloads and suspends queued work while Minecraft runs', async () => {
+    const requested: Array<{onload:()=>void;onerror:()=>void;src:string}> = [];
+    vi.stubGlobal('Image',class { decoding=''; onload=()=>{}; onerror=()=>{}; set src(value:string) { if(value) requested.push(this as never); } });
+    const {warmContentImages} = await import('./contentPrefetch');
+    warmContentImages(Array.from({length:500},(_,index)=>({icon:`https://example.test/${index}.png`})));
+    expect(requested).toHaveLength(4);
+    mocks.game.isGameRunning=true;
+    requested.slice().forEach(image=>image.onload());
+    expect(requested).toHaveLength(4);
+    mocks.game.isGameRunning=false;
+    warmContentImages([]);
+    expect(requested).toHaveLength(8);
+});

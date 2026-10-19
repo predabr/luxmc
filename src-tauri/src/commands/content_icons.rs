@@ -34,6 +34,8 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?").bind(&profile_id).fetch_optional(db.pool()).await?.ok_or_else(|| AppError::NotFound("Instance not found".into()))?;
     let base = crate::core::instance_paths::resolve_within(std::path::Path::new(&row.game_dir), &sub_path)?;
+    let records = if sub_path == "mods" { crate::db::schema::mods::list_by_profile(&db, &profile_id).await? } else { Vec::new() };
+    let mut known = HashMap::<(String, String), Vec<usize>>::new();
     let mut results = Vec::new();
     let mut hashes = HashMap::<String, Vec<usize>>::new();
     for name in names {
@@ -42,25 +44,42 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
         let Ok(metadata) = tokio::fs::metadata(&path).await else { continue; };
         let key = super::mods::content_icon_key(&path, &metadata);
         let mut cached = sqlx::query_scalar::<_, String>("SELECT icon_url FROM mod_icons WHERE key = ?").bind(&key).fetch_optional(db.pool()).await?;
+        if cached.is_none() {
+            cached = sqlx::query_scalar::<_, String>("SELECT icon_url FROM mod_icons WHERE key = ?").bind(key.replacen("content:v3:", "content:v2:", 1)).fetch_optional(db.pool()).await?.filter(|value| value.starts_with("https://") || value.starts_with("data:image/"));
+        }
+        if cached.is_none() {
+            if let Some(record) = records.iter().find(|record| record.file_name.trim_end_matches(".disabled") == name.trim_end_matches(".disabled")) {
+                cached = sqlx::query_scalar::<_, String>("SELECT icon_url FROM mod_icons WHERE key = ?").bind(&record.project_id).fetch_optional(db.pool()).await?.filter(|value| value.starts_with("https://"));
+            }
+        }
         if cached.is_none() && sub_path != "mods" && !metadata.is_dir() {
-            let legacy_key = key.replacen("content:v2:", "content:", 1);
+            let legacy_key = key.replacen("content:v3:", "content:", 1);
             if let Some(url) = sqlx::query_scalar::<_, String>("SELECT icon_url FROM mod_icons WHERE key = ?").bind(legacy_key).fetch_optional(db.pool()).await?.filter(|value| value.starts_with("https://")) {
                 sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&key).bind(&url).execute(db.pool()).await?;
                 cached = Some(url);
             }
         }
         if let Some(value) = cached.filter(|value| cache_is_resolved(value)) {
+            sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO NOTHING").bind(&key).bind(&value).execute(db.pool()).await?;
             results.push(ContentIcon { name, icon: (!value.starts_with("missing:")).then_some(value), icon_key: key, resolved: true });
             continue;
         }
-        let _permit = WORK.acquire().await.map_err(|error| AppError::Internal(error.to_string()))?;
         let file = path.clone();
-        let icon = tokio::task::spawn_blocking(move || super::mods::extract_mod_icon_from_jar(&file)).await.map_err(|error| AppError::Internal(error.to_string()))?;
+        let icon = {
+            let _permit = WORK.acquire().await.map_err(|error| AppError::Internal(error.to_string()))?;
+            tokio::task::spawn_blocking(move || super::mods::extract_mod_icon_from_jar(&file)).await.map_err(|error| AppError::Internal(error.to_string()))?
+        };
         let resolved = icon.is_some() || metadata.is_dir();
         if resolved {
             let value = icon.clone().unwrap_or_else(|| format!("missing:{}", now()));
             sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&key).bind(value).execute(db.pool()).await?;
         } else if lookup && metadata.len() <= 256 * 1024 * 1024 {
+            if let Some(record) = records.iter().find(|record| record.file_name.trim_end_matches(".disabled") == name.trim_end_matches(".disabled") && matches!(record.source.as_str(), "curseforge" | "modrinth" | "modrinth_fallback")) {
+                known.entry((record.source.clone(), record.project_id.clone())).or_default().push(results.len());
+                results.push(ContentIcon { name, icon, icon_key: key, resolved });
+                continue;
+            }
+            let _permit = WORK.acquire().await.map_err(|error| AppError::Internal(error.to_string()))?;
             let hash = tokio::task::spawn_blocking(move || -> std::io::Result<String> {
                 use sha1::{Digest, Sha1};
                 use std::io::Read;
@@ -73,6 +92,39 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
             hashes.entry(hash).or_default().push(results.len());
         }
         results.push(ContentIcon { name, icon, icon_key: key, resolved });
+    }
+    if !known.is_empty() {
+        let cf_ids: Vec<_> = known.keys().filter(|(source, _)| source == "curseforge").filter_map(|(_, id)| id.parse::<u64>().ok()).collect();
+        let mr_ids: Vec<_> = known.keys().filter(|(source, _)| source != "curseforge").map(|(_, id)| id.clone()).collect();
+        let (cf, mr) = tokio::join!(async {
+            if cf_ids.is_empty() { return HashMap::new(); }
+            tokio::time::timeout(Duration::from_secs(10), crate::core::mods::curseforge::get_mod_logos_batch(&state.http, &cf_ids)).await.unwrap_or_default()
+        }, async {
+            if mr_ids.is_empty() { return Vec::new(); }
+            match state.http.get("https://api.modrinth.com/v2/projects").query(&[("ids", serde_json::to_string(&mr_ids).unwrap_or_default())]).timeout(Duration::from_secs(10)).send().await {
+                Ok(response) if response.status().is_success() => response.json::<Vec<serde_json::Value>>().await.unwrap_or_default(),
+                _ => Vec::new()
+            }
+        });
+        for ((source, project), indices) in known {
+            let url = if source == "curseforge" {
+                project.parse::<u64>().ok().and_then(|id| cf.get(&id)).cloned()
+            } else {
+                mr.iter().find(|entry| entry["id"].as_str() == Some(&project) || entry["slug"].as_str() == Some(&project)).and_then(|entry| entry["icon_url"].as_str()).map(str::to_owned)
+            };
+            if let Some(url) = url.filter(|url| url.starts_with("https://")) {
+                for index in indices {
+                    let entry = &mut results[index]; entry.icon = Some(url.clone()); entry.resolved = true;
+                    sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&entry.icon_key).bind(&url).execute(db.pool()).await?;
+                }
+            } else if source == "curseforge" {
+                for index in indices {
+                    if let Some(record) = records.iter().find(|record| record.project_id == project && record.file_name.trim_end_matches(".disabled") == results[index].name.trim_end_matches(".disabled") && record.sha1.len() == 40 && record.sha1.bytes().all(|byte| byte.is_ascii_hexdigit())) {
+                        hashes.entry(record.sha1.to_ascii_lowercase()).or_default().push(index);
+                    }
+                }
+            }
+        }
     }
     if lookup && sub_path == "mods" && !hashes.is_empty() {
         let records = crate::db::schema::mods::list_by_profile(&db, &profile_id).await?;

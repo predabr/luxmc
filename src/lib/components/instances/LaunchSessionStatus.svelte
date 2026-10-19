@@ -11,14 +11,15 @@
     let session = $state<LaunchSession | null>(null);
     const opening = $derived(appState.isLaunching);
 
-    function receive(value: LaunchSession | null) {
+    function receive(value: LaunchSession | null, restored = false) {
         if (!value || typeof value.sessionId !== "string" || typeof value.startedAt !== "string") return;
+        if (restored && !appState.activeLaunchSessionId && !opening) return;
         if (opening && Date.parse(value.startedAt) < appState.launchAttemptStartedAt) return;
         if (appState.launchingProfileId && value.profileId !== appState.launchingProfileId) return;
         if (appState.activeLaunchSessionId && value.sessionId !== appState.activeLaunchSessionId) return;
         session = value;
         appState.activeLaunchSessionId = value.sessionId;
-        if (value.error) appState.lastLaunchError = value.error;
+        if (value.error) appState.lastLaunchError = sanitizeLaunchDiagnostic(value.error);
     }
 
     onMount(() => {
@@ -28,7 +29,7 @@
         async function refresh() {
             if (fetching) return;
             fetching = true;
-            try { const value = await launchSessionStatus(); if (!disposed) receive(value); } catch {}
+            try { const value = await launchSessionStatus(); if (!disposed) receive(value, true); } catch {}
             finally { fetching = false; }
         }
         void refresh();
@@ -53,7 +54,7 @@
         <div class="flex items-start gap-3 p-4">
             <AlertCircle class="mt-1 h-5 w-5 shrink-0 text-danger" />
             <div class="min-w-0 flex-1">
-                <p class="text-sm font-semibold">O Minecraft não iniciou corretamente</p>
+                <p class="text-sm font-semibold">{session?.failedStage === 'running' ? 'O Minecraft encerrou inesperadamente' : 'O Minecraft não iniciou corretamente'}</p>
                 <p role="status" class="mt-2 max-h-40 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-fg-muted">{appState.lastLaunchError}</p>
             </div>
             <button type="button" class={button({ variant: "ghost", size: "icon" })} aria-label="Fechar diagnóstico" onclick={() => appState.lastLaunchError = ""}><X class="h-4 w-4" /></button>

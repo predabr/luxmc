@@ -1,4 +1,5 @@
 {
+  "planPrompt": { "title": "Personalize with Plus or Pro", "help": "GIFs in avatars, profile covers and folders require an active Luxmc Plus or Pro plan. Choose a plan to use these animations.", "wallpaper": "Wallpapers, including videos, remain free with Luxmc Free.", "later": "Not now", "plans": "Explore plans", "openError": "Could not open plans. Please try again.", "checkPlan": "Wait for your plan to be confirmed, then try again.", "folderGif": "Folder GIFs require Luxmc Plus or Pro.", "style": "This style is included in paid plans.", "previewStatus": "Ready for the next adventure" },
   "packFollowup": {
     "updating": "Updating modpack",
     "updated": "Modpack updated",

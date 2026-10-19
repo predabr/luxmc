@@ -18,6 +18,8 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
             await page.getByRole('button', { name: 'Microsoft', exact: true }).waitFor();
             assert.equal(await page.locator('aside.login-story').count(), 0);
             assert.equal(await page.locator('section.login-story').count(), 1);
+            await page.evaluate(() => document.fonts.ready);
+            await page.waitForFunction(() => document.documentElement.scrollWidth <= innerWidth + 1);
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
             if (width === 1440) {
                 assert.equal(await page.locator('.login-story').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');

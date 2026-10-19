@@ -57,6 +57,19 @@ const fs = require('node:fs');
             throw error;
         }
         assert.ok(await page.evaluate(() => window.mediaCalls >= 3));
+        await page.evaluate(() => { const video = [...document.querySelectorAll('video')].find(video => !video.paused); window.scrollVideo = video; window.scrollPauses = 0; window.scrollStart = video.currentTime; video.addEventListener('pause', () => window.scrollPauses++); });
+        for (let index = 0; index < 15; index++) {
+            await page.mouse.wheel(0, index % 2 ? -80 : 80);
+            await page.waitForTimeout(60);
+            assert.equal(await page.evaluate(() => window.scrollVideo.paused), false);
+        }
+        assert.equal(await page.evaluate(() => window.scrollPauses), 0);
+        assert.ok(await page.evaluate(() => window.scrollVideo.currentTime > window.scrollStart + .5));
+        await page.evaluate(async () => { const {appState} = await import('/src/lib/stores/app.svelte.ts'); appState.isGameRunning = true; });
+        await page.waitForFunction(() => window.scrollVideo.paused);
+        await page.evaluate(async () => { const {appState} = await import('/src/lib/stores/app.svelte.ts'); appState.isGameRunning = false; });
+        await page.waitForFunction(() => !window.scrollVideo.paused);
+
         await page.evaluate(() => {
             localStorage.setItem('fixture-port', '59002');
             localStorage.setItem('fixture-source-deleted','true');

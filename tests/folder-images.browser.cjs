@@ -17,6 +17,11 @@ const {setupLauncherDemo}=require('../scripts/launcher-video-fixture.cjs');
                 window.launcherDemo.state.settings.language='pt-BR';
                 window.launcherDemo.state.settings.languageMode='manual';
                 localStorage.setItem('luxmc_library_folders_v2',JSON.stringify(['Adventure']));
+                const original = window.electronAPI.invoke;
+                window.electronAPI.invoke = async (command,args={}) => {
+                    if (command === 'membership_request' && args.request.action === 'status') return {identity:{id:'00000000-0000-4000-8000-000000000001',username:'LuxPlayer',owner:false},membership:{plan:'pro',expiresAt:1893456000,revision:1,collections:24,presets:20},settings:{preferences:{},presets:[],revision:1}};
+                    return original(command,args);
+                };
             },theme);
             await page.goto('http://127.0.0.1:1420/');
             const folder=page.locator('[data-library-folder="Adventure"]');
