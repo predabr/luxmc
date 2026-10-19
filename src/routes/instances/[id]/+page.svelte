@@ -1,5 +1,6 @@
 <script lang="ts">
-    import { hydrateContentIcons, rememberContentIcons, warmContentImages } from '$lib/utils/contentPrefetch';
+    import { contentImage } from '$lib/actions/contentImage';
+    import { hydrateContentIcons, rememberContentIcons, subscribeContentIcons, warmContentImages } from '$lib/utils/contentPrefetch';
     import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { settings } from '$lib/stores/settings.svelte';
     import ModpackVersions from "$lib/components/instances/ModpackVersions.svelte";
@@ -168,18 +169,6 @@
 	const settingsIcon = $derived(getIconSrc(activeProfile?.icon));
 
 	const heroBanner = $derived(resolveProfileBanner(activeProfile));
-
-    function loadWhenVisible(node: HTMLElement, initial: { id: string; section: DataSection }) {
-        let target = initial;
-        const observer = new IntersectionObserver(entries => {
-            if (entries.some(entry => entry.isIntersecting)) {
-                observer.disconnect();
-                if (target.id === instanceId) void loadSection(target.section);
-            }
-        }, { root: node.closest("main"), rootMargin: "400px" });
-        observer.observe(node);
-        return { update(next: typeof initial) { target = next; observer.disconnect(); observer.observe(node); }, destroy() { observer.disconnect(); } };
-    }
 
     function handleTabKeys(event: KeyboardEvent) {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
@@ -1019,9 +1008,38 @@
     const resolvedMetadata = new Set<string>();
     let dataGeneration = 0;
     let pendingLoads = 0;
+    let loadingWorlds = $state(false);
+    const worldRequests = new Map<string, Promise<WorldDetail[]>>();
+    function readWorlds(id: string) {
+        const pending = worldRequests.get(id);
+        if (pending) return pending;
+        const request = instanceWorldsList(id).finally(() => worldRequests.delete(id));
+        worldRequests.set(id, request);
+        return request;
+    }
     let metadataTimer: ReturnType<typeof setTimeout> | undefined;
 
     const iconQueue = new Map<string, { name: string; folder: string; id: string; key: string }>();
+    const iconEntries = new WeakMap<FileTreeEntry[], Map<string, FileTreeEntry>>();
+    function applyIconEntries(entries: FileTreeEntry[], icons: Array<{ iconKey: string; icon: string | null; resolved: boolean }>) {
+        if (!entries.length) return;
+        let byKey = iconEntries.get(entries);
+        if (!byKey) {
+            byKey = new Map(entries.filter(entry => entry.iconKey).map(entry => [entry.iconKey!, entry]));
+            iconEntries.set(entries, byKey);
+        }
+        for (const icon of icons) {
+            const entry = byKey.get(icon.iconKey);
+            if (entry && (entry.icon !== icon.icon || entry.iconResolved !== icon.resolved)) {
+                if (!icon.icon && entry.icon) continue;
+                entry.icon = icon.icon;
+                entry.iconResolved = icon.resolved;
+            }
+        }
+    }
+    onMount(() => subscribeContentIcons(icons => {
+        for (const entries of [instanceMods, resourcePacks, shaderPacks, dataPacks]) applyIconEntries(entries, icons);
+    }));
     const iconRequested = new Set<string>();
     let iconTimer: ReturnType<typeof setTimeout> | undefined;
     let iconBusy = false;
@@ -1065,15 +1083,8 @@
                     if (instanceId !== first.id) return;
                     rememberContentIcons(icons);
                     warmIcons(icons);
-                    const byKey = new Map(icons.map(icon => [icon.iconKey, icon]));
-                    const update = (entries: FileTreeEntry[]) => entries.map(entry => {
-                        const icon = entry.iconKey ? byKey.get(entry.iconKey) : undefined;
-                        return icon ? { ...entry, icon: icon.icon, iconResolved: icon.resolved } : entry;
-                    });
-                    if (first.folder === 'mods') instanceMods = update(instanceMods);
-                    else if (first.folder === 'resourcepacks') resourcePacks = update(resourcePacks);
-                    else if (first.folder === 'shaderpacks') shaderPacks = update(shaderPacks);
-                    else if (first.folder === `saves/${datapackWorld}/datapacks`) dataPacks = update(dataPacks);
+                    const entries = first.folder === 'mods' ? instanceMods : first.folder === 'resourcepacks' ? resourcePacks : first.folder === 'shaderpacks' ? shaderPacks : first.folder === `saves/${datapackWorld}/datapacks` ? dataPacks : [];
+                    applyIconEntries(entries, icons);
                 };
                 try {
                     const local = await instanceContentIcons(first.id, first.folder, batch.map(entry => entry.name));
@@ -1117,10 +1128,11 @@
         const key = `${id}:${section}:${section === "ficheiros" ? path : section === "datapacks" ? world : ""}`;
         const generation = dataGeneration;
         const pending = sectionRequests.get(key);
-        if (pending) { await pending; if (!force && loadedSections.has(key)) return; }
+        if (pending) { await pending; return; }
         if (generation !== dataGeneration || (!force && loadedSections.has(key))) return;
         pendingLoads++;
         isLoadingData = true;
+        if (section === "mundos") loadingWorlds = true;
         const request = (async () => {
             const current = () => generation === dataGeneration && id === instanceId;
             if (section === "configuracoes") {
@@ -1132,14 +1144,14 @@
                 if (!current()) return;
                 await detectJava();
             } else if (section === "mundos") {
-                const data = await instanceWorldsList(id);
+                const data = await readWorlds(id);
                 if (current()) worldsList = data;
             } else if (section === "galeria") {
                 const data = await instancesScreenshots(id);
                 if (current()) screenshotsList = data;
             } else {
                 if (section === "datapacks") {
-                    const worlds = await instanceWorldsList(id);
+                    const worlds = await readWorlds(id);
                     if (!current() || (world && world !== datapackWorld)) return;
                     worldsList = worlds;
                     if (!worldsList.some(world => world.folderName === datapackWorld)) datapackWorld = worldsList[0]?.folderName || "";
@@ -1176,6 +1188,7 @@
             if (sectionRequests.get(key) === request) sectionRequests.delete(key);
             pendingLoads--;
             isLoadingData = pendingLoads > 0;
+            if (section === "mundos" && generation === dataGeneration) loadingWorlds = false;
         });
         sectionRequests.set(key, request);
         await request;
@@ -1195,7 +1208,7 @@
                 frozenModNames = Array.isArray(saved) ? saved.filter((name): name is string => typeof name === 'string').slice(0, 10000) : [];
             } catch { frozenModNames = []; }
             instanceMods = []; resourcePacks = []; shaderPacks = []; dataPacks = [];
-            worldsList = []; datapackWorld = ""; screenshotsList = []; fileTree = [];
+            worldsList = []; loadingWorlds = false; datapackWorld = ""; screenshotsList = []; fileTree = [];
             fileSubPath = ""; fileBreadcrumbs = [];
             shieldResult = null; hasAutoScannedShield = false;
             const generation = dataGeneration;
@@ -1209,15 +1222,31 @@
 
     $effect(() => {
         const id = instanceId;
-        if (!id) return;
-        untrack(() => { void loadSection("mods"); });
-        const timer = setTimeout(() => {
-            if (instanceId !== id) return;
-            for (const section of ["resourcepacks", "shaders", "datapacks"] as const) void loadSection(section);
-        }, 250);
-        return () => clearTimeout(timer);
+        const section: DataSection = mainTab === "conteudo" ? subTab : mainTab;
+        if (section === "ficheiros") fileSubPath;
+        if (id) untrack(() => { void loadSection(section, section === "mundos"); });
     });
 
+    let lastGameRunning = false;
+    $effect(() => {
+        const running = appState.isGameRunning;
+        const exited = lastGameRunning && !running;
+        lastGameRunning = running;
+        if (exited) untrack(() => {
+            loadedSections.clear();
+            if (mainTab === "mundos" || mainTab === "conteudo" && subTab === "datapacks") void loadSection(mainTab === "mundos" ? "mundos" : "datapacks", true);
+        });
+    });
+
+    onMount(() => {
+        const refresh = () => {
+            if (document.hidden) return;
+            if (mainTab === "mundos" || mainTab === "conteudo" && subTab === "datapacks") void loadSection(mainTab === "mundos" ? "mundos" : "datapacks", true);
+        };
+        window.addEventListener('focus', refresh);
+        document.addEventListener('visibilitychange', refresh);
+        return () => { window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', refresh); };
+    });
 
     $effect(() => {
         const id = instanceId;
@@ -2086,12 +2115,11 @@
 												<span class="text-xs font-black tracking-tight drop-shadow-sm">{badge.initials}</span>
 											</div>
 											{#if mod.icon}
-												<img decoding="async"
+												<img use:contentImage={{ profileId: instanceId, folder: 'mods', name: mod.name, iconKey: mod.iconKey }} decoding="async" referrerpolicy="no-referrer"
 													src={mod.icon}
 													alt={displayName}
 													loading="eager"
 													class="relative z-10 w-full h-full object-contain"
-													onload={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "visible"; }} onerror={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }}
 												/>
 											{/if}
 										</div>
@@ -2241,10 +2269,10 @@
                         {#if packs.length > 0}
                             <div class="grid gap-2 p-3 sm:grid-cols-2">
                                 {#each packs as pack (pack.name)}
-                                    <div class="flex min-w-0 items-center gap-3 rounded-xl border border-border p-3">
+                                    <div class="instance-pack-row flex min-w-0 items-center gap-3 rounded-xl border border-border p-3">
                                         <div use:loadContentIcon={{entry: pack, folder: group.id === "shaders" ? "shaderpacks" : group.id === "datapacks" ? `saves/${datapackWorld}/datapacks` : "resourcepacks"}} class="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-bg-subtle">
                                             <group.icon class="absolute h-5 w-5 text-fg-muted" />
-                                            {#if pack.icon}<img src={pack.icon} alt={pack.name} loading="eager" decoding="async" class="relative h-full w-full object-contain" onload={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'visible'} onerror={(event) => (event.currentTarget as HTMLImageElement).style.visibility = 'hidden'} />{/if}
+                                            {#if pack.icon}<img use:contentImage={{ profileId: instanceId, folder: group.id === "shaders" ? "shaderpacks" : group.id === "datapacks" ? `saves/${datapackWorld}/datapacks` : "resourcepacks", name: pack.name, iconKey: pack.iconKey }} src={pack.icon} referrerpolicy="no-referrer" alt={pack.name} loading="eager" decoding="async" class="relative h-full w-full object-contain" />{/if}
                                         </div>
                                         <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}</p><p class="mt-1 text-[10px] text-fg-muted">{(pack.size / 1048576).toFixed(2)} MB</p></div>
                                         <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`${uiText("screenshots.openFolderBtn")}: ${pack.name}`} title={uiText("screenshots.openFolderBtn")} onclick={() => handleOpenPackFolder(group.type)}><FolderOpen class="h-4 w-4" /></button>
@@ -2260,7 +2288,7 @@
 
         </div>
         {:else if mainTab === "mundos"}
-        <div use:pageMotion={mainTab} use:loadWhenVisible={{ id: instanceId, section: "mundos" }} id="instance-mundos" role="tabpanel" aria-labelledby="instance-tab-mundos" class="instance-overview-section" aria-label={uiText("ui.9ac3a6eca765a04a")}>
+        <div use:pageMotion={mainTab} id="instance-mundos" role="tabpanel" aria-labelledby="instance-tab-mundos" class="instance-overview-section" aria-label={uiText("ui.9ac3a6eca765a04a")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between flex-wrap gap-2">
 					<h3 class="text-sm font-bold text-fg">{uiText("ui.5df9580dc4ce92a4")}</h3>
@@ -2299,7 +2327,9 @@
 					</div>
 				</div>
 
-				{#if worldsList.length === 0}
+				{#if loadingWorlds && worldsList.length === 0}
+                    <div role="status" class="flex items-center justify-center gap-3 rounded-2xl border border-border bg-bg-elevated p-12 text-sm text-fg-muted"><RefreshCw class="h-5 w-5 animate-spin text-brand-400" />{uiText("ui.318209e40ba847c9")}</div>
+                {:else if worldsList.length === 0}
 					<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-16 flex flex-col items-center justify-center text-center gap-4">
 						<Globe2 class="w-12 h-12 text-fg/20" />
 						<div>
@@ -2326,7 +2356,7 @@
 				{:else}
 					<div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
 						{#each worldsList as world (world.folderName)}
-							<div class="bg-bg-elevated border border-fg/5 p-4 rounded-2xl flex flex-col justify-between hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity] group gap-3 ">
+							<div class="world-card bg-bg-elevated border border-fg/5 p-4 rounded-2xl flex flex-col justify-between hover:border-fg/15 transition-[color,background-color,border-color,box-shadow,transform,opacity] group gap-3 ">
 								<div class="flex items-start gap-3.5 min-w-0">
 									<div class="h-14 w-14 rounded-xl bg-bg-overlay/40 border border-fg/10 overflow-hidden flex items-center justify-center shrink-0 shadow-md">
 										{#if world.iconBase64}
@@ -2455,7 +2485,7 @@
 
 		</div>
         {:else if mainTab === "galeria"}
-        <div use:pageMotion={mainTab} use:loadWhenVisible={{ id: instanceId, section: "galeria" }} id="instance-galeria" role="tabpanel" aria-labelledby="instance-tab-galeria" class="instance-overview-section" aria-label={uiText("ui.c66873c6ffa75714")}>
+        <div use:pageMotion={mainTab} id="instance-galeria" role="tabpanel" aria-labelledby="instance-tab-galeria" class="instance-overview-section" aria-label={uiText("ui.c66873c6ffa75714")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<h3 class="text-sm font-bold text-fg">{uiText("ui.2cbb69c6cee5108c")}</h3>
@@ -2506,7 +2536,7 @@
 
 		</div>
         {:else if mainTab === "ficheiros"}
-        <div use:pageMotion={mainTab} use:loadWhenVisible={{ id: instanceId, section: "ficheiros" }} id="instance-ficheiros" role="tabpanel" aria-labelledby="instance-tab-ficheiros" class="instance-overview-section" aria-label={uiText("ui.99c85eb6aa2966e3")}>
+        <div use:pageMotion={mainTab} id="instance-ficheiros" role="tabpanel" aria-labelledby="instance-tab-ficheiros" class="instance-overview-section" aria-label={uiText("ui.99c85eb6aa2966e3")}>
 			<div class="space-y-4">
 				<div class="flex items-center justify-between">
 					<div class="flex items-center gap-2">
@@ -2603,7 +2633,7 @@
         </div>
 
         {:else if mainTab === "configuracoes"}
-        <div use:pageMotion={mainTab} use:loadWhenVisible={{ id: instanceId, section: "configuracoes" }} id="instance-configuracoes" role="tabpanel" aria-labelledby="instance-tab-configuracoes" class="instance-overview-section">
+        <div use:pageMotion={mainTab} id="instance-configuracoes" role="tabpanel" aria-labelledby="instance-tab-configuracoes" class="instance-overview-section">
             <section aria-label={uiText("ui.6c5b8d86c6726795")} class="rounded-2xl border border-border bg-bg-elevated p-5 sm:p-6 space-y-6">
             <header class="relative shrink-0 overflow-hidden rounded-2xl border border-border bg-bg-subtle">
                 <img loading="lazy" decoding="async" src={instanceBanner || heroBanner} alt="" class="absolute inset-0 h-full w-full object-cover opacity-30" />

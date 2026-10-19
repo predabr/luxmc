@@ -306,7 +306,7 @@ async fn dispatch_command(
             let profile = args.get("profileId").and_then(Value::as_str).unwrap_or("").to_string();
             let path = args.get("subPath").and_then(Value::as_str).unwrap_or("").to_string();
             let names = serde_json::from_value(args.get("fileNames").cloned().unwrap_or(Value::Array(vec![]))).map_err(|error| error.to_string())?;
-            let result = crate::commands::content_icons::instance_content_icons_core(&state, profile, path, names, args.get("lookup").and_then(Value::as_bool).unwrap_or(false)).await.map_err(|error| error.to_string())?;
+            let result = crate::commands::content_icons::instance_content_icons_core(&state, profile, path, names, args.get("lookup").and_then(Value::as_bool).unwrap_or(false), args.get("cacheImages").and_then(Value::as_bool).unwrap_or(false)).await.map_err(|error| error.to_string())?;
             serde_json::to_value(result).map_err(|error| error.to_string())
         },
         "instance_file_tree" => {

@@ -793,3 +793,12 @@ html:not(.no-ui-motion):not(.no-anim) :is(.workshop-card, .friend-row, [data-bed
 html.no-ui-motion .launcher-nav-indicator, html.no-anim .launcher-nav-indicator { transition: none; }
 @media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) .launcher-nav-indicator { transition: none; } html:not(.force-ui-motion) .launcher-nav-link > svg { animation: none !important; } }
 @media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) :is(.workshop-card, .friend-row, [data-bedrock-instance]) { transition: none !important; translate: none !important; } }
+
+html:not(.no-ui-motion):not(.no-anim) main :is(input:not([type="checkbox"]):not([type="range"]), textarea, select) { transition: border-color 160ms ease, box-shadow 160ms ease; }
+html:not(.no-ui-motion):not(.no-anim) main :is(input:not([type="checkbox"]):not([type="range"]), textarea, select):focus { box-shadow: 0 0 0 3px rgb(var(--brand-400) / .1); }
+html:not(.no-ui-motion):not(.no-anim) :is(.instance-mod-row, .instance-pack-row, .world-card) { transition: background-color 160ms ease, border-color 160ms ease; }
+html:not(.no-ui-motion):not(.no-anim) :is(.instance-mod-row, .instance-pack-row, .world-card) img { transition: translate 180ms cubic-bezier(.16,1,.3,1); }
+html:not(.no-ui-motion):not(.no-anim) :is(.instance-mod-row, .instance-pack-row, .world-card):hover img { translate: 0 -2px; }
+html:not(.no-ui-motion):not(.no-anim) .launcher-button:focus-visible > svg:not(.animate-spin) { translate: 0 -2px; }
+html:not(.no-ui-motion):not(.no-anim) main [role="switch"] > span { transition: transform 180ms cubic-bezier(.16,1,.3,1), background-color 160ms ease; }
+@media (prefers-reduced-motion: reduce) { html:not(.force-ui-motion) :is(.instance-mod-row, .instance-pack-row, .world-card) img { translate: none !important; } }

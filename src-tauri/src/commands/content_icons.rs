@@ -4,6 +4,56 @@ use tokio::sync::Semaphore;
 use crate::{db::models::ProfileRow, error::{AppError, AppResult}, state::AppState};
 
 static WORK: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(4));
+static IMAGE_WORK: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(2));
+static IMAGE_HTTP: LazyLock<reqwest::Client> = LazyLock::new(|| reqwest::Client::builder()
+    .user_agent(concat!("Luxmc/", env!("CARGO_PKG_VERSION")))
+    .redirect(reqwest::redirect::Policy::none())
+    .timeout(Duration::from_secs(8))
+    .build().expect("thumbnail HTTP client"));
+
+fn image_url(source: &str) -> Option<reqwest::Url> {
+    let url = reqwest::Url::parse(source).ok()?;
+    (url.scheme() == "https" && url.username().is_empty() && url.password().is_none()
+        && url.port_or_known_default() == Some(443)
+        && matches!(url.host_str(), Some("media.forgecdn.net" | "cdn.modrinth.com" | "cdn-raw.modrinth.com")))
+        .then_some(url)
+}
+
+fn thumbnail(bytes: &[u8]) -> Option<String> {
+    use base64::Engine;
+    let mut reader = image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format().ok()?;
+    let mut limits = image::Limits::default();
+    limits.max_image_width = Some(2048);
+    limits.max_image_height = Some(2048);
+    limits.max_alloc = Some(32 * 1024 * 1024);
+    reader.limits(limits);
+    let image = reader.decode().ok()?.thumbnail(96, 96);
+    let mut png = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut png, image::ImageFormat::Png).ok()?;
+    Some(format!("data:image/png;base64,{}", base64::engine::general_purpose::STANDARD.encode(png.into_inner())))
+}
+
+async fn cached_image(db: &crate::db::Db, source: &str) -> Option<String> {
+    use sha2::Digest;
+    let url = image_url(source)?;
+    let key = format!("thumbnail:v1:{:x}", sha2::Sha256::digest(source.as_bytes()));
+    let _permit = IMAGE_WORK.acquire().await.ok()?;
+    if let Some(image) = sqlx::query_scalar::<_, String>("SELECT icon_url FROM mod_icons WHERE key = ?")
+        .bind(&key).fetch_optional(db.pool()).await.ok().flatten() {
+        return Some(image);
+    }
+    let mut response = IMAGE_HTTP.get(url).send().await.ok()?.error_for_status().ok()?;
+    if response.content_length().is_some_and(|size| size > 2 * 1024 * 1024) { return None; }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await.ok()? {
+        if bytes.len() + chunk.len() > 2 * 1024 * 1024 { return None; }
+        bytes.extend_from_slice(&chunk);
+    }
+    let image = tokio::task::spawn_blocking(move || thumbnail(&bytes)).await.ok()??;
+    let _ = sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url")
+        .bind(key).bind(&image).execute(db.pool()).await;
+    Some(image)
+}
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,11 +75,11 @@ fn allowed(path: &str) -> bool {
 
 #[tauri::command]
 #[allow(non_snake_case)]
-pub async fn instance_content_icons(state: tauri::State<'_, AppState>, profileId: String, subPath: String, fileNames: Vec<String>, lookup: Option<bool>) -> AppResult<Vec<ContentIcon>> {
-    instance_content_icons_core(&state, profileId, subPath, fileNames, lookup.unwrap_or(false)).await
+pub async fn instance_content_icons(state: tauri::State<'_, AppState>, profileId: String, subPath: String, fileNames: Vec<String>, lookup: Option<bool>, cacheImages: Option<bool>) -> AppResult<Vec<ContentIcon>> {
+    instance_content_icons_core(&state, profileId, subPath, fileNames, lookup.unwrap_or(false), cacheImages.unwrap_or(false)).await
 }
 
-pub async fn instance_content_icons_core(state: &AppState, profile_id: String, sub_path: String, names: Vec<String>, lookup: bool) -> AppResult<Vec<ContentIcon>> {
+pub async fn instance_content_icons_core(state: &AppState, profile_id: String, sub_path: String, names: Vec<String>, lookup: bool, cache_images: bool) -> AppResult<Vec<ContentIcon>> {
     if names.len() > 32 || !allowed(&sub_path) { return Err(AppError::InvalidInput("Invalid content thumbnail request".into())); }
     let db = crate::db::shared_db().await?;
     let row = sqlx::query_as::<_, ProfileRow>("SELECT * FROM profiles WHERE id = ?").bind(&profile_id).fetch_optional(db.pool()).await?.ok_or_else(|| AppError::NotFound("Instance not found".into()))?;
@@ -174,12 +224,39 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
             }
         }
     }
+    if cache_images {
+        for entry in &mut results {
+            if let Some(source) = entry.icon.as_deref().filter(|source| source.starts_with("https://")) {
+                if let Some(image) = cached_image(&db, source).await {
+                    let _ = sqlx::query("UPDATE mod_icons SET icon_url = ? WHERE key = ?")
+                        .bind(&image).bind(&entry.icon_key).execute(db.pool()).await;
+                    entry.icon = Some(image);
+                }
+            }
+        }
+    }
     Ok(results)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn thumbnail_sources_and_decoding_are_bounded() {
+        assert!(image_url("https://media.forgecdn.net/avatars/test.jpeg").is_some());
+        assert!(image_url("https://cdn.modrinth.com/data/test/icon.png").is_some());
+        for source in ["http://media.forgecdn.net/a", "https://media.forgecdn.net.evil.test/a", "https://127.0.0.1/a", "https://user@media.forgecdn.net/a", "https://media.forgecdn.net:8443/a"] {
+            assert!(image_url(source).is_none());
+        }
+        assert!(thumbnail(b"not an image").is_none());
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgb8(256, 128).write_to(&mut png, image::ImageFormat::Png).unwrap();
+        let encoded = thumbnail(png.get_ref()).unwrap();
+        use base64::Engine;
+        let bytes = base64::engine::general_purpose::STANDARD.decode(encoded.split_once(',').unwrap().1).unwrap();
+        let image = image::load_from_memory(&bytes).unwrap();
+        assert_eq!((image.width(), image.height()), (96, 48));
+    }
     #[test]
     fn content_paths_and_negative_cache_are_bounded() {
         assert!(allowed("mods")); assert!(allowed("saves/My world/datapacks"));

@@ -40,3 +40,18 @@ it('bounds image downloads and suspends queued work while Minecraft runs', async
     warmContentImages([]);
     expect(requested).toHaveLength(8);
 });
+
+it('notifies open lists when a missing image arrives and retains it after a stale negative response', async () => {
+    const { rememberContentIcons, hydrateContentIcons, subscribeContentIcons } = await import('./contentPrefetch');
+    const received = vi.fn();
+    const unsubscribe = subscribeContentIcons(received);
+    rememberContentIcons([{ iconKey: 'first', icon: null, resolved: true }]);
+    expect(received).not.toHaveBeenCalled();
+    rememberContentIcons([{ iconKey: 'first', icon: '/grass_head.png', resolved: true }]);
+    expect(received).toHaveBeenCalledTimes(1);
+    rememberContentIcons([{ iconKey: 'first', icon: null, resolved: true }]);
+    expect(hydrateContentIcons([{ name: 'First.zip', path: '/First.zip', size: 1, isDir: false, icon: null, iconKey: 'first' }])[0].icon).toBe('/grass_head.png');
+    unsubscribe();
+    rememberContentIcons([{ iconKey: 'second', icon: '/grass_head.png', resolved: true }]);
+    expect(received).toHaveBeenCalledTimes(1);
+});

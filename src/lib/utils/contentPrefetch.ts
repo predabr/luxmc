@@ -4,6 +4,12 @@ import { settings } from '$lib/stores/settings.svelte';
 import { appState } from '$lib/stores/app.svelte';
 
 const icons = new Map<string, { icon: string | null; resolved: boolean }>();
+type IconResult = { iconKey: string; icon: string | null; resolved: boolean };
+const listeners = new Set<(entries: IconResult[]) => void>();
+export function subscribeContentIcons(listener: (entries: IconResult[]) => void) {
+    listeners.add(listener);
+    return () => { listeners.delete(listener); };
+}
 const pending = new Map<string, Promise<void>>();
 const warmed = new Map<string, number>();
 const downloaded = new Set<string>();
@@ -35,8 +41,15 @@ export function warmContentImages(entries: Array<{icon?: string | null}>) {
     }
     drainImages();
 }
-export function rememberContentIcons(entries: Array<{iconKey: string; icon: string | null; resolved: boolean}>) {
-    for (const entry of entries) if (entry.resolved) remember(entry.iconKey, entry.icon, true);
+export function rememberContentIcons(entries: IconResult[]) {
+    const changed: IconResult[] = [];
+    for (const entry of entries) if (entry.resolved) {
+        const previous = icons.get(entry.iconKey);
+        if (!entry.icon && previous?.icon) continue;
+        if (entry.icon && entry.icon !== previous?.icon) changed.push(entry);
+        remember(entry.iconKey, entry.icon, true);
+    }
+    if (changed.length) for (const listener of listeners) listener(changed);
     warmContentImages(entries);
 }
 let bytes = 0;
@@ -71,7 +84,7 @@ export function prefetchInstanceContent(profileId: string, refresh = false): Pro
             const entries = await instanceFileTree(profileId, folder);
             warmContentImages(entries);
             const missing = entries.filter(entry => entry.iconKey && !icons.has(entry.iconKey) && !entry.icon);
-            for (const entry of entries) if (entry.iconKey && entry.icon) remember(entry.iconKey, entry.icon, true);
+            rememberContentIcons(entries.filter(entry => entry.iconKey && entry.icon).map(entry => ({ iconKey: entry.iconKey!, icon: entry.icon!, resolved: true })));
             const batches: string[][] = [];
             for (let index = 0; index < Math.min(missing.length, 1000); index += 32) batches.push(missing.slice(index, index + 32).map(entry => entry.name));
             await Promise.all(Array.from({ length: 2 }, async () => {
