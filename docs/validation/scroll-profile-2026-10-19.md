@@ -33,6 +33,8 @@
 
 O executável anterior foi medido com os arquivos reais de Vanilla Perfected, ATM10, RLCraft e Fabulously Optimized. As primeiras 32 miniaturas levaram 57–151 ms no backend; o ícone do Luxmc Essentials foi encontrado em todas as quatro instâncias. Isso delimita o problema de antecipação/exibição; não demonstra redução do tempo até o menu do Minecraft.
 
+Na revisão instalada, após a migração inicial do cache, as primeiras 32 imagens dos mods levaram 68–76 ms. A migração inicial das primeiras 32 entradas levou 537–688 ms em algumas seções. O Essentials foi novamente encontrado nas quatro instâncias. Arquivos sem imagem própria ou imagem publicada continuam com fallback; não recebem arte inventada de outro mod.
+
 Cópia privada do banco, autenticação, preferências e executável anterior: `C:/Users/preda/AppData/Local/Luxmc-build/backups/scroll-profile-20261019`. Resultados detalhados e logs locais: `C:/Users/preda/AppData/Local/Luxmc-build/requests/scroll-profile-20261019`.
 
 ## Distribuição e confiança
@@ -40,3 +42,15 @@ Cópia privada do banco, autenticação, preferências e executável anterior: `
 Estas correções são uma revisão local de 4.0.0. A publicação imutável `v4.0.0` não foi sobrescrita. Nenhuma proteção do Windows foi desativada. Assinatura do atualizador e assinatura Authenticode são mecanismos distintos; popularidade não garante aceitação pelo Windows. Uma assinatura Authenticode confiável e o processo de análise de falsos positivos da Microsoft continuam sendo os caminhos de distribuição apropriados.
 
 Referências: [reputação SmartScreen](https://learn.microsoft.com/windows/apps/package-and-deploy/smartscreen-reputation), [envio para análise](https://www.microsoft.com/en-us/wdsi/filesubmission).
+
+## Instalação local conferida
+
+- Fonte da correção: commit `1fa0ab5`.
+- Revisão local `4.0.0`, build `38781690526.3`, sem publicação externa.
+- Instalador NSIS gerado a partir do executável otimizado e executado em modo de atualização.
+- Executável instalado: `C:/Users/preda/AppData/Local/Luxmc/luxmc.exe`.
+- SHA-256 instalado: `0e0ab7e376a4eb01bb8890eb9ef8c89c474b39acc6318becf9ec7736a53a72ae`.
+- A comparação byte a byte confirmou que a única diferença para o binário de compilação é o marcador Tauri `NSS`/`UNK` (três bytes), alterado pelo empacotador.
+- Autenticação conferida antes de reabrir; os sete IDs, nomes e diretórios de instâncias correspondem à cópia anterior e os diretórios continuam presentes.
+- Aplicativo aberto e respondendo. A leitura da interface confirmou OWNER, conta Microsoft, Luxmc Pro, três amigos desconectados e a pasta aura. A falha histórica não foi reapresentada.
+- A navegação automatizada adicional foi interrompida quando a ferramenta detectou interação humana na janela. O aplicativo foi deixado aberto para o teste do usuário.
