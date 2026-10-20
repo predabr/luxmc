@@ -5,10 +5,12 @@ const assert = require('node:assert/strict');
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
     try {
         for (const [tag, display, title] of [
-            ['v3.6.1-revision.2', 'v3.7.0', 'Luxmc 3.7.0'],
-            ['v3.7.0', 'v3.7.0', 'Luxmc 3.7.0'],
-            ['v3.7.1-revision.2', 'v3.7.0', 'Luxmc 3.7.0 — revisão 2'],
-            ['v3.8.0', 'v3.8.0', 'Luxmc 3.8.0']
+            ['v3.7.0', 'v4.0.0', 'Luxmc 4.0.0'],
+            ['v4.0.0', 'v4.0.0', 'Luxmc 4.0.0'],
+            ['v4.0.1-revision.2', 'v4.0.0', 'Luxmc 4.0.0 — revisão 2'],
+            ['v4.0.0-build.123456.1', 'v4.0.0', 'Luxmc 4.0.0 — build 123456.1'],
+            ['v3.9.5-build.123455.1', 'v4.0.0', 'Luxmc 4.0.0'],
+            ['v4.1.0', 'v4.1.0', 'Luxmc 4.1.0']
         ]) {
             const page = await browser.newPage();
             await page.route('**/api/latest-release*', route => route.fulfill({ json: { tag_name: tag, assets: [] } }));

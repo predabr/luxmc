@@ -21,6 +21,24 @@ for (const local of ['4.0.0', '4.0.0-build.120.1', '4.0.0-build.121.1']) {
     });
 }
 
+for (const localBuild of ['v4.0.0-build.121.1', '4.0.0-build.121.1', 'v4.0.0-build.120.1', '4.0.0-build.120.1']) {
+    test(`hosted build ${localBuild} takes precedence over the public 4.0 version`, async () => {
+        const original = globalThis.fetch;
+        const current = {...asset,browser_download_url:'https://github.com/predabr/luxmc/releases/download/v4.0.0-build.121.1/Lux.MC.Launcher.exe'};
+        const hosted = localBuild.replace(/^v/,'') === '4.0.0-build.121.1';
+        globalThis.fetch = async url => {
+            if (String(url).startsWith('https://api.github.com/')) return Response.json({tag_name:'v4.0.0-build.121.1',assets:[current]});
+            assert.equal(String(url),hosted ? 'https://luxmc.test/releases/Lux%20MC%20Launcher.exe' : current.browser_download_url);
+            return new Response(hosted ? 'MZhosted-current' : 'MZpublished-current');
+        };
+        try {
+            const response = await onRequest({request:new Request('https://luxmc.test/download/windows'),params:{platform:'windows'},env:{WINDOWS_LOCAL_VERSION:'4.0.0',WINDOWS_LOCAL_BUILD:localBuild}});
+            assert.equal(response.status,200);
+            assert.equal(await response.text(),hosted ? 'MZhosted-current' : 'MZpublished-current');
+        } finally { globalThis.fetch=original; }
+    });
+}
+
 test('changed installer never appends a partial new file to an old If-Range download', async()=>{
     const original=globalThis.fetch;
     globalThis.fetch=async(url,options)=>{
@@ -33,6 +51,36 @@ test('changed installer never appends a partial new file to an old If-Range down
         assert.equal(await response.text(),'MZ01234567');
     }finally{globalThis.fetch=original;}
 });
+
+for (const method of ['GET', 'HEAD']) {
+    for (const [validator, matches] of [['"current"', true], ['"previous"', false], ['W/"current"', false], ['Tue, 20 Oct 2026 12:00:00 GMT', true], ['Mon, 19 Oct 2026 12:00:00 GMT', false]]) {
+        test(`published ${method} installer resumes only when its validator matches ${validator}`, async () => {
+            const original = globalThis.fetch;
+            const requests = [];
+            globalThis.fetch = async (url, options) => {
+                if (String(url).startsWith('https://api.github.com/')) return Response.json({tag_name:'v4.0.0-build.121.1',assets:[asset]});
+                requests.push(options);
+                const headers = {'ETag':'"current"','Last-Modified':'Tue, 20 Oct 2026 12:00:00 GMT','Accept-Ranges':'bytes'};
+                return options.headers?.Range
+                    ? new Response(method === 'HEAD' ? null : 'MZ', {status:206,headers:{...headers,'Content-Length':'2','Content-Range':'bytes 0-1/10'}})
+                    : new Response(method === 'HEAD' ? null : 'MZ01234567', {headers:{...headers,'Content-Length':'10'}});
+            };
+            try {
+                const response = await onRequest({request:new Request('https://luxmc.test/download/windows',{method,headers:{Range:'bytes=0-1','If-Range':validator}}),params:{platform:'windows'}});
+                assert.equal(requests[0].headers['If-Range'],validator);
+                assert.equal(requests[0].headers.Range,'bytes=0-1');
+                assert.equal(requests[0].method,method);
+                assert.equal(requests.length,matches ? 1 : 2);
+                if (!matches) assert.equal(requests[1].headers,undefined);
+                assert.equal(response.status,matches ? 206 : 200);
+                assert.equal(response.headers.get('ETag'),'"current"');
+                assert.equal(response.headers.get('Last-Modified'),'Tue, 20 Oct 2026 12:00:00 GMT');
+                assert.equal(response.headers.get('Content-Range'),matches ? 'bytes 0-1/10' : null);
+                assert.equal(await response.text(),method === 'HEAD' ? '' : matches ? 'MZ' : 'MZ01234567');
+            } finally { globalThis.fetch=original; }
+        });
+    }
+}
 
 test('hosted installer serves validated byte ranges when storage ignores Range', async () => {
     const original=globalThis.fetch;

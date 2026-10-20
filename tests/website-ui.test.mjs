@@ -347,7 +347,31 @@ test("a pending tour image cannot replace the screen selected afterward", async 
     assert.match(window.document.querySelector("#productTourImage").src, /one\.png$/);
     assert.equal(buttons[0].getAttribute("aria-pressed"), "true");
     buttons[1].click();
-    requests[1]();
+    await settle();
+    assert.equal(requests.length, 1, "a successfully decoded screen is reused on the next selection");
+    assert.match(window.document.querySelector("#productTourImage").src, /two\.png$/);
+    assert.equal(buttons[1].getAttribute("aria-pressed"), "true");
+  } finally { window.close(); }
+});
+
+test("a failed tour image can be retried without changing the selected screen early", async () => {
+  const dom = createDom('<body><button data-product-screen="/one.png" aria-pressed="true"></button><button data-product-screen="/two.png" aria-pressed="false"></button><img id="productTourImage" src="/one.png"><span id="productScreenLabel"></span></body>');
+  const window = dom.window;
+  const requests = [];
+  window.matchMedia = () => ({ matches: true, addEventListener() {} });
+  window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
+  window.Image = class { decode() { return new Promise((resolve, reject) => requests.push({resolve, reject})); } };
+  try {
+    window.eval(read("visuals/motion.js"));
+    const buttons = window.document.querySelectorAll("[data-product-screen]");
+    buttons[1].click();
+    requests[0].reject(new Error("Connection interrupted"));
+    await settle();
+    assert.match(window.document.querySelector("#productTourImage").src, /one\.png$/);
+    assert.equal(buttons[0].getAttribute("aria-pressed"), "true");
+    buttons[1].click();
+    assert.equal(requests.length, 2);
+    requests[1].resolve();
     await settle();
     assert.match(window.document.querySelector("#productTourImage").src, /two\.png$/);
     assert.equal(buttons[1].getAttribute("aria-pressed"), "true");

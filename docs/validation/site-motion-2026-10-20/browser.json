@@ -1,0 +1,52 @@
+{
+  "selectedCards": [
+    {
+      "viewport": "desktop",
+      "selected": "01",
+      "contrast": 8.120748932494761
+    },
+    {
+      "viewport": "desktop",
+      "selected": "02",
+      "contrast": 8.120748932494761
+    },
+    {
+      "viewport": "desktop",
+      "selected": "03",
+      "contrast": 8.120748932494761
+    },
+    {
+      "viewport": "desktop",
+      "selected": "04",
+      "contrast": 8.120748932494761
+    },
+    {
+      "viewport": "mobile",
+      "selected": "01",
+      "contrast": 8.120748932494761
+    },
+    {
+      "viewport": "mobile",
+      "selected": "02",
+      "contrast": 8.120748932494761
+    },
+    {
+      "viewport": "mobile",
+      "selected": "03",
+      "contrast": 8.120748932494761
+    },
+    {
+      "viewport": "mobile",
+      "selected": "04",
+      "contrast": 8.120748932494761
+    }
+  ],
+  "pointerSpotlight": true,
+  "keyboardTour": true,
+  "pause": true,
+  "persistedPause": true,
+  "reducedMotion": true,
+  "mobile": true,
+  "hiddenPause": true,
+  "plans": true
+}

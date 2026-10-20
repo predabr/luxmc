@@ -107,10 +107,12 @@ async function initGitHubRelease() {
     }
     if (!data)
       throw new Error("Release indisponível");
-    const remoteTag = typeof data.tag_name === "string" ? data.tag_name : "v3.7.0";
+    const initialTag = document.querySelector(".live-version-tag")?.textContent?.trim() || "v4.0.0";
+    const siteTag = /^v\d+\.\d+\.\d+$/.test(initialTag) ? initialTag : "v4.0.0";
+    const remoteTag = typeof data.tag_name === "string" ? data.tag_name : siteTag;
     const revisionMatch = /^v?(\d+)\.(\d+)\.(\d+)-revision\.(\d+)$/.exec(remoteTag);
-    const remoteDisplayTag = revisionMatch && Number(revisionMatch[3]) > 0 ? `v${revisionMatch[1]}.${revisionMatch[2]}.${Number(revisionMatch[3]) - 1}` : remoteTag;
-    const siteTag = "v3.7.0";
+    const buildMatch = /^v?(\d+\.\d+\.\d+)-build\.(\d+)\.(\d+)$/.exec(remoteTag);
+    const remoteDisplayTag = revisionMatch && Number(revisionMatch[3]) > 0 ? `v${revisionMatch[1]}.${revisionMatch[2]}.${Number(revisionMatch[3]) - 1}` : buildMatch ? `v${buildMatch[1]}` : /^v?\d+\.\d+\.\d+$/.test(remoteTag) ? `v${remoteTag.replace(/^v/, "")}` : siteTag;
     const remoteParts = remoteDisplayTag.replace(/^v/, "").split(".").map(Number);
     const siteParts = siteTag.slice(1).split(".").map(Number);
     const difference = siteParts.map((part, index) => part - (remoteParts[index] || 0)).find((value) => value !== 0) || 0;
@@ -118,7 +120,7 @@ async function initGitHubRelease() {
     window.LuxLatestVersion = tag;
     document.querySelectorAll(".live-version-tag").forEach((el) => {
       el.textContent = tag;
-      el.title = revisionMatch && tag === remoteDisplayTag ? `Luxmc ${tag.replace(/^v/, "")} — revisão ${revisionMatch[4]}` : `Luxmc ${tag.replace(/^v/, "")}`;
+      el.title = revisionMatch && tag === remoteDisplayTag ? `Luxmc ${tag.replace(/^v/, "")} — revisão ${revisionMatch[4]}` : buildMatch && tag === remoteDisplayTag ? `Luxmc ${tag.replace(/^v/, "")} — build ${buildMatch[2]}.${buildMatch[3]}` : `Luxmc ${tag.replace(/^v/, "")}`;
     });
     const { assetFor } = await import("./lib/releases.js");
     const appImage = assetFor(data.assets, "linux");

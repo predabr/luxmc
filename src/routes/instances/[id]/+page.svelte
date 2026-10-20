@@ -1005,6 +1005,7 @@
     type DataSection = "mods" | "resourcepacks" | "shaders" | "datapacks" | "mundos" | "galeria" | "ficheiros" | "configuracoes";
     const loadedSections = new Set<string>();
     const sectionRequests = new Map<string, Promise<void>>();
+    const sectionRefreshes = new Set<string>();
     const resolvedMetadata = new Set<string>();
     let dataGeneration = 0;
     let pendingLoads = 0;
@@ -1128,13 +1129,13 @@
         const key = `${id}:${section}:${section === "ficheiros" ? path : section === "datapacks" ? world : ""}`;
         const generation = dataGeneration;
         const pending = sectionRequests.get(key);
-        if (pending) { await pending; return; }
+        if (pending) { if (force) sectionRefreshes.add(key); await pending; return; }
         if (generation !== dataGeneration || (!force && loadedSections.has(key))) return;
         pendingLoads++;
         isLoadingData = true;
         if (section === "mundos") loadingWorlds = true;
         const request = (async () => {
-            const current = () => generation === dataGeneration && id === instanceId;
+            const current = () => generation === dataGeneration && id === instanceId && (section !== "ficheiros" || path === fileSubPath);
             if (section === "configuracoes") {
                 const specs = await getSystemSpecs();
                 if (!current()) return;
@@ -1185,10 +1186,12 @@
         })().catch(error => {
             if (generation === dataGeneration) toast(uiText("ui.24951c37dc7ac3cd") + String(error), "error");
         }).finally(() => {
+            const refresh = sectionRequests.get(key) === request && sectionRefreshes.delete(key);
             if (sectionRequests.get(key) === request) sectionRequests.delete(key);
             pendingLoads--;
             isLoadingData = pendingLoads > 0;
             if (section === "mundos" && generation === dataGeneration) loadingWorlds = false;
+            if (refresh && generation === dataGeneration && id === instanceId && (section !== "ficheiros" || path === fileSubPath) && (section !== "datapacks" || !world || world === datapackWorld)) void loadSection(section, true);
         });
         sectionRequests.set(key, request);
         await request;
@@ -1200,6 +1203,8 @@
             dataGeneration++;
             iconQueue.clear(); iconLookups.length = 0; iconRequested.clear(); clearTimeout(iconTimer);
             loadedSections.clear();
+            sectionRequests.clear();
+            sectionRefreshes.clear();
             resolvedMetadata.clear();
             mainTab = "conteudo"; subTab = "mods";
             searchQuery = ""; debouncedSearch = ""; selectedModNames = []; activeMenuMod = null; availableModUpdates = [];
@@ -1415,7 +1420,7 @@
 	async function navigateToFolder(folderName: string) {
 		fileBreadcrumbs = [...fileBreadcrumbs, folderName];
 		fileSubPath = fileBreadcrumbs.join("/");
-		fileTree = await instanceFileTree(instanceId, fileSubPath).catch(() => []);
+		await loadSection("ficheiros", true);
 	}
 
 	async function navigateBreadcrumb(index: number) {
@@ -1426,14 +1431,14 @@
 			fileBreadcrumbs = fileBreadcrumbs.slice(0, index + 1);
 			fileSubPath = fileBreadcrumbs.join("/");
 		}
-		fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
+		await loadSection("ficheiros", true);
 	}
 
 	async function navigateUp() {
 		if (fileBreadcrumbs.length > 0) {
 			fileBreadcrumbs = fileBreadcrumbs.slice(0, -1);
 			fileSubPath = fileBreadcrumbs.join("/");
-			fileTree = await instanceFileTree(instanceId, fileSubPath || undefined).catch(() => []);
+			await loadSection("ficheiros", true);
 		}
 	}
 

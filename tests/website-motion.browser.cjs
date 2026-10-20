@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 
 (async () => {
-    const output = 'docs/validation/v3.6/layout-polish';
+    const output = process.env.LUXMC_SITE_MOTION_OUTPUT || 'docs/validation/v3.6/layout-polish';
     fs.mkdirSync(output, { recursive: true });
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
     try {

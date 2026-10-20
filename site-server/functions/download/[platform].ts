@@ -15,6 +15,10 @@ function localIsCurrent(local: any, remote: any) {
     }
     return true;
 }
+function rangeValidatorMatches(request: Request, source: Response) {
+    const validator = request.headers.get("If-Range");
+    return !validator || (!validator.startsWith("W/") && (validator.startsWith('"') ? validator === source.headers.get("ETag") : Number.isFinite(Date.parse(validator)) && Date.parse(validator) === Date.parse(source.headers.get("Last-Modified") || "")));
+}
 async function localInstaller(request: any) {
     const source = await fetch(new URL("/releases/Lux%20MC%20Launcher.exe", request.url), {
         method: request.method === "HEAD" ? "HEAD" : "GET",
@@ -29,8 +33,7 @@ async function localInstaller(request: any) {
     headers.set("X-Content-Type-Options", "nosniff");
     const length = Number(source.headers.get("Content-Length"));
     const range = request.headers.get("Range");
-    const ifRange = request.headers.get("If-Range");
-    const rangeAllowed = !ifRange || (!ifRange.startsWith("W/") && (ifRange.startsWith('"') ? ifRange === source.headers.get("ETag") : Number.isFinite(Date.parse(ifRange)) && Date.parse(ifRange) === Date.parse(source.headers.get("Last-Modified") || "")));
+    const rangeAllowed = rangeValidatorMatches(request, source);
     if (range && !rangeAllowed && source.status === 206) {
         await source.body?.cancel();
         const fullHeaders = new Headers(request.headers);
@@ -92,16 +95,23 @@ export async function onRequest({ request, params, env }: SiteContext) {
     if (request && !["GET", "HEAD"].includes(request.method))
         return new Response("Method not allowed", { status: 405 });
     const platform = String(params.platform || "").toLowerCase();
+    const localRelease = env?.WINDOWS_LOCAL_BUILD || env?.WINDOWS_LOCAL_VERSION;
     try {
         const data = await latestRelease();
         const asset = assetFor(data.assets, platform);
-        if ((platform === "windows" || platform === "exe") && localIsCurrent(env?.WINDOWS_LOCAL_VERSION, data.tag_name)) {
+        if ((platform === "windows" || platform === "exe") && localIsCurrent(localRelease, data.tag_name)) {
             const local = await localInstaller(request);
             if (local.status !== 502) return local;
         }
         if (asset && (platform === "windows" || platform === "exe")) {
             const range = request?.headers.get("Range");
-            const source = await fetch(asset.browser_download_url, { method: request?.method === "HEAD" ? "HEAD" : "GET", headers: range ? { Range: range } : undefined });
+            const ifRange = request?.headers.get("If-Range");
+            const method = request?.method === "HEAD" ? "HEAD" : "GET";
+            let source = await fetch(asset.browser_download_url, { method, headers: range ? { Range: range, ...(ifRange ? { "If-Range": ifRange } : {}) } : undefined });
+            if (range && source.status === 206 && !rangeValidatorMatches(request, source)) {
+                await source.body?.cancel();
+                source = await fetch(asset.browser_download_url, { method });
+            }
             if (!source.ok)
                 return new Response("Installer temporarily unavailable", { status: 502, headers: { "Cache-Control": "no-store" } });
             const headers = new Headers({
@@ -110,7 +120,7 @@ export async function onRequest({ request, params, env }: SiteContext) {
                 "Cache-Control": "public, max-age=60",
                 "X-Content-Type-Options": "nosniff"
             });
-            for (const name of ["Content-Length", "Content-Range", "Accept-Ranges"]) {
+            for (const name of ["Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"]) {
                 const value = source.headers.get(name);
                 if (value)
                     headers.set(name, value);
@@ -128,7 +138,7 @@ export async function onRequest({ request, params, env }: SiteContext) {
         });
     }
     catch {
-        if ((platform === "windows" || platform === "exe") && env?.WINDOWS_LOCAL_VERSION) {
+        if ((platform === "windows" || platform === "exe") && localRelease) {
             try {
                 return await localInstaller(request);
             }

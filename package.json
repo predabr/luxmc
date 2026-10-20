@@ -20,6 +20,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:browser:content": "node scripts/test-browser-content.mjs",
+    "test:browser:website": "node scripts/test-browser-website.mjs",
     "test:coverage": "vitest run --coverage",
     "deploy:website": "pnpm build:website && node scripts/deploy-website.mjs",
     "build:windows": "node scripts/build-windows.mjs",

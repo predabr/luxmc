@@ -10,6 +10,7 @@ export interface SiteEnvironment {
     AUTH_PEPPER?: string;
     SOCIAL_STREAM_URL?: string;
     WINDOWS_LOCAL_VERSION?: string;
+    WINDOWS_LOCAL_BUILD?: string;
     OWNER_SOCIAL_ID?: string;
     MICROSOFT_CLIENT_ID?: string;
     MICROSOFT_CLIENT_SECRET?: string;
