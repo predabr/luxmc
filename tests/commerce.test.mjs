@@ -60,6 +60,8 @@ test('checkout trusts server prices, is idempotent and preserves the payment des
     f.sqlite.prepare('UPDATE lux_commerce_config SET enabled = 0').run(); assert.equal((await f.call('create',bob,{plan:'pro'})).status,503);
 });
 test('owner password is hashed, scoped to the owner, rate limited and changing it revokes other sessions', async t => {
+    let now=Date.UTC(2026,9,20,12,0,10);
+    t.mock.method(Date,'now',()=>now);
     const f=fixture();t.after(()=>f.sqlite.close());const secret='test-owner-password-strong-123';
     assert.equal((await f.call('owner_password',alice,{password:secret})).status,403);
     assert.equal((await f.call('owner_password',owner,{password:'weak'})).status,400);
@@ -70,8 +72,13 @@ test('owner password is hashed, scoped to the owner, rate limited and changing i
     assert.equal((await f.call('owner_queue','unknown',{}, f.cookieHeaders(cookie))).status,200);
     assert.equal((await f.call('owner_password',owner,{password:'replacement-owner-password-456'})).status,200);
     assert.equal((await f.call('owner_queue','unknown',{}, f.cookieHeaders(cookie))).status,401);
-    for(let i=0;i<4;i++) await f.call('owner_login','unknown',{password:'invalid-password-123'});
+    const failures=[];
+    for(let i=0;i<4;i++) failures.push((await f.call('owner_login','unknown',{password:'invalid-password-123'})).status);
+    assert.deepEqual(failures,[401,401,401,429]);
     assert.equal((await f.call('owner_login','unknown',{password:secret})).status,429);
+    now+=60000;
+    assert.equal((await f.call('owner_login','unknown',{password:secret})).status,401);
+    assert.equal((await f.call('owner_login','unknown',{password:'replacement-owner-password-456'})).status,200);
 });
 test('receipts stay private, validate actual file type, and uploads cannot revive cancelled orders', async t => {
     const f=fixture();t.after(()=>f.sqlite.close()); const order=(await f.call('create',alice,{plan:'pro'})).body.order.id;

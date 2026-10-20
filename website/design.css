@@ -1897,7 +1897,7 @@ input::placeholder {
   .navbar > .container {
     gap: 12px;
   }
-  .navbar .lang-switcher,
+  .navbar .nav-actions .lang-switcher,
   .nav-account-link {
     display: none;
   }

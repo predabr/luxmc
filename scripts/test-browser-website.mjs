@@ -19,7 +19,7 @@ try {
         }
         if (!await ready()) throw new Error('Website preview did not start.');
     }
-    for (const test of ['tests/website-motion.browser.cjs', 'tests/website-interactions.browser.cjs', 'tests/site-release-identity.browser.cjs', 'tests/site-session.browser.cjs']) {
+    for (const test of ['tests/website-motion.browser.cjs', 'tests/website-interactions.browser.cjs', 'tests/website-languages.browser.cjs', 'tests/site-release-identity.browser.cjs', 'tests/site-session.browser.cjs']) {
         console.log(`Running ${test}`);
         const child = spawn(process.execPath, [test], { env: { ...process.env, LUXMC_SITE_URL: base }, stdio: 'inherit', windowsHide: true });
         const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('exit', resolve); });

@@ -140,6 +140,10 @@
       "product.libraryDesc": "Cada mundo com seus mods, versão e configurações. Organize instâncias sem misturar arquivos.",
       "product.mods": "Seus mods.",
       "product.modsDesc": "Encontre conteúdo no Modrinth e CurseForge. Instale na instância certa, dentro do launcher.",
+      "product.friends": "Sua turma.",
+      "product.friendsDesc": "Perfis públicos, favoritos e convites. Uma sala reúne as pessoas; cada instância conserva seus próprios arquivos.",
+      "product.space": "Seu espaço.",
+      "product.spaceDesc": "Crie pastas com nome e imagem, arraste suas instâncias e mantenha os packs que joga por perto.",
       "product.expand": "EXPANDIR ↗",
       "product.real": "Interface do LuxMC · capturas reais",
       "feature.control": "Performance sob controle.",
@@ -381,6 +385,10 @@
       "product.libraryDesc": "Each world with its own mods, version and settings. Separate instances keep files organized.",
       "product.mods": "Your mods.",
       "product.modsDesc": "Find content on Modrinth and CurseForge. Install it in the right instance, inside the launcher.",
+      "product.friends": "Your friends.",
+      "product.friendsDesc": "Public profiles, favourites and invitations. A room brings people together; each instance keeps its own files.",
+      "product.space": "Your space.",
+      "product.spaceDesc": "Create folders with a name and image, drag your instances into them and keep your favourite packs close.",
       "product.expand": "EXPAND ↗",
       "product.real": "LuxMC interface · real screenshots",
       "feature.control": "Performance in your hands.",
@@ -617,6 +625,10 @@
       "product.libraryDesc": "Cada mundo con sus mods, versión y ajustes. Organiza instancias sin mezclar archivos.",
       "product.mods": "Tus mods.",
       "product.modsDesc": "Encuentra contenido en Modrinth y CurseForge. Instálalo en la instancia correcta desde el launcher.",
+      "product.friends": "Tus amigos.",
+      "product.friendsDesc": "Perfiles públicos, favoritos e invitaciones. Una sala reúne a tus amigos; cada instancia conserva sus propios archivos.",
+      "product.space": "Tu espacio.",
+      "product.spaceDesc": "Crea carpetas con nombre e imagen, arrastra tus instancias y ten a mano los packs que más juegas.",
       "product.expand": "AMPLIAR ↗",
       "product.real": "Interfaz de LuxMC · capturas reales",
       "feature.control": "Rendimiento bajo tu control.",
@@ -733,6 +745,11 @@
       const value = translations[next][node.dataset.i18n || ""];
       if (value)
         node.innerHTML = value;
+    }
+    for (const button of document.querySelectorAll("[data-product-screen]")) {
+      const number = button.querySelector("span")?.textContent?.trim();
+      const title = button.querySelector("h3")?.textContent?.trim();
+      if (number && title) button.setAttribute("aria-label", `${number} · ${title}`);
     }
     for (const node of document.querySelectorAll("[data-i18n-placeholder]")) {
       const value = translations[next][node.dataset.i18nPlaceholder || ""];

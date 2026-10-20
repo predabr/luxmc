@@ -123,6 +123,7 @@ async function fixtures(page) {
         await page.goto(new URL('/planos', base).href);
         await page.locator('.plan-card.motion-surface').first().waitFor();
         await page.emulateMedia({ reducedMotion: 'reduce' });
+        await page.waitForFunction(() => document.body.classList.contains('motion-paused'));
         assert.equal(await page.locator('body').evaluate(element => element.classList.contains('motion-paused')), true);
         await page.locator('.plans-page .faq details').first().locator('summary').click();
         assert.equal(await page.locator('.plans-page .faq details').first().evaluate(element => element.open), true);
