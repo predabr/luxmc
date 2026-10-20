@@ -7,7 +7,7 @@ const server=spawn(process.execPath,['scripts/preview-website.mjs'],{env:{...pro
     let browser;
     try {
         for(let attempt=0;attempt<80;attempt++){try{if((await fetch('http://127.0.0.1:8794/')).ok)break;}catch{}await new Promise(resolve=>setTimeout(resolve,100));}
-        browser=await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'});
+        browser=await chromium.launch({headless:true,executablePath:process.env.LUXMC_CHROMIUM_EXECUTABLE || undefined});
         const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),errors=[];
         page.on('pageerror',error=>errors.push(String(error)));
         let user={id:'test-profile',username:'Player',displayName:'Player',avatarUrl:null,skinUrl:'/api/appearance/Player?asset=skin',canManageAccount:true,membership:{plan:'pro',expiresAt:1900000000}};
