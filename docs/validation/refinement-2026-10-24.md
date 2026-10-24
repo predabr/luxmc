@@ -47,3 +47,13 @@ Os testes não demonstram tempo de abertura idêntico para todos os modpacks ou 
 - Cutscene: limite de desenho de 60 quadros por segundo, suspensão de frames quando oculta e indicador discreto das etapas. Sem alteração da marca.
 
 A partida do modpack entre os dois computadores do usuário e o acesso Microsoft completo no site continuam pendentes de validação/liberação externa. Esses limites não são apresentados como resultados concluídos.
+
+## Publicação oficial conferida
+
+Build pública: [v4.0.0-build.40133561061.1](https://github.com/predabr/luxmc/releases/tag/v4.0.0-build.40133561061.1), com código `3b2aa79`. Os seis jobs de validação/compilação e a verificação final do workflow concluíram com sucesso. O README e as notas receberam uma atualização posterior somente de documentação.
+
+Foram conferidos os onze assets, as assinaturas Ed25519 oficiais do manifesto e de SHA256SUMS, a revisão numérica, os tamanhos e os destinos de download. O instalador completo baixado pelo site corresponde ao SHA-256 `6bde5abebabdeae9cbeb38c810b349b14ec72a338672ddd5fea2905e91436c1a`, com 21.659.682 bytes.
+
+No runner Windows, instalação, reinstalação da mesma versão e desinstalação retornaram zero, preservando os dados protegidos do teste. Os testes de recuperação de download interrompido passaram. O Defender do runner não encontrou ameaças no instalador e no executável; isso não equivale a assinatura Authenticode nem aprovação universal dos antivírus.
+
+A leitura adicional dos metadados dos 180 JARs do Horror OneBlock confirmou somente os três grupos de duplicatas relatados. A proposta de reparo elimina esses três grupos, sem modificar a pasta original durante a auditoria.
