@@ -18,7 +18,7 @@ const { setupLauncherDemo } = require('../scripts/launcher-video-fixture.cjs');
                 const old = window.electronAPI.invoke;
                 let recovered = false;
                 const entries = Array.from({ length: 1000 }, (_, index) => ({
-                    name: index === 0 ? 'AccuracyCrosshair.zip' : `Mod-${String(index).padStart(4, '0')}.jar`,
+                    name: index === 0 ? 'AccuracyCrosshair.jar' : `Mod-${String(index).padStart(4, '0')}.jar`,
                     path: `/mods/${index}.jar`, size: 10692, isDir: false,
                     icon: index === 0 ? 'https://media.forgecdn.net/avatars/fixture.jpeg' : null,
                     iconKey: `content:fixture:${index}`, iconResolved: index <= 1

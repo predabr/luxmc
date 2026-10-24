@@ -423,6 +423,7 @@ export interface DepCheckResult {
 export interface ModpackUpdateInfo {
 	hasUpdate: boolean;
 	currentVersion: string | null;
+    currentVersionId?: string | null;
 	latestVersion: string | null;
 	changelog: string | null;
 	source: string;

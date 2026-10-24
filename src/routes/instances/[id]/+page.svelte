@@ -1,5 +1,6 @@
 <script lang="ts">
     import { contentImage } from '$lib/actions/contentImage';
+    import { instanceContentEntries } from '$lib/utils/instanceContent';
     import { hydrateContentIcons, rememberContentIcons, subscribeContentIcons, warmContentImages } from '$lib/utils/contentPrefetch';
     import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
     import { settings } from '$lib/stores/settings.svelte';
@@ -202,12 +203,7 @@
     import { modpackUpdates } from '$lib/stores/modpackUpdates.svelte';
     const modpackEntry = $derived(modpackUpdates.forProfile(instanceId));
     const modpackUpdate = $derived(modpackEntry?.info ?? null);
-    const modpackDiff = $derived(modpackEntry?.diff ?? null);
     const updateTask = $derived(modpackUpdates.task?.profileId === instanceId ? modpackUpdates.task : null);
-    const isCheckingUpdate = $derived(modpackEntry?.checking ?? false);
-    const isUpdatingModpack = $derived(updateTask?.busy ?? false);
-    const updateStatusText = $derived(updateTask?.text ?? '');
-    const updateProgressPercent = $derived(updateTask?.percent ?? 0);
     $effect(() => {
         const complete = updateTask?.complete;
         if (complete) untrack(() => { void refreshAllData(); });
@@ -1159,7 +1155,8 @@
                     if (!datapackWorld) { dataPacks = []; loadedSections.add(key); return; }
                 }
                 const folder = section === "datapacks" ? `saves/${datapackWorld}/datapacks` : section === "ficheiros" ? path || undefined : section === "shaders" ? "shaderpacks" : section;
-                const data = hydrateContentIcons(await instanceFileTree(id, folder));
+                const tree = await instanceFileTree(id, folder);
+                const data = hydrateContentIcons(section === 'ficheiros' ? tree : instanceContentEntries(tree, folder || ''));
                 if (!current() || (section === "datapacks" && folder !== `saves/${datapackWorld}/datapacks`)) return;
                 if (section === "mods") {
                     instanceMods = data;
@@ -1826,18 +1823,6 @@
         await modpackUpdates.check(instanceId, true).catch(() => {});
 	}
 
-	async function handleApplyModpackUpdate() {
-		if (!modpackUpdate || !instanceId || isUpdatingModpack) return;
-        if (appState.isGameRunning) { toast(uiText("ui.5c121f6239aa0903"), "warning"); return; }
-		const id = instanceId;
-        const info = modpackUpdate;
-		try {
-			await modpackUpdates.apply(id, info.versionId || '', info.source, info.projectId || '', info.latestVersion || '');
-			playSound("chime");
-		} catch (e) {
-			console.error(uiText("ui.5a393de14381bc7c"), e);
-		}
-	}
 
 	async function openInstanceFolder() {
 		if (!instanceId) return;
@@ -1901,70 +1886,6 @@
                                 </section>
         {/if}
         {#if modpackUpdate?.projectId}<ModpackVersions profileId={instanceId} info={modpackUpdate} onChanged={refreshAllData} />{/if}
-
-		{#if modpackUpdate?.hasUpdate || isUpdatingModpack}
-			<div class="bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-bg-elevated border border-amber-500/30 rounded-3xl p-5 shadow-xl relative overflow-hidden">
-				<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-[radial-gradient(circle_at_center,rgb(245_158_11/0.15),transparent_70%)] rounded-full pointer-events-none"></div>
-				<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 relative z-10">
-					<div class="flex items-start gap-3.5">
-						<div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-brand-foreground font-black shadow-lg shrink-0">
-							<ArrowUpCircle class="w-6 h-6" />
-						</div>
-						<div class="space-y-1">
-							<div class="flex items-center gap-2 flex-wrap">
-								<span class="font-extrabold text-sm text-fg">{uiText("ui.5f428ec2d324f417")}</span>
-								<span class="text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full">
-									{modpackUpdate?.latestVersion || uiText("ui.a23951e91db1e2cb")}
-								</span>
-								{#if modpackUpdate?.currentVersion}
-									<span class="text-[10px] text-fg/40 font-mono">
-										{uiText("ui.c70c18c86e1e73ea")} {modpackUpdate.currentVersion})
-									</span>
-								{/if}
-							</div>
-							<p class="text-xs text-fg/60">
-								{uiText("ui.06ba47775007165a")} {modpackUpdate?.source === 'curseforge' ? 'CurseForge' : 'Modrinth'}.
-							</p>
-							<div class="flex items-center gap-1.5 text-[11px] font-bold text-emerald-400 pt-0.5">
-								<ShieldCheck class="w-3.5 h-3.5 shrink-0" />
-								<span>{uiText("ui.40411658f011d85a")}</span>
-							</div>
-							{#if modpackDiff?.available}
-								<div class="mt-2 flex flex-wrap gap-1.5 text-[10px]">
-									{#if modpackDiff.added.length}<span class="rounded-full bg-emerald-500/15 px-2 py-1 text-emerald-300">+{modpackDiff.added.length} {uiText("ui.b14d07bdc43e1b12")}</span>{/if}
-									{#if modpackDiff.updated.length}<span class="rounded-full bg-amber-500/15 px-2 py-1 text-amber-300">↻{modpackDiff.updated.length} {uiText("ui.9dfce32f7678d26e")}</span>{/if}
-									{#if modpackDiff.removed.length}<span class="rounded-full bg-rose-500/15 px-2 py-1 text-rose-300">−{modpackDiff.removed.length} {uiText("ui.538851c9c49de0bf")}</span>{/if}
-								</div>
-							{/if}
-						</div>
-					</div>
-
-					<div class="shrink-0 flex items-center gap-3 w-full md:w-auto">
-						{#if isUpdatingModpack}
-							<div class="flex flex-col items-end gap-1.5 w-full min-w-[220px]">
-								<div class="flex items-center justify-between w-full text-xs font-bold text-amber-300">
-									<span class="flex items-center gap-1.5">
-										<RefreshCw class="w-3 h-3 animate-spin" /> {updateStatusText || "Atualizando..."}
-									</span>
-									<span>{updateProgressPercent}%</span>
-								</div>
-								<div class="w-full h-2 bg-fg/10 rounded-full overflow-hidden">
-									<div class="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-[color,background-color,border-color,box-shadow,transform,opacity] duration-300 rounded-full" style="width: {updateProgressPercent}%"></div>
-								</div>
-							</div>
-						{:else}
-							<button
-								type="button"
-								class={launcherButton({ variant: "secondary", size: "lg", class: "w-full md:w-auto from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 flex items-center justify-center gap-2" })}
-								onclick={handleApplyModpackUpdate}
-							>
-								<Download class="w-4 h-4" /> {uiText("ui.5b3d667989437e73")}
-							</button>
-						{/if}
-					</div>
-				</div>
-			</div>
-		{/if}
 
         <div class="instance-overview-nav instance-tabbar" role="tablist" tabindex="-1" onkeydown={handleTabKeys} aria-label={uiText("ui.afb02856c2b1242c")}>
             {#each [{ id: 'mods', label: 'Mods', icon: Puzzle }, { id: 'resourcepacks', label: uiText("ui.906d0853ece30a11"), icon: Box }, { id: 'shaders', label: 'Shaders', icon: Sparkles }, { id: 'datapacks', label: uiText("ui.f3260e4c97557038"), icon: Code }, { id: 'mundos', label: uiText("files.saves"), icon: Globe2 }, { id: 'galeria', label: uiText("ui.067348ce68943b63"), icon: Image }, { id: 'ficheiros', label: uiText("ui.c11445cb4fe129bf"), icon: Folder }, { id: 'configuracoes', label: uiText("ui.76b0fb6ad18939ac"), icon: SettingsIcon }] as section}
@@ -2279,7 +2200,7 @@
                                             <group.icon class="absolute h-5 w-5 text-fg-muted" />
                                             {#if pack.icon}<img use:contentImage={{ profileId: instanceId, folder: group.id === "shaders" ? "shaderpacks" : group.id === "datapacks" ? `saves/${datapackWorld}/datapacks` : "resourcepacks", name: pack.name, iconKey: pack.iconKey }} src={pack.icon} referrerpolicy="no-referrer" alt={pack.name} loading="eager" decoding="async" class="relative h-full w-full object-contain" />{/if}
                                         </div>
-                                        <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}</p><p class="mt-1 text-[10px] text-fg-muted">{(pack.size / 1048576).toFixed(2)} MB</p></div>
+                                        <div class="min-w-0 flex-1"><p class="truncate text-xs font-semibold text-fg" title={pack.name}>{pack.name}</p><p class="mt-1 text-[10px] text-fg-muted">{pack.isDir ? uiText('updateCenter.extractedPack') : `${(pack.size / 1048576).toFixed(2)} MB`}</p></div>
                                         <button type="button" class={button({ variant: 'ghost', size: 'icon' })} aria-label={`${uiText("screenshots.openFolderBtn")}: ${pack.name}`} title={uiText("screenshots.openFolderBtn")} onclick={() => handleOpenPackFolder(group.type)}><FolderOpen class="h-4 w-4" /></button>
                                         <button type="button" class={button({ variant: 'ghostDanger', size: 'icon' })} aria-label={uiText("ui.a03c3b676aa5e5d1", {arg0: (pack.name)})} onclick={() => handleDeletePack(pack.name, group.type)}><Trash2 class="h-4 w-4" /></button>
                                     </div>

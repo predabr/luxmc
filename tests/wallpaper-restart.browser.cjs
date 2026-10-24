@@ -48,7 +48,7 @@ const fs = require('node:fs');
         await page.route('https://**/*', route => route.abort());
         await page.goto('http://127.0.0.1:1420/settings');
         await page.locator('aside nav a[href="/mods"]').waitFor();
-        await page.getByRole('tab', { name: /Aparência/ }).click();
+        await page.getByRole('tab', { name: 'Wallpapers', exact: true }).click();
         await page.getByRole('button', { name: '+ Importar', exact: true }).click();
         try {
             await page.waitForFunction(() => Array.from(document.querySelectorAll('video')).some(video => video.currentTime > 0.3 && !video.paused), null, { timeout: 30000 });

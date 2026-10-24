@@ -343,7 +343,7 @@ export const themeStore = {
 	},
 
 	async importSavedWallpapers() {
-		const originals = wallpaperLibrary.map(entry => entry.url);
+		const originals = [...new Set([customWallpaperUrl, ...wallpaperLibrary.map(entry => entry.url)].filter(Boolean))];
 		await import("$lib/api/wallpaper").then(async ({ importWallpaper }) => {
 			for (const original of originals) {
 				const path = wallpaperLocalPath(original);

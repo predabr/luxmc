@@ -13,6 +13,28 @@ const tokens = { [alice]: 'b'.repeat(64), [bob]: 'c'.repeat(64) };
 const proStyle = { accent:'lilac', frame:'orbit', effect:'shimmer', layout:'centered' };
 const empty = { description:'', banner:'', portrait:'', packs:[], collections:[] };
 
+test('friend card covers and Prism require Pro and survive downgrade without remaining active', async t => {
+    const f = fixture(t);
+    const style = {...defaultProfileStyle, frameDetail:'prism', cardBackground:'cover'};
+    const gif = 'data:image/gif;base64,' + Buffer.from('GIF89a1234567890').toString('base64');
+    f.plan(alice,'plus');
+    assert.equal((await f.call('social','profile_save',alice,{...empty,banner:gif,profileStyle:style})).status,403);
+    f.plan(alice,'pro');
+    assert.equal((await f.call('social','profile_save',alice,{...empty,banner:gif,profileStyle:style})).status,200);
+    assert.deepEqual((await f.call('social','profile_get',alice,{})).body.profile.profileStyle,style);
+    assert.equal((await f.call('social','profile_save',alice,{...empty,banner:gif,description:'Edited by a previous launcher',profileStyle:defaultProfileStyle})).status,200);
+    assert.deepEqual((await f.call('social','profile_get',alice,{})).body.profile.profileStyle,style);
+    f.plan(alice,'plus');
+    let profile = (await f.call('social','profile_get',alice,{})).body.profile;
+    assert.equal(profile.profileStyle.cardBackground,'none');
+    assert.equal(profile.profileStyle.frameDetail,'none');
+    assert.equal(profile.banner,gif);
+    assert.equal((await f.call('social','profile_save',alice,{...empty,banner:gif,profileStyle:profile.profileStyle})).status,200);
+    f.plan(alice,'pro');
+    profile = (await f.call('social','profile_get',alice,{})).body.profile;
+    assert.deepEqual(profile.profileStyle,style);
+});
+
 test('GIFs require Plus or Pro, survive expiry and reach own identity and accepted friends', async t => {
     const f = fixture(t);
     const gif = 'data:image/gif;base64,' + Buffer.from('GIF89a1234567890').toString('base64');

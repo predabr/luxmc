@@ -5,6 +5,7 @@
 .profile-signature[data-profile-accent="rose"] { --profile-accent: color-mix(in oklab, rgb(var(--danger)), rgb(var(--fg)) 28%); }
 .profile-signature[data-profile-accent="lilac"] { --profile-accent: color-mix(in oklch shorter hue, rgb(var(--info, var(--brand-400))), rgb(var(--danger)) 55%); }
 .profile-signature[data-profile-frame="halo"] { --profile-frame-width: 2px; --profile-frame-shadow: 0 0 18px color-mix(in srgb, var(--profile-accent), transparent 74%); }
+.profile-signature[data-profile-frame-detail="prism"] { --profile-frame-width: 3px; --profile-frame-inset: -6px; --profile-frame-radius: 28%; --profile-frame-color: color-mix(in srgb, var(--profile-accent), rgb(var(--info)) 65%); --profile-frame-shadow: 3px 3px 0 color-mix(in srgb, var(--profile-accent), transparent 62%), -3px -3px 0 color-mix(in srgb, rgb(var(--info)), transparent 62%); }
 .profile-signature[data-profile-frame="double"] { --profile-frame-width: 4px; --profile-frame-style: double; --profile-frame-inset: -6px; }
 .profile-signature[data-profile-frame="orbit"] { --profile-frame-width: 2px; --profile-frame-inset: -6px; --profile-frame-color: color-mix(in srgb, var(--profile-accent), transparent 65%); --profile-frame-radius: 50%; --profile-frame-animation: lux-profile-orbit 12s linear infinite; }
 .profile-signature[data-profile-effect="pulse"] { --profile-pulse-display: block; }

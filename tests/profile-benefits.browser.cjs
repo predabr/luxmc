@@ -42,7 +42,7 @@ const proStyle = {accent:'lilac',frame:'orbit',effect:'shimmer',layout:'centered
             if(plan!=='pro') {
                 const locked = dialog.getByRole('button',{name:'Moldura do avatar: Órbita',exact:true});
                 await locked.click();
-                const prompt = page.getByRole('dialog',{name:'Personalize com Plus ou Pro',exact:true});
+                const prompt = page.getByRole('dialog',{name:'Personalize com Luxmc Pro',exact:true});
                 await prompt.getByRole('button',{name:'Agora não',exact:true}).click();
                 assert.equal(await locked.getAttribute('aria-pressed'),'false');
             }

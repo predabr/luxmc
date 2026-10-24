@@ -2,17 +2,21 @@ const profileAccents = ["brand", "ocean", "mint", "sunset", "rose", "lilac"];
 const profileFrames = ["none", "halo", "double", "orbit"];
 const profileEffects = ["none", "shimmer", "pulse"];
 const profileLayouts = ["classic", "centered"];
+const profileFrameDetails = ["none", "prism"];
+const profileCardBackgrounds = ["none", "cover"];
 const defaultProfileStyle = { accent: "brand", frame: "none", effect: "none", layout: "classic" };
 const profileBenefits = {
-  free: { favourites: 8, accents: ["brand"], frames: ["none"], effects: ["none"], layouts: ["classic"] },
-  plus: { favourites: 16, accents: [...profileAccents], frames: ["none", "halo", "double"], effects: ["none"], layouts: ["classic"] },
-  pro: { favourites: 24, accents: [...profileAccents], frames: [...profileFrames], effects: [...profileEffects], layouts: [...profileLayouts] }
+  free: { favourites: 8, accents: ["brand"], frames: ["none"], effects: ["none"], layouts: ["classic"], frameDetails: ["none"], cardBackgrounds: ["none"] },
+  plus: { favourites: 16, accents: [...profileAccents], frames: ["none", "halo", "double"], effects: ["none"], layouts: ["classic"], frameDetails: ["none"], cardBackgrounds: ["none"] },
+  pro: { favourites: 24, accents: [...profileAccents], frames: [...profileFrames], effects: [...profileEffects], layouts: [...profileLayouts], frameDetails: [...profileFrameDetails], cardBackgrounds: [...profileCardBackgrounds] }
 };
 function parseProfileStyle(value) {
   if (value === void 0) return { ...defaultProfileStyle };
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const record = value;
-  if (Object.keys(record).some((key) => !["accent", "frame", "effect", "layout"].includes(key))) return null;
+  if (Object.keys(record).some((key) => !["accent", "frame", "effect", "layout", "frameDetail", "cardBackground"].includes(key))) return null;
+  if (record.cardBackground !== void 0 && !profileCardBackgrounds.includes(record.cardBackground)) return null;
+  if (record.frameDetail !== void 0 && !profileFrameDetails.includes(record.frameDetail)) return null;
   const style = { ...defaultProfileStyle, ...record };
   if (!profileAccents.includes(style.accent) || !profileFrames.includes(style.frame) || !profileEffects.includes(style.effect) || !profileLayouts.includes(style.layout)) return null;
   return style;
@@ -24,12 +28,14 @@ function activeProfileStyle(value, plan) {
     accent: benefits.accents.includes(style.accent) ? style.accent : "brand",
     frame: benefits.frames.includes(style.frame) ? style.frame : "none",
     effect: benefits.effects.includes(style.effect) ? style.effect : "none",
-    layout: benefits.layouts.includes(style.layout) ? style.layout : "classic"
+    layout: benefits.layouts.includes(style.layout) ? style.layout : "classic",
+    ...style.frameDetail !== void 0 ? { frameDetail: benefits.frameDetails.includes(style.frameDetail) ? style.frameDetail : "none" } : {},
+    ...style.cardBackground !== void 0 ? { cardBackground: benefits.cardBackgrounds.includes(style.cardBackground) ? style.cardBackground : "none" } : {}
   };
 }
 function profileStyleAllowed(value, plan) {
   const active = activeProfileStyle(value, plan);
-  return active.accent === value.accent && active.frame === value.frame && active.effect === value.effect && active.layout === value.layout;
+  return active.accent === value.accent && active.frame === value.frame && active.effect === value.effect && active.layout === value.layout && active.cardBackground === value.cardBackground && active.frameDetail === value.frameDetail;
 }
 function retainedProfileStyle(value, stored, plan) {
   const saved = parseProfileStyle(stored) || { ...defaultProfileStyle };
@@ -39,7 +45,9 @@ function retainedProfileStyle(value, stored, plan) {
     accent: !allowed.accents.includes(saved.accent) && value.accent === active.accent ? saved.accent : value.accent,
     frame: !allowed.frames.includes(saved.frame) && value.frame === active.frame ? saved.frame : value.frame,
     effect: !allowed.effects.includes(saved.effect) && value.effect === active.effect ? saved.effect : value.effect,
-    layout: !allowed.layouts.includes(saved.layout) && value.layout === active.layout ? saved.layout : value.layout
+    layout: !allowed.layouts.includes(saved.layout) && value.layout === active.layout ? saved.layout : value.layout,
+    ...value.frameDetail !== void 0 || saved.frameDetail !== void 0 ? { frameDetail: value.frameDetail === void 0 || saved.frameDetail === "prism" && plan !== "pro" && value.frameDetail === "none" ? saved.frameDetail : value.frameDetail } : {},
+    ...value.cardBackground !== void 0 || saved.cardBackground !== void 0 ? { cardBackground: value.cardBackground === void 0 || saved.cardBackground === "cover" && plan !== "pro" && value.cardBackground === "none" ? saved.cardBackground : value.cardBackground } : {}
   };
 }
 function isProfileGif(value) {
@@ -59,7 +67,9 @@ export {
   parseProfileStyle,
   profileAccents,
   profileBenefits,
+  profileCardBackgrounds,
   profileEffects,
+  profileFrameDetails,
   profileFrames,
   profileLayouts,
   profileStyleAllowed,

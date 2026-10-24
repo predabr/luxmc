@@ -6,7 +6,7 @@ import { setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 const mock = vi.hoisted(() => ({ plan:vi.fn(), versions: vi.fn(), apply: vi.fn(), refresh: vi.fn(), toast: vi.fn(), game: { isGameRunning: false, isLaunching: false } }));
 vi.mock("$lib/api/mods", () => ({ modsVersions: mock.versions }));
 vi.mock("$lib/api/java", () => ({ modpackUpdateAtomic: mock.apply, modpackVersionDiff:mock.plan }));
-vi.mock('$lib/stores/modpackUpdates.svelte', () => ({ modpackUpdates: { task: null, apply: mock.apply } }));
+vi.mock('$lib/stores/modpackUpdates.svelte', () => ({ modpackUpdates: { task: null, apply: mock.apply, forProfile: () => undefined, check: vi.fn() } }));
 vi.mock("$lib/stores/app.svelte", () => ({ appState: mock.game }));
 vi.mock("$lib/stores/profiles.svelte", () => ({ profiles: { refresh: mock.refresh } }));
 vi.mock("$lib/stores/toasts.svelte", () => ({ toast: mock.toast }));
@@ -24,13 +24,30 @@ async function open() {
     const view = render(ModpackVersions, { profileId: "profile", info: { projectId: "pack", source: "modrinth", currentVersion: "1.0", hasUpdate: false, latestVersion: null, changelog: null, versionId: null }, onChanged: changed });
     const details = view.container.querySelector("details")!;
     details.open = true; await fireEvent(details, new Event("toggle"));
-    const selected=await screen.findByText('2.0 · Author release');
-    await fireEvent.click(selected.closest('button')!);
+    await vi.waitFor(() => expect(mock.versions).toHaveBeenCalled());
+    await fireEvent.click(await screen.findByRole('button',{name:'Versão do modpack'}));
     await fireEvent.click(await screen.findByRole('option',{name:'2.0 · Author release'}));
     return changed;
 }
 
 describe("modpack version replacement", () => {
+    it('shows installed and available versions without downloading a plan until review', async () => {
+        render(ModpackVersions,{profileId:'profile',info:{projectId:'pack',source:'modrinth',currentVersion:'1.0',currentVersionId:'installed',hasUpdate:true,latestVersion:'2.0',versionId:'selected-version',changelog:null},onChanged:vi.fn()});
+        expect(screen.getByText('1.0')).toBeTruthy();
+        expect(screen.getByText('2.0')).toBeTruthy();
+        expect(mock.plan).not.toHaveBeenCalled();
+        expect(mock.versions).not.toHaveBeenCalled();
+        await fireEvent.click(screen.getByRole('button',{name:'Revisar atualização'}));
+        await vi.waitFor(() => expect(mock.plan).toHaveBeenCalledWith('profile','selected-version','modrinth'));
+        expect(mock.apply).not.toHaveBeenCalled();
+    });
+    it('selects the installed release and blocks replacing it with itself', async () => {
+        const view = render(ModpackVersions,{profileId:'profile',info:{projectId:'pack',source:'modrinth',currentVersion:'2.0',currentVersionId:'selected-version',hasUpdate:false,latestVersion:null,versionId:null,changelog:null},onChanged:vi.fn()});
+        const details = view.container.querySelector('details')!;
+        details.open = true; await fireEvent(details,new Event('toggle'));
+        expect((await screen.findByRole('button',{name:'Versão já instalada'}) as HTMLButtonElement).disabled).toBe(true);
+        expect(mock.plan).not.toHaveBeenCalled();
+    });
     it("requires explicit confirmation and refreshes only after a successful replacement", async () => {
         const changed = await open();
         await fireEvent.click(screen.getByRole("button", { name: "Planejar atualização" }));

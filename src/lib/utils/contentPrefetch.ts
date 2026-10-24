@@ -2,6 +2,7 @@ import { instanceContentIcons, instanceFileTree } from '$lib/api/instances';
 import type { FileTreeEntry } from '$lib/api/types';
 import { settings } from '$lib/stores/settings.svelte';
 import { appState } from '$lib/stores/app.svelte';
+import { instanceContentEntries } from '$lib/utils/instanceContent';
 
 const icons = new Map<string, { icon: string | null; resolved: boolean }>();
 type IconResult = { iconKey: string; icon: string | null; resolved: boolean };
@@ -81,7 +82,7 @@ export function prefetchInstanceContent(profileId: string, refresh = false): Pro
         const lookups: Array<{ folder: string; names: string[] }> = [];
         for (const folder of ['mods', 'resourcepacks', 'shaderpacks']) {
             if (document.hidden || appState.isLaunching || appState.isGameRunning) return;
-            const entries = await instanceFileTree(profileId, folder);
+            const entries = instanceContentEntries(await instanceFileTree(profileId, folder), folder);
             warmContentImages(entries);
             const missing = entries.filter(entry => entry.iconKey && !icons.has(entry.iconKey) && !entry.icon);
             rememberContentIcons(entries.filter(entry => entry.iconKey && entry.icon).map(entry => ({ iconKey: entry.iconKey!, icon: entry.icon!, resolved: true })));

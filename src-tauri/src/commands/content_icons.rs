@@ -66,6 +66,36 @@ pub fn cache_is_resolved(value: &str) -> bool {
     !value.is_empty()
 }
 fn now() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs() }
+fn matching_shader_archive(directory: &std::path::Path) -> Option<std::path::PathBuf> {
+    use std::io::Read;
+    let base = directory.parent()?;
+    let mut candidates: Vec<_> = std::fs::read_dir(base).ok()?.filter_map(Result::ok)
+        .filter(|entry| entry.path().extension().is_some_and(|extension| extension.eq_ignore_ascii_case("zip")))
+        .take(32).map(|entry| entry.path()).collect();
+    candidates.sort();
+    for candidate in candidates {
+        if !std::fs::metadata(&candidate).is_ok_and(|metadata| metadata.is_file() && metadata.len() <= 64 * 1024 * 1024) { continue; }
+        let Ok(file) = std::fs::File::open(&candidate) else { continue; };
+        let Ok(mut archive) = zip::ZipArchive::new(file) else { continue; };
+        if archive.len() > 10000 { continue; }
+        let mut matched = 0;
+        let mut different = false;
+        for index in 0..archive.len() {
+            let Ok(mut entry) = archive.by_index(index) else { continue; };
+            let Some(relative) = entry.enclosed_name().map(|path| path.to_path_buf()) else { continue; };
+            if !relative.starts_with("shaders") || !relative.extension().is_some_and(|extension| matches!(extension.to_str(), Some("glsl" | "fsh" | "vsh"))) || entry.size() > 1024 * 1024 { continue; }
+            let Ok(path) = crate::core::instance_paths::resolve_within(directory, &relative.to_string_lossy()) else { different = true; break; };
+            if !std::fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && metadata.len() == entry.size()) { different = true; break; }
+            let Ok(local) = std::fs::read(path) else { different = true; break; };
+            let mut zipped = Vec::new();
+            if entry.by_ref().take(1024 * 1024 + 1).read_to_end(&mut zipped).is_err() || zipped != local { different = true; break; }
+            matched += 1;
+            if matched == 3 { break; }
+        }
+        if !different && matched == 3 { return Some(candidate); }
+    }
+    None
+}
 fn allowed(path: &str) -> bool {
     matches!(path, "mods" | "resourcepacks" | "shaderpacks") || {
         let parts: Vec<_> = path.split('/').collect();
@@ -109,7 +139,7 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
                 cached = Some(url);
             }
         }
-        if let Some(value) = cached.filter(|value| cache_is_resolved(value)) {
+        if let Some(value) = cached.filter(|value| cache_is_resolved(value) && !(sub_path == "shaderpacks" && metadata.is_dir() && value.starts_with("missing:"))) {
             sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO NOTHING").bind(&key).bind(&value).execute(db.pool()).await?;
             results.push(ContentIcon { name, icon: (!value.starts_with("missing:")).then_some(value), icon_key: key, resolved: true });
             continue;
@@ -119,11 +149,20 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
             let _permit = WORK.acquire().await.map_err(|error| AppError::Internal(error.to_string()))?;
             tokio::task::spawn_blocking(move || super::mods::extract_mod_icon_from_jar(&file)).await.map_err(|error| AppError::Internal(error.to_string()))?
         };
-        let resolved = icon.is_some() || metadata.is_dir();
+        let shader_directory = sub_path == "shaderpacks" && metadata.is_dir();
+        let resolved = icon.is_some() || metadata.is_dir() && !shader_directory;
         if resolved {
             let value = icon.clone().unwrap_or_else(|| format!("missing:{}", now()));
             sqlx::query("INSERT INTO mod_icons(key, icon_url) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET icon_url = excluded.icon_url").bind(&key).bind(value).execute(db.pool()).await?;
         } else if lookup && metadata.len() <= 256 * 1024 * 1024 {
+            let path = if shader_directory {
+                let directory = path.clone();
+                let _permit = WORK.acquire().await.map_err(|error| AppError::Internal(error.to_string()))?;
+                match tokio::task::spawn_blocking(move || matching_shader_archive(&directory)).await.map_err(|error| AppError::Internal(error.to_string()))? {
+                    Some(archive) => archive,
+                    None => { results.push(ContentIcon { name, icon, icon_key: key, resolved: true }); continue; }
+                }
+            } else { path };
             if let Some(record) = records.iter().find(|record| record.file_name.trim_end_matches(".disabled") == name.trim_end_matches(".disabled") && matches!(record.source.as_str(), "curseforge" | "modrinth" | "modrinth_fallback")) {
                 known.entry((record.source.clone(), record.project_id.clone())).or_default().push(results.len());
                 results.push(ContentIcon { name, icon, icon_key: key, resolved });
@@ -241,6 +280,25 @@ pub async fn instance_content_icons_core(state: &AppState, profile_id: String, s
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn extracted_shader_variants_match_actual_code_instead_of_names() {
+        use std::io::Write;
+        let root = tempfile::tempdir().unwrap();
+        let folder = root.path().join("My performance preset");
+        std::fs::create_dir_all(folder.join("shaders")).unwrap();
+        let source = root.path().join("Author shader.zip");
+        let mut archive = zip::ZipWriter::new(std::fs::File::create(&source).unwrap());
+        for name in ["a.glsl", "b.fsh", "c.vsh"] {
+            let content = format!("shader program {name}");
+            archive.start_file(format!("shaders/{name}"),zip::write::FileOptions::default()).unwrap();
+            archive.write_all(content.as_bytes()).unwrap();
+            std::fs::write(folder.join("shaders").join(name),content).unwrap();
+        }
+        archive.finish().unwrap();
+        assert_eq!(matching_shader_archive(&folder),Some(source));
+        std::fs::write(folder.join("shaders/a.glsl"),"another shader").unwrap();
+        assert!(matching_shader_archive(&folder).is_none());
+    }
     #[test]
     fn thumbnail_sources_and_decoding_are_bounded() {
         assert!(image_url("https://media.forgecdn.net/avatars/test.jpeg").is_some());

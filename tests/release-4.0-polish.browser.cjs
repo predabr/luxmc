@@ -25,7 +25,7 @@ const output = process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/release-4.0-po
                 };
             });
             await page.goto(`${base}/instances/demo-fo`);
-            const versions = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Versões do modpack' }) });
+            const versions = page.locator('details').filter({ has: page.locator('summary', { hasText: 'Escolher outra versão' }) });
             await versions.locator('summary').click();
             const trigger = page.getByRole('button', { name: 'Versão do modpack', exact: true });
             await trigger.click();

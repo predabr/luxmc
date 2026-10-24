@@ -1,4 +1,7 @@
 {
+  "extendedSettings": {"interface": "Interface e animações", "wallpaper": "Wallpapers", "catalog": "Catálogo e downloads", "wallpaperHelp": "Seus arquivos importados são copiados para a biblioteca interna do Luxmc. Depois de concluir a importação, você pode remover o original.", "catalogHelp": "Controle o carregamento da biblioteca e adapte os downloads à sua conexão.", "latestRelease": "Versão estável", "snapshot": "Snapshot", "minecraftCatalog": "Versões do Minecraft", "versionsHelp": "O catálogo oficial é consultado ao abrir o seletor de versões. As consultas próximas reutilizam o resultado por até um minuto. Sem conexão, a última lista salva continua disponível.", "refreshCatalog": "Consultar catálogo", "preload": "Preparar capas antecipadamente", "interfaceHelp": "Escolha o movimento e o consumo da interface.", "motionStyle": "Estilo das animações", "expressive": "Expressivo · entrada em sequência", "subtle": "Discreto · movimentos curtos", "motionSpeed": "Velocidade das transições", "balanced": "Suave", "fast": "Rápida", "gifQuality": "Qualidade dos GIFs", "gifHigh": "Alta · melhor nitidez", "gifBalanced": "Equilibrada · menor processamento", "gifHelp": "Aplicada às próximas importações. GIFs grandes podem ser otimizados como WebP animado.", "preloadHelp": "Prepara os ícones em segundo plano, com limite de tarefas e sem competir com a abertura do Minecraft.", "reducedMotion": "Respeitar movimento reduzido do sistema", "motionHelp": "O modo econômico reduz os efeitos para priorizar os jogos. Entradas, cliques e transições usam animações curtas; nada precisa ficar se movendo sem parar."},
+  "proCards": {"requiredTitle":"Personalize com Luxmc Pro","benefits": "Fundo com imagem ou GIF nos cartões de amigos, moldura Prisma, Órbita, Brilho, Pulso e composição centralizada."},
+  "updateCenter": { "available": "Atualização do modpack", "current": "Modpack atualizado", "installed": "Instalada", "availableVersion": "Disponível", "check": "Buscar atualização", "review": "Revisar atualização", "backup": "Revise as mudanças antes de aplicar. Seus mundos recebem um backup antes da atualização.", "otherVersions": "Escolher outra versão", "alreadyInstalled": "Versão já instalada", "extractedPack": "Pacote extraído" },
   "planPrompt": { "title": "Personalize com Plus ou Pro", "help": "GIFs no avatar, na capa do perfil e nas pastas exigem Luxmc Plus ou Pro ativo. Escolha um plano para usar essas animações.", "wallpaper": "Wallpapers, inclusive em vídeo, continuam gratuitos no Luxmc Free.", "later": "Agora não", "plans": "Conhecer os planos", "openError": "Não foi possível abrir os planos. Tente novamente.", "checkPlan": "Aguarde a confirmação do seu plano e tente novamente.", "folderGif": "GIFs nas pastas exigem Luxmc Plus ou Pro.", "style": "Este estilo faz parte dos planos pagos.", "previewStatus": "Pronto para a próxima aventura" },
   "packFollowup": {
     "updating": "Atualizando modpack",
@@ -247,7 +250,7 @@
     "closeWarningTitle": "Aviso ao fechar com jogo rodando",
     "closeWarningDesc": "Exibir aviso antes de fechar o launcher enquanto instâncias estiverem em execução.",
     "perfModeTitle": "Modo Ultra Desempenho",
-    "perfModeDesc": "Desativa efeitos de fundo e transições pesadas para resposta instantânea no Linux.",
+    "perfModeDesc": "Reduz efeitos de fundo e transições para economizar recursos do computador.",
     "accountsTitle": "Gerenciamento de Contas",
     "switchAccount": "Trocar Conta",
     "languageTitle": "Idioma do Launcher",
@@ -3528,6 +3531,17 @@
     "elapsed": "Tempo decorrido: {{time}}"
   },
   "planProfile": {
+    "frameDetail": "Acabamento do avatar",
+    "frameDetailHint": "Um contorno geométrico exclusivo Pro, combinado com sua moldura.",
+    "frameDetail_none": "Sem acabamento",
+    "frameDetail_prism": "Prisma",
+
+    "frame_prism": "Prisma",
+    "cardBackground": "Fundo do cartão de amigos",
+    "cardBackgroundHint": "Exclusivo Pro. Use a capa do seu perfil como fundo na lista de amigos. Escolha uma imagem ou GIF em Imagem de fundo, abaixo.",
+    "cardBackground_none": "Discreto",
+    "cardBackground_cover": "Usar capa do perfil",
+
     "title": "Assinatura visual",
     "help": "Escolha a paleta, a moldura e os detalhes. A prévia acompanha suas alterações.",
     "accent": "Paleta",

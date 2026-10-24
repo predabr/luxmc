@@ -12,6 +12,10 @@ export function wallpaperLocalPath(value: string): string | null {
     if (value.startsWith("/") || /^[A-Za-z]:[\\/]/.test(value)) return normalizeLocalPath(value);
     try {
         const url = new URL(value);
+        if (url.protocol === "file:" && (!url.hostname || url.hostname === "localhost")) {
+            const path = decodeURIComponent(url.pathname);
+            return /^\/[A-Za-z]:\//.test(path) ? path.slice(1) : normalizeLocalPath(path);
+        }
         if (url.protocol === "http:" && url.hostname === "127.0.0.1" && url.port && url.pathname === "/media") return url.searchParams.get("path");
         if (url.protocol === "asset:" || url.hostname === "asset.localhost") {
             const pathname = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;

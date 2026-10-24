@@ -35,7 +35,7 @@ let refreshingProfile: { run: number; promise: Promise<void> } | null = null;
 
 function withProfile(friend: Friend): Friend {
     const profile = profileCache.get(friend.id)?.profile;
-    return profile && friend.status !== 'pending' ? { ...friend, displayName: friend.displayName ?? profile.displayName, avatarUrl: activeProfileImage(profile.portrait, friend.membership?.plan || profile.membership?.plan || 'free') || friend.avatarUrl, role: friend.role ?? profile.role, tags: friend.tags ?? profile.tags, profileStatus: friend.profileStatus ?? profile.status, profileStyle: friend.profileStyle ?? profile.profileStyle } : friend;
+    return profile && friend.status !== 'pending' ? { ...friend, displayName: friend.displayName ?? profile.displayName, avatarUrl: activeProfileImage(profile.portrait, friend.membership?.plan || profile.membership?.plan || 'free') || friend.avatarUrl, role: friend.role ?? profile.role, tags: friend.tags ?? profile.tags, profileStatus: friend.profileStatus ?? profile.status, profileStyle: friend.profileStyle ?? profile.profileStyle, cardBackground: profile.profileStyle.cardBackground === 'cover' ? profile.banner : undefined } : friend;
 }
 
 async function loadFriendProfiles() {

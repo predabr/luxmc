@@ -18,10 +18,10 @@
     }
 </script>
 
-<Modal isOpen={Boolean(planPrompt.feature)} onClose={close} title={t('planPrompt.title')}>
+<Modal isOpen={Boolean(planPrompt.feature)} onClose={close} title={t(planPrompt.requiredPlan === 'pro' ? 'proCards.requiredTitle' : 'planPrompt.title')}>
     <div class="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl border border-brand-400/25 bg-brand-500/10 text-brand-400"><Sparkles class="h-6 w-6" /></div>
     <p class="font-semibold">{planPrompt.feature}</p>
-    <p class="mt-3 text-sm leading-6 text-fg-muted">{t('planPrompt.help')}</p>
+    <p class="mt-3 text-sm leading-6 text-fg-muted">{t(planPrompt.requiredPlan === 'pro' ? 'proCards.benefits' : 'planPrompt.help')}</p>
     <p class="mt-3 text-xs leading-5 text-fg-muted">{t('planPrompt.wallpaper')}</p>
     {#if error}<p role="alert" class="mt-4 text-sm text-danger">{error}</p>{/if}
     <div class="mt-6 flex flex-wrap justify-end gap-2">

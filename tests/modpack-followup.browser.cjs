@@ -22,9 +22,10 @@ const output = process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/modpack-follow
                 window.followupCalls.push({ command, args });
                 if (command === 'mods_search') return names.map((title, index) => ({ title, slug: String(index), source: 'curseforge', sourceId: String(index + 1), description: 'Arte original do projeto.', downloads: 250000, iconUrl: '/modpack_fo_icon.png', bannerUrl: '/modpack_fo_icon.png', author: 'Author', categories: ['forge'], versions: ['1.20.1'] }));
                 if (command === 'mods_project_details') return { id: args.projectId, source: 'curseforge', title: names[Number(args.projectId) - 1], slug: args.projectId, description: 'Project', body: '# Project', bodyType: 'markdown', downloads: 1, categories: ['forge'], loaders: ['forge'], gameVersions: ['1.20.1'], gallery: [] };
-                if (command === 'mods_versions') return versions.slice(0, 50);
+                if (command === 'mods_versions') return args.projectId === 'project' ? [{id:'v2',name:'2',versionNumber:'2',files:[]},{id:'v1',name:'1',versionNumber:'1',files:[]}] : versions.slice(0, 50);
                 if (command === 'mods_version_history') return { versions: versions.slice(args.offset, args.offset + 50), nextOffset: args.offset === 0 ? 50 : null };
                 if (command === 'mods_changelog') return `<h4>Changes ${args.versionId}</h4><ul><li>Previous version preserved.</li></ul><img src=x onerror=alert(1)>`;
+                if (command === 'modpack_version_diff') return {available:true,added:['new.jar'],removed:[],updated:[],configuration:[],risks:[],dependencies:[],worlds:1,targetMinecraft:'1.20.1',targetLoader:'fabric'};
                 if (command === 'modpack_check_update') return { hasUpdate: !window.updateDone, currentVersion: window.updateDone ? '2' : '1', latestVersion: '2', changelog: '', source: 'modrinth', projectId: 'project', versionId: 'v2' };
                 if (command === 'modpack_update_atomic') return new Promise(resolve => { window.finishUpdate = () => { window.updateDone = true; resolve(); }; });
                 return invoke(command, args);
@@ -50,7 +51,9 @@ const output = process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/modpack-follow
         assert.equal(await page.evaluate(() => window.followupCalls.filter(call => call.command === 'mods_version_history' && call.args.offset === 50).length), 1);
         await page.screenshot({ path: `${output}/history.png`, animations: 'disabled' });
         await page.locator('a[href="/instances/demo-fo"]').first().click();
-        await page.getByRole('button', { name: 'Atualizar em 1 Clique', exact: true }).click();
+        assert.equal(await page.evaluate(() => window.followupCalls.filter(call => call.command === 'modpack_version_diff').length),0);
+        await page.getByRole('button', { name: 'Revisar atualização', exact: true }).click();
+        await page.getByRole('button', { name: 'Fazer backup e aplicar', exact: true }).click();
         await page.waitForFunction(() => typeof window.finishUpdate === 'function');
         await page.evaluate(() => window.launcherDemo.emit('modpack-progress', { profileId: 'demo-fo', percent: 62, status: 'Baixando arquivos da atualização…' }));
         await page.locator('[data-modpack-update-status]').getByText('Baixando arquivos da atualização…', { exact: true }).waitFor();
@@ -61,7 +64,7 @@ const output = process.env.LUXMC_ARTIFACT_DIR || 'docs/validation/modpack-follow
         assert.equal(await page.locator('[data-modpack-update-status] [role=progressbar]').getAttribute('aria-valuenow'), '62');
         await page.evaluate(() => window.finishUpdate());
         await page.waitForFunction(() => document.querySelector('[data-modpack-update-status] [role=progressbar]')?.getAttribute('aria-valuenow') === '100');
-        await page.waitForFunction(() => ![...document.querySelectorAll('main button')].some(button => button.textContent.includes('Atualizar em 1 Clique')));
+        await page.waitForFunction(() => ![...document.querySelectorAll('main button')].some(button => button.textContent.includes('Revisar atualização')));
         await page.locator('[data-modpack-update-status]').getByText('Modpack atualizado', { exact: true }).waitFor();
         assert.equal(await page.evaluate(() => window.followupCalls.filter(call => call.command === 'modpack_update_atomic').length), 1);
         await page.getByRole('link', { name: 'Personalização', exact: true }).click();

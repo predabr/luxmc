@@ -45,14 +45,6 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 <section class="surface-glass space-y-4 p-6" aria-label={uiText("ui.06c23075d12f7697")}>
     <h3 class="text-base font-semibold text-fg">{uiText(section === "general" ? "settings.refinement.feedbackTitle" : "ui.5d951376c42f3cf3")}</h3>
     {#if section === "general"}
-        <fieldset class="min-w-0 space-y-4 rounded-2xl border border-brand-400/20 bg-brand-500/5 p-5">
-            <legend class="px-2 text-sm font-semibold text-fg">{uiText('settings.catalog.title')}</legend>
-            <div class="grid gap-4 sm:grid-cols-2">
-                <label class="space-y-2 text-xs text-fg"><span class="block font-semibold">{uiText('settings.catalog.pageSize')}</span><select class="w-full rounded-xl border border-border bg-bg-elevated p-3" value={settings.value.catalogPageSize || 36} onchange={event => patch({catalogPageSize:Number(event.currentTarget.value) as 24|36|48})}>{#each [24,36,48] as count}<option value={count}>{count}</option>{/each}</select></label>
-                <label class="flex items-center justify-between gap-3 rounded-xl border border-border bg-bg-elevated p-3 text-xs"><span>{uiText('settings.catalog.compact')}</span><input type="checkbox" class="h-5 w-5 accent-brand-500" checked={settings.value.catalogCompactCards === true} onchange={event => patch({catalogCompactCards:event.currentTarget.checked})} /></label>
-            </div>
-            <p class="text-xs leading-5 text-fg-muted">{uiText('settings.catalog.help')}</p>
-        </fieldset>
         <div class="grid gap-4 md:grid-cols-2">
             <label class="flex items-center gap-4 rounded-2xl border border-border bg-fg/[0.025] p-4 text-sm text-fg"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-400"><BellRing class="h-5 w-5" /></span><span class="flex-1"><span class="block font-semibold">{uiText("ui.9a3fc17fda62df41")}</span><span class="mt-1 block text-xs text-fg-muted">{uiText("settings.autoCheckDesc")}</span></span><input class="h-5 w-5 shrink-0 accent-brand-500" type="checkbox" checked={settings.value.autoCheckUpdates !== false} onchange={event => patch({ autoCheckUpdates: event.currentTarget.checked })} /></label>
             <label class="flex items-center gap-4 rounded-2xl border border-border bg-fg/[0.025] p-4 text-sm text-fg"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/10 text-brand-400"><Volume2 class="h-5 w-5" /></span><span class="flex-1"><span class="block font-semibold">{uiText("settings.refinement.soundEnabled")}</span><span class="mt-1 block text-xs text-fg-muted">{uiText("settings.refinement.soundEnabledDesc")}</span></span><input class="h-5 w-5 shrink-0 accent-brand-500" type="checkbox" checked={settings.value.soundEnabled !== false} onchange={event => toggleSound(event.currentTarget.checked)} /></label>

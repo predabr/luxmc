@@ -12,9 +12,10 @@ afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals()
 
 it('warms every local content section before waiting for provider icons and retains newer file-tree icons', async () => {
     const calls: string[] = [];
-    mocks.tree.mockImplementation(async (_id:string,folder:string) => [{name:folder+'.jar',iconKey:folder,icon:null,iconResolved:false}]);
+    mocks.tree.mockImplementation(async (_id:string,folder:string) => [{name:folder+(folder === 'mods' ? '.jar' : '.zip'),isDir:false,iconKey:folder,icon:null,iconResolved:false},{name:'memory_repo',isDir:true,iconKey:folder+':internal',icon:null,iconResolved:false}].filter(entry => !entry.isDir || folder === 'mods'));
     mocks.icons.mockImplementation(async (_id:string,folder:string,names:string[],lookup:boolean) => {
         calls.push(`${folder}:${Boolean(lookup)}`);
+        expect(names).not.toContain('memory_repo');
         return names.map(name => ({name,iconKey:folder,icon:lookup?'https://example.test/'+folder+'.png':null,resolved:Boolean(lookup)}));
     });
     vi.stubGlobal('Image',class { decoding=''; src=''; onload=null; onerror=null; });

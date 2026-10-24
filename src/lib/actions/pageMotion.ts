@@ -8,12 +8,18 @@ export function pageMotion(node: HTMLElement, route: string) {
 	let frame = 0;
 	let generation = 0;
 	let animations: Animation[] = [];
+    let revealFrame = 0;
+    const revealed = new WeakSet<HTMLElement>();
+    const additions = new Set<HTMLElement>();
 	const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 	function cancel() {
 		generation++;
 		cancelAnimationFrame(frame);
 		animations.forEach(animation => animation.cancel());
 		animations = [];
+        cancelAnimationFrame(revealFrame);
+        revealFrame = 0;
+        additions.clear();
 	}
 	function play(target: HTMLElement, frames: Keyframe[], duration: number, delay = 0) {
 		const animation = target.animate(frames, { duration, delay, easing: 'cubic-bezier(.16,1,.3,1)', fill: 'backwards' });
@@ -51,7 +57,7 @@ export function pageMotion(node: HTMLElement, route: string) {
                 while (parent && parent !== node && !candidateSet.has(parent)) parent = parent.parentElement;
                 if (parent && parent !== node) continue;
                 const rect = target.getBoundingClientRect();
-                if (rect.width > 0 && rect.height > 0 && rect.bottom > bounds.top && rect.top < bounds.bottom) targets.push(target);
+                if (rect.width > 0 && rect.height > 0 && rect.bottom > bounds.top && rect.top < bounds.bottom) { targets.push(target); revealed.add(target); }
                 if (targets.length === 10) break;
             }
 			targets.forEach((target, index) => play(target, [
@@ -62,6 +68,34 @@ export function pageMotion(node: HTMLElement, route: string) {
 		});
 	}
 	void enter();
+    const observer = new MutationObserver(records => {
+        for (const record of records) for (const added of record.addedNodes) {
+            if (!(added instanceof HTMLElement) || added.closest('[role="dialog"]') || added.closest('[data-motion-scope]') !== node) continue;
+            if (added.matches(surfaces)) additions.add(added);
+            for (const target of added.querySelectorAll<HTMLElement>(surfaces)) {
+                if (additions.size >= 24) break;
+                if (target.closest('[data-motion-scope]') === node) additions.add(target);
+            }
+        }
+        if (!additions.size || revealFrame) return;
+        revealFrame = requestAnimationFrame(() => {
+            revealFrame = 0;
+            const root = document.documentElement;
+            const enabled = root.classList.contains('settings-ready') && !document.hidden && !root.classList.contains('no-ui-motion') && !root.classList.contains('no-anim') && !(reduced.matches && settings.value.respectReducedMotion !== false);
+            let count = 0;
+            for (const target of additions) {
+                if (!target.isConnected || revealed.has(target)) continue;
+                revealed.add(target);
+                if (!enabled || animations.length >= 12 || count >= 8) continue;
+                const rect = target.getBoundingClientRect();
+                if (rect.width && rect.height && rect.bottom > 0 && rect.top < window.innerHeight) {
+                    play(target,[{opacity:0,transform:'translateY(10px)'},{opacity:1,transform:'translateY(0)'}],settings.value.motionSpeed === 'fast' ? 160 : 260,count++ * 18);
+                }
+            }
+            additions.clear();
+        });
+    });
+    observer.observe(node,{childList:true,subtree:true});
 	const ready = () => { void enter(); };
 	document.addEventListener('luxmc-settings-ready', ready);
     const interrupt = () => { if (reduced.matches && settings.value.respectReducedMotion !== false) cancel(); };
@@ -70,6 +104,6 @@ export function pageMotion(node: HTMLElement, route: string) {
     document.addEventListener('visibilitychange', visibility);
 	return {
 		update(next: string) { if (route !== next) { route = next; void enter(); } },
-		destroy() { cancel(); delete node.dataset.motionScope; document.removeEventListener('luxmc-settings-ready', ready); reduced.removeEventListener('change', interrupt); document.removeEventListener('visibilitychange', visibility); }
+		destroy() { observer.disconnect(); additions.clear(); cancel(); delete node.dataset.motionScope; document.removeEventListener('luxmc-settings-ready', ready); reduced.removeEventListener('change', interrupt); document.removeEventListener('visibilitychange', visibility); }
 	};
 }

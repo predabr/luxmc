@@ -18,11 +18,31 @@ function rangeValidatorMatches(request, source) {
   const validator = request.headers.get("If-Range");
   return !validator || !validator.startsWith("W/") && (validator.startsWith('"') ? validator === source.headers.get("ETag") : Number.isFinite(Date.parse(validator)) && Date.parse(validator) === Date.parse(source.headers.get("Last-Modified") || ""));
 }
-async function localInstaller(request) {
-  const source = await fetch(new URL("/releases/Lux%20MC%20Launcher.exe", request.url), {
+async function localInstaller(request, assets) {
+  const controller = new AbortController();
+  let timer;
+  const init = {
     method: request.method === "HEAD" ? "HEAD" : "GET",
+    signal: controller.signal,
     headers: request.headers.has("Range") ? { Range: request.headers.get("Range"), ...request.headers.has("If-Range") ? { "If-Range": request.headers.get("If-Range") } : {} } : void 0
-  });
+  };
+  const assetRequest = new Request(new URL("/releases/Lux%20MC%20Launcher.exe", request.url), init);
+  let source;
+  try {
+    source = await Promise.race([
+      assets ? assets.fetch(assetRequest) : fetch(assetRequest.url, init),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error("Installer response timed out"));
+        }, 8e3);
+      })
+    ]);
+  } catch {
+    return new Response("Installer temporarily unavailable", { status: 502, headers: { "Cache-Control": "no-store" } });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!source.ok || source.headers.get("Content-Type")?.includes("text/html"))
     return new Response("Installer temporarily unavailable", { status: 502, headers: { "Cache-Control": "no-store" } });
   const headers = new Headers(source.headers);
@@ -38,7 +58,7 @@ async function localInstaller(request) {
     const fullHeaders = new Headers(request.headers);
     fullHeaders.delete("Range");
     fullHeaders.delete("If-Range");
-    return localInstaller(new Request(request, { headers: fullHeaders }));
+    return localInstaller(new Request(request, { headers: fullHeaders }), assets);
   }
   if (Number.isSafeInteger(length) && length > 0)
     headers.set("Accept-Ranges", "bytes");
@@ -60,7 +80,7 @@ async function localInstaller(request) {
     const reader = source.body.getReader();
     let position = 0;
     const body = new ReadableStream({
-      async pull(controller) {
+      async pull(controller2) {
         try {
           while (position <= end) {
             const { done, value } = await reader.read();
@@ -69,9 +89,9 @@ async function localInstaller(request) {
             const selected = value.subarray(Math.max(0, start - position), Math.min(value.length, end - position + 1));
             position += value.length;
             if (selected.length)
-              controller.enqueue(selected);
+              controller2.enqueue(selected);
             if (position > end) {
-              controller.close();
+              controller2.close();
               await reader.cancel();
               return;
             }
@@ -79,7 +99,7 @@ async function localInstaller(request) {
               return;
           }
         } catch (error) {
-          controller.error(error);
+          controller2.error(error);
           await reader.cancel().catch(() => {
           });
         }
@@ -101,7 +121,7 @@ async function onRequest({ request, params, env }) {
     const data = await latestRelease();
     const asset = assetFor(data.assets, platform);
     if ((platform === "windows" || platform === "exe") && localIsCurrent(localRelease, data.tag_name)) {
-      const local = await localInstaller(request);
+      const local = await localInstaller(request, env?.ASSETS);
       if (local.status !== 502) return local;
     }
     if (asset && (platform === "windows" || platform === "exe")) {
@@ -140,7 +160,7 @@ async function onRequest({ request, params, env }) {
   } catch {
     if ((platform === "windows" || platform === "exe") && localRelease) {
       try {
-        return await localInstaller(request);
+        return await localInstaller(request, env?.ASSETS);
       } catch {
         return new Response("Installer temporarily unavailable", { status: 502, headers: { "Cache-Control": "no-store" } });
       }

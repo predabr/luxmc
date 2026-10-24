@@ -21,7 +21,7 @@
     {#if plan && benefits}
     {#if membershipState.paid && membershipState.current?.expiresAt}<p class="text-xs text-fg-muted">Ativo até {new Date(membershipState.current.expiresAt * 1000).toLocaleDateString()} · {membershipState.current.collections} coleções · {membershipState.current.presets} perfis de aparência</p>{:else}<p class="text-xs text-fg-muted">Seu launcher completo. Amplie seu perfil com Plus ou Pro.</p>{/if}
     <div class="grid grid-cols-2 gap-2 text-xs"><div class="rounded-xl border border-border bg-bg-elevated/50 p-3"><strong class="block text-base text-brand-400">{benefits.favourites}</strong><span class="text-fg-muted">favoritos no perfil</span></div><div class="rounded-xl border border-border bg-bg-elevated/50 p-3"><strong class="block text-base text-brand-400">{benefits.accents.length}</strong><span class="text-fg-muted">paletas do perfil</span></div></div>
-    <p class="text-xs leading-5 text-fg-muted">{plan === 'pro' ? 'Sua assinatura completa: Halo, Contorno duplo, Órbita, Brilho da capa, Pulso do avatar e composição centralizada.' : plan === 'plus' ? 'Seis paletas para o perfil, molduras Halo e Contorno duplo. Seu estilo aparece para seus amigos.' : uiText('refinement.freePlan')}</p>
+    <p class="text-xs leading-5 text-fg-muted">{plan === 'pro' ? uiText('proCards.benefits') : plan === 'plus' ? 'Seis paletas para o perfil, molduras Halo e Contorno duplo. Seu estilo aparece para seus amigos.' : uiText('refinement.freePlan')}</p>
     {:else}
         <p class="text-xs leading-5 text-fg-muted" role="status">{uiText(membershipState.error ? 'refinement.planRetryHint' : 'refinement.planLoadingHint')}</p>
     {/if}

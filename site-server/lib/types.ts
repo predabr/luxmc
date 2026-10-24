@@ -6,6 +6,7 @@ export interface Statement {
 }
 export interface Database { prepare(query:string): Statement; batch(statements:Statement[]):Promise<{meta:{changes:number}}[]> }
 export interface SiteEnvironment {
+    ASSETS?: { fetch(request: Request): Promise<Response> };
     SOCIAL_DB: Database;
     AUTH_PEPPER?: string;
     SOCIAL_STREAM_URL?: string;

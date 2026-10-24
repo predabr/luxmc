@@ -1,4 +1,7 @@
 {
+  "extendedSettings": {"interface": "Interfaz y animaciones", "wallpaper": "Fondos de pantalla", "catalog": "Catálogo y descargas", "wallpaperHelp": "Los archivos importados se copian a la biblioteca interna de Luxmc. Puedes eliminar el original cuando termine la importación.", "catalogHelp": "Controla la carga de la biblioteca y adapta las descargas a tu conexión.", "latestRelease": "Versión estable", "snapshot": "Snapshot", "minecraftCatalog": "Versiones de Minecraft", "versionsHelp": "El catálogo oficial se consulta al abrir el selector de versiones. Las consultas cercanas reutilizan el resultado durante un minuto. Sin conexión, la última lista guardada sigue disponible.", "refreshCatalog": "Consultar catálogo", "preload": "Preparar iconos con anticipación", "interfaceHelp": "Elige el movimiento y el consumo de la interfaz.", "motionStyle": "Estilo de animación", "expressive": "Expresivo · entrada en secuencia", "subtle": "Discreto · movimientos cortos", "motionSpeed": "Velocidad de las transiciones", "balanced": "Suave", "fast": "Rápida", "gifQuality": "Calidad de los GIF", "gifHigh": "Alta · mayor nitidez", "gifBalanced": "Equilibrada · menor procesamiento", "gifHelp": "Se aplica a las próximas importaciones. Los GIF grandes pueden optimizarse como WebP animado.", "preloadHelp": "Prepara los iconos en segundo plano con tareas limitadas, sin competir con el inicio de Minecraft.", "reducedMotion": "Respetar el movimiento reducido del sistema", "motionHelp": "El modo económico reduce los efectos para priorizar los juegos. Las entradas, los clics y las transiciones usan animaciones cortas sin movimiento constante."},
+  "proCards": {"requiredTitle":"Personaliza con Luxmc Pro","benefits": "Fondo con imagen o GIF en las tarjetas de amigos, marcos Prisma y Órbita, Brillo, Pulso y composición centrada."},
+  "updateCenter": { "available": "Actualización del modpack", "current": "Modpack actualizado", "installed": "Instalada", "availableVersion": "Disponible", "check": "Buscar actualización", "review": "Revisar actualización", "backup": "Revisa los cambios antes de aplicar. Tus mundos reciben una copia de seguridad antes de la actualización.", "otherVersions": "Elegir otra versión", "alreadyInstalled": "Versión ya instalada", "extractedPack": "Paquete extraído" },
   "planPrompt": { "title": "Personaliza con Plus o Pro", "help": "Los GIFs en avatares, portadas de perfil y carpetas requieren Luxmc Plus o Pro activo. Elige un plan para usar estas animaciones.", "wallpaper": "Los fondos de pantalla, incluidos los vídeos, siguen siendo gratuitos en Luxmc Free.", "later": "Ahora no", "plans": "Ver los planes", "openError": "No se pudieron abrir los planes. Inténtalo de nuevo.", "checkPlan": "Espera a que se confirme tu plan e inténtalo de nuevo.", "folderGif": "Los GIFs en carpetas requieren Luxmc Plus o Pro.", "style": "Este estilo está incluido en los planes de pago.", "previewStatus": "Listo para la próxima aventura" },
   "packFollowup": {
     "updating": "Actualizando modpack",
@@ -247,7 +250,7 @@
     "closeWarningTitle": "Aviso ao fechar com jogo rodando",
     "closeWarningDesc": "Exibir aviso antes de fechar o launcher enquanto instâncias estiverem em execução.",
     "perfModeTitle": "Modo Ultra Desempenho",
-    "perfModeDesc": "Desativa efeitos de fundo e transições pesadas para resposta instantânea no Linux.",
+    "perfModeDesc": "Reduce los efectos de fondo y las transiciones para ahorrar recursos del equipo.",
     "accountsTitle": "Gerenciamento de Contas",
     "switchAccount": "Trocar Conta",
     "languageTitle": "Idioma de la Interfaz",
@@ -3528,6 +3531,17 @@
     "elapsed": "Tiempo transcurrido: {{time}}"
   },
   "planProfile": {
+    "frameDetail": "Acabado del avatar",
+    "frameDetailHint": "Un contorno geométrico exclusivo Pro, combinado con tu marco.",
+    "frameDetail_none": "Sin acabado",
+    "frameDetail_prism": "Prisma",
+
+    "frame_prism": "Prisma",
+    "cardBackground": "Fondo de la tarjeta de amigos",
+    "cardBackgroundHint": "Exclusivo Pro. Usa la portada de tu perfil como fondo en la lista de amigos. Elige una imagen o GIF en Imagen de fondo, abajo.",
+    "cardBackground_none": "Discreto",
+    "cardBackground_cover": "Usar portada del perfil",
+
     "title": "Firma visual",
     "help": "Elige una paleta, un marco y los detalles. La vista previa refleja tus cambios.",
     "accent": "Paleta",

@@ -45,7 +45,7 @@ const fs = require('node:fs');
         assert.equal(preferences.skinPreviewQuality, 'economy');
         assert.equal(preferences.skinPreviewFps, 30);
         await page.getByRole('tab', { name: 'Aparência', exact: true }).press('ArrowDown');
-        assert.equal(await page.getByRole('tab', { name: /Java/ }).getAttribute('aria-selected'), 'true');
+        assert.equal(await page.getByRole('tab', { name: 'Interface e animações', exact: true }).getAttribute('aria-selected'), 'true');
         await page.getByRole('tab', { name: 'Aparência', exact: true }).click();
         assert.equal(await page.getByLabel('Nitidez da prévia 3D', { exact: true }).inputValue(), 'economy');
         await page.screenshot({ path: `${output}/settings.png`, animations: 'disabled' });

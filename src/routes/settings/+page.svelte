@@ -48,6 +48,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 	import { openUrl } from "@tauri-apps/plugin-opener";
 	import { useTranslation, setActiveLocale } from "$lib/i18n/useTranslation.svelte";
 	import RenderingSection from "$lib/components/settings/RenderingSection.svelte";
+    import CatalogSection from "$lib/components/settings/CatalogSection.svelte";
     import ExperienceSection from "$lib/components/settings/ExperienceSection.svelte";
 	import { getIconSrc } from "$lib/utils/icons";
 	import SettingsExtras from "$lib/components/settings/SettingsExtras.svelte";
@@ -64,7 +65,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		| "java"
 		| "commands"
 		| "privacy"
-		| "runtime";
+		| "runtime"
+        | "interface"
+        | "catalog"
+        | "wallpaper";
 
 	let activeTab = $state<SettingsTab>("general");
 
@@ -267,6 +271,9 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
         { id: "accounts", label: t("settings.tabs.accounts"), icon: Users },
         { id: "language", label: t("settings.tabs.language"), icon: Globe },
         { id: "appearance", label: t("settings.tabs.appearance"), icon: Palette },
+        { id: "interface", label: t("extendedSettings.interface"), icon: Sparkles },
+        { id: "wallpaper", label: t("extendedSettings.wallpaper"), icon: Layers },
+        { id: "catalog", label: t("extendedSettings.catalog"), icon: Download },
         { id: "java", label: t("settings.tabs.java"), icon: Coffee },
         { id: "commands", label: t("settings.tabs.commands"), icon: Terminal },
         { id: "privacy", label: t("settings.tabs.privacy"), icon: ShieldCheck },
@@ -694,8 +701,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 				</div>
 
 			</div>
-            <ExperienceSection />
-            <RenderingSection />
+
 		</div>
 
 	{:else if activeTab === "accounts"}
@@ -841,10 +847,19 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</div>
 
 			<div class="bg-bg-elevated border border-fg/5 rounded-3xl p-6 shadow-sm">
-				<ThemeSection onSave={() => schedulePersist()} />
+				<ThemeSection section="appearance" onSave={() => schedulePersist()} />
 			</div>
 		</div>
 
+    {:else if activeTab === "interface"}
+        <ExperienceSection />
+    {:else if activeTab === "wallpaper"}
+        <h2 class="text-2xl font-bold text-fg">{t('extendedSettings.wallpaper')}</h2>
+        <p class="text-sm text-fg-muted">{t('extendedSettings.wallpaperHelp')}</p>
+        <ThemeSection section="wallpaper" onSave={() => schedulePersist()} />
+        <RenderingSection />
+    {:else if activeTab === "catalog"}
+        <CatalogSection />
 	{:else if activeTab === "java"}
 		<div class="space-y-6">
 			<h2 class="text-2xl font-bold text-fg tracking-tight">{t("settings.tabs.java")}</h2>
@@ -1308,7 +1323,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		</div>
 	{/if}
 
-    <SettingsExtras section={activeTab} />
+    {#if !["interface","wallpaper","catalog"].includes(activeTab)}<SettingsExtras section={activeTab} />{/if}
     </div>
     </div>
 </div>

@@ -10,6 +10,10 @@
     import { publicProfile } from "$lib/stores/publicProfile.svelte";
     import type { Friend } from "$lib/api/social";
     import { friendDisplayName } from '$lib/api/social';
+    import { settings } from '$lib/stores/settings.svelte';
+    import { isAnimatedImage } from '$lib/utils/animatedImage';
+    import { appState } from '$lib/stores/app.svelte';
+    import { onMount } from 'svelte';
 
     let { friend, favourite = false, busy = false, onJoin, onFavourite, onRemove, onInvite, onBlock }: {
         friend: Friend; favourite?: boolean; busy?: boolean; onJoin: () => void; onFavourite: () => void; onRemove: () => void; onInvite?: () => void; onBlock?: () => void;
@@ -21,6 +25,20 @@
     let copiedIp = $state(false);
     let menu: HTMLDetailsElement | undefined = $state();
     let menuOpen = $state(false);
+    let visible = $state(false);
+    let foreground = $state(true);
+    let reducedMotion = $state(false);
+    const animateBackground = $derived(foreground && !appState.isGameRunning && !appState.isLaunching && settings.value.animations !== false && !settings.value.performanceMode && (!reducedMotion || settings.value.respectReducedMotion === false));
+    const cardBackground = $derived(visible && friend.membership?.plan === 'pro' && (!friend.membership.expiresAt || friend.membership.expiresAt * 1000 > Date.now()) && friend.profileStyle?.cardBackground === 'cover' && friend.cardBackground && (!isAnimatedImage(friend.cardBackground) || animateBackground) ? friend.cardBackground : undefined);
+    function profileVisibility(value: boolean) { visible = value; friendsState.profileVisibility(friend.id, value); }
+    onMount(() => {
+        const query = matchMedia('(prefers-reduced-motion: reduce)');
+        const motion = () => { reducedMotion = query.matches; };
+        const visibility = () => { foreground = !document.hidden; };
+        motion(); visibility();
+        query.addEventListener('change',motion); document.addEventListener('visibilitychange',visibility);
+        return () => { query.removeEventListener('change',motion); document.removeEventListener('visibilitychange',visibility); };
+    });
 
     async function copyIp() {
         if (!friend.serverIp) return;
@@ -39,8 +57,9 @@
     }
 </script>
 
-<article class="friend-row group grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-border bg-bg-elevated p-4 transition-colors hover:border-brand-400/30">
-    <button type="button" onclick={() => publicProfile.show(friend)} class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`}><MinecraftAvatar onVisibility={visible => friendsState.profileVisibility(friend.id,visible)} username={friend.username} avatarUrl={friend.avatarUrl} profileStyle={friend.profileStyle} status={friend.status} {activity} lastSeen={friend.lastSeen} class="h-11 w-11" /></button>
+<article class="friend-row relative isolate group grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-2xl border border-border bg-bg-elevated p-4 transition-colors hover:border-brand-400/30">
+    {#if cardBackground}<div aria-hidden="true" class="pointer-events-none absolute inset-0 -z-10 overflow-hidden rounded-[inherit]"><img src={cardBackground} alt="" decoding="async" class="h-full w-full object-cover opacity-45" /><div class="absolute inset-0 bg-gradient-to-r from-bg-elevated/95 via-bg-elevated/80 to-bg-elevated/40"></div></div>{/if}
+    <button type="button" onclick={() => publicProfile.show(friend)} class="shrink-0 rounded-full focus-visible:ring-2 focus-visible:ring-brand-400" aria-label={`${uiText('publicProfile.view')}: ${friend.username}`}><MinecraftAvatar onVisibility={profileVisibility} username={friend.username} avatarUrl={friend.avatarUrl} profileStyle={friend.profileStyle} status={friend.status} {activity} lastSeen={friend.lastSeen} class="h-11 w-11" /></button>
     <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2"><h3 class="truncate text-sm font-semibold text-fg"><button type="button" class="hover:text-brand-400" onclick={() => publicProfile.show(friend)}>{displayName}</button></h3>{#if playing}<span class="rounded-md bg-brand-500/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-300">{uiText("ui.982d4bbcc310b45d")}</span>{/if}</div>
         {#if displayName !== friend.username}<p class="mt-1 text-[10px] text-fg-subtle">@{friend.username}</p>{/if}

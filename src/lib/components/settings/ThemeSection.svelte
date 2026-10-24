@@ -16,9 +16,10 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 
 	type Props = {
 		onSave?: () => void;
+        section?: "all" | "appearance" | "wallpaper";
 	};
 
-	let { onSave }: Props = $props();
+	let { onSave, section = "all" }: Props = $props();
 	const { t } = useTranslation();
 
 	function getThemeName(id: string): string {
@@ -96,7 +97,7 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			const isVideo = selected.toLowerCase().endsWith(".mp4") || selected.toLowerCase().endsWith(".webm");
 			const managedPath = await importWallpaper(selected);
             themeStore.setCustomWallpaper(managedPath, isVideo ? "video" : "image", selected);
-            await persistNow();
+            await persistNow({ throwOnError: true });
 			toast(t("settings.appearanceOptions.wallpaperImported"), "success");
 			onSave?.();
 		} catch (e) {
@@ -193,12 +194,13 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 </script>
 
 <div class="space-y-6">
-    {#if motionLimited}
+    {#if section !== "wallpaper" && motionLimited}
         <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-bg-subtle p-4">
             <div><p class="text-sm font-semibold">{uiText('refinement.motionTitle')}</p><p class="mt-1 text-xs text-fg-muted">{uiText('refinement.motionHelp')}</p></div>
             <button type="button" class={launcherButton({variant:'secondary',size:'sm'})} onclick={enableMotion}><Sparkles class="h-4 w-4" />{uiText('refinement.motionEnable')}</button>
         </div>
     {/if}
+    {#if section !== "wallpaper"}
 	<!-- Tema Base: Claro / Escuro -->
 	<div>
 		<div class="flex items-center gap-2 mb-2.5">
@@ -224,6 +226,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		</div>
 	</div>
 
+    {/if}
+    {#if section !== "appearance"}
 	<!-- Personalização de Fundo / Wallpaper -->
 	<div>
 		<div class="flex items-center gap-2 mb-2.5">
@@ -289,6 +293,8 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 		</div>
 	</div>
 
+    {/if}
+    {#if section !== "wallpaper"}
 	<!-- Destaque Azul & Acentos -->
 	<div>
 		<div class="flex items-center gap-2 mb-2.5">
@@ -357,4 +363,5 @@ import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 			</div>
 		{/if}
 	</div>
+    {/if}
 </div>

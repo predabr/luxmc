@@ -4,6 +4,20 @@ import { onRequest } from '../website/functions/download/[platform].js';
 
 const asset = { name: 'Lux.MC.Launcher.exe', browser_download_url: 'https://github.com/predabr/luxmc/releases/download/v3.0.0/Lux.MC.Launcher.exe' };
 
+test('a stalled hosted installer falls back to the published GitHub asset', async t => {
+    const original = globalThis.fetch;
+    t.mock.timers.enable({apis:['setTimeout']});
+    globalThis.fetch = async url => String(url).startsWith('https://api.github.com/')
+        ? Response.json({tag_name:'v3.0.0',assets:[asset]})
+        : new Response('MZpublished');
+    try {
+        const response = onRequest({request:new Request('https://luxmc.test/download/windows'),params:{platform:'windows'},env:{WINDOWS_LOCAL_VERSION:'3.0.0',ASSETS:{fetch:async()=>new Promise(()=>{})}}});
+        await new Promise(resolve=>setImmediate(resolve));
+        t.mock.timers.tick(8000);
+        assert.equal(await (await response).text(),'MZpublished');
+    } finally {globalThis.fetch=original;}
+});
+
 for (const local of ['4.0.0', '4.0.0-build.120.1', '4.0.0-build.121.1']) {
     test(`4.0 downloads select the exact published build with hosted identity ${local}`, async () => {
         const original = globalThis.fetch;

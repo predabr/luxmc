@@ -1,4 +1,7 @@
 {
+  "extendedSettings": {"interface": "Interface and motion", "wallpaper": "Wallpapers", "catalog": "Catalog and downloads", "wallpaperHelp": "Imported files are copied into the Luxmc library. You can remove the original after importing finishes.", "catalogHelp": "Control library loading and adapt downloads to your connection.", "latestRelease": "Stable release", "snapshot": "Snapshot", "minecraftCatalog": "Minecraft versions", "versionsHelp": "The official catalog is checked when you open the version picker. Nearby requests reuse results for up to one minute. Offline, the last saved list remains available.", "refreshCatalog": "Check catalog", "preload": "Prepare icons in advance", "interfaceHelp": "Choose interface motion and resource use.", "motionStyle": "Animation style", "expressive": "Expressive · staggered entrance", "subtle": "Subtle · short movements", "motionSpeed": "Transition speed", "balanced": "Smooth", "fast": "Fast", "gifQuality": "GIF quality", "gifHigh": "High · sharper images", "gifBalanced": "Balanced · less processing", "gifHelp": "Applies to future imports. Large GIFs can be optimized as animated WebP.", "preloadHelp": "Prepares icons in the background with limited concurrency, without competing with Minecraft startup.", "reducedMotion": "Respect system reduced motion", "motionHelp": "Economy mode reduces effects to prioritize games. Entrances, clicks and transitions use short animations without constant movement."},
+  "proCards": {"requiredTitle":"Personalize with Luxmc Pro","benefits": "Image or GIF backgrounds on friend cards, Prism and Orbit frames, Shimmer, Pulse and centred layout."},
+  "updateCenter": { "available": "Modpack update", "current": "Modpack is up to date", "installed": "Installed", "availableVersion": "Available", "check": "Check for updates", "review": "Review update", "backup": "Review the changes before applying. Your worlds are backed up before the update.", "otherVersions": "Choose another version", "alreadyInstalled": "Already installed", "extractedPack": "Extracted pack" },
   "planPrompt": { "title": "Personalize with Plus or Pro", "help": "GIFs in avatars, profile covers and folders require an active Luxmc Plus or Pro plan. Choose a plan to use these animations.", "wallpaper": "Wallpapers, including videos, remain free with Luxmc Free.", "later": "Not now", "plans": "Explore plans", "openError": "Could not open plans. Please try again.", "checkPlan": "Wait for your plan to be confirmed, then try again.", "folderGif": "Folder GIFs require Luxmc Plus or Pro.", "style": "This style is included in paid plans.", "previewStatus": "Ready for the next adventure" },
   "packFollowup": {
     "updating": "Updating modpack",
@@ -247,7 +250,7 @@
     "closeWarningTitle": "Warning when closing with game running",
     "closeWarningDesc": "Show warning prompt before closing the launcher while instances are running.",
     "perfModeTitle": "Ultra Performance Mode",
-    "perfModeDesc": "Disables background visual effects and heavy transitions for max responsiveness on Linux.",
+    "perfModeDesc": "Reduces background effects and transitions to save computer resources.",
     "accountsTitle": "Account Management",
     "switchAccount": "Switch Account",
     "languageTitle": "Launcher Language",
@@ -3528,6 +3531,17 @@
     "elapsed": "Elapsed: {{time}}"
   },
   "planProfile": {
+    "frameDetail": "Avatar finish",
+    "frameDetailHint": "A Pro exclusive geometric outline, combined with your frame.",
+    "frameDetail_none": "No finish",
+    "frameDetail_prism": "Prism",
+
+    "frame_prism": "Prism",
+    "cardBackground": "Friend card background",
+    "cardBackgroundHint": "Pro exclusive. Use your profile cover as a background in the friends list. Choose an image or GIF under Background image below.",
+    "cardBackground_none": "Minimal",
+    "cardBackground_cover": "Use profile cover",
+
     "title": "Profile signature",
     "help": "Choose a palette, frame and finishing touches. The preview follows your changes.",
     "accent": "Palette",

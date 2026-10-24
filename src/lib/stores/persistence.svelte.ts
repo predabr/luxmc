@@ -62,7 +62,7 @@ registerSettingsListener(() => schedulePersist());
 let lastSaved = "";
 let saveChain: Promise<void> = Promise.resolve();
 
-export async function persistNow(): Promise<void> {
+export async function persistNow(options: { throwOnError?: boolean } = {}): Promise<void> {
 	if (!browser || !hydrated) return;
 	const run = async () => {
 		try {
@@ -80,6 +80,7 @@ export async function persistNow(): Promise<void> {
 			lastSaved = currentStr;
 		} catch (error) {
 			console.error(uiText("ui.5534995aef529ef0"), error);
+            if (options.throwOnError) throw error;
 		}
 	};
 	const next = saveChain.then(run, run);

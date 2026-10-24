@@ -24,6 +24,12 @@ describe('persistent modpack updates', () => {
         expect(mocks.check).toHaveBeenCalledOnce();
         expect(updates.forProfile('pack-a')?.info?.projectId).toBe('project');
     });
+    it('checks release metadata without downloading pack archives or scanning dependencies', async () => {
+        const { modpackUpdates: updates } = await import('./modpackUpdates.svelte');
+        await updates.check('pack-a');
+        expect(updates.forProfile('pack-a')?.info?.hasUpdate).toBe(true);
+        expect(mocks.diff).not.toHaveBeenCalled();
+    });
     it('continues progress outside a page and clears the outdated notice after success', async () => {
         const { modpackUpdates: updates } = await import('./modpackUpdates.svelte');
         await updates.check('pack-a');

@@ -9,6 +9,7 @@ use crate::state::AppState;
 pub struct ModpackUpdateInfo {
     pub has_update: bool,
     pub current_version: Option<String>,
+    pub current_version_id: Option<String>,
     pub latest_version: Option<String>,
     pub changelog: Option<String>,
     pub source: String,
@@ -166,6 +167,7 @@ pub async fn modpack_check_update_core(state:&AppState,profileId:String) -> AppR
     Ok(ModpackUpdateInfo {
         has_update: false,
         current_version: None,
+        current_version_id: None,
         latest_version: None,
         changelog: None,
         source: "none".into(),
@@ -203,7 +205,7 @@ async fn check_modrinth_update(state: &AppState, row: &crate::db::models::Profil
     let project = index["projectId"].as_str().filter(|id| !id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
     let pinned = index["sourceVersionId"].as_str();
     let number = index["versionId"].as_str();
-    let mut result = ModpackUpdateInfo { has_update: false, current_version: number.or(pinned).map(str::to_owned), latest_version: None, changelog: None, source: "modrinth".into(), project_id: project.map(str::to_owned), version_id: None };
+    let mut result = ModpackUpdateInfo { has_update: false, current_version: number.or(pinned).map(str::to_owned), current_version_id: pinned.map(str::to_owned), latest_version: None, changelog: None, source: "modrinth".into(), project_id: project.map(str::to_owned), version_id: None };
     let Some(project) = project else { return Ok(result); };
     let url = format!("https://api.modrinth.com/v2/project/{project}/version?game_versions={}&loaders={}", urlencoding::encode(&serde_json::to_string(&[&row.mc_version])?), urlencoding::encode(&serde_json::to_string(&[row.loader.to_lowercase()])?));
     let versions: Vec<serde_json::Value> = state.http.get(url).timeout(std::time::Duration::from_secs(15)).send().await?.error_for_status()?.json().await?;
@@ -222,7 +224,7 @@ async fn check_curseforge_update(state: &AppState, row: &crate::db::models::Prof
     let index: serde_json::Value = serde_json::from_slice(&tokio::fs::read(path).await?)?;
     let project = index["projectID"].as_u64();
     let pinned = index["sourceVersionId"].as_str();
-    let mut result = ModpackUpdateInfo { has_update: false, current_version: index["version"].as_str().map(str::to_owned), latest_version: None, changelog: None, source: "curseforge".into(), project_id: project.map(|id| id.to_string()), version_id: None };
+    let mut result = ModpackUpdateInfo { has_update: false, current_version: index["version"].as_str().map(str::to_owned), current_version_id: pinned.map(str::to_owned), latest_version: None, changelog: None, source: "curseforge".into(), project_id: project.map(|id| id.to_string()), version_id: None };
     let (Some(project), Some(key)) = (project, crate::core::mods::curseforge::api_key()) else { return Ok(result); };
     let url = format!("https://api.curseforge.com/v1/mods/{project}/files?pageSize=50&gameVersion={}", urlencoding::encode(&row.mc_version));
     let body: serde_json::Value = state.http.get(url).header("x-api-key", &key).timeout(std::time::Duration::from_secs(15)).send().await?.error_for_status()?.json().await?;

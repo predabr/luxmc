@@ -1,13 +1,14 @@
 import { translateUi as uiText } from "$lib/i18n/useTranslation.svelte";
 import { z } from "zod";
 import { api, listen, type UnlistenFn } from "./client";
-import { defaultProfileStyle, profileAccents, profileEffects, profileFrames, profileLayouts } from '$lib/utils/profileStyle';
+import { defaultProfileStyle, profileAccents, profileCardBackgrounds, profileEffects, profileFrameDetails, profileFrames, profileLayouts } from '$lib/utils/profileStyle';
 
-const profileStyleSchema = z.object({ accent: z.enum(profileAccents), frame: z.enum(profileFrames), effect: z.enum(profileEffects), layout: z.enum(profileLayouts) });
+const profileStyleSchema = z.object({ accent: z.enum(profileAccents), frame: z.enum(profileFrames), effect: z.enum(profileEffects), layout: z.enum(profileLayouts), frameDetail: z.enum(profileFrameDetails).optional(), cardBackground: z.enum(profileCardBackgrounds).optional() });
 
 const identitySchema = z.object({ profileStyle: profileStyleSchema.optional(), membership: z.object({plan:z.enum(['free','plus','pro']),expiresAt:z.number().nullable()}).optional(), id: z.string(), username: z.string(), avatarUrl: z.string().nullable().optional(), displayName: z.string().max(32).optional(), role: z.enum(['owner', 'member']).optional(), tags: z.array(z.string().max(24)).max(5).optional() });
 export function friendDisplayName(friend: SocialIdentity): string { return friend.displayName?.trim() || friend.username; }
 const friendSchema = identitySchema.extend({
+    cardBackground: z.string().max(934000).optional(),
     profileStatus: z.string().max(80).optional(),
 	status: z.enum(["online", "in_game", "offline", "pending"]),
 	incoming: z.boolean(),

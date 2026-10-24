@@ -1,4 +1,4 @@
-import { modpackCheckUpdate, modpackUpdateAtomic, modpackVersionDiff } from '$lib/api/java';
+import { modpackCheckUpdate, modpackUpdateAtomic } from '$lib/api/java';
 import type { ModpackUpdateInfo, ModpackVersionDiff } from '$lib/api/types';
 import { listen } from '$lib/api/client';
 import { profiles } from './profiles.svelte';
@@ -51,10 +51,6 @@ async function check(profileId: string, force = false): Promise<void> {
             entry.info = info;
             entry.diff = null;
             entry.checkedAt = Date.now();
-            if (info?.hasUpdate && info.projectId && info.versionId) {
-                const diff = await modpackVersionDiff(profileId, info.versionId, info.source).catch(() => null);
-                if (entry.revision === revision) entry.diff = diff;
-            }
         } finally {
             if (entry.revision === revision) entry.checking = false;
             checks.delete(profileId);
@@ -83,7 +79,7 @@ async function apply(profileId: string, versionId: string, source: string, proje
             if (typeof event.payload.percent === 'number') operation.percent = Math.max(operation.percent, Math.min(99, Math.max(0, event.payload.percent)));
         });
         await modpackUpdateAtomic(profileId, versionId, source, projectId);
-        entry.info = { hasUpdate: false, currentVersion: version || versionId, latestVersion: version || versionId, versionId, source, projectId, changelog: null };
+        entry.info = { hasUpdate: false, currentVersion: version || versionId, currentVersionId: versionId, latestVersion: version || versionId, versionId, source, projectId, changelog: null };
         entry.diff = null;
         entry.checkedAt = Date.now();
         operation.complete = true;
@@ -113,7 +109,7 @@ export const modpackUpdates = {
     installed(profileId: string, source: string, projectId: string, versionId: string, version: string) {
         const entry = entryFor(profileId);
         entry.revision++;
-        entry.info = { hasUpdate: false, currentVersion: version, latestVersion: version, changelog: null, source, projectId, versionId };
+        entry.info = { hasUpdate: false, currentVersion: version, currentVersionId: versionId, latestVersion: version, changelog: null, source, projectId, versionId };
         entry.diff = null;
         entry.checking = false;
         entry.checkedAt = Date.now();
