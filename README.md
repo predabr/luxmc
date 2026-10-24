@@ -23,11 +23,23 @@ O catálogo integra Modrinth e CurseForge, com filtros à direita, imagens forne
 
 Vanilla, Fabric, Forge, NeoForge e Quilt têm fluxos próprios de preparação. Java, memória, resolução e argumentos podem ser definidos por instância. Logs, diagnósticos, backups e histórico ajudam a investigar problemas; não existe garantia de que qualquer combinação de mods funcione.
 
+## Revisão 4.0
+
+A versão pública permanece **4.0.0**. Cada compilação tem uma revisão própria; o atualizador identifica builds novos mesmo sem mudar o número principal. Use a atualização sobre a instalação existente para conservar suas contas, instâncias e mundos.
+
+O catálogo prepara ícones em segundo plano com concorrência limitada. Arquivos auxiliares e pastas de metadados não aparecem como mods; os shaders extraídos continuam acessíveis. A atualização de modpacks separa consulta, revisão das mudanças e aplicação com backup dos mundos. Duplicatas reconhecidas em pacotes são guardadas em `.luxmc/removed-duplicates`, com registro da versão mantida.
+
+Wallpapers importados são copiados para a biblioteca interna. GIFs no perfil e nas pastas exigem Plus ou Pro; wallpapers continuam gratuitos. Pro também inclui fundo com imagem ou GIF nos cartões de amigos e acabamento Prisma.
+
+As salas Java têm capacidade de 10 participantes, ou **20 incluindo o anfitrião com Pro confirmado**. Todos devem usar uma revisão atualizada do launcher e versões compatíveis do jogo e dos mods. A capacidade do túnel não garante desempenho para vinte jogadores em qualquer computador: o processamento do mundo continua no PC que o abriu. A descoberta LAN tem alternativa por endereço direto para redes que bloqueiam multicast. A validação entre dois PCs com o modpack do usuário continua necessária.
+
+O site adapta o idioma inicial ao navegador e permite escolher português, inglês ou espanhol. O login Microsoft usa PKCE e retorno vinculado ao navegador, com tentativas independentes por aba. A disponibilidade dos serviços Xbox e Minecraft também é necessária para concluir o acesso. No teste atual, o serviço Minecraft retorna HTTP 403 para a hospedagem Cloudflare; o login completo do site permanece pendente dessa liberação. O acesso ao plano pelo botão “Meu plano e pedidos” do launcher continua sendo uma alternativa autenticada.
+
 ## Amigos e aparência
 
 Perfis públicos podem incluir nome de exibição, status, descrição, imagens e GIFs. A assinatura visual tem prévias de paletas, molduras, efeitos e composição. Somente o dono pode gerenciar tags e acessar a central de manutenção. As informações compartilhadas com amigos dependem das permissões e da conexão com o portal. Skins de contas Microsoft são sincronizadas pelo serviço oficial; capas locais não se tornam capas oficiais da conta.
 
-As salas de Minecraft Java usam túneis QUIC criptografados com [iroh](https://docs.rs/iroh/1.2.0/iroh/), com conexão direta ou relay automático, sem instalar EasyTier ou drivers de VPN. O anfitrião abre seu mundo para LAN; o Luxmc anuncia os mundos recebidos nas interfaces locais, e os amigos escolhem o mundo na lista LAN do Minecraft. A sala mostra os perfis dos participantes, permite fechar novas entradas e renovar o convite de 24 horas. A conexão e a aba da sala são mantidas ao navegar. Usem a mesma versão do Minecraft e mods compatíveis. Uma partida vanilla 26.3 foi confirmada pelos participantes. A descoberta de porta em modpacks foi revisada na 3.8; o One Terror Block 1.20.1 ainda precisa de uma nova validação entre os dois PCs.
+As salas de Minecraft Java usam túneis QUIC criptografados com [iroh](https://docs.rs/iroh/1.2.0/iroh/), com conexão direta ou relay automático, sem instalar EasyTier ou drivers de VPN. O anfitrião abre seu mundo para LAN; o Luxmc anuncia os mundos recebidos nas interfaces locais, e os amigos escolhem o mundo na lista LAN do Minecraft. A sala mostra os perfis dos participantes, permite fechar novas entradas e renovar o convite de 24 horas. A conexão e a aba da sala são mantidas ao navegar. Usem a mesma versão do Minecraft e mods compatíveis. Uma partida vanilla 26.3 foi confirmada pelos participantes. A descoberta de porta em modpacks foi revisada na 3.8; os modpacks relatados ainda precisam de uma nova validação entre os dois PCs.
 
 O site oferece QR Pix com valor e referência por pedido. O dono confere o crédito no banco, o valor exato e a transação antes de liberar o plano. Comprovantes enviados não confirmam pagamentos. Após a aprovação, o recibo Luxmc fica disponível de forma privada; cartão e confirmação automática ainda dependem de um provedor aprovado.
 

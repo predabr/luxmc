@@ -1,8 +1,8 @@
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{collections::BTreeMap, net::{Ipv4Addr, SocketAddrV4}, sync::{Arc, atomic::{AtomicU16, Ordering}}, time::Duration};
-use tokio::{io::{AsyncBufReadExt, AsyncWriteExt, BufReader}, net::{TcpListener, TcpStream, UdpSocket}, sync::RwLock, task::{JoinHandle, JoinSet}};
+use std::{collections::BTreeMap, sync::{Arc, atomic::{AtomicU16, Ordering}}, time::Duration};
+use tokio::{io::{AsyncBufReadExt, AsyncWriteExt, BufReader}, net::{TcpListener, TcpStream}, sync::RwLock, task::{JoinHandle, JoinSet}};
 
 pub const CONTROL_PORT: u16 = 39945;
 pub const GAME_PORT: u16 = 39946;
@@ -78,34 +78,26 @@ async fn request(address: &str, key: &str) -> AppResult<Option<PublishedWorld>> 
     }).await.map_err(|_| AppError::InvalidState("O computador do amigo não respondeu. Confira se os dois estão na mesma rede do Luxmc".into()))?
 }
 
+#[cfg(test)]
 fn advertise(port: u16, name: &str) -> String {
     let name: String = name.chars().filter(|value| !value.is_control()).take(140).collect::<String>().replace(['[', ']'], " ");
     format!("[MOTD]§b[Luxmc] §f{name}[/MOTD][AD]{port}[/AD]")
 }
 
-fn broadcast_socket() -> AppResult<UdpSocket> {
-    let socket = socket2::Socket::new(socket2::Domain::IPV4, socket2::Type::DGRAM, Some(socket2::Protocol::UDP))?;
-    socket.bind(&SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0).into())?;
-    socket.set_multicast_if_v4(&Ipv4Addr::LOCALHOST)?;
-    socket.set_multicast_loop_v4(true)?;
-    socket.set_multicast_ttl_v4(1)?;
-    socket.set_nonblocking(true)?;
-    Ok(UdpSocket::from_std(socket.into())?)
-}
-
 fn proxy(listener: TcpListener, remote: String, remote_port: u16, title: String) -> JoinHandle<()> {
     tokio::spawn(async move {
         let port = listener.local_addr().map(|value| value.port()).unwrap_or(0);
-        let socket = broadcast_socket().ok();
+        let advertiser = super::lan_advertiser::Advertiser::new();
         let mut interval = tokio::time::interval(Duration::from_millis(1500));
         let mut streams = JoinSet::new();
         loop {
             tokio::select! {
-                _ = interval.tick() => { if let Some(socket) = &socket { let _ = socket.send_to(advertise(port, &title).as_bytes(), "224.0.2.60:4445").await; } }
+                _ = interval.tick() => { advertiser.announce(port, &title).await; }
                 Some(_) = streams.join_next(), if !streams.is_empty() => {},
                 accepted = listener.accept() => {
-                    let Ok((mut client, _)) = accepted else { break; };
-                    if streams.len() >= 16 { continue; }
+                    let Ok((mut client, source)) = accepted else { break; };
+                    if !super::lan_advertiser::local_client(source.ip()) { continue; }
+                    if streams.len() >= 64 { continue; }
                     let host = remote.clone();
                     streams.spawn(async move {
                         if let Ok(Ok(mut upstream)) = tokio::time::timeout(Duration::from_secs(5), TcpStream::connect((host.as_str(), remote_port))).await {
@@ -142,7 +134,7 @@ async fn serve(address: &str, key: String, world: Arc<RwLock<Option<PublishedWor
             Some(_) = clients.join_next(), if !clients.is_empty() => {},
             accepted = control.accept() => {
                 let Ok((socket, _)) = accepted else { break; };
-                if clients.len() >= 16 { continue; }
+                if clients.len() >= 64 { continue; }
                 let world = control_world.clone(); let key = key.clone();
                 clients.spawn(async move {
                     let _ = tokio::time::timeout(Duration::from_secs(3), async {
@@ -165,10 +157,10 @@ async fn serve(address: &str, key: String, world: Arc<RwLock<Option<PublishedWor
             Some(_) = clients.join_next(), if !clients.is_empty() => {},
             accepted = game.accept() => {
                 let Ok((mut socket, _)) = accepted else { break; };
-                if clients.len() >= 16 { continue; }
+                if clients.len() >= 64 { continue; }
                 let Some(target) = world.read().await.clone() else { continue; };
                 clients.spawn(async move {
-                    if let Ok(Ok(mut upstream)) = tokio::time::timeout(Duration::from_secs(3), TcpStream::connect(("127.0.0.1", target.port))).await {
+                    if let Ok(Ok(mut upstream)) = tokio::time::timeout(Duration::from_secs(3), super::lan_discovery::connect_local_game(target.port)).await {
                         let _ = socket.set_nodelay(true); let _ = upstream.set_nodelay(true);
                         let _ = tokio::io::copy_bidirectional(&mut socket, &mut upstream).await;
                     }
@@ -209,7 +201,7 @@ pub async fn run(port: u16, secret: String) {
         *local.write().await = published.clone(); STATE.write().await.local_world = published;
         let mut found = Vec::new();
         if let Some(peers) = node.get("peer_routes").and_then(|value| value.as_array()) {
-            for peer in peers.iter().take(16) {
+            for peer in peers.iter().take(20) {
                 let Some(ip) = peer.pointer("/route/ipv4_addr").and_then(|value| value.as_str()).and_then(super::virtual_lan::normalize_address) else { continue; };
                 if ip == address { continue; }
                 let owner = peer.pointer("/route/hostname").and_then(|value| value.as_str()).unwrap_or("Amigo").to_string();
@@ -218,9 +210,9 @@ pub async fn run(port: u16, secret: String) {
                         if let Ok(status) = minecraft(ip.clone(), GAME_PORT).await {
                             found.push(ip.clone());
                             if !routes.0.contains_key(&ip) {
-                                if let Ok(listener) = TcpListener::bind("127.0.0.1:0").await {
+                                if let Ok(listener) = TcpListener::bind("0.0.0.0:0").await {
                                     if let Ok(socket) = listener.local_addr() {
-                                        let row = LanWorld { id: ip.clone(), owner: owner.clone(), name: world.motd.clone(), local_address: socket.to_string(), version: status.version.clone(), latency_ms: status.latency_ms, available: true };
+                                        let row = LanWorld { id: ip.clone(), owner: owner.clone(), name: world.motd.clone(), local_address: format!("127.0.0.1:{}", socket.port()), version: status.version.clone(), latency_ms: status.latency_ms, available: true };
                                         let task = proxy(listener, ip.clone(), GAME_PORT, format!("{owner} · {}", world.motd));
                                         routes.0.insert(ip.clone(), (row, task, tokio::time::Instant::now()));
                                     }

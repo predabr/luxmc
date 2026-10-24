@@ -30,12 +30,12 @@ async function fixtures(page) {
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
     const evidence = { selectedCards: [], pointerSpotlight: false, keyboardTour: false, pause: false, persistedPause: false, reducedMotion: false, mobile: false, hiddenPause: false, plans: false };
     try {
-        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+        const page = await browser.newPage({locale:'pt-BR', viewport: { width: 1440, height: 1000 } });
         const errors = [];
         page.on('pageerror', error => errors.push(String(error)));
         await fixtures(page);
         if (process.env.LUXMC_SITE_BEFORE_CSS) {
-            const before = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+            const before = await browser.newPage({locale:'pt-BR', viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
             await fixtures(before);
             await before.route('**/revision.css*', route => route.fulfill({ contentType: 'text/css', body: fs.readFileSync(process.env.LUXMC_SITE_BEFORE_CSS) }));
             await before.goto(base);

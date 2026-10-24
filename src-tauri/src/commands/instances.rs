@@ -1859,6 +1859,19 @@ async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync
         pack_pinned.extend(manifest.files.into_iter().filter_map(|file|file.path.strip_prefix("mods/").filter(|name|is_valid_path_segment(name)).map(str::to_owned)));
         preferred.extend(pack_pinned.iter().cloned());
     }
+    let override_bytes = tokio::fs::read(root.join(".luxmc/overrides.json")).await.ok();
+    if let Some(bytes) = &override_bytes {
+        let overrides: Vec<MrpackFile> = serde_json::from_slice(bytes)?;
+        for file in overrides {
+            if let Some(name) = file.path.strip_prefix("mods/").filter(|name| is_valid_path_segment(name)) {
+                let path = root.join("mods").join(name);
+                if crate::core::mods::pack_download::verify_existing(&path, file.file_size, file.hashes.get("sha1").map(String::as_str), file.hashes.get("sha512").map(String::as_str), false).await {
+                    pack_pinned.insert(name.to_owned());
+                }
+            }
+        }
+        preferred.extend(pack_pinned.iter().cloned());
+    }
     let mr_active: std::collections::HashSet<_> = pack_pinned.iter().filter(|name|root.join("mods").join(name).is_file()).cloned().collect();
     let loader = profile.loader.clone();
     let repair_root = root.clone();
@@ -1869,6 +1882,16 @@ async fn repair_import_duplicates(profile: &ProfileRow, cancel: Option<std::sync
     })
         .await.map_err(|error| crate::error::AppError::Internal(error.to_string()))??;
     if repaired > 0 {
+        if let Some(bytes) = override_bytes {
+            let removed: std::collections::HashSet<_> = mr_active.iter().filter(|name| !root.join("mods").join(name).exists()).cloned().collect();
+            if !removed.is_empty() {
+                let backup = root.join(".luxmc/removed-duplicates").join(format!("overrides-{}.json", uuid::Uuid::new_v4()));
+                crate::core::mods::pack_download::atomic_write(&backup, &bytes).await?;
+                let mut files: Vec<MrpackFile> = serde_json::from_slice(&bytes)?;
+                files.retain(|file| !file.path.strip_prefix("mods/").is_some_and(|name| removed.contains(name)));
+                crate::core::mods::pack_download::atomic_write(&root.join(".luxmc/overrides.json"), &serde_json::to_vec(&files)?).await?;
+            }
+        }
         if let Some(bytes) = mr_bytes {
             let removed: std::collections::HashSet<_> = mr_active.into_iter().filter(|name|!root.join("mods").join(name).exists()).collect();
             if !removed.is_empty() {

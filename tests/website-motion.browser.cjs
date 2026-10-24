@@ -7,7 +7,7 @@ const fs = require('node:fs');
     fs.mkdirSync(output, { recursive: true });
     const browser = await chromium.launch({ headless: true, executablePath: process.env.LUXMC_CHROMIUM_EXECUTABLE });
     try {
-        const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+        const page = await browser.newPage({locale:'pt-BR', viewport: { width: 1440, height: 1000 } });
         const errors = [];
         page.on('pageerror', error => errors.push(String(error)));
         await page.goto(process.env.LUXMC_SITE_URL || 'http://127.0.0.1:8790/');

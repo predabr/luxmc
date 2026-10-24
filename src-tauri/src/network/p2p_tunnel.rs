@@ -4,7 +4,7 @@ use iroh::{endpoint::presets, Endpoint, EndpointAddr};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashSet},
-    sync::{Arc, LazyLock, atomic::{AtomicU16, Ordering}},
+    sync::{Arc, LazyLock, atomic::{AtomicU16, AtomicUsize, Ordering}},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tokio::{
@@ -22,6 +22,9 @@ pub fn room_appearance_path() -> Option<std::path::PathBuf> { appearance::path()
 
 const ALPN: &[u8] = b"luxmc/minecraft-tunnel/2";
 const ROOM_CAPACITY: usize = 10;
+const PRO_ROOM_CAPACITY: usize = 20;
+const ROOM_SNAPSHOT_LIMIT: usize = u16::MAX as usize;
+static ACTIVE_CAPACITY: AtomicUsize = AtomicUsize::new(ROOM_CAPACITY);
 static CLIENT_KEY: LazyLock<iroh::SecretKey> = LazyLock::new(iroh::SecretKey::generate);
 const PREFIX: &str = "luxmc-world:";
 #[cfg(test)]
@@ -35,7 +38,7 @@ pub fn private_lan_session_path() -> Option<std::path::PathBuf> {
 
 pub(super) async fn write_private_lan_session(port: u16) {
     let Some(path) = private_lan_session_path() else { return; };
-    let text = format!("expires={}\nport={port}\n", (now() + 4) * 1000);
+    let text = format!("expires={}\nport={port}\nmaxPlayers={}\n", (now() + 4) * 1000, ACTIVE_CAPACITY.load(Ordering::Acquire));
     if let Some(directory) = path.parent() { let _ = tokio::fs::create_dir_all(directory).await; }
     let temporary = path.with_extension("properties.tmp");
     if tokio::fs::write(&temporary, text).await.is_ok() { let _ = tokio::fs::rename(temporary, path).await; }
@@ -104,6 +107,7 @@ impl TunnelMember {
 
 #[derive(Default)]
 pub(super) struct RoomRegistry {
+    max_players: usize,
     members: BTreeMap<String, TunnelMember>,
     connections: BTreeMap<String, iroh::endpoint::Connection>,
     member_secrets: BTreeMap<String, [u8; 32]>,
@@ -118,13 +122,14 @@ pub(super) struct RoomRegistry {
     appearances: BTreeMap<String, appearance::Appearance>,
 }
 impl RoomRegistry {
+    fn capacity(&self) -> usize { if self.max_players == PRO_ROOM_CAPACITY { PRO_ROOM_CAPACITY } else { ROOM_CAPACITY } }
     fn snapshot(&self) -> RoomSnapshot {
-        RoomSnapshot { room_code: self.room_code.clone(), members: self.host.iter().cloned().chain(self.members.values().cloned()).collect(), max_players: ROOM_CAPACITY, room_locked: self.locked, world_ready: self.world_ready, worlds: self.worlds.values().cloned().collect() }
+        RoomSnapshot { room_code: self.room_code.clone(), members: self.host.iter().cloned().chain(self.members.values().cloned()).collect(), max_players: self.capacity(), room_locked: self.locked, world_ready: self.world_ready, worlds: self.worlds.values().cloned().collect() }
     }
     fn admission(&self, id: &str) -> Result<(), u8> {
         if self.removed.contains(id) { Err(4) }
         else if self.locked { Err(3) }
-        else if self.members.len() >= ROOM_CAPACITY - 1 || self.members.contains_key(id) { Err(2) }
+        else if self.members.len() >= self.capacity() - 1 || self.members.contains_key(id) { Err(2) }
         else { Ok(()) }
     }
     fn remove(&mut self, id: &str) { self.members.remove(id); self.connections.remove(id); self.member_secrets.remove(id); self.worlds.remove(id); self.appearances.remove(id); }
@@ -145,17 +150,17 @@ async fn read_room_snapshot(connection: &iroh::endpoint::Connection, secret: [u8
     let mut length = [0u8; 2];
     recv.read_exact(&mut length).await.map_err(failure)?;
     let length = u16::from_be_bytes(length) as usize;
-    if length == 0 || length > 32768 { return Err(failure("Resposta da sala inválida")); }
+    if length == 0 || length > ROOM_SNAPSHOT_LIMIT { return Err(failure("Resposta da sala inválida")); }
     let mut bytes = vec![0; length];
     recv.read_exact(&mut bytes).await.map_err(failure)?;
     let mut snapshot: RoomSnapshot = serde_json::from_slice(&bytes)?;
-    if snapshot.members.len() > ROOM_CAPACITY || snapshot.max_players != ROOM_CAPACITY || snapshot.room_code.len() > 32 { return Err(failure("Participantes da sala inválidos")); }
+    if snapshot.members.len() > snapshot.max_players || ![ROOM_CAPACITY, PRO_ROOM_CAPACITY].contains(&snapshot.max_players) || snapshot.room_code.len() > 32 { return Err(failure("Participantes da sala inválidos")); }
     for member in &mut snapshot.members {
         if member.id.len() > 128 || member.preparation.as_ref().is_some_and(|value| !value.valid()) { return Err(failure("Participante inválido")); }
         let identity = RoomIdentity { username: member.username.clone(), uuid: member.uuid.clone(), avatar_url: member.avatar_url.clone(), display_name: member.display_name.clone() }.validate()?;
         member.username = identity.username; member.avatar_url = identity.avatar_url; member.display_name = identity.display_name;
     }
-    if snapshot.worlds.len() > ROOM_CAPACITY || snapshot.worlds.iter().any(|world| !snapshot.members.iter().any(|member| member.id == world.owner_id) || world.motd.chars().count() > 160 || world.motd.chars().any(char::is_control) || world.compatibility.as_ref().is_some_and(|c| c.mc_version.len()>64 || c.loader.len()>32 || c.mod_fingerprint.len()!=64 || !c.mod_fingerprint.chars().all(|v|v.is_ascii_hexdigit()) || c.mod_count>10000)) { return Err(failure("Mundos da sala inválidos")); }
+    if snapshot.worlds.len() > snapshot.max_players || snapshot.worlds.iter().any(|world| !snapshot.members.iter().any(|member| member.id == world.owner_id) || world.motd.chars().count() > 160 || world.motd.chars().any(char::is_control) || world.compatibility.as_ref().is_some_and(|c| c.mc_version.len()>64 || c.loader.len()>32 || c.mod_fingerprint.len()!=64 || !c.mod_fingerprint.chars().all(|v|v.is_ascii_hexdigit()) || c.mod_count>10000)) { return Err(failure("Mundos da sala inválidos")); }
     for world in &mut snapshot.worlds { world.local_address = None; }
     Ok(snapshot)
 }
@@ -386,7 +391,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
                                 Some(_) = streams.join_next(), if !streams.is_empty() => {},
                                 stream = conn.accept_bi() => {
                                     let Ok((mut send, mut recv)) = stream else { break };
-                                    if streams.len() >= 16 { conn.close(1u8.into(), b"stream limit"); break; }
+                                    if streams.len() >= 64 { conn.close(1u8.into(), b"stream limit"); break; }
                                     let registry = registry.clone();
                                     let forwarding_port = forwarding_port.clone();
                                     let sender_id = id.clone();
@@ -401,7 +406,7 @@ async fn start_host_as(port: u16, endpoint: Endpoint, identity: RoomIdentity) ->
                                         if handshake[0] == 3 {
                                             let snapshot = registry.lock().await.snapshot();
                                             let Ok(bytes) = serde_json::to_vec(&snapshot) else { return };
-                                            if bytes.len() > 32768 { return; }
+                                            if bytes.len() > ROOM_SNAPSHOT_LIMIT { return; }
                                             if send.write_all(&(bytes.len() as u16).to_be_bytes()).await.is_err() { return; }
                                             let _ = send.write_all(&bytes).await;
                                             let _ = send.finish();
@@ -572,7 +577,7 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
                 accepted = listener.accept() => {
                     let Ok((tcp, peer)) = accepted else { break };
                     if !super::lan_advertiser::local_client(peer.ip()) { continue; }
-                    if streams.len() >= 16 { continue; }
+                    if streams.len() >= 64 { continue; }
                     let c = connection.clone();
                     streams.spawn(async move {
                         let open = async {
@@ -623,13 +628,20 @@ async fn start_client_as(invite: Invitation, endpoint: Endpoint, identity: RoomI
 }
 
 #[tauri::command]
-pub async fn host_world(port: Option<u16>, identity: Option<RoomIdentity>) -> AppResult<TunnelStatus> {
+pub async fn host_world(port: Option<u16>, identity: Option<RoomIdentity>, account_id: Option<String>) -> AppResult<TunnelStatus> {
     let mut state = SESSION.lock().await;
     if state.is_some() {
         return Err(failure("Encerre a sessão atual primeiro"));
     }
     coordination::reset().await;
+    let capacity = if let Some(account_id) = account_id {
+        let status = crate::commands::membership::membership_request(account_id, crate::commands::membership::MembershipRequest::Status).await.unwrap_or(serde_json::Value::Null);
+        if status.pointer("/membership/plan").and_then(|value| value.as_str()) == Some("pro") { PRO_ROOM_CAPACITY } else { ROOM_CAPACITY }
+    } else { ROOM_CAPACITY };
     let mut session = start_host_as(port.unwrap_or(0), endpoint().await?, identity.unwrap_or_default()).await?;
+    if let Some(room) = &session.room { room.lock().await.max_players = capacity; }
+    session.status.max_players = capacity;
+    ACTIVE_CAPACITY.store(capacity, Ordering::Release);
     let code = crate::core::share_codes::publish("room", session.status.invitation.as_deref().unwrap_or("")).await?;
     session.public_code = Some(code.clone());
     session.status.room_code = Some(code.clone());
@@ -731,7 +743,7 @@ pub async fn tunnel_status() -> AppResult<Option<TunnelStatus>> {
     Ok(state.as_ref().map(|session| {
         let mut s = session.status.clone();
         if let Some(code) = &session.public_code { s.invitation = Some(code.clone()); }
-        if let Some(room) = &client_state { s.members = room.members.clone(); s.room_code = (!room.room_code.is_empty()).then(|| room.room_code.clone()); s.max_players = room.max_players; s.room_locked = room.room_locked; s.world_ready = room.world_ready; }
+        if let Some(room) = &client_state { s.members = room.members.clone(); s.room_code = (!room.room_code.is_empty()).then(|| room.room_code.clone()); s.max_players = room.max_players; ACTIVE_CAPACITY.store(room.max_players, Ordering::Release); s.room_locked = room.room_locked; s.world_ready = room.world_ready; }
         if let Some((members, locked, ready, worlds)) = &room_state { s.members=members.clone(); s.room_locked = *locked; s.world_ready = *ready; s.worlds = worlds.clone(); }
         if let Some(room) = &client_state { s.worlds = room.worlds.clone(); }
         for world in &mut s.worlds { world.local_address = addresses.get(&world.owner_id).cloned().or_else(|| s.members.iter().any(|member| member.id == world.owner_id && member.is_host).then(|| s.local_address.clone()).flatten()); }
@@ -1047,6 +1059,21 @@ mod tests {
     }
 
     #[test]
+    fn pro_room_admits_nineteen_guests_and_counts_the_host() {
+        let mut room = RoomRegistry { max_players: PRO_ROOM_CAPACITY, ..RoomRegistry::default() };
+        for index in 0..19 {
+            let id = format!("guest-{index}");
+            assert!(room.admission(&id).is_ok());
+            room.members.insert(id.clone(), TunnelMember::new(id, RoomIdentity::default(), false));
+        }
+        assert_eq!(room.capacity(), 20);
+        assert_eq!(room.admission("twenty-first"), Err(2));
+        assert_eq!(room.snapshot().max_players, 20);
+        room.max_players = usize::MAX;
+        assert_eq!(room.capacity(), 10);
+    }
+
+    #[test]
     fn room_capacity_counts_host_and_rejects_duplicates_removed_and_locked_members() {
         let mut room = RoomRegistry::default();
         for index in 0..9 {
@@ -1136,7 +1163,7 @@ mod tests {
             let mut tasks = JoinSet::new();
             loop { let (mut stream,_) = listener.accept().await.unwrap(); tasks.spawn(async move { let (mut read,mut write) = stream.split(); let _ = tokio::io::copy(&mut read,&mut write).await; }); }
         });
-        let status = host_world(Some(port),None).await.unwrap();
+        let status = host_world(Some(port),None,None).await.unwrap();
         let code = status.invitation.as_ref().unwrap();
         assert!(crate::core::share_codes::is_short_code(code));
         let raw = crate::core::share_codes::resolve(code,"room").await.unwrap();

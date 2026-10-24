@@ -27,7 +27,7 @@ async function identity() {
     return {username:account.value?.username || 'Jogador',uuid:account.value?.uuid || '',avatarUrl,displayName:friendsState.ownProfile?.displayName || null};
 }
 export async function hostWorld(port?:number):Promise<TunnelStatus> {
-    return bounded(api.invoke("host_world",{port,identity:await identity()}),45000,uiText("ui.7a713a94a9154c7a"));
+    return bounded(api.invoke("host_world",{port,identity:await identity(),accountId:account.value?.id}),45000,uiText("ui.7a713a94a9154c7a"));
 }
 function bounded<T>(request: Promise<T>, milliseconds: number, message: string): Promise<T> {
     return new Promise((resolve, reject) => {

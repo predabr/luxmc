@@ -892,7 +892,7 @@ async fn dispatch_command(
             let result = crate::commands::skins::minecraft_uuid(username).await.map_err(|error| error.to_string())?;
             serde_json::to_value(result).map_err(|error| error.to_string())
         },
-        "host_world" => serde_json::to_value(crate::network::p2p_tunnel::host_world(args.get("port").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()), args.get("identity").cloned().map(serde_json::from_value).transpose().map_err(|e| e.to_string())?).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
+        "host_world" => serde_json::to_value(crate::network::p2p_tunnel::host_world(args.get("port").and_then(Value::as_u64).and_then(|p| u16::try_from(p).ok()), args.get("identity").cloned().map(serde_json::from_value).transpose().map_err(|e| e.to_string())?, args.get("accountId").and_then(Value::as_str).map(str::to_owned)).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
         "join_world" => serde_json::to_value(crate::network::p2p_tunnel::join_world(args.get("invitation").and_then(Value::as_str).ok_or("Convite ausente")?.to_owned(), args.get("identity").cloned().map(serde_json::from_value).transpose().map_err(|e| e.to_string())?).await.map_err(|e| e.to_string())?).map_err(|e| e.to_string()),
         "stop_session" => { crate::network::p2p_tunnel::stop_session().await.map_err(|e| e.to_string())?; Ok(serde_json::Value::Null) },
         "tunnel_kick_member" => { crate::network::p2p_tunnel::tunnel_kick_member(args.get("memberId").and_then(Value::as_str).unwrap_or_default().into()).await.map_err(|e| e.to_string())?; Ok(Value::Null) },

@@ -9,7 +9,7 @@ const fs = require('node:fs');
     if (output) fs.mkdirSync(output, { recursive: true });
     try {
         for (const width of [1440, 390]) {
-            const page = await browser.newPage({ viewport: { width, height: 1000 } });
+            const page = await browser.newPage({locale:'pt-BR', viewport: { width, height: 1000 } });
             const errors = [];
             page.on('pageerror', error => errors.push(error.message));
             await page.goto(`${base}/conta`);
@@ -27,7 +27,7 @@ const fs = require('node:fs');
             assert.deepEqual(errors, []);
             await page.close();
         }
-        const page = await browser.newPage();
+        const page = await browser.newPage({locale:'pt-BR'});
         await page.route('**/api/session', route => route.fulfill({ json: { user: { id: 'test-social', username: 'MicrosoftPlayer', displayName: '', avatarUrl: '/assets/avatar-steve.png', membership: { plan: 'free' }, canManageAccount: true }, csrfToken: 'test-csrf' } }));
         await page.route('**/api/account/me', route => route.fulfill({ json: { account: { id: 'test-ms-account', username: 'MicrosoftPlayer', socialId: 'test-social', provider: 'microsoft', preferences: {}, revision: 0 } } }));
         await page.route('**/api/social/**', route => route.fulfill({ json: { friends: [], requests: [], me: { username: 'MicrosoftPlayer' } } }));

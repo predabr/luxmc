@@ -33,3 +33,17 @@ O Search Console confirmou o envio do sitemap em 24/10/2026. O teste ao vivo da 
 ## Limites
 
 Os testes não demonstram tempo de abertura idêntico para todos os modpacks ou qualquer computador. Projetos sem imagem própria ou sem correspondência verificável continuam com indicação alternativa. O relato da janela vazia foi esclarecido como interação com o Gerenciador de Tarefas; não foi reproduzido como falha ao abrir o launcher pelo atalho.
+
+## Correções adicionais de instalação, sala e idiomas
+
+- Horror OneBlock: conferidos os seis JARs reais de Cuckoo Clock, Eyes In The Dark e Shy Guy. Todos declaram internamente a versão 1.0.0. A seleção agora inclui overrides com hash conferido e compara sufixos de versão somente dentro do mesmo mod, loader e prefixo de arquivo. Versões antigas ficam em backup; seus registros de override são retirados para o reparo não reinstalá-las.
+- O teste nativo executado em uma cópia isolada dos seis arquivos manteve as três versões novas. A pasta original do usuário não foi alterada pelo teste.
+- Salas Pro: capacidade nativa de 20 incluindo anfitrião, obtida por consulta autenticada do plano. Free e Plus conservam 10; indisponibilidade do serviço não bloqueia a sala básica. Os limites de streams e mensagens da sala foram ajustados. O agente adapta o limite integrado nas classes reconhecidas enquanto a sessão está ativa e conserva o limite normal fora dela.
+- O teste Java validou os limites 20/10 e a expiração em Java 17/25, além dos ganchos de descoberta no bytecode disponível de Minecraft/Forge. Não é um teste de carga com vinte PCs.
+- A sala mostra endereço direto copiável por mundo recebido. O anúncio da rede virtual também usa as interfaces locais e conserva a verificação de cliente local nos proxies.
+- Rust: 34 testes de rede aprovados, incluindo descoberta pela interface física, encaminhamento de mundo de convidado, retirada do mundo e preservação de conexão. Duas verificações externas continuaram ignoradas.
+- Site: 124 testes aprovados. Tentativas Microsoft independentes mantêm PKCE, vínculo HttpOnly, expiração e uso único. Conta e mensagens seguem PT/EN/ES, sem limpar credenciais digitadas ao trocar o idioma. A área de plano do launcher também foi traduzida.
+- Teste real no domínio público: o retorno da Microsoft passou pela validação de estado, mas a etapa Minecraft foi bloqueada pelo provedor (HTTP 403/Cloudflare). Login completo do site não foi considerado aprovado.
+- Cutscene: limite de desenho de 60 quadros por segundo, suspensão de frames quando oculta e indicador discreto das etapas. Sem alteração da marca.
+
+A partida do modpack entre os dois computadores do usuário e o acesso Microsoft completo no site continuam pendentes de validação/liberação externa. Esses limites não são apresentados como resultados concluídos.

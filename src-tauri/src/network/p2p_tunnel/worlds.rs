@@ -103,7 +103,7 @@ pub(super) fn reverse(connection: iroh::endpoint::Connection, target: Arc<Atomic
                 Some(_) = streams.join_next(), if !streams.is_empty() => {},
                 stream = connection.accept_bi() => {
                     let Ok((mut send, mut recv)) = stream else { break; };
-                    if streams.len() >= 16 { continue; }
+                    if streams.len() >= 64 { continue; }
                     let target = target.clone();
                     streams.spawn(async move {
                         let mut header = [0; 33];
@@ -159,7 +159,7 @@ pub(super) fn manage(self_id: String, host_room: Option<Arc<Mutex<RoomRegistry>>
                             accepted = listener.accept() => {
                                 let Ok((tcp, peer)) = accepted else { break; };
                                 if !super::super::lan_advertiser::local_client(peer.ip()) { continue; }
-                                if streams.len() >= 16 { continue; }
+                                if streams.len() >= 64 { continue; }
                                 let connection = connection.clone(); let id = id.clone();
                                 streams.spawn(async move {
                                     if let Ok(Ok((send, recv))) = tokio::time::timeout(Duration::from_secs(10), request(&connection, route_secret, via_host.then_some(id.as_str()))).await { let _ = bridge(tcp, send, recv).await; }

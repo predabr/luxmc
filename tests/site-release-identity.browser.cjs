@@ -12,7 +12,7 @@ const assert = require('node:assert/strict');
             ['v3.9.5-build.123455.1', 'v4.0.0', 'Luxmc 4.0.0'],
             ['v4.1.0', 'v4.1.0', 'Luxmc 4.1.0']
         ]) {
-            const page = await browser.newPage();
+            const page = await browser.newPage({locale:'pt-BR'});
             await page.route('**/api/latest-release*', route => route.fulfill({ json: { tag_name: tag, assets: [] } }));
             await page.goto(process.env.LUXMC_SITE_URL || 'http://127.0.0.1:8790/');
             await page.waitForFunction(expected => window.LuxLatestVersion === expected && [...document.querySelectorAll('.live-version-tag')].every(node => node.title !== ''), display);

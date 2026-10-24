@@ -1,6 +1,7 @@
 (() => {
     const translations: Record<string,Record<string,string>> = {
         pt: {
+            "nav.home": "← Início",
             "plans.duration": "/ 30 dias",
             "plans.forever": "/ para sempre",
             "plans.priceFree": "Grátis",
@@ -247,6 +248,7 @@
             "social.inviteNote": "Conexão direta ou relay. Túnel criptografado.",
         },
         en: {
+            "nav.home": "← Home",
             "plans.duration": "/ 30 days",
             "plans.forever": "/ forever",
             "plans.priceFree": "Free",
@@ -489,6 +491,7 @@
             "social.inviteNote": "Direct connection or relay. Encrypted tunnel.",
         },
         es: {
+            "nav.home": "← Inicio",
             "plans.duration": "/ 30 días",
             "plans.forever": "/ para siempre",
             "plans.priceFree": "Gratis",

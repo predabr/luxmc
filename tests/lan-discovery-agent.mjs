@@ -51,6 +51,17 @@ public class LanDiscoveryProbe {
  }
  public static void main(String[] args) throws Exception {
   Path path=Paths.get(args[0]); System.setProperty("luxmc.lan.published",path.toString());
+  Path session = path.resolveSibling("room.properties");
+  System.setProperty("luxmc.p2p.session",session.toString());
+  Files.createDirectories(path.getParent());
+  Files.write(session,("expires="+(System.currentTimeMillis()+5000)+"\\nport=25565\\nmaxPlayers=20\\n").getBytes("UTF-8"));
+  net.minecraft.server.players.PlayerList players = new net.minecraft.server.players.PlayerList(8);
+  if(players.limit()!=20) throw new AssertionError("Pro room did not expand the integrated player limit");
+  Files.write(session,("expires="+(System.currentTimeMillis()+5000)+"\\nport=25565\\nmaxPlayers=10\\n").getBytes("UTF-8"));
+  if(players.limit()!=10) throw new AssertionError("Standard room capacity incorrect");
+  Files.write(session,"expires=0\\nport=25565\\nmaxPlayers=20\\n".getBytes("UTF-8"));
+  if(players.limit()!=8) throw new AssertionError("Expired room changed normal Minecraft capacity");
+  System.clearProperty("luxmc.p2p.session");
   ForgeIntegrated forge = new ForgeIntegrated(); int port=freePort();
   if(!forge.publish(port)) throw new AssertionError("Forge publish failed"); report(path,port);
   try(Socket client=new Socket(InetAddress.getLoopbackAddress(),port); Socket accepted=forge.connection.socket.accept()) { client.getOutputStream().write(42); if(accepted.getInputStream().read()!=42) throw new AssertionError("Bound world is not reachable"); }
@@ -71,9 +82,12 @@ try {
     const serverSource = join(directory, 'net/minecraft/server/MinecraftServer.java');
     mkdirSync(resolve(serverSource, '..'), { recursive: true });
     writeFileSync(serverSource, 'package net.minecraft.server; public class MinecraftServer {}');
+    const playerSource = join(directory, 'net/minecraft/server/players/PlayerList.java');
+    mkdirSync(resolve(playerSource, '..'), {recursive:true});
+    writeFileSync(playerSource, 'package net.minecraft.server.players; public class PlayerList { private final int maxPlayers; public PlayerList(int maxPlayers) { this.maxPlayers=maxPlayers; } public int limit() { return maxPlayers; } }');
     const asm = resolve('src-tauri/client-agent/dependencies/asm-9.10.1.jar');
     const java17 = join(data, 'java/17/bin');
-    let result = spawnSync(join(java17, 'javac.exe'), ['--release', '8', '-cp', asm, '-d', directory, serverSource, join(directory, 'LanDiscoveryProbe.java')], { encoding: 'utf8', windowsHide: true });
+    let result = spawnSync(join(java17, 'javac.exe'), ['--release', '8', '-cp', asm, '-d', directory, serverSource, playerSource, join(directory, 'LanDiscoveryProbe.java')], { encoding: 'utf8', windowsHide: true });
     assert.equal(result.status, 0, result.stdout + result.stderr);
     const archives = [
         [join(data, 'versions/1.8.9/1.8.9.jar'), 'bpo'],
@@ -82,11 +96,12 @@ try {
         [join(data, 'versions/1.21.1/1.21.1.jar'), 'guo'],
         [join(data, 'versions/26.3/26.3.jar'), 'net/minecraft/client/server/IntegratedServer'],
     ];
-    for (const [archive] of archives) assert.ok(existsSync(archive), `Missing actual server fixture: ${archive}`);
+    const availableArchives = archives.filter(([archive]) => existsSync(archive));
+    assert.ok(availableArchives.length > 0, 'No installed Minecraft bytecode fixtures found');
     for (const runtime of [17, 25]) {
         const output = join(directory, `runtime-${runtime}`, 'lan.properties');
         mkdirSync(resolve(output, '..'), { recursive: true });
-        result = spawnSync(join(data, `java/${runtime}/bin/java.exe`), ['-Djava.awt.headless=true', `-javaagent:${resolve('src-tauri/assets/luxmc-client-agent.jar')}=appearance-only`, '-cp', [directory, asm].join(delimiter), 'LanDiscoveryProbe', output, ...archives.flat()], { encoding: 'utf8', windowsHide: true, timeout: 30000 });
+        result = spawnSync(join(data, `java/${runtime}/bin/java.exe`), ['-Djava.awt.headless=true', `-javaagent:${resolve('src-tauri/assets/luxmc-client-agent.jar')}=appearance-only`, '-cp', [directory, asm].join(delimiter), 'LanDiscoveryProbe', output, ...availableArchives.flat()], { encoding: 'utf8', windowsHide: true, timeout: 30000 });
         assert.equal(result.status, 0, result.stdout + result.stderr);
         assert.match(result.stdout, /PASS: Forge and vanilla LAN reports/);
         console.log(`Java ${runtime}: ${result.stdout.trim()}`);

@@ -1,4 +1,9 @@
 const accountTranslations = {
+  "© 2026 LuxMC · Minecraft, do seu jeito.": ["© 2026 LuxMC · Minecraft, your way.", "© 2026 LuxMC · Minecraft, a tu manera."],
+  "Acesso à conta": ["Account access", "Acceso a la cuenta"],
+  "Links legais": ["Legal links", "Enlaces legales"],
+  "Ir para o conteúdo": ["Skip to content", "Ir al contenido"],
+  "Conta LuxMC — Entrar, criar conta ou recuperar acesso": ["LuxMC Account — Sign in, create an account or recover access", "Cuenta LuxMC — Entrar, crear una cuenta o recuperar acceso"],
   "Entrar na sua conta.": [
     "Sign in to your account.",
     "Entra en tu cuenta."
@@ -409,6 +414,15 @@ function translateAccountPage() {
   for (const [source, values] of Object.entries(accountTranslations)) {
     originals.set(source, source);
     for (const value of values) originals.set(value, source);
+  }
+  const title = originals.get(document.title);
+  if (title) document.title = accountText(title);
+  for (const element of document.querySelectorAll("[aria-label],[placeholder],[title]")) {
+    for (const attribute of ["aria-label", "placeholder", "title"]) {
+      const current2 = element.getAttribute(attribute);
+      const source = current2 && originals.get(current2);
+      if (source) element.setAttribute(attribute, accountText(source));
+    }
   }
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {

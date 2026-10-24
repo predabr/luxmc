@@ -160,6 +160,13 @@ pub(crate) fn select_pack_duplicate_versions(root: &Path, pinned: &HashSet<Strin
     select_pack_duplicate_versions_for_loader(root,pinned,preferred,"");
 }
 
+fn pack_filename_version(name: &str) -> Option<(String, semver::Version)> {
+    let (prefix, version) = name.strip_suffix(".jar")?.rsplit_once('-')?;
+    if !version.contains('.') || !version.split('.').all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())) { return None; }
+    let version = match version.split('.').count() { 2 => format!("{version}.0"), 3 => version.to_owned(), _ => return None };
+    Some((prefix.to_owned(), semver::Version::parse(&version).ok()?))
+}
+
 pub(crate) fn select_pack_duplicate_versions_for_loader(root: &Path, pinned: &HashSet<String>, preferred: &mut HashSet<String>, loader: &str) {
     let metadata: Vec<_> = pinned.iter().filter_map(|name|mod_metadata(&root.join("mods").join(name)).map(|metadata|(name,metadata))).collect();
     let compatible = |loaders: &std::collections::BTreeSet<String>| loaders.contains(loader) || loader == "quilt" && loaders.contains("fabric");
@@ -185,6 +192,16 @@ pub(crate) fn select_pack_duplicate_versions_for_loader(root: &Path, pinned: &Ha
         files.sort_by(|a, b| b.0.cmp(&a.0));
         if files.len() > 1 && files[0].0 != files[1].0 {
             for (_, name) in &files[1..] { preferred.remove(*name); }
+        } else if files.len() > 1 && files.iter().all(|file| file.0 == files[0].0) {
+            let releases: Option<Vec<_>> = files.iter().map(|(_, name)| pack_filename_version(name).map(|(prefix, version)| (prefix, version, *name))).collect();
+            if let Some(mut releases) = releases {
+                if releases.iter().all(|item| item.0 == releases[0].0) {
+                    releases.sort_by(|a, b| b.1.cmp(&a.1));
+                    if releases[0].1 != releases[1].1 {
+                        for (_, _, name) in &releases[1..] { preferred.remove(*name); }
+                    }
+                }
+            }
         }
     }
 }
@@ -665,6 +682,45 @@ mod tests {
         }
         assert!(super::audit(root,false).unwrap().errors.is_empty());
     }
+    #[test]
+    fn pack_repair_uses_release_suffix_only_for_matching_source_files_and_ids() {
+        use std::io::Write;
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("mods")).unwrap();
+        for name in ["Example-forge-1.19.2-1.0.jar", "Example-forge-1.19.2-1.6.jar"] {
+            let mut archive = zip::ZipWriter::new(std::fs::File::create(root.path().join("mods").join(name)).unwrap());
+            archive.start_file("META-INF/mods.toml", zip::write::FileOptions::default()).unwrap();
+            archive.write_all(b"[[mods]]\nmodId='example'\nversion='1.0.0'\n").unwrap();
+            archive.finish().unwrap();
+        }
+        let pinned = ["Example-forge-1.19.2-1.0.jar".to_owned(), "Example-forge-1.19.2-1.6.jar".to_owned()].into_iter().collect();
+        let mut preferred = std::collections::HashSet::new();
+        super::select_pack_duplicate_versions_for_loader(root.path(), &pinned, &mut preferred, "forge");
+        assert!(preferred.is_empty());
+        preferred = pinned.clone();
+        super::select_pack_duplicate_versions_for_loader(root.path(), &pinned, &mut preferred, "forge");
+        assert_eq!(super::repair_duplicates(root.path(), &preferred).unwrap(), 1);
+        assert!(root.path().join("mods/Example-forge-1.19.2-1.6.jar").is_file());
+        assert!(super::audit(root.path(), false).unwrap().errors.is_empty());
+    }
+
+    #[test]
+    #[ignore = "Reads explicitly selected installed pack archives into an isolated copy"]
+    fn real_horror_override_duplicates_are_backed_up_without_reappearing() {
+        let source = std::path::PathBuf::from(std::env::var_os("LUXMC_HORROR_MODS").expect("Select the pack mods directory"));
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("mods")).unwrap();
+        let names = ["CuckooClock-forge-1.19.2-1.8.jar", "CuckooClock-forge-1.19.2-2.3.jar", "EyesInTheDark-forge-1.19.2-1.0.jar", "EyesInTheDark-forge-1.19.2-1.6.jar", "ShyGuy-forge-1.19.2-2.1.jar", "ShyGuy-forge-1.19.2-3.5.jar"];
+        for name in names { std::fs::copy(source.join(name), root.path().join("mods").join(name)).unwrap(); }
+        let pinned: std::collections::HashSet<String> = names.into_iter().map(str::to_owned).collect();
+        let mut preferred = pinned.clone();
+        super::select_pack_duplicate_versions_for_loader(root.path(), &pinned, &mut preferred, "forge");
+        assert_eq!(preferred.len(), 3);
+        assert_eq!(super::repair_duplicates(root.path(), &preferred).unwrap(), 3);
+        for name in [names[1], names[3], names[5]] { assert!(root.path().join("mods").join(name).is_file()); }
+        assert_eq!(std::fs::read_dir(root.path().join("mods")).unwrap().count(), 3);
+    }
+
     #[test]
     fn damaged_archive_is_reported_without_deleting_it() {
         let root=std::env::temp_dir().join(format!("luxmc-audit-{}",uuid::Uuid::new_v4()));
