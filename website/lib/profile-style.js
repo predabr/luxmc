@@ -51,7 +51,16 @@ function retainedProfileStyle(value, stored, plan) {
   };
 }
 function isProfileGif(value) {
-  return typeof value === "string" && value.startsWith("data:image/gif;base64,");
+  if (typeof value !== "string") return false;
+  if (value.startsWith("data:image/gif;base64,")) return true;
+  const prefix = "data:image/webp;base64,";
+  if (!value.startsWith(prefix)) return false;
+  try {
+    const header = atob(value.slice(prefix.length, prefix.length + 40));
+    return header.startsWith("RIFF") && header.slice(8, 12) === "WEBP" && header.slice(12, 16) === "VP8X" && (header.charCodeAt(20) & 2) !== 0;
+  } catch {
+    return false;
+  }
 }
 function activeProfileImage(value, plan) {
   return plan === "free" && isProfileGif(value) ? "" : value;

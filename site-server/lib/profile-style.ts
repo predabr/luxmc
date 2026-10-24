@@ -60,6 +60,15 @@ export function retainedProfileStyle(value: ProfileStyle, stored: unknown, plan:
     };
 }
 
-export function isProfileGif(value: unknown): value is string { return typeof value === 'string' && value.startsWith('data:image/gif;base64,'); }
+export function isProfileGif(value: unknown): value is string {
+    if (typeof value !== 'string') return false;
+    if (value.startsWith('data:image/gif;base64,')) return true;
+    const prefix = 'data:image/webp;base64,';
+    if (!value.startsWith(prefix)) return false;
+    try {
+        const header = atob(value.slice(prefix.length, prefix.length + 40));
+        return header.startsWith('RIFF') && header.slice(8,12) === 'WEBP' && header.slice(12,16) === 'VP8X' && (header.charCodeAt(20) & 2) !== 0;
+    } catch { return false; }
+}
 export function activeProfileImage(value: string, plan: ProfilePlan): string { return plan === 'free' && isProfileGif(value) ? '' : value; }
 export function retainedProfileImage(value: string, stored: string, plan: ProfilePlan): string { return plan === 'free' && !value && isProfileGif(stored) ? stored : value; }

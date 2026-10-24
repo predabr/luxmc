@@ -11,13 +11,14 @@
 - Entradas de conteúdo carregado depois da navegação também animam. A quantidade de animações é limitada; os efeitos terminam e são cancelados ao ocultar/desmontar a tela.
 - Pro ganha fundo nos cartões de amigos usando a capa do perfil e acabamento Prisma no avatar. GIFs decorativos deixam de ser montados fora da área visível, em segundo plano, durante o jogo e em modo econômico. Imagens estáticas continuam visíveis.
 - O servidor valida os benefícios por plano. Preferências premium sobrevivem ao vencimento e a salvamentos de clientes anteriores. Os novos detalhes usam campos opcionais, preservando os valores de moldura aceitos pelos launchers anteriores.
+- A regra de imagens animadas cobre também GIFs otimizados como WebP: o Free não pode ativá-los, o vencimento oculta a animação e a renovação a recupera. Esta correção de servidor atende também os instaladores anteriores.
 - O download do instalador pelo site tem limite para obter a resposta hospedada e fallback para o arquivo publicado no GitHub.
 
 ## Verificação
 
 - `pnpm check`: zero erros e avisos.
 - `pnpm test:run`: 224 testes aprovados. Os testes alterados de atualização e preparação de imagens também foram executados separadamente.
-- `pnpm test:website`: 121 testes aprovados, incluindo limite do download, bloqueio Pro e preservação das escolhas em clientes anteriores.
+- `pnpm test:website`: 122 testes aprovados, incluindo limite do download, bloqueio Pro, WebP animado e preservação das escolhas em clientes anteriores.
 - `cargo check`: aprovado; avisos de código não utilizado já existentes.
 - Rust: quatro testes de miniaturas, três testes de wallpaper com arquivos reais e sete testes de atualização aprovados. Cobrem remoção do original, limpeza de cache, backup/preservação de mundos, mods desativados e seleção de versões. Uma verificação adicional foi executada diretamente nas nove pastas de shaders da instância, sem alterar seus arquivos.
 - `pnpm build`: compilação de produção aprovada.

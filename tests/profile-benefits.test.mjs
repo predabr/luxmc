@@ -5,13 +5,33 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { onRequest as social } from '../website/functions/api/social/[action].js';
 import { onRequest as commerce } from '../website/functions/api/commerce/[action].js';
-import { defaultProfileStyle, parseProfileStyle, profileBenefits } from '../website/lib/profile-style.js';
+import { defaultProfileStyle, parseProfileStyle, profileBenefits, isProfileGif } from '../website/lib/profile-style.js';
 
 const alice = '22222222-2222-4222-8222-222222222222';
 const bob = '33333333-3333-4333-8333-333333333333';
 const tokens = { [alice]: 'b'.repeat(64), [bob]: 'c'.repeat(64) };
 const proStyle = { accent:'lilac', frame:'orbit', effect:'shimmer', layout:'centered' };
 const empty = { description:'', banner:'', portrait:'', packs:[], collections:[] };
+
+test('optimized animated WebP follows the same plan and expiry rules as GIF', async t => {
+    const f = fixture(t);
+    const header = Buffer.alloc(30);
+    header.write('RIFF'); header.writeUInt32LE(22,4); header.write('WEBPVP8X',8); header.writeUInt32LE(10,16);
+    const staticImage = 'data:image/webp;base64,'+header.toString('base64');
+    header[20] = 2;
+    const animated = 'data:image/webp;base64,'+header.toString('base64');
+    assert.equal(isProfileGif(staticImage),false); assert.equal(isProfileGif(animated),true);
+    assert.equal((await f.call('social','profile_save',alice,{...empty,portrait:animated,banner:animated})).status,403);
+    f.plan(alice,'plus');
+    assert.equal((await f.call('social','profile_save',alice,{...empty,portrait:animated,banner:animated})).status,200);
+    f.plan(alice,'plus',1);
+    let profile = (await f.call('social','profile_get',alice,{})).body.profile;
+    assert.equal(profile.portrait,''); assert.equal(profile.banner,'');
+    assert.equal((await f.call('social','profile_save',alice,{...empty,description:'Preserve my images'})).status,200);
+    f.plan(alice,'plus');
+    profile = (await f.call('social','profile_get',alice,{})).body.profile;
+    assert.equal(profile.portrait,animated); assert.equal(profile.banner,animated);
+});
 
 test('friend card covers and Prism require Pro and survive downgrade without remaining active', async t => {
     const f = fixture(t);
